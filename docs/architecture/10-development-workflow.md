@@ -47,38 +47,55 @@ Plan  →  UX  →  Implementation  →  Validation  →  Commit  →  Stop
 
 ---
 
-## 4. Git Policy
+## 4. Versioning & Git Policy
 
-- **One commit per milestone.** A milestone closes as a single commit.
-- **Commit message format** — `feat(<scope>): <Milestone Name>`:
+**Every milestone is a product version.** New milestones continue the same scheme.
+
+| Version | Milestone |
+|---|---|
+| **v1.0** | Architecture |
+| **v1.1** | Scaffold |
+| **v1.2** | Design System |
+| **v1.3** | Development Workflow |
+| **v1.4** | Platform Foundation |
+| **v1.5** | Authentication & Authorization |
+| **v1.6** | Member Management |
+| **v1.7** | Reservation Engine |
+| **v1.8** | QR Check-in |
+| **v1.9** | Credit Engine |
+| **v2.0** | First Production MVP |
+
+- **One commit per milestone.** A milestone closes as a single commit, Conventional Commit format — `feat(<scope>): …` for feature milestones, `docs(<scope>): …` for docs-only ones. For example:
 
   ```
-  feat(architecture): Architecture v1
   feat(scaffold): Phase 1 workspace
   feat(design): Design System v1
-  feat(foundation): Platform Foundation
-  feat(auth): Authentication
-  feat(dashboard): Owner Dashboard
-  feat(members): Member Management
-  feat(products): Product Catalog
-  feat(reservations): Reservation Engine
-  feat(checkin): QR Check-in
+  docs(workflow): establish development workflow v1
+  feat(foundation): platform foundation
+  feat(auth): authentication & authorization
+  feat(members): member management
+  feat(reservations): reservation engine
+  feat(checkin): QR check-in
+  feat(credits): credit engine
   ```
 
-- **A tag is created when a milestone completes**, format `vX.Y-<name>`:
+- **A tag is created when a milestone completes**, format `vX.Y-<slug>`:
 
   ```
   v1.0-architecture
   v1.1-scaffold
   v1.2-design-system
-  v1.3-foundation
-  v1.4-auth
-  v1.5-dashboard
+  v1.3-development-workflow
+  v1.4-platform-foundation
+  v1.5-auth
   v1.6-members
-  …
+  v1.7-reservations
+  v1.8-checkin
+  v1.9-credits
+  v2.0-mvp
   ```
 
-- **Push happens only with the owner's approval.** Commit and tag locally; do not push unprompted.
+- **Commit, tag, and push each require the owner's approval.** Nothing is committed, tagged, or pushed automatically — the owner is asked at each of the three gates.
 
 ---
 
