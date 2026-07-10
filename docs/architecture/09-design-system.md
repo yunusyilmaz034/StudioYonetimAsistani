@@ -12,9 +12,11 @@ This document defines the **visual and interaction language** of the product. It
 
 It is a **foundations** document, not a component encyclopedia. Phase 1 builds tokens, typography, and a small set of primitives — nothing business-specific. The reception screens, the owner dashboard, the roster: those are built later (Doc 5 §11, Doc 8 Days 5–6), on top of what is defined here.
 
-The one rule that outranks everything else in this document:
+Two rules outrank everything else in this document:
 
-> **Function before decoration.** This is an operational tool that runs a studio's day. A screen that is beautiful and slow has failed. A screen that is plain and fast has not.
+> **1. Function before decoration.** This is an operational tool that runs a studio's day. A screen that is beautiful and slow has failed. A screen that is plain and fast has not.
+>
+> **2. Mobile first, always.** Every screen is designed at 375px first, then widened to tablet and desktop — never the reverse (§9). Owner, admin, and reception all run this product from a phone; a screen that only works on a laptop is a screen that is broken for most of the people using it.
 
 ---
 
@@ -34,6 +36,8 @@ The design language draws from four references, each for one specific quality �
 | Linear | operational clarity — dense, fast, keyboard-legible | — |
 
 **This is not a women-only pilates app.** It is a multi-tenant SaaS sold to gyms, studios, and boutique fitness businesses of every kind. The visual identity is therefore **gender-neutral and scalable**. Nothing in the system may assume the first customer's category, palette, or clientele (CLAUDE.md).
+
+**Nor is it a desktop app with a phone view bolted on.** Owner, admin, and reception all use it heavily from a phone — the owner checking the day between errands, reception working the desk from a tablet, an admin approving something on the move. Every workflow in Phase 1 must be **fully usable at 375px** (§9). This is not a member-portal nicety; it is how the paying staff run their business.
 
 ---
 
@@ -130,46 +134,76 @@ These are binding on every screen built on this system.
 
 ## 8. Standard Page Patterns
 
-Six templates. Every screen is an instance of one of these; a screen that fits none is a design question to raise, not to improvise.
+Six templates. Every screen is an instance of one of these; a screen that fits none is a design question to raise, not to improvise. **Each template is defined mobile-first — the mobile behaviour is the spec, the desktop layout is the widening** (§9).
 
-1. **List page**
-2. **Detail page**
-3. **Form page**
-4. **Operational dashboard**
-5. **Calendar / schedule**
-6. **Kiosk / check-in screen**
+| # | Template | Mobile (375px) — the baseline | Desktop — the widening |
+|---|---|---|---|
+| 1 | **List page** | Card/list rows (never a wide table); filters behind a **Filter** button that opens a Sheet | Table with columns; filters inline above it |
+| 2 | **Detail page** | Full-screen Sheet **or** a separate route — never a cramped side panel | Side drawer (Sheet) over the list |
+| 3 | **Form page** | **Single column**; primary submit in a sticky bottom action bar | One or two columns; submit inline |
+| 4 | **Operational dashboard** | Stacked cards, one per row, most-urgent first | Grid of cards |
+| 5 | **Calendar / schedule** | **Agenda / list view by default** (a month grid is unusable at 375px) | Month/week grid, agenda still available |
+| 6 | **Kiosk / check-in** | Touch-first, large controls, one action per screen | Same — kiosk is touch at every size |
 
 ### List page anatomy (the most common)
 
-Every list page follows the same top-to-bottom structure, so reception never relearns a screen:
+Every list page follows the same top-to-bottom structure, so staff never relearn a screen. Read the two columns as **one design at two widths**, not two designs:
 
 ```
-┌─────────────────────────────────────────────┐
-│  Page title                 [Primary action] │   ← PageHeader
-├─────────────────────────────────────────────┤
-│  Filters / search                            │
-├─────────────────────────────────────────────┤
-│  Content / table                             │
-└─────────────────────────────────────────────┘
-        └── row click ──▶  Detail drawer (Sheet)
+  MOBILE (≤ md)                          DESKTOP (≥ md)
+┌───────────────────────────┐          ┌─────────────────────────────────────────────┐
+│ Title        [Primary]    │          │  Page title                 [Primary action] │  ← PageHeader
+│ [🔍 search] [Filter ▾]    │          ├─────────────────────────────────────────────┤
+├───────────────────────────┤          │  Filters / search  (inline)                  │
+│ ┌───────────────────────┐ │          ├─────────────────────────────────────────────┤
+│ │ Card row              │ │          │  Table                                       │
+│ │ Card row              │ │          └─────────────────────────────────────────────┘
+│ └───────────────────────┘ │                  └── row click ──▶  Detail drawer (Sheet)
+│  Filter ▾ opens a Sheet   │
+│  row tap ▶ full-screen    │
+└───────────────────────────┘
 ```
 
-Page title + primary action → filters/search → content/table → detail drawer. Nothing else competes for the top of the screen.
+Page title + primary action → search/filter → content → detail. On mobile the **table becomes cards** and the **filters move into a Sheet**; on desktop the table and inline filters return. Same information, same order, no horizontal scroll (§9).
 
 ---
 
-## 9. Responsive Priorities
+## 9. Responsive — Mobile First (mandatory)
 
-Built per role, because the roles work on different devices:
+> **Responsive is not a feature added later. It is where every screen starts.** You design at 375px, make it complete there, then widen. A screen built desktop-first and "made responsive" afterwards is rebuilt, not adjusted — and it always shows.
 
-| Surface | Priority | Why |
+This applies to **all of Phase 1**, not just the member portal. Owner, admin, and reception run the product from phones; the earlier "reception is desktop-first" note is **superseded** by this section.
+
+### The mandate
+
+**Every primary workflow must be fully usable at 375px.** If a task cannot be completed on a 375px screen without frustration, the screen is not done.
+
+### The rules
+
+| Rule | What it means |
+|---|---|
+| **No horizontal scroll** in a primary workflow | Ever. A workflow that scrolls sideways at 375px is a defect (§11). Wide content scrolls *inside its own container*, the page never does. |
+| **Tables → cards on mobile** | A desktop data table becomes a **card/list** view below `md`. Reception reads rows as cards on a phone, columns on a desktop. |
+| **Filters → Sheet on mobile** | Below `md`, filters live behind a **Filter** button that opens a Sheet/Drawer. They do not consume vertical space above the content. |
+| **Detail → full-screen Sheet or route on mobile** | A detail/edit view is a full-screen Sheet or its own page on mobile — never a cramped side panel. On desktop it is a side drawer. |
+| **Calendar → agenda by default on mobile** | A month grid is unusable at 375px. Mobile defaults to an **agenda/list** view; the grid is a desktop affordance. |
+| **Forms → single column on mobile** | One field per row. Multi-column form layouts are a desktop-only widening. |
+| **Sticky bottom action bar** for critical actions | On mobile, the primary submit/confirm may pin to the bottom of the viewport, inside the thumb zone, so it is always reachable. |
+| **Sidebar → Drawer / Bottom Nav on mobile** | A desktop sidebar collapses into a Drawer, or the top-level destinations become a bottom navigation bar. Never a fixed sidebar eating a phone's width. |
+| **FAB only for a true primary action** | A floating action button is allowed **only** when it is genuinely the screen's one primary action. It is not decoration and not a catch-all. |
+| **Touch target ≥ 44×44px** | Any control a finger touches is at least 44×44px on touch. Compact desktop densities (e.g. a 32px button) are a pointer affordance; a control used as a mobile tap target is sized up (full-width and/or ≥44px tall) or has its hit area extended to 44px. |
+| **Thumb zone** | The most frequent actions sit within comfortable thumb reach — the bottom two-thirds of the screen — not stranded in a top corner. |
+
+### The breakpoints — every screen is verified at all four
+
+| Width | Represents | Must show |
 |---|---|---|
-| **Reception** | Desktop & tablet first | the front desk runs on a tablet or a desktop all day |
-| **Owner dashboard** | **Mobile-friendly from day one** | the owner checks it on her phone between other things |
-| **Trainer views** (Phase 2) | Mobile-first | a phone at the studio door |
-| **Kiosk / check-in** | Touch-first, large controls | a member taps it unattended |
+| **375px** | small phone (the baseline) | the complete mobile layout: cards, sheet-filters, single-column forms, no horizontal scroll |
+| **430px** | large phone | the same mobile layout, comfortably |
+| **768px** | tablet | the transition — inline filters and tables may begin to appear (`md`) |
+| **1280px** | desktop | the full widened layout |
 
-**Minimum touch target: 44px.** Non-negotiable on any control a finger touches.
+A screen is not "done" until it has been checked at all four. Tailwind's default breakpoints map cleanly: base = mobile, `md:` (768px) = tablet, `lg:`/`xl:` = desktop. **375px and 430px share the base (un-prefixed) styles** — get the base right and both phone widths are covered.
 
 ---
 
@@ -187,6 +221,18 @@ Phase 1 creates the **minimum foundations** and nothing more:
 
 Toasts use **Sonner** (shadcn's current default). `EmptyState` and `PageHeader` are the two thin house components the foundation set adds on top of shadcn, because §7 makes them mandatory furniture.
 
+### Responsive obligations of the foundation set
+
+Mobile-first (§9) is met by **composition**, not by new components — the foundation primitives already carry what is needed:
+
+- **Table** is a desktop presentation. A list screen renders **cards below `md` and the `Table` at `md`+** (Tailwind `hidden md:block` / `md:hidden`), from the *same* data. `Table` is never shown at 375px.
+- **Sheet** is the mobile home for both **filters** (a Filter trigger opens it) and **detail/edit** (full-screen on mobile via `side` + width utilities). One primitive, two mobile jobs.
+- **Dialog** stays for short confirmations at every width; it is not a mobile detail container (that is a Sheet).
+- **Button / Input / Select / Checkbox** are touch-sized where they are tap targets: full-width and/or `min-h-11` (44px) on mobile, compact on desktop. The base heights are a desktop density; the mobile size-up happens at the usage site until a business screen proves a different default is needed.
+- **PageHeader** stacks its title and primary action on mobile and puts them on one row at `sm`+ (already built this way).
+
+**No mobile-only duplicate components.** There is no `MobileTable` or `MobileFilters`; the same primitive adapts by breakpoint. A second component is a second thing to keep in sync, and mobile-first does not need one.
+
 ---
 
 ## 11. Prohibited Visual Patterns
@@ -202,14 +248,18 @@ Each of these is a build-review reject, not a preference:
 - Arbitrary Tailwind color, spacing, or radius values *(use tokens)*
 - Decorative animation that slows an operational workflow
 - **Dark mode** *(Phase 1)*
+- **Horizontal scroll in a primary workflow** *(§9 — wide content scrolls inside its own container, never the page)*
+- **A desktop table shown at 375px** *(use the card/list view below `md`)*
+- **Responsive treated as an afterthought** — designing desktop-first and shrinking
+- **A touch target smaller than 44×44px** where a finger taps
 
 ---
 
 ## 12. The Showcase
 
-`apps/web/src/app/design-system/` renders the foundation set in all mandatory states (default, loading, empty, success, error, destructive-confirm). It is a **development-only** surface — guarded so it returns 404 in a production build — and it is the visual contract: if a component does not look right here, it does not ship.
+`apps/web/src/app/design-system/` renders the foundation set in all mandatory states (default, loading, empty, success, error, destructive-confirm) **and demonstrates the mobile-first patterns of §9**: the responsive list (cards below `md`, table at `md`+ from one dataset), search with filters in a Sheet, a single-column form, and a sticky bottom action bar in a mock 375px viewport. It is a **development-only** surface — guarded so it returns 404 in a production build — and it is the visual contract: if a component does not look right here, or scrolls sideways at 375px, it does not ship.
 
-It is not a business screen and carries no business logic.
+**Check it at all four breakpoints — 375 / 430 / 768 / 1280 px — before trusting a component.** It is not a business screen and carries no business logic.
 
 ---
 
@@ -222,5 +272,7 @@ It is not a business screen and carries no business logic.
 | **DS-3** | **No dark mode in Phase 1** | Ship both themes | A theme nobody asked for is surface area and a second QA pass. The token set stays single-theme so nothing depends on a `.dark`. |
 | **DS-4** | Motion capped at **150ms**, overlays only | Library-default (~200ms) transitions | Reception taps all day; decorative motion is a tax on every interaction. |
 | **DS-5** | `EmptyState` + `PageHeader` are the only house components in v1 | Build them per screen | §7 makes them mandatory on every list/data screen; defining them once keeps every screen consistent. |
+| **DS-6** | **Mobile-first is mandatory across all of Phase 1** — design at 375px, then widen | Desktop-first with a phone view added later; or "reception is desktop-first" | Owner, admin, and reception all work from phones. A retrofitted phone view is a rebuild, and it shows. Supersedes the earlier per-role priority table. |
+| **DS-7** | Responsiveness is achieved by **breakpoint composition of the existing primitives** (`hidden md:block` cards↔table, Sheet-hosted filters/detail), verified at 375 / 430 / 768 / 1280 | Mobile-only duplicate components (`MobileTable`, `MobileFilters`) | One primitive that adapts beats two that must be kept in sync. |
 
 **Necessary deviations from raw shadcn CLI output**, all forced by the rules above: the generated **dark-mode block is removed** (DS-3), the **palette values are replaced** with §3 (DS-1), and **animation durations are capped at ≤150ms** (DS-4). Everything else stays standard shadcn.

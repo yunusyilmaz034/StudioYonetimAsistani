@@ -1,7 +1,13 @@
 'use client'
 
 import type { ReactNode } from 'react'
-import { CalendarX2Icon, Loader2Icon, PlusIcon } from 'lucide-react'
+import {
+  CalendarX2Icon,
+  Loader2Icon,
+  PlusIcon,
+  SearchIcon,
+  SlidersHorizontalIcon,
+} from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Badge } from '@/components/ui/badge'
@@ -75,14 +81,22 @@ const STATUS = [
   { label: 'Bilgi', className: 'bg-info/10 text-info' },
 ]
 
+// One dataset, rendered two ways below `md`: cards on mobile, a table on desktop
+// (Doc 09 §9, DS-7). Never a wide table at 375px.
+const MEMBERS = [
+  { id: 'm1', name: 'Ayşe Y.', pkg: 'Pilates 8', remaining: '5' },
+  { id: 'm2', name: 'Zeynep K.', pkg: 'Fitness 3 Ay', remaining: '—' },
+  { id: 'm3', name: 'Elif D.', pkg: 'Pilates 16', remaining: '12' },
+]
+
 export function DesignSystemShowcase() {
   return (
-    <div className="mx-auto max-w-4xl space-y-10 p-8">
+    <div className="mx-auto max-w-4xl space-y-8 p-4 sm:space-y-10 sm:p-6 lg:p-8">
       <PageHeader
         title="Design System v1"
-        description="Development-only showcase of the foundation components (Doc 09)."
+        description="Development-only showcase of the foundation components (Doc 09). Verify every section at 375 · 430 · 768 · 1280 px."
         actions={
-          <Button>
+          <Button className="min-h-11 sm:min-h-0">
             <PlusIcon />
             Yeni Rezervasyon
           </Button>
@@ -118,7 +132,7 @@ export function DesignSystemShowcase() {
         ))}
       </Section>
 
-      <Section title="Form controls">
+      <Section title="Form controls — single column (Doc 09 §9)">
         <div className="w-full max-w-sm space-y-4">
           <div className="space-y-1.5">
             <label htmlFor="ds-name" className="text-sm font-medium text-foreground">
@@ -176,44 +190,133 @@ export function DesignSystemShowcase() {
         </Card>
       </Section>
 
-      <Section title="Table">
+      <Section title="Responsive list — cards on mobile, table at md+ (DS-7)">
         <div className="w-full">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Üye</TableHead>
-                <TableHead>Paket</TableHead>
-                <TableHead className="text-right">Kalan</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              <TableRow>
-                <TableCell>Ayşe Y.</TableCell>
-                <TableCell>Pilates 8</TableCell>
-                <TableCell className="text-right tabular-nums">5</TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell>Zeynep K.</TableCell>
-                <TableCell>Fitness 3 Ay</TableCell>
-                <TableCell className="text-right tabular-nums">—</TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
+          {/* Mobile (< md): the same rows as cards. No horizontal scroll at 375px. */}
+          <div className="space-y-2 md:hidden">
+            {MEMBERS.map((m) => (
+              <div
+                key={m.id}
+                className="flex items-center justify-between rounded-xl border border-border bg-surface p-3"
+              >
+                <div className="min-w-0">
+                  <p className="truncate font-medium text-foreground">{m.name}</p>
+                  <p className="truncate text-xs text-muted-foreground">{m.pkg}</p>
+                </div>
+                <span className="shrink-0 tabular-nums text-sm text-foreground">
+                  {m.remaining}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop (md+): the table returns. */}
+          <div className="hidden md:block">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Üye</TableHead>
+                  <TableHead>Paket</TableHead>
+                  <TableHead className="text-right">Kalan</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {MEMBERS.map((m) => (
+                  <TableRow key={m.id}>
+                    <TableCell>{m.name}</TableCell>
+                    <TableCell>{m.pkg}</TableCell>
+                    <TableCell className="text-right tabular-nums">{m.remaining}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+      </Section>
+
+      <Section title="Search + filters — Sheet on mobile (Doc 09 §9)">
+        <div className="flex w-full items-center gap-2">
+          <div className="relative flex-1">
+            <SearchIcon className="absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input className="pl-8" placeholder="Üye ara…" />
+          </div>
+          <Sheet>
+            <SheetTrigger
+              render={<Button variant="outline" className="min-h-11 sm:min-h-0" />}
+            >
+              <SlidersHorizontalIcon />
+              Filtreler
+            </SheetTrigger>
+            <SheetContent side="right" className="gap-4 p-4">
+              <SheetHeader className="p-0">
+                <SheetTitle>Filtreler</SheetTitle>
+                <SheetDescription>
+                  On mobile, filters open in a Sheet instead of eating vertical space.
+                </SheetDescription>
+              </SheetHeader>
+              <div className="space-y-3">
+                <Select defaultValue="all">
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Tüm kategoriler</SelectItem>
+                    <SelectItem value="pilates_group">Pilates</SelectItem>
+                    <SelectItem value="fitness">Fitness</SelectItem>
+                    <SelectItem value="private">PT</SelectItem>
+                  </SelectContent>
+                </Select>
+                <label className="flex items-center gap-2 text-sm text-foreground">
+                  <Checkbox defaultChecked />
+                  Sadece aktif üyeler
+                </label>
+              </div>
+              <SheetFooter className="p-0">
+                <SheetClose render={<Button className="min-h-11 w-full">Uygula</Button>} />
+              </SheetFooter>
+            </SheetContent>
+          </Sheet>
+        </div>
+      </Section>
+
+      <Section title="Sticky bottom action bar — thumb zone (Doc 09 §9)">
+        <div className="w-full max-w-[375px] overflow-hidden rounded-xl border border-border">
+          <div className="relative h-72 overflow-y-auto">
+            <div className="space-y-3 p-4">
+              <p className="text-sm font-medium text-foreground">Yeni Rezervasyon</p>
+              <p className="text-sm text-muted-foreground">
+                A mock 375px viewport. Scroll: the primary action stays pinned to the
+                bottom, within thumb reach, while the form scrolls behind it.
+              </p>
+              {['Üye', 'Ders', 'Paket', 'Tarih', 'Saat', 'Not'].map((f) => (
+                <div key={f} className="space-y-1.5">
+                  <label className="text-sm font-medium text-foreground">{f}</label>
+                  <Input placeholder={`${f}…`} />
+                </div>
+              ))}
+            </div>
+            <div className="sticky bottom-0 border-t border-border bg-surface p-3">
+              <Button className="min-h-11 w-full">Rezervasyonu Oluştur</Button>
+            </div>
+          </div>
         </div>
       </Section>
 
       <Section title="Overlays — Drawer & Dialog">
         <Sheet>
           <SheetTrigger render={<Button variant="outline" />}>Detay çekmecesi</SheetTrigger>
-          <SheetContent side="right" className="p-4">
+          <SheetContent side="right" className="gap-4 p-4">
             <SheetHeader className="p-0">
               <SheetTitle>Üye Detayı</SheetTitle>
               <SheetDescription>
-                Detail and edit workflows use a side drawer (Doc 09 §7).
+                Detail/edit uses a full-width Sheet on mobile, a side drawer on desktop
+                (Doc 09 §9).
               </SheetDescription>
             </SheetHeader>
             <SheetFooter className="p-0">
-              <SheetClose render={<Button>Kapat</Button>} />
+              <SheetClose render={<Button className="min-h-11 w-full sm:min-h-0 sm:w-auto" />}>
+                Kapat
+              </SheetClose>
             </SheetFooter>
           </SheetContent>
         </Sheet>
