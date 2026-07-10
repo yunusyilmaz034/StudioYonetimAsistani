@@ -5,6 +5,9 @@ node_modules/
 # build output
 dist/
 lib/
+# …but never a source `src/lib/` directory (packages emit build output to a
+# package-root `lib/`; app source lives under `src/lib/` and must be tracked).
+!**/src/lib/
 *.tsbuildinfo
 .next/
 out/
