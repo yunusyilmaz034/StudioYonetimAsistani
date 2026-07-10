@@ -1,1 +1,107 @@
 @import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
+
+/*
+  Design System v1 — tokens only (Doc 09).
+  This file holds semantic design tokens and the minimal base layer. It contains
+  no component styles and no utilities. Components reference token roles
+  (bg-primary, text-muted-foreground, border-border) — never a hex literal (DS-1).
+  No dark mode in Phase 1 (DS-3): no `.dark` block and no dark variant are defined.
+*/
+
+@theme inline {
+  --font-heading: var(--font-sans);
+  --font-sans: var(--font-sans);
+
+  /* ── brand ── */
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-soft: var(--primary-soft);
+
+  /* ── surfaces & text ── */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+
+  /* ── lines & focus ── */
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* ── status ── */
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --color-info: var(--info);
+  --color-destructive: var(--destructive);
+
+  /* ── radius scale: control ≈ 8px (rounded-lg), card ≈ 12px (rounded-xl) ── */
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+}
+
+:root {
+  /* ── brand ── */
+  --primary: #0f9f96;
+  --primary-foreground: #ffffff;
+  --primary-hover: #0c837c;
+  --primary-soft: #e8f7f5;
+
+  /* ── surfaces & text ── */
+  --background: #f7f8fa;
+  --foreground: #17202a;
+  --surface: #ffffff;
+  --card: #ffffff;
+  --card-foreground: #17202a;
+  --popover: #ffffff;
+  --popover-foreground: #17202a;
+  --secondary: #f0f2f5;
+  --secondary-foreground: #17202a;
+  --muted: #f0f2f5;
+  --muted-foreground: #667085;
+  --accent: #f0f2f5;
+  --accent-foreground: #17202a;
+
+  /* ── lines & focus ── */
+  --border: #e4e7ec;
+  --input: #e4e7ec;
+  --ring: #0f9f96;
+
+  /* ── status ── */
+  --success: #16a34a;
+  --warning: #d97706;
+  --danger: #dc2626;
+  --info: #2563eb;
+  --destructive: #dc2626;
+
+  /* control 8px, card 12px (Doc 09 §5) */
+  --radius: 0.5rem;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    /* 14px is the working size for operational desktop screens (Doc 09 §4). */
+    @apply bg-background text-foreground text-sm;
+  }
+  html {
+    @apply font-sans;
+  }
+}
