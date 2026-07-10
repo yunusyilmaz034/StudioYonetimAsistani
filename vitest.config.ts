@@ -6,7 +6,10 @@ import { defineConfig } from 'vitest/config'
 export default defineConfig({
   test: {
     globals: true,
-    include: ['packages/core/**/*.test.ts', 'packages/core/**/*.spec.ts'],
+    // Unit layer only (no emulator): the pure kernel plus the pure server-side
+    // auth helpers. Emulator integration tests (apps/functions) run separately via
+    // `firebase emulators:exec`.
+    include: ['packages/core/**/*.test.ts', 'apps/web/src/**/*.test.ts'],
     passWithNoTests: true,
   },
 })
