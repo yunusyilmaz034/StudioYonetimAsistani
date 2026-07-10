@@ -1,0 +1,19 @@
+{
+  "name": "@studio/functions",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "lib/index.js",
+  "engines": {
+    "node": "20"
+  },
+  "scripts": {
+    "typecheck": "tsc -b",
+    "build": "tsc -b"
+  },
+  "dependencies": {
+    "@studio/core": "workspace:*",
+    "firebase-admin": "^13.0.2",
+    "firebase-functions": "^6.3.0"
+  }
+}

@@ -1,0 +1,33 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# build output
+dist/
+lib/
+*.tsbuildinfo
+.next/
+out/
+
+# test / coverage
+coverage/
+
+# firebase
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+.seed/
+
+# migration artifacts (raw exports are archived to Cloud Storage, never committed)
+tools/migration/*.local.*
+tools/migration/data/
+
+# env / secrets
+.env
+.env.*
+!.env.example
+
+# editor / OS
+.DS_Store
+*.log

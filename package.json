@@ -1,0 +1,39 @@
+{
+  "name": "studio-yonetim-asistani",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Multi-tenant SaaS platform for boutique fitness studios. Phase 1 scaffold.",
+  "packageManager": "pnpm@9.15.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "pnpm --parallel -r dev",
+    "emulators": "firebase emulators:start --import=.seed --export-on-exit",
+    "seed": "tsx tools/seed/index.ts",
+    "test": "vitest run",
+    "test:unit": "vitest run packages/core",
+    "test:watch": "vitest",
+    "test:integration": "firebase emulators:exec 'vitest run apps/functions'",
+    "test:golden": "vitest run packages/core/test/golden",
+    "lint": "eslint . && depcruise packages apps",
+    "typecheck": "tsc -b && pnpm --filter web typecheck",
+    "check": "pnpm typecheck && pnpm lint && pnpm test:unit",
+    "migrate:validate": "tsx tools/migration/validate.ts",
+    "migrate:dry-run": "tsx tools/migration/run.ts --env=staging --dry",
+    "migrate:reconcile": "tsx tools/migration/reconcile.ts",
+    "deploy:rules": "firebase deploy --only firestore:rules,firestore:indexes",
+    "deploy:functions": "firebase deploy --only functions",
+    "deploy": "pnpm check && firebase deploy"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.18.0",
+    "@types/node": "^22.10.5",
+    "dependency-cruiser": "^16.9.0",
+    "eslint": "^9.18.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3",
+    "typescript-eslint": "^8.20.0",
+    "vitest": "^2.1.8"
+  }
+}

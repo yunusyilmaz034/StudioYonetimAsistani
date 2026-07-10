@@ -403,6 +403,8 @@ Root `package.json` carries scripts and no dependencies:
 
 `pnpm check` is the gate. It runs in seconds because it does not touch the emulator. **A gate that takes two minutes is a gate that gets skipped**, by a tired human and by an agent told to "just make the tests pass."
 
+> **Implementation note (scaffold milestone).** `typecheck` is `tsc -b && pnpm --filter web typecheck`, not a bare `tsc -b`. TypeScript project references (`tsc -b`) compose cleanly across the pure-TS packages — `packages/core` and `apps/functions`, both `composite` — but a Next.js app requires `noEmit: true`, which conflicts with the emit that `composite` implies. So `apps/web` is typechecked by its own `tsc --noEmit` (the standard Next configuration) and is not a node in the `tsc -b` graph. This is the "one class of confusing build errors" §2 anticipated, resolved with one extra clause. The gate still covers all three packages.
+
 ---
 
 ## 10. Conventions

@@ -1,0 +1,95 @@
+// Flat config (ESLint 9). Encodes the machine-checkable rules from Doc 5 §7.
+// dependency-cruiser (see .dependency-cruiser.cjs) enforces the import graph;
+// this file enforces what dependency-cruiser cannot see.
+//
+// Note on rule precedence: in flat config, for a given file the LAST matching
+// config that sets a rule wins (options are replaced, not merged). `Date` and
+// `Math.random` must be errors ONLY inside domain code (apps/web uses Date
+// legitimately), so those live in a domain-scoped `no-restricted-syntax`.
+// `collectionGroup` must be forbidden everywhere, so it is expressed with
+// `no-restricted-properties` (which does not collide) plus a selector repeated
+// in the domain block, so domain files keep all three restrictions.
+import js from '@eslint/js'
+import tseslint from 'typescript-eslint'
+
+const collectionGroupSelector = {
+  selector: "CallExpression[callee.name='collectionGroup']",
+  message:
+    'collectionGroup() is forbidden (AD-17): a tenant-scoped schema must not grow a cross-tenant read path.',
+}
+
+export default tseslint.config(
+  {
+    ignores: [
+      '**/node_modules/**',
+      '**/dist/**',
+      '**/lib/**',
+      '**/.next/**',
+      '**/coverage/**',
+    ],
+  },
+
+  js.configs.recommended,
+  ...tseslint.configs.recommended,
+
+  // ── CommonJS tooling configs (e.g. .dependency-cruiser.cjs). ──
+  // These use module.exports/require; without this they trip `no-undef`.
+  {
+    files: ['**/*.cjs'],
+    languageOptions: {
+      sourceType: 'commonjs',
+      globals: {
+        module: 'writable',
+        require: 'readonly',
+        __dirname: 'readonly',
+        __filename: 'readonly',
+        process: 'readonly',
+      },
+    },
+  },
+
+  // ── AD-17: no collection-group queries anywhere. ──
+  {
+    files: ['**/*.ts', '**/*.tsx'],
+    rules: {
+      'no-restricted-properties': [
+        'error',
+        {
+          object: 'db',
+          property: 'collectionGroup',
+          message:
+            'collectionGroup() is forbidden (AD-17): a tenant-scoped schema must not grow a cross-tenant read path.',
+        },
+      ],
+      'no-restricted-syntax': ['error', collectionGroupSelector],
+    },
+  },
+
+  // ── Doc 5 §7: a decision function must be deterministic. ──
+  // Scoped to packages/core domain layers only. A domain file that cannot read
+  // the clock cannot be non-deterministic, and a non-deterministic decision
+  // function cannot be tested exhaustively. Repeats the collectionGroup selector
+  // so domain files do not lose it to this later, more specific config.
+  {
+    files: ['packages/core/src/modules/*/domain/**/*.ts'],
+    rules: {
+      'no-restricted-globals': [
+        'error',
+        { name: 'Date', message: 'Inject Clock. See shared/clock.ts. (D2)' },
+      ],
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: "NewExpression[callee.name='Date']",
+          message: 'Inject Clock. See shared/clock.ts. (D2)',
+        },
+        {
+          selector:
+            "CallExpression[callee.object.name='Math'][callee.property.name='random']",
+          message: 'Use ulid() from shared/ids.ts.',
+        },
+        collectionGroupSelector,
+      ],
+    },
+  },
+)
