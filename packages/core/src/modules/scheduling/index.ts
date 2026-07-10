@@ -40,3 +40,6 @@ export {
 } from './application/session'
 export type { SchedulingDeps, SchedulingRepository } from './application/ports'
 export { FirestoreSchedulingRepository } from './infrastructure/repos'
+// Exposed for cross-aggregate transactions (the booking transaction reads and
+// updates a session inside the same transaction as the reservation and credit).
+export { sessionFromFirestore, sessionToFirestore } from './infrastructure/mappers'

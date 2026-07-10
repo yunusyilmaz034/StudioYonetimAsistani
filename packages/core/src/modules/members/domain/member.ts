@@ -48,3 +48,30 @@ export const emptyStats = (): MemberStats => ({
   activeEntitlementCount: 0,
   balanceDue: 0,
 })
+
+// The bounded member snapshot copied onto a reservation for the trainer's roster
+// (OQ-12, AD-44, Doc 3 §4.4). FOUR fields — enough to render a roster and tell two
+// members apart, never enough to reconstruct a person. Never enters an event
+// (I-13); purged on erasure. This is the ONLY builder — members owns it, so the
+// derivation never drifts, and `reservations` never depends on `members` PII.
+export type MembershipStatus = 'active' | 'inactive'
+
+export interface MemberSnapshot {
+  readonly memberId: MemberId
+  readonly displayName: string // given name + surname initial — not the full legal name
+  readonly phoneLast4: string
+  readonly membershipStatus: MembershipStatus
+}
+
+export function toMemberSnapshot(member: Member): MemberSnapshot {
+  const parts = member.fullName.trim().split(/\s+/)
+  const given = parts[0] ?? ''
+  const surnameInitial = parts.length > 1 ? `${parts[parts.length - 1]?.charAt(0) ?? ''}.` : ''
+  const displayName = surnameInitial ? `${given} ${surnameInitial}` : given
+  return {
+    memberId: member.id,
+    displayName,
+    phoneLast4: member.phoneNormalized.slice(-4),
+    membershipStatus: member.status === 'active' ? 'active' : 'inactive',
+  }
+}

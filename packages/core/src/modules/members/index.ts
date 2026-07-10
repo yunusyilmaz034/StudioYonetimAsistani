@@ -3,10 +3,13 @@ export type {
   Email,
   EmergencyContact,
   Member,
+  MembershipStatus,
+  MemberSnapshot,
   MemberStats,
   MemberStatus,
   PhoneE164,
 } from './domain/member'
+export { toMemberSnapshot } from './domain/member'
 export { normalizePhone, type NormalizedPhone } from './domain/phone'
 export {
   MEMBER_DEACTIVATED,

@@ -30,6 +30,20 @@ export function domainErrorMessage(error: DomainError): string {
       return 'Geçerli bir kredi değişimi girin (sıfır olamaz).'
     case 'held_credits_block_expiry':
       return 'Tutulan kredisi olan paket süre sonuna erdirilemez.'
+    case 'session_not_bookable':
+      return 'Bu seansa rezervasyon yapılamaz (iptal edilmiş veya başlamış).'
+    case 'class_full':
+      return `Seans dolu (kapasite: ${error.capacity}).`
+    case 'already_booked':
+      return 'Bu üye bu seansa zaten kayıtlı.'
+    case 'category_mismatch':
+      return 'Bu paket bu ders türü için geçerli değil.'
+    case 'entitlement_expires_before_session':
+      return 'Paketin süresi seans tarihinden önce doluyor.'
+    case 'no_bookable_entitlement':
+      return 'Bu seans için kullanılabilir bir paket yok.'
+    case 'reservation_not_open':
+      return 'Bu rezervasyon artık açık değil.'
     default: {
       const exhaustive: never = error
       void exhaustive

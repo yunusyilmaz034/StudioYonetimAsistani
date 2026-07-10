@@ -5,7 +5,7 @@ import {
   type WriteBatch,
 } from 'firebase-admin/firestore'
 
-import type { EntitlementId, NewEvent, StudioId, TenantContext } from '../../../shared'
+import type { EntitlementId, MemberId, NewEvent, StudioId, TenantContext } from '../../../shared'
 import type { EntitlementRepository } from '../application/ports'
 import type { Entitlement } from '../domain/types'
 import { entitlementFromFirestore, entitlementToFirestore, eventToFirestore } from './mappers'
@@ -28,6 +28,14 @@ export class FirestoreEntitlementRepository implements EntitlementRepository {
     const s = await this.col(ctx.studioId, 'entitlements').doc(id).get()
     const d = s.data()
     return d ? entitlementFromFirestore(id, d) : null
+  }
+
+  async listActiveByMember(ctx: TenantContext, memberId: MemberId): Promise<readonly Entitlement[]> {
+    const snap = await this.col(ctx.studioId, 'entitlements')
+      .where('memberId', '==', memberId)
+      .where('status', '==', 'active')
+      .get()
+    return snap.docs.map((doc) => entitlementFromFirestore(doc.id as EntitlementId, doc.data()))
   }
 
   async saveEntitlement(

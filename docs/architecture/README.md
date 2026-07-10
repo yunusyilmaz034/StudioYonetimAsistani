@@ -23,6 +23,7 @@ When you wonder *"why is it like this?"*, the answer is here, numbered `AD-nn`, 
 | **11** | [Scheduling Foundation](./11-scheduling-foundation.md) | Services, rooms, class templates & sessions, scheduling policy, eager generation — the general time layer |
 | **12** | [Product UX Principles](./12-product-ux-principles.md) | **Binding product-level UX law** (UX-1…UX-8): Single Workspace, Mobile-First, Scheduling UX, Owner First — the rules every business module obeys |
 | **13** | [Entitlements & the Credit Ledger](./13-entitlements-credit-ledger.md) | The money core: entitlement aggregate, six-counter ledger, hold/consume/release/restore, admin adjustment, expiry |
+| **14** | [Reservations Engine](./14-reservations-engine.md) | Booking (I-9/I-10 transaction), cancellation, attendance, auto-resolution (AD-38), correction, `selectEntitlement` (I-17) |
 | — | [DEBT.md](../DEBT.md) | Deliberate debt, each with a trigger to repay |
 
 **Reading order for a new session:** `CLAUDE.md` → the module's own `README.md` → the doc that owns the thing you are changing.
@@ -138,6 +139,14 @@ Superseded decisions are struck through and point at what replaced them.
 |---|---|
 | **AD-53** | The entitlements module owns the ledger arithmetic (hold/release/consume/restore as pure deciders); the reservations module owns the booking-transaction orchestration that calls them (v1.9). |
 | **AD-54** | Freeze operations deferred until the owner resolves the freeze-arithmetic question (DEBT-009); the shape (`FreezeState`, `status: 'frozen'`) ships now so it is retrofit-free. |
+
+### Doc 14 — Reservations Engine
+
+| # | Decision |
+|---|---|
+| **AD-55** | Booking/cancellation are cross-aggregate `runTransaction`s (I-10); the repo runs the transaction, the application supplies the pure `decide` callback composing reservation + ledger deciders. Session/entitlement mappers are exposed for this. |
+| **AD-56** | The double-book guard (I-9.6) is a transactional query inside the booking transaction, not a uniqueness document. |
+| **AD-57** | Attendance (`/commands` + trigger), auto-resolution + expiry sweep (scheduled), and correction wiring are the v1.10 Automation milestone; the deciders ship pure and tested now. |
 
 ---
 

@@ -1,0 +1,6 @@
+{
+  "from": "no_show",
+  "to": "attended",
+  "reason": "trainer marked wrong roster",
+  "source": "correction"
+}

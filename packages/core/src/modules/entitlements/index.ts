@@ -37,3 +37,6 @@ export {
 } from './application/lifecycle'
 export type { EntitlementRepository, EntitlementsDeps } from './application/ports'
 export { FirestoreEntitlementRepository } from './infrastructure/repos'
+// Exposed for cross-aggregate transactions (the booking transaction reads and
+// updates the entitlement ledger inside the same transaction as the reservation).
+export { entitlementFromFirestore, entitlementToFirestore } from './infrastructure/mappers'

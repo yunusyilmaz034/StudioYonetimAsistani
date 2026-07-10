@@ -1,0 +1,5 @@
+{
+  "source": "trainer",
+  "minutesAfterStart": 60,
+  "creditEffect": "consumed"
+}

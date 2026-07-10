@@ -23,6 +23,14 @@ export type DomainError =
   | { readonly code: 'no_held_credit' }
   | { readonly code: 'invalid_adjustment' }
   | { readonly code: 'held_credits_block_expiry'; readonly held: number }
+  // ── reservations / booking (Doc 2 §7) ──
+  | { readonly code: 'session_not_bookable' }
+  | { readonly code: 'class_full'; readonly capacity: number }
+  | { readonly code: 'already_booked' }
+  | { readonly code: 'category_mismatch'; readonly sessionCategory: string; readonly entitlementCategory: string }
+  | { readonly code: 'entitlement_expires_before_session' }
+  | { readonly code: 'no_bookable_entitlement' }
+  | { readonly code: 'reservation_not_open' }
 
 export type DomainErrorCode = DomainError['code']
 
