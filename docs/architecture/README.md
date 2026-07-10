@@ -22,6 +22,7 @@ When you wonder *"why is it like this?"*, the answer is here, numbered `AD-nn`, 
 | **10** | [Development Workflow v1](./10-development-workflow.md) | **How we work:** the Studio Operating System vision, milestone policy, git policy, quality rules |
 | **11** | [Scheduling Foundation](./11-scheduling-foundation.md) | Services, rooms, class templates & sessions, scheduling policy, eager generation — the general time layer |
 | **12** | [Product UX Principles](./12-product-ux-principles.md) | **Binding product-level UX law** (UX-1…UX-8): Single Workspace, Mobile-First, Scheduling UX, Owner First — the rules every business module obeys |
+| **13** | [Entitlements & the Credit Ledger](./13-entitlements-credit-ledger.md) | The money core: entitlement aggregate, six-counter ledger, hold/consume/release/restore, admin adjustment, expiry |
 | — | [DEBT.md](../DEBT.md) | Deliberate debt, each with a trigger to repay |
 
 **Reading order for a new session:** `CLAUDE.md` → the module's own `README.md` → the doc that owns the thing you are changing.
@@ -130,6 +131,13 @@ Superseded decisions are struck through and point at what replaced them.
 | **AD-50** | Weekly templates generate sessions **eagerly and idempotently** per `(templateId, date)`. |
 | **AD-51** | Definitions: owner + platform_admin. Sessions: + receptionist. Trainer authz seam via `session.trainerId`. |
 | **AD-52** | Templates hold only `LocalDate` + `HH:MM`; the application derives `startsAt: Instant` (UTC) via `StudioConfig.utcOffsetMinutes` (+180 now; IANA timezone later, seamless). |
+
+### Doc 13 — Entitlements & the Credit Ledger
+
+| # | Decision |
+|---|---|
+| **AD-53** | The entitlements module owns the ledger arithmetic (hold/release/consume/restore as pure deciders); the reservations module owns the booking-transaction orchestration that calls them (v1.9). |
+| **AD-54** | Freeze operations deferred until the owner resolves the freeze-arithmetic question (DEBT-009); the shape (`FreezeState`, `status: 'frozen'`) ships now so it is retrofit-free. |
 
 ---
 

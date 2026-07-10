@@ -1,0 +1,8 @@
+{
+  "productId": "prd_1",
+  "grant": { "kind": "credits", "credits": 8, "validForDays": 30 },
+  "priceAgreed": { "amount": 294000, "currency": "TRY" },
+  "listPrice": { "amount": 420000, "currency": "TRY" },
+  "validFrom": 1699000000000,
+  "validUntil": 1800000000000
+}

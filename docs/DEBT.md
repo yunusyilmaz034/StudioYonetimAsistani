@@ -104,6 +104,16 @@ The cost is **bounded and visible**, which is the entire reason the modelling wa
 
 ---
 
+## DEBT-009 — Freeze operations deferred (arithmetic is an open question)
+
+**Taken:** implementation · v1.8 (entitlements) · Yunus *(Doc 2 §5.4)*
+**What:** The entitlements module models `status: 'frozen'` and `FreezeState` (so I-8 holds and a reservation can refuse a frozen entitlement), but ships **no** `freeze` / `unfreeze` operations. The credit ledger — purchase, hold/release/consume/restore, adjust, expire, cancel — is complete.
+**Cost:** a fitness member cannot be frozen through the system until this is built. Freeze budget (I-5), overlap (I-6), and no-freeze-in-the-past (I-7) are unenforced because there is nothing to enforce them on yet.
+**Why deferred:** Doc 2 §5.4 leaves a genuine domain-arithmetic question unresolved — **is a freeze's duration fixed at freeze-time (`freeze(from, days)`, `validUntil += days` immediately) or determined at unfreeze-time (`unfreeze(to)`, `validUntil += to − from`)?** And **what happens when a member stays frozen past their budget** — auto-cap, auto-unfreeze, or refuse? This is money arithmetic and the owner's decision (CLAUDE.md: human-owned). Guessing it would bake an unrecoverable choice into events.
+**Trigger to repay:** the owner resolves the two questions above **and** the first fitness member requests a freeze. Model is ready; only the operations + their events (`entitlement.frozen`, `entitlement.unfrozen`) remain.
+
+---
+
 ## Reserved for the build week
 
 Shortcuts taken during Phase 1 implementation get entries here **as they are taken**, not afterwards. If the cut ladder (Doc 8 §8) is used — catalogue CRUD UI, owner view, manual attendance marking, freeze UI, payment allocation UI, weekly template generation, offline check-in — each cut becomes an entry with a trigger.

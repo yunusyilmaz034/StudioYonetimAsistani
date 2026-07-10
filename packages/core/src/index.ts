@@ -6,3 +6,4 @@
 export * from './shared/index'
 export * from './modules/members/index'
 export * from './modules/scheduling/index'
+export * from './modules/entitlements/index'

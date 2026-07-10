@@ -1,0 +1,43 @@
+import {
+  getFirestore,
+  type CollectionReference,
+  type Firestore,
+  type WriteBatch,
+} from 'firebase-admin/firestore'
+
+import type { EntitlementId, NewEvent, StudioId, TenantContext } from '../../../shared'
+import type { EntitlementRepository } from '../application/ports'
+import type { Entitlement } from '../domain/types'
+import { entitlementFromFirestore, entitlementToFirestore, eventToFirestore } from './mappers'
+
+export class FirestoreEntitlementRepository implements EntitlementRepository {
+  constructor(private readonly db: Firestore = getFirestore()) {}
+
+  private col(sid: StudioId, name: string): CollectionReference {
+    return this.db.collection('studios').doc(sid).collection(name)
+  }
+
+  private appendEvents(sid: StudioId, batch: WriteBatch, events: readonly NewEvent[]): void {
+    for (const e of events) {
+      const { id, data } = eventToFirestore(e)
+      batch.set(this.col(sid, 'events').doc(id), data)
+    }
+  }
+
+  async getEntitlement(ctx: TenantContext, id: EntitlementId): Promise<Entitlement | null> {
+    const s = await this.col(ctx.studioId, 'entitlements').doc(id).get()
+    const d = s.data()
+    return d ? entitlementFromFirestore(id, d) : null
+  }
+
+  async saveEntitlement(
+    ctx: TenantContext,
+    entitlement: Entitlement,
+    events: readonly NewEvent[],
+  ): Promise<void> {
+    const batch = this.db.batch()
+    batch.set(this.col(ctx.studioId, 'entitlements').doc(entitlement.id), entitlementToFirestore(entitlement))
+    this.appendEvents(ctx.studioId, batch, events)
+    await batch.commit()
+  }
+}
