@@ -110,6 +110,15 @@ Weight and color carry hierarchy as much as size: `foreground` + semibold for wh
 
 These are binding on every screen built on this system.
 
+**The Single Workspace Principle — the governing UX law.** A business object (Member, Reservation, Staff, Service, Room, Package, …) is managed, as far as possible, inside **one workspace**. Opening the object surfaces *everything about it* in that one place, and every piece of it is editable there. The owner does not travel between pages to assemble a picture of one thing, and does not lose context to a stack of popups.
+
+- **One object, one surface.** Everything related to the object — its fields, its related records, its history — lives in the same workspace. Related data is edited in place, not on a separate page.
+- **Minimise page transitions and popups.** A workspace collapses what used to be several screens. A modal is still only a confirmation or a short focused task (§ the drawer/modal rule below); it is never how you reach the object's own data.
+- **Audit is untouched.** A workspace is a *presentation* of state, not a bypass of it. Every edit made inside it still goes through the normal command → decision → event path and still writes its event. Convenience never costs the log.
+- **Responsive is mandatory and lossless.** On **desktop**, a tabbed workspace is the norm. On **mobile**, the *same* workspace renders as accordions / stacked sections / Sheets — the same information and the same edit capability, no feature dropped (§9). If a capability exists on desktop and not on mobile, the workspace is not done.
+
+This is the **default UX for every business module.** It refines the Detail-page template (§8, template 2): for a rich business entity the "detail" surface *is* its workspace, and it may be a dedicated route rather than a narrow side drawer when the object carries enough to warrant tabs.
+
 **Labels are explicit.** An action button names its action:
 
 - ✅ "Yeni Rezervasyon" · "Rezervasyonu Oluştur" · "Paketi Pasife Al"
@@ -274,5 +283,6 @@ Each of these is a build-review reject, not a preference:
 | **DS-5** | `EmptyState` + `PageHeader` are the only house components in v1 | Build them per screen | §7 makes them mandatory on every list/data screen; defining them once keeps every screen consistent. |
 | **DS-6** | **Mobile-first is mandatory across all of Phase 1** — design at 375px, then widen | Desktop-first with a phone view added later; or "reception is desktop-first" | Owner, admin, and reception all work from phones. A retrofitted phone view is a rebuild, and it shows. Supersedes the earlier per-role priority table. |
 | **DS-7** | Responsiveness is achieved by **breakpoint composition of the existing primitives** (`hidden md:block` cards↔table, Sheet-hosted filters/detail), verified at 375 / 430 / 768 / 1280 | Mobile-only duplicate components (`MobileTable`, `MobileFilters`) | One primitive that adapts beats two that must be kept in sync. |
+| **DS-8** | **The Single Workspace Principle** — a business object is managed inside one workspace (tabs on desktop, accordion / section / Sheet on mobile), with all related data edited in place; product-level and permanent | Object data scattered across separate pages reached by navigation and popups | The owner sees everything about one thing in one place and edits it without losing context; page/popup hopping is the tax we refuse to charge. Every in-place edit still emits its event — presentation, not a bypass of the log. |
 
 **Necessary deviations from raw shadcn CLI output**, all forced by the rules above: the generated **dark-mode block is removed** (DS-3), the **palette values are replaced** with §3 (DS-1), and **animation durations are capped at ≤150ms** (DS-4). Everything else stays standard shadcn.

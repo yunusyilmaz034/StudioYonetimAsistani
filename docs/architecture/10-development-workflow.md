@@ -124,6 +124,7 @@ Every milestone ends with this summary, in this order:
 - At the end of every milestone the app must compile and run.
 - Break large changes into small, independent milestones.
 - Do not refactor unnecessarily; change only as much as the active milestone needs.
+- **The Single Workspace Principle is the default UX for every business module.** A business object (Member, Reservation, Staff, Service, Room, Package, …) is managed inside **one workspace** — everything about it is visible and editable in that one place, with minimal page transitions and popups. Desktop uses tabs; mobile renders the same workspace as accordions / sections / Sheets with no loss of capability. Every in-place edit still emits its event. This is a permanent, product-level decision; the full rule and its rationale are **Doc 09 §7 and DS-8**.
 - **When a decision is unclear, do not guess — stop and ask the owner.**
 
 ---
