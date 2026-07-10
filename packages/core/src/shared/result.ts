@@ -1,0 +1,27 @@
+import type { MemberId } from './ids'
+
+// Domain errors are VALUES, not exceptions (Doc 6 §7): a booking refused because
+// a class is full is the system working, and it returns a typed result the UI
+// renders in Turkish. Infrastructure failures (Firestore down, token expired) are
+// thrown instead — they are not modelled here.
+//
+// This union is a SKELETON. Each module adds its own codes (class_full,
+// insufficient_credits, category_mismatch, …) as it is built; every code maps to
+// exactly one Turkish message in the web layer — never a Turkish string in core.
+export type DomainError =
+  | { readonly code: 'reason_required' }
+  | { readonly code: 'note_required' }
+  | { readonly code: 'invalid_phone'; readonly value: string }
+  | { readonly code: 'phone_already_registered'; readonly memberId: MemberId }
+
+export type DomainErrorCode = DomainError['code']
+
+export type Result<T, E = DomainError> =
+  | { readonly ok: true; readonly value: T }
+  | { readonly ok: false; readonly error: E }
+
+export const ok = <T>(value: T): Result<T, never> => ({ ok: true, value })
+export const err = <E>(error: E): Result<never, E> => ({ ok: false, error })
+
+export const isOk = <T, E>(r: Result<T, E>): r is { ok: true; value: T } => r.ok
+export const isErr = <T, E>(r: Result<T, E>): r is { ok: false; error: E } => !r.ok

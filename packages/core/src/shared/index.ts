@@ -1,0 +1,12 @@
+// The shared kernel — the platform foundation everything else imports (Doc 5 §4).
+// It imports nobody (dependency-cruiser `shared-imports-nothing`); it is pure
+// types and framework-free helpers, no I/O.
+export * from './brand'
+export * from './ids'
+export * from './money'
+export * from './time'
+export * from './clock'
+export * from './actor'
+export * from './tenant-context'
+export * from './event'
+export * from './result'
