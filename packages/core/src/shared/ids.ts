@@ -10,6 +10,8 @@ export type BranchId = Brand<string, 'BranchId'>
 export type MemberId = Brand<string, 'MemberId'>
 export type EntitlementId = Brand<string, 'EntitlementId'>
 export type ProductId = Brand<string, 'ProductId'>
+export type ServiceId = Brand<string, 'ServiceId'>
+export type RoomId = Brand<string, 'RoomId'>
 export type ClassSessionId = Brand<string, 'ClassSessionId'>
 export type ClassTemplateId = Brand<string, 'ClassTemplateId'>
 export type ReservationId = Brand<string, 'ReservationId'>
@@ -33,6 +35,8 @@ const PREFIX = {
   member: 'mem',
   entitlement: 'ent',
   product: 'prd',
+  service: 'svc',
+  room: 'rom',
   classSession: 'cls',
   classTemplate: 'tpl',
   reservation: 'res',
@@ -55,6 +59,8 @@ export const newBranchId = (): BranchId => mint(PREFIX.branch) as BranchId
 export const newMemberId = (): MemberId => mint(PREFIX.member) as MemberId
 export const newEntitlementId = (): EntitlementId => mint(PREFIX.entitlement) as EntitlementId
 export const newProductId = (): ProductId => mint(PREFIX.product) as ProductId
+export const newServiceId = (): ServiceId => mint(PREFIX.service) as ServiceId
+export const newRoomId = (): RoomId => mint(PREFIX.room) as RoomId
 export const newClassSessionId = (): ClassSessionId => mint(PREFIX.classSession) as ClassSessionId
 export const newClassTemplateId = (): ClassTemplateId => mint(PREFIX.classTemplate) as ClassTemplateId
 export const newReservationId = (): ReservationId => mint(PREFIX.reservation) as ReservationId

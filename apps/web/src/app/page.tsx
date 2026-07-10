@@ -10,6 +10,9 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { PageHeader } from '@/components/ui/page-header'
+import Link from 'next/link'
+
+import { Button } from '@/components/ui/button'
 import { getTenantContext } from '@/server/auth'
 
 import { LogoutButton } from './logout-button'
@@ -28,7 +31,14 @@ export default async function HomePage() {
       <PageHeader
         title="Studio Operating System"
         description="Giriş başarılı."
-        actions={<LogoutButton />}
+        actions={
+          <div className="flex items-center gap-2">
+            <Button variant="outline" render={<Link href="/members" />}>
+              Üyeler
+            </Button>
+            <LogoutButton />
+          </div>
+        }
       />
       <Card>
         <CardHeader>

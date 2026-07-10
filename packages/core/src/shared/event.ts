@@ -31,6 +31,9 @@ export type AggregateKind =
   | 'member'
   | 'entitlement'
   | 'product'
+  | 'service'
+  | 'room'
+  | 'classTemplate'
   | 'classSession'
   | 'reservation'
   | 'payment'
@@ -94,3 +97,12 @@ export interface DomainEvent<
   readonly causationId: EventId | null
   readonly correlationId: CorrelationId
 }
+
+// What a PURE decision function returns: the full envelope minus the two fields
+// infrastructure assigns at write time — `id` (a ULID uses randomness) and
+// `recordedAt` (serverTimestamp()). The transactor completes these atomically with
+// the state write (non-negotiable #1, #7).
+export type NewEvent<
+  TType extends string = string,
+  TPayload extends EventPayload = EventPayload,
+> = Omit<DomainEvent<TType, TPayload>, 'id' | 'recordedAt'>

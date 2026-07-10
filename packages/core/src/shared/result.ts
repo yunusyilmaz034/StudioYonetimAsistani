@@ -13,6 +13,9 @@ export type DomainError =
   | { readonly code: 'note_required' }
   | { readonly code: 'invalid_phone'; readonly value: string }
   | { readonly code: 'phone_already_registered'; readonly memberId: MemberId }
+  | { readonly code: 'session_capacity_exceeds_room'; readonly capacity: number; readonly roomCapacity: number }
+  | { readonly code: 'branch_mismatch' }
+  | { readonly code: 'invalid_time_range' }
 
 export type DomainErrorCode = DomainError['code']
 
