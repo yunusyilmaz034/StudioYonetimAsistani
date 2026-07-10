@@ -2,16 +2,20 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-> **Repository status: Architecture v1.0 Final — ready for implementation. Code not yet scaffolded.**
-> `docs/architecture/01…08` are **approved, binding, and mutually consistent**. Start at [`docs/architecture/README.md`](docs/architecture/README.md).
+> **Repository status: Architecture v1.0 Final. Scaffold and Design System v1 landed. Implementation underway.**
+> `docs/architecture/01…09` are **approved, binding, and mutually consistent**; **[`10-development-workflow.md`](docs/architecture/10-development-workflow.md) governs how we work.** Start at [`docs/architecture/README.md`](docs/architecture/README.md).
 > The export gate is closed at Grade A (E1–E4). Forty-six decisions, twenty-one invariants, zero blocking questions.
-> The commands and paths below describe the system as designed. Until scaffolding lands, treat this file as the specification you are implementing against, not a description of files that exist.
+> The pnpm workspace exists (three packages) and `pnpm check` is green; the Design System foundations are built. Business features are not — treat the architecture docs as the specification you implement against.
 
 ---
 
 ## What this is
 
-A multi-tenant SaaS platform for boutique fitness studios. The first customer is a women-only Pilates & Fitness studio in Türkiye; it is **not** the only customer, and no code may assume it is.
+A **Studio Operating System** — a multi-tenant SaaS platform for boutique fitness studios. The first customer is a women-only Pilates & Fitness studio in Türkiye; it is **not** the only customer, and no code may assume it is.
+
+> **Studio Operating System is an owner-first platform that runs daily operations, records every meaningful business event, reduces manual work, and turns studio data into decisions.**
+
+Every architecture, implementation, and UX decision serves that vision.
 
 **The reservation system is infrastructure, not the product.** The product is a decision-support system: the owner opens a dashboard and immediately knows what needs attention today. Everything in this repository exists to make that possible — which is why the event log matters more than the booking screen.
 
@@ -25,6 +29,22 @@ A multi-tenant SaaS platform for boutique fitness studios. The first customer is
 - **Everything in the repository is English**: code, identifiers, file names, commit messages, comments, architecture docs.
 - Technical terms (Event, Aggregate, Projection, Domain Model, Firestore) stay English in Turkish prose.
 - Turkish appears in exactly two places in the codebase: **user-facing UI copy** and **`DomainError` messages**. Never in identifiers.
+
+---
+
+## Development workflow — the default way of working
+
+Governed in full by [`docs/architecture/10-development-workflow.md`](docs/architecture/10-development-workflow.md). The rules that shape every session:
+
+- **The roadmap does not change** without the owner's approval. New milestones are *proposed*, not added.
+- **Scope discipline.** Work only on the active milestone. No business features, no future optimisation, no unnecessary refactor.
+- **Every milestone runs `Plan → UX → Implementation → Validation → Commit → Stop`.** After the commit, **stop and ask** — never advance to the next milestone automatically.
+- **Mobile first**, verified at **375 · 430 · 768 · 1280** px (Doc 09 §9).
+- **Architecture first**, and **documentation never lags behind the code.**
+- **`pnpm check` green at the end of every milestone**; `main` is always in a working state — a broken build/typecheck/lint/test never enters `main`.
+- **Git:** one commit per milestone (`feat(<scope>): <Milestone>`), a tag on completion (`vX.Y-<name>`), and **push only with the owner's approval.**
+- **Every milestone ends with the summary** in Doc 10 §5: changed files · architectural changes · components added · remaining debt · known risks · `pnpm check` result · commit hash · next proposed milestone.
+- **When a decision is unclear, do not guess — stop and ask.**
 
 ---
 
@@ -301,6 +321,8 @@ Event schemas and credit arithmetic are the two places to slow down. Everything 
 | `05-folder-structure.md` | Module boundaries, dependency graph, enforcement, the feature recipe |
 | `06-development-principles.md` | Prime directives, testing, errors, cost, git, debt register |
 | `08-phase-1-roadmap.md` | The seven days, the cutover, what is explicitly out |
+| `09-design-system.md` | Product character, semantic tokens, typography, mobile-first UX rules, foundation components |
+| `10-development-workflow.md` | **How we work:** the vision, milestone policy, git policy, quality rules |
 | `docs/DEBT.md` | Deliberate debt, each with a trigger to repay |
 
 Decisions are numbered `AD-nn` and carry the alternative that was rejected. **When you wonder "why is it like this?", the answer is in `docs/architecture/`.** If you cannot find it, ask — do not re-derive it differently.
