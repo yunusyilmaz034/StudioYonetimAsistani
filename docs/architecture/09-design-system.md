@@ -117,7 +117,7 @@ These are binding on every screen built on this system.
 - **Audit is untouched.** A workspace is a *presentation* of state, not a bypass of it. Every edit made inside it still goes through the normal command → decision → event path and still writes its event. Convenience never costs the log.
 - **Responsive is mandatory and lossless.** On **desktop**, a tabbed workspace is the norm. On **mobile**, the *same* workspace renders as accordions / stacked sections / Sheets — the same information and the same edit capability, no feature dropped (§9). If a capability exists on desktop and not on mobile, the workspace is not done.
 
-This is the **default UX for every business module.** It refines the Detail-page template (§8, template 2): for a rich business entity the "detail" surface *is* its workspace, and it may be a dedicated route rather than a narrow side drawer when the object carries enough to warrant tabs.
+This is the **default UX for every business module.** It refines the Detail-page template (§8, template 2): for a rich business entity the "detail" surface *is* its workspace, and it may be a dedicated route rather than a narrow side drawer when the object carries enough to warrant tabs. It is **UX-1** of the binding Product UX Principles (**Doc 12**), which govern every business module.
 
 **Labels are explicit.** An action button names its action:
 

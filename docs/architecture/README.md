@@ -21,6 +21,7 @@ When you wonder *"why is it like this?"*, the answer is here, numbered `AD-nn`, 
 | **09** | [Design System v1](./09-design-system.md) | Product character, semantic tokens, typography, UX rules, page patterns, the foundation component set |
 | **10** | [Development Workflow v1](./10-development-workflow.md) | **How we work:** the Studio Operating System vision, milestone policy, git policy, quality rules |
 | **11** | [Scheduling Foundation](./11-scheduling-foundation.md) | Services, rooms, class templates & sessions, scheduling policy, eager generation — the general time layer |
+| **12** | [Product UX Principles](./12-product-ux-principles.md) | **Binding product-level UX law** (UX-1…UX-8): Single Workspace, Mobile-First, Scheduling UX, Owner First — the rules every business module obeys |
 | — | [DEBT.md](../DEBT.md) | Deliberate debt, each with a trigger to repay |
 
 **Reading order for a new session:** `CLAUDE.md` → the module's own `README.md` → the doc that owns the thing you are changing.
