@@ -20,6 +20,7 @@ When you wonder *"why is it like this?"*, the answer is here, numbered `AD-nn`, 
 | **08** | [Phase 1 Roadmap](./08-phase-1-roadmap.md) | The seven days, the export gate, the cutover, what is explicitly out |
 | **09** | [Design System v1](./09-design-system.md) | Product character, semantic tokens, typography, UX rules, page patterns, the foundation component set |
 | **10** | [Development Workflow v1](./10-development-workflow.md) | **How we work:** the Studio Operating System vision, milestone policy, git policy, quality rules |
+| **11** | [Scheduling Foundation](./11-scheduling-foundation.md) | Services, rooms, class templates & sessions, scheduling policy, eager generation — the general time layer |
 | — | [DEBT.md](../DEBT.md) | Deliberate debt, each with a trigger to repay |
 
 **Reading order for a new session:** `CLAUDE.md` → the module's own `README.md` → the doc that owns the thing you are changing.
@@ -117,6 +118,17 @@ Superseded decisions are struck through and point at what replaced them.
 | # | Decision |
 |---|---|
 | **AD-45** | **Phase 1 ships catalogue CRUD and sells PT.** *(supersedes OQ-6; cut-ladder item #1)* |
+
+### Doc 11 — Scheduling Foundation
+
+| # | Decision |
+|---|---|
+| **AD-47** | `Service` is a configurable entity; `category` stays a closed enum on top of it (keeps the category wall). |
+| **AD-48** | `Room` is a first-class branch-scoped entity; session capacity ≤ room capacity. |
+| **AD-49** | `SchedulingPolicy` is embedded on the Service, versioned, snapshotted onto each session (D3). |
+| **AD-50** | Weekly templates generate sessions **eagerly and idempotently** per `(templateId, date)`. |
+| **AD-51** | Definitions: owner + platform_admin. Sessions: + receptionist. Trainer authz seam via `session.trainerId`. |
+| **AD-52** | Templates hold only `LocalDate` + `HH:MM`; the application derives `startsAt: Instant` (UTC) via `StudioConfig.utcOffsetMinutes` (+180 now; IANA timezone later, seamless). |
 
 ---
 

@@ -1,0 +1,148 @@
+import {
+  getFirestore,
+  type CollectionReference,
+  type DocumentData,
+  type DocumentReference,
+  type Firestore,
+  type Timestamp,
+  type WriteBatch,
+} from 'firebase-admin/firestore'
+
+import {
+  instant,
+  type ClassSessionId,
+  type ClassTemplateId,
+  type Instant,
+  type NewEvent,
+  type RoomId,
+  type ServiceId,
+  type StudioId,
+  type TenantContext,
+} from '../../../shared'
+import type { ClassSession, ClassTemplate, Room, Service } from '../domain/types'
+import type { SchedulingRepository } from '../application/ports'
+import {
+  eventToFirestore,
+  roomFromFirestore,
+  roomToFirestore,
+  serviceFromFirestore,
+  serviceToFirestore,
+  sessionFromFirestore,
+  sessionToFirestore,
+  templateFromFirestore,
+  templateToFirestore,
+} from './mappers'
+
+export class FirestoreSchedulingRepository implements SchedulingRepository {
+  constructor(private readonly db: Firestore = getFirestore()) {}
+
+  private col(sid: StudioId, name: string): CollectionReference {
+    return this.db.collection('studios').doc(sid).collection(name)
+  }
+
+  private appendEvents(sid: StudioId, batch: WriteBatch, events: readonly NewEvent[]): void {
+    for (const e of events) {
+      const { id, data } = eventToFirestore(e)
+      batch.set(this.col(sid, 'events').doc(id), data)
+    }
+  }
+
+  private async commit(
+    sid: StudioId,
+    ref: DocumentReference,
+    data: DocumentData,
+    events: readonly NewEvent[],
+  ): Promise<void> {
+    const batch = this.db.batch()
+    batch.set(ref, data)
+    this.appendEvents(sid, batch, events)
+    await batch.commit()
+  }
+
+  async getService(ctx: TenantContext, id: ServiceId): Promise<Service | null> {
+    const s = await this.col(ctx.studioId, 'services').doc(id).get()
+    const d = s.data()
+    return d ? serviceFromFirestore(id, d) : null
+  }
+  async saveService(ctx: TenantContext, service: Service, events: readonly NewEvent[]): Promise<void> {
+    await this.commit(
+      ctx.studioId,
+      this.col(ctx.studioId, 'services').doc(service.id),
+      serviceToFirestore(service),
+      events,
+    )
+  }
+
+  async getRoom(ctx: TenantContext, id: RoomId): Promise<Room | null> {
+    const s = await this.col(ctx.studioId, 'rooms').doc(id).get()
+    const d = s.data()
+    return d ? roomFromFirestore(id, d) : null
+  }
+  async saveRoom(ctx: TenantContext, room: Room, events: readonly NewEvent[]): Promise<void> {
+    await this.commit(
+      ctx.studioId,
+      this.col(ctx.studioId, 'rooms').doc(room.id),
+      roomToFirestore(room),
+      events,
+    )
+  }
+
+  async getTemplate(ctx: TenantContext, id: ClassTemplateId): Promise<ClassTemplate | null> {
+    const s = await this.col(ctx.studioId, 'classTemplates').doc(id).get()
+    const d = s.data()
+    return d ? templateFromFirestore(id, d) : null
+  }
+  async saveTemplate(
+    ctx: TenantContext,
+    template: ClassTemplate,
+    events: readonly NewEvent[],
+  ): Promise<void> {
+    await this.commit(
+      ctx.studioId,
+      this.col(ctx.studioId, 'classTemplates').doc(template.id),
+      templateToFirestore(template),
+      events,
+    )
+  }
+
+  async getSession(ctx: TenantContext, id: ClassSessionId): Promise<ClassSession | null> {
+    const s = await this.col(ctx.studioId, 'classSessions').doc(id).get()
+    const d = s.data()
+    return d ? sessionFromFirestore(id, d) : null
+  }
+  async saveSession(
+    ctx: TenantContext,
+    session: ClassSession,
+    events: readonly NewEvent[],
+  ): Promise<void> {
+    await this.commit(
+      ctx.studioId,
+      this.col(ctx.studioId, 'classSessions').doc(session.id),
+      sessionToFirestore(session),
+      events,
+    )
+  }
+
+  async listSessionStartsForTemplate(
+    ctx: TenantContext,
+    templateId: ClassTemplateId,
+  ): Promise<readonly Instant[]> {
+    const snap = await this.col(ctx.studioId, 'classSessions')
+      .where('templateId', '==', templateId)
+      .get()
+    return snap.docs.map((doc) => instant((doc.data().startsAt as Timestamp).toMillis()))
+  }
+
+  async saveSessions(
+    ctx: TenantContext,
+    sessions: readonly ClassSession[],
+    events: readonly NewEvent[],
+  ): Promise<void> {
+    const batch = this.db.batch()
+    for (const s of sessions) {
+      batch.set(this.col(ctx.studioId, 'classSessions').doc(s.id), sessionToFirestore(s))
+    }
+    this.appendEvents(ctx.studioId, batch, events)
+    await batch.commit()
+  }
+}
