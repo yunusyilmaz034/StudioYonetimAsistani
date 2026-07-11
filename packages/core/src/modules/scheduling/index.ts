@@ -3,11 +3,13 @@ export type {
   ClassSession,
   ClassSessionStatus,
   ClassTemplate,
+  NoteVisibility,
   Room,
   ServicePolicyRef,
   SchedulingPolicy,
   Service,
   SessionCancellation,
+  SessionNote,
   Weekday,
 } from './domain/types'
 export * from './events'
@@ -40,8 +42,17 @@ export {
   changeTrainer,
   generateSessions,
   scheduleSession,
+  setSessionNote,
   type ScheduleSessionInput,
 } from './application/session'
+export {
+  computeDuplicationPlan,
+  planWeekDuplication,
+  applyWeekDuplication,
+  type DuplicateWeekInput,
+  type DuplicationPlan,
+  type DuplicationTarget,
+} from './application/duplicate-week'
 export type { SchedulingDeps, SchedulingRepository } from './application/ports'
 export { FirestoreSchedulingRepository } from './infrastructure/repos'
 // Exposed for cross-aggregate transactions (the booking transaction reads and

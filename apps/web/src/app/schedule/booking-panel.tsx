@@ -1,7 +1,8 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { CheckIcon, Loader2Icon, PlusIcon, SearchIcon, XIcon } from 'lucide-react'
+import Link from 'next/link'
+import { CheckIcon, Loader2Icon, PencilIcon, PlusIcon, SearchIcon, XIcon } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Badge } from '@/components/ui/badge'
@@ -15,6 +16,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { domainErrorMessage } from '@/lib/domain-error'
 import {
   getBookingStatusAction,
@@ -24,7 +26,11 @@ import {
   type BookingStatus,
   type RosterMember,
 } from '@/server/actions/booking'
-import { bookReservationAction, cancelReservationAction } from '@/server/actions/reservations'
+import {
+  bookReservationAction,
+  cancelReservationAction,
+  setReservationNoteAction,
+} from '@/server/actions/reservations'
 import type { CalendarSession } from '@/server/schedule-query'
 
 import { occupancy } from './types'
@@ -46,6 +52,8 @@ export function BookingPanel({ session, onMutated }: { session: CalendarSession;
   const [statusLoading, setStatusLoading] = useState(false)
   const [busy, setBusy] = useState(false)
   const [cancelling, setCancelling] = useState<RosterMember | null>(null)
+  const [noting, setNoting] = useState<RosterMember | null>(null)
+  const [noteText, setNoteText] = useState('')
 
   const bookable = session.status === 'scheduled' && session.startsAt > Date.now()
   const occ = occupancy(session.bookedCount, session.capacity)
@@ -151,6 +159,24 @@ export function BookingPanel({ session, onMutated }: { session: CalendarSession;
     setBusy(false)
   }
 
+  async function saveNote() {
+    if (!noting) return
+    setBusy(true)
+    try {
+      const res = await setReservationNoteAction({ reservationId: noting.reservationId, text: noteText.trim() })
+      if (res.ok) {
+        toast.success(noteText.trim() ? 'Not kaydedildi.' : 'Not silindi.')
+        setNoting(null)
+        await loadRoster()
+      } else {
+        toast.error(domainErrorMessage(res.error))
+      }
+    } catch {
+      toast.error('Not kaydedilemedi.')
+    }
+    setBusy(false)
+  }
+
   const hoursUntil = (session.startsAt - Date.now()) / 3_600_000
   const lateCancel = hoursUntil < session.cancellationWindowHours && session.lateCancellationConsumesCredit
 
@@ -176,15 +202,41 @@ export function BookingPanel({ session, onMutated }: { session: CalendarSession;
         <ul className="divide-y divide-border rounded-xl border border-border">
           {roster.map((r) => (
             <li key={r.reservationId} className="flex items-center justify-between gap-2 p-2.5">
-              <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-foreground">{r.memberName}</p>
-                <p className="text-xs text-muted-foreground">···{r.phoneLast4}</p>
-              </div>
-              {bookable ? (
-                <Button variant="ghost" size="icon-sm" aria-label="İptal et" onClick={() => setCancelling(r)}>
-                  <XIcon />
+              {/* The name/main area is a link to the member's workspace — independent of
+                  the pencil (note) and X (cancel) actions; keyboard-accessible. */}
+              <Link
+                href={`/members/${r.memberId}`}
+                className="group min-w-0 flex-1 rounded outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              >
+                <p className="truncate text-sm font-medium text-foreground group-hover:text-primary group-hover:underline">
+                  {r.memberName}
+                </p>
+                {r.note ? (
+                  <p className="truncate text-xs text-info" title={r.note}>
+                    📝 {r.note}
+                  </p>
+                ) : (
+                  <p className="text-xs text-muted-foreground">···{r.phoneLast4}</p>
+                )}
+              </Link>
+              <div className="flex shrink-0 items-center">
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="Hızlı not"
+                  onClick={() => {
+                    setNoteText(r.note ?? '')
+                    setNoting(r)
+                  }}
+                >
+                  <PencilIcon />
                 </Button>
-              ) : null}
+                {bookable ? (
+                  <Button variant="ghost" size="icon-sm" aria-label="İptal et" onClick={() => setCancelling(r)}>
+                    <XIcon />
+                  </Button>
+                ) : null}
+              </div>
             </li>
           ))}
         </ul>
@@ -290,6 +342,30 @@ export function BookingPanel({ session, onMutated }: { session: CalendarSession;
             <Button variant="destructive" onClick={confirmCancel} disabled={busy}>
               {busy ? <Loader2Icon className="animate-spin" /> : null}
               Rezervasyonu İptal Et
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Hızlı Not — staff-only quick note per reservation */}
+      <Dialog open={noting !== null} onOpenChange={(o) => (o ? null : setNoting(null))}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Hızlı Not</DialogTitle>
+            <DialogDescription>{noting?.memberName} · yalnızca personel görür.</DialogDescription>
+          </DialogHeader>
+          <Textarea
+            rows={4}
+            placeholder="Bu rezervasyon/üye için kısa not…"
+            value={noteText}
+            onChange={(e) => setNoteText(e.target.value)}
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setNoting(null)} disabled={busy}>
+              Vazgeç
+            </Button>
+            <Button onClick={saveNote} disabled={busy}>
+              {busy ? <Loader2Icon className="animate-spin" /> : null} Kaydet
             </Button>
           </DialogFooter>
         </DialogContent>

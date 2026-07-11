@@ -19,8 +19,9 @@ import {
   decideChangeRoom,
   decideChangeTrainer,
   decideScheduleSession,
+  decideSetSessionNote,
 } from '../domain/decide'
-import type { ClassSession, Room, Service } from '../domain/types'
+import type { ClassSession, NoteVisibility, Room, Service } from '../domain/types'
 import { decideContext } from './service'
 import type { SchedulingDeps } from './ports'
 import {
@@ -244,5 +245,23 @@ export async function changeCapacity(
   if (!events.ok) return events
   if (events.value.length === 0) return { ok: true, value: undefined }
   await deps.repo.saveSession(ctx, { ...current, capacity: input.capacity }, events.value)
+  return { ok: true, value: undefined }
+}
+
+// Set (or clear) the class note. Applies the note to the session state and appends the
+// note_set event in one write. Empty text clears the note.
+export async function setSessionNote(
+  deps: SchedulingDeps,
+  ctx: TenantContext,
+  input: { sessionId: ClassSessionId; text: string; visibility: NoteVisibility },
+): Promise<Result<void, DomainError>> {
+  const current = await deps.repo.getSession(ctx, input.sessionId)
+  if (!current) throw new Error(`Session not found: ${input.sessionId}`)
+  const dctx = decideContext(deps, ctx)
+  const events = decideSetSessionNote(dctx, current, { text: input.text, visibility: input.visibility })
+  if (!events.ok) return events
+  const text = input.text.trim()
+  const nextNote = text.length === 0 ? null : { text, visibility: input.visibility, setAt: dctx.now }
+  await deps.repo.saveSession(ctx, { ...current, note: nextNote }, events.value)
   return { ok: true, value: undefined }
 }

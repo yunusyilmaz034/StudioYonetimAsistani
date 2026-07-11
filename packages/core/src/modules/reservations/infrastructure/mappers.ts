@@ -47,6 +47,7 @@ export function reservationToFirestore(r: Reservation): DocumentData {
     resolvedBy: r.resolvedBy,
     attendanceSource: r.attendanceSource,
     policyRef: r.policyRef,
+    note: r.note ? { text: r.note.text, setAt: toTs(r.note.setAt) } : null,
     updatedAt: FieldValue.serverTimestamp(),
   }
 }
@@ -72,6 +73,7 @@ export function reservationFromFirestore(id: ReservationId, d: DocumentData): Re
     resolvedBy: (d.resolvedBy as ActorRef | null) ?? null,
     attendanceSource: (d.attendanceSource as AttendanceSource | null) ?? null,
     policyRef: d.policyRef as ReservationPolicyRef,
+    note: d.note ? { text: (d.note as { text: string }).text, setAt: fromTs((d.note as { setAt: Timestamp }).setAt) } : null,
   }
 }
 

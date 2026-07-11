@@ -10,6 +10,7 @@ export type {
   AttendanceSource,
   CreditEffect,
   Reservation,
+  ReservationNote,
   ReservationPolicyRef,
   ReservationStatus,
 } from './domain/types'
@@ -30,6 +31,7 @@ export {
   type AutoResolveSummary,
 } from './application/auto-resolve'
 export { correctReservation, type CorrectReservationInput } from './application/correct'
+export { setReservationNote, type SetReservationNoteInput } from './application/set-note'
 export type {
   BookDecision,
   BookTxInput,

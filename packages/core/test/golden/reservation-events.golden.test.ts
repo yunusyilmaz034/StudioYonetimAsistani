@@ -9,6 +9,7 @@ import {
   decideBooking,
   decideCancellation,
   decideCorrection,
+  decideSetReservationNote,
   type DecideContext,
 } from '../../src/modules/reservations/domain/decide'
 import type { Reservation } from '../../src/modules/reservations/domain/types'
@@ -34,6 +35,7 @@ import cancelled from './reservation.cancelled.v1.json'
 import corrected from './reservation.corrected.v1.json'
 import lateCancelled from './reservation.late_cancelled.v1.json'
 import noShow from './reservation.no_show.v1.json'
+import noteSet from './reservation.note_set.v1.json'
 
 const NOW = instant(1_000_000_000_000)
 const H = 3_600_000
@@ -151,5 +153,10 @@ describe('reservation event payloads match golden fixtures (AD-33)', () => {
   })
   it('reservation.corrected', () => {
     expect(payload(decideCorrection(ctx, res({ status: 'no_show' }), 'attended', 'trainer marked wrong roster'))).toEqual(corrected)
+  })
+  it('reservation.note_set', () => {
+    const r = decideSetReservationNote(ctx, res(), "Dizini incitmiş; reformer'da ağırlık düşük tutulacak.")
+    expect(r.ok).toBe(true)
+    if (r.ok) expect(r.value[0]?.payload).toEqual(noteSet)
   })
 })

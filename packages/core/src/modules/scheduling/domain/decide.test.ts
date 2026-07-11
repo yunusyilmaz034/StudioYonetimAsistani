@@ -18,6 +18,7 @@ import {
   decideChangeRoom,
   decideChangeTrainer,
   decideScheduleSession,
+  decideSetSessionNote,
   decideUpdateTemplate,
 } from './decide'
 import type { DecideContext } from './decide'
@@ -210,6 +211,28 @@ describe('decideChangeCapacity', () => {
   })
   it('refuses editing a started session', () => {
     const r = decideChangeCapacity(ctx, makeSession({ startsAt: instant(1_000_000) }), room, 6, 'x')
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.error.code).toBe('session_not_editable')
+  })
+})
+
+describe('decideSetSessionNote', () => {
+  it('emits note_set with the trimmed text and visibility', () => {
+    const r = decideSetSessionNote(ctx, makeSession({ startsAt: FUTURE }), { text: '  Yaylar değişti  ', visibility: 'members' })
+    expect(r.ok).toBe(true)
+    if (r.ok) expect(r.value[0]?.payload).toEqual({ text: 'Yaylar değişti', visibility: 'members' })
+  })
+  it('is allowed on a started or completed session (a note is metadata, not an edit)', () => {
+    const r = decideSetSessionNote(ctx, makeSession({ startsAt: instant(1_000_000), status: 'completed' }), { text: 'Ders iyi geçti', visibility: 'staff' })
+    expect(r.ok).toBe(true)
+  })
+  it('allows clearing (empty text)', () => {
+    const r = decideSetSessionNote(ctx, makeSession({ startsAt: FUTURE }), { text: '   ', visibility: 'staff' })
+    expect(r.ok).toBe(true)
+    if (r.ok) expect(r.value[0]?.payload).toEqual({ text: '', visibility: 'staff' })
+  })
+  it('refuses a note on a cancelled session', () => {
+    const r = decideSetSessionNote(ctx, makeSession({ status: 'cancelled' }), { text: 'x', visibility: 'staff' })
     expect(r.ok).toBe(false)
     if (!r.ok) expect(r.error.code).toBe('session_not_editable')
   })

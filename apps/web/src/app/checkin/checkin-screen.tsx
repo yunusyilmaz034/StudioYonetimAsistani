@@ -2,7 +2,6 @@
 
 import { useCallback, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
 import { CameraIcon, LogInIcon, LogOutIcon, SearchIcon, UsersIcon } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -101,9 +100,6 @@ export function CheckinScreen({ state, members }: { state: CheckinState; members
         description={state.isOpen ? `Şu an içeride: ${state.occupancy}` : 'Şube kapalı'}
         actions={
           <div className="flex items-center gap-2">
-            <Button variant="outline" render={<Link href="/" />}>
-              Ana Sayfa
-            </Button>
             {state.branchId ? (
               <Button
                 variant={state.isOpen ? 'destructive' : 'default'}

@@ -62,6 +62,19 @@ export interface ClassTemplate {
 
 export type ClassSessionStatus = 'scheduled' | 'in_progress' | 'completed' | 'cancelled'
 
+// The class note (Ders Notu). Free text is the core — kept intact for members and,
+// later, AI (owner directive). `visibility` decides whether it reaches the member
+// portal. EXTENSIBLE BY DESIGN: future additions (attachments, links, ai suggestions)
+// are ADDITIVE optional fields on this record and on the note_set event — events are
+// versioned, so adding an optional field never breaks the existing model.
+export type NoteVisibility = 'staff' | 'members'
+export interface SessionNote {
+  readonly text: string
+  readonly visibility: NoteVisibility
+  readonly setAt: Instant
+  // future (do not build yet): attachments?, links?, aiSuggestion? — all additive.
+}
+
 export interface SessionCancellation {
   readonly reason: string
   readonly at: Instant
@@ -90,6 +103,7 @@ export interface ClassSession {
   readonly policySnapshot: SchedulingPolicy // I-24
   readonly bookedCount: number // starts 0; reservations are v1.8
   readonly attendedCount: number
+  readonly note?: SessionNote | null // the class note (Ders Notu); optional/additive
   // denormalised for the roster/calendar read (rebuildable):
   readonly serviceName: string
   readonly roomName: string | null

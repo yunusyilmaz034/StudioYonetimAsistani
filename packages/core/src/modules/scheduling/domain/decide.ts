@@ -17,6 +17,7 @@ import {
 import {
   CLASS_SESSION_CANCELLED,
   CLASS_SESSION_CAPACITY_CHANGED,
+  CLASS_SESSION_NOTE_SET,
   CLASS_SESSION_ROOM_CHANGED,
   CLASS_SESSION_SCHEDULED,
   CLASS_SESSION_TRAINER_CHANGED,
@@ -33,7 +34,7 @@ import {
   SERVICE_REACTIVATED,
   SERVICE_UPDATED,
 } from '../events'
-import type { ClassSession, ClassTemplate, Room, Service } from './types'
+import type { ClassSession, ClassTemplate, NoteVisibility, Room, Service } from './types'
 
 export interface DecideContext {
   readonly studioId: StudioId
@@ -360,6 +361,25 @@ export function decideChangeCapacity(
       ...base(ctx, 'classSession', session.id, session.branchId, { classSessionId: session.id }),
       type: CLASS_SESSION_CAPACITY_CHANGED,
       payload: { fromCapacity: session.capacity, toCapacity, reason },
+    },
+  ])
+}
+
+// Set (or clear) the class note (Ders Notu). Free text is preserved intact — trimmed
+// only at the edges. Unlike trainer/room/capacity edits, a note is metadata, not a
+// schedule change, so it is allowed on any non-cancelled session (you may note a class
+// that has already happened). Empty text clears the note. No `reason` required.
+export function decideSetSessionNote(
+  ctx: DecideContext,
+  session: ClassSession,
+  input: { text: string; visibility: NoteVisibility },
+): Result<NewEvent[], DomainError> {
+  if (session.status === 'cancelled') return err({ code: 'session_not_editable' })
+  return ok([
+    {
+      ...base(ctx, 'classSession', session.id, session.branchId, { classSessionId: session.id }),
+      type: CLASS_SESSION_NOTE_SET,
+      payload: { text: input.text.trim(), visibility: input.visibility },
     },
   ])
 }

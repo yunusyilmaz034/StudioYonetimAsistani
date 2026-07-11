@@ -91,6 +91,9 @@ export interface ReservationRepository {
   // The Member Workspace read (v1.18): a member's reservations (any status), newest
   // session first. Bounded/split (upcoming + last-N past) by the caller.
   listByMember(ctx: TenantContext, memberId: MemberId): Promise<readonly Reservation[]>
+  // Set the staff quick note (Hızlı Not, v1.19): write the reservation's note field and
+  // append the note_set event in one batch. No credit/session touched.
+  applyNote(ctx: TenantContext, reservation: Reservation, events: readonly NewEvent[]): Promise<void>
 }
 
 export interface ReservationsDeps {

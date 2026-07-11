@@ -1,7 +1,10 @@
 # 19 — Calendars & Session Workspace · Design (v1.19)
 
-> **Status: APPROVED-IN-PRINCIPLE (owner, 2026-07-11); decisions §11 resolved. Ready to
-> plan implementation. No code until the owner green-lights the build.**
+> **Status: IMPLEMENTED (v1.19). Shared calendar engine + Class Calendar + Reservation
+> Calendar + tabbed Session Workspace (info · reservations · attendance · notes, two new
+> note events) + "Bu haftayı tekrarla" (app-layer, room+time conflict) + global
+> navigation. Attendance marking depends on the Functions trigger — deferred (DEBT-011,
+> repay in v1.24). Member portal split to v1.20/v1.21.**
 >
 > **Scope split (owner):** v1.19 delivers the **two calendars + Session Workspace +
 > "duplicate this week" + global navigation**. The **member portal + member auth** moved

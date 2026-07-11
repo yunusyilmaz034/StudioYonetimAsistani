@@ -15,9 +15,12 @@ import {
   FirestoreSchedulingRepository,
   generateSessions,
   publishServicePolicy,
+  applyWeekDuplication,
+  planWeekDuplication,
   reactivateRoom,
   reactivateService,
   scheduleSession,
+  setSessionNote,
   systemClock,
   updateRoom,
   updateService,
@@ -25,6 +28,7 @@ import {
   type BranchId,
   type ClassSessionId,
   type ClassTemplateId,
+  type NoteVisibility,
   type RoomId,
   type SchedulingDeps,
   type ServiceId,
@@ -205,6 +209,32 @@ export async function changeCapacityAction(input: unknown) {
     sessionId: p.sessionId as ClassSessionId,
     capacity: p.capacity,
     reason: p.reason,
+  })
+}
+
+// "Bu haftayı tekrarla" — dry-run (apply:false) returns the plan (create/skip/conflict)
+// for a pre-flight summary; apply:true creates the non-conflicting future sessions.
+export async function duplicateWeekAction(input: unknown) {
+  const p = z
+    .object({ weekStartDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), weeks: z.number().int().min(1).max(52), apply: z.boolean() })
+    .parse(input)
+  const ctx = await requireTenantContext(OPS)
+  const arg = { weekStartDate: p.weekStartDate, weeks: p.weeks }
+  if (p.apply) return applyWeekDuplication(deps(), ctx, arg)
+  const plan = await planWeekDuplication(deps(), ctx, arg)
+  return { ok: true as const, value: { created: 0, plan } }
+}
+
+// Set the class note (Ders Notu). Empty text clears it. Visibility 'members' surfaces it
+// in the member portal (v1.20). Owner + reception.
+export async function setSessionNoteAction(input: unknown) {
+  const p = z
+    .object({ sessionId: nonEmpty, text: z.string(), visibility: z.enum(['staff', 'members']) })
+    .parse(input)
+  return setSessionNote(deps(), await requireTenantContext(OPS), {
+    sessionId: p.sessionId as ClassSessionId,
+    text: p.text,
+    visibility: p.visibility as NoteVisibility,
   })
 }
 // Template edits are definitions: owner + platform_admin (AD-51).

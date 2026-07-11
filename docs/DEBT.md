@@ -140,6 +140,33 @@ the reverse branch in `correctReservation`.
 
 ---
 
+## DEBT-011 — Functions emulator won't load (ESM/Node mismatch)
+
+**Taken:** dev tooling / verification · v1.19 · Yunus
+**What:** `apps/functions` is `"type": "module"` but the shared tsconfig uses
+`moduleResolution: "Bundler"`, so the compiled ESM imports have no `.js` extensions and
+Node's native ESM loader refuses them (`ERR_MODULE_NOT_FOUND: .../lib/scheduled/auto-check-out`).
+The Functions emulator therefore fails to load its codebase; auth + firestore emulators
+run fine.
+**Cost:** the offline `/commands` path cannot be exercised locally — **attendance
+marking** (`attendance.mark`) and **check-in** (`checkIn.record`) write their command doc
+but no trigger applies it, so nothing resolves in the emulator. The UI is complete and
+optimistic; synchronous paths (booking, cancel, correction, notes, week-duplication) are
+unaffected. Almost certainly the same misconfiguration would break a real Functions
+deploy — so this is a deploy blocker to fix before go-live, not merely a dev annoyance.
+**Why deferred:** it is a functions build/deploy configuration fix (NodeNext + explicit
+extensions, or a functions-only tsconfig / CommonJS output), cross-cutting and squarely in
+the Production Hardening / CI milestone's scope — not v1.19 (calendars).
+**Trigger to repay:** **v1.24 Production Hardening / CI** — when the emulator integration
+tests must run and the Functions codebase must deploy. Fix the module config, verify
+`on-command-created` + the nightly sweeps load and fire on the emulator, then run the
+deferred trigger/rules/transaction integration tests.
+**Repayment:** correct `apps/functions` module resolution (a functions `tsconfig` with
+`module`/`moduleResolution: NodeNext` and `.js` import extensions, or CommonJS), confirm
+`firebase emulators:start --only functions` loads clean, wire the integration suite.
+
+---
+
 ## Reserved for the build week
 
 Shortcuts taken during Phase 1 implementation get entries here **as they are taken**, not afterwards. If the cut ladder (Doc 8 §8) is used — catalogue CRUD UI, owner view, manual attendance marking, freeze UI, payment allocation UI, weekly template generation, offline check-in — each cut becomes an entry with a trigger.

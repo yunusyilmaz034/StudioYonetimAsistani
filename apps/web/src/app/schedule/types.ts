@@ -1,6 +1,8 @@
 import type { CalendarSession } from '@/server/schedule-query'
 
-export type ViewMode = 'month' | 'week' | 'day' | 'agenda'
+// Class-calendar-specific filter + status + occupancy helpers. The generic calendar
+// date helpers (dayKey, timeLabel, headings, weekday tables, view math) now live in
+// `@/components/calendar` and are shared with the Reservation Calendar.
 
 export interface Filters {
   serviceId: string
@@ -16,44 +18,6 @@ export const EMPTY_FILTERS: Filters = {
   trainerId: 'all',
   branchId: 'all',
   status: 'all',
-}
-
-const TZ = 'Europe/Istanbul'
-
-// A studio-local 'YYYY-MM-DD' key for grouping sessions by day (en-CA formats ISO).
-export function dayKey(ms: number): string {
-  return new Date(ms).toLocaleDateString('en-CA', { timeZone: TZ })
-}
-
-export function timeLabel(ms: number): string {
-  return new Date(ms).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', timeZone: TZ })
-}
-
-export function dayHeading(dateStr: string): string {
-  return new Date(`${dateStr}T00:00:00Z`).toLocaleDateString('tr-TR', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-  })
-}
-
-export function monthHeading(dateStr: string): string {
-  return new Date(`${dateStr}T00:00:00Z`).toLocaleDateString('tr-TR', { month: 'long', year: 'numeric' })
-}
-
-export function shiftDate(dateStr: string, days: number): string {
-  const d = new Date(`${dateStr}T00:00:00Z`)
-  d.setUTCDate(d.getUTCDate() + days)
-  return d.toISOString().slice(0, 10)
-}
-
-export const WEEKDAYS_TR = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz']
-export const WEEKDAYS_TR_LONG = ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi', 'Pazar']
-
-// Monday-based weekday index (0=Mon) for a 'YYYY-MM-DD'.
-export function mondayIndex(dateStr: string): number {
-  const dow = new Date(`${dateStr}T00:00:00Z`).getUTCDay() // 0=Sun
-  return (dow + 6) % 7
 }
 
 export function passesFilters(s: CalendarSession, f: Filters): boolean {

@@ -29,6 +29,7 @@ import {
   RESERVATION_CORRECTED,
   RESERVATION_LATE_CANCELLED,
   RESERVATION_NO_SHOW,
+  RESERVATION_NOTE_SET,
 } from '../events'
 import type { CreditEffect, Reservation, ReservationStatus } from './types'
 
@@ -372,4 +373,21 @@ export function decideCorrection(
       },
     ],
   })
+}
+
+// Set (or clear) the staff quick note (Hızlı Not). Free text preserved, trimmed at the
+// edges; empty text clears it. Staff metadata — allowed on any reservation status. The
+// application applies the note to the reservation state alongside this event.
+export function decideSetReservationNote(
+  ctx: DecideContext,
+  reservation: Reservation,
+  text: string,
+): Result<NewEvent[], DomainError> {
+  return ok([
+    {
+      ...base(ctx, reservation),
+      type: RESERVATION_NOTE_SET,
+      payload: { text: text.trim() },
+    },
+  ])
 }

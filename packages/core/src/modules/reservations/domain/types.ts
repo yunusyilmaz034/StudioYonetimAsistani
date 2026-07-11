@@ -58,4 +58,15 @@ export type Reservation = {
   readonly attendanceSource: AttendanceSource | null
 
   readonly policyRef: ReservationPolicyRef // the cancellation rules AT BOOKING TIME (D3)
+  readonly note?: ReservationNote | null // the staff quick note (Hızlı Not); optional/additive
+}
+
+// The reservation quick note (Hızlı Not) — STAFF-ONLY (never shown to the member,
+// unlike the class note). Free text kept intact for staff and, later, AI. EXTENSIBLE:
+// future optional fields (attachments, links, aiSuggestion) are additive and versioned,
+// so adding one never breaks the model.
+export interface ReservationNote {
+  readonly text: string
+  readonly setAt: Instant
+  // future (do not build yet): attachments?, links?, aiSuggestion? — all additive.
 }

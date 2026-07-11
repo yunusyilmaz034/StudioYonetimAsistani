@@ -6,6 +6,7 @@ import {
   decideChangeRoom,
   decideCreateService,
   decideScheduleSession,
+  decideSetSessionNote,
   decideUpdateTemplate,
 } from '../../src/modules/scheduling/domain/decide'
 import type { DecideContext } from '../../src/modules/scheduling/domain/decide'
@@ -34,6 +35,7 @@ import sessionCancelled from './class_session.cancelled.v1.json'
 import sessionScheduled from './class_session.scheduled.v1.json'
 import roomChanged from './class_session.room_changed.v1.json'
 import capacityChanged from './class_session.capacity_changed.v1.json'
+import noteSet from './class_session.note_set.v1.json'
 import templateUpdated from './class_template.updated.v1.json'
 
 const ctx: DecideContext = {
@@ -112,6 +114,14 @@ describe('scheduling event payloads match golden fixtures (AD-33)', () => {
     const r = decideChangeCapacity(ctx, futureSession, room2, 10, 'Talep arttı')
     expect(r.ok).toBe(true)
     if (r.ok) expect(r.value[0]?.payload).toEqual(capacityChanged)
+  })
+  it('class_session.note_set', () => {
+    const r = decideSetSessionNote(ctx, futureSession, {
+      text: 'Reformer yayları bugün değişti; ilk 10 dakika ısınmaya ayrılacak.',
+      visibility: 'members',
+    })
+    expect(r.ok).toBe(true)
+    if (r.ok) expect(r.value[0]?.payload).toEqual(noteSet)
   })
   it('class_template.updated', () => {
     const current: ClassTemplate = {

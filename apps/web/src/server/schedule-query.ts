@@ -32,6 +32,8 @@ export interface CalendarSession {
   // For the booking panel's late-cancellation warning (from the session's policy snapshot).
   readonly cancellationWindowHours: number
   readonly lateCancellationConsumesCredit: boolean
+  // The class note (Ders Notu), if set.
+  readonly note: { readonly text: string; readonly visibility: 'staff' | 'members' } | null
 }
 
 export interface PickOption {
@@ -74,8 +76,9 @@ export function studioToday(): string {
 }
 
 // A UTC-ms window covering the month of `dateStr`, widened by a week each side so a
-// week/day view spanning a month boundary still has its sessions.
-function fetchWindow(dateStr: string): [number, number] {
+// week/day view spanning a month boundary still has its sessions. Exported so the
+// Reservation Calendar can load reservations over the exact same window.
+export function scheduleWindow(dateStr: string): [number, number] {
   const parts = dateStr.split('-')
   const y = Number(parts[0])
   const m = Number(parts[1])
@@ -91,7 +94,7 @@ function fetchWindow(dateStr: string): [number, number] {
 export async function loadSchedule(ctx: TenantContext, dateStr: string): Promise<ScheduleData> {
   const db = adminDb()
   const sched = new FirestoreSchedulingRepository(db)
-  const [fromMs, toMs] = fetchWindow(dateStr)
+  const [fromMs, toMs] = scheduleWindow(dateStr)
 
   const [sessions, services, rooms, templates, staff] = await Promise.all([
     sched.listSessionsForDay(ctx, instant(fromMs), instant(toMs)),
@@ -120,6 +123,7 @@ export async function loadSchedule(ctx: TenantContext, dateStr: string): Promise
       status: s.status,
       cancellationWindowHours: s.policySnapshot.cancellationWindowHours,
       lateCancellationConsumesCredit: s.policySnapshot.lateCancellationConsumesCredit,
+      note: s.note ? { text: s.note.text, visibility: s.note.visibility } : null,
     })),
     services: services
       .filter((s) => s.active)

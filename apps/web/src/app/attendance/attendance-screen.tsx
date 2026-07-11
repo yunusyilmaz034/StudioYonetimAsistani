@@ -2,7 +2,6 @@
 
 import { useCallback, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
 import { CalendarCheckIcon, ChevronLeftIcon, ChevronRightIcon } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -134,11 +133,6 @@ export function AttendanceScreen({
       <PageHeader
         title="Yoklama"
         description={humanDate(date, today)}
-        actions={
-          <Button variant="outline" render={<Link href="/" />}>
-            Ana Sayfa
-          </Button>
-        }
       />
 
       <div className="flex items-center justify-between gap-2">

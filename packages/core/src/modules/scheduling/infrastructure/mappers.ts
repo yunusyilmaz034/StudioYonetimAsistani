@@ -128,6 +128,7 @@ export function sessionToFirestore(s: ClassSession): DocumentData {
     policySnapshot: s.policySnapshot,
     bookedCount: s.bookedCount,
     attendedCount: s.attendedCount,
+    note: s.note ? { text: s.note.text, visibility: s.note.visibility, setAt: toTs(s.note.setAt) } : null,
     serviceName: s.serviceName,
     roomName: s.roomName,
     trainerName: s.trainerName,
@@ -155,6 +156,13 @@ export function sessionFromFirestore(id: ClassSessionId, d: DocumentData): Class
     policySnapshot: d.policySnapshot as SchedulingPolicy,
     bookedCount: d.bookedCount as number,
     attendedCount: d.attendedCount as number,
+    note: d.note
+      ? {
+          text: (d.note as { text: string }).text,
+          visibility: (d.note as { visibility: 'staff' | 'members' }).visibility,
+          setAt: fromTs((d.note as { setAt: Timestamp }).setAt),
+        }
+      : null,
     serviceName: d.serviceName as string,
     roomName: (d.roomName as string | null) ?? null,
     trainerName: (d.trainerName as string | null) ?? null,

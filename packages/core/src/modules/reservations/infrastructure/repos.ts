@@ -200,4 +200,16 @@ export class FirestoreReservationRepository implements ReservationRepository {
       .get()
     return snap.docs.map((doc) => reservationFromFirestore(doc.id as ReservationId, doc.data()))
   }
+
+  // Hızlı Not (v1.19): write the reservation state (with its note) + the note_set event
+  // in one batch. A note touches neither credits nor the session, so no transaction.
+  async applyNote(ctx: TenantContext, reservation: Reservation, events: readonly NewEvent[]): Promise<void> {
+    const batch = this.db.batch()
+    batch.set(this.col(ctx.studioId, 'reservations').doc(reservation.id), reservationToFirestore(reservation))
+    for (const e of events) {
+      const { id, data } = eventToFirestore(e)
+      batch.set(this.col(ctx.studioId, 'events').doc(id), data)
+    }
+    await batch.commit()
+  }
 }

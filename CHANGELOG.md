@@ -33,6 +33,34 @@ All notable changes are recorded here. Architecture rationale lives in
 - A quick-book Server Action (`listUpcomingSessionsAction`, read-only) powers the
   in-context session picker.
 
+## v1.19 — Calendars, Session Workspace, Week Duplication & Global Nav · `v1.19-calendars-session-workspace`
+
+- **Shared calendar engine** (`components/calendar/`) — one data-agnostic Month/Week/Day/
+  Agenda grid + interactive **"+N events" day popover** + toolbar + filters, used by both
+  calendars (removes the duplication that `/schedule` and `/reservations` carried).
+- **Class Calendar** (`/schedule`) adopts the engine; **Reservation Calendar**
+  (`/reservations`) rewritten onto it — a **dense, member-name** session calendar with a
+  Month view (a `loadSchedule` + reservation-window join; no new core read). Reservation
+  member names link to the member workspace.
+- **Session Workspace** (tabbed, replaces the single-column sheet): **Ders Bilgileri**
+  (trainer/room/capacity/cancel) · **Rezervasyonlar** (roster, add/cancel, Hızlı Not per
+  member) · **Yoklama** (one-tap attended/no-show, bulk, correction) · **Notlar**. Opened
+  from both calendars.
+- **Notes** — two new events: `class_session.note_set` (Ders Notu, staff/members
+  visibility, member-portal-ready) and `reservation.note_set` (Hızlı Not, staff-only).
+  Free text preserved; payloads designed additive/extensible (future attachments/links/AI).
+- **"Bu haftayı tekrarla"** — session-week duplication, application-layer over
+  `scheduleSession`; conflict = same room + start time (room-less: service + time), no
+  overwrite, no past; **pre-flight preview** (create / conflict / past) with source-week
+  picker and target-range display. Pure `computeDuplicationPlan` + 5 tests. **No new
+  domain rule** (owner decision C1).
+- **Persistent global navigation** (`AppShell`) across all owner screens (desktop rail /
+  mobile bottom bar); redundant per-screen "Ana Sayfa" links removed. Styling intentionally
+  plain — the premium visual pass is v1.20.
+- Attendance **marking** rides the offline `/commands` path and needs the Functions
+  trigger, which the emulator can't load here (DEBT-011, repay in v1.24). Member portal +
+  member auth split to v1.20/v1.21.
+
 ## v1.17 — Reservation Workspace · `v1.17-reservation-workspace`
 
 - Reception's reservation-operations screen (`/reservations`): all reservations,

@@ -9,6 +9,7 @@ import {
   FirestoreReservationRepository,
   FirestoreSchedulingRepository,
   selectEntitlement,
+  setReservationNote,
   systemClock,
   toMemberSnapshot,
   type ClassSessionId,
@@ -71,6 +72,18 @@ export async function cancelReservationAction(input: unknown) {
     { repo: new FirestoreReservationRepository(adminDb()), clock: systemClock },
     ctx,
     { reservationId: p.reservationId as ReservationId },
+  )
+}
+
+// Set the staff quick note (Hızlı Not) on a reservation. Staff-only metadata; empty text
+// clears it. A note moves no credit, so it is a simple write. Owner + reception.
+export async function setReservationNoteAction(input: unknown) {
+  const p = z.object({ reservationId: nonEmpty, text: z.string() }).parse(input)
+  const ctx = await requireTenantContext(OPS)
+  return setReservationNote(
+    { repo: new FirestoreReservationRepository(adminDb()), clock: systemClock },
+    ctx,
+    { reservationId: p.reservationId as ReservationId, text: p.text },
   )
 }
 

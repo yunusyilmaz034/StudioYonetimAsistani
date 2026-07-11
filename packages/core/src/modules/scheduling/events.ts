@@ -1,4 +1,5 @@
 import type { BranchId, Category, Instant, RoomId, ServiceId, StaffUserId } from '../../shared'
+import type { NoteVisibility } from './domain/types'
 
 // No PII in any payload (I-13). Scheduling entities are referenced by opaque id;
 // the payload carries the delta plus the numbers changed (AD-19). Broad from day
@@ -24,6 +25,7 @@ export const CLASS_SESSION_CANCELLED = 'class_session.cancelled'
 export const CLASS_SESSION_TRAINER_CHANGED = 'class_session.trainer_changed'
 export const CLASS_SESSION_ROOM_CHANGED = 'class_session.room_changed'
 export const CLASS_SESSION_CAPACITY_CHANGED = 'class_session.capacity_changed'
+export const CLASS_SESSION_NOTE_SET = 'class_session.note_set'
 
 export type ServiceCreatedPayload = {
   readonly name: string
@@ -92,4 +94,12 @@ export type ClassSessionCapacityChangedPayload = {
 export type ClassTemplateUpdatedPayload = {
   readonly changedFields: readonly string[]
   readonly reason: string
+}
+// The class note (Ders Notu). Free text preserved intact (AI reads it later). No PII in
+// the payload beyond what staff type; reception is instructed not to enter third-party
+// identifying data (same standing rule as member notes). EXTENSIBLE: future optional
+// fields (attachments, links, aiSuggestion) are additive and won't break v1.
+export type ClassSessionNoteSetPayload = {
+  readonly text: string
+  readonly visibility: NoteVisibility
 }

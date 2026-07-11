@@ -17,6 +17,7 @@ export const RESERVATION_ATTENDED = 'reservation.attended'
 export const RESERVATION_NO_SHOW = 'reservation.no_show'
 export const RESERVATION_AUTO_RESOLVED = 'reservation.auto_resolved'
 export const RESERVATION_CORRECTED = 'reservation.corrected'
+export const RESERVATION_NOTE_SET = 'reservation.note_set'
 
 export type ReservationBookedPayload = {
   readonly entitlementId: EntitlementId
@@ -55,4 +56,10 @@ export type ReservationCorrectedPayload = {
   readonly to: ReservationStatus
   readonly reason: string
   readonly source: 'correction'
+}
+// The staff quick note (Hızlı Not). Staff-only — never surfaced to the member. Free
+// text preserved intact (AI reads it later). EXTENSIBLE: future optional fields are
+// additive and won't break v1.
+export type ReservationNoteSetPayload = {
+  readonly text: string
 }

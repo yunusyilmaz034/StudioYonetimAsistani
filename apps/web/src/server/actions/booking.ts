@@ -28,6 +28,7 @@ export interface RosterMember {
   readonly memberId: string
   readonly memberName: string
   readonly phoneLast4: string
+  readonly note: string | null // the staff quick note (Hızlı Not), if set
 }
 
 // The session's active roster (booked reservations only — a cancelled seat is freed).
@@ -42,6 +43,34 @@ export async function getSessionRosterAction(input: unknown): Promise<readonly R
       memberId: r.memberId,
       memberName: r.memberSnapshot.displayName,
       phoneLast4: r.memberSnapshot.phoneLast4,
+      note: r.note?.text ?? null,
+    }))
+    .sort((a, b) => a.memberName.localeCompare(b.memberName, 'tr'))
+}
+
+export interface AttendanceEntry {
+  readonly reservationId: string
+  readonly memberId: string
+  readonly memberName: string
+  readonly status: string // booked | attended | no_show | late_cancelled | cancelled
+  readonly attendanceSource: string | null
+}
+
+// The session's attendance roster for the Session Workspace's Yoklama tab — every
+// non-cancelled reservation with its current outcome. Marking is the offline command
+// (markAttendanceCommand); this read shows what to mark / what was marked.
+export async function getSessionAttendanceAction(input: unknown): Promise<readonly AttendanceEntry[]> {
+  const p = z.object({ sessionId: nonEmpty }).parse(input)
+  const ctx = await requireTenantContext(OPS)
+  const rows = await new FirestoreReservationRepository(adminDb()).listBySession(ctx, p.sessionId as ClassSessionId)
+  return rows
+    .filter((r) => r.status !== 'cancelled' && r.status !== 'late_cancelled')
+    .map((r) => ({
+      reservationId: r.id,
+      memberId: r.memberId,
+      memberName: r.memberSnapshot.displayName,
+      status: r.status,
+      attendanceSource: r.attendanceSource,
     }))
     .sort((a, b) => a.memberName.localeCompare(b.memberName, 'tr'))
 }

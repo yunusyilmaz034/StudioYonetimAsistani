@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
 import { PackageIcon, PlusIcon } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
@@ -50,9 +49,6 @@ export function PackagesScreen({
         description={`${products.length} paket`}
         actions={
           <div className="flex items-center gap-2">
-            <Button variant="outline" render={<Link href="/" />}>
-              Ana Sayfa
-            </Button>
             <Button className="min-h-11 sm:min-h-0" onClick={openCreate}>
               <PlusIcon />
               Yeni Paket
