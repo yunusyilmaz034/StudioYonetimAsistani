@@ -80,6 +80,12 @@ export interface ReservationRepository {
   // re-validates the grace window, so this coarse cut may return a not-yet-eligible
   // row without harm.
   listResolvableBooked(ctx: TenantContext, endedAtOrBefore: Instant): Promise<readonly Reservation[]>
+  // The attendance roster read: a day's reservations by denormalised `sessionStartsAt`.
+  listBySessionStartRange(
+    ctx: TenantContext,
+    fromInclusive: Instant,
+    toExclusive: Instant,
+  ): Promise<readonly Reservation[]>
 }
 
 export interface ReservationsDeps {

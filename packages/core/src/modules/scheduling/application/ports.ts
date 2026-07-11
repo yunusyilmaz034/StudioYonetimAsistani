@@ -30,6 +30,12 @@ export interface SchedulingRepository {
 
   // Idempotent generation (AD-50): existing occurrence starts for a template.
   listSessionStartsForTemplate(ctx: TenantContext, templateId: ClassTemplateId): Promise<readonly Instant[]>
+  // The day's sessions for the attendance/schedule read (startsAt in [from, to)).
+  listSessionsForDay(
+    ctx: TenantContext,
+    fromInclusive: Instant,
+    toExclusive: Instant,
+  ): Promise<readonly ClassSession[]>
   saveSessions(
     ctx: TenantContext,
     sessions: readonly ClassSession[],

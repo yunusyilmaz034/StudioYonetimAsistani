@@ -33,6 +33,9 @@ export default async function HomePage() {
         description="Giriş başarılı."
         actions={
           <div className="flex items-center gap-2">
+            <Button variant="outline" render={<Link href="/attendance" />}>
+              Yoklama
+            </Button>
             <Button variant="outline" render={<Link href="/members" />}>
               Üyeler
             </Button>

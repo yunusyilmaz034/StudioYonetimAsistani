@@ -165,4 +165,18 @@ export class FirestoreReservationRepository implements ReservationRepository {
       .get()
     return snap.docs.map((doc) => reservationFromFirestore(doc.id as ReservationId, doc.data()))
   }
+
+  // The day's reservations for the attendance roster read — one range query over the
+  // denormalised `sessionStartsAt`, grouped by session on the client.
+  async listBySessionStartRange(
+    ctx: TenantContext,
+    fromInclusive: Instant,
+    toExclusive: Instant,
+  ): Promise<readonly Reservation[]> {
+    const snap = await this.col(ctx.studioId, 'reservations')
+      .where('sessionStartsAt', '>=', Timestamp.fromMillis(fromInclusive))
+      .where('sessionStartsAt', '<', Timestamp.fromMillis(toExclusive))
+      .get()
+    return snap.docs.map((doc) => reservationFromFirestore(doc.id as ReservationId, doc.data()))
+  }
 }

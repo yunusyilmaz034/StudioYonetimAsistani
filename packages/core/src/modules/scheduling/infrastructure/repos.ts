@@ -1,10 +1,10 @@
 import {
   getFirestore,
+  Timestamp,
   type CollectionReference,
   type DocumentData,
   type DocumentReference,
   type Firestore,
-  type Timestamp,
   type WriteBatch,
 } from 'firebase-admin/firestore'
 
@@ -131,6 +131,19 @@ export class FirestoreSchedulingRepository implements SchedulingRepository {
       .where('templateId', '==', templateId)
       .get()
     return snap.docs.map((doc) => instant((doc.data().startsAt as Timestamp).toMillis()))
+  }
+
+  async listSessionsForDay(
+    ctx: TenantContext,
+    fromInclusive: Instant,
+    toExclusive: Instant,
+  ): Promise<readonly ClassSession[]> {
+    const snap = await this.col(ctx.studioId, 'classSessions')
+      .where('startsAt', '>=', Timestamp.fromMillis(fromInclusive))
+      .where('startsAt', '<', Timestamp.fromMillis(toExclusive))
+      .orderBy('startsAt', 'asc')
+      .get()
+    return snap.docs.map((doc) => sessionFromFirestore(doc.id as ClassSessionId, doc.data()))
   }
 
   async saveSessions(
