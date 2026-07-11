@@ -74,18 +74,26 @@ Plan  →  UX  →  Implementation  →  Validation  →  Commit  →  Stop
 | **v1.15** | QR Access & Check-in | `v1.15-qr-checkin` |
 | **v1.16** | Owner Dashboard | `v1.16-owner-dashboard` |
 | **v1.17** | Reservation Workspace | `v1.17-reservation-workspace` |
+| **v1.18** | Member Workspace | `v1.18-member-workspace` |
 
-**Planned (cutover order).** Reservation → Member → Payments is the natural
-reception flow: after reservations, reception works in the Member Workspace, and the
-payment screen is used *from within* the member context, so it follows.
+**Planned (re-prioritised after the owner UI review, 2026-07-11).** The class and
+reservation calendars are the studio's most-used operations screens and the member's
+own reservation experience is the product's most success-critical surface — so the
+calendar/reservation experience comes next, ahead of a real Payments aggregate. Payments
+is **deferred, not dropped** — the v1.14 manual-payment seam keeps working until then.
+
+The calendar milestone is **split** (owner, 2026-07-11): the two calendars + Session
+Workspace ship first; the member portal + member auth follow as their own milestone so
+member authentication is delivered safely on its own.
 
 | Version | Milestone | Scope |
 |---|---|---|
-| **v1.18** | **Member Workspace** | The member managed from one screen — profile · packages · check-in history · reservation history + upcoming · payments · QR card · notes · actions. Reception's most-used operations screen. |
-| **v1.19** | **Payments** | A real payment aggregate — collect · refund · void · methods · balance allocation · payment timeline; architecture ready for POS / online later. Used from within the Member Workspace. |
-| **v1.20** | **Migration & Cutover** | Import from the old system · data validation · the first live-customer cutover (freeze-and-cut, Doc 8 §5). |
-| **v1.21** | **Production Hardening / CI** | Emulator + Firebase integration tests · production config · monitoring · backup · CI/CD · performance & security checks. |
-| **v1.22** | **Staff & Identity** | Staff accounts · roles · authorization · audit · multi-user management. |
+| **v1.19** | **Calendars & Session Workspace** | One shared calendar base for the **Class Calendar** and the **Reservation Calendar** (Month/Week/Day/Agenda, dense cells, interactive **"+N events" day popover**, in-calendar tabbed **Session Workspace**: class info · reservations · attendance · **notes** — Ders Notu + reservation Hızlı Not). **"Duplicate this week"** session-week copy (app-layer, conflict = same room + start time, no overwrite, no past). **Persistent global navigation.** Reuses existing booking/attendance/scheduling actions; the only new domain surface is the two note events (owner-approved). Design: Doc 19. |
+| **v1.20** | **Member Portal & Auth** *(split from v1.19)* | Member (client) login via an **invite-link / one-time-code → set-password** seam (phone as username, no SMS dependency); self-service: see own agenda, book/cancel own reservations, view credits/availability; mobile-first. Activates the `member` principal, self-scoped Firestore rules, `allowMemberSelfBooking`, `member.portal_login`. Design: Doc 20 (later). |
+| **v1.21** | **Payments** *(deferred from v1.19)* | A real payment aggregate — collect · refund · void · methods · balance allocation · payment timeline; architecture ready for POS / online later. Used from within the Member Workspace. Until it lands, the v1.14 manual-payment seam stands. |
+| **v1.22** | **Migration & Cutover** | Import from the old system · data validation · the first live-customer cutover (freeze-and-cut, Doc 8 §5). |
+| **v1.23** | **Production Hardening / CI** | Emulator + Firebase integration tests · production config · monitoring · backup · CI/CD · performance & security checks. |
+| **v1.24** | **Staff & Identity** | Staff accounts · roles · authorization · audit · multi-user management. |
 
 - **One commit per milestone.** A milestone closes as a single commit, Conventional Commit format — `feat(<scope>): …` for feature milestones, `docs(<scope>): …` for docs-only ones. For example:
 
