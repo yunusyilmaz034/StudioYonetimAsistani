@@ -1,7 +1,9 @@
 # 15 — QR Access & Check-in · Design (v1.15)
 
-> **Status: DESIGN LOCKED — decisions D1–D7 resolved (see §9). Pending the owner's
-> final go-ahead to implement; no code yet.**
+> **Status: IMPLEMENTED (v1.15). Decisions D1–D7 resolved (see §9).**
+> Built as designed: the `checkin` module (`decideCheckIn` toggle, branch open/close,
+> auto-check-out sweep), the `checkIn.record` dispatch on `on-command-created`, the
+> `/checkin` reception screen (QR scan + member search), and the member QR card.
 > This document analyses the domain, event model, Firestore shape, UI flows, and
 > technical design for the v1.15 milestone. It implements Doc 2 §9 and Doc 4
 > §"Check-in"; where they disagree, **Doc 2/Doc 4 win.**

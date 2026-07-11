@@ -39,6 +39,7 @@ import { deactivateMember } from '@/server/actions/members'
 import type { ProductView } from '@/server/catalog-query'
 
 import { MemberForm } from './member-form'
+import { MemberQrCard } from './qr-card'
 import { SubscriptionsPanel } from './subscriptions'
 
 const STATUS_LABEL: Record<Member['status'], string> = {
@@ -228,6 +229,11 @@ export function MembersScreen({
                   }
                 />
               </dl>
+              <div className="space-y-2 border-t border-border pt-4">
+                <h3 className="text-sm font-medium text-foreground">Giriş QR Kodu</h3>
+                <MemberQrCard memberId={detail.id} memberName={detail.fullName} />
+              </div>
+
               <div className="flex flex-col gap-2">
                 <Button className="min-h-11 w-full" onClick={() => openEdit(detail)}>
                   Düzenle

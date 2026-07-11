@@ -4,12 +4,16 @@ import * as logger from 'firebase-functions/logger'
 
 import {
   ATTENDANCE_MARK,
+  CHECKIN_RECORD,
+  FirestoreCheckinRepository,
   FirestoreReservationRepository,
   instant,
   markAttendance,
+  recordCheckIn,
   systemClock,
   type ActorRef,
   type AttendanceMarkPayload,
+  type CheckInRecordPayload,
   type CommandId,
   type StudioId,
 } from '@studio/core'
@@ -40,20 +44,34 @@ export const onCommandCreated = onDocumentCreated(
     const actor = data.actor as ActorRef
     const occurredAt = instant((data.occurredAt as Timestamp).toMillis())
     const ctx = commandTenantContext(sid, actor)
-    const deps = { repo: new FirestoreReservationRepository(db()), clock: systemClock }
 
     if (data.type === ATTENDANCE_MARK) {
       const payload = data.payload as AttendanceMarkPayload
-      const res = await markAttendance(deps, ctx, {
-        reservationId: payload.reservationId,
-        outcome: payload.outcome,
-        occurredAt,
-        commandId,
-      })
+      const res = await markAttendance(
+        { repo: new FirestoreReservationRepository(db()), clock: systemClock },
+        ctx,
+        { reservationId: payload.reservationId, outcome: payload.outcome, occurredAt, commandId },
+      )
       if (res.ok || res.error.code === 'reservation_not_open') {
         await snap.ref.update({ status: 'applied' })
       } else {
         logger.warn('attendance.mark refused', { commandId, code: res.error.code })
+        await snap.ref.update({ status: 'failed', failedReason: res.error.code })
+      }
+      return
+    }
+
+    if (data.type === CHECKIN_RECORD) {
+      const payload = data.payload as CheckInRecordPayload
+      const res = await recordCheckIn(
+        { repo: new FirestoreCheckinRepository(db()), clock: systemClock },
+        ctx,
+        { memberId: payload.memberId, branchId: payload.branchId, method: payload.method, occurredAt, commandId },
+      )
+      if (res.ok) {
+        await snap.ref.update({ status: 'applied' })
+      } else {
+        logger.warn('checkIn.record refused', { commandId, code: res.error.code })
         await snap.ref.update({ status: 'failed', failedReason: res.error.code })
       }
       return

@@ -9,6 +9,22 @@ All notable changes are recorded here. Architecture rationale lives in
 
 ---
 
+## v1.15 — QR Access & Check-in · `v1.15-qr-checkin`
+
+- **`checkin` module** — check-in ≠ attendance (Doc 2 §9); `decideCheckIn` is a toggle
+  (outside → in, inside → out) over a `/presence` doc; occupancy is a bounded read.
+  Branch open/close (`branch.opened`/`branch.closed`) bounds the day; a nightly `system`
+  auto-check-out at 4 h keeps occupancy honest. No new event types — all five are in the
+  Doc 4 catalogue.
+- **Offline path** — `checkIn.record` (already whitelisted) dispatched by the v1.10
+  `on-command-created` trigger; applied as the receptionist (never the member).
+- **QR** — the member's QR encodes the opaque `memberId`; a printable QR card in the
+  member workspace. Reception scans it (native `BarcodeDetector`) or finds the member by
+  name/phone — both write the same command.
+- **UI** — `/checkin`: live occupancy, open/close branch, QR scan + member search
+  toggle, currently-inside list, and an "expected but absent" prompt (reservations
+  starting within 15 min with no check-in).
+
 ## v1.14 — Package Catalogue + Manual Subscription Assignment · `v1.14-catalogue-subscriptions`
 
 - **`catalog` module** — `Product` CRUD (name, category, service scope, credit/period

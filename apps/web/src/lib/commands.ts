@@ -5,11 +5,17 @@ import type {
   ActorRef,
   AttendanceMarkPayload,
   AttendanceOutcome,
+  BranchId,
+  CheckInRecordPayload,
+  MemberId,
   ReservationId,
   StaffUserId,
 } from '@studio/core'
 
 import { clientAuth, clientDb } from './firebase-client'
+
+// Contract strings shared with the security-rule whitelist + core (see note below).
+const CHECKIN_RECORD = 'checkIn.record'
 
 // THE offline-safe write path (AD-35, Doc 3 §5). The client mints a prefixed-ULID
 // command id — an offline-mintable idempotency key (AD-16) — and drops one `/commands`
@@ -57,6 +63,43 @@ export async function markAttendanceCommand(input: MarkAttendanceCommandInput): 
     payload,
     status: 'pending',
     occurredAt: Timestamp.fromMillis(input.occurredAt ?? Date.now()),
+    createdAt: serverTimestamp(),
+  })
+}
+
+// A check-in (QR scan or manual pick). Offline-safe, idempotent (Doc 3 §5). Applied by
+// `on-command-created` as the receptionist (D2); a toggle — outside → in, inside → out.
+export async function checkInCommand(input: {
+  memberId: MemberId
+  method: 'qr' | 'reception'
+}): Promise<void> {
+  const user = clientAuth().currentUser
+  if (!user) throw new Error('Not authenticated')
+
+  const { studioId, role, branchIds, platformAdmin } = (await user.getIdTokenResult()).claims as {
+    studioId?: string
+    role?: string
+    branchIds?: string[]
+    platformAdmin?: boolean
+  }
+  if (!studioId) throw new Error('No studio claim on token')
+  const branchId = branchIds?.[0]
+  if (!branchId) throw new Error('No branch claim on token')
+
+  const id = `cmd_${ulid()}`
+  const payload: CheckInRecordPayload = {
+    memberId: input.memberId,
+    branchId: branchId as BranchId,
+    method: input.method,
+  }
+  await setDoc(doc(clientDb(), 'studios', studioId, 'commands', id), {
+    id,
+    studioId,
+    type: CHECKIN_RECORD,
+    actor: toActor(user.uid, role, platformAdmin),
+    payload,
+    status: 'pending',
+    occurredAt: Timestamp.fromMillis(Date.now()),
     createdAt: serverTimestamp(),
   })
 }

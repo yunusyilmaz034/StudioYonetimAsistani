@@ -1,0 +1,6 @@
+{
+  "branchId": "brn_1",
+  "method": "qr",
+  "durationMinutes": 90,
+  "occupancyAfter": 4
+}

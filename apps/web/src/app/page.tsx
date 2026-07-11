@@ -36,6 +36,9 @@ export default async function HomePage() {
             <Button variant="outline" render={<Link href="/schedule" />}>
               Takvim
             </Button>
+            <Button variant="outline" render={<Link href="/checkin" />}>
+              Giriş/Çıkış
+            </Button>
             <Button variant="outline" render={<Link href="/attendance" />}>
               Yoklama
             </Button>

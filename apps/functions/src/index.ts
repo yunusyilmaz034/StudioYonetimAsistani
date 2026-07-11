@@ -10,6 +10,7 @@
 // milestone; nothing reads a projection yet, so it is not built here.
 import { onSchedule } from 'firebase-functions/v2/scheduler'
 
+import { runAutoCheckOutSweep } from './scheduled/auto-check-out'
 import { runAutoResolveSweep } from './scheduled/auto-resolve-attendance'
 import { runExpirySweep } from './scheduled/expire-credits'
 import { onCommandCreated } from './triggers/on-command-created'
@@ -26,5 +27,6 @@ export const nightlySweep = onSchedule(
   async () => {
     await runAutoResolveSweep()
     await runExpirySweep()
+    await runAutoCheckOutSweep() // independent of I-19; occupancy hygiene (D4)
   },
 )

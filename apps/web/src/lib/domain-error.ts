@@ -40,6 +40,8 @@ export function domainErrorMessage(error: DomainError): string {
       return 'Geçerli bir tutar girin.'
     case 'entitlement_not_cancelled':
       return 'Yalnızca iptal edilmiş bir abonelik yeniden aktifleştirilebilir.'
+    case 'branch_not_open':
+      return 'Şube kapalı. Önce şubeyi açın.'
     case 'session_not_bookable':
       return 'Bu seansa rezervasyon yapılamaz (iptal edilmiş veya başlamış).'
     case 'class_full':

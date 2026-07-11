@@ -16,6 +16,7 @@ export type ClassSessionId = Brand<string, 'ClassSessionId'>
 export type ClassTemplateId = Brand<string, 'ClassTemplateId'>
 export type ReservationId = Brand<string, 'ReservationId'>
 export type PaymentId = Brand<string, 'PaymentId'>
+export type CheckInId = Brand<string, 'CheckInId'>
 export type PolicyId = Brand<string, 'PolicyId'>
 export type StaffUserId = Brand<string, 'StaffUserId'>
 export type EventId = Brand<string, 'EventId'>
@@ -41,6 +42,7 @@ const PREFIX = {
   classTemplate: 'tpl',
   reservation: 'res',
   payment: 'pay',
+  checkIn: 'chk',
   policy: 'pol',
   staffUser: 'usr',
   event: 'evt',
@@ -65,6 +67,7 @@ export const newClassSessionId = (): ClassSessionId => mint(PREFIX.classSession)
 export const newClassTemplateId = (): ClassTemplateId => mint(PREFIX.classTemplate) as ClassTemplateId
 export const newReservationId = (): ReservationId => mint(PREFIX.reservation) as ReservationId
 export const newPaymentId = (): PaymentId => mint(PREFIX.payment) as PaymentId
+export const newCheckInId = (): CheckInId => mint(PREFIX.checkIn) as CheckInId
 export const newPolicyId = (): PolicyId => mint(PREFIX.policy) as PolicyId
 export const newStaffUserId = (): StaffUserId => mint(PREFIX.staffUser) as StaffUserId
 export const newEventId = (): EventId => mint(PREFIX.event) as EventId
