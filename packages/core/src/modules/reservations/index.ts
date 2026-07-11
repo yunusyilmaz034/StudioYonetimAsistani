@@ -14,14 +14,29 @@ export type {
   ReservationStatus,
 } from './domain/types'
 export * from './events'
+export {
+  ATTENDANCE_MARK,
+  type AttendanceMarkPayload,
+  type AttendanceMarkType,
+  type AttendanceOutcome,
+} from './commands'
 export { isBookable, selectEntitlement } from './domain/select-entitlement'
 export { bookReservation, type BookReservationInput } from './application/book'
 export { cancelReservation, type CancelReservationInput } from './application/cancel'
+export { markAttendance, type MarkAttendanceInput } from './application/mark-attendance'
+export {
+  autoResolveReservation,
+  sweepAutoResolve,
+  type AutoResolveSummary,
+} from './application/auto-resolve'
+export { correctReservation, type CorrectReservationInput } from './application/correct'
 export type {
   BookDecision,
   BookTxInput,
   CancelDecision,
   CancelTxInput,
+  ResolveDecision,
+  ResolveTxInput,
   ReservationRepository,
   ReservationsDeps,
 } from './application/ports'

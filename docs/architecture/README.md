@@ -147,6 +147,10 @@ Superseded decisions are struck through and point at what replaced them.
 | **AD-55** | Booking/cancellation are cross-aggregate `runTransaction`s (I-10); the repo runs the transaction, the application supplies the pure `decide` callback composing reservation + ledger deciders. Session/entitlement mappers are exposed for this. |
 | **AD-56** | The double-book guard (I-9.6) is a transactional query inside the booking transaction, not a uniqueness document. |
 | **AD-57** | Attendance (`/commands` + trigger), auto-resolution + expiry sweep (scheduled), and correction wiring are the v1.10 Automation milestone; the deciders ship pure and tested now. |
+| **AD-58** | The command envelope lives in `shared`; `attendance.mark` is applied by `on-command-created` as the writing principal (never `system`), idempotent via reservation state. |
+| **AD-59** | One nightly trigger sequences the two `system` sweeps (auto-resolve → expire) so I-19 holds by construction. |
+| **AD-60** | The auto-resolution grace window is a pure decider refusal (`auto_resolve_too_early`) reading `policy.autoResolveAfterMinutes`; the sweep query is a coarse cut the transaction re-validates. |
+| **AD-61** | Correction wires only the credit-return direction (consumed → restored); the re-consume direction is refused and deferred (DEBT-010). |
 
 ---
 

@@ -272,12 +272,21 @@ describe('decideAttendance (manual, source trainer)', () => {
     expect(r.ok).toBe(true)
     if (r.ok) expect(r.value.events[0]?.payload).toEqual({ source: 'trainer', creditEffect: 'released' })
   })
+  it('a period booking (held nothing) moves no credit when marked attended', () => {
+    const r = decideAttendance(ctx, bookedReservation({ creditEffect: 'none' }), session({ startsAt: instant(NOW - H) }), 'attended')
+    expect(r.ok).toBe(true)
+    if (r.ok) expect(r.value.events[0]?.payload).toEqual({ source: 'trainer', minutesAfterStart: 60, creditEffect: 'none' })
+  })
 })
 
 describe('decideAutoResolution (AD-38 — never emits reservation.attended)', () => {
+  // A session that ended an hour ago; grace 15m ⇒ already resolvable at NOW.
+  const ended = (pol: SchedulingPolicy = policy()) =>
+    session({ startsAt: instant(NOW - 2 * H), endsAt: instant(NOW - H) }, pol)
+  const held = () => creditEnt({ credits: { granted: 8, held: 1, consumed: 0, restored: 0, revoked: 0, expired: 0 } })
+
   it('applies the policy default and emits auto_resolved with system_default', () => {
-    const held = creditEnt({ credits: { granted: 8, held: 1, consumed: 0, restored: 0, revoked: 0, expired: 0 } })
-    const r = decideAutoResolution(ctx, bookedReservation(), session(), held)
+    const r = decideAutoResolution(ctx, bookedReservation(), ended(), held())
     expect(r.ok).toBe(true)
     if (r.ok) {
       expect(r.value.events[0]?.type).toBe('reservation.auto_resolved')
@@ -291,11 +300,48 @@ describe('decideAutoResolution (AD-38 — never emits reservation.attended)', ()
     }
   })
   it('a no_show-default studio releases when policy does not burn', () => {
-    const held = creditEnt({ credits: { granted: 8, held: 1, consumed: 0, restored: 0, revoked: 0, expired: 0 } })
-    const s = session({}, policy({ attendanceDefaultOutcome: 'no_show', noShowConsumesCredit: false }))
-    const r = decideAutoResolution(ctx, bookedReservation(), s, held)
+    const s = ended(policy({ attendanceDefaultOutcome: 'no_show', noShowConsumesCredit: false }))
+    const r = decideAutoResolution(ctx, bookedReservation(), s, held())
     expect(r.ok).toBe(true)
     if (r.ok) expect(r.value.events[0]?.payload).toEqual({ outcome: 'no_show', source: 'system_default', creditEffect: 'released', creditsAvailableAfter: 8 })
+  })
+
+  // Grace window (Doc 2 §8): eligible only at endsAt + autoResolveAfterMinutes.
+  // `exactly grace` resolves; one ms earlier is refused. Nothing knows the minutes.
+  it('refuses before the grace window has elapsed', () => {
+    const justEnded = session({ startsAt: instant(NOW - H), endsAt: instant(NOW - 14 * 60_000) }) // ended 14m ago, grace 15m
+    const r = decideAutoResolution(ctx, bookedReservation(), justEnded, held())
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.error.code).toBe('auto_resolve_too_early')
+  })
+  it('resolves at exactly endsAt + grace, not one ms before', () => {
+    const grace = 15 * 60_000
+    const atBoundary = session({ startsAt: instant(NOW - 2 * H), endsAt: instant(NOW - grace) }) // resolvableAt === NOW
+    expect(decideAutoResolution(ctx, bookedReservation(), atBoundary, held()).ok).toBe(true)
+
+    const oneMsShort = session({ startsAt: instant(NOW - 2 * H), endsAt: instant(NOW - grace + 1) })
+    const r = decideAutoResolution(ctx, bookedReservation(), oneMsShort, held())
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.error.code).toBe('auto_resolve_too_early')
+  })
+  it('refuses a reservation that is no longer booked', () => {
+    expect(decideAutoResolution(ctx, bookedReservation({ status: 'attended' }), ended(), held())).toEqual({
+      ok: false,
+      error: { code: 'reservation_not_open' },
+    })
+  })
+  it('a period booking auto-resolves with no credit movement', () => {
+    const period = creditEnt({ credits: null })
+    const r = decideAutoResolution(ctx, bookedReservation({ creditEffect: 'none' }), ended(), period)
+    expect(r.ok).toBe(true)
+    if (r.ok) {
+      expect(r.value.events[0]?.payload).toEqual({
+        outcome: 'attended',
+        source: 'system_default',
+        creditEffect: 'none',
+        creditsAvailableAfter: null,
+      })
+    }
   })
 })
 
@@ -313,6 +359,12 @@ describe('decideCorrection (compensating, never a silent edit)', () => {
     expect(decideCorrection(ctx, bookedReservation({ status: 'no_show' }), 'attended', '  ')).toEqual({
       ok: false,
       error: { code: 'reason_required' },
+    })
+  })
+  it('refuses to correct a still-booked (unresolved) reservation', () => {
+    expect(decideCorrection(ctx, bookedReservation({ status: 'booked' }), 'attended', 'reason')).toEqual({
+      ok: false,
+      error: { code: 'reservation_not_resolved' },
     })
   })
 })

@@ -1,5 +1,6 @@
 import {
   getFirestore,
+  Timestamp,
   type CollectionReference,
   type Firestore,
   type Transaction,
@@ -10,8 +11,8 @@ import {
   entitlementToFirestore,
 } from '../../entitlements'
 import { sessionFromFirestore } from '../../scheduling'
-import type { DomainError, NewEvent, ReservationId, Result, StudioId, TenantContext } from '../../../shared'
-import type { BookTxInput, CancelTxInput, ReservationRepository } from '../application/ports'
+import type { DomainError, Instant, NewEvent, ReservationId, Result, StudioId, TenantContext } from '../../../shared'
+import type { BookTxInput, CancelTxInput, ResolveTxInput, ReservationRepository } from '../application/ports'
 import type { Reservation } from '../domain/types'
 import { eventToFirestore, reservationFromFirestore, reservationToFirestore } from './mappers'
 
@@ -116,5 +117,52 @@ export class FirestoreReservationRepository implements ReservationRepository {
       if (e instanceof TxAbort) return { ok: false, error: e.domainError }
       throw e
     }
+  }
+
+  // Resolution (attendance mark, auto-resolve, correction): reservation + entitlement
+  // move together; the seat count does not. Mirrors `cancel` minus the bookedCount
+  // write. A period entitlement yields `nextEntitlement: null` and no ledger write.
+  async resolve(ctx: TenantContext, input: ResolveTxInput): Promise<Result<void, DomainError>> {
+    const sid = ctx.studioId
+    const reservationRef = this.col(sid, 'reservations').doc(input.reservationId)
+
+    try {
+      await this.db.runTransaction(async (tx) => {
+        const resSnap = await tx.get(reservationRef)
+        if (!resSnap.exists) throw new Error(`Reservation not found: ${input.reservationId}`)
+        const reservation = reservationFromFirestore(input.reservationId, resSnap.data() ?? {})
+
+        const sessionRef = this.col(sid, 'classSessions').doc(reservation.classSessionId)
+        const entRef = this.col(sid, 'entitlements').doc(reservation.entitlementId)
+        const [sessSnap, entSnap] = await Promise.all([tx.get(sessionRef), tx.get(entRef)])
+        if (!sessSnap.exists) throw new Error(`ClassSession not found: ${reservation.classSessionId}`)
+        if (!entSnap.exists) throw new Error(`Entitlement not found: ${reservation.entitlementId}`)
+
+        const session = sessionFromFirestore(reservation.classSessionId, sessSnap.data() ?? {})
+        const entitlement = entitlementFromFirestore(reservation.entitlementId, entSnap.data() ?? {})
+        const decided = input.decide(reservation, session, entitlement)
+        if (!decided.ok) throw new TxAbort(decided.error)
+
+        const { reservation: next, nextEntitlement, events } = decided.value
+        tx.set(reservationRef, reservationToFirestore(next))
+        if (nextEntitlement) tx.set(entRef, entitlementToFirestore(nextEntitlement))
+        this.writeEvents(sid, tx, events)
+      })
+      return { ok: true, value: undefined }
+    } catch (e) {
+      if (e instanceof TxAbort) return { ok: false, error: e.domainError }
+      throw e
+    }
+  }
+
+  async listResolvableBooked(
+    ctx: TenantContext,
+    endedAtOrBefore: Instant,
+  ): Promise<readonly Reservation[]> {
+    const snap = await this.col(ctx.studioId, 'reservations')
+      .where('status', '==', 'booked')
+      .where('sessionEndsAt', '<=', Timestamp.fromMillis(endedAtOrBefore))
+      .get()
+    return snap.docs.map((doc) => reservationFromFirestore(doc.id as ReservationId, doc.data()))
   }
 }

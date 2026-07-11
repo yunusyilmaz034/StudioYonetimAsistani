@@ -3,6 +3,7 @@ import {
   ok,
   type ActorRef,
   type AggregateKind,
+  type CommandId,
   type CorrelationId,
   type DomainError,
   type EventRelated,
@@ -35,6 +36,9 @@ export interface DecideContext {
   readonly now: Instant
   readonly correlationId: CorrelationId
   readonly source: EventSource
+  // The command that caused this event, when one did (a credit consumed by an
+  // offline attendance mark). null for synchronous writes.
+  readonly commandId?: CommandId | null
 }
 
 export type LedgerOutcome = { readonly next: Entitlement; readonly events: readonly NewEvent[] }
@@ -54,7 +58,7 @@ function base(ctx: DecideContext, ent: Entitlement, related: EventRelated) {
     subject: { kind: 'entitlement' as AggregateKind, id: ent.id },
     related,
     policyRef: policyRefOf(ent),
-    commandId: null,
+    commandId: ctx.commandId ?? null,
     causationId: null,
     correlationId: ctx.correlationId,
   }

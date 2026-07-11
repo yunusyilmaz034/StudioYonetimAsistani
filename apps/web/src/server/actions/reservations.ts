@@ -3,6 +3,7 @@
 import {
   bookReservation,
   cancelReservation,
+  correctReservation,
   FirestoreEntitlementRepository,
   FirestoreMemberRepository,
   FirestoreReservationRepository,
@@ -70,5 +71,25 @@ export async function cancelReservationAction(input: unknown) {
     { repo: new FirestoreReservationRepository(adminDb()), clock: systemClock },
     ctx,
     { reservationId: p.reservationId as ReservationId },
+  )
+}
+
+// Correcting a resolved outcome moves a credit back, so it is a trusted Server Action
+// (never a /commands write). Owner and reception may correct; the reason is mandatory
+// and enforced in the domain (AD-22). The original resolution stays in the log — a
+// correction is a compensating event, never a silent edit (non-negotiable #9).
+export async function correctReservationAction(input: unknown) {
+  const p = z
+    .object({
+      reservationId: nonEmpty,
+      toOutcome: z.enum(['attended', 'no_show']),
+      reason: nonEmpty,
+    })
+    .parse(input)
+  const ctx = await requireTenantContext(OPS)
+  return correctReservation(
+    { repo: new FirestoreReservationRepository(adminDb()), clock: systemClock },
+    ctx,
+    { reservationId: p.reservationId as ReservationId, toOutcome: p.toOutcome, reason: p.reason },
   )
 }

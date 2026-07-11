@@ -1,11 +1,12 @@
 import {
   getFirestore,
+  Timestamp,
   type CollectionReference,
   type Firestore,
   type WriteBatch,
 } from 'firebase-admin/firestore'
 
-import type { EntitlementId, MemberId, NewEvent, StudioId, TenantContext } from '../../../shared'
+import type { EntitlementId, Instant, MemberId, NewEvent, StudioId, TenantContext } from '../../../shared'
 import type { EntitlementRepository } from '../application/ports'
 import type { Entitlement } from '../domain/types'
 import { entitlementFromFirestore, entitlementToFirestore, eventToFirestore } from './mappers'
@@ -36,6 +37,17 @@ export class FirestoreEntitlementRepository implements EntitlementRepository {
       .where('status', '==', 'active')
       .get()
     return snap.docs.map((doc) => entitlementFromFirestore(doc.id as EntitlementId, doc.data()))
+  }
+
+  async listExpirable(
+    ctx: TenantContext,
+    validUntilAtOrBefore: Instant,
+  ): Promise<readonly EntitlementId[]> {
+    const snap = await this.col(ctx.studioId, 'entitlements')
+      .where('status', '==', 'active')
+      .where('validUntil', '<=', Timestamp.fromMillis(validUntilAtOrBefore))
+      .get()
+    return snap.docs.map((doc) => doc.id as EntitlementId)
   }
 
   async saveEntitlement(

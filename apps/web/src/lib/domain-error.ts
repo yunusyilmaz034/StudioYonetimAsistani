@@ -44,6 +44,12 @@ export function domainErrorMessage(error: DomainError): string {
       return 'Bu seans için kullanılabilir bir paket yok.'
     case 'reservation_not_open':
       return 'Bu rezervasyon artık açık değil.'
+    case 'auto_resolve_too_early':
+      return 'Seansın bekleme süresi henüz dolmadı; otomatik sonuçlandırılamaz.'
+    case 'reservation_not_resolved':
+      return 'Yalnızca sonuçlanmış bir rezervasyon düzeltilebilir.'
+    case 'correction_credit_unsupported':
+      return 'Bu düzeltme bir kredinin yeniden düşülmesini gerektiriyor; şu an desteklenmiyor.'
     default: {
       const exhaustive: never = error
       void exhaustive

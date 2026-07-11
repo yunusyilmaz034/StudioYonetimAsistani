@@ -72,6 +72,14 @@
         { "fieldPath": "memberId", "order": "ASCENDING" },
         { "fieldPath": "sessionStartsAt", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "reservations",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "sessionEndsAt", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

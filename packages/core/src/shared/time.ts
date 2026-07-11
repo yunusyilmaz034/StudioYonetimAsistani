@@ -25,6 +25,13 @@ export const toISO = (i: Instant): string => new Date(i).toISOString()
 
 export const hoursBetween = (from: Instant, to: Instant): number => (to - from) / MS_PER_HOUR
 
+// Domain time (`occurredAt`) may be client-supplied — an offline mark carries the
+// instant it actually happened. It is ALWAYS clamped so it can never be in the
+// future relative to the server clock (non-negotiable #3): a device with a fast
+// clock must not stamp an event ahead of `recordedAt`.
+export const clampOccurredAt = (occurredAt: Instant, now: Instant): Instant =>
+  instant(Math.min(occurredAt, now))
+
 export const isBefore = (a: Instant, b: Instant): boolean => a < b
 export const isAfter = (a: Instant, b: Instant): boolean => a > b
 

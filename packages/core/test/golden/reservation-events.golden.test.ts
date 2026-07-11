@@ -145,7 +145,8 @@ describe('reservation event payloads match golden fixtures (AD-33)', () => {
     expect(payload(decideAttendance(ctx, res(), session(), 'no_show'))).toEqual(noShow)
   })
   it('reservation.auto_resolved', () => {
-    expect(payload(decideAutoResolution(ctx, res(), session(), held(1)))).toEqual(autoResolved)
+    // The session must have ended and passed its grace window for the sweep to fire.
+    expect(payload(decideAutoResolution(ctx, res(), session(instant(NOW - 2 * H)), held(1)))).toEqual(autoResolved)
   })
   it('reservation.corrected', () => {
     expect(payload(decideCorrection(ctx, res({ status: 'no_show' }), 'attended', 'trainer marked wrong roster'))).toEqual(corrected)

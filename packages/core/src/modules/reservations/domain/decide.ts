@@ -4,6 +4,7 @@ import {
   ok,
   type ActorRef,
   type AggregateKind,
+  type CommandId,
   type CorrelationId,
   type DomainError,
   type EventRelated,
@@ -37,6 +38,9 @@ export interface DecideContext {
   readonly now: Instant
   readonly correlationId: CorrelationId
   readonly source: EventSource
+  // The command that caused this event, when it came from the `/commands` path
+  // (offline attendance marking). null for synchronous Server-Action writes.
+  readonly commandId?: CommandId | null
 }
 
 export type ReservationOutcome = { readonly reservation: Reservation; readonly events: readonly NewEvent[] }
@@ -62,7 +66,7 @@ function base(ctx: DecideContext, r: Reservation) {
     subject: { kind: 'reservation' as AggregateKind, id: r.id },
     related,
     policyRef: policyRefOf(r),
-    commandId: null,
+    commandId: ctx.commandId ?? null,
     causationId: null,
     correlationId: ctx.correlationId,
   }
@@ -228,22 +232,27 @@ export function decideAttendance(
 ): Result<ReservationOutcome, DomainError> {
   if (reservation.status !== 'booked') return err({ code: 'reservation_not_open' })
   const policy: SchedulingPolicy = session.policySnapshot
+  // A period booking held no credit (creditEffect 'none'); resolving it moves nothing,
+  // and the event must say so — a `reservation.attended` claiming `consumed` for an
+  // unlimited membership is a false fact in the log (mirrors decideCancellation).
+  const heldACredit = reservation.creditEffect !== 'none'
 
   if (outcome === 'attended') {
     const minutesAfterStart = Math.max(0, Math.floor((ctx.now - session.startsAt) / 60_000))
-    const next = resolveAttendance(ctx, reservation, 'attended', 'consumed', 'trainer')
+    const effect: CreditEffect = heldACredit ? 'consumed' : 'none'
+    const next = resolveAttendance(ctx, reservation, 'attended', effect, 'trainer')
     return ok({
       reservation: next.reservation,
       events: [
         {
           ...base(ctx, next.reservation),
           type: RESERVATION_ATTENDED,
-          payload: { source: 'trainer', minutesAfterStart, creditEffect: 'consumed' },
+          payload: { source: 'trainer', minutesAfterStart, creditEffect: effect },
         },
       ],
     })
   }
-  const effect: CreditEffect = policy.noShowConsumesCredit ? 'consumed' : 'released'
+  const effect: CreditEffect = !heldACredit ? 'none' : policy.noShowConsumesCredit ? 'consumed' : 'released'
   const next = resolveAttendance(ctx, reservation, 'no_show', effect, 'trainer')
   return ok({
     reservation: next.reservation,
@@ -269,9 +278,24 @@ export function decideAutoResolution(
 ): Result<ReservationOutcome, DomainError> {
   if (reservation.status !== 'booked') return err({ code: 'reservation_not_open' })
   const policy: SchedulingPolicy = session.policySnapshot
+  // The presumption may only be written once the class has ended AND the grace
+  // window has elapsed (Doc 2 §8: `session.endsAt + autoResolveAfterMinutes`).
+  // Enforced here, purely, so a marker (trainer/reception) always owns the window
+  // before the `system` default claims it — and so a tighter sweep cadence can
+  // never resolve a class that just ended. `exactly grace` is eligible; one ms less
+  // is not. Nothing in the code knows how many minutes: it is policy data (D3).
+  const resolvableAt = session.endsAt + policy.autoResolveAfterMinutes * 60_000
+  if (ctx.now < resolvableAt) return err({ code: 'auto_resolve_too_early', resolvableAt })
   const outcome = policy.attendanceDefaultOutcome
-  const effect: CreditEffect =
-    outcome === 'attended' ? 'consumed' : policy.noShowConsumesCredit ? 'consumed' : 'released'
+  // A period booking held nothing → the resolution moves no credit (see decideAttendance).
+  const heldACredit = reservation.creditEffect !== 'none'
+  const effect: CreditEffect = !heldACredit
+    ? 'none'
+    : outcome === 'attended'
+      ? 'consumed'
+      : policy.noShowConsumesCredit
+        ? 'consumed'
+        : 'released'
 
   const next = resolveAttendance(ctx, reservation, outcome, effect, 'system_default')
   const avail = availableOf(entitlement)
@@ -310,6 +334,13 @@ function resolveAttendance(
 // ── Correction (owner/reception overturns a resolved outcome, with a reason).
 //    Compensating event only — never a silent edit (D5, I-3). The credit
 //    compensation is composed by the application (v1.10). ──
+const RESOLVED_STATES: readonly ReservationStatus[] = [
+  'attended',
+  'no_show',
+  'cancelled',
+  'late_cancelled',
+]
+
 export function decideCorrection(
   ctx: DecideContext,
   reservation: Reservation,
@@ -317,6 +348,12 @@ export function decideCorrection(
   reason: string,
 ): Result<ReservationOutcome, DomainError> {
   if (reason.trim().length === 0) return err({ code: 'reason_required' })
+  // A correction overturns a RESOLVED outcome (Doc 2 §8). A still-`booked`
+  // reservation is cancelled or marked, never "corrected" — there is no outcome to
+  // overturn yet, and its credit is still `held`, not settled.
+  if (!RESOLVED_STATES.includes(reservation.status)) {
+    return err({ code: 'reservation_not_resolved' })
+  }
   const from = reservation.status
   const next: Reservation = {
     ...reservation,

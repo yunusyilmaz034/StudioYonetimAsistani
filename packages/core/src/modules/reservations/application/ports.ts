@@ -3,6 +3,7 @@ import type {
   Clock,
   DomainError,
   EntitlementId,
+  Instant,
   MemberId,
   NewEvent,
   ReservationId,
@@ -49,10 +50,36 @@ export interface CancelTxInput {
   readonly decide: (reservation: Reservation, session: ClassSession, entitlement: Entitlement) => Result<CancelDecision, DomainError>
 }
 
+// Resolution (attendance marking, auto-resolution, correction) spans the
+// reservation and its entitlement — never the session's seat count: a resolved
+// booking still happened, so `bookedCount` is untouched (only cancel frees a seat).
+// The application supplies the pure `decide` callback composing the reservation
+// decider with the matching ledger movement (AD-53/AD-55).
+export interface ResolveDecision {
+  readonly reservation: Reservation
+  readonly nextEntitlement: Entitlement | null // null ⇔ period entitlement, no ledger write
+  readonly events: readonly NewEvent[]
+}
+
+export interface ResolveTxInput {
+  readonly reservationId: ReservationId
+  readonly decide: (
+    reservation: Reservation,
+    session: ClassSession,
+    entitlement: Entitlement,
+  ) => Result<ResolveDecision, DomainError>
+}
+
 export interface ReservationRepository {
   getReservation(ctx: TenantContext, id: ReservationId): Promise<Reservation | null>
   book(ctx: TenantContext, input: BookTxInput): Promise<Result<{ reservationId: ReservationId }, DomainError>>
   cancel(ctx: TenantContext, input: CancelTxInput): Promise<Result<void, DomainError>>
+  resolve(ctx: TenantContext, input: ResolveTxInput): Promise<Result<void, DomainError>>
+  // The auto-resolution sweep's candidate set: still-`booked` reservations whose
+  // session has ended. The transaction re-reads and `decideAutoResolution`
+  // re-validates the grace window, so this coarse cut may return a not-yet-eligible
+  // row without harm.
+  listResolvableBooked(ctx: TenantContext, endedAtOrBefore: Instant): Promise<readonly Reservation[]>
 }
 
 export interface ReservationsDeps {

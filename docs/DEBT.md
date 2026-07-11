@@ -114,6 +114,32 @@ The cost is **bounded and visible**, which is the entire reason the modelling wa
 
 ---
 
+## DEBT-010 — Correction re-consume direction deferred (money arithmetic)
+
+**Taken:** implementation · v1.10 (automation) · Yunus *(Doc 14, AD-61)*
+**What:** `correctReservation` wires only the credit-return direction — a *consumed*
+credit is `restored` (the common, valuable case: a presumed-attended member who never
+came, DEBT-007). The reverse — correcting a *released* outcome back to one that
+consumes (e.g. `no_show` → `attended` where the credit was already handed back) — is
+**refused** with `correction_credit_unsupported`. The `reservation.corrected` audit
+event and the restore direction are complete.
+**Cost:** a specific, rarer correction cannot be completed through the system. Its
+audit intent is expressible but the credit cannot be re-drawn, because there is no
+`held` credit to consume and no modelled movement for "consume from `available`".
+Bounded: the refusal is explicit and typed, never a silent wrong ledger.
+**Why deferred:** re-consuming a returned credit is genuine money arithmetic the owner
+has not decided — does it draw from `available` (and refuse if zero?), or is it simply
+disallowed once released? Guessing bakes an unrecoverable choice into the ledger
+(CLAUDE.md: money is human-owned). Same posture as freeze (DEBT-009): model what is
+safe, refuse what is unresolved.
+**Trigger to repay:** the first time reception genuinely needs to overturn a released
+outcome into a consuming one — **and** the owner decides the draw-from-`available`
+rule.
+**Repayment:** a `decideReconsume` ledger movement (or an explicit refusal rule), plus
+the reverse branch in `correctReservation`.
+
+---
+
 ## Reserved for the build week
 
 Shortcuts taken during Phase 1 implementation get entries here **as they are taken**, not afterwards. If the cut ladder (Doc 8 §8) is used — catalogue CRUD UI, owner view, manual attendance marking, freeze UI, payment allocation UI, weekly template generation, offline check-in — each cut becomes an entry with a trigger.

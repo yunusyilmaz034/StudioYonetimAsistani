@@ -33,7 +33,9 @@ export { adjustCredits, type AdjustCreditsInput } from './application/adjust'
 export {
   cancelEntitlement,
   expireEntitlement,
+  sweepExpireCredits,
   type CancelEntitlementInput,
+  type ExpirySummary,
 } from './application/lifecycle'
 export type { EntitlementRepository, EntitlementsDeps } from './application/ports'
 export { FirestoreEntitlementRepository } from './infrastructure/repos'

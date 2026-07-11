@@ -31,6 +31,10 @@ export type DomainError =
   | { readonly code: 'entitlement_expires_before_session' }
   | { readonly code: 'no_bookable_entitlement' }
   | { readonly code: 'reservation_not_open' }
+  // ── reservations / automation (Doc 2 §8, v1.10) ──
+  | { readonly code: 'auto_resolve_too_early'; readonly resolvableAt: number }
+  | { readonly code: 'reservation_not_resolved' }
+  | { readonly code: 'correction_credit_unsupported' }
 
 export type DomainErrorCode = DomainError['code']
 
