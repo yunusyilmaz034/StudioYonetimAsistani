@@ -179,6 +179,21 @@ export async function seedDemoData(trainerUid: string | null): Promise<void> {
   const up2 = await session(svcReformer, roomReformer, localDateStr(now + 2 * DAY), '10:00', 50, 8, trainerId, trainerName)
   const up3 = await session(svcFitness, roomFitness, localDateStr(now + 3 * DAY), '19:00', 60, 12, null, null)
 
+  // A deliberately busy day (+5) so the month view overflows and the "+N etkinlik"
+  // popover is exercisable in review.
+  const busyStr = localDateStr(now + 5 * DAY)
+  for (const [t, svc, room] of [
+    ['08:00', svcReformer, roomReformer],
+    ['09:00', svcReformer, roomReformer],
+    ['10:30', svcReformer, roomReformer],
+    ['12:00', svcFitness, roomFitness],
+    ['17:00', svcReformer, roomReformer],
+    ['18:30', svcFitness, roomFitness],
+    ['20:00', svcReformer, roomReformer],
+  ] as const) {
+    await session(svc, room, busyStr, t, 50, svc === svcFitness ? 12 : 8, svc === svcFitness ? null : trainerId, svc === svcFitness ? null : trainerName)
+  }
+
   // 9. Reservations into FUTURE sessions (must be after now to be bookable, I-9.1).
   await book(selin, up1)
   await book(elif, up1)
