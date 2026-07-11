@@ -1,5 +1,13 @@
-import type { Clock, EntitlementId, Instant, MemberId, NewEvent, TenantContext } from '../../../shared'
+import type { ActorType, Clock, EntitlementId, Instant, MemberId, NewEvent, TenantContext } from '../../../shared'
 import type { Entitlement } from '../domain/types'
+
+// A row of the subscription audit timeline (v1.14) — one of the entitlement's events.
+export interface EntitlementEventRecord {
+  readonly type: string
+  readonly occurredAt: Instant
+  readonly actorType: ActorType
+  readonly payload: Readonly<Record<string, unknown>>
+}
 
 // One repository for the entitlement aggregate. Each save writes the entity + its
 // events in one transaction (non-negotiable #1). Client writes are forbidden
@@ -14,6 +22,10 @@ export interface EntitlementRepository {
   // The expiry sweep's candidate set: active entitlements whose validity has passed.
   // `decideExpire` re-checks (and refuses while a credit is still held, I-19).
   listExpirable(ctx: TenantContext, validUntilAtOrBefore: Instant): Promise<readonly EntitlementId[]>
+  // A member's subscriptions (all statuses — active + past) for the Member workspace.
+  listByMember(ctx: TenantContext, memberId: MemberId): Promise<readonly Entitlement[]>
+  // The audit timeline of one entitlement (its events, newest first).
+  listEntitlementEvents(ctx: TenantContext, id: EntitlementId): Promise<readonly EntitlementEventRecord[]>
 }
 
 export interface EntitlementsDeps {

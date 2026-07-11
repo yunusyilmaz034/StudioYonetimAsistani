@@ -1,6 +1,8 @@
 import {
   err,
   ok,
+  subtractMoney,
+  zeroMoney,
   type ActorRef,
   type AggregateKind,
   type CommandId,
@@ -9,6 +11,7 @@ import {
   type EventRelated,
   type EventSource,
   type Instant,
+  type Money,
   type NewEvent,
   type PaymentId,
   type PolicyId,
@@ -19,6 +22,7 @@ import {
 } from '../../../shared'
 import {
   ENTITLEMENT_ADJUSTED,
+  ENTITLEMENT_AMENDED,
   ENTITLEMENT_CANCELLED,
   ENTITLEMENT_CREDIT_CONSUMED,
   ENTITLEMENT_CREDIT_HELD,
@@ -26,9 +30,18 @@ import {
   ENTITLEMENT_CREDIT_RESTORED,
   ENTITLEMENT_EXHAUSTED,
   ENTITLEMENT_EXPIRED,
+  ENTITLEMENT_PAYMENT_RECORDED,
   ENTITLEMENT_PURCHASED,
+  ENTITLEMENT_REACTIVATED,
 } from '../events'
-import { available, type AdjustmentReason, type CreditLedger, type Entitlement } from './types'
+import {
+  available,
+  type AdjustmentReason,
+  type CreditLedger,
+  type Entitlement,
+  type ManualPayment,
+  type PaymentMethod,
+} from './types'
 
 export interface DecideContext {
   readonly studioId: StudioId
@@ -277,5 +290,110 @@ export function decideCancel(
         payload: { reason, refundPaymentId },
       },
     ],
+  })
+}
+
+// ── Manual payment recording (v1.14). Record-only — no allocation engine, no
+//    payment aggregate. `paidTotal` mirrors the collected amount; `balanceDue =
+//    priceAgreed − collected` (may be negative on overpayment, positive on account). ──
+export function decideRecordPayment(
+  ctx: DecideContext,
+  ent: Entitlement,
+  input: { collectedAmount: Money; method: PaymentMethod; note: string | null },
+): Result<LedgerOutcome, DomainError> {
+  if (input.collectedAmount.amount < 0) return err({ code: 'invalid_amount' })
+  const manualPayment: ManualPayment = {
+    collectedAmount: input.collectedAmount,
+    method: input.method,
+    note: input.note,
+    recordedAt: ctx.now,
+  }
+  const next: Entitlement = { ...ent, manualPayment, paidTotal: input.collectedAmount }
+  const balanceDue = subtractMoney(ent.priceAgreed, input.collectedAmount)
+  return ok({
+    next,
+    events: [
+      {
+        ...base(ctx, next, relOf(next)),
+        type: ENTITLEMENT_PAYMENT_RECORDED,
+        payload: {
+          collectedAmount: input.collectedAmount,
+          method: input.method,
+          note: input.note,
+          priceAgreed: ent.priceAgreed,
+          balanceDue,
+        },
+      },
+    ],
+  })
+}
+
+// ── Generic amend (v1.14): edit dates, price, or the manual payment, each with a
+//    before/after and a mandatory reason (AD-22). Credits are NOT amended here — they
+//    go through `decideAdjust`. No-op edits emit nothing. ──
+export interface AmendPatch {
+  readonly validFrom?: Instant
+  readonly validUntil?: Instant
+  readonly priceAgreed?: Money
+  readonly manualPayment?: ManualPayment | null
+}
+
+const sameManualPayment = (a: ManualPayment | null, b: ManualPayment | null): boolean => {
+  if (a === null || b === null) return a === b
+  return a.collectedAmount.amount === b.collectedAmount.amount && a.method === b.method && a.note === b.note
+}
+
+export function decideAmend(
+  ctx: DecideContext,
+  ent: Entitlement,
+  patch: AmendPatch,
+  reason: string,
+): Result<LedgerOutcome, DomainError> {
+  if (reason.trim().length === 0) return err({ code: 'reason_required' })
+  const changes: Record<string, { from: unknown; to: unknown }> = {}
+  let next: Entitlement = ent
+
+  if (patch.validFrom !== undefined && patch.validFrom !== ent.validFrom) {
+    changes.validFrom = { from: ent.validFrom, to: patch.validFrom }
+    next = { ...next, validFrom: patch.validFrom }
+  }
+  if (patch.validUntil !== undefined && patch.validUntil !== ent.validUntil) {
+    changes.validUntil = { from: ent.validUntil, to: patch.validUntil }
+    next = { ...next, validUntil: patch.validUntil }
+  }
+  if (patch.priceAgreed !== undefined && patch.priceAgreed.amount !== ent.priceAgreed.amount) {
+    changes.priceAgreed = { from: ent.priceAgreed, to: patch.priceAgreed }
+    next = { ...next, priceAgreed: patch.priceAgreed }
+  }
+  if (patch.manualPayment !== undefined && !sameManualPayment(ent.manualPayment, patch.manualPayment)) {
+    changes.manualPayment = { from: ent.manualPayment, to: patch.manualPayment }
+    next = {
+      ...next,
+      manualPayment: patch.manualPayment,
+      paidTotal: patch.manualPayment?.collectedAmount ?? zeroMoney(ent.priceAgreed.currency),
+    }
+  }
+
+  const changedFields = Object.keys(changes)
+  if (changedFields.length === 0) return ok({ next: ent, events: [] })
+  return ok({
+    next,
+    events: [{ ...base(ctx, next, relOf(next)), type: ENTITLEMENT_AMENDED, payload: { changedFields, changes, reason } }],
+  })
+}
+
+// ── Reactivate a cancelled subscription (v1.14) — the inverse of cancel. Only a
+//    cancelled entitlement may be reactivated (expired is terminal). ──
+export function decideReactivate(
+  ctx: DecideContext,
+  ent: Entitlement,
+  reason: string,
+): Result<LedgerOutcome, DomainError> {
+  if (reason.trim().length === 0) return err({ code: 'reason_required' })
+  if (ent.status !== 'cancelled') return err({ code: 'entitlement_not_cancelled' })
+  const next: Entitlement = { ...ent, status: 'active' }
+  return ok({
+    next,
+    events: [{ ...base(ctx, next, relOf(next)), type: ENTITLEMENT_REACTIVATED, payload: { reason } }],
   })
 }

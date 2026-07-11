@@ -84,6 +84,7 @@ function ent(opts: {
     freeze: null,
     priceAgreed: money(1),
     paidTotal: money(0),
+    manualPayment: null,
     purchasedAt: opts.purchasedAt ?? instant(NOW - seq * D),
   }
 }

@@ -6,8 +6,8 @@ import {
   type WriteBatch,
 } from 'firebase-admin/firestore'
 
-import type { EntitlementId, Instant, MemberId, NewEvent, StudioId, TenantContext } from '../../../shared'
-import type { EntitlementRepository } from '../application/ports'
+import { instant, type ActorType, type EntitlementId, type Instant, type MemberId, type NewEvent, type StudioId, type TenantContext } from '../../../shared'
+import type { EntitlementEventRecord, EntitlementRepository } from '../application/ports'
 import type { Entitlement } from '../domain/types'
 import { entitlementFromFirestore, entitlementToFirestore, eventToFirestore } from './mappers'
 
@@ -48,6 +48,29 @@ export class FirestoreEntitlementRepository implements EntitlementRepository {
       .where('validUntil', '<=', Timestamp.fromMillis(validUntilAtOrBefore))
       .get()
     return snap.docs.map((doc) => doc.id as EntitlementId)
+  }
+
+  async listByMember(ctx: TenantContext, memberId: MemberId): Promise<readonly Entitlement[]> {
+    const snap = await this.col(ctx.studioId, 'entitlements').where('memberId', '==', memberId).get()
+    return snap.docs.map((doc) => entitlementFromFirestore(doc.id as EntitlementId, doc.data()))
+  }
+
+  async listEntitlementEvents(
+    ctx: TenantContext,
+    id: EntitlementId,
+  ): Promise<readonly EntitlementEventRecord[]> {
+    const snap = await this.col(ctx.studioId, 'events').where('related.entitlementId', '==', id).get()
+    return snap.docs
+      .map((doc) => {
+        const d = doc.data()
+        return {
+          type: d.type as string,
+          occurredAt: instant((d.occurredAt as Timestamp).toMillis()),
+          actorType: (d.actor as { type: ActorType }).type,
+          payload: (d.payload as Record<string, unknown>) ?? {},
+        }
+      })
+      .sort((a, b) => b.occurredAt - a.occurredAt)
   }
 
   async saveEntitlement(

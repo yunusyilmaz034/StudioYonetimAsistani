@@ -1,0 +1,7 @@
+{
+  "collectedAmount": { "amount": 200000, "currency": "TRY" },
+  "method": "cash",
+  "note": "Yarısı peşin",
+  "priceAgreed": { "amount": 294000, "currency": "TRY" },
+  "balanceDue": { "amount": 94000, "currency": "TRY" }
+}

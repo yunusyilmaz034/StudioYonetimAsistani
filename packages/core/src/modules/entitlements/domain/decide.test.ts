@@ -14,11 +14,14 @@ import {
 import type { CorrelationId } from '../../../shared'
 import {
   decideAdjust,
+  decideAmend,
   decideCancel,
   decideConsume,
   decideExpire,
   decideHold,
   decidePurchase,
+  decideReactivate,
+  decideRecordPayment,
   decideRelease,
   decideRestore,
   type DecideContext,
@@ -76,6 +79,7 @@ function ent(over: Partial<Entitlement> = {}): Entitlement {
     freeze: null,
     priceAgreed: money(294_000),
     paidTotal: money(0),
+    manualPayment: null,
     purchasedAt: instant(1_699_000_000_000),
     ...over,
   }
@@ -258,5 +262,48 @@ describe('decideCancel', () => {
       ok: false,
       error: { code: 'entitlement_not_active' },
     })
+  })
+})
+
+describe('decideRecordPayment (v1.14, record-only)', () => {
+  it('records the payment, mirrors paidTotal, computes balanceDue', () => {
+    const r = decideRecordPayment(ctx, ent(), { collectedAmount: money(100_000), method: 'bank_transfer', note: null })
+    expect(r.ok).toBe(true)
+    if (r.ok) {
+      expect(r.value.next.manualPayment?.method).toBe('bank_transfer')
+      expect(r.value.next.paidTotal).toEqual(money(100_000))
+      expect(r.value.events[0]?.payload).toMatchObject({ balanceDue: money(194_000) })
+    }
+  })
+  it('refuses a negative amount', () => {
+    expect(decideRecordPayment(ctx, ent(), { collectedAmount: money(-1), method: 'cash', note: null })).toEqual({
+      ok: false,
+      error: { code: 'invalid_amount' },
+    })
+  })
+})
+
+describe('decideAmend (v1.14, generic)', () => {
+  it('amends validUntil with before/after and a reason', () => {
+    const r = decideAmend(ctx, ent(), { validUntil: instant(1_900_000_000_000) }, 'Süre uzatıldı')
+    expect(r.ok).toBe(true)
+    if (r.ok) expect(r.value.events[0]?.payload).toMatchObject({ changedFields: ['validUntil'] })
+  })
+  it('is a no-op when nothing changed', () => {
+    const r = decideAmend(ctx, ent(), { priceAgreed: money(294_000) }, 'x')
+    expect(r.ok && r.value.events).toHaveLength(0)
+  })
+  it('refuses an empty reason', () => {
+    expect(decideAmend(ctx, ent(), { priceAgreed: money(1) }, '  ')).toEqual({ ok: false, error: { code: 'reason_required' } })
+  })
+})
+
+describe('decideReactivate (v1.14)', () => {
+  it('reactivates a cancelled entitlement', () => {
+    const r = decideReactivate(ctx, ent({ status: 'cancelled' }), 'Yanlış iptal')
+    expect(r.ok && r.value.next.status).toBe('active')
+  })
+  it('refuses when not cancelled', () => {
+    expect(decideReactivate(ctx, ent(), 'x')).toEqual({ ok: false, error: { code: 'entitlement_not_cancelled' } })
   })
 })

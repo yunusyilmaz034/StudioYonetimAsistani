@@ -64,6 +64,7 @@ export async function purchaseEntitlement(
     freeze: freezeFor(input.freezeDays),
     priceAgreed: input.priceAgreed,
     paidTotal: { amount: 0, currency: input.priceAgreed.currency },
+    manualPayment: null,
     purchasedAt: deps.clock.now(),
   }
 

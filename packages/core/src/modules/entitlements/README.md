@@ -22,9 +22,17 @@ snapshot.
   `decideCancel`. Signature: `(ctx, entitlement, …) → Result<LedgerOutcome>` where
   `LedgerOutcome = { next, events }`. No I/O, no clock, no randomness.
 - **Use-cases** (`application/`) — `purchaseEntitlement`, `adjustCredits`,
-  `cancelEntitlement`, `expireEntitlement`. Load → decide → save (state + events in
-  one batch). `hold/release/consume/restore` have **no** standalone use-case: they
-  are driven by reservations and wired transactionally in v1.9.
+  `cancelEntitlement`, `expireEntitlement`; and v1.14 **manual subscription**:
+  `assignSubscription` (atomic purchase + optional adjust + optional payment),
+  `amendEntitlement` (generic edit), `reactivateEntitlement`. Load → decide → save.
+  `hold/release/consume/restore` have **no** standalone use-case: they are driven by
+  reservations and wired transactionally in v1.9.
+- **Manual payment (v1.14, AD-65)** — `manualPayment` is a record-only embedded value
+  (collectedAmount · method `cash|credit_card|bank_transfer` · note · recordedAt), a
+  clean seam for a future `payments` module. `entitlement.payment_recorded` is the
+  event; `entitlement.amended` (generic, before+after, reason) covers date/price/payment
+  edits; `entitlement.reactivated` reverses a cancel. Credit edits reuse
+  `entitlement.adjusted`. **No** payments aggregate or allocation engine here.
 - **Infrastructure** — `FirestoreEntitlementRepository` (Admin SDK only, AD-15).
 
 ## The ledger (Doc 2 §5.3)

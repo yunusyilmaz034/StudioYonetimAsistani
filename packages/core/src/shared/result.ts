@@ -27,6 +27,8 @@ export type DomainError =
   | { readonly code: 'no_held_credit' }
   | { readonly code: 'invalid_adjustment' }
   | { readonly code: 'held_credits_block_expiry'; readonly held: number }
+  | { readonly code: 'invalid_amount' }
+  | { readonly code: 'entitlement_not_cancelled' }
   // ── reservations / booking (Doc 2 §7) ──
   | { readonly code: 'session_not_bookable' }
   | { readonly code: 'class_full'; readonly capacity: number }

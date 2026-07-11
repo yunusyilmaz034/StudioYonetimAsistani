@@ -18,6 +18,7 @@ import {
   type Entitlement,
   type EntitlementStatus,
   type FreezeState,
+  type ManualPayment,
   type ProductSnapshot,
 } from '../domain/types'
 
@@ -39,6 +40,9 @@ export function entitlementToFirestore(e: Entitlement): DocumentData {
     freeze: e.freeze,
     priceAgreed: e.priceAgreed,
     paidTotal: e.paidTotal,
+    manualPayment: e.manualPayment
+      ? { ...e.manualPayment, recordedAt: toTs(e.manualPayment.recordedAt) }
+      : null,
     purchasedAt: toTs(e.purchasedAt),
     updatedAt: FieldValue.serverTimestamp(),
   }
@@ -69,6 +73,12 @@ export function entitlementFromFirestore(id: EntitlementId, d: DocumentData): En
     freeze: (d.freeze as FreezeState | null) ?? null,
     priceAgreed: d.priceAgreed as Money,
     paidTotal: d.paidTotal as Money,
+    manualPayment: d.manualPayment
+      ? {
+          ...(d.manualPayment as ManualPayment),
+          recordedAt: fromTs((d.manualPayment as { recordedAt: Timestamp }).recordedAt),
+        }
+      : null,
     purchasedAt: fromTs(d.purchasedAt as Timestamp),
   }
 }

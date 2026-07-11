@@ -26,6 +26,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
+import { Toaster } from '@/components/ui/sonner'
 import {
   Table,
   TableBody,
@@ -35,8 +36,10 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { deactivateMember } from '@/server/actions/members'
+import type { ProductView } from '@/server/catalog-query'
 
 import { MemberForm } from './member-form'
+import { SubscriptionsPanel } from './subscriptions'
 
 const STATUS_LABEL: Record<Member['status'], string> = {
   active: 'Aktif',
@@ -50,9 +53,11 @@ function joinedLabel(ms: number): string {
 
 export function MembersScreen({
   members,
+  products,
   defaultBranchId,
 }: {
   members: Member[]
+  products: readonly ProductView[]
   defaultBranchId: string | null
 }) {
   const router = useRouter()
@@ -102,6 +107,7 @@ export function MembersScreen({
 
   return (
     <main className="mx-auto max-w-4xl space-y-6 p-4 sm:p-6">
+      <Toaster />
       <PageHeader
         title="Üyeler"
         description={`${members.length} üye`}
@@ -236,6 +242,8 @@ export function MembersScreen({
                   </Button>
                 ) : null}
               </div>
+
+              <SubscriptionsPanel memberId={detail.id} products={products} />
             </>
           ) : null}
         </SheetContent>

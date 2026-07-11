@@ -1,5 +1,5 @@
 import type { Instant, Money, PaymentId, ProductId, ReservationId } from '../../shared'
-import type { AdjustmentReason, Grant } from './domain/types'
+import type { AdjustmentReason, Grant, PaymentMethod } from './domain/types'
 
 // The credit ledger's events (Doc 4 §"Entitlement"). No PII (I-13): identity lives
 // in /members, behaviour lives here. Every credit-affecting event carries the
@@ -19,6 +19,12 @@ export const ENTITLEMENT_ADJUSTED = 'entitlement.adjusted'
 export const ENTITLEMENT_EXHAUSTED = 'entitlement.exhausted'
 export const ENTITLEMENT_EXPIRED = 'entitlement.expired'
 export const ENTITLEMENT_CANCELLED = 'entitlement.cancelled'
+// v1.14 — manual subscription assignment / edit. `payment_recorded` is the manual
+// collection (the payments seam). `amended` is the generic field edit (dates, price,
+// payment info) with before/after. `reactivated` is the inverse of `cancelled`.
+export const ENTITLEMENT_PAYMENT_RECORDED = 'entitlement.payment_recorded'
+export const ENTITLEMENT_AMENDED = 'entitlement.amended'
+export const ENTITLEMENT_REACTIVATED = 'entitlement.reactivated'
 
 export type EntitlementPurchasedPayload = {
   readonly productId: ProductId
@@ -56,4 +62,24 @@ export type EntitlementExpiredPayload = {
 export type EntitlementCancelledPayload = {
   readonly reason: string
   readonly refundPaymentId: PaymentId | null
+}
+
+export type EntitlementPaymentRecordedPayload = {
+  readonly collectedAmount: Money
+  readonly method: PaymentMethod
+  readonly note: string | null
+  readonly priceAgreed: Money
+  readonly balanceDue: Money
+}
+
+// A generic amend: the changed field names plus each field's before/after value, and
+// a mandatory reason (AD-22). No PII (I-13): entitlements carry no identity.
+export type EntitlementAmendedPayload = {
+  readonly changedFields: readonly string[]
+  readonly changes: Readonly<Record<string, { readonly from: unknown; readonly to: unknown }>>
+  readonly reason: string
+}
+
+export type EntitlementReactivatedPayload = {
+  readonly reason: string
 }

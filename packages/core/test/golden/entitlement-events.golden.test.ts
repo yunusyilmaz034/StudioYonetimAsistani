@@ -2,11 +2,14 @@ import { describe, expect, it } from 'vitest'
 
 import {
   decideAdjust,
+  decideAmend,
   decideCancel,
   decideConsume,
   decideExpire,
   decideHold,
   decidePurchase,
+  decideReactivate,
+  decideRecordPayment,
   decideRelease,
   decideRestore,
 } from '../../src/modules/entitlements/domain/decide'
@@ -25,9 +28,12 @@ import {
   type StudioId,
 } from '../../src/shared'
 import adjusted from './entitlement.adjusted.v1.json'
+import amended from './entitlement.amended.v1.json'
 import cancelled from './entitlement.cancelled.v1.json'
 import consumed from './entitlement.credit_consumed.v1.json'
 import held from './entitlement.credit_held.v1.json'
+import paymentRecorded from './entitlement.payment_recorded.v1.json'
+import reactivated from './entitlement.reactivated.v1.json'
 import released from './entitlement.credit_released.v1.json'
 import restored from './entitlement.credit_restored.v1.json'
 import exhausted from './entitlement.exhausted.v1.json'
@@ -72,6 +78,7 @@ const ent = (credits: CreditLedger = ledger()): Entitlement => ({
   freeze: null,
   priceAgreed: money(294_000),
   paidTotal: money(0),
+  manualPayment: null,
   purchasedAt: instant(1_699_000_000_000),
 })
 
@@ -111,5 +118,17 @@ describe('entitlement event payloads match golden fixtures (AD-33)', () => {
   })
   it('entitlement.cancelled', () => {
     expect(okEvents(decideCancel(ctx, ent(), 'refund', 'pay_9' as PaymentId))[0]?.payload).toEqual(cancelled)
+  })
+  it('entitlement.payment_recorded', () => {
+    const r = decideRecordPayment(ctx, ent(), { collectedAmount: money(200_000), method: 'cash', note: 'Yarısı peşin' })
+    expect(okEvents(r)[0]?.payload).toEqual(paymentRecorded)
+  })
+  it('entitlement.amended', () => {
+    const r = decideAmend(ctx, ent(), { priceAgreed: money(250_000) }, 'İndirim uygulandı')
+    expect(okEvents(r)[0]?.payload).toEqual(amended)
+  })
+  it('entitlement.reactivated', () => {
+    const r = decideReactivate(ctx, { ...ent(), status: 'cancelled' }, 'Yanlış iptal edildi')
+    expect(okEvents(r)[0]?.payload).toEqual(reactivated)
   })
 })

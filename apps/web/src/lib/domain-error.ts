@@ -36,6 +36,10 @@ export function domainErrorMessage(error: DomainError): string {
       return 'Geçerli bir kredi değişimi girin (sıfır olamaz).'
     case 'held_credits_block_expiry':
       return 'Tutulan kredisi olan paket süre sonuna erdirilemez.'
+    case 'invalid_amount':
+      return 'Geçerli bir tutar girin.'
+    case 'entitlement_not_cancelled':
+      return 'Yalnızca iptal edilmiş bir abonelik yeniden aktifleştirilebilir.'
     case 'session_not_bookable':
       return 'Bu seansa rezervasyon yapılamaz (iptal edilmiş veya başlamış).'
     case 'class_full':

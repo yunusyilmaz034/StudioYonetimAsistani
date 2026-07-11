@@ -91,6 +91,7 @@ const creditEnt = (over: Partial<Entitlement> = {}): Entitlement => ({
   freeze: null,
   priceAgreed: money(294_000),
   paidTotal: money(0),
+  manualPayment: null,
   purchasedAt: instant(NOW - 30 * H),
   ...over,
 })

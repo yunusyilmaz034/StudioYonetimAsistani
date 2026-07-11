@@ -134,6 +134,8 @@ Superseded decisions are struck through and point at what replaced them.
 | **AD-52** | Templates hold only `LocalDate` + `HH:MM`; the application derives `startsAt: Instant` (UTC) via `StudioConfig.utcOffsetMinutes` (+180 now; IANA timezone later, seamless). |
 | **AD-62** | Session room/capacity edits are new events (`class_session.room_changed`, `.capacity_changed`) with AD-48 + `bookedCount` + **I-26** refusals; template edits are `class_template.updated` (future generations only). *(v1.12)* |
 | **AD-63** | The `identity` module ships read-only — a staff/trainer list for the scheduling pickers; staff creation (with events) is a later milestone. *(v1.12)* |
+| **AD-64** | The catalogue is the `catalog` module — `Product` CRUD, `product.created` + generic `product.updated` (deactivate = `active` field), never deleted; owner + platform_admin (AD-46). *(v1.14)* |
+| **AD-65** | Manual payment is a record-only embedded value (`entitlement.manualPayment` + `entitlement.payment_recorded`), not a payments aggregate/allocation engine — a seam for a future `payments` module. Edits: generic `entitlement.amended` + `entitlement.reactivated`; credits reuse `entitlement.adjusted`. *(v1.14)* |
 
 ### Doc 13 — Entitlements & the Credit Ledger
 

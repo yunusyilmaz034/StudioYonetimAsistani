@@ -42,6 +42,9 @@ export default async function HomePage() {
             <Button variant="outline" render={<Link href="/members" />}>
               Üyeler
             </Button>
+            <Button variant="outline" render={<Link href="/packages" />}>
+              Paketler
+            </Button>
             <LogoutButton />
           </div>
         }

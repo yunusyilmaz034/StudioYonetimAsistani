@@ -97,6 +97,7 @@ const held = (h: number): Entitlement => ({
   freeze: null,
   priceAgreed: money(294_000),
   paidTotal: money(0),
+  manualPayment: null,
   purchasedAt: instant(NOW - D),
 })
 const SNAP: MemberSnapshot = { memberId: 'mem_1' as MemberId, displayName: 'Ayşe Y.', phoneLast4: '4567', membershipStatus: 'active' }

@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 
 import { getTenantContext } from '@/server/auth'
+import { listProducts } from '@/server/catalog-query'
 import { listMembers } from '@/server/members-query'
 
 import { MembersScreen } from './members-screen'
@@ -14,7 +15,7 @@ export default async function MembersPage() {
     redirect('/login')
   }
 
-  const members = await listMembers(ctx)
+  const [members, products] = await Promise.all([listMembers(ctx), listProducts(ctx)])
 
-  return <MembersScreen members={members} defaultBranchId={ctx.branchIds[0] ?? null} />
+  return <MembersScreen members={members} products={products} defaultBranchId={ctx.branchIds[0] ?? null} />
 }

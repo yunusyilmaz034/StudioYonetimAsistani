@@ -102,3 +102,18 @@ freeze operations land (DEBT-009).
 |---|---|---|
 | **AD-53** | The **entitlements module owns the ledger arithmetic** (hold/release/consume/restore as pure deciders); the **reservations module owns the orchestration** that calls them inside the booking transaction (I-10). | Putting the ledger math in reservations — splits the ledger's ownership and duplicates the invariants. |
 | **AD-54** | **Freeze operations deferred** until the owner resolves the freeze-duration and over-budget semantics (DEBT-009); the *shape* (`FreezeState`, `status: 'frozen'`) ships now so it is retrofit-free. | Guessing the arithmetic now — an unrecoverable choice baked into events. |
+| **AD-64** *(v1.14)* | The catalogue is the **`catalog` module**: `Product` CRUD with `product.created` + generic `product.updated` (deactivation is an `active` field change), never deleted. Authz owner + platform_admin (AD-46). | A hardcoded price list, or a separate deactivate/reactivate event per the scheduling pattern — the former violates AD-41, the latter is more events than a generic update needs. |
+| **AD-65** *(v1.14)* | **Manual payment is a record-only embedded value** (`entitlement.manualPayment` + `entitlement.payment_recorded`), NOT a payments aggregate or allocation engine — a clean seam a future `payments` module migrates from. Subscription edits are the generic `entitlement.amended` (dates/price/payment, before+after, reason) + `entitlement.reactivated`; **credit edits reuse `entitlement.adjusted`** (no new arithmetic). | A full payments aggregate with allocations now — commerce infrastructure the milestone explicitly excludes; or a new event per editable field — needless event sprawl. |
+
+## v1.14 — Manual Subscription Assignment
+
+Owner/reception assign a package to a member from the Member workspace and record a
+manual payment — **not** a selling or payments system. `assignSubscription` is atomic:
+`entitlement.purchased`, then (if the credit is overridden) `entitlement.adjusted`,
+then (if money was collected) `entitlement.payment_recorded` — one save, one
+`correlationId`. `paidTotal` mirrors `manualPayment.collectedAmount`; `balanceDue =
+priceAgreed − collected` (0 collected = comp / on account, legal per Doc 2 §6, OQ-10).
+
+Payment method is a manual enum only — `cash | credit_card | bank_transfer`. No POS,
+gateway, allocation, refund, or instalment (a future `payments` milestone). Every
+manual edit carries a mandatory `reason` and its before/after value in the event.

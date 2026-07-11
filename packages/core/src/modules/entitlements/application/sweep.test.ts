@@ -48,6 +48,7 @@ const ent = (over: Partial<Entitlement> = {}): Entitlement => ({
   freeze: null,
   priceAgreed: money(294_000),
   paidTotal: money(0),
+  manualPayment: null,
   purchasedAt: instant(NOW - 60 * D),
   ...over,
 })
@@ -69,6 +70,12 @@ class FakeEntRepo implements EntitlementRepository {
     return [...this.ents.values()]
       .filter((e) => e.status === 'active' && e.validUntil <= before)
       .map((e) => e.id)
+  }
+  async listByMember(): Promise<readonly Entitlement[]> {
+    return [...this.ents.values()]
+  }
+  async listEntitlementEvents(): Promise<readonly []> {
+    return []
   }
 }
 

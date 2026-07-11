@@ -3,6 +3,7 @@
 export {
   available,
   AdjustmentReasons,
+  PaymentMethods,
   type AdjustmentReason,
   type CreditGrant,
   type CreditLedger,
@@ -11,6 +12,8 @@ export {
   type FreezePeriod,
   type FreezeState,
   type Grant,
+  type ManualPayment,
+  type PaymentMethod,
   type PeriodGrant,
   type PolicyVersionRef,
   type ProductSnapshot,
@@ -18,18 +21,29 @@ export {
 export * from './events'
 export {
   decideAdjust,
+  decideAmend,
   decideCancel,
   decideConsume,
   decideExpire,
   decideHold,
   decidePurchase,
+  decideReactivate,
+  decideRecordPayment,
   decideRelease,
   decideRestore,
+  type AmendPatch,
   type DecideContext,
   type LedgerOutcome,
 } from './domain/decide'
 export { purchaseEntitlement, type PurchaseEntitlementInput } from './application/purchase'
 export { adjustCredits, type AdjustCreditsInput } from './application/adjust'
+export {
+  assignSubscription,
+  amendEntitlement,
+  reactivateEntitlement,
+  type AssignSubscriptionInput,
+  type AmendEntitlementInput,
+} from './application/subscription'
 export {
   cancelEntitlement,
   expireEntitlement,
@@ -37,7 +51,7 @@ export {
   type CancelEntitlementInput,
   type ExpirySummary,
 } from './application/lifecycle'
-export type { EntitlementRepository, EntitlementsDeps } from './application/ports'
+export type { EntitlementEventRecord, EntitlementRepository, EntitlementsDeps } from './application/ports'
 export { FirestoreEntitlementRepository } from './infrastructure/repos'
 // Exposed for cross-aggregate transactions (the booking transaction reads and
 // updates the entitlement ledger inside the same transaction as the reservation).

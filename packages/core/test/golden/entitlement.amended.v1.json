@@ -1,0 +1,10 @@
+{
+  "changedFields": ["priceAgreed"],
+  "changes": {
+    "priceAgreed": {
+      "from": { "amount": 294000, "currency": "TRY" },
+      "to": { "amount": 250000, "currency": "TRY" }
+    }
+  },
+  "reason": "İndirim uygulandı"
+}

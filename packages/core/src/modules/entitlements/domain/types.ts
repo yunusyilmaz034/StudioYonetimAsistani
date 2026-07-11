@@ -30,6 +30,20 @@ export type ProductSnapshot = {
 
 export type EntitlementStatus = 'active' | 'frozen' | 'expired' | 'cancelled'
 
+// Manual, record-only payment for a subscription (v1.14). Deliberately NOT a payment
+// aggregate or allocation engine — a clean seam that a future `payments` module can
+// migrate from. Revenue is `collectedAmount` on `recordedAt` (Doc 2 §6). null ⇔ comp
+// / sold-on-account (balanceDue > 0 is legal, OQ-10).
+export const PaymentMethods = ['cash', 'credit_card', 'bank_transfer'] as const
+export type PaymentMethod = (typeof PaymentMethods)[number]
+
+export type ManualPayment = {
+  readonly collectedAmount: Money
+  readonly method: PaymentMethod
+  readonly note: string | null
+  readonly recordedAt: Instant
+}
+
 // The credit ledger — six monotonically non-decreasing counters (I-3). `available`
 // is DERIVED (never stored as truth), denormalised for reads (AD-14):
 //   available = granted + restored − consumed − held − revoked − expired
@@ -78,7 +92,8 @@ export type Entitlement = {
 
   // What was owed, and what has been collected (payment is optional, OQ-10).
   readonly priceAgreed: Money
-  readonly paidTotal: Money // denormalised, rebuildable
+  readonly paidTotal: Money // denormalised; mirrors manualPayment.collectedAmount (v1.14)
+  readonly manualPayment: ManualPayment | null // the record-only payment seam (v1.14)
 
   readonly purchasedAt: Instant
 }
