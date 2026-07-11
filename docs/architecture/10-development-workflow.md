@@ -51,19 +51,39 @@ Plan  →  UX  →  Implementation  →  Validation  →  Commit  →  Stop
 
 **Every milestone is a product version.** New milestones continue the same scheme.
 
+> **Roadmap re-prioritised for cutover (2026-07-11).** The goal is **not** the most
+> technically perfect system — it is to onboard the first live customer safely. The
+> forward order (v1.17→) is sequenced toward that go-live, owner-approved.
+
+**Completed (tagged, pushed):**
+
+| Version | Milestone | Tag |
+|---|---|---|
+| **v1.0–v1.3** | Architecture · Scaffold · Design System · Workflow | `v1.0-architecture` … `v1.3-development-workflow` |
+| **v1.4** | Platform Foundation | `v1.4-platform-foundation` |
+| **v1.5** | Authentication & Authorization | `v1.5-authentication-authorization` |
+| **v1.6** | Member Management | `v1.6-member-management` |
+| **v1.7** | Scheduling Foundation | `v1.7-scheduling-foundation` |
+| **v1.8** | Entitlements & Credit Ledger | `v1.8-entitlements-credit-ledger` |
+| **v1.9** | Reservations Engine | `v1.9-reservations-engine` |
+| **v1.10** | Automation (triggers · sweeps) | `v1.10-automation` |
+| **v1.11** | Attendance & Correction Workspace | `v1.11-attendance-workspace` |
+| **v1.12** | Scheduling Workspace / Calendar | `v1.12-scheduling-workspace` |
+| **v1.13** | Booking UI | `v1.13-booking-ui` |
+| **v1.14** | Package Catalogue + Manual Subscription | `v1.14-catalogue-subscriptions` |
+| **v1.15** | QR Access & Check-in | `v1.15-qr-checkin` |
+| **v1.16** | Owner Dashboard | `v1.16-owner-dashboard` |
+
+**Planned (cutover order):**
+
 | Version | Milestone |
 |---|---|
-| **v1.0** | Architecture |
-| **v1.1** | Scaffold |
-| **v1.2** | Design System |
-| **v1.3** | Development Workflow |
-| **v1.4** | Platform Foundation |
-| **v1.5** | Authentication & Authorization |
-| **v1.6** | Member Management |
-| **v1.7** | Reservation Engine |
-| **v1.8** | QR Check-in |
-| **v1.9** | Credit Engine |
-| **v2.0** | First Production MVP |
+| **v1.17** | Reservation Workspace |
+| **v1.18** | Member Workspace |
+| **v1.19** | Payments |
+| **v1.20** | Migration & Cutover |
+| **v1.21** | Production Hardening / CI |
+| **v1.22** | Staff & Identity |
 
 - **One commit per milestone.** A milestone closes as a single commit, Conventional Commit format — `feat(<scope>): …` for feature milestones, `docs(<scope>): …` for docs-only ones. For example:
 
