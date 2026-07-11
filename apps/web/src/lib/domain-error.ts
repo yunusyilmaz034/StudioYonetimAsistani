@@ -18,6 +18,12 @@ export function domainErrorMessage(error: DomainError): string {
       return 'Seçilen salon bu şubeye ait değil.'
     case 'invalid_time_range':
       return 'Bitiş saati başlangıç saatinden sonra olmalı.'
+    case 'session_not_editable':
+      return 'Başlamış, tamamlanmış veya iptal edilmiş seans düzenlenemez.'
+    case 'capacity_below_booked':
+      return `Kapasite mevcut rezervasyon sayısının (${error.bookedCount}) altına inemez.`
+    case 'room_not_active':
+      return 'Seçilen salon aktif değil.'
     case 'insufficient_credits':
       return `Yeterli kredi yok (kalan: ${error.available}).`
     case 'entitlement_not_active':

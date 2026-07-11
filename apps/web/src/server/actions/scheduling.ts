@@ -2,6 +2,8 @@
 
 import {
   cancelSession,
+  changeCapacity,
+  changeRoom,
   changeTrainer,
   createRoom,
   createService,
@@ -19,6 +21,7 @@ import {
   systemClock,
   updateRoom,
   updateService,
+  updateTemplate,
   type BranchId,
   type ClassSessionId,
   type ClassTemplateId,
@@ -185,6 +188,51 @@ export async function changeTrainerAction(input: unknown) {
     sessionId: p.sessionId as ClassSessionId,
     trainerId: p.trainerId as StaffUserId | null,
     trainerName: p.trainerName,
+    reason: p.reason,
+  })
+}
+export async function changeRoomAction(input: unknown) {
+  const p = z.object({ sessionId: nonEmpty, roomId: nonEmpty.nullable(), reason: nonEmpty }).parse(input)
+  return changeRoom(deps(), await requireTenantContext(OPS), {
+    sessionId: p.sessionId as ClassSessionId,
+    roomId: p.roomId as RoomId | null,
+    reason: p.reason,
+  })
+}
+export async function changeCapacityAction(input: unknown) {
+  const p = z.object({ sessionId: nonEmpty, capacity: z.number().int().min(1), reason: nonEmpty }).parse(input)
+  return changeCapacity(deps(), await requireTenantContext(OPS), {
+    sessionId: p.sessionId as ClassSessionId,
+    capacity: p.capacity,
+    reason: p.reason,
+  })
+}
+// Template edits are definitions: owner + platform_admin (AD-51).
+export async function updateTemplateAction(input: unknown) {
+  const p = z
+    .object({
+      templateId: nonEmpty,
+      roomId: nonEmpty.nullable(),
+      trainerId: nonEmpty.nullable(),
+      dayOfWeek: z.number().int().min(0).max(6),
+      startTime: time,
+      durationMinutes: z.number().int().min(1),
+      capacity: z.number().int().min(1),
+      validFrom: date,
+      validUntil: date,
+      reason: nonEmpty,
+    })
+    .parse(input)
+  return updateTemplate(deps(), await requireTenantContext(DEFS), {
+    templateId: p.templateId as ClassTemplateId,
+    roomId: p.roomId as RoomId | null,
+    trainerId: p.trainerId as StaffUserId | null,
+    dayOfWeek: p.dayOfWeek as Weekday,
+    startTime: p.startTime,
+    durationMinutes: p.durationMinutes,
+    capacity: p.capacity,
+    validFrom: p.validFrom,
+    validUntil: p.validUntil,
     reason: p.reason,
   })
 }

@@ -73,6 +73,11 @@ export class FirestoreSchedulingRepository implements SchedulingRepository {
     )
   }
 
+  async listServices(ctx: TenantContext): Promise<readonly Service[]> {
+    const snap = await this.col(ctx.studioId, 'services').get()
+    return snap.docs.map((d) => serviceFromFirestore(d.id as ServiceId, d.data()))
+  }
+
   async getRoom(ctx: TenantContext, id: RoomId): Promise<Room | null> {
     const s = await this.col(ctx.studioId, 'rooms').doc(id).get()
     const d = s.data()
@@ -85,6 +90,11 @@ export class FirestoreSchedulingRepository implements SchedulingRepository {
       roomToFirestore(room),
       events,
     )
+  }
+
+  async listRooms(ctx: TenantContext): Promise<readonly Room[]> {
+    const snap = await this.col(ctx.studioId, 'rooms').get()
+    return snap.docs.map((d) => roomFromFirestore(d.id as RoomId, d.data()))
   }
 
   async getTemplate(ctx: TenantContext, id: ClassTemplateId): Promise<ClassTemplate | null> {
@@ -121,6 +131,11 @@ export class FirestoreSchedulingRepository implements SchedulingRepository {
       sessionToFirestore(session),
       events,
     )
+  }
+
+  async listTemplates(ctx: TenantContext): Promise<readonly ClassTemplate[]> {
+    const snap = await this.col(ctx.studioId, 'classTemplates').get()
+    return snap.docs.map((d) => templateFromFirestore(d.id as ClassTemplateId, d.data()))
   }
 
   async listSessionStartsForTemplate(

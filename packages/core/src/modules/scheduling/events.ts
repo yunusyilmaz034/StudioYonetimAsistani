@@ -16,11 +16,14 @@ export const ROOM_DEACTIVATED = 'room.deactivated'
 export const ROOM_REACTIVATED = 'room.reactivated'
 
 export const CLASS_TEMPLATE_CREATED = 'class_template.created'
+export const CLASS_TEMPLATE_UPDATED = 'class_template.updated'
 export const CLASS_TEMPLATE_DEACTIVATED = 'class_template.deactivated'
 
 export const CLASS_SESSION_SCHEDULED = 'class_session.scheduled'
 export const CLASS_SESSION_CANCELLED = 'class_session.cancelled'
 export const CLASS_SESSION_TRAINER_CHANGED = 'class_session.trainer_changed'
+export const CLASS_SESSION_ROOM_CHANGED = 'class_session.room_changed'
+export const CLASS_SESSION_CAPACITY_CHANGED = 'class_session.capacity_changed'
 
 export type ServiceCreatedPayload = {
   readonly name: string
@@ -72,5 +75,21 @@ export type ClassSessionCancelledPayload = {
 export type ClassSessionTrainerChangedPayload = {
   readonly from: StaffUserId | null
   readonly to: StaffUserId | null
+  readonly reason: string
+}
+export type ClassSessionRoomChangedPayload = {
+  readonly fromRoomId: RoomId | null
+  readonly toRoomId: RoomId | null
+  readonly reason: string
+}
+export type ClassSessionCapacityChangedPayload = {
+  readonly fromCapacity: number
+  readonly toCapacity: number
+  readonly reason: string
+}
+// A template edit affects only FUTURE generations — already-generated sessions keep
+// their snapshot (idempotent generation, AD-50). Delta as changed field names (AD-19).
+export type ClassTemplateUpdatedPayload = {
+  readonly changedFields: readonly string[]
   readonly reason: string
 }

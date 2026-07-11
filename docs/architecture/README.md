@@ -132,6 +132,8 @@ Superseded decisions are struck through and point at what replaced them.
 | **AD-50** | Weekly templates generate sessions **eagerly and idempotently** per `(templateId, date)`. |
 | **AD-51** | Definitions: owner + platform_admin. Sessions: + receptionist. Trainer authz seam via `session.trainerId`. |
 | **AD-52** | Templates hold only `LocalDate` + `HH:MM`; the application derives `startsAt: Instant` (UTC) via `StudioConfig.utcOffsetMinutes` (+180 now; IANA timezone later, seamless). |
+| **AD-62** | Session room/capacity edits are new events (`class_session.room_changed`, `.capacity_changed`) with AD-48 + `bookedCount` + **I-26** refusals; template edits are `class_template.updated` (future generations only). *(v1.12)* |
+| **AD-63** | The `identity` module ships read-only — a staff/trainer list for the scheduling pickers; staff creation (with events) is a later milestone. *(v1.12)* |
 
 ### Doc 13 — Entitlements & the Credit Ledger
 

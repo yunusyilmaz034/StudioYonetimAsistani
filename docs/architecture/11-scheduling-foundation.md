@@ -78,11 +78,13 @@ the scheduling-relevant subset.
 | `room.updated` | `{ changedFields[] }` |
 | `room.deactivated` / `.reactivated` | `{ reason? }` / `{}` |
 | `class_template.created` | `{ serviceId, branchId, dayOfWeek, startTime, durationMinutes, capacity, validFrom, validUntil }` |
-| `class_template.updated` | `{ changedFields[] }` |
+| `class_template.updated` *(v1.12)* | `{ changedFields[], reason }` — affects only FUTURE generations |
 | `class_template.deactivated` | `{ reason }` |
 | `class_session.scheduled` | `{ serviceId, branchId, roomId?, trainerId?, templateId?, category, startsAt, endsAt, capacity, policyVersion }` |
 | `class_session.cancelled` | `{ reason, startsAt }` |
 | `class_session.trainer_changed` | `{ from?, to?, reason }` |
+| `class_session.room_changed` *(v1.12)* | `{ fromRoomId?, toRoomId?, reason }` |
+| `class_session.capacity_changed` *(v1.12)* | `{ fromCapacity, toCapacity, reason }` |
 
 `class_session.completed` and reschedule/shift/holiday events are **added later**
 (new types need no migration; only payload shapes are permanent — AD-21).
@@ -128,6 +130,7 @@ with no model change. Enforced in the Server Action (AD-46 pattern), not in rule
 | **I-23** | If `roomId` is set, `session.capacity ≤ room.capacity` and `session.branchId == room.branchId`. |
 | **I-24** | Every `ClassSession` stamps the Service's `policyVersion` and a `policySnapshot` at creation (D3). |
 | **I-25** | A template generates sessions only within `[validFrom, validUntil]`; generation is idempotent per `(templateId, date)`. |
+| **I-26** *(v1.12)* | A **started or completed** session may never be edited — trainer, room, and capacity changes apply only to a not-yet-started, still-`scheduled` session (`startsAt > now`). This keeps event history, attendance, and future financial records consistent with what the session actually was. Cancellation is a separate act, not an edit. |
 
 ---
 
@@ -151,3 +154,5 @@ against (v1.8).
 | **AD-50** | Weekly templates generate sessions **eagerly and idempotently** | Virtual/lazy sessions | Sessions must be concrete rows for reservations, occupancy, and the calendar to read. |
 | **AD-51** | Definitions: owner + platform_admin. Sessions: + receptionist. Trainer: none now, `session.trainerId` is the future seam | Give reception full scheduling; or build trainer authz now | Matches daily ops; the seam costs nothing and avoids a future migration. |
 | **AD-52** | Templates hold **only** `LocalDate` + `HH:MM` (never UTC). The application converts to `startsAt: Instant` (UTC) using `StudioConfig.utcOffsetMinutes` (Phase 1 = +180, Türkiye, no DST). No magic number — it comes from `StudioConfig`. | Store UTC on templates; hardcode the offset | A template is a wall-clock rule; the Instant is derived. When a Studio entity carries an IANA timezone, `utcOffsetMinutes` derives from it — a seamless migration, no session rewrite. |
+| **AD-62** *(v1.12)* | Session **room** and **capacity** edits are new events (`class_session.room_changed`, `class_session.capacity_changed`) with pure-decider refusals: AD-48 (room branch + capacity), capacity never below `bookedCount`, and **I-26** (only a not-yet-started session). Template edits are `class_template.updated` (in place; future generations only). | cancel-and-reschedule for every edit; or a mutable template with no event | Room/capacity are **not** denormalised onto reservations (unlike time, DEBT-005), so they edit safely; the audit trail stays complete. |
+| **AD-63** *(v1.12)* | The **identity** module ships **read-only**: a staff/trainer list (`listStaff`) for the scheduling pickers. Staff creation as an event-emitting flow is a later milestone; demo `/staff` docs are seeded. | free-text trainer names; or defer trainer assignment | The picker needs real principals now; the write-side seam (events) is added without retrofitting the read. |

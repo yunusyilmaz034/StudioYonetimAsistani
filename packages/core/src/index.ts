@@ -4,6 +4,7 @@
 // kernel (ids, money, time, actor, event envelope, TenantContext, Result, Clock);
 // the domain modules are re-exported here as each is built.
 export * from './shared/index'
+export * from './modules/identity/index'
 export * from './modules/members/index'
 export * from './modules/scheduling/index'
 export * from './modules/entitlements/index'

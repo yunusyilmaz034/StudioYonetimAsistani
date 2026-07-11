@@ -16,10 +16,13 @@ import {
 } from '../../../shared'
 import {
   CLASS_SESSION_CANCELLED,
+  CLASS_SESSION_CAPACITY_CHANGED,
+  CLASS_SESSION_ROOM_CHANGED,
   CLASS_SESSION_SCHEDULED,
   CLASS_SESSION_TRAINER_CHANGED,
   CLASS_TEMPLATE_CREATED,
   CLASS_TEMPLATE_DEACTIVATED,
+  CLASS_TEMPLATE_UPDATED,
   ROOM_CREATED,
   ROOM_DEACTIVATED,
   ROOM_REACTIVATED,
@@ -65,6 +68,17 @@ function base(
 
 function reason_(reason: string): Result<never, DomainError> | null {
   return reason.trim().length === 0 ? err({ code: 'reason_required' }) : null
+}
+
+// A binding business rule (v1.12): a session that has STARTED or is no longer
+// `scheduled` may never be edited — trainer, room, and capacity changes apply only to
+// not-yet-started future sessions. This keeps the event history, attendance, and
+// (later) financial records consistent with what the session actually was. Pure: the
+// clock is `ctx.now`, injected. Cancellation is a separate act, not an edit.
+function editable_(ctx: DecideContext, session: ClassSession): Result<never, DomainError> | null {
+  return session.status !== 'scheduled' || session.startsAt <= ctx.now
+    ? err({ code: 'session_not_editable' })
+    : null
 }
 
 // ── Service ──
@@ -179,6 +193,38 @@ export function decideDeactivateTemplate(
   ])
 }
 
+// Edit a template in place (AD-49 pattern). Only FUTURE generations change —
+// already-generated sessions keep their snapshot (idempotent generation, AD-50).
+// serviceId and branchId are not editable (a different service means a different
+// template; create a new one). No "started" guard: a template is a recurring
+// definition, not a dated session.
+export function decideUpdateTemplate(
+  ctx: DecideContext,
+  current: ClassTemplate,
+  next: ClassTemplate,
+  reason: string,
+): Result<NewEvent[], DomainError> {
+  const bad = reason_(reason)
+  if (bad) return bad
+  const changedFields: string[] = []
+  if (current.roomId !== next.roomId) changedFields.push('roomId')
+  if (current.trainerId !== next.trainerId) changedFields.push('trainerId')
+  if (current.dayOfWeek !== next.dayOfWeek) changedFields.push('dayOfWeek')
+  if (current.startTime !== next.startTime) changedFields.push('startTime')
+  if (current.durationMinutes !== next.durationMinutes) changedFields.push('durationMinutes')
+  if (current.capacity !== next.capacity) changedFields.push('capacity')
+  if (current.validFrom !== next.validFrom) changedFields.push('validFrom')
+  if (current.validUntil !== next.validUntil) changedFields.push('validUntil')
+  if (changedFields.length === 0) return ok([]) // no-op
+  return ok([
+    {
+      ...base(ctx, 'classTemplate', next.id, next.branchId, next.trainerId ? { trainerId: next.trainerId } : {}),
+      type: CLASS_TEMPLATE_UPDATED,
+      payload: { changedFields, reason },
+    },
+  ])
+}
+
 // ── ClassSession ──
 export function decideScheduleSession(
   ctx: DecideContext,
@@ -241,6 +287,8 @@ export function decideChangeTrainer(
   to: StaffUserId | null,
   reason: string,
 ): Result<NewEvent[], DomainError> {
+  const started = editable_(ctx, session)
+  if (started) return started
   const bad = reason_(reason)
   if (bad) return bad
   return ok([
@@ -251,6 +299,67 @@ export function decideChangeTrainer(
       }),
       type: CLASS_SESSION_TRAINER_CHANGED,
       payload: { from: session.trainerId, to, reason },
+    },
+  ])
+}
+
+// Change the session's room. AD-48: a room is branch-scoped and a session's capacity
+// may not exceed its room's capacity. Clearing the room (to null) drops those checks.
+export function decideChangeRoom(
+  ctx: DecideContext,
+  session: ClassSession,
+  toRoom: Room | null,
+  reason: string,
+): Result<NewEvent[], DomainError> {
+  const started = editable_(ctx, session)
+  if (started) return started
+  const bad = reason_(reason)
+  if (bad) return bad
+  if (toRoom) {
+    if (!toRoom.active) return err({ code: 'room_not_active' })
+    if (toRoom.branchId !== session.branchId) return err({ code: 'branch_mismatch' })
+    if (session.capacity > toRoom.capacity) {
+      return err({
+        code: 'session_capacity_exceeds_room',
+        capacity: session.capacity,
+        roomCapacity: toRoom.capacity,
+      })
+    }
+  }
+  return ok([
+    {
+      ...base(ctx, 'classSession', session.id, session.branchId, { classSessionId: session.id }),
+      type: CLASS_SESSION_ROOM_CHANGED,
+      payload: { fromRoomId: session.roomId, toRoomId: toRoom ? toRoom.id : null, reason },
+    },
+  ])
+}
+
+// Change the session's capacity. It may never drop below what is already booked (a
+// booked member is never stranded), and may not exceed the room (AD-48).
+export function decideChangeCapacity(
+  ctx: DecideContext,
+  session: ClassSession,
+  room: Room | null,
+  toCapacity: number,
+  reason: string,
+): Result<NewEvent[], DomainError> {
+  const started = editable_(ctx, session)
+  if (started) return started
+  const bad = reason_(reason)
+  if (bad) return bad
+  if (toCapacity < session.bookedCount) {
+    return err({ code: 'capacity_below_booked', bookedCount: session.bookedCount })
+  }
+  if (room && toCapacity > room.capacity) {
+    return err({ code: 'session_capacity_exceeds_room', capacity: toCapacity, roomCapacity: room.capacity })
+  }
+  if (toCapacity === session.capacity) return ok([]) // no-op
+  return ok([
+    {
+      ...base(ctx, 'classSession', session.id, session.branchId, { classSessionId: session.id }),
+      type: CLASS_SESSION_CAPACITY_CHANGED,
+      payload: { fromCapacity: session.capacity, toCapacity, reason },
     },
   ])
 }

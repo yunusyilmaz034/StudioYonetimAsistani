@@ -9,8 +9,11 @@ credit, or attendance here.
 - Types: `Service`, `Room`, `ClassTemplate`, `ClassSession`, `SchedulingPolicy`, …
 - Services: `createService`, `updateService`, `publishServicePolicy`, `deactivate/reactivateService`
 - Rooms: `createRoom`, `updateRoom`, `deactivate/reactivateRoom`
-- Templates: `createTemplate`, `deactivateTemplate`
-- Sessions: `scheduleSession`, `generateSessions`, `cancelSession`, `changeTrainer`
+- Templates: `createTemplate`, `updateTemplate`, `deactivateTemplate`
+- Sessions: `scheduleSession`, `generateSessions`, `cancelSession`, `changeTrainer`,
+  `changeRoom`, `changeCapacity`
+- Reads: `getSession`, `listSessionsForDay` (any range), `listServices`, `listRooms`,
+  `listTemplates`
 - `SchedulingRepository`, `SchedulingDeps`, `FirestoreSchedulingRepository`
 
 ## Invariants this module owns
@@ -22,6 +25,8 @@ credit, or attendance here.
 - **I-24** — every session stamps the Service's `policyVersion` + a `policySnapshot`.
 - **I-25** — a template generates sessions only within `[validFrom, validUntil]`,
   idempotent per `(templateId, occurrence)`.
+- **I-26** — a **started or completed** session is never editable; trainer/room/
+  capacity edits require a not-yet-started, still-`scheduled` session (v1.12, AD-62).
 
 ## Notes
 

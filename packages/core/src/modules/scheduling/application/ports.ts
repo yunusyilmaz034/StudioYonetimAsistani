@@ -18,12 +18,15 @@ import type { ClassSession, ClassTemplate, Room, Service } from '../domain/types
 export interface SchedulingRepository {
   getService(ctx: TenantContext, id: ServiceId): Promise<Service | null>
   saveService(ctx: TenantContext, service: Service, events: readonly NewEvent[]): Promise<void>
+  listServices(ctx: TenantContext): Promise<readonly Service[]>
 
   getRoom(ctx: TenantContext, id: RoomId): Promise<Room | null>
   saveRoom(ctx: TenantContext, room: Room, events: readonly NewEvent[]): Promise<void>
+  listRooms(ctx: TenantContext): Promise<readonly Room[]>
 
   getTemplate(ctx: TenantContext, id: ClassTemplateId): Promise<ClassTemplate | null>
   saveTemplate(ctx: TenantContext, template: ClassTemplate, events: readonly NewEvent[]): Promise<void>
+  listTemplates(ctx: TenantContext): Promise<readonly ClassTemplate[]>
 
   getSession(ctx: TenantContext, id: ClassSessionId): Promise<ClassSession | null>
   saveSession(ctx: TenantContext, session: ClassSession, events: readonly NewEvent[]): Promise<void>

@@ -29,10 +29,14 @@ export {
 export {
   createTemplate,
   deactivateTemplate,
+  updateTemplate,
   type CreateTemplateInput,
+  type UpdateTemplateInput,
 } from './application/template'
 export {
   cancelSession,
+  changeCapacity,
+  changeRoom,
   changeTrainer,
   generateSessions,
   scheduleSession,

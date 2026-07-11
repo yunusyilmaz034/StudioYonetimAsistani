@@ -15,6 +15,8 @@ import {
 } from '../../../shared'
 import {
   decideCancelSession,
+  decideChangeCapacity,
+  decideChangeRoom,
   decideChangeTrainer,
   decideScheduleSession,
 } from '../domain/decide'
@@ -198,10 +200,49 @@ export async function changeTrainer(
   if (!current) throw new Error(`Session not found: ${input.sessionId}`)
   const events = decideChangeTrainer(decideContext(deps, ctx), current, input.trainerId, input.reason)
   if (!events.ok) return events
+  if (events.value.length === 0) return { ok: true, value: undefined }
   await deps.repo.saveSession(
     ctx,
     { ...current, trainerId: input.trainerId, trainerName: input.trainerName },
     events.value,
   )
+  return { ok: true, value: undefined }
+}
+
+// Change the session's room (AD-48 checks in the decider). Only a not-yet-started
+// session (I-26). Updates the denormalised roomId/roomName.
+export async function changeRoom(
+  deps: SchedulingDeps,
+  ctx: TenantContext,
+  input: { sessionId: ClassSessionId; roomId: RoomId | null; reason: string },
+): Promise<Result<void, DomainError>> {
+  const current = await deps.repo.getSession(ctx, input.sessionId)
+  if (!current) throw new Error(`Session not found: ${input.sessionId}`)
+  const room = input.roomId ? await deps.repo.getRoom(ctx, input.roomId) : null
+  const events = decideChangeRoom(decideContext(deps, ctx), current, room, input.reason)
+  if (!events.ok) return events
+  if (events.value.length === 0) return { ok: true, value: undefined }
+  await deps.repo.saveSession(
+    ctx,
+    { ...current, roomId: room ? room.id : null, roomName: room ? room.name : null },
+    events.value,
+  )
+  return { ok: true, value: undefined }
+}
+
+// Change the session's capacity (never below bookedCount; not above the room, AD-48).
+// Only a not-yet-started session (I-26).
+export async function changeCapacity(
+  deps: SchedulingDeps,
+  ctx: TenantContext,
+  input: { sessionId: ClassSessionId; capacity: number; reason: string },
+): Promise<Result<void, DomainError>> {
+  const current = await deps.repo.getSession(ctx, input.sessionId)
+  if (!current) throw new Error(`Session not found: ${input.sessionId}`)
+  const room = current.roomId ? await deps.repo.getRoom(ctx, current.roomId) : null
+  const events = decideChangeCapacity(decideContext(deps, ctx), current, room, input.capacity, input.reason)
+  if (!events.ok) return events
+  if (events.value.length === 0) return { ok: true, value: undefined }
+  await deps.repo.saveSession(ctx, { ...current, capacity: input.capacity }, events.value)
   return { ok: true, value: undefined }
 }

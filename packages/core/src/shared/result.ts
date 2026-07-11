@@ -16,6 +16,10 @@ export type DomainError =
   | { readonly code: 'session_capacity_exceeds_room'; readonly capacity: number; readonly roomCapacity: number }
   | { readonly code: 'branch_mismatch' }
   | { readonly code: 'invalid_time_range' }
+  // ── scheduling / session edits (Doc 11, v1.12) ──
+  | { readonly code: 'session_not_editable' }
+  | { readonly code: 'capacity_below_booked'; readonly bookedCount: number }
+  | { readonly code: 'room_not_active' }
   // ── entitlements / credit ledger (Doc 2 §5) ──
   | { readonly code: 'insufficient_credits'; readonly available: number }
   | { readonly code: 'entitlement_not_active' }
