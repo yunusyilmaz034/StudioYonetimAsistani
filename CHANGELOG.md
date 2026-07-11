@@ -1,0 +1,96 @@
+# Changelog
+
+Studio Operating System — Phase 1. Every milestone is a product version with a git
+tag; one commit per milestone. Dates are the milestone's completion. `main` is always
+in a working state (`pnpm check` green).
+
+All notable changes are recorded here. Architecture rationale lives in
+`docs/architecture/` (numbered `AD-nn`); deliberate debt in `docs/DEBT.md`.
+
+---
+
+## v1.14 — Package Catalogue + Manual Subscription Assignment · `v1.14-catalogue-subscriptions`
+
+- **`catalog` module** — `Product` CRUD (name, category, service scope, credit/period
+  grant, price in kuruş, freeze/daily-limit/cancellation allowances, description).
+  `product.created` + generic `product.updated`; products are deactivated, never
+  deleted. Owner + platform_admin (AD-64).
+- **Manual subscription assignment** — owner/reception assign a package to a member and
+  record a **manual payment** (record-only seam, not a payments engine, AD-65).
+  `assignSubscription` is atomic: `entitlement.purchased` → optional `adjusted` (credit
+  override) → optional `payment_recorded`. `balanceDue = priceAgreed − collected`.
+- **Subscription edits** — generic `entitlement.amended` (dates/price/payment, before +
+  after, mandatory reason), `entitlement.reactivated`; credit edits reuse
+  `entitlement.adjusted`.
+- **UI** — `/packages` catalogue; a Subscriptions panel in the Member workspace
+  (active/past, inline assign, amend/credit/status dialogs, audit timeline).
+- Explicitly **out**: POS, gateway, iyzico, allocation engine, refunds, instalments,
+  self-service, invoicing, campaigns.
+
+## v1.13 — Booking UI · `v1.13-booking-ui`
+
+- Booking and cancellation inside the scheduling **session workspace**: roster, inline
+  member search, instant advisory credit availability (`selectEntitlement`, I-17),
+  one-tap book, late-cancellation warning. Visual occupancy (Uygun / Dolmak üzere /
+  Dolu) — never a waitlist. UI over the existing deciders; no domain change.
+
+## v1.12 — Scheduling Workspace / Calendar · `v1.12-scheduling-workspace`
+
+- `/schedule`: Month/Week/Day/Agenda views, service/room/trainer/branch/status filters,
+  session detail Sheet. Create session, cancel, change trainer/room/capacity, weekly
+  template view/create/edit/generate.
+- New binding rule **I-26**: a started or completed session is never editable. New
+  events `class_session.room_changed`, `class_session.capacity_changed`,
+  `class_template.updated` (AD-62). Read-only `identity` module for trainer pickers
+  (AD-63).
+
+## v1.11 — Attendance & Correction Workspace · `v1.11-attendance-workspace`
+
+- `/attendance`: day roster, one-tap attendance (offline `/commands`), bulk marking,
+  correction (separate flow, mandatory reason). Optimistic UI. Added **UX-9**
+  (Attendance Speed) to the Product UX Principles.
+
+## v1.10 — Automation · `v1.10-automation`
+
+- `apps/functions`: `on-command-created` trigger (offline attendance), nightly sweeps
+  (auto-resolution → credit expiry, I-19 order), correction wiring. Grace window
+  enforced in the decider (AD-60). Command envelope in `shared` (AD-58).
+
+## v1.9 — Reservations Engine · `v1.9-reservations-engine`
+
+- Reservation aggregate + state machine; `decideBooking` (I-9), `decideCancellation`,
+  attendance/auto-resolution/correction deciders; `selectEntitlement` (I-17). Booking
+  and cancellation Server Actions as cross-aggregate transactions (I-10, AD-55/56).
+
+## v1.8 — Entitlements & the Credit Ledger · `v1.8-entitlements-credit-ledger`
+
+- Entitlement aggregate; six-counter credit ledger (hold/release/consume/restore/
+  adjust/expire/cancel) as pure deciders; purchase/adjust/cancel/expire use-cases.
+  Freeze shape modelled, operations deferred (DEBT-009).
+
+## v1.7 — Scheduling Foundation · `v1.7-scheduling-foundation`
+
+- Services, rooms, weekly templates, dated class sessions; embedded versioned
+  `SchedulingPolicy` snapshotted onto each session; eager idempotent generation.
+
+## v1.6 — Member Management · `v1.6-member-management`
+
+- Member CRUD; E.164 phone normalisation (unique, collisions reported); the members
+  workspace. PII lives only in `/members`.
+
+## v1.5 — Authentication & Authorization · `v1.5-authentication-authorization`
+
+- Firebase session-cookie auth; `TenantContext` from verified claims; role guards
+  (`requireTenantContext`); the tenant security-rule perimeter.
+
+## v1.4 — Platform Foundation · `v1.4-platform-foundation`
+
+- The shared kernel: ids, money (kuruş), time, actor taxonomy, event envelope,
+  `TenantContext`, `Clock`, `Result`.
+
+## v1.0–v1.3 — Architecture, Scaffold, Design System, Workflow
+
+- **v1.0** Architecture v1.0 Final (docs 01–09; 46 decisions, 21 invariants).
+- **v1.1** pnpm workspace scaffold (three packages).
+- **v1.2** Design System v1 (semantic tokens, foundation components, mobile-first).
+- **v1.3** Development Workflow v1 (milestone policy, git policy) + Product UX Principles.
