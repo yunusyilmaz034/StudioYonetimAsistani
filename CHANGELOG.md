@@ -9,6 +9,19 @@ All notable changes are recorded here. Architecture rationale lives in
 
 ---
 
+## v1.17 — Reservation Workspace · `v1.17-reservation-workspace`
+
+- Reception's reservation-operations screen (`/reservations`): all reservations,
+  reservation-first — Day / Week / Agenda views; filters by member, trainer, service,
+  session, and status; create for a searched member (single, multi-member into a
+  session, and bulk); cancel with a late-cancellation warning; capacity/occupancy;
+  drill-through to the member and scheduling workspaces.
+- **UI-only, no new domain rules** — an enriched read (`reservations-workspace-query.ts`,
+  a join of `listBySessionStartRange` + `listSessionsForDay`) over the existing
+  `bookReservationAction` / `cancelReservationAction`.
+- **Deferred** (owner): reservation move/reschedule (separate milestone), waitlist and
+  recurring/standing reservations (Phase 2).
+
 ## v1.16 — Owner Dashboard · `v1.16-owner-dashboard`
 
 - The **dashboard is the staff home** (`/`): an operational command screen (not a

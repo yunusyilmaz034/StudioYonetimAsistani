@@ -56,7 +56,7 @@ export function DashboardScreen({ data, roleLabel }: { data: DashboardData; role
         <QuickAction href="/members?new=1" icon={UserPlusIcon} label="Yeni Üye" />
         <QuickAction href="/members" icon={GiftIcon} label="Yeni Abonelik" />
         <QuickAction href="/checkin" icon={QrCodeIcon} label="Giriş / Çıkış" />
-        <QuickAction href="/schedule" icon={CalendarIcon} label="Rezervasyon" />
+        <QuickAction href="/reservations" icon={CalendarIcon} label="Rezervasyon" />
       </div>
 
       {/* Stat tiles */}

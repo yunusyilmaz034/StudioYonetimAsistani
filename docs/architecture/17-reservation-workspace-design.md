@@ -1,7 +1,12 @@
 # 17 — Reservation Workspace · Design (v1.17)
 
-> **Status: DESIGN LOCKED — approved for implementation. UI-only; no new reservation
-> domain rules.** Reception's reservation-operations screen: see, search, filter, and
+> **Status: IMPLEMENTED (v1.17). UI-only; no new reservation domain rules.**
+> Built as designed: `/reservations` (Day/Week/Agenda + filters), the enriched
+> reservation read (`reservations-workspace-query.ts`), single/multi/bulk booking and
+> cancellation over the existing actions, drill-through. Move/waitlist/recurring
+> deferred by owner decision.
+>
+> Reception's reservation-operations screen: see, search, filter, and
 > manage **all** reservations from one place. Central object: **Reservation**. It
 > composes the existing booking/cancellation rules (v1.9/v1.13) from the
 > reservation/member angle — it is not a copy of the scheduling or session screens.
