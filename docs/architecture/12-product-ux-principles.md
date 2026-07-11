@@ -90,6 +90,35 @@ A business object — **Member, Reservation, Staff, Service, Room, Package, Subs
 
 ---
 
+## UX-9 · Attendance Speed — Fewest Taps
+
+The Attendance Workspace is judged, above all, on **how fast reception clears a
+roster.** The target is explicit: it must be **faster than the tools reception already
+uses** (the incumbent, e.g. BulutGym). On a phone at a busy hour, an owner or
+receptionist must resolve **dozens of members with the fewest possible taps.**
+
+- **One tap = attended.** The policy default outcome (this studio: `attended`) is a
+  single tap on the member row.
+- **The second action = no-show.** One deliberate step away, never buried.
+- **Correction is always a separate flow, with a mandatory reason.** It never shares
+  the one-tap affordance — overturning a resolved outcome is a distinct, audited act
+  (AD-22), never a slip of the thumb.
+- **Bulk is always faster than single.** "Resolve everyone remaining" must cost fewer
+  taps than marking each; the workspace always offers the bulk path.
+- **The user finishes without leaving the workspace** (UX-1, UX-6).
+
+*Permitted, not mandated* — future design may reach the target through **swipe
+gestures** (right = attended, left = no-show) or a **long-press / overflow menu** for
+correction. These are *means* to the fewest-taps end, chosen when the workspace is
+designed. **The goal is binding; the specific gesture is not.**
+
+*This is UX-8 (Owner First) sharpened for the highest-frequency reception task. It is
+a design goal for the Attendance Workspace (v1.11+), not a per-screen rule — and it
+never trades away the audit trail: every mark and every correction still emits its
+event (see below).*
+
+---
+
 ## How these bind
 
 | Principle | Enforced through |
@@ -102,5 +131,6 @@ A business object — **Member, Reservation, Staff, Service, Room, Package, Subs
 | UX-6 No Dead Ends | Doc 09 §7 (drawer/modal rule) |
 | UX-7 Responsive Consistency | Doc 09 §9 + **DS-7** |
 | UX-8 Owner First | Product vision (Doc 01, CLAUDE.md) |
+| UX-9 Attendance Speed | Attendance Workspace design goal (v1.11+); one-tap attended, bulk-first, correction always separate |
 
 **None of these principles ever justifies bypassing the event log.** Correctness and the audit trail outrank UX convenience — a workspace, an inline edit, or a denser screen that skipped an event is a defect, not a nicer UX.
