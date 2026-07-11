@@ -13,6 +13,8 @@ import { getApps, initializeApp } from 'firebase-admin/app'
 import { getAuth } from 'firebase-admin/auth'
 import { getFirestore } from 'firebase-admin/firestore'
 
+import { seedDemoData } from './demo-data'
+
 const PROJECT_ID = process.env.FIREBASE_PROJECT_ID ?? 'demo-sos'
 const STUDIO_ID = 'std_demo'
 const BRANCH_ID = 'brn_demo'
@@ -43,6 +45,7 @@ async function main(): Promise<void> {
   const auth = getAuth(app)
   const db = process.env.FIRESTORE_EMULATOR_HOST ? getFirestore(app) : null
 
+  let trainerUid: string | null = null
   for (const user of USERS) {
     const record = await auth
       .getUserByEmail(user.email)
@@ -63,6 +66,7 @@ async function main(): Promise<void> {
         .doc(record.uid)
         .set({ displayName: user.displayName, role: user.role, branchIds: [BRANCH_ID], active: true })
     }
+    if (user.role === 'trainer') trainerUid = record.uid
 
     process.stdout.write(
       `seeded ${user.email} (${user.role})${db ? ' + /staff' : ''} -> ${record.uid}\n`,
@@ -71,7 +75,11 @@ async function main(): Promise<void> {
 
   if (!db) {
     process.stdout.write('note: FIRESTORE_EMULATOR_HOST unset — /staff documents not written.\n')
+    return
   }
+
+  // Rich business data for the UI review (members, catalogue, sessions, reservations…).
+  await seedDemoData(trainerUid)
 }
 
 main().catch((err: unknown) => {
