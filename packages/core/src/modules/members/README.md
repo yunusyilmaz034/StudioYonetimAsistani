@@ -6,7 +6,9 @@ The person: identity and PII. PII lives here and nowhere else.
 
 - `Member`, `MemberStatus`, `MemberStats`, `EmergencyContact`, `PhoneE164`, `Email`
 - `registerMember`, `updateMember`, `deactivateMember` (application use-cases)
-- `MemberRepository`, `MembersDeps`, `FirestoreMemberRepository`
+- `MemberRepository`, `MembersDeps`, `FirestoreMemberRepository`, `MemberEventRecord`
+  (the `listMemberEvents` audit-timeline read — `related.memberId`, PII-free — Member
+  Workspace, v1.18)
 - `normalizePhone`; event type constants + payloads
 
 ## Invariants this module owns

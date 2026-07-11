@@ -88,6 +88,14 @@
         { "fieldPath": "branchId", "order": "ASCENDING" },
         { "fieldPath": "occurredAt", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "checkIns",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "memberId", "order": "ASCENDING" },
+        { "fieldPath": "occurredAt", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

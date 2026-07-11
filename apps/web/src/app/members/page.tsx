@@ -1,7 +1,6 @@
 import { redirect } from 'next/navigation'
 
 import { getTenantContext } from '@/server/auth'
-import { listProducts } from '@/server/catalog-query'
 import { listMembers } from '@/server/members-query'
 
 import { MembersScreen } from './members-screen'
@@ -19,15 +18,18 @@ export default async function MembersPage({
     redirect('/login')
   }
 
-  const [members, products] = await Promise.all([listMembers(ctx), listProducts(ctx)])
   const { member, new: create } = await searchParams
+  // Legacy drill-through: a member id now opens its dedicated workspace (v1.18, D1).
+  if (member) {
+    redirect(`/members/${member}`)
+  }
+
+  const members = await listMembers(ctx)
 
   return (
     <MembersScreen
       members={members}
-      products={products}
       defaultBranchId={ctx.branchIds[0] ?? null}
-      initialMemberId={member ?? null}
       initialCreate={create === '1'}
     />
   )

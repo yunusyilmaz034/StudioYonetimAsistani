@@ -1,7 +1,8 @@
 # 18 — Member Workspace · Design (v1.18)
 
-> **Status: APPROVED (owner, 2026-07-11). Decisions D1/D2/D3 resolved (§8). Ready to
-> implement.**
+> **Status: IMPLEMENTED (v1.18). Decisions D1/D2/D3 resolved (§8). Built as designed —
+> `/members/[id]` full page, seven sections, three read-only core reads + one index, no
+> new domain rule.**
 >
 > Reception's single-screen operations centre for **one member**. Central object:
 > **Member**. It composes the existing modules (members · entitlements · reservations ·
@@ -161,8 +162,14 @@ phone. Inline editing everywhere (UX-5); every edit still emits its event. No de
 3. `listMemberEvents(ctx, memberId)` — new read (mirrors `listEntitlementEvents`),
    `related.memberId ==`, in-memory sort. No composite index.
 
-Ports/interfaces updated for 1–2; each gets a fake-repo unit test. Security rules
-unchanged (reads are tenant-scoped, existing collections).
+Ports/interfaces updated for 1–3; the existing fake repositories in the application
+tests conform to the widened interfaces. Like every Firestore infrastructure read in
+the codebase, these three are verified by typecheck + build; live behaviour (the new
+`checkIns` index especially) is checked on the emulator — deferred with the standing
+emulator risk. Security rules unchanged (reads are tenant-scoped, existing
+collections). A quick-book read-only Server Action (`listUpcomingSessionsAction`) reuses
+the scheduling range read; the Packages/Payments sections reuse the existing
+`listMemberSubscriptionsAction`.
 
 ## 8. New domain decisions
 
@@ -184,8 +191,9 @@ bulk actions · any new domain rule or event.
 
 ## 10. Validation & risks
 
-- `pnpm check` + `next build` green; responsive at the four breakpoints; new reads get
-  fake-repo unit tests.
+- `pnpm check` + `next build` green; responsive at the four breakpoints. The three new
+  reads are infrastructure (Firestore) — verified statically; live behaviour deferred to
+  the emulator with the standing risk.
 - **Risk — audit read scale:** `listMemberEvents` fetches a member's events and sorts in
   memory (like `listEntitlementEvents`). A very long-tenured member accrues many events;
   acceptable for Phase 1, add a `limit` if it grows. Logged if bounded.

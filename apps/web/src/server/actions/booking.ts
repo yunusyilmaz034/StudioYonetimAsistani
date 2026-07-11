@@ -6,6 +6,7 @@ import {
   FirestoreMemberRepository,
   FirestoreReservationRepository,
   FirestoreSchedulingRepository,
+  instant,
   selectEntitlement,
   systemClock,
   type ClassSessionId,
@@ -99,4 +100,42 @@ export async function listBookingMembersAction(): Promise<readonly BookingMember
   return members
     .filter((m) => m.status === 'active')
     .map((m) => ({ id: m.id, fullName: m.fullName, phone: m.phone }))
+}
+
+export interface UpcomingSession {
+  readonly sessionId: string
+  readonly serviceName: string
+  readonly trainerName: string | null
+  readonly startsAt: number
+  readonly category: string
+  readonly capacity: number
+  readonly bookedCount: number
+}
+
+const UPCOMING_DAYS = 14
+const DAY_MS = 86_400_000
+
+// The quick-book session picker (Member Workspace, v1.18): future scheduled sessions
+// in a forward window. Loaded on demand when reception opens quick-book — not part of
+// the workspace's initial read. Reuses the scheduling range read; no new core read.
+export async function listUpcomingSessionsAction(input: unknown): Promise<readonly UpcomingSession[]> {
+  const p = z.object({ nowMs: z.number() }).parse(input)
+  const ctx = await requireTenantContext(OPS)
+  const sessions = await new FirestoreSchedulingRepository(adminDb()).listSessionsForDay(
+    ctx,
+    instant(p.nowMs),
+    instant(p.nowMs + UPCOMING_DAYS * DAY_MS),
+  )
+  return sessions
+    .filter((s) => s.status === 'scheduled' && s.startsAt > p.nowMs)
+    .map((s) => ({
+      sessionId: s.id,
+      serviceName: s.serviceName,
+      trainerName: s.trainerName,
+      startsAt: s.startsAt,
+      category: s.category,
+      capacity: s.capacity,
+      bookedCount: s.bookedCount,
+    }))
+    .sort((a, b) => a.startsAt - b.startsAt)
 }

@@ -30,7 +30,7 @@ const TZ = 'Europe/Istanbul'
 const tl = (k: number) => `${(k / 100).toLocaleString('tr-TR')} TL`
 const time = (ms: number) => new Date(ms).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', timeZone: TZ })
 const day = (ms: number) => new Date(ms).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short', timeZone: TZ })
-const memberHref = (id: string) => `/members?member=${id}`
+const memberHref = (id: string) => `/members/${id}`
 
 export function DashboardScreen({ data, roleLabel }: { data: DashboardData; roleLabel: string }) {
   const router = useRouter()

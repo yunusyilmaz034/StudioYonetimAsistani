@@ -1,6 +1,7 @@
 import {
   FieldValue,
   getFirestore,
+  Timestamp,
   type CollectionReference,
   type Firestore,
   type Transaction,
@@ -8,7 +9,9 @@ import {
 
 import {
   err,
+  instant,
   ok,
+  type ActorType,
   type DomainError,
   type MemberId,
   type NewEvent,
@@ -17,7 +20,7 @@ import {
   type TenantContext,
 } from '../../../shared'
 import type { Member } from '../domain/member'
-import type { MemberRepository } from '../application/ports'
+import type { MemberEventRecord, MemberRepository } from '../application/ports'
 import { eventToFirestore, memberFromFirestore, memberToFirestore } from './member-mapper'
 
 // Thrown inside a transaction to abort it with the existing member's id, then
@@ -113,6 +116,26 @@ export class FirestoreMemberRepository implements MemberRepository {
       tx.set(memberRef, memberToFirestore(member))
       this.writeEvents(ctx.studioId, tx, events)
     })
+  }
+
+  async listMemberEvents(
+    ctx: TenantContext,
+    id: MemberId,
+    limit: number,
+  ): Promise<readonly MemberEventRecord[]> {
+    const snap = await this.events(ctx.studioId).where('related.memberId', '==', id).get()
+    return snap.docs
+      .map((doc) => {
+        const d = doc.data()
+        return {
+          type: d.type as string,
+          occurredAt: instant((d.occurredAt as Timestamp).toMillis()),
+          actorType: (d.actor as { type: ActorType }).type,
+          payload: (d.payload as Record<string, unknown>) ?? {},
+        }
+      })
+      .sort((a, b) => b.occurredAt - a.occurredAt)
+      .slice(0, limit)
   }
 
   private writeEvents(sid: StudioId, tx: Transaction, events: readonly NewEvent[]): void {

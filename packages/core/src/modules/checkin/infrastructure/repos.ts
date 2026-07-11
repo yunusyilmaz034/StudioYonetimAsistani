@@ -68,6 +68,17 @@ export class FirestoreCheckinRepository implements CheckinRepository {
     return snap.docs.map((doc) => checkInFromFirestore(doc.id as CheckInId, doc.data()))
   }
 
+  // Member Workspace (v1.18): one member's check-in history since a bound, newest first.
+  // Served by the `checkIns (memberId, occurredAt)` composite index.
+  async listCheckInsByMember(ctx: TenantContext, memberId: MemberId, since: Instant): Promise<readonly CheckIn[]> {
+    const snap = await this.col(ctx.studioId, 'checkIns')
+      .where('memberId', '==', memberId)
+      .where('occurredAt', '>=', Timestamp.fromMillis(since))
+      .orderBy('occurredAt', 'desc')
+      .get()
+    return snap.docs.map((doc) => checkInFromFirestore(doc.id as CheckInId, doc.data()))
+  }
+
   async applyCheckIn(
     ctx: TenantContext,
     memberId: MemberId,

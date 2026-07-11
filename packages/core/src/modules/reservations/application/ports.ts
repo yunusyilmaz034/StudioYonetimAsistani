@@ -88,6 +88,9 @@ export interface ReservationRepository {
   ): Promise<readonly Reservation[]>
   // The booking roster read: every reservation for one session (any status).
   listBySession(ctx: TenantContext, classSessionId: ClassSessionId): Promise<readonly Reservation[]>
+  // The Member Workspace read (v1.18): a member's reservations (any status), newest
+  // session first. Bounded/split (upcoming + last-N past) by the caller.
+  listByMember(ctx: TenantContext, memberId: MemberId): Promise<readonly Reservation[]>
 }
 
 export interface ReservationsDeps {

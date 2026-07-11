@@ -9,6 +9,30 @@ All notable changes are recorded here. Architecture rationale lives in
 
 ---
 
+## v1.18 — Member Workspace · `v1.18-member-workspace`
+
+- Reception's single-screen operations centre for one member — a **dedicated full-page
+  route `/members/[id]`** (D1), Single Workspace: desktop tabs / mobile section-nav.
+  Seven sections: Genel (profile + stats + edit/deactivate), Paketler (the v1.14
+  `SubscriptionsPanel`), Rezervasyonlar (upcoming + last-50 past, quick-book, cancel,
+  drill to `/reservations`), Check-in (inside-now, last-90-days history, QR card, quick
+  check-in, drill to `/checkin`), Ödemeler (the v1.14 payment seam — balance/collected
+  per package, ready for v1.19), İşlem Geçmişi (member audit timeline), and a quick-action
+  bar.
+- **No new domain rule, event or decider.** Three **read-only** core reads added:
+  `reservations.listByMember`, `checkin.listCheckInsByMember` (+ a `checkIns
+  (memberId, occurredAt)` index), `members.listMemberEvents` (`related.memberId`,
+  auto-indexed). One web query `member-workspace-query.ts` — ~5 bounded parallel reads,
+  no projection (D2); the Packages/Payments sections load subscriptions client-side via
+  the existing action.
+- **Bounds are centralised** in `MEMBER_WORKSPACE_LIMITS` (D3): check-in 90 days ·
+  reservations 50 past · audit 100 — no scattered literals.
+- Member drill-throughs (dashboard, reservations) now open `/members/[id]`; the legacy
+  `/members?member=<id>` redirects there. The members list navigates to the workspace;
+  its detail Sheet moved into the full-page workspace.
+- A quick-book Server Action (`listUpcomingSessionsAction`, read-only) powers the
+  in-context session picker.
+
 ## v1.17 — Reservation Workspace · `v1.17-reservation-workspace`
 
 - Reception's reservation-operations screen (`/reservations`): all reservations,

@@ -313,7 +313,7 @@ function ReservationLine({ r, onCancel }: { r: ReservationRow; onCancel: () => v
   const open = r.status === 'booked'
   return (
     <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-surface p-3">
-      <Link href={`/members?member=${r.memberId}`} className="min-w-0 flex-1">
+      <Link href={`/members/${r.memberId}`} className="min-w-0 flex-1">
         <p className="truncate font-medium text-foreground">{r.memberName}</p>
         <p className="truncate text-xs text-muted-foreground">
           <span className="tabular-nums">{time(r.startsAt)}</span> · {r.serviceName}

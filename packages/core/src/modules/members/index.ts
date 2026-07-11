@@ -22,5 +22,5 @@ export {
 export { registerMember, type RegisterMemberInput } from './application/register-member'
 export { updateMember, type UpdateMemberInput } from './application/update-member'
 export { deactivateMember } from './application/deactivate-member'
-export type { MemberRepository, MembersDeps } from './application/ports'
+export type { MemberEventRecord, MemberRepository, MembersDeps } from './application/ports'
 export { FirestoreMemberRepository } from './infrastructure/member-repo'

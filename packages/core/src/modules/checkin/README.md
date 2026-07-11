@@ -16,7 +16,9 @@ churn signal *"presumed attended, never checked in"* (DEBT-007).
   state), `decideAutoCheckOut`, `decideOpenBranch`, `decideCloseBranch`. Pure.
 - **Use-cases** — `recordCheckIn` (applied by `on-command-created`), `openBranch` /
   `closeBranch` (Server Actions), `sweepAutoCheckOut` (nightly `system` sweep).
-- **Infrastructure** — `FirestoreCheckinRepository` (Admin SDK only, AD-15).
+- **Infrastructure** — `FirestoreCheckinRepository` (Admin SDK only, AD-15). Reads
+  include `getPresence` / `listPresence` / `listCheckInsForDay` and
+  `listCheckInsByMember` (Member Workspace history, v1.18).
 
 ## State (Doc 3)
 

@@ -28,7 +28,8 @@ attended, no-show, late-cancelled, auto-resolved, or corrected.
   - *Correction* — `correctReservation` (compensating; restore direction only, AD-61).
 - **Infrastructure** — `FirestoreReservationRepository` (Admin SDK only, AD-15); the
   `book` / `cancel` / `resolve` transactions; reads `listResolvableBooked` (sweep),
-  `listBySessionStartRange` (attendance roster), `listBySession` (booking roster).
+  `listBySessionStartRange` (attendance roster), `listBySession` (booking roster),
+  `listByMember` (Member Workspace, v1.18).
   Session/entitlement mappers are exposed for the cross-aggregate transactions.
 
 ## The two write shapes

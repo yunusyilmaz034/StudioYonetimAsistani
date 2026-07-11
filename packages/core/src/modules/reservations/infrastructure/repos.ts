@@ -11,7 +11,7 @@ import {
   entitlementToFirestore,
 } from '../../entitlements'
 import { sessionFromFirestore } from '../../scheduling'
-import type { ClassSessionId, DomainError, Instant, NewEvent, ReservationId, Result, StudioId, TenantContext } from '../../../shared'
+import type { ClassSessionId, DomainError, Instant, MemberId, NewEvent, ReservationId, Result, StudioId, TenantContext } from '../../../shared'
 import type { BookTxInput, CancelTxInput, ResolveTxInput, ReservationRepository } from '../application/ports'
 import type { Reservation } from '../domain/types'
 import { eventToFirestore, reservationFromFirestore, reservationToFirestore } from './mappers'
@@ -186,6 +186,17 @@ export class FirestoreReservationRepository implements ReservationRepository {
   ): Promise<readonly Reservation[]> {
     const snap = await this.col(ctx.studioId, 'reservations')
       .where('classSessionId', '==', classSessionId)
+      .get()
+    return snap.docs.map((doc) => reservationFromFirestore(doc.id as ReservationId, doc.data()))
+  }
+
+  // Member Workspace (v1.18): one member's reservations, newest session first. Served
+  // by the existing `reservations (memberId, sessionStartsAt)` composite index; the
+  // caller splits upcoming vs. past and applies the past bound.
+  async listByMember(ctx: TenantContext, memberId: MemberId): Promise<readonly Reservation[]> {
+    const snap = await this.col(ctx.studioId, 'reservations')
+      .where('memberId', '==', memberId)
+      .orderBy('sessionStartsAt', 'desc')
       .get()
     return snap.docs.map((doc) => reservationFromFirestore(doc.id as ReservationId, doc.data()))
   }

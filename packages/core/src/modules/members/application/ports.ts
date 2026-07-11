@@ -1,12 +1,23 @@
 import type {
+  ActorType,
   Clock,
   DomainError,
+  Instant,
   MemberId,
   NewEvent,
   Result,
   TenantContext,
 } from '../../../shared'
 import type { Member } from '../domain/member'
+
+// A row of the Member Workspace audit timeline (v1.18) — one of the member's events.
+// PII-free by construction (non-negotiable #6): only type, time, and actor kind.
+export interface MemberEventRecord {
+  readonly type: string
+  readonly occurredAt: Instant
+  readonly actorType: ActorType
+  readonly payload: Readonly<Record<string, unknown>>
+}
 
 // The application depends on these; infrastructure implements them. All ids are
 // domain MemberIds — the repository owns the MemberId <-> Firestore document-id
@@ -39,6 +50,15 @@ export interface MemberRepository {
   // Deactivate (status change) + events atomically. The uniqueness document is
   // kept, so the phone stays reserved until a future hard erasure.
   deactivate(ctx: TenantContext, member: Member, events: readonly NewEvent[]): Promise<void>
+
+  // Member Workspace audit timeline (v1.18): the member's events (any aggregate that
+  // stamped `related.memberId`), newest first, capped at `limit`. Equality-only query
+  // (auto-indexed); sorted and sliced in memory, like listEntitlementEvents.
+  listMemberEvents(
+    ctx: TenantContext,
+    id: MemberId,
+    limit: number,
+  ): Promise<readonly MemberEventRecord[]>
 }
 
 export interface MembersDeps {
