@@ -73,17 +73,19 @@ Plan  →  UX  →  Implementation  →  Validation  →  Commit  →  Stop
 | **v1.14** | Package Catalogue + Manual Subscription | `v1.14-catalogue-subscriptions` |
 | **v1.15** | QR Access & Check-in | `v1.15-qr-checkin` |
 | **v1.16** | Owner Dashboard | `v1.16-owner-dashboard` |
+| **v1.17** | Reservation Workspace | `v1.17-reservation-workspace` |
 
-**Planned (cutover order):**
+**Planned (cutover order).** Reservation → Member → Payments is the natural
+reception flow: after reservations, reception works in the Member Workspace, and the
+payment screen is used *from within* the member context, so it follows.
 
-| Version | Milestone |
-|---|---|
-| **v1.17** | Reservation Workspace |
-| **v1.18** | Member Workspace |
-| **v1.19** | Payments |
-| **v1.20** | Migration & Cutover |
-| **v1.21** | Production Hardening / CI |
-| **v1.22** | Staff & Identity |
+| Version | Milestone | Scope |
+|---|---|---|
+| **v1.18** | **Member Workspace** | The member managed from one screen — profile · packages · check-in history · reservation history + upcoming · payments · QR card · notes · actions. Reception's most-used operations screen. |
+| **v1.19** | **Payments** | A real payment aggregate — collect · refund · void · methods · balance allocation · payment timeline; architecture ready for POS / online later. Used from within the Member Workspace. |
+| **v1.20** | **Migration & Cutover** | Import from the old system · data validation · the first live-customer cutover (freeze-and-cut, Doc 8 §5). |
+| **v1.21** | **Production Hardening / CI** | Emulator + Firebase integration tests · production config · monitoring · backup · CI/CD · performance & security checks. |
+| **v1.22** | **Staff & Identity** | Staff accounts · roles · authorization · audit · multi-user management. |
 
 - **One commit per milestone.** A milestone closes as a single commit, Conventional Commit format — `feat(<scope>): …` for feature milestones, `docs(<scope>): …` for docs-only ones. For example:
 
