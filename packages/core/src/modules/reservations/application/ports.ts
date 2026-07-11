@@ -86,6 +86,8 @@ export interface ReservationRepository {
     fromInclusive: Instant,
     toExclusive: Instant,
   ): Promise<readonly Reservation[]>
+  // The booking roster read: every reservation for one session (any status).
+  listBySession(ctx: TenantContext, classSessionId: ClassSessionId): Promise<readonly Reservation[]>
 }
 
 export interface ReservationsDeps {

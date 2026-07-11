@@ -29,6 +29,7 @@ import {
   EMPTY_FILTERS,
   mondayIndex,
   monthHeading,
+  occupancy,
   passesFilters,
   shiftDate,
   STATUS_LABEL,
@@ -108,10 +109,9 @@ export function ScheduleScreen({
     [selected, data.sessions],
   )
 
-  const onMutated = () => {
-    setSelected(null)
-    router.refresh()
-  }
+  // Refresh in place — the session workspace stays open so the result is visible
+  // where the action was taken (Single Workspace, UX-1).
+  const onMutated = () => router.refresh()
 
   const heading = mode === 'month' ? monthHeading(date) : dayHeading(date)
 
@@ -357,7 +357,7 @@ function DayList({
 }
 
 function SessionRow({ session, onSelect }: { session: CalendarSession; onSelect: (s: CalendarSession) => void }) {
-  const full = session.bookedCount >= session.capacity
+  const occ = occupancy(session.bookedCount, session.capacity)
   return (
     <button
       type="button"
@@ -376,9 +376,16 @@ function SessionRow({ session, onSelect }: { session: CalendarSession; onSelect:
           </p>
         </div>
       </div>
-      <Badge variant="outline" className={full ? 'text-danger' : ''}>
-        {session.bookedCount}/{session.capacity}
-      </Badge>
+      <div className="flex shrink-0 items-center gap-2">
+        <span className="text-xs tabular-nums text-muted-foreground">
+          {session.bookedCount}/{session.capacity}
+        </span>
+        {session.status === 'cancelled' ? (
+          <Badge variant="destructive">İptal</Badge>
+        ) : (
+          <Badge className={occ.className}>{occ.label}</Badge>
+        )}
+      </div>
     </button>
   )
 }

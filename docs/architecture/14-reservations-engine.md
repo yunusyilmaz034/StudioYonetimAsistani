@@ -20,6 +20,15 @@ Golden fixtures for all seven events.
 the v1.11 Single-Workspace milestone (UX-1). v1.10 built the runtime layer beneath
 them — command writer, triggers, sweeps, transactions — with no screens.
 
+**Booking UI (v1.13).** Reservation and cancellation are surfaced inside the scheduling
+**session workspace** (the calendar's session Sheet, Doc 11): reception picks a member,
+sees advisory credit availability (`getBookingStatusAction` → `selectEntitlement`, I-17,
+pre-transaction and advisory only), books, and cancels — all in one workspace (UX-1),
+with a late-cancellation warning from `policy.cancellationWindowHours`. No domain change;
+it composes the existing `bookReservationAction` / `cancelReservationAction`. The
+`listBySession` roster read was added. "Uygun / Dolmak üzere / Dolu" is a **visual**
+occupancy state — never a waitlist (`waitlisted` stays an unused enum seam).
+
 ## v1.10 — Automation (runtime layer)
 
 The deciders shipped pure and tested in v1.9; v1.10 wires their runtime, mirroring the

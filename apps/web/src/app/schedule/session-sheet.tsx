@@ -27,6 +27,7 @@ import {
 } from '@/server/actions/scheduling'
 import type { CalendarSession, PickOption, StaffOption } from '@/server/schedule-query'
 
+import { BookingPanel } from './booking-panel'
 import { dayHeading, STATUS_LABEL, timeLabel } from './types'
 
 const NONE = '__none__'
@@ -126,20 +127,28 @@ export function SessionSheet({
                 </div>
               </dl>
 
+              {/* Booking — reservations start and end here, in the session workspace (UX-1). */}
+              <div className="border-t border-border pt-4">
+                <BookingPanel session={session} onMutated={onMutated} />
+              </div>
+
               {editable ? (
-                <div className="grid grid-cols-2 gap-2">
-                  <Button variant="outline" className="min-h-11" onClick={() => open('trainer')}>
-                    Eğitmen
-                  </Button>
-                  <Button variant="outline" className="min-h-11" onClick={() => open('room')}>
-                    Salon
-                  </Button>
-                  <Button variant="outline" className="min-h-11" onClick={() => open('capacity')}>
-                    Kapasite
-                  </Button>
-                  <Button variant="destructive" className="min-h-11" onClick={() => open('cancel')}>
-                    Seansı İptal Et
-                  </Button>
+                <div className="space-y-2 border-t border-border pt-4">
+                  <h3 className="text-sm font-medium text-foreground">Seans yönetimi</h3>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button variant="outline" className="min-h-11" onClick={() => open('trainer')}>
+                      Eğitmen
+                    </Button>
+                    <Button variant="outline" className="min-h-11" onClick={() => open('room')}>
+                      Salon
+                    </Button>
+                    <Button variant="outline" className="min-h-11" onClick={() => open('capacity')}>
+                      Kapasite
+                    </Button>
+                    <Button variant="destructive" className="min-h-11" onClick={() => open('cancel')}>
+                      Seansı İptal Et
+                    </Button>
+                  </div>
                 </div>
               ) : (
                 <p className="rounded-lg bg-muted p-3 text-sm text-muted-foreground">

@@ -11,7 +11,7 @@ import {
   entitlementToFirestore,
 } from '../../entitlements'
 import { sessionFromFirestore } from '../../scheduling'
-import type { DomainError, Instant, NewEvent, ReservationId, Result, StudioId, TenantContext } from '../../../shared'
+import type { ClassSessionId, DomainError, Instant, NewEvent, ReservationId, Result, StudioId, TenantContext } from '../../../shared'
 import type { BookTxInput, CancelTxInput, ResolveTxInput, ReservationRepository } from '../application/ports'
 import type { Reservation } from '../domain/types'
 import { eventToFirestore, reservationFromFirestore, reservationToFirestore } from './mappers'
@@ -176,6 +176,16 @@ export class FirestoreReservationRepository implements ReservationRepository {
     const snap = await this.col(ctx.studioId, 'reservations')
       .where('sessionStartsAt', '>=', Timestamp.fromMillis(fromInclusive))
       .where('sessionStartsAt', '<', Timestamp.fromMillis(toExclusive))
+      .get()
+    return snap.docs.map((doc) => reservationFromFirestore(doc.id as ReservationId, doc.data()))
+  }
+
+  async listBySession(
+    ctx: TenantContext,
+    classSessionId: ClassSessionId,
+  ): Promise<readonly Reservation[]> {
+    const snap = await this.col(ctx.studioId, 'reservations')
+      .where('classSessionId', '==', classSessionId)
       .get()
     return snap.docs.map((doc) => reservationFromFirestore(doc.id as ReservationId, doc.data()))
   }

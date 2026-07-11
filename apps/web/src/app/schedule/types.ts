@@ -71,3 +71,13 @@ export const STATUS_LABEL: Record<string, string> = {
   completed: 'Tamamlandı',
   cancelled: 'İptal',
 }
+
+// Visual occupancy state only — never a real waitlist. "Dolmak üzere" = last 2 seats
+// or ≥80% full.
+export function occupancy(booked: number, capacity: number): { label: string; className: string } {
+  if (capacity > 0 && booked >= capacity) return { label: 'Dolu', className: 'bg-danger/10 text-danger' }
+  if (capacity > 0 && (capacity - booked <= 2 || booked / capacity >= 0.8)) {
+    return { label: 'Dolmak üzere', className: 'bg-warning/10 text-warning' }
+  }
+  return { label: 'Uygun', className: 'bg-success/10 text-success' }
+}

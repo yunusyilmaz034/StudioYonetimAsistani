@@ -29,6 +29,9 @@ export interface CalendarSession {
   readonly capacity: number
   readonly bookedCount: number
   readonly status: ClassSessionStatus
+  // For the booking panel's late-cancellation warning (from the session's policy snapshot).
+  readonly cancellationWindowHours: number
+  readonly lateCancellationConsumesCredit: boolean
 }
 
 export interface PickOption {
@@ -115,6 +118,8 @@ export async function loadSchedule(ctx: TenantContext, dateStr: string): Promise
       capacity: s.capacity,
       bookedCount: s.bookedCount,
       status: s.status,
+      cancellationWindowHours: s.policySnapshot.cancellationWindowHours,
+      lateCancellationConsumesCredit: s.policySnapshot.lateCancellationConsumesCredit,
     })),
     services: services
       .filter((s) => s.active)
