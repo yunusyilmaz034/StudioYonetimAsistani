@@ -9,6 +9,21 @@ All notable changes are recorded here. Architecture rationale lives in
 
 ---
 
+## v1.16 — Owner Dashboard · `v1.16-owner-dashboard`
+
+- The **dashboard is the staff home** (`/`): an operational command screen (not a
+  report). Eleven widgets — currently inside, today's check-ins, expected-but-absent,
+  today's classes, today's PT, expiring subscriptions, uncollected balances, members
+  with no booking in 14 days, birthdays today, recent members, and quick actions
+  (Yeni Üye / Yeni Abonelik / Giriş-Çıkış / Rezervasyon).
+- **Direct bounded reads, no projection** (D1) — `dashboard-query.ts` composes ~8
+  windowed/indexed reads in parallel; the 1-read projection is a later, invisible
+  optimisation. New core reads: `checkin.listCheckInsForDay`,
+  `entitlements.listExpiringBetween` / `listActive` (+ `checkIns (branchId, occurredAt)`
+  index).
+- Every widget **drills through** into its workspace (members `?member=`, schedule,
+  check-in); the dashboard writes nothing.
+
 ## v1.15 — QR Access & Check-in · `v1.15-qr-checkin`
 
 - **`checkin` module** — check-in ≠ attendance (Doc 2 §9); `decideCheckIn` is a toggle

@@ -3,13 +3,22 @@ import { FieldValue, Timestamp, type DocumentData } from 'firebase-admin/firesto
 import {
   instant,
   newEventId,
+  type ActorRef,
   type BranchId,
+  type CheckInId,
   type EventId,
   type Instant,
   type MemberId,
   type NewEvent,
+  type StudioId,
 } from '../../../shared'
-import type { BranchOccupancy, CheckIn, Presence } from '../domain/types'
+import type {
+  BranchOccupancy,
+  CheckIn,
+  CheckInDirection,
+  CheckInMethod,
+  Presence,
+} from '../domain/types'
 
 const toTs = (i: Instant): Timestamp => Timestamp.fromMillis(i)
 const fromTs = (t: Timestamp): Instant => instant(t.toMillis())
@@ -24,6 +33,19 @@ export function checkInToFirestore(c: CheckIn): DocumentData {
     occurredAt: toTs(c.occurredAt),
     actor: c.actor,
     recordedAt: FieldValue.serverTimestamp(),
+  }
+}
+
+export function checkInFromFirestore(id: CheckInId, d: DocumentData): CheckIn {
+  return {
+    id,
+    studioId: d.studioId as StudioId,
+    memberId: d.memberId as MemberId,
+    branchId: d.branchId as BranchId,
+    direction: d.direction as CheckInDirection,
+    method: d.method as CheckInMethod,
+    occurredAt: fromTs(d.occurredAt as Timestamp),
+    actor: d.actor as ActorRef,
   }
 }
 

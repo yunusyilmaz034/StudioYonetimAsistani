@@ -24,6 +24,14 @@ export interface EntitlementRepository {
   listExpirable(ctx: TenantContext, validUntilAtOrBefore: Instant): Promise<readonly EntitlementId[]>
   // A member's subscriptions (all statuses — active + past) for the Member workspace.
   listByMember(ctx: TenantContext, memberId: MemberId): Promise<readonly Entitlement[]>
+  // Dashboard reads (v1.16): active entitlements expiring in a window, and all active
+  // entitlements (the caller filters balanceDue > 0). Bounded, indexed.
+  listExpiringBetween(
+    ctx: TenantContext,
+    fromInclusive: Instant,
+    toInclusive: Instant,
+  ): Promise<readonly Entitlement[]>
+  listActive(ctx: TenantContext): Promise<readonly Entitlement[]>
   // The audit timeline of one entitlement (its events, newest first).
   listEntitlementEvents(ctx: TenantContext, id: EntitlementId): Promise<readonly EntitlementEventRecord[]>
 }

@@ -1,77 +1,21 @@
 import type { StaffRole } from '@studio/core'
 import { redirect } from 'next/navigation'
 
-import { Badge } from '@/components/ui/badge'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
-import { PageHeader } from '@/components/ui/page-header'
-import Link from 'next/link'
-
-import { Button } from '@/components/ui/button'
 import { getTenantContext } from '@/server/auth'
+import { loadDashboard } from '@/server/dashboard-query'
 
-import { LogoutButton } from './logout-button'
+import { DashboardScreen } from './dashboard-screen'
 
-// Protected home. It proves authentication end to end — session → TenantContext —
-// and nothing more. It is deliberately NOT a business dashboard (that is a later
-// milestone). Unauthenticated requests are bounced to /login (also by middleware).
+// The owner dashboard IS the staff home (D7, UX-8): the owner opens the product and
+// immediately knows — and can act on — what needs attention today. Direct bounded reads
+// (no projection, D1); the dashboard writes nothing.
 export default async function HomePage() {
   const ctx = await getTenantContext()
   if (!ctx) {
     redirect('/login')
   }
-
-  return (
-    <main className="mx-auto max-w-3xl space-y-6 p-4 sm:p-6">
-      <PageHeader
-        title="Studio Operating System"
-        description="Giriş başarılı."
-        actions={
-          <div className="flex items-center gap-2">
-            <Button variant="outline" render={<Link href="/schedule" />}>
-              Takvim
-            </Button>
-            <Button variant="outline" render={<Link href="/checkin" />}>
-              Giriş/Çıkış
-            </Button>
-            <Button variant="outline" render={<Link href="/attendance" />}>
-              Yoklama
-            </Button>
-            <Button variant="outline" render={<Link href="/members" />}>
-              Üyeler
-            </Button>
-            <Button variant="outline" render={<Link href="/packages" />}>
-              Paketler
-            </Button>
-            <LogoutButton />
-          </div>
-        }
-      />
-      <Card>
-        <CardHeader>
-          <CardTitle>Oturum</CardTitle>
-          <CardDescription>
-            Bu ekran yalnızca kimlik doğrulamayı gösterir; bir iş operasyon ekranı değildir.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-2 text-sm">
-          <div className="flex items-center gap-2">
-            <span className="text-muted-foreground">Rol:</span>
-            <Badge>{roleLabel(ctx.role)}</Badge>
-          </div>
-          <div className="text-muted-foreground">Stüdyo: {ctx.studioId}</div>
-          <div className="text-muted-foreground">
-            Şubeler: {ctx.branchIds.length > 0 ? ctx.branchIds.join(', ') : '—'}
-          </div>
-        </CardContent>
-      </Card>
-    </main>
-  )
+  const data = await loadDashboard(ctx, Date.now())
+  return <DashboardScreen data={data} roleLabel={roleLabel(ctx.role)} />
 }
 
 function roleLabel(role: StaffRole): string {

@@ -12,6 +12,8 @@ export interface CheckinRepository {
   countPresence(ctx: TenantContext, branchId: BranchId): Promise<number>
   listPresence(ctx: TenantContext, branchId: BranchId): Promise<readonly Presence[]>
   listStalePresence(ctx: TenantContext, checkedInBefore: Instant): Promise<readonly Presence[]>
+  // Dashboard (v1.16): the branch's check-ins since a day boundary (the log read).
+  listCheckInsForDay(ctx: TenantContext, branchId: BranchId, since: Instant): Promise<readonly CheckIn[]>
 
   // One transaction: write the CheckIn record, set-or-delete the presence doc, append
   // the events (non-negotiable #1).

@@ -3,9 +3,11 @@ import { getFirestore, Timestamp, type CollectionReference, type Firestore } fro
 import type { BranchId, Instant, MemberId, NewEvent, StudioId, TenantContext } from '../../../shared'
 import type { CheckinRepository } from '../application/ports'
 import type { BranchOccupancy, CheckIn, Presence } from '../domain/types'
+import type { CheckInId } from '../../../shared'
 import {
   branchOccupancyFromFirestore,
   branchOccupancyToFirestore,
+  checkInFromFirestore,
   checkInToFirestore,
   eventToFirestore,
   presenceFromFirestore,
@@ -56,6 +58,14 @@ export class FirestoreCheckinRepository implements CheckinRepository {
       .where('checkedInAt', '<', Timestamp.fromMillis(checkedInBefore))
       .get()
     return snap.docs.map((doc) => presenceFromFirestore(doc.data()))
+  }
+
+  async listCheckInsForDay(ctx: TenantContext, branchId: BranchId, since: Instant): Promise<readonly CheckIn[]> {
+    const snap = await this.col(ctx.studioId, 'checkIns')
+      .where('branchId', '==', branchId)
+      .where('occurredAt', '>=', Timestamp.fromMillis(since))
+      .get()
+    return snap.docs.map((doc) => checkInFromFirestore(doc.id as CheckInId, doc.data()))
   }
 
   async applyCheckIn(

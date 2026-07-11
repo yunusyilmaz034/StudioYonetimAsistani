@@ -1,9 +1,10 @@
 # 16 — Owner Dashboard · Design (v1.16)
 
-> **Status: DESIGN LOCKED — decisions D1–D7 resolved (see §7). Pending the owner's
-> final go-ahead to implement; no code yet.**
-> The dashboard's purpose is **operational, not reporting**: the owner opens one screen
-> and runs the day from it (UX-8 Owner First).
+> **Status: IMPLEMENTED (v1.16). Decisions D1–D7 resolved (see §7).**
+> Built as designed: eleven widgets over direct bounded reads (`dashboard-query.ts`),
+> the dashboard at `/`, drill-through into every workspace, quick actions, "Yenile"
+> refresh. No projection. The dashboard's purpose is **operational, not reporting**:
+> the owner opens one screen and runs the day from it (UX-8 Owner First).
 >
 > **Locked:** **eleven widgets**; direct bounded multi-read, **no projection** (D1);
 > uncollected balances by scanning active entitlements (D2); "no booking in N days" by

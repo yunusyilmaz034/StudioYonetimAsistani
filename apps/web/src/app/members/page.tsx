@@ -9,13 +9,26 @@ import { MembersScreen } from './members-screen'
 // Server component: authenticate, then read the studio's members once (server-side)
 // and hand them to the client screen, which searches the cached list locally
 // (DEBT-001). Writes go through Server Actions (owner + reception).
-export default async function MembersPage() {
+export default async function MembersPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ member?: string; new?: string }>
+}) {
   const ctx = await getTenantContext()
   if (!ctx) {
     redirect('/login')
   }
 
   const [members, products] = await Promise.all([listMembers(ctx), listProducts(ctx)])
+  const { member, new: create } = await searchParams
 
-  return <MembersScreen members={members} products={products} defaultBranchId={ctx.branchIds[0] ?? null} />
+  return (
+    <MembersScreen
+      members={members}
+      products={products}
+      defaultBranchId={ctx.branchIds[0] ?? null}
+      initialMemberId={member ?? null}
+      initialCreate={create === '1'}
+    />
+  )
 }

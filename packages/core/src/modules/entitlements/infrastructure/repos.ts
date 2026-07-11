@@ -55,6 +55,24 @@ export class FirestoreEntitlementRepository implements EntitlementRepository {
     return snap.docs.map((doc) => entitlementFromFirestore(doc.id as EntitlementId, doc.data()))
   }
 
+  async listExpiringBetween(
+    ctx: TenantContext,
+    fromInclusive: Instant,
+    toInclusive: Instant,
+  ): Promise<readonly Entitlement[]> {
+    const snap = await this.col(ctx.studioId, 'entitlements')
+      .where('status', '==', 'active')
+      .where('validUntil', '>=', Timestamp.fromMillis(fromInclusive))
+      .where('validUntil', '<=', Timestamp.fromMillis(toInclusive))
+      .get()
+    return snap.docs.map((doc) => entitlementFromFirestore(doc.id as EntitlementId, doc.data()))
+  }
+
+  async listActive(ctx: TenantContext): Promise<readonly Entitlement[]> {
+    const snap = await this.col(ctx.studioId, 'entitlements').where('status', '==', 'active').get()
+    return snap.docs.map((doc) => entitlementFromFirestore(doc.id as EntitlementId, doc.data()))
+  }
+
   async listEntitlementEvents(
     ctx: TenantContext,
     id: EntitlementId,

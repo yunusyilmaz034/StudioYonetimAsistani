@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { PlusIcon, SearchIcon, UsersIcon } from 'lucide-react'
 
@@ -56,16 +56,34 @@ export function MembersScreen({
   members,
   products,
   defaultBranchId,
+  initialMemberId = null,
+  initialCreate = false,
 }: {
   members: Member[]
   products: readonly ProductView[]
   defaultBranchId: string | null
+  initialMemberId?: string | null
+  initialCreate?: boolean
 }) {
   const router = useRouter()
   const [query, setQuery] = useState('')
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<Member | null>(null)
   const [detail, setDetail] = useState<Member | null>(null)
+
+  // Dashboard drill-through (?member=id) and quick action (?new=1) — open once on mount.
+  const opened = useRef(false)
+  useEffect(() => {
+    if (opened.current) return
+    opened.current = true
+    if (initialCreate) {
+      setEditing(null)
+      setFormOpen(true)
+    } else if (initialMemberId) {
+      const m = members.find((x) => x.id === initialMemberId)
+      if (m) setDetail(m)
+    }
+  }, [initialMemberId, initialCreate, members])
   const [deactivating, setDeactivating] = useState<Member | null>(null)
   const [reason, setReason] = useState('')
   const [busy, setBusy] = useState(false)

@@ -77,6 +77,12 @@ class FakeEntRepo implements EntitlementRepository {
   async listEntitlementEvents(): Promise<readonly []> {
     return []
   }
+  async listExpiringBetween(): Promise<readonly Entitlement[]> {
+    return []
+  }
+  async listActive(): Promise<readonly Entitlement[]> {
+    return [...this.ents.values()].filter((e) => e.status === 'active')
+  }
 }
 
 describe('sweepExpireCredits (nightly, system, I-19)', () => {
