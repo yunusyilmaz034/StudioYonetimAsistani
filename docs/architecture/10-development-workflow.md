@@ -86,14 +86,49 @@ reads the same log. Payments re-enters the roadmap after the Activity Engine, on
 
 | Version | Milestone | Scope |
 |---|---|---|
-| **v1.22** | **Operasyon Motoru** ✅ *(complete)* | Studio Calendar · resmî/dinî tatiller · sabit (tekrarlayan) rezervasyon · bekleme listesi · rezervasyon taşıma · tatil/kapanış operasyonu · toplu paket işlemleri · **operasyon merkezi** (activity feed · üye/rezervasyon/paket timeline · operasyon geçmişi · audit log). **Reservations and operations are complete.** The Activity Engine that was scheduled as its own milestone landed here: OperationId end to end (OP-2), the presenter, the query layer over the log. |
-| **v1.23** | **Owner Dashboard & Analytics** *(next — owner, 2026-07-13)* | D24 owner dashboard (widgets) · D25 analytics (charts) · D26–D27 timelines deepened · D28 global activity feed · D29 the dashboard read model. **No new business rule.** It makes what v1.22 records *manageable*. |
-| **v1.25** | **Hareket Merkezi (Activity Center)** | One screen for every operation in the business — membership, payment, reservation, check-in, package, bulk and system movements. Filterable, searchable, drillable. Each row carries at least: date · hour · minute · second · the staff member who did it · the member it was about · the operation type · its detail · the **OperationId** · the reason, if there is one. *This is not a report screen. It is how the owner watches her business.* |
-| **v1.26** | **Üye Timeline** | A member's entire history, from her first moment in the system, in chronological order. |
-| **v1.27** | **Rapor Merkezi** | Membership · reservation · staff · check-in reports · expiring memberships · export. |
-| **v1.28** | **Undo / Recovery** | The undo the model was designed for from v1.22 onward (OP-4). |
-| **v1.29** | **Audit Log** | |
-| **v1.30** | **AI Studio Manager** | |
+| **v1.22** | **Operasyon Motoru** ✅ `v1.22-operations-engine` | Studio Calendar · resmî/dinî tatiller · sabit rezervasyon · bekleme listesi · rezervasyon taşıma · tatil/kapanış operasyonu · toplu paket işlemleri · operasyon merkezi (feed · timeline'lar · operasyon geçmişi · audit log). **Reservations and operations are complete.** |
+| **v1.23** | **Owner Dashboard & Analytics** ✅ `v1.23-owner-dashboard` | The first projection (daily read model, rebuildable) · the widget contract (`select`/`present`/`render`) · dashboard · analytics · timelines deepened · export as a contract. **No new business rule.** |
+| **v1.24** | **Finance & CRM** *(next)* | A real payment aggregate — collect · refund · void · methods · balance allocation · payment timeline. CRM: leads, follow-ups, the member relationship the studio actually manages. Until it lands, the v1.14 manual-payment seam stands, and half the money story is a denormalised field. |
+| **v1.25** | **Notification Center** | The channel the product has been missing: SMS / push / e-mail, with a template and a log. It **unblocks work already deferred**: waitlist auto-promotion (DEBT-018), expiry warnings, closure announcements. Nothing that "tells the member" can be built before it exists. |
+| **v1.26** | **Migration, Cutover & Production Hardening** ⚠️ *(proposed insert — see §4.2)* | Import from the old system · reconciliation · the first live-customer cutover (freeze-and-cut, Doc 8 §5) · emulator integration tests (DEBT-011/014/015) · CI · monitoring · backup · security review. **The product now has more capability than the operation can safely run in production.** |
+| **v1.27** | **Training & Progress System** | Measurements & charts · immutable program versions · weekly programme · exercise library · **program snapshots** · member portal (watch, read, comment) · trainer review. Doc 25 (backlog) holds the design brief. |
+| **v1.28** | **AI Studio Manager** | Reads the log, the projections, the measurements, the programmes and the member notes — and proposes. It is **last on purpose** (§4.2). |
+| **v1.29** | **Undo / Recovery** | The undo the model was designed for from v1.22 onward (OP-4: every event type declares its `UndoPolicy`). |
+| **v1.30** | **Staff & Identity** | Staff accounts · roles · granular authorization · staff audit. |
+
+---
+
+## 4.2 Sequencing — my recommendation, and the one change I propose
+
+The owner's proposed order was **Finance → Notification → AI → Training**. I agree with the first
+two and I would move **AI last**, inserting **Migration & Production Hardening** before it. The
+reasoning, in order of weight:
+
+1. **Nothing is live yet.** Every milestone since v1.4 has added capability; none has added
+   *operability*. There is no CI, no integration test against the emulator (DEBT-011, DEBT-014,
+   DEBT-015), no monitoring, no backup, and no migration path from the customer's current system.
+   The first live customer cannot be onboarded by writing another feature. **A product that cannot
+   be cut over is a demo, however good its dashboard is.**
+
+2. **AI is the milestone that benefits most from being late.** It reads everything — the event log,
+   the projections, the measurements, the programme history, the member notes. Every month it waits,
+   its input set gets richer and its output gets better. Every other milestone gets *worse* by
+   waiting. Build the thing that only improves with time, last.
+
+3. **AI needs a mouth, and Training gives it something to say.** An AI Studio Manager that can only
+   *observe* is a report. To act it needs the Notification Center (v1.25) — and its most valuable
+   advice ("bu üyenin programı üç aydır aynı", "ölçümleri duruyor, katılımı düşüyor") requires the
+   Training data that v1.27 produces. Putting AI at v1.26 would ship it blind to its best signal.
+
+4. **Finance first is right**, and it is not only the owner's priority: today "satış" is a
+   denormalised field on an entitlement and "tahsilat" is a manual record. The dashboard already
+   reports both — it is reporting a seam, honestly, but a seam.
+
+**If the owner prefers the original order (AI at v1.26), that is a legitimate business call** — it
+trades operational safety for a demonstrable differentiator. But it must be a *decision*, not a
+drift: the debts above have triggers, and those triggers are all "production".
+
+---
 
 ---
 

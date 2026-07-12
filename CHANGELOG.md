@@ -9,6 +9,54 @@ All notable changes are recorded here. Architecture rationale lives in
 
 ---
 
+## v1.23 — Owner Dashboard & Analytics · `v1.23-owner-dashboard`
+
+The milestone that turns what v1.22 records into something a business can be run on. It writes **no
+business rule**: not one event type, not one aggregate, not one decision function. Every screen
+observes; the screen it links to decides.
+
+- **The first projection in the system (D29).** Counting cannot be done on read: *"bugünkü
+  rezervasyon"* is a scan that gets slower every day the studio succeeds, while a counter
+  incremented once at write time never does. `onEventCreated` folds events into a per-day read
+  model. Three properties make it safe to have one at all:
+  - it folds **events only** — never a state document (enforced by dependency-cruiser). A projector
+    that reads state produces numbers that cannot be rebuilt from the log, and a projection you
+    cannot rebuild is not a cache but a second source of truth you can never reconcile;
+  - it is **idempotent** — the trigger is at-least-once, and a double-counted booking is a
+    *silently* wrong dashboard. The marker document and the counter move in one transaction;
+  - it is **disposable** — `pnpm projections:rebuild` replays the log; `projections:verify` folds it
+    independently and diffs. Neither is a migration or a backfill.
+
+- **D24 Owner dashboard, on a widget contract** — `select()` + `present()` + `render()`. `present()`
+  returns the widget's meaning as a Turkish sentence, because the AI Studio Manager will read *that*,
+  not scrape a chart. `needsAttention` drives a "bugün ilgilenmen gerekenler" block: normal is quiet,
+  abnormal is loud. Every card is a door — a list widget opens its own full, exportable list.
+
+- **The owner's five definitions, implemented.** Satış ≠ tahsilat ≠ açık bakiye. An *active member*
+  is an active record **with** a valid package (a record without one is a contact, not a customer).
+  Occupancy is **summed booked / summed capacity** — never the average of per-session percentages,
+  which lets one 1/1 PT slot outweigh a 3/20 group class. The low-credit threshold lives in studio
+  settings, never in code. The empty-class alarm is the next 24 hours.
+
+- **D25 Analytics** on its own lazy route (charts must never slow the dashboard's first paint), drawn
+  by hand — a charting library is 200 kB for six bar charts. **D26–D28**: package lifecycle strip,
+  feed search (member name · phone · OperationId), URL-persisted filters, one shared date-range
+  vocabulary, CSV export designed as a *contract* so Excel/PDF become writers, not new screens.
+
+- **Two real bugs, caught while building.** Money is an **object** in the log (`{amount, currency}`,
+  #10) and the first projector read it as a number: it would have reported **zero revenue forever**,
+  silently, without crashing. And the v1.22 presenter read `amount` where the payment payload carries
+  `collectedAmount` — every payment rendered as an em dash.
+
+- `entitlement.cancelled` gains two **additive** payload fields (`priceAgreed`, `productId`) so
+  revenue can go net when a sale is reversed **without the projector ever reading state**. No version
+  bump, no upcaster, no backfill: an older cancellation carries no amount and is simply not
+  subtracted — we do not guess (I-30).
+
+344 unit tests · `pnpm check` green · projection verified against the log, day for day.
+
+---
+
 ## v1.22 — Operasyon Motoru · `v1.22-operations`
 
 The milestone where the studio stopped being a booking screen and became an **operating system**:
