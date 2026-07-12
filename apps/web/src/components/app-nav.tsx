@@ -5,7 +5,11 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { signOut } from 'firebase/auth'
 import {
+  ActivityIcon,
   CalendarClockIcon,
+  CalendarDaysIcon,
+  LayersIcon,
+  ShieldIcon,
   CalendarIcon,
   ClipboardCheckIcon,
   DoorOpenIcon,
@@ -23,6 +27,7 @@ interface NavItem {
   readonly href: string
   readonly label: string
   readonly icon: LucideIcon
+  readonly ownerOnly?: boolean
 }
 interface NavGroup {
   readonly label?: string
@@ -49,10 +54,20 @@ const GROUPS: readonly NavGroup[] = [
     items: [
       { href: '/members', label: 'Üyeler', icon: UsersIcon },
       { href: '/packages', label: 'Paketler', icon: PackageIcon },
+      { href: '/calendar', label: 'Takvim', icon: CalendarDaysIcon },
+      { href: '/operations', label: 'Operasyonlar', icon: LayersIcon },
+      { href: '/activity', label: 'Hareket Merkezi', icon: ActivityIcon },
+      // Owner only (owner, 2026-07-13). The page redirects anyway — but offering reception a link
+      // she cannot follow is a broken promise, and a nav that lies is worse than one that is short.
+      { href: '/audit', label: 'Denetim Kaydı', icon: ShieldIcon, ownerOnly: true },
     ],
   },
 ]
-const ALL_ITEMS = GROUPS.flatMap((g) => g.items)
+
+const groupsFor = (isOwner: boolean): readonly NavGroup[] =>
+  GROUPS.map((g) => ({ ...g, items: g.items.filter((i) => !i.ownerOnly || isOwner) })).filter(
+    (g) => g.items.length > 0,
+  )
 
 const isActive = (pathname: string, href: string): boolean =>
   href === '/' ? pathname === '/' : pathname === href || pathname.startsWith(`${href}/`)
@@ -60,12 +75,13 @@ const isActive = (pathname: string, href: string): boolean =>
 // No "bare route" escape hatch any more: this shell is mounted ONLY by `(staff)/layout.tsx`.
 // Login, the design-system showcase, the member portal and the invite link live in other
 // branches of the route tree, so they cannot render it even by accident.
-export function AppShell({ children }: { children: ReactNode }) {
+export function AppShell({ children, isOwner = false }: { children: ReactNode; isOwner?: boolean }) {
   const pathname = usePathname()
+  const groups = groupsFor(isOwner)
   return (
     <div className="min-h-dvh pb-16 md:pb-0 md:pl-60">
-      <DesktopRail pathname={pathname} />
-      <BottomBar pathname={pathname} />
+      <DesktopRail pathname={pathname} groups={groups} />
+      <BottomBar pathname={pathname} groups={groups} />
       {children}
     </div>
   )
@@ -115,7 +131,7 @@ function RailLink({ item, active }: { item: NavItem; active: boolean }) {
   )
 }
 
-function DesktopRail({ pathname }: { pathname: string }) {
+function DesktopRail({ pathname, groups }: { pathname: string; groups: readonly NavGroup[] }) {
   const { logout, loading } = useLogout()
   return (
     <aside className="fixed inset-y-0 left-0 hidden w-60 flex-col border-r border-border bg-surface md:flex">
@@ -123,7 +139,7 @@ function DesktopRail({ pathname }: { pathname: string }) {
         <Brand />
       </div>
       <nav className="flex-1 space-y-5 overflow-y-auto px-3 py-2">
-        {GROUPS.map((group, gi) => (
+        {groups.map((group, gi) => (
           <div key={gi} className="space-y-1">
             {group.label ? (
               <p className="px-3 pb-1 text-[0.6875rem] font-medium tracking-wide text-muted-foreground/70 uppercase">
@@ -151,10 +167,11 @@ function DesktopRail({ pathname }: { pathname: string }) {
   )
 }
 
-function BottomBar({ pathname }: { pathname: string }) {
+function BottomBar({ pathname, groups }: { pathname: string; groups: readonly NavGroup[] }) {
+  const items = groups.flatMap((g) => g.items)
   return (
     <nav className="fixed inset-x-0 bottom-0 z-40 flex overflow-x-auto border-t border-border bg-surface/95 backdrop-blur md:hidden">
-      {ALL_ITEMS.map((it) => {
+      {items.map((it) => {
         const Icon = it.icon
         const on = isActive(pathname, it.href)
         return (

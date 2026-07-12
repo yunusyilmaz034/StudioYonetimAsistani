@@ -16,7 +16,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 
-import type { Member, MemberEventRecord, MemberId } from '@studio/core'
+import type { Member, MemberId } from '@studio/core'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -28,7 +28,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { EmptyState } from '@/components/ui/empty-state'
 import { Input } from '@/components/ui/input'
 import { Metric, MetricStrip } from '@/components/ui/metric'
 import { Section } from '@/components/ui/section'
@@ -41,6 +40,8 @@ import {
 } from '@/components/ui/sheet'
 import { Toaster } from '@/components/ui/sonner'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Timeline } from '@/components/activity/timeline'
+import { memberTimelineAction } from '@/server/actions/activity'
 import { checkInCommand } from '@/lib/commands'
 import { domainErrorMessage } from '@/lib/domain-error'
 import type { ProductView } from '@/server/catalog-query'
@@ -74,35 +75,6 @@ const RES_STATUS: Record<string, string> = {
   no_show: 'Gelmedi',
   waitlisted: 'Beklemede',
 }
-const EVENT_LABEL: Record<string, string> = {
-  'member.registered': 'Üye kaydı',
-  'member.profile_updated': 'Profil güncellendi',
-  'member.deactivated': 'Üye pasife alındı',
-  'entitlement.purchased': 'Paket atandı',
-  'entitlement.adjusted': 'Kredi düzenlendi',
-  'entitlement.payment_recorded': 'Ödeme kaydedildi',
-  'entitlement.amended': 'Abonelik düzenlendi',
-  'entitlement.reactivated': 'Abonelik yeniden aktif',
-  'entitlement.cancelled': 'Abonelik iptal',
-  'entitlement.expired': 'Abonelik süresi doldu',
-  'reservation.booked': 'Rezervasyon',
-  'reservation.cancelled': 'Rezervasyon iptali',
-  'reservation.attended': 'Derse katıldı',
-  'reservation.no_show': 'Derse gelmedi',
-  'reservation.auto_resolved': 'Otomatik sonuçlandı',
-  'reservation.corrected': 'Katılım düzeltildi',
-  'member.checked_in': 'Giriş yaptı',
-  'member.checked_out': 'Çıkış yaptı',
-  'member.auto_checked_out': 'Otomatik çıkış',
-}
-const ACTOR_LABEL: Record<string, string> = {
-  owner: 'Yönetici',
-  receptionist: 'Resepsiyon',
-  trainer: 'Eğitmen',
-  platform_admin: 'Platform',
-  system: 'Sistem',
-  member: 'Üye',
-}
 const METHOD_LABEL: Record<string, string> = { cash: 'Nakit', credit_card: 'Kredi Kartı', bank_transfer: 'Havale / EFT' }
 
 const dt = (ms: number) =>
@@ -117,7 +89,7 @@ const SECTIONS: readonly { id: SectionId; label: string; icon: typeof UserIcon }
   { id: 'reservations', label: 'Rezervasyonlar', icon: ClipboardListIcon },
   { id: 'checkin', label: 'Check-in', icon: DoorOpenIcon },
   { id: 'payments', label: 'Ödemeler', icon: CreditCardIcon },
-  { id: 'audit', label: 'İşlem Geçmişi', icon: HistoryIcon },
+  { id: 'audit', label: 'Geçmiş', icon: HistoryIcon },
 ]
 
 export function MemberWorkspaceScreen({
@@ -223,7 +195,7 @@ export function MemberWorkspaceScreen({
           <PaymentsPanel memberId={member.id} onGoPackages={() => setActive('packages')} />
         </TabsContent>
         <TabsContent value="audit">
-          <AuditPanel audit={data.audit} />
+          <AuditPanel memberId={member.id} />
         </TabsContent>
       </Tabs>
 
@@ -637,24 +609,16 @@ function PaymentsPanel({ memberId, onGoPackages }: { memberId: string; onGoPacka
 }
 
 // ── Audit ─────────────────────────────────────────────────────────────────────
-function AuditPanel({ audit }: { audit: readonly MemberEventRecord[] }) {
-  if (audit.length === 0) {
-    return (
-      <EmptyState icon={HistoryIcon} title="İşlem yok" description="Bu üye için henüz kayıt oluşmadı." />
-    )
-  }
+// The MEMBER TIMELINE (v1.22) — her whole life in the studio, from the first moment, in
+// sentences: "Ayşe’ye Reformer 8 Ders tanımlandı." No event type reaches the screen (owner rule 1).
+// Read through a Server Action; the client never touches /events (OQ-1).
+function AuditPanel({ memberId }: { memberId: string }) {
   return (
-    <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card shadow-sm">
-      {audit.map((e, i) => (
-        <li key={i} className="flex items-start justify-between gap-3 px-3 py-2.5">
-          <div className="min-w-0">
-            <p className="truncate text-sm font-medium text-foreground">{EVENT_LABEL[e.type] ?? e.type}</p>
-            <p className="text-xs text-muted-foreground">{ACTOR_LABEL[e.actorType] ?? e.actorType}</p>
-          </div>
-          <span className="shrink-0 text-xs tabular-nums text-muted-foreground">{dt(e.occurredAt)}</span>
-        </li>
-      ))}
-    </ul>
+    <Timeline
+      filterable
+      load={() => memberTimelineAction({ memberId })}
+      emptyLabel="Bu üye için henüz kayıt oluşmadı."
+    />
   )
 }
 

@@ -66,6 +66,9 @@ class FakeEntRepo implements EntitlementRepository {
   async listActiveByMember(): Promise<readonly Entitlement[]> {
     return []
   }
+  async listAll(): Promise<readonly Entitlement[]> {
+    return [...this.ents.values()]
+  }
   async listExpirable(_c: TenantContext, before: Instant): Promise<readonly EntitlementId[]> {
     return [...this.ents.values()]
       .filter((e) => e.status === 'active' && e.validUntil <= before)

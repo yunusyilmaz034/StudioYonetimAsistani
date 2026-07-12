@@ -1,4 +1,11 @@
-import { ok, type DomainError, type ReservationId, type Result, type TenantContext } from '../../../shared'
+import {
+  ok,
+  type DomainError,
+  type OperationId,
+  type ReservationId,
+  type Result,
+  type TenantContext,
+} from '../../../shared'
 import { decideConsume, decideRelease } from '../../entitlements'
 import { decideCancellation } from '../domain/decide'
 import { decideContext } from './context'
@@ -6,6 +13,9 @@ import type { CancelDecision, ReservationsDeps } from './ports'
 
 export interface CancelReservationInput {
   readonly reservationId: ReservationId
+  // OP-2 — the operation this cancellation belongs to (a closure, a bulk act). Omitted when a
+  // human cancelled one reservation: that is its own operation.
+  readonly operationId?: OperationId
 }
 
 // Cancellation moves a credit (release inside no counter; late-cancel may consume),
@@ -17,7 +27,7 @@ export async function cancelReservation(
   ctx: TenantContext,
   input: CancelReservationInput,
 ): Promise<Result<void, DomainError>> {
-  const dctx = decideContext(deps, ctx)
+  const dctx = decideContext(deps, ctx, input.operationId ? { operationId: input.operationId } : {})
 
   return deps.repo.cancel(ctx, {
     reservationId: input.reservationId,

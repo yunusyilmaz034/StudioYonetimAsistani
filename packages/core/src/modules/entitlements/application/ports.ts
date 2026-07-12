@@ -32,6 +32,10 @@ export interface EntitlementRepository {
     toInclusive: Instant,
   ): Promise<readonly Entitlement[]>
   listActive(ctx: TenantContext): Promise<readonly Entitlement[]>
+
+  // D22 — every entitlement, whatever its status. A bulk preview must be able to SAY that a
+  // package is frozen or expired, and it cannot say so about rows it never read.
+  listAll(ctx: TenantContext): Promise<readonly Entitlement[]>
   // The audit timeline of one entitlement (its events, newest first).
   listEntitlementEvents(ctx: TenantContext, id: EntitlementId): Promise<readonly EntitlementEventRecord[]>
 }

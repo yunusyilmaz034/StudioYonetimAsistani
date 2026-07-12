@@ -2,7 +2,18 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { CheckIcon, Loader2Icon, PencilIcon, PlusIcon, SearchIcon, StickyNoteIcon, XIcon } from 'lucide-react'
+import {
+  ArrowRightLeftIcon,
+  CheckIcon,
+  HistoryIcon,
+  Loader2Icon,
+  PencilIcon,
+  PlusIcon,
+  RepeatIcon,
+  SearchIcon,
+  StickyNoteIcon,
+  XIcon,
+} from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Badge } from '@/components/ui/badge'
@@ -33,6 +44,9 @@ import {
 } from '@/server/actions/reservations'
 import type { CalendarSession } from '@/server/schedule-query'
 
+import { MoveReservationDialog } from './move-reservation-dialog'
+import { ReservationTimelineDialog } from './reservation-timeline-dialog'
+import { RecurringDialog } from './recurring-dialog'
 import { occupancy } from './types'
 
 const HINT_LABEL: Record<BookingStatus['hint'], string> = {
@@ -159,6 +173,10 @@ export function BookingPanel({ session, onMutated }: { session: CalendarSession;
     setBusy(false)
   }
 
+  const [moving, setMoving] = useState<RosterMember | null>(null)
+  const [repeating, setRepeating] = useState<RosterMember | null>(null)
+  const [history, setHistory] = useState<RosterMember | null>(null)
+
   async function saveNote() {
     if (!noting) return
     setBusy(true)
@@ -231,9 +249,24 @@ export function BookingPanel({ session, onMutated }: { session: CalendarSession;
                   <PencilIcon />
                 </Button>
                 {bookable ? (
-                  <Button variant="ghost" size="icon-sm" aria-label="İptal et" onClick={() => setCancelling(r)}>
-                    <XIcon />
-                  </Button>
+                  <>
+                    {/* D19 — moving is not cancelling. It sits BEFORE the X on purpose: it is the
+                        answer to "I can't make Tuesday", and it costs the member nothing. */}
+                    {/* The reservation's own story: booked → moved → cancelled, with who and when. */}
+                    <Button variant="ghost" size="icon-sm" aria-label="Rezervasyon geçmişi" onClick={() => setHistory(r)}>
+                      <HistoryIcon />
+                    </Button>
+                    {/* D18 — repeat THIS member in THIS slot for the next weeks. */}
+                    <Button variant="ghost" size="icon-sm" aria-label="Sabit rezervasyon" onClick={() => setRepeating(r)}>
+                      <RepeatIcon />
+                    </Button>
+                    <Button variant="ghost" size="icon-sm" aria-label="Başka seansa taşı" onClick={() => setMoving(r)}>
+                      <ArrowRightLeftIcon />
+                    </Button>
+                    <Button variant="ghost" size="icon-sm" aria-label="İptal et" onClick={() => setCancelling(r)}>
+                      <XIcon />
+                    </Button>
+                  </>
                 ) : null}
               </div>
             </li>
@@ -369,6 +402,39 @@ export function BookingPanel({ session, onMutated }: { session: CalendarSession;
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <MoveReservationDialog
+        open={moving !== null}
+        reservationId={moving?.reservationId ?? null}
+        memberName={moving?.memberName ?? ''}
+        fromStartsAt={session.startsAt}
+        cancellationWindowHours={session.cancellationWindowHours}
+        onClose={() => setMoving(null)}
+        onMoved={() => {
+          void loadRoster()
+          onMutated()
+        }}
+      />
+
+      <RecurringDialog
+        open={repeating !== null}
+        memberId={repeating?.memberId ?? null}
+        memberName={repeating?.memberName ?? ''}
+        sessionId={session.sessionId}
+        seedStartsAt={session.startsAt}
+        onClose={() => setRepeating(null)}
+        onBooked={() => {
+          void loadRoster()
+          onMutated()
+        }}
+      />
+
+      <ReservationTimelineDialog
+        open={history !== null}
+        reservationId={history?.reservationId ?? null}
+        memberName={history?.memberName ?? ''}
+        onClose={() => setHistory(null)}
+      />
+
     </section>
   )
 }

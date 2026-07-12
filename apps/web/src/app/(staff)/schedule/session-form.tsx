@@ -7,8 +7,10 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { DAY_TYPE_LABEL, isClosedType, type DayMark } from '@/lib/calendar-days'
 import { domainErrorMessage } from '@/lib/domain-error'
 import type { BookingMember } from '@/server/actions/booking'
+import { listCalendarDaysAction } from '@/server/actions/calendar'
 import { listEligibleMembersForServiceAction, scheduleSessionAction } from '@/server/actions/scheduling'
 import type { ScheduleData } from '@/server/schedule-query'
 
@@ -56,6 +58,12 @@ export function SessionForm({
   const [trainerId, setTrainerId] = useState<string>(NONE)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // D23 — what the studio calendar says about the chosen day. A warning, never a block: the
+  // calendar informs the schedule, it does not govern it. The date is re-read on every change
+  // rather than taken from the month already on screen, so a date outside the visible month
+  // still warns.
+  const [dayMarks, setDayMarks] = useState<readonly DayMark[]>([])
+  const [ackClosed, setAckClosed] = useState(false)
 
   const branchId = defaultBranchId ?? data.rooms[0]?.branchId ?? ''
   const branchName = useMemo(
@@ -99,6 +107,29 @@ export function SessionForm({
       alive = false
     }
   }, [ptMode, serviceId, startsAtMs])
+
+  useEffect(() => {
+    let live = true
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      setDayMarks([])
+      return
+    }
+    void listCalendarDaysAction({ from: date, to: date })
+      .then((days) => {
+        if (live) {
+          setDayMarks(days)
+          setAckClosed(false)
+        }
+      })
+      .catch(() => {
+        if (live) setDayMarks([])
+      })
+    return () => {
+      live = false
+    }
+  }, [date])
+
+  const closedMark = dayMarks.find((d) => isClosedType(d.type)) ?? null
 
   const q = memberQuery.trim().toLocaleLowerCase('tr')
   const filteredMembers = (members ?? []).filter(
@@ -167,6 +198,35 @@ export function SessionForm({
           </SelectContent>
         </Select>
       </Field>
+
+      {/* D23 — the day's marks. A closed day is loud and must be acknowledged; anything else
+          is quiet information (Doc 20: normal is quiet, abnormal is loud). */}
+      {dayMarks.length > 0 ? (
+        <div
+          className={`space-y-2 rounded-lg border p-3 text-sm ${
+            closedMark ? 'border-danger/30 bg-danger/5 text-danger' : 'border-info/30 bg-info/5 text-info'
+          }`}
+        >
+          {dayMarks.map((d) => (
+            <p key={d.id} className="font-medium">
+              {DAY_TYPE_LABEL[d.type] ?? d.type}: {d.title}
+            </p>
+          ))}
+          {closedMark ? (
+            <label className="flex items-center gap-2 font-normal text-foreground">
+              <input
+                type="checkbox"
+                className="size-4 accent-[var(--color-danger)]"
+                checked={ackClosed}
+                onChange={(e) => setAckClosed(e.target.checked)}
+              />
+              Stüdyo bu gün kapalı. Yine de seans oluşturmak istiyorum.
+            </label>
+          ) : (
+            <p className="font-normal text-muted-foreground">Bu güne seans oluşturabilirsiniz.</p>
+          )}
+        </div>
+      ) : null}
 
       <div className="grid grid-cols-2 gap-3">
         <Field id="s-date" label="Tarih">
@@ -346,7 +406,7 @@ export function SessionForm({
         </p>
       ) : null}
 
-      <Button type="submit" className="min-h-11 w-full" disabled={loading}>
+      <Button type="submit" className="min-h-11 w-full" disabled={loading || (closedMark !== null && !ackClosed)}>
         {loading ? <Loader2Icon className="animate-spin" /> : null}
         Seansı Oluştur
       </Button>

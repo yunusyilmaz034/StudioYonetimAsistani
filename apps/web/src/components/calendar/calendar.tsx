@@ -41,6 +41,9 @@ interface CalendarProps<T extends CalendarItem> {
   // border. Fewer rules, clearer grouping — but only correct once the screen's `renderRow`
   // is itself borderless, so each calendar opts in as it is redesigned.
   groupDaysInCard?: boolean
+  // D23 — an optional marker for a day (a holiday, a closure). The engine stays data-agnostic:
+  // it renders whatever the screen hands back, and knows nothing about what a holiday IS.
+  renderDayMark?: (dayKey: string) => ReactNode
 }
 
 export function Calendar<T extends CalendarItem>({
@@ -53,6 +56,7 @@ export function Calendar<T extends CalendarItem>({
   monthCellMax = 4,
   emptyLabel = 'Bu aralıkta kayıt yok.',
   groupDaysInCard = false,
+  renderDayMark,
 }: CalendarProps<T>) {
   const byDay = useMemo(() => {
     const map = new Map<string, T[]>()
@@ -76,6 +80,7 @@ export function Calendar<T extends CalendarItem>({
         renderRow={renderRow}
         monthCellMax={monthCellMax}
         groupDaysInCard={groupDaysInCard}
+        renderDayMark={renderDayMark}
       />
     )
   }
@@ -88,6 +93,7 @@ export function Calendar<T extends CalendarItem>({
       renderRow={renderRow}
       emptyLabel={emptyLabel}
       groupDaysInCard={groupDaysInCard}
+      renderDayMark={renderDayMark}
     />
   )
 }
@@ -100,6 +106,7 @@ function MonthGrid<T extends CalendarItem>({
   renderRow,
   monthCellMax,
   groupDaysInCard,
+  renderDayMark,
 }: {
   date: string
   byDay: Map<string, T[]>
@@ -108,6 +115,7 @@ function MonthGrid<T extends CalendarItem>({
   renderRow: (item: T) => ReactNode
   monthCellMax: number
   groupDaysInCard: boolean
+  renderDayMark: ((dayKey: string) => ReactNode) | undefined
 }) {
   const { days, year, month } = monthGridDays(date)
   const today = studioToday()
@@ -141,6 +149,9 @@ function MonthGrid<T extends CalendarItem>({
                         : 'bg-background'
                 }`}
               >
+                {/* D23 — the day's mark. It is a BACKGROUND fact: it must not compete with the
+                    `today` and `selected` treatments, which stay the strongest marks on screen. */}
+                {renderDayMark ? renderDayMark(d) : null}
                 {/* One emphasis language for the day number: today is the strongest, the focused
                     day the same shape a step quieter, everything else recedes. */}
                 <div className="flex justify-end pb-0.5">
@@ -226,6 +237,7 @@ function DayList<T extends CalendarItem>({
   renderRow,
   emptyLabel,
   groupDaysInCard,
+  renderDayMark,
 }: {
   date: string
   view: CalendarView
@@ -234,6 +246,7 @@ function DayList<T extends CalendarItem>({
   renderRow: (item: T) => ReactNode
   emptyLabel: string
   groupDaysInCard: boolean
+  renderDayMark: ((dayKey: string) => ReactNode) | undefined
 }) {
   const days = viewDays(date, view).filter((d) => (byDay.get(d)?.length ?? 0) > 0)
   const today = studioToday()
@@ -253,11 +266,12 @@ function DayList<T extends CalendarItem>({
         ))
         return (
           <div key={d} className="space-y-2">
-            <div className="flex items-baseline gap-2">
+            <div className="flex flex-wrap items-baseline gap-2">
               <h3 className={`text-h3 font-semibold capitalize ${d === today ? 'text-primary' : 'text-foreground'}`}>
                 {dayHeading(d)}
               </h3>
               <span className="text-xs tabular-nums text-muted-foreground">{list.length}</span>
+              {renderDayMark ? renderDayMark(d) : null}
             </div>
             {groupDaysInCard ? (
               <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card shadow-sm">

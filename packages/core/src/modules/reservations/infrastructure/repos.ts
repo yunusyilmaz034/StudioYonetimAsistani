@@ -12,7 +12,13 @@ import {
 } from '../../entitlements'
 import { sessionFromFirestore } from '../../scheduling'
 import type { ClassSessionId, DomainError, Instant, MemberId, NewEvent, ReservationId, Result, StudioId, TenantContext } from '../../../shared'
-import type { BookTxInput, CancelTxInput, ResolveTxInput, ReservationRepository } from '../application/ports'
+import type {
+  BookTxInput,
+  CancelTxInput,
+  MoveTxInput,
+  ReservationRepository,
+  ResolveTxInput,
+} from '../application/ports'
 import type { Reservation } from '../domain/types'
 import { eventToFirestore, reservationFromFirestore, reservationToFirestore } from './mappers'
 
@@ -110,6 +116,57 @@ export class FirestoreReservationRepository implements ReservationRepository {
         tx.set(reservationRef, reservationToFirestore(next))
         tx.update(sessionRef, { bookedCount: bookedCountAfter })
         if (nextEntitlement) tx.set(entRef, entitlementToFirestore(nextEntitlement))
+        this.writeEvents(sid, tx, events)
+      })
+      return { ok: true, value: undefined }
+    } catch (e) {
+      if (e instanceof TxAbort) return { ok: false, error: e.domainError }
+      throw e
+    }
+  }
+
+  // D19 — MOVE. Four documents, one transaction: reservation, origin session (-1 seat), target
+  // session (+1 seat), entitlement (read-only — the hold stays put). The target's roster is read
+  // inside the transaction so "she is already booked into that class" cannot slip through a race.
+  async move(ctx: TenantContext, input: MoveTxInput): Promise<Result<void, DomainError>> {
+    const sid = ctx.studioId
+    const reservationRef = this.col(sid, 'reservations').doc(input.reservationId)
+    const toRef = this.col(sid, 'classSessions').doc(input.targetSessionId)
+
+    try {
+      await this.db.runTransaction(async (tx) => {
+        const resSnap = await tx.get(reservationRef)
+        if (!resSnap.exists) throw new Error(`Reservation not found: ${input.reservationId}`)
+        const reservation = reservationFromFirestore(input.reservationId, resSnap.data() ?? {})
+
+        const fromRef = this.col(sid, 'classSessions').doc(reservation.classSessionId)
+        const entRef = this.col(sid, 'entitlements').doc(reservation.entitlementId)
+        const dupQuery = this.col(sid, 'reservations')
+          .where('classSessionId', '==', input.targetSessionId)
+          .where('memberId', '==', reservation.memberId)
+          .where('status', '==', 'booked')
+
+        const [fromSnap, toSnap, entSnap, dupSnap] = await Promise.all([
+          tx.get(fromRef),
+          tx.get(toRef),
+          tx.get(entRef),
+          tx.get(dupQuery),
+        ])
+        if (!fromSnap.exists) throw new Error(`ClassSession not found: ${reservation.classSessionId}`)
+        if (!toSnap.exists) throw new Error(`ClassSession not found: ${input.targetSessionId}`)
+        if (!entSnap.exists) throw new Error(`Entitlement not found: ${reservation.entitlementId}`)
+
+        const from = sessionFromFirestore(reservation.classSessionId, fromSnap.data() ?? {})
+        const to = sessionFromFirestore(input.targetSessionId, toSnap.data() ?? {})
+        const entitlement = entitlementFromFirestore(reservation.entitlementId, entSnap.data() ?? {})
+
+        const decided = input.decide(reservation, from, to, entitlement, !dupSnap.empty)
+        if (!decided.ok) throw new TxAbort(decided.error)
+
+        const { reservation: next, fromBookedCountAfter, toBookedCountAfter, events } = decided.value
+        tx.set(reservationRef, reservationToFirestore(next))
+        tx.update(fromRef, { bookedCount: fromBookedCountAfter })
+        tx.update(toRef, { bookedCount: toBookedCountAfter })
         this.writeEvents(sid, tx, events)
       })
       return { ok: true, value: undefined }

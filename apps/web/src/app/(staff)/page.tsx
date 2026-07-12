@@ -2,6 +2,7 @@ import type { PrincipalRole } from '@studio/core'
 import { redirect } from 'next/navigation'
 
 import { getMemberClaims, getTenantContext } from '@/server/auth'
+import { loadFeed } from '@/server/activity-query'
 import { loadDashboard } from '@/server/dashboard-query'
 
 import { DashboardScreen } from './dashboard-screen'
@@ -17,8 +18,9 @@ export default async function HomePage() {
     if (await getMemberClaims()) redirect('/portal')
     redirect('/login')
   }
-  const data = await loadDashboard(ctx, Date.now())
-  return <DashboardScreen data={data} roleLabel={roleLabel(ctx.role)} />
+  // Two bounded reads, in parallel: the dashboard's numbers and today's live activity feed.
+  const [data, feed] = await Promise.all([loadDashboard(ctx, Date.now()), loadFeed(ctx, {})])
+  return <DashboardScreen data={data} roleLabel={roleLabel(ctx.role)} feed={feed.entries.slice(0, 12)} />
 }
 
 function roleLabel(role: PrincipalRole): string {

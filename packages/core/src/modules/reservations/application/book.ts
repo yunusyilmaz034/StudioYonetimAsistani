@@ -5,6 +5,7 @@ import {
   type DomainError,
   type EntitlementId,
   type MemberId,
+  type OperationId,
   type Result,
   type ReservationId,
   type TenantContext,
@@ -22,6 +23,9 @@ export interface BookReservationInput {
   readonly entitlementId: EntitlementId
   readonly memberId: MemberId
   readonly memberSnapshot: MemberSnapshot
+  // OP-2 — set when this booking belongs to a larger operation (a promotion from the waiting
+  // list, a recurring series). Omitted for a stand-alone booking.
+  readonly operationId?: OperationId
 }
 
 // Booking = a synchronous, trusted Server-Action write (AD-35): it allocates a
@@ -33,7 +37,7 @@ export async function bookReservation(
   ctx: TenantContext,
   input: BookReservationInput,
 ): Promise<Result<{ reservationId: ReservationId }, DomainError>> {
-  const dctx = decideContext(deps, ctx)
+  const dctx = decideContext(deps, ctx, input.operationId ? { operationId: input.operationId } : {})
   const reservationId = newReservationId()
 
   return deps.repo.book(ctx, {

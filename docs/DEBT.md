@@ -236,6 +236,65 @@ it needs to become a test that CI runs.)
 
 ---
 
+## DEBT-016 — The closure/bulk apply runs inside the request
+
+**Taken:** 2026-07-13 · v1.22 · Yunus
+**What:** `applyClosure` / `applyBulk` iterate per-object transactions **inside the Server Action**.
+The architecture (Doc 22 §6) calls for a resumable worker; today the loop is the request. A studio
+closing a week with ~40 sessions / ~300 reservations / ~120 packages finishes in seconds — but the
+work is bounded by the request timeout, not by a queue.
+**Cost:** a very large closure (a month, a multi-branch studio) could time out mid-run. It is safe
+when it does — `status` is the progress ledger, I-28 refuses a double apply, and I-27 catches any
+reservation the run never reached — but the owner would see a failure and have to re-plan.
+**Trigger to repay:** the first closure that exceeds ~200 sessions, or the first timeout. Whichever
+comes first.
+**Repayment:** move the apply loop behind `/commands` + a Functions worker; the aggregate already
+carries the status ledger a worker needs.
+
+---
+
+## DEBT-017 — The holiday provider table is hand-maintained
+
+**Taken:** 2026-07-13 · v1.22 · Yunus
+**What:** `turkeyHolidayProvider` computes the fixed national holidays for any year, but the
+**religious** holidays (Ramazan/Kurban and their arife half-days) come from a table that today
+covers 2026–2027. A year outside the table imports the fixed holidays only, and says so.
+**Cost:** in 2028 the owner imports an incomplete year and must add two holidays by hand. The
+import is idempotent and never overwrites a manual day, so the failure mode is "missing", never
+"wrong".
+**Trigger to repay:** the table's last covered year enters the next 12 months.
+**Repayment:** extend the table, or swap the adapter for a real source — the port
+(`HolidayProvider`) exists precisely so this is a one-file change.
+
+---
+
+## DEBT-018 — The waiting list has no notification channel
+
+**Taken:** 2026-07-13 · v1.22 · Yunus
+**What:** D20 ships without auto-promotion *on purpose* — an auto-promoted member who was never
+told would have her credit consumed by presumed attendance (DEBT-007) for a class she did not
+know she had. Today reception promotes and tells her by hand. There is no SMS/push/e-mail.
+**Cost:** promotion depends on a human noticing the free seat. A queue can sit while a seat stays
+empty.
+**Trigger to repay:** the first notification channel (SMS or push) in the product.
+**Repayment:** auto-promotion behind a policy flag, plus an offer + TTL (the doc reserves both,
+Doc 22 §4) so an unanswered offer passes down the queue instead of silently booking her.
+
+---
+
+## DEBT-019 — A recurring series has no handle
+
+**Taken:** 2026-07-13 · v1.22 · Yunus
+**What:** D18 is a GENERATOR (owner-approved): eight weeks produce eight ordinary reservations, all
+sharing one OperationId, and nothing stands over them. "Cancel the whole series" therefore means
+"cancel eight reservations", one by one.
+**Cost:** a member who quits mid-term needs eight cancellations, not one.
+**Trigger to repay:** the first time reception asks for it, or v1.28 Undo — whichever comes first.
+**Repayment:** an "undo this operation" acting on the OperationId (OP-2/OP-4). The seam is already
+there: every booking in the series carries the id, and `reservation.booked` is `compensating`.
+
+---
+
 ## Reserved for the build week
 
 Shortcuts taken during Phase 1 implementation get entries here **as they are taken**, not afterwards. If the cut ladder (Doc 8 §8) is used — catalogue CRUD UI, owner view, manual attendance marking, freeze UI, payment allocation UI, weekly template generation, offline check-in — each cut becomes an entry with a trigger.

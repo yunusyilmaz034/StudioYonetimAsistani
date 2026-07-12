@@ -26,6 +26,13 @@ export const ENTITLEMENT_PAYMENT_RECORDED = 'entitlement.payment_recorded'
 export const ENTITLEMENT_AMENDED = 'entitlement.amended'
 export const ENTITLEMENT_REACTIVATED = 'entitlement.reactivated'
 
+// v1.22 (D21/D22) — the studio owed her TIME back: a closure, or a bulk grant of days.
+//
+// Deliberately NOT `entitlement.amended`. An amendment is "a human edited this subscription";
+// an extension is "the studio was closed and owed her days". They will be counted differently —
+// and once they are the same event, they can never be separated again.
+export const ENTITLEMENT_EXTENDED = 'entitlement.extended'
+
 export type EntitlementPurchasedPayload = {
   readonly productId: ProductId
   readonly grant: Grant
@@ -78,6 +85,14 @@ export type EntitlementAmendedPayload = {
   readonly changedFields: readonly string[]
   readonly changes: Readonly<Record<string, { readonly from: unknown; readonly to: unknown }>>
   readonly reason: string
+}
+
+export type EntitlementExtendedPayload = {
+  readonly days: number
+  readonly fromValidUntil: Instant
+  readonly toValidUntil: Instant
+  readonly reason: string
+  readonly operationId: string | null // the closure / bulk operation this belonged to
 }
 
 export type EntitlementReactivatedPayload = {

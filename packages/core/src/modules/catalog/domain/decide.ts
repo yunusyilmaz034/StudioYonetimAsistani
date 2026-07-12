@@ -1,3 +1,4 @@
+import { changedFieldNames, diffFields } from '../../../shared'
 import type {
   ActorRef,
   AggregateKind,
@@ -52,22 +53,32 @@ export function decideCreateProduct(ctx: DecideContext, p: Product): NewEvent[] 
   ]
 }
 
-// Generic edit — carries the changed field names (deactivation is `active` changing).
-// serviceIds compares by content. Empty change ⇒ no event.
+// Generic edit. Carries the changed field NAMES (as it always has) and, since OQ-2, the before/
+// after of each one — the Audit Log's "eski değer → yeni değer". Empty change ⇒ no event: an edit
+// that changed nothing is not an event, it is a click.
+const PRODUCT_FIELDS = [
+  'name',
+  'category',
+  'type',
+  'durationDays',
+  'creditCount',
+  'priceInKurus',
+  'freezeAllowanceDays',
+  'dailyReservationLimit',
+  'cancellationAllowanceCount',
+  'description',
+  'active',
+  'serviceIds',
+] as const
+
 export function decideUpdateProduct(ctx: DecideContext, current: Product, next: Product): NewEvent[] {
-  const changedFields: string[] = []
-  if (current.name !== next.name) changedFields.push('name')
-  if (current.category !== next.category) changedFields.push('category')
-  if (current.type !== next.type) changedFields.push('type')
-  if (current.durationDays !== next.durationDays) changedFields.push('durationDays')
-  if (current.creditCount !== next.creditCount) changedFields.push('creditCount')
-  if (current.priceInKurus !== next.priceInKurus) changedFields.push('priceInKurus')
-  if (current.freezeAllowanceDays !== next.freezeAllowanceDays) changedFields.push('freezeAllowanceDays')
-  if (current.dailyReservationLimit !== next.dailyReservationLimit) changedFields.push('dailyReservationLimit')
-  if (current.cancellationAllowanceCount !== next.cancellationAllowanceCount) changedFields.push('cancellationAllowanceCount')
-  if (current.description !== next.description) changedFields.push('description')
-  if (current.active !== next.active) changedFields.push('active')
-  if (current.serviceIds.join(',') !== next.serviceIds.join(',')) changedFields.push('serviceIds')
-  if (changedFields.length === 0) return []
-  return [{ ...base(ctx, next.id), type: PRODUCT_UPDATED, payload: { changedFields } }]
+  const changes = diffFields(current, next, PRODUCT_FIELDS)
+  if (changes.length === 0) return []
+  return [
+    {
+      ...base(ctx, next.id),
+      type: PRODUCT_UPDATED,
+      payload: { changedFields: changedFieldNames(changes), changes },
+    },
+  ]
 }

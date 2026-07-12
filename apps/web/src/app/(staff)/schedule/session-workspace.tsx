@@ -42,6 +42,7 @@ import { correctReservationAction } from '@/server/actions/reservations'
 import type { CalendarSession, PickOption, StaffOption } from '@/server/schedule-query'
 
 import { BookingPanel } from './booking-panel'
+import { WaitlistPanel } from './waitlist-panel'
 import { STATUS_LABEL } from './types'
 
 const NONE = '__none__'
@@ -143,7 +144,16 @@ export function SessionWorkspace({
                 <InfoTab session={session} rooms={rooms} staff={staff} onMutated={onMutated} />
               </TabsContent>
               <TabsContent value="reservations">
-                <BookingPanel session={session} onMutated={onMutated} />
+                {/* D20 — the queue lives with the roster, in the same workspace (UX-1): the seat
+                    that opens and the person who takes it are one decision. */}
+                <div className="space-y-6">
+                  <BookingPanel session={session} onMutated={onMutated} />
+                  <WaitlistPanel
+                    sessionId={session.sessionId}
+                    full={session.bookedCount >= session.capacity && session.status === 'scheduled'}
+                    onMutated={onMutated}
+                  />
+                </div>
               </TabsContent>
               <TabsContent value="attendance">
                 <AttendanceTab session={session} onMutated={onMutated} />

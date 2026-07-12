@@ -1,3 +1,4 @@
+import type { FieldChange } from '../../shared'
 import type { Category } from '../../shared'
 import type { ProductType } from './domain/types'
 
@@ -20,4 +21,7 @@ export type ProductCreatedPayload = {
 
 export type ProductUpdatedPayload = {
   readonly changedFields: readonly string[]
+  // OQ-2 — additive. Absent on events written before 2026-07-13; the Audit Log shows `—` for
+  // those rather than inventing a past that was never recorded (I-30).
+  readonly changes?: readonly FieldChange[]
 }

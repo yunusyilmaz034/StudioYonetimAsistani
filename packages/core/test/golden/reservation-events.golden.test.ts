@@ -9,6 +9,7 @@ import {
   decideBooking,
   decideCancellation,
   decideCorrection,
+  decideMove,
   decideSetReservationNote,
   type DecideContext,
 } from '../../src/modules/reservations/domain/decide'
@@ -34,6 +35,7 @@ import booked from './reservation.booked.v1.json'
 import cancelled from './reservation.cancelled.v1.json'
 import corrected from './reservation.corrected.v1.json'
 import lateCancelled from './reservation.late_cancelled.v1.json'
+import moved from './reservation.moved.v1.json'
 import noShow from './reservation.no_show.v1.json'
 import noteSet from './reservation.note_set.v1.json'
 
@@ -143,6 +145,10 @@ describe('reservation event payloads match golden fixtures (AD-33)', () => {
   })
   it('reservation.late_cancelled', () => {
     expect(payload(decideCancellation(ctx, res(), session(instant(NOW + 3 * H))))).toEqual(lateCancelled)
+  })
+  it('reservation.moved', () => {
+    const target = session(instant(NOW + 48 * H), { id: 'cls_2' as ClassSessionId })
+    expect(payload(decideMove(ctx, res(), session(), target, held(1), false))).toEqual(moved)
   })
   it('reservation.attended', () => {
     expect(payload(decideAttendance(ctx, res(), session(instant(NOW - H)), 'attended'))).toEqual(attended)

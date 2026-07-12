@@ -1,5 +1,6 @@
 import {
   err,
+  instant,
   ok,
   subtractMoney,
   zeroMoney,
@@ -28,6 +29,7 @@ import {
   ENTITLEMENT_CREDIT_HELD,
   ENTITLEMENT_CREDIT_RELEASED,
   ENTITLEMENT_CREDIT_RESTORED,
+  ENTITLEMENT_EXTENDED,
   ENTITLEMENT_EXHAUSTED,
   ENTITLEMENT_EXPIRED,
   ENTITLEMENT_PAYMENT_RECORDED,
@@ -205,6 +207,46 @@ export function decideRestore(
         ...base(ctx, next, relOf(next, reservationId)),
         type: ENTITLEMENT_CREDIT_RESTORED,
         payload: { reservationId, reason, creditsAvailableAfter: available(nextLedger) },
+      },
+    ],
+  })
+}
+
+// ── Extension (D21/D22, v1.22) — the studio owed her TIME back. ──
+//
+// It moves `validUntil` and nothing else: no credit is granted, no counter moves. A closure did
+// not give her more classes; it gave her back the days she could not use.
+//
+// A frozen entitlement is REFUSED here, not silently extended: freeze arithmetic is deliberately
+// unbuilt (DEBT-009), and extending a frozen package would be doing it by the back door.
+export function decideExtend(
+  ctx: DecideContext,
+  ent: Entitlement,
+  days: number,
+  reason: string,
+  operationId: string | null,
+): Result<{ next: Entitlement; events: NewEvent[] }, DomainError> {
+  if (days <= 0) return err({ code: 'invalid_time_range' })
+  if (reason.trim().length === 0) return err({ code: 'reason_required' })
+  if (ent.status === 'frozen') return err({ code: 'entitlement_frozen' })
+  if (ent.status !== 'active') return err({ code: 'entitlement_not_active' })
+
+  const toValidUntil = instant(ent.validUntil + days * 86_400_000)
+  const next: Entitlement = { ...ent, validUntil: toValidUntil }
+
+  return ok({
+    next,
+    events: [
+      {
+        ...base(ctx, next, {}),
+        type: ENTITLEMENT_EXTENDED,
+        payload: {
+          days,
+          fromValidUntil: ent.validUntil,
+          toValidUntil,
+          reason,
+          operationId,
+        },
       },
     ],
   })

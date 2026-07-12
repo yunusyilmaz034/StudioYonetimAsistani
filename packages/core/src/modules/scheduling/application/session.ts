@@ -13,6 +13,7 @@ import {
   type ServiceId,
   type StaffUserId,
   type TenantContext,
+  type OperationId,
 } from '../../../shared'
 import {
   decideAssignSessionMember,
@@ -254,11 +255,11 @@ export async function setStudioDefaults(
 export async function cancelSession(
   deps: SchedulingDeps,
   ctx: TenantContext,
-  input: { sessionId: ClassSessionId; reason: string },
+  input: { sessionId: ClassSessionId; reason: string; operationId?: OperationId },
 ): Promise<Result<void, DomainError>> {
   const current = await deps.repo.getSession(ctx, input.sessionId)
   if (!current) throw new Error(`Session not found: ${input.sessionId}`)
-  const dctx = decideContext(deps, ctx)
+  const dctx = decideContext(deps, ctx, input.operationId)
   const events = decideCancelSession(dctx, current, input.reason)
   if (!events.ok) return events
   if (events.value.length === 0) return { ok: true, value: undefined } // already cancelled

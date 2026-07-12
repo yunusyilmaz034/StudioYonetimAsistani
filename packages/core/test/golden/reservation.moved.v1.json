@@ -1,0 +1,10 @@
+{
+  "fromSessionId": "cls_1",
+  "toSessionId": "cls_2",
+  "fromStartsAt": 1000086400000,
+  "toStartsAt": 1000172800000,
+  "hoursBeforeStart": 24,
+  "withinWindow": true,
+  "overrideReason": null,
+  "creditEffect": "held"
+}

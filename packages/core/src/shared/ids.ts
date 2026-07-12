@@ -48,6 +48,7 @@ const PREFIX = {
   event: 'evt',
   command: 'cmd',
   correlation: 'cor',
+  waitlistEntry: 'wlt', // D20
 } as const
 
 // ULID gives lexicographic time-ordering; the prefix disambiguates the id kind.
@@ -73,3 +74,4 @@ export const newStaffUserId = (): StaffUserId => mint(PREFIX.staffUser) as Staff
 export const newEventId = (): EventId => mint(PREFIX.event) as EventId
 export const newCommandId = (): CommandId => mint(PREFIX.command) as CommandId
 export const newCorrelationId = (): CorrelationId => mint(PREFIX.correlation) as CorrelationId
+export const newWaitlistEntryId = (): string => mint(PREFIX.waitlistEntry)

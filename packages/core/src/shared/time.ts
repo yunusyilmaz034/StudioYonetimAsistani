@@ -43,3 +43,22 @@ export function localDate(value: string): LocalDate {
   }
   return value as LocalDate
 }
+
+// The studio-local calendar day an instant falls on. PURE ARITHMETIC — no `Date`, because this
+// is called from `domain/`, where a hidden clock read is a build failure (D2). Days-from-epoch →
+// civil date (Howard Hinnant's algorithm); Istanbul has no DST, so a fixed offset is exact.
+export function localDateAt(at: Instant, utcOffsetMinutes: number): LocalDate {
+  const days = Math.floor((at + utcOffsetMinutes * 60_000) / 86_400_000)
+  const z = days + 719_468
+  const era = Math.floor(z / 146_097)
+  const doe = z - era * 146_097
+  const yoe = Math.floor((doe - Math.floor(doe / 1460) + Math.floor(doe / 36_524) - Math.floor(doe / 146_096)) / 365)
+  const y = yoe + era * 400
+  const doy = doe - (365 * yoe + Math.floor(yoe / 4) - Math.floor(yoe / 100))
+  const mp = Math.floor((5 * doy + 2) / 153)
+  const d = doy - Math.floor((153 * mp + 2) / 5) + 1
+  const m = mp < 10 ? mp + 3 : mp - 9
+  const year = m <= 2 ? y + 1 : y
+  const pad = (n: number): string => (n < 10 ? `0${n}` : `${n}`)
+  return `${year}-${pad(m)}-${pad(d)}` as LocalDate
+}

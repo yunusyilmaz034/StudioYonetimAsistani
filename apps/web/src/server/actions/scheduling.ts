@@ -338,10 +338,16 @@ export async function assignSessionMemberAction(input: unknown) {
 // for a pre-flight summary; apply:true creates the non-conflicting future sessions.
 export async function duplicateWeekAction(input: unknown) {
   const p = z
-    .object({ weekStartDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), weeks: z.number().int().min(1).max(52), apply: z.boolean() })
+    .object({
+      weekStartDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      weeks: z.number().int().min(1).max(52),
+      apply: z.boolean(),
+      // D23 — target days the owner ticked to skip. The calendar never skips a day on its own.
+      skipDates: z.array(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)).default([]),
+    })
     .parse(input)
   const ctx = await requireTenantContext(OPS)
-  const arg = { weekStartDate: p.weekStartDate, weeks: p.weeks }
+  const arg = { weekStartDate: p.weekStartDate, weeks: p.weeks, skipDates: p.skipDates }
   if (p.apply) return applyWeekDuplication(deps(), ctx, arg)
   const plan = await planWeekDuplication(deps(), ctx, arg)
   return { ok: true as const, value: { created: 0, plan } }

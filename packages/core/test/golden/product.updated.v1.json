@@ -1,3 +1,7 @@
 {
-  "changedFields": ["priceInKurus", "active"]
+  "changedFields": ["priceInKurus", "active"],
+  "changes": [
+    { "field": "priceInKurus", "from": 800000, "to": 900000 },
+    { "field": "active", "from": true, "to": false }
+  ]
 }

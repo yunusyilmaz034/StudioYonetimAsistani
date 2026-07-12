@@ -22,6 +22,7 @@ import {
   viewDays,
   type CalendarView,
 } from '@/components/calendar'
+import { DAY_TYPE_CHIP, DAY_TYPE_LABEL, isClosedType, marksOn } from '@/lib/calendar-days'
 import type { CalendarSession, ScheduleData } from '@/server/schedule-query'
 
 import { DuplicateWeekDialog } from './duplicate-week-dialog'
@@ -181,6 +182,23 @@ export function ScheduleScreen({
         renderRow={(s) => <SessionRow session={s} />}
         emptyLabel="Bu aralıkta planlı seans bulunmuyor."
         groupDaysInCard
+        renderDayMark={(d) => {
+          const marks = marksOn(data.calendarDays, d)
+          if (marks.length === 0) return null
+          return (
+            <div className="flex flex-wrap gap-1">
+              {marks.map((m) => (
+                <span
+                  key={m.id}
+                  title={m.title}
+                  className={`truncate rounded-md px-1.5 py-px text-[0.6875rem] font-medium ${DAY_TYPE_CHIP[m.type] ?? 'bg-muted text-muted-foreground'}`}
+                >
+                  {isClosedType(m.type) ? DAY_TYPE_LABEL[m.type] : m.title}
+                </span>
+              ))}
+            </div>
+          )
+        }}
       />
 
       <SessionWorkspace

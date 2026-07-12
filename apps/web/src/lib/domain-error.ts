@@ -26,6 +26,12 @@ export function domainErrorMessage(error: DomainError): string {
       return 'Seçilen salon aktif değil.'
     case 'insufficient_credits':
       return `Yeterli kredi yok (kalan: ${error.available}).`
+    case 'operation_already_applied':
+      return 'Bu işlem zaten uygulandı. Aynı işlem ikinci kez uygulanamaz.'
+    case 'operation_not_applicable':
+      return 'Bu işlem uygulanabilir durumda değil.'
+    case 'entitlement_frozen':
+      return 'Bu paket dondurulmuş. Dondurulmuş paketler toplu işlemlere dahil edilmez; ayrıca ele alınmalıdır.'
     case 'entitlement_not_active':
       return 'Bu paket aktif değil.'
     case 'not_a_credit_entitlement':
@@ -90,6 +96,12 @@ export function domainErrorMessage(error: DomainError): string {
       return 'Seansın bekleme süresi henüz dolmadı; otomatik sonuçlandırılamaz.'
     case 'reservation_not_resolved':
       return 'Yalnızca sonuçlanmış bir rezervasyon düzeltilebilir.'
+    case 'outside_cancellation_window':
+      return 'Ücretsiz değiştirme süresi doldu. Bu seansı yalnızca stüdyo bir gerekçeyle taşıyabilir.'
+    case 'waitlist_not_open':
+      return 'Bu seans için bekleme listesi açık değil.'
+    case 'already_waitlisted':
+      return 'Bu seansın bekleme listesinde zaten yer alıyorsunuz.'
     case 'correction_credit_unsupported':
       return 'Bu düzeltme bir kredinin yeniden düşülmesini gerektiriyor; şu an desteklenmiyor.'
     default: {

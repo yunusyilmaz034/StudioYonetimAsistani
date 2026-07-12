@@ -8,6 +8,7 @@ import {
 } from '@studio/core'
 
 import { adminDb } from './firebase-admin'
+import { FirestoreCalendarRepository } from '@studio/core'
 import { listMembers } from './members-query'
 
 // Server-only reads for the scheduling workspace. AD-52: +180 for the Türkiye studio
@@ -79,6 +80,17 @@ export interface ScheduleData {
   readonly rooms: readonly PickOption[]
   readonly staff: readonly StaffOption[]
   readonly templates: readonly TemplateView[]
+  // D23 — the calendar days overlapping the visible month. The schedule INFORMS about them; it
+  // never acts on them.
+  readonly calendarDays: readonly CalendarDayLite[]
+}
+
+export interface CalendarDayLite {
+  readonly id: string
+  readonly dateFrom: string
+  readonly dateTo: string
+  readonly type: string
+  readonly title: string
 }
 
 export function studioToday(): string {
@@ -106,12 +118,18 @@ export async function loadSchedule(ctx: TenantContext, dateStr: string): Promise
   const sched = new FirestoreSchedulingRepository(db)
   const [fromMs, toMs] = scheduleWindow(dateStr)
 
-  const [sessions, services, rooms, templates, staff] = await Promise.all([
+  const [fromDate, toDate] = [
+    new Date(fromMs + 180 * 60_000).toISOString().slice(0, 10),
+    new Date(toMs + 180 * 60_000).toISOString().slice(0, 10),
+  ]
+
+  const [sessions, services, rooms, templates, staff, calendarDays] = await Promise.all([
     sched.listSessionsForDay(ctx, instant(fromMs), instant(toMs)),
     sched.listServices(ctx),
     sched.listRooms(ctx),
     sched.listTemplates(ctx),
     new FirestoreIdentityRepository(db).listStaff(ctx),
+    new FirestoreCalendarRepository(db).listDays(ctx, fromDate as never, toDate as never),
   ])
 
   // D13 — names for assigned PT slots. One extra read, and ONLY when a PT slot is actually
@@ -155,6 +173,13 @@ export async function loadSchedule(ctx: TenantContext, dateStr: string): Promise
       .filter((r) => r.active)
       .map((r) => ({ id: r.id, name: r.name, branchId: r.branchId, capacity: r.capacity })),
     staff: staff.filter((m) => m.active).map((m) => ({ id: m.id, name: m.displayName, role: m.role })),
+    calendarDays: calendarDays.map((d) => ({
+      id: d.id,
+      dateFrom: d.dateFrom,
+      dateTo: d.dateTo,
+      type: d.type,
+      title: d.title,
+    })),
     templates: templates.map((t) => ({
       id: t.id,
       serviceId: t.serviceId,

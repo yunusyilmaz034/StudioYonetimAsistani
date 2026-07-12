@@ -38,6 +38,10 @@ export interface DuplicationPlan {
   readonly toCreate: readonly DuplicationTarget[]
   readonly skippedPast: readonly DuplicationTarget[]
   readonly conflicts: readonly DuplicationTarget[]
+  // D23 — target days the OWNER chose to skip (a holiday, a closed day). The calendar never
+  // decides this: it only makes the day visible, and the owner ticks it. A skipped day is a
+  // named bucket, never a silent omission.
+  readonly skippedCalendar: readonly DuplicationTarget[]
 }
 
 const conflictKey = (roomId: RoomId | null, serviceId: ServiceId, startsAt: number): string =>
@@ -51,6 +55,7 @@ export function computeDuplicationPlan(
   weeks: number,
   nowMs: number,
   utcOffsetMinutes: number,
+  skipDates: ReadonlySet<string> = new Set(),
 ): DuplicationPlan {
   const taken = new Set(
     existingTargets
@@ -60,6 +65,7 @@ export function computeDuplicationPlan(
   const toCreate: DuplicationTarget[] = []
   const skippedPast: DuplicationTarget[] = []
   const conflicts: DuplicationTarget[] = []
+  const skippedCalendar: DuplicationTarget[] = []
 
   for (const s of source) {
     if (s.status !== 'scheduled') continue // only copy live, planned sessions
@@ -92,6 +98,10 @@ export function computeDuplicationPlan(
         skippedPast.push(target)
         continue
       }
+      if (skipDates.has(target.date)) {
+        skippedCalendar.push(target)
+        continue
+      }
       const key = conflictKey(s.roomId, s.serviceId, startsAt)
       if (taken.has(key)) {
         conflicts.push(target)
@@ -101,12 +111,13 @@ export function computeDuplicationPlan(
       toCreate.push(target)
     }
   }
-  return { toCreate, skippedPast, conflicts }
+  return { toCreate, skippedPast, conflicts, skippedCalendar }
 }
 
 export interface DuplicateWeekInput {
   readonly weekStartDate: string // 'YYYY-MM-DD' — the Monday (local) of the source week
   readonly weeks: number // copy into this many following weeks (1..N)
+  readonly skipDates?: readonly string[] // 'YYYY-MM-DD' target days the owner chose to skip (D23)
 }
 
 function sourceWindow(weekStartDate: string, offsetMin: number): [number, number] {
@@ -127,7 +138,14 @@ export async function planWeekDuplication(
     deps.repo.listSessionsForDay(ctx, instant(srcFrom), instant(srcTo)),
     deps.repo.listSessionsForDay(ctx, instant(srcTo), instant(targetTo)),
   ])
-  return computeDuplicationPlan(source, existing, input.weeks, deps.clock.now(), offset)
+  return computeDuplicationPlan(
+    source,
+    existing,
+    input.weeks,
+    deps.clock.now(),
+    offset,
+    new Set(input.skipDates ?? []),
+  )
 }
 
 // Apply — re-plan (a fresh conflict check at write time) then create each non-conflicting

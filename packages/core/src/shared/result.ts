@@ -23,6 +23,13 @@ export type DomainError =
   // ── entitlements / credit ledger (Doc 2 §5) ──
   | { readonly code: 'insufficient_credits'; readonly available: number }
   | { readonly code: 'entitlement_not_active' }
+  // D21.4 — a frozen package is never extended: freeze arithmetic is unbuilt (DEBT-009), and
+  // extending one would be doing it by the back door.
+  | { readonly code: 'entitlement_frozen' }
+  // I-28 (v1.22) — a bulk act is applied at most once. `status` is the guard; a second apply is
+  // REFUSED, not repeated.
+  | { readonly code: 'operation_already_applied' }
+  | { readonly code: 'operation_not_applicable' }
   | { readonly code: 'not_a_credit_entitlement' }
   | { readonly code: 'no_held_credit' }
   | { readonly code: 'invalid_adjustment' }
@@ -33,6 +40,9 @@ export type DomainError =
   | { readonly code: 'branch_not_open' }
   // ── reservations / booking (Doc 2 §7) ──
   | { readonly code: 'session_not_bookable' }
+  | { readonly code: 'outside_cancellation_window' } // D19 — a member may not move a class late
+  | { readonly code: 'waitlist_not_open' } // D20
+  | { readonly code: 'already_waitlisted' }
   | { readonly code: 'class_full'; readonly capacity: number }
   | { readonly code: 'already_booked' }
   | { readonly code: 'category_mismatch'; readonly sessionCategory: string; readonly entitlementCategory: string }

@@ -70,10 +70,33 @@ export interface ResolveTxInput {
   ) => Result<ResolveDecision, DomainError>
 }
 
+// D19 — the move spans FOUR documents: the reservation, the origin session (a seat is freed),
+// the target session (a seat is taken) and the entitlement (read-only: the hold does not move).
+// One transaction, or a member can end up booked twice, or nowhere.
+export interface MoveDecision {
+  readonly reservation: Reservation
+  readonly fromBookedCountAfter: number
+  readonly toBookedCountAfter: number
+  readonly events: readonly NewEvent[]
+}
+
+export interface MoveTxInput {
+  readonly reservationId: ReservationId
+  readonly targetSessionId: ClassSessionId
+  readonly decide: (
+    reservation: Reservation,
+    from: ClassSession,
+    to: ClassSession,
+    entitlement: Entitlement,
+    memberHasBookedTarget: boolean,
+  ) => Result<MoveDecision, DomainError>
+}
+
 export interface ReservationRepository {
   getReservation(ctx: TenantContext, id: ReservationId): Promise<Reservation | null>
   book(ctx: TenantContext, input: BookTxInput): Promise<Result<{ reservationId: ReservationId }, DomainError>>
   cancel(ctx: TenantContext, input: CancelTxInput): Promise<Result<void, DomainError>>
+  move(ctx: TenantContext, input: MoveTxInput): Promise<Result<void, DomainError>>
   resolve(ctx: TenantContext, input: ResolveTxInput): Promise<Result<void, DomainError>>
   // The auto-resolution sweep's candidate set: still-`booked` reservations whose
   // session has ended. The transaction re-reads and `decideAutoResolution`

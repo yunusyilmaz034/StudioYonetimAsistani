@@ -23,6 +23,7 @@ import {
   decideBooking,
   decideCancellation,
   decideCorrection,
+  decideMove,
   type DecideContext,
 } from './decide'
 import type { MemberSnapshot } from '../../members'
@@ -407,6 +408,77 @@ describe('decideAutoResolution (AD-38 — never emits reservation.attended)', ()
   // A session that ended an hour ago; grace 15m ⇒ already resolvable at NOW.
   const ended = (pol: SessionPolicySnapshot = policy()) =>
     session({ startsAt: instant(NOW - 2 * H), endsAt: instant(NOW - H) }, pol)
+
+  // ── I-27 (v1.22) — the studio cancelled the class ────────────────────────────────────────
+  //
+  // This is the defect v1.22 opened with: the sweep used to presume `attended` here and CONSUME
+  // the credit for a class that never happened. A presumption is never written down as an
+  // observation (#11), and presuming attendance at a cancelled class is the purest form of it.
+  describe('I-27 — a reservation on a CANCELLED session', () => {
+    const cancelledSession = (pol: SessionPolicySnapshot = policy()) =>
+      session({ startsAt: instant(NOW - 2 * H), endsAt: instant(NOW - H), status: 'cancelled' }, pol)
+
+    it('is RELEASED, never consumed — the studio cancelled it, not the member', () => {
+      const r = decideAutoResolution(ctx, bookedReservation(), cancelledSession(), creditEnt())
+      expect(r.ok).toBe(true)
+      if (r.ok) {
+        expect(r.value.reservation.status).toBe('cancelled')
+        expect(r.value.reservation.creditEffect).toBe('released')
+        expect(r.value.events[0]?.type).toBe('reservation.cancelled')
+      }
+    })
+
+    it('never emits an attendance event for a class that did not happen', () => {
+      const r = decideAutoResolution(ctx, bookedReservation(), cancelledSession(), creditEnt())
+      expect(r.ok).toBe(true)
+      if (r.ok) {
+        const types = r.value.events.map((e) => e.type)
+        expect(types).not.toContain('reservation.auto_resolved')
+        expect(types).not.toContain('reservation.attended')
+      }
+    })
+
+    it('releases even under a no_show default — the default is about ABSENCE, not cancellation', () => {
+      // With `attendanceDefaultOutcome: 'no_show'` + `noShowConsumesCredit`, the old path would
+      // still have burned the credit. A cancelled class is neither attendance nor absence.
+      const pol = policy({ attendanceDefaultOutcome: 'no_show', noShowConsumesCredit: true })
+      const r = decideAutoResolution(ctx, bookedReservation(), cancelledSession(pol), creditEnt())
+      expect(r.ok).toBe(true)
+      if (r.ok) expect(r.value.reservation.creditEffect).toBe('released')
+    })
+
+    it('does not wait for the grace window — there is nothing to wait for', () => {
+      // The class was cancelled; no trainer is going to mark it. Releasing immediately is what
+      // stops the reservation from sitting `booked` against a session that will never run.
+      const justCancelled = session(
+        { startsAt: instant(NOW + H), endsAt: instant(NOW + 2 * H), status: 'cancelled' },
+      )
+      const r = decideAutoResolution(ctx, bookedReservation(), justCancelled, creditEnt())
+      expect(r.ok).toBe(true)
+      if (r.ok) expect(r.value.reservation.creditEffect).toBe('released')
+    })
+
+    it('a period booking held nothing, so nothing moves', () => {
+      const r = decideAutoResolution(
+        ctx,
+        bookedReservation({ creditEffect: 'none' }),
+        cancelledSession(),
+        creditEnt({ credits: null }),
+      )
+      expect(r.ok).toBe(true)
+      if (r.ok) expect(r.value.reservation.creditEffect).toBe('none')
+    })
+
+    it('an already-resolved reservation is still refused — history is never re-resolved', () => {
+      const r = decideAutoResolution(
+        ctx,
+        bookedReservation({ status: 'attended' }),
+        cancelledSession(),
+        creditEnt(),
+      )
+      expect(r).toEqual({ ok: false, error: { code: 'reservation_not_open' } })
+    })
+  })
   const held = () => creditEnt({ credits: { granted: 8, held: 1, consumed: 0, restored: 0, revoked: 0, expired: 0 } })
 
   it('applies the policy default and emits auto_resolved with system_default', () => {
@@ -490,5 +562,89 @@ describe('decideCorrection (compensating, never a silent edit)', () => {
       ok: false,
       error: { code: 'reservation_not_resolved' },
     })
+  })
+})
+
+// ── D19 — MOVE (v1.22). A move is not a cancel + a book: the same hold points at another class.
+describe('decideMove', () => {
+  const target = (over: Partial<ClassSession> = {}, pol = policy()) =>
+    session({ id: 'cls_2' as ClassSessionId, startsAt: instant(NOW + 48 * H), endsAt: instant(NOW + 49 * H), ...over }, pol)
+
+  it('moves inside the free window: one moved event, the credit never moves', () => {
+    const r = decideMove(ctx, bookedReservation(), session(), target(), creditEnt(), false)
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.value.events).toHaveLength(1)
+    expect(r.value.events[0]?.type).toBe('reservation.moved')
+    expect(r.value.reservation.status).toBe('booked')
+    expect(r.value.reservation.creditEffect).toBe('held') // unchanged — this is the whole point
+    expect(r.value.reservation.classSessionId).toBe('cls_2')
+    expect(r.value.reservation.entitlementId).toBe('ent_1')
+    expect(r.value.events[0]?.payload).toMatchObject({ withinWindow: true, overrideReason: null })
+  })
+
+  it('refuses a member moving past the free-move window', () => {
+    const memberCtx: DecideContext = { ...ctx, actor: { type: 'member', id: 'mem_1' as MemberId } }
+    const late = session({ startsAt: instant(NOW + 2 * H), endsAt: instant(NOW + 3 * H) }) // window is 6h
+    const r = decideMove(memberCtx, bookedReservation(), late, target(), creditEnt(), false)
+    expect(r.ok).toBe(false)
+    if (r.ok) return
+    expect(r.error.code).toBe('outside_cancellation_window')
+  })
+
+  it('refuses STAFF moving past the window without a reason, and allows it with one', () => {
+    const late = session({ startsAt: instant(NOW + 2 * H), endsAt: instant(NOW + 3 * H) })
+    const bare = decideMove(ctx, bookedReservation(), late, target(), creditEnt(), false)
+    expect(bare.ok).toBe(false)
+    if (!bare.ok) expect(bare.error.code).toBe('reason_required')
+
+    const withReason = decideMove(ctx, bookedReservation(), late, target(), creditEnt(), false, {
+      overrideReason: 'Üye aradı, eğitmen onayladı',
+    })
+    expect(withReason.ok).toBe(true)
+    if (!withReason.ok) return
+    expect(withReason.value.events[0]?.payload).toMatchObject({
+      withinWindow: false,
+      overrideReason: 'Üye aradı, eğitmen onayladı',
+    })
+    // Even an override never burns a credit — that would be a late cancel wearing a nicer word.
+    expect(withReason.value.reservation.creditEffect).toBe('held')
+  })
+
+  it('exactly at the window boundary is INSIDE the window', () => {
+    const boundary = session({ startsAt: instant(NOW + 6 * H), endsAt: instant(NOW + 7 * H) })
+    const r = decideMove(ctx, bookedReservation(), boundary, target(), creditEnt(), false)
+    expect(r.ok).toBe(true)
+  })
+
+  const refusals: readonly [string, () => ClassSession, Partial<Entitlement>, boolean, string][] = [
+    ['a full target class', () => target({ bookedCount: 8, capacity: 8 }), {}, false, 'class_full'],
+    ['a cancelled target class', () => target({ status: 'cancelled' }), {}, false, 'session_not_bookable'],
+    ['a target in the past', () => target({ startsAt: instant(NOW - H), endsAt: instant(NOW) }), {}, false, 'session_not_bookable'],
+    ["another member's PT slot", () => target({ assignedMemberId: 'mem_9' as MemberId }), {}, false, 'session_not_assigned_to_member'],
+    ['a target in another category', () => target({ category: 'fitness' }), {}, false, 'category_mismatch'],
+    ['a target the package expires before', () => target(), { validUntil: instant(NOW + H) }, false, 'entitlement_expires_before_session'],
+    ['a class she is already booked into', () => target(), {}, true, 'already_booked'],
+  ]
+  it.each(refusals)('refuses %s', (_label, targetOf, entOver, alreadyBooked, code) => {
+    const r = decideMove(ctx, bookedReservation(), session(), targetOf(), creditEnt(entOver), alreadyBooked)
+    expect(r.ok).toBe(false)
+    if (r.ok) return
+    expect(r.error.code).toBe(code)
+  })
+
+  it('a studio-cancelled origin is always inside the window — she is not punished for our cancellation', () => {
+    const cancelled = session({ status: 'cancelled', startsAt: instant(NOW + H), endsAt: instant(NOW + 2 * H) })
+    const r = decideMove(ctx, bookedReservation(), cancelled, target(), creditEnt(), false)
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.value.events[0]?.payload).toMatchObject({ withinWindow: true })
+  })
+
+  it('refuses moving a reservation that is no longer open', () => {
+    const r = decideMove(ctx, bookedReservation({ status: 'attended' }), session(), target(), creditEnt(), false)
+    expect(r.ok).toBe(false)
+    if (r.ok) return
+    expect(r.error.code).toBe('reservation_not_open')
   })
 })

@@ -73,6 +73,11 @@ export class FirestoreEntitlementRepository implements EntitlementRepository {
     return snap.docs.map((doc) => entitlementFromFirestore(doc.id as EntitlementId, doc.data()))
   }
 
+  async listAll(ctx: TenantContext): Promise<readonly Entitlement[]> {
+    const snap = await this.col(ctx.studioId, 'entitlements').get()
+    return snap.docs.map((doc) => entitlementFromFirestore(doc.id as EntitlementId, doc.data()))
+  }
+
   async listEntitlementEvents(
     ctx: TenantContext,
     id: EntitlementId,

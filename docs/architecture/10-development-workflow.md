@@ -79,22 +79,61 @@ Plan  →  UX  →  Implementation  →  Validation  →  Commit  →  Stop
 | **v1.20** | Owner UI & Design System — Premium Redesign | `v1.20-premium-design-system` |
 | **v1.21** | Member Portal & Auth (+ the domain corrections it forced: D12–D14) | `v1.21-member-portal` |
 
-**Planned (re-prioritised after the owner UI review, 2026-07-11).** The class and
-reservation calendars are the studio's most-used operations screens and the member's
-own reservation experience is the product's most success-critical surface — so the
-calendar/reservation experience comes next, ahead of a real Payments aggregate. Payments
-is **deferred, not dropped** — the v1.14 manual-payment seam keeps working until then.
-
-The calendar milestone is **split** (owner, 2026-07-11): the two calendars + Session
-Workspace ship first; the member portal + member auth follow as their own milestone so
-member authentication is delivered safely on its own.
+**Planned — the roadmap the owner locked on 2026-07-13.** It is no longer sequenced toward a
+payments aggregate: the studio's operations and the *record* of those operations come first,
+because everything after them (dashboard, activity center, timeline, reports, undo, audit, AI)
+reads the same log. Payments re-enters the roadmap after the Activity Engine, on the owner's word.
 
 | Version | Milestone | Scope |
 |---|---|---|
-| **v1.22** | **Payments** *(deferred from v1.19)* | A real payment aggregate — collect · refund · void · methods · balance allocation · payment timeline; architecture ready for POS / online later. Used from within the Member Workspace. Until it lands, the v1.14 manual-payment seam stands. |
-| **v1.23** | **Migration & Cutover** | Import from the old system · data validation · the first live-customer cutover (freeze-and-cut, Doc 8 §5). |
-| **v1.24** | **Production Hardening / CI** | Emulator + Firebase integration tests · production config · monitoring · backup · CI/CD · performance & security checks. |
-| **v1.25** | **Staff & Identity** | Staff accounts · roles · authorization · audit · multi-user management. |
+| **v1.22** | **Operasyon Motoru** ✅ *(complete)* | Studio Calendar · resmî/dinî tatiller · sabit (tekrarlayan) rezervasyon · bekleme listesi · rezervasyon taşıma · tatil/kapanış operasyonu · toplu paket işlemleri · **operasyon merkezi** (activity feed · üye/rezervasyon/paket timeline · operasyon geçmişi · audit log). **Reservations and operations are complete.** The Activity Engine that was scheduled as its own milestone landed here: OperationId end to end (OP-2), the presenter, the query layer over the log. |
+| **v1.23** | **Owner Dashboard & Analytics** *(next — owner, 2026-07-13)* | D24 owner dashboard (widgets) · D25 analytics (charts) · D26–D27 timelines deepened · D28 global activity feed · D29 the dashboard read model. **No new business rule.** It makes what v1.22 records *manageable*. |
+| **v1.25** | **Hareket Merkezi (Activity Center)** | One screen for every operation in the business — membership, payment, reservation, check-in, package, bulk and system movements. Filterable, searchable, drillable. Each row carries at least: date · hour · minute · second · the staff member who did it · the member it was about · the operation type · its detail · the **OperationId** · the reason, if there is one. *This is not a report screen. It is how the owner watches her business.* |
+| **v1.26** | **Üye Timeline** | A member's entire history, from her first moment in the system, in chronological order. |
+| **v1.27** | **Rapor Merkezi** | Membership · reservation · staff · check-in reports · expiring memberships · export. |
+| **v1.28** | **Undo / Recovery** | The undo the model was designed for from v1.22 onward (OP-4). |
+| **v1.29** | **Audit Log** | |
+| **v1.30** | **AI Studio Manager** | |
+
+---
+
+## 4.1 Operation Principles — OP-1…OP-5
+
+**Locked by the owner on 2026-07-13. These are not a milestone; they are the ground rules every
+implementation from v1.22 onward obeys.** They exist because the product's centre of gravity is
+the Activity Center and the Timeline: a screen can only show what the write path recorded.
+
+**OP-1 — Every operation and movement carries a full timestamp.**
+The UI shows, at minimum, `GG.AA.YYYY HH:mm:ss`. Seconds are not decoration — two credit moves in
+the same minute are two different acts, and the owner must be able to tell them apart. Internally
+milliseconds may be kept (they already are: `occurredAt` / `recordedAt`).
+
+**OP-2 — Every operation has a unique OperationId, and every sub-movement inherits it.**
+A closure that cancels 40 sessions, releases 300 credits and extends 120 packages is **one**
+operation. Every event it writes — reservation, credit, extension, timeline, audit — carries the
+same id, so the Activity Center can answer *"what else did this do?"* in one query.
+**Architecturally, the OperationId IS the envelope's `correlationId`.** Deliberately not a second
+field: the envelope already binds an act to all of its events, a new envelope field is a permanent
+schema change (AD-42), and two ids meaning the same thing drift until neither is trusted.
+*In the product we call it OperationId; in the log it lives as `correlationId`.*
+
+**OP-3 — A bulk operation's `reason` is mandatory.**
+It appears in the operation's detail, in the Activity Log and in the Audit Log. A credit
+adjustment already enforces reason + note (AD-39); this extends the rule to every bulk act.
+
+**OP-4 — Undo-ability is marked in the model now, built in v1.28.**
+Every event type declares an `UndoPolicy` — `compensating` (undone by appending an inverse event,
+never an overwrite: #9) · `irreversible` (the world moved: a member walked in, money changed
+hands) · `informational` (a fact about our own records). It lives in code
+(`packages/core/src/shared/operation.ts`), not in the events, so it can be corrected without a
+migration — and an unclassified event type defaults to `irreversible`, which is the safe answer.
+
+**OP-5 — Preview → confirm → apply, for the whole roadmap.**
+No bulk operation ever runs without the owner seeing what it will do and saying yes. The preview
+**writes nothing**; the apply **re-derives** from a fresh read (the preview promised a shape, not
+a count); and every skipped object appears in a **named** bucket — nothing is dropped silently.
+
+---
 
 - **One commit per milestone.** A milestone closes as a single commit, Conventional Commit format — `feat(<scope>): …` for feature milestones, `docs(<scope>): …` for docs-only ones. For example:
 

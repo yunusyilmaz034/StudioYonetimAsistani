@@ -813,6 +813,7 @@ The domain layer's test suite is this list. If these hold, the business is consi
 | I-15 | `entitlement.paidTotal` equals the sum of all `PaymentAllocation.amount` targeting it, excluding `refunded` / `voided` payments |
 | I-16 | A payment's `amount` is ≥ the sum of its allocations. The remainder is credit on account. |
 | I-17 | Entitlement selection is deterministic: earliest `validUntil`, then earliest `purchasedAt`, then lowest `id` |
+| **I-27** | **A booked reservation on a CANCELLED session is never auto-resolved.** The sweep **releases** it (`reservation.cancelled`, `creditEffect: 'released'`) — it never presumes attendance at a class that did not happen. *(v1.22, Doc 22 §0. The mirror of I-14 on the sweep path: without it the studio cancels the class and the member pays for it.)* |
 | **I-18** | Every resolved reservation carries an `attendanceSource`. **The `system` actor never emits `reservation.attended` or `reservation.no_show`** — it emits `reservation.auto_resolved`. *(AD-38)* |
 | **I-19** | An entitlement may not expire while `credits.held > 0`. The attendance auto-resolver runs before the expiry sweep. *(AD-26, AD-43)* |
 | **I-20** | Every `entitlement.adjusted` carries a `reason` from the closed enum **and** a non-empty `note`. `granted` and `consumed` are never written by an adjustment. *(AD-39)* |

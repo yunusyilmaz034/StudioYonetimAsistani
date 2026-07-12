@@ -28,6 +28,7 @@ export {
   decideCancel,
   decideConsume,
   decideExpire,
+  decideExtend,
   decideHold,
   decidePurchase,
   decideReactivate,

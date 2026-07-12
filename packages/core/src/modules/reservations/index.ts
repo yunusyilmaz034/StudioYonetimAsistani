@@ -24,6 +24,22 @@ export {
 export { isBookable, selectEntitlement } from './domain/select-entitlement'
 export { bookReservation, type BookReservationInput } from './application/book'
 export { cancelReservation, type CancelReservationInput } from './application/cancel'
+export { moveReservation, type MoveReservationInput } from './application/move'
+export {
+  applyRecurring,
+  previewRecurring,
+  type RecurringDeps,
+  type RecurringInputDto,
+  type RecurringSummary,
+  type RecurringWorld,
+} from './application/recurring'
+export {
+  computeRecurringPlan,
+  type RecurringPlan,
+  type RecurringSkip,
+  type RecurringSkipReason,
+  type RecurringTarget,
+} from './domain/recurring'
 export { markAttendance, type MarkAttendanceInput } from './application/mark-attendance'
 export {
   autoResolveReservation,
@@ -37,6 +53,8 @@ export type {
   BookTxInput,
   CancelDecision,
   CancelTxInput,
+  MoveDecision,
+  MoveTxInput,
   ResolveDecision,
   ResolveTxInput,
   ReservationRepository,

@@ -28,6 +28,7 @@ import {
   RESERVATION_CANCELLED,
   RESERVATION_CORRECTED,
   RESERVATION_LATE_CANCELLED,
+  RESERVATION_MOVED,
   RESERVATION_NO_SHOW,
   RESERVATION_NOTE_SET,
 } from '../events'
@@ -182,6 +183,107 @@ export function decideBooking(
   })
 }
 
+// ── D19 — MOVE (v1.22). ────────────────────────────────────────────────────────────────────
+//
+// A member's class changes; her credit does not. The hold stays exactly where it was, on the
+// same entitlement, and simply points at another session. This is why a move is ONE event and
+// not a cancel + a book:
+//   • cancel + book would put a cancellation in the log that never happened — the studio's
+//     cancellation rate and its churn signal are read from those events;
+//   • it would release and re-hold the credit, so a member with her last credit could lose the
+//     class between the two writes;
+//   • and it would restart the booking's history, erasing when she actually took the slot.
+//
+// The free-move window IS the free-cancellation window (owner, Doc 22 §3): if she could have
+// cancelled for free, she can move for free. Past it, only STAFF may move her — and only with a
+// written reason, which is stamped into the event. A move never consumes a credit: a late move
+// that burned one would just be a late cancel wearing a nicer word.
+export interface MoveInput {
+  readonly overrideReason?: string | null // staff, moving past the window
+}
+
+export function decideMove(
+  ctx: DecideContext,
+  reservation: Reservation,
+  from: ClassSession,
+  to: ClassSession,
+  entitlement: Entitlement,
+  memberHasBookedTarget: boolean,
+  input: MoveInput = {},
+): Result<ReservationOutcome, DomainError> {
+  if (reservation.status !== 'booked') return err({ code: 'reservation_not_open' })
+  if (to.id === from.id) return err({ code: 'session_not_bookable' })
+
+  // The TARGET must satisfy every booking precondition (I-9) — a move is not a back door around
+  // the category wall, the service wall, PT ownership or a full class.
+  if (to.status !== 'scheduled' || to.startsAt <= ctx.now) return err({ code: 'session_not_bookable' })
+  const assignedTo = to.assignedMemberId ?? null
+  if (assignedTo !== null && assignedTo !== reservation.memberId) {
+    return err({ code: 'session_not_assigned_to_member' })
+  }
+  if (to.bookedCount >= to.capacity) return err({ code: 'class_full', capacity: to.capacity })
+  if (memberHasBookedTarget) return err({ code: 'already_booked' })
+  if (entitlement.productSnapshot.category !== to.category) {
+    return err({
+      code: 'category_mismatch',
+      sessionCategory: to.category,
+      entitlementCategory: entitlement.productSnapshot.category,
+    })
+  }
+  if (!coversService(entitlement.productSnapshot, to.serviceId)) {
+    return err({ code: 'service_not_covered', sessionServiceId: to.serviceId })
+  }
+  // The credit that is already held must still be valid FOR THE TARGET. Otherwise a member could
+  // walk an expiring package forward indefinitely, one move at a time.
+  if (entitlement.status !== 'active') return err({ code: 'entitlement_not_active' })
+  if (to.startsAt > entitlement.validUntil) return err({ code: 'entitlement_expires_before_session' })
+
+  // The window is judged against the ORIGIN — the class she is walking away from — under the
+  // policy that class was booked under (I-24: the snapshot, never today's policy).
+  const hoursBeforeStart = hoursBetween(ctx.now, from.startsAt)
+  const policy: SessionPolicySnapshot = from.policySnapshot
+  const withinWindow = from.status === 'cancelled' || hoursBeforeStart >= policy.cancellationWindowHours
+  const override = input.overrideReason?.trim() ? input.overrideReason.trim() : null
+
+  if (!withinWindow) {
+    // Past the window, the member cannot move herself — reception can, and must say why (#9's
+    // spirit: an exception is written down, never silent).
+    if (ctx.actor.type === 'member') return err({ code: 'outside_cancellation_window' })
+    if (override === null) return err({ code: 'reason_required' })
+  }
+
+  const next: Reservation = {
+    ...reservation,
+    classSessionId: to.id,
+    sessionStartsAt: to.startsAt,
+    sessionEndsAt: to.endsAt,
+    sessionCategory: to.category,
+    // status, creditEffect, entitlementId, bookedAt, bookedBy — all UNCHANGED. She holds the
+    // same credit for the same package; only the class moved.
+    policyRef: { policyId: to.policyRef.serviceId, version: to.policyRef.version },
+  }
+
+  return ok({
+    reservation: next,
+    events: [
+      {
+        ...base(ctx, next),
+        type: RESERVATION_MOVED,
+        payload: {
+          fromSessionId: from.id,
+          toSessionId: to.id,
+          fromStartsAt: from.startsAt,
+          toStartsAt: to.startsAt,
+          hoursBeforeStart,
+          withinWindow,
+          overrideReason: override,
+          creditEffect: reservation.creditEffect,
+        },
+      },
+    ],
+  })
+}
+
 // ── Cancellation (Doc 2 §7.2). Pure: the six-hour window is `policy.cancellation
 //    WindowHours`; nothing knows the number six. A studio-cancelled class always
 //    releases (I-14). ──
@@ -300,6 +402,25 @@ export function decideAutoResolution(
 ): Result<ReservationOutcome, DomainError> {
   if (reservation.status !== 'booked') return err({ code: 'reservation_not_open' })
   const policy: SessionPolicySnapshot = session.policySnapshot
+
+  // ── I-27 (v1.22) — a reservation on a CANCELLED session is never auto-resolved. ──
+  //
+  // Without this guard the sweep applies `attendanceDefaultOutcome` — `attended` in this studio
+  // — and CONSUMES the member's credit for a class the studio itself cancelled. The domain
+  // already knows the right answer and says so in the other path (I-14: a studio-cancelled class
+  // always releases, window or no window); it simply was never asked here, because
+  // `listResolvableBooked` selects on the reservation's status and the end time and nothing else.
+  //
+  // A presumption is never written down as an observation (non-negotiable #11) — and presuming
+  // that someone attended a class that did not happen is the purest form of that mistake.
+  if (session.status === 'cancelled') {
+    const heldACredit = reservation.creditEffect !== 'none'
+    const effect: CreditEffect = heldACredit ? 'released' : 'none'
+    return ok(
+      resolveCancel(ctx, reservation, hoursBetween(ctx.now, session.startsAt), true, effect, 'cancelled'),
+    )
+  }
+
   // The presumption may only be written once the class has ended AND the grace
   // window has elapsed (Doc 2 §8: `session.endsAt + autoResolveAfterMinutes`).
   // Enforced here, purely, so a marker (trainer/reception) always owns the window

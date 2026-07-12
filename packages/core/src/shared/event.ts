@@ -63,6 +63,24 @@ export interface EventRelated {
 // No PII (I-13), no entity snapshots.
 export type EventPayload = Record<string, unknown>
 
+// ── OQ-2 (owner, 2026-07-13) — before/after for the Audit Log. ───────────────────────────────
+//
+// An OPTIONAL, ADDITIVE field inside a state-editing event's PAYLOAD — never in the envelope,
+// which must not move (AD-42). Additive means: no version bump, no upcaster, no migration.
+//
+// History is NOT backfilled and never will be: the before-value of a 2026-06 price edit was
+// never recorded, and no amount of engineering produces one. Events written before today carry
+// no `changes`, and the Audit Log shows `—` for them and says why (I-30: a screen never invents
+// a fact the log does not have).
+//
+// `from`/`to` hold the RAW domain value (kuruş as an integer, an instant as a number, an enum as
+// its string). Formatting is the presenter's job — the log stores facts, not sentences.
+export interface FieldChange {
+  readonly field: string
+  readonly from: unknown
+  readonly to: unknown
+}
+
 export interface DomainEvent<
   TType extends string = string,
   TPayload extends EventPayload = EventPayload,

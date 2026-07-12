@@ -1,4 +1,11 @@
-import { newCorrelationId, type CommandId, type EventSource, type Instant, type TenantContext } from '../../../shared'
+import {
+  newOperationId,
+  type CommandId,
+  type EventSource,
+  type Instant,
+  type OperationId,
+  type TenantContext,
+} from '../../../shared'
 import type { DecideContext } from '../domain/decide'
 import type { ReservationsDeps } from './ports'
 
@@ -17,6 +24,10 @@ export interface DecideContextOptions {
   readonly now?: Instant
   // The command that caused this write, when it came from the `/commands` path.
   readonly commandId?: CommandId | null
+  // OP-2 — the operation this write BELONGS to. A bulk act passes its own id down, so every
+  // reservation it cancels carries the id of the closure that cancelled it. Omitted for a
+  // stand-alone act: it is its own operation.
+  readonly operationId?: OperationId
 }
 
 // One context per command → one correlationId shared by every event the command
@@ -32,7 +43,7 @@ export function decideContext(
     studioId: ctx.studioId,
     actor: ctx.actor,
     now: opts.now ?? deps.clock.now(),
-    correlationId: newCorrelationId(),
+    correlationId: opts.operationId ?? newOperationId(),
     source: opts.source ?? RECEPTION_SOURCE,
     commandId: opts.commandId ?? null,
   }

@@ -1,5 +1,6 @@
 import {
-  newCorrelationId,
+  newOperationId,
+  type OperationId,
   newServiceId,
   type Category,
   type DomainError,
@@ -21,12 +22,16 @@ import type { SchedulingDeps } from './ports'
 
 const SOURCE: EventSource = 'reception_web'
 
-export function decideContext(deps: SchedulingDeps, ctx: TenantContext): DecideContext {
+export function decideContext(
+  deps: SchedulingDeps,
+  ctx: TenantContext,
+  operationId?: OperationId, // OP-2 — set when this write belongs to a larger operation
+): DecideContext {
   return {
     studioId: ctx.studioId,
     actor: ctx.actor,
     now: deps.clock.now(),
-    correlationId: newCorrelationId(),
+    correlationId: operationId ?? newOperationId(),
     source: SOURCE,
   }
 }

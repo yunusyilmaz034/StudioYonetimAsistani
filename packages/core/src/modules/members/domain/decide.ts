@@ -75,6 +75,11 @@ const TRACKED_FIELDS = [
   'homeBranchId',
 ] as const
 
+// ⚠ OQ-2 DOES NOT APPLY HERE. A member's profile fields ARE the PII — name, phone, birth date.
+// Recording their before/after in an event payload would put PII in the log, which is
+// non-negotiable #6 and unrecoverable: it is what makes KVKK erasure possible at all. The Audit
+// Log therefore shows WHICH fields a profile edit touched, never their values. The values live in
+// /members, where they can be erased.
 function changedFields(current: Member, next: Member): string[] {
   return TRACKED_FIELDS.filter(
     (f) => JSON.stringify(current[f]) !== JSON.stringify(next[f]),

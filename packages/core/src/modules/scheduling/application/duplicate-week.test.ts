@@ -85,4 +85,21 @@ describe('computeDuplicationPlan', () => {
     const plan = computeDuplicationPlan([src], [existing], 2, SRC - 1000, OFFSET)
     expect(plan.conflicts.map((t) => t.weekOffset)).toEqual([1])
   })
+
+  // D23 — a marked day is skipped ONLY because the owner ticked it, and it lands in its own
+  // named bucket. Nothing disappears quietly.
+  it('skips an owner-chosen calendar day into its own bucket', () => {
+    const src = makeSession()
+    const first = new Date(SRC + WEEK + OFFSET * 60_000).toISOString().slice(0, 10)
+    const plan = computeDuplicationPlan([src], [], 4, SRC - 1000, OFFSET, new Set([first]))
+    expect(plan.skippedCalendar).toHaveLength(1)
+    expect(plan.skippedCalendar[0]?.date).toBe(first)
+    expect(plan.toCreate).toHaveLength(3)
+  })
+
+  it('skips nothing when the owner ticks no day', () => {
+    const plan = computeDuplicationPlan([makeSession()], [], 4, SRC - 1000, OFFSET)
+    expect(plan.skippedCalendar).toHaveLength(0)
+    expect(plan.toCreate).toHaveLength(4)
+  })
 })

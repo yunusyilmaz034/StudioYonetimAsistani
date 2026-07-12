@@ -5,6 +5,8 @@ import { ChevronDownIcon, Loader2Icon, PlusIcon } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Badge } from '@/components/ui/badge'
+import { Timeline } from '@/components/activity/timeline'
+import { packageTimelineAction } from '@/server/actions/activity'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -24,11 +26,9 @@ import {
   amendSubscriptionAction,
   assignSubscriptionAction,
   cancelSubscriptionAction,
-  getSubscriptionTimelineAction,
   listMemberSubscriptionsAction,
   reactivateSubscriptionAction,
   type SubscriptionView,
-  type TimelineRow,
 } from '@/server/actions/subscription'
 
 const METHOD_LABEL: Record<string, string> = { cash: 'Nakit', credit_card: 'Kredi Kartı', bank_transfer: 'Havale / EFT' }
@@ -117,20 +117,9 @@ export function SubscriptionsPanel({ memberId, products }: { memberId: string; p
 
 function SubscriptionRow({ sub, onChanged }: { sub: SubscriptionView; onChanged: () => void }) {
   const [open, setOpen] = useState(false)
-  const [timeline, setTimeline] = useState<readonly TimelineRow[] | null>(null)
   const [dialog, setDialog] = useState<'amend' | 'credit' | 'status' | null>(null)
 
-  async function expand() {
-    const next = !open
-    setOpen(next)
-    if (next && timeline === null) {
-      try {
-        setTimeline(await getSubscriptionTimelineAction({ entitlementId: sub.id }))
-      } catch {
-        setTimeline([])
-      }
-    }
-  }
+  const expand = () => setOpen((o) => !o)
 
   const balance = sub.balanceDueKurus
   return (
@@ -174,49 +163,25 @@ function SubscriptionRow({ sub, onChanged }: { sub: SubscriptionView; onChanged:
             </Button>
           </div>
 
+          {/* The PACKAGE TIMELINE (v1.22): purchased → credit held → consumed → extended →
+              frozen → expired, each with the credit balance it left behind, the staff member who
+              did it, and the OperationId that binds a bulk act's 121 extensions into ONE act. */}
           <div>
-            <p className="mb-1 text-xs font-medium text-muted-foreground">Geçmiş</p>
-            {timeline === null ? (
-              <p className="text-xs text-muted-foreground">Yükleniyor…</p>
-            ) : (
-              <ul className="space-y-1 text-xs text-muted-foreground">
-                {timeline.map((t, i) => (
-                  <li key={i} className="flex justify-between gap-2">
-                    <span>{eventLabel(t)}</span>
-                    <span className="shrink-0 tabular-nums">{dateLabel(t.occurredAt)}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
+            <p className="mb-1.5 text-xs font-medium text-muted-foreground">Paket geçmişi</p>
+            <Timeline
+              key={sub.id}
+              load={() => packageTimelineAction({ entitlementId: sub.id })}
+              emptyLabel="Bu paket için henüz hareket yok."
+            />
           </div>
         </div>
       ) : null}
 
-      {dialog === 'amend' ? <AmendDialog sub={sub} onClose={() => setDialog(null)} onDone={() => { setDialog(null); setTimeline(null); onChanged() }} /> : null}
-      {dialog === 'credit' ? <CreditDialog sub={sub} onClose={() => setDialog(null)} onDone={() => { setDialog(null); setTimeline(null); onChanged() }} /> : null}
-      {dialog === 'status' ? <StatusDialog sub={sub} onClose={() => setDialog(null)} onDone={() => { setDialog(null); setTimeline(null); onChanged() }} /> : null}
+      {dialog === 'amend' ? <AmendDialog sub={sub} onClose={() => setDialog(null)} onDone={() => { setDialog(null); onChanged() }} /> : null}
+      {dialog === 'credit' ? <CreditDialog sub={sub} onClose={() => setDialog(null)} onDone={() => { setDialog(null); onChanged() }} /> : null}
+      {dialog === 'status' ? <StatusDialog sub={sub} onClose={() => setDialog(null)} onDone={() => { setDialog(null); onChanged() }} /> : null}
     </div>
   )
-}
-
-function eventLabel(t: TimelineRow): string {
-  const who = t.actorType === 'system' ? '(sistem) ' : ''
-  const map: Record<string, string> = {
-    'entitlement.purchased': 'Abonelik oluşturuldu',
-    'entitlement.payment_recorded': 'Tahsilat kaydedildi',
-    'entitlement.amended': 'Düzenlendi',
-    'entitlement.adjusted': 'Kredi düzeltildi',
-    'entitlement.reactivated': 'Yeniden aktifleştirildi',
-    'entitlement.cancelled': 'Pasife alındı',
-    'entitlement.credit_held': 'Kredi tutuldu',
-    'entitlement.credit_consumed': 'Kredi kullanıldı',
-    'entitlement.credit_released': 'Kredi iade edildi',
-    'entitlement.credit_restored': 'Kredi geri verildi',
-    'entitlement.expired': 'Süresi doldu',
-    'entitlement.exhausted': 'Krediler tükendi',
-  }
-  const reason = typeof t.payload.reason === 'string' ? ` — ${t.payload.reason}` : ''
-  return `${who}${map[t.type] ?? t.type}${reason}`
 }
 
 function Row({ label, value }: { label: string; value: string }) {

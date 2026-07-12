@@ -147,6 +147,9 @@ class FakeRepo implements ReservationRepository {
   async cancel(): Promise<Result<void, DomainError>> {
     throw new Error('not used')
   }
+  async move(): Promise<Result<void, DomainError>> {
+    throw new Error('not used')
+  }
   async resolve(_c: TenantContext, input: ResolveTxInput): Promise<Result<void, DomainError>> {
     const r = this.reservations.get(input.reservationId)
     if (!r) throw new Error('reservation missing')

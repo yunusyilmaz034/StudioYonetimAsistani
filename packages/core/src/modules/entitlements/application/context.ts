@@ -1,4 +1,10 @@
-import { newCorrelationId, type EntitlementId, type EventSource, type TenantContext } from '../../../shared'
+import {
+  newOperationId,
+  type EntitlementId,
+  type EventSource,
+  type OperationId,
+  type TenantContext,
+} from '../../../shared'
 import type { DecideContext } from '../domain/decide'
 import type { Entitlement } from '../domain/types'
 import type { EntitlementsDeps } from './ports'
@@ -12,12 +18,13 @@ export function decideContext(
   deps: EntitlementsDeps,
   ctx: TenantContext,
   source: EventSource = RECEPTION_SOURCE,
+  operationId?: OperationId, // OP-2 — set when this write belongs to a larger operation
 ): DecideContext {
   return {
     studioId: ctx.studioId,
     actor: ctx.actor,
     now: deps.clock.now(),
-    correlationId: newCorrelationId(),
+    correlationId: operationId ?? newOperationId(),
     source,
   }
 }

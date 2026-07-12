@@ -17,6 +17,7 @@ export const RESERVATION_ATTENDED = 'reservation.attended'
 export const RESERVATION_NO_SHOW = 'reservation.no_show'
 export const RESERVATION_AUTO_RESOLVED = 'reservation.auto_resolved'
 export const RESERVATION_CORRECTED = 'reservation.corrected'
+export const RESERVATION_MOVED = 'reservation.moved'
 export const RESERVATION_NOTE_SET = 'reservation.note_set'
 
 export type ReservationBookedPayload = {
@@ -49,6 +50,21 @@ export type ReservationAutoResolvedPayload = {
   readonly source: 'system_default'
   readonly creditEffect: CreditEffect
   readonly creditsAvailableAfter: number | null
+}
+
+// D19 (v1.22) — a MOVE is not a cancellation followed by a booking. Saying it that way in the
+// log would inflate the cancellation rate, invent a second booking, and make the credit look
+// like it moved twice when it never moved at all: the SAME hold, pointed at a different class.
+// `overrideReason` is non-null exactly when staff moved a reservation past the free-move window.
+export type ReservationMovedPayload = {
+  readonly fromSessionId: string
+  readonly toSessionId: string
+  readonly fromStartsAt: Instant
+  readonly toStartsAt: Instant
+  readonly hoursBeforeStart: number
+  readonly withinWindow: boolean
+  readonly overrideReason: string | null
+  readonly creditEffect: CreditEffect // always the hold it already had — a move never moves credit
 }
 
 export type ReservationCorrectedPayload = {

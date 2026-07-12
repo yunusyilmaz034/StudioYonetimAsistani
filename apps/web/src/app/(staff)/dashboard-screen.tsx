@@ -23,6 +23,8 @@ import { Card, CardAction, CardContent, CardHeader, CardTitle } from '@/componen
 import { Metric, MetricStrip } from '@/components/ui/metric'
 import { PageHeader } from '@/components/ui/page-header'
 import { Section } from '@/components/ui/section'
+import { ActivityRow } from '@/components/activity/activity-row'
+import type { ActivityEvent } from '@/server/activity-query'
 import type { DashboardData, ExpiringRow, SessionRow } from '@/server/dashboard-query'
 
 import { LogoutButton } from './logout-button'
@@ -40,7 +42,15 @@ const memberHref = (id: string) => `/members/${id}`
 // Grouping is carried by section headers and whitespace instead of nine equal-weight boxes,
 // and the day's programme is ONE chronological list (private sessions carry a PT chip) rather
 // than a class list plus a PT list that repeated the same rows.
-export function DashboardScreen({ data, roleLabel }: { data: DashboardData; roleLabel: string }) {
+export function DashboardScreen({
+  data,
+  roleLabel,
+  feed,
+}: {
+  data: DashboardData
+  roleLabel: string
+  feed: readonly ActivityEvent[]
+}) {
   const router = useRouter()
   const programme = [...data.todaySessions].sort((a, b) => a.startsAt - b.startsAt)
   // `todaySessions` carries every session, private ones included; `todayPt` is its
@@ -176,7 +186,26 @@ export function DashboardScreen({ data, roleLabel }: { data: DashboardData; role
         </div>
       </Section>
 
-      <Section title="Son hareketler">
+      {/* The live activity feed (v1.22, owner rule 5). Not a report — an operations screen:
+          who did what, to whom, to the second. Sentences, never event names. */}
+      <Section
+        title="Canlı akış"
+        actions={
+          <Link href="/activity" className="text-sm font-medium text-primary hover:underline">
+            Tümü
+          </Link>
+        }
+      >
+        <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+          {feed.length === 0 ? (
+            <p className="px-3 py-6 text-center text-sm text-muted-foreground">Bugün henüz hareket yok.</p>
+          ) : (
+            feed.map((e) => <ActivityRow key={e.eventId} event={e} showDate={false} />)
+          )}
+        </div>
+      </Section>
+
+      <Section title="Son eklenen üyeler">
         <Widget
           title="Son eklenen üyeler"
           icon={UserPlusIcon}

@@ -9,6 +9,71 @@ All notable changes are recorded here. Architecture rationale lives in
 
 ---
 
+## v1.22 — Operasyon Motoru · `v1.22-operations`
+
+The milestone where the studio stopped being a booking screen and became an **operating system**:
+the acts a studio actually performs — closing for a holiday, extending everyone's package, moving
+a member's class, repeating a fixed slot, running a waiting list — and then the record of every one
+of them, legible to a person who is not a developer.
+
+It opened by fixing a defect that had been quietly burning members' credits.
+
+- **I-27 — a cancelled class no longer consumes a credit.** `decideAutoResolution` never checked
+  whether the SESSION was cancelled: the nightly sweep presumed `attended` for classes the studio
+  itself had called off, and **consumed the member's credit**. The studio cancels; the member pays.
+  Fixed in the domain, proven end to end, and it is now an invariant: a booked reservation on a
+  cancelled session is *released*, never auto-resolved.
+
+- **D23 Studio Calendar.** Eight day types, date and time ranges, and a Turkish holiday **provider
+  port** with an adapter that computes the fixed national holidays and reads religious ones from a
+  table (DEBT-017). The calendar writes **information and nothing else** — it never cancels a
+  session or moves a credit. Its only bridge to an operation is a button the owner presses.
+
+- **D21 Closure / holiday operation.** Preview → confirm → apply, with a load-bearing ordering:
+  cancel the SESSION first, then its reservations, because a reservation cancelled *before* its
+  session would fall inside the cancellation window and **burn the credit** (I-14). If the worker
+  dies mid-run, I-27 catches the rest: the failure mode is "late", never "wrong".
+
+- **D22 Bulk package operations.** `+gün` / `+kredi` over a chosen scope, with AD-39's mandatory
+  reason + note. Frozen packages are skipped **by name**, never silently.
+
+- **D19 Reservation move.** ONE event (`reservation.moved`) — not a cancel plus a booking. That
+  distinction is load-bearing: cancel+book would inject a cancellation that never happened into the
+  churn signal, release and re-hold the credit (a member with her last credit could lose the class
+  between the two writes), and erase when she actually took the slot. The free-move window is the
+  free-cancellation window; past it only staff may move her, and only with a written reason.
+
+- **D18 Sabit rezervasyon.** A **generator**, not an aggregate: N weeks produce N ordinary
+  reservations, each cancellable on its own. It **never invents a session** — a week the studio did
+  not schedule is reported as `no_session`. Credits are consumed *as the series is planned*, so a
+  member with two credits is never promised eight classes.
+
+- **D20 Waiting list.** **I-29: waiting holds no credit.** No auto-promotion (owner): without a
+  notification channel, an auto-promoted member would not know she was booked — and presumed
+  attendance would then consume her credit for a class she never heard about (DEBT-018). Reception
+  promotes, deliberately; the credit is held only then.
+
+- **OP-1…OP-5 (owner, 2026-07-13).** Full timestamps to the second · one **OperationId** per
+  operation, inherited by every sub-movement · mandatory reason on bulk acts · `UndoPolicy` declared
+  per event type now, for v1.28 · preview → confirm → apply, forever. Architecturally the
+  OperationId **is** the envelope's `correlationId`: a second id meaning the same thing would drift
+  until neither could be trusted.
+
+- **The Operations Center.** Six screens over the event log, no projection: activity feed (+ the
+  dashboard's live stream), member / reservation / package timelines, operation detail (one id →
+  everything it did), and an owner-only audit log with before → after (`changes[]`, additive).
+  A **presenter** turns all 67 event types into Turkish sentences — a technical event name never
+  reaches a screen, and an event type without a sentence fails the build. `/events` stays
+  **owner-only** in the Firestore rules; every screen is fed by a Server Action with the role filter
+  on the server. Reception never reads a raw event.
+
+- **PII, held.** `changes[]` is *not* written for member profile edits: those field values ARE the
+  PII, and PII never enters the log (#6). The audit shows which fields changed, never their values.
+
+334 unit tests · `pnpm check` green · no migration, no backfill, no event version bump.
+
+---
+
 ## v1.21 — Member Portal & Auth · `v1.21-member-portal`
 
 The first surface a **customer** touches. Everything before this was staff-facing: if reception
