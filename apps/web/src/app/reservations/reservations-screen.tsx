@@ -2,17 +2,21 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { SearchIcon } from 'lucide-react'
+import { ArmchairIcon, CalendarIcon, CircleCheckIcon, SearchIcon, UsersIcon } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Metric, MetricStrip } from '@/components/ui/metric'
 import { PageHeader } from '@/components/ui/page-header'
 import { Toaster } from '@/components/ui/sonner'
 import {
   Calendar,
   CalendarToolbar,
+  dayKey,
   FilterSelect,
+  monthGridDays,
   timeLabel,
+  viewDays,
   type CalendarView,
 } from '@/components/calendar'
 import type { CalendarSession } from '@/server/schedule-query'
@@ -97,52 +101,81 @@ export function ReservationsScreen({
 
   const filtersActive = memberQuery !== '' || trainer !== ALL || service !== ALL || status !== ALL
 
+  // Scoped to the days the current view actually shows — the query loads a month, so an
+  // unscoped summary would report the month's numbers while Day view is on screen. Capacity
+  // ignores cancelled sessions: a cancelled class has no seats to fill.
+  const summary = useMemo(() => {
+    const days = new Set(view === 'month' ? monthGridDays(date).days : viewDays(date, view))
+    const inView = visible.filter((s) => days.has(dayKey(s.startsAt)))
+    const active = inView.filter((s) => s.status !== 'cancelled')
+    const booked = active.reduce((n, s) => n + s.bookedCount, 0)
+    const capacity = active.reduce((n, s) => n + s.capacity, 0)
+    return {
+      sessions: active.length,
+      booked,
+      free: Math.max(0, capacity - booked),
+      full: active.filter((s) => s.capacity > 0 && s.bookedCount >= s.capacity).length,
+    }
+  }, [visible, date, view])
+
   return (
-    <main className="mx-auto max-w-6xl space-y-4 p-4 sm:p-6">
+    <main className="mx-auto max-w-6xl space-y-4 p-4 sm:p-6 lg:p-8">
       <Toaster />
       <PageHeader title="Rezervasyon Ajandası" />
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <CalendarToolbar view={view} date={date} today={today} onViewChange={setView} onDateChange={goDate} />
+      {/* One control surface: date nav + view switch above, search + filters below. */}
+      <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+        <div className="p-3">
+          <CalendarToolbar view={view} date={date} today={today} onViewChange={setView} onDateChange={goDate} />
+        </div>
+        <div className="flex flex-wrap items-center gap-2 border-t border-border bg-muted/30 p-3">
+          <div className="relative min-w-52 flex-1">
+            <SearchIcon className="absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              className="pl-8"
+              placeholder="Üye ara (bu üyenin seansları)…"
+              value={memberQuery}
+              onChange={(e) => setMemberQuery(e.target.value)}
+            />
+          </div>
+          <FilterSelect label="Eğitmen" allLabel="Tüm Eğitmenler" value={trainer} onChange={setTrainer} options={data.staff.map((s) => ({ id: s.id, name: s.name }))} />
+          <FilterSelect label="Ders" allLabel="Tüm Dersler" value={service} onChange={setService} options={data.services} />
+          <FilterSelect
+            label="Durum"
+            allLabel="Tüm Durumlar"
+            value={status}
+            onChange={setStatus}
+            options={[
+              { id: 'scheduled', name: 'Planlı' },
+              { id: 'completed', name: 'Tamamlandı' },
+              { id: 'cancelled', name: 'İptal' },
+            ]}
+          />
+          {filtersActive ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setMemberQuery('')
+                setTrainer(ALL)
+                setService(ALL)
+                setStatus(ALL)
+              }}
+            >
+              Temizle
+            </Button>
+          ) : null}
+        </div>
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="relative min-w-52 flex-1">
-          <SearchIcon className="absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            className="pl-8"
-            placeholder="Üye ara (bu üyenin seansları)…"
-            value={memberQuery}
-            onChange={(e) => setMemberQuery(e.target.value)}
-          />
-        </div>
-        <FilterSelect label="Eğitmen" value={trainer} onChange={setTrainer} options={data.staff.map((s) => ({ id: s.id, name: s.name }))} />
-        <FilterSelect label="Ders" value={service} onChange={setService} options={data.services} />
-        <FilterSelect
-          label="Durum"
-          value={status}
-          onChange={setStatus}
-          options={[
-            { id: 'scheduled', name: 'Planlı' },
-            { id: 'completed', name: 'Tamamlandı' },
-            { id: 'cancelled', name: 'İptal' },
-          ]}
-        />
-        {filtersActive ? (
-          <Button
-            variant="ghost"
-            onClick={() => {
-              setMemberQuery('')
-              setTrainer(ALL)
-              setService(ALL)
-              setStatus(ALL)
-            }}
-          >
-            Temizle
-          </Button>
-        ) : null}
-      </div>
+      {/* This calendar answers one question before any cell is read: how much of what we are
+          running is actually sold. Derived from the sessions already loaded — no extra read. */}
+      <MetricStrip>
+        <Metric compact label="Seans" value={summary.sessions} icon={CalendarIcon} />
+        <Metric compact label="Rezervasyon" value={summary.booked} icon={UsersIcon} />
+        <Metric compact label="Boş yer" value={summary.free} icon={ArmchairIcon} />
+        <Metric compact label="Dolu seans" value={summary.full} icon={CircleCheckIcon} tone={summary.full > 0 ? 'success' : 'default'} />
+      </MetricStrip>
 
       {/* Calendar (shared engine) — dense cells with member names */}
       <Calendar
@@ -154,6 +187,7 @@ export function ReservationsScreen({
         renderChip={(s) => <SessionChip session={s} roster={rosterOf(s.sessionId)} />}
         renderRow={(s) => <SessionRow session={s} roster={rosterOf(s.sessionId)} />}
         emptyLabel="Bu aralıkta seans bulunmuyor."
+        groupDaysInCard
       />
 
       <SessionWorkspace
@@ -168,55 +202,64 @@ export function ReservationsScreen({
 }
 
 // Dense month-cell block: header (time · service · occupancy) + member names — the old
-// system's reservation-calendar density.
+// system's reservation-calendar density, kept. The accent rail carries the one signal that
+// matters here (full vs. still sellable); everything else stays quiet so six names remain
+// readable in a cell.
 function SessionChip({ session, roster }: { session: CalendarSession; roster: readonly SessionRosterEntry[] }) {
   const full = session.capacity > 0 && session.bookedCount >= session.capacity
+  const cancelled = session.status === 'cancelled'
   return (
     <div
-      className={`rounded border-l-2 px-1 py-0.5 text-[11px] leading-tight ${
-        full ? 'border-danger bg-danger/5' : 'border-primary bg-muted/40'
-      } ${session.status === 'cancelled' ? 'opacity-50 line-through' : ''}`}
+      className={`rounded-md border-l-2 px-1 py-1 text-[11px] leading-[1.5] ${
+        full ? 'border-danger bg-danger/5' : 'border-primary bg-primary-soft/40'
+      } ${cancelled ? 'opacity-50 line-through' : ''}`}
     >
-      <p className="truncate font-medium text-foreground">
-        <span className="tabular-nums">{timeLabel(session.startsAt)}</span> {session.serviceName}{' '}
-        <span className="tabular-nums text-muted-foreground">
-          ({session.bookedCount}/{session.capacity})
+      <p className="flex items-center gap-1 truncate font-medium text-foreground">
+        <span className="shrink-0 tabular-nums">{timeLabel(session.startsAt)}</span>
+        <span className="truncate">{session.serviceName}</span>
+        <span className={`shrink-0 tabular-nums ${full ? 'text-danger' : 'text-muted-foreground'}`}>
+          {session.bookedCount}/{session.capacity}
         </span>
       </p>
+      {/* The names ARE the content of this calendar — they read a step darker than a caption,
+          without competing with the session line above them. */}
       {roster.slice(0, 6).map((m) => (
-        <p key={m.reservationId} className="truncate text-muted-foreground">
+        <p key={m.reservationId} className="truncate text-foreground/70">
           {m.memberName}
         </p>
       ))}
-      {roster.length > 6 ? <p className="text-muted-foreground">+{roster.length - 6} kişi</p> : null}
+      {roster.length > 6 ? <p className="font-medium text-primary">+{roster.length - 6} kişi</p> : null}
     </div>
   )
 }
 
-// Richer row for week/day/agenda + the day popover.
+// Richer row for week/day/agenda + the day popover. Borderless: the Calendar groups a day's
+// rows onto one card (groupDaysInCard).
 function SessionRow({ session, roster }: { session: CalendarSession; roster: readonly SessionRosterEntry[] }) {
   const occ = occupancy(session.bookedCount, session.capacity)
+  const cancelled = session.status === 'cancelled'
   return (
-    <div className="rounded-xl border border-border bg-surface p-3">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-2">
-          <span className={`size-2 shrink-0 rounded-full ${STATUS_DOT[session.status] ?? 'bg-muted-foreground'}`} />
-          <p className={`truncate font-medium ${session.status === 'cancelled' ? 'text-muted-foreground line-through' : 'text-foreground'}`}>
-            <span className="tabular-nums">{timeLabel(session.startsAt)}</span> · {session.serviceName}
-            {session.trainerName ? <span className="text-muted-foreground"> · {session.trainerName}</span> : null}
-          </p>
-        </div>
+    <div className="px-3 py-3 transition-colors hover:bg-primary-soft/40">
+      <div className="flex items-center gap-3">
+        <span className={`size-1.5 shrink-0 rounded-full ${STATUS_DOT[session.status] ?? 'bg-muted-foreground'}`} />
+        <span className={`shrink-0 text-sm font-medium tabular-nums ${cancelled ? 'text-muted-foreground' : 'text-foreground'}`}>
+          {timeLabel(session.startsAt)}
+        </span>
+        <p className={`min-w-0 flex-1 truncate text-sm font-medium ${cancelled ? 'text-muted-foreground line-through' : 'text-foreground'}`}>
+          {session.serviceName}
+          {session.trainerName ? <span className="font-normal text-muted-foreground"> · {session.trainerName}</span> : null}
+        </p>
         <span
-          className={`shrink-0 rounded px-1.5 py-0.5 text-xs ${session.status === 'cancelled' ? 'bg-muted text-muted-foreground' : occ.className}`}
+          className={`shrink-0 rounded-md px-1.5 py-0.5 text-xs font-medium tabular-nums ${
+            cancelled ? 'bg-muted text-muted-foreground' : occ.className
+          }`}
         >
           {session.bookedCount}/{session.capacity}
         </span>
       </div>
-      {roster.length > 0 ? (
-        <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{roster.map((m) => m.memberName).join(' · ')}</p>
-      ) : (
-        <p className="mt-1 text-xs text-muted-foreground">Rezervasyon yok</p>
-      )}
+      <p className={`mt-1 line-clamp-2 pl-6 text-xs ${roster.length > 0 ? 'text-foreground/70' : 'text-muted-foreground'}`}>
+        {roster.length > 0 ? roster.map((m) => m.memberName).join(' · ') : 'Rezervasyon yok'}
+      </p>
     </div>
   )
 }

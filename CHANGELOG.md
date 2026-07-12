@@ -9,6 +9,45 @@ All notable changes are recorded here. Architecture rationale lives in
 
 ---
 
+## v1.20 — Premium Design System & Owner UI Redesign · `v1.20-premium-design-system`
+
+- **Design System v2.** Every owner screen rebuilt on one component system and one design
+  language — Apple-simple, Linear-ordered, Stripe-professional, Notion-readable. **No
+  feature, domain, event, action or behaviour changed**; presentation and information
+  architecture only. Owner decisions: light-only, keep Geist, keep the teal (retuned,
+  used sparingly), comfortable density with a compact toggle designed for but not built.
+- **Foundation:** a deliberate type scale (display/h1/h2/h3 with size · weight ·
+  line-height · tracking) and an elevation scale (hairline border + soft shadow, never a
+  heavy drop-shadow), both as tokens — components still reference roles, never hex (DS-1).
+- **New shared components:** `Section` (quiet grouping without another box), `Metric` /
+  `MetricStrip` (a screen's headline numbers on one surface, with a `compact` size for the
+  dense screens), and the house `Tabs` (both workspaces). All on `/design-system`.
+- **Screens** (nine owner-reviewed batches): App Shell · Dashboard · Class Calendar ·
+  Reservation Calendar · Session Workspace · Attendance · Members · Member Workspace ·
+  Packages. Each keeps its data, actions and links; what changed is what you see first.
+- **Information architecture,** not decoration: the dashboard reads in the order the owner
+  acts (Şimdi → Bugün → Dikkat gerektirenler); the calendars gained a summary **scoped to
+  the days actually on screen** (the query loads a month, so an unscoped total would lie);
+  Attendance leads with the day's **Bekleyen** count; the Member Workspace surfaces a
+  **balance owed the moment the member opens** (UX-8). The Members list deliberately got
+  **no** metric strip — a total that changes no decision only costs space.
+- **Duplication removed** (Doc 20 §7): the Member Workspace's "Paket"/"QR" quick actions
+  were a second copy of the tabs one row below; the in-tab "Düzenle" and "Hızlı Rezervasyon"
+  repeated the header. Every action now lives in exactly one place — no capability lost.
+  On the Dashboard, the class list and the PT list had been rendering the same private
+  sessions twice (`todayPt ⊂ todaySessions`): now one chronological programme with a PT tag,
+  and two non-overlapping metrics.
+- **Defects fixed (presentation):** `base-ui`'s `Select.Value` prints the raw value unless
+  given a render function — filters showed the internal `all` sentinel and the Session
+  Workspace's trainer/room pickers showed **raw ids**; both now resolve to labels. Stale
+  copy ("Payments v1.19" → v1.22). `next-env.d.ts` (Next-generated) is eslint-ignored — Next
+  15.5 writes a triple-slash reference into it that our own rule forbids, breaking `pnpm
+  check` on a file nobody authors.
+- **DEBT-012** recorded, not fixed: a stale/expired session cookie causes an infinite
+  redirect loop (the middleware is a coarse gate by design, v1.5 #3, and cannot tell that a
+  present cookie is invalid). Fixing it is a behaviour change, and v1.20 ships none — repay
+  before the v1.23 cutover.
+
 ## v1.18 — Member Workspace · `v1.18-member-workspace`
 
 - Reception's single-screen operations centre for one member — a **dedicated full-page

@@ -99,10 +99,12 @@ export function RosterSheet({
         <SheetContent side="right" className="w-full gap-0 overflow-y-auto p-0 sm:max-w-md">
           {session ? (
             <>
-              <SheetHeader className="border-b border-border p-4">
-                <SheetTitle className="flex items-center gap-2">
-                  <span className="tabular-nums">{timeLabel(session.startsAt)}</span>
-                  {session.serviceName}
+              {/* Progress leads: taking attendance is a countdown to zero pending, and the bulk
+                  action sits directly under the number it clears. */}
+              <SheetHeader className="border-b border-border bg-surface p-4 sm:p-5">
+                <SheetTitle className="flex items-center gap-2 text-h1">
+                  <span className="shrink-0 tabular-nums">{timeLabel(session.startsAt)}</span>
+                  <span className="truncate">{session.serviceName}</span>
                 </SheetTitle>
                 <SheetDescription>
                   {session.trainerName ?? 'Eğitmen yok'} · {session.roster.length}/{session.capacity} kişi
@@ -110,14 +112,19 @@ export function RosterSheet({
                 </SheetDescription>
                 {pending.length > 0 ? (
                   <Button
-                    className="mt-2 min-h-11 w-full"
+                    className="mt-3 min-h-11 w-full"
                     disabled={bulkBusy}
                     onClick={() => onBulk(session)}
                   >
                     {bulkBusy ? <Loader2Icon className="animate-spin" /> : <CheckIcon />}
                     Kalan {pending.length} kişiyi katıldı işaretle
                   </Button>
-                ) : null}
+                ) : (
+                  <p className="mt-3 flex items-center gap-1.5 text-xs font-medium text-success">
+                    <CheckIcon className="size-3.5" />
+                    Yoklama tamam
+                  </p>
+                )}
               </SheetHeader>
 
               {session.roster.length === 0 ? (
@@ -128,10 +135,13 @@ export function RosterSheet({
                     const optimistic = marks[entry.reservationId]
                     const serverResolved = entry.status === 'attended' || entry.status === 'no_show'
                     return (
-                      <li key={entry.reservationId} className="flex items-center justify-between gap-3 p-3">
+                      <li
+                        key={entry.reservationId}
+                        className="flex items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-primary-soft/30"
+                      >
                         <div className="min-w-0">
-                          <p className="truncate font-medium text-foreground">{entry.memberName}</p>
-                          <p className="text-xs text-muted-foreground">···{entry.phoneLast4}</p>
+                          <p className="truncate text-sm font-medium text-foreground">{entry.memberName}</p>
+                          <p className="text-xs tabular-nums text-muted-foreground">···{entry.phoneLast4}</p>
                         </div>
 
                         {entry.status === 'booked' && !optimistic ? (

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { CheckIcon, Loader2Icon, PencilIcon, PlusIcon, SearchIcon, XIcon } from 'lucide-react'
+import { CheckIcon, Loader2Icon, PencilIcon, PlusIcon, SearchIcon, StickyNoteIcon, XIcon } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Badge } from '@/components/ui/badge'
@@ -182,12 +182,10 @@ export function BookingPanel({ session, onMutated }: { session: CalendarSession;
 
   return (
     <section className="space-y-3">
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-medium text-foreground">
-          Katılımcılar{' '}
-          <span className="tabular-nums text-muted-foreground">
-            {session.bookedCount}/{session.capacity}
-          </span>
+      <div className="flex items-center justify-between gap-3">
+        <h3 className="text-h2 font-semibold tabular-nums text-foreground">
+          {session.bookedCount}
+          <span className="text-sm font-normal text-muted-foreground">/{session.capacity} katılımcı</span>
         </h3>
         <Badge className={occ.className}>{occ.label}</Badge>
       </div>
@@ -199,9 +197,9 @@ export function BookingPanel({ session, onMutated }: { session: CalendarSession;
       ) : roster.length === 0 ? (
         <p className="text-sm text-muted-foreground">Henüz rezervasyon yok.</p>
       ) : (
-        <ul className="divide-y divide-border rounded-xl border border-border">
+        <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card shadow-xs">
           {roster.map((r) => (
-            <li key={r.reservationId} className="flex items-center justify-between gap-2 p-2.5">
+            <li key={r.reservationId} className="flex items-center justify-between gap-2 px-3 py-2.5 transition-colors hover:bg-primary-soft/40">
               {/* The name/main area is a link to the member's workspace — independent of
                   the pencil (note) and X (cancel) actions; keyboard-accessible. */}
               <Link
@@ -212,11 +210,12 @@ export function BookingPanel({ session, onMutated }: { session: CalendarSession;
                   {r.memberName}
                 </p>
                 {r.note ? (
-                  <p className="truncate text-xs text-info" title={r.note}>
-                    📝 {r.note}
+                  <p className="flex items-center gap-1 truncate text-xs text-info" title={r.note}>
+                    <StickyNoteIcon className="size-3 shrink-0" />
+                    <span className="truncate">{r.note}</span>
                   </p>
                 ) : (
-                  <p className="text-xs text-muted-foreground">···{r.phoneLast4}</p>
+                  <p className="text-xs tabular-nums text-muted-foreground">···{r.phoneLast4}</p>
                 )}
               </Link>
               <div className="flex shrink-0 items-center">

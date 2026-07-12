@@ -42,18 +42,16 @@ export function PackagesScreen({
   }
 
   return (
-    <main className="mx-auto max-w-4xl space-y-6 p-4 sm:p-6">
+    <main className="mx-auto max-w-4xl space-y-4 p-4 sm:p-6 lg:p-8">
       <Toaster />
       <PageHeader
         title="Paketler"
         description={`${products.length} paket`}
         actions={
-          <div className="flex items-center gap-2">
-            <Button className="min-h-11 sm:min-h-0" onClick={openCreate}>
-              <PlusIcon />
-              Yeni Paket
-            </Button>
-          </div>
+          <Button className="min-h-11 sm:min-h-0" onClick={openCreate}>
+            <PlusIcon />
+            Yeni Paket
+          </Button>
         }
       />
 
@@ -61,49 +59,57 @@ export function PackagesScreen({
         <EmptyState icon={PackageIcon} title="Henüz paket yok" description="İlk paketi oluşturun." action={<Button onClick={openCreate}><PlusIcon />Yeni Paket</Button>} />
       ) : (
         <>
-          {/* Mobile: cards */}
-          <div className="space-y-2 md:hidden">
+          {/* Mobile: one card, rows inside — not a stack of boxes. */}
+          <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card shadow-sm md:hidden">
             {products.map((p) => (
               <button
                 key={p.id}
                 type="button"
                 onClick={() => openEdit(p)}
-                className="flex w-full items-center justify-between gap-3 rounded-xl border border-border bg-surface p-3 text-left"
+                className="flex w-full items-center justify-between gap-3 px-3 py-3 text-left transition-colors hover:bg-primary-soft/40"
               >
                 <div className="min-w-0">
-                  <p className="truncate font-medium text-foreground">{p.name}</p>
+                  <p className="truncate text-sm font-medium text-foreground">{p.name}</p>
                   <p className="truncate text-xs text-muted-foreground">
-                    {CATEGORY_LABEL[p.category] ?? p.category} · {p.type === 'credit' ? `${p.creditCount} ders` : 'Sınırsız'} · {tl(p.priceInKurus)}
+                    {CATEGORY_LABEL[p.category] ?? p.category} · {p.type === 'credit' ? `${p.creditCount} ders` : 'Sınırsız'} ·{' '}
+                    <span className="tabular-nums">{tl(p.priceInKurus)}</span>
                   </p>
                 </div>
-                {p.active ? null : <Badge variant="outline">Pasif</Badge>}
+                <StatusCell active={p.active} />
               </button>
             ))}
           </div>
 
-          {/* Desktop: table */}
-          <div className="hidden overflow-x-auto md:block">
+          {/* Desktop: the price list on one surface. Money is right-aligned and tabular so a
+              column of prices can be scanned down, not read one by one. */}
+          <div className="hidden overflow-hidden rounded-xl border border-border bg-card shadow-sm md:block">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-border text-left text-muted-foreground">
-                  <th className="py-2 pr-3 font-medium">Paket</th>
-                  <th className="py-2 pr-3 font-medium">Kategori</th>
-                  <th className="py-2 pr-3 font-medium">İçerik</th>
-                  <th className="py-2 pr-3 font-medium">Süre</th>
-                  <th className="py-2 pr-3 font-medium">Fiyat</th>
-                  <th className="py-2 font-medium">Durum</th>
+                <tr className="border-b border-border bg-muted/30 text-left">
+                  <Th>Paket</Th>
+                  <Th>Kategori</Th>
+                  <Th>İçerik</Th>
+                  <Th className="text-right">Süre</Th>
+                  <Th className="text-right">Fiyat</Th>
+                  <Th className="w-28">Durum</Th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-border">
                 {products.map((p) => (
-                  <tr key={p.id} onClick={() => openEdit(p)} className="cursor-pointer border-b border-border last:border-0 hover:bg-muted/40">
-                    <td className="py-2.5 pr-3 font-medium">{p.name}</td>
-                    <td className="py-2.5 pr-3 text-muted-foreground">{CATEGORY_LABEL[p.category] ?? p.category}</td>
-                    <td className="py-2.5 pr-3">{p.type === 'credit' ? `${p.creditCount} ders` : 'Sınırsız'}</td>
-                    <td className="py-2.5 pr-3 tabular-nums">{p.durationDays} gün</td>
-                    <td className="py-2.5 pr-3 tabular-nums">{tl(p.priceInKurus)}</td>
-                    <td className="py-2.5">
-                      {p.active ? <Badge className="bg-success/10 text-success">Aktif</Badge> : <Badge variant="outline">Pasif</Badge>}
+                  <tr
+                    key={p.id}
+                    onClick={() => openEdit(p)}
+                    className="cursor-pointer transition-colors hover:bg-primary-soft/40"
+                  >
+                    <td className="px-4 py-3 font-medium text-foreground">{p.name}</td>
+                    <td className="px-4 py-3 text-muted-foreground">{CATEGORY_LABEL[p.category] ?? p.category}</td>
+                    <td className="px-4 py-3 text-muted-foreground">
+                      {p.type === 'credit' ? `${p.creditCount} ders` : 'Sınırsız'}
+                    </td>
+                    <td className="px-4 py-3 text-right tabular-nums text-muted-foreground">{p.durationDays} gün</td>
+                    <td className="px-4 py-3 text-right font-medium tabular-nums text-foreground">{tl(p.priceInKurus)}</td>
+                    <td className="w-28 px-4 py-3 whitespace-nowrap">
+                      <StatusCell active={p.active} />
                     </td>
                   </tr>
                 ))}
@@ -114,13 +120,33 @@ export function PackagesScreen({
       )}
 
       <Sheet open={open} onOpenChange={setOpen}>
-        <SheetContent side="right" className="w-full gap-4 overflow-y-auto p-4 sm:max-w-md">
+        <SheetContent side="right" className="w-full gap-4 overflow-y-auto p-4 sm:max-w-md sm:p-5">
           <SheetHeader className="p-0">
-            <SheetTitle>{editing ? 'Paketi Düzenle' : 'Yeni Paket'}</SheetTitle>
+            <SheetTitle className="text-h1">{editing ? 'Paketi Düzenle' : 'Yeni Paket'}</SheetTitle>
           </SheetHeader>
           <ProductForm product={editing} services={services} onDone={onDone} />
         </SheetContent>
       </Sheet>
     </main>
+  )
+}
+
+function Th({ children, className = '' }: { children: React.ReactNode; className?: string }) {
+  return (
+    <th
+      className={`px-4 py-2.5 text-[0.6875rem] font-medium tracking-wide whitespace-nowrap uppercase text-muted-foreground ${className}`}
+    >
+      {children}
+    </th>
+  )
+}
+
+// Same rule as the member list: an active product is the norm and reads as a quiet caption;
+// a passive one is a state someone may need to act on, so it gets a badge.
+function StatusCell({ active }: { active: boolean }) {
+  return active ? (
+    <span className="text-xs text-muted-foreground">Aktif</span>
+  ) : (
+    <Badge className="bg-muted text-muted-foreground">Pasif</Badge>
   )
 }

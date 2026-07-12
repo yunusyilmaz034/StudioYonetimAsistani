@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { CheckIcon, Loader2Icon, XIcon } from 'lucide-react'
+import { CheckIcon, DoorOpenIcon, Loader2Icon, UserIcon, UsersIcon, XIcon } from 'lucide-react'
 import { toast } from 'sonner'
 
 import type { AttendanceOutcome, ReservationId } from '@studio/core'
@@ -19,6 +19,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 import { dayHeading, timeLabel } from '@/components/calendar'
 import { markAttendanceCommand } from '@/lib/commands'
@@ -66,49 +67,82 @@ export function SessionWorkspace({
 
   return (
     <Sheet open={session !== null} onOpenChange={(o) => (o ? null : onClose())}>
-      <SheetContent side="right" className="w-full gap-4 overflow-y-auto p-4 sm:max-w-2xl">
+      <SheetContent side="right" className="w-full gap-0 overflow-y-auto p-0 sm:max-w-2xl">
         {session ? (
           <>
-            <SheetHeader className="p-0">
-              <SheetTitle>{session.serviceName}</SheetTitle>
-              <SheetDescription className="capitalize">
-                {dayHeading(new Date(session.startsAt).toLocaleDateString('en-CA', { timeZone: 'Europe/Istanbul' }))} ·{' '}
-                {timeLabel(session.startsAt)}–{timeLabel(session.endsAt)}
-              </SheetDescription>
+            {/* The header answers the questions you open a session to ask — when, who, where,
+                how full — so the common case needs no tab click at all. */}
+            <SheetHeader className="border-b border-border bg-surface p-4 sm:p-5">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <SheetTitle className="flex items-center gap-2 text-h1">
+                    <span className="truncate">{session.serviceName}</span>
+                    {session.category === 'private' ? (
+                      <span className="shrink-0 rounded-md bg-muted px-1.5 py-px text-[0.6875rem] font-medium text-muted-foreground">
+                        PT
+                      </span>
+                    ) : null}
+                  </SheetTitle>
+                  <SheetDescription className="capitalize">
+                    {dayHeading(new Date(session.startsAt).toLocaleDateString('en-CA', { timeZone: 'Europe/Istanbul' }))} ·{' '}
+                    {timeLabel(session.startsAt)}–{timeLabel(session.endsAt)}
+                  </SheetDescription>
+                </div>
+                <Badge
+                  variant={session.status === 'cancelled' ? 'destructive' : 'outline'}
+                  className="shrink-0 capitalize"
+                >
+                  {STATUS_LABEL[session.status] ?? session.status}
+                </Badge>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 pt-1 text-xs text-muted-foreground">
+                <span className="flex items-center gap-1.5">
+                  <UserIcon className="size-3.5" />
+                  {session.trainerName ?? 'Eğitmen yok'}
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <DoorOpenIcon className="size-3.5" />
+                  {session.roomName ?? 'Salon yok'}
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <UsersIcon className="size-3.5" />
+                  <span className="font-medium tabular-nums text-foreground">
+                    {session.bookedCount}/{session.capacity}
+                  </span>
+                  dolu
+                </span>
+              </div>
             </SheetHeader>
 
-            {/* Tabs — desktop tabs / mobile section nav (UX-1). */}
-            <div className="flex rounded-lg border border-border p-0.5 text-sm">
-              {(
-                [
-                  ['info', 'Ders Bilgileri'],
-                  ['reservations', `Rezervasyonlar (${session.bookedCount})`],
-                  ['attendance', 'Yoklama'],
-                  ['notes', session.note ? 'Notlar •' : 'Notlar'],
-                ] as const
-              ).map(([id, label]) => (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => setTab(id)}
-                  className={`min-h-9 flex-1 rounded-md px-2 font-medium ${
-                    tab === id ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
+            {/* Tabs — desktop tabs / mobile section nav (UX-1), on the house Tabs (DS v2). */}
+            <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)} className="gap-4 p-4 sm:p-5">
+              <TabsList className="w-full">
+                <TabsTrigger value="info">Bilgiler</TabsTrigger>
+                <TabsTrigger value="reservations">
+                  Rezervasyon
+                  <span className="tabular-nums opacity-70">{session.bookedCount}</span>
+                </TabsTrigger>
+                <TabsTrigger value="attendance">Yoklama</TabsTrigger>
+                <TabsTrigger value="notes">
+                  Notlar
+                  {session.note ? <span className="size-1.5 rounded-full bg-primary" /> : null}
+                </TabsTrigger>
+              </TabsList>
 
-            {tab === 'info' ? (
-              <InfoTab session={session} rooms={rooms} staff={staff} onMutated={onMutated} />
-            ) : tab === 'reservations' ? (
-              <BookingPanel session={session} onMutated={onMutated} />
-            ) : tab === 'attendance' ? (
-              <AttendanceTab session={session} onMutated={onMutated} />
-            ) : (
-              <NotesTab session={session} onMutated={onMutated} />
-            )}
+              <TabsContent value="info">
+                <InfoTab session={session} rooms={rooms} staff={staff} onMutated={onMutated} />
+              </TabsContent>
+              <TabsContent value="reservations">
+                <BookingPanel session={session} onMutated={onMutated} />
+              </TabsContent>
+              <TabsContent value="attendance">
+                <AttendanceTab session={session} onMutated={onMutated} />
+              </TabsContent>
+              <TabsContent value="notes">
+                <NotesTab session={session} onMutated={onMutated} />
+              </TabsContent>
+            </Tabs>
           </>
         ) : null}
       </SheetContent>
@@ -180,26 +214,20 @@ function InfoTab({
   }
 
   return (
-    <div className="space-y-4">
-      <dl className="space-y-2 text-sm">
+    <div className="space-y-5">
+      <dl className="grid grid-cols-2 gap-x-4 gap-y-3 rounded-xl border border-border bg-card p-4 text-sm shadow-xs">
         <Row label="Eğitmen" value={session.trainerName ?? '—'} />
         <Row label="Salon" value={session.roomName ?? '—'} />
         <Row label="Şube" value={session.branchName} />
         <Row label="Kapasite" value={`${session.bookedCount}/${session.capacity} dolu`} />
-        <div className="flex justify-between gap-4">
-          <dt className="text-muted-foreground">Durum</dt>
-          <dd>
-            <Badge variant={session.status === 'cancelled' ? 'destructive' : 'outline'}>
-              {STATUS_LABEL[session.status] ?? session.status}
-            </Badge>
-          </dd>
-        </div>
       </dl>
 
       {editable ? (
-        <div className="space-y-2 border-t border-border pt-4">
-          <h3 className="text-sm font-medium text-foreground">Seans yönetimi</h3>
-          <div className="grid grid-cols-2 gap-2">
+        <div className="space-y-2">
+          <h3 className="text-[0.6875rem] font-medium tracking-wide uppercase text-muted-foreground">
+            Seans yönetimi
+          </h3>
+          <div className="grid grid-cols-3 gap-2">
             <Button variant="outline" className="min-h-11" onClick={() => open('trainer')}>
               Eğitmen
             </Button>
@@ -209,10 +237,11 @@ function InfoTab({
             <Button variant="outline" className="min-h-11" onClick={() => open('capacity')}>
               Kapasite
             </Button>
-            <Button variant="destructive" className="min-h-11" onClick={() => open('cancel')}>
-              Seansı İptal Et
-            </Button>
           </div>
+          {/* Destructive action kept apart from the routine edits — it is not one of them. */}
+          <Button variant="destructive" className="min-h-11 w-full" onClick={() => open('cancel')}>
+            Seansı İptal Et
+          </Button>
         </div>
       ) : (
         <p className="rounded-lg bg-muted p-3 text-sm text-muted-foreground">
@@ -235,10 +264,18 @@ function InfoTab({
             <DialogDescription>Bu işlem kayda geçer ve yalnızca başlamamış seansa uygulanır.</DialogDescription>
           </DialogHeader>
 
+          {/* Select.Value renders the raw value unless told otherwise — without these the
+              trigger would show an id ('__none__', a staff id) instead of a name. */}
           {action === 'trainer' ? (
             <Select value={trainerId} onValueChange={(v) => setTrainerId(v ?? NONE)}>
               <SelectTrigger>
-                <SelectValue />
+                <SelectValue>
+                  {(v: unknown) =>
+                    typeof v === 'string' && v !== NONE
+                      ? (staff.find((s) => s.id === v)?.name ?? 'Eğitmen yok')
+                      : 'Eğitmen yok'
+                  }
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value={NONE}>Eğitmen yok</SelectItem>
@@ -254,7 +291,13 @@ function InfoTab({
           {action === 'room' ? (
             <Select value={roomId} onValueChange={(v) => setRoomId(v ?? NONE)}>
               <SelectTrigger>
-                <SelectValue />
+                <SelectValue>
+                  {(v: unknown) =>
+                    typeof v === 'string' && v !== NONE
+                      ? (rooms.find((r) => r.id === v)?.name ?? 'Salon yok')
+                      : 'Salon yok'
+                  }
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value={NONE}>Salon yok</SelectItem>
@@ -370,26 +413,35 @@ function AttendanceTab({ session, onMutated }: { session: CalendarSession; onMut
           Seans henüz başlamadı. Yoklama ders saatinde alınır.
         </p>
       ) : null}
-      <div className="flex items-center justify-between">
-        <span className="text-sm text-muted-foreground">
-          <span className="font-medium text-foreground">{attended}</span>/{entries.length} katıldı
-        </span>
+
+      {/* Progress leads: taking attendance is a countdown to zero pending, and the bulk
+          action sits next to the number it changes. */}
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-h2 font-semibold tabular-nums text-foreground">
+            {attended}
+            <span className="text-sm font-normal text-muted-foreground">/{entries.length} katıldı</span>
+          </p>
+          {pending.length > 0 ? (
+            <p className="text-xs text-muted-foreground">{pending.length} kişi bekliyor</p>
+          ) : null}
+        </div>
         {pending.length > 0 ? (
-          <Button size="sm" variant="outline" onClick={markRest}>
+          <Button size="sm" variant="outline" className="shrink-0" onClick={markRest}>
             Kalanları katıldı işaretle
           </Button>
         ) : null}
       </div>
 
-      <ul className="divide-y divide-border rounded-xl border border-border">
+      <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card shadow-xs">
         {entries.map((e) => {
           const st = effective(e)
           const badge = OUTCOME_BADGE[st] ?? { label: st, className: 'bg-muted text-muted-foreground' }
           return (
-            <li key={e.reservationId} className="flex items-center justify-between gap-2 p-2.5">
-              <div className="min-w-0">
+            <li key={e.reservationId} className="flex items-center justify-between gap-2 px-3 py-2.5">
+              <div className="flex min-w-0 items-center gap-2">
                 <p className="truncate text-sm font-medium text-foreground">{e.memberName}</p>
-                <Badge className={`mt-0.5 ${badge.className}`}>{badge.label}</Badge>
+                {st !== 'booked' ? <Badge className={`shrink-0 ${badge.className}`}>{badge.label}</Badge> : null}
               </div>
               {st === 'booked' ? (
                 <div className="flex shrink-0 gap-1">
@@ -471,7 +523,7 @@ function CorrectionDialog({
         </DialogHeader>
         <Select value={outcome} onValueChange={(v) => setOutcome((v as AttendanceOutcome) ?? 'attended')}>
           <SelectTrigger>
-            <SelectValue />
+            <SelectValue>{(v: unknown) => (v === 'no_show' ? 'Gelmedi' : 'Katıldı')}</SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="attended">Katıldı</SelectItem>
@@ -523,9 +575,9 @@ function NotesTab({ session, onMutated }: { session: CalendarSession; onMutated:
   const dirty = text.trim() !== (session.note?.text ?? '') || visibility !== (session.note?.visibility ?? 'staff')
 
   return (
-    <div className="space-y-3">
-      <div>
-        <label className="mb-1 block text-sm font-medium text-foreground">Ders Notu</label>
+    <div className="space-y-4">
+      <div className="space-y-1.5">
+        <label className="text-[0.6875rem] font-medium tracking-wide uppercase text-muted-foreground">Ders Notu</label>
         <Textarea
           rows={5}
           placeholder="Bu ders hakkında not… (yaylar, ısınma, ekipman vb.)"
@@ -533,19 +585,19 @@ function NotesTab({ session, onMutated }: { session: CalendarSession; onMutated:
           onChange={(e) => setText(e.target.value)}
         />
       </div>
-      <div>
-        <label className="mb-1 block text-sm font-medium text-foreground">Görünürlük</label>
+      <div className="space-y-1.5">
+        <label className="text-[0.6875rem] font-medium tracking-wide uppercase text-muted-foreground">Görünürlük</label>
         <Select value={visibility} onValueChange={(v) => setVisibility((v as 'staff' | 'members') ?? 'staff')}>
-          <SelectTrigger>
-            <SelectValue />
+          <SelectTrigger className="w-full">
+            <SelectValue>{(v: unknown) => (v === 'members' ? 'Üyelere açık' : 'Yalnızca personel')}</SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="staff">Yalnızca personel</SelectItem>
             <SelectItem value="members">Üyelere açık</SelectItem>
           </SelectContent>
         </Select>
-        <p className="mt-1 text-xs text-muted-foreground">
-          “Üyelere açık” seçilirse not, üye uygulamasında görünür (v1.20).
+        <p className="text-xs text-muted-foreground">
+          “Üyelere açık” seçilirse not, üye uygulamasında görünür (v1.21).
         </p>
       </div>
       <Button className="min-h-11 w-full" onClick={save} disabled={busy || !dirty}>
@@ -557,9 +609,9 @@ function NotesTab({ session, onMutated }: { session: CalendarSession; onMutated:
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex justify-between gap-4">
-      <dt className="shrink-0 text-muted-foreground">{label}</dt>
-      <dd className="text-right text-foreground">{value}</dd>
+    <div className="min-w-0">
+      <dt className="text-xs text-muted-foreground">{label}</dt>
+      <dd className="truncate font-medium text-foreground">{value}</dd>
     </div>
   )
 }

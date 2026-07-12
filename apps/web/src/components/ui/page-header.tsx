@@ -21,17 +21,17 @@ function PageHeader({
     <div
       data-slot="page-header"
       className={cn(
-        'flex flex-col gap-3 border-b border-border pb-4 sm:flex-row sm:items-center sm:justify-between',
+        'flex flex-col gap-3 border-b border-border pb-5 sm:flex-row sm:items-start sm:justify-between',
         className,
       )}
     >
       <div className="space-y-1">
-        <h1 className="text-xl font-semibold text-foreground">{title}</h1>
+        <h1 className="text-h1 font-semibold text-foreground">{title}</h1>
         {description ? (
           <p className="text-sm text-muted-foreground">{description}</p>
         ) : null}
       </div>
-      {actions ? <div className="flex items-center gap-2">{actions}</div> : null}
+      {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
     </div>
   )
 }

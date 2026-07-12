@@ -75,6 +75,8 @@ Plan  →  UX  →  Implementation  →  Validation  →  Commit  →  Stop
 | **v1.16** | Owner Dashboard | `v1.16-owner-dashboard` |
 | **v1.17** | Reservation Workspace | `v1.17-reservation-workspace` |
 | **v1.18** | Member Workspace | `v1.18-member-workspace` |
+| **v1.19** | Calendars & Session Workspace | `v1.19-calendars-session-workspace` |
+| **v1.20** | Owner UI & Design System — Premium Redesign | `v1.20-premium-design-system` |
 
 **Planned (re-prioritised after the owner UI review, 2026-07-11).** The class and
 reservation calendars are the studio's most-used operations screens and the member's
@@ -88,8 +90,6 @@ member authentication is delivered safely on its own.
 
 | Version | Milestone | Scope |
 |---|---|---|
-| **v1.19** | **Calendars & Session Workspace** | One shared calendar base for the **Class Calendar** and the **Reservation Calendar** (Month/Week/Day/Agenda, dense cells, interactive **"+N events" day popover**, in-calendar tabbed **Session Workspace**: class info · reservations · attendance · **notes** — Ders Notu + reservation Hızlı Not). **"Duplicate this week"** session-week copy (app-layer, conflict = same room + start time, no overwrite, no past). **Persistent global navigation.** Reuses existing booking/attendance/scheduling actions; the only new domain surface is the two note events (owner-approved). Design: Doc 19. |
-| **v1.20** ⭐ | **Owner UI & Design System — Premium Redesign** *(HIGH PRIORITY, owner 2026-07-11)* | **Feature development pauses.** Redesign **every owner screen at once** on one professional Design System — a single design language across all owner surfaces, one shared component system. Targets: **Apple**-level simplicity, **Linear**-clean layout, **Stripe Dashboard** enterprise professionalism, **Notion**-readable typography. Rules: **operation first, aesthetics second**; no gratuitous visual effects; generous whitespace, balanced alignment, quality type; premium SaaS feel; **easy on the eyes for 8–10 h/day use**; responsive from day one; the UI must make the product **faster (fewer clicks)**, not just prettier. Goal: from first open, a product that inspires trust and looks more professional than any competitor. Established BEFORE the member portal so everything after is built on it. Design language: Doc 20. |
 | **v1.21** | **Member Portal & Auth** *(split from v1.19)* | Member (client) login via an **invite-link / one-time-code → set-password** seam (phone as username, no SMS dependency); self-service: see own agenda, book/cancel own reservations, view credits/availability; mobile-first — **built on the v1.20 Design System**. Activates the `member` principal, self-scoped Firestore rules, `allowMemberSelfBooking`, `member.portal_login`. Design: Doc 21 (later). |
 | **v1.22** | **Payments** *(deferred from v1.19)* | A real payment aggregate — collect · refund · void · methods · balance allocation · payment timeline; architecture ready for POS / online later. Used from within the Member Workspace. Until it lands, the v1.14 manual-payment seam stands. |
 | **v1.23** | **Migration & Cutover** | Import from the old system · data validation · the first live-customer cutover (freeze-and-cut, Doc 8 §5). |

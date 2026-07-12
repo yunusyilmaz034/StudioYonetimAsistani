@@ -167,6 +167,29 @@ deferred trigger/rules/transaction integration tests.
 
 ---
 
+## DEBT-012 — A stale session cookie causes a redirect loop
+
+**Taken:** 2026-07-12 · v1.20 · Yunus
+**What:** the middleware is a **coarse** gate by design (v1.5 decision #3): it checks only
+that the `__session` cookie is *present*, never that it is *valid*. So a cookie that no
+longer verifies — expired, or issued by an Auth emulator that has since been reset — is
+treated as a live session: the middleware bounces `/login` → `/`, `app/page.tsx` verifies
+the cookie for real, finds nothing, redirects `/` → `/login`, and the browser ends at
+`ERR_TOO_MANY_REDIRECTS`.
+**Cost:** the user is locked out of the app with no way back in from inside the product —
+the only escape is clearing the cookie in DevTools. Harmless in development; in production
+it strands anyone whose 5-day session cookie expires while a tab is open.
+**Why deferred:** the fix is an auth-flow behaviour change, and v1.20 is a presentation-only
+milestone (Doc 20 §2) — no behaviour ships in it.
+**Trigger to repay:** **before the first live cutover (v1.23)** — a locked-out owner on
+go-live day is not an acceptable failure mode.
+**Repayment:** when the server verifies the cookie and finds it invalid, **clear it** before
+redirecting (delete `__session` in the redirect response, or redirect to a `/login?expired=1`
+that the middleware will not bounce back). Either breaks the cycle; clearing the cookie is
+the honest one, because the session really is gone.
+
+---
+
 ## Reserved for the build week
 
 Shortcuts taken during Phase 1 implementation get entries here **as they are taken**, not afterwards. If the cut ladder (Doc 8 §8) is used — catalogue CRUD UI, owner view, manual attendance marking, freeze UI, payment allocation UI, weekly template generation, offline check-in — each cut becomes an entry with a trigger.

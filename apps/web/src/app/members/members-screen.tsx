@@ -76,8 +76,10 @@ export function MembersScreen({
     router.refresh()
   }
 
+  const searching = query.trim().length > 0
+
   return (
-    <main className="mx-auto max-w-4xl space-y-6 p-4 sm:p-6">
+    <main className="mx-auto max-w-4xl space-y-4 p-4 sm:p-6 lg:p-8">
       <Toaster />
       <PageHeader
         title="Üyeler"
@@ -90,14 +92,23 @@ export function MembersScreen({
         }
       />
 
-      <div className="relative">
-        <SearchIcon className="absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          className="pl-8"
-          placeholder="İsim veya telefon ara…"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-        />
+      {/* Search is this screen's whole control surface — no metric strip here: a total that
+          changes no decision would only cost vertical space (Doc 20 §1). */}
+      <div className="flex items-center gap-3">
+        <div className="relative flex-1">
+          <SearchIcon className="absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            className="pl-8"
+            placeholder="İsim veya telefon ara…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+        </div>
+        {searching ? (
+          <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+            {filtered.length} / {members.length}
+          </span>
+        ) : null}
       </div>
 
       {filtered.length === 0 ? (
@@ -116,42 +127,52 @@ export function MembersScreen({
         />
       ) : (
         <>
-          {/* Mobile: cards (Doc 09 §9) */}
-          <div className="space-y-2 md:hidden">
+          {/* Mobile: one card, rows inside — not a stack of boxes (Doc 09 §9). */}
+          <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card shadow-sm md:hidden">
             {filtered.map((m) => (
               <button
                 key={m.id}
                 type="button"
                 onClick={() => open(m)}
-                className="flex w-full items-center justify-between rounded-xl border border-border bg-surface p-3 text-left"
+                className="flex w-full items-center justify-between gap-3 px-3 py-3 text-left transition-colors hover:bg-primary-soft/40"
               >
                 <div className="min-w-0">
-                  <p className="truncate font-medium text-foreground">{m.fullName}</p>
-                  <p className="truncate text-xs text-muted-foreground">{m.phone}</p>
+                  <p className="truncate text-sm font-medium text-foreground">{m.fullName}</p>
+                  <p className="truncate text-xs tabular-nums text-muted-foreground">{m.phone}</p>
                 </div>
-                {m.status !== 'active' ? (
-                  <Badge variant="outline">{STATUS_LABEL[m.status]}</Badge>
-                ) : null}
+                <StatusCell status={m.status} />
               </button>
             ))}
           </div>
 
-          {/* Desktop: table */}
-          <div className="hidden md:block">
+          {/* Desktop: table on one surface. */}
+          <div className="hidden overflow-hidden rounded-xl border border-border bg-card shadow-sm md:block">
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead>Ad Soyad</TableHead>
-                  <TableHead>Telefon</TableHead>
-                  <TableHead>Durum</TableHead>
+                <TableRow className="bg-muted/30 hover:bg-muted/30">
+                  <TableHead className="px-4 text-[0.6875rem] font-medium tracking-wide uppercase text-muted-foreground">
+                    Ad Soyad
+                  </TableHead>
+                  <TableHead className="px-4 text-[0.6875rem] font-medium tracking-wide uppercase text-muted-foreground">
+                    Telefon
+                  </TableHead>
+                  <TableHead className="w-32 px-4 text-[0.6875rem] font-medium tracking-wide whitespace-nowrap uppercase text-muted-foreground">
+                    Durum
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filtered.map((m) => (
-                  <TableRow key={m.id} onClick={() => open(m)} className="cursor-pointer">
-                    <TableCell className="font-medium">{m.fullName}</TableCell>
-                    <TableCell>{m.phone}</TableCell>
-                    <TableCell>{STATUS_LABEL[m.status]}</TableCell>
+                  <TableRow
+                    key={m.id}
+                    onClick={() => open(m)}
+                    className="cursor-pointer transition-colors hover:bg-primary-soft/40"
+                  >
+                    <TableCell className="px-4 py-3 font-medium text-foreground">{m.fullName}</TableCell>
+                    <TableCell className="px-4 py-3 tabular-nums text-muted-foreground">{m.phone}</TableCell>
+                    <TableCell className="w-32 px-4 py-3 whitespace-nowrap">
+                      <StatusCell status={m.status} />
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -162,14 +183,27 @@ export function MembersScreen({
 
       {/* Create */}
       <Sheet open={formOpen} onOpenChange={setFormOpen}>
-        <SheetContent side="right" className="gap-4 overflow-y-auto p-4">
+        <SheetContent side="right" className="gap-4 overflow-y-auto p-4 sm:p-5">
           <SheetHeader className="p-0">
-            <SheetTitle>Yeni Üye</SheetTitle>
+            <SheetTitle className="text-h1">Yeni Üye</SheetTitle>
             <SheetDescription>Zorunlu alanlar: ad soyad ve telefon.</SheetDescription>
           </SheetHeader>
           <MemberForm member={null} defaultBranchId={defaultBranchId} onDone={onFormDone} />
         </SheetContent>
       </Sheet>
     </main>
+  )
+}
+
+// Quiet by default, loud only when abnormal: an active member is the norm and gets a plain
+// caption; anything else is a state someone may need to act on, so it gets a tinted badge.
+function StatusCell({ status }: { status: Member['status'] }) {
+  if (status === 'active') {
+    return <span className="text-xs text-muted-foreground">Aktif</span>
+  }
+  return (
+    <Badge className={status === 'deleted' ? 'bg-danger/10 text-danger' : 'bg-muted text-muted-foreground'}>
+      {STATUS_LABEL[status]}
+    </Badge>
   )
 }

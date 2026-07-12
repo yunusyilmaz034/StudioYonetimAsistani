@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { CalendarCheckIcon, ChevronLeftIcon, ChevronRightIcon } from 'lucide-react'
+import { CalendarCheckIcon, CheckIcon, ChevronLeftIcon, ChevronRightIcon, ClockIcon, UsersIcon } from 'lucide-react'
 import { toast } from 'sonner'
 
 import type { AttendanceOutcome, ReservationId } from '@studio/core'
@@ -10,6 +10,7 @@ import type { AttendanceOutcome, ReservationId } from '@studio/core'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
+import { Metric, MetricStrip } from '@/components/ui/metric'
 import { PageHeader } from '@/components/ui/page-header'
 import { Toaster } from '@/components/ui/sonner'
 import { markAttendanceCommand } from '@/lib/commands'
@@ -127,28 +128,45 @@ export function AttendanceScreen({
     [selected, sessions],
   )
 
-  return (
-    <main className="mx-auto max-w-4xl space-y-5 p-4 sm:p-6">
-      <Toaster />
-      <PageHeader
-        title="Yoklama"
-        description={humanDate(date, today)}
-      />
+  // This screen exists to answer one question — how much of the day is still unmarked — so
+  // the day's totals lead, before any session row is read. Derived from the sessions already
+  // loaded, optimistic marks included.
+  const totals = useMemo(() => {
+    const live = sessions.filter((s) => s.status !== 'cancelled')
+    let attended = 0
+    let pending = 0
+    let booked = 0
+    for (const s of live) {
+      attended += attendedCount(s, marks)
+      pending += pendingCount(s, marks)
+      booked += s.roster.length
+    }
+    return { sessions: live.length, booked, attended, pending }
+  }, [sessions, marks])
 
-      <div className="flex items-center justify-between gap-2">
-        <Button variant="outline" size="icon" aria-label="Önceki gün" onClick={() => goDate(shiftDate(date, -1))}>
-          <ChevronLeftIcon />
-        </Button>
-        <Button
-          variant={date === today ? 'secondary' : 'ghost'}
-          className="min-h-11 flex-1 sm:flex-none"
-          onClick={() => goDate(today)}
-        >
-          Bugün
-        </Button>
-        <Button variant="outline" size="icon" aria-label="Sonraki gün" onClick={() => goDate(shiftDate(date, 1))}>
-          <ChevronRightIcon />
-        </Button>
+  return (
+    <main className="mx-auto max-w-4xl space-y-4 p-4 sm:p-6 lg:p-8">
+      <Toaster />
+      <PageHeader title="Yoklama" />
+
+      {/* One control surface, same language as the calendars: the day leads, the nav is quiet. */}
+      <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-3 shadow-sm">
+        <h2 className="min-w-0 flex-1 truncate text-h1 font-semibold capitalize text-foreground">
+          {humanDate(date, today)}
+        </h2>
+        <div className="flex shrink-0 items-center gap-1">
+          <Button variant="ghost" size="icon" aria-label="Önceki gün" onClick={() => goDate(shiftDate(date, -1))}>
+            <ChevronLeftIcon />
+          </Button>
+          <Button variant="ghost" size="icon" aria-label="Sonraki gün" onClick={() => goDate(shiftDate(date, 1))}>
+            <ChevronRightIcon />
+          </Button>
+          {date !== today ? (
+            <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => goDate(today)}>
+              Bugün
+            </Button>
+          ) : null}
+        </div>
       </div>
 
       {sessions.length === 0 ? (
@@ -159,26 +177,37 @@ export function AttendanceScreen({
         />
       ) : (
         <>
-          {/* Mobile: cards */}
-          <div className="space-y-2 md:hidden">
+          <MetricStrip>
+            <Metric compact label="Seans" value={totals.sessions} icon={CalendarCheckIcon} />
+            <Metric compact label="Rezervasyon" value={totals.booked} icon={UsersIcon} />
+            <Metric compact label="Katıldı" value={totals.attended} icon={CheckIcon} tone={totals.attended > 0 ? 'success' : 'default'} />
+            <Metric compact label="Bekleyen" value={totals.pending} icon={ClockIcon} tone={totals.pending > 0 ? 'warning' : 'default'} />
+          </MetricStrip>
+
+          {/* Mobile: one card, rows inside — not a stack of boxes. */}
+          <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card shadow-sm md:hidden">
             {sessions.map((s) => (
               <SessionCard key={s.sessionId} session={s} marks={marks} onOpen={() => setSelected(s)} timeLabel={timeLabel} />
             ))}
           </div>
 
-          {/* Desktop: dense table */}
-          <div className="hidden overflow-x-auto md:block">
+          {/* Desktop: dense table on one surface. */}
+          <div className="hidden overflow-hidden rounded-xl border border-border bg-card shadow-sm md:block">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-border text-left text-muted-foreground">
-                  <th className="py-2 pr-3 font-medium">Saat</th>
-                  <th className="py-2 pr-3 font-medium">Ders</th>
-                  <th className="py-2 pr-3 font-medium">Eğitmen</th>
-                  <th className="py-2 pr-3 font-medium">Katıldı</th>
-                  <th className="py-2 font-medium">Durum</th>
+                <tr className="border-b border-border bg-muted/30 text-left">
+                  <th className="px-4 py-2.5 text-[0.6875rem] font-medium tracking-wide uppercase text-muted-foreground">Saat</th>
+                  <th className="px-4 py-2.5 text-[0.6875rem] font-medium tracking-wide uppercase text-muted-foreground">Ders</th>
+                  <th className="px-4 py-2.5 text-[0.6875rem] font-medium tracking-wide uppercase text-muted-foreground">Eğitmen</th>
+                  <th className="px-4 py-2.5 text-[0.6875rem] font-medium tracking-wide uppercase text-muted-foreground">Katıldı</th>
+                  {/* Fixed width: the status vocabulary will grow (Boş / Devam Ediyor /
+                      Tamamlandı / İptal) and a wider label must not reflow the row. */}
+                  <th className="w-36 px-4 py-2.5 text-[0.6875rem] font-medium tracking-wide whitespace-nowrap uppercase text-muted-foreground">
+                    Durum
+                  </th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-border">
                 {sessions.map((s) => {
                   const attended = attendedCount(s, marks)
                   const pending = pendingCount(s, marks)
@@ -186,20 +215,22 @@ export function AttendanceScreen({
                     <tr
                       key={s.sessionId}
                       onClick={() => setSelected(s)}
-                      className="cursor-pointer border-b border-border last:border-0 hover:bg-muted/40"
+                      className="cursor-pointer transition-colors hover:bg-primary-soft/40"
                     >
-                      <td className="py-2.5 pr-3 font-medium tabular-nums">{timeLabel(s.startsAt)}</td>
-                      <td className="py-2.5 pr-3">{s.serviceName}</td>
-                      <td className="py-2.5 pr-3 text-muted-foreground">{s.trainerName ?? '—'}</td>
-                      <td className="py-2.5 pr-3 tabular-nums">
-                        {attended}/{s.roster.length}
+                      <td className="px-4 py-3 font-medium tabular-nums text-foreground">{timeLabel(s.startsAt)}</td>
+                      <td className="px-4 py-3 font-medium text-foreground">{s.serviceName}</td>
+                      <td className="px-4 py-3 text-muted-foreground">{s.trainerName ?? '—'}</td>
+                      <td className="px-4 py-3 tabular-nums">
+                        <span className="font-medium text-foreground">
+                          {attended}/{s.roster.length}
+                        </span>
                         <span className="text-muted-foreground"> · {s.roster.length}/{s.capacity} dolu</span>
                       </td>
-                      <td className="py-2.5">
+                      <td className="w-36 px-4 py-3 whitespace-nowrap">
                         {s.status === 'cancelled' ? (
                           <Badge variant="destructive">İptal</Badge>
                         ) : pending > 0 ? (
-                          <Badge variant="outline">{pending} kaldı</Badge>
+                          <Badge className="bg-warning/10 text-warning">{pending} kaldı</Badge>
                         ) : s.roster.length > 0 ? (
                           <Badge className="bg-success/10 text-success">Tamam</Badge>
                         ) : (
@@ -246,11 +277,11 @@ function SessionCard({
     <button
       type="button"
       onClick={onOpen}
-      className="flex w-full items-center justify-between gap-3 rounded-xl border border-border bg-surface p-3 text-left"
+      className="flex w-full items-center justify-between gap-3 px-3 py-3 text-left transition-colors hover:bg-primary-soft/40"
     >
       <div className="min-w-0">
-        <p className="flex items-center gap-2 font-medium text-foreground">
-          <span className="tabular-nums">{timeLabel(session.startsAt)}</span>
+        <p className="flex items-center gap-2 text-sm font-medium text-foreground">
+          <span className="shrink-0 tabular-nums">{timeLabel(session.startsAt)}</span>
           <span className="truncate">{session.serviceName}</span>
         </p>
         <p className="truncate text-xs text-muted-foreground">
@@ -261,7 +292,7 @@ function SessionCard({
         {session.status === 'cancelled' ? (
           <Badge variant="destructive">İptal</Badge>
         ) : pending > 0 ? (
-          <Badge variant="outline">{pending} kaldı</Badge>
+          <Badge className="bg-warning/10 text-warning">{pending} kaldı</Badge>
         ) : (
           <Badge className="bg-success/10 text-success">{attended} katıldı</Badge>
         )}

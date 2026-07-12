@@ -14,6 +14,32 @@
   --font-heading: var(--font-sans);
   --font-sans: var(--font-sans);
 
+  /* ── type scale (DS v2) — a deliberate hierarchy on the operational 14px base.
+     Notion-readable: comfortable line-height, tight tracking on large sizes.
+     Usage: text-display / text-h1 / text-h2 / text-h3; body stays text-sm/base. ── */
+  --text-display: 1.75rem;
+  --text-display--line-height: 2.125rem;
+  --text-display--letter-spacing: -0.02em;
+  --text-h1: 1.375rem;
+  --text-h1--line-height: 1.75rem;
+  --text-h1--letter-spacing: -0.015em;
+  --text-h2: 1.125rem;
+  --text-h2--line-height: 1.5rem;
+  --text-h2--letter-spacing: -0.01em;
+  --text-h3: 0.9375rem;
+  --text-h3--line-height: 1.375rem;
+  --text-h3--letter-spacing: -0.006em;
+
+  /* ── elevation (DS v2) — soft, low, Stripe/Linear register. Structure is a hairline
+     border PLUS a quiet shadow; never a heavy drop-shadow. ── */
+  --shadow-xs: 0 1px 2px 0 color-mix(in oklch, var(--foreground) 5%, transparent);
+  --shadow-sm: 0 1px 3px 0 color-mix(in oklch, var(--foreground) 6%, transparent),
+    0 1px 2px -1px color-mix(in oklch, var(--foreground) 5%, transparent);
+  --shadow-md: 0 4px 12px -2px color-mix(in oklch, var(--foreground) 8%, transparent),
+    0 2px 6px -2px color-mix(in oklch, var(--foreground) 5%, transparent);
+  --shadow-lg: 0 12px 28px -6px color-mix(in oklch, var(--foreground) 12%, transparent),
+    0 4px 10px -4px color-mix(in oklch, var(--foreground) 6%, transparent);
+
   /* ── brand ── */
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);

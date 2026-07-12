@@ -24,30 +24,46 @@ interface NavItem {
   readonly label: string
   readonly icon: LucideIcon
 }
+interface NavGroup {
+  readonly label?: string
+  readonly items: readonly NavItem[]
+}
 
-// The persistent owner navigation (v1.19). Same destinations on desktop (left rail) and
-// mobile (bottom bar). Styling is intentionally plain — the premium visual pass is v1.20.
-const ITEMS: readonly NavItem[] = [
-  { href: '/', label: 'Genel Görünüm', icon: LayoutDashboardIcon },
-  { href: '/schedule', label: 'Ders Ajandası', icon: CalendarIcon },
-  { href: '/reservations', label: 'Rezervasyon Ajandası', icon: CalendarClockIcon },
-  { href: '/members', label: 'Üyeler', icon: UsersIcon },
-  { href: '/checkin', label: 'Check-in', icon: DoorOpenIcon },
-  { href: '/attendance', label: 'Yoklama', icon: ClipboardCheckIcon },
-  { href: '/packages', label: 'Paketler', icon: PackageIcon },
+// The persistent owner navigation (v1.19, elevated to the DS v2 language in v1.20).
+// Grouped: overview, then daily operations, then management. Same destinations on desktop
+// (left rail) and mobile (bottom bar). Calm active state (soft tint, not a saturated
+// fill) for all-day comfort; token-driven, no hex (DS-1).
+const GROUPS: readonly NavGroup[] = [
+  { items: [{ href: '/', label: 'Genel Görünüm', icon: LayoutDashboardIcon }] },
+  {
+    label: 'Operasyon',
+    items: [
+      { href: '/schedule', label: 'Ders Ajandası', icon: CalendarIcon },
+      { href: '/reservations', label: 'Rezervasyon Ajandası', icon: CalendarClockIcon },
+      { href: '/checkin', label: 'Check-in', icon: DoorOpenIcon },
+      { href: '/attendance', label: 'Yoklama', icon: ClipboardCheckIcon },
+    ],
+  },
+  {
+    label: 'Yönetim',
+    items: [
+      { href: '/members', label: 'Üyeler', icon: UsersIcon },
+      { href: '/packages', label: 'Paketler', icon: PackageIcon },
+    ],
+  },
 ]
+const ALL_ITEMS = GROUPS.flatMap((g) => g.items)
 
 const isActive = (pathname: string, href: string): boolean =>
   href === '/' ? pathname === '/' : pathname === href || pathname.startsWith(`${href}/`)
 
-// Screens that render without the shell (their own full-page layout).
 const BARE = (pathname: string): boolean => pathname === '/login' || pathname.startsWith('/design-system')
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname()
   if (BARE(pathname)) return <>{children}</>
   return (
-    <div className="min-h-dvh pb-16 md:pb-0 md:pl-56">
+    <div className="min-h-dvh pb-16 md:pb-0 md:pl-60">
       <DesktopRail pathname={pathname} />
       <BottomBar pathname={pathname} />
       {children}
@@ -67,40 +83,67 @@ function useLogout() {
   return { logout, loading }
 }
 
+function Brand() {
+  return (
+    <Link href="/" className="flex items-center gap-2.5 px-3 py-1">
+      <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-primary text-sm font-semibold text-primary-foreground shadow-xs">
+        S
+      </span>
+      <span className="leading-tight">
+        <span className="block text-sm font-semibold text-foreground">Studio</span>
+        <span className="block text-xs text-muted-foreground">Yönetim Asistanı</span>
+      </span>
+    </Link>
+  )
+}
+
+function RailLink({ item, active }: { item: NavItem; active: boolean }) {
+  const Icon = item.icon
+  return (
+    <Link
+      href={item.href}
+      aria-current={active ? 'page' : undefined}
+      className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${
+        active
+          ? 'bg-primary-soft font-medium text-primary'
+          : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+      }`}
+    >
+      <Icon className="size-[1.05rem] shrink-0" />
+      {item.label}
+    </Link>
+  )
+}
+
 function DesktopRail({ pathname }: { pathname: string }) {
   const { logout, loading } = useLogout()
   return (
-    <aside className="fixed inset-y-0 left-0 hidden w-56 flex-col border-r border-border bg-surface md:flex">
-      <div className="px-4 py-4">
-        <p className="text-sm font-semibold text-foreground">Studio</p>
-        <p className="text-xs text-muted-foreground">Yönetim Asistanı</p>
+    <aside className="fixed inset-y-0 left-0 hidden w-60 flex-col border-r border-border bg-surface md:flex">
+      <div className="px-3 pt-4 pb-2">
+        <Brand />
       </div>
-      <nav className="flex-1 space-y-0.5 px-2">
-        {ITEMS.map((it) => {
-          const Icon = it.icon
-          const on = isActive(pathname, it.href)
-          return (
-            <Link
-              key={it.href}
-              href={it.href}
-              className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm ${
-                on ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-              }`}
-            >
-              <Icon className="size-4 shrink-0" />
-              {it.label}
-            </Link>
-          )
-        })}
+      <nav className="flex-1 space-y-5 overflow-y-auto px-3 py-2">
+        {GROUPS.map((group, gi) => (
+          <div key={gi} className="space-y-1">
+            {group.label ? (
+              <p className="px-3 pb-1 text-[0.6875rem] font-medium tracking-wide text-muted-foreground/70 uppercase">
+                {group.label}
+              </p>
+            ) : null}
+            {group.items.map((it) => (
+              <RailLink key={it.href} item={it} active={isActive(pathname, it.href)} />
+            ))}
+          </div>
+        ))}
       </nav>
-      <div className="border-t border-border p-2">
+      <div className="border-t border-border p-3">
         <button
           type="button"
           onClick={logout}
           disabled={loading}
-          className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
+          className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50"
         >
-          <LogOutIcon className="size-4 shrink-0" />
+          <LogOutIcon className="size-[1.05rem] shrink-0" />
           Çıkış Yap
         </button>
       </div>
@@ -110,19 +153,22 @@ function DesktopRail({ pathname }: { pathname: string }) {
 
 function BottomBar({ pathname }: { pathname: string }) {
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-40 flex overflow-x-auto border-t border-border bg-surface md:hidden">
-      {ITEMS.map((it) => {
+    <nav className="fixed inset-x-0 bottom-0 z-40 flex overflow-x-auto border-t border-border bg-surface/95 backdrop-blur md:hidden">
+      {ALL_ITEMS.map((it) => {
         const Icon = it.icon
         const on = isActive(pathname, it.href)
         return (
           <Link
             key={it.href}
             href={it.href}
-            className={`flex min-w-[4.5rem] flex-1 flex-col items-center gap-0.5 px-1 py-2 text-[10px] ${
+            aria-current={on ? 'page' : undefined}
+            className={`flex min-w-[4.25rem] flex-1 flex-col items-center gap-1 px-1 pt-2 pb-1.5 text-[10px] font-medium transition-colors ${
               on ? 'text-primary' : 'text-muted-foreground'
             }`}
           >
-            <Icon className="size-5" />
+            <span className={`grid size-7 place-items-center rounded-lg ${on ? 'bg-primary-soft' : ''}`}>
+              <Icon className="size-[1.15rem]" />
+            </span>
             <span className="max-w-full truncate">{it.label.split(' ')[0]}</span>
           </Link>
         )

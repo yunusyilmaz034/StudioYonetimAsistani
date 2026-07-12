@@ -8,8 +8,13 @@ import { monthHeading, dayHeading, shiftByView, type CalendarView } from './date
 
 const VIEW_LABEL: Record<CalendarView, string> = { month: 'Ay', week: 'Hafta', day: 'Gün', agenda: 'Ajanda' }
 
-// The shared calendar toolbar: view switch (Ay/Hafta/Gün/Ajanda) + prev/next/today.
-// State lives in the parent screen (URL or local); this just emits changes.
+// The shared calendar toolbar: date nav + view switch. State lives in the parent screen
+// (URL or local); this just emits changes.
+//
+// DS v2 hierarchy: the DATE leads — it is the first thing the eye must land on, so it is the
+// largest type on the screen and sits first in reading order. The view switch is deliberately
+// demoted: small, quiet, on the far side. It is a setting you change occasionally, not the
+// thing you read constantly.
 export function CalendarToolbar({
   view,
   date,
@@ -26,33 +31,43 @@ export function CalendarToolbar({
   onDateChange: (date: string) => void
 }) {
   const heading = view === 'month' ? monthHeading(date) : dayHeading(date)
+  const isToday = date === today
+
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex rounded-lg border border-border p-0.5">
+      <div className="flex min-w-0 items-center gap-3">
+        <h2 className="truncate text-h1 font-semibold capitalize text-foreground">{heading}</h2>
+        <div className="flex shrink-0 items-center gap-1">
+          <Button variant="ghost" size="icon" aria-label="Önceki" onClick={() => onDateChange(shiftByView(date, -1, view))}>
+            <ChevronLeftIcon />
+          </Button>
+          <Button variant="ghost" size="icon" aria-label="Sonraki" onClick={() => onDateChange(shiftByView(date, 1, view))}>
+            <ChevronRightIcon />
+          </Button>
+          {!isToday ? (
+            <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => onDateChange(today)}>
+              Bugün
+            </Button>
+          ) : null}
+        </div>
+      </div>
+
+      <div className="flex shrink-0 rounded-lg bg-muted p-0.5">
         {views.map((v) => (
           <button
             key={v}
             type="button"
+            aria-pressed={view === v}
             onClick={() => onViewChange(v)}
-            className={`min-h-9 flex-1 rounded-md px-3 text-sm sm:flex-none ${
-              view === v ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'
+            className={`min-h-7 flex-1 rounded-md px-2.5 text-xs transition-colors sm:flex-none ${
+              view === v
+                ? 'bg-surface font-medium text-foreground shadow-xs'
+                : 'text-muted-foreground hover:text-foreground'
             }`}
           >
             {VIEW_LABEL[v]}
           </button>
         ))}
-      </div>
-      <div className="flex items-center gap-2">
-        <Button variant="outline" size="icon" aria-label="Önceki" onClick={() => onDateChange(shiftByView(date, -1, view))}>
-          <ChevronLeftIcon />
-        </Button>
-        <span className="min-w-40 text-center text-sm font-medium capitalize">{heading}</span>
-        <Button variant="outline" size="icon" aria-label="Sonraki" onClick={() => onDateChange(shiftByView(date, 1, view))}>
-          <ChevronRightIcon />
-        </Button>
-        <Button variant={date === today ? 'secondary' : 'ghost'} onClick={() => onDateChange(today)}>
-          Bugün
-        </Button>
       </div>
     </div>
   )
