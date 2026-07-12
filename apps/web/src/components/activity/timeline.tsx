@@ -21,13 +21,52 @@ const FILTERS: readonly { kind: ActivityKind; label: string }[] = [
   { kind: 'checkin', label: 'Check-in' },
 ]
 
+// D27 — the package's life, as a strip. The stages a package can pass through are fixed; the strip
+// lights up the ones this package has actually seen, so a member's question ("neden kredim düştü?")
+// is answered by a shape before it is answered by a list.
+const LIFECYCLE: readonly { key: string; label: string; types: readonly string[] }[] = [
+  { key: 'purchased', label: 'Satın alındı', types: ['entitlement.purchased'] },
+  { key: 'held', label: 'Kredi ayrıldı', types: ['entitlement.credit_held'] },
+  { key: 'consumed', label: 'Kredi kullanıldı', types: ['entitlement.credit_consumed'] },
+  { key: 'released', label: 'Kredi iade', types: ['entitlement.credit_released', 'entitlement.credit_restored'] },
+  { key: 'extended', label: 'Uzatıldı', types: ['entitlement.extended', 'entitlement.adjusted'] },
+  { key: 'frozen', label: 'Donduruldu', types: ['entitlement.frozen'] },
+  { key: 'expired', label: 'Süresi doldu', types: ['entitlement.expired', 'entitlement.exhausted'] },
+  { key: 'cancelled', label: 'İptal', types: ['entitlement.cancelled'] },
+]
+
+export function PackageLifecycle({ events }: { events: readonly ActivityEvent[] }) {
+  const seen = new Set(events.map((e) => e.type))
+  return (
+    <ol className="flex flex-wrap gap-1.5">
+      {LIFECYCLE.map((stage) => {
+        const reached = stage.types.some((t) => seen.has(t))
+        const count = events.filter((e) => stage.types.includes(e.type)).length
+        return (
+          <li
+            key={stage.key}
+            className={`rounded-md px-2 py-0.5 text-[0.6875rem] font-medium ${
+              reached ? 'bg-primary-soft text-primary' : 'bg-muted text-muted-foreground/60'
+            }`}
+          >
+            {stage.label}
+            {reached && count > 1 ? ` ×${count}` : ''}
+          </li>
+        )
+      })}
+    </ol>
+  )
+}
+
 export function Timeline({
   load,
   filterable = false,
+  lifecycle = false,
   emptyLabel = 'Henüz kayıt yok.',
 }: {
   load: () => Promise<readonly ActivityEvent[]>
   filterable?: boolean
+  lifecycle?: boolean // D27 — show the package lifecycle strip above the list
   emptyLabel?: string
 }) {
   const [events, setEvents] = useState<readonly ActivityEvent[] | null>(null)
@@ -65,6 +104,7 @@ export function Timeline({
 
   return (
     <div className="space-y-3">
+      {lifecycle ? <PackageLifecycle events={events} /> : null}
       {filterable ? (
         <div className="flex flex-wrap gap-1.5">
           {FILTERS.map((f) => (

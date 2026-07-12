@@ -1,6 +1,6 @@
 # 24 — Owner Dashboard & Analytics (v1.23)
 
-**Status:** proposed — awaiting the owner's approval (§9 carries the questions only she can answer)
+**Status:** **APPROVED** (owner, 2026-07-13). The five business definitions are decided — §9.
 **Date:** 2026-07-13
 **Milestone:** v1.23 — D24 dashboard · D25 analytics · D26 member timeline · D27 package timeline ·
 D28 global activity feed · D29 the dashboard read model
@@ -234,45 +234,47 @@ produced them.
 
 ---
 
-## 9. Open questions — the owner's call
+## 9. The five business definitions — LOCKED (owner, 2026-07-13)
 
-These are **business definitions**, not technical choices. If I pick them, I pick what the numbers on
-her dashboard *mean*, and she would discover my choice by disagreeing with a figure six months later.
+These decide what the numbers *mean*. They are the owner's, and they are now binding.
 
-**OQ-1 — "Bugünkü satış" nedir?**
-*My recommendation:* **satış = sözleşme** (`entitlement.purchased.priceAgreed` — what was sold, even
-if unpaid) and **tahsilat = nakit** (`payment_recorded.amount` — what came in). Two separate widgets,
-which is what the owner listed. Selling without payment is legal in this domain and `balanceDue > 0`
-must stay visible.
+**D-1 — Satış ≠ tahsilat.**
+- **Satış** = the agreed total at the moment a package/subscription is created (`entitlement.purchased`
+  → `priceAgreed`). Counted **even if unpaid**.
+- **Tahsilat** = the sum of recorded payments (`entitlement.payment_recorded` → `amount`).
+- **Açık bakiye** = satış − tahsilat.
+Three separate widgets. A cancelled or reversed sale must be reflected **net** in the figures —
+while its history is never deleted (#9: a correction is a compensating event, never an erasure).
 
-**OQ-2 — "Aktif üye" nedir?**
-Three candidate definitions, and they give very different numbers: (a) `member.status == active`;
-(b) an active member **with a valid package**; (c) a member who came in at least once in the last 30
-days. *Recommendation:* **(b)** on the dashboard — an active record with no package is not a customer,
-it is a contact — and show (c) beside it as "son 30 günde gelen".
+**D-2 — Aktif üye.** Member record active **AND** at least one valid, active package: not
+not-yet-started, not expired, not cancelled, not frozen. A member with an active record and no valid
+package is a **contact, not a customer**, and is not counted. Shown beside it, as its own metric:
+**son 30 günde katılan yeni üyeler**.
 
-**OQ-3 — "Doluluk" neyin oranı?**
-`booked / capacity` over **non-cancelled** sessions of the day. A cancelled class has no seats to
-sell, so counting it drags the ratio down for a decision the studio itself made. *Recommendation:*
-exclude cancelled sessions. Also: does a **PT** session count toward group occupancy? *Recommendation:*
-no — show group occupancy and PT utilisation separately (the v1.20 rule that PT never blurs into
-group metrics).
+**D-3 — Doluluk.** `toplam booked / toplam capacity` — **summed over sessions, then divided.** Never
+the average of per-session percentages (that lets a single 1/1 PT slot outweigh a 3/20 group class).
+Cancelled sessions and cancelled reservations are excluded. Sessions with capacity ≤ 0 are excluded
+so they cannot distort the ratio. PT and group appear together in the headline, **with a category
+breakdown beside it** (grup · PT · fitness).
 
-**OQ-4 — "Kredisi azalan üye" — kaç kredi, ve nasıl sorgulanır?**
-The threshold is the owner's (*recommendation: ≤ 2*). The technical part carries a cost: today
-`available` is *derived* (`granted + restored − consumed − held − revoked − expired`), so it cannot
-be indexed. To query "everyone with ≤ 2 left" without scanning every entitlement, we would add a
-**denormalised `creditsAvailable` field** on the entitlement, written in the same transaction as the
-ledger move (it goes in the denormalisation register, Doc 3 §6, with a rebuild path).
-*Recommendation:* do it — it is a correctness-preserving denormalisation (written in the same
-transaction as its source, rebuildable), and the alternative is a scan that grows forever.
-*Alternative if the owner prefers zero new fields:* compute the list from the last N `entitlement.*`
-events — cheaper to build, but it only sees packages that moved recently, which is exactly the wrong
-set.
+**D-4 — Kredisi azalan üye.** Default threshold **≤ 2**, but **never hard-coded**: it lives in studio
+settings (`policy` / studio config), like every other number in this system (#4 — nothing in the code
+knows the number six, and nothing will know the number two). The list contains only packages that
+are: active · still within validity · **credit-based** · `remaining ≤ threshold` · `remaining > 0`.
+**Zero-credit packages get their own list** ("Kredisi bitenler"). Unlimited and period-based packages
+are excluded entirely — they have no credits to run low.
+*Denormalisation, approved:* `creditsAvailable` on the entitlement, written **in the same transaction**
+as the ledger movement. **The ledger remains the source of truth**; the field is a queryable mirror and
+enters the denormalisation register (Doc 3 §6) with a rebuild path.
 
-**OQ-5 — "Bugün boş kalan seanslar" — eşik nedir?** `bookedCount == 0`, or below a percentage?
-*Recommendation:* `0 rezervasyon` **and** starting in the next N hours — an empty class tomorrow is
-not yet news; an empty class at 18:00 today is a phone call reception can still make.
+**D-5 — Boş kalan ders.** Not cancelled · 0 reservations · starts in the future · **within the next 24
+hours**. The widget is named "Önümüzdeki 24 saatte boş kalan dersler". 48-hour and 7-day filters are
+available; distant empty classes stay **out of the alarm** — an empty class tomorrow is not yet news,
+an empty class at 18:00 today is a phone call reception can still make.
+
+**Cross-cutting (owner):** every dashboard metric is computed in **studio timezone**; "bugün" is the
+calendar day **00:00:00–23:59:59**. Analytics must never slow the dashboard's first paint — charts
+load lazily, separately. The dashboard writes nothing and decides nothing.
 
 ---
 
@@ -285,6 +287,29 @@ not yet news; an empty class at 18:00 today is a phone call reception can still 
 5. **D26 / D27** — the member and package timelines deepened (sub-tabs, the package's lifecycle
    strip); the v1.22 query layer is reused unchanged.
 6. **D28 Global feed** — search (member → id → log; OperationId direct) and the full filter set.
+
+---
+
+## 10.1 As built — three deviations from §2, and why
+
+1. **Occupancy is NOT a counter.** It is computed from the sessions themselves (`bookedCount` /
+   `capacity`), because a session's booked count is maintained *transactionally* by the booking path
+   and is therefore authoritative — and because a class cancelled after it was booked changes the
+   ratio with no event that a counter could fold cleanly. The sessions of a day are a bounded,
+   indexed read the dashboard already makes. Same for the hour and trainer breakdowns in analytics.
+   The projection keeps only what is genuinely a fold: bookings, cancellations, moves, check-ins,
+   attendance, sales, collections, new members, waitlist.
+
+2. **`entitlement.cancelled` gained two additive payload fields** (`priceAgreed`, `productId`). The
+   owner's D-1 requires the revenue figure to go NET when a sale is reversed, and a projector may
+   read only events — without the amount *in the event*, the figure could not be un-sold without
+   giving the projection a second source of truth. Additive: no version bump, no upcaster, no
+   backfill. A cancellation written before v1.23 carries no amount and is simply not subtracted
+   (I-30: we do not guess).
+
+3. **Money is an object in the log** (`{ amount, currency }`, #10). The first draft of the projector
+   read `payload.priceAgreed` as a number and would have reported **zero revenue forever** — silently,
+   without crashing. Caught by a unit test before it ever ran. It is the reason `kurus()` exists.
 
 ---
 

@@ -5,17 +5,21 @@
 //                      /commands doc as its own principal. Today: attendance.mark.
 //   nightlySweep     — the two `system` sweeps, IN ORDER (I-19): auto-resolution
 //                      then credit expiry.
-//
-// on-event-created (member.stats + memberSnapshot backfill) is the next automation
-// milestone; nothing reads a projection yet, so it is not built here.
+//   onEventCreated   — the daily read model (v1.23): the ONLY projector in the system.
+//                      It folds events into per-day counters; it reads no state document,
+//                      and it can be rebuilt from the log at any time.
 import { onSchedule } from 'firebase-functions/v2/scheduler'
 
 import { runAutoCheckOutSweep } from './scheduled/auto-check-out'
 import { runAutoResolveSweep } from './scheduled/auto-resolve-attendance'
 import { runExpirySweep } from './scheduled/expire-credits'
 import { onCommandCreated } from './triggers/on-command-created'
+import { onEventCreated } from './triggers/on-event-created'
 
 export { onCommandCreated }
+// v1.23 — the daily read model behind the owner dashboard. Disposable: if it is ever wrong, it is
+// deleted and replayed from the log (`pnpm projections:rebuild`).
+export { onEventCreated }
 
 // ONE nightly trigger sequences the two sweeps so I-19 holds BY CONSTRUCTION: a held
 // credit is settled by auto-resolution before the expiry sweep can touch its package.

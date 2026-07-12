@@ -70,6 +70,7 @@ export class FirestoreSchedulingRepository implements SchedulingRepository {
       studioId: ctx.studioId,
       defaultCancellationWindowHours:
         (d.defaultCancellationWindowHours as number | null | undefined) ?? null,
+      lowCreditThreshold: (d.lowCreditThreshold as number | null | undefined) ?? null,
     }
   }
   async saveStudioSettings(
@@ -80,7 +81,10 @@ export class FirestoreSchedulingRepository implements SchedulingRepository {
     await this.commit(
       ctx.studioId,
       this.col(ctx.studioId, 'settings').doc('studio'),
-      { defaultCancellationWindowHours: settings.defaultCancellationWindowHours },
+      {
+        defaultCancellationWindowHours: settings.defaultCancellationWindowHours,
+        lowCreditThreshold: settings.lowCreditThreshold,
+      },
       events,
     )
   }

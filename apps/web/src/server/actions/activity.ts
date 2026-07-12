@@ -2,7 +2,10 @@
 
 import { z } from 'zod'
 
+import { FirestoreMemberRepository } from '@studio/core'
+
 import { requireTenantContext } from '../auth'
+import { adminDb } from '../firebase-admin'
 import {
   loadAudit,
   loadFeed,
@@ -54,6 +57,38 @@ export async function loadFeedAction(input: unknown): Promise<ActivityPage> {
     ...(p.toMs ? { toMs: p.toMs } : {}),
     cursor: p.cursor,
   })
+}
+
+export interface SearchResolution {
+  readonly kind: 'member' | 'operation' | 'none'
+  readonly memberId?: string
+  readonly memberName?: string
+  readonly operationId?: string
+}
+
+// D28 — search. The log cannot be searched by name or phone, because **it contains neither** (#6).
+// So a text search is resolved against /members FIRST, producing an id, and only then is the log
+// queried by that id. This is not a limitation to work around; it is the property that lets us
+// erase a member and keep her history as anonymous behaviour.
+export async function resolveSearchAction(input: unknown): Promise<SearchResolution> {
+  const p = z.object({ query: z.string().trim().min(1) }).parse(input)
+  const ctx = await requireTenantContext(STAFF)
+  const q = p.query
+
+  // An OperationId is an id — searched directly.
+  if (/^cor_[A-Z0-9]+$/i.test(q)) return { kind: 'operation', operationId: q }
+
+  const members = await new FirestoreMemberRepository(adminDb()).list(ctx)
+  const needle = q.toLocaleLowerCase('tr')
+  const digits = q.replace(/\D/g, '')
+  const hit = members.find(
+    (m) =>
+      m.fullName.toLocaleLowerCase('tr').includes(needle) ||
+      (digits.length >= 4 && (m.phone as string).includes(digits)),
+  )
+  return hit
+    ? { kind: 'member', memberId: hit.id as string, memberName: hit.fullName }
+    : { kind: 'none' }
 }
 
 export async function memberTimelineAction(input: unknown): Promise<readonly ActivityEvent[]> {

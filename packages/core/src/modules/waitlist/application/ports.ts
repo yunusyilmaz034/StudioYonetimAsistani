@@ -6,6 +6,8 @@ export interface WaitlistRepository {
   // The queue for one class, FIFO. Any status — the screen shows who was promoted, too.
   listBySession(ctx: TenantContext, sessionId: ClassSessionId): Promise<readonly WaitlistEntry[]>
   listByMember(ctx: TenantContext, memberId: MemberId): Promise<readonly WaitlistEntry[]>
+  // The dashboard's waiting-list widget: everyone still waiting, studio-wide, FIFO.
+  listWaiting(ctx: TenantContext): Promise<readonly WaitlistEntry[]>
   save(ctx: TenantContext, entry: WaitlistEntry, events: readonly NewEvent[]): Promise<void>
 }
 

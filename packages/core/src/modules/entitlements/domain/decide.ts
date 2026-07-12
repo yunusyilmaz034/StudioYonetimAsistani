@@ -329,7 +329,12 @@ export function decideCancel(
       {
         ...base(ctx, next, relOf(next)),
         type: ENTITLEMENT_CANCELLED,
-        payload: { reason, refundPaymentId },
+        // `priceAgreed` and `productId` are ADDITIVE (v1.23): the dashboard's sales figure must go
+        // NET when a sale is reversed (owner, D-1), and a projector may read only events — never a
+        // state document. Without the amount in the event, the number could not be un-sold without
+        // giving the projection a second source of truth. No version bump, no backfill: a
+        // cancellation written before today simply carries no amount, and is not subtracted.
+        payload: { reason, refundPaymentId, priceAgreed: next.priceAgreed, productId: next.productId },
       },
     ],
   })

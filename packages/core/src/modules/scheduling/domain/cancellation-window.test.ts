@@ -21,6 +21,7 @@ const policy = (cancellationWindowHours: number | null): SchedulingPolicy => ({
 const studio = (defaultCancellationWindowHours: number | null): StudioSettings => ({
   studioId: 'std_1' as StudioId,
   defaultCancellationWindowHours,
+  lowCreditThreshold: null,
 })
 
 describe('resolveCancellationWindow (D14)', () => {

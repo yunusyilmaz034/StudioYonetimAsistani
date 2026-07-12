@@ -170,6 +170,7 @@ function SubscriptionRow({ sub, onChanged }: { sub: SubscriptionView; onChanged:
             <p className="mb-1.5 text-xs font-medium text-muted-foreground">Paket geçmişi</p>
             <Timeline
               key={sub.id}
+              lifecycle
               load={() => packageTimelineAction({ entitlementId: sub.id })}
               emptyLabel="Bu paket için henüz hareket yok."
             />

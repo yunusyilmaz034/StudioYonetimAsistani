@@ -251,7 +251,14 @@ describe('decideCancel', () => {
     expect(r.ok).toBe(true)
     if (r.ok) {
       expect(r.value.next.status).toBe('cancelled')
-      expect(r.value.events[0]?.payload).toEqual({ reason: 'refund', refundPaymentId: 'pay_9' })
+      // v1.23 (additive): the reversed sale carries what it was worth, so the dashboard's revenue
+      // can go NET without the projector ever reading a state document.
+      expect(r.value.events[0]?.payload).toEqual({
+        reason: 'refund',
+        refundPaymentId: 'pay_9',
+        priceAgreed: { amount: 294_000, currency: 'TRY' },
+        productId: 'prd_1',
+      })
     }
   })
   it('refuses an empty reason', () => {

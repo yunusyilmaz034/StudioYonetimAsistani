@@ -91,6 +91,11 @@ export class FirestoreWaitlistRepository implements WaitlistRepository {
     return snap.docs.map((d) => fromDoc(d.id, d.data())).sort((a, b) => b.joinedAt - a.joinedAt)
   }
 
+  async listWaiting(ctx: TenantContext): Promise<readonly WaitlistEntry[]> {
+    const snap = await this.col(ctx.studioId).where('status', '==', 'waiting').get()
+    return snap.docs.map((d) => fromDoc(d.id, d.data())).sort((a, b) => a.joinedAt - b.joinedAt)
+  }
+
   // The entry and its event commit together (#1). Waiting moves no credit, so nothing else is
   // touched — which is exactly what makes this a one-document write.
   async save(ctx: TenantContext, entry: WaitlistEntry, events: readonly NewEvent[]): Promise<void> {

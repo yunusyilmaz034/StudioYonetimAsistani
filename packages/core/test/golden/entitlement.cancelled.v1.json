@@ -1,4 +1,6 @@
 {
   "reason": "refund",
-  "refundPaymentId": "pay_9"
+  "refundPaymentId": "pay_9",
+  "priceAgreed": { "amount": 294000, "currency": "TRY" },
+  "productId": "prd_1"
 }

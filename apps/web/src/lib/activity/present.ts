@@ -182,19 +182,32 @@ export function present(e: ActivityEvent): PresentedEntry {
     case 'member.portal_login':
       return entry(`${member ?? 'Üye'} portala giriş yaptı.`, null, 'default')
 
-    case 'entitlement.purchased':
+    case 'entitlement.purchased': {
+      // The catalogue is data (AD-41), so the event carries the GRANT, not a product name —
+      // the name lives in /products and would be a stale copy here. The sentence says what she
+      // actually bought: how many classes, for how long, at what price.
+      const grant = p.grant as { kind?: string; credits?: number; validForDays?: number } | undefined
+      const what =
+        grant?.kind === 'credits' ? `${grant.credits ?? 0} derslik paket` : 'süresiz üyelik'
       return entry(
-        `${to(member)} ${str(p.productName) ?? 'üyelik'} tanımlandı.`,
+        `${to(member)} ${what} tanımlandı.`,
         [
-          num(p.creditCount) !== null ? `${num(p.creditCount)} ders` : 'süresiz',
+          grant?.validForDays ? `${grant.validForDays} gün geçerli` : null,
           p.priceAgreed !== undefined ? money(p.priceAgreed) : null,
         ]
           .filter(Boolean)
           .join(' · '),
         'success',
       )
+    }
     case 'entitlement.payment_recorded':
-      return entry(`${money(p.amount)} ödeme alındı.`, str(p.method), 'success')
+      return entry(
+        `${money(p.collectedAmount)} ödeme alındı.`,
+        [methodTr(p.method), num(p.balanceDue) ? `kalan bakiye: ${money(p.balanceDue)}` : null]
+          .filter(Boolean)
+          .join(' · '),
+        'success',
+      )
     case 'entitlement.credit_held':
       return entry(
         `${of_(member)} paketinden 1 kredi ayrıldı.`,
@@ -376,6 +389,16 @@ function available(p: Record<string, unknown>): string | null {
 function fieldList(v: unknown): string | null {
   if (!Array.isArray(v) || v.length === 0) return null
   return `${v.map((f) => fieldLabel(String(f))).join(', ')} güncellendi`
+}
+
+const METHOD_TR: Record<string, string> = {
+  cash: 'Nakit',
+  credit_card: 'Kredi kartı',
+  bank_transfer: 'Havale / EFT',
+}
+function methodTr(v: unknown): string | null {
+  const m = str(v)
+  return m ? (METHOD_TR[m] ?? m) : null
 }
 
 function reasonTr(v: unknown): string | null {

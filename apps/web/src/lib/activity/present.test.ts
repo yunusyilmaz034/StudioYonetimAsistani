@@ -44,17 +44,24 @@ describe('the activity presenter', () => {
   })
 
   it('writes the sentences the owner asked for', () => {
+    // The event carries the GRANT, not a product name (AD-41: the catalogue is data).
     expect(
       present(
         event({
           type: 'entitlement.purchased',
-          payload: { productName: 'Reformer 8 Ders', creditCount: 8, priceAgreed: 500_000 },
+          payload: {
+            grant: { kind: 'credits', credits: 8, validForDays: 60 },
+            priceAgreed: 500_000,
+          },
         }),
       ).title,
-    ).toBe('Ayşe’ye Reformer 8 Ders tanımlandı.')
+    ).toBe('Ayşe’ye 8 derslik paket tanımlandı.')
 
+    // The payload field is `collectedAmount` — reading `amount` printed an em dash for every
+    // payment the studio ever took.
     expect(
-      present(event({ type: 'entitlement.payment_recorded', payload: { amount: 500_000 } })).title,
+      present(event({ type: 'entitlement.payment_recorded', payload: { collectedAmount: 500_000 } }))
+        .title,
     ).toBe('5.000 ₺ ödeme alındı.')
 
     expect(

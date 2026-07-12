@@ -24,7 +24,9 @@
     "migrate:reconcile": "tsx tools/migration/reconcile.ts",
     "deploy:rules": "firebase deploy --only firestore:rules,firestore:indexes",
     "deploy:functions": "firebase deploy --only functions",
-    "deploy": "pnpm check && firebase deploy"
+    "deploy": "pnpm check && firebase deploy",
+    "projections:rebuild": "tsx tools/projections/rebuild.ts",
+    "projections:verify": "tsx tools/projections/verify.ts"
   },
   "devDependencies": {
     "@eslint/js": "^9.18.0",

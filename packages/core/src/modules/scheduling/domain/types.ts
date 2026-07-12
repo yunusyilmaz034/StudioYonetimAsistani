@@ -53,6 +53,10 @@ export type SessionPolicySnapshot = Omit<SchedulingPolicy, 'cancellationWindowHo
 export interface StudioSettings {
   readonly studioId: StudioId
   readonly defaultCancellationWindowHours: number | null
+  // v1.23 (owner, D-4) — the dashboard's "kredisi azalan üye" threshold. Data, never an `if`
+  // (#4: nothing in the code knows the number six, and nothing knows the number two either).
+  // Absent ⇒ the studio was provisioned before this existed; the dashboard uses 2 and says so.
+  readonly lowCreditThreshold: number | null
 }
 
 export interface Service {

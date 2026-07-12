@@ -69,6 +69,10 @@ export type EntitlementExpiredPayload = {
 export type EntitlementCancelledPayload = {
   readonly reason: string
   readonly refundPaymentId: PaymentId | null
+  // Additive (v1.23) — what the reversed sale was worth, so the dashboard's revenue can go net
+  // without the projector ever reading a state document. Absent on cancellations written earlier.
+  readonly priceAgreed?: Money
+  readonly productId?: ProductId
 }
 
 export type EntitlementPaymentRecordedPayload = {

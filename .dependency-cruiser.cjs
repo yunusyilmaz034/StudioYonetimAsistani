@@ -26,10 +26,16 @@ module.exports = {
     {
       name: 'projections-read-events-only',
       comment:
-        'projections (Phase 2) may import only events and shared (AD-31). The rule is written now so it holds from the module’s first commit.',
+        'A projector folds EVENTS and nothing else (AD-31). It may not import another business ' +
+        'module, because the moment it reads state its numbers can no longer be rebuilt from the ' +
+        'log — and a projection you cannot rebuild is not a cache, it is a second source of truth. ' +
+        'v1.23: the rule now excludes the module’s own files, which the original regex caught.',
       severity: 'error',
       from: { path: 'packages/core/src/modules/projections' },
-      to: { path: 'packages/core/src/modules/(?!events|shared)' },
+      to: {
+        path: 'packages/core/src/modules/(?!events|shared)',
+        pathNot: 'packages/core/src/modules/projections',
+      },
     },
     {
       name: 'shared-imports-nothing',

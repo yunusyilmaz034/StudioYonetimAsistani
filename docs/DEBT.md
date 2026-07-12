@@ -295,6 +295,21 @@ there: every booking in the series carries the id, and `reservation.booked` is `
 
 ---
 
+## DEBT-020 — The dashboard's member-level lists are computed in memory
+
+**Taken:** 2026-07-13 · v1.23 · Yunus
+**What:** "aktif üye", "kredisi azalan", "kredisi biten" and "süresi bitecek" are derived by reading
+**every active entitlement** (`listActive`) and the member list, then filtering in memory. At one
+studio that is a few hundred rows and two reads; it is bounded, and it is not an N+1.
+**Cost:** at thousands of active packages it becomes a read the dashboard pays for on every open.
+**Trigger to repay:** the first studio with >2,000 active entitlements, or the first time the
+dashboard's read latency is measurably slow.
+**Repayment:** query directly — `credits.available` is already denormalised on the entitlement
+(AD-14) and `validUntil` is indexable; two `where` clauses replace the in-memory filter. Deliberately
+not done now: the index set is a cost too, and optimising an unmeasured read is debt in costume.
+
+---
+
 ## Reserved for the build week
 
 Shortcuts taken during Phase 1 implementation get entries here **as they are taken**, not afterwards. If the cut ladder (Doc 8 §8) is used — catalogue CRUD UI, owner view, manual attendance marking, freeze UI, payment allocation UI, weekly template generation, offline check-in — each cut becomes an entry with a trigger.
