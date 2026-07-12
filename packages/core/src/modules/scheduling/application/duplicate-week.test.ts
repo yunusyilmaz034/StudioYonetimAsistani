@@ -1,19 +1,21 @@
 import { describe, expect, it } from 'vitest'
 
 import { instant, type BranchId, type ClassSessionId, type RoomId, type ServiceId, type StudioId } from '../../../shared'
-import type { ClassSession, SchedulingPolicy } from '../domain/types'
+import type { ClassSession, SessionPolicySnapshot } from '../domain/types'
 import { computeDuplicationPlan } from './duplicate-week'
 
 const WEEK = 7 * 86_400_000
 const OFFSET = 180
 
-const POLICY: SchedulingPolicy = {
+const POLICY: SessionPolicySnapshot = {
   maxDaysInAdvance: 30,
   cancellationWindowHours: 6,
+  cancellationWindowSource: 'service' as const,
   lateCancellationConsumesCredit: true,
   noShowConsumesCredit: true,
   attendanceDefaultOutcome: 'attended',
   autoResolveAfterMinutes: 180,
+  allowMemberSelfBooking: false,
 }
 
 const SRC = 2_000_000_000_000 // a Monday 09:33 UTC — exact value irrelevant, shifts are by whole weeks
@@ -27,6 +29,7 @@ function makeSession(o: Partial<ClassSession> = {}): ClassSession {
     roomId: 'rom_1' as RoomId,
     trainerId: null,
     templateId: null,
+    assignedMemberId: null,
     category: 'pilates_group',
     startsAt: instant(SRC),
     endsAt: instant(SRC + 3_600_000),

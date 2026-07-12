@@ -9,13 +9,20 @@ import type {
   StudioConfig,
   TenantContext,
 } from '../../../shared'
-import type { ClassSession, ClassTemplate, Room, Service } from '../domain/types'
+import type { ClassSession, ClassTemplate, Room, Service, StudioSettings } from '../domain/types'
 
 // One repository for the scheduling aggregates. Each save writes the entity + its
 // events in one transaction (non-negotiable #1). Ids are domain ids; the repo maps
 // them to Firestore document ids (AD-44 pattern). Client writes are forbidden
 // (AD-15) — these run only from Server Actions on the Admin SDK.
 export interface SchedulingRepository {
+  // D14 — studio-level defaults (level 3 of the cancellation-window chain).
+  getStudioSettings(ctx: TenantContext): Promise<StudioSettings | null>
+  saveStudioSettings(
+    ctx: TenantContext,
+    settings: StudioSettings,
+    events: readonly NewEvent[],
+  ): Promise<void>
   getService(ctx: TenantContext, id: ServiceId): Promise<Service | null>
   saveService(ctx: TenantContext, service: Service, events: readonly NewEvent[]): Promise<void>
   listServices(ctx: TenantContext): Promise<readonly Service[]>

@@ -5,6 +5,7 @@ import type {
   ClassTemplateId,
   Instant,
   LocalDate,
+  MemberId,
   RoomId,
   ServiceId,
   StaffUserId,
@@ -16,11 +17,42 @@ import type {
 // session (AD-49). Freeze/credit policy stays product-attached (Doc 2 §10).
 export interface SchedulingPolicy {
   readonly maxDaysInAdvance: number
-  readonly cancellationWindowHours: number
+  // D14 (v1.21) — `null` means "I have no opinion; inherit the studio default". Before D14
+  // this was a required number on every service, which made the studio default unreachable:
+  // every session has a service, and every service had a concrete number, so levels 3 and 4 of
+  // the chain could never fire. Inheritance is only real if a level can decline to answer.
+  readonly cancellationWindowHours: number | null
   readonly lateCancellationConsumesCredit: boolean
   readonly noShowConsumesCredit: boolean
   readonly attendanceDefaultOutcome: 'attended' | 'no_show'
   readonly autoResolveAfterMinutes: number
+  // D11 (v1.21) — may a MEMBER book this service herself, from the portal? Versioned policy
+  // data, never an `if` in the portal (non-negotiable #4). Defaults to false for services that
+  // predate it: self-booking is opt-in, because turning it on gives away scarce capacity.
+  readonly allowMemberSelfBooking: boolean
+}
+
+// D14 — where the session's effective cancellation window came from. Recorded so that a year
+// from now the log can answer "why was this class 4 hours?" without re-deriving a chain from
+// settings that have since changed.
+export type CancellationWindowSource = 'session' | 'service' | 'studio'
+
+// What is STAMPED on a session (I-24). The difference from `SchedulingPolicy` is the point of
+// D14: by the time a session exists, the chain has been RESOLVED — so the window is a number,
+// never null, and it carries its provenance. Everything downstream (the cancel decider, the
+// owner UI, the member portal) reads this and only this.
+export type SessionPolicySnapshot = Omit<SchedulingPolicy, 'cancellationWindowHours'> & {
+  readonly cancellationWindowHours: number
+  readonly cancellationWindowSource: CancellationWindowSource
+}
+
+// D14 — studio-level defaults. Level 3 of the chain. The "system default" (6 h) is NOT in the
+// code: nothing in the domain knows the number six (non-negotiable #4). It is the value a
+// studio is PROVISIONED with — data, written once at installation. If no level answers, the
+// domain refuses (`cancellation_window_unresolved`) rather than inventing a number.
+export interface StudioSettings {
+  readonly studioId: StudioId
+  readonly defaultCancellationWindowHours: number | null
 }
 
 export interface Service {
@@ -94,13 +126,30 @@ export interface ClassSession {
   readonly trainerId: StaffUserId | null
   readonly templateId: ClassTemplateId | null
   readonly category: Category // snapshot of the service's category (I-22)
+  // D13 (v1.21, final — owner 2026-07-12) — PT ownership is MODELLED, never inferred from
+  // whether a reservation happens to exist. Only meaningful when category === 'private':
+  //
+  //   • null → an OPEN PT slot. This is the default and it is NOT "unavailable" or "hidden":
+  //            any member whose package covers the PT service sees it and may book it, under
+  //            the ordinary capacity and eligibility rules. Booking it does NOT assign it —
+  //            the field stays null. Fullness is governed by `capacity`, never by this field
+  //            (a future partner/duo PT may have capacity 2).
+  //
+  //   • set  → a RESERVED slot: it belongs to that member. Only she sees it and only she may
+  //            be booked into it (I-9.9) — even a member with a valid PT package cannot.
+  //            Clearing it turns the slot back into an open one.
+  //
+  // Ownership is INDEPENDENT of capacity. There is deliberately no `capacity === 1` rule.
+  // Sessions created before D13 have no field ⇒ read as null ⇒ an open PT slot, which is
+  // exactly what they were. Never backfilled.
+  readonly assignedMemberId: MemberId | null
   readonly startsAt: Instant
   readonly endsAt: Instant
   readonly capacity: number
   readonly status: ClassSessionStatus
   readonly cancellation: SessionCancellation | null
   readonly policyRef: ServicePolicyRef
-  readonly policySnapshot: SchedulingPolicy // I-24
+  readonly policySnapshot: SessionPolicySnapshot // I-24 + D14 (window resolved & stamped)
   readonly bookedCount: number // starts 0; reservations are v1.8
   readonly attendedCount: number
   readonly note?: SessionNote | null // the class note (Ders Notu); optional/additive

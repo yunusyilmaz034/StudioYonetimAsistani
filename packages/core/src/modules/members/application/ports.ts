@@ -9,6 +9,7 @@ import type {
   TenantContext,
 } from '../../../shared'
 import type { Member } from '../domain/member'
+import type { MemberInvite } from '../domain/invite'
 
 // A row of the Member Workspace audit timeline (v1.18) — one of the member's events.
 // PII-free by construction (non-negotiable #6): only type, time, and actor kind.
@@ -59,6 +60,30 @@ export interface MemberRepository {
     id: MemberId,
     limit: number,
   ): Promise<readonly MemberEventRecord[]>
+
+  // ── The portal invite (v1.21) ──
+  // Issue: write the new invite AND supersede every still-pending invite for that member, in
+  // ONE transaction. Two live links for the same account is the failure mode this prevents.
+  issueInvite(
+    ctx: TenantContext,
+    invite: MemberInvite,
+    events: readonly NewEvent[],
+  ): Promise<void>
+
+  // Looked up by the HASH of the token; the raw token never reaches the database.
+  findInviteByHash(ctx: TenantContext, tokenHash: string): Promise<MemberInvite | null>
+
+  // Consume: mark used + append the activation event, atomically. A second attempt with the
+  // same link finds `status !== 'pending'` and is refused.
+  consumeInvite(
+    ctx: TenantContext,
+    invite: MemberInvite,
+    consumedAt: Instant,
+    events: readonly NewEvent[],
+  ): Promise<void>
+
+  // Append-only: an event with no state change (the member logged in).
+  appendEvents(ctx: TenantContext, events: readonly NewEvent[]): Promise<void>
 }
 
 export interface MembersDeps {

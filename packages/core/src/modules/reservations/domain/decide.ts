@@ -18,8 +18,8 @@ import {
   type Result,
   type StudioId,
 } from '../../../shared'
-import type { ClassSession, SchedulingPolicy } from '../../scheduling'
-import { available, type Entitlement } from '../../entitlements'
+import type { ClassSession, SessionPolicySnapshot } from '../../scheduling'
+import { available, coversService, type Entitlement } from '../../entitlements'
 import type { MemberSnapshot } from '../../members'
 import {
   RESERVATION_ATTENDED,
@@ -94,6 +94,21 @@ export function decideBooking(
   if (session.status !== 'scheduled' || session.startsAt <= ctx.now) {
     return err({ code: 'session_not_bookable' })
   }
+  // I-9.9 — PT ownership (D13, v1.21). A RESERVED private session belongs to one member: it is
+  // HER slot. Nobody else's booking may take it — not another member's, and not reception
+  // booking a different member into it. (Reception may still book *her*: this refuses by
+  // member, not by actor.)
+  //
+  // An OPEN PT slot (null) is not constrained here at all — it stays bookable by anyone the
+  // ordinary rules allow, and booking it does NOT assign it. Capacity governs fullness, not
+  // this field.
+  //
+  // `?? null` on purpose: a session document written before D13 has no field at all, and a
+  // MISSING assignment means OPEN — never "assigned to nobody-in-particular".
+  const assignedTo = session.assignedMemberId ?? null
+  if (assignedTo !== null && assignedTo !== input.memberId) {
+    return err({ code: 'session_not_assigned_to_member' })
+  }
   // I-9.2
   if (session.bookedCount >= session.capacity) {
     return err({ code: 'class_full', capacity: session.capacity })
@@ -116,6 +131,12 @@ export function decideBooking(
       sessionCategory: session.category,
       entitlementCategory: entitlement.productSnapshot.category,
     })
+  }
+  // I-9.8 — the service wall (D12, v1.21). Eligibility is the explicit service list the
+  // package was sold with. A snapshot with NO list is a pre-D12 purchase: it keeps its
+  // category-wide right, and is never narrowed after the fact.
+  if (!coversService(entitlement.productSnapshot, session.serviceId)) {
+    return err({ code: 'service_not_covered', sessionServiceId: session.serviceId })
   }
 
   const isCredit = entitlement.credits !== null
@@ -170,7 +191,7 @@ export function decideCancellation(
   session: ClassSession,
 ): Result<ReservationOutcome, DomainError> {
   if (reservation.status !== 'booked') return err({ code: 'reservation_not_open' })
-  const policy: SchedulingPolicy = session.policySnapshot
+  const policy: SessionPolicySnapshot = session.policySnapshot
   const hoursBeforeStart = hoursBetween(ctx.now, session.startsAt)
   // A period booking never held a credit (creditEffect 'none'); cancelling it moves
   // nothing regardless of the window.
@@ -232,7 +253,7 @@ export function decideAttendance(
   outcome: 'attended' | 'no_show',
 ): Result<ReservationOutcome, DomainError> {
   if (reservation.status !== 'booked') return err({ code: 'reservation_not_open' })
-  const policy: SchedulingPolicy = session.policySnapshot
+  const policy: SessionPolicySnapshot = session.policySnapshot
   // A period booking held no credit (creditEffect 'none'); resolving it moves nothing,
   // and the event must say so — a `reservation.attended` claiming `consumed` for an
   // unlimited membership is a false fact in the log (mirrors decideCancellation).
@@ -278,7 +299,7 @@ export function decideAutoResolution(
   entitlement: Entitlement,
 ): Result<ReservationOutcome, DomainError> {
   if (reservation.status !== 'booked') return err({ code: 'reservation_not_open' })
-  const policy: SchedulingPolicy = session.policySnapshot
+  const policy: SessionPolicySnapshot = session.policySnapshot
   // The presumption may only be written once the class has ended AND the grace
   // window has elapsed (Doc 2 §8: `session.endsAt + autoResolveAfterMinutes`).
   // Enforced here, purely, so a marker (trainer/reception) always owns the window

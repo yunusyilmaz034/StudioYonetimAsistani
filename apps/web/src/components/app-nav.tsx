@@ -57,11 +57,11 @@ const ALL_ITEMS = GROUPS.flatMap((g) => g.items)
 const isActive = (pathname: string, href: string): boolean =>
   href === '/' ? pathname === '/' : pathname === href || pathname.startsWith(`${href}/`)
 
-const BARE = (pathname: string): boolean => pathname === '/login' || pathname.startsWith('/design-system')
-
+// No "bare route" escape hatch any more: this shell is mounted ONLY by `(staff)/layout.tsx`.
+// Login, the design-system showcase, the member portal and the invite link live in other
+// branches of the route tree, so they cannot render it even by accident.
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname()
-  if (BARE(pathname)) return <>{children}</>
   return (
     <div className="min-h-dvh pb-16 md:pb-0 md:pl-60">
       <DesktopRail pathname={pathname} />

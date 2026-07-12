@@ -19,7 +19,7 @@ import {
   type StudioId,
   type TenantContext,
 } from '../../../shared'
-import type { ClassSession, ClassTemplate, Room, Service } from '../domain/types'
+import type { ClassSession, ClassTemplate, Room, Service, StudioSettings } from '../domain/types'
 import type { SchedulingRepository } from '../application/ports'
 import {
   eventToFirestore,
@@ -57,6 +57,32 @@ export class FirestoreSchedulingRepository implements SchedulingRepository {
     batch.set(ref, data)
     this.appendEvents(sid, batch, events)
     await batch.commit()
+  }
+
+  // D14 — studio settings live in ONE well-known document per studio (`/studios/{sid}/settings/studio`),
+  // not scattered across the app. Absent ⇒ the studio was never provisioned with a default, and
+  // the chain will refuse rather than invent one.
+  async getStudioSettings(ctx: TenantContext): Promise<StudioSettings | null> {
+    const s = await this.col(ctx.studioId, 'settings').doc('studio').get()
+    const d = s.data()
+    if (!d) return null
+    return {
+      studioId: ctx.studioId,
+      defaultCancellationWindowHours:
+        (d.defaultCancellationWindowHours as number | null | undefined) ?? null,
+    }
+  }
+  async saveStudioSettings(
+    ctx: TenantContext,
+    settings: StudioSettings,
+    events: readonly NewEvent[],
+  ): Promise<void> {
+    await this.commit(
+      ctx.studioId,
+      this.col(ctx.studioId, 'settings').doc('studio'),
+      { defaultCancellationWindowHours: settings.defaultCancellationWindowHours },
+      events,
+    )
   }
 
   async getService(ctx: TenantContext, id: ServiceId): Promise<Service | null> {

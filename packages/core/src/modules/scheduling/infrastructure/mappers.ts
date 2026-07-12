@@ -10,6 +10,7 @@ import {
   type EventId,
   type Instant,
   type LocalDate,
+  type MemberId,
   type NewEvent,
   type RoomId,
   type ServiceId,
@@ -17,12 +18,14 @@ import {
   type StudioId,
 } from '../../../shared'
 import type {
+  CancellationWindowSource,
   ClassSession,
   ClassSessionStatus,
   ClassTemplate,
   Room,
   SchedulingPolicy,
   Service,
+  SessionPolicySnapshot,
   Weekday,
 } from '../domain/types'
 
@@ -46,9 +49,23 @@ export function serviceFromFirestore(id: ServiceId, d: DocumentData): Service {
     studioId: d.studioId as StudioId,
     name: d.name as string,
     category: d.category as Category,
-    policy: d.policy as SchedulingPolicy,
+    // D11 — a service written before member self-booking existed had none. Opt-in, so absent
+    // reads as false; never backfilled.
+    policy: readServicePolicy(d.policy as Record<string, unknown>),
     policyVersion: d.policyVersion as number,
     active: d.active as boolean,
+  }
+}
+
+function readServicePolicy(d: Record<string, unknown>): SchedulingPolicy {
+  return {
+    maxDaysInAdvance: d.maxDaysInAdvance as number,
+    cancellationWindowHours: (d.cancellationWindowHours as number | null | undefined) ?? null,
+    lateCancellationConsumesCredit: d.lateCancellationConsumesCredit as boolean,
+    noShowConsumesCredit: d.noShowConsumesCredit as boolean,
+    attendanceDefaultOutcome: d.attendanceDefaultOutcome as 'attended' | 'no_show',
+    autoResolveAfterMinutes: d.autoResolveAfterMinutes as number,
+    allowMemberSelfBooking: (d.allowMemberSelfBooking as boolean | undefined) ?? false,
   }
 }
 
@@ -117,6 +134,7 @@ export function sessionToFirestore(s: ClassSession): DocumentData {
     trainerId: s.trainerId,
     templateId: s.templateId,
     category: s.category,
+    assignedMemberId: s.assignedMemberId,
     startsAt: toTs(s.startsAt),
     endsAt: toTs(s.endsAt),
     capacity: s.capacity,
@@ -136,6 +154,19 @@ export function sessionToFirestore(s: ClassSession): DocumentData {
     updatedAt: FieldValue.serverTimestamp(),
   }
 }
+function readSnapshot(d: Record<string, unknown>): SessionPolicySnapshot {
+  return {
+    allowMemberSelfBooking: (d.allowMemberSelfBooking as boolean | undefined) ?? false,
+    maxDaysInAdvance: d.maxDaysInAdvance as number,
+    cancellationWindowHours: d.cancellationWindowHours as number,
+    cancellationWindowSource: (d.cancellationWindowSource as CancellationWindowSource | undefined) ?? 'service',
+    lateCancellationConsumesCredit: d.lateCancellationConsumesCredit as boolean,
+    noShowConsumesCredit: d.noShowConsumesCredit as boolean,
+    attendanceDefaultOutcome: d.attendanceDefaultOutcome as 'attended' | 'no_show',
+    autoResolveAfterMinutes: d.autoResolveAfterMinutes as number,
+  }
+}
+
 export function sessionFromFirestore(id: ClassSessionId, d: DocumentData): ClassSession {
   const c = d.cancellation as { reason: string; at: Timestamp } | null
   return {
@@ -147,13 +178,19 @@ export function sessionFromFirestore(id: ClassSessionId, d: DocumentData): Class
     trainerId: (d.trainerId as StaffUserId | null) ?? null,
     templateId: (d.templateId as ClassTemplateId | null) ?? null,
     category: d.category as Category,
+    // D13 — pre-D13 sessions have no field: they were unassigned studio inventory, and that
+    // is exactly what `null` means. Never backfilled.
+    assignedMemberId: (d.assignedMemberId as MemberId | null) ?? null,
     startsAt: fromTs(d.startsAt as Timestamp),
     endsAt: fromTs(d.endsAt as Timestamp),
     capacity: d.capacity as number,
     status: d.status as ClassSessionStatus,
     cancellation: c ? { reason: c.reason, at: fromTs(c.at) } : null,
     policyRef: d.policyRef as ClassSession['policyRef'],
-    policySnapshot: d.policySnapshot as SchedulingPolicy,
+    // D14 — a session written before the chain existed has a snapshot with a window but no
+    // SOURCE. It came from the service (that was the only level that existed), so that is what
+    // it means. Read-time interpretation; the document is never rewritten.
+    policySnapshot: readSnapshot(d.policySnapshot as Record<string, unknown>),
     bookedCount: d.bookedCount as number,
     attendedCount: d.attendedCount as number,
     note: d.note

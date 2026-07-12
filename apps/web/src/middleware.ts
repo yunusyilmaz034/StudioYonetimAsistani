@@ -7,7 +7,9 @@ import { SESSION_COOKIE_NAME } from '@/server/session-config'
 // uses firebase-admin, and never makes an authorization decision — that is always
 // requireTenantContext() on the Node server. This exists purely to bounce an
 // unauthenticated request to /login without a server round-trip.
-const PUBLIC_PREFIXES = ['/login', '/design-system']
+// v1.21 — the invite link and the member login are PUBLIC by necessity: the member has no
+// account (and therefore no cookie) until she has used them.
+const PUBLIC_PREFIXES = ['/login', '/design-system', '/invite', '/portal/login']
 
 function isPublic(pathname: string): boolean {
   return PUBLIC_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`))
@@ -19,7 +21,8 @@ export function middleware(req: NextRequest): NextResponse {
 
   if (!hasSession && !isPublic(pathname)) {
     const url = req.nextUrl.clone()
-    url.pathname = '/login'
+    // A member without a session belongs at HER door, not at the staff login she can never pass.
+    url.pathname = pathname.startsWith('/portal') ? '/portal/login' : '/login'
     return NextResponse.redirect(url)
   }
 

@@ -18,6 +18,9 @@ export {
   type PolicyVersionRef,
   type ProductSnapshot,
 } from './domain/types'
+// D12 — the single definition of "does this package cover this service?"; the decider and
+// the advisory selector both call it, so they cannot drift apart.
+export { coversService, isEligibleForService } from './domain/eligibility'
 export * from './events'
 export {
   decideAdjust,

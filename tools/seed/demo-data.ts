@@ -6,6 +6,7 @@
 // It seeds by calling the REAL @studio/core use-cases against the Admin SDK, so
 // document shapes and events are guaranteed correct. Emulator-only, manual dev tool.
 import {
+  assignSessionMember,
   assignSubscription,
   bookReservation,
   createProduct,
@@ -28,6 +29,7 @@ import {
   registerMember,
   scheduleSession,
   selectEntitlement,
+  setStudioDefaults,
   systemClock,
   toMemberSnapshot,
   type ActorRef,
@@ -102,6 +104,9 @@ const POLICY: SchedulingPolicy = {
   noShowConsumesCredit: true,
   attendanceDefaultOutcome: 'attended',
   autoResolveAfterMinutes: 180,
+  // D11 — the demo studio opts its services INTO member self-booking so the portal is
+  // exercisable. It is opt-in precisely because it gives away scarce capacity.
+  allowMemberSelfBooking: true,
 }
 
 // studio-local YYYY-MM-DD / HH:MM helpers (offset +180, Europe/Istanbul)
@@ -115,6 +120,14 @@ export async function seedDemoData(trainerUid: string | null): Promise<void> {
   const trainerName = 'Reyhan Yıldız'
   const trainerId = (trainerUid ?? null) as StaffUserId | null
 
+  // 1. Studio provisioning (D14). THIS is where the number six lives: the value a studio is
+  // installed with. The domain never knows it — it resolves session → service → studio and
+  // refuses if nobody answers.
+  ok(
+    await setStudioDefaults(schedDeps(), ctx, { defaultCancellationWindowHours: 6 }),
+    'setStudioDefaults',
+  )
+
   // 2. Branch occupancy (required before any check-in).
   ok(await openBranch(checkinDeps, ctx, { branchId: BRANCH_ID }), 'openBranch')
 
@@ -122,6 +135,19 @@ export async function seedDemoData(trainerUid: string | null): Promise<void> {
   const svcReformer = ok(
     await createService(schedDeps(), ctx, { name: 'Reformer Pilates', category: 'pilates_group', policy: POLICY }),
     'createService reformer',
+  ).serviceId
+  // A SECOND pilates_group service, deliberately: it shares the category with Reformer but is
+  // covered by no package. It is what makes D12 visible by hand — a Reformer package must
+  // refuse a Mat class (`service_not_covered`), which the category wall alone would have allowed.
+  // Mat Pilates DECLINES to set a window (null) → its sessions inherit the studio default.
+  // This is what makes level 3 of the chain observable in the demo.
+  const svcMat = ok(
+    await createService(schedDeps(), ctx, {
+      name: 'Mat Pilates',
+      category: 'pilates_group',
+      policy: { ...POLICY, cancellationWindowHours: null },
+    }),
+    'createService mat',
   ).serviceId
   const svcFitness = ok(
     await createService(schedDeps(), ctx, { name: 'Fitness', category: 'fitness', policy: POLICY }),
@@ -166,7 +192,9 @@ export async function seedDemoData(trainerUid: string | null): Promise<void> {
   await subscribe(merve, pFitness, 120_000, now + 10 * DAY) // expiring in 10 days
   await subscribe(ayse, pPt8, 640_000)
   await subscribe(fatma, pReformer10, 0) // fully unpaid → balance
-  await subscribe(selin, pReformer10, 450_000)
+  // Selin's package is seeded as a PRE-D12 purchase (no service list): she keeps the
+  // category-wide right she was sold, and can still book any pilates_group class.
+  await subscribe(selin, pReformer10, 450_000, null, true)
   await subscribe(busra, pFitness, 60_000) // partial
 
   // 8. Sessions — today (for the dashboard's "today" widgets; may already have started)
@@ -175,6 +203,19 @@ export async function seedDemoData(trainerUid: string | null): Promise<void> {
   await session(svcReformer, roomReformer, todayStr, '10:00', 50, 8, trainerId, trainerName)
   await session(svcReformer, roomReformer, todayStr, '18:00', 50, 8, trainerId, trainerName)
   await session(svcFitness, roomFitness, todayStr, '19:00', 60, 12, null, null)
+  // Mat Pilates: same category as Reformer, covered by no package → the D12 refusal is
+  // reachable from the UI today.
+  await session(svcMat, roomReformer, todayStr, '20:00', 50, 8, trainerId, trainerName)
+
+  // D13 (final) — two PT slots tomorrow, one of each kind:
+  //   • 09:00 RESERVED for Ayşe — only she sees it, only she may be booked into it.
+  //   • 11:00 OPEN, capacity 2 — a PARTNER PT: every member with a PT package sees it and may
+  //     book it, and TWO of them fit. Ownership is independent of capacity.
+  const ptAssigned = await session(
+    svcPt, roomFitness, localDateStr(now + DAY), '09:00', 50, 1, trainerId, trainerName,
+  )
+  ok(await assignSessionMember(schedDeps(), ctx, { sessionId: ptAssigned, memberId: ayse }), 'reserve PT for Ayşe')
+  await session(svcPt, roomFitness, localDateStr(now + DAY), '11:00', 50, 2, trainerId, trainerName)
   const up1 = await session(svcReformer, roomReformer, localDateStr(now + DAY), '18:00', 50, 8, trainerId, trainerName)
   const up2 = await session(svcReformer, roomReformer, localDateStr(now + 2 * DAY), '10:00', 50, 8, trainerId, trainerName)
   const up3 = await session(svcFitness, roomFitness, localDateStr(now + 3 * DAY), '19:00', 60, 12, null, null)
@@ -278,7 +319,16 @@ async function member(fullName: string, phone: string, birthDate: string, notes:
   return res.memberId
 }
 
-async function subscribe(memberId: MemberId, productId: ProductId, collected: number, validUntil: number | null = null): Promise<void> {
+// `legacy: true` seeds a PRE-D12 entitlement — a snapshot with no service list, i.e. one sold
+// before service-level eligibility existed. It must keep its category-wide right forever, so
+// the demo data carries at least one, or the fallback path is never exercised by hand.
+async function subscribe(
+  memberId: MemberId,
+  productId: ProductId,
+  collected: number,
+  validUntil: number | null = null,
+  legacy = false,
+): Promise<void> {
   const product = await catalogRepo.getProduct(ctx, productId)
   if (!product) throw new Error(`product missing: ${productId}`)
   const grant: Grant =
@@ -292,6 +342,7 @@ async function subscribe(memberId: MemberId, productId: ProductId, collected: nu
       productId: product.id,
       productSnapshot: {
         productId: product.id, name: product.name, category: product.category, grant, listPrice: money(product.priceInKurus),
+        ...(legacy ? {} : { serviceIds: product.serviceIds }),
       },
       policyRef: { policyId: product.id, version: 1 },
       priceAgreed: money(product.priceInKurus),

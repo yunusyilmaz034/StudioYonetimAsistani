@@ -164,24 +164,35 @@ export function ProductForm({
         </Field>
       </div>
 
+      {/* D12 — the services a package covers are now the RIGHT it grants, not a label. At
+          least one is required, and the list is frozen onto every purchase made afterwards. */}
       {services.length > 0 ? (
-        <Field id="p-services" label="Hizmet(ler) (opsiyonel)">
+        <Field id="p-services" label="Kapsadığı dersler">
           <div className="flex flex-wrap gap-2">
             {services.map((s) => (
               <button
                 key={s.id}
                 type="button"
                 onClick={() => toggleService(s.id)}
-                className={`rounded-lg border px-3 py-1 text-sm ${
-                  serviceIds.includes(s.id) ? 'border-primary bg-primary/10 text-primary' : 'border-border text-muted-foreground'
+                className={`rounded-lg border px-3 py-1 text-sm transition-colors ${
+                  serviceIds.includes(s.id) ? 'border-primary bg-primary/10 text-primary' : 'border-border text-muted-foreground hover:text-foreground'
                 }`}
               >
                 {s.name}
               </button>
             ))}
           </div>
+          <p className="mt-1.5 text-xs text-muted-foreground">
+            {serviceIds.length === 0
+              ? 'En az bir ders seçin — paket yalnızca seçtiğiniz dersleri kapsar.'
+              : 'Bu paketle bu dersler rezerve edilebilir. Sonradan yapılan değişiklik, daha önce satılmış paketleri etkilemez.'}
+          </p>
         </Field>
-      ) : null}
+      ) : (
+        <p className="rounded-lg bg-warning/10 p-3 text-sm text-warning">
+          Önce bir ders (hizmet) tanımlamalısınız — paket, kapsadığı dersleri belirtmeden oluşturulamaz.
+        </p>
+      )}
 
       <Field id="p-desc" label="Açıklama">
         <Textarea id="p-desc" value={description} onChange={(e) => setDescription(e.target.value)} />
@@ -200,7 +211,7 @@ export function ProductForm({
         </p>
       ) : null}
 
-      <Button type="submit" className="min-h-11 w-full" disabled={loading}>
+      <Button type="submit" className="min-h-11 w-full" disabled={loading || serviceIds.length === 0}>
         {loading ? <Loader2Icon className="animate-spin" /> : null}
         {product ? 'Değişiklikleri Kaydet' : 'Paketi Oluştur'}
       </Button>

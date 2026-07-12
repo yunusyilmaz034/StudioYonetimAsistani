@@ -61,7 +61,7 @@ import {
 } from '@/server/actions/subscription'
 
 import { MemberForm } from '../member-form'
-import { MemberQrCard } from '../qr-card'
+import { InvitePanel } from './invite-panel'
 import { SubscriptionsPanel } from '../subscriptions'
 
 // ── labels ────────────────────────────────────────────────────────────────────
@@ -199,7 +199,12 @@ export function MemberWorkspaceScreen({
         </TabsList>
 
         <TabsContent value="profile">
-          <ProfilePanel member={member} />
+          <div className="space-y-5">
+            <ProfilePanel member={member} />
+            {/* v1.21 — the portal invite (D1). Reception issues the link; the member sets her
+                own password. Reception never knows it. */}
+            <InvitePanel memberId={member.id} studioId={member.studioId} />
+          </div>
         </TabsContent>
         <TabsContent value="packages">
           <SubscriptionsPanel memberId={member.id} products={products} />
@@ -209,7 +214,6 @@ export function MemberWorkspaceScreen({
         </TabsContent>
         <TabsContent value="checkin">
           <CheckinPanel
-            member={member}
             insideNow={data.insideNow}
             lastCheckInAt={data.lastCheckInAt}
             history={data.checkInHistory}
@@ -497,12 +501,10 @@ function ReservationItem({ r, cancelable = false }: { r: MemberReservationRow; c
 
 // ── Check-in ──────────────────────────────────────────────────────────────────
 function CheckinPanel({
-  member,
   insideNow,
   lastCheckInAt,
   history,
 }: {
-  member: Member
   insideNow: boolean
   lastCheckInAt: number | null
   history: readonly MemberCheckInRow[]
@@ -522,8 +524,15 @@ function CheckinPanel({
         </Button>
       </div>
 
+      {/* D15 — the STATIC memberId QR card is gone. It was a bearer credential with no expiry:
+          once a member could see it, a screenshot let anyone walk in as her, forever. The member
+          now shows a short-lived, single-use code from her own portal (D10/D16). */}
       <Section title="Giriş QR Kodu">
-        <MemberQrCard memberId={member.id} memberName={member.fullName} />
+        <div className="rounded-xl border border-border bg-card p-4 text-sm text-muted-foreground shadow-xs">
+          Üye, giriş kodunu kendi portalından gösterir. Kod kısa ömürlü ve tek kullanımlıktır;
+          basılı/sabit QR kartı kullanılmaz. İnternet yoksa aşağıdaki manuel arama ile giriş
+          alabilirsiniz.
+        </div>
       </Section>
 
       <Section title="Geçmiş" hint="son 90 gün">

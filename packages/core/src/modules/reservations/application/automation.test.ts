@@ -18,7 +18,7 @@ import {
   type TenantContext,
 } from '../../../shared'
 import type { Entitlement } from '../../entitlements'
-import type { ClassSession, SchedulingPolicy } from '../../scheduling'
+import type { ClassSession, SessionPolicySnapshot } from '../../scheduling'
 import type { MemberSnapshot } from '../../members'
 import { correctReservation } from './correct'
 import { markAttendance } from './mark-attendance'
@@ -36,17 +36,19 @@ const ctx: TenantContext = {
   actor: { type: 'receptionist', id: 'usr_1' as StaffUserId },
 }
 
-const pol = (p: Partial<SchedulingPolicy> = {}): SchedulingPolicy => ({
+const pol = (p: Partial<SessionPolicySnapshot> = {}): SessionPolicySnapshot => ({
   maxDaysInAdvance: 14,
   cancellationWindowHours: 6,
+  cancellationWindowSource: 'service' as const,
   lateCancellationConsumesCredit: true,
   noShowConsumesCredit: false,
   attendanceDefaultOutcome: 'attended',
   autoResolveAfterMinutes: 15,
+  allowMemberSelfBooking: false,
   ...p,
 })
 
-const session = (over: Partial<ClassSession> = {}, p: SchedulingPolicy = pol()): ClassSession => ({
+const session = (over: Partial<ClassSession> = {}, p: SessionPolicySnapshot = pol()): ClassSession => ({
   id: 'cls_1' as unknown as ClassSession['id'],
   studioId: 'std_1' as StudioId,
   branchId: 'brn_1' as unknown as ClassSession['branchId'],
@@ -54,6 +56,7 @@ const session = (over: Partial<ClassSession> = {}, p: SchedulingPolicy = pol()):
   roomId: null,
   trainerId: null,
   templateId: null,
+  assignedMemberId: null,
   category: 'pilates_group',
   startsAt: instant(NOW - 2 * H),
   endsAt: instant(NOW - H),

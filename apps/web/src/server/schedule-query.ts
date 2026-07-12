@@ -3,10 +3,12 @@ import {
   FirestoreSchedulingRepository,
   instant,
   type ClassSessionStatus,
+  type MemberId,
   type TenantContext,
 } from '@studio/core'
 
 import { adminDb } from './firebase-admin'
+import { listMembers } from './members-query'
 
 // Server-only reads for the scheduling workspace. AD-52: +180 for the Türkiye studio
 // (a per-studio IANA timezone arrives later, seamless). Range computation only.
@@ -24,6 +26,9 @@ export interface CalendarSession {
   readonly branchId: string
   readonly branchName: string
   readonly category: string
+  // D13 — PT ownership: the member this private slot belongs to (null = studio inventory).
+  readonly assignedMemberId: string | null
+  readonly assignedMemberName: string | null
   readonly startsAt: number
   readonly endsAt: number
   readonly capacity: number
@@ -31,6 +36,8 @@ export interface CalendarSession {
   readonly status: ClassSessionStatus
   // For the booking panel's late-cancellation warning (from the session's policy snapshot).
   readonly cancellationWindowHours: number
+  // D14 — which level of the chain produced the window above.
+  readonly cancellationWindowSource: 'session' | 'service' | 'studio'
   readonly lateCancellationConsumesCredit: boolean
   // The class note (Ders Notu), if set.
   readonly note: { readonly text: string; readonly visibility: 'staff' | 'members' } | null
@@ -39,6 +46,9 @@ export interface CalendarSession {
 export interface PickOption {
   readonly id: string
   readonly name: string
+  // D13 — the session form needs it: only a `private` service offers PT assignment and the
+  // 1–2 capacity band.
+  readonly category?: string
   readonly branchId?: string
   readonly capacity?: number
 }
@@ -104,6 +114,16 @@ export async function loadSchedule(ctx: TenantContext, dateStr: string): Promise
     new FirestoreIdentityRepository(db).listStaff(ctx),
   ])
 
+  // D13 — names for assigned PT slots. One extra read, and ONLY when a PT slot is actually
+  // assigned in this window; a month with no PT costs nothing.
+  const assignedIds = new Set(sessions.map((s) => s.assignedMemberId).filter((id): id is MemberId => id !== null))
+  const memberNames = new Map<string, string>()
+  if (assignedIds.size > 0) {
+    for (const m of await listMembers(ctx)) {
+      if (assignedIds.has(m.id)) memberNames.set(m.id, m.fullName)
+    }
+  }
+
   return {
     sessions: sessions.map((s) => ({
       sessionId: s.id,
@@ -116,18 +136,21 @@ export async function loadSchedule(ctx: TenantContext, dateStr: string): Promise
       branchId: s.branchId,
       branchName: s.branchName,
       category: s.category,
+      assignedMemberId: s.assignedMemberId,
+      assignedMemberName: s.assignedMemberId ? (memberNames.get(s.assignedMemberId) ?? null) : null,
       startsAt: s.startsAt,
       endsAt: s.endsAt,
       capacity: s.capacity,
       bookedCount: s.bookedCount,
       status: s.status,
       cancellationWindowHours: s.policySnapshot.cancellationWindowHours,
+      cancellationWindowSource: s.policySnapshot.cancellationWindowSource,
       lateCancellationConsumesCredit: s.policySnapshot.lateCancellationConsumesCredit,
       note: s.note ? { text: s.note.text, visibility: s.note.visibility } : null,
     })),
     services: services
       .filter((s) => s.active)
-      .map((s) => ({ id: s.id, name: s.name })),
+      .map((s) => ({ id: s.id, name: s.name, category: s.category })),
     rooms: rooms
       .filter((r) => r.active)
       .map((r) => ({ id: r.id, name: r.name, branchId: r.branchId, capacity: r.capacity })),

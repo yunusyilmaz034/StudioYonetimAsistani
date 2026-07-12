@@ -13,6 +13,7 @@ import {
   ok,
   type ActorType,
   type DomainError,
+  type Instant,
   type MemberId,
   type NewEvent,
   type Result,
@@ -20,6 +21,7 @@ import {
   type TenantContext,
 } from '../../../shared'
 import type { Member } from '../domain/member'
+import type { MemberInvite } from '../domain/invite'
 import type { MemberEventRecord, MemberRepository } from '../application/ports'
 import { eventToFirestore, memberFromFirestore, memberToFirestore } from './member-mapper'
 
@@ -40,6 +42,10 @@ export class FirestoreMemberRepository implements MemberRepository {
   }
   private events(sid: StudioId): CollectionReference {
     return this.db.collection('studios').doc(sid).collection('events')
+  }
+  // Keyed by the token HASH — the raw token lives only in the link we hand to the member.
+  private invites(sid: StudioId): CollectionReference {
+    return this.db.collection('studios').doc(sid).collection('invites')
   }
 
   async findById(ctx: TenantContext, id: MemberId): Promise<Member | null> {
@@ -114,6 +120,69 @@ export class FirestoreMemberRepository implements MemberRepository {
     const memberRef = this.members(ctx.studioId).doc(member.id)
     await this.db.runTransaction(async (tx) => {
       tx.set(memberRef, memberToFirestore(member))
+      this.writeEvents(ctx.studioId, tx, events)
+    })
+  }
+
+  // ── The portal invite (v1.21) ──
+
+  async issueInvite(ctx: TenantContext, invite: MemberInvite, events: readonly NewEvent[]): Promise<void> {
+    // Supersede every still-pending invite for this member IN THE SAME transaction as the new
+    // one. Otherwise a "resend" would leave two live links to the same account, and revoking
+    // access (D17 — the password-reset path) would be impossible to reason about.
+    const stale = await this.invites(ctx.studioId)
+      .where('memberId', '==', invite.memberId)
+      .where('status', '==', 'pending')
+      .get()
+
+    await this.db.runTransaction(async (tx) => {
+      for (const d of stale.docs) tx.update(d.ref, { status: 'superseded' })
+      tx.set(this.invites(ctx.studioId).doc(invite.tokenHash), {
+        memberId: invite.memberId,
+        status: invite.status,
+        issuedAt: Timestamp.fromMillis(invite.issuedAt),
+        expiresAt: Timestamp.fromMillis(invite.expiresAt),
+        consumedAt: null,
+      })
+      this.writeEvents(ctx.studioId, tx, events)
+    })
+  }
+
+  async findInviteByHash(ctx: TenantContext, tokenHash: string): Promise<MemberInvite | null> {
+    const snap = await this.invites(ctx.studioId).doc(tokenHash).get()
+    const d = snap.data()
+    if (!d) return null
+    return {
+      tokenHash,
+      studioId: ctx.studioId,
+      memberId: d.memberId as MemberId,
+      status: d.status as MemberInvite['status'],
+      issuedAt: instant((d.issuedAt as Timestamp).toMillis()),
+      expiresAt: instant((d.expiresAt as Timestamp).toMillis()),
+      consumedAt: d.consumedAt ? instant((d.consumedAt as Timestamp).toMillis()) : null,
+    }
+  }
+
+  async consumeInvite(
+    ctx: TenantContext,
+    invite: MemberInvite,
+    consumedAt: Instant,
+    events: readonly NewEvent[],
+  ): Promise<void> {
+    const ref = this.invites(ctx.studioId).doc(invite.tokenHash)
+    await this.db.runTransaction(async (tx) => {
+      // Re-read INSIDE the transaction: two people opening the same link at the same moment
+      // must not both activate. The loser sees a consumed invite.
+      const snap = await tx.get(ref)
+      const d = snap.data()
+      if (!d || d.status !== 'pending') throw new Error('invite_invalid')
+      tx.update(ref, { status: 'consumed', consumedAt: Timestamp.fromMillis(consumedAt) })
+      this.writeEvents(ctx.studioId, tx, events)
+    })
+  }
+
+  async appendEvents(ctx: TenantContext, events: readonly NewEvent[]): Promise<void> {
+    await this.db.runTransaction(async (tx) => {
       this.writeEvents(ctx.studioId, tx, events)
     })
   }

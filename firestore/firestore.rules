@@ -1,13 +1,25 @@
 rules_version = '2';
 
-// The tenant perimeter (Doc 3 §8, AD-15). Two load-bearing properties:
+// The tenant perimeter (Doc 3 §8, AD-15). Three load-bearing properties:
 //   1. A client can READ only within its own studio (token.studioId == sid). A
 //      cross-tenant read is a path you cannot construct, not a filter you forget.
-//   2. A client can WRITE exactly one thing: create a whitelisted /commands doc as
-//      itself. Every trusted state write (members, entitlements, /products, …) goes
-//      through a server-side Server Action on the Admin SDK, which BYPASSES these
-//      rules — that authorization is enforced by requireTenantContext(), and the
-//      role-guard tests verify it separately.
+//   2. Only a STAFF principal can read at all (D11, v1.21). A member's token carries
+//      studioId + memberId + role:'member' and matches NO read rule here: the member
+//      portal is server-rendered, and every byte a member sees passes through a Server
+//      Action that derived her identity from the session cookie. This is why the portal
+//      cannot leak: there is no client-SDK path to leak through.
+//   3. A client can WRITE exactly one thing: create a whitelisted /commands doc as
+//      itself — and only staff may do even that. Every trusted state write (members,
+//      entitlements, /products, …) goes through a server-side Server Action on the Admin
+//      SDK, which BYPASSES these rules — that authorization is enforced by
+//      requireTenantContext() / requireMemberContext(), and the role-guard tests verify it
+//      separately.
+//
+// Why role-gating reads is not optional: before v1.21 every authenticated principal was
+// staff, so `tenant()` alone was safe. The instant a member is issued a studioId claim,
+// `allow read: if tenant()` would hand her every member's name, phone and birth date, every
+// entitlement, and every payment in the studio — straight from the client SDK, with no UI
+// involved. The perimeter, not the UI, is what protects that data.
 service cloud.firestore {
   match /databases/{database}/documents {
 
@@ -17,28 +29,36 @@ service cloud.firestore {
       function tenant()   { return signedIn() && request.auth.token.studioId == sid; }
       function role()     { return request.auth.token.role; }
 
+      // The ONLY principals that may read through the client SDK. A member is deliberately
+      // absent: she reads nothing directly, ever.
+      function staff() {
+        return tenant() && (role() == 'owner' || role() == 'receptionist' || role() == 'trainer');
+      }
+
       // ── Events: append-only log. Owner-only read; never client-writable. ──
       match /events/{eventId} {
-        allow read:  if tenant() && role() == 'owner';
+        allow read:  if staff() && role() == 'owner';
         allow write: if false;
       }
 
-      // ── Commands: the ONLY client write in the entire rule set (AD-15). ──
+      // ── Commands: the ONLY client write in the entire rule set (AD-15). Staff only —
+      //    a member never writes a command. Her bookings are Server Actions (they allocate
+      //    a scarce resource), and her check-in QR is verified server-side (D16). ──
       match /commands/{cmdId} {
-        allow create: if tenant()
+        allow create: if staff()
           && request.resource.data.actor.id == request.auth.uid
           && request.resource.data.type in ['checkIn.record', 'attendance.mark']
           && request.resource.data.status == 'pending'
           && cmdId == request.resource.data.id;
-        allow read:   if tenant() && resource.data.actor.id == request.auth.uid;
+        allow read:   if staff() && resource.data.actor.id == request.auth.uid;
         allow update, delete: if false;
       }
 
-      // ── Everything else in the studio: tenant-readable, never client-writable. ──
+      // ── Everything else in the studio: STAFF-readable, never client-writable. ──
       //    Events and commands are excluded here so their stricter rules above are
       //    not widened by this one (Firestore ORs all matching allow rules).
       match /{col}/{docId} {
-        allow read:  if tenant() && !(col in ['events', 'commands']);
+        allow read:  if staff() && !(col in ['events', 'commands']);
         allow write: if false;
       }
     }

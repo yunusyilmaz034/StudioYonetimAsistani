@@ -1,5 +1,5 @@
 import type { Instant } from '../../../shared'
-import { available, type Entitlement } from '../../entitlements'
+import { isEligibleForService, type Entitlement } from '../../entitlements'
 import type { ClassSession } from '../../scheduling'
 
 // Which entitlement pays? (OQ-7, I-17). Earliest-expiring-first so the member never
@@ -8,12 +8,11 @@ import type { ClassSession } from '../../scheduling'
 // an explicit entitlementId to the booking use-case.
 
 export function isBookable(e: Entitlement, session: ClassSession, now: Instant): boolean {
-  if (e.status !== 'active') return false
-  if (session.startsAt > e.validUntil) return false
-  if (e.productSnapshot.category !== session.category) return false
-  if (e.credits !== null && available(e.credits) < 1) return false
+  // ONE definition (D12/D13): the same predicate the PT member-picker and the member portal's
+  // agenda filter use. If this were re-implemented anywhere else, the UI would eventually offer
+  // a booking the domain refuses — or hide one it would have allowed.
   void now // reserved: validFrom-in-future check arrives with waitlist/advance rules
-  return true
+  return isEligibleForService(e, session.category, session.serviceId, session.startsAt)
 }
 
 // Credit entitlements are spent before period ones (unlimited access has no scarcity

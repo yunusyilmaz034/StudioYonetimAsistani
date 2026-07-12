@@ -190,6 +190,52 @@ the honest one, because the session really is gone.
 
 ---
 
+## DEBT-013 — The QR signing secret is a dev constant outside production
+
+**Taken:** 2026-07-12 · v1.21 · Yunus
+**What:** the check-in token is signed with `QR_TOKEN_SECRET`. In production its absence throws;
+outside production it falls back to a fixed dev string so the emulator flow is testable.
+**Cost:** nothing today (the fallback cannot be reached in production). But there is no rotation
+story: if the secret leaks, every outstanding token stays valid for its 60 seconds and the only
+remedy is to change the env var and redeploy.
+**Trigger to repay:** **v1.23 cutover** — provision a real secret, and add a `kid` to the token
+so two secrets can be live at once (which is what makes rotation possible without a flag day).
+**Repayment:** secret manager + key id in the payload + accept-old-verify-new during a rotation
+window.
+
+---
+
+## DEBT-014 — The member portal has no emulator integration tests
+
+**Taken:** 2026-07-12 · v1.21 · Yunus
+**What:** invite → activation → login → book → cancel is covered by unit tests of every *rule*
+(eligibility, visibility, token, claims, rules) but not by an end-to-end test against the
+emulator. The Firestore **rules** are tested (20 cases, incl. every member-isolation scenario).
+**Cost:** a wiring regression — a missing `await`, a wrong id, a broken transaction — would not
+be caught by `pnpm check`.
+**Trigger to repay:** **v1.24 Production Hardening / CI**, together with DEBT-011 (the Functions
+emulator). The harness is the same one.
+**Repayment:** `firebase emulators:exec` suite driving the portal's Server Actions end to end.
+
+---
+
+## DEBT-015 — No test asserts the shell boundary
+
+**Taken:** 2026-07-12 · v1.21 · Yunus
+**What:** the member portal rendered inside the staff `AppShell` for a full batch, and nothing
+failed. `pnpm check` was green the whole time: a shell leak is invisible to typecheck, lint and
+unit tests, and it was caught only by the owner looking at a screenshot.
+**Cost:** the same class of bug can return silently. Today's guarantee is structural (route
+groups: the staff shell is imported by exactly one layout), which is strong — but nothing *tests*
+that it stays that way.
+**Trigger to repay:** **v1.24 Production Hardening / CI**, or the first time anyone adds a third
+shell. Whichever comes first.
+**Repayment:** a render/HTTP test asserting that member routes contain no owner-navigation
+strings, and that staff routes do. (This exists today as a manual script, `tools/verify-v121.ts`;
+it needs to become a test that CI runs.)
+
+---
+
 ## Reserved for the build week
 
 Shortcuts taken during Phase 1 implementation get entries here **as they are taken**, not afterwards. If the cut ladder (Doc 8 §8) is used — catalogue CRUD UI, owner view, manual attendance marking, freeze UI, payment allocation UI, weekly template generation, offline check-in — each cut becomes an entry with a trigger.

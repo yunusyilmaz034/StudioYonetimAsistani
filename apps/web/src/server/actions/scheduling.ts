@@ -1,6 +1,11 @@
 'use server'
 
 import {
+  assignSessionMember,
+  FirestoreEntitlementRepository,
+  FirestoreMemberRepository,
+  instant,
+  isEligibleForService,
   cancelSession,
   changeCapacity,
   changeRoom,
@@ -21,6 +26,7 @@ import {
   reactivateService,
   scheduleSession,
   setSessionNote,
+  setStudioDefaults,
   systemClock,
   updateRoom,
   updateService,
@@ -28,6 +34,8 @@ import {
   type BranchId,
   type ClassSessionId,
   type ClassTemplateId,
+  type DomainError,
+  type MemberId,
   type NoteVisibility,
   type RoomId,
   type SchedulingDeps,
@@ -38,6 +46,7 @@ import {
 import { z } from 'zod'
 
 import { requireTenantContext } from '../auth'
+import type { BookingMember } from './booking'
 import { adminDb } from '../firebase-admin'
 
 function deps(): SchedulingDeps {
@@ -54,11 +63,14 @@ const OPS = ['owner', 'receptionist', 'platform_admin'] as const
 
 const policySchema = z.object({
   maxDaysInAdvance: z.number().int().min(0),
-  cancellationWindowHours: z.number().int().min(0),
+  // D14 — null = "inherit the studio default" (level 3 of the chain).
+  cancellationWindowHours: z.number().int().min(0).nullable(),
   lateCancellationConsumesCredit: z.boolean(),
   noShowConsumesCredit: z.boolean(),
   attendanceDefaultOutcome: z.enum(['attended', 'no_show']),
   autoResolveAfterMinutes: z.number().int().min(0),
+  // D11 — member self-booking is OPT-IN per service; absent ⇒ off.
+  allowMemberSelfBooking: z.boolean().default(false),
 })
 const nonEmpty = z.string().min(1)
 const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
@@ -159,10 +171,27 @@ export async function scheduleSessionAction(input: unknown) {
       startTime: time,
       durationMinutes: z.number().int().min(1),
       capacity: z.number().int().min(1),
+      // D13 — assign at CREATION: null ⇒ an open PT slot (the default business model).
+      assignedMemberId: z.string().nullable().optional(),
+      // D14 — level 1 of the chain. Omitted ⇒ inherit the service, then the studio.
+      cancellationWindowHours: z.number().int().min(0).max(720).nullable().optional(),
     })
     .parse(input)
-  return scheduleSession(deps(), await requireTenantContext(OPS), {
+  const ctx = await requireTenantContext(OPS)
+  // D13 — the client's memberId is never trusted on its own: re-verify eligibility here.
+  if (p.assignedMemberId) {
+    const bad = await assertEligible(
+      ctx,
+      p.serviceId as ServiceId,
+      p.assignedMemberId as MemberId,
+      sessionStartMs(p.date, p.startTime),
+    )
+    if (bad) return { ok: false as const, error: bad }
+  }
+  return scheduleSession(deps(), ctx, {
     ...p,
+    assignedMemberId: (p.assignedMemberId ?? null) as MemberId | null,
+    cancellationWindowHours: p.cancellationWindowHours ?? null,
     serviceId: p.serviceId as ServiceId,
     branchId: p.branchId as BranchId,
     roomId: p.roomId as RoomId | null,
@@ -209,6 +238,99 @@ export async function changeCapacityAction(input: unknown) {
     sessionId: p.sessionId as ClassSessionId,
     capacity: p.capacity,
     reason: p.reason,
+  })
+}
+
+// Studio-local 'YYYY-MM-DD' + 'HH:MM' → the instant the session starts (AD-52: +180).
+function sessionStartMs(date: string, startTime: string): number {
+  return Date.parse(`${date}T${startTime}:00Z`) - DEFAULT_STUDIO_CONFIG.utcOffsetMinutes * 60_000
+}
+
+// D13 — the members who may actually be reserved into a PT slot for THIS service.
+//
+// It is NOT a looser copy of the booking rule: it calls the same core predicate
+// (`isEligibleForService`), which is the member-dependent half of `decideBooking` — status,
+// validity, the category wall, the service wall (D12, incl. the legacy category-wide fallback),
+// and remaining credit. It deliberately omits the SESSION-shaped checks (full / started /
+// already-booked): those have nothing to do with the member and would empty the picker for
+// reasons the owner did not ask about.
+//
+// One read of the studio's active entitlements + one of its members — not N reads per member.
+export async function listEligibleMembersForServiceAction(input: unknown): Promise<readonly BookingMember[]> {
+  const p = z.object({ serviceId: nonEmpty, startsAt: z.number().int().positive() }).parse(input)
+  const ctx = await requireTenantContext(OPS)
+  const db = adminDb()
+
+  const service = await new FirestoreSchedulingRepository(db).getService(ctx, p.serviceId as ServiceId)
+  if (!service) return []
+
+  const at = instant(p.startsAt)
+  const entitlements = await new FirestoreEntitlementRepository(db).listActive(ctx)
+  const eligible = new Set(
+    entitlements
+      .filter((e) => isEligibleForService(e, service.category, service.id, at))
+      .map((e) => e.memberId as string),
+  )
+  if (eligible.size === 0) return []
+
+  const members = await new FirestoreMemberRepository(db).list(ctx)
+  return members
+    .filter((m) => m.status === 'active' && eligible.has(m.id))
+    .map((m) => ({ id: m.id, fullName: m.fullName, phone: m.phone }))
+}
+
+// D13 — the SAME check, run again on the server before an assignment is written. A memberId
+// arriving from a client is never trusted on its own (the picker is a convenience; this is the
+// rule). Used by both create-with-assignment and assign-later.
+async function assertEligible(
+  ctx: Awaited<ReturnType<typeof requireTenantContext>>,
+  serviceId: ServiceId,
+  memberId: MemberId,
+  at: number,
+): Promise<DomainError | null> {
+  const db = adminDb()
+  const service = await new FirestoreSchedulingRepository(db).getService(ctx, serviceId)
+  if (!service) return { code: 'member_not_eligible_for_service' }
+  const ents = await new FirestoreEntitlementRepository(db).listActiveByMember(ctx, memberId)
+  const ok = ents.some((e) => isEligibleForService(e, service.category, service.id, instant(at)))
+  return ok ? null : { code: 'member_not_eligible_for_service' }
+}
+
+// D14 — the studio default cancellation window (level 3). Owner-only: it is a policy value.
+export async function setStudioDefaultsAction(input: unknown) {
+  const p = z
+    .object({ defaultCancellationWindowHours: z.number().int().min(0).max(720).nullable() })
+    .parse(input)
+  return setStudioDefaults(deps(), await requireTenantContext(['owner', 'platform_admin']), {
+    defaultCancellationWindowHours: p.defaultCancellationWindowHours,
+  })
+}
+
+export async function getStudioDefaultsAction(): Promise<{ defaultCancellationWindowHours: number | null }> {
+  const ctx = await requireTenantContext(OPS)
+  const settings = await new FirestoreSchedulingRepository(adminDb()).getStudioSettings(ctx)
+  return { defaultCancellationWindowHours: settings?.defaultCancellationWindowHours ?? null }
+}
+
+// D13 — assign a PT (private) session to a member, or release it (memberId: null). All the
+// guards live in the decider: private only, not started, no reservations yet.
+export async function assignSessionMemberAction(input: unknown) {
+  const p = z.object({ sessionId: nonEmpty, memberId: z.string().nullable() }).parse(input)
+  const ctx = await requireTenantContext(OPS)
+  // D13 — reserving a slot FOR someone only makes sense if she could actually book it.
+  if (p.memberId) {
+    const session = await new FirestoreSchedulingRepository(adminDb()).getSession(
+      ctx,
+      p.sessionId as ClassSessionId,
+    )
+    if (session) {
+      const bad = await assertEligible(ctx, session.serviceId, p.memberId as MemberId, session.startsAt)
+      if (bad) return { ok: false as const, error: bad }
+    }
+  }
+  return assignSessionMember(deps(), ctx, {
+    sessionId: p.sessionId as ClassSessionId,
+    memberId: (p.memberId ?? null) as MemberId | null,
   })
 }
 

@@ -77,6 +77,7 @@ Plan  →  UX  →  Implementation  →  Validation  →  Commit  →  Stop
 | **v1.18** | Member Workspace | `v1.18-member-workspace` |
 | **v1.19** | Calendars & Session Workspace | `v1.19-calendars-session-workspace` |
 | **v1.20** | Owner UI & Design System — Premium Redesign | `v1.20-premium-design-system` |
+| **v1.21** | Member Portal & Auth (+ the domain corrections it forced: D12–D14) | `v1.21-member-portal` |
 
 **Planned (re-prioritised after the owner UI review, 2026-07-11).** The class and
 reservation calendars are the studio's most-used operations screens and the member's
@@ -90,7 +91,6 @@ member authentication is delivered safely on its own.
 
 | Version | Milestone | Scope |
 |---|---|---|
-| **v1.21** | **Member Portal & Auth** *(split from v1.19)* | Member (client) login via an **invite-link / one-time-code → set-password** seam (phone as username, no SMS dependency); self-service: see own agenda, book/cancel own reservations, view credits/availability; mobile-first — **built on the v1.20 Design System**. Activates the `member` principal, self-scoped Firestore rules, `allowMemberSelfBooking`, `member.portal_login`. Design: Doc 21 (later). |
 | **v1.22** | **Payments** *(deferred from v1.19)* | A real payment aggregate — collect · refund · void · methods · balance allocation · payment timeline; architecture ready for POS / online later. Used from within the Member Workspace. Until it lands, the v1.14 manual-payment seam stands. |
 | **v1.23** | **Migration & Cutover** | Import from the old system · data validation · the first live-customer cutover (freeze-and-cut, Doc 8 §5). |
 | **v1.24** | **Production Hardening / CI** | Emulator + Firebase integration tests · production config · monitoring · backup · CI/CD · performance & security checks. |

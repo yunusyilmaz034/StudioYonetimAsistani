@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import type { Entitlement } from '../../entitlements'
-import type { ClassSession, SchedulingPolicy } from '../../scheduling'
+import type { ClassSession, SessionPolicySnapshot } from '../../scheduling'
 import {
   instant,
   money,
@@ -40,17 +40,19 @@ const ctx: DecideContext = {
   source: 'reception_web',
 }
 
-const policy = (p: Partial<SchedulingPolicy> = {}): SchedulingPolicy => ({
+const policy = (p: Partial<SessionPolicySnapshot> = {}): SessionPolicySnapshot => ({
   maxDaysInAdvance: 14,
   cancellationWindowHours: 6,
+  cancellationWindowSource: 'service' as const,
   lateCancellationConsumesCredit: true,
   noShowConsumesCredit: false,
   attendanceDefaultOutcome: 'attended',
   autoResolveAfterMinutes: 15,
+  allowMemberSelfBooking: false,
   ...p,
 })
 
-function session(over: Partial<ClassSession> = {}, pol: SchedulingPolicy = policy()): ClassSession {
+function session(over: Partial<ClassSession> = {}, pol: SessionPolicySnapshot = policy()): ClassSession {
   return {
     id: 'cls_1' as ClassSessionId,
     studioId: 'std_1' as StudioId,
@@ -59,6 +61,7 @@ function session(over: Partial<ClassSession> = {}, pol: SchedulingPolicy = polic
     roomId: 'rom_1' as RoomId,
     trainerId: null,
     templateId: null,
+    assignedMemberId: null,
     category: 'pilates_group',
     startsAt: instant(NOW + 24 * H),
     endsAt: instant(NOW + 25 * H),
@@ -213,6 +216,126 @@ describe('decideBooking (I-9)', () => {
       error: { code: 'entitlement_not_active' },
     })
   })
+
+  // ── D12 / I-9.8 — the service wall ────────────────────────────────────────────
+  const withServices = (ids: readonly ServiceId[]) =>
+    creditEnt({
+      productSnapshot: {
+        productId: 'prd_1' as ProductId,
+        name: 'Reformer 8',
+        category: 'pilates_group',
+        grant: { kind: 'credits', credits: 8, validForDays: 30 },
+        listPrice: money(420_000),
+        serviceIds: ids,
+      },
+    })
+
+  it('books when the package covers the session’s service (I-9.8)', () => {
+    const r = decideBooking(ctx, session(), withServices(['svc_1' as ServiceId]), bookInput, false)
+    expect(r.ok).toBe(true)
+  })
+
+  it('refuses a service the package does not cover (I-9.8)', () => {
+    expect(decideBooking(ctx, session(), withServices(['svc_9' as ServiceId]), bookInput, false)).toEqual({
+      ok: false,
+      error: { code: 'service_not_covered', sessionServiceId: 'svc_1' },
+    })
+  })
+
+  it('a LEGACY entitlement (no service list) still books — its category-wide right is intact', () => {
+    // Sold before D12. It is never narrowed after the fact; `creditEnt()` carries no serviceIds.
+    const r = decideBooking(ctx, session(), creditEnt(), bookInput, false)
+    expect(r.ok).toBe(true)
+  })
+
+  it('a package that names NO service grants no access (empty ≠ everything)', () => {
+    expect(decideBooking(ctx, session(), withServices([]), bookInput, false)).toEqual({
+      ok: false,
+      error: { code: 'service_not_covered', sessionServiceId: 'svc_1' },
+    })
+  })
+
+  // ── D13 / I-9.9 — PT ownership ────────────────────────────────────────────────
+  const ptSession = (assignedMemberId: MemberId | null) =>
+    session({ category: 'private', assignedMemberId })
+  const ptEnt = () =>
+    creditEnt({
+      productSnapshot: {
+        productId: 'prd_pt' as ProductId,
+        name: 'PT 8',
+        category: 'private',
+        grant: { kind: 'credits', credits: 8, validForDays: 60 },
+        listPrice: money(640_000),
+        serviceIds: ['svc_1' as ServiceId],
+      },
+    })
+
+  it('the assigned member books her own PT slot', () => {
+    const r = decideBooking(ctx, ptSession('mem_1' as MemberId), ptEnt(), bookInput, false)
+    expect(r.ok).toBe(true)
+  })
+
+  it('a RESERVED PT slot refuses everyone except its member — even with a valid PT package', () => {
+    // bookInput books mem_1; the slot is mem_2's. Reception cannot put the wrong member in it
+    // either — this refuses by MEMBER, not by actor.
+    expect(decideBooking(ctx, ptSession('mem_2' as MemberId), ptEnt(), bookInput, false)).toEqual({
+      ok: false,
+      error: { code: 'session_not_assigned_to_member' },
+    })
+  })
+
+  it('an OPEN PT slot (unassigned) is bookable by any eligible member — it is not hidden', () => {
+    // D13 final (owner): null does NOT mean "unavailable". It is the default, and it is open.
+    const r = decideBooking(ctx, ptSession(null), ptEnt(), bookInput, false)
+    expect(r.ok).toBe(true)
+  })
+
+  it('booking an OPEN PT slot does NOT assign it — the field stays null', () => {
+    // Ownership is never acquired by booking. A second member may still take the next seat if
+    // capacity allows (a future partner/duo PT has capacity 2).
+    const open = ptSession(null)
+    const r = decideBooking(ctx, open, ptEnt(), bookInput, false)
+    expect(r.ok).toBe(true)
+    if (r.ok) {
+      expect(open.assignedMemberId).toBeNull() // the decider produced no assignment
+      expect(r.value.events.every((e) => e.type !== 'class_session.assigned')).toBe(true)
+      expect(r.value.reservation.classSessionId).toBe('cls_1')
+    }
+  })
+
+  it('an OPEN PT slot fills by CAPACITY, not by ownership', () => {
+    // capacity 2, one seat taken → still bookable. Nothing about assignment is consulted.
+    const duo = session({ category: 'private', assignedMemberId: null, capacity: 2, bookedCount: 1 })
+    expect(decideBooking(ctx, duo, ptEnt(), bookInput, false).ok).toBe(true)
+    const full = session({ category: 'private', assignedMemberId: null, capacity: 2, bookedCount: 2 })
+    expect(decideBooking(ctx, full, ptEnt(), bookInput, false)).toEqual({
+      ok: false,
+      error: { code: 'class_full', capacity: 2 },
+    })
+  })
+
+  it('reception may book an eligible member into an OPEN PT slot (ctx.actor is reception)', () => {
+    // The refusal is by MEMBER, not by actor — and an open slot has no member to refuse for.
+    expect(ctx.actor.type).toBe('receptionist')
+    expect(decideBooking(ctx, ptSession(null), ptEnt(), bookInput, false).ok).toBe(true)
+  })
+
+  it('the ownership refusal precedes the capacity check — a full slot that is not hers still says so', () => {
+    const full = session({ category: 'private', assignedMemberId: 'mem_2' as MemberId, bookedCount: 8 })
+    expect(decideBooking(ctx, full, ptEnt(), bookInput, false)).toEqual({
+      ok: false,
+      error: { code: 'session_not_assigned_to_member' },
+    })
+  })
+
+  it('the category wall is checked BEFORE the service wall — the coarser refusal wins', () => {
+    expect(
+      decideBooking(ctx, session({ category: 'fitness' }), withServices(['svc_9' as ServiceId]), bookInput, false),
+    ).toEqual({
+      ok: false,
+      error: { code: 'category_mismatch', sessionCategory: 'fitness', entitlementCategory: 'pilates_group' },
+    })
+  })
 })
 
 describe('decideCancellation (§7.2 — nothing knows the number six)', () => {
@@ -282,7 +405,7 @@ describe('decideAttendance (manual, source trainer)', () => {
 
 describe('decideAutoResolution (AD-38 — never emits reservation.attended)', () => {
   // A session that ended an hour ago; grace 15m ⇒ already resolvable at NOW.
-  const ended = (pol: SchedulingPolicy = policy()) =>
+  const ended = (pol: SessionPolicySnapshot = policy()) =>
     session({ startsAt: instant(NOW - 2 * H), endsAt: instant(NOW - H) }, pol)
   const held = () => creditEnt({ credits: { granted: 8, held: 1, consumed: 0, restored: 0, revoked: 0, expired: 0 } })
 

@@ -28,6 +28,7 @@ const sess = (): ClassSession => ({
   roomId: 'rom_1' as RoomId,
   trainerId: null,
   templateId: null,
+  assignedMemberId: null,
   category: 'pilates_group',
   startsAt: instant(NOW + 2 * D),
   endsAt: instant(NOW + 2 * D + 3_600_000),
@@ -38,10 +39,12 @@ const sess = (): ClassSession => ({
   policySnapshot: {
     maxDaysInAdvance: 14,
     cancellationWindowHours: 6,
+    cancellationWindowSource: 'service' as const,
     lateCancellationConsumesCredit: true,
     noShowConsumesCredit: false,
     attendanceDefaultOutcome: 'attended',
     autoResolveAfterMinutes: 15,
+    allowMemberSelfBooking: false,
   },
   bookedCount: 0,
   attendedCount: 0,
@@ -60,6 +63,7 @@ function ent(opts: {
   status?: Entitlement['status']
   available?: number
   purchasedAt?: Instant
+  serviceIds?: readonly ServiceId[] // D12 — omitted ⇒ a legacy (pre-D12) purchase
 }): Entitlement {
   const grant: Grant = opts.grant ?? { kind: 'credits', credits: 8, validForDays: 30 }
   const avail = opts.available ?? 8
@@ -75,6 +79,7 @@ function ent(opts: {
       category: opts.category ?? 'pilates_group',
       grant,
       listPrice: money(1),
+      ...(opts.serviceIds ? { serviceIds: opts.serviceIds } : {}),
     },
     policyRef: { policyId: 'pol_1', version: 1 },
     status: opts.status ?? 'active',
@@ -111,5 +116,23 @@ describe('selectEntitlement (I-17)', () => {
   it('returns null when nothing is bookable', () => {
     const empty = ent({ id: 'e_empty', validUntil: instant(NOW + 40 * D), available: 0 })
     expect(selectEntitlement([empty], sess(), NOW)).toBeNull()
+  })
+
+  // ── D12 — the advisory path must answer exactly as decideBooking does, or the UI offers a
+  //    booking the domain then refuses.
+  it('skips a package that does not cover the session’s service, and picks one that does', () => {
+    const wrongService = ent({ id: 'e_wrong', validUntil: instant(NOW + 10 * D), serviceIds: ['svc_9' as ServiceId] })
+    const covers = ent({ id: 'e_covers', validUntil: instant(NOW + 40 * D), serviceIds: ['svc_1' as ServiceId] })
+    expect(selectEntitlement([wrongService, covers], sess(), NOW)?.id).toBe('e_covers')
+  })
+
+  it('a legacy package (no service list) is still selectable — category-wide, as sold', () => {
+    const legacy = ent({ id: 'e_legacy', validUntil: instant(NOW + 40 * D) })
+    expect(selectEntitlement([legacy], sess(), NOW)?.id).toBe('e_legacy')
+  })
+
+  it('returns null when the only package covers a different service', () => {
+    const wrongService = ent({ id: 'e_wrong', validUntil: instant(NOW + 40 * D), serviceIds: ['svc_9' as ServiceId] })
+    expect(selectEntitlement([wrongService], sess(), NOW)).toBeNull()
   })
 })

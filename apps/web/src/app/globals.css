@@ -66,6 +66,16 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
 
+  /* ── class categories (D6, v1.21) — bound to the SERVICE CATEGORY, never to a package name:
+     a package is renamed and repriced; a category is a closed enum the domain depends on.
+     Colour NEVER carries meaning alone (Doc 09 §7) — every chip is also labelled. ── */
+  --color-cat-pilates: var(--cat-pilates);
+  --color-cat-fitness: var(--cat-fitness);
+  --color-cat-private: var(--cat-private);
+  --color-cat-pilates-soft: var(--cat-pilates-soft);
+  --color-cat-fitness-soft: var(--cat-fitness-soft);
+  --color-cat-private-soft: var(--cat-private-soft);
+
   /* ── status ── */
   --color-success: var(--success);
   --color-warning: var(--warning);
@@ -107,6 +117,14 @@
   --border: #e4e7ec;
   --input: #e4e7ec;
   --ring: #0f9f96;
+
+  /* ── class categories (v1.21) ── */
+  --cat-pilates: #7c3aed;
+  --cat-pilates-soft: #f3eefe;
+  --cat-fitness: #0f9f96;
+  --cat-fitness-soft: #e8f7f5;
+  --cat-private: #b45309;
+  --cat-private-soft: #fdf3e7;
 
   /* ── status ── */
   --success: #16a34a;

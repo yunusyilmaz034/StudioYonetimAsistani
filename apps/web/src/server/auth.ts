@@ -1,4 +1,4 @@
-import type { TenantContext } from '@studio/core'
+import type { MemberId, TenantContext } from '@studio/core'
 
 import {
   claimsToTenantContext,
@@ -8,6 +8,11 @@ import {
   type StaffClaims,
 } from './claims'
 import { adminAuth } from './firebase-admin'
+import {
+  memberClaimsToTenantContext,
+  parseMemberClaims,
+  type MemberClaims,
+} from './member-claims'
 import { readSessionCookie } from './session-cookie'
 
 // Authorization failures are thrown, not returned as domain values — they are
@@ -44,6 +49,45 @@ export async function getVerifiedClaims(): Promise<StaffClaims | null> {
 export async function getTenantContext(): Promise<TenantContext | null> {
   const claims = await getVerifiedClaims()
   return claims ? claimsToTenantContext(claims) : null
+}
+
+// ── The member principal (D11, v1.21) ────────────────────────────────────────────────────
+//
+// THE single door for every member-portal read and write. Two properties make the portal safe,
+// and both live here rather than in any screen:
+//
+//   1. **`memberId` comes out of the verified session cookie — never out of a request.** There
+//      is no parameter to forge, because there is no parameter. A `memberId` arriving from a
+//      client is ignored everywhere in the portal.
+//   2. **A staff token cannot pass through it, and a member token cannot pass through
+//      `requireTenantContext`.** The two parsers refuse each other's shapes.
+export class NotAMemberError extends Error {
+  constructor() {
+    super('Not a member principal')
+    this.name = 'NotAMemberError'
+  }
+}
+
+export async function getMemberClaims(): Promise<MemberClaims | null> {
+  const cookie = await readSessionCookie()
+  if (!cookie) return null
+  try {
+    const decoded = await adminAuth().verifySessionCookie(cookie, true)
+    return parseMemberClaims(decoded.uid, decoded as unknown as Record<string, unknown>)
+  } catch {
+    return null
+  }
+}
+
+export interface MemberContext {
+  readonly ctx: TenantContext // studio-scoped; actor = { type: 'member', id }
+  readonly memberId: MemberId
+}
+
+export async function requireMemberContext(): Promise<MemberContext> {
+  const claims = await getMemberClaims()
+  if (!claims) throw new UnauthorizedError()
+  return { ctx: memberClaimsToTenantContext(claims), memberId: claims.memberId }
 }
 
 // The single door for every trusted server-side write (AD-35). Throws

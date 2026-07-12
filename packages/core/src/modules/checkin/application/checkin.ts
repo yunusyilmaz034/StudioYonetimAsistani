@@ -19,7 +19,10 @@ export interface RecordCheckInInput {
   readonly branchId: BranchId
   readonly method: CheckInMethod
   readonly occurredAt: Instant // domain time (offline-mintable), clamped
-  readonly commandId: CommandId
+  // null when NO command caused this — the online QR path (D16) is a Server Action, so there is
+  // no command doc to point at. The envelope has always allowed a null causation; this type was
+  // simply tighter than the truth.
+  readonly commandId: CommandId | null
 }
 
 // Applied by `on-command-created` from a `checkIn.record` command (QR scan or manual

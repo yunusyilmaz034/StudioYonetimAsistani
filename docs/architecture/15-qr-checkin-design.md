@@ -262,7 +262,7 @@ Sheet/table/card design-system patterns.
 
 | # | Decision | Resolution |
 |---|---|---|
-| **D1** | What the QR encodes. | **`memberId`** (opaque ULID, not PII/enumerable). A rotatable `checkInToken` stays a clean future seam if QR leakage ever becomes a threat. |
+| **D1** | ~~What the QR encodes.~~ **SUPERSEDED by v1.21 · D10/D15/D16.** The static `memberId` QR was a bearer credential with no expiry — safe only while reception was the sole scanner. The member portal creates that threat (she can screenshot her own code), so the QR is now a **short-lived, server-signed, single-use token**, verified online. The printed/static card is **gone**. See Doc 21 §11. |
 | **D2** | Reception-scan only vs member self-scan kiosk. | **Reception-operated only** (actor = receptionist). Kiosk / member self-service → Phase 2 (needs the member portal). |
 | **D3** | Occupancy day boundary. | **`branch.opened` / `branch.closed`** — reception opens/closes the branch; occupancy resets at close (Doc 2 §9 model). |
 | **D4** | Auto-check-out (OQ-9). | **Yes — a nightly `system` sweep at 4 h.** Threshold is policy data (the code never knows the number). |

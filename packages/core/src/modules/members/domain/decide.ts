@@ -12,6 +12,9 @@ import {
 } from '../../../shared'
 import {
   MEMBER_DEACTIVATED,
+  MEMBER_INVITED,
+  MEMBER_PORTAL_ACTIVATED,
+  MEMBER_PORTAL_LOGIN,
   MEMBER_PROFILE_UPDATED,
   MEMBER_REGISTERED,
   type MemberDeactivatedPayload,
@@ -102,4 +105,49 @@ export function decideDeactivate(
   if (reason.trim().length === 0) return err({ code: 'reason_required' })
   if (current.status !== 'active') return ok([]) // idempotent: already inactive
   return ok([{ ...base(ctx, current), type: MEMBER_DEACTIVATED, payload: { reason } }])
+}
+
+
+// ── The portal (v1.21) ────────────────────────────────────────────────────────────────────
+
+// D1/D2 — issue a portal invite. Refused for a member who is not active: an invite is a key to
+// an account, and a deactivated member has no business getting one.
+export function decideIssueInvite(
+  ctx: DecideContext,
+  member: Member,
+  expiresAt: Instant,
+): Result<NewEvent[], DomainError> {
+  if (member.status !== 'active') return err({ code: 'member_not_active' })
+  return ok([
+    {
+      ...base(ctx, member),
+      type: MEMBER_INVITED,
+      payload: { expiresAt }, // never the token
+      related: { memberId: member.id },
+    },
+  ])
+}
+
+// The member sets her own password and her account comes alive. Actor: the MEMBER — she did
+// this, not the receptionist (non-negotiable #5).
+export function decidePortalActivated(ctx: DecideContext, member: Member): NewEvent[] {
+  return [
+    {
+      ...base(ctx, member),
+      type: MEMBER_PORTAL_ACTIVATED,
+      payload: {},
+      related: { memberId: member.id },
+    },
+  ]
+}
+
+export function decidePortalLogin(ctx: DecideContext, member: Member): NewEvent[] {
+  return [
+    {
+      ...base(ctx, member),
+      type: MEMBER_PORTAL_LOGIN,
+      payload: {},
+      related: { memberId: member.id },
+    },
+  ]
 }

@@ -36,6 +36,37 @@ export type DomainError =
   | { readonly code: 'class_full'; readonly capacity: number }
   | { readonly code: 'already_booked' }
   | { readonly code: 'category_mismatch'; readonly sessionCategory: string; readonly entitlementCategory: string }
+  // D12 (v1.21) — service-level eligibility. The package names the services it covers;
+  // an entitlement sold BEFORE D12 carries no list and keeps its category-wide right.
+  | { readonly code: 'service_not_covered'; readonly sessionServiceId: string }
+  // D12 — a product must name the services it covers: "covers nothing" and "covers the
+  // whole category" must never be the same value (AD-41: the catalogue is data).
+  | { readonly code: 'product_requires_service' }
+  // D13 (v1.21) — PT ownership. An assigned private session belongs to one member.
+  | { readonly code: 'session_not_assigned_to_member' }
+  | { readonly code: 'assignment_requires_private_session' }
+  | { readonly code: 'session_has_reservations' }
+  // D13 — PT is 1-on-1 or partner (max 2). Three or more is a group class, not a PT.
+  | { readonly code: 'pt_capacity_exceeded'; readonly maxCapacity: number; readonly capacity: number }
+  // D13 — reserving a PT slot FOR a member only makes sense if she could actually book it:
+  // an active package that covers this service, with credit left. Re-checked server-side.
+  | { readonly code: 'member_not_eligible_for_service' }
+  // ── member portal (v1.21) ──
+  // ONE error for every invite failure — wrong / expired / already used / unknown member. An
+  // attacker probing links must not learn which.
+  | { readonly code: 'invite_invalid' }
+  | { readonly code: 'member_not_active' }
+  | { readonly code: 'weak_password' }
+  // D11 — this service has not opted into member self-booking (policy, not an `if`).
+  | { readonly code: 'member_self_booking_disabled' }
+  // D16 — the dynamic check-in QR. One error per failure MODE (invalid / expired / already
+  // used), because reception needs to know what to tell the person standing in front of her.
+  | { readonly code: 'qr_invalid' }
+  | { readonly code: 'qr_expired' }
+  | { readonly code: 'qr_used' }
+  // D14 — no level of the cancellation-window chain answered (session → service → studio).
+  // The domain REFUSES rather than inventing a number: nothing in the code knows the six.
+  | { readonly code: 'cancellation_window_unresolved' }
   | { readonly code: 'entitlement_expires_before_session' }
   | { readonly code: 'no_bookable_entitlement' }
   | { readonly code: 'reservation_not_open' }

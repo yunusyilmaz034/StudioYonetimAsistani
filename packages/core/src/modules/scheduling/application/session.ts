@@ -6,6 +6,7 @@ import {
   type DomainError,
   type Instant,
   type LocalDate,
+  type MemberId,
   type NewEvent,
   type Result,
   type RoomId,
@@ -14,14 +15,23 @@ import {
   type TenantContext,
 } from '../../../shared'
 import {
+  decideAssignSessionMember,
   decideCancelSession,
   decideChangeCapacity,
   decideChangeRoom,
   decideChangeTrainer,
   decideScheduleSession,
   decideSetSessionNote,
+  decideSetStudioDefaults,
 } from '../domain/decide'
-import type { ClassSession, NoteVisibility, Room, Service } from '../domain/types'
+import { resolveCancellationWindow } from '../domain/cancellation-window'
+import type {
+  ClassSession,
+  NoteVisibility,
+  Room,
+  Service,
+  SessionPolicySnapshot,
+} from '../domain/types'
 import { decideContext } from './service'
 import type { SchedulingDeps } from './ports'
 import {
@@ -46,6 +56,8 @@ function buildSession(params: {
   startsAt: Instant
   endsAt: Instant
   capacity: number
+  assignedMemberId: MemberId | null
+  policySnapshot: SessionPolicySnapshot
 }): ClassSession {
   const { service, room } = params
   return {
@@ -57,19 +69,46 @@ function buildSession(params: {
     trainerId: params.trainerId,
     templateId: params.templateId,
     category: service.category,
+    assignedMemberId: params.assignedMemberId,
     startsAt: params.startsAt,
     endsAt: params.endsAt,
     capacity: params.capacity,
     status: 'scheduled',
     cancellation: null,
     policyRef: { serviceId: service.id, version: service.policyVersion },
-    policySnapshot: service.policy,
+    // D14 — the window is RESOLVED and stamped here (I-24). Nothing downstream re-derives it.
+    policySnapshot: params.policySnapshot,
     bookedCount: 0,
     attendedCount: 0,
     serviceName: service.name,
     roomName: room ? room.name : null,
     trainerName: params.trainerName,
     branchName: params.branchName,
+  }
+}
+
+// D14 — the chain, run once: session override → service → studio → (refuse). The system
+// default (6 h) is DATA a studio is provisioned with, not a number in this code.
+async function resolveSnapshot(
+  deps: SchedulingDeps,
+  ctx: TenantContext,
+  service: Service,
+  override: number | null,
+): Promise<Result<SessionPolicySnapshot, DomainError>> {
+  const studioSettings = await deps.repo.getStudioSettings(ctx)
+  const resolved = resolveCancellationWindow({
+    sessionOverride: override,
+    servicePolicy: service.policy,
+    studioSettings,
+  })
+  if (!resolved.ok) return resolved
+  return {
+    ok: true,
+    value: {
+      ...service.policy,
+      cancellationWindowHours: resolved.value.hours,
+      cancellationWindowSource: resolved.value.source,
+    },
   }
 }
 
@@ -84,6 +123,10 @@ export interface ScheduleSessionInput {
   readonly startTime: string // 'HH:MM' local
   readonly durationMinutes: number
   readonly capacity: number
+  // D13 — only meaningful for a private session; null everywhere else.
+  readonly assignedMemberId?: MemberId | null
+  // D14 — level 1 of the chain: this session's own override. Omitted/null ⇒ inherit.
+  readonly cancellationWindowHours?: number | null
 }
 
 export async function scheduleSession(
@@ -100,6 +143,9 @@ export async function scheduleSession(
     input.durationMinutes,
     deps.studioConfig,
   )
+  // D14 — resolve the cancellation window ONCE, here, and stamp it. Never at read time.
+  const snapshot = await resolveSnapshot(deps, ctx, service, input.cancellationWindowHours ?? null)
+  if (!snapshot.ok) return snapshot
   const session = buildSession({
     service,
     branchId: input.branchId,
@@ -111,6 +157,8 @@ export async function scheduleSession(
     startsAt,
     endsAt,
     capacity: input.capacity,
+    assignedMemberId: input.assignedMemberId ?? null,
+    policySnapshot: snapshot.value,
   })
   const events = decideScheduleSession(decideContext(deps, ctx), session, room)
   if (!events.ok) return events
@@ -139,6 +187,10 @@ export async function generateSessions(
     (await deps.repo.listSessionStartsForTemplate(ctx, template.id)).map((i) => Number(i)),
   )
 
+  // A template has no per-session override; the chain starts at the service (D14).
+  const snapshot = await resolveSnapshot(deps, ctx, service, null)
+  if (!snapshot.ok) return snapshot
+
   const dctx = decideContext(deps, ctx)
   const sessions: ClassSession[] = []
   const events: NewEvent[] = []
@@ -162,6 +214,9 @@ export async function generateSessions(
       startsAt,
       endsAt,
       capacity: template.capacity,
+      // A template generates studio inventory, never a slot already owned by a member (D13).
+      assignedMemberId: null,
+      policySnapshot: snapshot.value,
     })
     const decided = decideScheduleSession(dctx, session, room)
     if (!decided.ok) return decided
@@ -171,6 +226,29 @@ export async function generateSessions(
 
   if (sessions.length > 0) await deps.repo.saveSessions(ctx, sessions, events)
   return { ok: true, value: { created: sessions.length } }
+}
+
+// D14 — set the studio-level default cancellation window (level 3). Affects only sessions
+// created AFTER it: every existing session already carries its own resolved, stamped window.
+export async function setStudioDefaults(
+  deps: SchedulingDeps,
+  ctx: TenantContext,
+  input: { defaultCancellationWindowHours: number | null },
+): Promise<Result<void, DomainError>> {
+  const current = await deps.repo.getStudioSettings(ctx)
+  const events = decideSetStudioDefaults(
+    decideContext(deps, ctx),
+    current,
+    input.defaultCancellationWindowHours,
+  )
+  if (!events.ok) return events
+  if (events.value.length === 0) return { ok: true, value: undefined }
+  await deps.repo.saveStudioSettings(
+    ctx,
+    { studioId: ctx.studioId, defaultCancellationWindowHours: input.defaultCancellationWindowHours },
+    events.value,
+  )
+  return { ok: true, value: undefined }
 }
 
 export async function cancelSession(
@@ -207,6 +285,23 @@ export async function changeTrainer(
     { ...current, trainerId: input.trainerId, trainerName: input.trainerName },
     events.value,
   )
+  return { ok: true, value: undefined }
+}
+
+// D13 — assign a private session to a member, re-assign it, or release it back to studio
+// inventory (`memberId: null`). All guards are in the decider (private only, not started,
+// no reservations yet).
+export async function assignSessionMember(
+  deps: SchedulingDeps,
+  ctx: TenantContext,
+  input: { sessionId: ClassSessionId; memberId: MemberId | null },
+): Promise<Result<void, DomainError>> {
+  const current = await deps.repo.getSession(ctx, input.sessionId)
+  if (!current) throw new Error(`Session not found: ${input.sessionId}`)
+  const events = decideAssignSessionMember(decideContext(deps, ctx), current, input.memberId)
+  if (!events.ok) return events
+  if (events.value.length === 0) return { ok: true, value: undefined }
+  await deps.repo.saveSession(ctx, { ...current, assignedMemberId: input.memberId }, events.value)
   return { ok: true, value: undefined }
 }
 

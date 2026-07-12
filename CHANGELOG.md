@@ -9,6 +9,65 @@ All notable changes are recorded here. Architecture rationale lives in
 
 ---
 
+## v1.21 — Member Portal & Auth · `v1.21-member-portal`
+
+The first surface a **customer** touches. Everything before this was staff-facing: if reception
+mis-reads a screen, reception asks someone. A member who mis-reads a screen books the wrong class
+— or sees another member's data. The bar is different, and the milestone grew to meet it.
+
+- **The perimeter came first (D11).** Before v1.21 the Firestore rules said *any authenticated
+  user in the studio may read almost everything* — safe only because every principal was staff.
+  Issuing a member a `studioId` claim would have handed her every member's PII, every
+  entitlement and every payment, straight from the client SDK. Reads now require a **staff**
+  role; a member principal matches **no read rule at all**. The portal is server-rendered and her
+  `memberId` comes only from the verified session cookie — no action takes a `memberId`, so none
+  can be handed a forged one. **20 rules tests**, including every member-isolation scenario.
+
+- **Three domain corrections the portal forced** — each an event-schema change, each with an
+  upcaster, and **none with a data migration**:
+  - **D12 — service-level eligibility.** `ProductSnapshot.serviceIds`, copied at purchase. A
+    Reformer package no longer opens Mat Pilates just because both are `pilates_group`. Editing a
+    product cannot reach a right already sold. **Entitlements sold before D12 have no list and
+    keep their category-wide right** — never backfilled: *absence is the record of what was sold.*
+  - **D13 — PT ownership.** `ClassSession.assignedMemberId`. `null` is an **open** slot (every
+    member with a covering PT package sees and may book it, capacity permitting — a partner PT has
+    capacity 2); set, it is **reserved** for one member and invisible to everyone else. Booking
+    never assigns; ownership is independent of capacity; PT capacity is bounded to 1–2.
+  - **D14 — the cancellation window.** Resolved through *session override → service → studio* and
+    **stamped on the session at creation** (`class_session.scheduled` v3 records the value *and
+    which level answered*). Changing a default never rewrites the terms a member already booked
+    under. **The number six is not in the code** — it is the value a studio is provisioned with;
+    if no level answers, the domain refuses rather than inventing one.
+
+- **Portal:** invite (72 h, single-use, superseding — which is also the password-reset path) →
+  activation → phone + password login → dashboard · eligibility-filtered agenda · self-booking ·
+  self-cancellation showing the session's **real** window · profile (e-mail, emergency contact,
+  password — the rest is never read from the request) · dynamic QR. Its own `MemberPortalShell`:
+  the staff sidebar is in a different branch of the route tree and never enters her HTML.
+
+- **QR (D10/D15/D16) — supersedes Doc 15 · D1.** The static `memberId` card is **gone**. It was a
+  bearer credential with no expiry, defensible only while reception was the sole scanner; the
+  portal is what made it dangerous. Replaced by a **short-lived (60 s), server-signed,
+  single-use** token, verified online (signature · expiry · member · branch · not-already-used).
+  Reception's **manual** check-in stays on the offline `/commands` path: the door still works
+  without internet.
+
+- **New events:** `member.invited` (the token is **never** in the payload), `member.portal_activated`,
+  `member.portal_login` — the last two attributed to **the member herself**, which is the entire
+  point of the actor taxonomy.
+
+- **Defects found and fixed:** the portal login page sat inside its own auth guard and redirected
+  to itself (an infinite loop for the one visitor who by definition has no session); the staff
+  `AppShell` wrapped *every* route, so a member saw the owner sidebar; `recordCheckIn` never
+  loaded the member, so a scanned string that was not a real member id was written as a check-in
+  for a member who did not exist.
+
+- **Debt:** DEBT-013 (QR secret has no rotation story — repay before the v1.23 cutover),
+  DEBT-014 (portal has no emulator e2e suite — repay with v1.24).
+
+`pnpm check` green (**270 tests**) · `next build` green (18 pages) · rules 20/20 · end-to-end
+verification 32/32 + QR 7/7.
+
 ## v1.20 — Premium Design System & Owner UI Redesign · `v1.20-premium-design-system`
 
 - **Design System v2.** Every owner screen rebuilt on one component system and one design

@@ -44,6 +44,7 @@ const POLICY_FIELDS: readonly (keyof SchedulingPolicy)[] = [
   'noShowConsumesCredit',
   'attendanceDefaultOutcome',
   'autoResolveAfterMinutes',
+  'allowMemberSelfBooking',
 ]
 
 export interface CreateServiceInput {

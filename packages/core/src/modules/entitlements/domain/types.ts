@@ -1,4 +1,13 @@
-import type { Category, EntitlementId, Instant, MemberId, Money, ProductId, StudioId } from '../../../shared'
+import type {
+  Category,
+  EntitlementId,
+  Instant,
+  MemberId,
+  Money,
+  ProductId,
+  ServiceId,
+  StudioId,
+} from '../../../shared'
 
 // The entitlement aggregate and its credit ledger (Doc 2 §5). This is the money
 // core: one aggregate, two shapes (credits | period), discriminated by grant.kind.
@@ -20,12 +29,22 @@ export type Grant = CreditGrant | PeriodGrant
 
 // What the member actually bought, frozen at purchase (Doc 2 §5.2). `category` is a
 // closed enum because the category wall (I-9.7) compares it to the session's.
+//
+// `serviceIds` (D12, v1.21) is the SERVICE-level right — the explicit list of services this
+// purchase covers, copied from the product at purchase. Editing the product tomorrow cannot
+// reach it, which is the whole point: a right already sold is never rewritten.
+//
+// **Absent is not missing data — absent is the record of what was sold.** An entitlement
+// bought before D12 has no list, and keeps the category-wide right it was sold under. It is
+// NEVER backfilled from today's product definition: that would retroactively narrow a right a
+// member paid for (owner, 2026-07-12).
 export type ProductSnapshot = {
   readonly productId: ProductId
   readonly name: string
   readonly category: Category
   readonly grant: Grant
   readonly listPrice: Money
+  readonly serviceIds?: readonly ServiceId[] // absent ⇒ legacy, category-wide
 }
 
 export type EntitlementStatus = 'active' | 'frozen' | 'expired' | 'cancelled'

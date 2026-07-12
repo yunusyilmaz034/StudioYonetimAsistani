@@ -63,6 +63,10 @@ export function computeDuplicationPlan(
 
   for (const s of source) {
     if (s.status !== 'scheduled') continue // only copy live, planned sessions
+    // D13 — an assigned PT slot belongs to a member. Repeating the week must not silently
+    // commit her to four more appointments, nor strip the assignment and leave phantom PT
+    // inventory nobody asked for. Booking next week's PT is a decision, not a copy.
+    if (s.assignedMemberId !== null) continue
     const durationMinutes = Math.round((s.endsAt - s.startsAt) / 60_000)
     for (let k = 1; k <= weeks; k++) {
       const startsAt = s.startsAt + k * WEEK_MS

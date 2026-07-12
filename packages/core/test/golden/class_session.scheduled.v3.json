@@ -1,0 +1,14 @@
+{
+  "serviceId": "svc_1",
+  "branchId": "brn_1",
+  "roomId": "rom_1",
+  "trainerId": null,
+  "assignedMemberId": null,
+  "category": "pilates_group",
+  "startsAt": 1000000,
+  "endsAt": 4600000,
+  "capacity": 8,
+  "policyVersion": 2,
+  "cancellationWindowHours": 6,
+  "cancellationWindowSource": "service"
+}

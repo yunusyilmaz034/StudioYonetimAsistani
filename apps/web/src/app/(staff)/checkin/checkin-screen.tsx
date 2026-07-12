@@ -12,6 +12,8 @@ import { Input } from '@/components/ui/input'
 import { PageHeader } from '@/components/ui/page-header'
 import { Toaster } from '@/components/ui/sonner'
 import { checkInCommand } from '@/lib/commands'
+import { domainErrorMessage } from '@/lib/domain-error'
+import { checkInByQrAction } from '@/server/actions/qr'
 import { closeBranchAction, openBranchAction } from '@/server/actions/checkin'
 import type { CheckinState } from '@/server/checkin-query'
 
@@ -39,6 +41,30 @@ export function CheckinScreen({ state, members }: { state: CheckinState; members
 
   const nameOf = useMemo(() => new Map(members.map((m) => [m.id, m.fullName])), [members])
   const insideIds = useMemo(() => new Set(state.inside.map((i) => i.memberId)), [state.inside])
+
+  // D16 — a scanned QR now carries a SHORT-LIVED SIGNED TOKEN, not a memberId. It is verified
+  // on the server (signature · expiry · member · branch · not-already-used) and the check-in is
+  // written there — ONLINE-ONLY, by design. The scanned string is never trusted as an identity.
+  //
+  // No internet? The manual member search below still runs on the OFFLINE /commands path,
+  // untouched: reception's door keeps working.
+  const scanQr = useCallback(
+    async (token: string) => {
+      if (!state.branchId) return
+      try {
+        const res = await checkInByQrAction({ token, branchId: state.branchId })
+        if (res.ok) {
+          toast.success(`${res.value.memberName} — giriş kaydedildi.`)
+          setTimeout(() => router.refresh(), 800)
+        } else {
+          toast.error(domainErrorMessage(res.error))
+        }
+      } catch {
+        toast.error('QR doğrulanamadı. Bağlantınızı kontrol edin veya manuel arama kullanın.')
+      }
+    },
+    [state.branchId, router],
+  )
 
   const toggle = useCallback(
     async (memberId: string, method: 'qr' | 'reception') => {
@@ -129,7 +155,7 @@ export function CheckinScreen({ state, members }: { state: CheckinState; members
                 {scannerOn ? 'Kapat' : 'Kamerayı Aç'}
               </Button>
             </div>
-            {scannerOn ? <QrScanner active={scannerOn} onScan={(v) => toggle(v, 'qr')} /> : null}
+            {scannerOn ? <QrScanner active={scannerOn} onScan={(v) => scanQr(v)} /> : null}
 
             <h3 className="pt-1 text-sm font-medium">Üye Ara</h3>
             <div className="relative">

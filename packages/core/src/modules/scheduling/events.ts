@@ -1,5 +1,5 @@
-import type { BranchId, Category, Instant, RoomId, ServiceId, StaffUserId } from '../../shared'
-import type { NoteVisibility } from './domain/types'
+import type { BranchId, Category, Instant, MemberId, RoomId, ServiceId, StaffUserId } from '../../shared'
+import type { CancellationWindowSource, NoteVisibility } from './domain/types'
 
 // No PII in any payload (I-13). Scheduling entities are referenced by opaque id;
 // the payload carries the delta plus the numbers changed (AD-19). Broad from day
@@ -26,6 +26,14 @@ export const CLASS_SESSION_TRAINER_CHANGED = 'class_session.trainer_changed'
 export const CLASS_SESSION_ROOM_CHANGED = 'class_session.room_changed'
 export const CLASS_SESSION_CAPACITY_CHANGED = 'class_session.capacity_changed'
 export const CLASS_SESSION_NOTE_SET = 'class_session.note_set'
+export const CLASS_SESSION_ASSIGNED = 'class_session.assigned'
+export const STUDIO_SETTINGS_UPDATED = 'studio.settings_updated'
+
+// `class_session.scheduled` is the only versioned-up event in scheduling:
+//   v2 (D13) adds `assignedMemberId`
+//   v3 (D14) adds the EFFECTIVE cancellation window and where it came from
+// Every other type is still v1.
+export const CLASS_SESSION_SCHEDULED_VERSION = 3
 
 export type ServiceCreatedPayload = {
   readonly name: string
@@ -59,16 +67,37 @@ export type ClassTemplateCreatedPayload = {
   readonly validUntil: string
 }
 
+// v2 (D13, v1.21) — carries `assignedMemberId`. A v1 event predates PT ownership and is read
+// as `null` (unassigned) by the upcaster; it is never rewritten. See `upcasters.ts`.
 export type ClassSessionScheduledPayload = {
   readonly serviceId: ServiceId
   readonly branchId: BranchId
   readonly roomId: RoomId | null
   readonly trainerId: StaffUserId | null
+  readonly assignedMemberId: MemberId | null
   readonly category: Category
   readonly startsAt: Instant
   readonly endsAt: Instant
   readonly capacity: number
   readonly policyVersion: number
+  // v3 (D14) — the window this session was actually created under, and which level of the
+  // chain answered. `null` ONLY on a pre-v3 event: the old payload did not record it, and an
+  // upcaster may not invent what it cannot know. The session document still holds the number.
+  readonly cancellationWindowHours: number | null
+  readonly cancellationWindowSource: CancellationWindowSource | null
+}
+
+// D14 — the studio-level defaults changed. Only affects sessions created AFTER it.
+export type StudioSettingsUpdatedPayload = {
+  readonly defaultCancellationWindowHours: number | null
+  readonly previousDefaultCancellationWindowHours: number | null
+}
+
+// D13 — assignment changed after the session was created (assigned, re-assigned, or released
+// back to studio inventory). `to: null` is a release.
+export type ClassSessionAssignedPayload = {
+  readonly from: MemberId | null
+  readonly to: MemberId | null
 }
 export type ClassSessionCancelledPayload = {
   readonly reason: string

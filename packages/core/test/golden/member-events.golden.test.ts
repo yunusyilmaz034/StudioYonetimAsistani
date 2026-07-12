@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest'
 
 import {
   decideDeactivate,
+  decideIssueInvite,
+  decidePortalActivated,
+  decidePortalLogin,
   decideRegisterMember,
   decideUpdateProfile,
 } from '../../src/modules/members/domain/decide'
@@ -17,6 +20,9 @@ import {
 import registered from './member.registered.v1.json'
 import profileUpdated from './member.profile_updated.v1.json'
 import deactivated from './member.deactivated.v1.json'
+import invited from './member.invited.v1.json'
+import portalActivated from './member.portal_activated.v1.json'
+import portalLogin from './member.portal_login.v1.json'
 
 // Golden fixtures (AD-33): the committed payload contract per event type. A change
 // to a payload shape fails here, forcing an explicit version bump + upcaster.
@@ -64,5 +70,42 @@ describe('member event payloads match golden fixtures', () => {
     const r = decideDeactivate(ctx, member, 'Üye ayrıldı')
     expect(r.ok).toBe(true)
     if (r.ok) expect(r.value[0]?.payload).toEqual(deactivated)
+  })
+})
+
+// v1.21 — the portal. Three new event TYPES (additive; no existing payload changes, so no
+// upcaster is needed here).
+describe('portal event payloads (v1.21)', () => {
+  const memberCtx = {
+    ...ctx,
+    actor: { type: 'member' as const, id: 'mem_1' as MemberId },
+  }
+
+  it('member.invited — carries the expiry and NEVER the token', () => {
+    const r = decideIssueInvite(ctx, member, instant(1_000_000))
+    expect(r.ok).toBe(true)
+    if (r.ok) {
+      expect(r.value[0]?.payload).toEqual(invited)
+      // A bearer credential in an immutable log would be unrecoverable. It is not there.
+      expect(JSON.stringify(r.value[0]?.payload)).not.toContain('token')
+    }
+  })
+
+  it('refuses an invite for an inactive member', () => {
+    const r = decideIssueInvite(ctx, { ...member, status: 'inactive' }, instant(1_000_000))
+    expect(r).toEqual({ ok: false, error: { code: 'member_not_active' } })
+  })
+
+  it('member.portal_activated — actor is the MEMBER, not the receptionist', () => {
+    const e = decidePortalActivated(memberCtx, member)[0]
+    expect(e?.payload).toEqual(portalActivated)
+    expect(e?.actor).toEqual({ type: 'member', id: 'mem_1' })
+  })
+
+  it('member.portal_login — attributable to her (non-negotiable #5)', () => {
+    const e = decidePortalLogin(memberCtx, member)[0]
+    expect(e?.payload).toEqual(portalLogin)
+    expect(e?.actor).toEqual({ type: 'member', id: 'mem_1' })
+    expect(e?.related).toEqual({ memberId: 'mem_1' })
   })
 })

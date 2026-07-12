@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import type { Entitlement } from '../../src/modules/entitlements'
-import type { ClassSession, SchedulingPolicy } from '../../src/modules/scheduling'
+import type { ClassSession, SessionPolicySnapshot } from '../../src/modules/scheduling'
 import type { MemberSnapshot } from '../../src/modules/members'
 import {
   decideAttendance,
@@ -47,13 +47,15 @@ const ctx: DecideContext = {
   correlationId: 'cor_1' as CorrelationId,
   source: 'reception_web',
 }
-const pol: SchedulingPolicy = {
+const pol: SessionPolicySnapshot = {
   maxDaysInAdvance: 14,
   cancellationWindowHours: 6,
+  cancellationWindowSource: 'service' as const,
   lateCancellationConsumesCredit: true,
   noShowConsumesCredit: false,
   attendanceDefaultOutcome: 'attended',
   autoResolveAfterMinutes: 15,
+  allowMemberSelfBooking: false,
 }
 const session = (startsAt = instant(NOW + 24 * H), over: Partial<ClassSession> = {}): ClassSession => ({
   id: 'cls_1' as ClassSessionId,
@@ -63,6 +65,7 @@ const session = (startsAt = instant(NOW + 24 * H), over: Partial<ClassSession> =
   roomId: 'rom_1' as RoomId,
   trainerId: null,
   templateId: null,
+  assignedMemberId: null,
   category: 'pilates_group',
   startsAt,
   endsAt: instant(startsAt + H),

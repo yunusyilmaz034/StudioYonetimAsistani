@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
+import { upcastClassSessionScheduled } from '../../src/modules/scheduling/upcasters'
 import {
+  decideAssignSessionMember,
   decideCancelSession,
   decideChangeCapacity,
   decideChangeRoom,
@@ -14,7 +16,7 @@ import type {
   ClassSession,
   ClassTemplate,
   Room,
-  SchedulingPolicy,
+  SessionPolicySnapshot,
   Service,
   Weekday,
 } from '../../src/modules/scheduling/domain/types'
@@ -25,6 +27,7 @@ import {
   type ClassTemplateId,
   type CorrelationId,
   type LocalDate,
+  type MemberId,
   type RoomId,
   type ServiceId,
   type StaffUserId,
@@ -32,7 +35,9 @@ import {
 } from '../../src/shared'
 import serviceCreated from './service.created.v1.json'
 import sessionCancelled from './class_session.cancelled.v1.json'
-import sessionScheduled from './class_session.scheduled.v1.json'
+import sessionScheduledV1 from './class_session.scheduled.v1.json'
+import sessionScheduledV2 from './class_session.scheduled.v2.json'
+import sessionScheduledV3 from './class_session.scheduled.v3.json'
 import roomChanged from './class_session.room_changed.v1.json'
 import capacityChanged from './class_session.capacity_changed.v1.json'
 import noteSet from './class_session.note_set.v1.json'
@@ -45,13 +50,15 @@ const ctx: DecideContext = {
   correlationId: 'cor_1' as CorrelationId,
   source: 'reception_web',
 }
-const policy: SchedulingPolicy = {
+const policy: SessionPolicySnapshot = {
   maxDaysInAdvance: 14,
   cancellationWindowHours: 6,
+  cancellationWindowSource: 'service' as const,
   lateCancellationConsumesCredit: true,
   noShowConsumesCredit: true,
   attendanceDefaultOutcome: 'attended',
   autoResolveAfterMinutes: 15,
+  allowMemberSelfBooking: false,
 }
 const service: Service = {
   id: 'svc_1' as ServiceId,
@@ -74,6 +81,7 @@ const session: ClassSession = {
   startsAt: instant(1_000_000),
   endsAt: instant(4_600_000),
   capacity: 8,
+  assignedMemberId: null,
   status: 'scheduled',
   cancellation: null,
   policyRef: { serviceId: 'svc_1' as ServiceId, version: 2 },
@@ -90,10 +98,43 @@ describe('scheduling event payloads match golden fixtures (AD-33)', () => {
   it('service.created', () => {
     expect(decideCreateService(ctx, service)[0]?.payload).toEqual(serviceCreated)
   })
-  it('class_session.scheduled', () => {
+  it('class_session.scheduled (v3 — assignedMemberId + the effective window and its source)', () => {
     const r = decideScheduleSession(ctx, session, null)
     expect(r.ok).toBe(true)
-    if (r.ok) expect(r.value[0]?.payload).toEqual(sessionScheduled)
+    if (r.ok) {
+      expect(r.value[0]?.payload).toEqual(sessionScheduledV3)
+      expect(r.value[0]?.version).toBe(3)
+    }
+  })
+  it('v1 upcasts to v3 — "unassigned" is a FACT about v1; the window is "not recorded"', () => {
+    // An upcaster may only supply what the old shape MEANT. v1 had no assignment (it was studio
+    // inventory → null, a fact) and did not record the window (→ null, meaning *not recorded*,
+    // NOT "no window"). Deriving the window from today's settings would be a lie: those settings
+    // may have changed since. The session DOCUMENT still holds the real number.
+    expect(upcastClassSessionScheduled(sessionScheduledV1, 1)).toEqual({
+      ...sessionScheduledV3,
+      cancellationWindowHours: null,
+      cancellationWindowSource: null,
+    })
+  })
+  it('v2 upcasts to v3 — the assignment survives, the window stays "not recorded"', () => {
+    expect(upcastClassSessionScheduled(sessionScheduledV2, 2)).toEqual({
+      ...sessionScheduledV3,
+      cancellationWindowHours: null,
+      cancellationWindowSource: null,
+    })
+  })
+  it('upcasting a v3 event is the identity', () => {
+    expect(upcastClassSessionScheduled(sessionScheduledV3, 3)).toEqual(sessionScheduledV3)
+  })
+  it('class_session.assigned', () => {
+    const r = decideAssignSessionMember(
+      ctx,
+      { ...session, category: 'private', assignedMemberId: null, startsAt: instant(1_800_000_000_000) },
+      'mem_1' as MemberId,
+    )
+    expect(r.ok).toBe(true)
+    if (r.ok) expect(r.value[0]?.payload).toEqual({ from: null, to: 'mem_1' })
   })
   it('class_session.cancelled', () => {
     const r = decideCancelSession(ctx, session, 'Eğitmen hasta')

@@ -76,6 +76,9 @@ export async function assignSubscriptionAction(input: unknown) {
       category: product.category,
       grant,
       listPrice: money(product.priceInKurus),
+      // D12 — the service-level right, frozen at purchase. A later catalogue edit cannot
+      // reach it; that is the point. Every NEW purchase carries it explicitly.
+      serviceIds: product.serviceIds,
     },
     policyRef: { policyId: product.id, version: 1 },
     priceAgreed: money(p.priceAgreedKurus ?? product.priceInKurus),

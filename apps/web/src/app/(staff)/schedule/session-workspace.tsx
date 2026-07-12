@@ -27,8 +27,11 @@ import { domainErrorMessage } from '@/lib/domain-error'
 import {
   getSessionAttendanceAction,
   type AttendanceEntry,
+  type BookingMember,
 } from '@/server/actions/booking'
 import {
+  assignSessionMemberAction,
+  listEligibleMembersForServiceAction,
   cancelSessionAction,
   changeCapacityAction,
   changeRoomAction,
@@ -42,6 +45,12 @@ import { BookingPanel } from './booking-panel'
 import { STATUS_LABEL } from './types'
 
 const NONE = '__none__'
+// D14 — where the session's stamped cancellation window came from.
+const WINDOW_SOURCE: Record<string, string> = {
+  session: 'bu seansa özel',
+  service: 'ders varsayılanı',
+  studio: 'stüdyo varsayılanı',
+}
 type Manage = 'trainer' | 'room' | 'capacity' | 'cancel'
 type Tab = 'info' | 'reservations' | 'attendance' | 'notes'
 
@@ -220,7 +229,20 @@ function InfoTab({
         <Row label="Salon" value={session.roomName ?? '—'} />
         <Row label="Şube" value={session.branchName} />
         <Row label="Kapasite" value={`${session.bookedCount}/${session.capacity} dolu`} />
+        {/* D14 — the window this session was CREATED under, and which level answered. Changing
+            a default later does not reach back here; that is the whole point. */}
+        <Row
+          label="İptal süresi"
+          value={`${session.cancellationWindowHours} saat · ${WINDOW_SOURCE[session.cancellationWindowSource]}`}
+        />
       </dl>
+
+      {/* D13 — PT ownership. A private session is OPEN by default: any member with a PT package
+          sees it and may book it. Assigning it RESERVES it for one member — she alone sees it
+          and she alone may be booked into it. Ownership is independent of capacity. */}
+      {session.category === 'private' ? (
+        <PtAssignment session={session} editable={editable} onMutated={onMutated} />
+      ) : null}
 
       {editable ? (
         <div className="space-y-2">
@@ -335,6 +357,142 @@ function InfoTab({
               {action === 'cancel' ? 'Seansı İptal Et' : 'Kaydet'}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  )
+}
+
+// ── PT ataması (D13) ─────────────────────────────────────────────────────────
+function PtAssignment({
+  session,
+  editable,
+  onMutated,
+}: {
+  session: CalendarSession
+  editable: boolean
+  onMutated: () => void
+}) {
+  const [open, setOpen] = useState(false)
+  const [members, setMembers] = useState<readonly BookingMember[] | null>(null)
+  const [query, setQuery] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  // D13 — only members who could actually book THIS slot: same core predicate as the booking
+  // decider, scoped to this session's service and start time.
+  async function openPicker() {
+    setQuery('')
+    setOpen(true)
+    if (members === null) {
+      try {
+        setMembers(
+          await listEligibleMembersForServiceAction({
+            serviceId: session.serviceId,
+            startsAt: session.startsAt,
+          }),
+        )
+      } catch {
+        setMembers([])
+        toast.error('Üye listesi yüklenemedi.')
+      }
+    }
+  }
+
+  async function assign(memberId: string | null) {
+    setBusy(true)
+    try {
+      const res = await assignSessionMemberAction({ sessionId: session.sessionId, memberId })
+      if (res.ok) {
+        toast.success(memberId ? 'Seans üyeye atandı.' : 'Atama kaldırıldı.')
+        setOpen(false)
+        onMutated()
+      } else {
+        toast.error(domainErrorMessage(res.error))
+      }
+    } catch {
+      toast.error('İşlem tamamlanamadı.')
+    }
+    setBusy(false)
+  }
+
+  const q = query.trim().toLocaleLowerCase('tr')
+  const filtered = (members ?? []).filter(
+    (m) => q === '' || m.fullName.toLocaleLowerCase('tr').includes(q) || m.phone.includes(q),
+  )
+
+  return (
+    <div className="space-y-2">
+      <h3 className="text-[0.6875rem] font-medium tracking-wide uppercase text-muted-foreground">PT ataması</h3>
+      <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card p-3 shadow-xs">
+        <div className="min-w-0">
+          {session.assignedMemberName ? (
+            <>
+              <p className="truncate text-sm font-medium text-foreground">{session.assignedMemberName}</p>
+              <p className="text-xs text-muted-foreground">
+                Bu seans yalnızca bu üyeye ayrılmış. Başka üye göremez ve rezerve edemez.
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="text-sm font-medium text-foreground">Açık PT slotu</p>
+              <p className="text-xs text-muted-foreground">
+                PT paketi olan tüm üyeler görebilir ve kapasite dahilinde rezerve edebilir.
+              </p>
+            </>
+          )}
+        </div>
+        {editable ? (
+          <div className="flex shrink-0 gap-2">
+            {session.assignedMemberId ? (
+              <Button variant="ghost" size="sm" disabled={busy} onClick={() => assign(null)}>
+                Kaldır
+              </Button>
+            ) : null}
+            <Button variant="outline" size="sm" disabled={busy} onClick={openPicker}>
+              {session.assignedMemberId ? 'Değiştir' : 'Üyeye Ayır'}
+            </Button>
+          </div>
+        ) : null}
+      </div>
+
+      <Dialog open={open} onOpenChange={(o) => (o ? null : setOpen(false))}>
+        <DialogContent className="max-h-[80vh] gap-3 overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>PT seansını üyeye ata</DialogTitle>
+            <DialogDescription>
+              Seans yalnızca bu üyeye ayrılır: sadece o görür ve sadece o rezerve edilebilir.
+              Atamayı kaldırırsanız seans yeniden açık PT slotuna döner.
+            </DialogDescription>
+          </DialogHeader>
+          <Input placeholder="Üye ara…" value={query} onChange={(e) => setQuery(e.target.value)} autoFocus />
+          {members === null ? (
+            <p className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2Icon className="size-4 animate-spin" /> Yükleniyor…
+            </p>
+          ) : (
+            <ul className="max-h-64 divide-y divide-border overflow-y-auto rounded-xl border border-border">
+              {filtered.map((m) => (
+                <li key={m.id}>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => assign(m.id)}
+                    className="flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left text-sm transition-colors hover:bg-primary-soft/40 disabled:opacity-50"
+                  >
+                    <span className="truncate font-medium text-foreground">{m.fullName}</span>
+                    <span className="shrink-0 text-xs tabular-nums text-muted-foreground">{m.phone}</span>
+                  </button>
+                </li>
+              ))}
+              {filtered.length === 0 ? (
+                <li className="px-3 py-2.5 text-sm text-muted-foreground">
+                  {members.length === 0
+                    ? 'Bu PT hizmetini kapsayan aktif pakete sahip üye bulunamadı.'
+                    : 'Eşleşen üye yok.'}
+                </li>
+              ) : null}
+            </ul>
+          )}
         </DialogContent>
       </Dialog>
     </div>
