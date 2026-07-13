@@ -340,3 +340,56 @@ Two related things fell out of it:
 — the whole studio day, end to end, against the emulator: üye → paket sat → tahsilat → rezervasyon →
 taşı → iptal → toplu işlem → check-in → dondur/çöz → çalışma saatleri → raporlar → makbuz → import →
 KVKK → dashboard. All green.**
+
+
+---
+
+## 8. Monkey & Stress — what contention found (2026-07-13)
+
+The unit tests prove the deciders. `verify:alpha` proves the chain. Neither proves the thing that
+actually breaks a studio at 19:00 on a Tuesday: **two people pressing the same button at the same
+moment.**
+
+```
+pnpm stress    # concurrency: the last seat, a cancel race, a move storm, 12 payments at once
+pnpm monkey    # 300+ random operations, invariants re-checked after EVERY one (seeded, replayable)
+```
+
+### The bug this found — and it would have destroyed the studio's trust in the till
+
+**Twelve concurrent cash payments of 3.000 ₺ each left 3.000 ₺ in the drawer.** Eleven vanished.
+
+The drawer was read **outside** the transaction, its new total computed in memory, and the whole
+document written back. Firestore only serialises on documents read **inside** a transaction, so every
+one of the twelve read `expected = 0` and every one wrote `expected = 3.000`. Last write wins.
+
+Every receipt was correct. Every payment was in the ledger. The gün sonu count simply came up
+**33.000 ₺ short**, with nothing anywhere to explain it. That is the shape of bug a studio never
+recovers from, because it does not look like an error — **it looks like theft.**
+
+**Fixed:** the till is now a counter re-read **inside** the transaction and moved by a signed delta
+(`DrawerDelta`). It also re-checks that the drawer is still open at the moment the money lands, so a
+till closed between the decision and the commit **aborts the sale** instead of quietly banking into a
+closed drawer. Regression test: `apps/functions/test/integration/cash-drawer.test.ts` — the unit tests
+could never have caught this, because the deciders were right.
+
+### What held, under everything we could throw at it
+
+| Scenario | Result |
+|---|---|
+| Capacity 5, **12 members booking at once** | Exactly 5 got in. The other 7 refused with `class_full`. **No refused member was left holding a credit.** |
+| One cancels while four hammer the freed seat | Nobody double-booked. `bookedCount` still equalled the reservations that exist (I-10). |
+| Move storm into a class with 2 seats | The target never exceeded its capacity; both counters stayed true. |
+| A bulk credit adjustment **racing a booking on the same package** | Neither update was lost. E1 held. |
+| **2.500 random operations** (5 seeds × 500) — book · cancel · move · sell · collect · adjust · freeze · unfreeze · check-in, in an order nobody designed | **Not one invariant broken.** The till was exact to the kuruş on every run. |
+
+A refusal is not a failure: the domain refusing an illegal move is the product working. The monkey
+counts refusals (`class_full`, `insufficient_credits`, `freeze_blocked_by_reservation`,
+`entitlement_already_frozen`, `session_not_bookable`) and moves on. A **throw** would be a failure —
+there were none.
+
+### Recorded, not fixed
+
+- **DEBT-028** — `giftCard.redeemed` has the same lost-update shape the till had. **Unreachable:** no
+  screen can issue a gift card, so no card exists to redeem twice. The repay trigger is the day one can.
+- **DEBT-029** — `tools/` is not typechecked.

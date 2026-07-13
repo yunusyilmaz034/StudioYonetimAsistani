@@ -647,3 +647,33 @@ no screen anywhere saying so. A visible, repairable wrong state beats an invisib
 **Trigger to repay:** the first time reconciliation finds one in production, or the day a second
 studio makes the window matter. `pnpm migrate:reconcile` already compares entitlements against the
 ledger and would find it.
+
+---
+
+## DEBT-028 — The gift-card balance has the bug the till just had
+
+**Found:** Alpha stress test, 2026-07-13 · **Severity:** none *today* · **Where:** `finance/application/finance.ts`
+
+`giftCard.redeemed` is read **outside** the transaction, incremented in memory, and the whole document
+written back — the exact lost-update the cash drawer had. Two concurrent redemptions of one card would
+each read the same balance, each write the same total, and **the card would be spendable twice.**
+
+**It is not exploitable, and that is the only reason it is debt rather than a bug:** no screen can
+issue a gift card. `issueGiftCardAction` is called from nowhere, so no card exists, so nothing can
+redeem one. The Alpha checklist marks gift cards out of scope and they stay there.
+
+**Trigger to repay:** **the moment a screen can issue a gift card.** Not before, and never after. The
+fix is the one already written for the till — a `DrawerDelta`-shaped delta, applied inside the
+transaction (`finance/infrastructure/repos.ts`). Copy it; do not invent a second one.
+
+## DEBT-029 — `tools/` is not typechecked
+
+**Found:** Alpha Review · **Severity:** low
+
+`pnpm typecheck` covers `packages/core`, `apps/web` and `apps/functions`. It does **not** cover
+`tools/` — so a break-glass script, a migration or a verification harness can call a use-case with the
+wrong arguments and nobody learns about it until it is run by hand against a real database. It cost us
+one debugging round on `verify:alpha` (a missing `from` on the freeze), which is exactly the cheap
+version of the lesson.
+
+**Trigger to repay:** the next time a `tools/` script is written that touches money or migration.

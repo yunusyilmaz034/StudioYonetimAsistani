@@ -240,15 +240,50 @@ export class FirestoreFinanceRepository implements FinanceRepository {
   // ONE transaction. The sale, the payment, the allocation, the drawer's expected balance, the
   // gift-card ledger and every event they emit commit together (#1) — a finance module whose parts
   // can drift is a finance module that will drift, and nobody will notice until the gün sonu.
+  //
+  // ── The till is re-read HERE, inside the transaction (Alpha stress test, 2026-07-13) ──────
+  //
+  // It used to be read outside, its new total computed in memory, and the whole document written
+  // back. Firestore only serialises on documents read INSIDE a transaction — so twelve concurrent
+  // cash payments each read `expected = 0`, each wrote `expected = 3.000`, and **eleven payments'
+  // cash disappeared from the till.** Every receipt was right, every payment was in the ledger, and
+  // the day-end count came up 33.000 ₺ short with nothing anywhere to explain it. That is the exact
+  // shape of the bug a studio never recovers from: it does not look like an error, it looks like
+  // theft.
+  //
+  // Reading it here does two things at once: it makes the till a counter that cannot lose an update,
+  // and it re-checks that the drawer is still OPEN at the moment the money lands. A drawer closed
+  // between the decision and the commit now ABORTS the sale rather than quietly banking into a
+  // closed till.
   async commit(ctx: TenantContext, write: FinanceWrite): Promise<void> {
     const sid = ctx.studioId
     await this.db.runTransaction(async (tx) => {
+      // Firestore demands every read before every write.
+      const deltas = write.drawerDeltas ?? []
+      const drawerRefs = deltas.map((d) => this.col(sid, 'cashDrawers').doc(d.drawerId))
+      const drawerSnaps = drawerRefs.length > 0 ? await tx.getAll(...drawerRefs) : []
+
+      const drawerWrites = deltas.map((d, i) => {
+        const snap = drawerSnaps[i]!
+        const data = snap.data()
+        if (!snap.exists || !data) throw new Error(`Kasa bulunamadı: ${d.drawerId}`)
+        if (data.status !== 'open') throw new Error(`Kasa kapalı: ${d.drawerId}`)
+        // `expected` is stored as `Money` — an integer of kuruş AND its currency. The currency is
+        // carried through rather than reconstructed: a till whose currency is inferred is a till that
+        // will one day be inferred wrong.
+        const current = data.expected as { amount: number; currency: string }
+        return {
+          ref: snap.ref,
+          expected: { amount: current.amount + d.deltaKurus, currency: current.currency },
+        }
+      })
+
       for (const s of write.sales ?? []) tx.set(this.col(sid, 'sales').doc(s.id), saleTo(s))
       for (const p of write.payments ?? []) tx.set(this.col(sid, 'payments').doc(p.id), paymentTo(p))
       for (const a of write.allocations ?? [])
         tx.set(this.col(sid, 'allocations').doc(a.id), allocationTo(a))
       for (const r of write.refunds ?? []) tx.set(this.col(sid, 'refunds').doc(r.id), refundTo(r))
-      for (const d of write.drawers ?? []) tx.set(this.col(sid, 'cashDrawers').doc(d.id), drawerTo(d))
+      for (const d of drawerWrites) tx.update(d.ref, { expected: d.expected })
       for (const g of write.giftCards ?? []) tx.set(this.col(sid, 'giftCards').doc(g.id), cardTo(g))
       for (const c of write.coupons ?? []) tx.set(this.col(sid, 'coupons').doc(c.id), couponTo(c))
       for (const p of write.plans ?? []) tx.set(this.col(sid, 'paymentPlans').doc(p.id), planTo(p))

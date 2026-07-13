@@ -45,12 +45,32 @@ export interface FinanceRepository {
 
 // Everything one financial act touches. Nothing here is optional out of laziness: each field is a
 // document that a single act may legitimately move.
+/**
+ * A movement of cash in or out of a till (Alpha stress test, 2026-07-13).
+ *
+ * It is a DELTA, not a document — and that distinction is the whole bug it fixes.
+ *
+ * The drawer used to be read OUTSIDE the transaction, its `expected` recomputed in memory, and the
+ * whole document written back. Firestore only serialises on documents read INSIDE a transaction, so
+ * twelve concurrent cash payments each read `expected = 0` and each wrote `expected = 3.000` —
+ * last-write-wins. **Eleven payments' cash vanished from the till.** The money was in the ledger, the
+ * receipts were correct, and the day-end count came up 33.000 ₺ short with nothing to explain it.
+ *
+ * The repository now re-reads the drawer inside the transaction and applies the delta there, so the
+ * till is a counter under contention rather than a document in a race.
+ */
+export interface DrawerDelta {
+  readonly drawerId: string
+  /** Signed kuruş. Positive: money in. Negative: a void or a refund taking it back out. */
+  readonly deltaKurus: number
+}
+
 export interface FinanceWrite {
   readonly sales?: readonly Sale[]
   readonly payments?: readonly Payment[]
   readonly allocations?: readonly Allocation[]
   readonly refunds?: readonly Refund[]
-  readonly drawers?: readonly CashDrawer[]
+  readonly drawerDeltas?: readonly DrawerDelta[]
   readonly giftCards?: readonly GiftCard[]
   readonly coupons?: readonly Coupon[]
   readonly plans?: readonly PaymentPlan[]

@@ -42,7 +42,7 @@ import {
   type Sale,
   type SaleLine,
 } from '../domain/types'
-import type { FinanceDeps } from './ports'
+import type { DrawerDelta, FinanceDeps } from './ports'
 
 const SOURCE: EventSource = 'reception_web'
 export const dctx = (deps: FinanceDeps, ctx: TenantContext, correlationId: OperationId): DecideContext => ({
@@ -109,9 +109,9 @@ export async function sell(
     sales: Sale[]
     payments: Payment[]
     allocations: NonNullable<Parameters<typeof deps.repo.commit>[1]['allocations']>[number][]
-    drawers: NonNullable<Parameters<typeof deps.repo.commit>[1]['drawers']>[number][]
+    drawerDeltas: DrawerDelta[]
     giftCards: GiftCard[]
-  } = { sales: [], payments: [], allocations: [], drawers: [], giftCards: [] }
+  } = { sales: [], payments: [], allocations: [], drawerDeltas: [], giftCards: [] }
 
   let paymentId: string | null = null
 
@@ -158,8 +158,12 @@ export async function sell(
     }
 
     // The drawer's expected balance moves with the money — that is what makes a gün sonu possible.
+    //
+    // A DELTA, never a rewritten document. The old code read the drawer outside the transaction and
+    // wrote back a total computed from a snapshot that was already stale by the time it landed: twelve
+    // concurrent cash payments each wrote "3.000", and eleven of them vanished from the till.
     if (drawer && (payment.method === 'cash' || payment.method === 'pos')) {
-      write.drawers.push({ ...drawer, expected: addMoney(drawer.expected, payment.amount) })
+      write.drawerDeltas.push({ drawerId: drawer.id, deltaKurus: payment.amount.amount })
     }
     if (card) {
       write.giftCards.push({ ...card, redeemed: addMoney(card.redeemed, payment.amount) })
@@ -248,7 +252,7 @@ export async function collect(
     payments: [payment],
     allocations,
     ...(drawer && (payment.method === 'cash' || payment.method === 'pos')
-      ? { drawers: [{ ...drawer, expected: addMoney(drawer.expected, payment.amount) }] }
+      ? { drawerDeltas: [{ drawerId: drawer.id, deltaKurus: payment.amount.amount }] }
       : {}),
     ...(card ? { giftCards: [{ ...card, redeemed: addMoney(card.redeemed, payment.amount) }] } : {}),
     events,
@@ -292,7 +296,7 @@ export async function voidPayment(
     sales,
     allocations: allocations.map((a) => ({ ...a, reversed: true })),
     ...(drawer && (payment.method === 'cash' || payment.method === 'pos')
-      ? { drawers: [{ ...drawer, expected: subtractMoney(drawer.expected, payment.amount) }] }
+      ? { drawerDeltas: [{ drawerId: drawer.id, deltaKurus: -payment.amount.amount }] }
       : {}),
     events: voided.value.events,
   })
@@ -328,7 +332,7 @@ export async function refund(
       },
     ],
     ...(drawer && (payment.method === 'cash' || payment.method === 'pos')
-      ? { drawers: [{ ...drawer, expected: subtractMoney(drawer.expected, input.amount) }] }
+      ? { drawerDeltas: [{ drawerId: drawer.id, deltaKurus: -input.amount.amount }] }
       : {}),
     events: decided.value.events,
   })
