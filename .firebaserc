@@ -1,6 +1,6 @@
 {
   "projects": {
-    "staging": "REPLACE-ME-staging",
-    "prod": "REPLACE-ME-prod"
+    "prod": "studio-yonetim-prod",
+    "staging": "REPLACE-ME-staging"
   }
 }

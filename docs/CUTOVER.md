@@ -33,6 +33,35 @@ afternoon. A guessed credit balance is a dispute that lasts a year.
 
 ---
 
+## 1.4 There is no staging, so production rehearses on itself — and is then WIPED
+
+**Owner, 2026-07-14:** Blaze on the staging project needs a 1.500 ₺ prepayment, so staging stays on
+Spark. **Spark runs no Cloud Functions and no Secret Manager** — which means the check-in trigger, the
+nightly sweeps, the health signals, the notification retry and the QR secret cannot be rehearsed there
+at all.
+
+**We do not do an unrehearsed cutover.** So the order changes:
+
+1. **The production project is its own rehearsal ground.** Before a single real member exists, run the
+   whole mock day there: every function observed firing, every alarm deliberately tripped, the
+   migration dry-run, a full reception day, the rollback timed.
+2. **Then the data is destroyed, and the destruction is verified.** The real cutover starts from an
+   empty database.
+
+**This is the part that is not negotiable.** An event is never mutated and never deleted (#1) — so if
+rehearsal events survive into the real log, they are in the studio's history *for ever*, and nothing
+later can tell them apart from the real thing. Before the real cutover:
+
+- [ ] `/studios/{sid}/events` returns **zero documents** — checked, not assumed
+- [ ] Every collection under `/studios/{sid}` is empty
+- [ ] The Auth user list holds only the accounts the studio will actually use
+- [ ] `projections:rebuild` produces an **empty** daily read model
+
+Upgrade staging to Blaze whenever the prepayment is convenient; the moment it exists, the rehearsal
+moves there and production stops being touched by anything that is not real.
+
+---
+
 ## 1.5 Setup — the studio does not exist until these are done
 
 **Added at RC1, because the checklist below assumed a studio that was already there.** On a brand-new
