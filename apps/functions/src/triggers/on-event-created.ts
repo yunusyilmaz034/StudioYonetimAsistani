@@ -13,6 +13,7 @@ import {
 
 import { systemTenantContext } from '../shared/context'
 import { db } from '../shared/firebase'
+import { notifyForEvent, toEventLike } from './on-event-notify'
 
 // ── onEventCreated → the daily read model (v1.23, D29). ─────────────────────────────────────
 //
@@ -43,6 +44,14 @@ export const onEventCreated = onDocumentCreated(
     const eventId = event.params.eventId
     const occurredAt = data.occurredAt instanceof Timestamp ? data.occurredAt.toMillis() : 0
     if (occurredAt === 0) return
+
+    // ── v1.25 — the SECOND consumer: notifications. It runs downstream of the event and can never
+    // fail it: a booking that fails because an e-mail bounced is an outage nobody signed up for.
+    try {
+      await notifyForEvent(studioId, toEventLike(eventId, data))
+    } catch (err) {
+      logger.error('notification dispatch failed', { eventId, err })
+    }
 
     const inc = projectDaily(
       {

@@ -9,6 +9,47 @@ All notable changes are recorded here. Architecture rationale lives in
 
 ---
 
+## v1.25 — Notification Center · `v1.25-notification-center`
+
+The channel the product had been missing — and the first milestone whose writes **leave the
+building**. Every other write in this system is reversible inside our own database; a sent message is
+not. That fact, plus two others (messages cost money per unit, and KVKK treats an operational message
+and a marketing message as legally different acts), shaped the architecture more than any feature.
+
+- **Event → Intent → Delivery Attempt.** The domain **never calls a provider**: a booking that failed
+  because an SMS gateway was down would be an outage the studio never signed up for. Nothing in
+  `reservations`, `finance` or `scheduling` knows this module exists — the coupling runs one way,
+  downstream of the event. The **intent** is the decision to inform (audience, category, preference,
+  quiet hours, deduplication); the **attempt** is plumbing. Collapsing them would put KVKK logic
+  inside a retry loop.
+- **Channels are independent.** In-app is `delivered` (it is a write to our own database, and it can
+  honestly claim that) while e-mail is merely `sent` and SMS is still retrying. `in_app` cannot be
+  switched off: it is not a message, it is her *record* of what happened to her account. She may say
+  "not by SMS"; she may not say "never tell me my class was cancelled".
+- **One message per operation, not twelve.** A closure that cancels twelve of a member's classes
+  collapses to ONE intent by `(recipient, operationId, template)` — the third time OP-2 has paid for
+  itself. At 0,15 ₺ an SMS, that is the difference between a notification system and an invoice.
+- **Priority beats quiet hours** (22:00–08:00): an URGENT "dersiniz iptal edildi" goes out at 02:00;
+  a NORMAL booking confirmation waits for morning. Both proven against the emulator.
+- **A permanent failure is never retried.** An invalid number will still be invalid in an hour. When
+  a provider will not say whether a failure is permanent, we treat it as permanent — we do not spend
+  money on a guess.
+- **I-38 — a notification's body and the member's address never enter the event log.** The events say
+  *that* we tried, on which channel, with which template, and how it went. Content and identity live
+  on the intent (erased with the member); behaviour lives in `/events` (permanent, anonymous).
+- **Staff alerts are half the milestone.** A cash discrepancy reaches the **owner**; a failed delivery
+  reaches **reception**, because reception is who picks up the phone. Reminders ("üyeliğiniz 3 gün
+  sonra bitiyor") are **domain events** emitted by an idempotent scanner — not a cron job that reaches
+  for a gateway — so they appear in her timeline and obey the same rules table.
+- **Channels shipped:** in-app + e-mail. SMS, WhatsApp and push are **ports** with a mock behind them,
+  so the whole pipeline is proven without a contract, a sender ID or a kuruş of SMS credit. The real
+  adapter lands after Production Hardening, in one file, changing nothing else.
+
+389 unit tests · `pnpm check` green · 16/16 emulator checks · DEBT-023 (no real e-mail transport yet),
+DEBT-024 (notification settings not yet editable).
+
+---
+
 ## v1.24 — Finance & CRM · `v1.24-finance-crm`
 
 The milestone where the money seam closed. Before it, the system **could not represent a member who

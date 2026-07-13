@@ -48,6 +48,11 @@ export type DomainError =
   | { readonly code: 'plan_total_mismatch' }
   | { readonly code: 'coupon_invalid' }
   | { readonly code: 'lead_not_open' }
+  // ── notifications (v1.25) ──
+  | { readonly code: 'template_not_found' }
+  | { readonly code: 'template_params_missing'; readonly missing: readonly string[] }
+  | { readonly code: 'daily_limit_reached'; readonly limit: number }
+  | { readonly code: 'notification_not_found' }
   | { readonly code: 'entitlement_not_cancelled' }
   // ── check-in (Doc 2 §9, v1.15) ──
   | { readonly code: 'branch_not_open' }

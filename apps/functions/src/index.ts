@@ -13,6 +13,8 @@ import { onSchedule } from 'firebase-functions/v2/scheduler'
 import { runAutoCheckOutSweep } from './scheduled/auto-check-out'
 import { runAutoResolveSweep } from './scheduled/auto-resolve-attendance'
 import { runExpirySweep } from './scheduled/expire-credits'
+import { runNotificationRetrySweep } from './scheduled/notification-retry'
+import { runReminderSweep } from './scheduled/reminders'
 import { onCommandCreated } from './triggers/on-command-created'
 import { onEventCreated } from './triggers/on-event-created'
 
@@ -32,5 +34,15 @@ export const nightlySweep = onSchedule(
     await runAutoResolveSweep()
     await runExpirySweep()
     await runAutoCheckOutSweep() // independent of I-19; occupancy hygiene (D4)
+    // v1.25 — reminders are DOMAIN EVENTS ("your package expires in three days" has no event behind
+    // it; time merely passed). They run last, so they see the night's expiries.
+    await runReminderSweep()
   },
 )
+
+// v1.25 — the retry sweep, and the quiet-hour queue (the same mechanism from another angle). Every
+// 15 minutes: a queued LOW/NORMAL message waits for 08:00, a transient failure waits for its
+// backoff, and a PERMANENT failure is never picked up at all.
+export const notificationRetry = onSchedule({ schedule: 'every 15 minutes' }, async () => {
+  await runNotificationRetrySweep()
+})

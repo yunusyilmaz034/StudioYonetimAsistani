@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { signOut } from 'firebase/auth'
 import {
+  BellIcon,
   CalendarPlusIcon,
   ClipboardListIcon,
   HomeIcon,
@@ -28,6 +29,7 @@ const ITEMS: readonly { href: string; label: string; short: string; icon: Lucide
   { href: '/portal/agenda', label: 'Rezervasyon Yap', short: 'Rezervasyon', icon: CalendarPlusIcon },
   { href: '/portal/reservations', label: 'Rezervasyonlarım', short: 'Rezervasyonlarım', icon: ClipboardListIcon },
   { href: '/portal/qr', label: 'QR Kodum', short: 'QR', icon: QrCodeIcon },
+  { href: '/portal/messages', label: 'Bildirimler', short: 'Bildirim', icon: BellIcon },
   { href: '/portal/profile', label: 'Profil', short: 'Profil', icon: UserIcon },
 ]
 

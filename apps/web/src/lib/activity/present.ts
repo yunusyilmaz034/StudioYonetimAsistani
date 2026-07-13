@@ -394,6 +394,46 @@ export function present(e: ActivityEvent): PresentedEntry {
         'danger',
       )
 
+    // ── notifications (v1.25). The log says THAT we tried, never WHAT we said (I-38). ────────
+    case 'notification.intent_created':
+      return entry(
+        `${to(member)} bildirim hazırlandı.`,
+        [templateTr(p.templateId), channelsTr(p.channels)].filter(Boolean).join(' · '),
+        'default',
+      )
+    case 'notification.queued':
+      return entry(`Bildirim kuyruğa alındı.`, channelTr(p.channel), 'default')
+    case 'notification.sent':
+      return entry(`Bildirim gönderildi.`, channelTr(p.channel), 'success')
+    case 'notification.delivered':
+      return entry(`Bildirim iletildi.`, channelTr(p.channel), 'success')
+    case 'notification.failed':
+      return entry(
+        `Bildirim iletilemedi.`,
+        [channelTr(p.channel), p.permanent === true ? 'kalıcı hata' : 'yeniden denenecek'].join(' · '),
+        'danger',
+      )
+    case 'notification.suppressed':
+      return entry(
+        `Bildirim bilerek gönderilmedi.`,
+        [channelTr(p.channel), suppressionTr(p.reason)].filter(Boolean).join(' · '),
+        'warning',
+      )
+    case 'notification.retried':
+      return entry(`Bildirim yeniden denendi.`, channelTr(p.channel), 'info')
+    case 'entitlement.expiring':
+      return entry(
+        `${of_(member)} üyeliğinin bitmesine ${num(p.daysLeft) ?? 0} gün kaldı.`,
+        str(p.productName),
+        'warning',
+      )
+    case 'entitlement.credits_low':
+      return entry(`${of_(member)} ${num(p.remaining) ?? 0} ders hakkı kaldı.`, null, 'warning')
+    case 'system.operation_failed':
+      return entry('Bir toplu işlem tamamlanamadı.', str(p.detail), 'danger')
+    case 'system.error':
+      return entry('Sistemde bir hata oluştu.', str(p.detail), 'danger')
+
     // ── check-in ─────────────────────────────────────────────────────────────────────────
     case 'member.checked_in':
       return entry(`${member ?? 'Üye'} stüdyoya giriş yaptı.`, str(p.method), 'success')
@@ -611,6 +651,47 @@ const stageTr = (v: unknown) => lookup(STAGE_TR, v)
 const lostTr = (v: unknown) => lookup(LOST_TR, v, 'sebep belirtilmedi')
 const churnTr = (v: unknown) => lookup(CHURN_TR, v, 'sebep belirtilmedi')
 const interactionTr = (v: unknown) => lookup(INTERACTION_TR, v, 'Etkileşim')
+
+const CHANNEL_TR: Record<string, string> = {
+  in_app: 'uygulama içi',
+  email: 'e-posta',
+  sms: 'SMS',
+  whatsapp: 'WhatsApp',
+  push: 'push',
+}
+const SUPPRESSION_TR: Record<string, string> = {
+  member_preference: 'üye tercihi',
+  no_consent: 'rıza yok',
+  daily_limit: 'günlük limit doldu',
+  missing_contact: 'iletişim bilgisi yok',
+  duplicate: 'tekrar',
+}
+const TEMPLATE_TR: Record<string, string> = {
+  booking_confirmed: 'rezervasyon onayı',
+  booking_cancelled: 'rezervasyon iptali',
+  booking_moved: 'rezervasyon taşındı',
+  session_cancelled: 'ders iptali',
+  waitlist_promoted: 'bekleme listesi',
+  closure_applied: 'kapanış duyurusu',
+  package_created: 'yeni üyelik',
+  package_expiring: 'üyelik bitiyor',
+  credits_low: 'kredi azaldı',
+  credits_exhausted: 'kredi bitti',
+  payment_received: 'ödeme alındı',
+  balance_reminder: 'bakiye hatırlatması',
+  instalment_due: 'taksit hatırlatması',
+  portal_invite: 'portal daveti',
+  wallet_topup: 'cüzdan yüklemesi',
+  alert_cash_discrepancy: 'kasa farkı uyarısı',
+  alert_operation_failed: 'işlem hatası uyarısı',
+  alert_system_error: 'sistem hatası uyarısı',
+  alert_delivery_failed: 'iletilemeyen bildirim uyarısı',
+}
+const channelTr = (v: unknown): string => lookup(CHANNEL_TR, v, 'bilinmeyen kanal')
+const suppressionTr = (v: unknown): string => lookup(SUPPRESSION_TR, v, 'sebep belirtilmedi')
+const templateTr = (v: unknown): string => lookup(TEMPLATE_TR, v, 'bildirim')
+const channelsTr = (v: unknown): string | null =>
+  Array.isArray(v) && v.length > 0 ? v.map((c) => channelTr(c)).join(', ') : null
 
 function reasonTr(v: unknown): string | null {
   const r = str(v)

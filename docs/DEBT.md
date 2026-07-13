@@ -343,6 +343,34 @@ and emit `plan.instalment_paid` in the same transaction.
 
 ---
 
+## DEBT-023 — E-mail has no real transport yet
+
+**Taken:** 2026-07-13 · v1.25 · Yunus
+**What:** `ConsoleEmailProvider` records the attempt, logs the message and reports `sent`. There is no
+SMTP/SES adapter, so **no e-mail actually leaves the building** — the pipeline is real, the transport
+is not. In-app is fully real (it is a write to our own database).
+**Cost:** until an adapter lands, e-mail delivery is a promise the Notification Center displays but
+does not keep. It is visible (status `sent`, never `delivered`), not silent.
+**Trigger to repay:** before the first live customer — **v1.26 Migration & Cutover**. A studio cannot
+go live telling members "we e-mailed you" when nothing was e-mailed.
+**Repayment:** one `NotificationProvider` implementation. Nothing else changes; that is what the port
+is for.
+
+---
+
+## DEBT-024 — Notification settings are defaults, not yet editable
+
+**Taken:** 2026-07-13 · v1.25 · Yunus
+**What:** the daily ceiling (1000), the quiet-hour window (22:00–08:00) and the per-channel retry
+policy live in `DEFAULT_NOTIFICATION_SETTINGS` / `DEFAULT_RETRY` — **as data, not as literals in an
+`if`** — but there is no settings screen to change them per studio.
+**Cost:** a studio that wants a different quiet window needs a deploy.
+**Trigger to repay:** the second studio, or the first owner who asks.
+**Repayment:** read them from `/settings/studio` (the document and the reader already exist for
+`lowCreditThreshold` and `discountCeilingPercent`); add the fields to the settings dialog.
+
+---
+
 ## Reserved for the build week
 
 Shortcuts taken during Phase 1 implementation get entries here **as they are taken**, not afterwards. If the cut ladder (Doc 8 §8) is used — catalogue CRUD UI, owner view, manual attendance marking, freeze UI, payment allocation UI, weekly template generation, offline check-in — each cut becomes an entry with a trigger.

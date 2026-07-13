@@ -127,6 +127,15 @@ export function domainErrorMessage(error: DomainError): string {
       return 'Kupon geçersiz veya süresi dolmuş.'
     case 'lead_not_open':
       return 'Bu aday kaydı artık açık değil.'
+    // ── notifications (v1.25) ──
+    case 'template_not_found':
+      return 'Bildirim şablonu bulunamadı.'
+    case 'template_params_missing':
+      return 'Bildirim metni oluşturulamadı: eksik bilgi var. Boş alanlı mesaj gönderilmez.'
+    case 'daily_limit_reached':
+      return `Günlük bildirim limiti (${error.limit}) doldu. Yeni bildirim oluşturulmuyor.`
+    case 'notification_not_found':
+      return 'Bildirim kaydı bulunamadı.'
     case 'correction_credit_unsupported':
       return 'Bu düzeltme bir kredinin yeniden düşülmesini gerektiriyor; şu an desteklenmiyor.'
     default: {

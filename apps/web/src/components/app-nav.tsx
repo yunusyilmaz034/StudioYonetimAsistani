@@ -7,6 +7,7 @@ import { signOut } from 'firebase/auth'
 import {
   ActivityIcon,
   BarChart3Icon,
+  BellIcon,
   CalendarClockIcon,
   CalendarDaysIcon,
   LayersIcon,
@@ -62,6 +63,7 @@ const GROUPS: readonly NavGroup[] = [
       { href: '/calendar', label: 'Takvim', icon: CalendarDaysIcon },
       { href: '/operations', label: 'Operasyonlar', icon: LayersIcon },
       { href: '/activity', label: 'Hareket Merkezi', icon: ActivityIcon },
+      { href: '/notifications', label: 'Bildirim Merkezi', icon: BellIcon },
       { href: '/analytics', label: 'Analiz', icon: BarChart3Icon },
       // Owner only (owner, 2026-07-13). The page redirects anyway — but offering reception a link
       // she cannot follow is a broken promise, and a nav that lies is worse than one that is short.

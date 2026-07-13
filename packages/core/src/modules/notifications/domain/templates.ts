@@ -1,0 +1,212 @@
+import type { NotificationTemplate } from './types'
+
+// ── THE TEMPLATE CATALOGUE (v1.25). ─────────────────────────────────────────────────────────
+//
+// Turkish sentences, `{{param}}` placeholders, versioned. **A technical event name never appears in
+// a template** (owner rule 7) — the same discipline as the v1.22 presenter, for the same reason: the
+// person reading this is a member with a phone in her hand, not a developer with a log.
+//
+// The version is stamped on the intent, so "what exactly did you send me?" has an exact answer years
+// later — the same reason `productSnapshot` and `SaleLine` exist.
+//
+// The catalogue is DATA (AD-41). This file is the seed; a studio may edit its own copies without a
+// deploy. Nothing in the code knows what a message says.
+
+export const TEMPLATES: Readonly<Record<string, NotificationTemplate>> = {
+  booking_confirmed: {
+    id: 'booking_confirmed',
+    version: 1,
+    name: 'Rezervasyon oluşturuldu',
+    category: 'operational',
+    priority: 'normal',
+    requiredParams: ['memberName', 'sessionName', 'sessionTime'],
+    subject: 'Rezervasyonunuz oluşturuldu',
+    body: 'Merhaba {{memberName}}, {{sessionTime}} tarihindeki {{sessionName}} dersiniz için rezervasyonunuz oluşturuldu.',
+  },
+  booking_cancelled: {
+    id: 'booking_cancelled',
+    version: 1,
+    name: 'Rezervasyon iptal edildi',
+    category: 'operational',
+    priority: 'normal',
+    requiredParams: ['memberName', 'sessionName', 'sessionTime'],
+    subject: 'Rezervasyonunuz iptal edildi',
+    body: 'Merhaba {{memberName}}, {{sessionTime}} tarihindeki {{sessionName}} dersi rezervasyonunuz iptal edildi.',
+  },
+  booking_moved: {
+    id: 'booking_moved',
+    version: 1,
+    name: 'Rezervasyon taşındı',
+    category: 'operational',
+    priority: 'high',
+    requiredParams: ['memberName', 'fromTime', 'toTime'],
+    subject: 'Dersiniz başka bir saate taşındı',
+    body: 'Merhaba {{memberName}}, dersiniz {{fromTime}} tarihinden {{toTime}} tarihine taşındı.',
+  },
+  // URGENT: a class cancelled for tomorrow morning cannot wait until 08:00 (owner, decision 4).
+  session_cancelled: {
+    id: 'session_cancelled',
+    version: 1,
+    name: 'Ders iptal edildi',
+    category: 'operational',
+    priority: 'urgent',
+    requiredParams: ['memberName', 'sessionName', 'sessionTime'],
+    subject: 'Dersiniz iptal edildi',
+    body: 'Merhaba {{memberName}}, {{sessionTime}} tarihindeki {{sessionName}} dersi iptal edildi. Kredileriniz iade edildi.',
+  },
+  waitlist_promoted: {
+    id: 'waitlist_promoted',
+    version: 1,
+    name: 'Bekleme listesinden yer açıldı',
+    category: 'operational',
+    priority: 'high',
+    requiredParams: ['memberName', 'sessionName', 'sessionTime'],
+    subject: 'Bekleme listesinden yer açıldı',
+    body: 'Merhaba {{memberName}}, {{sessionTime}} tarihindeki {{sessionName}} dersinde yer açıldı ve rezervasyonunuz oluşturuldu.',
+  },
+  // ONE message per member per operation (Doc 28 §4) — a closure that cancels twelve of her classes
+  // must not send twelve messages. The count is a parameter, not twelve deliveries.
+  closure_applied: {
+    id: 'closure_applied',
+    version: 1,
+    name: 'Tatil / kapanış',
+    category: 'operational',
+    priority: 'urgent',
+    requiredParams: ['memberName', 'reason', 'sessionCount'],
+    subject: 'Stüdyo kapanışı hakkında',
+    body: '{{memberName}}, "{{reason}}" nedeniyle {{sessionCount}} dersiniz iptal edildi. Kredileriniz iade edildi, üyeliğiniz uzatıldı.',
+  },
+  package_created: {
+    id: 'package_created',
+    version: 1,
+    name: 'Paket tanımlandı',
+    category: 'operational',
+    priority: 'normal',
+    requiredParams: ['memberName', 'productName'],
+    subject: 'Yeni üyeliğiniz tanımlandı',
+    body: 'Merhaba {{memberName}}, {{productName}} üyeliğiniz tanımlandı. İyi antrenmanlar!',
+  },
+  package_expiring: {
+    id: 'package_expiring',
+    version: 1,
+    name: 'Paket süresi yaklaşıyor',
+    category: 'operational',
+    priority: 'normal',
+    requiredParams: ['memberName', 'productName', 'daysLeft'],
+    subject: 'Üyeliğinizin süresi doluyor',
+    body: 'Merhaba {{memberName}}, {{productName}} üyeliğinizin bitmesine {{daysLeft}} gün kaldı.',
+  },
+  credits_low: {
+    id: 'credits_low',
+    version: 1,
+    name: 'Kredi azalıyor',
+    category: 'operational',
+    priority: 'low',
+    requiredParams: ['memberName', 'remaining'],
+    subject: 'Ders hakkınız azalıyor',
+    body: 'Merhaba {{memberName}}, {{remaining}} ders hakkınız kaldı.',
+  },
+  credits_exhausted: {
+    id: 'credits_exhausted',
+    version: 1,
+    name: 'Kredi bitti',
+    category: 'operational',
+    priority: 'normal',
+    requiredParams: ['memberName'],
+    subject: 'Ders hakkınız bitti',
+    body: 'Merhaba {{memberName}}, paketinizdeki ders hakkınız bitti. Yeni paket için resepsiyona başvurabilirsiniz.',
+  },
+  payment_received: {
+    id: 'payment_received',
+    version: 1,
+    name: 'Ödeme alındı',
+    category: 'operational',
+    priority: 'normal',
+    requiredParams: ['memberName', 'amount'],
+    subject: 'Ödemeniz alındı',
+    body: 'Merhaba {{memberName}}, {{amount}} tutarındaki ödemeniz alındı. Teşekkür ederiz.',
+  },
+  balance_reminder: {
+    id: 'balance_reminder',
+    version: 1,
+    name: 'Açık bakiye hatırlatması',
+    category: 'operational',
+    priority: 'low',
+    requiredParams: ['memberName', 'amount'],
+    subject: 'Açık bakiye hatırlatması',
+    body: 'Merhaba {{memberName}}, {{amount}} tutarında açık bakiyeniz bulunuyor.',
+  },
+  instalment_due: {
+    id: 'instalment_due',
+    version: 1,
+    name: 'Taksit tarihi yaklaşıyor',
+    category: 'operational',
+    priority: 'normal',
+    requiredParams: ['memberName', 'amount', 'dueDate'],
+    subject: 'Taksit ödemeniz yaklaşıyor',
+    body: 'Merhaba {{memberName}}, {{dueDate}} tarihinde {{amount}} tutarında taksit ödemeniz bulunuyor.',
+  },
+  portal_invite: {
+    id: 'portal_invite',
+    version: 1,
+    name: 'Üye portalı daveti',
+    category: 'operational',
+    priority: 'high',
+    requiredParams: ['memberName', 'inviteLink'],
+    subject: 'Üye portalınıza davet',
+    body: 'Merhaba {{memberName}}, üye portalınıza şu adresten giriş yapabilirsiniz: {{inviteLink}}',
+  },
+  wallet_topup: {
+    id: 'wallet_topup',
+    version: 1,
+    name: 'Cüzdan yüklemesi', // v1.27 will emit it; the template exists so the seam is real
+    category: 'operational',
+    priority: 'normal',
+    requiredParams: ['memberName', 'amount', 'balance'],
+    subject: 'Cüzdanınıza bakiye yüklendi',
+    body: 'Merhaba {{memberName}}, cüzdanınıza {{amount}} yüklendi. Güncel bakiyeniz: {{balance}}.',
+  },
+
+  // ── STAFF ALERTS (owner, decision 6). The most important line on the owner's list: today NOTHING
+  //    tells her when an operation fails. These are half of this milestone, not an afterthought.
+  alert_cash_discrepancy: {
+    id: 'alert_cash_discrepancy',
+    version: 1,
+    name: 'Kasa farkı (owner)',
+    category: 'operational',
+    priority: 'urgent',
+    requiredParams: ['drawerName', 'discrepancy'],
+    subject: 'Kasa farkı oluştu',
+    body: '{{drawerName}} kapanışında {{discrepancy}} fark kaydedildi. Denetim Kaydı’ndan inceleyebilirsiniz.',
+  },
+  alert_operation_failed: {
+    id: 'alert_operation_failed',
+    version: 1,
+    name: 'Toplu işlem hatası (owner)',
+    category: 'operational',
+    priority: 'urgent',
+    requiredParams: ['detail'],
+    subject: 'Bir toplu işlem tamamlanamadı',
+    body: 'Bir toplu işlem beklendiği gibi tamamlanamadı: {{detail}}',
+  },
+  alert_system_error: {
+    id: 'alert_system_error',
+    version: 1,
+    name: 'Sistem hatası (owner)',
+    category: 'operational',
+    priority: 'urgent',
+    requiredParams: ['detail'],
+    subject: 'Sistem hatası',
+    body: 'Sistemde bir hata oluştu: {{detail}}',
+  },
+  alert_delivery_failed: {
+    id: 'alert_delivery_failed',
+    version: 1,
+    name: 'Bildirim iletilemedi (resepsiyon)',
+    category: 'operational',
+    priority: 'high',
+    requiredParams: ['memberName', 'channel', 'reason'],
+    subject: 'Bir üyeye bildirim iletilemedi',
+    body: '{{memberName}} adlı üyeye {{channel}} ile bildirim iletilemedi ({{reason}}). Telefonla ulaşmanız gerekebilir.',
+  },
+}
