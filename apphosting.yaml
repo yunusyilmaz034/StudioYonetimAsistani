@@ -15,6 +15,22 @@
 # App Hosting builds from git; there is no `firebase deploy --only hosting`. The backend's
 # root directory (this repo root) and its branch are configured once, on the backend itself.
 
+# ── BUILD & RUN (2026-07-14) ─────────────────────────────────────────────────────────────────
+#
+# App Hosting has no pnpm-workspace-aware install. Pointed at `apps/web` it looks for a lockfile
+# there — and in a pnpm workspace there will never be one: pnpm keeps exactly ONE lockfile, at the
+# workspace root, on purpose.
+#
+# So the backend's Root Directory is the REPO ROOT, where `pnpm-lock.yaml` is. That fixes the install
+# (the workspace resolves, and `@studio/core` links) but leaves App Hosting unable to detect a
+# framework: the root `package.json` has no `next` and no `build`/`start`. These two lines tell it
+# what to do instead. It is the documented way to opt out of framework detection.
+#
+# NOTHING ELSE CHANGES: not the code, not `next.config.mjs`, not the workspace, not the folders.
+scripts:
+  buildCommand: pnpm --filter web build
+  runCommand: pnpm --filter web start
+
 runConfig:
   # A single studio, 07:00–22:00 TRT. `minInstances: 0` means a cold start on the first request of
   # the morning; `maxInstances` is a cost ceiling, not a capacity plan. Revisit when there is a
