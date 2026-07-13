@@ -33,13 +33,36 @@ afternoon. A guessed credit balance is a dispute that lasts a year.
 
 ---
 
+## 1.5 Setup — the studio does not exist until these are done
+
+**Added at RC1, because the checklist below assumed a studio that was already there.** On a brand-new
+production project there is no owner, no ders türü, no salon, no working hours and no catalogue — and
+without them reception cannot schedule a single class. In that order:
+
+| # | Do this | Why it is first |
+|---|---|---|
+| 1 | `pnpm bootstrap:owner` | **The only way a first user exists.** There is no setup wizard, deliberately: a public "create the first owner" endpoint is a public "create an owner" endpoint on the day somebody forgets to remove it. Order inside the script matters — Auth user, then `/staff` doc + `staff.created` in one transaction, then the claims **last**. |
+| 2 | Ayarlar → **Ders türleri** | A class needs a service. Its **category is immutable** (I-22): it is what the category wall is judged against, and changing it later would retroactively change which packages open which classes. |
+| 3 | Ayarlar → **Salonlar** | A class's capacity may not exceed its room's. |
+| 4 | Ayarlar → **Çalışma saatleri** | **They are enforced** (AG-1): a class cannot be created — or booked — outside them. A studio that leaves them empty is not policed, which is a choice, not an accident. |
+| 5 | Ayarlar → şirket bilgileri | Every receipt and every e-mail reads them from this one document. |
+| 6 | Paketler → the catalogue | Products are **data** (AD-41). Nothing in the source tree knows a price. |
+| 7 | Kasa → **open the till** | Cash cannot be taken into a closed drawer, and the domain refuses. Reception opens it every morning; if she does not, the first cash sale of the day is refused — legibly, in Turkish. |
+| 8 | Personel → reception, trainers | The last active owner can never be deactivated or demoted. |
+
+---
+
 ## 2. Go / no-go
 
 **Every box, or the cutover is postponed.** No exceptions, no "we'll fix it Tuesday". The point of a
 checklist is that it is allowed to say no to you.
 
 ### The machine
-- [ ] `pnpm check` green · `pnpm test:integration` green · CI green on `main`
+- [ ] **All seven gates green on the RC1 commit:**
+      `pnpm check` (typecheck incl. `tools/` · lint · depcruise · 517 unit) ·
+      `pnpm test:golden` (64) · `pnpm test:integration` (35) · `next build` ·
+      `pnpm verify:alpha` · `pnpm stress` · `pnpm monkey`
+- [ ] CI green on `main`
 - [ ] Functions deployed to prod: `onCommandCreated` · `onEventCreated` · `nightlySweep` · `notificationRetry` · `healthCheck`
 - [ ] **Every one of them observed firing at least once on staging** — a deployed function nobody saw run is a function nobody knows works
 - [ ] Firestore **rules AND indexes** deployed *(a missing composite index passes in the emulator and fails in production)*
@@ -92,10 +115,15 @@ member's morning depends on.
 | 2 | Sign in as reception on a phone | render at 375 px with no horizontal scroll |
 | 3 | Create a member with a Turkish phone (`0532…`) | store `+90532…` — E.164 or refuse |
 | 4 | Create the same phone again | be **refused** *(I-21)* |
-| 5 | Sell a package, collect cash into an open kasa | appear in the Activity feed as one Turkish sentence, one OperationId |
+| 5 | Sell a package, collect cash into an open kasa | appear in the Activity feed as **one** Turkish sentence, one OperationId |
+| 5b | **Open the dashboard, the Satış raporu, the Tahsilat raporu and the Kasa** | **all four show that money.** This is the bug the Alpha review found: the sale used to be written where nobody looks, and the dashboard read 0 ₺ while the drawer was empty. If any of the four is blank, **stop the cutover** |
+| 5c | Print the receipt | the paid amount matches the till, and it says **"BU BELGE MALİ BELGE DEĞİLDİR."** |
+| 5d | Try a cash sale with the **kasa closed** | be **refused**. Money taken at the desk with no till open is money the day-end can never explain |
 | 6 | Close the kasa with a deliberate 10 ₺ discrepancy and no note | be **refused** — the domain does not let a drawer balance itself |
 | 7 | Book the member into a class | drop `available` by one, `held` = 1, `consumed` = 0 |
 | 8 | Cancel it inside the window | return the credit; `consumed` never moves |
+| 8b | Try to create a class **outside the working hours** (or on a closed day) | be **refused**, in Turkish, naming the hours it refused against *(AG-1)* |
+| 8c | Mark that date a **"özel çalışma günü"** in the calendar and try again | **succeed** — the calendar is the more specific statement, and it wins |
 | 9 | Check her in by QR | succeed once, and be **refused** on a second scan of the same token |
 | 10 | Mark attendance with the wifi OFF | write a `/commands` doc; **and resolve within seconds when the wifi returns** |
 | 11 | Cancel a class with members in it | send each of them exactly **one** message, not one per reservation *(intent collapse)* |
