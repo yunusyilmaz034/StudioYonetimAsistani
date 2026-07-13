@@ -353,7 +353,7 @@ const checkIn: Op = async () => {
   const r = await recordCheckIn(checkinDeps, ctx, {
     memberId: m,
     branchId: BRANCH,
-    method: rnd() < 0.5 ? 'qr' : 'manual',
+    method: rnd() < 0.5 ? 'qr' : 'reception',
     occurredAt: instant(Date.now()),
     commandId: null,
   })

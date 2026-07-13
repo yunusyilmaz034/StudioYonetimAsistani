@@ -5,6 +5,8 @@
 //
 // It seeds by calling the REAL @studio/core use-cases against the Admin SDK, so
 // document shapes and events are guaranteed correct. Emulator-only, manual dev tool.
+import { getFirestore } from 'firebase-admin/firestore'
+
 import {
   assignSessionMember,
   assignSubscription,
@@ -19,6 +21,7 @@ import {
   FirestoreMemberRepository,
   FirestoreReservationRepository,
   FirestoreSchedulingRepository,
+  FirestoreStudioHours,
   fixedClock,
   instant,
   markAttendance,
@@ -42,6 +45,7 @@ import {
   type MemberId,
   type PaymentMethod,
   type ProductId,
+  type ReservationId,
   type RoomId,
   type SchedulingPolicy,
   type ServiceId,
@@ -76,8 +80,17 @@ let memberDeps!: { repo: FirestoreMemberRepository; clock: Clock }
 let catalogDeps!: { repo: FirestoreCatalogRepository; clock: Clock }
 let entDeps!: { repo: FirestoreEntitlementRepository; clock: Clock }
 let checkinDeps!: { repo: FirestoreCheckinRepository; clock: Clock }
-const schedDeps = (clock: Clock = systemClock) => ({ repo: schedRepo, clock, studioConfig: DEFAULT_STUDIO_CONFIG })
-const resDeps = (clock: Clock = systemClock) => ({ repo: resRepo, clock })
+let hoursPort!: FirestoreStudioHours
+// AG-1 made the studio's opening hours a REQUIRED dependency of anything that can create a class.
+// The seed was never updated — so `pnpm seed` had been broken since, and nobody knew, because
+// `tools/` was the one folder the typechecker never looked at (DEBT-029).
+const schedDeps = (clock: Clock = systemClock) => ({
+  repo: schedRepo,
+  clock,
+  studioConfig: DEFAULT_STUDIO_CONFIG,
+  hours: hoursPort,
+})
+const resDeps = (clock: Clock = systemClock) => ({ repo: resRepo, clock, hours: hoursPort })
 
 function initRepos(): void {
   memberRepo = new FirestoreMemberRepository()
@@ -86,6 +99,7 @@ function initRepos(): void {
   entRepo = new FirestoreEntitlementRepository()
   resRepo = new FirestoreReservationRepository()
   checkinRepo = new FirestoreCheckinRepository()
+  hoursPort = new FirestoreStudioHours(getFirestore())
   memberDeps = { repo: memberRepo, clock: systemClock }
   catalogDeps = { repo: catalogRepo, clock: systemClock }
   entDeps = { repo: entRepo, clock: systemClock }
@@ -151,7 +165,10 @@ export async function seedDemoData(trainerUid: string | null): Promise<void> {
         5: { open: '10:00', close: '21:00' },
         6: { open: '11:00', close: '17:00' },
       },
-      qr: { tokenTtlSeconds: 60, checkInWindowMinutes: 30 },
+      // S2 added notification settings to the studio document. The seed never learned about them —
+    // another thing the typechecker would have said on the day, had it been looking here.
+    notifications: null,
+    qr: { tokenTtlSeconds: 60, checkInWindowMinutes: 30 },
     }),
     'updateStudioSettings',
   )
@@ -421,7 +438,7 @@ async function book(
   memberId: MemberId,
   sessionId: ClassSessionId,
   clock: Clock = systemClock,
-): Promise<string | null> {
+): Promise<ReservationId | null> {
   const [member, candidates, sess] = await Promise.all([
     memberRepo.findById(ctx, memberId),
     entRepo.listActiveByMember(ctx, memberId),

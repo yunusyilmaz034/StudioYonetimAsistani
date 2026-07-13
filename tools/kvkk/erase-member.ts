@@ -141,7 +141,12 @@ async function main(): Promise<void> {
     process.exit(2)
   }
 
-  initializeApp({ projectId: process.env.FIREBASE_PROJECT_ID })
+  initializeApp(
+  // `exactOptionalPropertyTypes`: an ABSENT projectId and a projectId that is `undefined` are not the
+  // same thing to the Admin SDK, and the second one is how a script silently talks to the wrong
+  // project.
+  process.env.FIREBASE_PROJECT_ID ? { projectId: process.env.FIREBASE_PROJECT_ID } : {},
+)
   const db = getFirestore()
   const plan = await buildPlan(db, sid, mid)
 
@@ -176,7 +181,9 @@ async function main(): Promise<void> {
   const ctx: TenantContext = {
     studioId: sid as StudioId,
     branchIds: [],
-    role: 'platform_admin',
+    // `platform_admin` is a capability, never a studio role (Doc 1 §8, `claims.ts`). What makes
+    // this an admin act is the ACTOR, and the domain checks exactly that.
+    role: 'owner',
     actor: { type: 'platform_admin', id: admin as never },
   }
   const erased = await eraseMember(

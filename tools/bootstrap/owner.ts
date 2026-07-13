@@ -74,7 +74,9 @@ async function main(): Promise<void> {
   console.log(`Stüdyo : ${args.studioId} · şube ${args.branchId}`)
   console.log(`Owner  : ${args.name} <${args.email}>\n`)
 
-  initializeApp({ projectId: project })
+  // `exactOptionalPropertyTypes`: an ABSENT projectId and one that is `undefined` are different
+  // things to the Admin SDK, and the second is how a script quietly talks to the wrong project.
+  initializeApp(project ? { projectId: project } : {})
   const auth = getAuth()
   const db = getFirestore()
 
@@ -110,7 +112,9 @@ async function main(): Promise<void> {
   const ctx: TenantContext = {
     studioId: args.studioId,
     branchIds: [args.branchId as never],
-    role: 'platform_admin',
+    // `platform_admin` is a capability, never a studio role (Doc 1 §8, `claims.ts`). What makes
+    // this an admin act is the ACTOR, and the domain checks exactly that.
+    role: 'owner',
     actor: { type: 'platform_admin', id: 'bootstrap' as never },
   }
 

@@ -393,3 +393,39 @@ there were none.
 - **DEBT-028** — `giftCard.redeemed` has the same lost-update shape the till had. **Unreachable:** no
   screen can issue a gift card, so no card exists to redeem twice. The repay trigger is the day one can.
 - **DEBT-029** — `tools/` is not typechecked.
+
+
+---
+
+## 9. RC1 — the gate, and what closing DEBT-029 found (2026-07-13)
+
+`tools/` is now typechecked (`tools/tsconfig.json` → `typecheck:tools` → `pnpm check`). It is the
+folder holding the migration, the KVKK erasure, the break-glass scripts and every verification
+harness — and it was the only code in the repository whose arguments nobody checked.
+
+**Proven rather than asserted:** removing the `from` argument from `freezeEntitlement` in
+`verify:alpha` — the exact mistake that used to blow up in the emulator — now fails at compile time.
+
+It found, on its first run:
+
+- **`pnpm seed` was broken** and nobody knew. AG-1 made the studio-hours port a required dependency;
+  the seed was never updated and would have thrown on its first class.
+- Two break-glass scripts built a `TenantContext` with `role: 'platform_admin'` — **which is not a
+  role**. They worked only because the domain checks the actor, not the role.
+- Nine one-off milestone probes **had not compiled since AG-1**. Deleted: a verification tool that
+  cannot run is worse than none, because it lies. Their job belongs to the integration suite (35),
+  `verify:alpha`, `stress` and `monkey` now.
+
+### RC1 gate — all seven green
+
+| Gate | Result |
+|---|---|
+| `pnpm check` (typecheck **incl. tools** · lint · depcruise · unit) | 517 tests · 0 violations |
+| `pnpm test:golden` | 64 · **no event schema changed** |
+| `pnpm test:integration` | 35 (incl. the cash-drawer concurrency regression) |
+| `next build` | compiled |
+| `pnpm verify:alpha` | a studio's whole day, end to end |
+| `pnpm stress` | capacity, counters and the till hold under contention |
+| `pnpm monkey` | random operations, no invariant broken |
+
+**Tagged `v1.29-rc1`.** From here: pilot / real-user validation, and bug fix only.

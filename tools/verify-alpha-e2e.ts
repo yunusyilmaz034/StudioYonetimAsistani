@@ -77,9 +77,11 @@ const ctx: TenantContext = {
   actor: { type: 'receptionist', id: 'usr_reception' as never },
 }
 const ownerCtx: TenantContext = { ...ctx, role: 'owner', actor: { type: 'owner', id: 'usr_owner' as never } }
+// `platform_admin` is a CAPABILITY, never a studio role (Doc 1 §8). The role stays `owner`; what makes
+// this an admin act is the ACTOR — and the domain checks exactly that.
 const adminCtx: TenantContext = {
   ...ctx,
-  role: 'platform_admin',
+  role: 'owner',
   actor: { type: 'platform_admin', id: 'usr_admin' as never },
 }
 

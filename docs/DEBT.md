@@ -358,7 +358,7 @@ that it stays that way.
 **Trigger to repay:** **v1.24 Production Hardening / CI**, or the first time anyone adds a third
 shell. Whichever comes first.
 **Repayment:** a render/HTTP test asserting that member routes contain no owner-navigation
-strings, and that staff routes do. (This exists today as a manual script, `tools/verify-v121.ts`;
+strings, and that staff routes do. (This was a manual script, `tools/verify-v121.ts`, deleted at RC1 — it had not compiled since AG-1;
 it needs to become a test that CI runs.)
 
 ---
@@ -666,14 +666,39 @@ redeem one. The Alpha checklist marks gift cards out of scope and they stay ther
 fix is the one already written for the till — a `DrawerDelta`-shaped delta, applied inside the
 transaction (`finance/infrastructure/repos.ts`). Copy it; do not invent a second one.
 
-## DEBT-029 — `tools/` is not typechecked
+## DEBT-029 — `tools/` is not typechecked ✅ **REPAID — RC1, 2026-07-13**
 
-**Found:** Alpha Review · **Severity:** low
+**Was:** `pnpm typecheck` covered `packages/core`, `apps/web` and `apps/functions` — and not `tools/`.
+So the scripts that touch the most dangerous things in the product (a migration, a KVKK erasure, the
+break-glass tools, the verification harnesses) were the **only** code whose arguments nobody checked.
+A missing argument in a Server Action is a red squiggle; the same mistake here was found by running it,
+by hand, against a database.
 
-`pnpm typecheck` covers `packages/core`, `apps/web` and `apps/functions`. It does **not** cover
-`tools/` — so a break-glass script, a migration or a verification harness can call a use-case with the
-wrong arguments and nobody learns about it until it is run by hand against a real database. It cost us
-one debugging round on `verify:alpha` (a missing `from` on the freeze), which is exactly the cheap
-version of the lesson.
+**Repaid:** `tools/tsconfig.json` — a `noEmit` project referencing core, wired into `pnpm check` via
+`typecheck:tools`. A separate project rather than folding `tools/**` into an existing one, because
+core and functions are `composite` projects that EMIT, and a folder of scripts run through `tsx` has
+no business in an emit graph.
 
-**Trigger to repay:** the next time a `tools/` script is written that touches money or migration.
+**Proven, not assumed:** removing the `from` argument from `freezeEntitlement` in `verify:alpha` —
+the exact mistake that used to reach the emulator — now fails at **compile time**.
+
+**What it found on its first run**, all of it invisible until then:
+
+- **`pnpm seed` was broken.** AG-1 made the studio-hours port a required dependency of anything that
+  can create a class, and the seed was never updated. It would have thrown on the first class it
+  tried to schedule. Nobody knew, because nothing looked.
+- The seed had also never learned about the `notifications` block S2 added to studio settings.
+- `tools/bootstrap/owner.ts` and `tools/kvkk/erase-member.ts` built a `TenantContext` with
+  `role: 'platform_admin'` — **which is not a role.** It is a capability flag (Doc 1 §8); the studio
+  role stays `owner` and the ACTOR carries the admin identity. The scripts worked only because the
+  domain checks the actor. The type was a lie that happened to be harmless.
+- Four scripts passed `{ projectId: process.env.X }` where `X` may be `undefined` — under
+  `exactOptionalPropertyTypes`, an absent project and an `undefined` one are different things to the
+  Admin SDK, and the second is how a break-glass script quietly talks to the wrong project.
+- The monkey was minting a check-in method (`'manual'`) that does not exist.
+
+**And what it made us admit:** nine one-off milestone probes (`verify-block1…3`, `verify-i27`,
+`report-i27`, `verify-v121`, `verify-v124`, `verify-v125`, `verify-qr`) **had not compiled since
+AG-1** — they would have thrown on their first line. Their job had long since been taken over by the
+integration suite (35 tests), `verify:alpha`, `stress` and `monkey`. They were deleted rather than
+resurrected: **a verification tool that cannot run is worse than none, because it lies.**

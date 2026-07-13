@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+
+  // TOOLS ARE TYPECHECKED (DEBT-029, closed 2026-07-13).
+  //
+  // Until now `pnpm typecheck` covered `packages/core`, `apps/web` and `apps/functions` — and not
+  // this folder. Which meant the scripts that touch the most dangerous things in the product (a
+  // migration, a KVKK erasure, the break-glass tools, the verification harnesses) were the ONLY code
+  // whose arguments nobody checked. A missing argument in a Server Action is a red squiggle; the same
+  // mistake here was discovered by running it, by hand, against a database.
+  //
+  // It cost us exactly one debugging round — `verify:alpha` called `freezeEntitlement` without its
+  // `from`, wrote `undefined` into Firestore and blew up in the emulator. That is the cheap version
+  // of the lesson, and this file is us taking it.
+  //
+  // ── Why a SEPARATE project rather than adding `tools/**` to an existing one ─────────────────
+  // `packages/core` and `apps/functions` are `composite` projects that EMIT — core emits its `lib/`
+  // declarations, functions emits its typecheck-only `dist/`. Folding a folder of standalone scripts
+  // into either would put them in an emit graph they have no business being in, and `tsc -b` would
+  // start writing artifacts for files that are only ever run through `tsx`.
+  //
+  // So: `noEmit`, one reference to core, and its own line in the gate.
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": ["node"]
+  },
+  "references": [{ "path": "../packages/core" }],
+  "include": ["**/*.ts"]
+}

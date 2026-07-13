@@ -139,7 +139,12 @@ async function main(): Promise<void> {
   }
 
   const runId = `legacy_finance_${new Date().toISOString().slice(0, 10).replace(/-/g, '')}` as MigrationRunId
-  initializeApp({ projectId: process.env.FIREBASE_PROJECT_ID })
+  initializeApp(
+  // `exactOptionalPropertyTypes`: an ABSENT projectId and a projectId that is `undefined` are not the
+  // same thing to the Admin SDK, and the second one is how a script silently talks to the wrong
+  // project.
+  process.env.FIREBASE_PROJECT_ID ? { projectId: process.env.FIREBASE_PROJECT_ID } : {},
+)
   const db = getFirestore()
 
   const ctx: TenantContext = {
