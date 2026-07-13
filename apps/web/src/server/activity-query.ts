@@ -85,6 +85,7 @@ export const KIND_OF: Record<string, ActivityKind> = {
   'payment.voided': 'payment',
   'payment.refunded': 'payment',
   'allocation.applied': 'payment',
+  'drawer.created': 'operation',
   'drawer.opened': 'operation',
   'drawer.closed': 'operation',
   'drawer.discrepancy_recorded': 'operation',

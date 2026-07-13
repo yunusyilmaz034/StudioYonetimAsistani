@@ -22,6 +22,7 @@ import {
   decideCreatePlan,
   decideCreateSale,
   decideIssueGiftCard,
+  decideCreateDrawer,
   decideOpenDrawer,
   decideReceivePayment,
   decideRefund,
@@ -355,6 +356,27 @@ export async function cancelSale(
 }
 
 // ── KASA ────────────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Create the till. Once, in Ayarlar (hotfix B-2).
+ *
+ * A studio starts with none and nothing could make one, so reception could take no cash at all. It is
+ * created here rather than by the bootstrap script (owner, 2026-07-13) because a studio may want a
+ * second till later — a POS drawer beside the cash one — and that is a setup decision, not a
+ * one-time-at-birth accident.
+ */
+export async function createDrawer(
+  deps: FinanceDeps,
+  ctx: TenantContext,
+  input: { drawerId: string; branchId: BranchId; name: string; kind: 'cash' | 'pos' },
+): Promise<Result<void, DomainError>> {
+  const existing = await deps.repo.getDrawer(ctx, input.drawerId)
+  const decided = decideCreateDrawer(dctx(deps, ctx, newOperationId()), existing, input)
+  if (!decided.ok) return decided
+  await deps.repo.saveDrawer(ctx, decided.value.next, decided.value.events)
+  return { ok: true, value: undefined }
+}
+
 export async function openDrawer(
   deps: FinanceDeps,
   ctx: TenantContext,

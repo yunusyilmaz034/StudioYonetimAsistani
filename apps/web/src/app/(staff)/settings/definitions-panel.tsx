@@ -23,6 +23,7 @@ import {
 } from '@/components/ui/select'
 import { Section } from '@/components/ui/section'
 import { domainErrorMessage } from '@/lib/domain-error'
+import { createDrawerAction, listDrawersAction } from '@/server/actions/finance'
 import {
   createRoomAction,
   createServiceAction,
@@ -53,17 +54,27 @@ const CATEGORY: Record<string, string> = {
   private: 'Özel ders (PT)',
 }
 
+interface DrawerRow {
+  id: string
+  name: string
+  kind: string
+  status: string
+}
+
 export function DefinitionsPanel({ branchId }: { branchId: string | null }) {
   const [services, setServices] = useState<readonly ServiceRow[]>([])
   const [rooms, setRooms] = useState<readonly RoomRow[]>([])
+  const [drawers, setDrawers] = useState<readonly DrawerRow[]>([])
   const [newService, setNewService] = useState(false)
   const [newRoom, setNewRoom] = useState(false)
+  const [newDrawer, setNewDrawer] = useState(false)
 
   const load = useCallback(async () => {
     try {
-      const d = await listDefinitionsAction()
+      const [d, k] = await Promise.all([listDefinitionsAction(), listDrawersAction()])
       setServices(d.services)
       setRooms(d.rooms)
+      setDrawers(k as unknown as DrawerRow[])
     } catch {
       toast.error('Tanımlar okunamadı.')
     }
@@ -173,6 +184,56 @@ export function DefinitionsPanel({ branchId }: { branchId: string | null }) {
           </ul>
         )}
       </Section>
+
+      {/* ── KASALAR (hotfix B-2) ────────────────────────────────────────────────────────────
+          A studio started with no till and NOTHING could make one — so reception could take no cash
+          at all: every cash sale was refused with `drawer_required`, correctly, and for ever. */}
+      <Section
+        title="Kasalar"
+        hint="Nakit, açık bir kasa olmadan alınamaz — ve alınmamalı: masada alınan ama hiçbir kasaya girmeyen para, gün sonu sayımının asla açıklayamadığı paradır."
+      >
+        <div className="mb-3">
+          <Button variant="outline" disabled={!branchId} onClick={() => setNewDrawer(true)}>
+            <PlusIcon />
+            Kasa ekle
+          </Button>
+        </div>
+
+        {drawers.length === 0 ? (
+          <p className="text-sm text-danger">
+            <strong>Henüz kasa yok.</strong> Bir kasa oluşturmadan nakit tahsilat yapılamaz.
+          </p>
+        ) : (
+          <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
+            {drawers.map((d) => (
+              <li key={d.id} className="flex flex-wrap items-center justify-between gap-2 px-3 py-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium">{d.name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {d.kind === 'cash' ? 'Nakit' : 'POS'} ·{' '}
+                    {d.status === 'open' ? 'açık' : 'kapalı'}
+                  </p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+        <p className="mt-2 text-xs text-muted-foreground">
+          Kasa <strong>kapalı</strong> doğar. Günlük açılış ve gün sonu sayımı <strong>Kasa</strong>{' '}
+          ekranından yapılır.
+        </p>
+      </Section>
+
+      {newDrawer && branchId ? (
+        <DrawerDialog
+          branchId={branchId}
+          onClose={() => setNewDrawer(false)}
+          onDone={() => {
+            setNewDrawer(false)
+            void load()
+          }}
+        />
+      ) : null}
 
       {newService ? (
         <ServiceDialog
@@ -359,6 +420,76 @@ function RoomDialog({
             value={capacity}
             onChange={(e) => setCapacity(e.target.value)}
           />
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            Vazgeç
+          </Button>
+          <Button disabled={busy || name.trim().length === 0} onClick={() => void submit()}>
+            Ekle
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+
+function DrawerDialog({
+  branchId,
+  onClose,
+  onDone,
+}: {
+  branchId: string
+  onClose: () => void
+  onDone: () => void
+}) {
+  const [name, setName] = useState('Merkez Kasa')
+  const [kind, setKind] = useState<'cash' | 'pos'>('cash')
+  const [busy, setBusy] = useState(false)
+
+  const submit = async () => {
+    setBusy(true)
+    try {
+      const res = await createDrawerAction({ branchId, name: name.trim(), kind })
+      if (!res.ok) {
+        toast.error(domainErrorMessage(res.error))
+        setBusy(false)
+        return
+      }
+      toast.success('Kasa oluşturuldu.')
+      onDone()
+    } catch {
+      toast.error('Kaydedilemedi.')
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Kasa ekle</DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-3">
+          <Input placeholder="Ad (ör. Merkez Kasa)" value={name} onChange={(e) => setName(e.target.value)} />
+
+          <Select value={kind} onValueChange={(v) => setKind((v as 'cash' | 'pos') ?? 'cash')}>
+            <SelectTrigger>
+              <SelectValue>{kind === 'cash' ? 'Nakit' : 'POS'}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="cash">Nakit</SelectItem>
+              <SelectItem value="pos">POS</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <p className="text-xs text-muted-foreground">
+            Kasa <strong>kapalı</strong> olarak oluşturulur. İçindeki parayı, açarken siz sayarsınız —
+            gün sonu farkı bu sayıya göre hesaplanır.
+          </p>
         </div>
 
         <DialogFooter>

@@ -34,6 +34,7 @@ export {
   decideAllocate,
   decideCancelSale,
   decideCloseDrawer,
+  decideCreateDrawer,
   decideCreatePlan,
   decideCreateSale,
   decideIssueGiftCard,
@@ -45,6 +46,7 @@ export {
 export {
   cancelSale,
   closeDrawer,
+  createDrawer,
   collect,
   createPlan,
   issueGiftCard,

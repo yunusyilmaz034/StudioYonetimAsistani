@@ -347,6 +347,8 @@ export function present(e: ActivityEvent): PresentedEntry {
         `kalan borç: ${money(p.saleBalanceAfter)}`,
         'default',
       )
+    case 'drawer.created':
+      return entry(`${p.name} oluşturuldu.`, `kasa · ${p.kind === 'cash' ? 'nakit' : 'POS'}`, 'info')
     case 'drawer.opened':
       return entry(`Kasa açıldı.`, `açılış bakiyesi: ${money(p.openingFloat)}`, 'info')
     case 'drawer.closed': {

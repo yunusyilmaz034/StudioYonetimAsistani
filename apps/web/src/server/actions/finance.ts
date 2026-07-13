@@ -3,6 +3,7 @@
 import {
   cancelSale,
   closeDrawer,
+  createDrawer,
   collect,
   createPlan,
   FirestoreFinanceRepository,
@@ -23,6 +24,7 @@ import {
   type GiftCard,
   type MemberId,
 } from '@studio/core'
+import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 
 import { requireTenantContext } from '../auth'
@@ -257,6 +259,41 @@ export async function listDrawersAction() {
     discrepancy: d.discrepancy?.amount ?? null,
     closeNote: d.closeNote,
   }))
+}
+
+/**
+ * Create the till (hotfix B-2, 2026-07-13). **Owner only** — it is a setup act, not a daily one.
+ *
+ * Until now a studio had no till and nothing could make one: `openDrawer` refused a drawer that did
+ * not exist, and no screen and no script created it. So on a fresh production project reception could
+ * take **no cash at all** — every cash sale was refused with `drawer_required`, correctly, for ever.
+ *
+ * It lives in Ayarlar rather than in the bootstrap script (owner, 2026-07-13), because a studio may
+ * want a second till later — a POS drawer beside the cash one — and that is a setup decision, not an
+ * accident of birth.
+ */
+export async function createDrawerAction(input: unknown) {
+  const p = z
+    .object({
+      branchId: nonEmpty,
+      name: nonEmpty,
+      kind: z.enum(['cash', 'pos']),
+    })
+    .parse(input)
+  const ctx = await requireTenantContext(OWNER)
+  const opId = newOperationId()
+
+  const res = await observed('finance.create_drawer', ctx, opId, { name: p.name, kind: p.kind }, () =>
+    createDrawer(deps(), ctx, {
+      drawerId: `drw_${opId.slice(4)}`,
+      branchId: p.branchId as BranchId,
+      name: p.name,
+      kind: p.kind,
+    }),
+  )
+  revalidatePath('/finance')
+  revalidatePath('/settings')
+  return res
 }
 
 export async function openDrawerAction(input: unknown) {

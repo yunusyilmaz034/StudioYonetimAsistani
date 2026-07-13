@@ -13,6 +13,11 @@ export const PAYMENT_RECEIVED = 'payment.received'
 export const PAYMENT_VOIDED = 'payment.voided'
 export const PAYMENT_REFUNDED = 'payment.refunded'
 export const ALLOCATION_APPLIED = 'allocation.applied'
+// The till has to EXIST before it can be opened, and creating one is a state change — so it writes
+// an event, like every other state change in this system (#1). Until now there was no way to create
+// one at all: `openDrawer` refused a drawer that did not exist, and nothing created it. A studio
+// with no till can take no cash, and every cash sale was refused (`drawer_required`).
+export const DRAWER_CREATED = 'drawer.created'
 export const DRAWER_OPENED = 'drawer.opened'
 export const DRAWER_CLOSED = 'drawer.closed'
 export const DRAWER_DISCREPANCY = 'drawer.discrepancy_recorded'
@@ -70,6 +75,11 @@ export type AllocationAppliedPayload = {
   readonly amount: Money
   readonly saleBalanceAfter: Money // AD-19: the post-state of every number the event changed
   readonly paymentUnallocatedAfter: Money
+}
+
+export type DrawerCreatedPayload = {
+  readonly name: string
+  readonly kind: 'cash' | 'pos'
 }
 
 export type DrawerOpenedPayload = {

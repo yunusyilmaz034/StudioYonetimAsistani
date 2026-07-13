@@ -23,6 +23,7 @@ import {
   COUPON_REDEEMED,
   DRAWER_CLOSED,
   DRAWER_DISCREPANCY,
+  DRAWER_CREATED,
   DRAWER_OPENED,
   GIFTCARD_ISSUED,
   GIFTCARD_REDEEMED,
@@ -400,6 +401,58 @@ export function decideAllocate(
 }
 
 // ── KASA (owner, decision 5: per branch, per shift) ─────────────────────────────────────────
+/**
+ * Create a till (hotfix B-2, 2026-07-13).
+ *
+ * A studio starts with none, and until now nothing could make one: `openDrawer` refused a drawer that
+ * did not exist, and no screen and no script created it. So on a fresh production project reception
+ * could take **no cash at all** — every cash sale was refused with `drawer_required`, correctly, and
+ * for ever.
+ *
+ * The till is created ONCE, in Ayarlar, and lives from then on. It is not created on the fly by the
+ * first sale of the day: a till that appears when money needs somewhere to go is a till whose opening
+ * balance nobody counted.
+ */
+export function decideCreateDrawer(
+  ctx: DecideContext,
+  existing: CashDrawer | null,
+  input: { drawerId: string; branchId: BranchId; name: string; kind: 'cash' | 'pos' },
+): Result<Outcome<CashDrawer>, DomainError> {
+  if (existing) return err({ code: 'operation_not_applicable' })
+  if (input.name.trim().length === 0) return err({ code: 'reason_required' })
+
+  const next: CashDrawer = {
+    id: input.drawerId,
+    studioId: ctx.studioId,
+    branchId: input.branchId,
+    name: input.name.trim(),
+    kind: input.kind,
+    // Created CLOSED. It holds nothing until a human opens it and says what was in it — and that
+    // opening float is the number the whole day-end count is judged against.
+    status: 'closed',
+    openingFloat: money(0),
+    expected: money(0),
+    openedAt: null,
+    openedBy: null,
+    closedAt: null,
+    closedBy: null,
+    countedAmount: null,
+    discrepancy: null,
+    closeNote: null,
+  }
+
+  return ok({
+    next,
+    events: [
+      {
+        ...base(ctx, 'branch', next.id, next.branchId, {}),
+        type: DRAWER_CREATED,
+        payload: { name: next.name, kind: next.kind },
+      },
+    ],
+  })
+}
+
 export function decideOpenDrawer(
   ctx: DecideContext,
   drawer: CashDrawer,

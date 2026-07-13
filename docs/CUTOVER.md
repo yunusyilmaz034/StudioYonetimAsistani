@@ -47,7 +47,8 @@ without them reception cannot schedule a single class. In that order:
 | 4 | Ayarlar → **Çalışma saatleri** | **They are enforced** (AG-1): a class cannot be created — or booked — outside them. A studio that leaves them empty is not policed, which is a choice, not an accident. |
 | 5 | Ayarlar → şirket bilgileri | Every receipt and every e-mail reads them from this one document. |
 | 6 | Paketler → the catalogue | Products are **data** (AD-41). Nothing in the source tree knows a price. |
-| 7 | Kasa → **open the till** | Cash cannot be taken into a closed drawer, and the domain refuses. Reception opens it every morning; if she does not, the first cash sale of the day is refused — legibly, in Turkish. |
+| 7 | Ayarlar → **Kasalar** → create "Merkez Kasa" | **Do this or the studio can take no cash at all.** A studio starts with no till, and a cash sale into no till is refused (`drawer_required`) — correctly, and for ever. It is created here once; a second one (a POS drawer) can be added later. |
+| 7b | Kasa → **open the till** | It is created CLOSED. Reception opens it every morning and counts what is in it — that opening float is the number the day-end is judged against. |
 | 8 | Personel → reception, trainers | The last active owner can never be deactivated or demoted. |
 
 ---
@@ -86,6 +87,11 @@ checklist is that it is allowed to say no to you.
       is what makes the dashboard agree with the ledger.
 
 ### The perimeter
+- [ ] **`NEXT_PUBLIC_FIREBASE_API_KEY` and `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` set to the real project's**
+      *(they used to be hardcoded to the emulator's demo values — with those, **nobody can sign in**, and
+      the owner would have met it on the first morning of the pilot. They are IDENTIFIERS, not secrets:
+      what protects the data is Auth plus the security rules.)*
+- [ ] **Somebody has actually signed in to the deployed app.** Not "the deploy succeeded" — signed in.
 - [ ] `QR_TOKEN_SECRET` provisioned in Secret Manager (not a dev value — `secrets.ts` refuses to start without it)
 - [ ] `RESEND_API_KEY` + `EMAIL_FROM` provisioned, **and a real e-mail has arrived in a real inbox**
 - [ ] Security rules tests pass **against the rules that are actually deployed**

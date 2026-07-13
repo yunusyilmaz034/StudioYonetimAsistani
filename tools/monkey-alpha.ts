@@ -25,6 +25,7 @@ import {
   bookReservation,
   cancelReservation,
   collect,
+  createDrawer,
   createRoom,
   createService,
   DEFAULT_STUDIO_CONFIG,
@@ -425,21 +426,15 @@ async function main(): Promise<void> {
     serviceIds: [serviceId],
     active: true,
   })
-  await db.doc(`studios/${SID}/cashDrawers/drw_main`).set({
+  // The till is created through the PRODUCT's own path (hotfix B-2) — not hand-written into Firestore.
+  // A harness that hand-crafts the state it tests proves nothing about the state the studio will have.
+  const madeDrawer = await createDrawer(financeDeps, ownerCtx, {
+    drawerId: 'drw_main',
+    branchId: BRANCH,
     name: 'Merkez Kasa',
     kind: 'cash',
-    status: 'closed',
-    branchId: BRANCH,
-    openingFloat: 0,
-    expected: 0,
-    openedAt: null,
-    openedBy: null,
-    closedAt: null,
-    closedBy: null,
-    countedAmount: null,
-    discrepancy: null,
-    closeNote: null,
   })
+  if (!madeDrawer.ok) throw new Error(`drawer create: ${madeDrawer.error.code}`)
   await openDrawer(financeDeps, ctx, { drawerId: 'drw_main', openingFloat: money(0) })
   await openBranch(checkinDeps, ctx, { branchId: BRANCH })
   await newMember()

@@ -2,6 +2,39 @@
 
 ---
 
+## v1.29.1-rc1 — hotfixes B-1 and B-2 · **production could not have started without these**
+
+**2026-07-13** · `main` re-frozen. Bugfix only.
+
+Two things stood between RC1 and a pilot, and both were found by reading the deploy configuration
+rather than by running the product — which is exactly where they would have been found otherwise: on
+the first morning, by the owner.
+
+**B-1 — nobody could have signed in.** The Firebase web config was **hardcoded to the emulator's demo
+values** (`apiKey: 'demo-api-key'`, `authDomain: 'demo-sos.firebaseapp.com'`); only the project id came
+from the environment. Against a real project that key is not a key. The login screen would have refused
+everyone. Now `NEXT_PUBLIC_FIREBASE_API_KEY` and `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`, named in
+`apphosting.yaml`. They are **identifiers, not credentials** — what protects the data is Auth plus the
+security rules, and that is why they may sit in the browser bundle at all.
+
+**B-2 — the studio could have taken no cash at all.** `openDrawer` refuses a till that does not exist,
+and **nothing in the repository created one** — not a screen, not a script. On a fresh project the Kasa
+screen would have been empty, with nothing to open, and every cash sale refused with `drawer_required`
+— correctly, and for ever. The till is now created in **Ayarlar** (owner's call: a studio may want a
+second one, a POS drawer beside the cash one, and that is a setup decision rather than an accident of
+birth). It is born **closed**: a till that appears already open, with money in it, is a till whose
+opening balance nobody counted — and the whole day-end count is judged against that number.
+
+`drawer.created` is a **new** event type, because creating a till is a state change and every state
+change writes one (#1). Nothing existing was touched: no version bump, no upcaster, and the golden
+fixtures prove it.
+
+The three harnesses now create the till through the **product's own path** rather than hand-writing it
+into Firestore. A harness that hand-crafts the state it tests proves nothing about the state the studio
+will actually have — which is how B-2 hid for this long.
+
+---
+
 ## v1.29-rc1 — **Product Alpha V1 · the reference release**
 
 **2026-07-13** · `main` is **hotfix-only** from this commit. Product Plus work starts on

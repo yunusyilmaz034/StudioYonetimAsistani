@@ -33,6 +33,22 @@ env:
       - BUILD
       - RUNTIME
 
+  # The Firebase web config (hotfix B-1). An `apiKey` here is an IDENTIFIER, not a credential: it
+  # names the project at Google's front door, and what protects the data is Auth + the security rules.
+  # Without these two the client SDK cannot sign anybody in — which is what production would have done
+  # on the first morning of the pilot, because they used to be hardcoded to the emulator's demo values.
+  - variable: NEXT_PUBLIC_FIREBASE_API_KEY
+    value: REPLACE-ME-web-api-key # ← Firebase konsolu → Project settings → Your apps → Web app
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+    value: REPLACE-ME-prod.firebaseapp.com
+    availability:
+      - BUILD
+      - RUNTIME
+
   # ── Server-side, not secret ───────────────────────────────────────────────────────────────
   - variable: FIREBASE_PROJECT_ID
     value: REPLACE-ME-prod
