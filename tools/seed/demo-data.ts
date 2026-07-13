@@ -29,7 +29,7 @@ import {
   registerMember,
   scheduleSession,
   selectEntitlement,
-  setStudioDefaults,
+  updateStudioSettings,
   systemClock,
   toMemberSnapshot,
   type ActorRef,
@@ -124,8 +124,36 @@ export async function seedDemoData(trainerUid: string | null): Promise<void> {
   // installed with. The domain never knows it — it resolves session → service → studio and
   // refuses if nobody answers.
   ok(
-    await setStudioDefaults(schedDeps(), ctx, { defaultCancellationWindowHours: 6 }),
-    'setStudioDefaults',
+    await updateStudioSettings(schedDeps(), ctx, {
+      studioId: STUDIO_ID,
+      defaultCancellationWindowHours: 6,
+      lowCreditThreshold: 2,
+      discountCeilingPercent: 20,
+      defaultSessionDurationMinutes: 50,
+      timeZone: 'Europe/Istanbul',
+      company: {
+        legalName: 'Demo Pilates ve Fitness Ltd. Şti.',
+        displayName: 'Demo Stüdyo',
+        taxOffice: 'Beşiktaş',
+        taxNumber: '1234567890',
+        phone: '+902121234567',
+        email: 'info@demo.test',
+        website: null,
+        address: 'Demo Mah. Demo Cad. No:1, İstanbul',
+      },
+      // Every day on its own — the shape the real studio actually has.
+      workingHours: {
+        0: null, // Pazar kapalı
+        1: { open: '10:00', close: '21:00' },
+        2: { open: '10:00', close: '21:00' },
+        3: { open: '10:00', close: '21:00' },
+        4: { open: '10:00', close: '21:00' },
+        5: { open: '10:00', close: '21:00' },
+        6: { open: '11:00', close: '17:00' },
+      },
+      qr: { tokenTtlSeconds: 60, checkInWindowMinutes: 30 },
+    }),
+    'updateStudioSettings',
   )
 
   // 2. Branch occupancy (required before any check-in).

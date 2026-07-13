@@ -20,18 +20,26 @@ import {
   LayoutDashboardIcon,
   LogOutIcon,
   PackageIcon,
+  FileTextIcon,
+  SettingsIcon,
+  UploadIcon,
+  UserCogIcon,
   UsersIcon,
   type LucideIcon,
 } from 'lucide-react'
 
 import { clientAuth } from '@/lib/firebase-client'
+import type { PrincipalRole } from '@studio/core'
+
+import { canSee, type Area } from '@/lib/permissions'
 import { destroySession } from '@/server/actions/session'
 
 interface NavItem {
-  readonly href: string
+  // The route IS the permission key. There is no second list to keep in step, and therefore no way
+  // for the nav and the guard to disagree — which is how a trainer ends up with a link to the kasa.
+  readonly href: Area
   readonly label: string
   readonly icon: LucideIcon
-  readonly ownerOnly?: boolean
 }
 interface NavGroup {
   readonly label?: string
@@ -44,6 +52,11 @@ interface NavGroup {
 // fill) for all-day comfort; token-driven, no hex (DS-1).
 const GROUPS: readonly NavGroup[] = [
   { items: [{ href: '/', label: 'Genel Görünüm', icon: LayoutDashboardIcon }] },
+  {
+    // The trainer's whole product. It sits alone, and it is filtered in for her and out for
+    // reception by the same matrix as everything else.
+    items: [{ href: '/my-classes', label: 'Derslerim', icon: ClipboardCheckIcon }],
+  },
   {
     label: 'Operasyon',
     items: [
@@ -61,19 +74,31 @@ const GROUPS: readonly NavGroup[] = [
       { href: '/finance', label: 'Kasa', icon: WalletIcon },
       { href: '/crm', label: 'Satış Hunisi', icon: TargetIcon },
       { href: '/calendar', label: 'Takvim', icon: CalendarDaysIcon },
-      { href: '/operations', label: 'Operasyonlar', icon: LayersIcon },
       { href: '/activity', label: 'Hareket Merkezi', icon: ActivityIcon },
       { href: '/notifications', label: 'Bildirim Merkezi', icon: BellIcon },
+    ],
+  },
+  {
+    label: 'Sahip',
+    items: [
+      { href: '/operations', label: 'Operasyonlar', icon: LayersIcon },
+      { href: '/reports', label: 'Raporlar', icon: FileTextIcon },
       { href: '/analytics', label: 'Analiz', icon: BarChart3Icon },
-      // Owner only (owner, 2026-07-13). The page redirects anyway — but offering reception a link
-      // she cannot follow is a broken promise, and a nav that lies is worse than one that is short.
-      { href: '/audit', label: 'Denetim Kaydı', icon: ShieldIcon, ownerOnly: true },
+      { href: '/staff', label: 'Personel', icon: UserCogIcon },
+      { href: '/settings', label: 'Ayarlar', icon: SettingsIcon },
+      { href: '/audit', label: 'Denetim Kaydı', icon: ShieldIcon },
+      // The cutover tool. It stays in the nav after cutover rather than being hidden behind a flag:
+      // it is idempotent (a phone is unique — I-21), it refuses a dirty file, and a tool the owner
+      // cannot find is a tool she will ask us to run for her.
+      { href: '/import', label: 'Üye İçe Aktar', icon: UploadIcon },
     ],
   },
 ]
 
-const groupsFor = (isOwner: boolean): readonly NavGroup[] =>
-  GROUPS.map((g) => ({ ...g, items: g.items.filter((i) => !i.ownerOnly || isOwner) })).filter(
+// The nav is DERIVED from the matrix, never from a second list of flags. Offering someone a link she
+// cannot follow is a broken promise; a nav that lies is worse than one that is short.
+const groupsFor = (role: PrincipalRole): readonly NavGroup[] =>
+  GROUPS.map((g) => ({ ...g, items: g.items.filter((i) => canSee(role, i.href)) })).filter(
     (g) => g.items.length > 0,
   )
 
@@ -83,11 +108,11 @@ const isActive = (pathname: string, href: string): boolean =>
 // No "bare route" escape hatch any more: this shell is mounted ONLY by `(staff)/layout.tsx`.
 // Login, the design-system showcase, the member portal and the invite link live in other
 // branches of the route tree, so they cannot render it even by accident.
-export function AppShell({ children, isOwner = false }: { children: ReactNode; isOwner?: boolean }) {
+export function AppShell({ children, role }: { children: ReactNode; role: PrincipalRole }) {
   const pathname = usePathname()
-  const groups = groupsFor(isOwner)
+  const groups = groupsFor(role)
   return (
-    <div className="min-h-dvh pb-16 md:pb-0 md:pl-60">
+    <div data-slot="app-shell" className="min-h-dvh pb-16 md:pb-0 md:pl-60">
       <DesktopRail pathname={pathname} groups={groups} />
       <BottomBar pathname={pathname} groups={groups} />
       {children}
@@ -142,7 +167,10 @@ function RailLink({ item, active }: { item: NavItem; active: boolean }) {
 function DesktopRail({ pathname, groups }: { pathname: string; groups: readonly NavGroup[] }) {
   const { logout, loading } = useLogout()
   return (
-    <aside className="fixed inset-y-0 left-0 hidden w-60 flex-col border-r border-border bg-surface md:flex">
+    <aside
+      data-slot="app-shell-nav"
+      className="fixed inset-y-0 left-0 hidden w-60 flex-col border-r border-border bg-surface md:flex"
+    >
       <div className="px-3 pt-4 pb-2">
         <Brand />
       </div>
@@ -178,7 +206,10 @@ function DesktopRail({ pathname, groups }: { pathname: string; groups: readonly 
 function BottomBar({ pathname, groups }: { pathname: string; groups: readonly NavGroup[] }) {
   const items = groups.flatMap((g) => g.items)
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-40 flex overflow-x-auto border-t border-border bg-surface/95 backdrop-blur md:hidden">
+    <nav
+      data-slot="app-shell-nav"
+      className="fixed inset-x-0 bottom-0 z-40 flex overflow-x-auto border-t border-border bg-surface/95 backdrop-blur md:hidden"
+    >
       {items.map((it) => {
         const Icon = it.icon
         const on = isActive(pathname, it.href)

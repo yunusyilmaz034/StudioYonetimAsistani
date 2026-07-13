@@ -1,12 +1,9 @@
 import { Timestamp } from 'firebase-admin/firestore'
 import { describe, expect, it } from 'vitest'
 
-import {
-  runFastHealthChecks,
-  runNightlyHealthChecks,
-  type FastHealthReport,
-  type NightlyHealthReport,
-} from '../../src/scheduled/health'
+import type { HealthAlert } from '@studio/core'
+
+import { runFastHealthChecks, runNightlyHealthChecks, type HealthRun } from '../../src/scheduled/health'
 import { db } from '../../src/shared/firebase'
 
 // An untested alarm is not an alarm — it is a file that makes everyone feel safer.
@@ -18,15 +15,18 @@ import { db } from '../../src/shared/firebase'
 
 const STUDIO = 'std_health_test'
 
-const of = <T extends { studioId: string }>(reports: readonly T[]): T => {
-  const r = reports.find((x) => x.studioId === STUDIO)
+const of = (runs: readonly HealthRun[]): HealthRun => {
+  const r = runs.find((x) => x.studioId === STUDIO)
   if (!r) throw new Error(`no health report for ${STUDIO}`)
   return r
 }
 
-const fast = async (now: number): Promise<FastHealthReport> => of(await runFastHealthChecks(now))
-const nightly = async (now: number): Promise<NightlyHealthReport> =>
-  of(await runNightlyHealthChecks(now))
+/** How many rows did this signal find? Zero means the alarm stayed quiet — which is itself a claim. */
+const count = (run: HealthRun, alert: HealthAlert): number =>
+  run.findings.find((f) => f.alert === alert)?.count ?? 0
+
+const fast = async (now: number): Promise<HealthRun> => of(await runFastHealthChecks(now))
+const nightly = async (now: number): Promise<HealthRun> => of(await runNightlyHealthChecks(now))
 
 describe('SIGNAL — a command stuck in pending', () => {
   it('sees a command the trigger never processed', async () => {
@@ -47,10 +47,10 @@ describe('SIGNAL — a command stuck in pending', () => {
     })
     await ref.update({ status: 'pending' })
 
-    const report = await fast(now)
+    const run = await fast(now)
     // Reception's UI is optimistic: it already told her the member walked in. If this alarm does
     // not fire, nothing in the system ever mentions that check-in again.
-    expect(report.stuckCommands, 'a stuck command did not raise the alarm').toBeGreaterThan(0)
+    expect(count(run, 'commands_stuck'), 'a stuck command did not raise the alarm').toBeGreaterThan(0)
 
     await ref.delete()
   })
@@ -69,8 +69,7 @@ describe('SIGNAL — a command stuck in pending', () => {
 
     // A monitor that cries at every healthy write gets muted — and a muted monitor is
     // indistinguishable from one that was never built.
-    const report = await fast(now)
-    expect(report.stuckCommands).toBe(0)
+    expect(count(await fast(now), 'commands_stuck')).toBe(0)
 
     await ref.delete()
   })
@@ -94,8 +93,11 @@ describe('SIGNAL — the credit ledger drifted (DEBT-004)', () => {
       },
     })
 
-    const report = await nightly(now)
-    expect(report.creditLedgerDrift, 'a drifted credit ledger went unreported').toBeGreaterThan(0)
+    const run = await nightly(now)
+    expect(
+      count(run, 'credit_ledger_drift'),
+      'a drifted credit ledger went unreported',
+    ).toBeGreaterThan(0)
 
     // And note what does NOT happen. Correcting the number would destroy the only evidence that a
     // write path bypassed a transaction — which is the actual bug, and the only thing worth knowing.
@@ -127,8 +129,7 @@ describe('SIGNAL — an entitlement expiring while still holding a credit (I-19)
       },
     })
 
-    const report = await nightly(now)
-    expect(report.expiringWithHeld).toBeGreaterThan(0)
+    expect(count(await nightly(now), 'expiring_with_held')).toBeGreaterThan(0)
 
     await ref.delete()
   })

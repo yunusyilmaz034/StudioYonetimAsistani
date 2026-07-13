@@ -10,6 +10,8 @@ import { PageHeader } from '@/components/ui/page-header'
 import { Section } from '@/components/ui/section'
 import { formatDateTime } from '@/lib/datetime'
 
+import { SystemAlerts } from './system-alerts'
+
 // The record of every destructive act the studio has taken. This screen exists because "what did
 // we do in July?" is a question that gets asked — usually by a member who noticed.
 
@@ -82,6 +84,10 @@ export function OperationsScreen({
           </>
         }
       />
+
+      {/* First on the page, deliberately. A warning is useful where you land, not where you go to
+          look for it — and none of these five failures announces itself anywhere else. */}
+      <SystemAlerts />
 
       <Section title="Kapanış işlemleri">
         {closures.length === 0 ? (

@@ -18,6 +18,7 @@ import {
   deactivateTemplate,
   DEFAULT_STUDIO_CONFIG,
   FirestoreSchedulingRepository,
+  FirestoreStudioHours,
   generateSessions,
   publishServicePolicy,
   applyWeekDuplication,
@@ -26,7 +27,6 @@ import {
   reactivateService,
   scheduleSession,
   setSessionNote,
-  setStudioDefaults,
   systemClock,
   updateRoom,
   updateService,
@@ -54,6 +54,7 @@ function deps(): SchedulingDeps {
     repo: new FirestoreSchedulingRepository(adminDb()),
     clock: systemClock,
     studioConfig: DEFAULT_STUDIO_CONFIG,
+    hours: new FirestoreStudioHours(adminDb()),
   }
 }
 
@@ -297,19 +298,21 @@ async function assertEligible(
 }
 
 // D14 — the studio default cancellation window (level 3). Owner-only: it is a policy value.
-export async function setStudioDefaultsAction(input: unknown) {
-  const p = z
-    .object({ defaultCancellationWindowHours: z.number().int().min(0).max(720).nullable() })
-    .parse(input)
-  return setStudioDefaults(deps(), await requireTenantContext(['owner', 'platform_admin']), {
-    defaultCancellationWindowHours: p.defaultCancellationWindowHours,
-  })
-}
-
-export async function getStudioDefaultsAction(): Promise<{ defaultCancellationWindowHours: number | null }> {
+// Studio settings moved to their own screen and their own action (v1.27 S2 · `actions/settings.ts`).
+// They used to be a gear icon on the schedule toolbar editing ONE field, which is how a studio ends
+// up being configured from the Firestore console — the thing the runbook forbids.
+//
+// This read stays, because the schedule and the session form need the defaults.
+export async function getStudioDefaultsAction(): Promise<{
+  defaultCancellationWindowHours: number | null
+  defaultSessionDurationMinutes: number | null
+}> {
   const ctx = await requireTenantContext(OPS)
   const settings = await new FirestoreSchedulingRepository(adminDb()).getStudioSettings(ctx)
-  return { defaultCancellationWindowHours: settings?.defaultCancellationWindowHours ?? null }
+  return {
+    defaultCancellationWindowHours: settings?.defaultCancellationWindowHours ?? null,
+    defaultSessionDurationMinutes: settings?.defaultSessionDurationMinutes ?? null,
+  }
 }
 
 // D13 — assign a PT (private) session to a member, or release it (memberId: null). All the

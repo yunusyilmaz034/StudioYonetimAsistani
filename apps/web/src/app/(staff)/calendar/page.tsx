@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 
-import { getTenantContext } from '@/server/auth'
+import { requirePageAccess } from '@/server/auth'
 import { listCalendarDaysAction } from '@/server/actions/calendar'
 
 import { CalendarScreen } from './calendar-screen'
@@ -12,7 +12,7 @@ export default async function CalendarPage({
 }: {
   searchParams: Promise<{ year?: string }>
 }) {
-  const ctx = await getTenantContext()
+  const ctx = await requirePageAccess('/calendar')
   if (!ctx) redirect('/login')
 
   const { year } = await searchParams

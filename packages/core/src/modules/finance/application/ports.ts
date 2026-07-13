@@ -14,6 +14,9 @@ export interface FinanceRepository {
   getSale(ctx: TenantContext, id: string): Promise<Sale | null>
   listSalesByMember(ctx: TenantContext, memberId: MemberId): Promise<readonly Sale[]>
   listOpenSales(ctx: TenantContext): Promise<readonly Sale[]> // "bekleyen ödemeler"
+  // The sales report reads by the date the sale was AGREED, not the date it was paid — the two are
+  // different questions and answering one with the other is how a studio believes it had a good month.
+  listSalesBetween(ctx: TenantContext, fromMs: number, toMs: number): Promise<readonly Sale[]>
   getPayment(ctx: TenantContext, id: string): Promise<Payment | null>
   listPaymentsByMember(ctx: TenantContext, memberId: MemberId): Promise<readonly Payment[]>
   listPaymentsBetween(ctx: TenantContext, fromMs: number, toMs: number): Promise<readonly Payment[]>

@@ -1,6 +1,5 @@
-import { redirect } from 'next/navigation'
 
-import { getTenantContext } from '@/server/auth'
+import { requirePageAccess } from '@/server/auth'
 import { loadSchedule, studioToday } from '@/server/schedule-query'
 
 import { ScheduleScreen } from './schedule-screen'
@@ -13,10 +12,7 @@ export default async function SchedulePage({
 }: {
   searchParams: Promise<{ date?: string }>
 }) {
-  const ctx = await getTenantContext()
-  if (!ctx) {
-    redirect('/login')
-  }
+  const ctx = await requirePageAccess('/schedule')
 
   const { date } = await searchParams
   const today = studioToday()

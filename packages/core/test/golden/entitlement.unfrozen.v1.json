@@ -1,0 +1,9 @@
+{
+  "from": "2026-01-10",
+  "to": "2026-01-15",
+  "days": 5,
+  "usedDaysAfter": 5,
+  "validUntilBefore": 1774915200000,
+  "validUntilAfter": 1775347200000,
+  "auto": false
+}

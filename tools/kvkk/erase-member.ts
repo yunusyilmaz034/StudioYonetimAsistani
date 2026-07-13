@@ -4,6 +4,7 @@ import {
   eraseMember,
   ErasureReasons,
   FirestoreMemberRepository,
+  FirestorePiiPurger,
   systemClock,
   type ErasureReason,
   type MemberId,
@@ -193,46 +194,10 @@ async function main(): Promise<void> {
     console.log('ℹ️  Üye zaten anonimleştirilmiş. Yeni event üretilmedi.')
   }
 
-  // ── 2. Everything the aggregate cannot reach. ─────────────────────────────────────────────
-  const batch = db.batch()
-
-  const reservations = await db
-    .collection(`studios/${sid}/reservations`)
-    .where('memberId', '==', mid)
-    .get()
-  for (const r of reservations.docs) {
-    // DEBT-003, come due. The snapshot exists so a trainer's roster costs ten reads instead of
-    // twenty; the entry said, in writing, that an erasure would have to purge it. It does.
-    batch.update(r.ref, {
-      'memberSnapshot.displayName': '[silindi]',
-      'memberSnapshot.phoneLast4': null,
-    })
-  }
-
-  const intents = await db
-    .collection(`studios/${sid}/notifications`)
-    .where('recipient.id', '==', mid)
-    .get()
-  for (const i of intents.docs) {
-    // The intent holds her name (in `params`), her rendered message, and her address. I-38 kept all
-    // three OUT of the event log precisely so they could be deleted from here.
-    batch.update(i.ref, {
-      params: {},
-      'recipient.email': null,
-      'recipient.phone': null,
-      'recipient.displayName': '[silindi]',
-      erased: true,
-    })
-  }
-
-  for (const doc of (await db.collection(`studios/${sid}/members/${mid}/inbox`).get()).docs) {
-    batch.delete(doc.ref)
-  }
-  for (const doc of (await db.collection(`studios/${sid}/members/${mid}/invites`).get()).docs) {
-    batch.delete(doc.ref)
-  }
-
-  await batch.commit()
+  // ── 2. Everything the aggregate cannot reach — ONE implementation, shared with the screen. ──
+  // Two implementations of an erasure are two behaviours, and the day they drift is the day one of
+  // them forgets her phone number — quietly, in a collection nobody thought to check.
+  await new FirestorePiiPurger(db).purge(sid as StudioId, mid as MemberId)
 
   if (plan.authUser) {
     await getAuth().deleteUser(memberUid(sid, mid))

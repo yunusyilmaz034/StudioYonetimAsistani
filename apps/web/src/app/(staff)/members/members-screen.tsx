@@ -4,7 +4,6 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { PlusIcon, SearchIcon, UsersIcon } from 'lucide-react'
 
-import type { Member } from '@studio/core'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -19,6 +18,8 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet'
 import { Toaster } from '@/components/ui/sonner'
+import { FILTERS, matches, type MemberBadges, type MemberFilter } from '@/lib/members/filters'
+import type { MemberRow } from '@/server/members-query'
 import {
   Table,
   TableBody,
@@ -30,7 +31,7 @@ import {
 
 import { MemberForm } from './member-form'
 
-const STATUS_LABEL: Record<Member['status'], string> = {
+const STATUS_LABEL: Record<string, string> = {
   active: 'Aktif',
   inactive: 'Pasif',
   deleted: 'Silindi',
@@ -41,12 +42,13 @@ export function MembersScreen({
   defaultBranchId,
   initialCreate = false,
 }: {
-  members: Member[]
+  members: readonly MemberRow[]
   defaultBranchId: string | null
   initialCreate?: boolean
 }) {
   const router = useRouter()
   const [query, setQuery] = useState('')
+  const [filter, setFilter] = useState<MemberFilter>('all')
   const [formOpen, setFormOpen] = useState(false)
 
   // Quick action (?new=1) — open the create form once on mount.
@@ -57,18 +59,32 @@ export function MembersScreen({
     if (initialCreate) setFormOpen(true)
   }, [initialCreate])
 
+  // Search AND filter — they compose. "Bitecek paketi olanlar arasında Ayşe hangisiydi?" is one
+  // question, not two screens.
   const filtered = useMemo(() => {
     const q = query.trim().toLocaleLowerCase('tr')
     const digits = query.replace(/\D/g, '')
-    if (!q && !digits) return members
-    return members.filter(
-      (m) =>
+    return members.filter((m) => {
+      if (!matches(filter, m.badges)) return false
+      if (!q && !digits) return true
+      return (
         m.fullName.toLocaleLowerCase('tr').includes(q) ||
-        (digits.length > 0 && m.phoneNormalized.includes(digits)),
-    )
-  }, [members, query])
+        (digits.length > 0 && m.phoneNormalized.includes(digits))
+      )
+    })
+  }, [members, query, filter])
 
-  function open(m: Member) {
+  // The count on each chip is the point of the chip. "Bitecek" is a word; "Bitecek 4" is a morning's
+  // work — and a zero tells her, truthfully, that there is nothing to do there today.
+  const counts = useMemo(
+    () =>
+      Object.fromEntries(
+        FILTERS.map((f) => [f.id, members.filter((m) => matches(f.id, m.badges)).length]),
+      ) as Record<MemberFilter, number>,
+    [members],
+  )
+
+  function open(m: MemberRow) {
     router.push(`/members/${m.id}`)
   }
   function onFormDone() {
@@ -92,8 +108,6 @@ export function MembersScreen({
         }
       />
 
-      {/* Search is this screen's whole control surface — no metric strip here: a total that
-          changes no decision would only cost vertical space (Doc 20 §1). */}
       <div className="flex items-center gap-3">
         <div className="relative flex-1">
           <SearchIcon className="absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -109,6 +123,28 @@ export function MembersScreen({
             {filtered.length} / {members.length}
           </span>
         ) : null}
+      </div>
+
+      {/* The filters (v1.27 S7). Search answers a question you already know the answer to — "where is
+          Ayşe?". These answer the ones reception actually has at 09:00, and none of them can be typed
+          into a search box. A chip with a zero stays visible: it is the answer "nobody", and that is
+          worth knowing. */}
+      <div className="flex flex-wrap gap-2">
+        {FILTERS.map((f) => (
+          <button
+            key={f.id}
+            type="button"
+            onClick={() => setFilter(f.id)}
+            className={`min-h-9 rounded-full border px-3 text-xs transition-colors ${
+              f.id === filter
+                ? 'border-primary bg-primary-soft font-medium text-primary'
+                : 'border-border text-muted-foreground hover:bg-muted hover:text-foreground'
+            }`}
+          >
+            {f.label}
+            <span className="ml-1.5 tabular-nums opacity-70">{counts[f.id]}</span>
+          </button>
+        ))}
       </div>
 
       {filtered.length === 0 ? (
@@ -140,7 +176,7 @@ export function MembersScreen({
                   <p className="truncate text-sm font-medium text-foreground">{m.fullName}</p>
                   <p className="truncate text-xs tabular-nums text-muted-foreground">{m.phone}</p>
                 </div>
-                <StatusCell status={m.status} />
+                <MemberBadgeCell status={m.status} badges={m.badges} />
               </button>
             ))}
           </div>
@@ -171,7 +207,7 @@ export function MembersScreen({
                     <TableCell className="px-4 py-3 font-medium text-foreground">{m.fullName}</TableCell>
                     <TableCell className="px-4 py-3 tabular-nums text-muted-foreground">{m.phone}</TableCell>
                     <TableCell className="w-32 px-4 py-3 whitespace-nowrap">
-                      <StatusCell status={m.status} />
+                      <MemberBadgeCell status={m.status} badges={m.badges} />
                     </TableCell>
                   </TableRow>
                 ))}
@@ -195,15 +231,21 @@ export function MembersScreen({
   )
 }
 
-// Quiet by default, loud only when abnormal: an active member is the norm and gets a plain
-// caption; anything else is a state someone may need to act on, so it gets a tinted badge.
-function StatusCell({ status }: { status: Member['status'] }) {
-  if (status === 'active') {
-    return <span className="text-xs text-muted-foreground">Aktif</span>
+// Quiet by default, loud only when abnormal (Doc 20 §1): a member with a healthy package is the norm
+// and gets a plain caption. ONE badge, never a row of them — a list where every row shouts is a list
+// where nothing does. The order below is the order of what reception should act on first.
+function MemberBadgeCell({ status, badges }: { status: string; badges: MemberBadges }) {
+  if (status !== 'active') {
+    return (
+      <Badge className={status === 'deleted' ? 'bg-danger/10 text-danger' : 'bg-muted text-muted-foreground'}>
+        {STATUS_LABEL[status] ?? status}
+      </Badge>
+    )
   }
-  return (
-    <Badge className={status === 'deleted' ? 'bg-danger/10 text-danger' : 'bg-muted text-muted-foreground'}>
-      {STATUS_LABEL[status]}
-    </Badge>
-  )
+  if (badges.inDebt) return <Badge className="bg-danger/10 text-danger">Borçlu</Badge>
+  if (badges.frozen) return <Badge className="bg-muted text-muted-foreground">Donmuş</Badge>
+  if (badges.expiring) return <Badge className="bg-warning/10 text-warning">Bitecek</Badge>
+  if (badges.lowCredits) return <Badge className="bg-warning/10 text-warning">Kredi az</Badge>
+  if (badges.noPackage) return <Badge className="bg-muted text-muted-foreground">Paketsiz</Badge>
+  return <span className="text-xs text-muted-foreground">Aktif</span>
 }

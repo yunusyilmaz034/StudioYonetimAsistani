@@ -10,6 +10,7 @@ import {
   FirestoreEntitlementRepository,
   FirestoreMemberRepository,
   FirestoreReservationRepository,
+  FirestoreStudioHours,
   FirestoreSchedulingRepository,
   instant,
   isEligibleForService,
@@ -92,9 +93,21 @@ describe('the member portal, end to end', () => {
       repo: schedRepo,
       clock: systemClock,
       studioConfig: DEFAULT_STUDIO_CONFIG,
+      // AG-1 — scheduling a class now answers to the studio's opening hours and the calendar. This
+      // studio configures none, so nothing is policed: "we have not told you when we are open" is not
+      // the same as "we are closed".
+      hours: new FirestoreStudioHours(db),
     }
     const entDeps = { repo: entRepo, clock: systemClock }
-    const resDeps = { repo: resRepo, entitlements: entRepo, clock: systemClock }
+    // AG-1 — the reservation engine now answers to the studio's opening hours, and it takes them as a
+    // REQUIRED dependency. This studio has none configured, so nothing is policed — which is the point:
+    // the member portal books exactly as reception does, through the same deciders.
+    const resDeps = {
+      repo: resRepo,
+      entitlements: entRepo,
+      clock: systemClock,
+      hours: new FirestoreStudioHours(db),
+    }
 
     // ── fixtures: a service, a member, a package she owns ────────────────────────────────
     const reformer = await createService(schedDeps, staffCtx, {

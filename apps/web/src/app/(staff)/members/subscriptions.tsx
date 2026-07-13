@@ -1,12 +1,16 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { ChevronDownIcon, Loader2Icon, PlusIcon } from 'lucide-react'
+import { ChevronDownIcon, Loader2Icon, PlusIcon, PrinterIcon } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Badge } from '@/components/ui/badge'
 import { Timeline } from '@/components/activity/timeline'
 import { packageTimelineAction } from '@/server/actions/activity'
+import {
+  freezeSubscriptionAction,
+  unfreezeSubscriptionAction,
+} from '@/server/actions/subscription'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -118,6 +122,24 @@ export function SubscriptionsPanel({ memberId, products }: { memberId: string; p
 function SubscriptionRow({ sub, onChanged }: { sub: SubscriptionView; onChanged: () => void }) {
   const [open, setOpen] = useState(false)
   const [dialog, setDialog] = useState<'amend' | 'credit' | 'status' | null>(null)
+  const [busy, setBusy] = useState(false)
+
+  // Freeze and unfreeze are one click. The refusal — an upcoming booking, an exhausted budget — comes
+  // back as a Turkish sentence, and NOTHING is fixed behind her back (owner, 2026-07-13).
+  const run = async (fn: () => Promise<{ ok: boolean; error?: unknown }>, done: string) => {
+    setBusy(true)
+    try {
+      const res = await fn()
+      if (res.ok) {
+        toast.success(done)
+        onChanged()
+      } else {
+        toast.error(domainErrorMessage(res.error as never))
+      }
+    } finally {
+      setBusy(false)
+    }
+  }
 
   const expand = () => setOpen((o) => !o)
 
@@ -147,6 +169,17 @@ function SubscriptionRow({ sub, onChanged }: { sub: SubscriptionView; onChanged:
             <Row label="Kalan bakiye" value={tl(balance)} />
             <Row label="Ödeme yöntemi" value={sub.method ? (METHOD_LABEL[sub.method] ?? sub.method) : '—'} />
             {sub.note ? <Row label="Açıklama" value={sub.note} /> : null}
+            {/* v1.27 S3 — her freeze budget. Shown only where it exists: a Pilates package has none,
+                and a row that says "0 gün" would read as a right she has and cannot use. */}
+            {sub.freezeEntitledDays ? (
+              <Row
+                label="Dondurma hakkı"
+                value={`${sub.freezeDaysRemaining} / ${sub.freezeEntitledDays} gün`}
+              />
+            ) : null}
+            {sub.frozenSince ? (
+              <Row label="Donduruldu" value={`${sub.frozenSince} tarihinden beri`} />
+            ) : null}
           </dl>
 
           <div className="flex flex-wrap gap-2">
@@ -161,7 +194,49 @@ function SubscriptionRow({ sub, onChanged }: { sub: SubscriptionView; onChanged:
             <Button variant="outline" size="sm" onClick={() => setDialog('status')}>
               {sub.status === 'cancelled' ? 'Aktifleştir' : 'Pasife Al'}
             </Button>
+
+            {/* v1.27 S3 — the slip reception hands the member. Opens in a new tab, because she is
+                about to print it and reception's screen must not go with her. */}
+            <a
+              href={`/receipt/sale/${sub.id}`}
+              target="_blank"
+              rel="noopener"
+              className="inline-flex min-h-9 items-center gap-1.5 rounded-md border border-border px-3 text-sm font-medium hover:bg-muted"
+            >
+              <PrinterIcon className="size-3.5" />
+              Bilgi fişi
+            </a>
+
+            {/* FREEZE (v1.27 S3). The button appears only where the product actually grants the
+                right — a Pilates package shows nothing, because it has nothing to offer. */}
+            {sub.status === 'frozen' ? (
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={busy}
+                onClick={() => run(() => unfreezeSubscriptionAction({ entitlementId: sub.id }), 'Üyelik yeniden başladı.')}
+              >
+                Dondurmayı kaldır
+              </Button>
+            ) : sub.status === 'active' && (sub.freezeDaysRemaining ?? 0) > 0 ? (
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={busy}
+                onClick={() => run(() => freezeSubscriptionAction({ entitlementId: sub.id }), 'Üyelik donduruldu.')}
+              >
+                Dondur
+              </Button>
+            ) : null}
           </div>
+
+          {sub.status === 'frozen' ? (
+            <p className="rounded-md bg-info/5 p-2 text-sm text-info">
+              Üyelik durdu. Kaldırdığında, durduğu gün sayısı kadar süresi uzayacak — hakkı{' '}
+              <strong>{sub.freezeDaysRemaining} gün</strong> kaldı, dolduğunda sistem otomatik olarak
+              devam ettirir.
+            </p>
+          ) : null}
 
           {/* The PACKAGE TIMELINE (v1.22): purchased → credit held → consumed → extended →
               frozen → expired, each with the credit balance it left behind, the staff member who

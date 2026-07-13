@@ -52,6 +52,8 @@ import type {
   MemberWorkspaceData,
 } from '@/server/member-workspace-query'
 import { deactivateMember } from '@/server/actions/members'
+
+import { ErasurePanel } from './erasure-panel'
 import {
   listUpcomingSessionsAction,
   type UpcomingSession,
@@ -93,11 +95,13 @@ export function MemberWorkspaceScreen({
   products,
   defaultBranchId,
   isOwner = false,
+  isPlatformAdmin,
 }: {
   data: MemberWorkspaceData
   products: readonly ProductView[]
   defaultBranchId: string | null
   isOwner?: boolean
+  isPlatformAdmin: boolean
 }) {
   const router = useRouter()
   const { member } = data
@@ -170,7 +174,7 @@ export function MemberWorkspaceScreen({
 
         <TabsContent value="profile">
           <div className="space-y-5">
-            <ProfilePanel member={member} />
+            <ProfilePanel member={member} isPlatformAdmin={isPlatformAdmin} />
             {/* v1.21 — the portal invite (D1). Reception issues the link; the member sets her
                 own password. Reception never knows it. */}
             <InvitePanel memberId={member.id} studioId={member.studioId} />
@@ -284,7 +288,7 @@ function QuickActions({
 }
 
 // ── Profile ───────────────────────────────────────────────────────────────────
-function ProfilePanel({ member }: { member: Member }) {
+function ProfilePanel({ member, isPlatformAdmin }: { member: Member; isPlatformAdmin: boolean }) {
   const router = useRouter()
   const [deact, setDeact] = useState(false)
   const [reason, setReason] = useState('')
@@ -325,6 +329,14 @@ function ProfilePanel({ member }: { member: Member }) {
           <Button variant="destructive" className="min-h-11" onClick={() => setDeact(true)}>
             Pasife Al
           </Button>
+        </div>
+      ) : null}
+
+      {/* v1.27 S5 — KVKK. Below "Pasife Al" on purpose: deactivation is the reversible act, and the
+          one reception reaches for. This is the other one. */}
+      {isPlatformAdmin ? (
+        <div className="border-t border-border pt-4">
+          <ErasurePanel memberId={member.id} memberName={member.fullName} />
         </div>
       ) : null}
 

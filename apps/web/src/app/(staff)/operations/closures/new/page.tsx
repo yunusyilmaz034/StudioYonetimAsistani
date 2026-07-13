@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 
-import { getTenantContext } from '@/server/auth'
+import { requirePageAccess } from '@/server/auth'
 
 import { ClosureWizard } from './closure-wizard'
 
@@ -9,7 +9,7 @@ export default async function NewClosurePage({
 }: {
   searchParams: Promise<{ from?: string; to?: string; reason?: string; day?: string }>
 }) {
-  const ctx = await getTenantContext()
+  const ctx = await requirePageAccess('/operations')
   if (!ctx) redirect('/login')
   if (ctx.role !== 'owner') redirect('/')
 

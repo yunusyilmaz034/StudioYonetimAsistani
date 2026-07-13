@@ -3,11 +3,13 @@
 import {
   FirestoreCheckinRepository,
   FirestoreMemberRepository,
+  FirestoreSchedulingRepository,
   recordCheckIn,
   systemClock,
   type BranchId,
   type MemberId,
   type StudioId,
+  type TenantContext,
 } from '@studio/core'
 import { z } from 'zod'
 
@@ -35,20 +37,29 @@ import { qrSigningSecret, qrVerificationSecrets } from '../secrets'
 //
 // The `memberId` in a scanned string is never trusted. It comes out of a verified signature.
 
-const TTL_SECONDS = 60
+// The token's life, and how early she may check in. DATA, from the settings screen (v1.27 S2) —
+// never a literal. The fallbacks are what a studio gets before its owner has opened the settings,
+// and they are the values the studio ran on until today.
+const DEFAULT_TTL_SECONDS = 60
+
+async function qrTtlSeconds(ctx: TenantContext): Promise<number> {
+  const settings = await new FirestoreSchedulingRepository(adminDb()).getStudioSettings(ctx)
+  return settings?.qr?.tokenTtlSeconds ?? DEFAULT_TTL_SECONDS
+}
 
 // ── Member: mint her own QR ───────────────────────────────────────────────────────────────
 // She gets a token for HERSELF — the memberId comes from the cookie, not from a parameter. The
 // portal refreshes it while the screen is open.
 export async function mintCheckInTokenAction(input: unknown) {
   const p = z.object({ branchId: z.string().min(1) }).parse(input)
-  const { memberId } = await requireMemberContext()
+  const { ctx, memberId } = await requireMemberContext()
 
-  const exp = Date.now() + TTL_SECONDS * 1000
+  const ttlSeconds = await qrTtlSeconds(ctx)
+  const exp = Date.now() + ttlSeconds * 1000
   return {
     token: signQrToken({ memberId, branchId: p.branchId, exp, jti: newJti() }, qrSigningSecret()),
     expiresAt: exp,
-    ttlSeconds: TTL_SECONDS,
+    ttlSeconds,
   }
 }
 

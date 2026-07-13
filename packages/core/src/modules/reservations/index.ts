@@ -61,3 +61,13 @@ export type {
   ReservationsDeps,
 } from './application/ports'
 export { FirestoreReservationRepository } from './infrastructure/repos'
+export {
+  applyBulkCancel,
+  applyBulkMove,
+  previewBulkCancel,
+  previewBulkMove,
+  type BulkOutcome,
+  type BulkReservationsDeps,
+  type BulkWorld,
+} from './application/bulk'
+export type { BulkCancelRow, BulkCreditEffect, BulkMoveRow } from './domain/bulk'

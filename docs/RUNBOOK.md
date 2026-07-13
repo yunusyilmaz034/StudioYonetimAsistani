@@ -29,6 +29,16 @@ Every alarm is a log line at severity `ERROR` carrying a stable `alert` field. C
 log-based alerts match on that field. **If an alarm fires and it is not in this table, that is a
 defect in this file, not an unknown.**
 
+**The same five checks are also on a screen** (v1.27 S7): the owner sees them live at the top of
+`/operations`, in her own language, each one saying what to do. The checks themselves live in
+`@studio/core` (`operations/infrastructure/health.ts`) and the scheduled function and the screen run
+**the same code** — two implementations of *"is this studio healthy?"* are two answers, and the day
+they drift is the day the screen says all-clear about a studio the alarm is already shouting about.
+
+The screen **reports and never repairs**, exactly as the job does. There is no fix button and there
+will not be one: a drift is not a number to be corrected, it is the evidence that a write path
+bypassed a transaction.
+
 ### `commands_stuck` — a command has been `pending` for over five minutes
 
 | | |

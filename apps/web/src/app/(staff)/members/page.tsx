@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 
-import { getTenantContext } from '@/server/auth'
-import { listMembers } from '@/server/members-query'
+import { requirePageAccess } from '@/server/auth'
+import { listMemberRows } from '@/server/members-query'
 
 import { MembersScreen } from './members-screen'
 
@@ -13,10 +13,7 @@ export default async function MembersPage({
 }: {
   searchParams: Promise<{ member?: string; new?: string }>
 }) {
-  const ctx = await getTenantContext()
-  if (!ctx) {
-    redirect('/login')
-  }
+  const ctx = await requirePageAccess('/members')
 
   const { member, new: create } = await searchParams
   // Legacy drill-through: a member id now opens its dedicated workspace (v1.18, D1).
@@ -24,7 +21,7 @@ export default async function MembersPage({
     redirect(`/members/${member}`)
   }
 
-  const members = await listMembers(ctx)
+  const members = await listMemberRows(ctx, Date.now())
 
   return (
     <MembersScreen

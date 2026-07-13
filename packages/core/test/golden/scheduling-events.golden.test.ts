@@ -94,12 +94,17 @@ const session: ClassSession = {
   branchName: 'Merkez',
 }
 
+// AG-1 — `decideScheduleSession` now answers to the studio's opening hours. A golden fixture is about
+// the event's PAYLOAD, so it runs with none configured. The payloads are unchanged: this is a
+// signature change, not an event-schema change, and these fixtures are what prove it.
+const NO_HOURS = { hours: null, utcOffsetMinutes: 180, specialWorkingDates: new Set<LocalDate>() }
+
 describe('scheduling event payloads match golden fixtures (AD-33)', () => {
   it('service.created', () => {
     expect(decideCreateService(ctx, service)[0]?.payload).toEqual(serviceCreated)
   })
   it('class_session.scheduled (v3 — assignedMemberId + the effective window and its source)', () => {
-    const r = decideScheduleSession(ctx, session, null)
+    const r = decideScheduleSession(ctx, session, null, NO_HOURS)
     expect(r.ok).toBe(true)
     if (r.ok) {
       expect(r.value[0]?.payload).toEqual(sessionScheduledV3)

@@ -52,6 +52,12 @@ export type SessionPolicySnapshot = Omit<SchedulingPolicy, 'cancellationWindowHo
 // domain refuses (`cancellation_window_unresolved`) rather than inventing a number.
 export interface StudioSettings {
   readonly studioId: StudioId
+
+  // ── Settings that CHANGE A DOMAIN DECISION ────────────────────────────────────────────────
+  // These are logged with their previous AND new values (owner, 2026-07-13), because a member who
+  // booked under a six-hour window and was judged under a twelve-hour one deserves an answer that
+  // is not "we changed it at some point". A rule that cannot be reconstructed cannot be defended.
+
   readonly defaultCancellationWindowHours: number | null
   // v1.23 (owner, D-4) — the dashboard's "kredisi azalan üye" threshold. Data, never an `if`
   // (#4: nothing in the code knows the number six, and nothing knows the number two either).
@@ -61,6 +67,69 @@ export interface StudioSettings {
   // never a literal: reception giving 40 % is either a kindness or a leak, and only the owner knows
   // which. Above the ceiling, only the owner may approve. Absent ⇒ no ceiling.
   readonly discountCeilingPercent: number | null
+  // v1.27 S2 — what the session form starts with. Not a rule, but it decides what reception clicks
+  // fifty times a week, and getting it wrong is fifty corrections.
+  readonly defaultSessionDurationMinutes: number | null
+
+  // ── Configuration. Logged as FIELD NAMES ONLY (owner, 2026-07-13) ─────────────────────────
+  // A tax number, an address and a phone are business PII, and the log is permanent. The audit
+  // answers *which fields changed, when, by whom* — never *to what*.
+
+  /** IANA (`Europe/Istanbul`). Stored; the UTC offset is DERIVED from it (shared/studio-config). */
+  readonly timeZone: string
+  readonly company: CompanyInfo | null
+  /** Every day of the week, on its own. `null` = closed that day. */
+  readonly workingHours: WorkingHours | null
+  readonly qr: QrSettings | null
+  /** v1.27 S2 (DEBT-024). Quiet hours, the daily ceiling, and which channels are on. Data, not a
+   *  literal — a studio that wants a different quiet window should not need a deploy. */
+  readonly notifications: NotificationSettings | null
+}
+
+// Mirrors the notifications module's own type. It is DECLARED here rather than imported because a
+// cross-module import would put `scheduling` behind `notifications` in the dependency graph for one
+// struct — and the modules have one public door each, deliberately (AD-36's cousin). The shape is
+// three numbers and a list; the day it grows a rule, it moves.
+export interface NotificationSettings {
+  /** Operational messages per day. A ceiling, so a bug cannot invoice the studio. */
+  readonly dailyLimit: number
+  readonly quietFromHour: number // 22
+  readonly quietToHour: number // 8
+  /** `in_app` is ALWAYS present and cannot be removed: it is not a message, it is the member's
+   *  record of what happened to her account. She may say "not by e-mail"; she may not say "never
+   *  tell me my class was cancelled". */
+  readonly enabledChannels: readonly string[]
+}
+
+// The single source of truth for every output the studio produces — the receipt, the e-mail, the
+// WhatsApp template, and one day the e-fatura. Written once, read everywhere; a company name typed
+// into a template is a company name that will be wrong in one of them.
+export interface CompanyInfo {
+  readonly legalName: string // ticari unvan
+  readonly displayName: string // what a member sees
+  readonly taxOffice: string
+  readonly taxNumber: string
+  readonly phone: string
+  readonly email: string
+  readonly website: string | null
+  readonly address: string
+}
+
+/** `HH:MM` wall-clock, in the studio's timezone. */
+export interface DayHours {
+  readonly open: string
+  readonly close: string
+}
+
+/** Indexed by `Weekday` (0 = Sunday). `null` = closed. Every day stands on its own: a studio that is
+ *  open 10–21 on weekdays and 11–17 on Saturday is the normal case, not the exception. */
+export type WorkingHours = Readonly<Record<Weekday, DayHours | null>>
+
+export interface QrSettings {
+  /** How long a minted check-in token lives. Short by design: a screenshot must die quickly. */
+  readonly tokenTtlSeconds: number
+  /** How far before a class starts a member may check in for it. */
+  readonly checkInWindowMinutes: number
 }
 
 export interface Service {

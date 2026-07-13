@@ -18,7 +18,12 @@ import {
   type Result,
   type StudioId,
 } from '../../../shared'
-import type { ClassSession, SessionPolicySnapshot } from '../../scheduling'
+import {
+  checkWorkingHours,
+  type ClassSession,
+  type SessionPolicySnapshot,
+  type StudioHours,
+} from '../../scheduling'
 import { available, coversService, type Entitlement } from '../../entitlements'
 import type { MemberSnapshot } from '../../members'
 import {
@@ -33,6 +38,24 @@ import {
   RESERVATION_NOTE_SET,
 } from '../events'
 import type { CreditEffect, Reservation, ReservationStatus } from './types'
+
+// AG-1 — the studio's opening hours, as the reservation engine sees them.
+//
+// The check is NOT re-implemented here, and the TYPE is not re-declared: both come from `scheduling`,
+// which owns the question. Two implementations of "are we open?" are two answers, and the day they
+// drift is the day a class can be booked into an hour it could not have been created in.
+export type { StudioHours }
+
+function closedRefusal(
+  session: ClassSession,
+  studio: StudioHours,
+): Result<never, DomainError> | null {
+  const verdict = checkWorkingHours(studio, session.startsAt, session.endsAt)
+  if (verdict.ok) return null
+  return verdict.reason === 'closed_day'
+    ? err({ code: 'studio_closed_on_day' })
+    : err({ code: 'outside_working_hours', open: verdict.hours!.open, close: verdict.hours!.close })
+}
 
 export interface DecideContext {
   readonly studioId: StudioId
@@ -90,11 +113,16 @@ export function decideBooking(
   entitlement: Entitlement,
   input: BookInput,
   memberHasBookedThisSession: boolean,
+  // AG-1 — the studio's opening hours. REQUIRED: a seat cannot be taken at an hour the studio is
+  // shut, even if the class somehow exists (the hours may have changed after it was scheduled).
+  hours: StudioHours,
 ): Result<ReservationOutcome, DomainError> {
   // I-9.1
   if (session.status !== 'scheduled' || session.startsAt <= ctx.now) {
     return err({ code: 'session_not_bookable' })
   }
+  const open = closedRefusal(session, hours)
+  if (open) return open
   // I-9.9 — PT ownership (D13, v1.21). A RESERVED private session belongs to one member: it is
   // HER slot. Nobody else's booking may take it — not another member's, and not reception
   // booking a different member into it. (Reception may still book *her*: this refuses by
@@ -209,10 +237,16 @@ export function decideMove(
   to: ClassSession,
   entitlement: Entitlement,
   memberHasBookedTarget: boolean,
+  // AG-1 — the TARGET is a seat being taken, so it answers to the studio's hours exactly as a fresh
+  // booking does. The source is not checked: moving a member OUT of a class held at a bad hour is a
+  // thing we want to be possible, not a thing we want to refuse.
+  hours: StudioHours,
   input: MoveInput = {},
 ): Result<ReservationOutcome, DomainError> {
   if (reservation.status !== 'booked') return err({ code: 'reservation_not_open' })
   if (to.id === from.id) return err({ code: 'session_not_bookable' })
+  const open = closedRefusal(to, hours)
+  if (open) return open
 
   // The TARGET must satisfy every booking precondition (I-9) — a move is not a back door around
   // the category wall, the service wall, PT ownership or a full class.

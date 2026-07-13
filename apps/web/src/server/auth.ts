@@ -1,3 +1,7 @@
+import { redirect } from 'next/navigation'
+
+import { canSee, homeFor, type Area } from '@/lib/permissions'
+
 import type { MemberId, TenantContext } from '@studio/core'
 
 import {
@@ -101,4 +105,29 @@ export async function requireTenantContext(
   if (!claims) throw new UnauthorizedError()
   if (!isAuthorized(claims, allowed)) throw new ForbiddenError(allowed)
   return claimsToTenantContext(claims)
+}
+
+// ── THE PAGE GUARD (v1.27 S1) ───────────────────────────────────────────────────────────────
+//
+// Until now every staff page asked exactly one question — *"are you staff?"* — and none asked
+// *"which role?"*. So a trainer could open the members list, the till and the sales funnel: the
+// write actions would have refused her, but she could already SEE the studio's PII and its money.
+// Reads were the hole, and reads are what a leak is made of.
+//
+// Every page under `(staff)` now goes through here, with the area it is. The matrix lives in ONE
+// file (`lib/permissions.ts`), because a permission table written in three places is wrong in three
+// different ways — and you find out when a trainer opens the kasa.
+//
+// A principal who may not see a screen is not shown an error. She is sent HOME — to the screen she
+// does have — because "you are not allowed here" is a sentence a product should almost never need
+// to say to its own staff.
+export async function requirePageAccess(area: Area): Promise<TenantContext> {
+  const ctx = await getTenantContext()
+  if (!ctx) {
+    // A MEMBER holds a valid session but is not staff: her door is the portal, not the staff login.
+    if (await getMemberClaims()) redirect('/portal')
+    redirect('/login')
+  }
+  if (!canSee(ctx.role, area)) redirect(homeFor(ctx.role))
+  return ctx
 }

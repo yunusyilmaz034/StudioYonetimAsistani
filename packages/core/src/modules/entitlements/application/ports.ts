@@ -32,6 +32,9 @@ export interface EntitlementRepository {
     toInclusive: Instant,
   ): Promise<readonly Entitlement[]>
   listActive(ctx: TenantContext): Promise<readonly Entitlement[]>
+  /** Every entitlement currently frozen. The nightly sweep reads it to end the ones whose budget has
+   *  run out — an unlimited freeze is an unlimited membership (v1.27 S3). */
+  listFrozen(ctx: TenantContext): Promise<readonly Entitlement[]>
 
   // D22 — every entitlement, whatever its status. A bulk preview must be able to SAY that a
   // package is frozen or expired, and it cannot say so about rows it never read.

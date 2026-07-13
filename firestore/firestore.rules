@@ -29,15 +29,29 @@ service cloud.firestore {
       function tenant()   { return signedIn() && request.auth.token.studioId == sid; }
       function role()     { return request.auth.token.role; }
 
-      // The ONLY principals that may read through the client SDK. A member is deliberately
-      // absent: she reads nothing directly, ever.
+      // Staff, for the one thing staff may WRITE: a whitelisted command.
       function staff() {
         return tenant() && (role() == 'owner' || role() == 'receptionist' || role() == 'trainer');
       }
 
+      // The ONLY principals that may READ through the client SDK.
+      //
+      // A member is deliberately absent — she reads nothing directly, ever — and from v1.27 **so is
+      // a TRAINER**. She is staff, and she is also the person least entitled to the studio's data:
+      // she needs her own classes and the names of the women in them, and nothing else. She gets all
+      // of it from the server, filtered, through `/my-classes`.
+      //
+      // The whole staff app reads through the Admin SDK on the server; NOTHING in it reads Firestore
+      // from the browser. So denying a trainer every read costs the product nothing and closes a real
+      // hole: until now her token could be pointed straight at Firestore and used to pull every
+      // member's phone number and every payment in the studio.
+      function desk() {
+        return tenant() && (role() == 'owner' || role() == 'receptionist');
+      }
+
       // ── Events: append-only log. Owner-only read; never client-writable. ──
       match /events/{eventId} {
-        allow read:  if staff() && role() == 'owner';
+        allow read:  if desk() && role() == 'owner';
         allow write: if false;
       }
 
@@ -54,11 +68,12 @@ service cloud.firestore {
         allow update, delete: if false;
       }
 
-      // ── Everything else in the studio: STAFF-readable, never client-writable. ──
+      // ── Everything else in the studio: DESK-readable, never client-writable. ──
       //    Events and commands are excluded here so their stricter rules above are
       //    not widened by this one (Firestore ORs all matching allow rules).
+      //    A trainer matches NO read rule at all — the same posture as a member.
       match /{col}/{docId} {
-        allow read:  if staff() && !(col in ['events', 'commands']);
+        allow read:  if desk() && !(col in ['events', 'commands']);
         allow write: if false;
       }
     }

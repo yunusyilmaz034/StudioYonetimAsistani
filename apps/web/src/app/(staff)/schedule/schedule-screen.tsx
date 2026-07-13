@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { BanIcon, CalendarIcon, CopyIcon, DumbbellIcon, LayersIcon, PlusIcon, SettingsIcon, UsersIcon } from 'lucide-react'
+import { BanIcon, CalendarIcon, CopyIcon, DumbbellIcon, LayersIcon, PlusIcon, UsersIcon } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -26,7 +26,6 @@ import { DAY_TYPE_CHIP, DAY_TYPE_LABEL, isClosedType, marksOn } from '@/lib/cale
 import type { CalendarSession, ScheduleData } from '@/server/schedule-query'
 
 import { DuplicateWeekDialog } from './duplicate-week-dialog'
-import { StudioSettingsDialog } from './studio-settings-dialog'
 import { SessionForm } from './session-form'
 import { SessionWorkspace } from './session-workspace'
 import { TemplatePanel } from './template-panel'
@@ -57,7 +56,6 @@ export function ScheduleScreen({
   const [createOpen, setCreateOpen] = useState(false)
   const [templatesOpen, setTemplatesOpen] = useState(false)
   const [dupOpen, setDupOpen] = useState(false)
-  const [settingsOpen, setSettingsOpen] = useState(false)
 
   // Mobile default view is Agenda (UX-3); desktop keeps Month.
   useEffect(() => {
@@ -109,9 +107,6 @@ export function ScheduleScreen({
         title="Ders Ajandası"
         actions={
           <>
-            <Button variant="outline" size="icon" aria-label="Stüdyo Ayarları" onClick={() => setSettingsOpen(true)}>
-              <SettingsIcon />
-            </Button>
             <Button variant="outline" onClick={() => setTemplatesOpen(true)}>
               <LayersIcon />
               <span className="hidden sm:inline">Şablonlar</span>
@@ -234,7 +229,6 @@ export function ScheduleScreen({
         onMutated={() => router.refresh()}
       />
 
-      <StudioSettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} />
 
       <DuplicateWeekDialog
         open={dupOpen}

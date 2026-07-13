@@ -2,69 +2,70 @@
 
 import { useEffect, useRef, useState } from 'react'
 
-// Minimal typing for the native BarcodeDetector (Chrome/Android). Progressive
-// enhancement — the manual "Üye Ara" path is the guaranteed fallback where it's absent.
-interface DetectedBarcode {
-  readonly rawValue: string
-}
-interface BarcodeDetectorLike {
-  detect(source: CanvasImageSource): Promise<DetectedBarcode[]>
-}
-type BarcodeDetectorCtor = new (opts: { formats: string[] }) => BarcodeDetectorLike
+import { startQrScanner, type ScanError } from '@/lib/qr/scanner'
 
-export function QrScanner({ onScan, active }: { onScan: (value: string) => void; active: boolean }) {
+// The camera. Everything it knows about QR is `startQrScanner` — not the library, not the canvas,
+// not the frame rate (v1.27 S4).
+//
+// It behaves identically on an iPad and on an Android tablet, because there is only one
+// implementation. Until today there were effectively zero on Safari: the studio's tablet IS an iPad,
+// and this screen said "bu cihaz kamera taramayı desteklemiyor" to every member who held up her QR.
+
+const MESSAGE: Record<ScanError, string> = {
+  camera_denied: 'Kamera izni verilmedi. Tarayıcı ayarlarından izin verin veya üye arayın.',
+  no_camera: 'Kamera bulunamadı. Üye arayın.',
+}
+
+export function QrScanner({
+  onScan,
+  active,
+  className,
+}: {
+  onScan: (value: string) => void
+  active: boolean
+  className?: string
+}) {
   const videoRef = useRef<HTMLVideoElement>(null)
-  const [error, setError] = useState<'unsupported' | 'camera' | null>(null)
+  const [error, setError] = useState<ScanError | null>(null)
+
+  // The parent re-renders on every scan; the camera must not restart because its callback changed.
+  const onScanRef = useRef(onScan)
+  onScanRef.current = onScan
 
   useEffect(() => {
     if (!active) return
-    const Ctor = (window as unknown as { BarcodeDetector?: BarcodeDetectorCtor }).BarcodeDetector
-    if (!Ctor) {
-      setError('unsupported')
-      return
-    }
-    const detector = new Ctor({ formats: ['qr_code'] })
-    let stream: MediaStream | null = null
-    let timer = 0
-    let stopped = false
+    const video = videoRef.current
+    if (!video) return
 
-    const start = async () => {
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
-        const v = videoRef.current
-        if (!v) return
-        v.srcObject = stream
-        await v.play()
-        const tick = async () => {
-          if (stopped || !videoRef.current) return
-          try {
-            const codes = await detector.detect(videoRef.current)
-            const value = codes[0]?.rawValue
-            if (value) onScan(value)
-          } catch {
-            /* transient decode error — keep scanning */
-          }
-          timer = window.setTimeout(() => void tick(), 350)
-        }
-        void tick()
-      } catch {
-        setError('camera')
-      }
-    }
-    void start()
+    setError(null)
+    let handle: { stop: () => void } | null = null
+    let cancelled = false
+
+    void startQrScanner({
+      video,
+      onDecode: (value) => onScanRef.current(value),
+      onError: setError,
+    }).then((h) => {
+      if (cancelled) h.stop() // unmounted while the camera was still opening
+      else handle = h
+    })
 
     return () => {
-      stopped = true
-      window.clearTimeout(timer)
-      stream?.getTracks().forEach((t) => t.stop())
+      cancelled = true
+      handle?.stop()
     }
-  }, [active, onScan])
+  }, [active])
 
-  if (error === 'unsupported') {
-    return <p className="text-sm text-muted-foreground">Bu cihaz kamera taramayı desteklemiyor. Üye arayın.</p>
+  if (error) {
+    return <p className="text-sm text-danger">{MESSAGE[error]}</p>
   }
-  if (error === 'camera') {
-    return <p className="text-sm text-danger">Kameraya erişilemedi. Üye arayın.</p>
-  }
-  return <video ref={videoRef} className="aspect-video w-full rounded-lg bg-black object-cover" muted playsInline />
+
+  return (
+    <video
+      ref={videoRef}
+      className={className ?? 'aspect-video w-full rounded-lg bg-black object-cover'}
+      muted
+      playsInline
+    />
+  )
 }

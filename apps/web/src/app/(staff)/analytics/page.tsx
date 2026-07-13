@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 
-import { getTenantContext } from '@/server/auth'
+import { requirePageAccess } from '@/server/auth'
 
 import { AnalyticsScreen } from './analytics-screen'
 
@@ -8,7 +8,7 @@ import { AnalyticsScreen } from './analytics-screen'
 // dashboard's first paint). Every number comes from the daily read model or the sessions; not one
 // is maintained by hand.
 export default async function AnalyticsPage() {
-  const ctx = await getTenantContext()
+  const ctx = await requirePageAccess('/analytics')
   if (!ctx) redirect('/login')
   return <AnalyticsScreen />
 }

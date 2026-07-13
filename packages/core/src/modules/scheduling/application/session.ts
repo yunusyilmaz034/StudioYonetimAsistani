@@ -23,7 +23,7 @@ import {
   decideChangeTrainer,
   decideScheduleSession,
   decideSetSessionNote,
-  decideSetStudioDefaults,
+  decideUpdateStudioSettings,
 } from '../domain/decide'
 import { resolveCancellationWindow } from '../domain/cancellation-window'
 import type {
@@ -32,6 +32,7 @@ import type {
   Room,
   Service,
   SessionPolicySnapshot,
+  StudioSettings,
 } from '../domain/types'
 import { decideContext } from './service'
 import type { SchedulingDeps } from './ports'
@@ -161,7 +162,15 @@ export async function scheduleSession(
     assignedMemberId: input.assignedMemberId ?? null,
     policySnapshot: snapshot.value,
   })
-  const events = decideScheduleSession(decideContext(deps, ctx), session, room)
+  // AG-1 — the studio's hours are LOADED here and handed to the decider. One extra read on a path
+  // that already reads the service, the room and the policy; the alternative is a rule that exists
+  // only in the form, and a rule that only exists in the UI is not a rule.
+  const events = decideScheduleSession(
+    decideContext(deps, ctx),
+    session,
+    room,
+    await deps.hours.getStudioHours(ctx),
+  )
   if (!events.ok) return events
   await deps.repo.saveSession(ctx, session, events.value)
   return { ok: true, value: { sessionId: session.id } }
@@ -192,6 +201,10 @@ export async function generateSessions(
   const snapshot = await resolveSnapshot(deps, ctx, service, null)
   if (!snapshot.ok) return snapshot
 
+  // The same rule the single-session path obeys. A template that generates thirteen Tuesday classes
+  // outside the studio's hours is thirteen wrong classes, and it is the likelier mistake of the two.
+  const studioHours = await deps.hours.getStudioHours(ctx)
+
   const dctx = decideContext(deps, ctx)
   const sessions: ClassSession[] = []
   const events: NewEvent[] = []
@@ -219,7 +232,7 @@ export async function generateSessions(
       assignedMemberId: null,
       policySnapshot: snapshot.value,
     })
-    const decided = decideScheduleSession(dctx, session, room)
+    const decided = decideScheduleSession(dctx, session, room, studioHours)
     if (!decided.ok) return decided
     sessions.push(session)
     events.push(...decided.value)
@@ -229,38 +242,22 @@ export async function generateSessions(
   return { ok: true, value: { created: sessions.length } }
 }
 
-// D14 — set the studio-level default cancellation window (level 3). Affects only sessions
-// created AFTER it: every existing session already carries its own resolved, stamped window.
-export async function setStudioDefaults(
+// STUDIO SETTINGS (v1.27 S2). The one write path for everything on the settings screen.
+//
+// Changing a setting reaches nothing that already happened: every session carries its own resolved,
+// stamped cancellation window (D14), and no field here rewrites one. A rule change applies to what
+// the studio does NEXT.
+export async function updateStudioSettings(
   deps: SchedulingDeps,
   ctx: TenantContext,
-  input: {
-    defaultCancellationWindowHours: number | null
-    lowCreditThreshold?: number | null
-    discountCeilingPercent?: number | null
-  },
+  next: StudioSettings,
 ): Promise<Result<void, DomainError>> {
   const current = await deps.repo.getStudioSettings(ctx)
-  const events = decideSetStudioDefaults(
-    decideContext(deps, ctx),
-    current,
-    input.defaultCancellationWindowHours,
-  )
+  const events = decideUpdateStudioSettings(decideContext(deps, ctx), current, next)
   if (!events.ok) return events
-  if (events.value.length === 0) return { ok: true, value: undefined }
-  await deps.repo.saveStudioSettings(
-    ctx,
-    {
-      studioId: ctx.studioId,
-      defaultCancellationWindowHours: input.defaultCancellationWindowHours,
-      // Omitted ⇒ keep what the studio already had. A settings form that saves one field must not
-      // silently reset another (v1.23, D-4).
-      lowCreditThreshold: input.lowCreditThreshold ?? current?.lowCreditThreshold ?? null,
-      discountCeilingPercent:
-        input.discountCeilingPercent ?? current?.discountCeilingPercent ?? null,
-    },
-    events.value,
-  )
+  if (events.value.length === 0) return { ok: true, value: undefined } // nothing changed
+
+  await deps.repo.saveStudioSettings(ctx, next, events.value)
   return { ok: true, value: undefined }
 }
 

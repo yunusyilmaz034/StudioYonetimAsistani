@@ -1,7 +1,6 @@
 import type { PrincipalRole } from '@studio/core'
-import { redirect } from 'next/navigation'
 
-import { getMemberClaims, getTenantContext } from '@/server/auth'
+import { requirePageAccess } from '@/server/auth'
 import { loadOwnerDashboard } from '@/server/owner-dashboard'
 
 import { DashboardScreen } from './dashboard-screen'
@@ -10,14 +9,11 @@ import { DashboardScreen } from './dashboard-screen'
 // what needs attention today. v1.23 rebuilt it on the WIDGET contract over the daily read model —
 // a fixed number of reads (1 projection + 5 bounded state queries, in parallel), whatever the size
 // of the studio. It writes nothing and decides nothing.
+// A TRAINER never reaches this page: `requirePageAccess` sends her to `/my-classes`, which is the
+// only screen she has. She is staff, and she is also the person least entitled to the studio's
+// data — so her home is not this one minus a few widgets; it is a different screen entirely.
 export default async function HomePage() {
-  const ctx = await getTenantContext()
-  if (!ctx) {
-    // A MEMBER holds a valid session cookie but is not staff: send her to her own home rather
-    // than to the staff login she can never pass (DEBT-012).
-    if (await getMemberClaims()) redirect('/portal')
-    redirect('/login')
-  }
+  const ctx = await requirePageAccess('/')
   const data = await loadOwnerDashboard(ctx, Date.now())
   return <DashboardScreen data={data} roleLabel={roleLabel(ctx.role)} />
 }

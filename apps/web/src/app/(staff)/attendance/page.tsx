@@ -1,6 +1,5 @@
-import { redirect } from 'next/navigation'
 
-import { getTenantContext } from '@/server/auth'
+import { requirePageAccess } from '@/server/auth'
 import { listAttendanceDay, studioToday } from '@/server/reservations-query'
 
 import { AttendanceScreen } from './attendance-screen'
@@ -14,10 +13,7 @@ export default async function AttendancePage({
 }: {
   searchParams: Promise<{ date?: string }>
 }) {
-  const ctx = await getTenantContext()
-  if (!ctx) {
-    redirect('/login')
-  }
+  const ctx = await requirePageAccess('/attendance')
 
   const { date } = await searchParams
   const today = studioToday()

@@ -16,6 +16,10 @@ export type DomainError =
   | { readonly code: 'session_capacity_exceeds_room'; readonly capacity: number; readonly roomCapacity: number }
   | { readonly code: 'branch_mismatch' }
   | { readonly code: 'invalid_time_range' }
+  // ── AG-1 (v1.27) — the studio's opening hours, enforced. Stored since S2, policed since now. ──
+  // Distinct from a CLOSURE (D21): "we do not open on Sundays" is not "we are closed this Sunday".
+  | { readonly code: 'studio_closed_on_day' }
+  | { readonly code: 'outside_working_hours'; readonly open: string; readonly close: string }
   // ── scheduling / session edits (Doc 11, v1.12) ──
   | { readonly code: 'session_not_editable' }
   | { readonly code: 'capacity_below_booked'; readonly bookedCount: number }
@@ -106,6 +110,23 @@ export type DomainError =
   // Erasure is a BREAK-GLASS act, not an operation. Reception must not be able to make a member
   // disappear — and neither must the owner, in the middle of an argument.
   | { readonly code: 'erasure_requires_platform_admin' }
+  // ── staff (v1.27 S1 · AD-68) ──
+  // Granting a role is the quietest way to widen access in this system: making somebody a
+  // receptionist hands her every member's phone number and the key to the till.
+  | { readonly code: 'staff_admin_required' }
+  | { readonly code: 'name_required' }
+  | { readonly code: 'cannot_deactivate_self' }
+  // A studio ALWAYS has at least one active owner (owner, 2026-07-13). She is the only principal who
+  // can administer staff; a studio whose last owner was demoted has locked every human out of its
+  // own permission system, and the way back is a developer with admin credentials.
+  | { readonly code: 'last_owner_required' }
+  // ── freeze (v1.27 S3 · owner, 2026-07-13 · closes DEBT-009) ──
+  | { readonly code: 'freeze_not_allowed' }
+  | { readonly code: 'freeze_budget_exhausted' }
+  // Owner: no credit and no reservation is EVER changed silently. She is told, and she decides.
+  | { readonly code: 'freeze_blocked_by_reservation' }
+  | { readonly code: 'entitlement_already_frozen' }
+  | { readonly code: 'entitlement_not_frozen' }
 
 export type DomainErrorCode = DomainError['code']
 

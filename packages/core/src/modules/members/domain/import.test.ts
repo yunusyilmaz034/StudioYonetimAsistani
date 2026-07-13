@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { isClean, validateMembers, type MemberImportRow } from './canonical'
+import { isClean, validateMembers, type MemberImportRow } from './import'
 
 // The rules that decide what enters production, tested in milliseconds.
 //

@@ -23,6 +23,7 @@ import {
   type MemberId,
   type NotificationDeps,
   type NotificationPrefs,
+  type NotificationSettings,
   type NotificationProvider,
   type RecipientRef,
   type StudioId,
@@ -64,7 +65,25 @@ function emailProvider(): NotificationProvider {
   return new ConsoleEmailProvider()
 }
 
-export function notificationDeps(): NotificationDeps {
+/**
+ * The studio's notification settings, from the settings screen (DEBT-024) — falling back to the
+ * defaults only for a studio whose owner has not opened it yet.
+ *
+ * `in_app` is forced on regardless of what is stored. It is not a message; it is the member's record
+ * of what happened to her account, and a settings document that had somehow lost it must not be able
+ * to silence her own history.
+ */
+export async function studioNotificationSettings(studioId: StudioId): Promise<NotificationSettings> {
+  const snap = await db().doc(`studios/${studioId}/settings/studio`).get()
+  const stored = snap.get('notifications') as NotificationSettings | undefined
+  if (!stored) return DEFAULT_NOTIFICATION_SETTINGS
+
+  const channels = new Set(stored.enabledChannels ?? [])
+  channels.add('in_app')
+  return { ...stored, enabledChannels: [...channels] as NotificationSettings['enabledChannels'] }
+}
+
+export function notificationDeps(settings: NotificationSettings = DEFAULT_NOTIFICATION_SETTINGS): NotificationDeps {
   const database = db()
   return {
     repo: new FirestoreNotificationRepository(database),
@@ -86,7 +105,7 @@ export function notificationDeps(): NotificationDeps {
       emailProvider(),
       new WhatsAppProvider(), // mock until Meta credentials exist
     ],
-    settings: DEFAULT_NOTIFICATION_SETTINGS,
+    settings,
     utcOffsetMinutes: OFFSET_MIN,
     loadPrefs: async (ctx, memberId): Promise<NotificationPrefs> => {
       const snap = await database.doc(`studios/${ctx.studioId}/members/${memberId}`).get()
@@ -108,7 +127,7 @@ export async function notifyForEvent(studioId: StudioId, event: EventLike): Prom
   const rules = rulesFor(event.type)
   if (rules.length === 0) return 0
 
-  const deps = notificationDeps()
+  const deps = notificationDeps(await studioNotificationSettings(studioId))
   const ctx: TenantContext = {
     studioId,
     branchIds: [],

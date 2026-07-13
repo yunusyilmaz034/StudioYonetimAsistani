@@ -1,6 +1,5 @@
-import { redirect } from 'next/navigation'
 
-import { getTenantContext } from '@/server/auth'
+import { requirePageAccess } from '@/server/auth'
 import { loadReservationCalendar } from '@/server/reservation-calendar-query'
 import { studioToday } from '@/components/calendar'
 
@@ -14,10 +13,7 @@ export default async function ReservationsPage({
 }: {
   searchParams: Promise<{ date?: string; session?: string }>
 }) {
-  const ctx = await getTenantContext()
-  if (!ctx) {
-    redirect('/login')
-  }
+  const ctx = await requirePageAccess('/reservations')
   const { date, session } = await searchParams
   const today = studioToday()
   const dateStr = date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : today

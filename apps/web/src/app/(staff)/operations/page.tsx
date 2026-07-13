@@ -1,12 +1,12 @@
 import { redirect } from 'next/navigation'
 
-import { getTenantContext } from '@/server/auth'
+import { requirePageAccess } from '@/server/auth'
 import { listBulkAction, listClosuresAction } from '@/server/actions/operations'
 
 import { OperationsScreen } from './operations-screen'
 
 export default async function OperationsPage() {
-  const ctx = await getTenantContext()
+  const ctx = await requirePageAccess('/operations')
   if (!ctx) redirect('/login')
   if (ctx.role !== 'owner') redirect('/')
 

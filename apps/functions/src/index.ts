@@ -17,6 +17,7 @@ import { runExpirySweep } from './scheduled/expire-credits'
 import { runFastHealthChecks, runNightlyHealthChecks } from './scheduled/health'
 import { runNotificationRetrySweep } from './scheduled/notification-retry'
 import { runReminderSweep } from './scheduled/reminders'
+import { runUnfreezeSweep } from './scheduled/unfreeze-expired'
 import { REGION } from './shared/region'
 import { onCommandCreated } from './triggers/on-command-created'
 import { onEventCreated } from './triggers/on-event-created'
@@ -38,6 +39,10 @@ export { onEventCreated }
 export const nightlySweep = onSchedule(
   { schedule: '0 3 * * *', timeZone: 'Europe/Istanbul' },
   async () => {
+    // v1.27 S3 — FIRST. A membership extended by a freeze must not be expired by a sweep that ran
+    // an hour earlier and did not know about it: `decideExpire` reads `validUntil`, and this is what
+    // moves it.
+    await runUnfreezeSweep()
     await runAutoResolveSweep()
     await runExpirySweep()
     await runAutoCheckOutSweep() // independent of I-19; occupancy hygiene (D4)

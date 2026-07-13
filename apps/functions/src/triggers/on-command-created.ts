@@ -7,6 +7,7 @@ import {
   CHECKIN_RECORD,
   FirestoreCheckinRepository,
   FirestoreReservationRepository,
+  FirestoreStudioHours,
   instant,
   markAttendance,
   recordCheckIn,
@@ -91,7 +92,7 @@ export const onCommandCreated = onDocumentCreated(
       if (data.type === ATTENDANCE_MARK) {
         const payload = data.payload as AttendanceMarkPayload
         const res = await markAttendance(
-          { repo: new FirestoreReservationRepository(db()), clock: systemClock },
+          { repo: new FirestoreReservationRepository(db()), clock: systemClock, hours: new FirestoreStudioHours(db()) },
           ctx,
           { reservationId: payload.reservationId, outcome: payload.outcome, occurredAt, commandId },
         )

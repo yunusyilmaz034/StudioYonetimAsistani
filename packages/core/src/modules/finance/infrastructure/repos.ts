@@ -146,6 +146,14 @@ export class FirestoreFinanceRepository implements FinanceRepository {
     const snap = await this.col(ctx.studioId, 'sales').where('status', '==', 'open').get()
     return snap.docs.map((d) => saleFrom(d.id, d.data())).sort((a, b) => a.soldAt - b.soldAt)
   }
+  async listSalesBetween(ctx: TenantContext, fromMs: number, toMs: number): Promise<readonly Sale[]> {
+    // A single-field range — Firestore indexes `soldAt` automatically, so this needs no composite.
+    const snap = await this.col(ctx.studioId, 'sales')
+      .where('soldAt', '>=', ts(fromMs))
+      .where('soldAt', '<=', ts(toMs))
+      .get()
+    return snap.docs.map((d) => saleFrom(d.id, d.data())).sort((a, b) => a.soldAt - b.soldAt)
+  }
 
   async getPayment(ctx: TenantContext, id: string): Promise<Payment | null> {
     const s = await this.col(ctx.studioId, 'payments').doc(id).get()

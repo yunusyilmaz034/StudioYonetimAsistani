@@ -133,7 +133,29 @@ The cost is **bounded and visible**, which is the entire reason the modelling wa
 
 ---
 
-## DEBT-009 — Freeze operations deferred (arithmetic is an open question)
+## DEBT-009 — Freeze operations deferred (arithmetic is an open question) — ✅ **REPAID in v1.27 (S3)**
+
+**Repaid:** 2026-07-13 · v1.27 S3 · Yunus
+**The owner settled the two questions this entry existed for**, and they are now the domain:
+1. **The extension happens at UNFREEZE**, by the days the membership actually stood still
+   (`validUntil += to − from`). Freezing moves no date — at freeze time nobody knows how long it will
+   last, and a system that guessed would have to un-guess later, in a member's favour or against it.
+2. **The budget is a ceiling the system enforces.** A member who never asks to be unfrozen is
+   unfrozen by the nightly sweep on the day her budget runs out, and extended by exactly the days she
+   paid for. *An unlimited freeze is an unlimited membership, sold at the price of a three-month one.*
+3. **A member with an upcoming booking is REFUSED**, not silently fixed — cancelling her class would
+   move a credit she never asked us to move (owner: *"Hiçbir kredi veya rezervasyon otomatik
+   değiştirilmesin"*).
+**Nothing knows the number seven.** The budget is `product.freezeAllowanceDays`, copied onto the
+entitlement at purchase — data, as the catalogue always was (#12). Pilates has none, so the domain
+refuses and the screen shows no button.
+**Events:** `entitlement.frozen` (moves no date) and `entitlement.unfrozen` (carries `validUntilBefore`
+/ `validUntilAfter`, and `auto` — because an audit must never read as though a human decided
+something the sweep did). Ten domain tests, including the owner's own worked example.
+
+*The original entry:*
+
+## DEBT-009 — the original
 
 **Taken:** implementation · v1.8 (entitlements) · Yunus *(Doc 2 §5.4)*
 **What:** The entitlements module models `status: 'frozen'` and `FreezeState` (so I-8 holds and a reservation can refuse a frozen entitlement), but ships **no** `freeze` / `unfreeze` operations. The credit ledger — purchase, hold/release/consume/restore, adjust, expire, cancel — is complete.
@@ -508,7 +530,22 @@ is for.
 
 ---
 
-## DEBT-024 — Notification settings are defaults, not yet editable
+## DEBT-024 — Notification settings are defaults, not yet editable — ✅ **REPAID in v1.27 (S2)**
+
+**Repaid:** 2026-07-13 · v1.27 S2 · Yunus
+**What shipped:** quiet hours, the daily ceiling and the e-mail channel are now fields on
+`/settings/studio`, edited from the settings screen, and **read by the pipeline** — both the notifier
+and the retry sweep. A studio that wants a different quiet window no longer needs a deploy.
+**What is deliberately NOT a switch:** `in_app`. It is not a message — it is the member's record of
+what happened to her account, and `studioNotificationSettings()` forces it back on even if a stored
+document has somehow lost it. *She may say "not by e-mail"; she may not say "never tell me my class
+was cancelled."*
+**And WhatsApp/SMS/push are not shown at all**, because they have no transport yet: a switch that
+turns on a channel we cannot send is a switch that lies.
+
+*The original entry:*
+
+## DEBT-024 — the original
 
 **Taken:** 2026-07-13 · v1.25 · Yunus
 **What:** the daily ceiling (1000), the quiet-hour window (22:00–08:00) and the per-channel retry

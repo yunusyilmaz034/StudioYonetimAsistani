@@ -1,6 +1,6 @@
-import { notFound, redirect } from 'next/navigation'
+import { notFound } from 'next/navigation'
 
-import { getTenantContext } from '@/server/auth'
+import { requirePageAccess } from '@/server/auth'
 import { listProducts } from '@/server/catalog-query'
 import { loadMemberWorkspace } from '@/server/member-workspace-query'
 
@@ -14,10 +14,7 @@ export default async function MemberWorkspacePage({
 }: {
   params: Promise<{ id: string }>
 }) {
-  const ctx = await getTenantContext()
-  if (!ctx) {
-    redirect('/login')
-  }
+  const ctx = await requirePageAccess('/members')
 
   const { id } = await params
   const [data, products] = await Promise.all([
@@ -34,6 +31,10 @@ export default async function MemberWorkspacePage({
       products={products}
       defaultBranchId={ctx.branchIds[0] ?? null}
       isOwner={ctx.role === 'owner'}
+      // KVKK erasure is the ONE destructive act in this product, and it belongs to the person who set
+      // the studio up — not to any owner added from the staff screen. The domain refuses everyone
+      // else regardless; this only decides whether the button is drawn.
+      isPlatformAdmin={ctx.actor.type === 'platform_admin'}
     />
   )
 }

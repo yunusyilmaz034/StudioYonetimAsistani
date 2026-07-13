@@ -33,9 +33,14 @@ export function commandTenantContext(studioId: StudioId, actor: ActorRef): Tenan
   return { studioId, branchIds: [], role, actor }
 }
 
-// The studio set a sweep iterates. A root-collection read (NOT a collection-group
-// query, which the architecture forbids) — the sweep is trusted server code.
+// The studio set a sweep iterates. A root-collection read (NOT a collection-group query, which the
+// architecture forbids) — the sweep is trusted server code.
+//
+// `listDocuments()`, not `get()`. In Firestore a document that holds only sub-collections is a
+// *missing* document: it has children but no fields, and `get()` does not return it. Every nightly
+// sweep in the system runs off this list — auto-resolution, credit expiry, the freeze budget — so a
+// studio it skipped would have its credits quietly never settle, and nothing would say so.
 export async function listStudioIds(database: Firestore): Promise<StudioId[]> {
-  const snap = await database.collection('studios').get()
-  return snap.docs.map((d) => d.id as StudioId)
+  const refs = await database.collection('studios').listDocuments()
+  return refs.map((ref) => ref.id as StudioId)
 }

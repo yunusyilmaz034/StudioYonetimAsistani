@@ -10,6 +10,7 @@ import type {
   TenantContext,
 } from '../../../shared'
 import type { ClassSession, ClassTemplate, Room, Service, StudioSettings } from '../domain/types'
+import type { StudioHours } from '../domain/working-hours'
 
 // One repository for the scheduling aggregates. Each save writes the entity + its
 // events in one transaction (non-negotiable #1). Ids are domain ids; the repo maps
@@ -53,8 +54,20 @@ export interface SchedulingRepository {
   ): Promise<void>
 }
 
+/**
+ * AG-1 — the studio's opening hours and the calendar's exceptions, resolved together.
+ *
+ * REQUIRED on every deps object that can create a class or take a seat. An optional guard is a guard
+ * that is one refactor away from being forgotten — and this one was already forgotten once: the hours
+ * were stored from S2 and enforced nowhere, so the form warned and the engine shrugged.
+ */
+export interface StudioHoursPort {
+  getStudioHours(ctx: TenantContext): Promise<StudioHours>
+}
+
 export interface SchedulingDeps {
   readonly repo: SchedulingRepository
   readonly clock: Clock
   readonly studioConfig: StudioConfig
+  readonly hours: StudioHoursPort
 }

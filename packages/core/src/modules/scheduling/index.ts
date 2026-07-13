@@ -12,7 +12,11 @@ export type {
   SessionCancellation,
   SessionNote,
   SessionPolicySnapshot,
+  CompanyInfo,
+  DayHours,
+  QrSettings,
   StudioSettings,
+  WorkingHours,
   Weekday,
 } from './domain/types'
 export * from './events'
@@ -48,7 +52,7 @@ export {
   generateSessions,
   scheduleSession,
   setSessionNote,
-  setStudioDefaults,
+  updateStudioSettings,
   type ScheduleSessionInput,
 } from './application/session'
 // D13 — reading yesterday's event shape with today's types. The log is never rewritten.
@@ -66,3 +70,6 @@ export { FirestoreSchedulingRepository } from './infrastructure/repos'
 // Exposed for cross-aggregate transactions (the booking transaction reads and
 // updates a session inside the same transaction as the reservation and credit).
 export { sessionFromFirestore, sessionToFirestore } from './infrastructure/mappers'
+export { checkWorkingHours, type StudioHours, type WorkingHoursVerdict } from './domain/working-hours'
+export { FirestoreStudioHours } from './infrastructure/hours'
+export type { StudioHoursPort } from './application/ports'

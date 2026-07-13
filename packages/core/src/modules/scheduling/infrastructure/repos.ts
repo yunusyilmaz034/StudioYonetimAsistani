@@ -19,6 +19,7 @@ import {
   type StudioId,
   type TenantContext,
 } from '../../../shared'
+import { DEFAULT_TIME_ZONE } from '../../../shared'
 import type { ClassSession, ClassTemplate, Room, Service, StudioSettings } from '../domain/types'
 import type { SchedulingRepository } from '../application/ports'
 import {
@@ -72,6 +73,15 @@ export class FirestoreSchedulingRepository implements SchedulingRepository {
         (d.defaultCancellationWindowHours as number | null | undefined) ?? null,
       lowCreditThreshold: (d.lowCreditThreshold as number | null | undefined) ?? null,
       discountCeilingPercent: (d.discountCeilingPercent as number | null | undefined) ?? null,
+      defaultSessionDurationMinutes:
+        (d.defaultSessionDurationMinutes as number | null | undefined) ?? null,
+      // A studio provisioned before v1.27 has no stored zone. It is in Türkiye — every studio is,
+      // today — and saying so is honest; inventing UTC would put its whole day three hours out.
+      timeZone: (d.timeZone as string | undefined) ?? DEFAULT_TIME_ZONE,
+      company: (d.company as StudioSettings['company'] | undefined) ?? null,
+      workingHours: (d.workingHours as StudioSettings['workingHours'] | undefined) ?? null,
+      qr: (d.qr as StudioSettings['qr'] | undefined) ?? null,
+      notifications: (d.notifications as StudioSettings['notifications'] | undefined) ?? null,
     }
   }
   async saveStudioSettings(
@@ -86,6 +96,12 @@ export class FirestoreSchedulingRepository implements SchedulingRepository {
         defaultCancellationWindowHours: settings.defaultCancellationWindowHours,
         lowCreditThreshold: settings.lowCreditThreshold,
         discountCeilingPercent: settings.discountCeilingPercent,
+        defaultSessionDurationMinutes: settings.defaultSessionDurationMinutes,
+        timeZone: settings.timeZone,
+        company: settings.company,
+        workingHours: settings.workingHours,
+        qr: settings.qr,
+        notifications: settings.notifications,
       },
       events,
     )

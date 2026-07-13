@@ -1,0 +1,496 @@
+'use client'
+
+import type { DayHours, StudioSettings, WorkingHours } from '@studio/core'
+import { CalendarDaysIcon } from 'lucide-react'
+import Link from 'next/link'
+import { useState, useTransition } from 'react'
+import { toast } from 'sonner'
+
+import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { PageHeader } from '@/components/ui/page-header'
+import { Section } from '@/components/ui/section'
+import { domainErrorMessage } from '@/lib/domain-error'
+import { updateStudioSettingsAction } from '@/server/actions/settings'
+
+// The settings screen. Plain on purpose: it is opened when a studio is set up, and then perhaps
+// twice a year. What it owes the owner is not elegance — it is **being impossible to misread**.
+
+const DAYS: readonly { key: 0 | 1 | 2 | 3 | 4 | 5 | 6; label: string }[] = [
+  { key: 1, label: 'Pazartesi' },
+  { key: 2, label: 'Salı' },
+  { key: 3, label: 'Çarşamba' },
+  { key: 4, label: 'Perşembe' },
+  { key: 5, label: 'Cuma' },
+  { key: 6, label: 'Cumartesi' },
+  { key: 0, label: 'Pazar' },
+]
+
+const EMPTY_HOURS: WorkingHours = { 0: null, 1: null, 2: null, 3: null, 4: null, 5: null, 6: null }
+
+const num = (v: string): number | null => (v.trim() === '' ? null : Number(v))
+
+function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+  return (
+    <label className="block space-y-1.5">
+      <span className="text-[0.6875rem] font-medium uppercase tracking-wide text-muted-foreground">
+        {label}
+      </span>
+      {children}
+      {hint ? <span className="block text-sm text-muted-foreground">{hint}</span> : null}
+    </label>
+  )
+}
+
+export function SettingsScreen({ settings }: { settings: StudioSettings | null }) {
+  const [pending, start] = useTransition()
+
+  const [company, setCompany] = useState({
+    legalName: settings?.company?.legalName ?? '',
+    displayName: settings?.company?.displayName ?? '',
+    taxOffice: settings?.company?.taxOffice ?? '',
+    taxNumber: settings?.company?.taxNumber ?? '',
+    phone: settings?.company?.phone ?? '',
+    email: settings?.company?.email ?? '',
+    website: settings?.company?.website ?? '',
+    address: settings?.company?.address ?? '',
+  })
+  const [hours, setHours] = useState<WorkingHours>(settings?.workingHours ?? EMPTY_HOURS)
+  const [cancelHours, setCancelHours] = useState(
+    settings?.defaultCancellationWindowHours?.toString() ?? '',
+  )
+  const [duration, setDuration] = useState(settings?.defaultSessionDurationMinutes?.toString() ?? '')
+  const [lowCredit, setLowCredit] = useState(settings?.lowCreditThreshold?.toString() ?? '')
+  const [ceiling, setCeiling] = useState(settings?.discountCeilingPercent?.toString() ?? '')
+  const [ttl, setTtl] = useState(settings?.qr?.tokenTtlSeconds?.toString() ?? '60')
+  const [dailyLimit, setDailyLimit] = useState(settings?.notifications?.dailyLimit?.toString() ?? '1000')
+  const [quietFrom, setQuietFrom] = useState(settings?.notifications?.quietFromHour?.toString() ?? '22')
+  const [quietTo, setQuietTo] = useState(settings?.notifications?.quietToHour?.toString() ?? '8')
+  const [emailEnabled, setEmailEnabled] = useState(
+    settings?.notifications?.enabledChannels?.includes('email') ?? true,
+  )
+  const [checkInWindow, setCheckInWindow] = useState(
+    settings?.qr?.checkInWindowMinutes?.toString() ?? '30',
+  )
+
+  const setDay = (key: 0 | 1 | 2 | 3 | 4 | 5 | 6, value: DayHours | null) =>
+    setHours((h) => ({ ...h, [key]: value }))
+
+  const save = () =>
+    start(async () => {
+      const res = await updateStudioSettingsAction({
+        company: company.legalName.trim() ? { ...company, website: company.website || null } : null,
+        workingHours: hours,
+        defaultCancellationWindowHours: num(cancelHours),
+        defaultSessionDurationMinutes: num(duration),
+        lowCreditThreshold: num(lowCredit),
+        discountCeilingPercent: num(ceiling),
+        qr: { tokenTtlSeconds: Number(ttl), checkInWindowMinutes: Number(checkInWindow) },
+        notifications: {
+          dailyLimit: Number(dailyLimit),
+          quietFromHour: Number(quietFrom),
+          quietToHour: Number(quietTo),
+          emailEnabled,
+        },
+      })
+      if (res.ok) toast.success('Ayarlar kaydedildi.')
+      else toast.error(domainErrorMessage(res.error))
+    })
+
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        title="Stüdyo Ayarları"
+        description="Stüdyonun tek doğruluk kaynağı. Makbuz, e-posta ve WhatsApp buradan okur."
+        actions={
+          <Button onClick={save} disabled={pending}>
+            Kaydet
+          </Button>
+        }
+      />
+
+      {/* ── Şirket ────────────────────────────────────────────────────────────────────────── */}
+      <Section title="Şirket bilgileri" hint="Makbuzda, e-postada ve ileride e-faturada görünecek olanlar.">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Ticari unvan">
+            <Input
+              value={company.legalName}
+              onChange={(e) => setCompany({ ...company, legalName: e.target.value })}
+              placeholder="Işıl Pilates ve Fitness Ltd. Şti."
+            />
+          </Field>
+          <Field label="Görünen işletme adı" hint="Üyenin gördüğü ad.">
+            <Input
+              value={company.displayName}
+              onChange={(e) => setCompany({ ...company, displayName: e.target.value })}
+              placeholder="Pilates Fitness by Işıl"
+            />
+          </Field>
+          <Field label="Vergi dairesi">
+            <Input
+              value={company.taxOffice}
+              onChange={(e) => setCompany({ ...company, taxOffice: e.target.value })}
+            />
+          </Field>
+          <Field label="Vergi numarası">
+            <Input
+              value={company.taxNumber}
+              onChange={(e) => setCompany({ ...company, taxNumber: e.target.value })}
+            />
+          </Field>
+          <Field label="Telefon">
+            <Input
+              value={company.phone}
+              onChange={(e) => setCompany({ ...company, phone: e.target.value })}
+            />
+          </Field>
+          <Field label="E-posta">
+            <Input
+              value={company.email}
+              onChange={(e) => setCompany({ ...company, email: e.target.value })}
+            />
+          </Field>
+          <Field label="Web sitesi (opsiyonel)">
+            <Input
+              value={company.website}
+              onChange={(e) => setCompany({ ...company, website: e.target.value })}
+            />
+          </Field>
+          <Field label="Adres">
+            <Input
+              value={company.address}
+              onChange={(e) => setCompany({ ...company, address: e.target.value })}
+            />
+          </Field>
+        </div>
+      </Section>
+
+      {/* ── Çalışma saatleri ──────────────────────────────────────────────────────────────── */}
+      <Section
+        title="Çalışma saatleri"
+        hint="Her gün ayrı. Boş bırakılan gün kapalıdır."
+      >
+        <div className="space-y-2">
+          {DAYS.map(({ key, label }) => {
+            const d = hours[key]
+            return (
+              <div key={key} className="flex flex-wrap items-center gap-3">
+                <span className="w-28 text-sm font-medium">{label}</span>
+                {d ? (
+                  <>
+                    <Input
+                      className="w-28"
+                      value={d.open}
+                      onChange={(e) => setDay(key, { ...d, open: e.target.value })}
+                      placeholder="10:00"
+                    />
+                    <span className="text-muted-foreground">–</span>
+                    <Input
+                      className="w-28"
+                      value={d.close}
+                      onChange={(e) => setDay(key, { ...d, close: e.target.value })}
+                      placeholder="21:00"
+                    />
+                    <Button variant="outline" size="sm" onClick={() => setDay(key, null)}>
+                      Kapalı yap
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-sm text-muted-foreground">Kapalı</span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setDay(key, { open: '10:00', close: '21:00' })}
+                    >
+                      Aç
+                    </Button>
+                  </>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      </Section>
+
+      {/* ── Tatiller: NOT duplicated here ─────────────────────────────────────────────────── */}
+      <Section
+        title="Tatiller ve kapanış günleri"
+        hint="Tatil takvimi kendi ekranında yaşar — burada ikinci bir liste tutmuyoruz."
+      >
+        <Card>
+          <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
+            <p className="text-sm text-muted-foreground">
+              Resmî ve dinî tatiller, stüdyo kapanışları, bakım günleri ve özel çalışma günleri —
+              hepsi Takvim ekranında, başlangıç · bitiş · açıklama ile.
+            </p>
+            <Link
+              href="/calendar"
+              className="inline-flex min-h-11 items-center gap-2 rounded-md border border-border px-4 text-sm font-medium hover:bg-muted"
+            >
+              <CalendarDaysIcon className="size-4" />
+              Takvimi aç
+            </Link>
+          </CardContent>
+        </Card>
+      </Section>
+
+      {/* ── Rezervasyon kuralları ─────────────────────────────────────────────────────────── */}
+      <Section
+        title="Rezervasyon kuralları"
+        hint="Bunlar bir kararı değiştirir — o yüzden her değişiklik eski ve yeni değeriyle denetim kaydına yazılır."
+      >
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field
+            label="İptal penceresi (saat)"
+            hint="Bu süreden sonra yapılan iptal krediyi yakar. Sadece BUNDAN SONRA oluşturulan dersleri etkiler — mevcut dersler kendi penceresini taşır."
+          >
+            <Input
+              type="number"
+              value={cancelHours}
+              onChange={(e) => setCancelHours(e.target.value)}
+              placeholder="6"
+            />
+          </Field>
+          <Field label="Varsayılan ders süresi (dk)" hint="Ders oluşturma formu bununla açılır.">
+            <Input
+              type="number"
+              value={duration}
+              onChange={(e) => setDuration(e.target.value)}
+              placeholder="50"
+            />
+          </Field>
+          <Field label="Düşük kredi uyarısı" hint="Bu sayının altına düşen üye panoda görünür.">
+            <Input
+              type="number"
+              value={lowCredit}
+              onChange={(e) => setLowCredit(e.target.value)}
+              placeholder="2"
+            />
+          </Field>
+          <Field
+            label="İndirim tavanı (%)"
+            hint="Bu oranın üstündeki indirimi yalnızca sahip onaylayabilir."
+          >
+            <Input
+              type="number"
+              value={ceiling}
+              onChange={(e) => setCeiling(e.target.value)}
+              placeholder="20"
+            />
+          </Field>
+        </div>
+      </Section>
+
+      {/* ── QR ────────────────────────────────────────────────────────────────────────────── */}
+      <Section title="QR check-in" hint="Üyenin telefonundaki QR kodunun kuralları.">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field
+            label="Token ömrü (saniye)"
+            hint="Kısa olması güvenliktir: ekran görüntüsü bu süre içinde ölür."
+          >
+            <Input type="number" value={ttl} onChange={(e) => setTtl(e.target.value)} />
+          </Field>
+          <Field
+            label="Check-in penceresi (dk)"
+            hint="Dersine bu kadar kalmış ama henüz gelmemiş üye, check-in ekranında “beklenen” olarak görünür."
+          >
+            <Input
+              type="number"
+              value={checkInWindow}
+              onChange={(e) => setCheckInWindow(e.target.value)}
+            />
+          </Field>
+        </div>
+      </Section>
+
+      {/* ── Bildirimler (DEBT-024) ────────────────────────────────────────────────────────── */}
+      <Section
+        title="Bildirimler"
+        hint="Üyeye ne zaman ve hangi kanaldan yazılacağı."
+      >
+        <div className="grid gap-4 sm:grid-cols-3">
+          <Field
+            label="Sessiz saat başlangıcı"
+            hint="Bu saatten sonra ACİL olmayan bildirim beklemeye alınır."
+          >
+            <Input type="number" value={quietFrom} onChange={(e) => setQuietFrom(e.target.value)} />
+          </Field>
+          <Field label="Sessiz saat bitişi" hint="Bekleyen bildirimler bu saatte gönderilir.">
+            <Input type="number" value={quietTo} onChange={(e) => setQuietTo(e.target.value)} />
+          </Field>
+          <Field
+            label="Günlük bildirim tavanı"
+            hint="Bir hata yüzünden üyelere yüzlerce mesaj gitmesini engelleyen tavan."
+          >
+            <Input type="number" value={dailyLimit} onChange={(e) => setDailyLimit(e.target.value)} />
+          </Field>
+        </div>
+
+        <div className="mt-4 space-y-2">
+          {/* in_app is NOT a switch. It is her RECORD of what happened to her account: she may say
+              "not by e-mail"; she may not say "never tell me my class was cancelled" (v1.25). */}
+          <div className="flex items-center justify-between rounded-md border border-border p-3">
+            <div>
+              <p className="text-sm font-medium">Uygulama içi bildirim</p>
+              <p className="text-sm text-muted-foreground">
+                Kapatılamaz — bu bir mesaj değil, üyenin hesabında olanların kaydı.
+              </p>
+            </div>
+            <span className="text-sm font-medium text-success">Her zaman açık</span>
+          </div>
+
+          <label className="flex cursor-pointer items-center justify-between rounded-md border border-border p-3">
+            <div>
+              <p className="text-sm font-medium">E-posta</p>
+              <p className="text-sm text-muted-foreground">Rezervasyon, iptal ve hatırlatmalar.</p>
+            </div>
+            <input
+              type="checkbox"
+              className="size-5"
+              checked={emailEnabled}
+              onChange={(e) => setEmailEnabled(e.target.checked)}
+            />
+          </label>
+
+          {/* WhatsApp / SMS / push are deliberately NOT here. They have no transport yet, and a
+              switch that turns on a channel we cannot send is a switch that lies. */}
+          <p className="text-sm text-muted-foreground">
+            WhatsApp ve SMS henüz gönderim yapamıyor; hazır olduklarında burada görünecekler.
+          </p>
+        </div>
+      </Section>
+
+      {/* ── Saat dilimi: read-only, and honestly so ───────────────────────────────────────── */}
+      <Section
+        title="Saat dilimi"
+        hint="Alpha’da değiştirilemez — tek stüdyo, tek saat dilimi."
+      >
+        <Card>
+          <CardContent className="p-4">
+            <p className="font-medium tabular-nums">{settings?.timeZone ?? 'Europe/Istanbul'}</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Sistem bunu kullanır ve UTC farkını buradan türetir — saklamaz. Değiştirilebilir hale
+              gelmesi ikinci stüdyoyla birlikte gelecek; çalışmayan bir ayarı bugün göstermiyoruz.
+            </p>
+          </CardContent>
+        </Card>
+      </Section>
+
+      {/* ── Önizleme: what the system will DO with this ───────────────────────────────────── */}
+      <Preview
+        hours={hours}
+        cancelHours={num(cancelHours)}
+        duration={num(duration)}
+        lowCredit={num(lowCredit)}
+        ceiling={num(ceiling)}
+        ttl={Number(ttl)}
+        checkInWindow={Number(checkInWindow)}
+        quietFrom={Number(quietFrom)}
+        quietTo={Number(quietTo)}
+      />
+
+      <div className="flex justify-end">
+        <Button onClick={save} disabled={pending}>
+          Kaydet
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * What the system will DO with these settings, in sentences (owner, 2026-07-13 · point 7).
+ *
+ * Deliberately small. A settings form shows you numbers; the question the owner actually has is
+ * *"and what happens then?"* — and the gap between those two is where a misconfiguration lives.
+ */
+function Preview({
+  hours,
+  cancelHours,
+  duration,
+  lowCredit,
+  ceiling,
+  ttl,
+  checkInWindow,
+  quietFrom,
+  quietTo,
+}: {
+  hours: WorkingHours
+  cancelHours: number | null
+  duration: number | null
+  lowCredit: number | null
+  ceiling: number | null
+  ttl: number
+  checkInWindow: number
+  quietFrom: number
+  quietTo: number
+}) {
+  const open = DAYS.filter(({ key }) => hours[key])
+  const closed = DAYS.filter(({ key }) => !hours[key])
+
+  return (
+    <Section title="Bu ayarlarla ne olur?" hint="Kaydetmeden önce, sistemin okuduğu hâli.">
+      <Card>
+        <CardContent className="space-y-2 p-4 text-sm">
+          <p>
+            {open.length === 0 ? (
+              <>Hiçbir gün açık değil — stüdyo tamamen kapalı görünür.</>
+            ) : (
+              <>
+                Stüdyo{' '}
+                <strong>
+                  {open.map(({ key, label }) => `${label} ${hours[key]!.open}–${hours[key]!.close}`).join(', ')}
+                </strong>{' '}
+                açık.
+                {closed.length > 0 ? ` ${closed.map((d) => d.label).join(', ')} kapalı.` : ''}
+              </>
+            )}
+          </p>
+          <p>
+            {cancelHours === null ? (
+              <>
+                <strong>İptal penceresi tanımsız.</strong> Ders oluşturmada bir süre girilmezse
+                sistem rezervasyonu <strong>reddeder</strong> — bir sayı uydurmaz.
+              </>
+            ) : (
+              <>
+                Üye dersinden <strong>{cancelHours} saat</strong> öncesine kadar ücretsiz iptal
+                edebilir. Sonrasında iptal ederse <strong>kredisi yanar</strong>.
+              </>
+            )}
+          </p>
+          {duration !== null ? <p>Yeni ders formu <strong>{duration} dakika</strong> ile açılır.</p> : null}
+          {lowCredit !== null ? (
+            <p>
+              Kredisi <strong>{lowCredit}</strong>’in altına düşen üye panoda “kredisi azalan” olarak
+              görünür.
+            </p>
+          ) : null}
+          {ceiling !== null ? (
+            <p>
+              Resepsiyon <strong>%{ceiling}</strong>’e kadar indirim yapabilir; üstünü yalnızca sahip
+              onaylar.
+            </p>
+          ) : null}
+          <p>
+            Üyenin QR kodu <strong>{ttl} saniye</strong> geçerlidir ve bir kez kullanılır. Dersine{' '}
+            <strong>{checkInWindow} dakika</strong> kalmış ama henüz gelmemiş üyeler check-in ekranında
+            “beklenen” listesinde görünür.
+          </p>
+          {/* Said plainly, because the alternative is a setting that quietly does nothing. */}
+          <p>
+            Acil olmayan bildirimler <strong>{quietFrom}:00–{quietTo}:00</strong> arasında beklemeye
+            alınır ve sabah gönderilir. “Dersiniz iptal edildi” <strong>beklemez</strong> — gece 02:00’de
+            bile gider.
+          </p>
+          <p className="pt-1 text-muted-foreground">
+            Çalışma saatleri kaydedilir ve rezervasyon motoru tarafından kullanılmak üzere hazırdır;
+            bugün ders oluştururken uyarı verir, engellemez.
+          </p>
+        </CardContent>
+      </Card>
+    </Section>
+  )
+}

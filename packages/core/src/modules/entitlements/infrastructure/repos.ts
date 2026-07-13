@@ -31,6 +31,12 @@ export class FirestoreEntitlementRepository implements EntitlementRepository {
     return d ? entitlementFromFirestore(id, d) : null
   }
 
+  /** Every frozen entitlement. Single-field query — no composite index needed. */
+  async listFrozen(ctx: TenantContext): Promise<readonly Entitlement[]> {
+    const snap = await this.col(ctx.studioId, 'entitlements').where('status', '==', 'frozen').get()
+    return snap.docs.map((doc) => entitlementFromFirestore(doc.id as EntitlementId, doc.data()))
+  }
+
   async listActiveByMember(ctx: TenantContext, memberId: MemberId): Promise<readonly Entitlement[]> {
     const snap = await this.col(ctx.studioId, 'entitlements')
       .where('memberId', '==', memberId)

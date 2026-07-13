@@ -7,13 +7,13 @@ import { PageHeader } from '@/components/ui/page-header'
 import { Section } from '@/components/ui/section'
 import { ActivityList } from '@/components/activity/activity-row'
 import { loadOperationEvents } from '@/server/activity-query'
-import { getTenantContext } from '@/server/auth'
+import { requirePageAccess } from '@/server/auth'
 
 // The operation detail — the screen OP-2 exists for. One OperationId, and everything it did:
 // the 54 sessions it cancelled, the 54 credits it released, the 121 packages it extended. One act,
 // not 229 unrelated rows scattered across a log.
 export default async function OperationPage({ params }: { params: Promise<{ id: string }> }) {
-  const ctx = await getTenantContext()
+  const ctx = await requirePageAccess('/operations')
   if (!ctx) redirect('/login')
 
   const { id } = await params

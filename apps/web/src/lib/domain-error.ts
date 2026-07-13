@@ -140,6 +140,31 @@ export function domainErrorMessage(error: DomainError): string {
       return 'Bu düzeltme bir kredinin yeniden düşülmesini gerektiriyor; şu an desteklenmiyor.'
     case 'erasure_requires_platform_admin':
       return 'Üye kaydını anonimleştirme yetkisi yalnızca platform yöneticisindedir.'
+    case 'staff_admin_required':
+      return 'Personel yetkilerini yalnızca stüdyo sahibi düzenleyebilir.'
+    case 'name_required':
+      return 'Ad soyad zorunludur.'
+    case 'cannot_deactivate_self':
+      return 'Kendi hesabınızı pasife alamazsınız.'
+    case 'last_owner_required':
+      return 'Stüdyoda en az bir aktif sahip bulunmalıdır. Önce başka bir sahip yetkilendirin.'
+    case 'freeze_not_allowed':
+      return 'Bu pakette dondurma hakkı yok.'
+    case 'freeze_budget_exhausted':
+      return 'Dondurma hakkı doldu.'
+    case 'freeze_blocked_by_reservation':
+      // The owner's own words (2026-07-13). Nothing is changed for her behind her back.
+      return 'Önce mevcut rezervasyonlarınızı iptal edin, ardından üyeliğinizi dondurabilirsiniz.'
+    case 'entitlement_already_frozen':
+      return 'Bu paket zaten dondurulmuş.'
+    case 'entitlement_not_frozen':
+      return 'Bu paket dondurulmuş değil.'
+    // AG-1 — the studio's own opening hours. It refuses, and it says WHICH hours it refused against:
+    // "kapalı saatte olamaz" leaves reception guessing what the hours are.
+    case 'studio_closed_on_day':
+      return 'Stüdyo o gün kapalı. Çalışma saatlerini Ayarlar’dan değiştirebilirsiniz.'
+    case 'outside_working_hours':
+      return `Bu saat stüdyonun çalışma saatleri dışında (${error.open}–${error.close}). Dersin tamamı bu aralığa sığmalı.`
     default: {
       const exhaustive: never = error
       void exhaustive

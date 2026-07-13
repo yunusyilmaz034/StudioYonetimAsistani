@@ -11,7 +11,7 @@ import type {
   TenantContext,
 } from '../../../shared'
 import type { Entitlement } from '../../entitlements'
-import type { ClassSession } from '../../scheduling'
+import type { ClassSession, StudioHoursPort } from '../../scheduling'
 import type { Reservation } from '../domain/types'
 
 // The booking and cancellation transactions span three aggregates (reservation,
@@ -122,4 +122,5 @@ export interface ReservationRepository {
 export interface ReservationsDeps {
   readonly repo: ReservationRepository
   readonly clock: Clock
+  readonly hours: StudioHoursPort
 }

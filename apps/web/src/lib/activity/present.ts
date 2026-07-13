@@ -80,6 +80,18 @@ const FIELD_TR: Record<string, string> = {
   cancellationAllowanceCount: 'iptal hakkı',
   capacity: 'kontenjan',
   type: 'tür',
+  // v1.27 S2 — studio settings. The audit says WHICH field changed; for the four that change a
+  // domain decision it also says what it changed FROM (below). For the rest — the company's address,
+  // its tax number, its phone — it says only that they changed, because the log is permanent and
+  // none of them belong in it (#6).
+  defaultCancellationWindowHours: 'iptal penceresi',
+  defaultSessionDurationMinutes: 'varsayılan ders süresi',
+  lowCreditThreshold: 'düşük kredi uyarısı',
+  discountCeilingPercent: 'indirim tavanı',
+  timeZone: 'saat dilimi',
+  company: 'şirket bilgileri',
+  workingHours: 'çalışma saatleri',
+  qr: 'QR ayarları',
 }
 
 export const fieldLabel = (f: string): string => FIELD_TR[f] ?? f
@@ -182,6 +194,22 @@ export function present(e: ActivityEvent): PresentedEntry {
     case 'member.portal_login':
       return entry(`${member ?? 'Üye'} portala giriş yaptı.`, null, 'default')
 
+    // ── staff (v1.27 S1) — the quietest way to widen access in this system ────────────────
+    // "Deniz'e resepsiyon yetkisi verildi" is a sentence about the till and about every member's
+    // phone number. It reads like an administrative chore, and it is not one.
+    case 'staff.created':
+      return entry(`${staffName(p.staffUserId)} personel olarak eklendi.`, roleLine(p.role), 'success')
+    case 'staff.role_changed':
+      return entry(
+        `${staffName(p.staffUserId)} yetkisi değişti.`,
+        `${roleTr(p.from)} → ${roleTr(p.to)}`,
+        'warning',
+      )
+    case 'staff.deactivated':
+      return entry(`${staffName(p.staffUserId)} pasife alındı.`, null, 'warning')
+    case 'staff.reactivated':
+      return entry(`${staffName(p.staffUserId)} yeniden aktif edildi.`, null, 'default')
+
     // v1.26 · AD-67 — and note the word: **anonimleştirildi**, not "silindi". It is the honest one.
     // Her record is still there, tombstoned, because her reservations and her payments still point
     // at it; what is gone is everything that said who she was. A screen that claimed "silindi" would
@@ -192,6 +220,25 @@ export function present(e: ActivityEvent): PresentedEntry {
     // Şahin anonimleştirildi" into a screen fed by the log would re-attach the name we just removed.
     case 'member.erased':
       return entry(`Üye kaydı ${erasureReasonText(str(p.reason))} anonimleştirildi.`, null, 'warning')
+
+    // ── FREEZE (v1.27 S3) ───────────────────────────────────────────────────────────────────
+    case 'entitlement.frozen':
+      return entry(
+        `${of_(member)} üyeliği donduruldu.`,
+        `${str(p.from) ?? ''} · hakkı ${num(p.entitledDays) ?? 0} gün`,
+        'info',
+      )
+    case 'entitlement.unfrozen': {
+      const days = num(p.days) ?? 0
+      // "auto" must be visible: nobody asked for this one. The sweep ended it because her budget ran
+      // out, and an audit that read as though a human decided it would be a small, permanent lie.
+      const how = p.auto === true ? 'Hakkı doldu, sistem devam ettirdi' : 'Resepsiyon kaldırdı'
+      return entry(
+        `${of_(member)} üyeliği yeniden başladı.`,
+        `${how} · ${days} gün durdu, üyelik ${days} gün uzadı`,
+        'success',
+      )
+    }
 
     case 'entitlement.purchased': {
       // The catalogue is data (AD-41), so the event carries the GRANT, not a product name —
@@ -555,8 +602,17 @@ export function present(e: ActivityEvent): PresentedEntry {
       return entry(`Şube açıldı.`, null, 'default')
     case 'branch.closed':
       return entry(`Şube kapatıldı.`, null, 'warning')
-    case 'studio.settings_updated':
-      return entry(`Stüdyo ayarları güncellendi.`, fieldList(p.changedFields), 'default')
+    case 'studio.settings_updated': {
+      // A RULE change is shown with the value it replaced — "iptal penceresi: 6 sa → 12 sa" — because
+      // a member who booked under the old one and was judged under the new one deserves an answer.
+      // Everything else is a field name, and only a field name.
+      const ruleChange = settingsRuleChange(p)
+      return entry(
+        'Stüdyo ayarları güncellendi.',
+        ruleChange ?? fieldList(p.changedFields),
+        ruleChange ? 'warning' : 'default',
+      )
+    }
 
     default:
       // Never a raw event name on screen. A new event type that reaches here is a defect the
@@ -778,4 +834,35 @@ function erasureReasonText(reason: string | null): string {
     default:
       return 'talep üzerine'
   }
+}
+
+// The staff member's NAME is not in the event (#6) — it is PII, and it lives on `/staff`. The feed
+// shows the id when it cannot resolve a name, which is honest: it says who acted without inventing
+// a person.
+function staffName(id: unknown): string {
+  return typeof id === 'string' ? `Personel ${id.slice(-4)}` : 'Personel'
+}
+
+const roleTr = (r: unknown): string =>
+  r === 'owner' ? 'Sahip' : r === 'receptionist' ? 'Resepsiyon' : r === 'trainer' ? 'Eğitmen' : '—'
+
+const roleLine = (r: unknown): string => `Yetki: ${roleTr(r)}`
+
+// The four settings that change a domain decision, rendered with previous → new. The others are
+// configuration, and the log holds only their names.
+function settingsRuleChange(p: Record<string, unknown>): string | null {
+  const rules: readonly [string, string, string][] = [
+    ['defaultCancellationWindowHours', 'previousDefaultCancellationWindowHours', 'sa'],
+    ['defaultSessionDurationMinutes', 'previousDefaultSessionDurationMinutes', 'dk'],
+    ['lowCreditThreshold', 'previousLowCreditThreshold', 'kredi'],
+    ['discountCeilingPercent', 'previousDiscountCeilingPercent', '%'],
+  ]
+  const lines = rules
+    .filter(([now]) => now in p)
+    .map(([now, before, unit]) => {
+      const from = p[before] === null || p[before] === undefined ? 'tanımsız' : `${String(p[before])} ${unit}`
+      const to = p[now] === null ? 'tanımsız' : `${String(p[now])} ${unit}`
+      return `${fieldLabel(now)}: ${from} → ${to}`
+    })
+  return lines.length > 0 ? lines.join(' · ') : null
 }

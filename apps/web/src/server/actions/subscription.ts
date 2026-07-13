@@ -1,6 +1,12 @@
 'use server'
 
 import {
+  DEFAULT_STUDIO_CONFIG,
+  FirestoreReservationRepository,
+  freezeDaysRemaining,
+  freezeEntitlement,
+  localDateAt,
+  unfreezeEntitlement,
   adjustCredits,
   amendEntitlement,
   assignSubscription,
@@ -187,6 +193,13 @@ export interface SubscriptionView {
   readonly balanceDueKurus: number
   readonly method: string | null
   readonly note: string | null
+  // ── Freeze (v1.27 S3) ──
+  /** Her budget, as sold. 0 or null ⇒ this product has no freeze (Pilates). */
+  readonly freezeEntitledDays: number | null
+  /** What she has left to spend. The screen shows it; the nightly sweep enforces it. */
+  readonly freezeDaysRemaining: number | null
+  /** LocalDate the current freeze started, or null. */
+  readonly frozenSince: string | null
 }
 
 export async function listMemberSubscriptionsAction(input: unknown): Promise<readonly SubscriptionView[]> {
@@ -209,8 +222,75 @@ export async function listMemberSubscriptionsAction(input: unknown): Promise<rea
       balanceDueKurus: e.priceAgreed.amount - e.paidTotal.amount,
       method: e.manualPayment ? e.manualPayment.method : null,
       note: e.manualPayment ? e.manualPayment.note : null,
+      freezeEntitledDays: e.freeze?.entitledDays ?? null,
+      freezeDaysRemaining: e.freeze ? freezeDaysRemaining(e.freeze) : null,
+      frozenSince: e.freeze?.activeFrom ?? null,
     }))
     .sort((a, b) => b.validFrom - a.validFrom)
+}
+
+// ── FREEZE (v1.27 S3 · owner, 2026-07-13 · closes DEBT-009) ──────────────────────────────────
+
+/**
+ * Freeze a membership.
+ *
+ * The UPCOMING-RESERVATION check happens here, because the reservations live in another aggregate —
+ * and the answer is a **refusal**, never a fix. Cancelling her class for her would move a credit she
+ * never asked us to move, and she would learn about it from a ledger rather than from us (owner:
+ * *"Hiçbir kredi veya rezervasyon otomatik değiştirilmesin"*).
+ */
+export async function freezeSubscriptionAction(input: unknown) {
+  const p = z.object({ entitlementId: nonEmpty }).parse(input)
+  const ctx = await requireTenantContext(OPS)
+
+  const ent = await new FirestoreEntitlementRepository(adminDb()).getEntitlement(
+    ctx,
+    p.entitlementId as EntitlementId,
+  )
+  if (!ent) throw new Error(`Entitlement not found: ${p.entitlementId}`)
+
+  const now = Date.now()
+  const upcoming = await new FirestoreReservationRepository(adminDb()).listByMember(
+    ctx,
+    ent.memberId,
+  )
+  const hasUpcomingReservation = upcoming.some(
+    (r) => r.status === 'booked' && (r.sessionStartsAt as number) > now,
+  )
+
+  const today = localDateAt(instant(now), DEFAULT_STUDIO_CONFIG.utcOffsetMinutes) as string
+
+  return observed(
+    'entitlement.freeze',
+    ctx,
+    undefined,
+    { entitlementId: p.entitlementId },
+    () =>
+      freezeEntitlement(entDeps(), ctx, {
+        entitlementId: p.entitlementId as EntitlementId,
+        from: today,
+        hasUpcomingReservation,
+      }),
+  )
+}
+
+export async function unfreezeSubscriptionAction(input: unknown) {
+  const p = z.object({ entitlementId: nonEmpty }).parse(input)
+  const ctx = await requireTenantContext(OPS)
+  const today = localDateAt(instant(Date.now()), DEFAULT_STUDIO_CONFIG.utcOffsetMinutes) as string
+
+  return observed(
+    'entitlement.unfreeze',
+    ctx,
+    undefined,
+    { entitlementId: p.entitlementId },
+    () =>
+      unfreezeEntitlement(entDeps(), ctx, {
+        entitlementId: p.entitlementId as EntitlementId,
+        to: today,
+        auto: false, // a human asked for this, and the audit must say so
+      }),
+  )
 }
 
 export interface TimelineRow {

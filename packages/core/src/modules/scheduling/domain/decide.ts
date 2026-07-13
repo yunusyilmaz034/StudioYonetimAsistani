@@ -39,7 +39,15 @@ import {
   SERVICE_REACTIVATED,
   SERVICE_UPDATED,
 } from '../events'
-import type { ClassSession, ClassTemplate, NoteVisibility, Room, Service, StudioSettings } from './types'
+import type {
+  ClassSession,
+  ClassTemplate,
+  NoteVisibility,
+  Room,
+  Service,
+  StudioSettings,
+} from './types'
+import { checkWorkingHours, type StudioHours } from './working-hours'
 
 export interface DecideContext {
   readonly studioId: StudioId
@@ -245,8 +253,23 @@ export function decideScheduleSession(
   ctx: DecideContext,
   session: ClassSession,
   room: Room | null,
+  // AG-1 — the studio's opening hours AND the calendar's exceptions, in one object. REQUIRED: an
+  // optional guard is a guard that is one refactor away from being forgotten, and this one was already
+  // forgotten once (stored from S2, enforced nowhere).
+  studio: StudioHours,
 ): Result<NewEvent[], DomainError> {
   if (session.endsAt <= session.startsAt) return err({ code: 'invalid_time_range' })
+
+  // The studio cannot hold a class at a time it is not open — UNLESS the calendar says this exact date
+  // is a `special_working_day`, which is the studio saying, in writing, "we are open". The calendar is
+  // the more specific statement, and the more specific statement wins (D23).
+  const hours = checkWorkingHours(studio, session.startsAt, session.endsAt)
+  if (!hours.ok) {
+    return hours.reason === 'closed_day'
+      ? err({ code: 'studio_closed_on_day' })
+      : err({ code: 'outside_working_hours', open: hours.hours!.open, close: hours.hours!.close })
+  }
+
   if (room) {
     if (room.branchId !== session.branchId) return err({ code: 'branch_mismatch' })
     if (session.capacity > room.capacity) {
@@ -296,27 +319,84 @@ export function decideScheduleSession(
   ])
 }
 
-// D14 — the studio-level default cancellation window (level 3 of the chain). Changing it
-// affects only sessions created AFTER it: every existing session already carries its own
-// resolved, stamped window, and nothing here reaches back to rewrite them.
-export function decideSetStudioDefaults(
+// ── STUDIO SETTINGS (v1.27 S2 · owner, 2026-07-13) ───────────────────────────────────────────
+//
+// One event, and TWO CLASSES OF FIELD inside it — and the split is the whole design:
+//
+//   • **Settings that change a DOMAIN DECISION** (the cancellation window, the low-credit
+//     threshold, the discount ceiling, the default duration) are logged with their **previous AND
+//     new values**. A member who booked under a six-hour window and was later judged under a
+//     twelve-hour one deserves an answer, and "we changed it at some point" is not one. *A rule
+//     that cannot be reconstructed cannot be defended.*
+//
+//   • **Configuration** (the company's address, its tax number, its phone, the working hours, the
+//     QR TTL) is logged as **field names only**. A tax number and an address are business PII, and
+//     the log is permanent — the same discipline as `member.profile_updated` (AD-25): the audit
+//     answers *which fields changed, when, and by whom*, never *to what*.
+//
+// Changing a setting reaches nothing that already happened: every session carries its own resolved,
+// stamped window (D14), and no field here rewrites one.
+const RULE_FIELDS = [
+  'defaultCancellationWindowHours',
+  'lowCreditThreshold',
+  'discountCeilingPercent',
+  'defaultSessionDurationMinutes',
+] as const
+
+export function decideUpdateStudioSettings(
   ctx: DecideContext,
   current: StudioSettings | null,
-  defaultCancellationWindowHours: number | null,
+  next: StudioSettings,
 ): Result<NewEvent[], DomainError> {
-  if (defaultCancellationWindowHours !== null && defaultCancellationWindowHours < 0) {
+  if (next.defaultCancellationWindowHours !== null && next.defaultCancellationWindowHours < 0) {
     return err({ code: 'invalid_time_range' })
   }
-  const previous = current?.defaultCancellationWindowHours ?? null
-  if (previous === defaultCancellationWindowHours) return ok([]) // idempotent
+  if (next.defaultSessionDurationMinutes !== null && next.defaultSessionDurationMinutes <= 0) {
+    return err({ code: 'invalid_time_range' })
+  }
+  if (next.qr && (next.qr.tokenTtlSeconds <= 0 || next.qr.checkInWindowMinutes < 0)) {
+    return err({ code: 'invalid_time_range' })
+  }
+  for (const day of Object.values(next.workingHours ?? {})) {
+    // A day that closes before it opens is not a short day; it is a typo that would silently make
+    // every hour of it invalid.
+    if (day && day.close <= day.open) return err({ code: 'invalid_time_range' })
+  }
+
+  const changedFields: string[] = []
+  const values: Record<string, unknown> = {}
+
+  for (const field of RULE_FIELDS) {
+    const before = current?.[field] ?? null
+    const after = next[field] ?? null
+    if (before === after) continue
+    changedFields.push(field)
+    // The value AND the value it replaced. This is the half of the log that has to survive a
+    // dispute, and it is why these four are not in the `changedFields`-only bucket.
+    values[field] = after
+    values[`previous${field.charAt(0).toUpperCase()}${field.slice(1)}`] = before
+  }
+
+  // Configuration: the NAME of what changed, and nothing else. Never the address, never the tax
+  // number, never the phone — the log is permanent and none of them belong in it (#6).
+  const config: { readonly key: string; readonly a: unknown; readonly b: unknown }[] = [
+    { key: 'timeZone', a: current?.timeZone ?? null, b: next.timeZone },
+    { key: 'company', a: current?.company ?? null, b: next.company },
+    { key: 'workingHours', a: current?.workingHours ?? null, b: next.workingHours },
+    { key: 'qr', a: current?.qr ?? null, b: next.qr },
+    { key: 'notifications', a: current?.notifications ?? null, b: next.notifications },
+  ]
+  for (const { key, a, b } of config) {
+    if (JSON.stringify(a) !== JSON.stringify(b)) changedFields.push(key)
+  }
+
+  if (changedFields.length === 0) return ok([]) // idempotent: saving an unchanged form is not an act
+
   return ok([
     {
       ...base(ctx, 'policy', ctx.studioId, null, {}),
       type: STUDIO_SETTINGS_UPDATED,
-      payload: {
-        defaultCancellationWindowHours,
-        previousDefaultCancellationWindowHours: previous,
-      },
+      payload: { changedFields, ...values },
     },
   ])
 }

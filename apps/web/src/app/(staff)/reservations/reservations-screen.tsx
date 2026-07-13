@@ -2,12 +2,13 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArmchairIcon, CalendarIcon, CircleCheckIcon, SearchIcon, UsersIcon } from 'lucide-react'
+import { ArmchairIcon, CalendarIcon, CircleCheckIcon, LayersIcon, SearchIcon, UsersIcon } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Metric, MetricStrip } from '@/components/ui/metric'
 import { PageHeader } from '@/components/ui/page-header'
+import Link from 'next/link'
 import { Toaster } from '@/components/ui/sonner'
 import {
   Calendar,
@@ -121,7 +122,15 @@ export function ReservationsScreen({
   return (
     <main className="mx-auto max-w-6xl space-y-4 p-4 sm:p-6 lg:p-8">
       <Toaster />
-      <PageHeader title="Rezervasyon Ajandası" />
+      <PageHeader
+        title="Rezervasyon Ajandası"
+        actions={
+          <Button variant="outline" render={<Link href="/reservations/bulk" />}>
+            <LayersIcon />
+            <span className="hidden sm:inline">Toplu İşlemler</span>
+          </Button>
+        }
+      />
 
       {/* One control surface: date nav + view switch above, search + filters below. */}
       <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">

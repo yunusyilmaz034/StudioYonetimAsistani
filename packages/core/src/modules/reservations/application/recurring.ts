@@ -102,6 +102,8 @@ export async function applyRecurring(
 
   let booked = 0
   let failed = 0
+  const hours = await deps.hours.getStudioHours(ctx)
+
   for (const t of planned.plan.toBook) {
     const reservationId = newReservationId()
     const res = await deps.repo.book(ctx, {
@@ -115,6 +117,7 @@ export async function applyRecurring(
           entitlement,
           { reservationId, memberId: input.memberId, memberSnapshot: planned.world.memberSnapshot },
           memberHasBooked,
+          hours,
         )
         if (!decided.ok) return decided
         const held = decideHold(dctx, entitlement, reservationId)

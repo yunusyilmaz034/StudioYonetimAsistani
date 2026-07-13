@@ -33,9 +33,11 @@ const EXPIRY_WINDOW_DAYS = 7
 const LOW_CREDIT_THRESHOLD_FALLBACK = 2
 
 export async function runReminderSweep(nowMs = Date.now()): Promise<void> {
-  const studios = await db().collection('studios').get()
+  // `listDocuments()`, not `get()` — a studio with only sub-collections is invisible to `get()`, and
+  // its members would simply never be reminded (see `shared/context.ts`).
+  const studios = await db().collection('studios').listDocuments()
 
-  for (const studio of studios.docs) {
+  for (const studio of studios) {
     const studioId = studio.id as StudioId
     const ctx: TenantContext = {
       studioId,

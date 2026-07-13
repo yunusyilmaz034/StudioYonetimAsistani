@@ -7,6 +7,7 @@ import {
   FirestoreEntitlementRepository,
   FirestoreMemberRepository,
   FirestoreReservationRepository,
+  FirestoreStudioHours,
   FirestoreSchedulingRepository,
   normalizePhone,
   selectEntitlement,
@@ -38,6 +39,9 @@ const resDeps = () => ({
   repo: new FirestoreReservationRepository(adminDb()),
   entitlements: new FirestoreEntitlementRepository(adminDb()),
   clock: systemClock,
+  // AG-1 — the member's own booking answers to the studio's opening hours exactly as reception's does.
+  // The deciders are principal-agnostic, and so is this: the studio is not open for her either.
+  hours: new FirestoreStudioHours(adminDb()),
 })
 
 // ── Book ──────────────────────────────────────────────────────────────────────────────────

@@ -85,9 +85,19 @@ function makeSession(o: Partial<ClassSession> = {}): ClassSession {
   }
 }
 
+// AG-1 — every scheduling decision now answers to the studio's opening hours. These cases are about
+// the OTHER rules, so they pass `null` hours: "no hours configured" is a studio that has not asked us
+// to police it. The hours themselves are tested in `working-hours.test.ts` and, end to end, below.
+const schedule = (session: ClassSession, room: Room | null) =>
+  decideScheduleSession(ctx, session, room, {
+    hours: null,
+    utcOffsetMinutes: 180,
+    specialWorkingDates: new Set<LocalDate>(),
+  })
+
 describe('decideScheduleSession', () => {
   it('schedules when capacity fits the room, branch matches, time is valid (I-23, I-24)', () => {
-    const r = decideScheduleSession(ctx, makeSession(), room)
+    const r = schedule(makeSession(), room)
     expect(r.ok).toBe(true)
     if (r.ok) {
       expect(r.value[0]?.type).toBe('class_session.scheduled')
@@ -96,25 +106,25 @@ describe('decideScheduleSession', () => {
   })
 
   it('refuses capacity above the room (I-23)', () => {
-    const r = decideScheduleSession(ctx, makeSession({ capacity: 9 }), room)
+    const r = schedule(makeSession({ capacity: 9 }), room)
     expect(r.ok).toBe(false)
     if (!r.ok) expect(r.error.code).toBe('session_capacity_exceeds_room')
   })
 
   it('refuses a room in another branch (I-23)', () => {
-    const r = decideScheduleSession(ctx, makeSession({ branchId: 'brn_2' as BranchId }), room)
+    const r = schedule(makeSession({ branchId: 'brn_2' as BranchId }), room)
     expect(r.ok).toBe(false)
     if (!r.ok) expect(r.error.code).toBe('branch_mismatch')
   })
 
   it('refuses a non-positive duration', () => {
-    const r = decideScheduleSession(ctx, makeSession({ endsAt: instant(500_000) }), room)
+    const r = schedule(makeSession({ endsAt: instant(500_000) }), room)
     expect(r.ok).toBe(false)
     if (!r.ok) expect(r.error.code).toBe('invalid_time_range')
   })
 
   it('allows a session with no room', () => {
-    expect(decideScheduleSession(ctx, makeSession({ roomId: null, capacity: 100 }), null).ok).toBe(true)
+    expect(schedule(makeSession({ roomId: null, capacity: 100 }), null).ok).toBe(true)
   })
 })
 
@@ -327,21 +337,19 @@ describe('PT capacity band (D13): 1 = one-on-one, 2 = partner, 3+ = a group clas
   const bigRoom: Room = { ...room, capacity: 12 }
 
   it('creates a one-on-one PT (capacity 1)', () => {
-    const r = decideScheduleSession(ctx, makeSession({ category: 'private', capacity: 1 }), bigRoom)
+    const r = schedule(makeSession({ category: 'private', capacity: 1 }), bigRoom)
     expect(r.ok).toBe(true)
   })
 
   it('creates a PARTNER PT (capacity 2) — ownership is independent of capacity', () => {
-    const r = decideScheduleSession(
-      ctx,
-      makeSession({ category: 'private', capacity: 2, assignedMemberId: 'mem_1' as MemberId }),
+    const r = schedule(makeSession({ category: 'private', capacity: 2, assignedMemberId: 'mem_1' as MemberId }),
       bigRoom,
     )
     expect(r.ok).toBe(true)
   })
 
   it('refuses a PT with capacity 3 — that is a group class, not a PT', () => {
-    const r = decideScheduleSession(ctx, makeSession({ category: 'private', capacity: 3 }), bigRoom)
+    const r = schedule(makeSession({ category: 'private', capacity: 3 }), bigRoom)
     expect(r).toEqual({
       ok: false,
       error: { code: 'pt_capacity_exceeded', maxCapacity: 2, capacity: 3 },
@@ -349,7 +357,7 @@ describe('PT capacity band (D13): 1 = one-on-one, 2 = partner, 3+ = a group clas
   })
 
   it('the band does not apply to group classes', () => {
-    const r = decideScheduleSession(ctx, makeSession({ category: 'pilates_group', capacity: 8 }), bigRoom)
+    const r = schedule(makeSession({ category: 'pilates_group', capacity: 8 }), bigRoom)
     expect(r.ok).toBe(true)
   })
 
@@ -370,9 +378,7 @@ describe('PT capacity band (D13): 1 = one-on-one, 2 = partner, 3+ = a group clas
 // D13 — assignment AT CREATION (the owner's second business model).
 describe('assignment at session creation (D13)', () => {
   it('creates a PT slot already reserved for a member', () => {
-    const r = decideScheduleSession(
-      ctx,
-      makeSession({ category: 'private', capacity: 1, assignedMemberId: 'mem_1' as MemberId }),
+    const r = schedule(makeSession({ category: 'private', capacity: 1, assignedMemberId: 'mem_1' as MemberId }),
       room,
     )
     expect(r.ok).toBe(true)
@@ -383,18 +389,94 @@ describe('assignment at session creation (D13)', () => {
   })
 
   it('creates an OPEN PT slot by default (assignedMemberId null)', () => {
-    const r = decideScheduleSession(ctx, makeSession({ category: 'private', capacity: 1 }), room)
+    const r = schedule(makeSession({ category: 'private', capacity: 1 }), room)
     expect(r.ok).toBe(true)
     if (r.ok) expect(r.value[0]?.payload).toMatchObject({ assignedMemberId: null })
   })
 
   it('refuses assigning a member to a GROUP class at creation', () => {
-    const r = decideScheduleSession(
-      ctx,
-      makeSession({ category: 'pilates_group', assignedMemberId: 'mem_1' as MemberId }),
+    const r = schedule(makeSession({ category: 'pilates_group', assignedMemberId: 'mem_1' as MemberId }),
       room,
     )
     expect(r.ok).toBe(false)
     if (!r.ok) expect(r.error.code).toBe('assignment_requires_private_session')
+  })
+})
+
+// AG-1 — THE GATE (v1.27, Alpha closure). The studio's opening hours are no longer decoration.
+describe('AG-1 — çalışma saatleri, seans oluştururken', () => {
+  // 2024-01-01T00:00 +03:00 is a Monday. Europe/Istanbul, UTC+3.
+  const TR = 180
+  // 2024-01-01T00:00:00+03:00 — a MONDAY, in Istanbul. Written as an epoch literal because `Date` is
+  // banned in the domain (D2): a decision function that can read the clock cannot be exhaustively
+  // tested, and the ban holds for its tests too.
+  const MONDAY = 1_704_056_400_000
+  const at = (h: number, m = 0) => instant(MONDAY + h * 3_600_000 + m * 60_000)
+  const HOURS = {
+    0: null,
+    1: { open: '10:00', close: '21:00' },
+    2: { open: '10:00', close: '21:00' },
+    3: { open: '10:00', close: '21:00' },
+    4: { open: '10:00', close: '21:00' },
+    5: { open: '10:00', close: '21:00' },
+    6: { open: '11:00', close: '17:00' },
+  } as const
+
+  const studio = (special: readonly string[] = []) => ({
+    hours: HOURS as never,
+    utcOffsetMinutes: TR,
+    specialWorkingDates: new Set(special as LocalDate[]),
+  })
+
+  const monday = (startH: number, endH: number) =>
+    makeSession({ startsAt: at(startH), endsAt: at(endH) })
+
+  it('schedules a class inside the studio’s hours', () => {
+    const r = decideScheduleSession(ctx, monday(19, 20), room, studio())
+    expect(r.ok).toBe(true)
+  })
+
+  it('REFUSES a class that runs past closing — and says which hours it refused against', () => {
+    const r = decideScheduleSession(ctx, monday(20, 22), room, studio())
+    expect(r.ok).toBe(false)
+    if (r.ok) return
+    expect(r.error.code).toBe('outside_working_hours')
+    // Reception must be told WHAT the hours are. "Kapalı saatte olamaz" leaves her guessing.
+    if (r.error.code === 'outside_working_hours') {
+      expect(r.error.open).toBe('10:00')
+      expect(r.error.close).toBe('21:00')
+    }
+  })
+
+  it('refuses a class on a day the studio never opens', () => {
+    const sunday = makeSession({
+      startsAt: instant(MONDAY - 12 * 3_600_000),
+      endsAt: instant(MONDAY - 11 * 3_600_000),
+    })
+    const r = decideScheduleSession(ctx, sunday, room, studio())
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.error.code).toBe('studio_closed_on_day')
+  })
+
+  it('a SPECIAL WORKING DAY overrides the hours — the studio said, in writing, that it is open', () => {
+    // Without this, the calendar's `special_working_day` would be unschedulable and reception would go
+    // back to paper. The calendar is the more specific statement, and it wins (D23).
+    const sunday = makeSession({
+      startsAt: instant(MONDAY - 12 * 3_600_000),
+      endsAt: instant(MONDAY - 11 * 3_600_000),
+    })
+    // 2023-12-31, the Sunday before our Monday.
+    const r = decideScheduleSession(ctx, sunday, room, studio(['2023-12-31']))
+    expect(r.ok, 'the studio declared that Sunday open, and we refused anyway').toBe(true)
+  })
+
+  it('a studio with no configured hours is not policed', () => {
+    expect(
+      decideScheduleSession(ctx, monday(3, 4), room, {
+        hours: null,
+        utcOffsetMinutes: TR,
+        specialWorkingDates: new Set<LocalDate>(),
+      }).ok,
+    ).toBe(true)
   })
 })

@@ -11,6 +11,7 @@ import {
   FirestoreMemberRepository,
   FirestoreReservationRepository,
   FirestoreSchedulingRepository,
+  FirestoreStudioHours,
   instant,
   selectEntitlement,
   type RecurringDeps,
@@ -62,7 +63,7 @@ export async function bookReservationAction(input: unknown) {
     entitlementId = chosen.id
   }
 
-  return bookReservation({ repo: new FirestoreReservationRepository(db), clock: systemClock }, ctx, {
+  return bookReservation({ repo: new FirestoreReservationRepository(db), clock: systemClock, hours: new FirestoreStudioHours(db) }, ctx, {
     sessionId: p.sessionId as ClassSessionId,
     entitlementId,
     memberId: p.memberId as MemberId,
@@ -74,7 +75,7 @@ export async function cancelReservationAction(input: unknown) {
   const p = z.object({ reservationId: nonEmpty }).parse(input)
   const ctx = await requireTenantContext(OPS)
   return cancelReservation(
-    { repo: new FirestoreReservationRepository(adminDb()), clock: systemClock },
+    { repo: new FirestoreReservationRepository(adminDb()), clock: systemClock, hours: new FirestoreStudioHours(adminDb()) },
     ctx,
     { reservationId: p.reservationId as ReservationId },
   )
@@ -147,7 +148,7 @@ export async function moveReservationAction(input: unknown) {
     .parse(input)
   const ctx = await requireTenantContext(OPS)
   return moveReservation(
-    { repo: new FirestoreReservationRepository(adminDb()), clock: systemClock },
+    { repo: new FirestoreReservationRepository(adminDb()), clock: systemClock, hours: new FirestoreStudioHours(adminDb()) },
     ctx,
     {
       reservationId: p.reservationId as ReservationId,
@@ -169,6 +170,7 @@ function recurringDeps(): RecurringDeps {
   return {
     repo: resRepo,
     clock: systemClock,
+    hours: new FirestoreStudioHours(db),
     utcOffsetMinutes: 180,
     loadWorld: async (ctx, memberId, sessionId, weeks) => {
       const seed = await sched.getSession(ctx, sessionId)
@@ -230,7 +232,7 @@ export async function setReservationNoteAction(input: unknown) {
   const p = z.object({ reservationId: nonEmpty, text: z.string() }).parse(input)
   const ctx = await requireTenantContext(OPS)
   return setReservationNote(
-    { repo: new FirestoreReservationRepository(adminDb()), clock: systemClock },
+    { repo: new FirestoreReservationRepository(adminDb()), clock: systemClock, hours: new FirestoreStudioHours(adminDb()) },
     ctx,
     { reservationId: p.reservationId as ReservationId, text: p.text },
   )
@@ -250,7 +252,7 @@ export async function correctReservationAction(input: unknown) {
     .parse(input)
   const ctx = await requireTenantContext(OPS)
   return correctReservation(
-    { repo: new FirestoreReservationRepository(adminDb()), clock: systemClock },
+    { repo: new FirestoreReservationRepository(adminDb()), clock: systemClock, hours: new FirestoreStudioHours(adminDb()) },
     ctx,
     { reservationId: p.reservationId as ReservationId, toOutcome: p.toOutcome, reason: p.reason },
   )

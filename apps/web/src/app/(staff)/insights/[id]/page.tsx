@@ -1,6 +1,6 @@
 import { notFound, redirect } from 'next/navigation'
 
-import { getTenantContext } from '@/server/auth'
+import { requirePageAccess } from '@/server/auth'
 import { loadOwnerDashboard } from '@/server/owner-dashboard'
 import { WIDGETS } from '@/lib/widgets/registry'
 
@@ -10,7 +10,7 @@ import { InsightScreen } from './insight-screen'
 // list — the same data, unclipped, exportable. The screen is generic: it renders whatever the
 // widget's export table says, so a new widget needs no new page.
 export default async function InsightPage({ params }: { params: Promise<{ id: string }> }) {
-  const ctx = await getTenantContext()
+  const ctx = await requirePageAccess('/analytics')
   if (!ctx) redirect('/login')
 
   const { id } = await params

@@ -1,5 +1,6 @@
 'use client'
 
+import type { WorkingHours } from '@studio/core'
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Loader2Icon } from 'lucide-react'
 import { toast } from 'sonner'
@@ -10,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { DAY_TYPE_LABEL, isClosedType, type DayMark } from '@/lib/calendar-days'
 import { domainErrorMessage } from '@/lib/domain-error'
 import type { BookingMember } from '@/server/actions/booking'
+import { getStudioSettingsAction } from '@/server/actions/settings'
 import { listCalendarDaysAction } from '@/server/actions/calendar'
 import { listEligibleMembersForServiceAction, scheduleSessionAction } from '@/server/actions/scheduling'
 import type { ScheduleData } from '@/server/schedule-query'
@@ -64,6 +66,11 @@ export function SessionForm({
   // still warns.
   const [dayMarks, setDayMarks] = useState<readonly DayMark[]>([])
   const [ackClosed, setAckClosed] = useState(false)
+  // v1.27 S2 — the studio's own opening hours (AG-1). A WARNING, never a block: the calendar's
+  // `special_working_day` exists precisely because a studio does hold the occasional class outside
+  // them, and a blunt refusal would make that day unschedulable and send reception back to paper.
+  // Full enforcement (refuse, unless the day is special) is tracked in docs/ALPHA-GAPS.md.
+  const [workingHours, setWorkingHours] = useState<WorkingHours | null>(null)
 
   const branchId = defaultBranchId ?? data.rooms[0]?.branchId ?? ''
   const branchName = useMemo(
@@ -110,6 +117,21 @@ export function SessionForm({
 
   useEffect(() => {
     let live = true
+    void getStudioSettingsAction()
+      .then((st) => {
+        if (!live || !st) return
+        setWorkingHours(st.workingHours)
+        // The default the owner set, not a number in this file (#4).
+        if (st.defaultSessionDurationMinutes) setDurationMinutes(st.defaultSessionDurationMinutes)
+      })
+      .catch(() => {})
+    return () => {
+      live = false
+    }
+  }, [])
+
+  useEffect(() => {
+    let live = true
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
       setDayMarks([])
       return
@@ -130,6 +152,27 @@ export function SessionForm({
   }, [date])
 
   const closedMark = dayMarks.find((d) => isClosedType(d.type)) ?? null
+
+  // Outside the studio's own hours? The class ENDS after closing, or STARTS before opening — and a
+  // day with no hours at all is a day the studio says it is shut.
+  const outsideHours = useMemo(() => {
+    if (!workingHours || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return null
+    const weekday = new Date(`${date}T12:00:00Z`).getUTCDay() as 0 | 1 | 2 | 3 | 4 | 5 | 6
+    const day = workingHours[weekday]
+    if (!day) return 'closed' as const
+
+    const [h, m] = startTime.split(':').map(Number)
+    const startMin = (h ?? 0) * 60 + (m ?? 0)
+    const endMin = startMin + durationMinutes
+    const toMin = (t: string) => {
+      const [hh, mm] = t.split(':').map(Number)
+      return (hh ?? 0) * 60 + (mm ?? 0)
+    }
+    if (startMin < toMin(day.open) || endMin > toMin(day.close)) {
+      return { open: day.open, close: day.close } as const
+    }
+    return null
+  }, [workingHours, date, startTime, durationMinutes])
 
   const q = memberQuery.trim().toLocaleLowerCase('tr')
   const filteredMembers = (members ?? []).filter(
@@ -198,6 +241,26 @@ export function SessionForm({
           </SelectContent>
         </Select>
       </Field>
+
+      {/* v1.27 S2 — the studio's own opening hours (AG-1). Quiet information, not a block: the
+          studio does hold the occasional class outside them, and the calendar has a day type that
+          says exactly that (`special_working_day`). Full enforcement is tracked in ALPHA-GAPS. */}
+      {outsideHours ? (
+        <div className="rounded-lg border border-warning/30 bg-warning/5 p-3 text-sm text-warning-foreground">
+          {outsideHours === 'closed' ? (
+            <>Stüdyo bu gün <strong>kapalı</strong> görünüyor (Ayarlar → Çalışma saatleri).</>
+          ) : (
+            <>
+              Bu ders stüdyonun çalışma saatleri dışında:{' '}
+              <strong>
+                {outsideHours.open}–{outsideHours.close}
+              </strong>
+              .
+            </>
+          )}{' '}
+          Yine de oluşturabilirsin.
+        </div>
+      ) : null}
 
       {/* D23 — the day's marks. A closed day is loud and must be acknowledged; anything else
           is quiet information (Doc 20: normal is quiet, abnormal is loud). */}

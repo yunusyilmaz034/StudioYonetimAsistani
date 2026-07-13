@@ -18,11 +18,10 @@ export default defineConfig({
     include: [
       'packages/core/**/*.test.ts',
       'apps/web/src/**/*.test.ts',
-      // The migration's PURE rules — what it accepts, what it refuses, what it never merges.
-      // AD-36 says the migration never *runs* in CI, and it does not: nothing here touches
-      // Firestore. But it is the one script whose mistakes are unrecoverable, and an untested
-      // validator is the last place to save an afternoon.
-      'tools/migration/**/*.test.ts',
+      // The migration's pure rules moved into `members/domain/import.ts` (v1.27 S5) — the owner's
+      // import screen must run EXACTLY them, and two validators are two answers to "may this row
+      // enter production?". `tools/migration` is a door now, not an implementation, and has no tests
+      // of its own to run.
     ],
     passWithNoTests: true,
   },

@@ -39,6 +39,10 @@ export async function bookReservation(
 ): Promise<Result<{ reservationId: ReservationId }, DomainError>> {
   const dctx = decideContext(deps, ctx, input.operationId ? { operationId: input.operationId } : {})
   const reservationId = newReservationId()
+  // AG-1 — read ONCE, outside the transaction. Opening hours are a studio-wide setting that changes
+  // a few times a year; re-reading them inside every booking transaction would buy nothing and cost
+  // a document read on the hottest path in the product.
+  const hours = await deps.hours.getStudioHours(ctx)
 
   return deps.repo.book(ctx, {
     sessionId: input.sessionId,
@@ -51,6 +55,7 @@ export async function bookReservation(
         entitlement,
         { reservationId, memberId: input.memberId, memberSnapshot: input.memberSnapshot },
         memberHasBooked,
+        hours,
       )
       if (!booked.ok) return booked
 

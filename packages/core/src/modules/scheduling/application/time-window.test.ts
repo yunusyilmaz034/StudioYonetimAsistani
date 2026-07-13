@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
-import { instant, localDate, type StudioConfig } from '../../../shared'
+import { DEFAULT_STUDIO_CONFIG, instant, localDate, type StudioConfig } from '../../../shared'
 import type { Weekday } from '../domain/types'
 import { addDays, localDateOf, localSlotToInstant, occurrenceDates } from './time-window'
 
-const cfg: StudioConfig = { utcOffsetMinutes: 180 }
+const cfg: StudioConfig = DEFAULT_STUDIO_CONFIG
 
 describe('localSlotToInstant (AD-52)', () => {
   it('converts studio-local wall time to UTC by subtracting the offset', () => {

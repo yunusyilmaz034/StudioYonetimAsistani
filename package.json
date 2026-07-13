@@ -10,12 +10,12 @@
   "scripts": {
     "dev": "pnpm --parallel -r dev",
     "build:functions": "pnpm --filter @studio/functions build",
-    "emulators": "pnpm build:functions && firebase emulators:start --import=.seed --export-on-exit",
+    "emulators": "pnpm build:functions && PATH=\"$(/usr/libexec/java_home 2>/dev/null || brew --prefix openjdk 2>/dev/null)/bin:$PATH\" firebase emulators:start --import=.seed --export-on-exit",
     "seed": "tsx tools/seed/index.ts",
     "test": "vitest run",
     "test:unit": "vitest run",
     "test:watch": "vitest",
-    "test:integration": "firebase emulators:exec --project demo-sos 'vitest run --config vitest.integration.config.ts'",
+    "test:integration": "PATH=\"$(/usr/libexec/java_home 2>/dev/null || brew --prefix openjdk 2>/dev/null)/bin:$PATH\" firebase emulators:exec --project demo-sos 'vitest run --config vitest.integration.config.ts'",
     "test:golden": "vitest run packages/core/test/golden",
     "lint": "eslint . && depcruise packages apps",
     "typecheck": "tsc -b && pnpm --filter web typecheck",
@@ -30,7 +30,8 @@
     "projections:verify": "tsx tools/projections/verify.ts",
     "migrate:import": "tsx tools/migration/run.ts",
     "migrate:legacy-finance": "tsx tools/migration/legacy-finance.ts",
-    "kvkk:erase": "tsx tools/kvkk/erase-member.ts"
+    "kvkk:erase": "tsx tools/kvkk/erase-member.ts",
+    "bootstrap:owner": "tsx tools/bootstrap/owner.ts"
   },
   "devDependencies": {
     "@eslint/js": "^9.18.0",

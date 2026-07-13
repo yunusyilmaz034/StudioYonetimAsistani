@@ -2,6 +2,7 @@ import * as logger from 'firebase-functions/logger'
 
 import {
   FirestoreReservationRepository,
+  FirestoreStudioHours,
   sweepAutoResolve,
   systemClock,
   type SystemJobId,
@@ -18,7 +19,13 @@ const JOB_ID = 'attendance_auto_resolver' as SystemJobId
 
 export async function runAutoResolveSweep(): Promise<void> {
   const database = db()
-  const deps = { repo: new FirestoreReservationRepository(database), clock: systemClock }
+  const deps = {
+    repo: new FirestoreReservationRepository(database),
+    clock: systemClock,
+    // AG-1. The sweep never books, so it never asks — but the dependency is required rather than
+    // optional, and that is the point: nobody can wire a booking path without it.
+    hours: new FirestoreStudioHours(database),
+  }
 
   for (const sid of await listStudioIds(database)) {
     const summary = await sweepAutoResolve(deps, systemTenantContext(sid, JOB_ID))

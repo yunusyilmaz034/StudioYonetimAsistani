@@ -135,9 +135,15 @@ const payload = <T extends { ok: boolean }>(r: T): unknown => {
   return (r as { value: { events: readonly { payload: unknown }[] } }).value.events[0]?.payload
 }
 
+// AG-1 — the deciders now answer to the studio's opening hours. A golden fixture is about the event's
+// PAYLOAD, not about opening hours, so these run with none configured: `null` means the studio has not
+// told us when it is open, which is not the same as "closed". The payloads are unchanged — this is a
+// signature change, not an event-schema change, and the fixtures prove it.
+const OPEN_ALWAYS = { hours: null, utcOffsetMinutes: 180 }
+
 describe('reservation event payloads match golden fixtures (AD-33)', () => {
   it('reservation.booked', () => {
-    const r = decideBooking(ctx, session(), held(0), { reservationId: 'res_1' as ReservationId, memberId: 'mem_1' as MemberId, memberSnapshot: SNAP }, false)
+    const r = decideBooking(ctx, session(), held(0), { reservationId: 'res_1' as ReservationId, memberId: 'mem_1' as MemberId, memberSnapshot: SNAP }, false, OPEN_ALWAYS)
     expect(payload(r)).toEqual(booked)
   })
   it('reservation.cancelled', () => {
@@ -148,7 +154,7 @@ describe('reservation event payloads match golden fixtures (AD-33)', () => {
   })
   it('reservation.moved', () => {
     const target = session(instant(NOW + 48 * H), { id: 'cls_2' as ClassSessionId })
-    expect(payload(decideMove(ctx, res(), session(), target, held(1), false))).toEqual(moved)
+    expect(payload(decideMove(ctx, res(), session(), target, held(1), false, OPEN_ALWAYS))).toEqual(moved)
   })
   it('reservation.attended', () => {
     expect(payload(decideAttendance(ctx, res(), session(instant(NOW - H)), 'attended'))).toEqual(attended)

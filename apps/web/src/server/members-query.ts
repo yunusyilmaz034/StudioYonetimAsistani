@@ -1,4 +1,12 @@
-import { FirestoreMemberRepository, type Member, type TenantContext } from '@studio/core'
+import {
+  available,
+  FirestoreEntitlementRepository,
+  FirestoreMemberRepository,
+  type Member,
+  type TenantContext,
+} from '@studio/core'
+
+import { badgesFor, type MemberBadges, type MemberFacts } from '@/lib/members/filters'
 
 import { adminDb } from './firebase-admin'
 
@@ -7,4 +15,61 @@ import { adminDb } from './firebase-admin'
 export async function listMembers(ctx: TenantContext): Promise<Member[]> {
   const repo = new FirestoreMemberRepository(adminDb())
   return [...(await repo.list(ctx))]
+}
+
+export interface MemberRow {
+  readonly id: string
+  readonly fullName: string
+  readonly phone: string
+  readonly phoneNormalized: string
+  readonly status: string
+  readonly badges: MemberBadges
+}
+
+/**
+ * The members list, with the facts the filters need (v1.27 S7).
+ *
+ * TWO reads for the whole screen — the members and the entitlements — and the classification is done
+ * in memory. A per-member query would be forty-five round trips to answer a question the studio asks
+ * every morning; the studio is small, and the honest way to serve a small studio is to read its data
+ * once.
+ *
+ * The badge is computed on the SERVER: the client has no business holding the credit ledger. A row
+ * carries what the list must show, and nothing more.
+ */
+export async function listMemberRows(ctx: TenantContext, nowMs: number): Promise<MemberRow[]> {
+  const db = adminDb()
+  const [members, entitlements] = await Promise.all([
+    new FirestoreMemberRepository(db).list(ctx),
+    new FirestoreEntitlementRepository(db).listAll(ctx),
+  ])
+
+  const byMember = new Map<string, MemberFacts['packages'][number][]>()
+  for (const e of entitlements) {
+    const list = byMember.get(e.memberId as string) ?? []
+    list.push({
+      status: e.status,
+      validUntil: e.validUntil,
+      // `null` ⇔ a period package: it grants time, not a number of classes, and it has no number to
+      // run out of.
+      creditsAvailable: e.credits ? available(e.credits) : null,
+    })
+    byMember.set(e.memberId as string, list)
+  }
+
+  return members.map((m) => ({
+    id: m.id as string,
+    fullName: m.fullName,
+    phone: m.phone as string,
+    phoneNormalized: m.phoneNormalized,
+    status: m.status,
+    badges: badgesFor(
+      {
+        status: m.status,
+        balanceDueKurus: m.stats.balanceDue,
+        packages: byMember.get(m.id as string) ?? [],
+      },
+      nowMs,
+    ),
+  }))
 }

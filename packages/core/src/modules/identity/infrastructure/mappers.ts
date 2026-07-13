@@ -11,3 +11,11 @@ export function staffFromFirestore(id: StaffUserId, d: DocumentData): StaffMembe
     active: d.active !== false,
   }
 }
+
+export function staffToFirestore(s: StaffMember): DocumentData {
+  return {
+    displayName: s.displayName, // PII — it lives HERE, never in an event payload (#6)
+    role: s.role,
+    active: s.active,
+  }
+}

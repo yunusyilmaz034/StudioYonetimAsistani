@@ -47,3 +47,11 @@ export {
 } from './application/bulk'
 export type { OperationsDeps, OperationsRepository } from './application/ports'
 export { FirestoreOperationsRepository } from './infrastructure/repos'
+export {
+  allStudioIds,
+  runDeepChecks,
+  runFastChecks,
+  type HealthAlert,
+  type HealthFinding,
+  type HealthReport,
+} from './infrastructure/health'

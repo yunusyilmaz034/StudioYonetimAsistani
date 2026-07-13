@@ -1,10 +1,12 @@
 'use server'
 
 import {
+  DEFAULT_STUDIO_CONFIG,
   FirestoreEntitlementRepository,
   FirestoreMemberRepository,
   FirestoreReservationRepository,
   FirestoreSchedulingRepository,
+  FirestoreStudioHours,
   FirestoreWaitlistRepository,
   joinWaitlist,
   leaveWaitlist,
@@ -45,9 +47,16 @@ function deps(): PromoteDeps {
     scheduling: {
       repo: new FirestoreSchedulingRepository(db),
       clock: systemClock,
-      studioConfig: { utcOffsetMinutes: 180 },
+      studioConfig: DEFAULT_STUDIO_CONFIG,
+      hours: new FirestoreStudioHours(adminDb()),
     },
-    reservations: { repo: new FirestoreReservationRepository(db), clock: systemClock },
+    // AG-1 — a waitlist promotion IS a booking. It goes through `bookReservation` and it answers to
+    // the studio's hours like any other seat.
+    reservations: {
+      repo: new FirestoreReservationRepository(db),
+      clock: systemClock,
+      hours: new FirestoreStudioHours(db),
+    },
     loadEntitlements: (ctx, memberId) =>
       new FirestoreEntitlementRepository(db).listActiveByMember(ctx, memberId),
   }

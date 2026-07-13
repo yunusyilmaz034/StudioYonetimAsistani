@@ -1,10 +1,12 @@
 import {
+  DEFAULT_STUDIO_CONFIG,
   FirestoreCalendarRepository,
   FirestoreEntitlementRepository,
   FirestoreMemberRepository,
   FirestoreOperationsRepository,
   FirestoreReservationRepository,
   FirestoreSchedulingRepository,
+  FirestoreStudioHours,
   instant,
   systemClock,
   type BulkDeps,
@@ -24,7 +26,9 @@ import { adminDb } from './firebase-admin'
 // overlap arithmetic, the skip reasons — is decided in `computeClosurePlan` / `computeBulkPlan`,
 // where it can be tested without a database.
 
-const OFFSET_MIN = 180
+// Derived from the studio's IANA zone, never a literal (v1.27 S2). A hand-written 180 is a number
+// that is right until the day the studio is not in Türkiye — and wrong silently, in a date bucket.
+const OFFSET_MIN = DEFAULT_STUDIO_CONFIG.utcOffsetMinutes
 const dayStartMs = (d: LocalDate): number => Date.parse(`${d}T00:00:00Z`) - OFFSET_MIN * 60_000
 const dayEndMs = (d: LocalDate): number => Date.parse(`${d}T23:59:59Z`) - OFFSET_MIN * 60_000
 
@@ -84,9 +88,10 @@ export function closureDeps(): ClosureDeps {
     scheduling: {
       repo: new FirestoreSchedulingRepository(db),
       clock: systemClock,
-      studioConfig: { utcOffsetMinutes: OFFSET_MIN },
+      studioConfig: DEFAULT_STUDIO_CONFIG,
+      hours: new FirestoreStudioHours(adminDb()),
     },
-    reservations: { repo: new FirestoreReservationRepository(db), clock: systemClock },
+    reservations: { repo: new FirestoreReservationRepository(db), clock: systemClock, hours: new FirestoreStudioHours(db) },
     entitlements: { repo: new FirestoreEntitlementRepository(db), clock: systemClock },
     loadWorld: loadClosureWorld,
   }

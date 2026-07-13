@@ -9,6 +9,7 @@ import {
   type ClassSessionId,
   type CorrelationId,
   type EntitlementId,
+  type LocalDate,
   type MemberId,
   type ProductId,
   type ReservationId,
@@ -140,9 +141,20 @@ function bookedReservation(over: Partial<Reservation> = {}): Reservation {
   }
 }
 
+// AG-1 — booking answers to the studio's opening hours. These cases test the OTHER rules, so the
+// studio has none configured (`null`): a studio that has not told us when it is open has not asked us
+// to police it. The hours themselves are tested in `working-hours.test.ts`.
+const OPEN_ALWAYS = { hours: null, utcOffsetMinutes: 180, specialWorkingDates: new Set<LocalDate>() }
+const book = (
+  session: ClassSession,
+  entitlement: Entitlement,
+  input: Parameters<typeof decideBooking>[3],
+  memberHasBooked: boolean,
+) => decideBooking(ctx, session, entitlement, input, memberHasBooked, OPEN_ALWAYS)
+
 describe('decideBooking (I-9)', () => {
   it('books, holds a credit, and reports the post-hold count', () => {
-    const r = decideBooking(ctx, session(), creditEnt(), bookInput, false)
+    const r = book(session(), creditEnt(), bookInput, false)
     expect(r.ok).toBe(true)
     if (r.ok) {
       expect(r.value.reservation.status).toBe('booked')
@@ -167,7 +179,7 @@ describe('decideBooking (I-9)', () => {
         listPrice: money(600_000),
       },
     })
-    const r = decideBooking(ctx, session({ category: 'fitness' }), period, bookInput, false)
+    const r = book(session({ category: 'fitness' }), period, bookInput, false)
     expect(r.ok).toBe(true)
     if (r.ok) {
       expect(r.value.reservation.creditEffect).toBe('none')
@@ -175,44 +187,44 @@ describe('decideBooking (I-9)', () => {
     }
   })
   it('refuses a full class (I-9.2)', () => {
-    expect(decideBooking(ctx, session({ bookedCount: 8 }), creditEnt(), bookInput, false)).toEqual({
+    expect(book(session({ bookedCount: 8 }), creditEnt(), bookInput, false)).toEqual({
       ok: false,
       error: { code: 'class_full', capacity: 8 },
     })
   })
   it('refuses a session in the past (I-9.1)', () => {
-    expect(decideBooking(ctx, session({ startsAt: instant(NOW - H) }), creditEnt(), bookInput, false)).toEqual({
+    expect(book(session({ startsAt: instant(NOW - H) }), creditEnt(), bookInput, false)).toEqual({
       ok: false,
       error: { code: 'session_not_bookable' },
     })
   })
   it('refuses when no credits remain (I-9.5, never clamped)', () => {
     const empty = creditEnt({ credits: { granted: 8, held: 8, consumed: 0, restored: 0, revoked: 0, expired: 0 } })
-    expect(decideBooking(ctx, session(), empty, bookInput, false)).toEqual({
+    expect(book(session(), empty, bookInput, false)).toEqual({
       ok: false,
       error: { code: 'insufficient_credits', available: 0 },
     })
   })
   it('refuses a package that expires before the session (I-9.4)', () => {
-    expect(decideBooking(ctx, session(), creditEnt({ validUntil: instant(NOW + H) }), bookInput, false)).toEqual({
+    expect(book(session(), creditEnt({ validUntil: instant(NOW + H) }), bookInput, false)).toEqual({
       ok: false,
       error: { code: 'entitlement_expires_before_session' },
     })
   })
   it('refuses a double booking (I-9.6)', () => {
-    expect(decideBooking(ctx, session(), creditEnt(), bookInput, true)).toEqual({
+    expect(book(session(), creditEnt(), bookInput, true)).toEqual({
       ok: false,
       error: { code: 'already_booked' },
     })
   })
   it('refuses the category wall (I-9.7)', () => {
-    expect(decideBooking(ctx, session({ category: 'fitness' }), creditEnt(), bookInput, false)).toEqual({
+    expect(book(session({ category: 'fitness' }), creditEnt(), bookInput, false)).toEqual({
       ok: false,
       error: { code: 'category_mismatch', sessionCategory: 'fitness', entitlementCategory: 'pilates_group' },
     })
   })
   it('refuses a frozen entitlement (I-9.3, I-8)', () => {
-    expect(decideBooking(ctx, session(), creditEnt({ status: 'frozen' }), bookInput, false)).toEqual({
+    expect(book(session(), creditEnt({ status: 'frozen' }), bookInput, false)).toEqual({
       ok: false,
       error: { code: 'entitlement_not_active' },
     })
@@ -232,12 +244,12 @@ describe('decideBooking (I-9)', () => {
     })
 
   it('books when the package covers the session’s service (I-9.8)', () => {
-    const r = decideBooking(ctx, session(), withServices(['svc_1' as ServiceId]), bookInput, false)
+    const r = book(session(), withServices(['svc_1' as ServiceId]), bookInput, false)
     expect(r.ok).toBe(true)
   })
 
   it('refuses a service the package does not cover (I-9.8)', () => {
-    expect(decideBooking(ctx, session(), withServices(['svc_9' as ServiceId]), bookInput, false)).toEqual({
+    expect(book(session(), withServices(['svc_9' as ServiceId]), bookInput, false)).toEqual({
       ok: false,
       error: { code: 'service_not_covered', sessionServiceId: 'svc_1' },
     })
@@ -245,12 +257,12 @@ describe('decideBooking (I-9)', () => {
 
   it('a LEGACY entitlement (no service list) still books — its category-wide right is intact', () => {
     // Sold before D12. It is never narrowed after the fact; `creditEnt()` carries no serviceIds.
-    const r = decideBooking(ctx, session(), creditEnt(), bookInput, false)
+    const r = book(session(), creditEnt(), bookInput, false)
     expect(r.ok).toBe(true)
   })
 
   it('a package that names NO service grants no access (empty ≠ everything)', () => {
-    expect(decideBooking(ctx, session(), withServices([]), bookInput, false)).toEqual({
+    expect(book(session(), withServices([]), bookInput, false)).toEqual({
       ok: false,
       error: { code: 'service_not_covered', sessionServiceId: 'svc_1' },
     })
@@ -272,14 +284,14 @@ describe('decideBooking (I-9)', () => {
     })
 
   it('the assigned member books her own PT slot', () => {
-    const r = decideBooking(ctx, ptSession('mem_1' as MemberId), ptEnt(), bookInput, false)
+    const r = book(ptSession('mem_1' as MemberId), ptEnt(), bookInput, false)
     expect(r.ok).toBe(true)
   })
 
   it('a RESERVED PT slot refuses everyone except its member — even with a valid PT package', () => {
     // bookInput books mem_1; the slot is mem_2's. Reception cannot put the wrong member in it
     // either — this refuses by MEMBER, not by actor.
-    expect(decideBooking(ctx, ptSession('mem_2' as MemberId), ptEnt(), bookInput, false)).toEqual({
+    expect(book(ptSession('mem_2' as MemberId), ptEnt(), bookInput, false)).toEqual({
       ok: false,
       error: { code: 'session_not_assigned_to_member' },
     })
@@ -287,7 +299,7 @@ describe('decideBooking (I-9)', () => {
 
   it('an OPEN PT slot (unassigned) is bookable by any eligible member — it is not hidden', () => {
     // D13 final (owner): null does NOT mean "unavailable". It is the default, and it is open.
-    const r = decideBooking(ctx, ptSession(null), ptEnt(), bookInput, false)
+    const r = book(ptSession(null), ptEnt(), bookInput, false)
     expect(r.ok).toBe(true)
   })
 
@@ -295,7 +307,7 @@ describe('decideBooking (I-9)', () => {
     // Ownership is never acquired by booking. A second member may still take the next seat if
     // capacity allows (a future partner/duo PT has capacity 2).
     const open = ptSession(null)
-    const r = decideBooking(ctx, open, ptEnt(), bookInput, false)
+    const r = book(open, ptEnt(), bookInput, false)
     expect(r.ok).toBe(true)
     if (r.ok) {
       expect(open.assignedMemberId).toBeNull() // the decider produced no assignment
@@ -307,9 +319,9 @@ describe('decideBooking (I-9)', () => {
   it('an OPEN PT slot fills by CAPACITY, not by ownership', () => {
     // capacity 2, one seat taken → still bookable. Nothing about assignment is consulted.
     const duo = session({ category: 'private', assignedMemberId: null, capacity: 2, bookedCount: 1 })
-    expect(decideBooking(ctx, duo, ptEnt(), bookInput, false).ok).toBe(true)
+    expect(book(duo, ptEnt(), bookInput, false).ok).toBe(true)
     const full = session({ category: 'private', assignedMemberId: null, capacity: 2, bookedCount: 2 })
-    expect(decideBooking(ctx, full, ptEnt(), bookInput, false)).toEqual({
+    expect(book(full, ptEnt(), bookInput, false)).toEqual({
       ok: false,
       error: { code: 'class_full', capacity: 2 },
     })
@@ -318,12 +330,12 @@ describe('decideBooking (I-9)', () => {
   it('reception may book an eligible member into an OPEN PT slot (ctx.actor is reception)', () => {
     // The refusal is by MEMBER, not by actor — and an open slot has no member to refuse for.
     expect(ctx.actor.type).toBe('receptionist')
-    expect(decideBooking(ctx, ptSession(null), ptEnt(), bookInput, false).ok).toBe(true)
+    expect(book(ptSession(null), ptEnt(), bookInput, false).ok).toBe(true)
   })
 
   it('the ownership refusal precedes the capacity check — a full slot that is not hers still says so', () => {
     const full = session({ category: 'private', assignedMemberId: 'mem_2' as MemberId, bookedCount: 8 })
-    expect(decideBooking(ctx, full, ptEnt(), bookInput, false)).toEqual({
+    expect(book(full, ptEnt(), bookInput, false)).toEqual({
       ok: false,
       error: { code: 'session_not_assigned_to_member' },
     })
@@ -331,7 +343,7 @@ describe('decideBooking (I-9)', () => {
 
   it('the category wall is checked BEFORE the service wall — the coarser refusal wins', () => {
     expect(
-      decideBooking(ctx, session({ category: 'fitness' }), withServices(['svc_9' as ServiceId]), bookInput, false),
+      book(session({ category: 'fitness' }), withServices(['svc_9' as ServiceId]), bookInput, false),
     ).toEqual({
       ok: false,
       error: { code: 'category_mismatch', sessionCategory: 'fitness', entitlementCategory: 'pilates_group' },
@@ -571,7 +583,7 @@ describe('decideMove', () => {
     session({ id: 'cls_2' as ClassSessionId, startsAt: instant(NOW + 48 * H), endsAt: instant(NOW + 49 * H), ...over }, pol)
 
   it('moves inside the free window: one moved event, the credit never moves', () => {
-    const r = decideMove(ctx, bookedReservation(), session(), target(), creditEnt(), false)
+    const r = decideMove(ctx, bookedReservation(), session(), target(), creditEnt(), false, OPEN_ALWAYS)
     expect(r.ok).toBe(true)
     if (!r.ok) return
     expect(r.value.events).toHaveLength(1)
@@ -586,7 +598,7 @@ describe('decideMove', () => {
   it('refuses a member moving past the free-move window', () => {
     const memberCtx: DecideContext = { ...ctx, actor: { type: 'member', id: 'mem_1' as MemberId } }
     const late = session({ startsAt: instant(NOW + 2 * H), endsAt: instant(NOW + 3 * H) }) // window is 6h
-    const r = decideMove(memberCtx, bookedReservation(), late, target(), creditEnt(), false)
+    const r = decideMove(memberCtx, bookedReservation(), late, target(), creditEnt(), false, OPEN_ALWAYS)
     expect(r.ok).toBe(false)
     if (r.ok) return
     expect(r.error.code).toBe('outside_cancellation_window')
@@ -594,11 +606,11 @@ describe('decideMove', () => {
 
   it('refuses STAFF moving past the window without a reason, and allows it with one', () => {
     const late = session({ startsAt: instant(NOW + 2 * H), endsAt: instant(NOW + 3 * H) })
-    const bare = decideMove(ctx, bookedReservation(), late, target(), creditEnt(), false)
+    const bare = decideMove(ctx, bookedReservation(), late, target(), creditEnt(), false, OPEN_ALWAYS)
     expect(bare.ok).toBe(false)
     if (!bare.ok) expect(bare.error.code).toBe('reason_required')
 
-    const withReason = decideMove(ctx, bookedReservation(), late, target(), creditEnt(), false, {
+    const withReason = decideMove(ctx, bookedReservation(), late, target(), creditEnt(), false, OPEN_ALWAYS, {
       overrideReason: 'Üye aradı, eğitmen onayladı',
     })
     expect(withReason.ok).toBe(true)
@@ -613,7 +625,7 @@ describe('decideMove', () => {
 
   it('exactly at the window boundary is INSIDE the window', () => {
     const boundary = session({ startsAt: instant(NOW + 6 * H), endsAt: instant(NOW + 7 * H) })
-    const r = decideMove(ctx, bookedReservation(), boundary, target(), creditEnt(), false)
+    const r = decideMove(ctx, bookedReservation(), boundary, target(), creditEnt(), false, OPEN_ALWAYS)
     expect(r.ok).toBe(true)
   })
 
@@ -627,7 +639,7 @@ describe('decideMove', () => {
     ['a class she is already booked into', () => target(), {}, true, 'already_booked'],
   ]
   it.each(refusals)('refuses %s', (_label, targetOf, entOver, alreadyBooked, code) => {
-    const r = decideMove(ctx, bookedReservation(), session(), targetOf(), creditEnt(entOver), alreadyBooked)
+    const r = decideMove(ctx, bookedReservation(), session(), targetOf(), creditEnt(entOver), alreadyBooked, OPEN_ALWAYS)
     expect(r.ok).toBe(false)
     if (r.ok) return
     expect(r.error.code).toBe(code)
@@ -635,16 +647,86 @@ describe('decideMove', () => {
 
   it('a studio-cancelled origin is always inside the window — she is not punished for our cancellation', () => {
     const cancelled = session({ status: 'cancelled', startsAt: instant(NOW + H), endsAt: instant(NOW + 2 * H) })
-    const r = decideMove(ctx, bookedReservation(), cancelled, target(), creditEnt(), false)
+    const r = decideMove(ctx, bookedReservation(), cancelled, target(), creditEnt(), false, OPEN_ALWAYS)
     expect(r.ok).toBe(true)
     if (!r.ok) return
     expect(r.value.events[0]?.payload).toMatchObject({ withinWindow: true })
   })
 
   it('refuses moving a reservation that is no longer open', () => {
-    const r = decideMove(ctx, bookedReservation({ status: 'attended' }), session(), target(), creditEnt(), false)
+    const r = decideMove(ctx, bookedReservation({ status: 'attended' }), session(), target(), creditEnt(), false, OPEN_ALWAYS)
     expect(r.ok).toBe(false)
     if (r.ok) return
     expect(r.error.code).toBe('reservation_not_open')
+  })
+})
+
+// AG-1 — THE SECOND GATE. A seat cannot be taken at an hour the studio is shut.
+//
+// Why booking is checked at all, when the session could not have been created outside the hours: the
+// hours CHANGE. A studio that used to close at 22:00 and now closes at 21:00 still has last month's
+// 21:30 classes on its calendar, and nobody should be able to put a new member into one of them.
+describe('AG-1 — çalışma saatleri, rezervasyon alırken', () => {
+  const TR = 180
+  // 2024-01-01T00:00:00+03:00 — a MONDAY, in Istanbul. Written as an epoch literal because `Date` is
+  // banned in the domain (D2): a decision function that can read the clock cannot be exhaustively
+  // tested, and the ban holds for its tests too.
+  const MONDAY = 1_704_056_400_000
+  const at = (h: number, m = 0) => instant(MONDAY + h * 3_600_000 + m * 60_000)
+  const HOURS = {
+    0: null,
+    1: { open: '10:00', close: '21:00' },
+    2: { open: '10:00', close: '21:00' },
+    3: { open: '10:00', close: '21:00' },
+    4: { open: '10:00', close: '21:00' },
+    5: { open: '10:00', close: '21:00' },
+    6: { open: '11:00', close: '17:00' },
+  } as const
+  const OPEN = { hours: HOURS as never, utcOffsetMinutes: TR, specialWorkingDates: new Set<LocalDate>() }
+
+  // `ctx.now` must be before the class, and the package must outlive it — otherwise the booking is
+  // refused for a reason that has nothing to do with opening hours, and the test proves nothing.
+  const early: DecideContext = { ...ctx, now: instant(MONDAY - 3_600_000) }
+  const ent = () => creditEnt({ validUntil: instant(MONDAY + 30 * 86_400_000) })
+
+  const monday = (startH: number, endH: number) =>
+    session({ startsAt: at(startH), endsAt: at(endH) })
+
+  it('books a class inside the studio’s hours', () => {
+    const r = decideBooking(early, monday(19, 20), ent(), bookInput, false, OPEN)
+    expect(r.ok).toBe(true)
+  })
+
+  it('REFUSES a seat in a class that runs past closing', () => {
+    const r = decideBooking(early, monday(20, 22), ent(), bookInput, false, OPEN)
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.error.code).toBe('outside_working_hours')
+  })
+
+  it('refuses a seat on a day the studio is closed', () => {
+    const sunday = session({
+      startsAt: instant(MONDAY - 12 * 3_600_000),
+      endsAt: instant(MONDAY - 11 * 3_600_000),
+    })
+    const veryEarly: DecideContext = { ...ctx, now: instant(MONDAY - 24 * 3_600_000) }
+    const r = decideBooking(veryEarly, sunday, ent(), bookInput, false, OPEN)
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.error.code).toBe('studio_closed_on_day')
+  })
+
+  it('refuses MOVING a member into a class outside the hours — the target is a seat like any other', () => {
+    const badTarget = session({ id: 'cls_2' as ClassSessionId, startsAt: at(20), endsAt: at(22) })
+    const from = session({ startsAt: at(19), endsAt: at(20) })
+    const r = decideMove(
+      early,
+      bookedReservation({ sessionStartsAt: at(19) }),
+      from,
+      badTarget,
+      ent(),
+      false,
+      OPEN,
+    )
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.error.code).toBe('outside_working_hours')
   })
 })

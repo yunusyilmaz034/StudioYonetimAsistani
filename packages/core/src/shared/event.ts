@@ -29,6 +29,8 @@ export type EventSource = string
 export type AggregateKind =
   | 'branch'
   | 'member'
+  // v1.27 — who may work here, and as what. Additive: no existing event's `subject.kind` changes.
+  | 'staff'
   | 'entitlement'
   | 'product'
   | 'service'

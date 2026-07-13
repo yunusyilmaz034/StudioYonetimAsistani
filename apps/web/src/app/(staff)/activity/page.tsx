@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 
-import { getTenantContext } from '@/server/auth'
+import { requirePageAccess } from '@/server/auth'
 import { resolveRange, type RangeId } from '@/lib/ranges'
 import { loadFeed, type ActivityKind } from '@/server/activity-query'
 
@@ -13,7 +13,7 @@ export default async function ActivityPage({
 }: {
   searchParams: Promise<{ kinds?: string; range?: string; memberId?: string }>
 }) {
-  const ctx = await getTenantContext()
+  const ctx = await requirePageAccess('/activity')
   if (!ctx) redirect('/login')
 
   const sp = await searchParams

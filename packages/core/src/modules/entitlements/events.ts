@@ -33,6 +33,27 @@ export const ENTITLEMENT_REACTIVATED = 'entitlement.reactivated'
 // and once they are the same event, they can never be separated again.
 export const ENTITLEMENT_EXTENDED = 'entitlement.extended'
 
+// ── FREEZE (v1.27 S3 · owner, 2026-07-13 · closes DEBT-009) ─────────────────────────────────
+//
+// The arithmetic the owner settled, and the reason each half of it is an event:
+//
+//   • The membership is extended **when it is UNFROZEN**, by the days it actually stood still —
+//     `validUntil += (to − from)`. Not at freeze time: at freeze time nobody knows how long it will
+//     last, and a system that guessed would have to un-guess later, in a member's favour or against
+//     it. So `entitlement.frozen` moves NO date; it only records that the clock stopped.
+//
+//   • **The budget is a ceiling, and the system enforces it rather than trusting anyone to
+//     remember.** A Fitness 3-month membership buys one week of freeze. A member who never asks to
+//     unfreeze is unfrozen automatically on the seventh day (`auto: true`), and her membership is
+//     extended by exactly the seven days she paid for. *An unlimited freeze is an unlimited
+//     membership, sold at the price of a three-month one.*
+//
+// `entitlement.unfrozen` therefore carries `validUntilBefore` and `validUntilAfter`: it moves the
+// date the member is judged by, and a date that moved without a record is a date she can dispute and
+// we cannot defend (AD-19 — an event carries the post-state of the number it changed).
+export const ENTITLEMENT_FROZEN = 'entitlement.frozen'
+export const ENTITLEMENT_UNFROZEN = 'entitlement.unfrozen'
+
 export type EntitlementPurchasedPayload = {
   readonly productId: ProductId
   readonly grant: Grant
@@ -101,4 +122,25 @@ export type EntitlementExtendedPayload = {
 
 export type EntitlementReactivatedPayload = {
   readonly reason: string
+}
+
+
+export type EntitlementFrozenPayload = {
+  readonly from: string // LocalDate — the day the clock stopped
+  readonly entitledDays: number // her budget, as sold (product.freezeAllowanceDays)
+  readonly usedDaysBefore: number // what she had already spent of it
+}
+
+export type EntitlementUnfrozenPayload = {
+  readonly from: string // LocalDate
+  readonly to: string // LocalDate
+  readonly days: number // what the freeze actually cost her, in days
+  readonly usedDaysAfter: number
+  // The number that MOVED, before and after. She is judged by this date; a date that changed with no
+  // record is a date she can dispute and we cannot defend.
+  readonly validUntilBefore: number
+  readonly validUntilAfter: number
+  // TRUE when the nightly sweep ended it because her budget ran out — nobody asked for this, and the
+  // audit must not read as though somebody did.
+  readonly auto: boolean
 }

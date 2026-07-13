@@ -23,6 +23,12 @@ const studio = (defaultCancellationWindowHours: number | null): StudioSettings =
   defaultCancellationWindowHours,
   lowCreditThreshold: null,
   discountCeilingPercent: null,
+  defaultSessionDurationMinutes: null,
+  timeZone: 'Europe/Istanbul',
+  company: null,
+  workingHours: null,
+  qr: null,
+  notifications: null,
 })
 
 describe('resolveCancellationWindow (D14)', () => {

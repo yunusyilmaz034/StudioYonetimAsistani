@@ -149,3 +149,42 @@
     @apply font-sans;
   }
 }
+
+/* ── PRINT (v1.27 S3 — the receipt) ─────────────────────────────────────────────────────────
+ *
+ * What comes out of the printer is the slip, and nothing else: no navigation rail, no bottom bar,
+ * no toast, no button. A receipt with the app's sidebar printed down the left of it is a receipt
+ * that tells the member we did not think about her.
+ *
+ * `print:hidden` on the shell is not enough — the shell is a sibling, not a parent, so it is hidden
+ * here, once, by role. */
+@media print {
+  [data-slot='app-shell-nav'],
+  [data-sonner-toaster] {
+    display: none !important;
+  }
+
+  /* The page is the slip. No app chrome, no shadows a laser printer renders as grey mud. */
+  body {
+    background: #fff;
+  }
+
+  /* The rail is hidden, but the space it reserved is not: the shell keeps its `pl-60`, and the whole
+   * page prints shifted two inches to the right, off the edge of the paper. */
+  [data-slot='app-shell'] {
+    padding: 0 !important;
+  }
+
+  main {
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: none !important;
+  }
+
+  /* Never break a receipt across two sheets of paper. */
+  section,
+  header,
+  footer {
+    break-inside: avoid;
+  }
+}

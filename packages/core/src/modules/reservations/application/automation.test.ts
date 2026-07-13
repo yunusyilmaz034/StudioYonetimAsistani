@@ -8,6 +8,7 @@ import {
   type DomainError,
   type EntitlementId,
   type Instant,
+  type LocalDate,
   type MemberId,
   type NewEvent,
   type ProductId,
@@ -189,7 +190,20 @@ class FakeRepo implements ReservationRepository {
 const single = (r: Reservation, s: ClassSession, e: Entitlement) =>
   new FakeRepo(new Map([[r.id, r]]), new Map([[s.id, s]]), new Map([[e.id, e]]))
 
-const deps = (repo: FakeRepo) => ({ repo, clock: fixedClock(NOW) })
+// AG-1 — the hours port is REQUIRED, so every deps construction must state its position. These cases
+// are not about opening hours, so the studio has none configured: `null` = "we have not told you when
+// we are open", which is not the same as "we are closed".
+const deps = (repo: FakeRepo) => ({
+  repo,
+  clock: fixedClock(NOW),
+  hours: {
+    getStudioHours: async () => ({
+      hours: null,
+      utcOffsetMinutes: 180,
+      specialWorkingDates: new Set<LocalDate>(),
+    }),
+  },
+})
 
 describe('markAttendance (offline command → resolve transaction)', () => {
   it('attended consumes the held credit and stamps the commandId', async () => {

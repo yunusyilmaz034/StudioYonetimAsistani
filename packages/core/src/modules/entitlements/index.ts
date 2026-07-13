@@ -60,3 +60,17 @@ export { FirestoreEntitlementRepository } from './infrastructure/repos'
 // Exposed for cross-aggregate transactions (the booking transaction reads and
 // updates the entitlement ledger inside the same transaction as the reservation).
 export { entitlementFromFirestore, entitlementToFirestore } from './infrastructure/mappers'
+
+// v1.27 S3 — freeze (closes DEBT-009).
+export {
+  freezeEntitlement,
+  runFreezeBudgetSweep,
+  unfreezeEntitlement,
+} from './application/freeze'
+export { decideFreeze, decideUnfreeze, freezeDaysRemaining } from './domain/decide'
+export {
+  ENTITLEMENT_FROZEN,
+  ENTITLEMENT_UNFROZEN,
+  type EntitlementFrozenPayload,
+  type EntitlementUnfrozenPayload,
+} from './events'

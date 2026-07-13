@@ -9,6 +9,9 @@ import type { MemberId } from '@studio/core'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import Link from 'next/link'
+import { TabletSmartphoneIcon } from 'lucide-react'
+
 import { PageHeader } from '@/components/ui/page-header'
 import { Toaster } from '@/components/ui/sonner'
 import { checkInCommand } from '@/lib/commands'
@@ -126,6 +129,15 @@ export function CheckinScreen({ state, members }: { state: CheckinState; members
         description={state.isOpen ? `Şu an içeride: ${state.occupancy}` : 'Şube kapalı'}
         actions={
           <div className="flex items-center gap-2">
+            {/* v1.27 S4 — the wall tablet. Reception signs the iPad in once, in the morning, and
+                hands the rest of the day to the members. */}
+            <Link
+              href="/checkin/kiosk"
+              className="inline-flex min-h-11 items-center gap-2 rounded-md border border-border px-4 text-sm font-medium hover:bg-muted"
+            >
+              <TabletSmartphoneIcon className="size-4" />
+              Kiosk modu
+            </Link>
             {state.branchId ? (
               <Button
                 variant={state.isOpen ? 'destructive' : 'default'}

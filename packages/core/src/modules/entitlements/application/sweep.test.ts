@@ -66,6 +66,9 @@ class FakeEntRepo implements EntitlementRepository {
   async listActiveByMember(): Promise<readonly Entitlement[]> {
     return []
   }
+  async listFrozen(): Promise<readonly Entitlement[]> {
+    return [...this.ents.values()].filter((e) => e.status === 'frozen')
+  }
   async listAll(): Promise<readonly Entitlement[]> {
     return [...this.ents.values()]
   }

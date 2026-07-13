@@ -48,6 +48,9 @@ const receptionA = () =>
   db('usr_rec_a', { studioId: 'std_A', role: 'receptionist', branchIds: ['brn_A'] })
 const receptionB = () =>
   db('usr_rec_b', { studioId: 'std_B', role: 'receptionist', branchIds: ['brn_B'] })
+// v1.27 S1 — a TRAINER: real staff, correctly issued, for her own studio.
+const trainerA = () =>
+  db('usr_trn_a', { studioId: 'std_A', role: 'trainer', branchIds: ['brn_A'] })
 
 // D11 (v1.21) — a MEMBER principal: a real, correctly-issued token for her own studio.
 // Everything she attempts below must fail. Not because the UI hides it — because the
@@ -196,8 +199,54 @@ describe('staff reads still work (the boundary did not break the product)', () =
     await assertSucceeds(getDoc(doc(r, 'studios/std_A/settings/studio')))
   })
 
-  it('the trainer role reads too', async () => {
-    const t = db('usr_trn_a', { studioId: 'std_A', role: 'trainer', branchIds: ['brn_A'] })
-    await assertSucceeds(getDoc(doc(t, 'studios/std_A/classSessions/cs1')))
+  // The trainer USED to read here too, and that line was the hole: it meant her token, pointed at
+  // Firestore from a browser console, returned every member's phone number. See the block at the
+  // bottom of this file — she now matches no read rule at all (v1.27 S1).
+})
+
+// ── v1.27 S1 — THE TRAINER READS NOTHING (owner's permission matrix, 2026-07-13) ────────────
+//
+// She is staff, and she is also the person least entitled to the studio's data. Until v1.27 the
+// rules said `staff()` and meant owner OR receptionist OR trainer — so her token, pointed straight
+// at Firestore from a browser console, would return every member's phone number and every payment
+// in the studio. The write actions would have refused her. The READS were the hole.
+//
+// The whole staff app reads through the Admin SDK on the server; nothing in it reads Firestore from
+// the browser. So denying her every read costs the product nothing. She gets her classes and her
+// registers from `/my-classes`, filtered by the server, which is the only place that CAN filter them.
+describe('a trainer matches NO read rule — the same posture as a member', () => {
+  it('cannot read members — the studio’s PII', async () => {
+    await assertFails(getDoc(doc(trainerA(), 'studios/std_A/members/m1')))
+  })
+
+  it('cannot read entitlements, payments or sales — the studio’s money', async () => {
+    await assertFails(getDoc(doc(trainerA(), 'studios/std_A/entitlements/e1')))
+    await assertFails(getDoc(doc(trainerA(), 'studios/std_A/payments/p1')))
+    await assertFails(getDoc(doc(trainerA(), 'studios/std_A/sales/s1')))
+  })
+
+  it('cannot read reservations or sessions directly — not even her own', async () => {
+    // Not a compromise: the rules cannot join a reservation to the trainer of its session, so any
+    // rule permissive enough to give her HER roster would give her EVERY roster. The server can
+    // filter; a security rule cannot. So the rule says no, and the server says which.
+    await assertFails(getDoc(doc(trainerA(), 'studios/std_A/reservations/r1')))
+    await assertFails(getDoc(doc(trainerA(), 'studios/std_A/classSessions/cs1')))
+  })
+
+  it('cannot read the event log', async () => {
+    await assertFails(getDoc(doc(trainerA(), 'studios/std_A/events/e1')))
+  })
+
+  it('MAY still write a whitelisted command — she marks her own register', async () => {
+    // The one thing she does that the offline path exists for: taking the roll in a room with bad
+    // wifi. It is a write, it is idempotent, and it is applied AS her.
+    await assertSucceeds(
+      setDoc(doc(trainerA(), 'studios/std_A/commands/cmd_trn_1'), {
+        id: 'cmd_trn_1',
+        actor: { id: 'usr_trn_a' },
+        type: 'attendance.mark',
+        status: 'pending',
+      }),
+    )
   })
 })

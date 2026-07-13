@@ -1,4 +1,5 @@
 import {
+  daysBetween,
   err,
   instant,
   ok,
@@ -32,6 +33,8 @@ import {
   ENTITLEMENT_EXTENDED,
   ENTITLEMENT_EXHAUSTED,
   ENTITLEMENT_EXPIRED,
+  ENTITLEMENT_FROZEN,
+  ENTITLEMENT_UNFROZEN,
   ENTITLEMENT_PAYMENT_RECORDED,
   ENTITLEMENT_PURCHASED,
   ENTITLEMENT_REACTIVATED,
@@ -41,6 +44,7 @@ import {
   type AdjustmentReason,
   type CreditLedger,
   type Entitlement,
+  type FreezeState,
   type ManualPayment,
   type PaymentMethod,
 } from './types'
@@ -442,5 +446,137 @@ export function decideReactivate(
   return ok({
     next,
     events: [{ ...base(ctx, next, relOf(next)), type: ENTITLEMENT_REACTIVATED, payload: { reason } }],
+  })
+}
+
+// ── FREEZE (v1.27 S3 · owner, 2026-07-13 · closes DEBT-009) ──────────────────────────────────
+//
+// The arithmetic, settled by the owner and written here once:
+//
+//   1. **The extension happens at UNFREEZE**, and it is the days the membership actually stood
+//      still: `validUntil += (to − from)`. Freezing moves no date, because at freeze time nobody
+//      knows how long it will last — and a system that guessed would have to un-guess later, in a
+//      member's favour or against it.
+//
+//   2. **The budget is a ceiling the system enforces**, not a number a human is trusted to
+//      remember. A Fitness 3-month membership buys one week of freeze; on the seventh day the
+//      nightly sweep unfreezes her automatically and extends her membership by exactly the seven
+//      days she paid for. *An unlimited freeze is an unlimited membership, sold at the price of a
+//      three-month one.*
+//
+//   3. **A member with an upcoming booking is REFUSED**, not silently fixed. Cancelling her class
+//      for her would move a credit she did not ask us to move; the domain says no and the screen
+//      says why (owner: "Hiçbir kredi veya rezervasyon otomatik değiştirilmesin").
+//
+// Nothing here knows the number seven. The budget is `product.freezeAllowanceDays`, copied onto the
+// entitlement at purchase — data, as the catalogue always was (#12, AD-41). Pilates has none, and
+// so `freeze` is `null`, and the domain refuses.
+
+const DAY_MS = 24 * 60 * 60 * 1000
+
+/** Whole days between two LocalDates. A freeze from the 10th to the 15th cost five days. */
+export function freezeDaysBetween(from: string, to: string): number {
+  return daysBetween(from, to)
+}
+
+/** Her remaining budget. The screen shows it; the sweep enforces it. */
+export function freezeDaysRemaining(f: FreezeState): number {
+  return Math.max(0, f.entitledDays - f.usedDays)
+}
+
+export function decideFreeze(
+  ctx: DecideContext,
+  ent: Entitlement,
+  from: string, // LocalDate — today, in the studio's timezone
+  hasUpcomingReservation: boolean,
+): Result<LedgerOutcome, DomainError> {
+  if (ent.status === 'frozen') return err({ code: 'entitlement_already_frozen' })
+  if (ent.status !== 'active') return err({ code: 'entitlement_not_active' })
+
+  // Pilates packages have no freeze allowance, so they carry no FreezeState at all. The refusal is
+  // the product's terms, not a missing feature.
+  const f = ent.freeze
+  if (!f || f.entitledDays <= 0) return err({ code: 'freeze_not_allowed' })
+  if (freezeDaysRemaining(f) <= 0) return err({ code: 'freeze_budget_exhausted' })
+
+  // Owner, 2026-07-13: refuse, and say why. We do not cancel her class for her — that would move a
+  // credit she never asked us to move, and she would find out from a ledger rather than from us.
+  if (hasUpcomingReservation) return err({ code: 'freeze_blocked_by_reservation' })
+
+  const next: Entitlement = {
+    ...ent,
+    status: 'frozen',
+    freeze: { ...f, activeFrom: from },
+  }
+
+  return ok({
+    next,
+    events: [
+      {
+        ...base(ctx, ent, { entitlementId: ent.id, memberId: ent.memberId }),
+        type: ENTITLEMENT_FROZEN,
+        // It moves NO date. It records only that the clock stopped, and what she had left to spend.
+        payload: { from, entitledDays: f.entitledDays, usedDaysBefore: f.usedDays },
+      },
+    ],
+  })
+}
+
+/**
+ * @param to    LocalDate the freeze ends on.
+ * @param auto  TRUE when the nightly sweep ended it because her budget ran out. Nobody asked for
+ *              this, and the audit must not read as though somebody did.
+ */
+export function decideUnfreeze(
+  ctx: DecideContext,
+  ent: Entitlement,
+  to: string,
+  auto: boolean,
+): Result<LedgerOutcome, DomainError> {
+  if (ent.status !== 'frozen') return err({ code: 'entitlement_not_frozen' })
+  const f = ent.freeze
+  if (!f?.activeFrom) return err({ code: 'entitlement_not_frozen' })
+
+  // What it actually cost — CAPPED at what she had left. A member who stayed frozen ten days on a
+  // seven-day budget is extended by seven, not ten. She bought a week; she gets a week. (The sweep
+  // normally ends it on day seven anyway; this cap is the second line of defence, for the case where
+  // the sweep did not run.)
+  const elapsed = Math.max(0, freezeDaysBetween(f.activeFrom, to))
+  const days = Math.min(elapsed, freezeDaysRemaining(f))
+
+  const validUntilBefore = ent.validUntil
+  const validUntilAfter = instant((validUntilBefore as number) + days * DAY_MS)
+
+  const next: Entitlement = {
+    ...ent,
+    status: 'active',
+    validUntil: validUntilAfter,
+    freeze: {
+      ...f,
+      usedDays: f.usedDays + days,
+      periods: [...f.periods, { from: f.activeFrom, to }],
+      activeFrom: null,
+    },
+  }
+
+  return ok({
+    next,
+    events: [
+      {
+        ...base(ctx, ent, { entitlementId: ent.id, memberId: ent.memberId }),
+        type: ENTITLEMENT_UNFROZEN,
+        payload: {
+          from: f.activeFrom,
+          to,
+          days,
+          usedDaysAfter: f.usedDays + days,
+          // The number that MOVED. She is judged by this date; a date that changed with no record is
+          // a date she can dispute and we cannot defend (AD-19).
+          validUntilBefore: validUntilBefore as number,
+          validUntilAfter: validUntilAfter as number,
+          auto,
+        },
+      },
+    ],
   })
 }
