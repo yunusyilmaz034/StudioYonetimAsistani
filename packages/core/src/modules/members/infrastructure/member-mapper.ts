@@ -11,6 +11,7 @@ import {
   type StudioId,
 } from '../../../shared'
 import type { Email, EmergencyContact, Member, MemberStats, MemberStatus, PhoneE164 } from '../domain/member'
+import type { ErasureReason } from '../events'
 
 // The domain never sees a Firestore document id (decision #2): the repository uses
 // the MemberId string as the document id, and this mapper reconstructs a MemberId
@@ -41,6 +42,18 @@ export function memberToFirestore(m: Member): DocumentData {
       activeEntitlementCount: m.stats.activeEntitlementCount,
       balanceDue: m.stats.balanceDue,
     },
+    // The tombstone (AD-67). Written only when she has been erased — and it must ROUND-TRIP, or the
+    // erasure stops being idempotent: a second run would not see that she was already forgotten and
+    // would write a second `member.erased` event, making one act read as two in the audit.
+    ...(m.erased
+      ? {
+          erased: {
+            at: toTs(m.erased.at),
+            reason: m.erased.reason,
+            note: m.erased.note,
+          },
+        }
+      : {}),
     updatedAt: FieldValue.serverTimestamp(),
   }
 }
@@ -68,6 +81,15 @@ export function memberFromFirestore(id: MemberId, data: DocumentData): Member {
     status: data.status as MemberStatus,
     joinedAt: fromTs(data.joinedAt as Timestamp),
     stats: memberStats,
+    ...(data.erased
+      ? {
+          erased: {
+            at: fromTs((data.erased as DocumentData).at as Timestamp),
+            reason: (data.erased as DocumentData).reason as ErasureReason,
+            note: ((data.erased as DocumentData).note as string | null) ?? null,
+          },
+        }
+      : {}),
   }
 }
 

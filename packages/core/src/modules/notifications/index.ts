@@ -59,4 +59,11 @@ export type {
   RenderedMessage,
 } from './application/ports'
 export { FirestoreNotificationRepository } from './infrastructure/repos'
-export { ConsoleEmailProvider, InAppProvider, MockSmsProvider } from './infrastructure/providers'
+export {
+  ConsoleEmailProvider,
+  InAppProvider,
+  META_TEMPLATE,
+  MockSmsProvider,
+  ResendEmailProvider,
+  WhatsAppProvider,
+} from './infrastructure/providers'

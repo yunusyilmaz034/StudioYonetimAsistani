@@ -50,7 +50,9 @@ const dctx = (deps: FinanceDeps, ctx: TenantContext, correlationId: OperationId)
   actor: ctx.actor,
   now: deps.clock.now(),
   correlationId,
-  source: SOURCE,
+  // Almost always reception. The MIGRATION overrides it — a historical sale that told the log
+  // `reception_web` would be a falsehood in the one place we can never go back and correct.
+  source: deps.source ?? SOURCE,
 })
 
 // ── SELL — the act reception actually performs ───────────────────────────────────────────────

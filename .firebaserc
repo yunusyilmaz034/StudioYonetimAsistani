@@ -1,0 +1,6 @@
+{
+  "projects": {
+    "staging": "REPLACE-ME-staging",
+    "prod": "REPLACE-ME-prod"
+  }
+}

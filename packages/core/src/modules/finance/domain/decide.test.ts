@@ -205,6 +205,45 @@ describe('sale (v1.24)', () => {
   })
 })
 
+// AD-66 — the migration exemption (owner, 2026-07-13).
+describe('the kasa requirement and the ONE actor it does not apply to', () => {
+  const MIGRATION: ActorRef = { type: 'migration', id: 'import_20260713' as never }
+
+  it('lets a MIGRATION record a historical cash payment with no kasa', () => {
+    // A migration is not a live operation: it does not take cash at the desk, it records cash that
+    // was taken years ago, in a system that had no kasa at all. Refusing it here would force one of
+    // three lies — a fabricated gün sonu, a falsified payment method, or a member who appears to
+    // owe everything she already paid.
+    const r = decideReceivePayment(
+      ctx(MIGRATION),
+      input({ method: 'cash', drawerId: null }),
+      null,
+      null,
+    )
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+
+    // The method stays TRUE — she paid cash, and the record says cash. The drawer stays NULL — there
+    // was no drawer, and the record says so. Nothing is invented; what we do not know stays empty.
+    expect(r.value.next.method).toBe('cash')
+    expect(r.value.next.drawerId).toBeNull()
+  })
+
+  it('still REFUSES a human taking cash with no kasa — the control is untouched', () => {
+    // This is the half that matters. An exemption that quietly widened for everyone would have
+    // removed the studio's only defence against cash walking out of the building.
+    const r = decideReceivePayment(ctx(), input({ method: 'cash', drawerId: null }), null, null)
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.error.code).toBe('drawer_required')
+  })
+
+  it('still refuses a human whose kasa is CLOSED', () => {
+    const r = decideReceivePayment(ctx(), input({ method: 'cash', drawerId: 'drw_1' }), drawer(), null)
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.error.code).toBe('drawer_not_open')
+  })
+})
+
 describe('payment (v1.24)', () => {
   it('a cash payment REQUIRES an open kasa', () => {
     const noDrawer = decideReceivePayment(ctx(), input({ method: 'cash', drawerId: null }), null, null)

@@ -1,0 +1,75 @@
+name: CI
+
+# `main` is always in a working state (Doc 10 §2.8). Until now that was a promise a human kept by
+# remembering to run `pnpm check`. This is the same promise, enforced.
+#
+# What this workflow deliberately does NOT do: deploy anything, and run anything under
+# `tools/migration`. A migration that can run automatically is a migration that will, once, at the
+# wrong moment (AD-36). Deploys are a human act, against a named project, with `-P staging|prod`.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # The gate itself — typecheck, lint, dependency-cruiser, the Functions bundle, 399 unit tests.
+  # Seconds, by design: a gate that takes two minutes is a gate that gets skipped.
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm check
+
+  # The build App Hosting will run. It has never been guarded: a page that compiles in `next dev`
+  # and fails in `next build` would have been discovered by the deploy.
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter web build
+
+  # The emulator suite: security rules, the trigger wiring, projector idempotency, and the member
+  # portal end to end. Kept out of `pnpm check` because it needs a JVM and takes ~30 s — but it is
+  # the only place a broken trigger or a widened rule can be caught at all.
+  integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      # The Firestore emulator is a Java program. Without this, the suite does not run — it
+      # silently does not run, which is how a green CI ends up guarding nothing.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm add -g firebase-tools@13
+      - run: pnpm build:functions
+      - run: pnpm test:integration

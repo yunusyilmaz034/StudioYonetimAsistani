@@ -17,6 +17,7 @@ coverage/
 
 # firebase
 .firebase/
+firebase-export-*/
 firebase-debug.log
 firestore-debug.log
 ui-debug.log
@@ -25,6 +26,9 @@ ui-debug.log
 # migration artifacts (raw exports are archived to Cloud Storage, never committed)
 tools/migration/*.local.*
 tools/migration/data/
+# The reports NAME MEMBERS AND QUOTE THEIR PHONE NUMBERS — that is what makes them useful to a
+# human fixing the source file, and exactly why they may never enter version control.
+tools/migration/reports/
 
 # env / secrets
 .env

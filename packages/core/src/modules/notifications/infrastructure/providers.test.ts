@@ -1,0 +1,135 @@
+import { describe, expect, it } from 'vitest'
+
+import type { TenantContext } from '../../../shared'
+import type { RenderedMessage } from '../application/ports'
+import { ResendEmailProvider, WhatsAppProvider } from './providers'
+
+// The two providers that talk to the outside world (v1.26).
+//
+// Everything else in this system is reversible inside our own database. A sent message is not — and
+// a message we *claim* to have sent is worse than one we failed to send, because nobody goes looking
+// for it. So both of these are tested for what they SAY as much as for what they do.
+
+const ctx = {} as TenantContext
+
+const message = (over: Partial<RenderedMessage> = {}): RenderedMessage => ({
+  to: { email: 'uye@example.com', phone: '+905321234567', memberId: 'mem_1' },
+  subject: 'Dersiniz iptal edildi',
+  body: 'Merhaba Elif, yarınki Reformer dersiniz iptal edildi.',
+  intentId: 'ntf_1',
+  channel: 'email',
+  templateId: 'session_cancelled',
+  params: { memberName: 'Elif', sessionName: 'Reformer', sessionTime: '10:00' },
+  ...over,
+})
+
+// A stub `fetch`. No network, ever — a unit test that can reach the internet is a unit test that
+// can send a real member a real e-mail on somebody's laptop.
+const respondWith = (status: number, body: unknown = {}) =>
+  (async () =>
+    new Response(JSON.stringify(body), {
+      status,
+      headers: { 'Content-Type': 'application/json' },
+    })) as unknown as typeof fetch
+
+describe('Resend — the first write that leaves the building', () => {
+  it('reports SENT, never DELIVERED', async () => {
+    const provider = new ResendEmailProvider('key', 'noreply@studio.test', respondWith(200, { id: 'abc' }))
+    const res = await provider.send(ctx, message())
+
+    expect(res.ok).toBe(true)
+    expect(res.providerRef).toBe('resend:abc')
+    // Resend accepting the message means Resend accepted the message. Whether it reached her inbox
+    // is evidence that arrives later, by webhook. A Notification Center that says "delivered" when
+    // it means "handed over" lies to the owner about her own members.
+    expect(res.delivered).toBe(false)
+  })
+
+  it('sends an idempotency key — a redelivered trigger must not become a second e-mail', async () => {
+    let seen: Record<string, string> = {}
+    const spyFetch = (async (_url: string, init: RequestInit) => {
+      seen = init.headers as Record<string, string>
+      return new Response('{}', { status: 200 })
+    }) as unknown as typeof fetch
+
+    await new ResendEmailProvider('key', 'x@y.z', spyFetch).send(ctx, message())
+
+    // Our trigger is at-least-once. Without this header, a redelivery is a second e-mail to a member
+    // who already got the first — and she does not experience that as eventual consistency.
+    expect(seen['Idempotency-Key']).toBe('ntf_1')
+  })
+
+  it('treats a 4xx as PERMANENT — an address that does not exist will not exist in an hour', async () => {
+    const res = await new ResendEmailProvider('k', 'f', respondWith(422)).send(ctx, message())
+    expect(res.ok).toBe(false)
+    expect(res.error?.permanent).toBe(true)
+  })
+
+  it('treats 429 and 5xx as TRANSIENT — their problem, not ours', async () => {
+    const rateLimited = await new ResendEmailProvider('k', 'f', respondWith(429)).send(ctx, message())
+    expect(rateLimited.error?.permanent).toBe(false)
+
+    const theirOutage = await new ResendEmailProvider('k', 'f', respondWith(503)).send(ctx, message())
+    expect(theirOutage.error?.permanent).toBe(false)
+  })
+
+  it('treats a network failure as TRANSIENT, and refuses a missing address as PERMANENT', async () => {
+    const boom = (async () => {
+      throw new Error('ECONNRESET')
+    }) as unknown as typeof fetch
+    const network = await new ResendEmailProvider('k', 'f', boom).send(ctx, message())
+    expect(network.error?.permanent).toBe(false)
+
+    const noAddress = await new ResendEmailProvider('k', 'f', respondWith(200)).send(
+      ctx,
+      message({ to: { email: null, phone: null, memberId: 'mem_1' } }),
+    )
+    expect(noAddress.ok).toBe(false)
+    expect(noAddress.error?.permanent).toBe(true) // retrying an absence costs money and finds nothing
+  })
+})
+
+describe('WhatsApp — the 24-hour window, and the template it forces', () => {
+  it('refuses a template Meta has not approved, PERMANENTLY', async () => {
+    // Meta would accept the request and DROP the message, and we would report `sent` for something
+    // nobody received. That is the worst outcome available to us, because it is a silent one.
+    const res = await new WhatsAppProvider().send(
+      ctx,
+      message({ channel: 'whatsapp', templateId: 'a_template_nobody_registered' }),
+    )
+
+    expect(res.ok).toBe(false)
+    expect(res.error?.code).toBe('template_not_approved')
+    expect(res.error?.permanent).toBe(true)
+  })
+
+  it('maps our template id to the name approved on Meta’s side, and passes the params through', async () => {
+    let sent: { to: string; templateName: string; params: Record<string, string> } | null = null
+    const provider = new WhatsAppProvider(async (payload) => {
+      sent = payload
+      return { ok: true, ref: 'wamid.123' }
+    })
+
+    const res = await provider.send(ctx, message({ channel: 'whatsapp' }))
+
+    expect(res.ok).toBe(true)
+    expect(res.delivered).toBe(false) // handed to Meta, not read by Elif
+    // Outside the 24-hour window — which is where every message we START lives — Meta needs the
+    // registered template NAME and its parameters, not our Turkish sentence.
+    expect(sent!.templateName).toBe('session_cancelled_tr')
+    expect(sent!.params.memberName).toBe('Elif')
+  })
+
+  it('is a MOCK until it is given a transport — the pipeline is provable without a Meta contract', async () => {
+    const res = await new WhatsAppProvider().send(ctx, message({ channel: 'whatsapp' }))
+    expect(res.ok).toBe(true)
+    expect(res.providerRef).toBe('mock-wa:ntf_1')
+    expect(res.delivered).toBe(false)
+  })
+
+  it('treats an unclassifiable provider error as PERMANENT — we never spend money on a guess', async () => {
+    const provider = new WhatsAppProvider(async () => ({ ok: false, code: 'something_unknown' }))
+    const res = await provider.send(ctx, message({ channel: 'whatsapp' }))
+    expect(res.error?.permanent).toBe(true)
+  })
+})

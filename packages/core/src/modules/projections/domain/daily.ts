@@ -161,38 +161,31 @@ export function projectDaily(
       return one({ collectedKurus: back === 0 ? 0 : -back })
     }
 
-    // ── legacy (v1.14–v1.23). Kept so the log's history still folds; nothing NEW writes these. ──
-    case 'entitlement.purchased': {
-      // SATIŞ = the agreed price at the moment of sale, paid or not (owner, D-1).
-      const amount = kurus(event.payload.priceAgreed)
-      const productId = id(event.payload.productId)
-      return {
-        date,
-        counters: { salesKurus: amount },
-        ...(productId ? { productSales: { productId, amountKurus: amount } } : {}),
-      }
-    }
+    // ── The legacy money family (v1.14–v1.23) — DEAD TO THE PROJECTION as of v1.26. ────────────
+    //
+    // These events still carry money in their payloads, and until v1.26 the projector folded them:
+    // there was exactly one family per sale, so nothing was counted twice.
+    //
+    // **DEBT-021 changed that.** The migration generates a real `sale.created` (and
+    // `payment.received`) for every one of these, from the same money, with the original
+    // `occurredAt`. Both families now describe the SAME sale — and a projector that folds both
+    // reports **exactly double the revenue**, silently, on a dashboard the owner trusts.
+    //
+    // The owner's decision (Doc 26 §5, option (a)) was: *migrate once — do not carry a read-side
+    // `if (legacy)` forever.* This is the read side honouring it. The ledger is now the only place
+    // money is counted from, because after the migration it is the only place money IS.
+    //
+    // The events are NOT deleted and their history is NOT lost: they remain in the log, they remain
+    // the record of what v1.14 did, and the sale that replaced each one carries the same amount on
+    // the same day. What changed is only where the number is READ from.
+    //
+    // ⚠️ **Ordering matters, and it is in the runbook:** the projection must be REBUILT after the
+    // migration runs (`pnpm projections:rebuild`). Until it is, the daily read model still holds the
+    // doubled figures it folded before the change.
+    case 'entitlement.purchased':
     case 'entitlement.payment_recorded':
-      // TAHSİLAT = what actually came in (cash basis). `collectedAmount`, not `priceAgreed` — the
-      // payload carries both, and confusing them would make every unpaid sale look collected.
-      return one({ collectedKurus: kurus(event.payload.collectedAmount) })
-
-    case 'entitlement.cancelled': {
-      // A cancelled sale must move the NET figure (owner, D-1) — while its history stays in the
-      // log, untouched (#9: a correction is a compensating event, never an erasure). The sale is
-      // subtracted from the day it is cancelled on, not from the day it was made: rewriting a past
-      // day's total is how a dashboard starts disagreeing with a report someone already printed.
-      const refunded = kurus(event.payload.priceAgreed)
-      const productId = id(event.payload.productId)
-      return {
-        date,
-        counters: { salesKurus: refunded === 0 ? 0 : -refunded }, // never -0: it reads as a debit
-
-        ...(productId && refunded !== 0
-          ? { productSales: { productId, amountKurus: -refunded } }
-          : {}),
-      }
-    }
+    case 'entitlement.cancelled':
+      return null
 
     default:
       return null

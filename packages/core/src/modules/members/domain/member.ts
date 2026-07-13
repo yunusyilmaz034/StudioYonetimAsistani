@@ -1,4 +1,5 @@
 import type { Brand, BranchId, Instant, LocalDate, MemberId, StudioId } from '../../../shared'
+import type { ErasureReason } from '../events'
 
 // PII lives on the Member and nowhere else (I-13, AD-10). Events reference a
 // member by opaque MemberId only.
@@ -39,6 +40,20 @@ export interface Member {
   readonly status: MemberStatus
   readonly joinedAt: Instant
   readonly stats: MemberStats
+
+  // ── The tombstone (v1.26 · AD-67) ──
+  // Set when she has been erased. The record is KEPT, not deleted: deleting it would break every
+  // join in the system — her reservations, her payments, her credits all point here — and turn a
+  // lawful erasure into a corrupt database. It says, truthfully: *this member existed, she asked to
+  // be forgotten, and on this date we forgot her.*
+  //
+  // `note` is where a human explains, and it lives HERE rather than in the event because free text
+  // is the last place PII hides — and unlike the log, this can itself be erased.
+  readonly erased?: {
+    readonly at: Instant
+    readonly reason: ErasureReason
+    readonly note: string | null
+  }
 }
 
 export const emptyStats = (): MemberStats => ({

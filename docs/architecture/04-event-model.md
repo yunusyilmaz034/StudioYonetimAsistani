@@ -188,6 +188,7 @@ Every event that Phase 1 writes. Nothing else is emitted; nothing here is option
 | `member.registered` | `{ homeBranchId, joinedAt }` | **No name.** Identity is in `/members`. |
 | `member.profile_updated` | `{ changedFields: string[] }` | *which* fields, never their values |
 | `member.deactivated` | `{ reason }` | |
+| `member.erased` | `{ memberId, reason, erasedAt }` | **v1.26 · AD-67.** KVKK/GDPR erasure. `reason` is a **closed enum** — `kvkk_request \| duplicate \| test_data \| legal_requirement \| owner_request` — never free text, because free text is the last place PII can hide in a permanent log. The human's explanation lives on the member's **tombstone in state**, where it can itself be erased. Actor: **`platform_admin` only** (the domain refuses anyone else). **Idempotent:** a second erasure emits no event. |
 | `member.checked_in` | `{ branchId, method, occupancyAfter }` | `method: 'reception'\|'qr'\|'device'` |
 | `member.checked_out` | `{ branchId, method, durationMinutes, occupancyAfter }` | |
 | `member.auto_checked_out` | `{ branchId, thresholdHours }` | actor: `system` (OQ-9) |

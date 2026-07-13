@@ -12,12 +12,15 @@ import {
 } from '../../../shared'
 import {
   MEMBER_DEACTIVATED,
+  MEMBER_ERASED,
   MEMBER_INVITED,
   MEMBER_PORTAL_ACTIVATED,
   MEMBER_PORTAL_LOGIN,
   MEMBER_PROFILE_UPDATED,
   MEMBER_REGISTERED,
+  type ErasureReason,
   type MemberDeactivatedPayload,
+  type MemberErasedPayload,
   type MemberProfileUpdatedPayload,
   type MemberRegisteredPayload,
 } from '../events'
@@ -155,4 +158,62 @@ export function decidePortalLogin(ctx: DecideContext, member: Member): NewEvent[
       related: { memberId: member.id },
     },
   ]
+}
+
+// ── KVKK / GDPR erasure (v1.26 · AD-67, owner 2026-07-13) ────────────────────────────────────
+//
+// The only act in this system that DESTROYS information, which is why it is the most carefully
+// guarded one. Three rules, and each has a failure it exists to prevent:
+//
+//   • **`platform_admin` only.** Erasure is a break-glass act, not an operation. Reception must not
+//     be able to make a member disappear, and neither must the owner in the middle of an argument.
+//   • **A reason is mandatory, and it is a CLOSED ENUM.** A deletion nobody recorded is
+//     indistinguishable from a deletion somebody did to hide something. And a *free-text* reason is
+//     the last place PII can hide in a permanent log — the enum makes it analysable, and the human's
+//     explanation lives on the tombstone in state, where it can itself be erased.
+//   • **Idempotent.** A second erasure emits NO event. She was already forgotten; saying so twice
+//     adds nothing to the record and would make an audit look like two separate acts.
+export function decideErase(
+  ctx: DecideContext,
+  current: Member,
+  reason: ErasureReason,
+  note: string | null,
+): Result<{ next: Member; events: NewEvent<typeof MEMBER_ERASED, MemberErasedPayload>[] }, DomainError> {
+  // The actor, not the role: `role` says what a principal may generally do, `actor.type` says WHO is
+  // acting. An erasure is only ever a human at a terminal running a break-glass script.
+  if (ctx.actor.type !== 'platform_admin') return err({ code: 'erasure_requires_platform_admin' })
+
+  if (current.erased) {
+    // Already forgotten. No event, no change — and no error either: re-running a break-glass script
+    // because the first run's output scrolled away must be safe.
+    return ok({ next: current, events: [] })
+  }
+
+  const next: Member = {
+    ...current,
+    // Every string that could identify her. The phone's uniqueness key goes too — leaving it would
+    // keep her number in the index, which is precisely the thing she asked us to forget.
+    fullName: '[silindi]',
+    phone: '' as Member['phone'],
+    phoneNormalized: '',
+    email: null,
+    birthDate: null,
+    notes: null,
+    emergencyContact: null,
+    status: 'inactive',
+    erased: { at: ctx.now, reason, note },
+  }
+
+  return ok({
+    next,
+    events: [
+      {
+        ...base(ctx, current),
+        type: MEMBER_ERASED,
+        // memberId is opaque and already on every event she ever caused. It now resolves to nobody —
+        // which is what erasure IS here: not amnesia, but severing behaviour from a person.
+        payload: { memberId: current.id as string, reason, erasedAt: ctx.now },
+      },
+    ],
+  })
 }

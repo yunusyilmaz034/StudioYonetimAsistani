@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   decideDeactivate,
+  decideErase,
   decideIssueInvite,
   decidePortalActivated,
   decidePortalLogin,
@@ -17,6 +18,7 @@ import {
   type StaffUserId,
   type StudioId,
 } from '../../src/shared'
+import erased from './member.erased.v1.json'
 import registered from './member.registered.v1.json'
 import profileUpdated from './member.profile_updated.v1.json'
 import deactivated from './member.deactivated.v1.json'
@@ -107,5 +109,57 @@ describe('portal event payloads (v1.21)', () => {
     expect(e?.payload).toEqual(portalLogin)
     expect(e?.actor).toEqual({ type: 'member', id: 'mem_1' })
     expect(e?.related).toEqual({ memberId: 'mem_1' })
+  })
+
+  // ── v1.26 · AD-67 — KVKK erasure ─────────────────────────────────────────────────────────
+  const adminCtx = { ...ctx, actor: { type: 'platform_admin' as const, id: 'usr_admin' as never } }
+
+  it('member.erased — the payload carries an OPAQUE id, a closed-enum reason, and nothing else', () => {
+    const r = decideErase(adminCtx, member, 'kvkk_request', 'avukatı aradı')
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+
+    expect(r.value.events[0]?.payload).toEqual(erased)
+
+    // The golden fixture is the contract, and this is the assertion it exists for: an AI agent that
+    // "helpfully" adds a name to this payload breaks the build, not the law.
+    const json = JSON.stringify(r.value.events[0]?.payload)
+    expect(json).not.toContain(member.fullName)
+    expect(json).not.toContain(member.phone)
+    expect(json).not.toContain('avukat') // the human's note lives on the tombstone, never in the log
+  })
+
+  it('erases every string that could identify her — including the phone UNIQUENESS KEY', () => {
+    const r = decideErase(adminCtx, member, 'kvkk_request', null)
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+
+    expect(r.value.next.fullName).toBe('[silindi]')
+    expect(r.value.next.email).toBeNull()
+    expect(r.value.next.notes).toBeNull()
+    expect(r.value.next.emergencyContact).toBeNull()
+    // Leaving this would keep her number in the index — the precise thing she asked us to forget.
+    expect(r.value.next.phoneNormalized).toBe('')
+    expect(r.value.next.erased?.reason).toBe('kvkk_request')
+  })
+
+  it('REFUSES anyone who is not a platform_admin — erasure is break-glass, not an operation', () => {
+    // Reception must not be able to make a member disappear. Nor must the owner, mid-argument.
+    const r = decideErase(ctx, member, 'kvkk_request', null)
+    expect(r).toEqual({ ok: false, error: { code: 'erasure_requires_platform_admin' } })
+  })
+
+  it('is IDEMPOTENT — a second erasure emits no event', () => {
+    const first = decideErase(adminCtx, member, 'kvkk_request', null)
+    expect(first.ok).toBe(true)
+    if (!first.ok) return
+
+    // She was already forgotten. Saying so twice adds nothing to the record, and would make an audit
+    // read as two separate acts. Re-running a break-glass script because its output scrolled away
+    // must be safe.
+    const second = decideErase(adminCtx, first.value.next, 'kvkk_request', null)
+    expect(second.ok).toBe(true)
+    if (!second.ok) return
+    expect(second.value.events).toEqual([])
   })
 })

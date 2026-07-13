@@ -45,35 +45,67 @@ describe('projectDaily (v1.23)', () => {
 
   // Money is an object in the payload (#10). A projector that read it as a number would report
   // zero revenue forever, and nothing would crash.
-  it('SATIŞ is the agreed price, even when nothing was paid (owner D-1)', () => {
+  // ── The legacy money family is DEAD TO THE PROJECTION (v1.26) ──────────────────────────────
+  //
+  // Until v1.26 the projector folded BOTH families, and nothing was counted twice: a sale had
+  // exactly one of them. **DEBT-021's migration generates a real `sale.created` for every legacy
+  // purchase, from the same money** — so a projector that still folded the legacy events would
+  // report **exactly double the revenue**, silently, on a dashboard the owner trusts.
+  //
+  // This was caught in v1.26's final verification, by a rebuild that printed 60.600 ₺ where the
+  // studio had sold 30.300 ₺. It is the read side finally honouring the owner's decision: *migrate
+  // once — do not carry a read-side `if (legacy)` forever* (Doc 26 §5).
+  it('counts NO money from a legacy purchase — the migration gave it a sale, and the sale is counted', () => {
     const inc = projectDaily(
-      ev('entitlement.purchased', 9.0, { priceAgreed: { amount: 500_000, currency: 'TRY' }, productId: 'prd_1' }),
+      ev('entitlement.purchased', 9.0, {
+        priceAgreed: { amount: 500_000, currency: 'TRY' },
+        productId: 'prd_1',
+      }),
       OFFSET,
     )
-    expect(inc?.counters).toEqual({ salesKurus: 500_000 })
-    expect(inc?.productSales).toEqual({ productId: 'prd_1', amountKurus: 500_000 })
+    expect(inc).toBeNull()
   })
 
-  it('TAHSİLAT reads collectedAmount, never priceAgreed', () => {
+  it('counts NO money from a legacy payment record', () => {
     const inc = projectDaily(
-      ev('entitlement.payment_recorded', 9.0, { collectedAmount: { amount: 200_000, currency: 'TRY' }, priceAgreed: { amount: 500_000, currency: 'TRY' } }),
+      ev('entitlement.payment_recorded', 9.0, {
+        collectedAmount: { amount: 200_000, currency: 'TRY' },
+      }),
       OFFSET,
     )
-    expect(inc?.counters).toEqual({ collectedKurus: 200_000 })
+    expect(inc).toBeNull()
   })
 
-  it('a cancelled sale goes NET — subtracted on the day it is cancelled, never rewriting the past', () => {
+  it('counts NO money from a legacy cancellation', () => {
     const inc = projectDaily(
-      ev('entitlement.cancelled', 177.0, { priceAgreed: { amount: 500_000, currency: 'TRY' }, productId: 'prd_1', reason: 'x' }),
+      ev('entitlement.cancelled', 177.0, {
+        priceAgreed: { amount: 500_000, currency: 'TRY' },
+        productId: 'prd_1',
+        reason: 'x',
+      }),
       OFFSET,
     )
-    expect(inc?.date).toBe('2026-07-20') // NOT the purchase date
-    expect(inc?.counters).toEqual({ salesKurus: -500_000 })
+    expect(inc).toBeNull()
   })
 
-  it('an old cancellation with no amount subtracts nothing (no backfill, no guessing)', () => {
-    const inc = projectDaily(ev('entitlement.cancelled', 177.0, { reason: 'x' }), OFFSET)
-    expect(inc?.counters).toEqual({ salesKurus: 0 })
+  it('THE DOUBLE-COUNT: one sale, migrated, is counted exactly ONCE', () => {
+    // The regression this rule exists for. Both events describe the SAME 5.000 ₺ — the legacy one
+    // that v1.14 wrote, and the `sale.created` the migration generated from it, on the same day with
+    // the same amount. Fold both and the owner's dashboard reports 10.000 ₺ she never took.
+    const legacy = projectDaily(
+      ev('entitlement.purchased', 9.0, {
+        priceAgreed: { amount: 500_000, currency: 'TRY' },
+        productId: 'prd_1',
+      }),
+      OFFSET,
+    )
+    const migrated = projectDaily(
+      ev('sale.created', 9.0, { total: { amount: 500_000, currency: 'TRY' } }),
+      OFFSET,
+    )
+
+    expect(legacy).toBeNull()
+    expect(migrated?.counters).toEqual({ salesKurus: 500_000 })
   })
 
   it('most of the catalogue contributes nothing — a dashboard is not an archive', () => {
@@ -86,8 +118,8 @@ describe('projectDaily (v1.23)', () => {
       ev('reservation.booked', 9.0),
       ev('reservation.booked', 10.0),
       ev('reservation.cancelled', 11.0),
-      ev('entitlement.purchased', 12.0, { priceAgreed: { amount: 300_000, currency: 'TRY' }, productId: 'prd_1' }),
-      ev('entitlement.purchased', 13.0, { priceAgreed: { amount: 200_000, currency: 'TRY' }, productId: 'prd_1' }),
+      ev('sale.created', 12.0, { total: { amount: 300_000, currency: 'TRY' }, productId: 'prd_1' }),
+      ev('sale.created', 13.0, { total: { amount: 200_000, currency: 'TRY' }, productId: 'prd_1' }),
     ]
     const fold = () =>
       events.reduce((acc, e) => {

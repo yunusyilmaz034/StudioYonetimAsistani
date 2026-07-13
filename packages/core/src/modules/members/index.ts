@@ -22,6 +22,8 @@ export {
 export { registerMember, type RegisterMemberInput } from './application/register-member'
 export { updateMember, type UpdateMemberInput } from './application/update-member'
 export { deactivateMember } from './application/deactivate-member'
+export { eraseMember } from './application/erase-member'
+export { ErasureReasons, MEMBER_ERASED, type ErasureReason, type MemberErasedPayload } from './events'
 // v1.21 — the portal invite (D1/D2/D17).
 export {
   completeActivation,

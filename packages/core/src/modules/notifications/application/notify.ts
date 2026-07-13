@@ -161,6 +161,10 @@ export async function deliver(
     body: attempt.body ?? '',
     intentId: intent.id,
     channel: attempt.channel,
+    // Carried through so a provider that cannot send free text (WhatsApp, outside its 24-hour
+    // window) can send the APPROVED template instead — with the same values in it.
+    templateId: intent.templateId,
+    params: intent.params,
   }
 
   let result

@@ -31,17 +31,35 @@ export function newJti(): string {
 
 // Returns null for ANY malformed or unsigned token. Expiry is checked by the caller, which
 // knows the clock — this stays pure.
-export function verifyQrToken(token: string, secret: string): QrClaims | null {
+//
+// ── Rotation (DEBT-013). ────────────────────────────────────────────────────────────────
+// Verification accepts a LIST of secrets; minting uses only the first. That is the whole
+// rotation mechanism: publish the new secret as the active one, keep the outgoing one in the
+// list for a window, then drop it. No token minted under the old key is ever rejected while
+// both are live.
+//
+// Deliberately NOT a `kid` in the token, which is what DEBT-013 originally proposed. A key id
+// buys the ability to tell which key signed a token — and pays for it with a permanent change
+// to the token format. These tokens live for SIXTY SECONDS: two secrets on the verify side
+// achieve zero-downtime rotation with no format at all, and the second HMAC costs nothing
+// measurable. Simple beats clever; the format we never changed is the one we can never break.
+export function verifyQrToken(token: string, secrets: readonly string[]): QrClaims | null {
   const idx = token.lastIndexOf('.')
   if (idx < 0) return null
   const payload = token.slice(0, idx)
   const provided = token.slice(idx + 1)
 
-  const expected = signature(payload, secret)
-  const a = Buffer.from(provided)
-  const b = Buffer.from(expected)
-  // Constant-time compare: an early-exit or length-leaking check is how signature oracles start.
-  if (a.length !== b.length || !timingSafeEqual(a, b)) return null
+  // Every candidate is checked in constant time, and the loop does not stop early on a match:
+  // an early exit would leak, through timing, WHICH key verified a token.
+  let verified = false
+  for (const secret of secrets) {
+    const expected = signature(payload, secret)
+    const a = Buffer.from(provided)
+    const b = Buffer.from(expected)
+    // Constant-time compare: an early-exit or length-leaking check is how signature oracles start.
+    if (a.length === b.length && timingSafeEqual(a, b)) verified = true
+  }
+  if (!verified) return null
 
   const [memberId, branchId, expRaw, jti] = payload.split('|')
   if (!memberId || !branchId || !expRaw || !jti) return null

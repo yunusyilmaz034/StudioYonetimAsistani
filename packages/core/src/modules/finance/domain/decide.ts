@@ -207,7 +207,27 @@ export function decideReceivePayment(
 
   // Cash and card land in a KASA, and a closed kasa cannot take money — that is the whole point of
   // opening one.
-  if (input.method === 'cash' || input.method === 'pos') {
+  //
+  // ── The migration exemption (owner, 2026-07-13 · AD-66) ────────────────────────────────────
+  // A migration is NOT a live operation. It does not take cash at the desk; it RECORDS cash that
+  // was taken years ago, in a system that had no kasa at all. The drawer requirement is a control
+  // over *the act of receiving money* — and that act already happened, unsupervised by a control
+  // that did not yet exist. Enforcing it here would leave exactly three ways out, and all three
+  // put a lie somewhere:
+  //
+  //   • open a synthetic "migration drawer"  → fabricates a gün sonu that never happened, in the
+  //                                            one record the owner relies on to catch theft;
+  //   • re-label the payment `bank_transfer` → falsifies how the member actually paid;
+  //   • skip the payment entirely            → every migrated member appears to owe everything.
+  //
+  // So the payment is recorded with its TRUE method (`cash`) and a TRUTHFUL `drawerId: null` —
+  // there was no drawer, and the record says so. Nothing is invented; what we do not know stays
+  // empty. This is not an exception to a finance rule; it is a rule about who the actor is, and
+  // `migration` is a first-class principal precisely so the domain can say things like this out
+  // loud (#5). It cannot be reached by a human, by a client, or by an AI: the actor is derived
+  // server-side and a migration actor exists only inside `tools/migration`, run by hand.
+  const isMigration = ctx.actor.type === 'migration'
+  if (!isMigration && (input.method === 'cash' || input.method === 'pos')) {
     if (!drawer) return err({ code: 'drawer_required' })
     if (drawer.status !== 'open') return err({ code: 'drawer_not_open' })
   }

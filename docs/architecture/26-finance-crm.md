@@ -357,6 +357,49 @@ KVKK-consent story — merging them means every member query starts filtering, f
 
 ---
 
+## 13.2 The legacy migration, as executed (v1.26 · AD-66)
+
+The migration that decision (a) promised ran in v1.26, and it surfaced one collision worth writing
+down — because the collision was the **rule working**, not the rule failing.
+
+**`drawer_required`.** A cash payment must land in an open kasa (§7). But **there was no kasa before
+v1.24**, and the historical payments being migrated were cash. The domain refused six of seven
+packages, which is precisely what it should do: it will not pretend a control was exercised when it
+was not.
+
+There were four ways out and three of them put a lie somewhere:
+
+| | What it would have cost |
+|---|---|
+| Open a synthetic "migration drawer" | Fabricates a gün sonu that never happened — **inside the one control the owner relies on to catch theft.** |
+| Re-label the payments `bank_transfer` | Falsifies how the member actually paid. |
+| Skip the payments, migrate only sales | Every migrated member appears to owe what she already paid. The cari hesap becomes *worse* than before the migration. |
+| **Exempt the `migration` actor** *(chosen — owner, 2026-07-13)* | Nothing. The method stays `cash` (**true**), the drawer stays `null` (**true**), and what we do not know stays empty. |
+
+**The reasoning, in one line: the kasa is a control over the act of taking cash at the desk, and a
+migration takes no cash.** It records cash taken years ago, in a system that had no desk drawer to
+control. This is not an exception to a finance rule; it is a rule about *who the actor is* — and
+`migration` is a first-class principal exactly so the domain can say things like this out loud (#5).
+
+It cannot be reached by a human, a client, or an AI: the actor is derived server-side, and a
+`migration` actor exists only inside `tools/migration`, which is run by hand with admin credentials
+and never deployed (AD-36). The exemption is tested from **both** sides — that a migration may
+record a drawerless cash payment, **and that a human still may not.** The second test is the one
+that matters: an exemption that quietly widened would remove the studio's only defence against cash
+walking out of the building.
+
+**Result:** 7 sales (30.300,00 ₺) and 6 payments (21.200,00 ₺) folded into the ledger, `soldAt`
+pinned to the original purchase instant (a fixed `Clock`, so revenue lands on the day it was earned
+and not the day it was migrated). Reconciliation agrees to the **kuruş**, and the run is idempotent:
+the sale id is derived from the entitlement id, so a second run writes nothing. *A migration that
+double-charges every member on its second run is a migration that will, once, be run twice.*
+
+The entitlement's v1.14 money fields are **not dropped**. Expand → migrate → **contract**, and the
+contract is a separate, later decision (Doc 6 §10). Data a migration both writes and deletes on the
+same day is data nobody can verify.
+
+---
+
 ## 14. Risks
 
 | Risk | Mitigation |

@@ -14,6 +14,7 @@ import { z } from 'zod'
 import { requireMemberContext, requireTenantContext } from '../auth'
 import { adminDb } from '../firebase-admin'
 import { newJti, signQrToken, verifyQrToken } from '../qr-token'
+import { qrSigningSecret, qrVerificationSecrets } from '../secrets'
 
 // D10/D15/D16 — the check-in QR.
 //
@@ -36,18 +37,6 @@ import { newJti, signQrToken, verifyQrToken } from '../qr-token'
 
 const TTL_SECONDS = 60
 
-function secret(): string {
-  // In production this is an injected secret. The emulator gets a fixed dev value so the flow is
-  // testable; a real deployment without the env var would sign with a known key, so it fails
-  // loudly instead.
-  const s = process.env.QR_TOKEN_SECRET
-  if (s) return s
-  if (process.env.NODE_ENV === 'production') {
-    throw new Error('QR_TOKEN_SECRET is not set')
-  }
-  return 'dev-only-qr-secret'
-}
-
 // ── Member: mint her own QR ───────────────────────────────────────────────────────────────
 // She gets a token for HERSELF — the memberId comes from the cookie, not from a parameter. The
 // portal refreshes it while the screen is open.
@@ -57,7 +46,7 @@ export async function mintCheckInTokenAction(input: unknown) {
 
   const exp = Date.now() + TTL_SECONDS * 1000
   return {
-    token: signQrToken({ memberId, branchId: p.branchId, exp, jti: newJti() }, secret()),
+    token: signQrToken({ memberId, branchId: p.branchId, exp, jti: newJti() }, qrSigningSecret()),
     expiresAt: exp,
     ttlSeconds: TTL_SECONDS,
   }
@@ -70,7 +59,7 @@ export async function checkInByQrAction(input: unknown) {
   const p = z.object({ token: z.string().min(1), branchId: z.string().min(1) }).parse(input)
   const ctx = await requireTenantContext(['owner', 'receptionist', 'platform_admin'])
 
-  const claims = verifyQrToken(p.token, secret())
+  const claims = verifyQrToken(p.token, qrVerificationSecrets())
   if (!claims) return { ok: false as const, error: { code: 'qr_invalid' as const } }
   if (Date.now() > claims.exp) return { ok: false as const, error: { code: 'qr_expired' as const } }
   if (claims.branchId !== p.branchId) return { ok: false as const, error: { code: 'qr_invalid' as const } }

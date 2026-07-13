@@ -3,7 +3,10 @@
   "compilerOptions": {
     "composite": true,
     "rootDir": "src",
-    "outDir": "lib",
+    // `dist` is TYPECHECK output and nothing else — never run, never deployed.
+    // The artifact Node loads is `lib/index.js`, produced by `build.mjs` (esbuild).
+    // They must not share a directory, or tsc's unloadable emit shadows the bundle.
+    "outDir": "dist",
     "declaration": true,
     "types": ["node"]
   },

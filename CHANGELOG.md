@@ -9,6 +9,97 @@ All notable changes are recorded here. Architecture rationale lives in
 
 ---
 
+## v1.26 — Migration, Cutover & Production Hardening · `v1.26-production-hardening`
+
+The milestone that ships almost no capability and matters more than any since v1.4. Every milestone
+before it added **capability**; none added **operability**. There was no CI, no environment
+separation, no monitoring, no backup, no migration path — and, as the first hour proved, **no Cloud
+Function had ever run.**
+
+- **The Functions layer had never executed.** Not in production (never deployed) and not even in the
+  emulator. Two independent breaks: `type: module` against `moduleResolution: Bundler` (extensionless
+  imports Node refuses), and `@studio/core` shipping **raw TypeScript** as a `workspace:*` symlink
+  that `firebase deploy` never uploads — with no `predeploy` hook to compile anything at all. So the
+  offline write path, the daily projection, the entire notification pipeline and every nightly sweep
+  were **unproven code**. And `pnpm check` was green the whole time: the domain was tested to death,
+  the layer we *configured* was tested by nothing. Fixed with an esbuild bundle (CJS, core inlined,
+  only `firebase-admin`/`firebase-functions` external), a `predeploy` hook — **and the build is now
+  part of `pnpm check`, so the break that made deployment impossible now fails the gate.**
+
+- **Every function was bound to `us-central1`** — while Firestore lives in `eur3`. Every trigger
+  would have crossed the Atlantic to reach its own database. A region is part of a deployed
+  function's *identity*: changing it later creates a second function rather than moving the first.
+  **Free to fix because nothing had been deployed; it would not have been a week later.**
+
+- **The poison message (DEBT-025).** The first integration test ever written against
+  `onCommandCreated` killed it. A repository throws a plain `Error` for a missing document; on the
+  offline path that means the function dies, Firestore redelivers at-least-once, and it dies again —
+  the command stuck in `pending` **forever**, the check-in vanished, and reception's optimistic UI
+  already said "girdi". **A bad QR scan is enough to reach it**, and `/commands` is the only
+  client-writable collection. The handler can no longer die — not on a malformed document, not on a
+  throw, not even while *recording* the failure.
+
+- **Five signals, because each fails silently** — `commands_stuck` · `projection_lag` ·
+  `booked_count_drift` · `credit_ledger_drift` · `expiring_with_held`. Each proven by a test that
+  **plants the exact corruption** and asserts the alarm saw it. *An untested alarm is not an alarm;
+  it is a file that makes everyone feel safer.* **The drift check reports and never repairs** — a
+  test asserts the number is *not* corrected, because a self-healing system hides its bugs and the
+  bug is the thing you need to know about.
+
+- **`apps/web` logged nothing.** The path the money travels was the least observable in the system.
+  Now structured, with `correlationId` / `studioId` / `actor.type` and **never PII**. The
+  `observed()` wrapper keeps success, **refusal** and **throw** apart — a refusal writes no event, so
+  if it is not logged it did not happen, and *"why couldn't reception book her in?"* had no answer
+  anywhere in the system.
+
+- **The migration is smaller than the architecture expected, and says so.** BulutGym exports a name
+  and a phone; nothing else. So packages, credits and balances are **not derived, not estimated and
+  not carried over** — they are opened by hand against the owner's own list. **AD-11 cannot be
+  executed for this customer: this studio's event log begins at go-live.** That is the source data's
+  limit, and the honest response is to state it rather than synthesise a history that never happened.
+  One bad row blocks the entire run; a phone collision is **reported with its line number, never
+  merged**; the importer never guesses and never silently corrects.
+
+- **The money migration (DEBT-021), and AD-66.** Legacy entitlement money became real Sale + Payment
+  + Allocation rows — through the **real `sell()` use-case**, with the clock **pinned to the original
+  purchase instant**, because a migration that bypasses the domain produces a ledger that is subtly,
+  permanently, *unverifiably* wrong. It surfaced `drawer_required`: cash must land in an open kasa,
+  but **there was no kasa before v1.24**. Three of the four ways out put a lie somewhere (a fabricated
+  gün sonu, a falsified payment method, a member who appears to owe what she already paid). The
+  fourth — **AD-66**, exempt the `migration` actor — puts none: the method stays `cash`, the drawer
+  stays `null`, and both are *true*. **The kasa is a control over taking cash at the desk; a
+  migration takes no cash.** Tested from both sides: a migration may, **a human still may not**.
+  Reconciliation: 7 mismatches before, **clean to the kuruş** after.
+
+- **KVKK, and the day the most expensive rule paid for itself.** `pnpm kvkk:erase` empties every
+  place a name can live — and **does not touch `/events`, because it does not need to.** PII has
+  never entered a payload (#6): her bookings, credits, payments and check-ins stay in the log, the
+  ledger still balances, and none of it says who she was. *A system that had put her name in its
+  events would face a choice here between obeying the law and keeping its own books.* `member.erased`
+  (AD-67) records the fact — opaque id, **closed-enum** reason, timestamp — because free text is the
+  last place PII hides in a permanent log. The member is **tombstoned, never deleted**; the screen
+  says **"anonimleştirildi"**, not "silindi", because that is the honest word.
+
+- **CI, at last.** `pnpm check` on every push; `next build` and the emulator suite on every PR (with
+  a JDK — without it the suite silently does not run, which is how a green CI ends up guarding
+  nothing). **The migration never runs in CI** (AD-36).
+
+- **DEBT-014** (portal e2e: invite → supersede → activate → *refuse the replay* → eligibility → book
+  → cancel) and **DEBT-015** (the staff shell is imported by exactly one layout) closed. **DEBT-012**
+  closed by *deletion*: the redirect loop's other half was a middleware convenience that guessed at
+  something only the server can know. **DEBT-013** closed — and its own proposal (a `kid` in the
+  token) **refused**: the token lives sixty seconds, so a secret *list* achieves zero-downtime
+  rotation with no format change at all. *The format we never changed is the one we can never break.*
+
+**424 unit tests · 29 emulator tests · `pnpm check` green · `next build` green.** Seven debts repaid,
+one taken (DEBT-025), two decisions (AD-66, AD-67).
+
+Not proven, and on the go/no-go for exactly that reason: the index deploy, the alarm channel, and the
+**backup restore rehearsal** — each needs a real Firebase project. *A backup whose restore has never
+been tried is a bill, not a backup.*
+
+---
+
 ## v1.25 — Notification Center · `v1.25-notification-center`
 
 The channel the product had been missing — and the first milestone whose writes **leave the

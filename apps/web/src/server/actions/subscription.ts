@@ -24,6 +24,7 @@ import {
 import { z } from 'zod'
 
 import { requireTenantContext } from '../auth'
+import { observed } from '../log'
 import { adminDb } from '../firebase-admin'
 
 // Selling (assign) is owner + receptionist + platform_admin (Doc 13). Cancelling is
@@ -133,12 +134,24 @@ export async function amendSubscriptionAction(input: unknown) {
 // sends a signed delta + a note; the reason is a correction.
 export async function adjustSubscriptionCreditsAction(input: unknown) {
   const p = z.object({ entitlementId: nonEmpty, delta: z.number().int(), note: nonEmpty }).parse(input)
-  return adjustCredits(entDeps(), await requireTenantContext(OPS), {
-    entitlementId: p.entitlementId as EntitlementId,
-    delta: p.delta,
-    reason: 'correction',
-    note: p.note,
-  })
+  const ctx = await requireTenantContext(OPS)
+  // A hand-moved credit is the most disputable number in the product: it is the one a member can
+  // notice, and the one no arithmetic re-derives. The `note` is NOT logged — it is free text, and
+  // free text is where PII hides — but the delta and the entitlement are, so the log can always
+  // answer *who moved what, when*, alongside the event that made it permanent.
+  return observed(
+    'entitlement.adjust_credits',
+    ctx,
+    undefined,
+    { entitlementId: p.entitlementId, delta: p.delta },
+    () =>
+      adjustCredits(entDeps(), ctx, {
+        entitlementId: p.entitlementId as EntitlementId,
+        delta: p.delta,
+        reason: 'correction',
+        note: p.note,
+      }),
+  )
 }
 
 export async function reactivateSubscriptionAction(input: unknown) {

@@ -13,6 +13,7 @@ import {
 
 import { systemTenantContext } from '../shared/context'
 import { db } from '../shared/firebase'
+import { REGION } from '../shared/region'
 import { notifyForEvent, toEventLike } from './on-event-notify'
 
 // ── onEventCreated → the daily read model (v1.23, D29). ─────────────────────────────────────
@@ -35,7 +36,7 @@ import { notifyForEvent, toEventLike } from './on-event-notify'
 //     disposable. If this throws, we log it and move on — and `pnpm projections:rebuild` fixes it.
 //     The reverse (a broken dashboard blocking a booking) would be indefensible.
 export const onEventCreated = onDocumentCreated(
-  'studios/{studioId}/events/{eventId}',
+  { region: REGION, document: 'studios/{studioId}/events/{eventId}' },
   async (event) => {
     const data = event.data?.data()
     if (!data) return

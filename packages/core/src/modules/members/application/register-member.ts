@@ -62,7 +62,15 @@ export async function registerMember(
   }
 
   const events = decideRegisterMember(
-    { studioId: ctx.studioId, actor: ctx.actor, now, correlationId: newCorrelationId(), source: SOURCE },
+    {
+      studioId: ctx.studioId,
+      actor: ctx.actor,
+      now,
+      correlationId: newCorrelationId(),
+      // The migration stamps `migration` here. An imported member who claims she was registered
+      // at reception is a small lie, and the log keeps small lies forever.
+      source: deps.source ?? SOURCE,
+    },
     member,
   )
 

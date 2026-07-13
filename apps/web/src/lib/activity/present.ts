@@ -182,6 +182,17 @@ export function present(e: ActivityEvent): PresentedEntry {
     case 'member.portal_login':
       return entry(`${member ?? 'Üye'} portala giriş yaptı.`, null, 'default')
 
+    // v1.26 · AD-67 — and note the word: **anonimleştirildi**, not "silindi". It is the honest one.
+    // Her record is still there, tombstoned, because her reservations and her payments still point
+    // at it; what is gone is everything that said who she was. A screen that claimed "silindi" would
+    // be describing a delete that did not happen, to a reader who would then wonder why the row is
+    // still in the list.
+    //
+    // The member's NAME is deliberately absent from this sentence. It is an erasure: writing "Elif
+    // Şahin anonimleştirildi" into a screen fed by the log would re-attach the name we just removed.
+    case 'member.erased':
+      return entry(`Üye kaydı ${erasureReasonText(str(p.reason))} anonimleştirildi.`, null, 'warning')
+
     case 'entitlement.purchased': {
       // The catalogue is data (AD-41), so the event carries the GRANT, not a product name —
       // the name lives in /products and would be a stale copy here. The sentence says what she
@@ -748,4 +759,23 @@ function dateOnly(v: unknown): string {
     })
   }
   return str(v) ?? '—'
+}
+
+// The closed enum, in Turkish. A technical event name never reaches a screen (v1.22) — and neither
+// does a technical enum value.
+function erasureReasonText(reason: string | null): string {
+  switch (reason) {
+    case 'kvkk_request':
+      return 'KVKK talebi nedeniyle'
+    case 'legal_requirement':
+      return 'yasal yükümlülük nedeniyle'
+    case 'duplicate':
+      return 'mükerrer kayıt nedeniyle'
+    case 'test_data':
+      return 'test verisi olduğu için'
+    case 'owner_request':
+      return 'stüdyo sahibinin talebiyle'
+    default:
+      return 'talep üzerine'
+  }
 }

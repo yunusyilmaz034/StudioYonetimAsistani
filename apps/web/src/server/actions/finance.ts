@@ -26,6 +26,7 @@ import {
 import { z } from 'zod'
 
 import { requireTenantContext } from '../auth'
+import { observed } from '../log'
 import { adminDb } from '../firebase-admin'
 
 // Finance is a SYNCHRONOUS, TRUSTED write, always (AD-35): it moves money. Nothing here is ever an
@@ -85,8 +86,10 @@ export async function sellAction(input: unknown) {
     .parse(input)
   const ctx = await requireTenantContext(OPS)
   const opId = newOperationId()
+  const ceiling = await discountCeiling(ctx)
 
-  return sell(deps(), ctx, {
+  return observed('finance.sell', ctx, opId, { memberId: p.memberId, lines: p.lines.length }, () =>
+    sell(deps(), ctx, {
     saleId: `sal_${opId.slice(4)}`,
     memberId: p.memberId as MemberId,
     branchId: p.branchId as BranchId,
@@ -106,7 +109,7 @@ export async function sellAction(input: unknown) {
       referredByMemberId: (d.referredByMemberId ?? null) as never,
       grantedBy: ctx.actor,
     })),
-    discountCeilingPercent: await discountCeiling(ctx),
+    discountCeilingPercent: ceiling,
     payment: p.payment
       ? {
           paymentId: `pay_${opId.slice(4)}`,
@@ -119,7 +122,8 @@ export async function sellAction(input: unknown) {
           note: p.payment.note,
         }
       : null,
-  })
+    }),
+  )
 }
 
 // KISMİ ÖDEME lives here: a payment against existing debt, allocated oldest-first.
@@ -139,38 +143,60 @@ export async function collectAction(input: unknown) {
   const ctx = await requireTenantContext(OPS)
   const opId = newOperationId()
 
-  return collect(deps(), ctx, {
-    paymentId: `pay_${opId.slice(4)}`,
-    memberId: p.memberId as MemberId,
-    branchId: p.branchId as BranchId,
-    amount: money(p.amountKurus),
-    method: p.method,
-    receivedAt: instant(p.receivedAtMs ?? Date.now()),
-    drawerId: p.drawerId,
-    giftCardCode: p.giftCardCode,
-    note: p.note,
-  })
+  // The amount is logged. It is money, not PII — and an incident in which we can see THAT a
+  // collection was refused but not FOR HOW MUCH is an incident we cannot reconstruct.
+  return observed(
+    'finance.collect',
+    ctx,
+    opId,
+    { memberId: p.memberId, amountKurus: p.amountKurus, method: p.method },
+    () =>
+      collect(deps(), ctx, {
+        paymentId: `pay_${opId.slice(4)}`,
+        memberId: p.memberId as MemberId,
+        branchId: p.branchId as BranchId,
+        amount: money(p.amountKurus),
+        method: p.method,
+        receivedAt: instant(p.receivedAtMs ?? Date.now()),
+        drawerId: p.drawerId,
+        giftCardCode: p.giftCardCode,
+        note: p.note, // the note is NOT logged: free text is where PII hides
+      }),
+  )
 }
 
 export async function voidPaymentAction(input: unknown) {
   const p = z.object({ paymentId: nonEmpty, reason: nonEmpty }).parse(input)
-  return voidPayment(deps(), await requireTenantContext(OWNER), p)
+  const ctx = await requireTenantContext(OWNER)
+  return observed('finance.void_payment', ctx, undefined, { paymentId: p.paymentId }, () =>
+    voidPayment(deps(), ctx, p),
+  )
 }
 
 export async function refundAction(input: unknown) {
   const p = z.object({ paymentId: nonEmpty, amountKurus: kurus, reason: nonEmpty }).parse(input)
   const ctx = await requireTenantContext(OWNER)
-  return refund(deps(), ctx, {
-    refundId: `rfn_${newOperationId().slice(4)}`,
-    paymentId: p.paymentId,
-    amount: money(p.amountKurus),
-    reason: p.reason,
-  })
+  return observed(
+    'finance.refund',
+    ctx,
+    undefined,
+    { paymentId: p.paymentId, amountKurus: p.amountKurus },
+    () =>
+      refund(deps(), ctx, {
+        refundId: `rfn_${newOperationId().slice(4)}`,
+        paymentId: p.paymentId,
+        amount: money(p.amountKurus),
+        reason: p.reason,
+      }),
+  )
 }
 
 export async function cancelSaleAction(input: unknown) {
   const p = z.object({ saleId: nonEmpty, reason: nonEmpty }).parse(input)
-  return cancelSale(deps(), await requireTenantContext(OWNER), p)
+  const ctx = await requireTenantContext(OWNER)
+  return observed('finance.cancel_sale', ctx, undefined, { saleId: p.saleId }, () =>
+    cancelSale(deps(), ctx, p),
+  )
 }
 
 // ── CARİ HESAP — derived from the movements; nothing is stored that cannot be re-derived ────
@@ -246,11 +272,21 @@ export async function closeDrawerAction(input: unknown) {
   const p = z
     .object({ drawerId: nonEmpty, countedKurus: kurus, note: z.string().nullable().default(null) })
     .parse(input)
-  return closeDrawer(deps(), await requireTenantContext(OPS), {
-    drawerId: p.drawerId,
-    counted: money(p.countedKurus),
-    note: p.note,
-  })
+  const ctx = await requireTenantContext(OPS)
+  // A REFUSED day-end is the single most interesting warning this system can emit: it means the
+  // drawer did not balance and somebody tried to close it anyway, without saying why.
+  return observed(
+    'finance.close_drawer',
+    ctx,
+    undefined,
+    { drawerId: p.drawerId, countedKurus: p.countedKurus },
+    () =>
+      closeDrawer(deps(), ctx, {
+        drawerId: p.drawerId,
+        counted: money(p.countedKurus),
+        note: p.note,
+      }),
+  )
 }
 
 // ── GIFT CARD · COUPON · PLAN ───────────────────────────────────────────────────────────────

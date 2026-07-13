@@ -17,6 +17,23 @@ Repayment: what we would do.
 
 ---
 
+## Where the register stands (v1.26)
+
+**Repaid:** DEBT-011 · 012 · 013 · 014 · 015 · 021 · 023 — the seven that stood between the product
+and production. Each entry is kept, struck through with what actually happened, because **the
+diagnosis is the lesson** and a register that only lists open debts teaches nothing.
+
+**Taken in v1.26:** DEBT-025 (the command handler treats every exception as permanent).
+
+**Open, each with a trigger that has not arrived:** 001 · 002 · 003 · 004 · 005 · 006 · 007 · 008 ·
+009 · 010 · 016 · 017 · 018 · 019 · 020 · 022 · 024 · 025.
+
+**The two to watch** are unchanged and neither is a bug: **DEBT-002** (no discount entity — it
+becomes a lie the moment the first campaign runs) and **DEBT-007** (attendance is *presumed*, not
+observed — every Phase 2 metric that reads attendance inherits it).
+
+---
+
 ## DEBT-001 — Client-side member search
 
 **Taken:** architecture · Phase 1 · Yunus
@@ -38,6 +55,12 @@ Repayment: what we would do.
 ---
 
 ## DEBT-003 — PII duplicated into reservation documents
+> **v1.26 (B5):** the cost this entry named — *"a KVKK/GDPR erasure request is **not** a single-document
+> delete; it must also purge `memberSnapshot` across that member's reservations"* — is now **paid on
+> demand rather than owed**: `pnpm kvkk:erase` purges it, and the erasure was rehearsed against the
+> emulator. The debt stands (the duplication is still there, and a rename still has to backfill it),
+> but the failure mode it warned about can no longer catch anyone out.
+
 
 **Taken:** architecture · Phase 1 · Yunus *(OQ-12, accepted with limits)*
 **What:** `reservation.memberSnapshot` carries `displayName`, `phoneLast4`, `membershipStatus` so a trainer's roster costs ~10 reads instead of ~20. Built by `members.toMemberSnapshot()` — the four-field bound lives in one function *(AD-44)*.
@@ -48,6 +71,12 @@ Repayment: what we would do.
 ---
 
 ## DEBT-004 — `credits.available` stores derived data
+> **v1.26 (B3):** the nightly consistency check this entry promised now **exists** — the
+> `credit_ledger_drift` signal in `apps/functions/src/scheduled/health.ts`, proven by an integration
+> test that plants a drift and asserts the alarm fires **and that the number is not repaired**.
+> The trigger to repay is therefore live: *if it ever reports, a write path bypassed the
+> transaction, and that is a bug, not a data problem.* Runbook: `docs/RUNBOOK.md`.
+
 
 **Taken:** architecture · Phase 1 · Yunus *(AD-14)*
 **What:** `available = granted + restored − consumed − held − revoked − expired` is stored beside the six counters it derives from, so that *"packages expiring with unused sessions"* is an index rather than a full scan.
@@ -140,7 +169,25 @@ the reverse branch in `correctReservation`.
 
 ---
 
-## DEBT-011 — Functions emulator won't load (ESM/Node mismatch)
+## DEBT-011 — Functions emulator won't load (ESM/Node mismatch) — ✅ **REPAID in v1.26 (B0)**
+
+**Repaid:** 2026-07-13 · v1.26 · Yunus
+**What it actually was:** worse than recorded. Two independent breaks, either of which alone made a
+deploy impossible: (1) the ESM/`moduleResolution: Bundler` mismatch below, and (2) `@studio/core`
+ships raw TypeScript (`"main": "./src/index.ts"`) as a `workspace:*` symlink that `firebase deploy`
+never uploads. There was also no `predeploy` hook, so nothing compiled before a deploy at all.
+**The fix:** `apps/functions/build.mjs` — esbuild bundles the domain INTO a single CJS artifact
+(`lib/index.js`); only `firebase-admin` / `firebase-functions` stay external, and GCP installs those
+itself. `@studio/core` moved to `devDependencies` (it is a *build-time* dependency now — leaving
+`workspace:*` in the deployed manifest would break `npm install` on GCP). `predeploy` wired in
+`firebase.json`; `pnpm build:functions` added to `pnpm check`, so a broken deploy now **fails the
+gate** instead of passing it silently.
+**Proven:** the Functions emulator loads all four definitions, and `apps/functions/test/integration/
+triggers.test.ts` fires `onEventCreated` and `onCommandCreated` against the emulator.
+**Two defects it surfaced on its first run:** the functions were bound to `us-central1` (see below),
+and `onCommandCreated` could be killed by a poison message (DEBT-025).
+
+*The original entry, kept because the diagnosis is the lesson:*
 
 **Taken:** dev tooling / verification · v1.19 · Yunus
 **What:** `apps/functions` is `"type": "module"` but the shared tsconfig uses
@@ -167,7 +214,21 @@ deferred trigger/rules/transaction integration tests.
 
 ---
 
-## DEBT-012 — A stale session cookie causes a redirect loop
+## DEBT-012 — A stale session cookie causes a redirect loop — ✅ **REPAID in v1.26 (B1)**
+
+**Repaid:** 2026-07-13 · v1.26 · Yunus
+**The fix — by deletion, not by addition.** The loop had two halves, and one of them was a
+convenience: the middleware bounced any cookie-holding visitor away from `/login`. It is a COARSE
+gate that cannot tell a live cookie from a dead one, so that rule was a guess dressed as a
+decision. It is gone. `/login` already asks the server whether the session is *real* and redirects
+a genuinely signed-in visitor itself — the same convenience, decided by the only layer that can
+decide it. A member with a valid session now goes to `/portal` from there.
+**Not done, deliberately:** the stale cookie is not actively cleared. It is inert — every server
+read rejects it — and the next successful sign-in overwrites it. Clearing it would need a Server
+Action fired from a render, which is machinery bought for a cosmetic gain.
+**Proven:** `apps/web/src/middleware.test.ts` — six cases, two of which lock the loop shut.
+
+*The original entry:*
 
 **Taken:** 2026-07-12 · v1.20 · Yunus
 **What:** the middleware is a **coarse** gate by design (v1.5 decision #3): it checks only
@@ -190,7 +251,26 @@ the honest one, because the session really is gone.
 
 ---
 
-## DEBT-013 — The QR signing secret is a dev constant outside production
+## DEBT-013 — The QR signing secret is a dev constant outside production — ✅ **REPAID in v1.26 (B1)**
+
+**Repaid:** 2026-07-13 · v1.26 · Yunus
+**What was actually missing** was not rotation — it was a *home*. `QR_TOKEN_SECRET` was read by the
+code and declared **nowhere**: not in `.env.example`, not in any deploy config, with a hardcoded
+fallback one `NODE_ENV` away from signing real tokens with a key published in this repository. It
+now lives in `server/secrets.ts` (the one place the web tier reads a secret), is provisioned from
+Secret Manager via `apphosting.yaml`, and **refuses to start** a deployed environment without it —
+staging included, because staging holds a copy of real members.
+**Rotation — and an objection to this entry's own proposal.** DEBT-013 asked for a `kid` in the
+token so two keys could be live at once. **We did not build it.** The token lives for SIXTY
+SECONDS; a key id buys the ability to say *which* key signed a token and pays for it with a
+permanent change to the token format. Instead: **minting uses the active key, verification accepts
+a LIST** (`QR_TOKEN_SECRET` + `QR_TOKEN_SECRET_PREVIOUS`). Rotation costs zero failed scans, the
+token format never changed, and the second HMAC costs nothing measurable. *The format we never
+changed is the one we can never break.*
+**Proven:** four rotation cases in `qr-token.test.ts`, including "refuses the outgoing key once it
+is dropped" — the case that proves a rotation actually completes.
+
+*The original entry:*
 
 **Taken:** 2026-07-12 · v1.21 · Yunus
 **What:** the check-in token is signed with `QR_TOKEN_SECRET`. In production its absence throws;
@@ -205,7 +285,22 @@ window.
 
 ---
 
-## DEBT-014 — The member portal has no emulator integration tests
+## DEBT-014 — The member portal has no emulator integration tests — ✅ **REPAID in v1.26 (B2)**
+
+**Repaid:** 2026-07-13 · v1.26 · Yunus
+**What shipped:** `apps/functions/test/integration/portal-e2e.test.ts` — invite → supersede →
+activate → *refuse the replay* → eligibility (D12: a Reformer package does not open Mat) → book
+(the credit is **held**, not consumed) → cancel inside the window (the credit comes **back**, and
+`consumed` never moves). It also asserts that neither the invite token nor her phone number
+reached the event log (#6).
+**It builds its own fixtures** rather than leaning on the demo seed: a test that breaks when
+someone edits the seed is a test nobody trusts, and one that silently stops asserting when the seed
+changes shape is worse.
+**Not covered, and stated plainly:** this drives the use-cases, not HTTP. A defect that lives
+purely in a Server Action's wrapper — a wrong cookie read, a missing `revalidatePath` — is still
+invisible to it. That is the smoke-test suite's job in B5.
+
+*The original entry:*
 
 **Taken:** 2026-07-12 · v1.21 · Yunus
 **What:** invite → activation → login → book → cancel is covered by unit tests of every *rule*
@@ -219,7 +314,17 @@ emulator). The harness is the same one.
 
 ---
 
-## DEBT-015 — No test asserts the shell boundary
+## DEBT-015 — No test asserts the shell boundary — ✅ **REPAID in v1.26 (B2)**
+
+**Repaid:** 2026-07-13 · v1.26 · Yunus
+**What shipped:** `apps/web/src/app/shell-boundary.test.ts` — three cases asserting that the staff
+`AppShell` is imported by **exactly one** layout, that nothing under `/portal` imports it, and that
+the root layout (which wraps her too) does not. It runs in `pnpm check`, and now in CI.
+**Deliberately a STATIC test.** A shell leak is a wiring fact, plainly visible in the import graph;
+a rendering test would need a server to tell us something the source already says out loud. The
+original defect — the shell sitting in `app/layout.tsx` — is caught by the third case directly.
+
+*The original entry:*
 
 **Taken:** 2026-07-12 · v1.21 · Yunus
 **What:** the member portal rendered inside the staff `AppShell` for a full batch, and nothing
@@ -269,6 +374,12 @@ import is idempotent and never overwrites a manual day, so the failure mode is "
 ---
 
 ## DEBT-018 — The waiting list has no notification channel
+> **v1.26 (B5):** e-mail is now a REAL channel (Resend, DEBT-023), and WhatsApp is wired as a
+> provider with its Meta-template mapping in place. So the trigger to repay — *"the first
+> notification channel in the product"* — has arrived on the e-mail side. **Auto-promotion is still
+> not built**, deliberately: it needs an offer + TTL so an unanswered promotion passes down the queue
+> instead of silently booking a member who then has her credit consumed by presumed attendance
+> (DEBT-007). That is a domain decision and a feature, and v1.26 ships no features.
 
 **Taken:** 2026-07-13 · v1.22 · Yunus
 **What:** D20 ships without auto-promotion *on purpose* — an auto-promoted member who was never
@@ -310,7 +421,28 @@ not done now: the index set is a cost too, and optimising an unmeasured read is 
 
 ---
 
-## DEBT-021 — Two money models, until v1.26
+## DEBT-021 — Two money models, until v1.26 — ✅ **REPAID in v1.26 (B4)**
+
+**Repaid:** 2026-07-13 · v1.26 · Yunus
+**What shipped:** `tools/migration/legacy-finance.ts` — every entitlement's v1.14 money
+(`priceAgreed` / `manualPayment`) becomes a real `Sale` + `Payment` + `Allocation` in the v1.24
+ledger. It calls the **real `sell()` use-case**, not hand-written events: the ledger's arithmetic
+(allocation, balance, over-payment, I-32…I-35) lives in the domain, and a migration that bypasses it
+to save an afternoon produces a ledger that is subtly, permanently, unverifiably wrong. The clock is
+**pinned to the original purchase instant**, so revenue lands on the day it was earned.
+**Idempotent:** the sale id is derived from the entitlement id, so a second run writes nothing. *A
+migration that double-charges every member on its second run is one that will, once, be run twice.*
+**What it surfaced:** `drawer_required` — the kasa control refusing to pretend it had been exercised
+before it existed. Resolved by **AD-66** (owner): the `migration` actor is exempt; the method stays
+`cash` and the drawer stays `null`, because both are *true*. Tested from both sides — a migration
+may; a human still may not.
+**Proven:** reconciliation fails with 7 mismatches before the run and is **clean to the kuruş**
+after it. 7 sales (30.300,00 ₺), 6 payments (21.200,00 ₺), zero failures.
+**Not done, deliberately:** the entitlement's money fields are **not dropped**. Expand → migrate →
+**contract**, and the contract is a separate, later decision (Doc 6 §10) — data a migration both
+writes and deletes on the same day is data nobody can verify.
+
+*The original entry:*
 
 **Taken:** 2026-07-13 · v1.24 · Yunus
 **What:** the finance ledger (Sale · Payment · Allocation) is authoritative from v1.24, but every
@@ -343,7 +475,25 @@ and emit `plan.instalment_paid` in the same transaction.
 
 ---
 
-## DEBT-023 — E-mail has no real transport yet
+## DEBT-023 — E-mail has no real transport yet — ✅ **REPAID in v1.26 (B5)**
+
+**Repaid:** 2026-07-13 · v1.26 · Yunus
+**What shipped:** `ResendEmailProvider` (owner's choice, 2026-07-13). One `fetch`, no SDK — the API
+is a single POST, and a dependency here would buy retries we already have and a supply-chain risk we
+do not want in the one module that talks to the outside world.
+**Three properties it does not compromise on:** it reports **`sent`, never `delivered`** (Resend
+accepting a message means Resend accepted it; arrival is evidence that comes later, by webhook); it
+sends an **idempotency key**, because our trigger is at-least-once and a redelivery must not become a
+second e-mail to a member who already got the first; and it classifies failure **conservatively** —
+4xx permanent, 429/5xx transient, **anything it cannot classify is permanent**, because a retry loop
+against an unknown error is money spent on a guess every fifteen minutes, forever.
+**The transport is real when it is configured and honest when it is not:** with no key it falls back
+to the console provider **and logs a warning on every construction**. The go/no-go checklist has a
+line requiring a real e-mail in a real inbox before cutover — a studio cannot go live telling members
+"we e-mailed you" while nothing was e-mailed.
+**Still owed by the owner:** the Resend API key and DNS (SPF/DKIM) for `pilatesfitnessbyisil.com`.
+
+*The original entry:*
 
 **Taken:** 2026-07-13 · v1.25 · Yunus
 **What:** `ConsoleEmailProvider` records the attempt, logs the message and reports `sent`. There is no
@@ -368,6 +518,66 @@ policy live in `DEFAULT_NOTIFICATION_SETTINGS` / `DEFAULT_RETRY` — **as data, 
 **Trigger to repay:** the second studio, or the first owner who asks.
 **Repayment:** read them from `/settings/studio` (the document and the reader already exist for
 `lowCreditThreshold` and `discountCeilingPercent`); add the fields to the settings dialog.
+
+---
+
+## DEBT-025 — The command handler treats every exception as permanent
+
+**Taken:** 2026-07-13 · v1.26 (B0) · Yunus
+**What:** `onCommandCreated` used to *throw* when a repository could not find a referenced document
+("Reservation not found: …"). An unhandled throw kills the function; Firestore redelivers
+at-least-once; it throws again. The command sat in `pending` **forever** and the write it carried —
+a check-in, an attendance mark — vanished with nobody able to see why (Doc 8, R6). A bad QR scan was
+enough to reach it. It now catches, resolves the command as `failed` with a reason, and logs loudly.
+**The debt:** the handler cannot tell a *permanent* failure (a document that will never exist) from a
+*transient* one (a Firestore blip). It treats both as permanent. A transient error therefore loses the
+command instead of retrying it.
+**Cost:** bounded and visible — the command reads `failed` with `failedReason: 'handler_error'`, which
+is a queryable fact, not a silence. The alternative (retry forever) loses it *invisibly*, which is
+strictly worse. And the admin SDK already retries transient gRPC failures internally, so an exception
+that escapes to us has almost certainly exhausted its own retries.
+**Trigger to repay:** the first `handler_error` in production that turns out to have been transient —
+or, better, when the repositories stop throwing for "not found" and return a typed `DomainError`
+instead. That is the real fix: a not-found is a **refusal**, not an exception, and every layer above
+already speaks `Result`.
+**Repayment:** typed `*_not_found` refusals at the repository boundary (with Turkish copy), then the
+handler can retry an unknown exception and fail only a typed one.
+
+---
+
+## DEBT-026 — Revenue-per-product is not attributable from the ledger ⚠️ *(found in v1.26 final verification)*
+
+**Taken:** 2026-07-13 · v1.26 (B6) · Yunus
+**What:** `sale.created` carries `{ gross, discountTotal, total, lineCount, discountReasons,
+soldByType }` — and **no product**. The projector's `salesByProduct` counter reads
+`payload.productId`, which a real sale never has. It was only ever populated by the legacy
+`entitlement.purchased` event.
+**So the truth is worse than it looks, and it predates this milestone:** **since v1.24, no sale made
+through the finance ledger has contributed to revenue-per-product.** The Analytics screen's
+product-revenue figures have been showing legacy purchases only. v1.26 makes it total, because the
+projector no longer folds the legacy family at all (it would double-count the migration — see Doc 29
+and the `THE DOUBLE-COUNT` test).
+**Cost:** *"which package earns the most?"* — a question the owner will certainly ask, and one that
+Doc 24 built a chart for — cannot currently be answered from the log. Nothing is wrong; something is
+absent, and the chart renders zeros rather than lying.
+**Why it is not fixed here:** the fix is an **event payload change** (`sale.created` gains a `lines:
+[{productId, amountKurus}]`), and an event schema is permanent and human-owned (CLAUDE.md). It is
+also genuinely a design question: a sale has *many* lines, so a single `productId` does not
+generalise, and the shape has to be right the first time.
+**Trigger to repay:** **v1.27 Retail, Wallet & Product Sales** (owner, 2026-07-13).
+**Why it waits, and why that is the right call rather than a deferral of convenience:** a *product
+line* is the central concept v1.27 introduces — a retail order IS lines, with quantities, variants and
+stock. Designing `sale.created`'s line shape now, against a milestone that sells only packages, would
+be designing it twice: once badly, and once again in three weeks with the schema already frozen. An
+event payload is permanent, so the cheap moment to get it right is the moment the domain actually has
+lines in it.
+**And the cost of waiting is bounded and visible:** the product-revenue chart renders zeros. It does
+not lie; it is simply empty, and it says so.
+**Repayment:** `sale.created` v2 with additive `lines: [{ productId, amountKurus }]` and an upcaster,
+designed *with* the retail order model. The projector folds them; `pnpm projections:rebuild`.
+**No backfill is possible for sales already made** — the information was never captured, and we do not
+invent it (I-30). Revenue-per-product therefore begins at v1.27, honestly, rather than beginning with
+a number somebody guessed.
 
 ---
 

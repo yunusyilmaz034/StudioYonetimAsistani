@@ -2,6 +2,7 @@ import type {
   ActorType,
   Clock,
   DomainError,
+  EventSource,
   Instant,
   MemberId,
   NewEvent,
@@ -89,4 +90,6 @@ export interface MemberRepository {
 export interface MembersDeps {
   readonly repo: MemberRepository
   readonly clock: Clock
+  // See FinanceDeps.source — the migration stamps `migration`, never `reception_web`.
+  readonly source?: EventSource
 }

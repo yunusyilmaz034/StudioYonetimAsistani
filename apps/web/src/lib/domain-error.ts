@@ -138,6 +138,8 @@ export function domainErrorMessage(error: DomainError): string {
       return 'Bildirim kaydı bulunamadı.'
     case 'correction_credit_unsupported':
       return 'Bu düzeltme bir kredinin yeniden düşülmesini gerektiriyor; şu an desteklenmiyor.'
+    case 'erasure_requires_platform_admin':
+      return 'Üye kaydını anonimleştirme yetkisi yalnızca platform yöneticisindedir.'
     default: {
       const exhaustive: never = error
       void exhaustive

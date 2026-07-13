@@ -15,7 +15,15 @@ export default defineConfig({
     // Unit layer only (no emulator): the pure kernel plus the pure server-side
     // auth helpers. Emulator integration tests (apps/functions) run separately via
     // `firebase emulators:exec`.
-    include: ['packages/core/**/*.test.ts', 'apps/web/src/**/*.test.ts'],
+    include: [
+      'packages/core/**/*.test.ts',
+      'apps/web/src/**/*.test.ts',
+      // The migration's PURE rules — what it accepts, what it refuses, what it never merges.
+      // AD-36 says the migration never *runs* in CI, and it does not: nothing here touches
+      // Firestore. But it is the one script whose mistakes are unrecoverable, and an untested
+      // validator is the last place to save an afternoon.
+      'tools/migration/**/*.test.ts',
+    ],
     passWithNoTests: true,
   },
 })

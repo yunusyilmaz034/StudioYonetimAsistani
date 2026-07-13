@@ -26,12 +26,18 @@ export function middleware(req: NextRequest): NextResponse {
     return NextResponse.redirect(url)
   }
 
-  if (hasSession && pathname === '/login') {
-    const url = req.nextUrl.clone()
-    url.pathname = '/'
-    return NextResponse.redirect(url)
-  }
-
+  // DEBT-012 — there used to be a second rule here: "cookie present and heading for /login →
+  // bounce to /". It was the other half of an infinite redirect. This gate is COARSE by design
+  // and cannot tell a live cookie from a dead one, so a cookie that no longer verifies — expired,
+  // or minted by an Auth emulator that has since been reset — read as a live session: the
+  // middleware bounced /login → /, the server verified the cookie for real, found nothing, and
+  // redirected / → /login. The user ended at ERR_TOO_MANY_REDIRECTS with no way back in from
+  // inside the product.
+  //
+  // Nothing is lost by deleting it. `/login` already asks the server whether the session is
+  // REAL and redirects a genuinely signed-in visitor itself — which is the same convenience,
+  // decided by the one layer that can actually decide it. The stale cookie is inert (every
+  // server read rejects it) and is overwritten by the next successful sign-in.
   return NextResponse.next()
 }
 

@@ -15,12 +15,15 @@ import {
   InAppProvider,
   intentIdFor,
   notify,
+  ResendEmailProvider,
   rulesFor,
   systemClock,
+  WhatsAppProvider,
   type ClassSessionId,
   type MemberId,
   type NotificationDeps,
   type NotificationPrefs,
+  type NotificationProvider,
   type RecipientRef,
   type StudioId,
   type TenantContext,
@@ -40,15 +43,49 @@ import { db } from '../shared/firebase'
 
 const OFFSET_MIN = 180
 
+/**
+ * Real transport when the secret exists; the console recorder when it does not.
+ *
+ * A deployed environment WITHOUT a Resend key falls back to the console — and that would be a
+ * studio telling its members "we e-mailed you" while nothing was e-mailed. So it is loud: the
+ * fallback logs a warning on every construction, and the go/no-go checklist has a line that says a
+ * real e-mail must have arrived in a real inbox before cutover.
+ */
+function emailProvider(): NotificationProvider {
+  const apiKey = process.env.RESEND_API_KEY
+  const from = process.env.EMAIL_FROM
+  if (apiKey && from) return new ResendEmailProvider(apiKey, from)
+
+  logger.warn('e-mail transport is the CONSOLE — no message will leave the building', {
+    alert: 'email_transport_not_configured',
+    hasApiKey: Boolean(apiKey),
+    hasFrom: Boolean(from),
+  })
+  return new ConsoleEmailProvider()
+}
+
 export function notificationDeps(): NotificationDeps {
   const database = db()
   return {
     repo: new FirestoreNotificationRepository(database),
     clock: systemClock,
-    // v1.25 ships in-app and e-mail. SMS/WhatsApp/push are PORTS: a `MockSmsProvider` exists for
-    // tests, and the real adapter lands after Production Hardening — HERE, alone, changing nothing
-    // else (owner, decision 2).
-    providers: [new InAppProvider(database), new ConsoleEmailProvider()],
+    // v1.26 — the transport is real when it is CONFIGURED, and honest when it is not.
+    //
+    // With a Resend key, e-mail leaves the building. Without one, the console provider records the
+    // attempt and logs the message — a deliberate DEVELOPMENT behaviour, never a production one.
+    // The two are told apart by the secret's presence, not by a flag somebody must remember to
+    // flip: a studio cannot go live telling members "we e-mailed you" while nothing was e-mailed,
+    // and the go/no-go checklist has a line for exactly this.
+    //
+    // WhatsApp is wired as a MOCK: the pipeline — intent, attempt, retry, quiet hours, the
+    // Notification Center — is proven end to end without a Meta contract, a verified number, or an
+    // approved template. Handing it the real transport is one constructor argument (owner: stop and
+    // ask when a production credential is needed).
+    providers: [
+      new InAppProvider(database),
+      emailProvider(),
+      new WhatsAppProvider(), // mock until Meta credentials exist
+    ],
     settings: DEFAULT_NOTIFICATION_SETTINGS,
     utcOffsetMinutes: OFFSET_MIN,
     loadPrefs: async (ctx, memberId): Promise<NotificationPrefs> => {

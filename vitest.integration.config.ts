@@ -10,5 +10,9 @@ export default defineConfig({
     include: ['apps/functions/test/**/*.test.ts'],
     testTimeout: 20_000,
     hookTimeout: 30_000,
+    // One file at a time: these suites share ONE emulator, and the rules suite wipes the
+    // database between its cases. A parallel trigger test would have its fixtures deleted
+    // underneath it — and would fail intermittently, which is worse than failing outright.
+    fileParallelism: false,
   },
 })

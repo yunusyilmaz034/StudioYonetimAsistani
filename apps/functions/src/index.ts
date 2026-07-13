@@ -8,15 +8,22 @@
 //   onEventCreated   — the daily read model (v1.23): the ONLY projector in the system.
 //                      It folds events into per-day counters; it reads no state document,
 //                      and it can be rebuilt from the log at any time.
+import { setGlobalOptions } from 'firebase-functions/v2'
 import { onSchedule } from 'firebase-functions/v2/scheduler'
 
 import { runAutoCheckOutSweep } from './scheduled/auto-check-out'
 import { runAutoResolveSweep } from './scheduled/auto-resolve-attendance'
 import { runExpirySweep } from './scheduled/expire-credits'
+import { runFastHealthChecks, runNightlyHealthChecks } from './scheduled/health'
 import { runNotificationRetrySweep } from './scheduled/notification-retry'
 import { runReminderSweep } from './scheduled/reminders'
+import { REGION } from './shared/region'
 import { onCommandCreated } from './triggers/on-command-created'
 import { onEventCreated } from './triggers/on-event-created'
+
+// The default for anything declared BELOW this line. The triggers above do not rely on it —
+// they were already evaluated by their own imports, and each names the region itself.
+setGlobalOptions({ region: REGION })
 
 export { onCommandCreated }
 // v1.23 — the daily read model behind the owner dashboard. Disposable: if it is ever wrong, it is
@@ -37,8 +44,21 @@ export const nightlySweep = onSchedule(
     // v1.25 — reminders are DOMAIN EVENTS ("your package expires in three days" has no event behind
     // it; time merely passed). They run last, so they see the night's expiries.
     await runReminderSweep()
+
+    // v1.26 — the drift checks run AFTER the sweeps, and they only ever REPORT. Running them first
+    // would flag the very rows the sweeps are about to settle; running them at all is how we find
+    // out that a write path bypassed a transaction, which is a bug and not a number to correct.
+    await runNightlyHealthChecks(Date.now())
   },
 )
+
+// v1.26 — the fast signals. Every fifteen minutes, because the failure they watch for is SILENT:
+// a dead command trigger loses check-ins while reception's optimistic UI keeps saying "girdi", and
+// a lagging projection renders yesterday's studio with today's confidence. Neither raises an error
+// anywhere. Five minutes of stuck commands is an alarm (Doc 6 §9); an hour of projection lag is.
+export const healthCheck = onSchedule({ schedule: 'every 15 minutes' }, async () => {
+  await runFastHealthChecks(Date.now())
+})
 
 // v1.25 — the retry sweep, and the quiet-hour queue (the same mechanism from another angle). Every
 // 15 minutes: a queued LOW/NORMAL message waits for 08:00, a transient failure waits for its

@@ -28,6 +28,17 @@ export interface RenderedMessage {
   readonly body: string
   readonly intentId: string
   readonly channel: Channel
+  // ── v1.26, and the reason it exists: WhatsApp. ─────────────────────────────────────────────
+  // Meta will not carry arbitrary text to a member who has not written to us in the last 24 hours.
+  // Outside that window only a **template Meta itself approved** may be sent — so the provider needs
+  // to know WHICH template produced this message and WHAT went into its placeholders, not merely the
+  // Turkish sentence that came out. `body` is what a human reads; these two are what an API needs.
+  //
+  // It lives on the port rather than inside the WhatsApp adapter because the mapping "our template →
+  // their approved template" is a fact about our templates, and hiding it in one provider would mean
+  // discovering, on the day we add a second one, that the information was thrown away.
+  readonly templateId: string
+  readonly params: Readonly<Record<string, string>>
 }
 
 export interface NotificationProvider {

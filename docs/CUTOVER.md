@@ -1,0 +1,186 @@
+# Cutover
+
+The plan for the day the studio stops using BulutGym and starts using this.
+
+It is short on purpose. A cutover plan nobody can hold in their head at 07:00 on a Monday is a
+cutover plan that gets improvised.
+
+---
+
+## 1. The shape of the day (AD-12 — freeze and cut)
+
+**Parallel writable operation is rejected.** Two systems that can both check a member in produce two
+credit balances and no principled way to reconcile them — only a guess about which one was right.
+The old system goes read-only at a declared instant, and it never takes another write.
+
+```
+T-7g   Staging rehearsal, end to end. At least one CLEAN run.
+T-1g   Rollback rehearsed, and TIMED. The old system must come back in under ten minutes.
+T-0    BulutGym → READ-ONLY. Declared instant, announced to staff. Nobody writes to it again.
+T+1h   Final export. Archived raw to Cloud Storage, unparsed.
+T+2h   Import to production:  pnpm migrate:validate → migrate:dry-run → migrate:import --apply
+T+3h   Packages opened BY HAND, member by member, against the owner's own list.
+T+4h   pnpm migrate:reconcile → the owner reads the credit table and SIGNS it.
+T+4h   pnpm projections:rebuild && projections:verify   ← MANDATORY, and AFTER the migration.
+T+5h   New system is the only writer.
+—      BulutGym stays READABLE for four weeks as a dispute reference, then is archived.
+```
+
+**Why the packages are opened by hand.** BulutGym exports a name and a phone; nothing else (owner,
+2026-07-13). Credits, balances and history are therefore **not imported, not derived, and not
+estimated** — they are entered by a human who is looking at the old system. Forty-five members is an
+afternoon. A guessed credit balance is a dispute that lasts a year.
+
+---
+
+## 2. Go / no-go
+
+**Every box, or the cutover is postponed.** No exceptions, no "we'll fix it Tuesday". The point of a
+checklist is that it is allowed to say no to you.
+
+### The machine
+- [ ] `pnpm check` green · `pnpm test:integration` green · CI green on `main`
+- [ ] Functions deployed to prod: `onCommandCreated` · `onEventCreated` · `nightlySweep` · `notificationRetry` · `healthCheck`
+- [ ] **Every one of them observed firing at least once on staging** — a deployed function nobody saw run is a function nobody knows works
+- [ ] Firestore **rules AND indexes** deployed *(a missing composite index passes in the emulator and fails in production)*
+- [ ] Region confirmed: Firestore `eur3`, Functions `europe-west1`
+
+### The data
+- [ ] Raw BulutGym export archived to Cloud Storage, **unparsed**
+- [ ] **Zero rejected rows** in `validation.md` — every collision resolved by a human, never by the importer
+- [ ] `migrate:reconcile` clean: zero credit-ledger drift, zero finance mismatch
+- [ ] **The owner has read the remaining-credits table and signed it**
+- [ ] Twenty members spot-checked by hand against BulutGym
+- [ ] `grep` the source tree for a product name and find nothing *(AD-41 — the catalogue is data)*
+
+### The eyes
+- [ ] Five signals live; each deliberately tripped once and the alarm seen to arrive
+- [ ] Daily backup running **and a restore rehearsed** — *a backup whose restore has never been tried is a bill, not a backup*
+- [ ] `projections:rebuild` + `projections:verify` run once against production-like data: **zero diff**
+- [ ] **The projection was rebuilt AFTER the legacy money migration, not before.** The migration
+      generates a `sale.created` for every legacy purchase; a projection folded before the v1.26
+      change counted both families and reported **exactly double the revenue** (Doc 29). The rebuild
+      is what makes the dashboard agree with the ledger.
+
+### The perimeter
+- [ ] `QR_TOKEN_SECRET` provisioned in Secret Manager (not a dev value — `secrets.ts` refuses to start without it)
+- [ ] `RESEND_API_KEY` + `EMAIL_FROM` provisioned, **and a real e-mail has arrived in a real inbox**
+- [ ] Security rules tests pass **against the rules that are actually deployed**
+- [ ] Session cookie is `Secure` (it is, when `NODE_ENV=production`)
+
+### The behaviour
+- [ ] Reception has run a full mock day on staging
+- [ ] Offline check-in verified **with the wifi physically off**
+- [ ] A full-class booking is refused, and the refusal is legible in Turkish
+- [ ] An exactly-six-hour cancellation returns the credit
+- [ ] The attendance auto-resolver has run once on staging: every unresolved reservation became `reservation.auto_resolved` with `source: 'system_default'`, and **not one `reservation.attended` was written by the `system` actor** *(I-18)*
+- [ ] The expiry sweep ran **after** it, and refused to touch any entitlement still holding a credit *(I-19)*
+
+### The way back
+- [ ] Rollback rehearsed **and timed**: BulutGym can be un-frozen in under ten minutes
+
+---
+
+## 3. Smoke test — the first thirty minutes on production
+
+Run in this order, as the real roles, on a real phone. Each one is a path a member's money or a
+member's morning depends on.
+
+| # | Do this | It must |
+|---|---|---|
+| 1 | Sign in as the owner | land on the dashboard, no redirect loop *(DEBT-012)* |
+| 2 | Sign in as reception on a phone | render at 375 px with no horizontal scroll |
+| 3 | Create a member with a Turkish phone (`0532…`) | store `+90532…` — E.164 or refuse |
+| 4 | Create the same phone again | be **refused** *(I-21)* |
+| 5 | Sell a package, collect cash into an open kasa | appear in the Activity feed as one Turkish sentence, one OperationId |
+| 6 | Close the kasa with a deliberate 10 ₺ discrepancy and no note | be **refused** — the domain does not let a drawer balance itself |
+| 7 | Book the member into a class | drop `available` by one, `held` = 1, `consumed` = 0 |
+| 8 | Cancel it inside the window | return the credit; `consumed` never moves |
+| 9 | Check her in by QR | succeed once, and be **refused** on a second scan of the same token |
+| 10 | Mark attendance with the wifi OFF | write a `/commands` doc; **and resolve within seconds when the wifi returns** |
+| 11 | Cancel a class with members in it | send each of them exactly **one** message, not one per reservation *(intent collapse)* |
+| 12 | Check the member's e-mail | a real e-mail, from `noreply@pilatesfitnessbyisil.com`, in a real inbox |
+| 13 | Open the member portal as the member | show HER data, and **no owner navigation anywhere** *(DEBT-015)* |
+| 14 | Open the owner dashboard | 1 projection read; numbers agree with what you just did |
+
+**Any failure stops the cutover.** The list is short enough to run twice.
+
+---
+
+## 4. Rollback
+
+**The window is one business day, and this is an honesty decision, not an architectural one.**
+
+**Within cutover day:** un-freeze BulutGym, re-enter the day's few dozen transactions by hand, retry
+the cutover next week. The precondition is that we have *rehearsed* the un-freeze and know it takes
+minutes.
+
+**After one full day of real writes, there is no rollback.** The new system holds facts the old one
+does not — a check-in, a payment, a cancelled class. Say this **out loud on Monday morning**, so that
+carrying on is a decision somebody made rather than a thing that merely happened.
+
+**Application rollback is a different thing and is always available:** App Hosting keeps releases,
+Functions keep versions. **Data rollback is not, and that is deliberate.** The event log is
+append-only. A restore from backup does not *undo* the events written since — it loses them. A
+mistake is corrected by a **compensating event** with a reason (#9), never by an overwrite and never
+by a restore.
+
+---
+
+## 5. The first two weeks (Phase 1.5)
+
+Resist shipping features. The system is one week old and holds people's money.
+
+- Watch `/commands` lag, the drift reports, stuck triggers. The runbook has an entry for each.
+- **Watch the attendance correction rate.** If it is *exactly zero* after two weeks, nobody is
+  correcting anything and the presumption has quietly become a fiction (DEBT-007). If it is 30%,
+  the default is wrong for this studio — and `policy.attendance.defaultOutcome` is a one-document
+  change, no code at all.
+- Fix what reception actually complains about, which will not be what we predicted.
+- Write a DEBT entry for every shortcut taken during the week, **with a trigger to repay each one**.
+
+---
+
+## 6. KVKK — erasure and retention
+
+**Erasure.** `pnpm kvkk:erase -- --studio=<sid> --member=<mid> --reason="…"` (dry-run by default).
+
+It empties every place a name can live: the member record (tombstoned, not deleted — deleting it
+would break every join and turn a lawful erasure into a corrupt database), the denormalised
+`memberSnapshot` on her reservations (DEBT-003 said this day would come), her notification intents,
+her in-app inbox, her invites, and her Auth login.
+
+**It does not touch `/events`, and it does not need to.** PII has never entered an event payload
+(#6) — that rule cost us convenience for two years, and this is what it bought: her bookings, her
+credits, her payments and her check-ins stay in the log, the ledger still balances, the revenue
+reports still add up, and none of it says who she was. **A system that had put her name in its events
+would face a choice here between obeying the law and keeping its own books. We do not have that
+choice to make, and it is not luck.**
+
+**Retention.**
+
+| Data | Kept | Why |
+|---|---|---|
+| `/events` | **indefinitely** | Anonymous by construction. There is nothing to erase, and it is the substrate every projection, report and future model is built on. |
+| Financial records (sales, payments, the credit ledger) | **10 years** | Turkish Commercial Code. They reference her by an opaque id that now resolves to nobody. |
+| `/members`, `memberSnapshot`, notification intents, inbox | **until erasure is requested** | This is where identity lives, and therefore where erasure acts. |
+| Raw BulutGym export (Cloud Storage) | **4 weeks after cutover**, then deleted | It is the dispute reference. After that it is a PII liability with no purpose. |
+| Migration reports (`tools/migration/reports/`) | **local only, never committed** | They quote members' names and phone numbers. That is what makes them useful, and exactly why they are gitignored. |
+
+Every erasure is written into the studio's KVKK register by hand: date, member id, reason, who asked.
+
+---
+
+## 7. Security review — v1.26
+
+| Area | Finding |
+|---|---|
+| **Tenant perimeter** | Reads require a **staff** role; a member principal matches no read rule at all. 20 rules tests, including every member-isolation scenario. |
+| **The member's own data** | Her `memberId` comes only from the verified session cookie. **No Server Action takes a `memberId`**, so none can be handed a forged one. |
+| **`/commands`** | The only client-writable collection. Whitelist enforced twice (rules + dispatch). A malformed document is now **refused, not fatal** — it used to poison the trigger forever (DEBT-025). |
+| **`/events`** | Owner-only in the rules. Every screen over it is fed by a Server Action with the role filter **on the server**. Reception never reads a raw event. |
+| **QR** | 60-second, server-signed, single-use, verified online. The static-memberId card is gone: it was a bearer credential with no expiry. Signing key in Secret Manager, rotatable with **zero failed scans**. |
+| **Secrets** | One door (`server/secrets.ts`). A deployed environment **refuses to start** without them rather than falling back to a value published in this repository — staging included, because staging holds a copy of real members. |
+| **Logs** | Structured, with `correlationId` / `studioId` / `actor.type`, and **never PII** — the same rule as event payloads, for the same reason: logs are exported and read by people who have no business knowing a member's phone number. |
+| **Money** | Every movement is an event with an actor and a reason. A discretionary one (discount, void, refund, adjustment) also lands in the owner-only audit log. The kasa cannot balance itself. |
+| **Open** | Staff accounts and granular authorization are **v1.31**. Today the roles are owner / receptionist / trainer, and staff are provisioned by hand. |
