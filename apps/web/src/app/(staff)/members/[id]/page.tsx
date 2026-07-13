@@ -29,6 +29,11 @@ export default async function MemberWorkspacePage({
   }
 
   return (
-    <MemberWorkspaceScreen data={data} products={products} defaultBranchId={ctx.branchIds[0] ?? null} />
+    <MemberWorkspaceScreen
+      data={data}
+      products={products}
+      defaultBranchId={ctx.branchIds[0] ?? null}
+      isOwner={ctx.role === 'owner'}
+    />
   )
 }

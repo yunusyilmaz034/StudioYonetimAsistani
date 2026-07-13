@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   ArrowLeftIcon,
@@ -41,6 +41,7 @@ import {
 import { Toaster } from '@/components/ui/sonner'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Timeline } from '@/components/activity/timeline'
+import { AccountPanel } from '../account-panel'
 import { memberTimelineAction } from '@/server/actions/activity'
 import { checkInCommand } from '@/lib/commands'
 import { domainErrorMessage } from '@/lib/domain-error'
@@ -56,10 +57,6 @@ import {
   type UpcomingSession,
 } from '@/server/actions/booking'
 import { bookReservationAction, cancelReservationAction } from '@/server/actions/reservations'
-import {
-  listMemberSubscriptionsAction,
-  type SubscriptionView,
-} from '@/server/actions/subscription'
 
 import { MemberForm } from '../member-form'
 import { InvitePanel } from './invite-panel'
@@ -75,7 +72,6 @@ const RES_STATUS: Record<string, string> = {
   no_show: 'Gelmedi',
   waitlisted: 'Beklemede',
 }
-const METHOD_LABEL: Record<string, string> = { cash: 'Nakit', credit_card: 'Kredi Kartı', bank_transfer: 'Havale / EFT' }
 
 const dt = (ms: number) =>
   new Date(ms).toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul', dateStyle: 'medium', timeStyle: 'short' })
@@ -88,7 +84,7 @@ const SECTIONS: readonly { id: SectionId; label: string; icon: typeof UserIcon }
   { id: 'packages', label: 'Paketler', icon: PackageIcon },
   { id: 'reservations', label: 'Rezervasyonlar', icon: ClipboardListIcon },
   { id: 'checkin', label: 'Check-in', icon: DoorOpenIcon },
-  { id: 'payments', label: 'Ödemeler', icon: CreditCardIcon },
+  { id: 'payments', label: 'Cari Hesap', icon: CreditCardIcon },
   { id: 'audit', label: 'Geçmiş', icon: HistoryIcon },
 ]
 
@@ -96,10 +92,12 @@ export function MemberWorkspaceScreen({
   data,
   products,
   defaultBranchId,
+  isOwner = false,
 }: {
   data: MemberWorkspaceData
   products: readonly ProductView[]
   defaultBranchId: string | null
+  isOwner?: boolean
 }) {
   const router = useRouter()
   const { member } = data
@@ -192,7 +190,13 @@ export function MemberWorkspaceScreen({
           />
         </TabsContent>
         <TabsContent value="payments">
-          <PaymentsPanel memberId={member.id} onGoPackages={() => setActive('packages')} />
+          {/* v1.24 — the real cari hesap: sales, payments, allocations, refunds, plans. Every
+              number is derived from the movements; nothing is a stored balance. */}
+          <AccountPanel
+            memberId={member.id}
+            branchId={member.homeBranchId ?? defaultBranchId ?? ''}
+            isOwner={isOwner}
+          />
         </TabsContent>
         <TabsContent value="audit">
           <AuditPanel memberId={member.id} />
@@ -531,87 +535,6 @@ function CheckinPanel({
 }
 
 // ── Payments (seam) ───────────────────────────────────────────────────────────
-function PaymentsPanel({ memberId, onGoPackages }: { memberId: string; onGoPackages: () => void }) {
-  const [subs, setSubs] = useState<readonly SubscriptionView[] | null>(null)
-
-  useEffect(() => {
-    let alive = true
-    listMemberSubscriptionsAction({ memberId })
-      .then((r) => alive && setSubs(r))
-      .catch(() => alive && setSubs([]))
-    return () => {
-      alive = false
-    }
-  }, [memberId])
-
-  const totals = useMemo(() => {
-    const rows = subs ?? []
-    return {
-      agreed: rows.reduce((a, s) => a + s.priceAgreedKurus, 0),
-      paid: rows.reduce((a, s) => a + s.paidKurus, 0),
-      balance: rows.reduce((a, s) => a + s.balanceDueKurus, 0),
-    }
-  }, [subs])
-
-  if (subs === null) {
-    return (
-      <div className="flex items-center gap-2 rounded-xl border border-border bg-card p-4 text-sm text-muted-foreground shadow-sm">
-        <Loader2Icon className="size-4 animate-spin" /> Yükleniyor…
-      </div>
-    )
-  }
-
-  return (
-    <div className="space-y-5">
-      <MetricStrip className="sm:grid-cols-3">
-        <Metric compact label="Anlaşılan" value={tl(totals.agreed)} />
-        <Metric compact label="Tahsil edilen" value={tl(totals.paid)} tone={totals.paid > 0 ? 'success' : 'default'} />
-        <Metric compact label="Bakiye" value={tl(totals.balance)} tone={totals.balance > 0 ? 'danger' : 'default'} />
-      </MetricStrip>
-
-      <Section
-        title="Paket ödemeleri"
-        actions={
-          <Button size="sm" variant="outline" onClick={onGoPackages}>
-            <PackageIcon /> Paketlere git
-          </Button>
-        }
-      >
-        {subs.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Kayıtlı paket / ödeme yok.</p>
-        ) : (
-          <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card shadow-sm">
-            {subs.map((s) => (
-              <li key={s.id} className="px-3 py-2.5 text-sm">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="truncate font-medium text-foreground">{s.productName}</span>
-                  <span className="shrink-0 text-xs tabular-nums text-muted-foreground">{d(s.validFrom)}</span>
-                </div>
-                <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                  <span className="tabular-nums">Anlaşılan: {tl(s.priceAgreedKurus)}</span>
-                  <span className="tabular-nums">Tahsil: {tl(s.paidKurus)}</span>
-                  {s.balanceDueKurus > 0 ? (
-                    <span className="font-medium tabular-nums text-danger">Bakiye: {tl(s.balanceDueKurus)}</span>
-                  ) : null}
-                  {s.method ? <span>{METHOD_LABEL[s.method] ?? s.method}</span> : null}
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-        <p className="text-xs text-muted-foreground">
-          Ödemeler abonelik atama sırasında kaydedilir (v1.14 seam). Yeni tahsilat için ilgili paketten
-          “Ödeme” işlemini kullanın. Gerçek Payments modülü v1.22&apos;de gelecek.
-        </p>
-      </Section>
-    </div>
-  )
-}
-
-// ── Audit ─────────────────────────────────────────────────────────────────────
-// The MEMBER TIMELINE (v1.22) — her whole life in the studio, from the first moment, in
-// sentences: "Ayşe’ye Reformer 8 Ders tanımlandı." No event type reaches the screen (owner rule 1).
-// Read through a Server Action; the client never touches /events (OQ-1).
 function AuditPanel({ memberId }: { memberId: string }) {
   return (
     <Timeline

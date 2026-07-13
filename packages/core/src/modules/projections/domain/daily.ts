@@ -134,6 +134,34 @@ export function projectDaily(
     case 'waitlist.promoted':
       return one({ waitlistPromoted: 1 })
 
+    // ── v1.24: the finance ledger is now the money's authority. ────────────────────────────
+    case 'sale.created':
+      // SATIŞ = the agreed total, paid or not (owner D-1).
+      return {
+        date,
+        counters: { salesKurus: kurus(event.payload.total) },
+        ...(id(event.payload.productId)
+          ? { productSales: { productId: id(event.payload.productId)!, amountKurus: kurus(event.payload.total) } }
+          : {}),
+      }
+    case 'sale.cancelled': {
+      // NET revenue: subtracted on the day it is cancelled, never rewriting a past day's total —
+      // a dashboard that edits history disagrees with a report someone already printed.
+      const reversed = kurus(event.payload.total)
+      return one({ salesKurus: reversed === 0 ? 0 : -reversed })
+    }
+    case 'payment.received':
+      // TAHSİLAT = what actually arrived (cash basis, owner OQ-2).
+      return one({ collectedKurus: kurus(event.payload.amount) })
+    case 'payment.voided':
+    case 'payment.refunded': {
+      // Money that came back out. A void is not an edit (I-31) — it is a movement, and the day's
+      // collected figure must feel it.
+      const back = kurus(event.payload.amount)
+      return one({ collectedKurus: back === 0 ? 0 : -back })
+    }
+
+    // ── legacy (v1.14–v1.23). Kept so the log's history still folds; nothing NEW writes these. ──
     case 'entitlement.purchased': {
       // SATIŞ = the agreed price at the moment of sale, paid or not (owner, D-1).
       const amount = kurus(event.payload.priceAgreed)

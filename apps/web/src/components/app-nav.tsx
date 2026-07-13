@@ -11,6 +11,8 @@ import {
   CalendarDaysIcon,
   LayersIcon,
   ShieldIcon,
+  TargetIcon,
+  WalletIcon,
   CalendarIcon,
   ClipboardCheckIcon,
   DoorOpenIcon,
@@ -55,6 +57,8 @@ const GROUPS: readonly NavGroup[] = [
     items: [
       { href: '/members', label: 'Üyeler', icon: UsersIcon },
       { href: '/packages', label: 'Paketler', icon: PackageIcon },
+      { href: '/finance', label: 'Kasa', icon: WalletIcon },
+      { href: '/crm', label: 'Satış Hunisi', icon: TargetIcon },
       { href: '/calendar', label: 'Takvim', icon: CalendarDaysIcon },
       { href: '/operations', label: 'Operasyonlar', icon: LayersIcon },
       { href: '/activity', label: 'Hareket Merkezi', icon: ActivityIcon },

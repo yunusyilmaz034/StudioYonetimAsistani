@@ -22,6 +22,7 @@ const studio = (defaultCancellationWindowHours: number | null): StudioSettings =
   studioId: 'std_1' as StudioId,
   defaultCancellationWindowHours,
   lowCreditThreshold: null,
+  discountCeilingPercent: null,
 })
 
 describe('resolveCancellationWindow (D14)', () => {

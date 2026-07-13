@@ -57,6 +57,10 @@ export interface StudioSettings {
   // (#4: nothing in the code knows the number six, and nothing knows the number two either).
   // Absent ⇒ the studio was provisioned before this existed; the dashboard uses 2 and says so.
   readonly lowCreditThreshold: number | null
+  // v1.24 (owner, decision 4) — the discount ceiling, as a percentage of the sale's gross. DATA,
+  // never a literal: reception giving 40 % is either a kindness or a leak, and only the owner knows
+  // which. Above the ceiling, only the owner may approve. Absent ⇒ no ceiling.
+  readonly discountCeilingPercent: number | null
 }
 
 export interface Service {

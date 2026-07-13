@@ -1,5 +1,7 @@
 import {
   available,
+  FirestoreFinanceRepository,
+  saleBalanceDue,
   emptyDaily,
   FirestoreCalendarRepository,
   FirestoreEntitlementRepository,
@@ -90,6 +92,21 @@ export interface UpcomingOperationRow {
   readonly status: string | null
 }
 
+export interface PendingPaymentRow extends MemberRef {
+  readonly saleId: string
+  readonly soldAt: number
+  readonly totalKurus: number
+  readonly dueKurus: number
+  readonly daysOpen: number
+}
+
+export interface OpenDrawerRow {
+  readonly id: string
+  readonly name: string
+  readonly expectedKurus: number
+  readonly openedAt: number | null
+}
+
 export interface OwnerDashboard {
   readonly date: string
   readonly today: DailyReadModel
@@ -112,6 +129,10 @@ export interface OwnerDashboard {
   readonly emptySessions: readonly EmptySessionRow[] // the next 7 days; the UI filters 24h/48h/7d
   readonly upcomingOperations: readonly UpcomingOperationRow[]
   readonly recentMembers: readonly (MemberRef & { joinedAt: number })[]
+  // v1.24 — money the studio is owed, and kasalar left open. Both are questions about NOW, so both
+  // are bounded state queries; a counter cannot know that a drawer is still open.
+  readonly pendingPayments: readonly PendingPaymentRow[]
+  readonly openDrawers: readonly OpenDrawerRow[]
   readonly feed: readonly ActivityEvent[]
 }
 
@@ -129,8 +150,19 @@ export async function loadOwnerDashboard(
   const sched = new FirestoreSchedulingRepository(db)
 
   // ── one projection read + five bounded state queries + the feed, all at once ──
-  const [daily, members, entitlements, sessions7d, waiting, settings, calendar, closures, feed] =
-    await Promise.all([
+  const [
+    daily,
+    members,
+    entitlements,
+    sessions7d,
+    waiting,
+    settings,
+    calendar,
+    closures,
+    openSales,
+    drawers,
+    feed,
+  ] = await Promise.all([
       new FirestoreProjectionRepository(db).getDaily(ctx, date),
       new FirestoreMemberRepository(db).list(ctx),
       new FirestoreEntitlementRepository(db).listActive(ctx),
@@ -144,6 +176,8 @@ export async function loadOwnerDashboard(
         (localDateAt(instant(nowMs + 30 * DAY_MS), OFFSET_MIN) as string) as LocalDate,
       ),
       new FirestoreOperationsRepository(db).listClosures(ctx),
+      new FirestoreFinanceRepository(db).listOpenSales(ctx),
+      new FirestoreFinanceRepository(db).listDrawers(ctx),
       loadFeed(ctx, {}),
     ])
 
@@ -248,6 +282,28 @@ export async function loadOwnerDashboard(
     .sort((a, b) => (a.dateFrom < b.dateFrom ? -1 : 1))
     .slice(0, 8)
 
+  const pendingPayments: PendingPaymentRow[] = openSales
+    .filter((s) => saleBalanceDue(s) > 0)
+    .map((s) => ({
+      saleId: s.id,
+      id: s.memberId as string,
+      name: nameOf(s.memberId as string),
+      soldAt: s.soldAt as number,
+      totalKurus: s.total.amount,
+      dueKurus: saleBalanceDue(s),
+      daysOpen: Math.max(0, Math.floor((nowMs - s.soldAt) / DAY_MS)),
+    }))
+    .sort((a, b) => b.daysOpen - a.daysOpen)
+
+  const openDrawers: OpenDrawerRow[] = drawers
+    .filter((d) => d.status === 'open')
+    .map((d) => ({
+      id: d.id,
+      name: d.name,
+      expectedKurus: d.expected.amount,
+      openedAt: d.openedAt as number | null,
+    }))
+
   const newest = feed.entries[0]?.recordedAt ?? 0
 
   return {
@@ -274,6 +330,8 @@ export async function loadOwnerDashboard(
     })),
     emptySessions,
     upcomingOperations,
+    pendingPayments,
+    openDrawers,
     recentMembers: [...members]
       .sort((a, b) => b.joinedAt - a.joinedAt)
       .slice(0, 5)

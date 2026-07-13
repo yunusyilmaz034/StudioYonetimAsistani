@@ -249,6 +249,151 @@ export function present(e: ActivityEvent): PresentedEntry {
         'warning',
       )
 
+    // ── finance (v1.24) ─────────────────────────────────────────────────────────────────
+    case 'sale.created':
+      return entry(
+        `${to(member)} ${money(p.total)} tutarında satış yapıldı.`,
+        [
+          num(p.lineCount) ? `${num(p.lineCount)} kalem` : null,
+          kurus(p.discountTotal) > 0 ? `${money(p.discountTotal)} indirim uygulandı` : null,
+        ]
+          .filter(Boolean)
+          .join(' · '),
+        'success',
+      )
+    case 'sale.cancelled':
+      return entry(
+        `${of_(member)} ${money(p.total)} tutarındaki satışı iptal edildi.`,
+        str(p.reason),
+        'warning',
+      )
+    case 'sale.settled':
+      return entry(`${of_(member)} ${money(p.total)} tutarındaki satışı tamamen tahsil edildi.`, null, 'success')
+    case 'payment.received':
+      return entry(
+        `${money(p.amount)} tahsilat alındı.`,
+        [methodTr(p.method), str(p.drawerId) ? 'kasaya işlendi' : null].filter(Boolean).join(' · '),
+        'success',
+      )
+    case 'payment.voided':
+      return entry(
+        `${money(p.amount)} tutarındaki tahsilat iptal edildi (void).`,
+        str(p.reason),
+        'danger',
+      )
+    case 'payment.refunded':
+      return entry(`${money(p.amount)} iade edildi.`, [methodTr(p.method), str(p.reason)].filter(Boolean).join(' · '), 'warning')
+    case 'allocation.applied':
+      return entry(
+        `${money(p.amount)} ödeme, satışa mahsup edildi.`,
+        `kalan borç: ${money(p.saleBalanceAfter)}`,
+        'default',
+      )
+    case 'drawer.opened':
+      return entry(`Kasa açıldı.`, `açılış bakiyesi: ${money(p.openingFloat)}`, 'info')
+    case 'drawer.closed': {
+      const diff = kurus(p.discrepancy)
+      return entry(
+        'Kasa kapatıldı (gün sonu).',
+        `beklenen ${money(p.expected)} · sayılan ${money(p.counted)}${diff === 0 ? ' · fark yok' : ''}`,
+        diff === 0 ? 'success' : 'warning',
+      )
+    }
+    case 'drawer.discrepancy_recorded': {
+      const diff = kurus(p.discrepancy)
+      return entry(
+        `Kasa farkı: ${diff > 0 ? 'fazla' : 'açık'} ${money(p.discrepancy)}.`,
+        str(p.note),
+        'danger',
+      )
+    }
+    case 'giftcard.issued':
+      return entry(`${money(p.value)} değerinde hediye kartı oluşturuldu.`, null, 'default')
+    case 'giftcard.redeemed':
+      return entry(
+        `Hediye kartından ${money(p.amount)} harcandı.`,
+        `kalan: ${money(p.remainingAfter)}`,
+        'default',
+      )
+    case 'coupon.created':
+      return entry(
+        `"${str(p.code) ?? 'Kupon'}" kuponu tanımlandı.`,
+        p.kind === 'percent' ? `%${num(p.value) ?? 0} indirim` : `${money(money0(p.value))} indirim`,
+        'default',
+      )
+    case 'coupon.redeemed':
+      return entry(
+        `"${str(p.code) ?? 'Kupon'}" kuponu kullanıldı.`,
+        `${money(p.discount)} indirim`,
+        'default',
+      )
+    case 'plan.created':
+      return entry(
+        `${of_(member)} borcu için ${num(p.instalmentCount) ?? 0} taksitli ödeme planı oluşturuldu.`,
+        `toplam ${money(p.total)}`,
+        'info',
+      )
+    case 'plan.instalment_paid':
+      return entry(
+        `${num(p.seq) ?? 0}. taksit ödendi.`,
+        `${money(p.amount)} · kalan ${num(p.remainingInstalments) ?? 0} taksit`,
+        'success',
+      )
+    case 'plan.cancelled':
+      return entry('Ödeme planı iptal edildi.', str(p.reason), 'warning')
+
+    // ── CRM (v1.24) ─────────────────────────────────────────────────────────────────────
+    case 'lead.captured':
+      return entry(
+        `Yeni aday kaydı oluşturuldu.`,
+        [sourceTr(p.source), str(p.sourceDetail)].filter(Boolean).join(' · '),
+        'info',
+      )
+    case 'lead.stage_changed':
+      return entry(
+        `Aday ${stageTr(p.to)} aşamasına geçti.`,
+        `${stageTr(p.from)} → ${stageTr(p.to)}`,
+        'default',
+      )
+    case 'lead.lost':
+      return entry(
+        `Aday kaybedildi (${lostTr(p.reason)}).`,
+        str(p.note),
+        'warning',
+      )
+    case 'lead.converted':
+      return entry(
+        `Aday üyeye dönüştü.`,
+        `${sourceTr(p.source)} · ${num(p.daysToConvert) ?? 0} günde`,
+        'success',
+      )
+    case 'interaction.logged':
+      return entry(
+        `${interactionTr(p.kind)} kaydedildi.`,
+        p.outcome === 'no_answer' ? 'Ulaşılamadı.' : p.outcome === 'callback' ? 'Geri aranacak.' : null,
+        'default',
+      )
+    case 'offer.created':
+      return entry(`${money(p.total)} tutarında teklif hazırlandı.`, null, 'default')
+    case 'offer.sent':
+      return entry(`${money(p.total)} tutarında teklif gönderildi.`, null, 'info')
+    case 'offer.accepted':
+      return entry(
+        `Teklif kabul edildi — ${money(p.total)}.`,
+        `${num(p.hoursToAccept) ?? 0} saatte karar verildi`,
+        'success',
+      )
+    case 'offer.rejected':
+      return entry(`Teklif reddedildi — ${money(p.total)}.`, str(p.reason), 'warning')
+    case 'member.churned':
+      return entry(
+        `${member ?? 'Üye'} stüdyodan ayrıldı (${churnTr(p.reason)}).`,
+        [str(p.note), num(p.membershipDays) ? `${num(p.membershipDays)} gün üyeydi` : null]
+          .filter(Boolean)
+          .join(' · '),
+        'danger',
+      )
+
     // ── check-in ─────────────────────────────────────────────────────────────────────────
     case 'member.checked_in':
       return entry(`${member ?? 'Üye'} stüdyoya giriş yaptı.`, str(p.method), 'success')
@@ -400,6 +545,72 @@ function methodTr(v: unknown): string | null {
   const m = str(v)
   return m ? (METHOD_TR[m] ?? m) : null
 }
+
+// Money in the log is `{ amount, currency }` (#10). Reading it as a number is how a revenue figure
+// becomes a silent zero — the v1.23 lesson, applied once, in one place.
+const kurus = (v: unknown): number => {
+  if (typeof v === 'number' && Number.isFinite(v)) return v
+  if (v && typeof v === 'object' && 'amount' in v) {
+    const a = (v as { amount: unknown }).amount
+    return typeof a === 'number' ? a : 0
+  }
+  return 0
+}
+const money0 = (v: unknown): { amount: number } => ({ amount: num(v) ?? 0 })
+
+const SOURCE_TR: Record<string, string> = {
+  instagram: 'Instagram',
+  walk_in: 'Kapıdan geldi',
+  referral: 'Tavsiye',
+  google: 'Google',
+  phone: 'Telefon',
+  event: 'Etkinlik',
+  other: 'Diğer',
+}
+const STAGE_TR: Record<string, string> = {
+  new: 'Yeni',
+  contacted: 'İletişim kuruldu',
+  trial: 'Deneme dersi',
+  offer: 'Teklif',
+  won: 'Kazanıldı',
+  lost: 'Kaybedildi',
+}
+const LOST_TR: Record<string, string> = {
+  price: 'fiyat',
+  schedule: 'program uymadı',
+  location: 'konum',
+  competitor: 'rakibe gitti',
+  not_interested: 'ilgilenmedi',
+  unreachable: 'ulaşılamadı',
+  other: 'diğer',
+}
+const CHURN_TR: Record<string, string> = {
+  price: 'fiyat',
+  schedule: 'program',
+  moved_away: 'taşındı',
+  injury: 'sakatlık',
+  dissatisfied: 'memnun kalmadı',
+  competitor: 'rakibe gitti',
+  unknown: 'bilinmiyor',
+}
+const INTERACTION_TR: Record<string, string> = {
+  call: 'Telefon görüşmesi',
+  whatsapp: 'WhatsApp mesajı',
+  sms: 'SMS',
+  email: 'E-posta',
+  meeting: 'Görüşme',
+  note: 'Not',
+  trial: 'Deneme dersi',
+}
+const lookup = (map: Record<string, string>, v: unknown, fallback = '—'): string => {
+  const k = str(v)
+  return k ? (map[k] ?? k) : fallback
+}
+const sourceTr = (v: unknown) => lookup(SOURCE_TR, v)
+const stageTr = (v: unknown) => lookup(STAGE_TR, v)
+const lostTr = (v: unknown) => lookup(LOST_TR, v, 'sebep belirtilmedi')
+const churnTr = (v: unknown) => lookup(CHURN_TR, v, 'sebep belirtilmedi')
+const interactionTr = (v: unknown) => lookup(INTERACTION_TR, v, 'Etkileşim')
 
 function reasonTr(v: unknown): string | null {
   const r = str(v)

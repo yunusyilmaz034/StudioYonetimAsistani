@@ -310,6 +310,39 @@ not done now: the index set is a cost too, and optimising an unmeasured read is 
 
 ---
 
+## DEBT-021 — Two money models, until v1.26
+
+**Taken:** 2026-07-13 · v1.24 · Yunus
+**What:** the finance ledger (Sale · Payment · Allocation) is authoritative from v1.24, but every
+entitlement sold before it still carries the v1.14 fields (`priceAgreed`, `paidTotal`,
+`manualPayment`). The owner decided (decision 1) to MIGRATE — once, with reconciliation, in v1.26 —
+rather than carry a read-side `if (legacy)` forever.
+**Cost:** until then, a member's cari hesap covers only what was sold through the new ledger. The
+member workspace shows both (packages tab: legacy; cari hesap tab: the ledger), and the dashboard's
+sales/collections figures fold both event families.
+**Trigger to repay:** **v1.26 Migration, Cutover & Production Hardening** — the milestone that
+already owns import + reconcile + cutover.
+**Repayment:** emit historical `sale.created` / `payment.received` from the existing entitlements
+(`actor: system`, `source: 'migration'`, original `occurredAt`), reconcile totals, then drop the
+entitlement's money fields.
+
+---
+
+## DEBT-022 — The instalment plan does not yet mark itself paid
+
+**Taken:** 2026-07-13 · v1.24 · Yunus
+**What:** a payment plan records the promises (due dates + amounts) and the ledger records the money,
+but nothing yet links a `payment.received` back to the instalment it satisfied — `plan.instalment_paid`
+is declared and unemitted.
+**Cost:** "bekleyen ödemeler" is honest (it reads the sale's balance), but the instalment list shows
+every instalment as `due` even after the money arrives.
+**Trigger to repay:** the first studio that actually sells an instalment plan, or v1.25 (reminders
+need to know which instalment is late).
+**Repayment:** on allocation, match the amount to the earliest unpaid instalment of the sale's plan
+and emit `plan.instalment_paid` in the same transaction.
+
+---
+
 ## Reserved for the build week
 
 Shortcuts taken during Phase 1 implementation get entries here **as they are taken**, not afterwards. If the cut ladder (Doc 8 §8) is used — catalogue CRUD UI, owner view, manual attendance marking, freeze UI, payment allocation UI, weekly template generation, offline check-in — each cut becomes an entry with a trigger.

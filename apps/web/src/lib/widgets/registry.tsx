@@ -474,6 +474,76 @@ const upcomingOperations: Widget<DashboardSnapshot['upcomingOperations']> = {
     ),
 }
 
+// v1.24 — money the studio is owed. Selling without collecting is legal here; it must never be
+// invisible.
+const pendingPayments: Widget<DashboardSnapshot['pendingPayments']> = {
+  id: 'finance.pending',
+  title: 'Bekleyen ödemeler',
+  kind: 'list',
+  href: () => '/insights/finance.pending',
+  table: (s): ExportableTable => ({
+    name: 'bekleyen-odemeler',
+    columns: ['Üye', 'Satış tarihi', 'Toplam (₺)', 'Kalan (₺)', 'Gün'],
+    rows: s.pendingPayments.map((r) => [
+      r.name,
+      formatDateTime(r.soldAt),
+      r.totalKurus / 100,
+      r.dueKurus / 100,
+      r.daysOpen,
+    ]),
+  }),
+  select: (s) => s.pendingPayments,
+  present: (rows) => {
+    const total = rows.reduce((n, r) => n + r.dueKurus, 0)
+    return {
+      headline:
+        rows.length === 0
+          ? 'Bekleyen ödeme yok.'
+          : `${rows.length} satışta toplam ${tl(total)} tahsil edilmedi.`,
+      detail: rows[0] ? `En eski: ${rows[0].name} — ${rows[0].daysOpen} gündür açık.` : undefined,
+      tone: rows.length > 0 ? 'warning' : 'success',
+      needsAttention: rows.length > 0,
+    }
+  },
+  render: (rows) => (
+    <MemberLines
+      rows={rows}
+      right={(r: DashboardSnapshot['pendingPayments'][number]) => tl(r.dueKurus)}
+      empty="Bekleyen ödeme yok."
+    />
+  ),
+}
+
+// A kasa left open overnight is how a cash difference becomes untraceable.
+const openDrawers: Widget<DashboardSnapshot['openDrawers']> = {
+  id: 'finance.drawers',
+  title: 'Açık kasalar',
+  kind: 'list',
+  href: () => '/finance',
+  select: (s) => s.openDrawers,
+  present: (rows) => ({
+    headline:
+      rows.length === 0
+        ? 'Açık kasa yok — gün sonu yapılmış.'
+        : `${rows.length} kasa açık, beklenen ${tl(rows.reduce((n, r) => n + r.expectedKurus, 0))}.`,
+    tone: rows.length > 0 ? 'info' : 'success',
+    needsAttention: false,
+  }),
+  render: (rows) =>
+    rows.length === 0 ? (
+      <p className="py-2 text-sm text-muted-foreground">Açık kasa yok.</p>
+    ) : (
+      <ul className="space-y-0.5">
+        {rows.map((r) => (
+          <li key={r.id} className="flex items-center justify-between gap-2 px-2 py-1.5 text-sm">
+            <span className="truncate font-medium text-foreground">{r.name}</span>
+            <span className="shrink-0 tabular-nums text-muted-foreground">{tl(r.expectedKurus)}</span>
+          </li>
+        ))}
+      </ul>
+    ),
+}
+
 const recentMembers: Widget<DashboardSnapshot['recentMembers']> = {
   id: 'members.recent',
   title: 'Son eklenen üyeler',
@@ -511,6 +581,8 @@ export const WIDGETS: readonly AnyWidget[] = [
   openBalance,
   activeMembers,
   emptySessions,
+  pendingPayments,
+  openDrawers,
   lowCredit,
   exhausted,
   expiring,
@@ -535,4 +607,6 @@ export const WIDGET_ICON: Record<string, LucideIcon> = {
   waitlist: HourglassIcon,
   'operations.upcoming': LayersIcon,
   'members.recent': UserPlusIcon,
+  'finance.pending': CoinsIcon,
+  'finance.drawers': CreditCardIcon,
 }

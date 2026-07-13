@@ -35,6 +35,19 @@ export type DomainError =
   | { readonly code: 'invalid_adjustment' }
   | { readonly code: 'held_credits_block_expiry'; readonly held: number }
   | { readonly code: 'invalid_amount' }
+  // ── finance (v1.24) ──
+  | { readonly code: 'discount_exceeds_ceiling'; readonly ceilingPercent: number }
+  | { readonly code: 'drawer_required' }
+  | { readonly code: 'drawer_not_open' }
+  | { readonly code: 'drawer_already_open' }
+  | { readonly code: 'giftcard_not_found' }
+  | { readonly code: 'giftcard_not_active' }
+  | { readonly code: 'giftcard_insufficient'; readonly remaining: number }
+  | { readonly code: 'allocation_exceeds_payment' }
+  | { readonly code: 'allocation_exceeds_sale' }
+  | { readonly code: 'plan_total_mismatch' }
+  | { readonly code: 'coupon_invalid' }
+  | { readonly code: 'lead_not_open' }
   | { readonly code: 'entitlement_not_cancelled' }
   // ── check-in (Doc 2 §9, v1.15) ──
   | { readonly code: 'branch_not_open' }

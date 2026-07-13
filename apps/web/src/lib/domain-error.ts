@@ -102,6 +102,31 @@ export function domainErrorMessage(error: DomainError): string {
       return 'Bu seans için bekleme listesi açık değil.'
     case 'already_waitlisted':
       return 'Bu seansın bekleme listesinde zaten yer alıyorsunuz.'
+    // ── finance (v1.24) ──
+    case 'discount_exceeds_ceiling':
+      return `İndirim, stüdyo limitinin (%${error.ceilingPercent}) üzerinde. Bu indirimi yalnızca yönetici uygulayabilir.`
+    case 'drawer_required':
+      return 'Nakit ve POS tahsilatı için bir kasa seçilmelidir.'
+    case 'drawer_not_open':
+      return 'Kasa kapalı. Önce kasayı açın.'
+    case 'drawer_already_open':
+      return 'Bu kasa zaten açık.'
+    case 'giftcard_not_found':
+      return 'Hediye kartı bulunamadı.'
+    case 'giftcard_not_active':
+      return 'Hediye kartı kullanıma kapalı.'
+    case 'giftcard_insufficient':
+      return `Hediye kartında yeterli bakiye yok (kalan: ${(error.remaining / 100).toLocaleString('tr-TR')} ₺).`
+    case 'allocation_exceeds_payment':
+      return 'Bu ödemeden kalan tutardan fazlası mahsup edilemez.'
+    case 'allocation_exceeds_sale':
+      return 'Satışın kalan borcundan fazlası mahsup edilemez. Fazla tutar üyenin alacağı olarak kalır.'
+    case 'plan_total_mismatch':
+      return 'Taksitlerin toplamı satışın kalan borcuna eşit olmalı.'
+    case 'coupon_invalid':
+      return 'Kupon geçersiz veya süresi dolmuş.'
+    case 'lead_not_open':
+      return 'Bu aday kaydı artık açık değil.'
     case 'correction_credit_unsupported':
       return 'Bu düzeltme bir kredinin yeniden düşülmesini gerektiriyor; şu an desteklenmiyor.'
     default: {

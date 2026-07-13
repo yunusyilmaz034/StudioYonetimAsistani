@@ -234,7 +234,11 @@ export async function generateSessions(
 export async function setStudioDefaults(
   deps: SchedulingDeps,
   ctx: TenantContext,
-  input: { defaultCancellationWindowHours: number | null; lowCreditThreshold?: number | null },
+  input: {
+    defaultCancellationWindowHours: number | null
+    lowCreditThreshold?: number | null
+    discountCeilingPercent?: number | null
+  },
 ): Promise<Result<void, DomainError>> {
   const current = await deps.repo.getStudioSettings(ctx)
   const events = decideSetStudioDefaults(
@@ -252,6 +256,8 @@ export async function setStudioDefaults(
       // Omitted ⇒ keep what the studio already had. A settings form that saves one field must not
       // silently reset another (v1.23, D-4).
       lowCreditThreshold: input.lowCreditThreshold ?? current?.lowCreditThreshold ?? null,
+      discountCeilingPercent:
+        input.discountCeilingPercent ?? current?.discountCeilingPercent ?? null,
     },
     events.value,
   )

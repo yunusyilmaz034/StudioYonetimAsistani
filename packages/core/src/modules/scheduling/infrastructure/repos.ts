@@ -71,6 +71,7 @@ export class FirestoreSchedulingRepository implements SchedulingRepository {
       defaultCancellationWindowHours:
         (d.defaultCancellationWindowHours as number | null | undefined) ?? null,
       lowCreditThreshold: (d.lowCreditThreshold as number | null | undefined) ?? null,
+      discountCeilingPercent: (d.discountCeilingPercent as number | null | undefined) ?? null,
     }
   }
   async saveStudioSettings(
@@ -84,6 +85,7 @@ export class FirestoreSchedulingRepository implements SchedulingRepository {
       {
         defaultCancellationWindowHours: settings.defaultCancellationWindowHours,
         lowCreditThreshold: settings.lowCreditThreshold,
+        discountCeilingPercent: settings.discountCeilingPercent,
       },
       events,
     )

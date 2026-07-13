@@ -9,6 +9,46 @@ All notable changes are recorded here. Architecture rationale lives in
 
 ---
 
+## v1.24 — Finance & CRM · `v1.24-finance-crm`
+
+The milestone where the money seam closed. Before it, the system **could not represent a member who
+pays half now and half next month**: `manualPayment` on the entitlement was a single record-only
+field. *"Kısmi ödeme"* was never a missing screen; it was a missing model.
+
+- **Money gets its own ledger, and the entitlement stops being where money lives.**
+  `Sale → Payment → Allocation → Refund`. The allocation is the join that makes partial payment
+  expressible at all: a payment may settle two sales, a sale may take five payments.
+- **The cari hesap is DERIVED, never stored.** `Σ sales − Σ payments + Σ refunds`, exactly like the
+  credit ledger's `available`. The balance therefore cannot be *wrong* — only a movement can, and
+  every movement is an event with an actor and a reason.
+- **Six invariants, and they are the same rule wearing different clothes:** a payment is never
+  mutated (I-31 — a mistake is *voided*, and the void un-pays the sale it settled); a payment cannot
+  pay more than it is worth (I-32); a sale never goes below zero and an over-payment becomes member
+  credit (I-33); a discount is an **amount stamped at sale time**, never a percentage re-applied in
+  2027 under a different rounding rule (I-34); a gift card is never spent below zero — **refused,
+  never clamped** (I-35); every discretionary movement carries a reason (I-36).
+- **Gün sonu.** The drawer's expected balance moves with the money, and a discrepancy is a **recorded
+  fact**: the domain *refuses* to close a drawer with a difference and no explanation. A day-end that
+  quietly makes the numbers agree is not a control, it is a cover-up — and the owner is precisely the
+  person that control exists for.
+- **Attribution, captured now.** `soldBy` / `takenBy` on every sale and payment, though commissions
+  are not built: if the sale does not record who sold it, **no later engineering recovers it**.
+- **CRM.** A lead is **not** a member (conversion is an explicit act that produces one and closes the
+  lead); the funnel meets the ledger exactly once, when an accepted offer becomes a sale. Lost leads
+  and churn carry a closed enum **and** a note — the enum makes it analysable, the note makes it true.
+- **PII holds.** A lead's name and phone never enter the log; the event carries her *source*, which is
+  the analysable part and the part that must survive her erasure. Interaction text stays on the
+  aggregate: what a member said is hers, and the log is forever.
+- **The owner's two principles, implemented.** No financial number is maintained by hand. Every money
+  movement — sale, collection, refund, void, allocation, drawer open/close, coupon, gift card, lead
+  conversion — appears in the Activity feed as a Turkish sentence, in the timelines, and (when
+  discretionary) in the owner-only Audit Log, under one OperationId per act.
+
+374 unit tests · `pnpm check` green · 21/21 emulator checks. Legacy money fields stay untouched and
+are migrated once, with reconciliation, in v1.26 (DEBT-021).
+
+---
+
 ## v1.23 — Owner Dashboard & Analytics · `v1.23-owner-dashboard`
 
 The milestone that turns what v1.22 records into something a business can be run on. It writes **no
