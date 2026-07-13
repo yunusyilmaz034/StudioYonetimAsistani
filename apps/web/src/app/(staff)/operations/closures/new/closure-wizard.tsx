@@ -20,7 +20,6 @@ import { Metric, MetricStrip } from '@/components/ui/metric'
 import { PageHeader } from '@/components/ui/page-header'
 import { Section } from '@/components/ui/section'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Toaster } from '@/components/ui/sonner'
 import { domainErrorMessage } from '@/lib/domain-error'
 import {
   applyClosureAction,
@@ -127,7 +126,6 @@ export function ClosureWizard({
 
   return (
     <main className="mx-auto max-w-4xl space-y-5 p-4 sm:p-6 lg:p-8">
-      <Toaster />
       <PageHeader
         title="Kapanış / Tatil İşlemi"
         description="Önizleme hiçbir şeyi değiştirmez. Uygulama geri alınamaz."

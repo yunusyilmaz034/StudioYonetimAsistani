@@ -26,5 +26,5 @@ export default async function ActivityPage({
     ...(range === 'all' ? {} : { fromMs: r.fromMs, toMs: r.toMs }),
     ...(sp.memberId ? { memberId: sp.memberId } : {}),
   })
-  return <ActivityScreen initial={page} />
+  return <ActivityScreen initial={page} isOwner={ctx.role === 'owner'} />
 }

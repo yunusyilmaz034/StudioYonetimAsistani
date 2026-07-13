@@ -16,12 +16,14 @@ import {
   instant,
   money,
   newOperationId,
+  registerMember,
   systemClock,
   type Interaction,
   type Lead,
   type MemberId,
   type Offer,
 } from '@studio/core'
+import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 
 import { requireTenantContext } from '../auth'
@@ -140,6 +142,50 @@ export async function convertLeadAction(input: unknown) {
   if (!decided.ok) return decided
   await repo().saveLead(ctx, decided.value.next, decided.value.events)
   return { ok: true as const, value: undefined }
+}
+
+/**
+ * LEAD → MEMBER, in one press (Alpha Review, 2026-07-13).
+ *
+ * The "Üye Yap" button used to navigate to `/members?lead=…` — a query parameter **nothing reads**.
+ * The member form did not even open. `convertLeadAction` was called from nowhere, so a lead could
+ * never reach `won`, and the funnel's own conversion count could never move off zero.
+ *
+ * The lead already holds her name and her phone. Asking reception to retype them into another screen
+ * and then remember to come back and link the two is asking her to forget the second half.
+ *
+ * If the phone is already a member's, the domain refuses (I-21, one phone one member) — and that
+ * refusal is the right answer: she is already a member, and reception should link, not duplicate.
+ */
+export async function convertLeadToMemberAction(input: unknown) {
+  const p = z.object({ leadId: nonEmpty }).parse(input)
+  const ctx = await requireTenantContext(OPS)
+
+  const lead = await repo().getLead(ctx, p.leadId)
+  if (!lead) return { ok: false as const, error: { code: 'lead_not_open' as const } }
+
+  const registered = await registerMember(
+    { repo: new FirestoreMemberRepository(adminDb()), clock: systemClock },
+    ctx,
+    {
+      fullName: lead.fullName,
+      phone: lead.phone,
+      homeBranchId: lead.branchId,
+      email: lead.email,
+      birthDate: null,
+      notes: null,
+      emergencyContact: null,
+    },
+  )
+  if (!registered.ok) return registered
+
+  const decided = decideConvertLead(dctx(ctx), lead, registered.value.memberId)
+  if (!decided.ok) return decided
+  await repo().saveLead(ctx, decided.value.next, decided.value.events)
+
+  revalidatePath('/crm')
+  revalidatePath('/members')
+  return { ok: true as const, value: { memberId: registered.value.memberId as string } }
 }
 
 export async function logInteractionAction(input: unknown) {

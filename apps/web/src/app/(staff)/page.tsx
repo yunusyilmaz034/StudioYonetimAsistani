@@ -15,7 +15,7 @@ import { DashboardScreen } from './dashboard-screen'
 export default async function HomePage() {
   const ctx = await requirePageAccess('/')
   const data = await loadOwnerDashboard(ctx, Date.now())
-  return <DashboardScreen data={data} roleLabel={roleLabel(ctx.role)} />
+  return <DashboardScreen data={data} role={ctx.role} roleLabel={roleLabel(ctx.role)} />
 }
 
 function roleLabel(role: PrincipalRole): string {

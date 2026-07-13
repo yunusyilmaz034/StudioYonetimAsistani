@@ -1,0 +1,375 @@
+'use client'
+
+import { PlusIcon } from 'lucide-react'
+import { useCallback, useEffect, useState } from 'react'
+import { toast } from 'sonner'
+
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Section } from '@/components/ui/section'
+import { domainErrorMessage } from '@/lib/domain-error'
+import {
+  createRoomAction,
+  createServiceAction,
+  deactivateRoomAction,
+  deactivateServiceAction,
+  listDefinitionsAction,
+  reactivateRoomAction,
+  reactivateServiceAction,
+  type RoomRow,
+  type ServiceRow,
+} from '@/server/actions/scheduling'
+
+// DERS TÜRLERİ ve SALONLAR (Alpha Review, 2026-07-13).
+//
+// The domain has been able to create these since v1.6 and **no screen ever did**. The only creator in
+// the whole repository was the demo seed — so a studio doing a real cutover could not define a single
+// ders türü or salon of its own, and could therefore not schedule its first class. The capability was
+// finished; it simply had no door.
+//
+// ── The category is IMMUTABLE, and the form says so ─────────────────────────────────────────
+// A service's category is frozen at creation (I-22). It is what the category wall is judged against:
+// an unlimited fitness membership does not open the reformer room. Letting it be edited would
+// retroactively change which packages open which classes — for reservations that already happened.
+
+const CATEGORY: Record<string, string> = {
+  pilates_group: 'Pilates (grup)',
+  fitness: 'Fitness',
+  private: 'Özel ders (PT)',
+}
+
+export function DefinitionsPanel({ branchId }: { branchId: string | null }) {
+  const [services, setServices] = useState<readonly ServiceRow[]>([])
+  const [rooms, setRooms] = useState<readonly RoomRow[]>([])
+  const [newService, setNewService] = useState(false)
+  const [newRoom, setNewRoom] = useState(false)
+
+  const load = useCallback(async () => {
+    try {
+      const d = await listDefinitionsAction()
+      setServices(d.services)
+      setRooms(d.rooms)
+    } catch {
+      toast.error('Tanımlar okunamadı.')
+    }
+  }, [])
+
+  useEffect(() => {
+    void load()
+  }, [load])
+
+  const toggleService = async (s: ServiceRow) => {
+    const res = s.active
+      ? await deactivateServiceAction({ serviceId: s.id, reason: 'Ayarlar ekranından kapatıldı' })
+      : await reactivateServiceAction({ serviceId: s.id })
+    if (!res.ok) {
+      toast.error(domainErrorMessage(res.error))
+      return
+    }
+    toast.success(s.active ? 'Ders türü kapatıldı.' : 'Ders türü açıldı.')
+    void load()
+  }
+
+  const toggleRoom = async (r: RoomRow) => {
+    const res = r.active
+      ? await deactivateRoomAction({ roomId: r.id, reason: 'Ayarlar ekranından kapatıldı' })
+      : await reactivateRoomAction({ roomId: r.id })
+    if (!res.ok) {
+      toast.error(domainErrorMessage(res.error))
+      return
+    }
+    toast.success(r.active ? 'Salon kapatıldı.' : 'Salon açıldı.')
+    void load()
+  }
+
+  return (
+    <div className="space-y-6">
+      <Section
+        title="Ders türleri"
+        hint="Reformer, Mat Pilates, Fitness… Bir ders türünün kategorisi sonradan değiştirilemez — hangi paketin hangi dersi açtığı buna bağlıdır."
+      >
+        <div className="mb-3">
+          <Button variant="outline" onClick={() => setNewService(true)}>
+            <PlusIcon />
+            Ders türü ekle
+          </Button>
+        </div>
+
+        {services.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            Henüz ders türü yok. İlk dersi oluşturabilmek için en az bir tane gerekiyor.
+          </p>
+        ) : (
+          <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
+            {services.map((s) => (
+              <li key={s.id} className="flex flex-wrap items-center justify-between gap-2 px-3 py-3">
+                <div className="min-w-0">
+                  <p className="flex items-center gap-2 text-sm font-medium">
+                    {s.name}
+                    {s.active ? null : (
+                      <Badge className="bg-muted text-muted-foreground">Kapalı</Badge>
+                    )}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {CATEGORY[s.category] ?? s.category} · iptal penceresi{' '}
+                    {s.cancellationWindowHours === null
+                      ? 'stüdyo varsayılanı'
+                      : `${s.cancellationWindowHours} saat`}{' '}
+                    · en fazla {s.maxDaysInAdvance} gün önceden
+                  </p>
+                </div>
+                <Button variant="ghost" size="sm" onClick={() => void toggleService(s)}>
+                  {s.active ? 'Kapat' : 'Aç'}
+                </Button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Section>
+
+      <Section title="Salonlar" hint="Bir dersin kontenjanı, yapıldığı salonun kapasitesini aşamaz.">
+        <div className="mb-3">
+          <Button variant="outline" disabled={!branchId} onClick={() => setNewRoom(true)}>
+            <PlusIcon />
+            Salon ekle
+          </Button>
+        </div>
+
+        {rooms.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Henüz salon yok.</p>
+        ) : (
+          <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
+            {rooms.map((r) => (
+              <li key={r.id} className="flex flex-wrap items-center justify-between gap-2 px-3 py-3">
+                <div className="min-w-0">
+                  <p className="flex items-center gap-2 text-sm font-medium">
+                    {r.name}
+                    {r.active ? null : (
+                      <Badge className="bg-muted text-muted-foreground">Kapalı</Badge>
+                    )}
+                  </p>
+                  <p className="text-xs text-muted-foreground">{r.capacity} kişilik</p>
+                </div>
+                <Button variant="ghost" size="sm" onClick={() => void toggleRoom(r)}>
+                  {r.active ? 'Kapat' : 'Aç'}
+                </Button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Section>
+
+      {newService ? (
+        <ServiceDialog
+          onClose={() => setNewService(false)}
+          onDone={() => {
+            setNewService(false)
+            void load()
+          }}
+        />
+      ) : null}
+
+      {newRoom && branchId ? (
+        <RoomDialog
+          branchId={branchId}
+          onClose={() => setNewRoom(false)}
+          onDone={() => {
+            setNewRoom(false)
+            void load()
+          }}
+        />
+      ) : null}
+    </div>
+  )
+}
+
+function ServiceDialog({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
+  const [name, setName] = useState('')
+  const [category, setCategory] = useState('pilates_group')
+  const [windowHours, setWindowHours] = useState('')
+  const [maxDays, setMaxDays] = useState('14')
+  const [selfBooking, setSelfBooking] = useState(false)
+  const [busy, setBusy] = useState(false)
+
+  const submit = async () => {
+    setBusy(true)
+    try {
+      const res = await createServiceAction({
+        name: name.trim(),
+        category,
+        policy: {
+          maxDaysInAdvance: Number(maxDays) || 14,
+          // Empty ⇒ inherit the studio default (D14, level 3 of the chain). It is NOT zero: a service
+          // that inherits and a service with a zero-hour window are different things, and writing one
+          // as the other would let members cancel a class as it starts.
+          cancellationWindowHours: windowHours.trim() === '' ? null : Number(windowHours),
+          lateCancellationConsumesCredit: true,
+          noShowConsumesCredit: false,
+          attendanceDefaultOutcome: 'attended',
+          autoResolveAfterMinutes: 15,
+          allowMemberSelfBooking: selfBooking,
+        },
+      })
+      if (!res.ok) {
+        toast.error(domainErrorMessage(res.error))
+        setBusy(false)
+        return
+      }
+      toast.success('Ders türü eklendi.')
+      onDone()
+    } catch {
+      toast.error('Kaydedilemedi.')
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Ders türü ekle</DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-3">
+          <Input placeholder="Ad (ör. Reformer)" value={name} onChange={(e) => setName(e.target.value)} />
+
+          <div>
+            <Select value={category} onValueChange={(v) => setCategory(v ?? 'pilates_group')}>
+              <SelectTrigger>
+                <SelectValue>{CATEGORY[category]}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(CATEGORY).map(([id, label]) => (
+                  <SelectItem key={id} value={id}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Kategori <strong>sonradan değiştirilemez</strong>: hangi paketin bu dersi açtığı buna
+              bağlı.
+            </p>
+          </div>
+
+          <Input
+            type="number"
+            min={0}
+            placeholder="İptal penceresi (saat) — boş bırakırsanız stüdyo varsayılanı"
+            value={windowHours}
+            onChange={(e) => setWindowHours(e.target.value)}
+          />
+          <Input
+            type="number"
+            min={0}
+            placeholder="En fazla kaç gün önceden rezervasyon"
+            value={maxDays}
+            onChange={(e) => setMaxDays(e.target.value)}
+          />
+
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={selfBooking}
+              onChange={(e) => setSelfBooking(e.target.checked)}
+            />
+            Üyeler bu dersi uygulamadan kendileri rezerve edebilsin
+          </label>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            Vazgeç
+          </Button>
+          <Button disabled={busy || name.trim().length === 0} onClick={() => void submit()}>
+            Ekle
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function RoomDialog({
+  branchId,
+  onClose,
+  onDone,
+}: {
+  branchId: string
+  onClose: () => void
+  onDone: () => void
+}) {
+  const [name, setName] = useState('')
+  const [capacity, setCapacity] = useState('8')
+  const [busy, setBusy] = useState(false)
+
+  const submit = async () => {
+    setBusy(true)
+    try {
+      const res = await createRoomAction({
+        branchId,
+        name: name.trim(),
+        capacity: Number(capacity) || 1,
+      })
+      if (!res.ok) {
+        toast.error(domainErrorMessage(res.error))
+        setBusy(false)
+        return
+      }
+      toast.success('Salon eklendi.')
+      onDone()
+    } catch {
+      toast.error('Kaydedilemedi.')
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Salon ekle</DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-3">
+          <Input
+            placeholder="Ad (ör. Reformer Salonu)"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+          <Input
+            type="number"
+            min={1}
+            placeholder="Kapasite"
+            value={capacity}
+            onChange={(e) => setCapacity(e.target.value)}
+          />
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            Vazgeç
+          </Button>
+          <Button disabled={busy || name.trim().length === 0} onClick={() => void submit()}>
+            Ekle
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}

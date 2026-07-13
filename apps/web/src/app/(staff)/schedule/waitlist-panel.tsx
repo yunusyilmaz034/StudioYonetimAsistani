@@ -48,7 +48,12 @@ export function WaitlistPanel({
   const [busy, setBusy] = useState(false)
 
   const load = useCallback(async () => {
-    setRows(await listWaitlistAction({ sessionId }))
+    try {
+      setRows(await listWaitlistAction({ sessionId }))
+    } catch {
+      toast.error('Bekleme listesi okunamadı.')
+      setRows([])
+    }
   }, [sessionId])
 
   useEffect(() => {

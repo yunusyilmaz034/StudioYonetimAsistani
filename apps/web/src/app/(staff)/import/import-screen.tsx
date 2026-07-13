@@ -31,13 +31,20 @@ export function ImportScreen({ branchId }: { branchId: string | null }) {
   const [done, setDone] = useState<number | null>(null)
 
   const pick = async (file: File) => {
-    const text = await file.text()
-    setCsv(text)
-    setFileName(file.name)
-    setDone(null)
     setBusy(true)
-    setPreview(await previewImportAction({ csv: text }))
-    setBusy(false)
+    setDone(null)
+    try {
+      const text = await file.text()
+      setCsv(text)
+      setFileName(file.name)
+      setPreview(await previewImportAction({ csv: text }))
+    } catch (e) {
+      // A throw used to leave the screen stuck busy, showing nothing at all (Alpha Review).
+      toast.error(e instanceof Error ? e.message : 'Dosya okunamadı.')
+      setPreview(null)
+    } finally {
+      setBusy(false)
+    }
   }
 
   const apply = async () => {

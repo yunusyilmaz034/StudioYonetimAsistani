@@ -12,7 +12,6 @@ import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Metric, MetricStrip } from '@/components/ui/metric'
 import { PageHeader } from '@/components/ui/page-header'
-import { Toaster } from '@/components/ui/sonner'
 import { markAttendanceCommand } from '@/lib/commands'
 import type { RosterEntry, SessionView } from '@/server/reservations-query'
 
@@ -146,7 +145,6 @@ export function AttendanceScreen({
 
   return (
     <main className="mx-auto max-w-4xl space-y-4 p-4 sm:p-6 lg:p-8">
-      <Toaster />
       <PageHeader title="Yoklama" />
 
       {/* One control surface, same language as the calendars: the day leads, the nav is quiet. */}

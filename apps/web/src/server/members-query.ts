@@ -1,5 +1,8 @@
 import {
   available,
+  debtByMember,
+  FirestoreFinanceRepository,
+  systemClock,
   FirestoreEntitlementRepository,
   FirestoreMemberRepository,
   type Member,
@@ -39,9 +42,14 @@ export interface MemberRow {
  */
 export async function listMemberRows(ctx: TenantContext, nowMs: number): Promise<MemberRow[]> {
   const db = adminDb()
-  const [members, entitlements] = await Promise.all([
+  // THREE reads. The debt comes from the LEDGER's open sales — `member.stats.balanceDue` is a
+  // denormalised field that **nothing has ever written**: it was zero for every member, so the
+  // "Borçlu" filter matched nobody and the membership report's Bakiye column was a column of zeros
+  // (Alpha Review, 2026-07-13).
+  const [members, entitlements, debt] = await Promise.all([
     new FirestoreMemberRepository(db).list(ctx),
     new FirestoreEntitlementRepository(db).listAll(ctx),
+    debtByMember({ repo: new FirestoreFinanceRepository(db), clock: systemClock }, ctx),
   ])
 
   const byMember = new Map<string, MemberFacts['packages'][number][]>()
@@ -66,7 +74,7 @@ export async function listMemberRows(ctx: TenantContext, nowMs: number): Promise
     badges: badgesFor(
       {
         status: m.status,
-        balanceDueKurus: m.stats.balanceDue,
+        balanceDueKurus: debt.get(m.id as string)?.amount ?? 0,
         packages: byMember.get(m.id as string) ?? [],
       },
       nowMs,

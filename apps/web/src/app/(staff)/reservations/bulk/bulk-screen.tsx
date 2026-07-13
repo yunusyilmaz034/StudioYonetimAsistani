@@ -9,7 +9,6 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { PageHeader } from '@/components/ui/page-header'
 import { Section } from '@/components/ui/section'
-import { Toaster } from '@/components/ui/sonner'
 import { domainErrorMessage } from '@/lib/domain-error'
 import type { DomainError } from '@studio/core'
 import { formatDateTime } from '@/lib/datetime'
@@ -58,7 +57,6 @@ export function BulkScreen() {
 
   return (
     <main className="mx-auto max-w-3xl space-y-6 p-4 sm:p-6 lg:p-8">
-      <Toaster />
       <PageHeader
         title="Toplu İşlemler"
         description="Bir dersin tamamını iptal edin, başka bir derse taşıyın veya eğitmenini değiştirin."

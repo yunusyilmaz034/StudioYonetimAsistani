@@ -17,7 +17,6 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
-import { Toaster } from '@/components/ui/sonner'
 import { FILTERS, matches, type MemberBadges, type MemberFilter } from '@/lib/members/filters'
 import type { MemberRow } from '@/server/members-query'
 import {
@@ -96,7 +95,6 @@ export function MembersScreen({
 
   return (
     <main className="mx-auto max-w-4xl space-y-4 p-4 sm:p-6 lg:p-8">
-      <Toaster />
       <PageHeader
         title="Üyeler"
         description={`${members.length} üye`}

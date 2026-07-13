@@ -23,6 +23,7 @@ import {
   listDrawersAction,
   memberAccountAction,
   refundAction,
+  cancelSaleAction,
   voidPaymentAction,
 } from '@/server/actions/finance'
 
@@ -67,13 +68,18 @@ export function AccountPanel({
   const [account, setAccount] = useState<Account | null>(null)
   const [drawers, setDrawers] = useState<readonly Drawer[]>([])
   const [collecting, setCollecting] = useState(false)
+  const [cancelling, setCancelling] = useState<{ id: string; lines: readonly string[] } | null>(null)
   const [voiding, setVoiding] = useState<{ id: string; amount: number } | null>(null)
   const [refunding, setRefunding] = useState<{ id: string; amount: number } | null>(null)
 
   const load = useCallback(async () => {
-    const [a, d] = await Promise.all([memberAccountAction({ memberId }), listDrawersAction()])
-    setAccount(a)
-    setDrawers(d)
+    try {
+      const [a, d] = await Promise.all([memberAccountAction({ memberId }), listDrawersAction()])
+      setAccount(a)
+      setDrawers(d)
+    } catch {
+      toast.error('Cari hesap okunamadı. Sayfayı yenileyin.')
+    }
   }, [memberId])
 
   useEffect(() => {
@@ -129,7 +135,17 @@ export function AccountPanel({
                   <p className="min-w-0 truncate text-sm font-medium text-foreground">
                     {s.lines.join(', ')}
                   </p>
-                  <Badge className={STATUS[s.status]?.className ?? ''}>{STATUS[s.status]?.label}</Badge>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <Badge className={STATUS[s.status]?.className ?? ''}>{STATUS[s.status]?.label}</Badge>
+                    {/* A sale is never deleted; it is CANCELLED, with a reason, as a compensating
+                        event (#9). The action existed and no screen called it, so a sale entered in
+                        error could not be undone by anybody (Alpha Review). Owner only. */}
+                    {isOwner && s.status !== 'cancelled' ? (
+                      <Button variant="ghost" size="sm" onClick={() => setCancelling(s)}>
+                        İptal
+                      </Button>
+                    ) : null}
+                  </div>
                 </div>
                 <p className="text-xs tabular-nums text-muted-foreground">
                   {formatDateTime(s.soldAt)} · {tl(s.total)}
@@ -223,6 +239,24 @@ export function AccountPanel({
         onDone={() => {
           setCollecting(false)
           void load()
+        }}
+      />
+
+      <ReasonDialog
+        open={cancelling !== null}
+        title="Satışı iptal et"
+        description={`${cancelling ? cancelling.lines.join(', ') : ''} satışı iptal edilecek. Kayıt silinmez — iptal de bir harekettir. Paketin kredileri geri alınmaz; gerekirse paketi ayrıca iptal edin.`}
+        confirmLabel="Satışı iptal et"
+        onClose={() => setCancelling(null)}
+        onConfirm={async (reason) => {
+          const res = await cancelSaleAction({ saleId: cancelling!.id, reason })
+          if (res.ok) {
+            toast.success('Satış iptal edildi.')
+            setCancelling(null)
+            void load()
+          } else {
+            toast.error(domainErrorMessage(res.error))
+          }
         }}
       />
 

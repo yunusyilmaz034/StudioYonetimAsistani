@@ -9,20 +9,24 @@ import {
   unfreezeEntitlement,
   adjustCredits,
   amendEntitlement,
-  assignSubscription,
   available,
   cancelEntitlement,
   FirestoreCatalogRepository,
   FirestoreEntitlementRepository,
+  FirestoreFinanceRepository,
   instant,
   money,
   reactivateEntitlement,
+  moneyByEntitlement,
+  sellPackage,
   systemClock,
   type AmendPatch,
+  type AssignSubscriptionInput,
+  type BranchId,
+  type SellPackageDeps,
   type EntitlementId,
   type EntitlementsDeps,
   type Grant,
-  type ManualPayment,
   type MemberId,
   type PaymentMethod,
   type ProductId,
@@ -48,8 +52,40 @@ function entDeps(): EntitlementsDeps {
   return { repo: new FirestoreEntitlementRepository(adminDb()), clock: systemClock }
 }
 
-// ── Assign a package to a member (atomic: purchase + optional credit override +
-//    optional manual payment). ──
+function sellDeps(): SellPackageDeps {
+  return {
+    finance: { repo: new FirestoreFinanceRepository(adminDb()), clock: systemClock },
+    entitlements: entDeps(),
+  }
+}
+
+/**
+ * The kasa the money lands in (Alpha Review).
+ *
+ * Cash and POS need an OPEN drawer — the domain refuses otherwise (`drawer_required`), and it is
+ * right to: money taken at the desk with no till open is money the day-end count can never explain.
+ * Reception does not pick the drawer; the studio has one of each, and asking her to choose would be
+ * asking her to get it wrong.
+ */
+async function drawerFor(
+  ctx: Awaited<ReturnType<typeof requireTenantContext>>,
+  method: PaymentMethod,
+): Promise<string | null> {
+  // Only cash lands in a till. A transfer and a card do not (the card terminal has its own POS
+  // drawer, which this form does not offer).
+  if (method !== 'cash') return null
+  const drawers = await new FirestoreFinanceRepository(adminDb()).listDrawers(ctx)
+  return drawers.find((d) => d.status === 'open' && d.kind === 'cash')?.id ?? null
+}
+
+// ── SELL A PACKAGE (Alpha Review, 2026-07-13) ────────────────────────────────────────────────
+//
+// This is THE sale. It grants the package AND records the money in the ledger — the one place the
+// dashboard, the sales report, the collections report, the kasa and the cari hesap all read from.
+//
+// It used to write the money onto the entitlement instead, where none of those look. A package sold
+// for 3.000 ₺ in cash produced a dashboard reading 0 ₺ and an empty till. That is fixed here, and it
+// is fixed by making the ledger the ONE truth rather than by teaching five screens a second one.
 export async function assignSubscriptionAction(input: unknown) {
   const p = z
     .object({
@@ -69,12 +105,14 @@ export async function assignSubscriptionAction(input: unknown) {
   const product = await new FirestoreCatalogRepository(adminDb()).getProduct(ctx, p.productId as ProductId)
   if (!product) return { ok: false as const, error: { code: 'no_bookable_entitlement' as const } }
 
+  const drawerId = await drawerFor(ctx, p.method as PaymentMethod)
+
   const grant: Grant =
     product.type === 'credit'
       ? { kind: 'credits', credits: product.creditCount ?? 0, validForDays: product.durationDays }
       : { kind: 'period', durationDays: product.durationDays, access: 'unlimited' }
 
-  return assignSubscription(entDeps(), ctx, {
+  const subscription = {
     memberId: p.memberId as MemberId,
     productId: product.id,
     productSnapshot: {
@@ -93,10 +131,40 @@ export async function assignSubscriptionAction(input: unknown) {
     validUntil: p.validUntil ? dayMs(p.validUntil) : null,
     freezeDays: product.freezeAllowanceDays > 0 ? product.freezeAllowanceDays : null,
     creditOverride: p.creditOverride,
-    collectedAmount: money(p.collectedKurus),
+    // The entitlement no longer records money — the ledger does. This is passed only because the
+    // shape demands it; `sellPackage` zeroes it, deliberately and in one place.
+    collectedAmount: money(0),
     method: p.method as PaymentMethod,
     note: p.note,
-  })
+  } satisfies AssignSubscriptionInput
+
+  const branchId = (ctx.branchIds[0] ?? null) as BranchId
+
+  return observed(
+    'finance.sell_package',
+    ctx,
+    undefined,
+    { memberId: p.memberId, productId: p.productId, collectedKurus: p.collectedKurus },
+    () =>
+      sellPackage(sellDeps(), ctx, {
+        branchId,
+        subscription,
+        // Selling without collecting is legal here (`balanceDue > 0`), and the dashboard is built to
+        // surface it. Zero collected ⇒ no payment, not a payment of zero.
+        payment:
+          p.collectedKurus > 0
+            ? {
+                amount: money(p.collectedKurus),
+                method: p.method as PaymentMethod,
+                receivedAt: instant(Date.now()),
+                drawerId,
+                giftCardCode: null,
+                note: p.note || null,
+              }
+            : null,
+        discountCeilingPercent: null,
+      }),
+  )
 }
 
 // ── Edit an existing subscription (dates / price / payment), reason mandatory. ──
@@ -108,9 +176,8 @@ export async function amendSubscriptionAction(input: unknown) {
       validFrom: date.optional(),
       validUntil: date.optional(),
       priceAgreedKurus: z.number().int().min(0).optional(),
-      payment: z
-        .object({ collectedKurus: z.number().int().min(0), method, note: z.string() })
-        .optional(),
+      // NO payment. Editing a package changes what was AGREED; it never records money. Money is taken
+      // in the cari hesap, where it lands in the ledger and in the till (Alpha Review).
     })
     .parse(input)
   const ctx = await requireTenantContext(OPS)
@@ -119,19 +186,6 @@ export async function amendSubscriptionAction(input: unknown) {
     ...(p.validFrom ? { validFrom: instant(dayMs(p.validFrom)) } : {}),
     ...(p.validUntil ? { validUntil: instant(dayMs(p.validUntil)) } : {}),
     ...(p.priceAgreedKurus !== undefined ? { priceAgreed: money(p.priceAgreedKurus) } : {}),
-    ...(p.payment
-      ? {
-          manualPayment:
-            p.payment.collectedKurus > 0
-              ? ({
-                  collectedAmount: money(p.payment.collectedKurus),
-                  method: p.payment.method as PaymentMethod,
-                  note: p.payment.note.trim() || null,
-                  recordedAt: systemClock.now(),
-                } satisfies ManualPayment)
-              : null,
-        }
-      : {}),
   }
   return amendEntitlement(entDeps(), ctx, { entitlementId: p.entitlementId as EntitlementId, patch, reason: p.reason })
 }
@@ -205,7 +259,17 @@ export interface SubscriptionView {
 export async function listMemberSubscriptionsAction(input: unknown): Promise<readonly SubscriptionView[]> {
   const p = z.object({ memberId: nonEmpty }).parse(input)
   const ctx = await requireTenantContext(OPS)
-  const rows = await new FirestoreEntitlementRepository(adminDb()).listByMember(ctx, p.memberId as MemberId)
+  // The money comes from the LEDGER, not from the entitlement (Alpha Review). The entitlement records
+  // what was AGREED; the ledger records what was PAID. Asking the entitlement "has she paid?" is how
+  // the packages screen came to disagree with the cari hesap on the very next tab.
+  const [rows, ledger] = await Promise.all([
+    new FirestoreEntitlementRepository(adminDb()).listByMember(ctx, p.memberId as MemberId),
+    moneyByEntitlement(
+      { repo: new FirestoreFinanceRepository(adminDb()), clock: systemClock },
+      ctx,
+      p.memberId as MemberId,
+    ),
+  ])
   return rows
     .map((e) => ({
       id: e.id,
@@ -218,10 +282,10 @@ export async function listMemberSubscriptionsAction(input: unknown): Promise<rea
       creditsGranted: e.credits ? e.credits.granted : null,
       creditsAvailable: e.credits ? available(e.credits) : null,
       priceAgreedKurus: e.priceAgreed.amount,
-      paidKurus: e.paidTotal.amount,
-      balanceDueKurus: e.priceAgreed.amount - e.paidTotal.amount,
-      method: e.manualPayment ? e.manualPayment.method : null,
-      note: e.manualPayment ? e.manualPayment.note : null,
+      paidKurus: ledger.get(e.id as string)?.paid.amount ?? 0,
+      balanceDueKurus: ledger.get(e.id as string)?.due.amount ?? 0,
+      method: ledger.get(e.id as string)?.method ?? null,
+      note: null,
       freezeEntitledDays: e.freeze?.entitledDays ?? null,
       freezeDaysRemaining: e.freeze ? freezeDaysRemaining(e.freeze) : null,
       frozenSince: e.freeze?.activeFrom ?? null,

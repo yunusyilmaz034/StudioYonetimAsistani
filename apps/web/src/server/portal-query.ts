@@ -1,6 +1,9 @@
 import {
   available,
   FirestoreEntitlementRepository,
+  FirestoreFinanceRepository,
+  moneyByEntitlement,
+  systemClock,
   FirestoreMemberRepository,
   FirestoreReservationRepository,
   FirestoreSchedulingRepository,
@@ -81,6 +84,15 @@ export async function loadPortalDashboard(
 
   const sessions = await loadSessions(ctx, upcomingRes.map((r) => r.classSessionId))
 
+  // Her balance comes from the LEDGER (Alpha Review). It used to be read off the entitlement — with
+  // `Number(e.priceAgreed)` on a `Money` OBJECT, which is `NaN`. The member portal has been showing
+  // her a number that was never a number.
+  const ledger = await moneyByEntitlement(
+    { repo: new FirestoreFinanceRepository(adminDb()), clock: systemClock },
+    ctx,
+    memberId,
+  )
+
   return {
     memberName: member.fullName,
     upcoming: upcomingRes.flatMap((r) => {
@@ -93,9 +105,9 @@ export async function loadPortalDashboard(
       category: e.productSnapshot.category,
       remaining: e.credits ? available(e.credits) : null,
       validUntil: e.validUntil,
-      balanceDue: Math.max(0, Number(e.priceAgreed) - Number(e.paidTotal)),
+      balanceDue: ledger.get(e.id as string)?.due.amount ?? 0,
     })),
-    balanceDue: entitlements.reduce((n, e) => n + Math.max(0, Number(e.priceAgreed) - Number(e.paidTotal)), 0),
+    balanceDue: entitlements.reduce((n, e) => n + (ledger.get(e.id as string)?.due.amount ?? 0), 0),
   }
 }
 

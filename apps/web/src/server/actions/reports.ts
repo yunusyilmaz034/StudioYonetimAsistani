@@ -1,6 +1,7 @@
 'use server'
 
 import {
+  debtByMember,
   FirestoreEntitlementRepository,
   FirestoreFinanceRepository,
   FirestoreIdentityRepository,
@@ -10,6 +11,7 @@ import {
   FirestoreSchedulingRepository,
   instant,
   localDateAt,
+  systemClock,
 } from '@studio/core'
 import { z } from 'zod'
 
@@ -63,11 +65,20 @@ export async function loadReportAction(input: unknown): Promise<ReportResult> {
 
   switch (p.id) {
     case 'membership': {
-      const [members, entitlements] = await Promise.all([
+      const [members, entitlements, debt] = await Promise.all([
         new FirestoreMemberRepository(db).list(ctx),
         new FirestoreEntitlementRepository(db).listAll(ctx),
+        debtByMember({ repo: new FirestoreFinanceRepository(db), clock: systemClock }, ctx),
       ])
-      return { id: p.id, ...buildMembership(members, entitlements, p.toMs) }
+      return {
+        id: p.id,
+        ...buildMembership(
+          members,
+          entitlements,
+          p.toMs,
+          new Map([...debt].map(([id, m]) => [id, m.amount])),
+        ),
+      }
     }
 
     case 'sales': {

@@ -9,7 +9,6 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
 import { PageHeader } from '@/components/ui/page-header'
-import { Toaster } from '@/components/ui/sonner'
 import { formatDateTime } from '@/lib/datetime'
 import { domainErrorMessage } from '@/lib/domain-error'
 import {
@@ -77,7 +76,6 @@ export function NotificationsScreen({
 
   return (
     <main className="mx-auto max-w-6xl space-y-4 p-4 sm:p-6 lg:p-8">
-      <Toaster />
       <PageHeader
         title="Bildirim Merkezi"
         description="Kime, hangi kanaldan, ne zaman ulaştık — ve neyi bilerek göndermedik."
@@ -156,13 +154,22 @@ export function NotificationsScreen({
                   </td>
                   <td className="px-3 py-2.5 tabular-nums text-muted-foreground">{r.attemptNo}</td>
                   <td className="px-3 py-2.5">
+                    {/* The operation detail lives in an owner-only area. Reception sees the id — it is
+                        how she quotes the incident to the owner — but is not offered a door that
+                        would bounce her back to the dashboard (Alpha Review). */}
                     {r.operationId ? (
-                      <Link
-                        href={`/operations/${r.operationId}`}
-                        className="font-mono text-[0.6875rem] text-muted-foreground hover:text-primary"
-                      >
-                        {r.operationId.slice(-6)}
-                      </Link>
+                      isOwner ? (
+                        <Link
+                          href={`/operations/${r.operationId}`}
+                          className="font-mono text-[0.6875rem] text-muted-foreground hover:text-primary"
+                        >
+                          {r.operationId.slice(-6)}
+                        </Link>
+                      ) : (
+                        <span className="font-mono text-[0.6875rem] text-muted-foreground">
+                          {r.operationId.slice(-6)}
+                        </span>
+                      )
                     ) : (
                       '—'
                     )}

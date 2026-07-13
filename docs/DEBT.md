@@ -621,3 +621,29 @@ a number somebody guessed.
 ## Reserved for the build week
 
 Shortcuts taken during Phase 1 implementation get entries here **as they are taken**, not afterwards. If the cut ladder (Doc 8 §8) is used — catalogue CRUD UI, owner view, manual attendance marking, freeze UI, payment allocation UI, weekly template generation, offline check-in — each cut becomes an entry with a trigger.
+
+---
+
+## DEBT-027 — A package sale spans two transactions
+
+**Taken:** Alpha Review, 2026-07-13 · **Severity:** low · **Where:** `finance/application/sell-package.ts`
+
+Selling a package writes two aggregates: the entitlement (the package) and the ledger (the sale, the
+payment, the allocation). Firestore will not commit them together without dragging one module's
+documents through the other's repository, and that boundary is worth more than the convenience.
+
+**What we did instead of a distributed transaction:**
+
+1. **Every decider runs first, against the real drawer.** A sale that would be refused — no open till
+   for a cash payment, a discount over the ceiling — is refused **before anything is written**.
+2. **The grant goes first.** What is left is a vanishing race: the drawer is closed by someone else in
+   the milliseconds between the two commits. The failure state is then *she has the package and
+   appears to owe the full price* — **loud**, on the dashboard's "bekleyen ödemeler", and reception
+   fixes it by recording the payment she has already taken.
+
+The other order was never acceptable: sale first, grant fails, and she has **paid for nothing**, with
+no screen anywhere saying so. A visible, repairable wrong state beats an invisible one, always.
+
+**Trigger to repay:** the first time reconciliation finds one in production, or the day a second
+studio makes the window matter. `pnpm migrate:reconcile` already compares entitlements against the
+ledger and would find it.

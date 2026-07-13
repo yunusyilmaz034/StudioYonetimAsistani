@@ -448,12 +448,16 @@ function ReasonDialogShell({
   )
 }
 
+// Editing a package changes DATES and PRICE. It does not take money.
+//
+// It used to (Alpha Review): a "Tahsilat" box here wrote a payment onto the entitlement — the second
+// money model, invisible to the till, the reports and the cari hesap. Money is taken in ONE place now,
+// the Cari Hesap tab, where it lands in the ledger and in the kasa. Two ways to record a payment are
+// two answers to "has she paid?", and reception would have had no way to know which one was believed.
 function AmendDialog({ sub, onClose, onDone }: { sub: SubscriptionView; onClose: () => void; onDone: () => void }) {
   const [validFrom, setValidFrom] = useState(new Date(sub.validFrom).toISOString().slice(0, 10))
   const [validUntil, setValidUntil] = useState(new Date(sub.validUntil).toISOString().slice(0, 10))
   const [priceTl, setPriceTl] = useState((sub.priceAgreedKurus / 100).toString())
-  const [collectedTl, setCollectedTl] = useState((sub.paidKurus / 100).toString())
-  const [method, setMethod] = useState(sub.method ?? 'cash')
   const [reason, setReason] = useState('')
   const [busy, setBusy] = useState(false)
 
@@ -466,7 +470,6 @@ function AmendDialog({ sub, onClose, onDone }: { sub: SubscriptionView; onClose:
         validFrom,
         validUntil,
         priceAgreedKurus: toKurus(priceTl),
-        payment: { collectedKurus: toKurus(collectedTl), method, note: sub.note ?? '' },
       })
       if (res.ok) {
         toast.success('Güncellendi.')
@@ -493,24 +496,11 @@ function AmendDialog({ sub, onClose, onDone }: { sub: SubscriptionView; onClose:
         <Labeled label="Paket tutarı (TL)">
           <Input type="number" min={0} step="0.01" value={priceTl} onChange={(e) => setPriceTl(e.target.value)} />
         </Labeled>
-        <Labeled label="Tahsilat (TL)">
-          <Input type="number" min={0} step="0.01" value={collectedTl} onChange={(e) => setCollectedTl(e.target.value)} />
-        </Labeled>
-        <Labeled label="Ödeme yöntemi">
-          <Select value={method} onValueChange={(v) => setMethod(v ?? 'cash')}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {Object.entries(METHOD_LABEL).map(([id, label]) => (
-                <SelectItem key={id} value={id}>
-                  {label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </Labeled>
       </div>
+      <p className="text-xs text-muted-foreground">
+        Tahsilat burada yapılmaz. Ödeme almak için <strong>Cari Hesap</strong> sekmesini kullanın —
+        para orada kasaya ve raporlara işler.
+      </p>
     </ReasonDialogShell>
   )
 }

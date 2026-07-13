@@ -13,7 +13,6 @@ import Link from 'next/link'
 import { TabletSmartphoneIcon } from 'lucide-react'
 
 import { PageHeader } from '@/components/ui/page-header'
-import { Toaster } from '@/components/ui/sonner'
 import { checkInCommand } from '@/lib/commands'
 import { domainErrorMessage } from '@/lib/domain-error'
 import { checkInByQrAction } from '@/server/actions/qr'
@@ -123,7 +122,6 @@ export function CheckinScreen({ state, members }: { state: CheckinState; members
 
   return (
     <main className="mx-auto max-w-4xl space-y-5 p-4 sm:p-6">
-      <Toaster />
       <PageHeader
         title="Giriş / Çıkış"
         description={state.isOpen ? `Şu an içeride: ${state.occupancy}` : 'Şube kapalı'}

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState, useTransition } from 'react'
 import { Loader2Icon, RefreshCwIcon } from 'lucide-react'
 
 import { useRouter, useSearchParams } from 'next/navigation'
+import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -27,7 +28,7 @@ const FILTERS: readonly { kind: ActivityKind; label: string }[] = [
   { kind: 'system', label: 'Sistem' },
 ]
 
-export function ActivityScreen({ initial }: { initial: ActivityPage }) {
+export function ActivityScreen({ initial, isOwner }: { initial: ActivityPage; isOwner: boolean }) {
   const router = useRouter()
   const params = useSearchParams()
 
@@ -100,6 +101,13 @@ export function ActivityScreen({ initial }: { initial: ActivityPage }) {
       const hit = await resolveSearchAction({ query: q })
       setNotFound(hit.kind === 'none')
       if (hit.kind === 'operation' && hit.operationId) {
+        // The operation detail is owner-only. Reception searching an İşlem No used to be pushed at a
+        // door that threw her straight back to the dashboard — a search that silently did nothing
+        // (Alpha Review). Now it tells her the truth.
+        if (!isOwner) {
+          toast.error('İşlem detayını yalnızca stüdyo sahibi görebilir.')
+          return
+        }
         router.push(`/operations/${hit.operationId}`)
         return
       }

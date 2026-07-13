@@ -9,7 +9,6 @@ import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
 import { PageHeader } from '@/components/ui/page-header'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
-import { Toaster } from '@/components/ui/sonner'
 import type { ProductView, ServiceOption } from '@/server/catalog-query'
 
 import { CATEGORY_LABEL, ProductForm } from './product-form'
@@ -43,7 +42,6 @@ export function PackagesScreen({
 
   return (
     <main className="mx-auto max-w-4xl space-y-4 p-4 sm:p-6 lg:p-8">
-      <Toaster />
       <PageHeader
         title="Paketler"
         description={`${products.length} paket`}

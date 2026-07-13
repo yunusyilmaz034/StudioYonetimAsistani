@@ -5,6 +5,8 @@ import { AlertTriangleIcon, BarChart3Icon } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { PageHeader } from '@/components/ui/page-header'
+import { canSee } from '@/lib/permissions'
+import type { PrincipalRole } from '@studio/core'
 import { Section } from '@/components/ui/section'
 import { ActivityRow } from '@/components/activity/activity-row'
 import { WIDGETS, WIDGET_ICON } from '@/lib/widgets/registry'
@@ -19,7 +21,21 @@ import { LogoutButton } from './logout-button'
 // "Normal is quiet, abnormal is loud" (Doc 20): a widget whose `present().needsAttention` is true
 // is pulled to the top and outlined. Everything else recedes.
 
-export function DashboardScreen({ data, roleLabel }: { data: OwnerDashboard; roleLabel: string }) {
+export function DashboardScreen({
+  data,
+  role,
+  roleLabel,
+}: {
+  data: OwnerDashboard
+  role: PrincipalRole
+  roleLabel: string
+}) {
+  // A widget's drill-down lives under `/insights/…`, which is gated as `/analytics` (it exports the
+  // studio's data to CSV, and bulk export is the owner's alone). Everything else a widget links to is
+  // an ordinary operational screen.
+  const canOpen = (href: string): boolean =>
+    href.startsWith('/insights') ? canSee(role, '/analytics') : true
+
   const presented = WIDGETS.map((w) => ({ w, p: w.present(data) }))
   const attention = presented.filter((x) => x.p.needsAttention)
   const metrics = presented.filter((x) => x.w.kind === 'metric')
@@ -32,10 +48,15 @@ export function DashboardScreen({ data, roleLabel }: { data: OwnerDashboard; rol
         description={roleLabel}
         actions={
           <>
-            <Button variant="outline" render={<Link href="/analytics" />}>
-              <BarChart3Icon />
-              <span className="hidden sm:inline">Analiz</span>
-            </Button>
+            {/* Drawn only for the roles that may follow it. A link that bounces the person who clicks
+                it back to where she started is a broken promise, and reception met it on her own
+                dashboard (Alpha Review). */}
+            {canSee(role, '/analytics') ? (
+              <Button variant="outline" render={<Link href="/analytics" />}>
+                <BarChart3Icon />
+                <span className="hidden sm:inline">Analiz</span>
+              </Button>
+            ) : null}
             <LogoutButton />
           </>
         }
@@ -105,13 +126,28 @@ export function DashboardScreen({ data, roleLabel }: { data: OwnerDashboard; rol
             >
               {/* The heading is the door: a list widget opens its own full, exportable list. The
                   rows below stay clickable in their own right (each goes to the member). */}
+              {/* The drill-down (`/insights/…`) is gated as ANALYSIS and reception may not open it.
+                  She still sees the widget and its rows — she simply is not offered a door that would
+                  throw her back here. */}
               <div className="flex items-baseline justify-between gap-2">
-                <Link href={w.href(data)} className="text-sm font-semibold text-foreground hover:text-primary hover:underline">
-                  {w.title}
-                </Link>
-                <Link href={w.href(data)} className="shrink-0 text-xs text-muted-foreground hover:text-primary">
-                  Tümü
-                </Link>
+                {canOpen(w.href(data)) ? (
+                  <>
+                    <Link
+                      href={w.href(data)}
+                      className="text-sm font-semibold text-foreground hover:text-primary hover:underline"
+                    >
+                      {w.title}
+                    </Link>
+                    <Link
+                      href={w.href(data)}
+                      className="shrink-0 text-xs text-muted-foreground hover:text-primary"
+                    >
+                      Tümü
+                    </Link>
+                  </>
+                ) : (
+                  <span className="text-sm font-semibold text-foreground">{w.title}</span>
+                )}
               </div>
               {w.render(data)}
             </article>

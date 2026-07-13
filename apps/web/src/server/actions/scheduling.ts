@@ -77,6 +77,61 @@ const nonEmpty = z.string().min(1)
 const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
 const time = z.string().regex(/^\d{2}:\d{2}$/)
 
+// ── The studio's own definitions, for the settings screen (Alpha Review, 2026-07-13) ────────
+//
+// These use-cases have existed and been tested since v1.6, and **no screen ever called them**. The
+// only creator of a ders türü or a salon in the whole repository was the demo seed — so a real studio
+// doing a real cutover could not define a single one of its own, and "Ders oluştur" was a promise the
+// product could not keep on day one.
+
+export interface ServiceRow {
+  readonly id: string
+  readonly name: string
+  readonly category: string
+  readonly active: boolean
+  readonly policyVersion: number
+  readonly cancellationWindowHours: number | null
+  readonly maxDaysInAdvance: number
+  readonly allowMemberSelfBooking: boolean
+}
+
+export interface RoomRow {
+  readonly id: string
+  readonly name: string
+  readonly capacity: number
+  readonly branchId: string
+  readonly active: boolean
+}
+
+export async function listDefinitionsAction(): Promise<{
+  readonly services: readonly ServiceRow[]
+  readonly rooms: readonly RoomRow[]
+}> {
+  const ctx = await requireTenantContext(DEFS)
+  const repo = new FirestoreSchedulingRepository(adminDb())
+  const [services, rooms] = await Promise.all([repo.listServices(ctx), repo.listRooms(ctx)])
+
+  return {
+    services: services.map((s) => ({
+      id: s.id as string,
+      name: s.name,
+      category: s.category,
+      active: s.active,
+      policyVersion: s.policyVersion,
+      cancellationWindowHours: s.policy.cancellationWindowHours,
+      maxDaysInAdvance: s.policy.maxDaysInAdvance,
+      allowMemberSelfBooking: s.policy.allowMemberSelfBooking,
+    })),
+    rooms: rooms.map((r) => ({
+      id: r.id as string,
+      name: r.name,
+      capacity: r.capacity,
+      branchId: r.branchId as string,
+      active: r.active,
+    })),
+  }
+}
+
 // ── Services (owner + platform_admin) ──
 export async function createServiceAction(input: unknown) {
   const p = z

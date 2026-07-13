@@ -108,6 +108,9 @@ export function buildMembership(
   members: readonly Member[],
   entitlements: readonly Entitlement[],
   nowMs: number,
+  // What each member owes, from the LEDGER's open sales. `member.stats.balanceDue` was never written
+  // by anything — this column used to be a column of zeros (Alpha Review).
+  debtKurus: ReadonlyMap<string, number>,
 ): Report {
   const live = members.filter((m) => !m.erased && m.status !== 'deleted')
   const erasedCount = members.length - members.filter((m) => !m.erased).length
@@ -137,7 +140,7 @@ export function buildMembership(
       credits === null ? (e ? 'Süresiz' : '—') : credits,
       e ? date(e.validUntil) : '—',
       m.stats.lastAttendanceAt ? date(m.stats.lastAttendanceAt) : 'Hiç gelmedi',
-      lira(m.stats.balanceDue),
+      lira(debtKurus.get(m.id as string) ?? 0),
     ] as const
   })
 

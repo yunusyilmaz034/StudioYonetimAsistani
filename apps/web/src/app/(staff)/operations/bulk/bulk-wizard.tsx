@@ -20,7 +20,6 @@ import { PageHeader } from '@/components/ui/page-header'
 import { Section } from '@/components/ui/section'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { Toaster } from '@/components/ui/sonner'
 import { domainErrorMessage } from '@/lib/domain-error'
 import { applyBulkAction, planBulkAction, previewBulkAction } from '@/server/actions/operations'
 
@@ -103,7 +102,6 @@ export function BulkWizard() {
 
   return (
     <main className="mx-auto max-w-4xl space-y-5 p-4 sm:p-6 lg:p-8">
-      <Toaster />
       <PageHeader
         title="Toplu Paket İşlemi"
         description="Önizleme hiçbir şeyi değiştirmez. Uygulama geri alınamaz."

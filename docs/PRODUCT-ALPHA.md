@@ -1,6 +1,8 @@
 # Product Alpha — Feature Parity
 
-**Status:** ✅ **DEVELOPMENT COMPLETE** — v1.27, tagged `v1.27-product-alpha`
+**Status:** ✅ **DEVELOPMENT COMPLETE + ALPHA REVIEW PASSED** — v1.27
+**Alpha Review:** 2026-07-13 · every screen walked, every scenario run end to end against the emulator
+(`pnpm verify:alpha`). See §7.
 **Owner:** Yunus · **Rule set:** 2026-07-13
 
 Seven sprints (S1–S7), every parity item closed, **every Alpha gap closed**. What remains before the
@@ -66,7 +68,7 @@ That is the correct state.
 | Üye oluştur / düzenle / pasife al | ✅ | `/members` + `/members/[id]`, E.164, çakışma reddi |
 | Üye geçmişi (timeline) | ✅ | Member workspace → İşlem Geçmişi, Türkçe cümlelerle |
 | İşlem geçmişi (paket/rezervasyon/ödeme) | ✅ | Üç ayrı timeline, hepsi event log üzerinden |
-| **Pasif üyeler listesi** | ❌ | Üye listesinde **sadece ad/telefon araması var — durum filtresi yok** |
+| **Pasif üyeler listesi** | ✅ | S7 · üye listesi filtreleri (pasif · donmuş · bitecek · kredisi azalan · paketsiz · borçlu) |
 | **Bitecek üyelikler listesi** | 🔵 | Dashboard'da widget var; **kendi listesi/ekranı yok** |
 | **Donmuş üyeler listesi** | ❌ | Dondurma S3'te geldi; **listesi yok** |
 | **Üyelik raporları** | ❌ | Bkz. Raporlar |
@@ -99,7 +101,7 @@ That is the correct state.
 | **Paket dondurma** | ✅ | S3. Bütçe tavan, gecelik otomatik çözme, rezervasyon varsa reddet |
 | Kasa · gün sonu (fark açıklamasız kapanmaz) | ✅ | `/finance` |
 | **Makbuz / bilgi fişi** | ✅ | `/receipt/[kind]/[id]` — yazdırılabilir, şirket bilgileri S2'den, *"Bu belge mali belge değildir."* |
-| Taksit planı | 🔵 | Plan kaydediliyor; ödenen taksit işaretlenmiyor (DEBT-022) |
+| Taksit planı | ❌ | Domain yazılı ve testli; **hiçbir ekran plan oluşturamıyor** (Alpha Review). Alpha kapsamında değil. |
 
 ### Check-in
 
@@ -267,3 +269,74 @@ and it holds: *the Activity Feed is what happened; the Audit is what changed.*
 
 What S7 adds is the **daily summary line** ("Bugün 3 yeni üye kaydı oluşturuldu") — an aggregate, not
 an event, and therefore a widget rather than a feed row.
+
+
+---
+
+## 7. Alpha Review — what the walk-through found (2026-07-13)
+
+Every screen was walked and every scenario run end to end against the emulator. Eleven defects, one of
+them severe enough to block a cutover on its own.
+
+### The one that mattered: **two money models, and the product wrote to the wrong one**
+
+Reception's only sell path (`assignSubscription`) wrote the money onto the **entitlement**. The
+dashboard, the sales report, the collections report, the kasa and the cari hesap all read the
+**ledger** (Sale · Payment · Allocation). They are different places.
+
+Proven against the emulator before a line was changed — a package sold for 3.000 ₺ in cash:
+
+```
+entitlement.paidTotal : 3.000 ₺   ← the money was here
+Gösterge paneli       :     0 ₺
+Satış raporu          :  boş
+Tahsilat raporu       :  boş
+Kasa                  :  boş
+```
+
+**Fixed (owner-approved):** `sellPackage` grants the package **and** records the money in the ledger,
+under one `operationId`. The ledger is the one truth. Consequences that came free: the cari hesap, the
+kasa, the day-end, the receipt and the "Borçlu" filter all became true on the same day.
+
+Two related things fell out of it:
+
+- `member.stats.balanceDue` was a denormalised field **nothing had ever written**. Every member's debt
+  was zero, so the "Borçlu" filter matched nobody and the membership report's Bakiye was a column of
+  zeros. Debt now comes from the ledger's open sales.
+- The member portal computed her balance as `Number(priceAgreed) − Number(paidTotal)` — on `Money`
+  **objects**. It was showing her `NaN`.
+
+### The other ten
+
+| # | Defect | Fix |
+|---|---|---|
+| 1 | **`<Toaster />` was never mounted.** Fourteen screens mounted their own; four did not — and on those four every error message rendered *nothing*. Settings saved or refused: silence. The trainer's attendance mark failing and rolling itself back: silence. | Mounted **once** in the staff shell. A screen no longer decides whether the user may be told about a failure. |
+| 2 | **Reception was offered doors that threw her home.** The dashboard's "Analiz" button, seven widget drill-downs, the notification centre's operation link, and the activity search's İşlem No all led to owner-only areas. | Drawn only for the roles that may follow them; the search now says so instead of silently bouncing. |
+| 3 | **No screen could create a ders türü or a salon.** The only creator in the repository was the demo seed — a real studio could not schedule its first class. | Ders Türleri + Salonlar in Ayarlar, on the existing (already-tested) use-cases. |
+| 4 | **CRM "Üye Yap" was dead** — it linked to `/members?lead=…`, a parameter nothing reads. A lead could never reach `won`. | One press: registers her from the lead and converts. A duplicate phone is refused (I-21) — she is already a member. |
+| 5 | **Sale cancellation was unreachable.** `cancelSaleAction` was called from nowhere. | Owner-only, in the cari hesap, with a mandatory reason. |
+| 6 | **A staff role change looked like it failed** — no `router.refresh()`, so the Select snapped back to the old value. | Refresh on success. |
+| 7 | **Deactivating a member discarded the result.** A refusal closed the dialog and refreshed the page exactly as if it had worked. | The refusal is shown. |
+| 8 | **"Hepsini katıldı işaretle" toasted success for work it never awaited** — a failed roster produced one green toast and a pile of red ones. | Awaits, and reports how many actually landed. |
+| 9 | **Three screens could hang on "Yükleniyor…" forever** (kasa, cari hesap, bekleme listesi) — a failed read had no catch. | They say what happened. |
+| 10 | **The import screen could get stuck busy** on a thrown read, showing nothing. | try/catch. |
+
+### Deliberately NOT fixed — and why
+
+- **Toplu rezervasyon oluşturma** (many members into one class) — genuinely absent, and it is marked ❌
+  in this document. It is not a regression; nobody has lost it. *(Recurring booking — one member ×
+  N weeks — does exist.)*
+- **Gift card · kupon · taksit planı** — the domain is written and tested; no screen calls it. The
+  Alpha checklist marks them 🔵/❌ and they stay there. **The "Taksit planı 🔵 plan kaydediliyor" row
+  was wrong and is corrected: a plan cannot be created from any screen.**
+- **The CRM offer lifecycle** (teklif gönder/kabul/ret) — `/crm` is not on the Alpha parity list at
+  all. It ships half-wired; the lead funnel works, the offer flow does not.
+- **Receipt kinds `payment` / `refund` / `cancellation`** — only `sale` is linked. The sale slip is the
+  one reception hands over.
+
+### The gate at the end of the review
+
+`pnpm check` (517) · `test:golden` (64) · `test:integration` (33) · `next build` · **`pnpm verify:alpha`
+— the whole studio day, end to end, against the emulator: üye → paket sat → tahsilat → rezervasyon →
+taşı → iptal → toplu işlem → check-in → dondur/çöz → çalışma saatleri → raporlar → makbuz → import →
+KVKK → dashboard. All green.**

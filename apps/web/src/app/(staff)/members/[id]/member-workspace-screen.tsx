@@ -38,7 +38,6 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
-import { Toaster } from '@/components/ui/sonner'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Timeline } from '@/components/activity/timeline'
 import { AccountPanel } from '../account-panel'
@@ -113,7 +112,6 @@ export function MemberWorkspaceScreen({
 
   return (
     <main className="mx-auto max-w-5xl space-y-4 p-4 sm:p-6 lg:p-8">
-      <Toaster />
 
       {/* Header. The member's headline numbers were buried in the Genel tab; a balance the
           studio is owed must be visible the moment the member is opened (Owner First, UX-8). */}
@@ -296,8 +294,15 @@ function ProfilePanel({ member, isPlatformAdmin }: { member: Member; isPlatformA
 
   async function confirmDeactivate() {
     setBusy(true)
-    await deactivateMember({ memberId: member.id, reason: reason.trim() })
+    // The result used to be thrown away: on a domain refusal the dialog closed, the page refreshed,
+    // and the member stayed active while nobody was told (Alpha Review).
+    const res = await deactivateMember({ memberId: member.id, reason: reason.trim() })
     setBusy(false)
+    if (!res.ok) {
+      toast.error(domainErrorMessage(res.error))
+      return
+    }
+    toast.success('Üye pasife alındı.')
     setDeact(false)
     setReason('')
     router.refresh()

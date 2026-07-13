@@ -540,10 +540,12 @@ function AttendanceTab({ session, onMutated }: { session: CalendarSession; onMut
   const effective = (e: AttendanceEntry): string => marks[e.reservationId] ?? e.status
   const notStarted = session.startsAt > Date.now()
 
-  const mark = useCallback(async (reservationId: string, outcome: AttendanceOutcome) => {
+  /** Returns whether the mark landed — so a bulk mark can tell the truth about how many did. */
+  const mark = useCallback(async (reservationId: string, outcome: AttendanceOutcome): Promise<boolean> => {
     setMarks((prev) => ({ ...prev, [reservationId]: outcome }))
     try {
       await markAttendanceCommand({ reservationId: reservationId as ReservationId, outcome })
+      return true
     } catch {
       setMarks((prev) => {
         const next = { ...prev }
@@ -551,14 +553,19 @@ function AttendanceTab({ session, onMutated }: { session: CalendarSession; onMut
         return next
       })
       toast.error('İşaretlenemedi.')
+      return false
     }
   }, [])
 
   const pending = (entries ?? []).filter((e) => effective(e) === 'booked')
 
   async function markRest() {
-    for (const e of pending) void mark(e.reservationId, 'attended')
-    toast.success(`${pending.length} kişi katıldı işaretlendi.`)
+    // It used to fire every mark WITHOUT awaiting and then claim success unconditionally — so a
+    // failed roster produced one green toast and a pile of red ones at the same time (Alpha Review).
+    const results = await Promise.all(pending.map((e) => mark(e.reservationId, 'attended')))
+    const done = results.filter(Boolean).length
+    if (done === pending.length) toast.success(`${done} kişi katıldı işaretlendi.`)
+    else toast.error(`${done}/${pending.length} işaretlendi. Kalanları tek tek deneyin.`)
   }
 
   if (entries === null) {

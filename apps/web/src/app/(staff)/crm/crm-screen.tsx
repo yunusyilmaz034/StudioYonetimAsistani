@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { Loader2Icon, PhoneIcon, PlusIcon, UserPlusIcon } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -18,11 +18,11 @@ import {
 import { Input } from '@/components/ui/input'
 import { PageHeader } from '@/components/ui/page-header'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Toaster } from '@/components/ui/sonner'
 import { formatDateTime } from '@/lib/datetime'
 import { domainErrorMessage } from '@/lib/domain-error'
 import {
   captureLeadAction,
+  convertLeadToMemberAction,
   listLeadsAction,
   logInteractionAction,
   loseLeadAction,
@@ -67,7 +67,20 @@ export function CrmScreen({ initial }: { initial: readonly Lead[] }) {
   const [interacting, setInteracting] = useState<Lead | null>(null)
   const [pending, start] = useTransition()
 
+  const router = useRouter()
   const reload = () => start(async () => setLeads(await listLeadsAction()))
+
+  const convert = async (lead: Lead) => {
+    const res = await convertLeadToMemberAction({ leadId: lead.id })
+    if (!res.ok) {
+      // The commonest refusal is the honest one: that phone already belongs to a member. She is not a
+      // lead, she is a customer, and reception should not be allowed to create a second her (I-21).
+      toast.error(domainErrorMessage(res.error))
+      return
+    }
+    toast.success(`${lead.fullName} üye oldu.`)
+    router.push(`/members/${res.value.memberId}`)
+  }
 
   const open = leads.filter((l) => ['new', 'contacted', 'trial', 'offer'].includes(l.stage))
   const won = leads.filter((l) => l.stage === 'won')
@@ -76,7 +89,6 @@ export function CrmScreen({ initial }: { initial: readonly Lead[] }) {
 
   return (
     <main className="mx-auto max-w-6xl space-y-6 p-4 sm:p-6 lg:p-8">
-      <Toaster />
       <PageHeader
         title="Satış Hunisi"
         description={`${open.length} açık aday · dönüşüm %${conversion}`}
@@ -138,8 +150,11 @@ export function CrmScreen({ initial }: { initial: readonly Lead[] }) {
                             İlerlet
                           </Button>
                         ) : null}
-                        {/* Conversion is EXPLICIT: reception creates the member, then links it. */}
-                        <Button size="sm" variant="outline" render={<Link href={`/members?lead=${l.id}`} />}>
+                        {/* One press. The lead already holds her name and her phone; asking reception
+                            to retype them into another screen is asking her to forget the second half
+                            — which is exactly what happened: this used to link to a query parameter
+                            nothing read (Alpha Review). */}
+                        <Button size="sm" variant="outline" onClick={() => void convert(l)}>
                           <UserPlusIcon />
                           Üye Yap
                         </Button>

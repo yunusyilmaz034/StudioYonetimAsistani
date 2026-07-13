@@ -1,6 +1,9 @@
 import {
   available,
   FirestoreEntitlementRepository,
+  FirestoreFinanceRepository,
+  moneyByEntitlement,
+  systemClock,
   FirestoreMemberRepository,
   FirestoreSchedulingRepository,
   type EntitlementId,
@@ -38,7 +41,16 @@ export async function loadReceipt(
     new FirestoreEntitlementRepository(db).getEntitlement(ctx, entitlementId),
     new FirestoreSchedulingRepository(db).getStudioSettings(ctx),
   ])
+  // The money on the slip comes from the LEDGER (Alpha Review). A receipt that says "Ödenen: 3.000 ₺"
+  // while the till has no record of it is a receipt that will be waved at reception in a month.
   if (!ent) return null
+
+  const ledger = await moneyByEntitlement(
+    { repo: new FirestoreFinanceRepository(db), clock: systemClock },
+    ctx,
+    ent.memberId,
+  )
+  const paid = ledger.get(entitlementId as string) ?? null
 
   const member = await new FirestoreMemberRepository(db).findById(ctx, ent.memberId as MemberId)
   const company = settings?.company ?? null
@@ -69,10 +81,10 @@ export async function loadReceipt(
     // than she does.
     creditsUsed: credits ? credits.consumed : null,
     creditsRemaining: credits ? available(credits) : null,
-    method: ent.manualPayment?.method ?? null,
-    paidKurus: ent.paidTotal.amount,
+    method: paid?.method ?? null,
+    paidKurus: paid?.paid.amount ?? 0,
     priceKurus: ent.priceAgreed.amount,
-    balanceKurus: ent.priceAgreed.amount - ent.paidTotal.amount,
-    note: ent.manualPayment?.note ?? null,
+    balanceKurus: paid?.due.amount ?? ent.priceAgreed.amount,
+    note: null,
   }
 }

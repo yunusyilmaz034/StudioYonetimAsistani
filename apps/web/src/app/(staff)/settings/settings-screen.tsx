@@ -11,6 +11,8 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { PageHeader } from '@/components/ui/page-header'
 import { Section } from '@/components/ui/section'
+
+import { DefinitionsPanel } from './definitions-panel'
 import { domainErrorMessage } from '@/lib/domain-error'
 import { updateStudioSettingsAction } from '@/server/actions/settings'
 
@@ -43,7 +45,13 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
   )
 }
 
-export function SettingsScreen({ settings }: { settings: StudioSettings | null }) {
+export function SettingsScreen({
+  settings,
+  branchId,
+}: {
+  settings: StudioSettings | null
+  branchId: string | null
+}) {
   const [pending, start] = useTransition()
 
   const [company, setCompany] = useState({
@@ -396,6 +404,10 @@ export function SettingsScreen({ settings }: { settings: StudioSettings | null }
           Kaydet
         </Button>
       </div>
+
+      {/* The studio's own definitions. They have their own save paths, so they sit BELOW the settings
+          form's Kaydet — pressing it must never look like it also saved these. */}
+      <DefinitionsPanel branchId={branchId} />
     </div>
   )
 }
@@ -486,8 +498,9 @@ function Preview({
             bile gider.
           </p>
           <p className="pt-1 text-muted-foreground">
-            Çalışma saatleri kaydedilir ve rezervasyon motoru tarafından kullanılmak üzere hazırdır;
-            bugün ders oluştururken uyarı verir, engellemez.
+            Çalışma saatleri <strong>uygulanır</strong>: kapalı saatte ders oluşturulamaz ve
+            rezervasyon alınamaz. Takvimde “özel çalışma günü” işaretlediğiniz tarihlerde bu kural
+            uygulanmaz — o gün açık olduğunuzu siz söylemişsinizdir.
           </p>
         </CardContent>
       </Card>

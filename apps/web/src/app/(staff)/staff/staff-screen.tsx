@@ -2,6 +2,7 @@
 
 import { UserPlusIcon } from 'lucide-react'
 import { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 
 import { Badge } from '@/components/ui/badge'
@@ -81,15 +82,23 @@ export function StaffScreen({ staff }: { staff: readonly StaffRow[] }) {
 }
 
 function StaffCard({ staff }: { staff: StaffRow }) {
+  const router = useRouter()
   const [pending, start] = useTransition()
   const [reason, setReason] = useState('')
   const [asking, setAsking] = useState(false)
 
+  // The refresh is not cosmetic. Without it the row keeps rendering the STALE `staff` prop: the
+  // Select snaps back to the old role and a change that actually succeeded looks like it failed
+  // (Alpha Review).
   const run = (fn: () => Promise<{ ok: boolean; error?: unknown }>, done: string) =>
     start(async () => {
       const res = await fn()
-      if (res.ok) toast.success(done)
-      else toast.error(domainErrorMessage(res.error as never))
+      if (res.ok) {
+        toast.success(done)
+        router.refresh()
+      } else {
+        toast.error(domainErrorMessage(res.error as never))
+      }
     })
 
   return (

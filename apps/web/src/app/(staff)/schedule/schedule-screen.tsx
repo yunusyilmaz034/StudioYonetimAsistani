@@ -9,7 +9,6 @@ import { Button } from '@/components/ui/button'
 import { Metric, MetricStrip } from '@/components/ui/metric'
 import { PageHeader } from '@/components/ui/page-header'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
-import { Toaster } from '@/components/ui/sonner'
 import {
   Calendar,
   CalendarToolbar,
@@ -102,7 +101,6 @@ export function ScheduleScreen({
 
   return (
     <main className="mx-auto max-w-6xl space-y-4 p-4 sm:p-6 lg:p-8">
-      <Toaster />
       <PageHeader
         title="Ders Ajandası"
         actions={

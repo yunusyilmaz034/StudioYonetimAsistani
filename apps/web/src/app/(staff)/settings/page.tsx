@@ -13,7 +13,7 @@ import { SettingsScreen } from './settings-screen'
 // reads its company details from ONE document. A company name typed into a template is a company
 // name that will be wrong in one of them.
 export default async function SettingsPage() {
-  await requirePageAccess('/settings')
+  const ctx = await requirePageAccess('/settings')
   const settings = await getStudioSettingsAction()
-  return <SettingsScreen settings={settings} />
+  return <SettingsScreen settings={settings} branchId={ctx?.branchIds[0] ?? null} />
 }

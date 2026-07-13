@@ -60,3 +60,15 @@ export {
 } from './application/finance'
 export type { FinanceDeps, FinanceRepository, FinanceWrite } from './application/ports'
 export { FirestoreFinanceRepository } from './infrastructure/repos'
+export {
+  amountDue,
+  sellPackage,
+  type SellPackageDeps,
+  type SellPackageInput,
+  type SellPackagePayment,
+} from './application/sell-package'
+export {
+  debtByMember,
+  moneyByEntitlement,
+  type EntitlementMoney,
+} from './application/entitlement-money'

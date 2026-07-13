@@ -17,7 +17,6 @@ import {
 import { Input } from '@/components/ui/input'
 import { PageHeader } from '@/components/ui/page-header'
 import { Section } from '@/components/ui/section'
-import { Toaster } from '@/components/ui/sonner'
 import { formatDateTime } from '@/lib/datetime'
 import { domainErrorMessage } from '@/lib/domain-error'
 import { closeDrawerAction, listDrawersAction, openDrawerAction } from '@/server/actions/finance'
@@ -35,14 +34,22 @@ export function FinanceScreen({ isOwner }: { isOwner: boolean }) {
   const [opening, setOpening] = useState<Drawer | null>(null)
   const [closing, setClosing] = useState<Drawer | null>(null)
 
-  const load = useCallback(async () => setDrawers(await listDrawersAction()), [])
+  const load = useCallback(async () => {
+    try {
+      setDrawers(await listDrawersAction())
+    } catch {
+      // Without this the kasa sits on "Yükleniyor…" forever and reception has no idea why the till
+      // will not open (Alpha Review).
+      toast.error('Kasa okunamadı. Sayfayı yenileyin.')
+      setDrawers([])
+    }
+  }, [])
   useEffect(() => {
     void load()
   }, [load])
 
   return (
     <main className="mx-auto max-w-4xl space-y-6 p-4 sm:p-6 lg:p-8">
-      <Toaster />
       <PageHeader title="Kasa" description="Kasa açılış / kapanış ve gün sonu sayımı" />
 
       <Section title="Kasalar">

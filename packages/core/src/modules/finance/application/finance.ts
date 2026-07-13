@@ -45,7 +45,7 @@ import {
 import type { FinanceDeps } from './ports'
 
 const SOURCE: EventSource = 'reception_web'
-const dctx = (deps: FinanceDeps, ctx: TenantContext, correlationId: OperationId): DecideContext => ({
+export const dctx = (deps: FinanceDeps, ctx: TenantContext, correlationId: OperationId): DecideContext => ({
   studioId: ctx.studioId,
   actor: ctx.actor,
   now: deps.clock.now(),
@@ -80,6 +80,9 @@ export interface SellInput {
     readonly giftCardCode: string | null
     readonly note: string | null
   } | null
+  // OP-2 — set when this sale is part of a larger act (a package sale grants the entitlement and
+  // records the money under ONE operation id, so the Activity Center reads it as one sentence).
+  readonly operationId?: OperationId
 }
 
 export async function sell(
@@ -87,7 +90,7 @@ export async function sell(
   ctx: TenantContext,
   input: SellInput,
 ): Promise<Result<{ saleId: string; paymentId: string | null }, DomainError>> {
-  const operationId = newOperationId()
+  const operationId = input.operationId ?? newOperationId()
   const c = dctx(deps, ctx, operationId)
 
   const created = decideCreateSale(c, {
