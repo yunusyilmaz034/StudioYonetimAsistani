@@ -71,19 +71,25 @@ env:
     availability:
       - RUNTIME
 
-  # ── E-mail is NOT configured here, and must not be ────────────────────────────────────────
+  # ── E-mail: the key belongs to whoever READS it, and now BOTH tiers do ────────────────────
   #
-  # `EMAIL_FROM` and `RESEND_API_KEY` used to be declared in this file. The web tier never read
-  # either of them: mail is sent by `onEventCreated` → `notifyForEvent`, in Cloud Functions, which
-  # cannot see a variable set on App Hosting. So the key sat in the wrong process, the provider found
-  # `undefined`, fell back to the console, and every e-mail the studio believed it had sent was
-  # written to a log and thrown away — silently, and with a green deploy.
+  # These two were declared here once when only Cloud Functions read them — so the key sat in a
+  # process that never used it, the functions found `undefined`, the provider fell back to the
+  # console, and every message the studio believed it had sent was written to a log and thrown away.
+  # Silently, with a green deploy. They were moved to the functions, where the sending code lives.
   #
-  # They now live where the code that reads them lives:
-  #   • `EMAIL_FROM`     → `apps/functions/.env.studio-yonetim-prod` (committed; an identity)
-  #   • `RESEND_API_KEY` → Secret Manager, requested by name in `apps/functions/src/shared/region.ts`
+  # They are back because the WEB tier now sends one e-mail of its own: the staff password reset
+  # (`server/actions/password-reset.ts`). Firebase's built-in reset mail cannot be used — it sends
+  # from `noreply@<project>.firebaseapp.com`, a domain with no SPF and no DKIM, and we watched Gmail
+  # swallow one without a trace. A reset link that never arrives is not a reset flow.
   #
-  # Put them back here and nothing breaks, nothing warns, and nothing sends.
+  # The functions keep their OWN copies (`apps/functions/.env.studio-yonetim-prod` + the `secrets:`
+  # declaration in `shared/region.ts`). Two tiers, two runtimes, two declarations — deleting either
+  # side silently disables sending in that tier and nowhere else.
+  - variable: EMAIL_FROM
+    value: noreply@pilatesfitnessbyisil.com
+    availability:
+      - RUNTIME
 
   # ── Secrets: Secret Manager, runtime only, never in this file ─────────────────────────────
   # Provision with:  firebase apphosting:secrets:set qr-token-secret --project <prod>
@@ -99,3 +105,10 @@ env:
   #   secret: qr-token-secret-previous
   #   availability:
   #     - RUNTIME
+
+  # The staff password-reset mail. Same Secret Manager secret the functions read (rotated 2026-07-14,
+  # version 2) — one key, one place, two consumers.
+  - variable: RESEND_API_KEY
+    secret: RESEND_API_KEY
+    availability:
+      - RUNTIME

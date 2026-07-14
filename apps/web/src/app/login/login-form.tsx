@@ -9,6 +9,7 @@ import { Loader2Icon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { clientAuth } from '@/lib/firebase-client'
+import { requestPasswordReset } from '@/server/actions/password-reset'
 import { createSession } from '@/server/actions/session'
 
 export function LoginForm() {
@@ -17,6 +18,21 @@ export function LoginForm() {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [resetSent, setResetSent] = useState(false)
+
+  // The answer is the same whether or not the address exists — see `requestPasswordReset`. The login
+  // page must not become a way to find out who works here.
+  async function onReset() {
+    if (!email.trim()) {
+      setError('Önce e-posta adresini yaz, sonra sıfırlama bağlantısı gönderelim.')
+      return
+    }
+    setLoading(true)
+    setError(null)
+    await requestPasswordReset(email)
+    setResetSent(true)
+    setLoading(false)
+  }
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -70,6 +86,12 @@ export function LoginForm() {
         </p>
       ) : null}
 
+      {resetSent ? (
+        <p role="status" className="text-sm text-muted-foreground">
+          Bu adres kayıtlıysa, şifre belirleme bağlantısı gönderildi. Gelen kutunu kontrol et.
+        </p>
+      ) : null}
+
       <Button type="submit" className="min-h-11 w-full" disabled={loading}>
         {loading ? (
           <>
@@ -80,6 +102,15 @@ export function LoginForm() {
           'Giriş Yap'
         )}
       </Button>
+
+      <button
+        type="button"
+        onClick={onReset}
+        disabled={loading}
+        className="min-h-11 w-full text-sm text-muted-foreground underline-offset-4 hover:underline disabled:opacity-50"
+      >
+        Şifremi unuttum
+      </button>
     </form>
   )
 }

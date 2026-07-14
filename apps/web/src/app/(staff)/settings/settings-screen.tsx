@@ -11,6 +11,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { PageHeader } from '@/components/ui/page-header'
 import { Section } from '@/components/ui/section'
+import { cn } from '@/lib/utils'
 
 import { DefinitionsPanel } from './definitions-panel'
 import { domainErrorMessage } from '@/lib/domain-error'
@@ -33,11 +34,36 @@ const EMPTY_HOURS: WorkingHours = { 0: null, 1: null, 2: null, 3: null, 4: null,
 
 const num = (v: string): number | null => (v.trim() === '' ? null : Number(v))
 
-function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+// A field that CHANGES A DECISION and is empty says so, loudly (UX-1, 2026-07-14).
+//
+// The owner filled in this screen, pressed Kaydet, saw "Ayarlar kaydedildi" — and three rule-affecting
+// numbers were still null in the database. She had not typed them. She did not need to: the boxes
+// already showed 6, 2 and 20, because those were the PLACEHOLDERS. A grey placeholder and a black
+// value are one shade apart, and when the placeholder happens to BE the sensible answer, nothing is
+// left to tell "empty" from "filled".
+//
+// The fix is not a better placeholder. It is: no placeholder on a rule-affecting field, an empty one
+// admits it, and Kaydet refuses to call it saved.
+function Field({
+  label,
+  hint,
+  missing,
+  children,
+}: {
+  label: string
+  hint?: string
+  missing?: boolean
+  children: React.ReactNode
+}) {
   return (
-    <label className="block space-y-1.5">
-      <span className="text-[0.6875rem] font-medium uppercase tracking-wide text-muted-foreground">
+    <label className={cn('block space-y-1.5', missing && '[&_input]:border-destructive')}>
+      <span className="flex items-center gap-2 text-[0.6875rem] font-medium uppercase tracking-wide text-muted-foreground">
         {label}
+        {missing ? (
+          <span className="rounded bg-destructive/10 px-1.5 py-0.5 font-semibold text-destructive">
+            Gerekli — boş
+          </span>
+        ) : null}
       </span>
       {children}
       {hint ? <span className="block text-sm text-muted-foreground">{hint}</span> : null}
@@ -85,7 +111,35 @@ export function SettingsScreen({
   const setDay = (key: 0 | 1 | 2 | 3 | 4 | 5 | 6, value: DayHours | null) =>
     setHours((h) => ({ ...h, [key]: value }))
 
-  const save = () =>
+  // The four numbers that CHANGE A DECISION. A null here is never an intention — it is an omission,
+  // and `defaultCancellationWindowHours: null` means a class cannot be created AT ALL (the domain
+  // refuses rather than inventing a number). So the save refuses first, and names what is missing.
+  const RULES = [
+    { key: 'İptal penceresi', value: cancelHours },
+    { key: 'Varsayılan ders süresi', value: duration },
+    { key: 'Düşük kredi uyarısı', value: lowCredit },
+    { key: 'İndirim tavanı', value: ceiling },
+  ] as const
+  const missing = RULES.filter((r) => r.value.trim() === '').map((r) => r.key)
+
+  // A day marked OPEN with no hours in it is the same trap wearing a different hat: the boxes used to
+  // show 10:00 and 21:00 as placeholders, so the day LOOKED set. It reaches AG-1 as an empty string,
+  // which is not a time — and AG-1 is what decides whether a class may exist at all.
+  const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/
+  const badDays = DAYS.filter(({ key }) => {
+    const d = hours[key]
+    return d !== null && (!HHMM.test(d.open) || !HHMM.test(d.close))
+  }).map(({ label }) => label)
+
+  const save = () => {
+    if (missing.length > 0) {
+      toast.error(`Kaydedilmedi — şu alanlar boş: ${missing.join(', ')}.`)
+      return
+    }
+    if (badDays.length > 0) {
+      toast.error(`Kaydedilmedi — açık gün, saati eksik veya hatalı (SS:DD): ${badDays.join(', ')}.`)
+      return
+    }
     start(async () => {
       const res = await updateStudioSettingsAction({
         company: company.legalName.trim() ? { ...company, website: company.website || null } : null,
@@ -105,6 +159,7 @@ export function SettingsScreen({
       if (res.ok) toast.success('Ayarlar kaydedildi.')
       else toast.error(domainErrorMessage(res.error))
     })
+  }
 
   return (
     <div className="space-y-6">
@@ -125,14 +180,14 @@ export function SettingsScreen({
             <Input
               value={company.legalName}
               onChange={(e) => setCompany({ ...company, legalName: e.target.value })}
-              placeholder="Işıl Pilates ve Fitness Ltd. Şti."
+              placeholder="ör. Işıl Pilates ve Fitness Ltd. Şti."
             />
           </Field>
           <Field label="Görünen işletme adı" hint="Üyenin gördüğü ad.">
             <Input
               value={company.displayName}
               onChange={(e) => setCompany({ ...company, displayName: e.target.value })}
-              placeholder="Pilates Fitness by Işıl"
+              placeholder="ör. Pilates Fitness by Işıl"
             />
           </Field>
           <Field label="Vergi dairesi">
@@ -191,14 +246,14 @@ export function SettingsScreen({
                       className="w-28"
                       value={d.open}
                       onChange={(e) => setDay(key, { ...d, open: e.target.value })}
-                      placeholder="10:00"
+                      aria-label={`${label} açılış`}
                     />
                     <span className="text-muted-foreground">–</span>
                     <Input
                       className="w-28"
                       value={d.close}
                       onChange={(e) => setDay(key, { ...d, close: e.target.value })}
-                      placeholder="21:00"
+                      aria-label={`${label} kapanış`}
                     />
                     <Button variant="outline" size="sm" onClick={() => setDay(key, null)}>
                       Kapalı yap
@@ -252,40 +307,46 @@ export function SettingsScreen({
         <div className="grid gap-4 sm:grid-cols-2">
           <Field
             label="İptal penceresi (saat)"
+            missing={cancelHours.trim() === ''}
             hint="Bu süreden sonra yapılan iptal krediyi yakar. Sadece BUNDAN SONRA oluşturulan dersleri etkiler — mevcut dersler kendi penceresini taşır."
           >
             <Input
               type="number"
               value={cancelHours}
               onChange={(e) => setCancelHours(e.target.value)}
-              placeholder="6"
             />
           </Field>
-          <Field label="Varsayılan ders süresi (dk)" hint="Ders oluşturma formu bununla açılır.">
+          <Field
+            label="Varsayılan ders süresi (dk)"
+            missing={duration.trim() === ''}
+            hint="Ders oluşturma formu bununla açılır."
+          >
             <Input
               type="number"
               value={duration}
               onChange={(e) => setDuration(e.target.value)}
-              placeholder="50"
             />
           </Field>
-          <Field label="Düşük kredi uyarısı" hint="Bu sayının altına düşen üye panoda görünür.">
+          <Field
+            label="Düşük kredi uyarısı"
+            missing={lowCredit.trim() === ''}
+            hint="Bu sayının altına düşen üye panoda görünür."
+          >
             <Input
               type="number"
               value={lowCredit}
               onChange={(e) => setLowCredit(e.target.value)}
-              placeholder="2"
             />
           </Field>
           <Field
             label="İndirim tavanı (%)"
+            missing={ceiling.trim() === ''}
             hint="Bu oranın üstündeki indirimi yalnızca sahip onaylayabilir."
           >
             <Input
               type="number"
               value={ceiling}
               onChange={(e) => setCeiling(e.target.value)}
-              placeholder="20"
             />
           </Field>
         </div>
@@ -460,19 +521,17 @@ function Preview({
               </>
             )}
           </p>
-          <p>
-            {cancelHours === null ? (
-              <>
-                <strong>İptal penceresi tanımsız.</strong> Ders oluşturmada bir süre girilmezse
-                sistem rezervasyonu <strong>reddeder</strong> — bir sayı uydurmaz.
-              </>
-            ) : (
-              <>
-                Üye dersinden <strong>{cancelHours} saat</strong> öncesine kadar ücretsiz iptal
-                edebilir. Sonrasında iptal ederse <strong>kredisi yanar</strong>.
-              </>
-            )}
-          </p>
+          {cancelHours === null ? (
+            <p className="rounded-md border border-destructive bg-destructive/10 p-3 font-medium text-destructive">
+              <strong>İptal penceresi tanımsız — ders açılamaz.</strong> Sistem bir sayı uydurmaz:
+              süre girilmeden oluşturulan dersi <strong>reddeder</strong>.
+            </p>
+          ) : (
+            <p>
+              Üye dersinden <strong>{cancelHours} saat</strong> öncesine kadar ücretsiz iptal
+              edebilir. Sonrasında iptal ederse <strong>kredisi yanar</strong>.
+            </p>
+          )}
           {duration !== null ? <p>Yeni ders formu <strong>{duration} dakika</strong> ile açılır.</p> : null}
           {lowCredit !== null ? (
             <p>
