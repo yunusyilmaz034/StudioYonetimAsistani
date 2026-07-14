@@ -54,9 +54,6 @@ importers:
         specifier: ^6.3.0
         version: 6.6.0(firebase-admin@13.10.0)
     devDependencies:
-      '@studio/core':
-        specifier: workspace:*
-        version: link:../../packages/core
       esbuild:
         specifier: ^0.25.0
         version: 0.25.12
