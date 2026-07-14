@@ -8,7 +8,12 @@
     // They must not share a directory, or tsc's unloadable emit shadows the bundle.
     "outDir": "dist",
     "declaration": true,
-    "types": ["node"]
+    "types": ["node"],
+    // Same reason as `build.mjs`: `@studio/core` is no longer a dependency of this package, so pnpm
+    // no longer links it into node_modules. It is source, and this is where its source lives.
+    "paths": {
+      "@studio/core": ["../../packages/core/src/index"]
+    }
   },
   "references": [{ "path": "../../packages/core" }],
   "include": ["src/**/*.ts"]

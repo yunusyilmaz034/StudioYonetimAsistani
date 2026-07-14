@@ -15,7 +15,6 @@
     "firebase-functions": "^6.3.0"
   },
   "devDependencies": {
-    "@studio/core": "workspace:*",
     "esbuild": "^0.25.0"
   }
 }

@@ -14,10 +14,28 @@
 // CJS, not ESM: firebase-admin and firebase-functions ship CommonJS, and ESM→CJS
 // named-import interop is the most fragile seam in Node. Gen-2 Functions default to
 // CJS; this is the combination with the fewest ways to fail at 03:00.
+import path from 'node:path'
+
 import { build } from 'esbuild'
 
 await build({
   entryPoints: ['src/index.ts'],
+  // `@studio/core` is NOT a dependency of this package any more, and it must not be.
+  //
+  // `firebase deploy` uploads this folder's package.json and GCP runs `npm install` against it — and
+  // npm does not understand pnpm's `workspace:` protocol:
+  //
+  //     npm error Unsupported URL Type "workspace:": workspace:*
+  //     npm error code EUNSUPPORTEDPROTOCOL
+  //
+  // Every one of the five functions failed on it. Putting it in `devDependencies` was not enough:
+  // npm parses the whole manifest, not just what it intends to install.
+  //
+  // So the domain is not a dependency — it is SOURCE, resolved here, at build time, and bundled into
+  // the artifact. GCP installs exactly two packages, and neither of them is ours.
+  alias: {
+    '@studio/core': path.resolve(import.meta.dirname, '../../packages/core/src/index.ts'),
+  },
   outfile: 'lib/index.js',
   bundle: true,
   platform: 'node',
