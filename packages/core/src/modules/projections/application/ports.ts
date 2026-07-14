@@ -10,7 +10,7 @@ export interface ProjectionRepository {
   applyOnce(
     ctx: TenantContext,
     eventId: string,
-    eventAt: number,
+    recordedAt: number, // LOG time — the clock `projection_lag` reads. Never domain time.
     inc: DailyIncrement,
   ): Promise<boolean> // false ⇒ already applied
   // Rebuild: wipe the read model so the log can be replayed into it. Projections are DISPOSABLE —

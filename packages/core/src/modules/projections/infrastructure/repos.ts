@@ -43,7 +43,7 @@ export class FirestoreProjectionRepository implements ProjectionRepository {
   async applyOnce(
     ctx: TenantContext,
     eventId: string,
-    eventAt: number,
+    recordedAt: number, // LOG time — the clock `projection_lag` reads. Never domain time.
     inc: DailyIncrement,
   ): Promise<boolean> {
     const dayRef = this.col(ctx.studioId).doc(inc.date)
@@ -54,9 +54,9 @@ export class FirestoreProjectionRepository implements ProjectionRepository {
       if (markerSnap.exists) return false // a redelivery — the counter has already moved
 
       const current = daySnap.exists ? fromDoc(inc.date, daySnap.data() ?? {}) : emptyDaily(inc.date)
-      const next = applyIncrement(current, inc, eventAt)
+      const next = applyIncrement(current, inc, recordedAt)
       tx.set(dayRef, next)
-      tx.set(markerRef, { at: eventAt })
+      tx.set(markerRef, { at: recordedAt })
       return true
     })
   }

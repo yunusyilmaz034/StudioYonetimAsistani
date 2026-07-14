@@ -63,7 +63,7 @@ describe('projectDaily (v1.23)', () => {
       }),
       OFFSET,
     )
-    expect(inc).toBeNull()
+    expect(inc.counters).toEqual({})
   })
 
   it('counts NO money from a legacy payment record', () => {
@@ -73,7 +73,7 @@ describe('projectDaily (v1.23)', () => {
       }),
       OFFSET,
     )
-    expect(inc).toBeNull()
+    expect(inc.counters).toEqual({})
   })
 
   it('counts NO money from a legacy cancellation', () => {
@@ -85,7 +85,7 @@ describe('projectDaily (v1.23)', () => {
       }),
       OFFSET,
     )
-    expect(inc).toBeNull()
+    expect(inc.counters).toEqual({})
   })
 
   it('THE DOUBLE-COUNT: one sale, migrated, is counted exactly ONCE', () => {
@@ -104,13 +104,28 @@ describe('projectDaily (v1.23)', () => {
       OFFSET,
     )
 
-    expect(legacy).toBeNull()
-    expect(migrated?.counters).toEqual({ salesKurus: 500_000 })
+    expect(legacy.counters).toEqual({})
+    expect(migrated.counters).toEqual({ salesKurus: 500_000 })
   })
 
-  it('most of the catalogue contributes nothing — a dashboard is not an archive', () => {
-    expect(projectDaily(ev('product.updated', 9.0), OFFSET)).toBeNull()
-    expect(projectDaily(ev('studio_calendar.day_marked', 9.0), OFFSET)).toBeNull()
+  it('most of the catalogue moves no counter — a dashboard is not an archive', () => {
+    expect(projectDaily(ev('product.updated', 9.0), OFFSET).counters).toEqual({})
+    expect(projectDaily(ev('studio_calendar.day_marked', 9.0), OFFSET).counters).toEqual({})
+  })
+
+  // The bug this rule exists for (production, 2026-07-14). An event that moves no counter is still
+  // SEEN: it lands on its day and advances `lastEventAt`. `projection_lag` compares the newest event
+  // in the log against that watermark — so if an uncounted event were skipped, a day whose last event
+  // was a settings change would read as further and further behind, and the alarm would scream for
+  // ever about a projector that was perfectly healthy. An alarm nobody believes silences the real one.
+  it('an uncounted event still lands on its day — the watermark is what the lag signal reads', () => {
+    const inc = projectDaily(ev('product.updated', 9.0), OFFSET)
+    const day = projectDaily(ev('reservation.booked', 9.0), OFFSET).date // the same day, counted
+    expect(inc.date).toBe(day)
+
+    const folded = applyIncrement(emptyDaily(day), inc, 1_700_000_000_000)
+    expect(folded.lastEventAt).toBe(1_700_000_000_000) // seen…
+    expect(folded.bookings).toBe(0) // …and counted nowhere
   })
 
   it('folding is additive and deterministic — the rebuild lands on the same numbers', () => {

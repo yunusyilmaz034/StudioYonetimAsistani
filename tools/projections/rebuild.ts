@@ -48,10 +48,13 @@ async function main(): Promise<void> {
     .get()
 
   let folded = 0
+  let counted = 0
   for (const doc of snap.docs) {
     const d = doc.data()
     const occurredAt = d.occurredAt instanceof Timestamp ? d.occurredAt.toMillis() : 0
     if (!occurredAt) continue
+    // The watermark is LOG time — the clock `projection_lag` compares against. See the trigger.
+    const recordedAt = d.recordedAt instanceof Timestamp ? d.recordedAt.toMillis() : occurredAt
     const inc = projectDaily(
       {
         type: d.type as string,
@@ -60,12 +63,14 @@ async function main(): Promise<void> {
       },
       DEFAULT_STUDIO_CONFIG.utcOffsetMinutes,
     )
-    if (!inc) continue
-    await repo.applyOnce(ctx, doc.id, occurredAt, inc)
+    await repo.applyOnce(ctx, doc.id, recordedAt, inc)
     folded++
+    if (Object.keys(inc.counters).length > 0) counted++
   }
 
-  console.log(`✅ ${snap.size} event okundu, ${folded} tanesi sayaçlara işlendi.`)
+  // Every event is folded — an event that moves no counter still moves the watermark, which is what
+  // `projection_lag` reads. The two numbers differ, and the difference is not an error.
+  console.log(`✅ ${snap.size} event okundu, ${folded} tanesi işlendi, ${counted} tanesi bir sayacı oynattı.`)
   process.exit(0)
 }
 

@@ -96,15 +96,27 @@ const kurus = (v: unknown): number => {
 }
 const id = (v: unknown): string | null => (typeof v === 'string' && v.length > 0 ? v : null)
 
-// PURE. (event, studio offset) → the day it belongs to and what it adds. `null` when the event
-// contributes nothing to the dashboard's numbers — most of the catalogue does not, and that is
-// fine: this is a dashboard, not an archive. The archive is /events.
-export function projectDaily(
-  event: ProjectableEvent,
-  utcOffsetMinutes: number,
-): DailyIncrement | null {
+// PURE. (event, studio offset) → the day it belongs to and what it adds.
+//
+// It NEVER returns null, and that is a correctness decision rather than a tidiness one. Most of the
+// catalogue adds nothing to the dashboard's numbers — a settings change, a staff edit, a till being
+// created — and those fold as an EMPTY increment: no counter moves, and `lastEventAt` advances.
+//
+// Skipping them entirely (2026-07-14, production) made the `projection_lag` health signal lie. The
+// signal asks "is the projector keeping up with the log?" and compares the newest event against the
+// projector's watermark — but the watermark only ever recorded the newest *counted* event. So a day
+// whose last event moved no counter read as an hour behind, then two, then a day, for ever. The
+// studio's very first day did exactly that: nine setup events, zero counted, a permanent alarm.
+//
+// The deeper point: a projector that ignores an event is INDISTINGUISHABLE from a projector that is
+// dead. The watermark has to mean "the newest event I have SEEN" or it cannot detect the thing it
+// exists to detect. It costs one small write per uncounted event, and buys an alarm that can be
+// believed — and an alarm nobody believes is worse than no alarm, because it silences the real one.
+export function projectDaily(event: ProjectableEvent, utcOffsetMinutes: number): DailyIncrement {
   const date = localDateAt(event.occurredAt, utcOffsetMinutes) as string
   const one = (counters: DailyIncrement['counters']): DailyIncrement => ({ date, counters })
+  // Seen, not counted: the watermark moves, nothing else does.
+  const seen = (): DailyIncrement => one({})
 
   switch (event.type) {
     case 'reservation.booked':
@@ -185,14 +197,19 @@ export function projectDaily(
     case 'entitlement.purchased':
     case 'entitlement.payment_recorded':
     case 'entitlement.cancelled':
-      return null
+      return seen()
 
     default:
-      return null
+      return seen()
   }
 }
 
 // Apply an increment to a day. Pure, so the trigger and the rebuild script fold identically.
+//
+// `eventAt` is the time the WATERMARK is stamped with, and the caller passes LOG time (`recordedAt`),
+// never domain time — `projection_lag` compares this against the newest `recordedAt` in the log, and
+// two clocks cannot be subtracted from each other. `inc.date`, by contrast, is domain time: a class
+// belongs to the day it happened on, not the day the server heard about it.
 export function applyIncrement(
   current: DailyReadModel,
   inc: DailyIncrement,

@@ -51,6 +51,11 @@ export const onEventCreated = onDocumentCreated(
     const occurredAt = data.occurredAt instanceof Timestamp ? data.occurredAt.toMillis() : 0
     if (occurredAt === 0) return
 
+    // The two timestamps do different jobs here, and swapping them breaks the alarm (see below):
+    //   occurredAt  — domain time. WHICH DAY the event belongs to. May be client-supplied.
+    //   recordedAt  — log time, `serverTimestamp()`. WHEN THE LOG ACCEPTED IT.
+    const recordedAt = data.recordedAt instanceof Timestamp ? data.recordedAt.toMillis() : occurredAt
+
     // ── v1.25 — the SECOND consumer: notifications. It runs downstream of the event and can never
     // fail it: a booking that fails because an e-mail bounced is an outage nobody signed up for.
     try {
@@ -67,16 +72,21 @@ export const onEventCreated = onDocumentCreated(
       },
       DEFAULT_STUDIO_CONFIG.utcOffsetMinutes,
     )
-    // Most of the catalogue contributes nothing to the dashboard's numbers, and that is correct:
-    // this is a dashboard, not an archive. The archive is /events.
-    if (!inc) return
-
+    // Most of the catalogue contributes nothing to the dashboard's NUMBERS — and it is still folded,
+    // with an empty increment, so the projector's watermark advances. A projector that skips an event
+    // cannot be told apart from a projector that has died, and `projection_lag` is the signal that has
+    // to tell them apart (see `projectDaily`).
     try {
       const ctx = systemTenantContext(studioId, 'daily_projection' as SystemJobId)
       const applied = await new FirestoreProjectionRepository(db()).applyOnce(
         ctx,
         eventId,
-        occurredAt,
+        // `projection_lag` asks "is the projector keeping up with the LOG?" and compares the newest
+        // `recordedAt` against this watermark. Writing domain time here compares two different clocks:
+        // an offline check-in that syncs two hours late carries a two-hour-old `occurredAt`, and the
+        // signal would report a two-hour lag on a projector that folded it the instant it arrived —
+        // on the very day the offline path is used most. Log time in, log time out.
+        recordedAt,
         inc,
       )
       if (!applied) logger.debug('projection: redelivery ignored', { eventId })
