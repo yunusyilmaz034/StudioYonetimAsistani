@@ -62,6 +62,39 @@ moves there and production stops being touched by anything that is not real.
 
 ---
 
+## 1.45 Do not delete `"dependencies": {}` from the root `package.json`
+
+It is empty. It looks like dead weight. **It is load-bearing, and deleting it kills the production
+deploy silently.**
+
+App Hosting's Node.js buildpack, when `apphosting.yaml` contains `scripts.buildCommand`, **rewrites the
+repo's root `package.json`** immediately before `pnpm install` — from its own Go struct
+(`pkg/nodejs/nodejs.go` → `OverrideAppHostingBuildScript`). That struct declares:
+
+```go
+Dependencies map[string]string `json:"dependencies"`   // ← no omitempty
+```
+
+If the field is absent from our file, Go's nil map is written to disk as **`"dependencies": null`** —
+and pnpm 9 and 10 read that manifest, call `Object.keys(null)`, and die with:
+
+```
+ERROR  Cannot convert undefined or null to object
+```
+
+…in under 300 ms, before a single network fetch. It **never happens locally**, because locally nothing
+rewrites `package.json`. That is why the build was green on every machine and red in every rollout.
+
+An empty object is enough: Go unmarshals it into a **non-nil** empty map and writes it back as `{}`.
+
+*(This is a real bug in Google's buildpack — a missing `omitempty`. Firebase closed the matching report
+([firebase-tools#10435](https://github.com/firebase/firebase-tools/issues/10435)) as "not planned",
+because nobody had found the mechanism. We are not waiting for a fix we do not need.)*
+
+**Do not "clean up" that line.**
+
+---
+
 ## 1.5 Setup — the studio does not exist until these are done
 
 **Added at RC1, because the checklist below assumed a studio that was already there.** On a brand-new
