@@ -71,12 +71,19 @@ env:
     availability:
       - RUNTIME
 
-  # The sender the studio's members will see. Not a secret — but it IS the identity the domain's
-  # SPF/DKIM records must authorise, so it lives beside the key rather than in a source file.
-  - variable: EMAIL_FROM
-    value: noreply@pilatesfitnessbyisil.com
-    availability:
-      - RUNTIME
+  # ── E-mail is NOT configured here, and must not be ────────────────────────────────────────
+  #
+  # `EMAIL_FROM` and `RESEND_API_KEY` used to be declared in this file. The web tier never read
+  # either of them: mail is sent by `onEventCreated` → `notifyForEvent`, in Cloud Functions, which
+  # cannot see a variable set on App Hosting. So the key sat in the wrong process, the provider found
+  # `undefined`, fell back to the console, and every e-mail the studio believed it had sent was
+  # written to a log and thrown away — silently, and with a green deploy.
+  #
+  # They now live where the code that reads them lives:
+  #   • `EMAIL_FROM`     → `apps/functions/.env.studio-yonetim-prod` (committed; an identity)
+  #   • `RESEND_API_KEY` → Secret Manager, requested by name in `apps/functions/src/shared/region.ts`
+  #
+  # Put them back here and nothing breaks, nothing warns, and nothing sends.
 
   # ── Secrets: Secret Manager, runtime only, never in this file ─────────────────────────────
   # Provision with:  firebase apphosting:secrets:set qr-token-secret --project <prod>
@@ -92,8 +99,3 @@ env:
   #   secret: qr-token-secret-previous
   #   availability:
   #     - RUNTIME
-
-  - variable: RESEND_API_KEY
-    secret: resend-api-key
-    availability:
-      - RUNTIME

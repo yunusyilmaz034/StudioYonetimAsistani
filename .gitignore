@@ -34,6 +34,8 @@ tools/migration/reports/
 .env
 .env.*
 !.env.example
+# The functions' production sender. An identity, not a credential — see the file's own header.
+!apps/functions/.env.studio-yonetim-prod
 
 # editor / OS
 .DS_Store
