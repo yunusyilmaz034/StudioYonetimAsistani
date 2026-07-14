@@ -115,6 +115,36 @@ without them reception cannot schedule a single class. In that order:
 
 ---
 
+## 1.6 The production plumbing, and what it cost to learn (2026-07-14)
+
+Everything below is **done and verified against the running project**, not against a deploy log. Each
+line has a failure it exists to prevent, because each of them actually happened.
+
+**E-mail sends from Cloud Functions, so the key lives in Cloud Functions.** It was declared in
+`apphosting.yaml` — the web tier — which never reads it. A Gen2 function cannot see a secret it has
+not asked for, so `on-event-notify` found `undefined`, fell back to the console provider, and every
+message the studio believed it had sent was written to a log and discarded. Silently, with a green
+deploy. Now: `RESEND_API_KEY` is a Secret Manager secret requested by name in
+`apps/functions/src/shared/region.ts`, bound to `onEventCreated` and `notificationRetry`;
+`EMAIL_FROM` is in `apps/functions/.env.studio-yonetim-prod`, committed, because it is an identity
+(SPF/DKIM authorise it) and not a credential. **Verified against the deployed runtime via the Cloud
+Functions API**, and by a real message accepted by Resend from the production sender.
+
+**Backups.** Daily (7-day retention) and weekly (14 weeks), plus **point-in-time recovery** — because
+a daily backup loses everything since 03:00, and a human error noticed at lunchtime needs a clock, not
+a snapshot. *The restore rehearsal is still owed: there is no backup to restore until the first one
+lands.*
+
+**Alarms.** Two Cloud Monitoring policies to an e-mail channel: the product's own five health signals
+(`jsonPayload.alert`), and — separately — any function logging an ERROR, because if the health check
+*itself* dies it cannot report its own death.
+
+**Node 22.** Node 20 is decommissioned for Cloud Functions on 2026-10-30. Moved now, while the studio
+is empty.
+
+**IAM.** No downloadable service-account keys exist (there is no file to leak). One human has access.
+That is a **bus factor of one**, and it is an owner decision, not an engineering one.
+
 ## 2. Go / no-go
 
 **Every box, or the cutover is postponed.** No exceptions, no "we'll fix it Tuesday". The point of a
