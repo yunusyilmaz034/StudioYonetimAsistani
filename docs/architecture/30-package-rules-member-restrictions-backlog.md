@@ -8,7 +8,10 @@ deciders via `resolveReservationPolicy` (studio → package → member override)
 note, and their own audit events (`member.restriction_set` / `_cleared`). The free-cancellation
 allowance is an entitlement ledger (`cancellation_charged` / `_refunded`). Deferred, with triggers:
 **DEBT-031** (per-booking `listByMember` read) and **DEBT-032** (move does not yet enforce day/hour).
-Trainer restriction + override validity windows are **Plus Phase 4 (Member Override)**.
+Trainer restriction + override validity windows shipped in **Plus Phase 4 (Member Override)** —
+CLOSED 2026-07-15, tag `plus-v0.4-member-override`: `allowedTrainerIds`, `effectiveFrom`/
+`effectiveUntil` (auto-return to package rules at read time, no sweep), the expanded reason enum, and
+a dedicated "Kısıtlı Üyelik" member-card tab.
 
 *The original brief is kept below as the record of what was designed.*
 

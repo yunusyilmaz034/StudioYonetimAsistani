@@ -52,10 +52,13 @@ three limit overrides) shipped alongside. Late-cancel right and no-show right st
   Doc 13) — never a mutable counter, or it drifts exactly as credits would. The rule is read by the
   decider, never an `if` in a Server Action (#4).
 
-### 4 — Member Override  ·  *detail: Doc 30*
-Per-member "Kısıtlı Üyelik" on the member card: allowed days, allowed hours, max cancellations, max
-active reservations — overriding the package rule for VIP / corporate / promotional / problem members.
-Resolution order: **studio default → package rule → member override** (strongest last).
+### 4 — Member Override  ·  *detail: Doc 30*  ·  ✅ **CLOSED (2026-07-15, tag `plus-v0.4-member-override`)**
+Per-member "Kısıtlı Üyelik" on its own member-card tab: allowed days, allowed hours, **allowed
+trainers**, max cancellations, daily + active limits — overriding the package rule, with a **validity
+window** that auto-returns the member to package rules when it expires (read-time gating, no sweep).
+Reason is a closed enum (VIP / Kurumsal / Promosyon / Şikayet Telafisi / Sağlık / Diğer); the note
+stays on state, never in the event. Resolution order: **studio default → package rule → member
+override** (strongest last), through the one `resolveReservationPolicy` every write path reads.
 - **Rule:** the override *values* are member state (fine on `/members`); the override *change events*
   carry a **closed-enum reason + note**, and the note **never** enters the event payload (#6). A
   restriction with no author is the silent loosening this must not permit.
