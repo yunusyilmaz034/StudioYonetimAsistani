@@ -34,10 +34,14 @@ describe('the trainer — staff, and the person least entitled to the studio’s
 })
 
 describe('reception — she runs the day, and she does not run the business', () => {
-  it('has the desk: members, packages, the calendar, the till, check-in', () => {
-    for (const area of ['/', '/members', '/packages', '/schedule', '/checkin', '/finance'] as const) {
+  it('has the desk: members, packages, the calendar, the till, check-in, fitness', () => {
+    for (const area of ['/', '/members', '/packages', '/schedule', '/checkin', '/fitness', '/finance'] as const) {
       expect(canSee('receptionist', area), area).toBe(true)
     }
+  })
+
+  it('a trainer does not get the fitness usage screen — it is the studio’s data, not her craft', () => {
+    expect(canSee('trainer', '/fitness')).toBe(false)
   })
 
   it('is refused the audit log, the analytics, the settings, and the staff list (owner, 2026-07-13)', () => {

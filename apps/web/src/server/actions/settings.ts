@@ -82,6 +82,17 @@ const schema = z.object({
       whatsappEnabled: z.boolean().optional(),
     })
     .nullable(),
+  // Plus Phase 8 — the studio's physical capacity and occupancy bands (fractions of capacity,
+  // ascending). Optional: a save that does not touch it preserves whatever is stored.
+  fitness: z
+    .object({
+      capacity: z.number().int().min(0).max(100_000),
+      moderateAt: z.number().min(0).max(1),
+      busyAt: z.number().min(0).max(1),
+      veryBusyAt: z.number().min(0).max(1),
+    })
+    .nullable()
+    .optional(),
 })
 
 /** Read. Reception may READ them (the session form needs the default duration); only the owner writes. */
@@ -124,6 +135,9 @@ export async function updateStudioSettingsAction(input: unknown) {
           ],
         }
       : null,
+    // Preserve the stored occupancy config unless the caller explicitly sends one (the settings form
+    // may save other sections without touching it). `undefined` = untouched; `null` = cleared.
+    fitness: p.fitness === undefined ? current?.fitness ?? null : p.fitness,
   }
 
   const res = await observed('studio.settings_update', ctx, undefined, {}, () =>

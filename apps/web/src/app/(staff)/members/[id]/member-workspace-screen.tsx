@@ -63,6 +63,7 @@ import { deactivateMember } from '@/server/actions/members'
 import { ErasurePanel } from './erasure-panel'
 import { RestrictionPanel } from './restriction-panel'
 import { TrainingPanel } from './training-panel'
+import { MemberFitnessSummary } from './fitness-summary'
 import {
   listUpcomingSessionsAction,
   type UpcomingSession,
@@ -240,6 +241,7 @@ export function MemberWorkspaceScreen({
         </TabsContent>
         <TabsContent value="checkin">
           <CheckinPanel
+            memberId={member.id}
             insideNow={data.insideNow}
             lastCheckInAt={data.lastCheckInAt}
             history={data.checkInHistory}
@@ -568,10 +570,12 @@ function ReservationItem({ r, cancelable = false }: { r: MemberReservationRow; c
 
 // ── Check-in ──────────────────────────────────────────────────────────────────
 function CheckinPanel({
+  memberId,
   insideNow,
   lastCheckInAt,
   history,
 }: {
+  memberId: string
   insideNow: boolean
   lastCheckInAt: number | null
   history: readonly MemberCheckInRow[]
@@ -579,6 +583,9 @@ function CheckinPanel({
   const router = useRouter()
   return (
     <div className="space-y-5">
+      {/* Plus Phase 8 — her consistency, computed on read from her check-in days. */}
+      <MemberFitnessSummary memberId={memberId} />
+
       <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-card p-4 shadow-sm">
         <div className="flex items-center gap-2 text-sm">
           <Badge className={insideNow ? 'bg-success/10 text-success' : 'bg-muted text-muted-foreground'}>

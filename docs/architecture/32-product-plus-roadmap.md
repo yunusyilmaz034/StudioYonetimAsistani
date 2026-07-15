@@ -96,7 +96,7 @@ programme is never edited — every change is a new version, history kept foreve
   snapshot discipline as `SaleLine` and `productSnapshot`). Photos/measurements are member PII — they
   live on the member's records, **never in an event payload** (#6).
 
-### 8 — Fitness Attendance  ·  *new; deliberately minimal*
+### 8 — Fitness Attendance  ·  *new; deliberately minimal*  ·  ✅ **CLOSED (2026-07-16, tag `plus-v0.8-fitness-attendance-occupancy`)**
 A fitness check-in system, nothing more: **entry to the studio, entry history, consistency/streaks,
 and usage reports.** For fitness (unlimited/period) memberships there is **no reservation and no
 class**, and this **contains no training analysis** — no sets, no minutes, no machine (that is

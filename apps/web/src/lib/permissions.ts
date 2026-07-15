@@ -24,6 +24,7 @@ export type Area =
   | '/schedule'
   | '/reservations'
   | '/checkin'
+  | '/fitness' // Plus Phase 8 — fitness attendance & occupancy (read/report; owner + reception)
   | '/attendance'
   | '/members'
   | '/packages'
@@ -52,6 +53,9 @@ export const PERMISSIONS: Readonly<Record<Area, readonly PrincipalRole[]>> = {
   '/schedule': DESK,
   '/reservations': DESK,
   '/checkin': DESK,
+  // Plus Phase 8 — occupancy & entry reports. Operational (who came, how busy), not private training
+  // content, so it is reception's too. A trainer does not get it (it is the studio's usage data).
+  '/fitness': DESK,
   '/attendance': DESK,
   '/members': DESK,
   '/packages': DESK,

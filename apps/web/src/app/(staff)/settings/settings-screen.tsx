@@ -112,6 +112,11 @@ export function SettingsScreen({
   const [checkInWindow, setCheckInWindow] = useState(
     settings?.qr?.checkInWindowMinutes?.toString() ?? '30',
   )
+  // Plus Phase 8 — occupancy: physical capacity + the bands (stored as fractions, edited as %).
+  const [capacity, setCapacity] = useState(settings?.fitness?.capacity?.toString() ?? '')
+  const [moderatePct, setModeratePct] = useState(((settings?.fitness?.moderateAt ?? 0.4) * 100).toString())
+  const [busyPct, setBusyPct] = useState(((settings?.fitness?.busyAt ?? 0.7) * 100).toString())
+  const [veryBusyPct, setVeryBusyPct] = useState(((settings?.fitness?.veryBusyAt ?? 0.9) * 100).toString())
 
   const setDay = (key: 0 | 1 | 2 | 3 | 4 | 5 | 6, value: DayHours | null) =>
     setHours((h) => ({ ...h, [key]: value }))
@@ -145,6 +150,12 @@ export function SettingsScreen({
       toast.error(`Kaydedilmedi — açık gün, saati eksik veya hatalı (SS:DD): ${badDays.join(', ')}.`)
       return
     }
+    // Occupancy bands must ascend: Orta ≤ Yoğun ≤ Çok yoğun. A misordered set would paint the studio
+    // "Çok yoğun" while it is half empty.
+    if (capacity.trim() !== '' && !(Number(moderatePct) <= Number(busyPct) && Number(busyPct) <= Number(veryBusyPct))) {
+      toast.error('Kaydedilmedi — doluluk eşikleri artan olmalı: Orta ≤ Yoğun ≤ Çok yoğun.')
+      return
+    }
     start(async () => {
       const res = await updateStudioSettingsAction({
         company: company.legalName.trim() ? { ...company, website: company.website || null } : null,
@@ -161,6 +172,15 @@ export function SettingsScreen({
           emailEnabled,
           whatsappEnabled,
         },
+        fitness:
+          capacity.trim() === ''
+            ? null
+            : {
+                capacity: Number(capacity),
+                moderateAt: Number(moderatePct) / 100,
+                busyAt: Number(busyPct) / 100,
+                veryBusyAt: Number(veryBusyPct) / 100,
+              },
       })
       if (res.ok) toast.success('Ayarlar kaydedildi.')
       else toast.error(domainErrorMessage(res.error))
@@ -378,6 +398,35 @@ export function SettingsScreen({
             />
           </Field>
         </div>
+      </Section>
+
+      {/* ── Doluluk & Kapasite (Plus Phase 8) ─────────────────────────────────────────────── */}
+      <Section
+        title="Doluluk & Kapasite"
+        hint="Aynı anda kaç kişi olabilir, ve doluluk hangi orandan sonra “Yoğun” sayılır. Üye portalında yalnızca seviye (Sakin/Orta/Yoğun/Çok yoğun) görünür — asla kişi sayısı."
+      >
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field
+            label="Stüdyo kapasitesi (kişi)"
+            hint="Boş bırakılırsa doluluk seviyesi hesaplanmaz. Aynı anda içeride olabilecek üye sayısı."
+          >
+            <Input type="number" value={capacity} onChange={(e) => setCapacity(e.target.value)} />
+          </Field>
+        </div>
+        <div className="mt-4 grid gap-4 sm:grid-cols-3">
+          <Field label="Orta eşiği (%)" hint="Kapasitenin bu oranından sonra “Orta”.">
+            <Input type="number" value={moderatePct} onChange={(e) => setModeratePct(e.target.value)} />
+          </Field>
+          <Field label="Yoğun eşiği (%)" hint="Bu orandan sonra “Yoğun”.">
+            <Input type="number" value={busyPct} onChange={(e) => setBusyPct(e.target.value)} />
+          </Field>
+          <Field label="Çok yoğun eşiği (%)" hint="Bu orandan sonra “Çok yoğun”.">
+            <Input type="number" value={veryBusyPct} onChange={(e) => setVeryBusyPct(e.target.value)} />
+          </Field>
+        </div>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Eşikler artan olmalı: Orta ≤ Yoğun ≤ Çok yoğun.
+        </p>
       </Section>
 
       {/* ── Bildirimler (DEBT-024) ────────────────────────────────────────────────────────── */}

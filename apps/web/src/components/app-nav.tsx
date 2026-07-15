@@ -18,6 +18,7 @@ import {
   ClipboardCheckIcon,
   DumbbellIcon,
   DoorOpenIcon,
+  GaugeIcon,
   LayoutDashboardIcon,
   LogOutIcon,
   PackageIcon,
@@ -73,6 +74,8 @@ export const GROUPS: readonly NavGroup[] = [
       { href: '/schedule', label: 'Ders Ajandası', icon: CalendarIcon },
       { href: '/reservations', label: 'Rezervasyon Ajandası', icon: CalendarClockIcon },
       { href: '/checkin', label: 'Check-in', icon: DoorOpenIcon },
+      // Plus Phase 8 — occupancy & entry reports (owner + reception).
+      { href: '/fitness', label: 'Katılım', icon: GaugeIcon },
       { href: '/attendance', label: 'Yoklama', icon: ClipboardCheckIcon },
     ],
   },
