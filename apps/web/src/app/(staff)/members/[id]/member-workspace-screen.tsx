@@ -55,6 +55,7 @@ import type {
 import { deactivateMember } from '@/server/actions/members'
 
 import { ErasurePanel } from './erasure-panel'
+import { RestrictionPanel } from './restriction-panel'
 import {
   listUpcomingSessionsAction,
   type UpcomingSession,
@@ -176,6 +177,13 @@ export function MemberWorkspaceScreen({
         <TabsContent value="profile">
           <div className="space-y-5">
             <ProfilePanel member={member} isPlatformAdmin={isPlatformAdmin} />
+            {/* "Kısıtlı Üyelik" (Plus Phase 3) — a per-member override of the package rules. Editing
+                is a policy act: owner / platform_admin only (the action refuses anyone else too). */}
+            <RestrictionPanel
+              memberId={member.id}
+              restriction={member.restriction}
+              canEdit={isOwner || isPlatformAdmin}
+            />
             {/* v1.21 — the portal invite (D1). Reception issues the link; the member sets her
                 own password. Reception never knows it. */}
             <InvitePanel memberId={member.id} studioId={member.studioId} />
