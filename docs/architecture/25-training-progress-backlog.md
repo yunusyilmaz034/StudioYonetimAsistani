@@ -4,6 +4,12 @@
 designed yet.** This is the brief the architecture will be written against when the milestone opens.
 **Nothing here is binding** except where it is marked as a consequence of an existing invariant.
 
+> **Scheduled as Phase 7 of Product Plus (Doc 32), and the vision was widened (owner, 2026-07-15):**
+> beyond measurements and programme versioning below, it is a **core premium module** covering
+> **exercise video explanations**, **movement-level notes**, and a **trainer ↔ member feedback loop**,
+> plus **photo tracking** and **progress charts**. Photos and measurements are member PII — they live
+> on the member's records, never in an event payload (#6).
+
 ---
 
 ## 1. What the owner asked for

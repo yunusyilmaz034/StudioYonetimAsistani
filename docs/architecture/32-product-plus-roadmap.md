@@ -1,0 +1,125 @@
+# 32 — Product Plus Roadmap — **the reference**
+
+**Status:** the reference roadmap for Product Plus (owner-agreed, 2026-07-15). This is to Product Plus
+what Doc 08 is to Phase 1: the single, ordered source of truth for what gets built and in what order.
+
+**Two standing rules that frame everything below:**
+- **`main` is frozen** — Product Alpha V1, hotfix / production / release only. All Plus work happens on
+  **`feature/product-plus`**, merged only after the pilot is stable.
+- **The roadmap is stable.** Milestones are *proposed*, never silently added or reordered. This
+  document changes only with the owner's approval (Doc 10).
+
+Each phase names the backlog/architecture note that details it, and — where it matters — the **one
+architectural rule that phase must not break.** The reassuring finding from the architecture review:
+**every phase here is addable without touching historical data**, because the one unretrofittable
+layer (event schema, actor taxonomy, category wall, policy-as-data, finance ledger) already exists.
+So the risks below are *traps to avoid*, not *foundations missing*.
+
+---
+
+## The ten phases
+
+### 1 — Premium UI / Design System  ·  *detail: Doc 31*
+A full visual identity: warmer palette off the cool teal/near-white, softer backgrounds, modern
+cards, premium shadows/radius/spacing/type, responsive, one design language across owner · reception ·
+trainer — a boutique, women's-premium feel from the first screen.
+- **Rule:** re-tokening + component treatment, **not** a re-architecture and **not** a colour swap.
+  Values move in `globals.css` and the shared components; business screens do not change (DS-1 keeps
+  hex out of screens). No feature, domain, event, or behaviour changes. Işıl approves on real screens.
+
+### 2 — Session Workspace  ·  *enhances the shipped Doc 17 / 22 / 23*
+The reservation workspace, operations center, bulk ops and waitlist already shipped in Alpha; this
+phase deepens them: reservation search, WhatsApp actions, bulk attendance, trainer notes, room notes,
+the daily-operations screen.
+- **Rule:** when this touches the reservation flow, lay the **rule-resolution seam**
+  `resolve(memberRestriction, packageRule, studioDefault)` (Doc 30) even though enforcement is Phases
+  3–4 — so Phase 4 slots in without a second rebuild of the reservation path.
+- **Note:** WhatsApp here is a *channel of Phase 5*; start the Meta approval (ED-1) now — it is
+  external and slow, and must not block this phase.
+
+### 3 — Package Rules 2.0  ·  *detail: Doc 30*
+Per-package rules from the catalogue: cancellation-right count (e.g. 3 / 5 / unlimited), late-cancel
+right, no-show right, active-reservation limit. The seam is half-built — `cancellationAllowanceCount`
+and `dailyReservationLimit` already exist on `Product`, read by no decision function yet.
+- **Rule:** each allowance is a **ledger, decremented by an event** (the credit-ledger discipline,
+  Doc 13) — never a mutable counter, or it drifts exactly as credits would. The rule is read by the
+  decider, never an `if` in a Server Action (#4).
+
+### 4 — Member Override  ·  *detail: Doc 30*
+Per-member "Kısıtlı Üyelik" on the member card: allowed days, allowed hours, max cancellations, max
+active reservations — overriding the package rule for VIP / corporate / promotional / problem members.
+Resolution order: **studio default → package rule → member override** (strongest last).
+- **Rule:** the override *values* are member state (fine on `/members`); the override *change events*
+  carry a **closed-enum reason + note**, and the note **never** enters the event payload (#6). A
+  restriction with no author is the silent loosening this must not permit.
+
+### 5 — Notification & Communication Center  ·  *extends the shipped Doc 28 / v1.25*
+The core (Event → Intent → Delivery, in-app + e-mail, quiet hours) shipped in Alpha; this phase makes
+it multi-channel: **WhatsApp, richer e-mail, Push notifications, campaign messages, automatic
+templates.** It stays a distinct milestone because the channel and campaign surface is substantial.
+- **Rule:** every channel is a **provider behind the existing port** (`NotificationProvider`); the
+  center still hands over and classifies, and never claims "delivered" when it means "handed over".
+
+### 6 — Retail / Wallet / Product Sales  ·  *detail: Doc 27*
+A member wallet and retail sales, integrated as **one new payment method and one liability ledger** on
+the v1.24 finance spine — never a second accounting system.
+- **Rule:** `Sale → Payment(method: 'wallet') → Allocation → RetailOrder`. The moment the wallet grows
+  its own sales/refunds/balance arithmetic, the studio has two sets of books.
+
+### 7 — Training & Progress  ·  *detail: Doc 25 (vision expanded below)*
+A core premium module — **managing the member's development, not writing workouts.** Assign a
+programme to a member; exercise video explanations; movement-level notes; a **trainer ↔ member
+feedback loop**; measurements; **photo tracking**; progress charts; **programme versioning** (a
+programme is never edited — every change is a new version, history kept forever).
+- **Rule:** a programme **references** the exercise library and **snapshots** what it referenced at
+  assignment time, so editing a library entry never rewrites a member's past programme (the same
+  snapshot discipline as `SaleLine` and `productSnapshot`). Photos/measurements are member PII — they
+  live on the member's records, **never in an event payload** (#6).
+
+### 8 — Fitness Attendance  ·  *new; deliberately minimal*
+For fitness (unlimited/period) memberships there is **no reservation and no class**. Attendance here
+means **only the check-in**: the date and time the member came to the studio. **No sets, no minutes,
+no machine — none of it is tracked** (that is Phase 7's concern, and it is a *separate module*).
+- **Rule — and this is the one to hold:** fitness attendance is a **read/report layer over existing
+  `member.checked_in` events**. It **never** emits `reservation.attended` and **never** touches
+  credit. The check-in ≠ attendance non-negotiable exists to protect *credit consumption*; fitness
+  consumes nothing, so check-in *is* the whole signal — provided it is never dressed up as an
+  attendance observation.
+
+### 9 — Trainer Payroll  ·  *new; a money module — slow down*
+Compute trainer pay from the sessions taught and the studio's rates.
+- **Rule:** it reuses the **finance ledger** (Doc 26), never a parallel accounting system (the Doc 27
+  warning, again). A trainer's rate is **versioned policy data**, never an `if`. And it reads the
+  attendance semantics: whether a *presumed*-attended class (DEBT-007) or a no-show pays the trainer
+  is a **policy decision** to settle explicitly, not a default to stumble into.
+
+### 10 — AI Insights L1  ·  *the product vision's "Phase 2"*
+The event log was built for this from day one. Nothing is built early for it.
+- **Rule:** its feasibility is a **function of Phases 2–9 keeping the event discipline** — no
+  presumption written as an observation (#11), no PII in an event (#6). The insight layer is only as
+  trustworthy as the log beneath it, and the log is protected by every phase above.
+
+---
+
+## Long-term vision
+
+**Studio Operating System** — an owner-first platform that runs daily operations, records every
+meaningful business event, reduces manual work, and turns studio data into decisions. Every phase
+above serves it; none of them is the product on its own.
+
+---
+
+## Deliberately deferred (recorded, not scheduled)
+
+- **Campaigns / Discounts (DEBT-002).** Needed the moment the first real campaign runs (revenue
+  attribution becomes a lie without it). Higher-priority modules come first (owner, 2026-07-15). When
+  it lands, it attaches to the entitlement (`campaignId`, the field already exists) — no reshaping.
+- **Server-side member search (DEBT-001).** Repay at ~2,000 members or the first server-search
+  request; Phase 2's reservation/member search may trigger it.
+- **Member portal / self-booking evolution (Doc 21).** The portal shipped; growing the member-facing
+  surface is not yet a Plus phase. Revisit if the studio wants members booking themselves at scale.
+
+---
+
+**Related:** Doc 08 (Phase 1 roadmap — the model this follows) · Doc 10 (how milestones run) · Docs
+25 / 27 / 28 / 30 / 31 (the phase details) · `docs/DEBT.md` (the deferred items' triggers).
