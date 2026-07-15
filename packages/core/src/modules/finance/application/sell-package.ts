@@ -66,6 +66,8 @@ export interface SellPackagePayment {
   readonly drawerId: string | null
   readonly giftCardCode: string | null
   readonly note: string | null
+  // Plus Phase 6 — the provider reference when this was collected online (PAYTR). null for cash/manual.
+  readonly providerRef?: string | null
 }
 
 export interface SellPackageInput {
@@ -130,7 +132,7 @@ export async function sellPackage(
         receivedAt: input.payment.receivedAt,
         drawerId: input.payment.drawerId,
         giftCardId: card?.id ?? null,
-        providerRef: null,
+        providerRef: input.payment.providerRef ?? null,
         note: input.payment.note,
       },
       drawer,
@@ -169,6 +171,7 @@ export async function sellPackage(
           receivedAt: input.payment.receivedAt,
           drawerId: input.payment.drawerId,
           giftCardCode: input.payment.giftCardCode,
+          providerRef: input.payment.providerRef ?? null,
           note: input.payment.note,
         }
       : null,

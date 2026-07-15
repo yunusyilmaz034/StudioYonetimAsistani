@@ -80,6 +80,7 @@ export interface SellInput {
     readonly drawerId: string | null
     readonly giftCardCode: string | null
     readonly note: string | null
+    readonly providerRef?: string | null // Plus Phase 6 — online (PAYTR) reference; null for cash/manual
   } | null
   // OP-2 — set when this sale is part of a larger act (a package sale grants the entitlement and
   // records the money under ONE operation id, so the Activity Center reads it as one sentence).
@@ -135,7 +136,7 @@ export async function sell(
         receivedAt: input.payment.receivedAt,
         drawerId: input.payment.drawerId,
         giftCardId: card?.id ?? null,
-        providerRef: null,
+        providerRef: input.payment.providerRef ?? null,
         note: input.payment.note,
       },
       drawer,
