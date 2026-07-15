@@ -104,6 +104,9 @@ export function SettingsScreen({
   const [emailEnabled, setEmailEnabled] = useState(
     settings?.notifications?.enabledChannels?.includes('email') ?? true,
   )
+  const [whatsappEnabled, setWhatsappEnabled] = useState(
+    settings?.notifications?.enabledChannels?.includes('whatsapp') ?? false,
+  )
   const [checkInWindow, setCheckInWindow] = useState(
     settings?.qr?.checkInWindowMinutes?.toString() ?? '30',
   )
@@ -154,6 +157,7 @@ export function SettingsScreen({
           quietFromHour: Number(quietFrom),
           quietToHour: Number(quietTo),
           emailEnabled,
+          whatsappEnabled,
         },
       })
       if (res.ok) toast.success('Ayarlar kaydedildi.')
@@ -423,10 +427,26 @@ export function SettingsScreen({
             />
           </label>
 
-          {/* WhatsApp / SMS / push are deliberately NOT here. They have no transport yet, and a
-              switch that turns on a channel we cannot send is a switch that lies. */}
+          {/* WhatsApp has a real transport since Plus Phase 5 (Meta Cloud API, approved templates).
+              It only leaves the building once the owner provisions the Meta credentials; until then it
+              is a mock, so enabling it is safe and readies the channel. SMS/push still have none. */}
+          <label className="flex cursor-pointer items-center justify-between rounded-md border border-border p-3">
+            <div>
+              <p className="text-sm font-medium">WhatsApp</p>
+              <p className="text-sm text-muted-foreground">
+                Meta onaylı şablonlarla. Canlı gönderim için Meta hesabı bağlanmalı.
+              </p>
+            </div>
+            <input
+              type="checkbox"
+              className="size-5"
+              checked={whatsappEnabled}
+              onChange={(e) => setWhatsappEnabled(e.target.checked)}
+            />
+          </label>
+
           <p className="text-sm text-muted-foreground">
-            WhatsApp ve SMS henüz gönderim yapamıyor; hazır olduklarında burada görünecekler.
+            SMS henüz gönderim yapamıyor; hazır olduğunda burada görünecek.
           </p>
         </div>
       </Section>

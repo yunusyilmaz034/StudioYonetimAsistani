@@ -75,10 +75,11 @@ const schema = z.object({
       dailyLimit: z.number().int().min(1).max(100_000),
       quietFromHour: z.number().int().min(0).max(23),
       quietToHour: z.number().int().min(0).max(23),
-      // The form sends ONE toggle. `in_app` is not negotiable and is added below; SMS, WhatsApp and
-      // push have no transport yet, and a switch that turns on a channel we cannot send is a switch
-      // that lies.
+      // `in_app` is not negotiable and is added below. E-mail (Resend) and WhatsApp (Meta, Plus
+      // Phase 5) both have a real transport now, so both are toggles; SMS and push do not, and a
+      // switch that turns on a channel we cannot send is a switch that lies.
       emailEnabled: z.boolean(),
+      whatsappEnabled: z.boolean().optional(),
     })
     .nullable(),
 })
@@ -116,7 +117,11 @@ export async function updateStudioSettingsAction(input: unknown) {
           // `in_app` is ALWAYS on. It is not a message — it is her record of what happened to her
           // account. She may say "not by e-mail"; she may not say "never tell me my class was
           // cancelled" (v1.25).
-          enabledChannels: p.notifications.emailEnabled ? ['in_app', 'email'] : ['in_app'],
+          enabledChannels: [
+            'in_app' as const,
+            ...(p.notifications.emailEnabled ? (['email'] as const) : []),
+            ...(p.notifications.whatsappEnabled ? (['whatsapp'] as const) : []),
+          ],
         }
       : null,
   }

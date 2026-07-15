@@ -69,6 +69,25 @@ export class ConsoleEmailProvider implements NotificationProvider {
 //   • No SDK. The Resend API is one POST. A dependency here buys retries we already have, types we
 //     already write, and a supply-chain risk we do not need in the one module that talks to the
 //     outside world.
+// "Richer e-mail" (Plus Phase 5) — a minimal, client-safe HTML shell around the rendered body. No
+// external assets (many clients strip them), inline styles only, and every dynamic value is escaped:
+// the body is trusted studio copy, but escaping is the habit that survives the day it isn't.
+function escapeHtml(s: string): string {
+  return s.replace(/[&<>"]/g, (c) => (c === '&' ? '&amp;' : c === '<' ? '&lt;' : c === '>' ? '&gt;' : '&quot;'))
+}
+export function renderEmailHtml(subject: string, body: string): string {
+  const paragraphs = body
+    .split(/\n{2,}/)
+    .map((p) => `<p style="margin:0 0 16px;line-height:1.6">${escapeHtml(p).replace(/\n/g, '<br/>')}</p>`)
+    .join('')
+  return `<!doctype html><html lang="tr"><body style="margin:0;background:#f4eeec;padding:24px;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#2b2028">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center">
+<table role="presentation" width="100%" style="max-width:520px;background:#ffffff;border-radius:14px;overflow:hidden;box-shadow:0 1px 3px rgba(43,32,40,.08)">
+<tr><td style="background:#a22d60;padding:20px 28px"><span style="color:#fff;font-size:16px;font-weight:600;letter-spacing:.2px">${escapeHtml(subject)}</span></td></tr>
+<tr><td style="padding:28px;font-size:15px">${paragraphs}</td></tr>
+</table></td></tr></table></body></html>`
+}
+
 export class ResendEmailProvider implements NotificationProvider {
   readonly channel = 'email' as const
 
@@ -104,7 +123,10 @@ export class ResendEmailProvider implements NotificationProvider {
           from: this.from,
           to: [message.to.email],
           subject: message.subject,
+          // Plain text stays (the accessible, deliverable fallback every client renders); the HTML
+          // part is the "richer e-mail" — a clean branded shell around the same rendered body.
           text: message.body,
+          html: renderEmailHtml(message.subject, message.body),
         }),
       })
     } catch (err) {
