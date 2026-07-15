@@ -1,4 +1,4 @@
-# 28 — Package Rules & Member Restrictions — **architecture backlog**
+# 30 — Package Rules & Member Restrictions — **architecture backlog**
 
 **Status:** backlog — accepted onto the roadmap (owner, 2026-07-15). **No enforcement code yet, no
 new UI yet.** This is the brief the milestone will be written against when it opens. It is written
