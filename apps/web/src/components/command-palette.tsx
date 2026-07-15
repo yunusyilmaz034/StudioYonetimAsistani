@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import {
   ChevronLeftIcon,
   CornerDownLeftIcon,
@@ -32,6 +32,7 @@ type NavRow = { readonly kind: 'nav'; readonly href: string; readonly title: str
 
 export function CommandPalette({ role }: { role: PrincipalRole }) {
   const router = useRouter()
+  const pathname = usePathname()
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [hits, setHits] = useState<readonly MemberHit[]>([])
@@ -51,6 +52,11 @@ export function CommandPalette({ role }: { role: PrincipalRole }) {
       } else if (e.key === '/' && !typing && !open) {
         e.preventDefault()
         setOpen(true)
+      } else if ((e.key === 't' || e.key === 'T') && !typing && !open) {
+        // "Bugüne dön" — the calendar screens default to today with no `date` param, so this jumps
+        // there WITHOUT touching the calendar itself (a global shortcut, not a change to the grid).
+        e.preventDefault()
+        router.push(pathname.startsWith('/schedule') ? '/schedule' : '/reservations')
       }
     }
     const openEv = () => setOpen(true)
@@ -60,7 +66,7 @@ export function CommandPalette({ role }: { role: PrincipalRole }) {
       window.removeEventListener('keydown', onKey)
       window.removeEventListener('sos:open-command', openEv)
     }
-  }, [open])
+  }, [open, pathname, router])
 
   useEffect(() => {
     if (open) {
