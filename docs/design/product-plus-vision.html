@@ -1,0 +1,603 @@
+<title>Product Plus — Görsel Kimlik Vizyonu</title>
+<style>
+  :root {
+    /* ── LIGHT: warm boutique ground ─────────────────────────────── */
+    --bg: #F4EEEC;          /* warm porcelain, rose-grey undertone — not cream */
+    --surface: #FCF8F7;     /* card, a breath above the ground */
+    --surface-2: #ECE1DD;   /* warm greige, recessed */
+    --ink: #241C20;         /* warm plum-black, never a cool grey */
+    --ink-soft: #6B5A5F;    /* warm mauve-grey */
+    --line: #E3D6D2;
+    --primary: #A22D60;     /* mulberry / raspberry-plum — the signature */
+    --primary-strong: #85234E;
+    --primary-tint: #F3E2E9;
+    --gold: #B5842F;        /* golden-hour honey — premium accents only */
+    --gold-tint: #F2E8D6;
+    --good: #3E7A57; --good-tint: #E3EEE7;
+    --warn: #A9761C; --warn-tint: #F3E9D3;
+    --bad:  #AC3A3A; --bad-tint: #F5E0DD;
+    --on-primary: #FCF4F1;
+
+    --shadow-sm: 0 1px 2px rgba(58,24,38,.06), 0 1px 3px rgba(58,24,38,.05);
+    --shadow-md: 0 6px 18px -4px rgba(58,24,38,.13), 0 2px 6px -2px rgba(58,24,38,.08);
+    --shadow-lg: 0 22px 48px -12px rgba(58,24,38,.22), 0 8px 16px -8px rgba(58,24,38,.12);
+
+    --r-sm: 8px; --r: 12px; --r-lg: 16px; --r-xl: 24px;
+
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+
+    --maxw: 1080px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1A1315; --surface: #241A1D; --surface-2: #2E2126;
+      --ink: #F3E9E9; --ink-soft: #B39CA2; --line: #392A2F;
+      --primary: #E27AA2; --primary-strong: #EC93B4; --primary-tint: #35202A;
+      --gold: #D7A85A; --gold-tint: #33291B;
+      --good: #6FB388; --good-tint: #21302A;
+      --warn: #D6A85A; --warn-tint: #322A1A;
+      --bad: #E08585; --bad-tint: #331F22;
+      --on-primary: #23151B;
+      --shadow-sm: 0 1px 2px rgba(0,0,0,.4);
+      --shadow-md: 0 8px 22px -6px rgba(0,0,0,.5);
+      --shadow-lg: 0 26px 54px -14px rgba(0,0,0,.6);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #1A1315; --surface: #241A1D; --surface-2: #2E2126;
+    --ink: #F3E9E9; --ink-soft: #B39CA2; --line: #392A2F;
+    --primary: #E27AA2; --primary-strong: #EC93B4; --primary-tint: #35202A;
+    --gold: #D7A85A; --gold-tint: #33291B;
+    --good: #6FB388; --good-tint: #21302A;
+    --warn: #D6A85A; --warn-tint: #322A1A;
+    --bad: #E08585; --bad-tint: #331F22;
+    --on-primary: #23151B;
+    --shadow-sm: 0 1px 2px rgba(0,0,0,.4);
+    --shadow-md: 0 8px 22px -6px rgba(0,0,0,.5);
+    --shadow-lg: 0 26px 54px -14px rgba(0,0,0,.6);
+  }
+  :root[data-theme="light"] {
+    --bg: #F4EEEC; --surface: #FCF8F7; --surface-2: #ECE1DD;
+    --ink: #241C20; --ink-soft: #6B5A5F; --line: #E3D6D2;
+    --primary: #A22D60; --primary-strong: #85234E; --primary-tint: #F3E2E9;
+    --gold: #B5842F; --gold-tint: #F2E8D6;
+    --good: #3E7A57; --good-tint: #E3EEE7;
+    --warn: #A9761C; --warn-tint: #F3E9D3;
+    --bad: #AC3A3A; --bad-tint: #F5E0DD;
+    --on-primary: #FCF4F1;
+    --shadow-sm: 0 1px 2px rgba(58,24,38,.06), 0 1px 3px rgba(58,24,38,.05);
+    --shadow-md: 0 6px 18px -4px rgba(58,24,38,.13), 0 2px 6px -2px rgba(58,24,38,.08);
+    --shadow-lg: 0 22px 48px -12px rgba(58,24,38,.22), 0 8px 16px -8px rgba(58,24,38,.12);
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: var(--sans); font-size: 16px; line-height: 1.6;
+    -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
+  }
+  .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 24px; }
+  section { padding: 72px 0; border-top: 1px solid var(--line); }
+  section:first-of-type { border-top: 0; }
+
+  h1, h2, h3 { font-family: var(--serif); font-weight: 500; text-wrap: balance; margin: 0; }
+  .eyebrow {
+    font-family: var(--sans); font-size: .72rem; font-weight: 600;
+    text-transform: uppercase; letter-spacing: .16em; color: var(--primary);
+    margin: 0 0 16px;
+  }
+  :root[data-theme="dark"] .eyebrow, .eyebrow.gold { color: var(--gold); }
+  h2 { font-size: clamp(1.7rem, 3.4vw, 2.3rem); line-height: 1.12; letter-spacing: -.01em; }
+  h3 { font-size: 1.15rem; line-height: 1.3; }
+  p { margin: 0 0 16px; max-width: 62ch; color: var(--ink); }
+  .lede { font-size: 1.12rem; color: var(--ink-soft); }
+  .muted { color: var(--ink-soft); }
+  a { color: var(--primary); }
+
+  /* ── top bar ─────────────────────────────── */
+  .bar {
+    position: sticky; top: 0; z-index: 20; background: color-mix(in srgb, var(--bg) 86%, transparent);
+    backdrop-filter: blur(10px); border-bottom: 1px solid var(--line);
+  }
+  .bar .wrap { display: flex; align-items: center; justify-content: space-between; height: 60px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: .95rem; }
+  .dot { width: 11px; height: 11px; border-radius: 50%; background: var(--primary);
+         box-shadow: 0 0 0 4px var(--primary-tint); }
+  .toggle {
+    font: inherit; font-size: .82rem; cursor: pointer; color: var(--ink);
+    background: var(--surface); border: 1px solid var(--line); border-radius: 999px;
+    padding: 7px 14px; display: inline-flex; align-items: center; gap: 7px;
+  }
+  .toggle:hover { border-color: var(--primary); }
+  .toggle:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+  /* ── hero ─────────────────────────────── */
+  .hero { padding: 96px 0 84px; }
+  .hero .kicker { font-size: .72rem; font-weight: 600; text-transform: uppercase; letter-spacing: .18em; color: var(--ink-soft); margin-bottom: 22px; }
+  .hero h1 { font-size: clamp(2.6rem, 6.4vw, 4.6rem); line-height: 1.02; letter-spacing: -.02em; margin-bottom: 26px; }
+  .hero h1 em { font-style: italic; color: var(--primary); }
+  .hero .lede { max-width: 40ch; font-size: 1.22rem; line-height: 1.5; }
+  .fade { opacity: 0; transform: translateY(14px); animation: fade .8s cubic-bezier(.2,.7,.2,1) forwards; }
+  .fade.d1 { animation-delay: .08s; } .fade.d2 { animation-delay: .16s; } .fade.d3 { animation-delay: .24s; }
+  @keyframes fade { to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) { .fade { animation: none; opacity: 1; transform: none; } }
+  .palette-strip { display: flex; gap: 0; margin-top: 44px; border-radius: var(--r-lg); overflow: hidden; box-shadow: var(--shadow-md); }
+  .palette-strip span { flex: 1; height: 68px; }
+
+  /* ── generic layout helpers ─────────────── */
+  .grid { display: grid; gap: 22px; }
+  .g2 { grid-template-columns: repeat(2, 1fr); }
+  .g3 { grid-template-columns: repeat(3, 1fr); }
+  @media (max-width: 760px) { .g2, .g3 { grid-template-columns: 1fr; } }
+  .card {
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: var(--r-lg); padding: 26px; box-shadow: var(--shadow-sm);
+  }
+  .card.lift { transition: transform .25s, box-shadow .25s; }
+  .card.lift:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); }
+  @media (prefers-reduced-motion: reduce) { .card.lift:hover { transform: none; } }
+  .num { font-family: var(--serif); font-size: 2.1rem; color: var(--primary); line-height: 1; }
+
+  /* ── principles ─────────────────────────── */
+  .principle .num { display: block; margin-bottom: 12px; font-variant-numeric: tabular-nums; }
+  .principle h3 { margin-bottom: 8px; }
+  .principle p { margin: 0; font-size: .96rem; color: var(--ink-soft); }
+
+  /* ── palette section ─────────────────────── */
+  .swatches { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+  @media (max-width: 760px) { .swatches { grid-template-columns: repeat(2, 1fr); } }
+  .sw { border-radius: var(--r); overflow: hidden; border: 1px solid var(--line); background: var(--surface); }
+  .sw .chip { height: 84px; }
+  .sw .meta { padding: 12px 14px; }
+  .sw .meta b { display: block; font-size: .9rem; }
+  .sw .meta code { font-size: .76rem; color: var(--ink-soft); font-variant-numeric: tabular-nums; letter-spacing: .02em; }
+  .sw .meta small { display: block; margin-top: 4px; font-size: .76rem; color: var(--ink-soft); }
+
+  /* ── type specimen ───────────────────────── */
+  .specimen { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 40px; box-shadow: var(--shadow-sm); }
+  .specimen .big { font-family: var(--serif); font-size: clamp(3rem, 9vw, 5.6rem); line-height: .96; letter-spacing: -.02em; margin: 0 0 6px; }
+  .specimen .big .accent { color: var(--primary); }
+  .type-row { display: flex; flex-wrap: wrap; gap: 10px 28px; align-items: baseline; border-top: 1px solid var(--line); padding: 18px 0; }
+  .type-row:last-child { padding-bottom: 0; }
+  .type-row .tag { font-size: .72rem; text-transform: uppercase; letter-spacing: .14em; color: var(--ink-soft); width: 130px; flex-shrink: 0; }
+  .s-serif { font-family: var(--serif); } .s-sans { font-family: var(--sans); }
+
+  /* ── components gallery ──────────────────── */
+  .btn { font: inherit; font-weight: 600; font-size: .92rem; cursor: pointer; border-radius: var(--r-sm);
+         padding: 11px 20px; border: 1px solid transparent; display: inline-flex; align-items: center; gap: 8px; transition: .18s; }
+  .btn-primary { background: var(--primary); color: var(--on-primary); box-shadow: var(--shadow-sm); }
+  .btn-primary:hover { background: var(--primary-strong); box-shadow: var(--shadow-md); }
+  .btn-ghost { background: var(--surface); color: var(--ink); border-color: var(--line); }
+  .btn-ghost:hover { border-color: var(--primary); color: var(--primary); }
+  .btn-quiet { background: transparent; color: var(--ink-soft); }
+  .btn-quiet:hover { color: var(--primary); background: var(--primary-tint); }
+  .btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+  .field label { display: block; font-size: .74rem; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--ink-soft); margin-bottom: 7px; }
+  .field input { width: 100%; font: inherit; padding: 11px 14px; border-radius: var(--r-sm);
+                 border: 1px solid var(--line); background: var(--bg); color: var(--ink); }
+  .field input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-tint); }
+  .field .hint { font-size: .78rem; color: var(--ink-soft); margin-top: 7px; }
+
+  .pill { display: inline-flex; align-items: center; gap: 6px; font-size: .76rem; font-weight: 600;
+          padding: 4px 11px; border-radius: 999px; }
+  .pill::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+  .p-good { color: var(--good); background: var(--good-tint); }
+  .p-warn { color: var(--warn); background: var(--warn-tint); }
+  .p-bad  { color: var(--bad);  background: var(--bad-tint); }
+  .p-gold { color: var(--gold); background: var(--gold-tint); }
+
+  table.demo { width: 100%; border-collapse: collapse; font-size: .9rem; }
+  table.demo th { text-align: left; font-size: .72rem; text-transform: uppercase; letter-spacing: .08em;
+                  color: var(--ink-soft); font-weight: 600; padding: 0 0 12px; border-bottom: 1px solid var(--line); }
+  table.demo td { padding: 14px 0; border-bottom: 1px solid var(--line); }
+  table.demo tr:last-child td { border-bottom: 0; }
+  table.demo .who { font-weight: 600; }
+  table.demo .tnum { font-variant-numeric: tabular-nums; text-align: right; }
+  .avatar { width: 30px; height: 30px; border-radius: 50%; display: inline-grid; place-items: center;
+            font-size: .78rem; font-weight: 700; color: var(--on-primary);
+            background: linear-gradient(135deg, var(--primary), var(--primary-strong)); margin-right: 10px; vertical-align: middle; }
+
+  /* dialog mock */
+  .dialog { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg);
+            box-shadow: var(--shadow-lg); padding: 26px; max-width: 380px; }
+  .dialog h3 { margin-bottom: 8px; }
+  .dialog .row { display: flex; gap: 10px; justify-content: flex-end; margin-top: 22px; }
+
+  .comp-grid { display: grid; grid-template-columns: 1.1fr 1fr; gap: 22px; align-items: start; }
+  @media (max-width: 860px) { .comp-grid { grid-template-columns: 1fr; } }
+  .stack { display: flex; flex-direction: column; gap: 14px; }
+  .inline { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+
+  /* ── before / after ──────────────────────── */
+  .ba { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border-radius: var(--r-lg); overflow: hidden; box-shadow: var(--shadow-md); border: 1px solid var(--line); }
+  @media (max-width: 680px) { .ba { grid-template-columns: 1fr; } }
+  .ba .before { background: #f7f8fa; color: #17202a; padding: 30px; }
+  .ba .before * { color: #17202a; }
+  .ba .before .tealbtn { background: #0f9f96; color: #fff; }
+  .ba .after { background: var(--surface); padding: 30px; border-left: 1px solid var(--line); }
+  .ba .lab { font-size: .7rem; text-transform: uppercase; letter-spacing: .14em; font-weight: 700; margin-bottom: 16px; opacity: .6; }
+  .ba .mini-card { border-radius: 10px; padding: 16px; margin-top: 14px; }
+  .ba .before .mini-card { background: #fff; border: 1px solid #e6e9ee; box-shadow: 0 1px 2px rgba(20,30,40,.04); }
+  .ba .after .mini-card { background: var(--bg); border: 1px solid var(--line); box-shadow: var(--shadow-sm); }
+  .ba .fakebtn { display: inline-block; font-size: .82rem; font-weight: 600; padding: 8px 16px; border-radius: 8px; margin-top: 4px; }
+  .ba .after .fakebtn { background: var(--primary); color: var(--on-primary); }
+  .ba .kpi { font-size: 1.8rem; font-weight: 600; }
+  .ba .before .kpi { font-family: var(--sans); }
+  .ba .after .kpi { font-family: var(--serif); color: var(--primary); }
+
+  /* ── dark surface showcase (always dark, on purpose) ── */
+  .showcase { background: #1A1315; color: #F3E9E9; border-radius: var(--r-xl); padding: 48px; box-shadow: var(--shadow-lg); overflow: hidden; position: relative; }
+  .showcase::after { content: ""; position: absolute; top: -40%; right: -10%; width: 460px; height: 460px;
+      background: radial-gradient(circle, rgba(226,122,162,.22), transparent 62%); pointer-events: none; }
+  .showcase .eyebrow { color: #D7A85A; position: relative; }
+  .showcase h2 { color: #F6ECEC; position: relative; }
+  .showcase p { color: #C3AEB3; position: relative; }
+  .showcase .panel { background: #241A1D; border: 1px solid #392A2F; border-radius: var(--r-lg); padding: 24px; position: relative; }
+  .showcase .kpi-big { font-family: var(--serif); font-size: 3rem; color: #F3E9E9; line-height: 1; }
+  .showcase .kpi-big .u { font-size: 1rem; color: #B39CA2; }
+  .showcase .p-good { color: #6FB388; background: #21302A; }
+  .showcase .glow { color: #E27AA2; }
+
+  /* ── screens (role mocks) ─────────────────── */
+  .screen { border: 1px solid var(--line); border-radius: var(--r-lg); overflow: hidden; background: var(--surface); box-shadow: var(--shadow-sm); }
+  .screen .top { display: flex; align-items: center; gap: 8px; padding: 12px 16px; background: var(--surface-2); border-bottom: 1px solid var(--line); }
+  .screen .top i { width: 9px; height: 9px; border-radius: 50%; background: var(--line); }
+  .screen .top b { font-size: .78rem; font-weight: 600; margin-left: 8px; color: var(--ink-soft); }
+  .screen .body { padding: 20px; }
+  .screen .rowline { height: 10px; border-radius: 5px; background: var(--surface-2); margin: 9px 0; }
+  .screen .rowline.s { width: 55%; } .screen .rowline.m { width: 78%; }
+  .screen .chipbar { display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; }
+  .screen .chip2 { font-size: .68rem; padding: 3px 9px; border-radius: 999px; background: var(--primary-tint); color: var(--primary); font-weight: 600; }
+  .role-tag { font-size: .72rem; text-transform: uppercase; letter-spacing: .12em; font-weight: 700; color: var(--primary); margin-bottom: 6px; }
+
+  /* spark */
+  .spark { width: 100%; height: 54px; display: block; }
+
+  footer { padding: 60px 0 80px; border-top: 1px solid var(--line); }
+  .foot-grid { display: flex; justify-content: space-between; gap: 24px; flex-wrap: wrap; align-items: baseline; }
+  .tag-list { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+  .tag-list span { font-size: .78rem; padding: 5px 12px; border-radius: 999px; background: var(--surface-2); color: var(--ink-soft); }
+  ul.clean { margin: 0; padding: 0; list-style: none; }
+  ul.clean li { padding: 10px 0; border-bottom: 1px solid var(--line); display: flex; gap: 12px; font-size: .95rem; }
+  ul.clean li:last-child { border-bottom: 0; }
+  ul.clean li b { color: var(--primary); font-family: var(--serif); font-size: 1.05rem; }
+</style>
+
+<div class="bar">
+  <div class="wrap">
+    <div class="brand"><span class="dot"></span> Product Plus · Görsel Kimlik</div>
+    <button class="toggle" id="tg" aria-label="Temayı değiştir">
+      <span id="tglabel">Koyu tema</span>
+    </button>
+  </div>
+</div>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="kicker fade">Tasarım Vizyonu · Faz 1 · yalnızca yön, henüz kod değil</div>
+    <h1 class="fade d1">Klinik değil,<br><em>kontrollü zarafet.</em></h1>
+    <p class="lede fade d2">Butik bir kadın pilates stüdyosunun ekranı, spor salonu yazılımı gibi değil,
+      iyi ışıklandırılmış bir stüdyo gibi hissettirmeli. Sıcak, canlı, premium — ama pilates'in kendi
+      disiplini gibi: sakin ve kontrollü.</p>
+    <div class="palette-strip fade d3" aria-hidden="true">
+      <span style="background:#F4EEEC"></span>
+      <span style="background:#ECE1DD"></span>
+      <span style="background:#A22D60"></span>
+      <span style="background:#85234E"></span>
+      <span style="background:#B5842F"></span>
+      <span style="background:#241C20"></span>
+    </div>
+  </div>
+</header>
+
+<section>
+  <div class="wrap">
+    <p class="eyebrow">Işıl ne söyledi</p>
+    <h2 style="margin-bottom:20px">Mevcut tasarımın sorunu bir renk değil, bir <em style="font-style:italic;color:var(--primary)">his</em>.</h2>
+    <p class="lede" style="margin-bottom:36px">“Çok beyaz. Çok renksiz. Çok cansız. Premium his vermiyor.”
+      Bu bir kişisel zevk değil — ürünü her gün kullanan kişinin, ürünün kendisi hakkındaki en yetkili yargısı.
+      Aşağıda solda bugünkü his, sağda önerilen yön.</p>
+    <div class="ba">
+      <div class="before">
+        <div class="lab">Bugün — soğuk, düz</div>
+        <div style="font-size:.8rem;opacity:.7;margin-bottom:2px">Bugünkü Ciro</div>
+        <div class="kpi">12.400 ₺</div>
+        <div class="mini-card">
+          <div style="font-size:.82rem;margin-bottom:8px">Reformer 09:00 · 6/8 dolu</div>
+          <span class="fakebtn tealbtn">Rezervasyon</span>
+        </div>
+        <div style="font-size:.72rem;opacity:.6;margin-top:14px">Turkuaz #0f9f96 · zemin #f7f8fa · saf beyaz kart</div>
+      </div>
+      <div class="after">
+        <div class="lab" style="color:var(--primary);opacity:1">Product Plus — sıcak, canlı</div>
+        <div style="font-size:.8rem;color:var(--ink-soft);margin-bottom:2px">Bugünkü Ciro</div>
+        <div class="kpi">12.400 ₺</div>
+        <div class="mini-card">
+          <div style="font-size:.82rem;margin-bottom:8px">Reformer 09:00 · 6/8 dolu</div>
+          <span class="fakebtn">Rezervasyon</span>
+        </div>
+        <div style="font-size:.72rem;color:var(--ink-soft);margin-top:14px">Mulberry #A22D60 · sıcak porselen zemin · editoryal rakam</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <p class="eyebrow">Felsefe</p>
+    <h2 style="margin-bottom:14px">Pilates'in değerleri, ekranın değerleri.</h2>
+    <p class="lede" style="margin-bottom:40px">Pilates iki şey öğretir: <em style="color:var(--primary);font-style:italic">kontrol</em>
+      ve <em style="color:var(--primary);font-style:italic">uzama</em>. Tasarım dili de aynısını yapıyor —
+      cömert boşluk, ince hizalama, ve rengi bilinçli, ölçülü kullanmak.</p>
+    <div class="grid g2">
+      <div class="card principle lift">
+        <span class="num">01</span>
+        <h3>Sıcaklık, klinik beyazın yerine</h3>
+        <p>Zemin artık soğuk gri-beyaz değil, gül-gri alt tonlu sıcak porselen. Kartlar saf beyaz değil,
+          bir ton yukarıda sıcak beyaz. Göz yormayan, davet eden bir ışık.</p>
+      </div>
+      <div class="card principle lift">
+        <span class="num">02</span>
+        <h3>Tek, kendinden emin imza rengi</h3>
+        <p>Cansızlığın çaresi her yeri renklendirmek değil — tek bir canlı mulberry'i marka ve aksiyon
+          anlarına saklamak. Geri kalan sıcak nötrlerle taşınır. Premium, gürültü değil.</p>
+      </div>
+      <div class="card principle lift">
+        <span class="num">03</span>
+        <h3>Derinlik, düzlüğün yerine</h3>
+        <p>“Çok düz” hissinin çaresi her yere çizgi çekmek değil — sıcak, katmanlı gölgeler ve yüzey
+          tonlarıyla hiyerarşi kurmak. Kartlar zeminin üstünde yüzer, bastırmaz.</p>
+      </div>
+      <div class="card principle lift">
+        <span class="num">04</span>
+        <h3>Operasyon hızı asla feda edilmez</h3>
+        <p>Daha güzel ama daha yavaş bir ekran bir gerilemedir. Resepsiyon bunu her gün hisseder.
+          Güzellik, bir tık bile pahasına gelmez — Alpha'dan taşınan tek katı kural.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <p class="eyebrow">Renk sistemi</p>
+    <h2 style="margin-bottom:14px">Altın saat ışığındaki bir stüdyo.</h2>
+    <p class="lede" style="margin-bottom:36px">Krem-terracotta klişesinden bilinçli olarak kaçındık.
+      İmza renk terracotta değil, kendinden emin bir ahududu-erik; zemin krem değil, gül-gri porselen.
+      Her renk semantik bir token — ekranların hiçbirinde ham hex yok (kural DS-1).</p>
+
+    <p style="font-size:.72rem;text-transform:uppercase;letter-spacing:.12em;color:var(--ink-soft);font-weight:600;margin-bottom:14px">Zemin & mürekkep</p>
+    <div class="swatches" style="margin-bottom:32px">
+      <div class="sw"><div class="chip" style="background:#F4EEEC;border-bottom:1px solid var(--line)"></div><div class="meta"><b>Porselen</b><code>#F4EEEC</code><small>Ana zemin</small></div></div>
+      <div class="sw"><div class="chip" style="background:#FCF8F7;border-bottom:1px solid var(--line)"></div><div class="meta"><b>Sıcak beyaz</b><code>#FCF8F7</code><small>Kart yüzeyi</small></div></div>
+      <div class="sw"><div class="chip" style="background:#ECE1DD"></div><div class="meta"><b>Greige</b><code>#ECE1DD</code><small>Çukur yüzey</small></div></div>
+      <div class="sw"><div class="chip" style="background:#241C20"></div><div class="meta"><b>Erik-siyah</b><code>#241C20</code><small>Metin</small></div></div>
+    </div>
+
+    <p style="font-size:.72rem;text-transform:uppercase;letter-spacing:.12em;color:var(--ink-soft);font-weight:600;margin-bottom:14px">İmza & vurgu</p>
+    <div class="swatches" style="margin-bottom:32px">
+      <div class="sw"><div class="chip" style="background:#A22D60"></div><div class="meta"><b>Mulberry</b><code>#A22D60</code><small>Marka · aksiyon</small></div></div>
+      <div class="sw"><div class="chip" style="background:#85234E"></div><div class="meta"><b>Koyu mulberry</b><code>#85234E</code><small>Hover · basış</small></div></div>
+      <div class="sw"><div class="chip" style="background:#F3E2E9"></div><div class="meta"><b>Blush</b><code>#F3E2E9</code><small>Seçili yüzey</small></div></div>
+      <div class="sw"><div class="chip" style="background:#B5842F"></div><div class="meta"><b>Bal (altın)</b><code>#B5842F</code><small>Premium vurgu</small></div></div>
+    </div>
+
+    <p style="font-size:.72rem;text-transform:uppercase;letter-spacing:.12em;color:var(--ink-soft);font-weight:600;margin-bottom:14px">Durum renkleri — imza renginden ayrı bir aile</p>
+    <div class="inline">
+      <span class="pill p-good">Aktif · ödendi</span>
+      <span class="pill p-warn">Kredisi azalan</span>
+      <span class="pill p-bad">Borçlu</span>
+      <span class="pill p-gold">VIP üye</span>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <p class="eyebrow">Tipografi</p>
+    <h2 style="margin-bottom:14px">Rakamlar editoryal, arayüz temiz.</h2>
+    <p class="lede" style="margin-bottom:32px">“Her yerde serif” de bir klişe. Bizde serif yalnızca
+      <em style="color:var(--primary);font-style:italic">büyük anlar</em> için — başlıklar ve gösterge rakamları —
+      hümanist bir Palatino/Iowan ailesiyle. Arayüzün geri kalanı temiz, hızlı okunan bir sistem sans'ı.
+      Kontrast, cansızlığın panzehiri.</p>
+    <div class="specimen">
+      <div class="big">147 <span class="accent">üye</span></div>
+      <p class="muted" style="margin:0 0 8px">Serif gösterge rakamı — lüks, sakin, editoryal</p>
+      <div class="type-row"><span class="tag">Display / Serif</span><span class="s-serif" style="font-size:1.9rem">Bugün dikkat isteyen ne var?</span></div>
+      <div class="type-row"><span class="tag">Başlık / Serif</span><span class="s-serif" style="font-size:1.3rem">Reformer Pilates · Sabah Grubu</span></div>
+      <div class="type-row"><span class="tag">Gövde / Sans</span><span class="s-sans">Ayşe Y. paketinden bir kredi tuttu — 7 kredi kaldı, 12 gün geçerli.</span></div>
+      <div class="type-row"><span class="tag">Etiket / Sans</span><span class="s-sans" style="text-transform:uppercase;letter-spacing:.14em;font-size:.76rem;font-weight:600;color:var(--ink-soft)">Bugünkü Tahsilat</span></div>
+      <div class="type-row"><span class="tag">Veri / Tabular</span><span class="s-sans" style="font-variant-numeric:tabular-nums;font-size:1.05rem">4.200 ₺ · 7.800 ₺ · 13.000 ₺</span></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <p class="eyebrow">Bileşen kütüphanesi</p>
+    <h2 style="margin-bottom:14px">Tek dil, her ekranda.</h2>
+    <p class="lede" style="margin-bottom:36px">Buton, kart, form, tablo, durum etiketi, grafik, dialog —
+      hepsi tek bir ortak sistemden. Bir kartı değiştirince tüm ekranlar birlikte değişir. Owner,
+      resepsiyon ve eğitmen aynı dili konuşur.</p>
+    <div class="comp-grid">
+      <div class="stack">
+        <div class="card">
+          <div class="role-tag">Butonlar</div>
+          <div class="inline" style="margin-top:6px">
+            <button class="btn btn-primary">Paket Sat</button>
+            <button class="btn btn-ghost">Düzenle</button>
+            <button class="btn btn-quiet">İptal</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="role-tag">Form alanı</div>
+          <div class="field" style="margin-top:10px">
+            <label>Telefon</label>
+            <input type="text" value="+90 5__ ___ __ __" aria-label="Telefon">
+            <div class="hint">E.164 biçimi — eksik satır reddedilir, tahmin edilmez.</div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="role-tag" style="margin-bottom:12px">Tablo</div>
+          <table class="demo">
+            <thead><tr><th>Üye</th><th>Durum</th><th class="tnum">Kredi</th></tr></thead>
+            <tbody>
+              <tr><td class="who"><span class="avatar">AY</span>Ayşe Y.</td><td><span class="pill p-good">Aktif</span></td><td class="tnum">7</td></tr>
+              <tr><td class="who"><span class="avatar">MK</span>Merve K.</td><td><span class="pill p-warn">Azalan</span></td><td class="tnum">1</td></tr>
+              <tr><td class="who"><span class="avatar">ZD</span>Zeynep D.</td><td><span class="pill p-bad">Borçlu</span></td><td class="tnum">0</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="stack">
+        <div class="card">
+          <div class="role-tag" style="margin-bottom:4px">Gösterge kartı & grafik</div>
+          <div style="display:flex;align-items:baseline;justify-content:space-between;margin-top:8px">
+            <div><div class="num" style="font-size:2.4rem">86%</div>
+              <div class="muted" style="font-size:.82rem">Bu haftaki doluluk</div></div>
+            <span class="pill p-good">+12%</span>
+          </div>
+          <svg class="spark" viewBox="0 0 300 54" preserveAspectRatio="none" aria-hidden="true">
+            <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="var(--primary)" stop-opacity=".28"/>
+              <stop offset="1" stop-color="var(--primary)" stop-opacity="0"/>
+            </linearGradient></defs>
+            <path d="M0,44 L40,40 L80,42 L120,30 L160,32 L200,22 L240,24 L300,10 L300,54 L0,54 Z" fill="url(#g)"/>
+            <path d="M0,44 L40,40 L80,42 L120,30 L160,32 L200,22 L240,24 L300,10" fill="none" stroke="var(--primary)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="300" cy="10" r="4" fill="var(--primary)"/>
+          </svg>
+        </div>
+        <div class="dialog">
+          <h3>Krediyi geri al?</h3>
+          <p class="muted" style="font-size:.9rem;margin:0">Bu işlem bir düzeltme event'i yazar ve
+            geri alınabilir. Sebep zorunlu.</p>
+          <div class="row">
+            <button class="btn btn-quiet">Vazgeç</button>
+            <button class="btn btn-primary">Onayla</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <p class="eyebrow">Rol ekranları</p>
+    <h2 style="margin-bottom:14px">Aynı dil, üç farklı ritim.</h2>
+    <p class="lede" style="margin-bottom:36px">Owner, resepsiyon ve eğitmen aynı bileşen sisteminden
+      beslenir — ama her rolün günü farklı bir yoğunlukta akar.</p>
+    <div class="grid g3">
+      <div>
+        <div class="role-tag">Owner</div>
+        <p class="muted" style="font-size:.88rem;margin-bottom:12px">Sakin komuta. Editoryal rakamlar,
+          bol boşluk, “bugün neye bakmalıyım” tek bakışta.</p>
+        <div class="screen">
+          <div class="top"><i></i><i></i><i></i><b>Gösterge Paneli</b></div>
+          <div class="body">
+            <div class="num" style="font-size:2rem">12.400 ₺</div>
+            <div class="rowline m"></div><div class="rowline s"></div>
+            <div class="inline" style="margin-top:14px"><span class="pill p-warn">3 borçlu</span><span class="pill p-good">18 ders</span></div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="role-tag">Reception</div>
+        <p class="muted" style="font-size:.88rem;margin-bottom:12px">Sıcak ama hızlı. Yoğunluk veride,
+          sıcaklık çerçevede. Klavye kısayolları.</p>
+        <div class="screen">
+          <div class="top"><i></i><i></i><i></i><b>Operasyon</b></div>
+          <div class="body">
+            <div class="chipbar"><span class="chip2">Ara ⌘K</span><span class="chip2">Sat</span><span class="chip2">Rezervasyon</span></div>
+            <div class="rowline m"></div><div class="rowline m"></div><div class="rowline s"></div><div class="rowline m"></div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="role-tag">Trainer</div>
+        <p class="muted" style="font-size:.88rem;margin-bottom:12px">Odaklı, minimal. Tek ekran: dersleri,
+          haftası, önündeki isimler. Telefon, paket, bakiye yok.</p>
+        <div class="screen">
+          <div class="top"><i></i><i></i><i></i><b>Bugünkü Derslerim</b></div>
+          <div class="body">
+            <div class="s-serif" style="font-size:1.2rem;margin-bottom:10px">09:00 · Reformer</div>
+            <div class="inline"><span class="avatar">AY</span><span class="avatar" style="background:linear-gradient(135deg,var(--gold),#8a5f1e)">MK</span><span class="avatar" style="background:linear-gradient(135deg,var(--good),#2c5a3f)">ZD</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="showcase">
+      <p class="eyebrow">Aksiyon anı · koyu yüzey</p>
+      <h2 style="max-width:18ch;margin-bottom:16px">Paletin cansız olmadığının kanıtı.</h2>
+      <p style="max-width:52ch;margin-bottom:30px">Aynı sıcak sistem, koyu bir erik zeminde dramatik bir
+        premium'a dönüşür. Owner panosunun kahraman anı, giriş ekranı, gün sonu özeti — burada canlanır.
+        Altın vurgu ve mulberry, koyu zeminde ışıldar.</p>
+      <div class="grid g3">
+        <div class="panel"><div class="kpi-big">147<span class="u"> üye</span></div><div style="color:#B39CA2;font-size:.82rem;margin-top:6px">Aktif üyelik</div></div>
+        <div class="panel"><div class="kpi-big glow">%86</div><div style="color:#B39CA2;font-size:.82rem;margin-top:6px">Haftalık doluluk</div><span class="pill p-good" style="margin-top:10px">+12%</span></div>
+        <div class="panel"><div class="kpi-big" style="color:#D7A85A">12.4<span class="u">k ₺</span></div><div style="color:#B39CA2;font-size:.82rem;margin-top:6px">Bugünkü tahsilat</div></div>
+      </div>
+    </div>
+    <p class="muted" style="font-size:.86rem;margin-top:16px;text-align:center">Aynı doküman koyu temada da tasarlandı — sağ üstteki düğmeyle deneyin. İki tema da eşit özenle.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <p class="eyebrow gold">Değişmeyenler</p>
+    <h2 style="margin-bottom:14px">Bu bir yeniden yazım değil. Bir yeni deri.</h2>
+    <p class="lede" style="margin-bottom:28px">Görsel kimlik baştan kuruluyor — ama altındaki hiçbir şey
+      değişmiyor. Bu, işi güvenli ve hızlı kılan şey.</p>
+    <ul class="clean">
+      <li><b>✓</b><span><b style="font-family:var(--sans);color:var(--ink);font-size:1rem">İş mantığı taş gibi yerinde.</b> Kredi aritmetiği, kategori duvarı, iptal penceresi — hiçbiri. Yalnızca sunum.</span></li>
+      <li><b>✓</b><span><b style="font-family:var(--sans);color:var(--ink);font-size:1rem">Event'ler ve davranış aynı.</b> Hangi butona basınca ne olur, hangi kural neyi reddeder — birebir.</span></li>
+      <li><b>✓</b><span><b style="font-family:var(--sans);color:var(--ink);font-size:1rem">Token disiplini (DS-1).</b> Renkler semantik token; ekranlarda ham hex yok. Bir iş ekranını restyle için koda dokunmak gerekmez.</span></li>
+      <li><b>✓</b><span><b style="font-family:var(--sans);color:var(--ink);font-size:1rem">Operasyon hızı korunur.</b> Değerler <code>globals.css</code>'te ve ortak bileşenlerde değişir; iş ekranları değişmez.</span></li>
+    </ul>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="foot-grid">
+      <div>
+        <div class="brand" style="margin-bottom:8px"><span class="dot"></span> Product Plus · Faz 1</div>
+        <p class="muted" style="font-size:.9rem;max-width:44ch;margin:0">Bu bir yön dokümanı — henüz kod yok.
+          Palet ve tipografi, gerçek ekranlar üzerinde Işıl ile onaylanacak; reddedilen son tasarım da
+          kullanımdayken reddedildi, yenisi de aynı yolla doğrulanır.</p>
+      </div>
+      <div>
+        <div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.12em;color:var(--ink-soft);font-weight:600">Karakter</div>
+        <div class="tag-list">
+          <span>Sıcak</span><span>Premium</span><span>Modern</span><span>Canlı</span><span>Profesyonel</span><span>Butik</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script>
+  (function () {
+    var root = document.documentElement, btn = document.getElementById('tg'), lbl = document.getElementById('tglabel');
+    function current() {
+      var set = root.getAttribute('data-theme');
+      if (set) return set;
+      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+    function sync() { lbl.textContent = current() === 'dark' ? 'Açık tema' : 'Koyu tema'; }
+    btn.addEventListener('click', function () {
+      root.setAttribute('data-theme', current() === 'dark' ? 'light' : 'dark');
+      sync();
+    });
+    sync();
+  })();
+</script>

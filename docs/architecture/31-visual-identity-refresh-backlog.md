@@ -1,5 +1,8 @@
 # 31 — Visual Identity Refresh (Product Plus, first phase) — **architecture backlog**
 
+> **Palette APPROVED 2026-07-15 → the spec is now [Doc 33](33-plus-visual-identity-spec.md).** This
+> note is the brief; Doc 33 is the approved values Phase 1 builds against.
+
 **Status:** backlog — accepted onto the Product Plus roadmap (owner, 2026-07-15). **No code yet.**
 This is a **design brief**, not an implementation. It is Product Plus's **first major work item, to be
 done BEFORE any new feature** — the same discipline Doc 20 used: features pause, the whole surface is

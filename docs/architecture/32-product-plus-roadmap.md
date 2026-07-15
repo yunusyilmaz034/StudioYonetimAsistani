@@ -1,13 +1,15 @@
-# 32 — Product Plus Roadmap — **the reference**
+# 32 — Product Plus Roadmap — **the reference (LOCKED)**
 
-**Status:** the reference roadmap for Product Plus (owner-agreed, 2026-07-15). This is to Product Plus
-what Doc 08 is to Phase 1: the single, ordered source of truth for what gets built and in what order.
+**Status: LOCKED (owner, 2026-07-15).** This is to Product Plus what Doc 08 is to Phase 1: the single,
+ordered source of truth for what gets built and in what order.
 
-**Two standing rules that frame everything below:**
-- **`main` is frozen** — Product Alpha V1, hotfix / production / release only. All Plus work happens on
-  **`feature/product-plus`**, merged only after the pilot is stable.
-- **The roadmap is stable.** Milestones are *proposed*, never silently added or reordered. This
-  document changes only with the owner's approval (Doc 10).
+**Standing rules that frame everything below:**
+- **`main` is frozen** — Product Alpha V1 lives on as **production**: only bug fixes, stability, and
+  small operational improvements. Every large development goes to Product Plus.
+- **Product Plus is a separate branch** — **`feature/product-plus`**, merged only after the pilot is
+  stable.
+- **The roadmap stays stable.** **A new idea does not change the roadmap — it goes into the backlog of
+  the phase it belongs to.** Reordering or adding a phase is an owner decision (Doc 10).
 
 Each phase names the backlog/architecture note that details it, and — where it matters — the **one
 architectural rule that phase must not break.** The reassuring finding from the architecture review:
@@ -19,18 +21,21 @@ So the risks below are *traps to avoid*, not *foundations missing*.
 
 ## The ten phases
 
-### 1 — Premium UI / Design System  ·  *detail: Doc 31*
-A full visual identity: warmer palette off the cool teal/near-white, softer backgrounds, modern
-cards, premium shadows/radius/spacing/type, responsive, one design language across owner · reception ·
-trainer — a boutique, women's-premium feel from the first screen.
+### 1 — Premium UI / Design System  ·  *detail: Doc 31, vision: Doc 33*
+Take the whole product to premium. **Not a colour change — every role is redesigned:** Owner,
+Reception, Trainer (and Member later). Scope: a new colour system, a premium design language,
+typography, a **component library** (cards · forms · dialogs · tables · charts), responsive structure,
+a modern dashboard, one shared design system. **By the end of this phase the old UI is fully gone.**
 - **Rule:** re-tokening + component treatment, **not** a re-architecture and **not** a colour swap.
   Values move in `globals.css` and the shared components; business screens do not change (DS-1 keeps
   hex out of screens). No feature, domain, event, or behaviour changes. Işıl approves on real screens.
 
-### 2 — Session Workspace  ·  *enhances the shipped Doc 17 / 22 / 23*
-The reservation workspace, operations center, bulk ops and waitlist already shipped in Alpha; this
-phase deepens them: reservation search, WhatsApp actions, bulk attendance, trainer notes, room notes,
-the daily-operations screen.
+### 2 — Operations Workspace  ·  *carries the shipped Doc 17 / 22 / 23 into the Plus experience*
+Reception and the daily-operations centre. The reservation workspace, operations centre, bulk ops and
+waitlist already shipped in Alpha; this phase **moves them into the Product Plus experience** (it is
+not a rewrite): a redesigned reservation experience, fast member search, fast booking, bulk actions,
+WhatsApp actions, trainer notes, room notes, the waiting list, the daily-operations screen, and
+**keyboard shortcuts**.
 - **Rule:** when this touches the reservation flow, lay the **rule-resolution seam**
   `resolve(memberRestriction, packageRule, studioDefault)` (Doc 30) even though enforcement is Phases
   3–4 — so Phase 4 slots in without a second rebuild of the reservation path.
@@ -77,9 +82,11 @@ programme is never edited — every change is a new version, history kept foreve
   live on the member's records, **never in an event payload** (#6).
 
 ### 8 — Fitness Attendance  ·  *new; deliberately minimal*
-For fitness (unlimited/period) memberships there is **no reservation and no class**. Attendance here
-means **only the check-in**: the date and time the member came to the studio. **No sets, no minutes,
-no machine — none of it is tracked** (that is Phase 7's concern, and it is a *separate module*).
+A fitness check-in system, nothing more: **entry to the studio, entry history, consistency/streaks,
+and usage reports.** For fitness (unlimited/period) memberships there is **no reservation and no
+class**, and this **contains no training analysis** — no sets, no minutes, no machine (that is
+Phase 7, a *separate module*). Attendance here means only the check-in: the date and time the member
+came.
 - **Rule — and this is the one to hold:** fitness attendance is a **read/report layer over existing
   `member.checked_in` events**. It **never** emits `reservation.attended` and **never** touches
   credit. The check-in ≠ attendance non-negotiable exists to protect *credit consumption*; fitness
