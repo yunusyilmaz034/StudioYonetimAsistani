@@ -91,7 +91,7 @@ describe('channel selection — the KVKK line and the preference line (v1.25)', 
   it('in_app can NEVER be turned off: it is her record, not a message', () => {
     const d = selectChannels(
       member,
-      { email: false, sms: false, whatsapp: false, push: false },
+      { email: false, sms: false, whatsapp: false, push: false, campaign: false },
       DEFAULT_NOTIFICATION_SETTINGS,
       'operational',
     )
@@ -225,5 +225,16 @@ describe('delivery attempts (v1.25)', () => {
       permanent: false,
     })
     expect(r.attempt.status).toBe('failed') // e-mail: maxAttempts = 3
+  })
+
+  it('an unconfigured provider gets its OWN terminal status, never a retry (Plus Phase 5)', () => {
+    const r = decideAttemptResult(ctx, intent(), attempt({ channel: 'whatsapp' }), {
+      ok: false,
+      code: 'provider_not_configured',
+      message: 'WhatsApp yapılandırılmamış',
+      permanent: true,
+    })
+    expect(r.attempt.status).toBe('provider_not_configured')
+    expect(r.attempt.nextRetryAt).toBeNull()
   })
 })

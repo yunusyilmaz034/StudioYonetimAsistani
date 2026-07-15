@@ -128,10 +128,11 @@ describe('WhatsApp — the 24-hour window, and the template it forces', () => {
     expect(sent!.params[0]).toBe('Elif') // memberName is the first body param for session_cancelled
   })
 
-  it('is a MOCK until it is given a transport — the pipeline is provable without a Meta contract', async () => {
+  it('with NO transport reports provider_not_configured — never a fake send (Plus Phase 5)', async () => {
     const res = await new WhatsAppProvider().send(ctx, message({ channel: 'whatsapp' }))
-    expect(res.ok).toBe(true)
-    expect(res.providerRef).toBe('mock-wa:ntf_1')
+    expect(res.ok).toBe(false)
+    expect(res.error?.code).toBe('provider_not_configured')
+    expect(res.error?.permanent).toBe(true) // terminal — a channel with no credentials is not a retry
     expect(res.delivered).toBe(false)
   })
 

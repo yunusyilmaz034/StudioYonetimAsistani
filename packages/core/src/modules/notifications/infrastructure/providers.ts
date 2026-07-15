@@ -300,8 +300,16 @@ export class WhatsAppProvider implements NotificationProvider {
     }
 
     if (!this.send_) {
-      // The mock. It reports `sent`, never `delivered` — the same honesty the real adapter owes.
-      return { ok: true, providerRef: `mock-wa:${message.intentId}`, delivered: false }
+      // NO transport configured — and we do NOT fake a success (owner, Plus Phase 5). A mock `sent`
+      // is the one outcome worse than a failure, because nobody goes looking for a message the system
+      // said it delivered. We say plainly that the channel is not configured; the Notification Center
+      // shows it, and the manual wa.me action stays the working path until Meta credentials exist.
+      return {
+        ok: false,
+        providerRef: null,
+        delivered: false,
+        error: { code: 'provider_not_configured', message: 'WhatsApp Meta entegrasyonu yapılandırılmamış', permanent: true },
+      }
     }
 
     // Meta templates are POSITIONAL — build the ordered value list from the template's declared param

@@ -148,7 +148,14 @@ export async function markInboxReadAction(input: unknown) {
 // cancelled" — which is why `in_app` is not on this list.
 export async function setPrefsAction(input: unknown) {
   const p = z
-    .object({ email: z.boolean(), sms: z.boolean(), whatsapp: z.boolean(), push: z.boolean() })
+    .object({
+      email: z.boolean(),
+      sms: z.boolean(),
+      whatsapp: z.boolean(),
+      push: z.boolean(),
+      // Plus Phase 5 — marketing consent (KVKK), separate from the operational channels.
+      campaign: z.boolean().optional(),
+    })
     .parse(input)
   const { ctx, memberId } = await requireMemberContext()
   await adminDb()
