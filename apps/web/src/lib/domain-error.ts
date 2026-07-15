@@ -165,6 +165,25 @@ export function domainErrorMessage(error: DomainError): string {
       return 'Stüdyo o gün kapalı. Çalışma saatlerini Ayarlar’dan değiştirebilirsiniz.'
     case 'outside_working_hours':
       return `Bu saat stüdyonun çalışma saatleri dışında (${error.open}–${error.close}). Dersin tamamı bu aralığa sığmalı.`
+    // ── Package Rules 2.0 (Plus Phase 3) — each says WHICH rule refused, never a bare failure. ──
+    case 'invalid_weekday':
+      return 'Geçersiz gün seçimi.'
+    case 'invalid_hour_range':
+      return 'Geçersiz saat aralığı. Bitiş, başlangıçtan sonra olmalı ve aralık gün içinde kalmalı.'
+    case 'invalid_allowance':
+      return 'Geçersiz iptal hakkı değeri.'
+    case 'invalid_limit':
+      return 'Geçersiz limit değeri.'
+    case 'cancellation_allowance_exhausted':
+      return `İptal hakkı doldu (${error.allowance} hakkın tamamı kullanıldı). Bu rezervasyon iptal edilemez; üye derse katılabilir.`
+    case 'day_not_allowed':
+      return 'Bu üye bu gün için rezervasyon yapamıyor (Kısıtlı Üyelik: izin verilen günler).'
+    case 'time_not_allowed':
+      return 'Bu üye bu saat için rezervasyon yapamıyor (Kısıtlı Üyelik: izin verilen saatler).'
+    case 'daily_reservation_limit_reached':
+      return `Günlük rezervasyon limitine ulaşıldı (en fazla ${error.limit}).`
+    case 'active_reservation_limit_reached':
+      return `Aktif rezervasyon limitine ulaşıldı (en fazla ${error.limit}).`
     default: {
       const exhaustive: never = error
       void exhaustive

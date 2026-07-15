@@ -1,5 +1,6 @@
 import {
   err,
+  hourRangeValid,
   ok,
   type ActorRef,
   type CorrelationId,
@@ -7,6 +8,7 @@ import {
   type EventSource,
   type Instant,
   type NewEvent,
+  type ReservationOverride,
   type Result,
   type StudioId,
 } from '../../../shared'
@@ -18,13 +20,15 @@ import {
   MEMBER_PORTAL_LOGIN,
   MEMBER_PROFILE_UPDATED,
   MEMBER_REGISTERED,
+  MEMBER_RESTRICTION_CLEARED,
+  MEMBER_RESTRICTION_SET,
   type ErasureReason,
   type MemberDeactivatedPayload,
   type MemberErasedPayload,
   type MemberProfileUpdatedPayload,
   type MemberRegisteredPayload,
 } from '../events'
-import type { Member } from './member'
+import type { Member, MemberRestriction } from './member'
 
 // Pure decision functions: (state, command, context) → events. No I/O, no clock,
 // no id minting (that is infrastructure — non-negotiable #7). The context carries
@@ -115,6 +119,69 @@ export function decideDeactivate(
   return ok([{ ...base(ctx, current), type: MEMBER_DEACTIVATED, payload: { reason } }])
 }
 
+
+// ── "Kısıtlı Üyelik" (Plus Phase 3) ──────────────────────────────────────────────────────────
+//
+// Set or clear a member's override of the package rules. Mirrors the adjustment pattern (AD-39): a
+// closed-enum reason and a mandatory note — but the note stays on STATE and only the reason + the
+// PII-free structured rules enter the log. A malformed hour window is REFUSED, never silently
+// reinterpreted (owner: "sessiz varsayım yapma").
+function invalidRules(r: ReservationOverride): DomainError | null {
+  if (r.allowedWeekdays != null && r.allowedWeekdays.some((d) => !Number.isInteger(d) || d < 0 || d > 6)) {
+    return { code: 'invalid_weekday' }
+  }
+  if (r.allowedHourRanges != null && r.allowedHourRanges.some((h) => !hourRangeValid(h))) {
+    return { code: 'invalid_hour_range' }
+  }
+  if (r.cancellationAllowance != null && (!Number.isInteger(r.cancellationAllowance) || r.cancellationAllowance < 0)) {
+    return { code: 'invalid_allowance' }
+  }
+  if (r.dailyReservationLimit != null && (!Number.isInteger(r.dailyReservationLimit) || r.dailyReservationLimit < 1)) {
+    return { code: 'invalid_limit' }
+  }
+  if (r.activeReservationLimit != null && (!Number.isInteger(r.activeReservationLimit) || r.activeReservationLimit < 1)) {
+    return { code: 'invalid_limit' }
+  }
+  return null
+}
+
+export function decideSetRestriction(
+  ctx: DecideContext,
+  current: Member,
+  restriction: MemberRestriction,
+): Result<{ next: Member; events: NewEvent[] }, DomainError> {
+  if (current.status === 'deleted' || current.erased) return err({ code: 'member_not_active' })
+  if (restriction.note.trim().length === 0) return err({ code: 'note_required' })
+  const bad = invalidRules(restriction)
+  if (bad) return err(bad)
+
+  const rules: ReservationOverride = {
+    allowedWeekdays: restriction.allowedWeekdays ?? null,
+    allowedHourRanges: restriction.allowedHourRanges ?? null,
+    ...(restriction.cancellationAllowance !== undefined ? { cancellationAllowance: restriction.cancellationAllowance } : {}),
+    ...(restriction.dailyReservationLimit !== undefined ? { dailyReservationLimit: restriction.dailyReservationLimit } : {}),
+    ...(restriction.activeReservationLimit !== undefined ? { activeReservationLimit: restriction.activeReservationLimit } : {}),
+  }
+  const next: Member = { ...current, restriction }
+  return ok({
+    next,
+    events: [{ ...base(ctx, next), type: MEMBER_RESTRICTION_SET, payload: { reason: restriction.reason, rules } }],
+  })
+}
+
+export function decideClearRestriction(
+  ctx: DecideContext,
+  current: Member,
+  reason: string,
+): Result<{ next: Member; events: NewEvent[] }, DomainError> {
+  if (reason.trim().length === 0) return err({ code: 'reason_required' })
+  if (current.restriction === null) return ok({ next: current, events: [] }) // idempotent
+  const next: Member = { ...current, restriction: null }
+  return ok({
+    next,
+    events: [{ ...base(ctx, next), type: MEMBER_RESTRICTION_CLEARED, payload: { reason } }],
+  })
+}
 
 // ── The portal (v1.21) ────────────────────────────────────────────────────────────────────
 

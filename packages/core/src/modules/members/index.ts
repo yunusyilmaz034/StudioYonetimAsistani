@@ -3,6 +3,7 @@ export type {
   Email,
   EmergencyContact,
   Member,
+  MemberRestriction,
   MembershipStatus,
   MemberSnapshot,
   MemberStats,
@@ -10,6 +11,16 @@ export type {
   PhoneE164,
 } from './domain/member'
 export { toMemberSnapshot } from './domain/member'
+export { decideSetRestriction, decideClearRestriction } from './domain/decide'
+export { setMemberRestriction, clearMemberRestriction } from './application/restriction'
+export {
+  MEMBER_RESTRICTION_CLEARED,
+  MEMBER_RESTRICTION_SET,
+  RestrictionReasons,
+  type MemberRestrictionClearedPayload,
+  type MemberRestrictionSetPayload,
+  type RestrictionReason,
+} from './events'
 export { normalizePhone, type NormalizedPhone } from './domain/phone'
 export {
   MEMBER_DEACTIVATED,

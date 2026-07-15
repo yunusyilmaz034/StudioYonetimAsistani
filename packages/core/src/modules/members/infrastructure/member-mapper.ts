@@ -10,7 +10,15 @@ import {
   type NewEvent,
   type StudioId,
 } from '../../../shared'
-import type { Email, EmergencyContact, Member, MemberStats, MemberStatus, PhoneE164 } from '../domain/member'
+import type {
+  Email,
+  EmergencyContact,
+  Member,
+  MemberRestriction,
+  MemberStats,
+  MemberStatus,
+  PhoneE164,
+} from '../domain/member'
 import type { ErasureReason } from '../events'
 
 // The domain never sees a Firestore document id (decision #2): the repository uses
@@ -42,6 +50,8 @@ export function memberToFirestore(m: Member): DocumentData {
       activeEntitlementCount: m.stats.activeEntitlementCount,
       balanceDue: m.stats.balanceDue,
     },
+    // "Kısıtlı Üyelik" (Plus Phase 3) — the override rules + reason + note. Plain data; round-trips.
+    restriction: m.restriction,
     // The tombstone (AD-67). Written only when she has been erased — and it must ROUND-TRIP, or the
     // erasure stops being idempotent: a second run would not see that she was already forgotten and
     // would write a second `member.erased` event, making one act read as two in the audit.
@@ -81,6 +91,7 @@ export function memberFromFirestore(id: MemberId, data: DocumentData): Member {
     status: data.status as MemberStatus,
     joinedAt: fromTs(data.joinedAt as Timestamp),
     stats: memberStats,
+    restriction: (data.restriction as MemberRestriction | null | undefined) ?? null,
     ...(data.erased
       ? {
           erased: {

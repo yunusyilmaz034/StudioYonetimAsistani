@@ -4,12 +4,14 @@ import {
   decideAdjust,
   decideAmend,
   decideCancel,
+  decideChargeCancellation,
   decideConsume,
   decideExpire,
   decideHold,
   decidePurchase,
   decideReactivate,
   decideRecordPayment,
+  decideRefundCancellation,
   decideRelease,
   decideRestore,
 } from '../../src/modules/entitlements/domain/decide'
@@ -39,6 +41,8 @@ import restored from './entitlement.credit_restored.v1.json'
 import exhausted from './entitlement.exhausted.v1.json'
 import expired from './entitlement.expired.v1.json'
 import purchased from './entitlement.purchased.v1.json'
+import cancellationCharged from './entitlement.cancellation_charged.v1.json'
+import cancellationRefunded from './entitlement.cancellation_refunded.v1.json'
 
 const ctx: DecideContext = {
   studioId: 'std_1' as StudioId,
@@ -131,5 +135,12 @@ describe('entitlement event payloads match golden fixtures (AD-33)', () => {
   it('entitlement.reactivated', () => {
     const r = decideReactivate(ctx, { ...ent(), status: 'cancelled' }, 'Yanlış iptal edildi')
     expect(okEvents(r)[0]?.payload).toEqual(reactivated)
+  })
+  it('entitlement.cancellation_charged', () => {
+    expect(decideChargeCancellation(ctx, ent(), RES).events[0]?.payload).toEqual(cancellationCharged)
+  })
+  it('entitlement.cancellation_refunded', () => {
+    const charged: Entitlement = { ...ent(), cancellationLedger: { used: 1, refunded: 0 } }
+    expect(decideRefundCancellation(ctx, charged, RES, 'undo').events[0]?.payload).toEqual(cancellationRefunded)
   })
 })

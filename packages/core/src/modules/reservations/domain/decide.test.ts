@@ -25,8 +25,10 @@ import {
   decideCancellation,
   decideCorrection,
   decideMove,
+  type BookingLimits,
   type DecideContext,
 } from './decide'
+import { localMinuteOfDay, localWeekday, resolveReservationPolicy } from './policy'
 import type { MemberSnapshot } from '../../members'
 import type { CreditEffect, Reservation } from './types'
 
@@ -729,5 +731,126 @@ describe('AG-1 — çalışma saatleri, rezervasyon alırken', () => {
     )
     expect(r.ok).toBe(false)
     if (!r.ok) expect(r.error.code).toBe('outside_working_hours')
+  })
+})
+
+// ── Package Rules 2.0 (Plus Phase 3) ─────────────────────────────────────────────────────────
+const noLimits: BookingLimits = {
+  policy: {
+    cancellationAllowance: null,
+    dailyReservationLimit: null,
+    activeReservationLimit: null,
+    allowedWeekdays: null,
+    allowedHourRanges: null,
+  },
+  sessionWeekday: 1,
+  sessionStartMinutes: 600,
+  memberDayReservationCount: 0,
+  memberActiveReservationCount: 0,
+}
+const withLimits = (over: Partial<BookingLimits>): BookingLimits => ({
+  ...noLimits,
+  ...over,
+  policy: { ...noLimits.policy, ...(over.policy ?? {}) },
+})
+const bookL = (limits: BookingLimits) => decideBooking(ctx, session(), creditEnt(), bookInput, false, OPEN_ALWAYS, limits)
+
+describe('resolveReservationPolicy — studio → package → member', () => {
+  it('uses the package rule when there is no override', () => {
+    const eff = resolveReservationPolicy(
+      { cancellationAllowanceCount: 5, dailyReservationLimit: 2, activeReservationLimit: 4 },
+      null,
+    )
+    expect(eff.cancellationAllowance).toBe(5)
+    expect(eff.dailyReservationLimit).toBe(2)
+    expect(eff.activeReservationLimit).toBe(4)
+    expect(eff.allowedWeekdays).toBeNull()
+  })
+  it('the member override wins over the package (tighter OR looser)', () => {
+    const eff = resolveReservationPolicy(
+      { cancellationAllowanceCount: null, dailyReservationLimit: 2, activeReservationLimit: 4 },
+      { cancellationAllowance: 3, dailyReservationLimit: 1, allowedWeekdays: [1, 2, 3, 4, 5] },
+    )
+    expect(eff.cancellationAllowance).toBe(3) // override turned unlimited into 3
+    expect(eff.dailyReservationLimit).toBe(1) // override tightened
+    expect(eff.activeReservationLimit).toBe(4) // untouched → inherits the package
+    expect(eff.allowedWeekdays).toEqual([1, 2, 3, 4, 5])
+  })
+  it('an override that says nothing inherits everything', () => {
+    const eff = resolveReservationPolicy(
+      { cancellationAllowanceCount: 5, dailyReservationLimit: 2, activeReservationLimit: 4 },
+      { reason: 'vip', note: 'x' } as never,
+    )
+    expect(eff.cancellationAllowance).toBe(5)
+    expect(eff.dailyReservationLimit).toBe(2)
+  })
+})
+
+describe('localWeekday / localMinuteOfDay (studio-local, pure)', () => {
+  it('resolves the studio-local weekday and minute of day', () => {
+    // 1_000_000_000_000 = 2001-09-09 01:46:40 UTC; +180min ⇒ 04:46 Istanbul, a Sunday (0).
+    expect(localWeekday(1_000_000_000_000, 180)).toBe(0)
+    expect(localMinuteOfDay(1_000_000_000_000, 180)).toBe(286) // 04:46
+  })
+})
+
+describe('decideBooking — package/member limits (Phase 3)', () => {
+  it('allows a booking that satisfies every limit', () => {
+    const r = bookL(withLimits({ policy: { ...noLimits.policy, dailyReservationLimit: 2 }, memberDayReservationCount: 1 }))
+    expect(r.ok).toBe(true)
+  })
+  it('refuses a day the member is not allowed to book', () => {
+    const r = bookL(withLimits({ policy: { ...noLimits.policy, allowedWeekdays: [1, 2, 3] }, sessionWeekday: 6 }))
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.error.code).toBe('day_not_allowed')
+  })
+  it('refuses a time outside the allowed hour range', () => {
+    const r = bookL(
+      withLimits({ policy: { ...noLimits.policy, allowedHourRanges: [{ startMinutes: 600, endMinutes: 960 }] }, sessionStartMinutes: 1000 }),
+    )
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.error.code).toBe('time_not_allowed')
+  })
+  it('refuses when the daily reservation limit is reached', () => {
+    const r = bookL(withLimits({ policy: { ...noLimits.policy, dailyReservationLimit: 2 }, memberDayReservationCount: 2 }))
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.error.code).toBe('daily_reservation_limit_reached')
+  })
+  it('refuses when the active reservation limit is reached', () => {
+    const r = bookL(withLimits({ policy: { ...noLimits.policy, activeReservationLimit: 4 }, memberActiveReservationCount: 4 }))
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.error.code).toBe('active_reservation_limit_reached')
+  })
+})
+
+describe('decideCancellation — free-cancellation allowance (Phase 3)', () => {
+  const inWindow = () => bookedReservation() // 24h before, window 6h ⇒ in-window
+  it('unlimited allowance never gates and never charges', () => {
+    const r = decideCancellation(ctx, inWindow(), session(), { allowance: null, usedNet: 3 })
+    expect(r.ok).toBe(true)
+    if (r.ok) expect(r.value.allowanceConsumed).toBe(false)
+  })
+  it('a finite allowance is spent on an in-window cancel (5 rights: the 1st and 5th pass)', () => {
+    const first = decideCancellation(ctx, inWindow(), session(), { allowance: 5, usedNet: 0 })
+    expect(first.ok).toBe(true)
+    if (first.ok) expect(first.value.allowanceConsumed).toBe(true)
+    const fifth = decideCancellation(ctx, inWindow(), session(), { allowance: 5, usedNet: 4 })
+    expect(fifth.ok).toBe(true)
+  })
+  it('refuses the 6th in-window cancel — the reservation stays, no credit is burned', () => {
+    const r = decideCancellation(ctx, inWindow(), session(), { allowance: 5, usedNet: 5 })
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.error.code).toBe('cancellation_allowance_exhausted')
+  })
+  it('a LATE cancel does not spend the allowance (only in-window counts)', () => {
+    const late = bookedReservation({ sessionStartsAt: instant(NOW + 3 * H) })
+    const r = decideCancellation(ctx, late, session({ startsAt: instant(NOW + 3 * H) }), { allowance: 5, usedNet: 4 })
+    expect(r.ok).toBe(true)
+    if (r.ok) expect(r.value.allowanceConsumed).toBe(false)
+  })
+  it('a studio-cancelled class never spends the allowance', () => {
+    const r = decideCancellation(ctx, inWindow(), session({ status: 'cancelled' }), { allowance: 5, usedNet: 5 })
+    expect(r.ok).toBe(true)
+    if (r.ok) expect(r.value.allowanceConsumed).toBe(false)
   })
 })
