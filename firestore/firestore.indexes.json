@@ -126,7 +126,7 @@
         },
         {
           "fieldPath": "sessionStartsAt",
-          "order": "ASCENDING"
+          "order": "DESCENDING"
         }
       ]
     },
