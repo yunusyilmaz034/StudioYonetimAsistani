@@ -3,6 +3,7 @@ import {
   ok,
   type ClassSessionId,
   type DomainError,
+  isOverrideActiveAt,
   type EntitlementId,
   type MemberId,
   type OperationId,
@@ -54,9 +55,10 @@ export async function bookReservation(
   // Package Rules 2.0 — resolve the member's override and count her open reservations ONCE, before the
   // transaction (both change rarely; a soft limit does not need the hold's atomicity). The counts use
   // the reservation's own denormalised `sessionStartsAt`, so no session read is needed here.
-  const override: ReservationOverride | null = deps.policy
-    ? await deps.policy.getMemberOverride(ctx, input.memberId)
-    : null
+  // Plus Phase 4 — an override outside its validity window is INERT: the member falls back to the
+  // package rules automatically, no sweep required.
+  const raw = deps.policy ? await deps.policy.getMemberOverride(ctx, input.memberId) : null
+  const override: ReservationOverride | null = raw && isOverrideActiveAt(raw, dctx.now) ? raw : null
   const openStarts = (await deps.repo.listByMember(ctx, input.memberId))
     .filter((r) => r.status === 'booked')
     .map((r) => r.sessionStartsAt as number)

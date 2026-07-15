@@ -15,7 +15,10 @@ export const MEMBER_RESTRICTION_CLEARED = 'member.restriction_cleared'
 // and free of the PII a free-text reason could smuggle in. VIP/corporate/promotional loosen; problem
 // tightens; other is the escape hatch. Lives here (not on the Member) so events.ts imports nothing
 // from domain/member — that would be a cycle.
-export const RestrictionReasons = ['vip', 'corporate', 'promotional', 'problem', 'other'] as const
+// Plus Phase 4 — the owner's closed set. `health` is a CATEGORY, not a health record: it says "this
+// override exists for a health reason", never what the condition is (that would be sensitive PII, and
+// it stays out of the log entirely — the free-text note lives on state and can be erased).
+export const RestrictionReasons = ['vip', 'corporate', 'promotional', 'complaint_compensation', 'health', 'other'] as const
 export type RestrictionReason = (typeof RestrictionReasons)[number]
 
 // v1.21 — the member portal. `member.invited` is emitted by STAFF; the other two by the MEMBER

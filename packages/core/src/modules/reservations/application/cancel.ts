@@ -1,4 +1,5 @@
 import {
+  isOverrideActiveAt,
   ok,
   type DomainError,
   type OperationId,
@@ -35,8 +36,8 @@ export async function cancelReservation(
   // cool cancel path). Only a MEMBER/reception cancel spends her free-cancellation allowance; a bulk /
   // studio cancellation goes through a different path and never charges her.
   const existing = await deps.repo.getReservation(ctx, input.reservationId)
-  const override: ReservationOverride | null =
-    deps.policy && existing ? await deps.policy.getMemberOverride(ctx, existing.memberId) : null
+  const raw = deps.policy && existing ? await deps.policy.getMemberOverride(ctx, existing.memberId) : null
+  const override: ReservationOverride | null = raw && isOverrideActiveAt(raw, dctx.now) ? raw : null
 
   return deps.repo.cancel(ctx, {
     reservationId: input.reservationId,

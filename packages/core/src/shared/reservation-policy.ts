@@ -25,6 +25,27 @@ export interface ReservationOverride {
   readonly cancellationAllowance?: number | null
   readonly dailyReservationLimit?: number | null
   readonly activeReservationLimit?: number | null
+  // Plus Phase 4 — a member may be limited to certain trainers. null/absent ⇒ any trainer. Trainer
+  // ids are opaque strings here (no cross-module id import); the caller compares them to session.trainerId.
+  readonly allowedTrainerIds?: readonly string[] | null
+  // Plus Phase 4 — the override's validity window (epoch ms). null/absent ⇒ open-ended on that side.
+  // OUTSIDE the window the override does not apply and the member falls back to the package rules —
+  // "süre dolunca otomatik olarak paket kurallarına döner", enforced at read time (no sweep needed).
+  readonly effectiveFrom?: number | null
+  readonly effectiveUntil?: number | null
+}
+
+// Whether the override is in force at `now`. An expired or not-yet-started override is INERT — the
+// resolver is given `null` and the member is judged by the package rules, automatically.
+export function isOverrideActiveAt(o: ReservationOverride, now: number): boolean {
+  if (o.effectiveFrom != null && now < o.effectiveFrom) return false
+  if (o.effectiveUntil != null && now > o.effectiveUntil) return false
+  return true
+}
+
+export function trainerAllowed(allowed: readonly string[] | null | undefined, trainerId: string | null): boolean {
+  if (allowed == null) return true
+  return trainerId != null && allowed.includes(trainerId)
 }
 
 // Whether a given studio-local weekday / minute-of-day is permitted by a restriction. A null list

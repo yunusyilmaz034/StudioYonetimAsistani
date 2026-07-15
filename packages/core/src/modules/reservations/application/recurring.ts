@@ -1,4 +1,5 @@
 import {
+  isOverrideActiveAt,
   newOperationId,
   newReservationId,
   ok,
@@ -109,7 +110,8 @@ export async function applyRecurring(
   // week booked raises the member's active/day totals, so week N is judged against weeks 1…N−1.
   const offset = deps.utcOffsetMinutes
   const dayNum = (ms: number): number => Math.floor((ms + offset * 60_000) / 86_400_000)
-  const override = deps.policy ? await deps.policy.getMemberOverride(ctx, input.memberId) : null
+  const rawOverride = deps.policy ? await deps.policy.getMemberOverride(ctx, input.memberId) : null
+  const override = rawOverride && isOverrideActiveAt(rawOverride, dctx.now) ? rawOverride : null
   const openStarts = planned.world.memberReservations
     .filter((r) => r.status === 'booked')
     .map((r) => r.sessionStartsAt as number)

@@ -18,6 +18,7 @@ import {
   type Result,
   type StudioId,
   timeAllowed,
+  trainerAllowed,
   weekdayAllowed,
 } from '../../../shared'
 import type { EffectiveReservationPolicy } from './policy'
@@ -197,6 +198,8 @@ export function decideBooking(
     const p = limits.policy
     if (!weekdayAllowed(p.allowedWeekdays, limits.sessionWeekday)) return err({ code: 'day_not_allowed' })
     if (!timeAllowed(p.allowedHourRanges, limits.sessionStartMinutes)) return err({ code: 'time_not_allowed' })
+    // Plus Phase 4 — trainer restriction. A session with no trainer cannot satisfy a whitelist.
+    if (!trainerAllowed(p.allowedTrainerIds, session.trainerId ?? null)) return err({ code: 'trainer_not_allowed' })
     if (p.dailyReservationLimit !== null && limits.memberDayReservationCount >= p.dailyReservationLimit) {
       return err({ code: 'daily_reservation_limit_reached', limit: p.dailyReservationLimit })
     }

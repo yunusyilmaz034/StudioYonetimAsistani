@@ -142,6 +142,15 @@ function invalidRules(r: ReservationOverride): DomainError | null {
   if (r.activeReservationLimit != null && (!Number.isInteger(r.activeReservationLimit) || r.activeReservationLimit < 1)) {
     return { code: 'invalid_limit' }
   }
+  // Plus Phase 4 — a trainer whitelist must name at least one trainer (an empty list would refuse
+  // every booking, which is never what "restrict to trainers" means).
+  if (r.allowedTrainerIds != null && (r.allowedTrainerIds.length === 0 || r.allowedTrainerIds.some((t) => t.trim().length === 0))) {
+    return { code: 'invalid_trainer' }
+  }
+  // Plus Phase 4 — a validity window that ends before it starts is refused, never reinterpreted.
+  if (r.effectiveFrom != null && r.effectiveUntil != null && r.effectiveUntil <= r.effectiveFrom) {
+    return { code: 'invalid_validity_range' }
+  }
   return null
 }
 
@@ -158,6 +167,9 @@ export function decideSetRestriction(
   const rules: ReservationOverride = {
     allowedWeekdays: restriction.allowedWeekdays ?? null,
     allowedHourRanges: restriction.allowedHourRanges ?? null,
+    allowedTrainerIds: restriction.allowedTrainerIds ?? null,
+    effectiveFrom: restriction.effectiveFrom ?? null,
+    effectiveUntil: restriction.effectiveUntil ?? null,
     ...(restriction.cancellationAllowance !== undefined ? { cancellationAllowance: restriction.cancellationAllowance } : {}),
     ...(restriction.dailyReservationLimit !== undefined ? { dailyReservationLimit: restriction.dailyReservationLimit } : {}),
     ...(restriction.activeReservationLimit !== undefined ? { activeReservationLimit: restriction.activeReservationLimit } : {}),

@@ -4,6 +4,7 @@ import type { Entitlement } from '../../entitlements'
 import type { ClassSession, SessionPolicySnapshot } from '../../scheduling'
 import {
   instant,
+  isOverrideActiveAt,
   money,
   type BranchId,
   type ClassSessionId,
@@ -742,6 +743,7 @@ const noLimits: BookingLimits = {
     activeReservationLimit: null,
     allowedWeekdays: null,
     allowedHourRanges: null,
+    allowedTrainerIds: null,
   },
   sessionWeekday: 1,
   sessionStartMinutes: 600,
@@ -852,5 +854,48 @@ describe('decideCancellation — free-cancellation allowance (Phase 3)', () => {
     const r = decideCancellation(ctx, inWindow(), session({ status: 'cancelled' }), { allowance: 5, usedNet: 5 })
     expect(r.ok).toBe(true)
     if (r.ok) expect(r.value.allowanceConsumed).toBe(false)
+  })
+})
+
+// ── Member Override — Phase 4 (trainer restriction + validity window) ────────────────────────
+describe('decideBooking — trainer restriction (Phase 4)', () => {
+  const withTrainer = (trainerId: string | null, allowed: readonly string[] | null) =>
+    decideBooking(
+      ctx,
+      session({ trainerId: trainerId as never }),
+      creditEnt(),
+      bookInput,
+      false,
+      OPEN_ALWAYS,
+      withLimits({ policy: { ...noLimits.policy, allowedTrainerIds: allowed } }),
+    )
+  it('allows a session with an allowed trainer', () => {
+    expect(withTrainer('stf_isil', ['stf_isil', 'stf_reyhan']).ok).toBe(true)
+  })
+  it('refuses a session with a trainer not on the whitelist', () => {
+    const r = withTrainer('stf_other', ['stf_isil'])
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.error.code).toBe('trainer_not_allowed')
+  })
+  it('refuses a session with NO trainer when a whitelist is set', () => {
+    const r = withTrainer(null, ['stf_isil'])
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.error.code).toBe('trainer_not_allowed')
+  })
+  it('a null whitelist allows any trainer', () => {
+    expect(withTrainer('stf_anyone', null).ok).toBe(true)
+  })
+})
+
+describe('isOverrideActiveAt — validity window (Phase 4, auto-return to package)', () => {
+  it('is active with no window', () => {
+    expect(isOverrideActiveAt({}, 1_000)).toBe(true)
+  })
+  it('is inactive before it starts and after it ends', () => {
+    expect(isOverrideActiveAt({ effectiveFrom: 500, effectiveUntil: 1_500 }, 400)).toBe(false)
+    expect(isOverrideActiveAt({ effectiveFrom: 500, effectiveUntil: 1_500 }, 1_600)).toBe(false)
+  })
+  it('is active inside the window', () => {
+    expect(isOverrideActiveAt({ effectiveFrom: 500, effectiveUntil: 1_500 }, 1_000)).toBe(true)
   })
 })

@@ -133,11 +133,15 @@ export type DomainError =
   | { readonly code: 'invalid_hour_range' }
   | { readonly code: 'invalid_allowance' }
   | { readonly code: 'invalid_limit' }
+  | { readonly code: 'invalid_trainer' }
+  | { readonly code: 'invalid_validity_range' }
   // Reservation-time enforcement of the effective (resolved) policy. Each says WHICH rule refused,
   // so the UI can tell the member why — never a bare "rezervasyon yapılamadı".
   | { readonly code: 'cancellation_allowance_exhausted'; readonly allowance: number }
   | { readonly code: 'day_not_allowed' }
   | { readonly code: 'time_not_allowed' }
+  // Plus Phase 4 — Member Override trainer restriction.
+  | { readonly code: 'trainer_not_allowed' }
   | { readonly code: 'daily_reservation_limit_reached'; readonly limit: number }
   | { readonly code: 'active_reservation_limit_reached'; readonly limit: number }
 

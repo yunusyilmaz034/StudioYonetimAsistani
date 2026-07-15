@@ -69,6 +69,10 @@ const restrictionSchema = z.object({
   cancellationAllowance: z.number().int().min(0).nullable().optional(),
   dailyReservationLimit: z.number().int().min(1).nullable().optional(),
   activeReservationLimit: z.number().int().min(1).nullable().optional(),
+  // Plus Phase 4 — trainer whitelist (null ⇒ any) and validity window (epoch ms; null ⇒ open-ended).
+  allowedTrainerIds: z.array(z.string().min(1)).nullable(),
+  effectiveFrom: z.number().int().nullable(),
+  effectiveUntil: z.number().int().nullable(),
 })
 
 export async function setMemberRestrictionAction(input: unknown): Promise<Result<void, DomainError>> {
@@ -81,6 +85,9 @@ export async function setMemberRestrictionAction(input: unknown): Promise<Result
     note: p.note,
     allowedWeekdays: p.allowedWeekdays,
     allowedHourRanges: p.allowedHourRanges,
+    allowedTrainerIds: p.allowedTrainerIds,
+    effectiveFrom: p.effectiveFrom,
+    effectiveUntil: p.effectiveUntil,
     ...(p.cancellationAllowance !== undefined ? { cancellationAllowance: p.cancellationAllowance } : {}),
     ...(p.dailyReservationLimit !== undefined ? { dailyReservationLimit: p.dailyReservationLimit } : {}),
     ...(p.activeReservationLimit !== undefined ? { activeReservationLimit: p.activeReservationLimit } : {}),

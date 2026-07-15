@@ -23,6 +23,7 @@ export interface EffectiveReservationPolicy {
   readonly activeReservationLimit: number | null
   readonly allowedWeekdays: readonly number[] | null // null ⇒ all days
   readonly allowedHourRanges: readonly HourRange[] | null // null ⇒ all hours
+  readonly allowedTrainerIds: readonly string[] | null // Plus Phase 4 — null ⇒ any trainer
 }
 
 const pick = (o: number | null | undefined, p: number | null): number | null => (o !== undefined ? o : p)
@@ -37,6 +38,7 @@ export function resolveReservationPolicy(
     activeReservationLimit: pick(override?.activeReservationLimit, pkg.activeReservationLimit),
     allowedWeekdays: override?.allowedWeekdays ?? null,
     allowedHourRanges: override?.allowedHourRanges ?? null,
+    allowedTrainerIds: override?.allowedTrainerIds ?? null,
   }
 }
 

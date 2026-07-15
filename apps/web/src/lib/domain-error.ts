@@ -174,12 +174,18 @@ export function domainErrorMessage(error: DomainError): string {
       return 'Geçersiz iptal hakkı değeri.'
     case 'invalid_limit':
       return 'Geçersiz limit değeri.'
+    case 'invalid_trainer':
+      return 'Eğitmen kısıtı için en az bir eğitmen seçilmelidir.'
+    case 'invalid_validity_range':
+      return 'Geçersiz geçerlilik aralığı. Bitiş tarihi başlangıçtan sonra olmalı.'
     case 'cancellation_allowance_exhausted':
       return `İptal hakkı doldu (${error.allowance} hakkın tamamı kullanıldı). Bu rezervasyon iptal edilemez; üye derse katılabilir.`
     case 'day_not_allowed':
       return 'Bu üye bu gün için rezervasyon yapamıyor (Kısıtlı Üyelik: izin verilen günler).'
     case 'time_not_allowed':
       return 'Bu üye bu saat için rezervasyon yapamıyor (Kısıtlı Üyelik: izin verilen saatler).'
+    case 'trainer_not_allowed':
+      return 'Bu üye bu eğitmenden rezervasyon yapamıyor (Kısıtlı Üyelik: izin verilen eğitmenler).'
     case 'daily_reservation_limit_reached':
       return `Günlük rezervasyon limitine ulaşıldı (en fazla ${error.limit}).`
     case 'active_reservation_limit_reached':
