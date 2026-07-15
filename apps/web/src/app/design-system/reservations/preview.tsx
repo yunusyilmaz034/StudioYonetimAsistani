@@ -16,8 +16,8 @@ import {
 // booking and cancelling really work here (against an in-memory day), so the flow can be FELT without
 // a login or a database. Illustrative data only.
 
-const DATE = '2026-07-15'
-const at = (hhmmUtc: string) => Date.parse(`${DATE}T${hhmmUtc}:00Z`) // Istanbul = UTC+3
+const DATE = '2026-07-15' // Wednesday; its week runs Mon 13 … Sun 19
+const at = (hhmmUtc: string, d: string = DATE) => Date.parse(`${d}T${hhmmUtc}:00Z`) // Istanbul = UTC+3
 
 const base = (over: Partial<CalendarSession> & Pick<CalendarSession, 'sessionId' | 'serviceName' | 'category' | 'startsAt' | 'capacity'>): CalendarSession => ({
   serviceId: 'svc',
@@ -46,6 +46,17 @@ const SESSIONS: CalendarSession[] = [
   base({ sessionId: 's4', serviceName: 'PT', category: 'private', startsAt: at('11:00'), capacity: 1, roomName: 'Özel PT Salonu', trainerName: 'Işıl Hoca' }),
   base({ sessionId: 's5', serviceName: 'Reformer Pilates', category: 'pilates_group', startsAt: at('15:00'), capacity: 8, trainerName: 'Reyhan Hoca' }),
   base({ sessionId: 's6', serviceName: 'Reformer Pilates', category: 'pilates_group', startsAt: at('16:00'), capacity: 8, trainerName: 'Buse Hoca' }),
+  // the rest of the week, so the week grid is populated
+  base({ sessionId: 'w-mon1', serviceName: 'Reformer Pilates', category: 'pilates_group', startsAt: at('06:00', '2026-07-13'), capacity: 8, trainerName: 'Işıl Hoca' }),
+  base({ sessionId: 'w-mon2', serviceName: 'PT', category: 'private', startsAt: at('10:00', '2026-07-13'), capacity: 1, roomName: 'Özel PT Salonu' }),
+  base({ sessionId: 'w-mon3', serviceName: 'Reformer Pilates', category: 'pilates_group', startsAt: at('17:00', '2026-07-13'), capacity: 8, trainerName: 'Buse Hoca' }),
+  base({ sessionId: 'w-tue1', serviceName: 'Reformer Pilates', category: 'pilates_group', startsAt: at('07:00', '2026-07-14'), capacity: 8, trainerName: 'Reyhan Hoca' }),
+  base({ sessionId: 'w-tue2', serviceName: 'Düet Pilates', category: 'pilates_group', startsAt: at('12:00', '2026-07-14'), capacity: 2, roomName: 'Düet Salonu' }),
+  base({ sessionId: 'w-thu1', serviceName: 'Reformer Pilates', category: 'pilates_group', startsAt: at('06:00', '2026-07-16'), capacity: 8, trainerName: 'Işıl Hoca' }),
+  base({ sessionId: 'w-thu2', serviceName: 'Reformer Pilates', category: 'pilates_group', startsAt: at('18:00', '2026-07-16'), capacity: 8, trainerName: 'Reyhan Hoca' }),
+  base({ sessionId: 'w-fri1', serviceName: 'Reformer Pilates', category: 'pilates_group', startsAt: at('09:00', '2026-07-17'), capacity: 8, trainerName: 'Buse Hoca' }),
+  base({ sessionId: 'w-fri2', serviceName: 'PT', category: 'private', startsAt: at('14:00', '2026-07-17'), capacity: 1, roomName: 'Özel PT Salonu' }),
+  base({ sessionId: 'w-sat1', serviceName: 'Reformer Pilates', category: 'pilates_group', startsAt: at('10:00', '2026-07-18'), capacity: 8, trainerName: 'Işıl Hoca' }),
 ]
 
 const NAMES = [

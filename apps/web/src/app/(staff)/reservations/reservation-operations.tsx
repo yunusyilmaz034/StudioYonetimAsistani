@@ -98,6 +98,22 @@ const addDays = (dateStr: string, n: number): string => {
 }
 const digits = (s: string) => s.replace(/\D/g, '')
 
+// The studio-local day a session's `startsAt` falls on (the loaded window spans a month, so the day
+// and week views are FILTERS over the same data — not separate reads).
+const localDate = (ms: number) =>
+  new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Istanbul', year: 'numeric', month: '2-digit', day: '2-digit' }).format(ms)
+const weekStart = (dateStr: string): string => {
+  const d = new Date(`${dateStr}T12:00:00Z`)
+  const dow = (d.getUTCDay() + 6) % 7 // Monday = 0 … Sunday = 6
+  return addDays(dateStr, -dow)
+}
+const DOW = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'] as const
+const dayNum = (dateStr: string) => Number(dateStr.slice(8, 10))
+const shortMonth = (dateStr: string) =>
+  new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'short', timeZone: 'Europe/Istanbul' }).format(
+    new Date(`${dateStr}T12:00:00Z`),
+  )
+
 // ── the live wrapper: binds the real actions. Used by the /reservations page. ────────────────────
 export function ReservationOperationsLive(props: {
   initialData: ReservationCalendarData
@@ -164,22 +180,35 @@ export function ReservationOperations({
   ops: ReservationOps
 }) {
   const [date, setDate] = useState(initialDate)
+  const [view, setView] = useState<'day' | 'week'>('week')
   const [data, setData] = useState(initialData)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const searchRef = useRef<HTMLInputElement>(null)
 
-  // Sessions of the day, in time order; cancelled ones sink to the bottom, dimmed.
-  const sessions = useMemo(
+  // The loaded window is a MONTH, so the views filter it. Day: one date. Week: seven columns.
+  const dayList = useMemo(
     () =>
-      [...data.sessions].sort((a, b) => {
-        const ca = a.status === 'cancelled' ? 1 : 0
-        const cb = b.status === 'cancelled' ? 1 : 0
-        return ca - cb || a.startsAt - b.startsAt
-      }),
-    [data.sessions],
+      data.sessions
+        .filter((s) => localDate(s.startsAt) === date)
+        .sort((a, b) => {
+          const ca = a.status === 'cancelled' ? 1 : 0
+          const cb = b.status === 'cancelled' ? 1 : 0
+          return ca - cb || a.startsAt - b.startsAt
+        }),
+    [data.sessions, date],
   )
-  const selected = sessions.find((s) => s.sessionId === selectedId) ?? null
+  const weekDates = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart(date), i)), [date])
+  const weekGroups = useMemo(
+    () =>
+      weekDates.map((d) => ({
+        date: d,
+        sessions: data.sessions.filter((s) => localDate(s.startsAt) === d).sort((a, b) => a.startsAt - b.startsAt),
+      })),
+    [weekDates, data.sessions],
+  )
+  // A selected class may live on any day of the loaded window (week view), so search all of them.
+  const selected = data.sessions.find((s) => s.sessionId === selectedId) ?? null
 
   const goDay = useCallback(
     async (next: string) => {
@@ -206,17 +235,18 @@ export function ReservationOperations({
     }
   }, [ops, date])
 
-  // ← / → flip days when focus is not in a text field.
+  // ← / → step by day (day view) or by week (week view) when focus is not in a text field.
+  const step = useCallback((n: number) => void goDay(addDays(date, view === 'week' ? n * 7 : n)), [date, view, goDay])
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const el = e.target as HTMLElement
       if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') return
-      if (e.key === 'ArrowLeft') void goDay(addDays(date, -1))
-      else if (e.key === 'ArrowRight') void goDay(addDays(date, 1))
+      if (e.key === 'ArrowLeft') step(-1)
+      else if (e.key === 'ArrowRight') step(1)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [date, goDay])
+  }, [step])
 
   const pick = useCallback((id: string) => {
     setSelectedId(id)
@@ -225,44 +255,82 @@ export function ReservationOperations({
 
   return (
     <main className="mx-auto flex h-[100dvh] max-w-[1600px] flex-col p-4 sm:p-6 lg:p-8">
-      {/* ── header: date nav ──────────────────────────────────────────── */}
+      {/* ── header: view toggle + date nav ────────────────────────────── */}
       <header className="flex flex-wrap items-center justify-between gap-3 pb-5">
         <div>
           <p className="text-sm text-muted-foreground">
-            {date === today ? 'Bugün' : addDays(today, 1) === date ? 'Yarın' : addDays(today, -1) === date ? 'Dün' : 'Rezervasyon'}
+            {view === 'week'
+              ? 'Hafta'
+              : date === today
+                ? 'Bugün'
+                : addDays(today, 1) === date
+                  ? 'Yarın'
+                  : addDays(today, -1) === date
+                    ? 'Dün'
+                    : 'Rezervasyon'}
           </p>
-          <h1 className="font-heading text-display font-medium text-foreground capitalize">{longDate(date)}</h1>
+          <h1 className="font-heading text-display font-medium text-foreground capitalize">
+            {view === 'week'
+              ? `${shortMonth(weekDates[0]!)} – ${shortMonth(weekDates[6]!)}`
+              : longDate(date)}
+          </h1>
         </div>
-        <div className="flex items-center gap-1.5">
-          <NavBtn onClick={() => void goDay(addDays(date, -1))} aria-label="Önceki gün">
-            <ChevronLeftIcon className="size-4" />
-          </NavBtn>
-          <button
-            type="button"
-            onClick={() => void goDay(today)}
-            className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-sm font-medium text-foreground transition-colors hover:border-primary/40"
-          >
-            <CalendarDaysIcon className="size-4" />
-            Bugün
-          </button>
-          <NavBtn onClick={() => void goDay(addDays(date, 1))} aria-label="Sonraki gün">
-            <ChevronRightIcon className="size-4" />
-          </NavBtn>
+        <div className="flex items-center gap-2">
+          {/* Gün / Hafta */}
+          <div className="flex rounded-lg border border-border bg-surface p-0.5">
+            {(['week', 'day'] as const).map((v) => (
+              <button
+                key={v}
+                type="button"
+                onClick={() => setView(v)}
+                className={cn(
+                  'rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
+                  view === v ? 'bg-primary text-primary-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground',
+                )}
+              >
+                {v === 'week' ? 'Hafta' : 'Gün'}
+              </button>
+            ))}
+          </div>
+          <div className="flex items-center gap-1.5">
+            <NavBtn onClick={() => step(-1)} aria-label={view === 'week' ? 'Önceki hafta' : 'Önceki gün'}>
+              <ChevronLeftIcon className="size-4" />
+            </NavBtn>
+            <button
+              type="button"
+              onClick={() => void goDay(today)}
+              className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-sm font-medium text-foreground transition-colors hover:border-primary/40"
+            >
+              <CalendarDaysIcon className="size-4" />
+              Bugün
+            </button>
+            <NavBtn onClick={() => step(1)} aria-label={view === 'week' ? 'Sonraki hafta' : 'Sonraki gün'}>
+              <ChevronRightIcon className="size-4" />
+            </NavBtn>
+          </div>
         </div>
       </header>
 
       {/* ── two-pane operations surface ───────────────────────────────── */}
       <div className={cn('grid min-h-0 flex-1 gap-4 lg:grid-cols-[1fr_400px]', loading && 'opacity-60')}>
-        {/* LEFT — the day's classes */}
+        {/* LEFT — the week grid, or the day's class list */}
         <section className="min-h-0 overflow-y-auto pr-1">
-          {sessions.length === 0 ? (
+          {view === 'week' ? (
+            <WeekGrid
+              groups={weekGroups}
+              rosters={data.rosters}
+              selectedId={selectedId}
+              today={today}
+              onSelect={pick}
+            />
+          ) : dayList.length === 0 ? (
             <div className="flex h-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border py-16 text-center">
               <CalendarDaysIcon className="size-8 text-muted-foreground/50" />
               <p className="text-sm text-muted-foreground">Bu gün için ders yok.</p>
             </div>
           ) : (
             <ul className="space-y-2.5">
-              {sessions.map((s) => (
+              {dayList.map((s) => (
                 <ClassCard
                   key={s.sessionId}
                   s={s}
@@ -310,6 +378,76 @@ function NavBtn({ children, onClick, ...rest }: React.ComponentProps<'button'>) 
     >
       {children}
     </button>
+  )
+}
+
+function WeekGrid({
+  groups,
+  rosters,
+  selectedId,
+  today,
+  onSelect,
+}: {
+  groups: readonly { date: string; sessions: readonly CalendarSession[] }[]
+  rosters: ReservationCalendarData['rosters']
+  selectedId: string | null
+  today: string
+  onSelect: (id: string) => void
+}) {
+  return (
+    <div className="grid min-w-[52rem] grid-cols-7 gap-2">
+      {groups.map((g) => {
+        const isToday = g.date === today
+        return (
+          <div key={g.date} className="flex min-w-0 flex-col gap-1.5">
+            <div
+              className={cn(
+                'sticky top-0 z-10 rounded-lg py-1.5 text-center',
+                isToday ? 'bg-primary text-primary-foreground' : 'bg-surface text-muted-foreground',
+              )}
+            >
+              <div className="text-[0.65rem] font-medium tracking-wide uppercase">{DOW[(new Date(`${g.date}T12:00:00Z`).getUTCDay() + 6) % 7]}</div>
+              <div className={cn('font-heading text-base font-medium tabular-nums', isToday ? 'text-primary-foreground' : 'text-foreground')}>
+                {dayNum(g.date)}
+              </div>
+            </div>
+            {g.sessions.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-border/60 py-3 text-center text-[0.65rem] text-muted-foreground/50">—</div>
+            ) : (
+              g.sessions.map((s) => {
+                const cat = catOf(s.category)
+                const booked = rosters[s.sessionId]?.length ?? s.bookedCount
+                const full = booked >= s.capacity
+                const cancelled = s.status === 'cancelled'
+                return (
+                  <button
+                    key={s.sessionId}
+                    type="button"
+                    onClick={() => onSelect(s.sessionId)}
+                    className={cn(
+                      'rounded-lg border bg-card p-2 text-left shadow-xs transition-all',
+                      cancelled && 'opacity-50',
+                      s.sessionId === selectedId ? 'border-primary ring-1 ring-primary' : 'border-border hover:border-primary/40 hover:shadow-sm',
+                    )}
+                  >
+                    <div className="flex items-center justify-between gap-1">
+                      <span className="font-heading text-sm font-medium tabular-nums text-foreground">{hhmm(s.startsAt)}</span>
+                      <span className={cn('text-[0.7rem] font-medium tabular-nums', full ? 'text-gold' : 'text-muted-foreground')}>
+                        {booked}/{s.capacity}
+                      </span>
+                    </div>
+                    <div className="mt-0.5 flex items-center gap-1">
+                      <span className={cn('size-1.5 shrink-0 rounded-full', cat.dot)} />
+                      <span className="truncate text-xs text-muted-foreground">{s.serviceName}</span>
+                    </div>
+                  </button>
+                )
+              })
+            )}
+          </div>
+        )
+      })}
+    </div>
   )
 }
 
