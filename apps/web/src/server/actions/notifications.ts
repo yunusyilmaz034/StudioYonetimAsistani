@@ -4,16 +4,22 @@ import {
   DEFAULT_NOTIFICATION_SETTINGS,
   DEFAULT_PREFS,
   deliver,
+  FirestoreMemberRepository,
   instant,
   FirestoreNotificationRepository,
+  newOperationId,
+  notify,
+  render,
   standardNotificationProviders,
   systemClock,
   TEMPLATES,
   type MetaWhatsAppConfig,
+  type MemberId,
   type NotificationDeps,
   type NotificationPrefs,
   type NotificationProvidersConfig,
   type NotificationTemplate,
+  type RecipientRef,
 } from '@studio/core'
 import { z } from 'zod'
 
@@ -144,6 +150,88 @@ export async function resetNotificationTemplateAction(input: unknown) {
   const ctx = await requireTenantContext(OWNER)
   await adminDb().doc(`studios/${ctx.studioId}/notificationTemplates/${p.id}`).delete()
   return { ok: true as const }
+}
+
+// ── Manual & bulk send (Plus Phase 5, §12/§13) ───────────────────────────────────────────────
+//
+// Staff sends a template to a member (from the member card / reservation) or to a set of members.
+// It goes through the SAME notify() pipeline — same channel selection, consent, quiet hours, retry,
+// audit — never a side channel. Params are supplied by the caller (pre-filled + editable in the UI),
+// so any template works; render REFUSES a missing param, so a blank message can never be sent.
+
+async function resolvedTemplate(studioId: string, id: string): Promise<NotificationTemplate | undefined> {
+  const snap = await adminDb().doc(`studios/${studioId}/notificationTemplates/${id}`).get()
+  return snap.exists ? (snap.data() as NotificationTemplate) : TEMPLATES[id]
+}
+
+/** Render preview for the manual-send dialog. Returns the missing params rather than a blank message. */
+export async function previewNotificationAction(input: unknown) {
+  const p = z.object({ templateId: z.string().min(1), params: z.record(z.string(), z.string()) }).parse(input)
+  const ctx = await requireTenantContext(STAFF)
+  const template = await resolvedTemplate(ctx.studioId, p.templateId)
+  if (!template) return { ok: false as const, error: { code: 'template_not_found' as const } }
+  const r = render(template, p.params)
+  return r.ok ? { ok: true as const, value: r.value } : r
+}
+
+export async function sendManualNotificationAction(input: unknown) {
+  const p = z.object({ memberId: z.string().min(1), templateId: z.string().min(1), params: z.record(z.string(), z.string()) }).parse(input)
+  const ctx = await requireTenantContext(STAFF)
+  const member = await new FirestoreMemberRepository(adminDb()).findById(ctx, p.memberId as MemberId)
+  if (!member) return { ok: false as const, error: { code: 'member_not_found' as const } }
+
+  const recipient: RecipientRef = {
+    kind: 'member',
+    id: member.id as string,
+    email: (member.email as string | null) ?? null,
+    phone: (member.phone as string | null) ?? null,
+    displayName: member.fullName,
+  }
+  const opId = newOperationId()
+  return notify(deps(), ctx, {
+    intentId: `manual:${p.templateId}:${member.id}:${opId}`,
+    eventId: null,
+    eventType: 'manual_send',
+    operationId: opId,
+    templateId: p.templateId,
+    recipient,
+    params: { memberName: member.fullName, ...p.params },
+  })
+}
+
+export async function sendBulkNotificationAction(input: unknown) {
+  const p = z.object({ memberIds: z.array(z.string().min(1)).min(1).max(500), templateId: z.string().min(1) }).parse(input)
+  const ctx = await requireTenantContext(OWNER)
+  const memberRepo = new FirestoreMemberRepository(adminDb())
+  const opId = newOperationId()
+  let sent = 0
+  let failed = 0
+  for (const memberId of p.memberIds) {
+    const member = await memberRepo.findById(ctx, memberId as MemberId)
+    if (!member) {
+      failed++
+      continue
+    }
+    const recipient: RecipientRef = {
+      kind: 'member',
+      id: member.id as string,
+      email: (member.email as string | null) ?? null,
+      phone: (member.phone as string | null) ?? null,
+      displayName: member.fullName,
+    }
+    const res = await notify(deps(), ctx, {
+      intentId: `bulk:${p.templateId}:${member.id}:${opId}`,
+      eventId: null,
+      eventType: 'bulk_send',
+      operationId: opId,
+      templateId: p.templateId,
+      recipient,
+      params: { memberName: member.fullName },
+    })
+    if (res.ok) sent++
+    else failed++
+  }
+  return { ok: true as const, value: { sent, failed, operationId: opId } }
 }
 
 export interface NotificationRow {
