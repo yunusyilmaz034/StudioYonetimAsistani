@@ -134,3 +134,74 @@ describe('SIGNAL — an entitlement expiring while still holding a credit (I-19)
     await ref.delete()
   })
 })
+
+describe('SIGNAL — projection lag, and the midnight it must not cry at (2026-07-15)', () => {
+  // The check compares the newest event against the watermark of the day THAT event belongs to — not
+  // "today". The first version read "today", and every night from midnight until the day's first
+  // booking a quiet studio had no document for the new day, so the watermark was 0 and the lag read
+  // as ~56 years: a false alarm every fifteen minutes, for hours, about a projector that was fine.
+  //
+  // Instants below are chosen in UTC so their STUDIO-LOCAL (UTC+3) day is unambiguous; the check does
+  // the local-date shift itself, so the test must not pre-add the offset.
+  const clearEvents = async (): Promise<void> => {
+    const snap = await db().collection(`studios/${STUDIO}/events`).get()
+    await Promise.all(snap.docs.map((d) => d.ref.delete()))
+  }
+
+  it('stays quiet at 03:00 when the only event is yesterday, and its day is caught up', async () => {
+    await clearEvents() // a leaked event from another run would be picked as "newest" and break this
+    // 21:00 local on the 14th (= 18:00Z). now is 00:08 local on the 15th (= 21:08Z the 14th).
+    const eventAt = Date.parse('2026-07-14T18:00:00Z')
+    const now = Date.parse('2026-07-14T21:08:00Z')
+    const evRef = db().doc(`studios/${STUDIO}/events/evt_lag_${Date.now()}`)
+    const dayRef = db().doc(`studios/${STUDIO}/readModels/daily/days/2026-07-14`)
+
+    try {
+      await evRef.set({
+        type: 'reservation.booked',
+        occurredAt: Timestamp.fromMillis(eventAt),
+        recordedAt: Timestamp.fromMillis(eventAt),
+        payload: {},
+      })
+      // The projector folded it: the 14th's watermark equals the event's recordedAt. Caught up.
+      await dayRef.set({ date: '2026-07-14', lastEventAt: eventAt })
+
+      // Old code read TODAY (the 15th), found no doc, watermark 0, lag ≈ 56 years → cried.
+      expect(
+        count(await fast(now), 'projection_lag'),
+        'the projector was caught up, but the alarm cried across midnight',
+      ).toBe(0)
+    } finally {
+      await evRef.delete()
+      await dayRef.delete()
+    }
+  })
+
+  it('still fires when the projector is genuinely behind', async () => {
+    await clearEvents()
+    // Noon-ish UTC, far from any midnight: 10:00Z = 13:00 local on the 15th.
+    const eventAt = Date.parse('2026-07-15T10:00:00Z')
+    const now = Date.parse('2026-07-15T12:00:00Z')
+    const evRef = db().doc(`studios/${STUDIO}/events/evt_behind_${Date.now()}`)
+    const dayRef = db().doc(`studios/${STUDIO}/readModels/daily/days/2026-07-15`)
+
+    try {
+      await evRef.set({
+        type: 'reservation.booked',
+        occurredAt: Timestamp.fromMillis(eventAt),
+        recordedAt: Timestamp.fromMillis(eventAt),
+        payload: {},
+      })
+      // The day exists but its watermark is stuck 90 minutes before the event — past the 60' threshold.
+      await dayRef.set({ date: '2026-07-15', lastEventAt: eventAt - 90 * 60_000 })
+
+      expect(
+        count(await fast(now), 'projection_lag'),
+        'a genuinely stale projection did not raise the alarm',
+      ).toBeGreaterThan(0)
+    } finally {
+      await evRef.delete()
+      await dayRef.delete()
+    }
+  })
+})

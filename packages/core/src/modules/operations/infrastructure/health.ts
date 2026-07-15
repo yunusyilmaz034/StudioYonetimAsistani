@@ -1,6 +1,6 @@
 import { Timestamp, type Firestore } from 'firebase-admin/firestore'
 
-import type { StudioId } from '../../../shared'
+import { DEFAULT_STUDIO_CONFIG, instant, localDateAt, type StudioId } from '../../../shared'
 
 // THE FIVE SIGNALS (Doc 6 §9) — moved out of the scheduled function in v1.27 S7, so that the
 // nightly job and the owner's screen run **the same checks**.
@@ -84,15 +84,25 @@ async function stuckCommands(db: Firestore, studioId: StudioId, now: number): Pr
  * numbers are from an hour ago"; the owner simply reads yesterday's studio and makes today's
  * decision with it.
  */
-async function projectionLag(db: Firestore, studioId: StudioId, now: number): Promise<HealthFinding | null> {
+async function projectionLag(db: Firestore, studioId: StudioId): Promise<HealthFinding | null> {
   const events = await col(db, studioId, 'events').orderBy('recordedAt', 'desc').limit(1).get()
-  const newest = events.docs[0]?.data()?.recordedAt
-  if (!(newest instanceof Timestamp)) return null // no events yet — nothing to be behind
+  const doc = events.docs[0]?.data()
+  const recorded = doc?.recordedAt
+  const occurred = doc?.occurredAt
+  if (!(recorded instanceof Timestamp) || !(occurred instanceof Timestamp)) return null // no events yet
 
-  const today = new Date(now).toISOString().slice(0, 10)
-  const daily = await db.doc(`studios/${studioId}/readModels/daily/days/${today}`).get()
+  // Read the watermark off the newest event's OWN day — not "today". The projector folds each event
+  // into `days/${localDate(occurredAt)}` (never a global doc), so that is the day whose watermark this
+  // event advanced. Reading "today" instead was wrong twice: for eight hours after every midnight, a
+  // quiet studio has no document for the new day yet, so the watermark read as 0 and the lag as ~56
+  // years — a false alarm every 15 minutes until the day's first booking. And "today" was computed in
+  // UTC while the projector keys by STUDIO-LOCAL day, so the two disagreed either side of local
+  // midnight. Both vanish when we ask the same question the projector answered: which day did THIS
+  // event land on, and did its watermark catch up? (Found in production, 2026-07-15.)
+  const eventDay = localDateAt(instant(occurred.toMillis()), DEFAULT_STUDIO_CONFIG.utcOffsetMinutes)
+  const daily = await db.doc(`studios/${studioId}/readModels/daily/days/${eventDay}`).get()
   const watermark = (daily.data()?.lastEventAt as number | undefined) ?? 0
-  const lagMs = newest.toMillis() - watermark
+  const lagMs = recorded.toMillis() - watermark
   if (lagMs <= 60 * MS_PER_MIN) return null
 
   return {
@@ -213,7 +223,7 @@ export async function runFastChecks(
   studioId: StudioId,
   now: number,
 ): Promise<readonly HealthFinding[]> {
-  const found = await Promise.all([stuckCommands(db, studioId, now), projectionLag(db, studioId, now)])
+  const found = await Promise.all([stuckCommands(db, studioId, now), projectionLag(db, studioId)])
   return found.filter((f): f is HealthFinding => f !== null)
 }
 
