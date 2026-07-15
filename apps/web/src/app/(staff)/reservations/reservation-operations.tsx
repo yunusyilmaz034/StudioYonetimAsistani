@@ -625,6 +625,7 @@ function RosterPanel({
   const [active, setActive] = useState(0)
   const [busy, setBusy] = useState(false)
   const [moving, setMoving] = useState<{ reservationId: string; name: string } | null>(null)
+  const [confirmId, setConfirmId] = useState<string | null>(null)
   const bookedIds = useMemo(() => new Set(roster.map((r) => r.memberId)), [roster])
   const full = roster.length >= session.capacity
 
@@ -785,25 +786,53 @@ function RosterPanel({
                   {r.memberName.slice(0, 2).toLocaleUpperCase('tr')}
                 </span>
                 <span className="min-w-0 flex-1 truncate text-sm text-foreground">{r.memberName}</span>
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => setMoving({ reservationId: r.reservationId, name: r.memberName })}
-                  aria-label={`${r.memberName} rezervasyonunu taşı`}
-                  title="Başka bir derse taşı"
-                  className="grid size-7 shrink-0 place-items-center rounded-md text-muted-foreground opacity-0 transition-all hover:bg-primary-soft hover:text-primary focus-visible:opacity-100 group-hover/row:opacity-100 disabled:opacity-50"
-                >
-                  <ArrowLeftRightIcon className="size-3.5" />
-                </button>
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => void cancel(r.reservationId, r.memberName)}
-                  aria-label={`${r.memberName} rezervasyonunu iptal et`}
-                  className="grid size-7 shrink-0 place-items-center rounded-md text-muted-foreground opacity-0 transition-all hover:bg-danger/10 hover:text-danger focus-visible:opacity-100 group-hover/row:opacity-100 disabled:opacity-50"
-                >
-                  <XIcon className="size-3.5" />
-                </button>
+                {confirmId === r.reservationId ? (
+                  // Inline confirm — no popup (Doc 32 §2). Cancelling moves a credit, so it is never
+                  // one stray click away.
+                  <span className="flex shrink-0 items-center gap-1.5">
+                    <span className="text-xs text-muted-foreground">İptal edilsin mi?</span>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => {
+                        setConfirmId(null)
+                        void cancel(r.reservationId, r.memberName)
+                      }}
+                      className="rounded-md bg-danger/10 px-2 py-1 text-xs font-medium text-danger transition-colors hover:bg-danger/20 disabled:opacity-50"
+                    >
+                      Evet, iptal et
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setConfirmId(null)}
+                      className="rounded-md px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted"
+                    >
+                      Vazgeç
+                    </button>
+                  </span>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => setMoving({ reservationId: r.reservationId, name: r.memberName })}
+                      aria-label={`${r.memberName} rezervasyonunu taşı`}
+                      title="Başka bir derse taşı"
+                      className="grid size-7 shrink-0 place-items-center rounded-md text-muted-foreground opacity-0 transition-all hover:bg-primary-soft hover:text-primary focus-visible:opacity-100 group-hover/row:opacity-100 disabled:opacity-50"
+                    >
+                      <ArrowLeftRightIcon className="size-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => setConfirmId(r.reservationId)}
+                      aria-label={`${r.memberName} rezervasyonunu iptal et`}
+                      className="grid size-7 shrink-0 place-items-center rounded-md text-muted-foreground opacity-0 transition-all hover:bg-danger/10 hover:text-danger focus-visible:opacity-100 group-hover/row:opacity-100 disabled:opacity-50"
+                    >
+                      <XIcon className="size-3.5" />
+                    </button>
+                  </>
+                )}
               </li>
             ))}
           </ul>
