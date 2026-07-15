@@ -2,6 +2,8 @@
 
 import { useMemo, useRef } from 'react'
 
+import type { Instant } from '@studio/core' // type-only: a runtime import would drag core's node deps into the client
+
 import type { CalendarSession } from '@/server/schedule-query'
 import type { ReservationCalendarData, SessionRosterEntry } from '@/server/reservation-calendar-query'
 import {
@@ -166,6 +168,21 @@ export function ReservationPreview() {
         return { ok: true }
       },
       promoteWaitlist: async () => ({ ok: false, error: 'Ders hâlâ dolu — sıradaki yerini korudu.' }),
+      previewRecurring: async (_sessionId, _memberId, weeks) => ({
+        toBook: Array.from({ length: Math.max(0, weeks - 2) }, (_, i) => ({
+          weekOffset: i + 1,
+          date: `2026-07-${String(15 + (i + 1) * 7).padStart(2, '0')}`,
+          sessionId: 's1',
+          startsAt: at('06:00') as unknown as Instant,
+          entitlementId: 'e1',
+          entitlementName: 'Reformer 8 Ders',
+        })),
+        skipped: [
+          { weekOffset: 3, date: '2026-07-29', sessionId: null, reason: 'no_session' as const },
+          { weekOffset: 5, date: '2026-08-12', sessionId: 's1', reason: 'session_full' as const },
+        ],
+      }),
+      applyRecurring: async (_sessionId, _memberId, weeks) => ({ ok: true, booked: Math.max(0, weeks - 2), failed: 0 }),
     }),
     [],
   )

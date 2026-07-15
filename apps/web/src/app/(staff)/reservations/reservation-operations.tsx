@@ -8,18 +8,22 @@ import {
   ChevronRightIcon,
   CornerDownLeftIcon,
   PlusIcon,
+  RepeatIcon,
   SearchIcon,
   UserRoundIcon,
   XIcon,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import type { RecurringPlan, RecurringSkipReason } from '@studio/core'
 
 import { domainErrorMessage } from '@/lib/domain-error'
 import {
+  applyRecurringAction,
   bookReservationAction,
   cancelReservationAction,
   listMoveTargetsAction,
   moveReservationAction,
+  previewRecurringAction,
   type MoveTarget,
 } from '@/server/actions/reservations'
 import { loadReservationDayAction } from '@/server/actions/reservation-day'
@@ -66,6 +70,12 @@ export interface ReservationOps {
   joinWaitlist(sessionId: string, memberId: string): Promise<{ ok: boolean; error?: string }>
   leaveWaitlist(entryId: string): Promise<{ ok: boolean; error?: string }>
   promoteWaitlist(entryId: string): Promise<{ ok: boolean; error?: string }>
+  previewRecurring(sessionId: string, memberId: string, weeks: number): Promise<RecurringPlan | null>
+  applyRecurring(
+    sessionId: string,
+    memberId: string,
+    weeks: number,
+  ): Promise<{ ok: boolean; error?: string; booked?: number; failed?: number }>
 }
 
 const CAT: Record<string, { text: string; dot: string; soft: string; label: string }> = {
@@ -125,6 +135,14 @@ export function ReservationOperationsLive(props: {
       promoteWaitlist: async (entryId) => {
         const r = await promoteWaitlistAction({ entryId })
         return r.ok ? { ok: true } : { ok: false, error: domainErrorMessage(r.error) }
+      },
+      previewRecurring: (sessionId, memberId, weeks) =>
+        previewRecurringAction({ sessionId, memberId, weeks, skipDates: [] }),
+      applyRecurring: async (sessionId, memberId, weeks) => {
+        const r = await applyRecurringAction({ sessionId, memberId, weeks, skipDates: [] })
+        return r.ok
+          ? { ok: true, booked: r.value.booked, failed: r.value.failed }
+          : { ok: false, error: domainErrorMessage(r.error) }
       },
     }),
     [],
@@ -348,6 +366,138 @@ function ClassCard({
         </div>
       </button>
     </li>
+  )
+}
+
+const SKIP_LABEL: Record<RecurringSkipReason, string> = {
+  no_session: 'O hafta ders yok',
+  session_cancelled: 'Ders iptal',
+  session_full: 'Ders dolu',
+  session_in_past: 'Geçmiş',
+  already_booked: 'Zaten kayıtlı',
+  no_eligible_entitlement: 'Uygun paket yok',
+  calendar_day: 'Tatil / kapalı',
+}
+
+function RecurringPicker({
+  sessionId,
+  memberId,
+  name,
+  ops,
+  onCancel,
+  onDone,
+}: {
+  sessionId: string
+  memberId: string
+  name: string
+  ops: ReservationOps
+  onCancel: () => void
+  onDone: () => Promise<void>
+}) {
+  const [weeks, setWeeks] = useState(8)
+  const [plan, setPlan] = useState<RecurringPlan | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [busy, setBusy] = useState(false)
+
+  useEffect(() => {
+    let live = true
+    setLoading(true)
+    void ops.previewRecurring(sessionId, memberId, weeks).then((p) => {
+      if (live) {
+        setPlan(p)
+        setLoading(false)
+      }
+    })
+    return () => {
+      live = false
+    }
+  }, [ops, sessionId, memberId, weeks])
+
+  const apply = async () => {
+    setBusy(true)
+    const r = await ops.applyRecurring(sessionId, memberId, weeks)
+    setBusy(false)
+    if (r.ok) {
+      toast.success(`${r.booked ?? 0} rezervasyon oluşturuldu${r.failed ? `, ${r.failed} atlandı` : ''}.`)
+      await onDone()
+    } else {
+      toast.error(r.error ?? 'Sabit rezervasyon oluşturulamadı.')
+    }
+  }
+
+  const toBook = plan?.toBook.length ?? 0
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="flex items-center gap-2 border-b border-border px-4 py-3">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="grid size-7 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+          aria-label="Geri"
+        >
+          <ChevronLeftIcon className="size-4" />
+        </button>
+        <span className="text-sm text-foreground">
+          <span className="font-medium">{name}</span> · her hafta aynı saat
+        </span>
+      </div>
+
+      <div className="border-b border-border p-3">
+        <p className="mb-2 text-[0.7rem] font-medium tracking-wide text-muted-foreground uppercase">Kaç hafta?</p>
+        <div className="flex gap-1.5">
+          {[4, 8, 12].map((w) => (
+            <button
+              key={w}
+              type="button"
+              onClick={() => setWeeks(w)}
+              className={cn(
+                'flex-1 rounded-lg border py-1.5 text-sm font-medium transition-colors',
+                weeks === w ? 'border-primary bg-primary text-primary-foreground' : 'border-border text-foreground hover:border-primary/40',
+              )}
+            >
+              {w} hafta
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="min-h-0 flex-1 overflow-y-auto p-3">
+        {loading || !plan ? (
+          <p className="py-6 text-center text-sm text-muted-foreground">Hesaplanıyor…</p>
+        ) : (
+          <>
+            <p className="text-sm text-foreground">
+              <span className="font-heading text-h1 font-medium text-primary">{toBook}</span> hafta rezervasyon yapılacak.
+            </p>
+            {plan.skipped.length > 0 ? (
+              <div className="mt-3">
+                <p className="mb-1.5 text-xs text-muted-foreground">Atlanan {plan.skipped.length} hafta:</p>
+                <ul className="space-y-1">
+                  {plan.skipped.map((s, i) => (
+                    <li key={i} className="flex items-center justify-between gap-2 rounded-md bg-muted/50 px-2.5 py-1.5 text-xs">
+                      <span className="tabular-nums text-muted-foreground">{s.date}</span>
+                      <span className="text-muted-foreground">{SKIP_LABEL[s.reason]}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+          </>
+        )}
+      </div>
+
+      <div className="border-t border-border p-3">
+        <button
+          type="button"
+          disabled={busy || loading || toBook === 0}
+          onClick={() => void apply()}
+          className="h-10 w-full rounded-lg bg-primary text-sm font-semibold text-primary-foreground shadow-xs transition-colors hover:bg-primary-hover disabled:opacity-50"
+        >
+          {busy ? 'Oluşturuluyor…' : toBook > 0 ? `${toBook} rezervasyon oluştur` : 'Uygun hafta yok'}
+        </button>
+      </div>
+    </div>
   )
 }
 
@@ -625,6 +775,7 @@ function RosterPanel({
   const [active, setActive] = useState(0)
   const [busy, setBusy] = useState(false)
   const [moving, setMoving] = useState<{ reservationId: string; name: string } | null>(null)
+  const [recurring, setRecurring] = useState<{ memberId: string; name: string } | null>(null)
   const [confirmId, setConfirmId] = useState<string | null>(null)
   const bookedIds = useMemo(() => new Set(roster.map((r) => r.memberId)), [roster])
   const full = roster.length >= session.capacity
@@ -707,6 +858,18 @@ function RosterPanel({
           onCancel={() => setMoving(null)}
           onDone={async () => {
             setMoving(null)
+            await onChanged()
+          }}
+        />
+      ) : recurring ? (
+        <RecurringPicker
+          sessionId={session.sessionId}
+          memberId={recurring.memberId}
+          name={recurring.name}
+          ops={ops}
+          onCancel={() => setRecurring(null)}
+          onDone={async () => {
+            setRecurring(null)
             await onChanged()
           }}
         />
@@ -812,6 +975,16 @@ function RosterPanel({
                   </span>
                 ) : (
                   <>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => setRecurring({ memberId: r.memberId, name: r.memberName })}
+                      aria-label={`${r.memberName} için sabit rezervasyon`}
+                      title="Her hafta tekrarla (sabit rezervasyon)"
+                      className="grid size-7 shrink-0 place-items-center rounded-md text-muted-foreground opacity-0 transition-all hover:bg-primary-soft hover:text-primary focus-visible:opacity-100 group-hover/row:opacity-100 disabled:opacity-50"
+                    >
+                      <RepeatIcon className="size-3.5" />
+                    </button>
                     <button
                       type="button"
                       disabled={busy}
