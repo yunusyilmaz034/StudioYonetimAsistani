@@ -35,6 +35,7 @@ import type { PrincipalRole } from '@studio/core'
 import { canSee, type Area } from '@/lib/permissions'
 import { destroySession } from '@/server/actions/session'
 import { CommandPalette } from '@/components/command-palette'
+import { QuickBooking } from '@/components/quick-booking'
 
 export interface NavItem {
   // The route IS the permission key. There is no second list to keep in step, and therefore no way
@@ -119,8 +120,10 @@ export function AppShell({ children, role }: { children: ReactNode; role: Princi
     <div data-slot="app-shell" className="min-h-dvh pb-16 md:pb-0 md:pl-60">
       <DesktopRail pathname={pathname} groups={groups} />
       <BottomBar pathname={pathname} groups={groups} />
-      {/* ⌘K anywhere — the operations command palette (Phase 2). */}
+      {/* ⌘K anywhere — the operations command palette (Phase 2 §1). */}
       <CommandPalette role={role} />
+      {/* "N" or ⌘K → the quick-booking modal (Phase 2 §2). */}
+      <QuickBooking />
       {children}
     </div>
   )

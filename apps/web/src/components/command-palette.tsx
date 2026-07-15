@@ -261,7 +261,14 @@ function MemberActions({ member, onGo, onClose }: { member: MemberHit; onGo: (hr
   const reachable = isWhatsAppReachable(member.phone)
   const actions = [
     { icon: UserIcon, label: 'Üye detayını aç', run: () => onGo(`/members/${member.id}`) },
-    { icon: PlusIcon, label: 'Yeni rezervasyon', run: () => onGo(`/members/${member.id}`) }, // §2 hızlı rezervasyon buraya bağlanacak
+    {
+      icon: PlusIcon,
+      label: 'Yeni rezervasyon',
+      run: () => {
+        onClose()
+        window.dispatchEvent(new CustomEvent('sos:quick-book', { detail: { id: member.id, fullName: member.fullName, phone: member.phone } }))
+      },
+    },
     { icon: DoorOpenIcon, label: 'Check-in yap', run: () => onGo('/checkin') },
     {
       icon: MessageCircleIcon,
