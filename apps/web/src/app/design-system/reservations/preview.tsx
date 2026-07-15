@@ -119,6 +119,28 @@ export function ReservationPreview() {
         }
         return { ok: true }
       },
+      moveTargets: async () =>
+        SESSIONS.filter((s) => (store.current[s.sessionId]?.length ?? 0) < s.capacity).map((s) => ({
+          sessionId: s.sessionId,
+          serviceName: s.serviceName,
+          trainerName: s.trainerName,
+          roomName: s.roomName,
+          startsAt: s.startsAt,
+          capacity: s.capacity,
+          bookedCount: store.current[s.sessionId]?.length ?? 0,
+        })),
+      move: async (reservationId, targetSessionId) => {
+        let moved: SessionRosterEntry | undefined
+        for (const k of Object.keys(store.current)) {
+          const hit = store.current[k]!.find((r) => r.reservationId === reservationId)
+          if (hit) {
+            moved = hit
+            store.current[k] = store.current[k]!.filter((r) => r.reservationId !== reservationId)
+          }
+        }
+        if (moved) (store.current[targetSessionId] ??= []).push(moved)
+        return { ok: true }
+      },
     }),
     [],
   )

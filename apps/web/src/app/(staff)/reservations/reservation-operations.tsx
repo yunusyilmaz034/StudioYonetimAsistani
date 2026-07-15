@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
+  ArrowLeftRightIcon,
   CalendarDaysIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -14,7 +15,13 @@ import {
 import { toast } from 'sonner'
 
 import { domainErrorMessage } from '@/lib/domain-error'
-import { bookReservationAction, cancelReservationAction } from '@/server/actions/reservations'
+import {
+  bookReservationAction,
+  cancelReservationAction,
+  listMoveTargetsAction,
+  moveReservationAction,
+  type MoveTarget,
+} from '@/server/actions/reservations'
 import { loadReservationDayAction } from '@/server/actions/reservation-day'
 import type { CalendarSession } from '@/server/schedule-query'
 import type { ReservationCalendarData } from '@/server/reservation-calendar-query'
@@ -40,6 +47,14 @@ export interface ReservationOps {
   loadDay(date: string): Promise<ReservationCalendarData>
   book(sessionId: string, memberId: string): Promise<{ ok: boolean; error?: string }>
   cancel(reservationId: string): Promise<{ ok: boolean; error?: string }>
+  moveTargets(reservationId: string): Promise<readonly MoveTarget[]>
+  // `needsReason` ⇔ the member is past their cancellation window, so a staff move must record WHY
+  // (I: `reason_required`). The picker then asks for it and retries — never a silent override.
+  move(
+    reservationId: string,
+    targetSessionId: string,
+    reason: string | null,
+  ): Promise<{ ok: boolean; error?: string; needsReason?: boolean }>
 }
 
 const CAT: Record<string, { text: string; dot: string; soft: string; label: string }> = {
@@ -79,6 +94,13 @@ export function ReservationOperationsLive(props: {
       cancel: async (reservationId) => {
         const r = await cancelReservationAction({ reservationId })
         return r.ok ? { ok: true } : { ok: false, error: domainErrorMessage(r.error) }
+      },
+      moveTargets: (reservationId) => listMoveTargetsAction({ reservationId, nowMs: Date.now() }),
+      move: async (reservationId, targetSessionId, reason) => {
+        const r = await moveReservationAction({ reservationId, targetSessionId, overrideReason: reason })
+        if (r.ok) return { ok: true }
+        if (r.error.code === 'reason_required') return { ok: false, needsReason: true }
+        return { ok: false, error: domainErrorMessage(r.error) }
       },
     }),
     [],
@@ -305,6 +327,131 @@ function ClassCard({
   )
 }
 
+function MovePicker({
+  reservationId,
+  name,
+  ops,
+  onCancel,
+  onDone,
+}: {
+  reservationId: string
+  name: string
+  ops: ReservationOps
+  onCancel: () => void
+  onDone: () => Promise<void>
+}) {
+  const [targets, setTargets] = useState<readonly MoveTarget[] | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [needReason, setNeedReason] = useState(false)
+  const [reason, setReason] = useState('')
+
+  useEffect(() => {
+    let live = true
+    void ops.moveTargets(reservationId).then((t) => {
+      if (live) setTargets(t)
+    })
+    return () => {
+      live = false
+    }
+  }, [ops, reservationId])
+
+  const doMove = async (targetSessionId: string) => {
+    if (needReason && reason.trim().length === 0) {
+      toast.error('İptal penceresi geçti — bir sebep gir.')
+      return
+    }
+    setBusy(true)
+    const r = await ops.move(reservationId, targetSessionId, needReason ? reason.trim() : null)
+    setBusy(false)
+    if (r.ok) {
+      toast.success(`${name} taşındı.`)
+      await onDone()
+    } else if (r.needsReason) {
+      setNeedReason(true)
+      toast.error('İptal penceresi geçti — devam etmek için sebep gerekli.')
+    } else {
+      toast.error(r.error ?? 'Taşınamadı.')
+    }
+  }
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="flex items-center gap-2 border-b border-border px-4 py-3">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="grid size-7 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+          aria-label="Geri"
+        >
+          <ChevronLeftIcon className="size-4" />
+        </button>
+        <span className="text-sm text-foreground">
+          <span className="font-medium">{name}</span> nereye taşınsın?
+        </span>
+      </div>
+
+      {needReason ? (
+        <div className="border-b border-border p-3">
+          <label className="mb-1 block text-[0.7rem] font-medium tracking-wide text-warning uppercase">
+            Sebep gerekli (iptal penceresi geçti)
+          </label>
+          <input
+            autoFocus
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder="ör. üye rahatsızlandı, telefonla istedi…"
+            className="h-9 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground outline-none focus:border-primary focus:ring-3 focus:ring-ring/40"
+          />
+        </div>
+      ) : null}
+
+      <div className="min-h-0 flex-1 overflow-y-auto p-2">
+        {targets === null ? (
+          <p className="px-3 py-6 text-center text-sm text-muted-foreground">Uygun dersler yükleniyor…</p>
+        ) : targets.length === 0 ? (
+          <p className="px-3 py-6 text-center text-sm text-muted-foreground">Taşınacak uygun ders yok.</p>
+        ) : (
+          <ul className="space-y-1">
+            {targets.map((t) => {
+              const full = t.bookedCount >= t.capacity
+              return (
+                <li key={t.sessionId}>
+                  <button
+                    type="button"
+                    disabled={busy || full}
+                    onClick={() => void doMove(t.sessionId)}
+                    className="flex w-full items-center gap-3 rounded-lg border border-border bg-card px-3 py-2.5 text-left transition-colors hover:border-primary/40 hover:bg-primary-soft/30 disabled:opacity-50"
+                  >
+                    <span className="font-heading text-sm font-medium tabular-nums text-foreground">
+                      {new Intl.DateTimeFormat('tr-TR', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        timeZone: 'Europe/Istanbul',
+                      }).format(t.startsAt)}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm text-foreground">{t.serviceName}</span>
+                      <span className="block truncate text-xs text-muted-foreground">
+                        {t.trainerName ?? 'Eğitmen yok'}
+                        {t.roomName ? ` · ${t.roomName}` : ''}
+                      </span>
+                    </span>
+                    <span className={cn('shrink-0 text-xs tabular-nums', full ? 'text-gold' : 'text-muted-foreground')}>
+                      {t.bookedCount}/{t.capacity}
+                    </span>
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function RosterPanel({
   session,
   roster,
@@ -324,6 +471,7 @@ function RosterPanel({
   const [query, setQuery] = useState('')
   const [active, setActive] = useState(0)
   const [busy, setBusy] = useState(false)
+  const [moving, setMoving] = useState<{ reservationId: string; name: string } | null>(null)
   const bookedIds = useMemo(() => new Set(roster.map((r) => r.memberId)), [roster])
   const full = roster.length >= session.capacity
 
@@ -397,7 +545,20 @@ function RosterPanel({
         </p>
       </div>
 
-      {/* inline booking */}
+      {moving ? (
+        <MovePicker
+          reservationId={moving.reservationId}
+          name={moving.name}
+          ops={ops}
+          onCancel={() => setMoving(null)}
+          onDone={async () => {
+            setMoving(null)
+            await onChanged()
+          }}
+        />
+      ) : (
+        <>
+          {/* inline booking */}
       {session.status === 'cancelled' ? (
         <div className="border-b border-border bg-muted/40 px-4 py-3 text-xs text-muted-foreground">Bu ders iptal edildi.</div>
       ) : full ? (
@@ -469,6 +630,16 @@ function RosterPanel({
                 <button
                   type="button"
                   disabled={busy}
+                  onClick={() => setMoving({ reservationId: r.reservationId, name: r.memberName })}
+                  aria-label={`${r.memberName} rezervasyonunu taşı`}
+                  title="Başka bir derse taşı"
+                  className="grid size-7 shrink-0 place-items-center rounded-md text-muted-foreground opacity-0 transition-all hover:bg-primary-soft hover:text-primary focus-visible:opacity-100 group-hover/row:opacity-100 disabled:opacity-50"
+                >
+                  <ArrowLeftRightIcon className="size-3.5" />
+                </button>
+                <button
+                  type="button"
+                  disabled={busy}
                   onClick={() => void cancel(r.reservationId, r.memberName)}
                   aria-label={`${r.memberName} rezervasyonunu iptal et`}
                   className="grid size-7 shrink-0 place-items-center rounded-md text-muted-foreground opacity-0 transition-all hover:bg-danger/10 hover:text-danger focus-visible:opacity-100 group-hover/row:opacity-100 disabled:opacity-50"
@@ -479,7 +650,9 @@ function RosterPanel({
             ))}
           </ul>
         )}
-      </div>
+          </div>
+        </>
+      )}
     </div>
   )
 }
