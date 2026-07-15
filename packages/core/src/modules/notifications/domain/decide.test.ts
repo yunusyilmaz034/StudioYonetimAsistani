@@ -99,10 +99,19 @@ describe('channel selection — the KVKK line and the preference line (v1.25)', 
     expect(d.suppressed).toEqual([{ channel: 'email', reason: 'member_preference' }])
   })
 
-  it('a marketing message is SUPPRESSED on every external channel — there is no consent surface yet', () => {
+  it('a marketing message is SUPPRESSED without campaign consent (KVKK)', () => {
     const d = selectChannels(member, DEFAULT_PREFS, DEFAULT_NOTIFICATION_SETTINGS, 'marketing')
     expect(d.channels).toEqual(['in_app'])
     expect(d.suppressed).toEqual([{ channel: 'email', reason: 'no_consent' }])
+  })
+
+  it('WITH campaign consent, marketing may leave — but consent never gates an OPERATIONAL send (Plus Phase 5)', () => {
+    const consented = { ...DEFAULT_PREFS, campaign: true }
+    // Marketing now allowed on e-mail.
+    expect(selectChannels(member, consented, DEFAULT_NOTIFICATION_SETTINGS, 'marketing').channels).toEqual(['in_app', 'email'])
+    // And an OPERATIONAL message is sent regardless of the campaign flag — a cancelled class is not marketing.
+    const noCampaign = { ...DEFAULT_PREFS, campaign: false }
+    expect(selectChannels(member, noCampaign, DEFAULT_NOTIFICATION_SETTINGS, 'operational').channels).toEqual(['in_app', 'email'])
   })
 
   it('a member with no e-mail on file is suppressed BY NAME, not silently dropped', () => {

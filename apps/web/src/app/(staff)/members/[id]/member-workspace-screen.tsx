@@ -10,6 +10,7 @@ import {
   DoorOpenIcon,
   HistoryIcon,
   Loader2Icon,
+  MessageSquareIcon,
   PackageIcon,
   PencilIcon,
   ShieldAlertIcon,
@@ -19,6 +20,7 @@ import { toast } from 'sonner'
 
 import type { Member, MemberId } from '@studio/core'
 
+import { ManualSendDialog } from '@/components/manual-send-dialog'
 import { WhatsAppButton } from '@/components/whatsapp-button'
 import { WA_TEMPLATES } from '@/lib/whatsapp'
 import { Badge } from '@/components/ui/badge'
@@ -119,6 +121,7 @@ export function MemberWorkspaceScreen({
   const [active, setActive] = useState<SectionId>('profile')
   const [editing, setEditing] = useState(false)
   const [booking, setBooking] = useState(false)
+  const [messaging, setMessaging] = useState(false)
 
   const s = member.stats
 
@@ -143,6 +146,10 @@ export function MemberWorkspaceScreen({
             <div className="flex flex-wrap items-center gap-2 pt-0.5 text-sm text-muted-foreground">
               <span className="tabular-nums">{member.phone}</span>
               <WhatsAppButton phone={member.phone} text={WA_TEMPLATES.greeting(member.fullName)} className="h-7" />
+              <Button variant="outline" size="sm" className="h-7" onClick={() => setMessaging(true)}>
+                <MessageSquareIcon className="size-3.5" />
+                Mesaj Gönder
+              </Button>
               {member.status !== 'active' ? (
                 <Badge className="bg-muted text-muted-foreground">{MEMBER_STATUS[member.status]}</Badge>
               ) : null}
@@ -256,6 +263,14 @@ export function MemberWorkspaceScreen({
           setBooking(false)
           router.refresh()
         }}
+      />
+
+      {/* Templated pipeline send (Plus Phase 5) — complementary to the manual wa.me button. */}
+      <ManualSendDialog
+        memberId={member.id}
+        memberName={member.fullName}
+        open={messaging}
+        onClose={() => setMessaging(false)}
       />
     </main>
   )

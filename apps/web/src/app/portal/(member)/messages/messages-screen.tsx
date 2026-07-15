@@ -90,6 +90,24 @@ export function MessagesScreen({
               />
             </label>
           ))}
+          {/* KVKK — marketing consent is SEPARATE from the operational channels above. An operational
+              message (rezervasyon, iptal, hatırlatma) is always sent; only campaigns depend on this. */}
+          <label className="flex items-center justify-between gap-3 border-t border-border py-2">
+            <span className="text-sm text-foreground">
+              Kampanya ve pazarlama mesajları
+              <span className="block text-xs text-muted-foreground">
+                Yalnızca kampanya/duyuru içindir. Rezervasyon ve iptal bilgilendirmeleri bundan bağımsızdır.
+              </span>
+            </span>
+            <input
+              type="checkbox"
+              className="size-4 accent-[var(--color-primary)]"
+              checked={current.campaign}
+              disabled={pending}
+              onChange={(e) => save({ ...current, campaign: e.target.checked })}
+            />
+          </label>
+
           {/* She may say "not by SMS". She may not say "never tell me my class was cancelled". */}
           <p className="border-t border-border pt-2 text-xs text-muted-foreground">
             {pending ? (
