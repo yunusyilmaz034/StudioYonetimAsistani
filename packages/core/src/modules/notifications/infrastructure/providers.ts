@@ -206,14 +206,38 @@ export class MockSmsProvider implements NotificationProvider {
 // a verified number and approved templates — none of which exist yet, and all of which are the
 // owner's to obtain. The pipeline is proven against the mock; the real adapter is one method body
 // (owner: "production credential gerektiği noktada dur ve owner'dan iste").
-export const META_TEMPLATE: Readonly<Record<string, string>> = {
-  // our template id            → the name approved on Meta's side
-  booking_confirmed: 'booking_confirmed_tr',
-  booking_cancelled: 'booking_cancelled_tr',
-  session_cancelled: 'session_cancelled_tr',
-  membership_expiring: 'membership_expiring_tr',
-  low_credit: 'low_credit_tr',
+// Each of our template ids → the name Meta approved AND the ORDERED params its body expects. Meta
+// templates are positional ({{1}}, {{2}}, …), so the order here is the contract: the owner must
+// register each `<id>_tr` template with its body params in exactly this order. Member-facing
+// operational templates only — staff alerts go to the owner in-app/e-mail, never over WhatsApp.
+export interface MetaTemplateRef {
+  readonly name: string
+  readonly params: readonly string[]
 }
+export const META_TEMPLATE: Readonly<Record<string, MetaTemplateRef>> = {
+  booking_confirmed: { name: 'booking_confirmed_tr', params: ['memberName', 'sessionName', 'sessionTime'] },
+  booking_cancelled: { name: 'booking_cancelled_tr', params: ['memberName', 'sessionName', 'sessionTime'] },
+  booking_moved: { name: 'booking_moved_tr', params: ['memberName', 'fromTime', 'toTime'] },
+  session_cancelled: { name: 'session_cancelled_tr', params: ['memberName', 'sessionName', 'sessionTime'] },
+  waitlist_promoted: { name: 'waitlist_promoted_tr', params: ['memberName', 'sessionName', 'sessionTime'] },
+  closure_applied: { name: 'closure_applied_tr', params: ['memberName', 'reason', 'sessionCount'] },
+  package_created: { name: 'package_created_tr', params: ['memberName', 'productName'] },
+  package_expiring: { name: 'package_expiring_tr', params: ['memberName', 'productName', 'daysLeft'] },
+  credits_low: { name: 'credits_low_tr', params: ['memberName', 'remaining'] },
+  credits_exhausted: { name: 'credits_exhausted_tr', params: ['memberName'] },
+  payment_received: { name: 'payment_received_tr', params: ['memberName', 'amount'] },
+  balance_reminder: { name: 'balance_reminder_tr', params: ['memberName', 'amount'] },
+  instalment_due: { name: 'instalment_due_tr', params: ['memberName', 'amount', 'dueDate'] },
+  portal_invite: { name: 'portal_invite_tr', params: ['memberName', 'inviteLink'] },
+  wallet_topup: { name: 'wallet_topup_tr', params: ['memberName', 'amount', 'balance'] },
+}
+
+// The WhatsApp transport (the `send_` the provider is given). Absent ⇒ the provider is a mock.
+export type WhatsAppTransport = (payload: {
+  readonly to: string
+  readonly templateName: string
+  readonly params: readonly string[]
+}) => Promise<{ ok: boolean; ref?: string; code?: string; permanent?: boolean }>
 
 export class WhatsAppProvider implements NotificationProvider {
   readonly channel = 'whatsapp' as const
@@ -224,13 +248,7 @@ export class WhatsAppProvider implements NotificationProvider {
    *   verified number, or a single approved template. Present, it is the real thing — and it is the
    *   only thing that changes.
    */
-  constructor(
-    private readonly send_?: (payload: {
-      to: string
-      templateName: string
-      params: Readonly<Record<string, string>>
-    }) => Promise<{ ok: boolean; ref?: string; code?: string; permanent?: boolean }>,
-  ) {}
+  constructor(private readonly send_?: WhatsAppTransport) {}
 
   async send(_ctx: TenantContext, message: RenderedMessage): Promise<ProviderResult> {
     if (!message.to.phone) {
@@ -242,8 +260,8 @@ export class WhatsAppProvider implements NotificationProvider {
       }
     }
 
-    const templateName = META_TEMPLATE[message.templateId]
-    if (!templateName) {
+    const tmpl = META_TEMPLATE[message.templateId]
+    if (!tmpl) {
       // PERMANENT, and loudly so. Meta would accept the request and drop the message, and we would
       // report `sent` for something nobody ever received — the worst outcome available to us, because
       // it is a silent one. Better to refuse and let the Notification Center show the refusal.
@@ -264,11 +282,10 @@ export class WhatsAppProvider implements NotificationProvider {
       return { ok: true, providerRef: `mock-wa:${message.intentId}`, delivered: false }
     }
 
-    const res = await this.send_({
-      to: message.to.phone,
-      templateName,
-      params: message.params,
-    })
+    // Meta templates are POSITIONAL — build the ordered value list from the template's declared param
+    // order and the intent's params. A missing param becomes '' rather than crashing the send.
+    const orderedParams = tmpl.params.map((k) => message.params[k] ?? '')
+    const res = await this.send_({ to: message.to.phone, templateName: tmpl.name, params: orderedParams })
     if (res.ok) {
       return { ok: true, providerRef: res.ref ?? `wa:${message.intentId}`, delivered: false }
     }
@@ -284,4 +301,76 @@ export class WhatsAppProvider implements NotificationProvider {
       },
     }
   }
+}
+
+// ── META CLOUD API, FOR REAL (Plus Phase 5). ────────────────────────────────────────────────
+//
+// The one method body the WhatsApp seam was waiting for. It POSTs an approved TEMPLATE message to
+// the Graph API — never free text, because outside the 24-hour window Meta carries only templates it
+// approved by name. Same discipline as Resend: it reports handed-over (`ok`), never `delivered`
+// (that is a webhook, later); it classifies conservatively (4xx permanent, 429/5xx transient, unknown
+// permanent — a retry loop against a guess is money spent forever). Credentials are the OWNER's to
+// provision (WABA phone-number id + a permanent token); absent them the factory hands back the mock.
+export interface MetaWhatsAppConfig {
+  readonly phoneNumberId: string
+  readonly accessToken: string
+  readonly apiVersion?: string // default v21.0
+  readonly languageCode?: string // default 'tr'
+}
+
+export function metaWhatsAppTransport(config: MetaWhatsAppConfig, fetchImpl: typeof fetch = fetch): WhatsAppTransport {
+  const version = config.apiVersion ?? 'v21.0'
+  const language = config.languageCode ?? 'tr'
+  return async (payload) => {
+    // Meta wants the number as digits, no '+'.
+    const to = payload.to.replace(/\D/g, '')
+    let res: Response
+    try {
+      res = await fetchImpl(`https://graph.facebook.com/${version}/${config.phoneNumberId}/messages`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${config.accessToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messaging_product: 'whatsapp',
+          to,
+          type: 'template',
+          template: {
+            name: payload.templateName,
+            language: { code: language },
+            components: payload.params.length
+              ? [{ type: 'body', parameters: payload.params.map((text) => ({ type: 'text', text })) }]
+              : [],
+          },
+        }),
+      })
+    } catch {
+      // The network, not Meta — worth another attempt in fifteen minutes.
+      return { ok: false, code: 'network_error', permanent: false }
+    }
+    if (res.ok) {
+      const body = (await res.json().catch(() => ({}))) as { messages?: { id?: string }[] }
+      const id = body.messages?.[0]?.id
+      return id ? { ok: true, ref: id } : { ok: true }
+    }
+    const transient = res.status === 429 || res.status >= 500
+    return { ok: false, code: `meta_${res.status}`, permanent: !transient }
+  }
+}
+
+// ── One provider registry, built from config — used by BOTH the functions trigger and the web
+//    resend action, so a channel that is real in production is real when reception resends. A channel
+//    with credentials becomes real; without them it falls back to its honest stub/mock. ──
+export interface NotificationProvidersConfig {
+  readonly email?: { readonly apiKey: string; readonly from: string }
+  readonly whatsapp?: MetaWhatsAppConfig
+}
+
+export function standardNotificationProviders(
+  db: Firestore,
+  config: NotificationProvidersConfig = {},
+): NotificationProvider[] {
+  return [
+    new InAppProvider(db),
+    config.email ? new ResendEmailProvider(config.email.apiKey, config.email.from) : new ConsoleEmailProvider(),
+    new WhatsAppProvider(config.whatsapp ? metaWhatsAppTransport(config.whatsapp) : undefined),
+  ]
 }

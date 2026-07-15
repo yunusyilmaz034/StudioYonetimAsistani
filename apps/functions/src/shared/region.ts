@@ -23,3 +23,16 @@ export const REGION = 'europe-west1'
 // `EMAIL_FROM` is NOT a secret — it is the identity the domain's SPF/DKIM records authorise, and it
 // belongs beside the key rather than inside it.
 export const EMAIL_SECRETS = ['RESEND_API_KEY'] as const
+
+// ── WHATSAPP (Plus Phase 5) ──────────────────────────────────────────────────────────────────
+//
+// The Meta Cloud API permanent token is a SECRET (it sends messages and costs money). The phone
+// number id and API version are not secret — they are identifiers — but binding all three here keeps
+// the whole WhatsApp config in one place the deployed function actually reads. Absent them, the
+// provider falls back to the mock (loudly). Same lesson as e-mail above: a v2 function sees a secret
+// only if it asks. `WHATSAPP_ACCESS_TOKEN` is the secret; the others come from apphosting env.
+export const WHATSAPP_SECRETS = ['WHATSAPP_ACCESS_TOKEN'] as const
+
+// The union the notification functions (onEventCreated + the retry sweep) must bind so both e-mail
+// and WhatsApp can leave the building.
+export const NOTIFICATION_SECRETS = [...EMAIL_SECRETS, ...WHATSAPP_SECRETS] as const

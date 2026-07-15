@@ -18,7 +18,7 @@ import { runFastHealthChecks, runNightlyHealthChecks } from './scheduled/health'
 import { runNotificationRetrySweep } from './scheduled/notification-retry'
 import { runReminderSweep } from './scheduled/reminders'
 import { runUnfreezeSweep } from './scheduled/unfreeze-expired'
-import { EMAIL_SECRETS, REGION } from './shared/region'
+import { NOTIFICATION_SECRETS, REGION } from './shared/region'
 import { onCommandCreated } from './triggers/on-command-created'
 import { onEventCreated } from './triggers/on-event-created'
 
@@ -70,7 +70,7 @@ export const healthCheck = onSchedule({ schedule: 'every 15 minutes' }, async ()
 // backoff, and a PERMANENT failure is never picked up at all.
 export const notificationRetry = onSchedule(
   // It re-sends what failed and releases what the quiet hours held — the same provider, the same key.
-  { schedule: 'every 15 minutes', secrets: [...EMAIL_SECRETS] },
+  { schedule: 'every 15 minutes', secrets: [...NOTIFICATION_SECRETS] },
   async () => {
     await runNotificationRetrySweep()
   },

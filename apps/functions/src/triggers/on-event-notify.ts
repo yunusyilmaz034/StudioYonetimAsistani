@@ -11,20 +11,18 @@ import {
   FirestoreNotificationRepository,
   FirestoreReservationRepository,
   FirestoreSchedulingRepository,
-  ConsoleEmailProvider,
-  InAppProvider,
   intentIdFor,
   notify,
-  ResendEmailProvider,
   rulesFor,
+  standardNotificationProviders,
   systemClock,
-  WhatsAppProvider,
   type ClassSessionId,
   type MemberId,
+  type MetaWhatsAppConfig,
   type NotificationDeps,
   type NotificationPrefs,
+  type NotificationProvidersConfig,
   type NotificationSettings,
-  type NotificationProvider,
   type RecipientRef,
   type StudioId,
   type TenantContext,
@@ -52,17 +50,38 @@ const OFFSET_MIN = 180
  * fallback logs a warning on every construction, and the go/no-go checklist has a line that says a
  * real e-mail must have arrived in a real inbox before cutover.
  */
-function emailProvider(): NotificationProvider {
+// The provider config, read from the environment — the one place a channel becomes REAL. A channel
+// with credentials leaves the building; without them it falls back to its honest stub/mock, LOUDLY,
+// so a studio can never go live telling members "we messaged you" while nothing was sent.
+function providerConfig(): NotificationProvidersConfig {
+  const config: { email?: { apiKey: string; from: string }; whatsapp?: MetaWhatsAppConfig } = {}
+
   const apiKey = process.env.RESEND_API_KEY
   const from = process.env.EMAIL_FROM
-  if (apiKey && from) return new ResendEmailProvider(apiKey, from)
+  if (apiKey && from) config.email = { apiKey, from }
+  else
+    logger.warn('e-mail transport is the CONSOLE — no message will leave the building', {
+      alert: 'email_transport_not_configured',
+      hasApiKey: Boolean(apiKey),
+      hasFrom: Boolean(from),
+    })
 
-  logger.warn('e-mail transport is the CONSOLE — no message will leave the building', {
-    alert: 'email_transport_not_configured',
-    hasApiKey: Boolean(apiKey),
-    hasFrom: Boolean(from),
-  })
-  return new ConsoleEmailProvider()
+  const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID
+  const accessToken = process.env.WHATSAPP_ACCESS_TOKEN
+  if (phoneNumberId && accessToken) {
+    config.whatsapp = {
+      phoneNumberId,
+      accessToken,
+      ...(process.env.WHATSAPP_API_VERSION ? { apiVersion: process.env.WHATSAPP_API_VERSION } : {}),
+    }
+  } else {
+    logger.warn('WhatsApp transport is the MOCK — no message will leave the building', {
+      alert: 'whatsapp_transport_not_configured',
+      hasPhoneNumberId: Boolean(phoneNumberId),
+      hasAccessToken: Boolean(accessToken),
+    })
+  }
+  return config
 }
 
 /**
@@ -100,11 +119,9 @@ export function notificationDeps(settings: NotificationSettings = DEFAULT_NOTIFI
     // Notification Center — is proven end to end without a Meta contract, a verified number, or an
     // approved template. Handing it the real transport is one constructor argument (owner: stop and
     // ask when a production credential is needed).
-    providers: [
-      new InAppProvider(database),
-      emailProvider(),
-      new WhatsAppProvider(), // mock until Meta credentials exist
-    ],
+    // ONE registry, built from config, shared with the web resend action (standardNotificationProviders):
+    // a channel that is real in production is real when reception resends.
+    providers: standardNotificationProviders(database, providerConfig()),
     settings,
     utcOffsetMinutes: OFFSET_MIN,
     loadPrefs: async (ctx, memberId): Promise<NotificationPrefs> => {
