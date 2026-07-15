@@ -38,9 +38,11 @@ function Metric({ label, value, icon: Icon, href, tone = 'default', compact }: M
         {Icon ? <Icon className="size-3.5 shrink-0" /> : null}
         <span className="truncate text-[0.6875rem] font-medium tracking-wide uppercase">{label}</span>
       </div>
+      {/* The headline number is editorial: serif, tabular, the largest thing in the block (Doc 33).
+          Serif gauge numerals are the "lüks/sakin" register Işıl approved. */}
       <p
         className={cn(
-          'font-semibold tabular-nums',
+          'font-heading font-medium tabular-nums',
           compact ? 'mt-1 text-h1' : 'mt-2 text-display',
           TONE[tone],
         )}
