@@ -12,7 +12,7 @@ import {
   type DecideContext,
 } from './decide'
 import { TEMPLATES } from './templates'
-import { rulesFor } from './rules'
+import { RULES, rulesFor } from './rules'
 import {
   DEFAULT_NOTIFICATION_SETTINGS,
   DEFAULT_PREFS,
@@ -245,5 +245,26 @@ describe('delivery attempts (v1.25)', () => {
     })
     expect(r.attempt.status).toBe('provider_not_configured')
     expect(r.attempt.nextRetryAt).toBeNull()
+  })
+})
+
+// ── Rules ↔ templates coherence (Plus Phase 5) — an event that maps to a template nobody wrote is a
+//    silent no-message. This is the exact class of bug the gap analysis found (credits_low vs
+//    low_credit); the test makes it a build failure, forever.
+describe('every rule points at a real template (Phase 5)', () => {
+  it('maps each RULES template to an existing TEMPLATES entry', () => {
+    const missing: string[] = []
+    for (const rules of Object.values(RULES)) {
+      for (const rule of rules) {
+        if (!TEMPLATES[rule.template]) missing.push(rule.template)
+      }
+    }
+    expect(missing).toEqual([])
+  })
+  it('resolves the new Phase-5 intents to their templates', () => {
+    expect(rulesFor('class_session.rescheduled')[0]?.template).toBe('session_rescheduled')
+    expect(rulesFor('entitlement.expired')[0]?.template).toBe('package_expired')
+    expect(TEMPLATES.session_rescheduled).toBeDefined()
+    expect(TEMPLATES.package_expired).toBeDefined()
   })
 })

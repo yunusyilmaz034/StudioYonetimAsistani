@@ -705,6 +705,41 @@ resurrected: **a verification tool that cannot run is worse than none, because i
 
 ---
 
+## DEBT-033 — WhatsApp & Push have no live transport (owner-provisioned / greenfield)
+
+**Taken:** 2026-07-16 · Product Plus Phase 5 · Yunus
+**What:** The WhatsApp adapter is REAL code (`metaWhatsAppTransport`, Meta Cloud API, approved
+templates) but has no credentials, so it reports `provider_not_configured` and sends nothing — the
+manual `wa.me` action is the working path meanwhile. Push is a channel enum + retry policy only: no
+`PushProvider`, no FCM, no device-token registration; a push intent resolves to
+`provider_not_configured` too.
+**Cost:** none that lies — the status is truthful and visible in the Notification Center; nothing is
+faked. But two channels the owner may expect are not actually delivering.
+**Trigger to repay:** WhatsApp — the owner provisions a Meta WABA (phone-number id + permanent token
+in `WHATSAPP_*` secrets) and registers the `<id>_tr` templates; the transport goes live with no code
+change (the ResendEmailProvider pattern). Push — the first real mobile app / web-push requirement.
+**Repayment:** WhatsApp is env only. Push is a `PushProvider` (FCM HTTP v1) + device-token
+registration + a service worker.
+
+---
+
+## DEBT-034 — Notification template overrides are config, not events
+
+**Taken:** 2026-07-16 · Product Plus Phase 5 · Yunus
+**What:** A per-studio template edit writes `studios/{sid}/notificationTemplates/{id}` directly
+(version bump + updatedBy/updatedAt), NOT through the event log — the same deliberate choice as room
+notes (DEBT-030). A template is presentation config, not a credit/money/attendance fact.
+**Cost:** the *history* of who changed a template's copy, and when, is the current stamp only — not a
+full append-only trail. Bounded and visible: a PAST send is never affected, because the rendered
+subject/body is snapshotted onto each `DeliveryAttempt` (I-38, §15). So "what did we actually send
+her?" is always answerable from the attempt; only "how did the template read three edits ago?" is not.
+**Trigger to repay:** the first time template-edit history must be audited (a dispute about what a
+studio's copy said on a given date).
+**Repayment:** a `notification.template_updated` event carrying the changed field names + editor
+(no PII), folded into the Activity Center.
+
+---
+
 ## DEBT-031 — Every booking reads the member's whole reservation history
 
 **Taken:** 2026-07-15 · Product Plus Phase 3 (Package Rules 2.0) · Yunus

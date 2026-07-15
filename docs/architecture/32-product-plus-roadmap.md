@@ -63,10 +63,14 @@ override** (strongest last), through the one `resolveReservationPolicy` every wr
   carry a **closed-enum reason + note**, and the note **never** enters the event payload (#6). A
   restriction with no author is the silent loosening this must not permit.
 
-### 5 — Notification & Communication Center  ·  *extends the shipped Doc 28 / v1.25*
-The core (Event → Intent → Delivery, in-app + e-mail, quiet hours) shipped in Alpha; this phase makes
-it multi-channel: **WhatsApp, richer e-mail, Push notifications, campaign messages, automatic
-templates.** It stays a distinct milestone because the channel and campaign surface is substantial.
+### 5 — Notification & Communication Center  ·  *extends the shipped Doc 28 / v1.25*  ·  ✅ **CLOSED (2026-07-16, tag `plus-v0.5-notification-center`)**
+Made the pipeline multi-channel and manageable: a **real Meta Cloud API WhatsApp transport** (template
+messages; provider_not_configured — never a mock — until the owner provisions Meta credentials, with
+the manual wa.me action still working), **richer HTML e-mail**, **per-studio template management**
+(editable copy, versioned, render-refuses a dropped param), a filterable **Notification Center**
+(all statuses, role-gated), **manual + simple bulk send** through the same notify() pipeline, and
+**marketing consent** (campaign) split from operational. Push stayed a seam only (no real device
+integration — provider_not_configured), advanced campaign automation deferred to future backlog.
 - **Rule:** every channel is a **provider behind the existing port** (`NotificationProvider`); the
   center still hands over and classifies, and never claims "delivered" when it means "handed over".
 
