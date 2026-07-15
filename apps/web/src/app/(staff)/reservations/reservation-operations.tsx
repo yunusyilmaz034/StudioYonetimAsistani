@@ -501,9 +501,10 @@ function RecurringPicker({
   )
 }
 
-function WaitlistPanel({
+function WaitlistSection({
   sessionId,
   capacity,
+  full,
   members,
   bookedIds,
   ops,
@@ -511,6 +512,7 @@ function WaitlistPanel({
 }: {
   sessionId: string
   capacity: number
+  full: boolean
   members: readonly BookingMember[]
   bookedIds: ReadonlySet<string>
   ops: ReservationOps
@@ -553,13 +555,28 @@ function WaitlistPanel({
 
   const waiting = (rows ?? []).filter((r) => r.status === 'waiting')
 
+  // Show the waitlist whenever anyone is waiting — NOT only when the class is full. Otherwise a
+  // cancellation opens a seat, the class stops being "full", and the waiting member vanishes from
+  // the screen with no way to promote her. Adding to the waitlist is only offered when full (with a
+  // free seat, reception just books).
+  if (rows === null) return null
+  if (!full && waiting.length === 0) return null
+
   return (
     <div className="border-b border-border">
-      <div className="flex items-center gap-2 bg-gold-soft px-4 py-2.5 text-xs font-medium text-gold">
-        <span className="size-1.5 rounded-full bg-gold" />
-        Ders dolu ({capacity}/{capacity}) · Bekleme listesi{waiting.length ? ` · ${waiting.length}` : ''}
+      <div
+        className={cn(
+          'flex items-center gap-2 px-4 py-2.5 text-xs font-medium',
+          full ? 'bg-gold-soft text-gold' : 'bg-success/10 text-success',
+        )}
+      >
+        <span className={cn('size-1.5 rounded-full', full ? 'bg-gold' : 'bg-success')} />
+        {full
+          ? `Ders dolu (${capacity}/${capacity}) · Bekleme listesi${waiting.length ? ` · ${waiting.length}` : ''}`
+          : `Yer açıldı · ${waiting.length} kişi bekliyor — "Al" ile rezervasyona çevir`}
       </div>
       <div className="p-2">
+        {full ? (
         <div className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 focus-within:border-primary">
           <PlusIcon className="size-4 shrink-0 text-muted-foreground" />
           <input
@@ -571,6 +588,7 @@ function WaitlistPanel({
             aria-label="Bekleme listesine ekle"
           />
         </div>
+        ) : null}
         {matches.length > 0 ? (
           <ul className="mt-1 space-y-0.5">
             {matches.map((m) => (
@@ -875,19 +893,12 @@ function RosterPanel({
         />
       ) : (
         <>
-          {/* inline booking */}
+          {/* inline booking (when a seat is open) + the waitlist (whenever anyone is waiting) */}
       {session.status === 'cancelled' ? (
         <div className="border-b border-border bg-muted/40 px-4 py-3 text-xs text-muted-foreground">Bu ders iptal edildi.</div>
-      ) : full ? (
-        <WaitlistPanel
-          sessionId={session.sessionId}
-          capacity={session.capacity}
-          members={members}
-          bookedIds={bookedIds}
-          ops={ops}
-          onChanged={onChanged}
-        />
       ) : (
+        <>
+          {full ? null : (
         <div className="border-b border-border p-2">
           <div className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 focus-within:border-primary focus-within:ring-3 focus-within:ring-ring/40">
             <SearchIcon className="size-4 shrink-0 text-muted-foreground" />
@@ -932,6 +943,17 @@ function RosterPanel({
             <p className="px-3 py-3 text-xs text-muted-foreground">Uygun üye yok.</p>
           ) : null}
         </div>
+      )}
+          <WaitlistSection
+            sessionId={session.sessionId}
+            capacity={session.capacity}
+            full={full}
+            members={members}
+            bookedIds={bookedIds}
+            ops={ops}
+            onChanged={onChanged}
+          />
+        </>
       )}
 
       {/* roster */}

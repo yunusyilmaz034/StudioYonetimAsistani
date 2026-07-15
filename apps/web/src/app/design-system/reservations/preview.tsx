@@ -167,7 +167,26 @@ export function ReservationPreview() {
         for (const k of Object.keys(wl.current)) wl.current[k] = wl.current[k]!.filter((e) => e.entryId !== entryId)
         return { ok: true }
       },
-      promoteWaitlist: async () => ({ ok: false, error: 'Ders hâlâ dolu — sıradaki yerini korudu.' }),
+      promoteWaitlist: async (entryId) => {
+        for (const sid of Object.keys(wl.current)) {
+          const entry = wl.current[sid]!.find((e) => e.entryId === entryId)
+          if (!entry) continue
+          const cap = SESSIONS.find((s) => s.sessionId === sid)?.capacity ?? 0
+          if ((store.current[sid]?.length ?? 0) >= cap) {
+            return { ok: false, error: 'Ders hâlâ dolu — sıradaki yerini korudu.' }
+          }
+          // A seat is open — promotion books her, exactly like the real promoteFromWaitlist.
+          ;(store.current[sid] ??= []).push({
+            reservationId: `r-promoted-${entry.memberId}`,
+            memberId: entry.memberId,
+            memberName: entry.memberName,
+            status: 'booked',
+          })
+          wl.current[sid] = wl.current[sid]!.filter((e) => e.entryId !== entryId)
+          return { ok: true }
+        }
+        return { ok: false, error: 'Bulunamadı.' }
+      },
       previewRecurring: async (_sessionId, _memberId, weeks) => ({
         toBook: Array.from({ length: Math.max(0, weeks - 2) }, (_, i) => ({
           weekOffset: i + 1,
