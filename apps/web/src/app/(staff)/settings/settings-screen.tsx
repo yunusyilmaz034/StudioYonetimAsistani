@@ -1,7 +1,7 @@
 'use client'
 
 import type { DayHours, StudioSettings, WorkingHours } from '@studio/core'
-import { CalendarDaysIcon } from 'lucide-react'
+import { CalendarDaysIcon, CreditCardIcon } from 'lucide-react'
 import Link from 'next/link'
 import { useState, useTransition } from 'react'
 import { toast } from 'sonner'
@@ -74,9 +74,11 @@ function Field({
 export function SettingsScreen({
   settings,
   branchId,
+  canManage = false,
 }: {
   settings: StudioSettings | null
   branchId: string | null
+  canManage?: boolean
 }) {
   const [pending, start] = useTransition()
 
@@ -486,9 +488,17 @@ export function SettingsScreen({
         </Button>
       </div>
 
+      {/* Plus Phase 6 — payment providers live on their own page (secrets, provider-based). */}
+      <Section title="Entegrasyonlar" hint="Ödeme sağlayıcıları (PAYTR) ve gelecekteki entegrasyonlar.">
+        <Button variant="outline" render={<Link href="/settings/integrations" />}>
+          <CreditCardIcon />
+          Ödeme Sağlayıcıları
+        </Button>
+      </Section>
+
       {/* The studio's own definitions. They have their own save paths, so they sit BELOW the settings
           form's Kaydet — pressing it must never look like it also saved these. */}
-      <DefinitionsPanel branchId={branchId} />
+      <DefinitionsPanel branchId={branchId} canManage={canManage} />
     </div>
   )
 }

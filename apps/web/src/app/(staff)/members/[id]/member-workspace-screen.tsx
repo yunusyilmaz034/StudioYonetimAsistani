@@ -21,6 +21,8 @@ import { toast } from 'sonner'
 import type { Member, MemberId } from '@studio/core'
 
 import { ManualSendDialog } from '@/components/manual-send-dialog'
+import { PaytrSaleDialog } from '@/components/paytr-sale-dialog'
+import { PaymentHistoryPanel } from './payment-history-panel'
 import { WhatsAppButton } from '@/components/whatsapp-button'
 import { WA_TEMPLATES } from '@/lib/whatsapp'
 import { Badge } from '@/components/ui/badge'
@@ -122,6 +124,7 @@ export function MemberWorkspaceScreen({
   const [editing, setEditing] = useState(false)
   const [booking, setBooking] = useState(false)
   const [messaging, setMessaging] = useState(false)
+  const [paytrSale, setPaytrSale] = useState(false)
 
   const s = member.stats
 
@@ -149,6 +152,10 @@ export function MemberWorkspaceScreen({
               <Button variant="outline" size="sm" className="h-7" onClick={() => setMessaging(true)}>
                 <MessageSquareIcon className="size-3.5" />
                 Mesaj Gönder
+              </Button>
+              <Button variant="outline" size="sm" className="h-7" onClick={() => setPaytrSale(true)}>
+                <CreditCardIcon className="size-3.5" />
+                PAYTR ile Sat
               </Button>
               {member.status !== 'active' ? (
                 <Badge className="bg-muted text-muted-foreground">{MEMBER_STATUS[member.status]}</Badge>
@@ -230,6 +237,11 @@ export function MemberWorkspaceScreen({
             branchId={member.homeBranchId ?? defaultBranchId ?? ''}
             isOwner={isOwner}
           />
+          {/* Plus Phase 6 — online (PAYTR) payment history, with owner refund. */}
+          <div className="mt-4 space-y-2">
+            <h3 className="text-[0.6875rem] font-medium uppercase tracking-wide text-muted-foreground">Online Ödemeler</h3>
+            <PaymentHistoryPanel memberId={member.id} isOwner={isOwner} />
+          </div>
         </TabsContent>
         <TabsContent value="audit">
           <AuditPanel memberId={member.id} />
@@ -271,6 +283,13 @@ export function MemberWorkspaceScreen({
         memberName={member.fullName}
         open={messaging}
         onClose={() => setMessaging(false)}
+      />
+      <PaytrSaleDialog
+        memberId={member.id}
+        memberPhone={member.phone}
+        products={products}
+        open={paytrSale}
+        onClose={() => setPaytrSale(false)}
       />
     </main>
   )

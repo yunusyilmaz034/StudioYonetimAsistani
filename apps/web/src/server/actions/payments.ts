@@ -251,6 +251,33 @@ export async function completePaidIntent(ctx: TenantContext, intent: PaymentInte
   }
 }
 
+export interface PaymentIntentRow {
+  readonly id: string
+  readonly purpose: string
+  readonly amountKurus: number
+  readonly status: string
+  readonly provider: string
+  readonly providerRef: string
+  readonly flow: string
+  readonly createdAt: number
+}
+
+export async function listMemberPaymentIntentsAction(input: unknown): Promise<readonly PaymentIntentRow[]> {
+  const p = z.object({ memberId: nonEmpty }).parse(input)
+  const ctx = await requireTenantContext(OPS)
+  const intents = await intentRepo().listByMember(ctx, p.memberId)
+  return intents.map((i) => ({
+    id: i.id,
+    purpose: i.purpose,
+    amountKurus: i.amount.amount,
+    status: i.status,
+    provider: i.provider,
+    providerRef: i.providerRef,
+    flow: i.flow,
+    createdAt: i.createdAt as number,
+  }))
+}
+
 // ── Refund a PAYTR payment (Plus Phase 6, §12). Owner only. Requests the refund at the provider;
 //    a refund is a NEW event, never an edit — over-refund is refused. When the provider is not
 //    configured, the STATE model is complete but nothing is faked: configuration_required. The
@@ -308,9 +335,7 @@ export async function handlePaytrCallback(sid: string, fields: Record<string, st
   return { body: 'OK', status: 200 }
 }
 
-const MS_PER_DAY = 86_400_000
 const OFFSET_MIN = 180
 function dayMs(localDate: string): number {
   return Date.parse(`${localDate}T00:00:00Z`) - OFFSET_MIN * 60_000
 }
-export { MS_PER_DAY }

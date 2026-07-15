@@ -705,6 +705,35 @@ resurrected: **a verification tool that cannot run is worse than none, because i
 
 ---
 
+## DEBT-035 — PAYTR is not live; retail/wallet/CRM-link are seams
+
+**Taken:** 2026-07-16 · Product Plus Phase 6 (Commerce & Payments) · Yunus
+**What:** The Commerce backend is complete and provider-independent — PaymentIntent, the PAYTR adapter
+(token + link + callback hash verify + refund, PAYTR's documented HMAC forms), the callback route
+(verify → idempotent grant-after-payment), refund, and the reconciliation sweep. But:
+- **PAYTR is not connected.** No merchant key/salt in Secret Manager, so the provider is Unconfigured
+  and every flow shows `configuration_required` — nothing is faked. The hash formulas are the
+  canonical PAYTR forms and MUST be verified against the official iFrame-API zip before go-live.
+- **Retail** is deliberately minimal (a config collection + transactional stock decrement + a finance
+  sale) — no barcode, no variants, no warehouse (§6 "gereksiz depo yapma"). Retail sells via manual
+  methods; routing a retail order through PAYTR reuses the same createPackagePaymentAction seam.
+- **Wallet** rests on the existing DERIVED cari hesap (`memberBalance`, unallocated payment = member
+  credit). "Refund-to-balance" and "pay-with-balance" are expressible on the ledger but have no
+  dedicated UI action yet.
+- **CRM auto-link** (offer → payment link → "won") is a seam: `Offer.saleId` exists; the automatic
+  stage transition on payment success is not wired.
+- **Multi-tenant secrets:** merchant key/salt are GLOBAL env (one PAYTR account). A second studio with
+  its own PAYTR merchant would need per-studio secrets.
+**Cost:** none that lies — the status is truthful. But online payment does not actually charge until
+the owner provisions PAYTR, and three surfaces (wallet actions, retail-via-PAYTR, CRM auto-link) are
+seams rather than finished flows.
+**Trigger to repay:** the owner provisions the PAYTR merchant (key/salt → Secret Manager, uncomment
+apphosting.yaml, set the merchant id + callback URL in Ayarlar › Entegrasyonlar) — then verify the
+hash forms against the official zip and run a real test-mode payment end to end.
+**Repayment:** env only for go-live; the wallet/retail-online/CRM-link flows are additive on the seams.
+
+---
+
 ## DEBT-033 — WhatsApp & Push have no live transport (owner-provisioned / greenfield)
 
 **Taken:** 2026-07-16 · Product Plus Phase 5 · Yunus

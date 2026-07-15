@@ -22,6 +22,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Section } from '@/components/ui/section'
+import { RetailPanel } from './retail-panel'
 import { Textarea } from '@/components/ui/textarea'
 import { domainErrorMessage } from '@/lib/domain-error'
 import { createDrawerAction, listDrawersAction } from '@/server/actions/finance'
@@ -68,7 +69,7 @@ interface DrawerRow {
   status: string
 }
 
-export function DefinitionsPanel({ branchId }: { branchId: string | null }) {
+export function DefinitionsPanel({ branchId, canManage = false }: { branchId: string | null; canManage?: boolean }) {
   const [services, setServices] = useState<readonly ServiceRow[]>([])
   const [rooms, setRooms] = useState<readonly RoomRow[]>([])
   const [drawers, setDrawers] = useState<readonly DrawerRow[]>([])
@@ -284,6 +285,9 @@ export function DefinitionsPanel({ branchId }: { branchId: string | null }) {
           ekranından yapılır.
         </p>
       </Section>
+
+      {/* Ürünler (Retail) — Plus Phase 6. Physical items sold alongside packages. */}
+      <RetailPanel canManage={canManage} />
 
       {newDrawer && branchId ? (
         <DrawerDialog
