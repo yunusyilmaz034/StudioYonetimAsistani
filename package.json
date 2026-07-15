@@ -36,7 +36,9 @@
     "migrate:import": "tsx tools/migration/run.ts",
     "migrate:legacy-finance": "tsx tools/migration/legacy-finance.ts",
     "kvkk:erase": "tsx tools/kvkk/erase-member.ts",
-    "bootstrap:owner": "tsx tools/bootstrap/owner.ts"
+    "bootstrap:owner": "tsx tools/bootstrap/owner.ts",
+    "setup:catalog": "tsx tools/setup/catalog.ts",
+    "setup:trainers": "tsx tools/setup/trainers.ts"
   },
   "dependencies": {},
   "devDependencies": {
