@@ -135,11 +135,12 @@ function useLogout() {
 function Brand() {
   return (
     <Link href="/" className="flex items-center gap-2.5 px-3 py-1">
-      <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-primary text-sm font-semibold text-primary-foreground shadow-xs">
+      <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-primary font-heading text-base font-medium text-primary-foreground shadow-sm">
         S
       </span>
       <span className="leading-tight">
-        <span className="block text-sm font-semibold text-foreground">Studio</span>
+        {/* Editorial serif wordmark (Doc 33) — the brand's premium signal, top-left of every screen. */}
+        <span className="block font-heading text-[0.95rem] font-medium text-foreground">Studio</span>
         <span className="block text-xs text-muted-foreground">Yönetim Asistanı</span>
       </span>
     </Link>
