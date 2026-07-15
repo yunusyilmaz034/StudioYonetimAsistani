@@ -86,6 +86,16 @@ export const RULES: Readonly<Record<string, readonly IntentRule[]>> = {
     { template: 'refund_completed', to: 'member', category: 'operational', priority: 'normal' },
   ],
 
+  // ── Plus Phase 7 — training. The member is told THAT her programme is ready or her feedback was
+  //    answered; the content stays behind the portal (the event has no PII). Trainer-direct alerts on
+  //    feedback.left await a 'trainer' audience seam (DEBT).
+  'program.version_published': [
+    { template: 'program_published', to: 'member', category: 'operational', priority: 'normal' },
+  ],
+  'training_feedback.answered': [
+    { template: 'feedback_answered', to: 'member', category: 'operational', priority: 'normal' },
+  ],
+
   // ── STAFF ALERTS. Today nothing tells the owner when an operation fails. That is the most
   //    important line on her list, and it is half of this milestone.
   'drawer.discrepancy_recorded': [

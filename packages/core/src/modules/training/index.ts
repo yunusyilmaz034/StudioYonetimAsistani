@@ -30,3 +30,27 @@ export {
   decideUpsertExercise,
   type DecideContext as TrainingDecideContext,
 } from './domain/decide'
+export { FirestoreTrainingRepository } from './infrastructure/repos'
+export {
+  addPhoto,
+  answerFeedback,
+  changeProgramStatus,
+  createProgram,
+  correctMeasurement,
+  deactivateExercise,
+  leaveFeedback,
+  publishProgramVersion,
+  recordMeasurement,
+  removePhoto,
+  resolveFeedback,
+  upsertExercise,
+  type AddPhotoInput,
+  type CreateProgramInput,
+  type DraftProgramDay,
+  type DraftProgramExercise,
+  type LeaveFeedbackInput,
+  type MeasurementInput,
+  type TrainingDeps,
+  type TrainingRepository,
+  type UpsertExerciseInput,
+} from './application/index'

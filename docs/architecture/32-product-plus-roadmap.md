@@ -86,7 +86,7 @@ settings. **PAYTR is not connected** — no merchant secrets, so every flow show
   method and one liability ledger** (`Sale → Payment(method) → Allocation`), never a second set of
   books. Money is integer kuruş (#10), and a confirmed payment is an event, never a client's word.
 
-### 7 — Training & Progress  ·  *detail: Doc 25 (vision expanded below)*
+### 7 — Training & Progress  ·  *detail: Doc 25 (vision expanded below)*  ·  ✅ **CLOSED (2026-07-16, tag `plus-v0.7-training-progress`)**
 A core premium module — **managing the member's development, not writing workouts.** Assign a
 programme to a member; exercise video explanations; movement-level notes; a **trainer ↔ member
 feedback loop**; measurements; **photo tracking**; progress charts; **programme versioning** (a

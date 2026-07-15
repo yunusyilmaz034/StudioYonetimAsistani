@@ -352,6 +352,10 @@ async function resolveParams(
     case 'system.operation_failed':
     case 'system.error':
       return { detail: String(p.detail ?? 'Ayrıntı yok') }
+    // Plus Phase 7 — the member only needs to know there is something new behind the portal.
+    case 'program.version_published':
+    case 'training_feedback.answered':
+      return base
     case 'notification.failed':
       return {
         memberName: recipient.displayName,

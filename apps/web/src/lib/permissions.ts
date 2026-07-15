@@ -38,6 +38,7 @@ export type Area =
   | '/settings' // S2
   | '/staff' // S1 — who may work here, and as what
   | '/my-classes' // the trainer's one screen
+  | '/training' // Plus Phase 7 — exercise library + feedback center (owner + trainer)
   | '/receipt' // the printable slip reception hands a member
   | '/import' // S5 — the BulutGym import
   | '/reports' // S6 — the seven reports
@@ -79,6 +80,11 @@ export const PERMISSIONS: Readonly<Record<Area, readonly PrincipalRole[]>> = {
   // The trainer's ONLY screen. Her classes, her week, her registers, and the names of the women in
   // front of her. Not a phone number, not a package, not a balance.
   '/my-classes': ['owner', 'trainer'], // the owner may look at it; nobody else may
+
+  // Plus Phase 7 — the training workspace: the exercise library and the feedback center. It is the
+  // trainer's OTHER screen (her actual craft), and the owner's. Reception is not here: she sees only
+  // a boolean "aktif program var mı?" on the member card, never a member's programme or photos.
+  '/training': ['owner', 'trainer'],
 }
 
 export function canSee(role: PrincipalRole, area: Area): boolean {

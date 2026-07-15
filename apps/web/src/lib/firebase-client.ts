@@ -5,6 +5,7 @@ import {
   getFirestore,
   type Firestore,
 } from 'firebase/firestore'
+import { connectStorageEmulator, getStorage, type FirebaseStorage } from 'firebase/storage'
 
 // THE FIREBASE WEB CONFIG (hotfix B-1, 2026-07-13).
 //
@@ -25,10 +26,18 @@ import {
 //
 // Firestore is initialised WITHOUT offline persistence: the offline data strategy belongs to the
 // check-in milestone and its command flow, not here (v1.5/v1.6 correction).
+// The Storage bucket (for the Plus Phase 7 progress-photo upload) is a PUBLIC identifier like the
+// rest of this config — the file's protection is Auth + Storage rules, and read access is a
+// short-lived signed URL minted server-side. It is spread in only when present so that, absent, the
+// key stays off the config and `storageConfigured()` is false — the UI then says "yükleme
+// yapılandırılmamış" rather than pretending an upload happened. (Kept off the literal to satisfy
+// exactOptionalPropertyTypes.)
+const storageBucket = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY ?? 'demo-api-key',
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN ?? 'demo-sos.firebaseapp.com',
   projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ?? 'demo-sos',
+  ...(storageBucket ? { storageBucket } : {}),
 }
 
 function app(): FirebaseApp {
@@ -58,6 +67,31 @@ export function clientDb(): Firestore {
   }
   cachedDb = db
   return db
+}
+
+let cachedStorage: FirebaseStorage | null = null
+
+// Whether a Storage bucket is configured at all. The progress-photo upload is the only client-side
+// file write in the app; without a bucket it must fail loudly and visibly, never silently.
+export function storageConfigured(): boolean {
+  return Boolean(storageBucket)
+}
+
+export function clientStorage(): FirebaseStorage {
+  if (cachedStorage) return cachedStorage
+  const storage = getStorage(app())
+  if (useEmulator()) {
+    const [host, port] = storageEmulator()
+    connectStorageEmulator(storage, host, port)
+  }
+  cachedStorage = storage
+  return storage
+}
+
+function storageEmulator(): [string, number] {
+  const raw = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_EMULATOR ?? '127.0.0.1:9199'
+  const [host, port] = raw.split(':')
+  return [host ?? '127.0.0.1', Number(port ?? '9199')]
 }
 
 function useEmulator(): boolean {

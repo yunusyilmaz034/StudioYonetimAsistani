@@ -40,6 +40,9 @@ export default async function MemberWorkspacePage({
       // the studio up — not to any owner added from the staff screen. The domain refuses everyone
       // else regardless; this only decides whether the button is drawn.
       isPlatformAdmin={ctx.actor.type === 'platform_admin'}
+      // Training content (programmes, measurements, photos) is owner/platform_admin; reception gets a
+      // boolean only. The training actions refuse reception regardless — this only picks the view.
+      canManageTraining={ctx.role === 'owner' || ctx.actor.type === 'platform_admin'}
     />
   )
 }

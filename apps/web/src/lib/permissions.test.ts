@@ -10,9 +10,12 @@ import { canSee, homeFor, PERMISSIONS, type Area } from './permissions'
 const AREAS = Object.keys(PERMISSIONS) as Area[]
 
 describe('the trainer — staff, and the person least entitled to the studio’s data', () => {
-  it('sees ONE screen, and it is her own', () => {
+  it('sees only her own two screens — her classes and the training workspace (Plus Phase 7)', () => {
+    // Her classes, and — since Plus Phase 7 — the training workspace (the exercise library and her
+    // feedback center). Still not the members list, the till, or the funnel; the training screen
+    // reveals only her trainees' names, never the roster or a balance.
     const visible = AREAS.filter((a) => canSee('trainer', a))
-    expect(visible).toEqual(['/my-classes'])
+    expect(visible).toEqual(['/my-classes', '/training'])
   })
 
   it('cannot see the members list — the studio’s PII', () => {

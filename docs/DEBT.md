@@ -808,6 +808,27 @@ matters, or when move is exposed to members (self-service) rather than staff-onl
 
 ---
 
+## DEBT-036 — Progress-photo Storage is not wired (no bucket, no Storage rules)
+
+**Taken:** 2026-07-16 · Product Plus Phase 7 (Training & Progress) · Yunus (owner-approved autonomy)
+**What:** The progress-photo feature is built end-to-end — the private path
+`studios/{sid}/members/{memberId}/progress/{file}`, a client-SDK upload, a metadata-only event (the
+url NEVER in the payload), a server-minted **5-minute signed READ url**, and role-gated read (owner /
+the member's trainer / the member herself, `memberVisible` only). But the project has **no Firebase
+Storage bucket configured** (`NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET` unset) and **no `storage.rules`**
+in `firebase.json`. The UI degrades honestly: `storageConfigured()` is false, the upload dialog shows
+"yükleme yapılandırılmamış", and no fake success is produced.
+**Cost:** progress photos cannot be uploaded or viewed until Storage is provisioned. Measurements,
+programmes and feedback are unaffected (they are Firestore). Until the rules exist, the private path
+is protected only by the fact that reads go through a server-minted signed url and writes need an
+authenticated client — there is no bucket to leak from yet.
+**Trigger to repay:** the first time the owner wants to use progress photos in production.
+**Repayment:** create the bucket, set `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET` (web) + the emulator
+binding, add `storage.rules` to `firebase.json` restricting `studios/{sid}/members/{mid}/progress/**`
+to the studio's authenticated staff (and read to the same), and add a `deploy:storage` script.
+
+---
+
 ## DEBT-030 — Salon Notları sits outside the event log
 
 **Taken:** 2026-07-15 · Product Plus Phase 2 (Operations Workspace) · Yunus (owner-approved)

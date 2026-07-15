@@ -207,6 +207,29 @@ export const TEMPLATES: Readonly<Record<string, NotificationTemplate>> = {
     body: 'Merhaba {{memberName}}, cüzdanınıza {{amount}} yüklendi. Güncel bakiyeniz: {{balance}}.',
   },
 
+  // ── Plus Phase 7 (Training & Progress). The programme and the reply live behind the member portal;
+  //    the message says only THAT there is something new, never its content (the event carries no PII). ──
+  program_published: {
+    id: 'program_published',
+    version: 1,
+    name: 'Antrenman programı hazır',
+    category: 'operational',
+    priority: 'normal',
+    requiredParams: ['memberName'],
+    subject: 'Antrenman programınız hazır',
+    body: 'Merhaba {{memberName}}, antrenman programınız hazır. Üye portalınızdan görüntüleyebilirsiniz.',
+  },
+  feedback_answered: {
+    id: 'feedback_answered',
+    version: 1,
+    name: 'Geri bildirime yanıt verildi',
+    category: 'operational',
+    priority: 'normal',
+    requiredParams: ['memberName'],
+    subject: 'Geri bildiriminize yanıt verildi',
+    body: 'Merhaba {{memberName}}, antrenörünüz geri bildiriminize yanıt verdi. Üye portalınızdan görebilirsiniz.',
+  },
+
   // ── STAFF ALERTS (owner, decision 6). The most important line on the owner's list: today NOTHING
   //    tells her when an operation fails. These are half of this milestone, not an afterthought.
   alert_cash_discrepancy: {

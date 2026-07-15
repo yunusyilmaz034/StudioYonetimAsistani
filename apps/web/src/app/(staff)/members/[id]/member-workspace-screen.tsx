@@ -8,6 +8,7 @@ import {
   ClipboardListIcon,
   CreditCardIcon,
   DoorOpenIcon,
+  DumbbellIcon,
   HistoryIcon,
   Loader2Icon,
   MessageSquareIcon,
@@ -61,6 +62,7 @@ import { deactivateMember } from '@/server/actions/members'
 
 import { ErasurePanel } from './erasure-panel'
 import { RestrictionPanel } from './restriction-panel'
+import { TrainingPanel } from './training-panel'
 import {
   listUpcomingSessionsAction,
   type UpcomingSession,
@@ -87,12 +89,13 @@ const dt = (ms: number) =>
 const d = (ms: number) => new Date(ms).toLocaleDateString('tr-TR', { timeZone: 'Europe/Istanbul' })
 const tl = (k: number) => `${(k / 100).toLocaleString('tr-TR')} TL`
 
-type SectionId = 'profile' | 'packages' | 'reservations' | 'override' | 'checkin' | 'payments' | 'audit'
+type SectionId = 'profile' | 'packages' | 'reservations' | 'override' | 'training' | 'checkin' | 'payments' | 'audit'
 const SECTIONS: readonly { id: SectionId; label: string; icon: typeof UserIcon }[] = [
   { id: 'profile', label: 'Genel', icon: UserIcon },
   { id: 'packages', label: 'Paketler', icon: PackageIcon },
   { id: 'reservations', label: 'Rezervasyonlar', icon: ClipboardListIcon },
   { id: 'override', label: 'Kısıtlı Üyelik', icon: ShieldAlertIcon },
+  { id: 'training', label: 'Antrenman', icon: DumbbellIcon },
   { id: 'checkin', label: 'Check-in', icon: DoorOpenIcon },
   { id: 'payments', label: 'Cari Hesap', icon: CreditCardIcon },
   { id: 'audit', label: 'Geçmiş', icon: HistoryIcon },
@@ -110,6 +113,7 @@ export function MemberWorkspaceScreen({
   defaultBranchId,
   isOwner = false,
   isPlatformAdmin,
+  canManageTraining = false,
 }: {
   data: MemberWorkspaceData
   products: readonly ProductView[]
@@ -117,6 +121,9 @@ export function MemberWorkspaceScreen({
   defaultBranchId: string | null
   isOwner?: boolean
   isPlatformAdmin: boolean
+  // Owner + platform_admin see and edit programmes, measurements and photos; reception gets a
+  // boolean "aktif program var mı?" only (§13). Trainers do not reach the members list at all.
+  canManageTraining?: boolean
 }) {
   const router = useRouter()
   const { member } = data
@@ -218,6 +225,15 @@ export function MemberWorkspaceScreen({
         </TabsContent>
         <TabsContent value="packages">
           <SubscriptionsPanel memberId={member.id} products={products} />
+        </TabsContent>
+        <TabsContent value="training">
+          {/* Plus Phase 7 — the member's programmes, measurements and progress photos. Content for
+              owner/platform_admin; reception sees only whether a programme exists. */}
+          <TrainingPanel
+            memberId={member.id}
+            studioId={member.studioId}
+            mode={canManageTraining ? 'full' : 'boolean'}
+          />
         </TabsContent>
         <TabsContent value="reservations">
           <ReservationsPanel upcoming={data.upcomingReservations} past={data.pastReservations} />

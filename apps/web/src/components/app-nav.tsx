@@ -16,6 +16,7 @@ import {
   WalletIcon,
   CalendarIcon,
   ClipboardCheckIcon,
+  DumbbellIcon,
   DoorOpenIcon,
   LayoutDashboardIcon,
   LogOutIcon,
@@ -60,7 +61,11 @@ export const GROUPS: readonly NavGroup[] = [
   {
     // The trainer's whole product. It sits alone, and it is filtered in for her and out for
     // reception by the same matrix as everything else.
-    items: [{ href: '/my-classes', label: 'Derslerim', icon: ClipboardCheckIcon }],
+    items: [
+      { href: '/my-classes', label: 'Derslerim', icon: ClipboardCheckIcon },
+      // Plus Phase 7 — the training workspace. Owner + trainer only (reception is filtered out).
+      { href: '/training', label: 'Antrenman', icon: DumbbellIcon },
+    ],
   },
   {
     label: 'Operasyon',
