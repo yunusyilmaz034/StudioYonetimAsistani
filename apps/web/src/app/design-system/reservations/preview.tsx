@@ -77,6 +77,10 @@ export function ReservationPreview() {
   const store = useRef<Record<string, SessionRosterEntry[]>>(
     Object.fromEntries(Object.entries(INITIAL_ROSTERS).map(([k, v]) => [k, [...v]])),
   )
+  // A parallel in-memory waitlist for the full-class flow (s2 starts full at 8/8).
+  const wl = useRef<Record<string, { entryId: string; memberId: string; memberName: string }[]>>({
+    s2: [{ entryId: 'w-s2-m2', memberId: 'm2', memberName: 'Zeynep Demir' }],
+  })
 
   const initial: ReservationCalendarData = useMemo(
     () => ({
@@ -141,6 +145,27 @@ export function ReservationPreview() {
         if (moved) (store.current[targetSessionId] ??= []).push(moved)
         return { ok: true }
       },
+      listWaitlist: async (sessionId) =>
+        (wl.current[sessionId] ?? []).map((e, i) => ({
+          entryId: e.entryId,
+          memberId: e.memberId,
+          memberName: e.memberName,
+          phoneLast4: '0000',
+          status: 'waiting',
+          joinedAt: 0,
+          position: i + 1,
+        })),
+      joinWaitlist: async (sessionId, memberId) => {
+        const m = MEMBERS.find((x) => x.id === memberId)
+        if (!m) return { ok: false, error: 'Üye bulunamadı.' }
+        ;(wl.current[sessionId] ??= []).push({ entryId: `w-${sessionId}-${memberId}`, memberId, memberName: m.fullName })
+        return { ok: true }
+      },
+      leaveWaitlist: async (entryId) => {
+        for (const k of Object.keys(wl.current)) wl.current[k] = wl.current[k]!.filter((e) => e.entryId !== entryId)
+        return { ok: true }
+      },
+      promoteWaitlist: async () => ({ ok: false, error: 'Ders hâlâ dolu — sıradaki yerini korudu.' }),
     }),
     [],
   )

@@ -23,6 +23,13 @@ import {
   type MoveTarget,
 } from '@/server/actions/reservations'
 import { loadReservationDayAction } from '@/server/actions/reservation-day'
+import {
+  joinWaitlistAction,
+  leaveWaitlistAction,
+  listWaitlistAction,
+  promoteWaitlistAction,
+  type WaitlistRow,
+} from '@/server/actions/waitlist'
 import type { CalendarSession } from '@/server/schedule-query'
 import type { ReservationCalendarData } from '@/server/reservation-calendar-query'
 import { FillBar } from '@/components/ui/chart'
@@ -55,6 +62,10 @@ export interface ReservationOps {
     targetSessionId: string,
     reason: string | null,
   ): Promise<{ ok: boolean; error?: string; needsReason?: boolean }>
+  listWaitlist(sessionId: string): Promise<readonly WaitlistRow[]>
+  joinWaitlist(sessionId: string, memberId: string): Promise<{ ok: boolean; error?: string }>
+  leaveWaitlist(entryId: string): Promise<{ ok: boolean; error?: string }>
+  promoteWaitlist(entryId: string): Promise<{ ok: boolean; error?: string }>
 }
 
 const CAT: Record<string, { text: string; dot: string; soft: string; label: string }> = {
@@ -101,6 +112,19 @@ export function ReservationOperationsLive(props: {
         if (r.ok) return { ok: true }
         if (r.error.code === 'reason_required') return { ok: false, needsReason: true }
         return { ok: false, error: domainErrorMessage(r.error) }
+      },
+      listWaitlist: (sessionId) => listWaitlistAction({ sessionId }),
+      joinWaitlist: async (sessionId, memberId) => {
+        const r = await joinWaitlistAction({ sessionId, memberId })
+        return r.ok ? { ok: true } : { ok: false, error: domainErrorMessage(r.error) }
+      },
+      leaveWaitlist: async (entryId) => {
+        const r = await leaveWaitlistAction({ entryId })
+        return r.ok ? { ok: true } : { ok: false, error: domainErrorMessage(r.error) }
+      },
+      promoteWaitlist: async (entryId) => {
+        const r = await promoteWaitlistAction({ entryId })
+        return r.ok ? { ok: true } : { ok: false, error: domainErrorMessage(r.error) }
       },
     }),
     [],
@@ -324,6 +348,135 @@ function ClassCard({
         </div>
       </button>
     </li>
+  )
+}
+
+function WaitlistPanel({
+  sessionId,
+  capacity,
+  members,
+  bookedIds,
+  ops,
+  onChanged,
+}: {
+  sessionId: string
+  capacity: number
+  members: readonly BookingMember[]
+  bookedIds: ReadonlySet<string>
+  ops: ReservationOps
+  onChanged: () => Promise<void>
+}) {
+  const [rows, setRows] = useState<readonly WaitlistRow[] | null>(null)
+  const [query, setQuery] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  const load = useCallback(async () => {
+    setRows(await ops.listWaitlist(sessionId))
+  }, [ops, sessionId])
+  useEffect(() => {
+    void load()
+  }, [load])
+
+  const waitingIds = useMemo(() => new Set((rows ?? []).map((r) => r.memberId)), [rows])
+  const matches = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    if (q.length < 2) return []
+    const qd = digits(q)
+    return members
+      .filter((m) => !bookedIds.has(m.id) && !waitingIds.has(m.id))
+      .filter((m) => m.fullName.toLowerCase().includes(q) || (qd.length >= 3 && digits(m.phone).includes(qd)))
+      .slice(0, 5)
+  }, [query, members, bookedIds, waitingIds])
+
+  const run = async (fn: () => Promise<{ ok: boolean; error?: string }>, okMsg: string) => {
+    setBusy(true)
+    const r = await fn()
+    setBusy(false)
+    if (r.ok) {
+      toast.success(okMsg)
+      await load()
+      await onChanged()
+    } else {
+      toast.error(r.error ?? 'İşlem başarısız.')
+    }
+  }
+
+  const waiting = (rows ?? []).filter((r) => r.status === 'waiting')
+
+  return (
+    <div className="border-b border-border">
+      <div className="flex items-center gap-2 bg-gold-soft px-4 py-2.5 text-xs font-medium text-gold">
+        <span className="size-1.5 rounded-full bg-gold" />
+        Ders dolu ({capacity}/{capacity}) · Bekleme listesi{waiting.length ? ` · ${waiting.length}` : ''}
+      </div>
+      <div className="p-2">
+        <div className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 focus-within:border-primary">
+          <PlusIcon className="size-4 shrink-0 text-muted-foreground" />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            disabled={busy}
+            placeholder="Bekleme listesine üye ekle…"
+            className="h-9 w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground disabled:opacity-50"
+            aria-label="Bekleme listesine ekle"
+          />
+        </div>
+        {matches.length > 0 ? (
+          <ul className="mt-1 space-y-0.5">
+            {matches.map((m) => (
+              <li key={m.id}>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() =>
+                    void run(() => ops.joinWaitlist(sessionId, m.id), `${m.fullName} bekleme listesine eklendi.`).then(
+                      () => setQuery(''),
+                    )
+                  }
+                  className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm text-foreground transition-colors hover:bg-muted disabled:opacity-50"
+                >
+                  <span className="truncate">{m.fullName}</span>
+                  <span className="ml-auto shrink-0 text-xs text-muted-foreground">{m.phone}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+
+        {waiting.length > 0 ? (
+          <ul className="mt-1 space-y-0.5">
+            {waiting.map((w) => (
+              <li key={w.entryId} className="group/w flex items-center gap-2.5 rounded-lg px-2.5 py-2 hover:bg-muted">
+                <span className="grid size-6 shrink-0 place-items-center rounded-full bg-gold-soft text-[0.7rem] font-semibold text-gold tabular-nums">
+                  {w.position}
+                </span>
+                <span className="min-w-0 flex-1 truncate text-sm text-foreground">{w.memberName}</span>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void run(() => ops.promoteWaitlist(w.entryId), `${w.memberName} rezervasyona alındı.`)}
+                  title="Rezervasyona al (yer açıldıysa)"
+                  className="rounded-md px-2 py-1 text-xs font-medium text-primary opacity-0 transition-all hover:bg-primary-soft group-hover/w:opacity-100 disabled:opacity-50"
+                >
+                  Al
+                </button>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void run(() => ops.leaveWaitlist(w.entryId), `${w.memberName} listeden çıkarıldı.`)}
+                  aria-label={`${w.memberName} bekleme listesinden çıkar`}
+                  className="grid size-6 shrink-0 place-items-center rounded-md text-muted-foreground opacity-0 transition-all hover:bg-danger/10 hover:text-danger group-hover/w:opacity-100 disabled:opacity-50"
+                >
+                  <XIcon className="size-3.5" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : rows !== null ? (
+          <p className="px-3 py-2 text-xs text-muted-foreground">Bekleyen yok.</p>
+        ) : null}
+      </div>
+    </div>
   )
 }
 
@@ -562,9 +715,14 @@ function RosterPanel({
       {session.status === 'cancelled' ? (
         <div className="border-b border-border bg-muted/40 px-4 py-3 text-xs text-muted-foreground">Bu ders iptal edildi.</div>
       ) : full ? (
-        <div className="flex items-center gap-2 border-b border-border bg-gold-soft px-4 py-3 text-xs font-medium text-gold">
-          <span className="size-1.5 rounded-full bg-gold" /> Ders dolu — {session.capacity}/{session.capacity}
-        </div>
+        <WaitlistPanel
+          sessionId={session.sessionId}
+          capacity={session.capacity}
+          members={members}
+          bookedIds={bookedIds}
+          ops={ops}
+          onChanged={onChanged}
+        />
       ) : (
         <div className="border-b border-border p-2">
           <div className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 focus-within:border-primary focus-within:ring-3 focus-within:ring-ring/40">
