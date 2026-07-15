@@ -5,6 +5,8 @@ import { randomUUID } from 'node:crypto'
 import {
   decideCallbackResult,
   decideCreatePaymentIntent,
+  decideRefundConfirmed,
+  decideRequestRefund,
   decideSessionCreated,
   FirestoreCatalogRepository,
   FirestoreEntitlementRepository,
@@ -247,6 +249,32 @@ export async function completePaidIntent(ctx: TenantContext, intent: PaymentInte
       },
     })
   }
+}
+
+// ── Refund a PAYTR payment (Plus Phase 6, §12). Owner only. Requests the refund at the provider;
+//    a refund is a NEW event, never an edit — over-refund is refused. When the provider is not
+//    configured, the STATE model is complete but nothing is faked: configuration_required. The
+//    ledger reversal (the finance Payment) is the owner's existing finance refund, matched by
+//    providerRef. ──
+export async function refundPaymentIntentAction(input: unknown) {
+  const p = z.object({ intentId: nonEmpty, amountKurus: z.number().int().min(1), reason: nonEmpty }).parse(input)
+  const ctx = await requireTenantContext(OWNER)
+  const intent = await intentRepo().getIntent(ctx, p.intentId)
+  if (!intent) return { ok: false as const, error: { code: 'payment_ref_mismatch' as const } }
+
+  const requested = decideRequestRefund(dctx(ctx), intent, money(p.amountKurus), p.reason)
+  if (!requested.ok) return requested
+  await intentRepo().saveIntent(ctx, requested.value.next, requested.value.events)
+
+  const { provider } = await paymentProviderFor(ctx)
+  if (!provider.configured) return { ok: false as const, error: { code: 'payment_provider_not_configured' as const } }
+
+  const res = await provider.refund({ providerRef: intent.providerRef, amount: money(p.amountKurus) })
+  if (!res.ok) return { ok: false as const, error: { code: 'payment_not_refundable' as const }, providerError: res.errorCode }
+
+  const confirmed = decideRefundConfirmed(dctx(ctx), requested.value.next, money(p.amountKurus), p.reason)
+  await intentRepo().saveIntent(ctx, confirmed.next, confirmed.events)
+  return { ok: true as const }
 }
 
 // ── The PAYTR callback, server-side (the route only forwards to this — depcruise keeps Firestore out

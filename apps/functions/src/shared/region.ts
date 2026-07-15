@@ -36,3 +36,10 @@ export const WHATSAPP_SECRETS = ['WHATSAPP_ACCESS_TOKEN'] as const
 // The union the notification functions (onEventCreated + the retry sweep) must bind so both e-mail
 // and WhatsApp can leave the building.
 export const NOTIFICATION_SECRETS = [...EMAIL_SECRETS, ...WHATSAPP_SECRETS] as const
+
+// ── PAYTR (Plus Phase 6) ──────────────────────────────────────────────────────────────────────
+// The merchant KEY and SALT sign every token and verify every callback — they are secrets. The
+// merchant id is a plain identifier and lives in the studio's payment-provider settings doc, not
+// here. A function that reconciles payments (or a web tier that verifies a callback) sees these only
+// if it binds them. Absent them, the provider is Unconfigured and shows configuration_required.
+export const PAYTR_SECRETS = ['PAYTR_MERCHANT_KEY', 'PAYTR_MERCHANT_SALT'] as const

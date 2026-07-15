@@ -338,6 +338,11 @@ async function resolveParams(
     }
     case 'payment.received':
       return { ...base, amount: tl(p.amount) }
+    // Plus Phase 6 — payment outcomes.
+    case 'payment_intent.failed':
+      return base
+    case 'payment_intent.refunded':
+      return { ...base, amount: tl(p.amount) }
     case 'plan.instalment_due':
       return { ...base, amount: tl(p.amount), dueDate: dt(Number(p.dueAt ?? 0)) }
     case 'member.invited':

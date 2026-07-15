@@ -77,6 +77,15 @@ export const RULES: Readonly<Record<string, readonly IntentRule[]>> = {
     { template: 'wallet_topup', to: 'member', category: 'operational', priority: 'normal' },
   ],
 
+  // ── Plus Phase 6 — payments. Success & renewal already notify via payment.received /
+  //    entitlement.purchased; these cover the two that otherwise pass in silence. ──
+  'payment_intent.failed': [
+    { template: 'payment_failed', to: 'member', category: 'operational', priority: 'high' },
+  ],
+  'payment_intent.refunded': [
+    { template: 'refund_completed', to: 'member', category: 'operational', priority: 'normal' },
+  ],
+
   // ── STAFF ALERTS. Today nothing tells the owner when an operation fails. That is the most
   //    important line on her list, and it is half of this milestone.
   'drawer.discrepancy_recorded': [

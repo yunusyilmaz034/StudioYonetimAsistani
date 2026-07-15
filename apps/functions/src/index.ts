@@ -16,6 +16,7 @@ import { runAutoResolveSweep } from './scheduled/auto-resolve-attendance'
 import { runExpirySweep } from './scheduled/expire-credits'
 import { runFastHealthChecks, runNightlyHealthChecks } from './scheduled/health'
 import { runNotificationRetrySweep } from './scheduled/notification-retry'
+import { runPaymentReconcileSweep } from './scheduled/reconcile-payments'
 import { runReminderSweep } from './scheduled/reminders'
 import { runUnfreezeSweep } from './scheduled/unfreeze-expired'
 import { NOTIFICATION_SECRETS, REGION } from './shared/region'
@@ -49,6 +50,9 @@ export const nightlySweep = onSchedule(
     // v1.25 — reminders are DOMAIN EVENTS ("your package expires in three days" has no event behind
     // it; time merely passed). They run last, so they see the night's expiries.
     await runReminderSweep()
+
+    // Plus Phase 6 — time out abandoned checkouts, flag stuck payments for a human (§22).
+    await runPaymentReconcileSweep()
 
     // v1.26 — the drift checks run AFTER the sweeps, and they only ever REPORT. Running them first
     // would flag the very rows the sweeps are about to settle; running them at all is how we find
