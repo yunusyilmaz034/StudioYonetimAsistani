@@ -65,11 +65,14 @@ templates.** It stays a distinct milestone because the channel and campaign surf
 - **Rule:** every channel is a **provider behind the existing port** (`NotificationProvider`); the
   center still hands over and classifies, and never claims "delivered" when it means "handed over".
 
-### 6 — Retail / Wallet / Product Sales  ·  *detail: Doc 27*
-A member wallet and retail sales, integrated as **one new payment method and one liability ledger** on
-the v1.24 finance spine — never a second accounting system.
-- **Rule:** `Sale → Payment(method: 'wallet') → Allocation → RetailOrder`. The moment the wallet grows
-  its own sales/refunds/balance arithmetic, the studio has two sets of books.
+### 6 — Commerce & Payments (PAYTR)  ·  *detail: Doc 27*
+Real online payments, **provider confirmed: PAYTR** (owner, 2026-07-15). Scope: a **virtual POS**,
+**pay-by-link**, package sales, **membership renewal**, the **wallet**, **payment history**, and the
+CRM sales flow — the whole money-in surface, on the v1.24 finance spine.
+- **Rule:** PAYTR is a `PaymentProvider` **behind the existing port** (Doc 26 §9) — `providerRef` on
+  every payment, a webhook that confirms rather than a client that asserts. The wallet is **one payment
+  method and one liability ledger** (`Sale → Payment(method) → Allocation`), never a second set of
+  books. Money is integer kuruş (#10), and a confirmed payment is an event, never a client's word.
 
 ### 7 — Training & Progress  ·  *detail: Doc 25 (vision expanded below)*
 A core premium module — **managing the member's development, not writing workouts.** Assign a
