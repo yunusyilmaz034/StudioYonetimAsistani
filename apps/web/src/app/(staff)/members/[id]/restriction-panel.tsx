@@ -25,14 +25,28 @@ import { Textarea } from '@/components/ui/textarea'
 import { domainErrorMessage } from '@/lib/domain-error'
 import { clearMemberRestrictionAction, setMemberRestrictionAction } from '@/server/actions/members'
 
+interface TrainerOption {
+  readonly id: string
+  readonly name: string
+}
+
 // ── labels / helpers ─────────────────────────────────────────────────────────────────────────
 const REASON_LABEL: Record<string, string> = {
   vip: 'VIP',
   corporate: 'Kurumsal',
   promotional: 'Promosyon',
-  problem: 'Sorunlu',
+  complaint_compensation: 'Şikayet Telafisi',
+  health: 'Sağlık',
   other: 'Diğer',
 }
+// The studio's timezone is Europe/Istanbul (UTC+3, no DST) — the same 180-minute offset the rest of
+// the app uses. A validity date maps to the studio-local start-of-day (from) / end-of-day (until).
+const IST = 'Europe/Istanbul'
+const IST_OFFSET = '+03:00'
+const dateToStartMs = (d: string) => Date.parse(`${d}T00:00:00${IST_OFFSET}`)
+const dateToEndMs = (d: string) => Date.parse(`${d}T23:59:59${IST_OFFSET}`)
+const msToDateInput = (ms: number) => new Intl.DateTimeFormat('en-CA', { timeZone: IST }).format(ms) // YYYY-MM-DD
+const msToDisplay = (ms: number) => new Date(ms).toLocaleDateString('tr-TR', { timeZone: IST })
 // Display order Pzt…Paz; the domain uses 0=Sun … 6=Sat.
 const WEEKDAYS: readonly { value: number; label: string }[] = [
   { value: 1, label: 'Pzt' },
@@ -63,16 +77,26 @@ function limitLabel(v: number | null | undefined, unit: string): { text: string;
 export function RestrictionPanel({
   memberId,
   restriction,
+  trainers,
   canEdit,
 }: {
   memberId: MemberId
   restriction: MemberRestriction | null
+  trainers: readonly TrainerOption[]
   canEdit: boolean
 }) {
   const router = useRouter()
   const [editorOpen, setEditorOpen] = useState(false)
   const [clearReason, setClearReason] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+
+  // Is the override currently in force? Outside its validity window it is INERT and the member is
+  // judged by the package rules — the resolver does this automatically; here we just SAY so.
+  const now = Date.now()
+  const notYet = restriction?.effectiveFrom != null && now < restriction.effectiveFrom
+  const expired = restriction?.effectiveUntil != null && now > restriction.effectiveUntil
+  const inert = Boolean(restriction && (notYet || expired))
+  const trainerName = (id: string) => trainers.find((t) => t.id === id)?.name ?? id
 
   async function clear() {
     if (clearReason === null) return
@@ -109,12 +133,21 @@ export function RestrictionPanel({
           Bu üye standart kurallara tabidir.
         </p>
       ) : (
-        <div className="space-y-4 rounded-xl border border-warning/40 bg-warning/5 p-4">
+        <div
+          className={`space-y-4 rounded-xl border p-4 ${
+            inert ? 'border-border bg-muted/40' : 'border-warning/40 bg-warning/5'
+          }`}
+        >
           <div className="flex flex-wrap items-center gap-2">
             <Badge className="gap-1 bg-warning/15 text-warning">
               <ShieldAlertIcon className="size-3.5" />
               {REASON_LABEL[restriction.reason] ?? restriction.reason}
             </Badge>
+            {inert ? (
+              <Badge className="bg-muted text-muted-foreground">
+                {notYet ? 'Henüz başlamadı — şu an paket kuralları geçerli' : 'Süresi doldu — şu an paket kuralları geçerli'}
+              </Badge>
+            ) : null}
             {restriction.note ? <span className="text-sm text-muted-foreground">{restriction.note}</span> : null}
           </div>
 
@@ -148,6 +181,30 @@ export function RestrictionPanel({
                 </span>
               )}
             </Rule>
+            <Rule label="İzinli eğitmenler">
+              {restriction.allowedTrainerIds == null || restriction.allowedTrainerIds.length === 0 ? (
+                <SourcedText text="Tüm eğitmenler" source="package" />
+              ) : (
+                <span className="flex flex-wrap items-center gap-1">
+                  {restriction.allowedTrainerIds.map((id) => (
+                    <Badge key={id} className="bg-primary-soft/50 text-foreground">
+                      {trainerName(id)}
+                    </Badge>
+                  ))}
+                  <SourceTag source="member" />
+                </span>
+              )}
+            </Rule>
+            <Rule label="Geçerlilik">
+              {restriction.effectiveFrom == null && restriction.effectiveUntil == null ? (
+                <span className="text-muted-foreground">Süresiz</span>
+              ) : (
+                <span className="tabular-nums text-foreground">
+                  {restriction.effectiveFrom != null ? msToDisplay(restriction.effectiveFrom) : '…'} –{' '}
+                  {restriction.effectiveUntil != null ? msToDisplay(restriction.effectiveUntil) : '…'}
+                </span>
+              )}
+            </Rule>
             <Rule label="İptal hakkı">
               <SourcedLimit v={restriction.cancellationAllowance} unit="hak" />
             </Rule>
@@ -173,6 +230,7 @@ export function RestrictionPanel({
         <RestrictionEditor
           memberId={memberId}
           initial={restriction}
+          trainers={trainers}
           onClose={() => setEditorOpen(false)}
           onSaved={() => {
             setEditorOpen(false)
@@ -241,11 +299,13 @@ interface HourRow {
 function RestrictionEditor({
   memberId,
   initial,
+  trainers,
   onClose,
   onSaved,
 }: {
   memberId: MemberId
   initial: MemberRestriction | null
+  trainers: readonly TrainerOption[]
   onClose: () => void
   onSaved: () => void
 }) {
@@ -254,6 +314,16 @@ function RestrictionEditor({
 
   const [dayRestricted, setDayRestricted] = useState(initial?.allowedWeekdays != null)
   const [days, setDays] = useState<number[]>(initial?.allowedWeekdays ? [...initial.allowedWeekdays] : [1, 2, 3, 4, 5])
+
+  const [trainerRestricted, setTrainerRestricted] = useState(
+    initial?.allowedTrainerIds != null && initial.allowedTrainerIds.length > 0,
+  )
+  const [trainerIds, setTrainerIds] = useState<string[]>(
+    initial?.allowedTrainerIds ? [...initial.allowedTrainerIds] : [],
+  )
+
+  const [fromDate, setFromDate] = useState<string>(initial?.effectiveFrom != null ? msToDateInput(initial.effectiveFrom) : '')
+  const [untilDate, setUntilDate] = useState<string>(initial?.effectiveUntil != null ? msToDateInput(initial.effectiveUntil) : '')
 
   const [hourRestricted, setHourRestricted] = useState(
     initial?.allowedHourRanges != null && initial.allowedHourRanges.length > 0,
@@ -280,6 +350,8 @@ function RestrictionEditor({
   const [busy, setBusy] = useState(false)
 
   const toggleDay = (v: number) => setDays((d) => (d.includes(v) ? d.filter((x) => x !== v) : [...d, v]))
+  const toggleTrainer = (id: string) =>
+    setTrainerIds((t) => (t.includes(id) ? t.filter((x) => x !== id) : [...t, id]))
 
   function limitInput(mode: LimitMode, value: number): number | null | undefined {
     return mode === 'inherit' ? undefined : mode === 'unlimited' ? null : value
@@ -295,6 +367,10 @@ function RestrictionEditor({
       toast.error('En az bir gün seçin veya gün kısıtını kapatın.')
       return
     }
+    if (trainerRestricted && trainerIds.length === 0) {
+      toast.error('En az bir eğitmen seçin veya eğitmen kısıtını kapatın.')
+      return
+    }
     let ranges: { startMinutes: number; endMinutes: number }[] | null = null
     if (hourRestricted) {
       ranges = hours.map((h) => ({ startMinutes: hhmmToMin(h.start), endMinutes: hhmmToMin(h.end) }))
@@ -303,6 +379,12 @@ function RestrictionEditor({
         return
       }
     }
+    const effectiveFrom = fromDate ? dateToStartMs(fromDate) : null
+    const effectiveUntil = untilDate ? dateToEndMs(untilDate) : null
+    if (effectiveFrom != null && effectiveUntil != null && effectiveUntil <= effectiveFrom) {
+      toast.error('Bitiş tarihi başlangıçtan sonra olmalı.')
+      return
+    }
 
     const payload = {
       memberId,
@@ -310,6 +392,9 @@ function RestrictionEditor({
       note: note.trim(),
       allowedWeekdays: dayRestricted ? days : null,
       allowedHourRanges: ranges,
+      allowedTrainerIds: trainerRestricted ? trainerIds : null,
+      effectiveFrom,
+      effectiveUntil,
       // Tri-state: only include a key when it is NOT "inherit".
       ...(cancelMode !== 'inherit' ? { cancellationAllowance: limitInput(cancelMode, cancelValue) } : {}),
       ...(dailyMode !== 'inherit' ? { dailyReservationLimit: limitInput(dailyMode, dailyValue) } : {}),
@@ -424,6 +509,54 @@ function RestrictionEditor({
             ) : (
               <p className="text-xs text-muted-foreground">Kapalı: üye her saatte rezervasyon yapabilir.</p>
             )}
+          </div>
+
+          {/* Allowed trainers (Phase 4) */}
+          <div className="space-y-2">
+            <label className="flex items-center gap-2 text-sm font-medium">
+              <Checkbox checked={trainerRestricted} onCheckedChange={(v) => setTrainerRestricted(v === true)} />
+              Eğitmen kısıtı
+            </label>
+            {trainerRestricted ? (
+              trainers.length === 0 ? (
+                <p className="text-xs text-muted-foreground">Kayıtlı eğitmen yok.</p>
+              ) : (
+                <div className="flex flex-wrap gap-1.5">
+                  {trainers.map((t) => (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => toggleTrainer(t.id)}
+                      className={`min-h-9 rounded-lg border px-3 text-sm transition-colors ${
+                        trainerIds.includes(t.id)
+                          ? 'border-primary bg-primary text-primary-foreground'
+                          : 'border-border bg-card text-muted-foreground hover:bg-muted'
+                      }`}
+                    >
+                      {t.name}
+                    </button>
+                  ))}
+                </div>
+              )
+            ) : (
+              <p className="text-xs text-muted-foreground">Kapalı: üye tüm eğitmenlerden rezervasyon yapabilir.</p>
+            )}
+          </div>
+
+          {/* Validity window (Phase 4) — outside it, the override auto-returns to package rules. */}
+          <div className="space-y-2">
+            <p className="text-sm font-medium">Geçerlilik süresi (opsiyonel)</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <label className="flex flex-col gap-1 text-xs text-muted-foreground">
+                Başlangıç
+                <Input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
+              </label>
+              <label className="flex flex-col gap-1 text-xs text-muted-foreground">
+                Bitiş
+                <Input type="date" value={untilDate} onChange={(e) => setUntilDate(e.target.value)} />
+              </label>
+            </div>
+            <p className="text-xs text-muted-foreground">Boş bırakılırsa süresiz. Süre dolunca üye otomatik paket kurallarına döner.</p>
           </div>
 
           {/* Limit overrides */}

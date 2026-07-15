@@ -12,6 +12,7 @@ import {
   Loader2Icon,
   PackageIcon,
   PencilIcon,
+  ShieldAlertIcon,
   UserIcon,
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -82,25 +83,33 @@ const dt = (ms: number) =>
 const d = (ms: number) => new Date(ms).toLocaleDateString('tr-TR', { timeZone: 'Europe/Istanbul' })
 const tl = (k: number) => `${(k / 100).toLocaleString('tr-TR')} TL`
 
-type SectionId = 'profile' | 'packages' | 'reservations' | 'checkin' | 'payments' | 'audit'
+type SectionId = 'profile' | 'packages' | 'reservations' | 'override' | 'checkin' | 'payments' | 'audit'
 const SECTIONS: readonly { id: SectionId; label: string; icon: typeof UserIcon }[] = [
   { id: 'profile', label: 'Genel', icon: UserIcon },
   { id: 'packages', label: 'Paketler', icon: PackageIcon },
   { id: 'reservations', label: 'Rezervasyonlar', icon: ClipboardListIcon },
+  { id: 'override', label: 'Kısıtlı Üyelik', icon: ShieldAlertIcon },
   { id: 'checkin', label: 'Check-in', icon: DoorOpenIcon },
   { id: 'payments', label: 'Cari Hesap', icon: CreditCardIcon },
   { id: 'audit', label: 'Geçmiş', icon: HistoryIcon },
 ]
 
+export interface TrainerOption {
+  readonly id: string
+  readonly name: string
+}
+
 export function MemberWorkspaceScreen({
   data,
   products,
+  trainers,
   defaultBranchId,
   isOwner = false,
   isPlatformAdmin,
 }: {
   data: MemberWorkspaceData
   products: readonly ProductView[]
+  trainers: readonly TrainerOption[]
   defaultBranchId: string | null
   isOwner?: boolean
   isPlatformAdmin: boolean
@@ -177,17 +186,21 @@ export function MemberWorkspaceScreen({
         <TabsContent value="profile">
           <div className="space-y-5">
             <ProfilePanel member={member} isPlatformAdmin={isPlatformAdmin} />
-            {/* "Kısıtlı Üyelik" (Plus Phase 3) — a per-member override of the package rules. Editing
-                is a policy act: owner / platform_admin only (the action refuses anyone else too). */}
-            <RestrictionPanel
-              memberId={member.id}
-              restriction={member.restriction}
-              canEdit={isOwner || isPlatformAdmin}
-            />
             {/* v1.21 — the portal invite (D1). Reception issues the link; the member sets her
                 own password. Reception never knows it. */}
             <InvitePanel memberId={member.id} studioId={member.studioId} />
           </div>
+        </TabsContent>
+        <TabsContent value="override">
+          {/* "Kısıtlı Üyelik / Member Override" (Plus Phase 4) — its own tab now. A per-member
+              override of the package rules. Editing is a policy act: owner / platform_admin only
+              (the action refuses anyone else too). */}
+          <RestrictionPanel
+            memberId={member.id}
+            restriction={member.restriction}
+            trainers={trainers}
+            canEdit={isOwner || isPlatformAdmin}
+          />
         </TabsContent>
         <TabsContent value="packages">
           <SubscriptionsPanel memberId={member.id} products={products} />

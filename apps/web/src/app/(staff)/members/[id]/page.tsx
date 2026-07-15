@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation'
 
 import { requirePageAccess } from '@/server/auth'
+import { listTrainersAction } from '@/server/actions/bulk-reservations'
 import { listProducts } from '@/server/catalog-query'
 import { loadMemberWorkspace } from '@/server/member-workspace-query'
 
@@ -17,9 +18,12 @@ export default async function MemberWorkspacePage({
   const ctx = await requirePageAccess('/members')
 
   const { id } = await params
-  const [data, products] = await Promise.all([
+  const [data, products, trainers] = await Promise.all([
     loadMemberWorkspace(ctx, id, Date.now()),
     listProducts(ctx),
+    // The trainers, for the Member Override "eğitmen kısıtı" picker (Plus Phase 4) — the same
+    // reception-readable source the schedule and bulk screens use.
+    listTrainersAction(),
   ])
   if (!data) {
     notFound()
@@ -29,6 +33,7 @@ export default async function MemberWorkspacePage({
     <MemberWorkspaceScreen
       data={data}
       products={products}
+      trainers={trainers}
       defaultBranchId={ctx.branchIds[0] ?? null}
       isOwner={ctx.role === 'owner'}
       // KVKK erasure is the ONE destructive act in this product, and it belongs to the person who set
