@@ -1,9 +1,16 @@
-# 30 — Package Rules & Member Restrictions — **architecture backlog**
+# 30 — Package Rules & Member Restrictions
 
-**Status:** backlog — accepted onto the roadmap (owner, 2026-07-15). **No enforcement code yet, no
-new UI yet.** This is the brief the milestone will be written against when it opens. It is written
-now, during production setup, because the setup revealed how much of the seam already exists — and
-recording that is cheaper than rediscovering it.
+**Status: IMPLEMENTED & CLOSED — Plus Phase 3 (owner-approved, 2026-07-15).** Tag
+`plus-v0.3-package-rules`. The three package fields (`cancellationAllowanceCount`,
+`dailyReservationLimit`, `activeReservationLimit`; `null` ⇒ unlimited) are enforced by the reservation
+deciders via `resolveReservationPolicy` (studio → package → member override); member restrictions
+("Kısıtlı Üyelik") ship with allowed days/hours, the three limit overrides, a closed-enum reason +
+note, and their own audit events (`member.restriction_set` / `_cleared`). The free-cancellation
+allowance is an entitlement ledger (`cancellation_charged` / `_refunded`). Deferred, with triggers:
+**DEBT-031** (per-booking `listByMember` read) and **DEBT-032** (move does not yet enforce day/hour).
+Trainer restriction + override validity windows are **Plus Phase 4 (Member Override)**.
+
+*The original brief is kept below as the record of what was designed.*
 
 ---
 

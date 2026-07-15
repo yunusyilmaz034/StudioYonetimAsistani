@@ -42,10 +42,12 @@ WhatsApp actions, trainer notes, room notes, the waiting list, the daily-operati
 - **Note:** WhatsApp here is a *channel of Phase 5*; start the Meta approval (ED-1) now — it is
   external and slow, and must not block this phase.
 
-### 3 — Package Rules 2.0  ·  *detail: Doc 30*
-Per-package rules from the catalogue: cancellation-right count (e.g. 3 / 5 / unlimited), late-cancel
-right, no-show right, active-reservation limit. The seam is half-built — `cancellationAllowanceCount`
-and `dailyReservationLimit` already exist on `Product`, read by no decision function yet.
+### 3 — Package Rules 2.0  ·  *detail: Doc 30*  ·  ✅ **CLOSED (2026-07-15, tag `plus-v0.3-package-rules`)**
+Per-package rules from the catalogue: cancellation-right count (e.g. 3 / 5 / unlimited),
+active-reservation limit, daily limit — **shipped and enforced** via `resolveReservationPolicy`. The
+free-cancellation allowance is an entitlement ledger. Member restrictions (allowed days/hours + the
+three limit overrides) shipped alongside. Late-cancel right and no-show right stayed out of scope
+(future backlog). Deferred with triggers: DEBT-031 (per-booking read), DEBT-032 (move enforcement).
 - **Rule:** each allowance is a **ledger, decremented by an event** (the credit-ledger discipline,
   Doc 13) — never a mutable counter, or it drifts exactly as credits would. The rule is read by the
   decider, never an `if` in a Server Action (#4).
