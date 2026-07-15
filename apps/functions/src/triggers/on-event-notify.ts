@@ -23,6 +23,7 @@ import {
   type NotificationPrefs,
   type NotificationProvidersConfig,
   type NotificationSettings,
+  type NotificationTemplate,
   type RecipientRef,
   type StudioId,
   type TenantContext,
@@ -127,6 +128,11 @@ export function notificationDeps(settings: NotificationSettings = DEFAULT_NOTIFI
     loadPrefs: async (ctx, memberId): Promise<NotificationPrefs> => {
       const snap = await database.doc(`studios/${ctx.studioId}/members/${memberId}`).get()
       return { ...DEFAULT_PREFS, ...((snap.get('notificationPrefs') as NotificationPrefs) ?? {}) }
+    },
+    // Plus Phase 5 — the studio's per-template override, if it edited one (null ⇒ use the code seed).
+    loadTemplate: async (ctx, templateId): Promise<NotificationTemplate | null> => {
+      const snap = await database.doc(`studios/${ctx.studioId}/notificationTemplates/${templateId}`).get()
+      return snap.exists ? (snap.data() as NotificationTemplate) : null
     },
   }
 }

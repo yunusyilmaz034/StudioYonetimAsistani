@@ -4,6 +4,7 @@ import {
   DEFAULT_NOTIFICATION_SETTINGS,
   DEFAULT_PREFS,
   deliver,
+  instant,
   FirestoreNotificationRepository,
   standardNotificationProviders,
   systemClock,
@@ -12,6 +13,7 @@ import {
   type NotificationDeps,
   type NotificationPrefs,
   type NotificationProvidersConfig,
+  type NotificationTemplate,
 } from '@studio/core'
 import { z } from 'zod'
 
@@ -54,7 +56,94 @@ const deps = (): NotificationDeps => {
       const snap = await db.doc(`studios/${ctx.studioId}/members/${memberId}`).get()
       return { ...DEFAULT_PREFS, ...((snap.get('notificationPrefs') as NotificationPrefs) ?? {}) }
     },
+    loadTemplate: async (ctx, templateId) => {
+      const snap = await db.doc(`studios/${ctx.studioId}/notificationTemplates/${templateId}`).get()
+      return snap.exists ? (snap.data() as NotificationTemplate) : null
+    },
   }
+}
+
+// ── Template management (Plus Phase 5) — a per-studio OVERRIDE store over the code seed. Not
+//    event-sourced (like room notes): a template edit is config, and each SEND already keeps its
+//    rendered snapshot, so a past message is never rewritten (I-38, §15). The edit stamps who/when
+//    and bumps the version. Owner + platform_admin only; reception may READ, never edit copy. ──
+export interface TemplateRow {
+  readonly id: string
+  readonly name: string
+  readonly category: string
+  readonly channelLabel: string
+  readonly subject: string
+  readonly body: string
+  readonly requiredParams: readonly string[]
+  readonly active: boolean
+  readonly version: number
+  readonly overridden: boolean
+  readonly updatedAt: number | null
+}
+
+export async function listNotificationTemplatesAction(): Promise<readonly TemplateRow[]> {
+  const ctx = await requireTenantContext(STAFF)
+  const db = adminDb()
+  const overrides = await db.collection(`studios/${ctx.studioId}/notificationTemplates`).get()
+  const overrideById = new Map(overrides.docs.map((d) => [d.id, d.data() as NotificationTemplate]))
+  return Object.values(TEMPLATES)
+    .map((seed) => {
+      const o = overrideById.get(seed.id)
+      const t = o ?? seed
+      return {
+        id: seed.id,
+        name: t.name,
+        category: t.category,
+        channelLabel: t.category === 'marketing' ? 'Pazarlama' : 'Operasyonel',
+        subject: t.subject,
+        body: t.body,
+        requiredParams: seed.requiredParams,
+        active: t.active ?? true,
+        version: t.version,
+        overridden: Boolean(o),
+        updatedAt: (o?.updatedAt as number | undefined) ?? null,
+      }
+    })
+    .sort((a, b) => a.name.localeCompare(b.name, 'tr'))
+}
+
+export async function updateNotificationTemplateAction(input: unknown) {
+  const p = z
+    .object({
+      id: z.string().min(1),
+      subject: z.string().min(1),
+      body: z.string().min(1),
+      active: z.boolean(),
+    })
+    .parse(input)
+  const ctx = await requireTenantContext(OWNER)
+  const seed = TEMPLATES[p.id]
+  if (!seed) return { ok: false as const, error: { code: 'template_not_found' as const } }
+
+  // The body must still declare every required param, or a live send would be refused at render.
+  const missing = seed.requiredParams.filter((param) => !p.body.includes(`{{${param}}}`))
+  if (missing.length > 0) return { ok: false as const, error: { code: 'template_params_missing' as const, missing } }
+
+  const ref = adminDb().doc(`studios/${ctx.studioId}/notificationTemplates/${p.id}`)
+  const existing = (await ref.get()).data() as NotificationTemplate | undefined
+  const next: NotificationTemplate = {
+    ...seed,
+    subject: p.subject,
+    body: p.body,
+    active: p.active,
+    version: (existing?.version ?? seed.version) + 1,
+    updatedBy: ctx.actor.id,
+    updatedAt: instant(Date.now()),
+  }
+  await ref.set(next)
+  return { ok: true as const }
+}
+
+export async function resetNotificationTemplateAction(input: unknown) {
+  const p = z.object({ id: z.string().min(1) }).parse(input)
+  const ctx = await requireTenantContext(OWNER)
+  await adminDb().doc(`studios/${ctx.studioId}/notificationTemplates/${p.id}`).delete()
+  return { ok: true as const }
 }
 
 export interface NotificationRow {

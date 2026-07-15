@@ -162,14 +162,19 @@ export interface CreateIntentInput {
   readonly prefs: NotificationPrefs
   readonly settings: NotificationSettings
   readonly sentToday: number
+  // Plus Phase 5 — the RESOLVED template: the studio's override if it has one, else the code seed.
+  // The caller resolves it so this stays pure. Absent ⇒ fall back to the code catalogue.
+  readonly template?: NotificationTemplate
 }
 
 export function decideCreateIntent(
   ctx: DecideContext,
   input: CreateIntentInput,
 ): Result<{ intent: NotificationIntent; events: readonly NewEvent[] }, DomainError> {
-  const template = TEMPLATES[input.templateId]
+  const template = input.template ?? TEMPLATES[input.templateId]
   if (!template) return err({ code: 'template_not_found' })
+  // A deactivated template stops NEW sends (the owner turned it off); past sends keep their snapshot.
+  if (template.active === false) return err({ code: 'template_inactive' })
 
   // The daily ceiling (owner, decision 3). A runaway loop must cost a WARNING, not a month's
   // revenue — so when the limit trips we stop creating intents and say so, loudly.

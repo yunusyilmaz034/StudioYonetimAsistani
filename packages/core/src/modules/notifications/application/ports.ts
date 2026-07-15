@@ -5,6 +5,7 @@ import type {
   NotificationIntent,
   NotificationPrefs,
   NotificationSettings,
+  NotificationTemplate,
 } from '../domain/types'
 
 // ── THE PROVIDER PORT (owner rule: a new channel must be a new PROVIDER, nothing else). ─────
@@ -87,4 +88,7 @@ export interface NotificationDeps {
   readonly utcOffsetMinutes: number
   // Preferences and contact details are STATE — the event has neither (#6).
   readonly loadPrefs: (ctx: TenantContext, memberId: string) => Promise<NotificationPrefs>
+  // Plus Phase 5 — the studio's per-template OVERRIDE, if it edited one. Absent ⇒ the code seed is
+  // used. Returns null for a template the studio has not customised.
+  readonly loadTemplate?: (ctx: TenantContext, templateId: string) => Promise<NotificationTemplate | null>
 }

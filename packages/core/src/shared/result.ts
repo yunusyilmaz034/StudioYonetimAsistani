@@ -135,6 +135,8 @@ export type DomainError =
   | { readonly code: 'invalid_limit' }
   | { readonly code: 'invalid_trainer' }
   | { readonly code: 'invalid_validity_range' }
+  // Plus Phase 5 — a deactivated notification template stops new sends.
+  | { readonly code: 'template_inactive' }
   // Reservation-time enforcement of the effective (resolved) policy. Each says WHICH rule refused,
   // so the UI can tell the member why — never a bare "rezervasyon yapılamadı".
   | { readonly code: 'cancellation_allowance_exhausted'; readonly allowance: number }

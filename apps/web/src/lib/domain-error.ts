@@ -178,6 +178,8 @@ export function domainErrorMessage(error: DomainError): string {
       return 'Eğitmen kısıtı için en az bir eğitmen seçilmelidir.'
     case 'invalid_validity_range':
       return 'Geçersiz geçerlilik aralığı. Bitiş tarihi başlangıçtan sonra olmalı.'
+    case 'template_inactive':
+      return 'Bu şablon pasif durumda; gönderim yapılmadı.'
     case 'cancellation_allowance_exhausted':
       return `İptal hakkı doldu (${error.allowance} hakkın tamamı kullanıldı). Bu rezervasyon iptal edilemez; üye derse katılabilir.`
     case 'day_not_allowed':

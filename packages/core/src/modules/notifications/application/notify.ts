@@ -22,9 +22,21 @@ import {
   type Channel,
   type DeliveryAttempt,
   type NotificationIntent,
+  type NotificationTemplate,
   type RecipientRef,
 } from '../domain/types'
 import type { NotificationDeps, RenderedMessage } from './ports'
+
+// Plus Phase 5 — resolve the template the studio actually uses: its per-studio OVERRIDE if it edited
+// one, else the code catalogue (the seed). One place, so intent-creation and rendering never diverge.
+async function resolveTemplate(
+  deps: NotificationDeps,
+  ctx: TenantContext,
+  templateId: string,
+): Promise<NotificationTemplate | undefined> {
+  const override = deps.loadTemplate ? await deps.loadTemplate(ctx, templateId) : null
+  return override ?? TEMPLATES[templateId]
+}
 
 // ── THE DISPATCHER (v1.25). ─────────────────────────────────────────────────────────────────
 //
@@ -81,6 +93,7 @@ export async function notify(
 
   const dayStart = c.now - (c.now % 86_400_000)
   const sentToday = await deps.repo.countIntentsSince(ctx, dayStart)
+  const template = await resolveTemplate(deps, ctx, input.templateId)
 
   const decided = decideCreateIntent(c, {
     intentId: input.intentId,
@@ -92,11 +105,12 @@ export async function notify(
     prefs,
     settings: deps.settings,
     sentToday,
+    ...(template ? { template } : {}),
   })
   if (!decided.ok) return decided
 
   await deps.repo.saveIntent(ctx, decided.value.intent, decided.value.events)
-  await dispatch(deps, ctx, decided.value.intent)
+  await dispatch(deps, ctx, decided.value.intent, template)
   return { ok: true, value: { intentId: decided.value.intent.id, created: true } }
 }
 
@@ -106,8 +120,9 @@ export async function dispatch(
   deps: NotificationDeps,
   ctx: TenantContext,
   intent: NotificationIntent,
+  resolvedTemplate?: NotificationTemplate,
 ): Promise<void> {
-  const template = TEMPLATES[intent.templateId]
+  const template = resolvedTemplate ?? (await resolveTemplate(deps, ctx, intent.templateId))
   if (!template) return
   const rendered = render(template, intent.params)
   if (!rendered.ok) return // refused at creation already; belt and braces
