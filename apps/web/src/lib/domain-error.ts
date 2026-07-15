@@ -193,6 +193,13 @@ export function domainErrorMessage(error: DomainError): string {
       return 'Ödeme sağlayıcısı yapılandırılmamış. Ayarlar › Entegrasyonlar’dan PAYTR’ı bağlayın.'
     case 'retail_out_of_stock':
       return `Yeterli stok yok (mevcut: ${error.available}).`
+    // ── Plus Phase 7 (Training & Progress) ──
+    case 'program_archived':
+      return 'Arşivlenmiş program düzenlenemez. Yeni bir program oluşturun.'
+    case 'program_empty':
+      return 'Programda en az bir gün ve hareket olmalı.'
+    case 'program_version_conflict':
+      return 'Program versiyonu çakıştı. Sayfayı yenileyip tekrar deneyin.'
     case 'cancellation_allowance_exhausted':
       return `İptal hakkı doldu (${error.allowance} hakkın tamamı kullanıldı). Bu rezervasyon iptal edilemez; üye derse katılabilir.`
     case 'day_not_allowed':

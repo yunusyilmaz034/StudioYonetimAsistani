@@ -144,6 +144,10 @@ export type DomainError =
   | { readonly code: 'refund_exceeds_paid' }
   | { readonly code: 'payment_provider_not_configured' }
   | { readonly code: 'retail_out_of_stock'; readonly available: number }
+  // ── Plus Phase 7 (Training & Progress) ──
+  | { readonly code: 'program_archived' }
+  | { readonly code: 'program_empty' }
+  | { readonly code: 'program_version_conflict' }
   // Reservation-time enforcement of the effective (resolved) policy. Each says WHICH rule refused,
   // so the UI can tell the member why — never a bare "rezervasyon yapılamadı".
   | { readonly code: 'cancellation_allowance_exhausted'; readonly allowance: number }
