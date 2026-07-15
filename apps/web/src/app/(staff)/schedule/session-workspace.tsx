@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { CheckIcon, DoorOpenIcon, Loader2Icon, UserIcon, UsersIcon, XIcon } from 'lucide-react'
 import { toast } from 'sonner'
 
-import type { AttendanceOutcome, ReservationId } from '@studio/core'
+import type { AttendanceOutcome, DomainError, ReservationId, Result } from '@studio/core'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -24,6 +24,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { dayHeading, timeLabel } from '@/components/calendar'
 import { markAttendanceCommand } from '@/lib/commands'
 import { domainErrorMessage } from '@/lib/domain-error'
+import { useUndo, type UndoEntry } from '@/lib/undo'
 import {
   getSessionAttendanceAction,
   type AttendanceEntry,
@@ -36,6 +37,7 @@ import {
   changeCapacityAction,
   changeRoomAction,
   changeTrainerAction,
+  rescheduleSessionAction,
   setSessionNoteAction,
 } from '@/server/actions/scheduling'
 import { correctReservationAction } from '@/server/actions/reservations'
@@ -52,7 +54,22 @@ const WINDOW_SOURCE: Record<string, string> = {
   service: 'ders varsayılanı',
   studio: 'stüdyo varsayılanı',
 }
-type Manage = 'trainer' | 'room' | 'capacity' | 'cancel'
+type Manage = 'trainer' | 'room' | 'capacity' | 'reschedule' | 'cancel'
+
+// Session start/end (ms) → the studio-local YYYY-MM-DD / HH:MM the reschedule form edits.
+const IST = 'Europe/Istanbul'
+function localDate(ms: number): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: IST, year: 'numeric', month: '2-digit', day: '2-digit' }).format(ms)
+}
+function localTime(ms: number): string {
+  return new Intl.DateTimeFormat('en-GB', { timeZone: IST, hour: '2-digit', minute: '2-digit', hour12: false }).format(ms)
+}
+
+// A Server Action returns a Result<void, DomainError>; the Undo layer wants { ok, error?: string }.
+async function adapt(p: Promise<Result<void, DomainError>>): Promise<{ ok: boolean; error?: string }> {
+  const r = await p
+  return r.ok ? { ok: true } : { ok: false, error: domainErrorMessage(r.error) }
+}
 type Tab = 'info' | 'reservations' | 'attendance' | 'notes'
 
 export function SessionWorkspace({
@@ -186,7 +203,12 @@ function InfoTab({
   const [trainerId, setTrainerId] = useState<string>(NONE)
   const [roomId, setRoomId] = useState<string>(NONE)
   const [capacity, setCapacity] = useState<number>(1)
+  const [rsDate, setRsDate] = useState('')
+  const [rsStart, setRsStart] = useState('')
+  const [rsEnd, setRsEnd] = useState('')
+  const [typeGuidance, setTypeGuidance] = useState(false)
   const [busy, setBusy] = useState(false)
+  const { record } = useUndo()
 
   const editable = session.status === 'scheduled' && session.startsAt > Date.now()
 
@@ -195,6 +217,9 @@ function InfoTab({
     setTrainerId(session.trainerId ?? NONE)
     setRoomId(session.roomId ?? NONE)
     setCapacity(session.capacity)
+    setRsDate(localDate(session.startsAt))
+    setRsStart(localTime(session.startsAt))
+    setRsEnd(localTime(session.endsAt))
     setAction(a)
   }
 
@@ -203,26 +228,57 @@ function InfoTab({
     setBusy(true)
     try {
       const r = reason.trim()
+      const sid = session.sessionId
       let res
+      // Each edit records its INVERSE as an undo (a new compensating action, never a log rewrite).
+      let undoEntry: UndoEntry | null = null
       if (action === 'trainer') {
         const chosen = trainerId === NONE ? null : (staff.find((s) => s.id === trainerId) ?? null)
+        const before = { id: session.trainerId ?? null, name: session.trainerName ?? null }
         res = await changeTrainerAction({
-          sessionId: session.sessionId,
+          sessionId: sid,
           trainerId: chosen ? chosen.id : null,
           trainerName: chosen ? chosen.name : null,
           reason: r,
         })
+        undoEntry = {
+          label: 'Eğitmen değiştirildi',
+          undo: () => adapt(changeTrainerAction({ sessionId: sid, trainerId: before.id, trainerName: before.name, reason: `Geri alma — ${r}` })),
+          redo: () => adapt(changeTrainerAction({ sessionId: sid, trainerId: chosen ? chosen.id : null, trainerName: chosen ? chosen.name : null, reason: r })),
+        }
       } else if (action === 'room') {
-        res = await changeRoomAction({ sessionId: session.sessionId, roomId: roomId === NONE ? null : roomId, reason: r })
+        const before = session.roomId ?? null
+        const next = roomId === NONE ? null : roomId
+        res = await changeRoomAction({ sessionId: sid, roomId: next, reason: r })
+        undoEntry = {
+          label: 'Salon değiştirildi',
+          undo: () => adapt(changeRoomAction({ sessionId: sid, roomId: before, reason: `Geri alma — ${r}` })),
+          redo: () => adapt(changeRoomAction({ sessionId: sid, roomId: next, reason: r })),
+        }
       } else if (action === 'capacity') {
-        res = await changeCapacityAction({ sessionId: session.sessionId, capacity, reason: r })
+        const before = session.capacity
+        res = await changeCapacityAction({ sessionId: sid, capacity, reason: r })
+        undoEntry = {
+          label: 'Kapasite değiştirildi',
+          undo: () => adapt(changeCapacityAction({ sessionId: sid, capacity: before, reason: `Geri alma — ${r}` })),
+          redo: () => adapt(changeCapacityAction({ sessionId: sid, capacity, reason: r })),
+        }
+      } else if (action === 'reschedule') {
+        const before = { date: localDate(session.startsAt), start: localTime(session.startsAt), end: localTime(session.endsAt) }
+        res = await rescheduleSessionAction({ sessionId: sid, date: rsDate, startTime: rsStart, endTime: rsEnd, reason: r })
+        undoEntry = {
+          label: 'Tarih/saat değiştirildi',
+          undo: () => adapt(rescheduleSessionAction({ sessionId: sid, date: before.date, startTime: before.start, endTime: before.end, reason: `Geri alma — ${r}` })),
+          redo: () => adapt(rescheduleSessionAction({ sessionId: sid, date: rsDate, startTime: rsStart, endTime: rsEnd, reason: r })),
+        }
       } else {
-        res = await cancelSessionAction({ sessionId: session.sessionId, reason: r })
+        res = await cancelSessionAction({ sessionId: sid, reason: r })
       }
       if (res.ok) {
-        toast.success('Kaydedildi.')
         setAction(null)
         onMutated()
+        if (undoEntry) record(undoEntry)
+        else toast.success('Kaydedildi.')
       } else {
         toast.error(domainErrorMessage(res.error))
       }
@@ -269,6 +325,14 @@ function InfoTab({
             <Button variant="outline" className="min-h-11" onClick={() => open('capacity')}>
               Kapasite
             </Button>
+            <Button variant="outline" className="min-h-11" onClick={() => open('reschedule')}>
+              Tarih / Saat
+            </Button>
+            {/* I-22 — a session's category is immutable. Reception is guided to cancel + recreate,
+                never given an auto-migration that would silently break bookings and package fit. */}
+            <Button variant="outline" className="col-span-2 min-h-11" onClick={() => setTypeGuidance(true)}>
+              Ders Tipi
+            </Button>
           </div>
           {/* Destructive action kept apart from the routine edits — it is not one of them. */}
           <Button variant="destructive" className="min-h-11 w-full" onClick={() => open('cancel')}>
@@ -291,7 +355,9 @@ function InfoTab({
                   ? 'Salon değiştir'
                   : action === 'capacity'
                     ? 'Kapasite düzenle'
-                    : 'Seansı iptal et'}
+                    : action === 'reschedule'
+                      ? 'Tarih / saat değiştir'
+                      : 'Seansı iptal et'}
             </DialogTitle>
             <DialogDescription>Bu işlem kayda geçer ve yalnızca başlamamış seansa uygulanır.</DialogDescription>
           </DialogHeader>
@@ -352,6 +418,23 @@ function InfoTab({
             />
           ) : null}
 
+          {action === 'reschedule' ? (
+            <div className="grid grid-cols-2 gap-2">
+              <label className="col-span-2 flex flex-col gap-1 text-xs text-muted-foreground">
+                Tarih
+                <Input type="date" value={rsDate} onChange={(e) => setRsDate(e.target.value)} />
+              </label>
+              <label className="flex flex-col gap-1 text-xs text-muted-foreground">
+                Başlangıç
+                <Input type="time" value={rsStart} onChange={(e) => setRsStart(e.target.value)} />
+              </label>
+              <label className="flex flex-col gap-1 text-xs text-muted-foreground">
+                Bitiş
+                <Input type="time" value={rsEnd} onChange={(e) => setRsEnd(e.target.value)} />
+              </label>
+            </div>
+          ) : null}
+
           <Textarea placeholder="Sebep (zorunlu)" value={reason} onChange={(e) => setReason(e.target.value)} />
 
           <DialogFooter>
@@ -365,6 +448,34 @@ function InfoTab({
             >
               {busy ? <Loader2Icon className="animate-spin" /> : null}
               {action === 'cancel' ? 'Seansı İptal Et' : 'Kaydet'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* I-22 — the category wall. A session's type is fixed at creation; changing it would
+          break existing reservations and package fit. So there is no edit here, only guidance. */}
+      <Dialog open={typeGuidance} onOpenChange={setTypeGuidance}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Ders tipi değiştirilemez</DialogTitle>
+            <DialogDescription>
+              Bu işlem mevcut rezervasyonları ve paket uyumluluğunu etkiler. Mevcut dersi iptal edip yeni ders
+              oluşturmanız gerekir.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setTypeGuidance(false)}>
+              Anladım
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                setTypeGuidance(false)
+                open('cancel')
+              }}
+            >
+              Seansı İptal Et
             </Button>
           </DialogFooter>
         </DialogContent>
