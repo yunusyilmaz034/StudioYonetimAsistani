@@ -345,7 +345,7 @@ async function product(
   const res = ok(
     await createProduct(catalogDeps, ctx, {
       name, category, serviceIds, type, durationDays, creditCount, priceInKurus,
-      freezeAllowanceDays, dailyReservationLimit, cancellationAllowanceCount: null,
+      freezeAllowanceDays, dailyReservationLimit, cancellationAllowanceCount: null, activeReservationLimit: null,
       description: `${name} — demo`,
     }),
     `createProduct ${name}`,

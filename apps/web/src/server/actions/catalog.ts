@@ -34,6 +34,7 @@ const fields = z.object({
   freezeAllowanceDays: z.number().int().min(0),
   dailyReservationLimit: z.number().int().min(1).nullable(),
   cancellationAllowanceCount: z.number().int().min(0).nullable(),
+  activeReservationLimit: z.number().int().min(1).nullable(),
   description: z.string(),
 })
 
@@ -49,6 +50,7 @@ function toFields(p: z.infer<typeof fields>) {
     freezeAllowanceDays: p.freezeAllowanceDays,
     dailyReservationLimit: p.dailyReservationLimit,
     cancellationAllowanceCount: p.cancellationAllowanceCount,
+    activeReservationLimit: p.activeReservationLimit,
     description: p.description,
   }
 }

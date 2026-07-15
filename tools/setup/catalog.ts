@@ -150,8 +150,11 @@ async function main(): Promise<void> {
     const fields = {
       ...p,
       serviceIds: p.serviceIds as ServiceId[],
-      dailyReservationLimit: null, // not enforced yet (Doc 30) — the seam, not the feature
-      cancellationAllowanceCount: null, // ditto: per-package cancellation rights are backlog
+      // Package rules (Plus Phase 3) — null ⇒ unlimited. The studio sets real numbers per package in
+      // the catalogue UI; the seed ships the safe, behaviour-preserving default.
+      dailyReservationLimit: null,
+      cancellationAllowanceCount: null,
+      activeReservationLimit: null,
       description: '',
     }
     const priceTL = (p.priceInKurus / 100).toLocaleString('tr-TR')

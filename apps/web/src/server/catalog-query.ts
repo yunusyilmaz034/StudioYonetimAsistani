@@ -32,6 +32,7 @@ export interface ProductView {
   readonly freezeAllowanceDays: number
   readonly dailyReservationLimit: number | null
   readonly cancellationAllowanceCount: number | null
+  readonly activeReservationLimit: number | null
   readonly description: string
   readonly active: boolean
 }
@@ -51,6 +52,7 @@ export async function listProducts(ctx: TenantContext): Promise<readonly Product
       freezeAllowanceDays: p.freezeAllowanceDays,
       dailyReservationLimit: p.dailyReservationLimit,
       cancellationAllowanceCount: p.cancellationAllowanceCount,
+      activeReservationLimit: p.activeReservationLimit,
       description: p.description,
       active: p.active,
     }))

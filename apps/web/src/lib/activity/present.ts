@@ -78,6 +78,7 @@ const FIELD_TR: Record<string, string> = {
   freezeAllowanceDays: 'dondurma hakkı',
   dailyReservationLimit: 'günlük rezervasyon limiti',
   cancellationAllowanceCount: 'iptal hakkı',
+  activeReservationLimit: 'aktif rezervasyon limiti',
   capacity: 'kontenjan',
   type: 'tür',
   // v1.27 S2 — studio settings. The audit says WHICH field changed; for the four that change a

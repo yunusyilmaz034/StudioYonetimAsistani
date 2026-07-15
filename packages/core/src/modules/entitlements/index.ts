@@ -2,9 +2,11 @@
 // (Doc 2 §5) and invariants I-1…I-4, I-19, I-20.
 export {
   available,
+  cancellationsUsed,
   AdjustmentReasons,
   PaymentMethods,
   type AdjustmentReason,
+  type CancellationLedger,
   type CreditGrant,
   type CreditLedger,
   type Entitlement,
@@ -26,6 +28,8 @@ export {
   decideAdjust,
   decideAmend,
   decideCancel,
+  decideChargeCancellation,
+  decideRefundCancellation,
   decideConsume,
   decideExpire,
   decideExtend,

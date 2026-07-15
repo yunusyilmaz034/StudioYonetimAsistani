@@ -62,6 +62,7 @@ export async function purchaseEntitlement(
     validUntil,
     credits: ledgerFor(input.productSnapshot.grant),
     freeze: freezeFor(input.freezeDays),
+    cancellationLedger: { used: 0, refunded: 0 }, // Plus Phase 3 — a fresh package has spent nothing
     priceAgreed: input.priceAgreed,
     paidTotal: { amount: 0, currency: input.priceAgreed.currency },
     manualPayment: null,

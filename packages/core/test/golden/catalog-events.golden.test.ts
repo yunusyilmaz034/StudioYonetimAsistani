@@ -34,6 +34,7 @@ const product: Product = {
   freezeAllowanceDays: 14,
   dailyReservationLimit: null,
   cancellationAllowanceCount: null,
+  activeReservationLimit: null,
   description: '',
   active: true,
 }

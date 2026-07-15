@@ -45,6 +45,13 @@ export type ProductSnapshot = {
   readonly grant: Grant
   readonly listPrice: Money
   readonly serviceIds?: readonly ServiceId[] // absent ⇒ legacy, category-wide
+  // ── Package rules (Plus Phase 3), frozen at purchase like everything else in the snapshot. A
+  //    later catalogue edit never reaches a right already sold. ABSENT ⇒ pre-Phase-3 purchase, which
+  //    keeps the unlimited behaviour it was sold under. null ⇒ unlimited; a number ⇒ a counted limit,
+  //    the package DEFAULT the member override is resolved against at reservation time. ──
+  readonly cancellationAllowanceCount?: number | null
+  readonly dailyReservationLimit?: number | null
+  readonly activeReservationLimit?: number | null
 }
 
 export type EntitlementStatus = 'active' | 'frozen' | 'expired' | 'cancelled'
@@ -73,6 +80,20 @@ export type CreditLedger = {
   readonly restored: number // a consumed credit given back
   readonly revoked: number // an admin adjustment took a credit away — never `consumed`
   readonly expired: number // burned at validUntil, unused — the churn signal
+}
+
+// ── Cancellation allowance ledger (Plus Phase 3) ────────────────────────────────────────────
+// The package's free-cancellation right, spent as a ledger (never a mutable counter): `used` is
+// in-window cancellations charged; `refunded` is the ones a compensating undo/correction gave back.
+// Net = used − refunded, rebuildable from the log. The MAX (the allowance) is NOT stored here — it is
+// resolved fresh at cancel time from the product snapshot + member override, so a member override can
+// raise or lower it without rewriting the entitlement.
+export type CancellationLedger = {
+  readonly used: number
+  readonly refunded: number
+}
+export function cancellationsUsed(l: CancellationLedger): number {
+  return l.used - l.refunded
 }
 
 // Freeze is modelled here so the aggregate shape is stable and I-8 holds, but the
@@ -108,6 +129,9 @@ export type Entitlement = {
 
   readonly credits: CreditLedger | null // null ⇔ period entitlement
   readonly freeze: FreezeState | null // null ⇔ freezing not permitted
+  // Plus Phase 3 — the free-cancellation ledger. Present on every entitlement (init {0,0}); inert
+  // when the package allowance resolves to unlimited. Legacy docs default to {0,0} on read.
+  readonly cancellationLedger: CancellationLedger
 
   // What was owed, and what has been collected (payment is optional, OQ-10).
   readonly priceAgreed: Money
