@@ -1,8 +1,8 @@
-# 34 — Reservation & Session Edit Experience — **Phase 2 backlog**
+# 34 — Reservation & Session Edit Experience — **Phase 2 SCOPE (must ship)**
 
-**Status:** backlog — a Product Feedback from real use (owner, 2026-07-15), filed under Product Plus
-**Phase 2 (Operations Workspace)**. **No implementation yet.** The roadmap does not change; this is a
-backlog item within Phase 2.
+**Status: IN SCOPE for Phase 2 (owner, 2026-07-15) — Phase 2 is NOT complete until this ships.** A
+Product Feedback from real use, promoted from backlog to a required Phase 2 deliverable. The roadmap
+does not change; this is completed within Phase 2 (Operations Workspace) before Phase 2 closes.
 
 ---
 
