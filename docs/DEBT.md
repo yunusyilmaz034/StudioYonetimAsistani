@@ -705,6 +705,45 @@ resurrected: **a verification tool that cannot run is worse than none, because i
 
 ---
 
+## DEBT-031 — Every booking reads the member's whole reservation history
+
+**Taken:** 2026-07-15 · Product Plus Phase 3 (Package Rules 2.0) · Yunus
+**What:** To enforce the daily and active reservation limits, `bookReservation` calls
+`repo.listByMember` once before the transaction and counts the member's open reservations. The read
+is UNCONDITIONAL — it happens on every booking, even for the common package that configures no daily
+/active limit (the seed ships both as `null` = unlimited), because the limit lives on the entitlement
+which is only read inside the transaction, so the count cannot be skipped based on it beforehand.
+**Cost:** one extra read on the hottest path, and it is `listByMember` (the member's *entire*
+reservation history), so a long-standing member with hundreds of past reservations pays for all of
+them on each new booking. Bounded per-member, but it grows with her history. The count is also read
+outside the transaction, so it can be one booking stale — acceptable for a soft limit (capacity and
+credits stay atomic), not for anything that moves money.
+**Trigger to repay:** the first studio where booking latency is measurably slow, or the first member
+whose history makes the read expensive.
+**Repayment:** a bounded count query (`where memberId == … and status == 'booked'`, an index) instead
+of `listByMember`; or push the count into the booking transaction so it is read only when the resolved
+policy actually has a daily/active limit.
+
+---
+
+## DEBT-032 — Move does not enforce the day/hour/limit restrictions
+
+**Taken:** 2026-07-15 · Product Plus Phase 3 · Yunus
+**What:** `decideMove` re-checks every *hard* booking wall on the target (category, service, PT
+ownership, capacity, expiry, window) but NOT the Phase-3 member restrictions (allowed weekdays /
+hours) or the daily / active limits. Book, quick-book, recurring, and waitlist-promote all enforce
+them; move does not.
+**Cost:** a member restricted to weekdays could be MOVED (by reception) into a weekend slot she could
+not have booked directly. Bounded: a move is net-zero on her active/daily totals (it relocates one
+reservation, never adds one), and moving past the free window already requires a written staff reason
+— so the gap is only the allowed-days/hours dimension, and only via a deliberate staff move.
+**Trigger to repay:** the first time a restricted member is moved past her allowed day/hour and it
+matters, or when move is exposed to members (self-service) rather than staff-only.
+**Repayment:** thread the same `resolveReservationPolicy` + `localWeekday`/`localMinuteOfDay` into
+`decideMove` and refuse `day_not_allowed` / `time_not_allowed` on the target.
+
+---
+
 ## DEBT-030 — Salon Notları sits outside the event log
 
 **Taken:** 2026-07-15 · Product Plus Phase 2 (Operations Workspace) · Yunus (owner-approved)
