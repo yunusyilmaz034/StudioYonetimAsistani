@@ -74,10 +74,13 @@ integration — provider_not_configured), advanced campaign automation deferred 
 - **Rule:** every channel is a **provider behind the existing port** (`NotificationProvider`); the
   center still hands over and classifies, and never claims "delivered" when it means "handed over".
 
-### 6 — Commerce & Payments (PAYTR)  ·  *detail: Doc 27*
-Real online payments, **provider confirmed: PAYTR** (owner, 2026-07-15). Scope: a **virtual POS**,
-**pay-by-link**, package sales, **membership renewal**, the **wallet**, **payment history**, and the
-CRM sales flow — the whole money-in surface, on the v1.24 finance spine.
+### 6 — Commerce & Payments (PAYTR)  ·  *detail: Doc 27*  ·  ✅ **CLOSED (2026-07-16, tag `plus-v0.6-commerce-payments`)**
+Real online payments on the v1.24 finance spine, provider-independent (business logic never imports
+PAYTR — only the PaymentProvider port). Shipped: PaymentIntent + PAYTR adapter (token/link/callback
+hash-verify/refund), the callback route (verify → idempotent grant-AFTER-payment), Sanal POS + Link,
+package sale, refund, a reconciliation sweep, retail products (minimal), payment history, and provider
+settings. **PAYTR is not connected** — no merchant secrets, so every flow shows configuration_required
+(nothing faked); wallet/retail-online/CRM-link are seams (DEBT-035). Go-live is env-only.
 - **Rule:** PAYTR is a `PaymentProvider` **behind the existing port** (Doc 26 §9) — `providerRef` on
   every payment, a webhook that confirms rather than a client that asserts. The wallet is **one payment
   method and one liability ledger** (`Sale → Payment(method) → Allocation`), never a second set of
