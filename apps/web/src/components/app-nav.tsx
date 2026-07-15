@@ -21,6 +21,7 @@ import {
   LogOutIcon,
   PackageIcon,
   FileTextIcon,
+  SearchIcon,
   SettingsIcon,
   UploadIcon,
   UserCogIcon,
@@ -33,15 +34,16 @@ import type { PrincipalRole } from '@studio/core'
 
 import { canSee, type Area } from '@/lib/permissions'
 import { destroySession } from '@/server/actions/session'
+import { CommandPalette } from '@/components/command-palette'
 
-interface NavItem {
+export interface NavItem {
   // The route IS the permission key. There is no second list to keep in step, and therefore no way
   // for the nav and the guard to disagree — which is how a trainer ends up with a link to the kasa.
   readonly href: Area
   readonly label: string
   readonly icon: LucideIcon
 }
-interface NavGroup {
+export interface NavGroup {
   readonly label?: string
   readonly items: readonly NavItem[]
 }
@@ -50,7 +52,9 @@ interface NavGroup {
 // Grouped: overview, then daily operations, then management. Same destinations on desktop
 // (left rail) and mobile (bottom bar). Calm active state (soft tint, not a saturated
 // fill) for all-day comfort; token-driven, no hex (DS-1).
-const GROUPS: readonly NavGroup[] = [
+// Exported so the ⌘K command palette (Phase 2) navigates from the SAME source of truth as the rail —
+// one list, so the two can never drift.
+export const GROUPS: readonly NavGroup[] = [
   { items: [{ href: '/', label: 'Genel Görünüm', icon: LayoutDashboardIcon }] },
   {
     // The trainer's whole product. It sits alone, and it is filtered in for her and out for
@@ -115,6 +119,8 @@ export function AppShell({ children, role }: { children: ReactNode; role: Princi
     <div data-slot="app-shell" className="min-h-dvh pb-16 md:pb-0 md:pl-60">
       <DesktopRail pathname={pathname} groups={groups} />
       <BottomBar pathname={pathname} groups={groups} />
+      {/* ⌘K anywhere — the operations command palette (Phase 2). */}
+      <CommandPalette role={role} />
       {children}
     </div>
   )
@@ -174,6 +180,18 @@ function DesktopRail({ pathname, groups }: { pathname: string; groups: readonly 
     >
       <div className="px-3 pt-4 pb-2">
         <Brand />
+      </div>
+      {/* The ⌘K palette's visible handle — reception's fastest path to a member or a screen. */}
+      <div className="px-3 pb-1">
+        <button
+          type="button"
+          onClick={() => window.dispatchEvent(new Event('sos:open-command'))}
+          className="flex w-full items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+        >
+          <SearchIcon className="size-4 shrink-0" />
+          <span>Ara…</span>
+          <kbd className="ml-auto rounded border border-border px-1.5 py-0.5 text-[10px] font-medium">⌘K</kbd>
+        </button>
       </div>
       <nav className="flex-1 space-y-5 overflow-y-auto px-3 py-2">
         {groups.map((group, gi) => (
