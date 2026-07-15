@@ -1,10 +1,20 @@
 'use server'
 
-import { FirestoreReservationRepository, type ClassSessionId } from '@studio/core'
+import {
+  DEFAULT_STUDIO_CONFIG,
+  FirestoreReservationRepository,
+  FirestoreSchedulingRepository,
+  FirestoreStudioHours,
+  setSessionNote,
+  systemClock,
+  type ClassSessionId,
+  type SchedulingDeps,
+} from '@studio/core'
 import { z } from 'zod'
 
 import { requireTenantContext } from '../auth'
 import { adminDb } from '../firebase-admin'
+import { domainErrorMessage } from '@/lib/domain-error'
 import { loadSchedule, type CalendarSession } from '../schedule-query'
 
 // The trainer's data, and ONLY the trainer's data (v1.27 S1 · owner's permission matrix).
@@ -35,6 +45,8 @@ export interface MyClass {
   readonly status: string
   /** How many of the register are still unmarked — the number that tells her what is left to do. */
   readonly pending: number
+  /** The session's operational note (Phase 2 §4). The trainer reads AND writes her own here. */
+  readonly note: string | null
 }
 
 /**
@@ -67,9 +79,43 @@ export async function listMyClassesAction(input: unknown): Promise<readonly MyCl
           // `booked` = nobody has said whether she came. That is the trainer's job, and this is the
           // count of it left undone.
           pending: roster.filter((r) => r.status === 'booked').length,
+          note: s.note?.text ?? null,
         }
       }),
   )
+}
+
+function schedDeps(): SchedulingDeps {
+  const db = adminDb()
+  return {
+    repo: new FirestoreSchedulingRepository(db),
+    clock: systemClock,
+    studioConfig: DEFAULT_STUDIO_CONFIG,
+    hours: new FirestoreStudioHours(db),
+  }
+}
+
+// The trainer writes the operational note for HER OWN class (Phase 2 §4). The session note is
+// event-sourced (`class_session.note_set`, actor = the trainer, recordedAt = the time), so who wrote
+// it and when are in the log — a past note is never silently overwritten, it is a new event. The
+// visibility is 'staff': her note is for the studio's people (reception, owner, the trainer), never
+// for members. Ownership is checked HERE — a trainer can only note a class that is hers.
+export async function setMyClassNoteAction(input: unknown) {
+  const p = z.object({ sessionId: z.string().min(1), date: z.string().min(1), text: z.string() }).parse(input)
+  const ctx = await requireTenantContext(TRAINER)
+
+  const schedule = await loadSchedule(ctx, p.date)
+  const session = schedule.sessions.find((s) => s.sessionId === p.sessionId)
+  if (!session || !isMine(session, ctx.actor.id as string)) {
+    return { ok: false as const, error: 'Bu ders sizin değil.' }
+  }
+
+  const res = await setSessionNote(schedDeps(), ctx, {
+    sessionId: p.sessionId as ClassSessionId,
+    text: p.text,
+    visibility: 'staff',
+  })
+  return res.ok ? { ok: true as const } : { ok: false as const, error: domainErrorMessage(res.error) }
 }
 
 export interface MyRosterEntry {

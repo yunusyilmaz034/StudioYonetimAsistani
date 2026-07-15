@@ -1,6 +1,6 @@
 'use client'
 
-import { CalendarIcon, CheckIcon, ChevronLeftIcon, ChevronRightIcon, XIcon } from 'lucide-react'
+import { CalendarIcon, CheckIcon, ChevronLeftIcon, ChevronRightIcon, Loader2Icon, StickyNoteIcon, XIcon } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useState, useTransition } from 'react'
 import { toast } from 'sonner'
@@ -11,12 +11,14 @@ import { Card, CardContent } from '@/components/ui/card'
 import { EmptyState } from '@/components/ui/empty-state'
 import { PageHeader } from '@/components/ui/page-header'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
+import { Textarea } from '@/components/ui/textarea'
 import type { ReservationId } from '@studio/core'
 
 import { markAttendanceCommand } from '@/lib/commands'
 import {
   getMyRosterAction,
   listMyClassesAction,
+  setMyClassNoteAction,
   type MyClass,
   type MyRosterEntry,
 } from '@/server/actions/trainer'
@@ -118,6 +120,12 @@ export function MyClassesScreen({ date, trainerName }: { date: string; trainerNa
                   {c.bookedCount}/{c.capacity} kişi
                   {c.roomName ? ` · ${c.roomName}` : ''}
                 </div>
+                {c.note ? (
+                  <div className="mt-1.5 flex items-start gap-1.5 rounded-md bg-primary-soft/60 px-2 py-1 text-xs text-primary">
+                    <StickyNoteIcon className="mt-0.5 size-3 shrink-0" />
+                    <span className="line-clamp-2">{c.note}</span>
+                  </div>
+                ) : null}
               </button>
 
               {/* The one number she needs: how many people she has not yet answered for. */}
@@ -190,6 +198,8 @@ function RosterSheet({
           </SheetTitle>
         </SheetHeader>
 
+        {session ? <ClassNote session={session} date={date} /> : null}
+
         {roster !== null && roster.length === 0 ? (
           <p className="px-4 py-8 text-center text-sm text-muted-foreground">
             Bu derste rezervasyon yok.
@@ -239,5 +249,43 @@ function RosterSheet({
         </div>
       </SheetContent>
     </Sheet>
+  )
+}
+
+// The trainer's operational note for her own class (Phase 2 §4). Event-sourced write; 'staff'
+// visibility, so members never see it. Ownership is enforced server-side.
+function ClassNote({ session, date }: { session: MyClass; date: string }) {
+  const [text, setText] = useState(session.note ?? '')
+  const [busy, setBusy] = useState(false)
+  const dirty = text.trim() !== (session.note ?? '').trim()
+
+  const save = async () => {
+    setBusy(true)
+    const r = await setMyClassNoteAction({ sessionId: session.sessionId, date, text })
+    setBusy(false)
+    if (r.ok) toast.success('Not kaydedildi.')
+    else toast.error(r.error ?? 'Not kaydedilemedi.')
+  }
+
+  return (
+    <div className="px-4 pb-2">
+      <label className="mb-1 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+        <StickyNoteIcon className="size-3.5" /> Ders notu (yalnızca ekip görür)
+      </label>
+      <Textarea
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        placeholder="ör. bugün yeni üye var, hareketleri yavaş anlat…"
+        rows={2}
+        className="text-sm"
+      />
+      {dirty ? (
+        <div className="mt-1.5 flex justify-end">
+          <Button size="sm" onClick={() => void save()} disabled={busy}>
+            {busy ? <Loader2Icon className="size-3.5 animate-spin" /> : null} Kaydet
+          </Button>
+        </div>
+      ) : null}
+    </div>
   )
 }
