@@ -10,6 +10,7 @@ import {
   changeCapacity,
   changeRoom,
   changeTrainer,
+  rescheduleSession,
   createRoom,
   createService,
   createTemplate,
@@ -293,6 +294,20 @@ export async function changeCapacityAction(input: unknown) {
   return changeCapacity(deps(), await requireTenantContext(OPS), {
     sessionId: p.sessionId as ClassSessionId,
     capacity: p.capacity,
+    reason: p.reason,
+  })
+}
+
+// Reschedule a session (Plus Phase 2 — Edit Experience). Studio-local date + start/end times → the
+// domain re-validates the new time (working hours) and writes a compensating `class_session.rescheduled`.
+export async function rescheduleSessionAction(input: unknown) {
+  const p = z
+    .object({ sessionId: nonEmpty, date: z.string().min(1), startTime: z.string().min(1), endTime: z.string().min(1), reason: nonEmpty })
+    .parse(input)
+  return rescheduleSession(deps(), await requireTenantContext(OPS), {
+    sessionId: p.sessionId as ClassSessionId,
+    startsAt: instant(sessionStartMs(p.date, p.startTime)),
+    endsAt: instant(sessionStartMs(p.date, p.endTime)),
     reason: p.reason,
   })
 }

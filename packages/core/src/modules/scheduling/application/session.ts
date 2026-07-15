@@ -21,6 +21,7 @@ import {
   decideChangeCapacity,
   decideChangeRoom,
   decideChangeTrainer,
+  decideReschedule,
   decideScheduleSession,
   decideSetSessionNote,
   decideUpdateStudioSettings,
@@ -277,6 +278,23 @@ export async function cancelSession(
     { ...current, status: 'cancelled', cancellation: { reason: input.reason, at: dctx.now } },
     events.value,
   )
+  return { ok: true, value: undefined }
+}
+
+// Move the session to a new time (Plus Phase 2 — Edit Experience). The new time is validated by the
+// same working-hours gate as creation; bookings ride with the session.
+export async function rescheduleSession(
+  deps: SchedulingDeps,
+  ctx: TenantContext,
+  input: { sessionId: ClassSessionId; startsAt: Instant; endsAt: Instant; reason: string },
+): Promise<Result<void, DomainError>> {
+  const current = await deps.repo.getSession(ctx, input.sessionId)
+  if (!current) throw new Error(`Session not found: ${input.sessionId}`)
+  const studio = await deps.hours.getStudioHours(ctx)
+  const events = decideReschedule(decideContext(deps, ctx), current, input.startsAt, input.endsAt, studio, input.reason)
+  if (!events.ok) return events
+  if (events.value.length === 0) return { ok: true, value: undefined }
+  await deps.repo.saveSession(ctx, { ...current, startsAt: input.startsAt, endsAt: input.endsAt }, events.value)
   return { ok: true, value: undefined }
 }
 

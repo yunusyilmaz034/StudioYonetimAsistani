@@ -25,6 +25,10 @@ export const CLASS_SESSION_CANCELLED = 'class_session.cancelled'
 export const CLASS_SESSION_TRAINER_CHANGED = 'class_session.trainer_changed'
 export const CLASS_SESSION_ROOM_CHANGED = 'class_session.room_changed'
 export const CLASS_SESSION_CAPACITY_CHANGED = 'class_session.capacity_changed'
+// The session moved to a new time (Plus Phase 2 — Edit Experience). A COMPENSATING event: the log
+// keeps the old time and records the new one; the class document holds the current time. Bookings ride
+// with the session, so a member booked into it is now booked at the new time.
+export const CLASS_SESSION_RESCHEDULED = 'class_session.rescheduled'
 export const CLASS_SESSION_NOTE_SET = 'class_session.note_set'
 export const CLASS_SESSION_ASSIGNED = 'class_session.assigned'
 export const STUDIO_SETTINGS_UPDATED = 'studio.settings_updated'
@@ -116,6 +120,13 @@ export type ClassSessionRoomChangedPayload = {
 export type ClassSessionCapacityChangedPayload = {
   readonly fromCapacity: number
   readonly toCapacity: number
+  readonly reason: string
+}
+export type ClassSessionRescheduledPayload = {
+  readonly fromStartsAt: Instant
+  readonly toStartsAt: Instant
+  readonly fromEndsAt: Instant
+  readonly toEndsAt: Instant
   readonly reason: string
 }
 // A template edit affects only FUTURE generations — already-generated sessions keep
