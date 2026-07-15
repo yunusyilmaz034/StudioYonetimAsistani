@@ -1,0 +1,485 @@
+'use client'
+
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  CalendarDaysIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  CornerDownLeftIcon,
+  PlusIcon,
+  SearchIcon,
+  UserRoundIcon,
+  XIcon,
+} from 'lucide-react'
+import { toast } from 'sonner'
+
+import { domainErrorMessage } from '@/lib/domain-error'
+import { bookReservationAction, cancelReservationAction } from '@/server/actions/reservations'
+import { loadReservationDayAction } from '@/server/actions/reservation-day'
+import type { CalendarSession } from '@/server/schedule-query'
+import type { ReservationCalendarData } from '@/server/reservation-calendar-query'
+import { FillBar } from '@/components/ui/chart'
+import { cn } from '@/lib/utils'
+
+// ── Reservation Operations (Plus Phase 2, Doc 32 §2) ─────────────────────────────────────────────
+//
+// One surface, no modals, no page transitions. Reception picks a class on the left, and the roster +
+// an inline "add member" search open on the right. Booking is: click a class (or ↑/↓), type a name,
+// Enter. Everything is keyboard-reachable; the calendar flips days without a navigation. Premium and
+// readable — the domain is untouched; this only calls the existing trusted actions.
+
+export interface BookingMember {
+  readonly id: string
+  readonly fullName: string
+  readonly phone: string
+}
+
+// The write/read surface, injected so the dev preview can run the whole screen on mock data with no
+// session. The live wrapper below binds the real Server Actions.
+export interface ReservationOps {
+  loadDay(date: string): Promise<ReservationCalendarData>
+  book(sessionId: string, memberId: string): Promise<{ ok: boolean; error?: string }>
+  cancel(reservationId: string): Promise<{ ok: boolean; error?: string }>
+}
+
+const CAT: Record<string, { text: string; dot: string; soft: string; label: string }> = {
+  pilates_group: { text: 'text-cat-pilates', dot: 'bg-cat-pilates', soft: 'bg-cat-pilates-soft', label: 'Pilates' },
+  fitness: { text: 'text-cat-fitness', dot: 'bg-cat-fitness', soft: 'bg-cat-fitness-soft', label: 'Fitness' },
+  private: { text: 'text-cat-private', dot: 'bg-cat-private', soft: 'bg-cat-private-soft', label: 'Özel' },
+}
+const catOf = (c: string) => CAT[c] ?? { text: 'text-muted-foreground', dot: 'bg-muted-foreground', soft: 'bg-muted', label: c }
+
+const hhmm = (ms: number) =>
+  new Intl.DateTimeFormat('tr-TR', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Istanbul' }).format(ms)
+const longDate = (dateStr: string) =>
+  new Intl.DateTimeFormat('tr-TR', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'Europe/Istanbul' }).format(
+    new Date(`${dateStr}T12:00:00Z`),
+  )
+const addDays = (dateStr: string, n: number): string => {
+  const d = new Date(`${dateStr}T12:00:00Z`)
+  d.setUTCDate(d.getUTCDate() + n)
+  return d.toISOString().slice(0, 10)
+}
+const digits = (s: string) => s.replace(/\D/g, '')
+
+// ── the live wrapper: binds the real actions. Used by the /reservations page. ────────────────────
+export function ReservationOperationsLive(props: {
+  initialData: ReservationCalendarData
+  initialDate: string
+  today: string
+  members: readonly BookingMember[]
+}) {
+  const ops: ReservationOps = useMemo(
+    () => ({
+      loadDay: (d) => loadReservationDayAction(d),
+      book: async (sessionId, memberId) => {
+        const r = await bookReservationAction({ sessionId, memberId })
+        return r.ok ? { ok: true } : { ok: false, error: domainErrorMessage(r.error) }
+      },
+      cancel: async (reservationId) => {
+        const r = await cancelReservationAction({ reservationId })
+        return r.ok ? { ok: true } : { ok: false, error: domainErrorMessage(r.error) }
+      },
+    }),
+    [],
+  )
+  return <ReservationOperations {...props} ops={ops} />
+}
+
+export function ReservationOperations({
+  initialData,
+  initialDate,
+  today,
+  members,
+  ops,
+}: {
+  initialData: ReservationCalendarData
+  initialDate: string
+  today: string
+  members: readonly BookingMember[]
+  ops: ReservationOps
+}) {
+  const [date, setDate] = useState(initialDate)
+  const [data, setData] = useState(initialData)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+  const searchRef = useRef<HTMLInputElement>(null)
+
+  // Sessions of the day, in time order; cancelled ones sink to the bottom, dimmed.
+  const sessions = useMemo(
+    () =>
+      [...data.sessions].sort((a, b) => {
+        const ca = a.status === 'cancelled' ? 1 : 0
+        const cb = b.status === 'cancelled' ? 1 : 0
+        return ca - cb || a.startsAt - b.startsAt
+      }),
+    [data.sessions],
+  )
+  const selected = sessions.find((s) => s.sessionId === selectedId) ?? null
+
+  const goDay = useCallback(
+    async (next: string) => {
+      setLoading(true)
+      setSelectedId(null)
+      try {
+        const fresh = await ops.loadDay(next)
+        setData(fresh)
+        setDate(next)
+      } catch {
+        toast.error('Gün yüklenemedi.')
+      } finally {
+        setLoading(false)
+      }
+    },
+    [ops],
+  )
+
+  const refresh = useCallback(async () => {
+    try {
+      setData(await ops.loadDay(date))
+    } catch {
+      /* a failed refresh leaves the last-known day on screen; the next action retries */
+    }
+  }, [ops, date])
+
+  // ← / → flip days when focus is not in a text field.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement
+      if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') return
+      if (e.key === 'ArrowLeft') void goDay(addDays(date, -1))
+      else if (e.key === 'ArrowRight') void goDay(addDays(date, 1))
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [date, goDay])
+
+  const pick = useCallback((id: string) => {
+    setSelectedId(id)
+    setTimeout(() => searchRef.current?.focus(), 30)
+  }, [])
+
+  return (
+    <main className="mx-auto flex h-[100dvh] max-w-[1600px] flex-col p-4 sm:p-6 lg:p-8">
+      {/* ── header: date nav ──────────────────────────────────────────── */}
+      <header className="flex flex-wrap items-center justify-between gap-3 pb-5">
+        <div>
+          <p className="text-sm text-muted-foreground">
+            {date === today ? 'Bugün' : addDays(today, 1) === date ? 'Yarın' : addDays(today, -1) === date ? 'Dün' : 'Rezervasyon'}
+          </p>
+          <h1 className="font-heading text-display font-medium text-foreground capitalize">{longDate(date)}</h1>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <NavBtn onClick={() => void goDay(addDays(date, -1))} aria-label="Önceki gün">
+            <ChevronLeftIcon className="size-4" />
+          </NavBtn>
+          <button
+            type="button"
+            onClick={() => void goDay(today)}
+            className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-sm font-medium text-foreground transition-colors hover:border-primary/40"
+          >
+            <CalendarDaysIcon className="size-4" />
+            Bugün
+          </button>
+          <NavBtn onClick={() => void goDay(addDays(date, 1))} aria-label="Sonraki gün">
+            <ChevronRightIcon className="size-4" />
+          </NavBtn>
+        </div>
+      </header>
+
+      {/* ── two-pane operations surface ───────────────────────────────── */}
+      <div className={cn('grid min-h-0 flex-1 gap-4 lg:grid-cols-[1fr_400px]', loading && 'opacity-60')}>
+        {/* LEFT — the day's classes */}
+        <section className="min-h-0 overflow-y-auto pr-1">
+          {sessions.length === 0 ? (
+            <div className="flex h-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border py-16 text-center">
+              <CalendarDaysIcon className="size-8 text-muted-foreground/50" />
+              <p className="text-sm text-muted-foreground">Bu gün için ders yok.</p>
+            </div>
+          ) : (
+            <ul className="space-y-2.5">
+              {sessions.map((s) => (
+                <ClassCard
+                  key={s.sessionId}
+                  s={s}
+                  booked={data.rosters[s.sessionId]?.length ?? s.bookedCount}
+                  selected={s.sessionId === selectedId}
+                  onSelect={() => pick(s.sessionId)}
+                />
+              ))}
+            </ul>
+          )}
+        </section>
+
+        {/* RIGHT — the selected class: roster + inline booking */}
+        <aside className="min-h-0 overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+          {selected ? (
+            <RosterPanel
+              key={selected.sessionId}
+              session={selected}
+              roster={data.rosters[selected.sessionId] ?? []}
+              members={members}
+              ops={ops}
+              searchRef={searchRef}
+              onChanged={refresh}
+            />
+          ) : (
+            <div className="flex h-full flex-col items-center justify-center gap-2 p-8 text-center">
+              <UserRoundIcon className="size-8 text-muted-foreground/40" />
+              <p className="text-sm text-muted-foreground">Bir ders seç — katılanlar ve hızlı rezervasyon burada açılır.</p>
+              <p className="text-xs text-muted-foreground/70">↑ ↓ ders · ← → gün · ⌘K üye ara</p>
+            </div>
+          )}
+        </aside>
+      </div>
+    </main>
+  )
+}
+
+function NavBtn({ children, onClick, ...rest }: React.ComponentProps<'button'>) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      {...rest}
+      className="grid size-9 place-items-center rounded-lg border border-border bg-surface text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+    >
+      {children}
+    </button>
+  )
+}
+
+function ClassCard({
+  s,
+  booked,
+  selected,
+  onSelect,
+}: {
+  s: CalendarSession
+  booked: number
+  selected: boolean
+  onSelect: () => void
+}) {
+  const cat = catOf(s.category)
+  const cancelled = s.status === 'cancelled'
+  const full = booked >= s.capacity
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={onSelect}
+        aria-current={selected ? 'true' : undefined}
+        className={cn(
+          'w-full rounded-xl border bg-card p-4 text-left shadow-sm transition-all',
+          cancelled && 'opacity-55',
+          selected ? 'border-primary ring-1 ring-primary' : 'border-border hover:border-primary/40 hover:shadow-md',
+        )}
+      >
+        <div className="flex items-start gap-4">
+          <div className="flex w-16 shrink-0 flex-col items-start">
+            <span className="font-heading text-h1 font-medium tabular-nums text-foreground">{hhmm(s.startsAt)}</span>
+            <span className={cn('mt-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[0.7rem] font-medium', cat.soft, cat.text)}>
+              <span className={cn('size-1.5 rounded-full', cat.dot)} />
+              {cat.label}
+            </span>
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-baseline justify-between gap-2">
+              <span className="truncate font-medium text-foreground">
+                {s.serviceName}
+                {cancelled ? <span className="ml-2 text-xs font-normal text-danger">İptal</span> : null}
+              </span>
+              <span className={cn('shrink-0 text-sm font-medium tabular-nums', full ? 'text-gold' : 'text-muted-foreground')}>
+                {booked}/{s.capacity}
+              </span>
+            </div>
+            <p className="mt-0.5 truncate text-xs text-muted-foreground">
+              {s.trainerName ?? 'Eğitmen atanmadı'}
+              {s.roomName ? ` · ${s.roomName}` : ''}
+            </p>
+            <FillBar value={booked} max={s.capacity} className="mt-2.5" />
+          </div>
+        </div>
+      </button>
+    </li>
+  )
+}
+
+function RosterPanel({
+  session,
+  roster,
+  members,
+  ops,
+  searchRef,
+  onChanged,
+}: {
+  session: CalendarSession
+  roster: ReservationCalendarData['rosters'][string]
+  members: readonly BookingMember[]
+  ops: ReservationOps
+  searchRef: React.RefObject<HTMLInputElement | null>
+  onChanged: () => Promise<void>
+}) {
+  const cat = catOf(session.category)
+  const [query, setQuery] = useState('')
+  const [active, setActive] = useState(0)
+  const [busy, setBusy] = useState(false)
+  const bookedIds = useMemo(() => new Set(roster.map((r) => r.memberId)), [roster])
+  const full = roster.length >= session.capacity
+
+  const matches = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    if (q.length < 2) return []
+    const qd = digits(q)
+    return members
+      .filter((m) => !bookedIds.has(m.id))
+      .filter((m) => m.fullName.toLowerCase().includes(q) || (qd.length >= 3 && digits(m.phone).includes(qd)))
+      .slice(0, 6)
+  }, [query, members, bookedIds])
+
+  useEffect(() => setActive(0), [query])
+
+  const book = async (memberId: string) => {
+    setBusy(true)
+    const r = await ops.book(session.sessionId, memberId)
+    setBusy(false)
+    if (r.ok) {
+      toast.success('Rezervasyon oluşturuldu.')
+      setQuery('')
+      await onChanged()
+      searchRef.current?.focus()
+    } else {
+      toast.error(r.error ?? 'Rezervasyon oluşturulamadı.')
+    }
+  }
+
+  const cancel = async (reservationId: string, name: string) => {
+    setBusy(true)
+    const r = await ops.cancel(reservationId)
+    setBusy(false)
+    if (r.ok) {
+      toast.success(`${name} iptal edildi.`)
+      await onChanged()
+    } else {
+      toast.error(r.error ?? 'İptal edilemedi.')
+    }
+  }
+
+  const onSearchKey = (e: React.KeyboardEvent) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      setActive((a) => (matches.length ? (a + 1) % matches.length : 0))
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setActive((a) => (matches.length ? (a - 1 + matches.length) % matches.length : 0))
+    } else if (e.key === 'Enter') {
+      e.preventDefault()
+      const m = matches[active]
+      if (m && !busy) void book(m.id)
+    }
+  }
+
+  return (
+    <div className="flex h-full flex-col">
+      {/* header */}
+      <div className="border-b border-border p-4">
+        <div className="flex items-center gap-2">
+          <span className="font-heading text-h1 font-medium tabular-nums text-foreground">{hhmm(session.startsAt)}</span>
+          <span className={cn('inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[0.7rem] font-medium', cat.soft, cat.text)}>
+            <span className={cn('size-1.5 rounded-full', cat.dot)} />
+            {cat.label}
+          </span>
+        </div>
+        <p className="mt-1 font-medium text-foreground">{session.serviceName}</p>
+        <p className="text-xs text-muted-foreground">
+          {session.trainerName ?? 'Eğitmen atanmadı'}
+          {session.roomName ? ` · ${session.roomName}` : ''} · {roster.length}/{session.capacity} dolu
+        </p>
+      </div>
+
+      {/* inline booking */}
+      {session.status === 'cancelled' ? (
+        <div className="border-b border-border bg-muted/40 px-4 py-3 text-xs text-muted-foreground">Bu ders iptal edildi.</div>
+      ) : full ? (
+        <div className="flex items-center gap-2 border-b border-border bg-gold-soft px-4 py-3 text-xs font-medium text-gold">
+          <span className="size-1.5 rounded-full bg-gold" /> Ders dolu — {session.capacity}/{session.capacity}
+        </div>
+      ) : (
+        <div className="border-b border-border p-2">
+          <div className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 focus-within:border-primary focus-within:ring-3 focus-within:ring-ring/40">
+            <SearchIcon className="size-4 shrink-0 text-muted-foreground" />
+            <input
+              ref={searchRef}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={onSearchKey}
+              disabled={busy}
+              placeholder="Üye ekle — isim veya telefon…"
+              className="h-10 w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground disabled:opacity-50"
+              aria-label="Üye ekle"
+            />
+          </div>
+          {matches.length > 0 ? (
+            <ul className="mt-1.5 space-y-0.5">
+              {matches.map((m, i) => (
+                <li key={m.id}>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onMouseMove={() => setActive(i)}
+                    onClick={() => void book(m.id)}
+                    className={cn(
+                      'flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors disabled:opacity-50',
+                      i === active ? 'bg-primary-soft text-primary' : 'hover:bg-muted',
+                    )}
+                  >
+                    <span className={cn('grid size-7 shrink-0 place-items-center rounded-full text-[0.7rem] font-semibold', i === active ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground')}>
+                      {m.fullName.slice(0, 2).toLocaleUpperCase('tr')}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium">{m.fullName}</span>
+                      <span className={cn('block truncate text-xs', i === active ? 'text-primary/70' : 'text-muted-foreground')}>{m.phone}</span>
+                    </span>
+                    {i === active ? <CornerDownLeftIcon className="size-3.5 shrink-0 opacity-70" /> : <PlusIcon className="size-3.5 shrink-0 text-muted-foreground" />}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : query.trim().length >= 2 ? (
+            <p className="px-3 py-3 text-xs text-muted-foreground">Uygun üye yok.</p>
+          ) : null}
+        </div>
+      )}
+
+      {/* roster */}
+      <div className="min-h-0 flex-1 overflow-y-auto p-2">
+        {roster.length === 0 ? (
+          <p className="px-3 py-6 text-center text-sm text-muted-foreground">Henüz rezervasyon yok.</p>
+        ) : (
+          <ul className="space-y-0.5">
+            {roster.map((r) => (
+              <li
+                key={r.reservationId}
+                className="group/row flex items-center gap-2.5 rounded-lg px-2.5 py-2 hover:bg-muted"
+              >
+                <span className="grid size-7 shrink-0 place-items-center rounded-full bg-primary/10 text-[0.7rem] font-semibold text-primary">
+                  {r.memberName.slice(0, 2).toLocaleUpperCase('tr')}
+                </span>
+                <span className="min-w-0 flex-1 truncate text-sm text-foreground">{r.memberName}</span>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void cancel(r.reservationId, r.memberName)}
+                  aria-label={`${r.memberName} rezervasyonunu iptal et`}
+                  className="grid size-7 shrink-0 place-items-center rounded-md text-muted-foreground opacity-0 transition-all hover:bg-danger/10 hover:text-danger focus-visible:opacity-100 group-hover/row:opacity-100 disabled:opacity-50"
+                >
+                  <XIcon className="size-3.5" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  )
+}
