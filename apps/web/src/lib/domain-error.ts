@@ -180,6 +180,19 @@ export function domainErrorMessage(error: DomainError): string {
       return 'Geçersiz geçerlilik aralığı. Bitiş tarihi başlangıçtan sonra olmalı.'
     case 'template_inactive':
       return 'Bu şablon pasif durumda; gönderim yapılmadı.'
+    // ── Plus Phase 6 (Commerce & Payments) ──
+    case 'payment_ref_mismatch':
+      return 'Ödeme referansı eşleşmiyor.'
+    case 'payment_not_pending':
+      return 'Bu ödeme artık beklemede değil.'
+    case 'payment_not_refundable':
+      return 'Bu ödeme iade edilebilir durumda değil.'
+    case 'refund_exceeds_paid':
+      return 'İade tutarı ödenen tutardan fazla olamaz.'
+    case 'payment_provider_not_configured':
+      return 'Ödeme sağlayıcısı yapılandırılmamış. Ayarlar › Entegrasyonlar’dan PAYTR’ı bağlayın.'
+    case 'retail_out_of_stock':
+      return `Yeterli stok yok (mevcut: ${error.available}).`
     case 'cancellation_allowance_exhausted':
       return `İptal hakkı doldu (${error.allowance} hakkın tamamı kullanıldı). Bu rezervasyon iptal edilemez; üye derse katılabilir.`
     case 'day_not_allowed':

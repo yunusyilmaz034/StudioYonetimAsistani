@@ -40,6 +40,16 @@ export type AggregateKind =
   | 'reservation'
   | 'payment'
   | 'policy'
+  // Plus Phase 6 (Commerce & Payments) — additive.
+  | 'payment_intent'
+  | 'retail_product'
+  // Plus Phase 7 (Training & Progress) — additive.
+  | 'exercise'
+  | 'program'
+  | 'measurement'
+  | 'training_feedback'
+  // Plus Phase 8 (Fitness Attendance) — additive.
+  | 'fitness_visit'
 
 export interface PolicyRef {
   readonly policyId: PolicyId
@@ -59,6 +69,11 @@ export interface EventRelated {
   readonly reservationId?: ReservationId
   readonly paymentId?: PaymentId
   readonly trainerId?: StaffUserId
+  // Plus Phase 6+ — additive join keys (opaque ids only, still no PII).
+  readonly saleId?: string
+  readonly paymentIntentId?: string
+  readonly programId?: string
+  readonly visitId?: string
 }
 
 // Small JSON: the delta plus the post-state of every number changed (AD-19).

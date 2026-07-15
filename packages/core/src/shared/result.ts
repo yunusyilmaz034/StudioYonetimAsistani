@@ -137,6 +137,13 @@ export type DomainError =
   | { readonly code: 'invalid_validity_range' }
   // Plus Phase 5 — a deactivated notification template stops new sends.
   | { readonly code: 'template_inactive' }
+  // ── Plus Phase 6 (Commerce & Payments / PAYTR) ──
+  | { readonly code: 'payment_ref_mismatch' }
+  | { readonly code: 'payment_not_pending' }
+  | { readonly code: 'payment_not_refundable' }
+  | { readonly code: 'refund_exceeds_paid' }
+  | { readonly code: 'payment_provider_not_configured' }
+  | { readonly code: 'retail_out_of_stock'; readonly available: number }
   // Reservation-time enforcement of the effective (resolved) policy. Each says WHICH rule refused,
   // so the UI can tell the member why — never a bare "rezervasyon yapılamadı".
   | { readonly code: 'cancellation_allowance_exhausted'; readonly allowance: number }
