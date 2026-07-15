@@ -21,6 +21,7 @@ import { z } from 'zod'
 
 import { requireTenantContext } from '../auth'
 import { adminDb } from '../firebase-admin'
+import { reservationPolicyPort } from '../reservation-policy'
 
 // D20 — the waiting list. Joining moves NO credit (I-29) and promotion is a deliberate act by
 // staff, never automatic: an auto-promoted member who was never told would have her credit
@@ -56,6 +57,7 @@ function deps(): PromoteDeps {
       repo: new FirestoreReservationRepository(db),
       clock: systemClock,
       hours: new FirestoreStudioHours(db),
+      policy: reservationPolicyPort(),
     },
     loadEntitlements: (ctx, memberId) =>
       new FirestoreEntitlementRepository(db).listActiveByMember(ctx, memberId),

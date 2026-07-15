@@ -7,6 +7,7 @@ import type {
   MemberId,
   NewEvent,
   ReservationId,
+  ReservationOverride,
   Result,
   TenantContext,
 } from '../../../shared'
@@ -119,8 +120,16 @@ export interface ReservationRepository {
   applyNote(ctx: TenantContext, reservation: Reservation, events: readonly NewEvent[]): Promise<void>
 }
 
+// Package Rules 2.0 (Plus Phase 3) — reads a member's override of the package rules. OPTIONAL on the
+// deps: absent ⇒ no override is consulted (package + studio rules still apply), which keeps existing
+// tests and Phase-1 call sites working. Every real write path wires it.
+export interface ReservationPolicyPort {
+  getMemberOverride(ctx: TenantContext, memberId: MemberId): Promise<ReservationOverride | null>
+}
+
 export interface ReservationsDeps {
   readonly repo: ReservationRepository
   readonly clock: Clock
   readonly hours: StudioHoursPort
+  readonly policy?: ReservationPolicyPort
 }

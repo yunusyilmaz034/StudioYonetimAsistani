@@ -27,6 +27,7 @@ import { z } from 'zod'
 
 import { requireTenantContext } from '../auth'
 import { adminDb } from '../firebase-admin'
+import { reservationPolicyPort } from '../reservation-policy'
 
 // Booking and cancellation are synchronous, trusted writes (AD-35): they allocate a
 // scarce seat and move a credit, so they run here — never on the /commands path.
@@ -63,19 +64,23 @@ export async function bookReservationAction(input: unknown) {
     entitlementId = chosen.id
   }
 
-  return bookReservation({ repo: new FirestoreReservationRepository(db), clock: systemClock, hours: new FirestoreStudioHours(db) }, ctx, {
-    sessionId: p.sessionId as ClassSessionId,
-    entitlementId,
-    memberId: p.memberId as MemberId,
-    memberSnapshot,
-  })
+  return bookReservation(
+    { repo: new FirestoreReservationRepository(db), clock: systemClock, hours: new FirestoreStudioHours(db), policy: reservationPolicyPort() },
+    ctx,
+    {
+      sessionId: p.sessionId as ClassSessionId,
+      entitlementId,
+      memberId: p.memberId as MemberId,
+      memberSnapshot,
+    },
+  )
 }
 
 export async function cancelReservationAction(input: unknown) {
   const p = z.object({ reservationId: nonEmpty }).parse(input)
   const ctx = await requireTenantContext(OPS)
   return cancelReservation(
-    { repo: new FirestoreReservationRepository(adminDb()), clock: systemClock, hours: new FirestoreStudioHours(adminDb()) },
+    { repo: new FirestoreReservationRepository(adminDb()), clock: systemClock, hours: new FirestoreStudioHours(adminDb()), policy: reservationPolicyPort() },
     ctx,
     { reservationId: p.reservationId as ReservationId },
   )
@@ -171,6 +176,7 @@ function recurringDeps(): RecurringDeps {
     repo: resRepo,
     clock: systemClock,
     hours: new FirestoreStudioHours(db),
+    policy: reservationPolicyPort(),
     utcOffsetMinutes: 180,
     loadWorld: async (ctx, memberId, sessionId, weeks) => {
       const seed = await sched.getSession(ctx, sessionId)

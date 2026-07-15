@@ -70,6 +70,7 @@ export type {
   ResolveTxInput,
   ReservationRepository,
   ReservationsDeps,
+  ReservationPolicyPort,
 } from './application/ports'
 export { FirestoreReservationRepository } from './infrastructure/repos'
 export {
