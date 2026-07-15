@@ -245,6 +245,8 @@ export const META_TEMPLATE: Readonly<Record<string, MetaTemplateRef>> = {
   closure_applied: { name: 'closure_applied_tr', params: ['memberName', 'reason', 'sessionCount'] },
   package_created: { name: 'package_created_tr', params: ['memberName', 'productName'] },
   package_expiring: { name: 'package_expiring_tr', params: ['memberName', 'productName', 'daysLeft'] },
+  package_expired: { name: 'package_expired_tr', params: ['memberName', 'productName'] },
+  session_rescheduled: { name: 'session_rescheduled_tr', params: ['memberName', 'sessionName', 'fromTime', 'toTime'] },
   credits_low: { name: 'credits_low_tr', params: ['memberName', 'remaining'] },
   credits_exhausted: { name: 'credits_exhausted_tr', params: ['memberName'] },
   payment_received: { name: 'payment_received_tr', params: ['memberName', 'amount'] },

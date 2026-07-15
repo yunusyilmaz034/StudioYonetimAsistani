@@ -39,6 +39,10 @@ export const RULES: Readonly<Record<string, readonly IntentRule[]>> = {
   'class_session.cancelled': [
     { template: 'session_cancelled', to: 'roster', category: 'operational', priority: 'urgent' },
   ],
+  // Plus Phase 5 — the class MOVED (time/room changed): the whole roster needs to know the new time.
+  'class_session.rescheduled': [
+    { template: 'session_rescheduled', to: 'roster', category: 'operational', priority: 'high' },
+  ],
   'studio_closure.applied': [
     { template: 'closure_applied', to: 'roster', category: 'operational', priority: 'urgent', collapseByOperation: true },
   ],
@@ -55,6 +59,10 @@ export const RULES: Readonly<Record<string, readonly IntentRule[]>> = {
   ],
   'entitlement.exhausted': [
     { template: 'credits_exhausted', to: 'member', category: 'operational', priority: 'normal' },
+  ],
+  // Plus Phase 5 — the membership's time ran out (distinct from credits running out).
+  'entitlement.expired': [
+    { template: 'package_expired', to: 'member', category: 'operational', priority: 'normal' },
   ],
   'payment.received': [
     { template: 'payment_received', to: 'member', category: 'operational', priority: 'normal' },

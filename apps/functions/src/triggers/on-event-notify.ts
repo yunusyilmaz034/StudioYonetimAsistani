@@ -289,6 +289,19 @@ async function resolveParams(
         fromTime: dt(Number(p.fromStartsAt ?? 0)),
         toTime: dt(Number(p.toStartsAt ?? 0)),
       }
+    // Plus Phase 5 — the whole session moved. Name from the session, times from the reschedule event.
+    case 'class_session.rescheduled': {
+      const sessionId = event.related.classSessionId
+      const session = sessionId
+        ? await new FirestoreSchedulingRepository(database).getSession(ctx, sessionId as ClassSessionId)
+        : null
+      return {
+        ...base,
+        sessionName: session?.serviceName ?? 'Dersiniz',
+        fromTime: dt(Number(p.fromStartsAt ?? 0)),
+        toTime: dt(Number(p.toStartsAt ?? 0)),
+      }
+    }
     case 'studio_closure.applied':
       return {
         ...base,
@@ -310,6 +323,13 @@ async function resolveParams(
       return { ...base, remaining: String(p.remaining ?? 0) }
     case 'entitlement.exhausted':
       return base
+    case 'entitlement.expired': {
+      const entitlementId = event.related.entitlementId
+      const ent = entitlementId
+        ? await new FirestoreEntitlementRepository(database).getEntitlement(ctx, entitlementId as never)
+        : null
+      return { ...base, productName: ent?.productSnapshot.name ?? 'Üyeliğiniz' }
+    }
     case 'payment.received':
       return { ...base, amount: tl(p.amount) }
     case 'plan.instalment_due':
