@@ -38,11 +38,24 @@ export type PaymentProviderId = 'paytr'
 // re-derives a price or a product from a catalogue that may have changed since (spec §16). No card
 // data, ever — only ids and the amount already agreed.
 export type PaymentIntentContext = {
-  // For a package / renewal — the product to grant and the subscription parameters, snapshotted.
+  // For a package / renewal — the product to grant and the subscription parameters, snapshotted at
+  // intent creation so completion never re-derives a price (§16). The PRICE is `PaymentIntent.amount`;
+  // these are the rest of the grant.
   readonly productId?: string
   readonly entitlementId?: string // renewal: the membership being renewed (informational)
+  readonly priceAgreedKurus?: number // the agreed line price, locked at intent time
   readonly validFrom?: string // LocalDate — when the granted package should start
+  readonly validUntil?: string | null
+  readonly creditOverride?: number | null
   readonly startAfterCurrent?: boolean // renewal: begin when the current package ends
+  readonly note?: string
+  // For a retail/product sale — the lines to settle. { retailProductId, description, quantity, unitPriceKurus }.
+  readonly lines?: readonly {
+    readonly retailProductId: string | null
+    readonly description: string
+    readonly quantity: number
+    readonly unitPriceKurus: number
+  }[]
 }
 
 export type PaymentIntent = {
