@@ -22,8 +22,15 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Section } from '@/components/ui/section'
+import { Textarea } from '@/components/ui/textarea'
 import { domainErrorMessage } from '@/lib/domain-error'
 import { createDrawerAction, listDrawersAction } from '@/server/actions/finance'
+import {
+  createRoomNoteAction,
+  listRoomNotesAction,
+  resolveRoomNoteAction,
+  type RoomNote,
+} from '@/server/actions/room-notes'
 import {
   createRoomAction,
   createServiceAction,
@@ -65,16 +72,19 @@ export function DefinitionsPanel({ branchId }: { branchId: string | null }) {
   const [services, setServices] = useState<readonly ServiceRow[]>([])
   const [rooms, setRooms] = useState<readonly RoomRow[]>([])
   const [drawers, setDrawers] = useState<readonly DrawerRow[]>([])
+  const [notes, setNotes] = useState<readonly RoomNote[]>([])
   const [newService, setNewService] = useState(false)
   const [newRoom, setNewRoom] = useState(false)
   const [newDrawer, setNewDrawer] = useState(false)
+  const [newNote, setNewNote] = useState(false)
 
   const load = useCallback(async () => {
     try {
-      const [d, k] = await Promise.all([listDefinitionsAction(), listDrawersAction()])
+      const [d, k, n] = await Promise.all([listDefinitionsAction(), listDrawersAction(), listRoomNotesAction()])
       setServices(d.services)
       setRooms(d.rooms)
       setDrawers(k as unknown as DrawerRow[])
+      setNotes(n)
     } catch {
       toast.error('Tanımlar okunamadı.')
     }
@@ -107,6 +117,18 @@ export function DefinitionsPanel({ branchId }: { branchId: string | null }) {
     toast.success(r.active ? 'Salon kapatıldı.' : 'Salon açıldı.')
     void load()
   }
+
+  const resolveNote = async (n: RoomNote) => {
+    const res = await resolveRoomNoteAction({ noteId: n.id })
+    if (!res.ok) {
+      toast.error('Not kapatılamadı.')
+      return
+    }
+    toast.success('Not kapatıldı.')
+    void load()
+  }
+
+  const activeRooms = rooms.filter((r) => r.active)
 
   return (
     <div className="space-y-6">
@@ -185,6 +207,45 @@ export function DefinitionsPanel({ branchId }: { branchId: string | null }) {
         )}
       </Section>
 
+      {/* ── SALON NOTLARI ───────────────────────────────────────────────────────────────────
+          Reception's whiteboard: an operational annotation about a room ("Reformer 3 arızalı",
+          "Salon B bugün 14:00–16:00 bakımda"). Active notes appear as a banner above the Ders
+          Ajandası. Not a domain event — a lightweight operational note. */}
+      <Section
+        title="Salon Notları"
+        hint="Bir salonla ilgili geçici uyarı — arıza, bakım, kapalı saat. Aktif notlar Ders Ajandası'nın üstünde görünür."
+      >
+        <div className="mb-3">
+          <Button variant="outline" disabled={activeRooms.length === 0} onClick={() => setNewNote(true)}>
+            <PlusIcon />
+            Not ekle
+          </Button>
+        </div>
+
+        {notes.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Henüz salon notu yok.</p>
+        ) : (
+          <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
+            {notes.map((n) => (
+              <li key={n.id} className="flex flex-wrap items-center justify-between gap-2 px-3 py-3">
+                <div className="min-w-0">
+                  <p className="flex items-center gap-2 text-sm font-medium">
+                    {n.roomName}
+                    {n.active ? null : <Badge className="bg-muted text-muted-foreground">Kapalı</Badge>}
+                  </p>
+                  <p className="text-xs text-muted-foreground">{n.text}</p>
+                </div>
+                {n.active ? (
+                  <Button variant="ghost" size="sm" onClick={() => void resolveNote(n)}>
+                    Kapat
+                  </Button>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        )}
+      </Section>
+
       {/* ── KASALAR (hotfix B-2) ────────────────────────────────────────────────────────────
           A studio started with no till and NOTHING could make one — so reception could take no cash
           at all: every cash sale was refused with `drawer_required`, correctly, and for ever. */}
@@ -230,6 +291,17 @@ export function DefinitionsPanel({ branchId }: { branchId: string | null }) {
           onClose={() => setNewDrawer(false)}
           onDone={() => {
             setNewDrawer(false)
+            void load()
+          }}
+        />
+      ) : null}
+
+      {newNote ? (
+        <RoomNoteDialog
+          rooms={activeRooms}
+          onClose={() => setNewNote(false)}
+          onDone={() => {
+            setNewNote(false)
             void load()
           }}
         />
@@ -435,6 +507,96 @@ function RoomDialog({
   )
 }
 
+
+function RoomNoteDialog({
+  rooms,
+  onClose,
+  onDone,
+}: {
+  rooms: readonly RoomRow[]
+  onClose: () => void
+  onDone: () => void
+}) {
+  const [roomId, setRoomId] = useState(rooms[0]?.id ?? '')
+  const [text, setText] = useState('')
+  // Optional maintenance window. datetime-local is read in the browser's local time (Türkiye = IST
+  // in practice); the banner compares epoch-ms, so the comparison is timezone-independent.
+  const [startsAt, setStartsAt] = useState('')
+  const [endsAt, setEndsAt] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  const submit = async () => {
+    setBusy(true)
+    try {
+      const res = await createRoomNoteAction({
+        roomId,
+        text: text.trim(),
+        startsAt: startsAt ? new Date(startsAt).getTime() : null,
+        endsAt: endsAt ? new Date(endsAt).getTime() : null,
+      })
+      if (!res.ok) {
+        toast.error('Not eklenemedi.')
+        setBusy(false)
+        return
+      }
+      toast.success('Salon notu eklendi.')
+      onDone()
+    } catch {
+      toast.error('Kaydedilemedi.')
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Salon notu ekle</DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-3">
+          <Select value={roomId} onValueChange={(v) => setRoomId(v ?? '')}>
+            <SelectTrigger>
+              <SelectValue>
+                {(v: unknown) => (typeof v === 'string' ? (rooms.find((r) => r.id === v)?.name ?? 'Salon seç') : 'Salon seç')}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {rooms.map((r) => (
+                <SelectItem key={r.id} value={r.id}>
+                  {r.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Textarea placeholder="Not (ör. Reformer 3 arızalı, kullanmayın)" value={text} onChange={(e) => setText(e.target.value)} />
+
+          <div className="grid grid-cols-2 gap-2">
+            <label className="flex flex-col gap-1 text-xs text-muted-foreground">
+              Başlangıç (opsiyonel)
+              <Input type="datetime-local" value={startsAt} onChange={(e) => setStartsAt(e.target.value)} />
+            </label>
+            <label className="flex flex-col gap-1 text-xs text-muted-foreground">
+              Bitiş (opsiyonel)
+              <Input type="datetime-local" value={endsAt} onChange={(e) => setEndsAt(e.target.value)} />
+            </label>
+          </div>
+          <p className="text-xs text-muted-foreground">Bitiş verilirse, o saatten sonra not otomatik gizlenir.</p>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            Vazgeç
+          </Button>
+          <Button disabled={busy || roomId === '' || text.trim().length === 0} onClick={() => void submit()}>
+            Ekle
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
 
 function DrawerDialog({
   branchId,

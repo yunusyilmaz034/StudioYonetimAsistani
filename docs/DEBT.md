@@ -702,3 +702,23 @@ the exact mistake that used to reach the emulator — now fails at **compile tim
 AG-1** — they would have thrown on their first line. Their job had long since been taken over by the
 integration suite (35 tests), `verify:alpha`, `stress` and `monkey`. They were deleted rather than
 resurrected: **a verification tool that cannot run is worse than none, because it lies.**
+
+---
+
+## DEBT-030 — Salon Notları sits outside the event log
+
+**Taken:** 2026-07-15 · Product Plus Phase 2 (Operations Workspace) · Yunus (owner-approved)
+**What:** A room note (`studios/{sid}/roomNotes/{id}`) is a lightweight operational annotation —
+"Reformer 3 arızalı", "Salon B bugün bakımda". It is written **directly** by a Server Action, with
+`active`/`resolvedAt` as mutable state and **no `room_note.opened` / `.resolved` events**. It is the
+one place in the app that changes state without appending an event (non-negotiable #1), taken
+deliberately because a note affects no credit, no money, and no attendance — it changes no decision
+the ledger records.
+**Cost:** the note's history is not in the event log. `authorId` + `createdAt` + `resolvedAt` are
+kept, but a resolve overwrites rather than appends, so "who reopened this / how many times" is not
+reconstructable, and the note never reaches Phase 2 projections.
+**Trigger to repay:** the first time a room note must **affect a decision** — e.g. auto-blocking
+bookings into an out-of-service room, or a report on room downtime. At that point it is a domain
+concept, not a whiteboard.
+**Repayment:** promote to a small event-sourced module (`room_note.opened` / `room_note.resolved`,
+golden fixtures), reading the current collection as the seed.
