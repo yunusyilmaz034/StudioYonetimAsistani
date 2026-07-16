@@ -6,6 +6,21 @@ accumulate here and are triaged into V2 after the pilot. Each item: what · why 
 
 Status: `backlog` (recorded, do later) · `in-progress` · `done` (struck through, kept for the record).
 
+## PF-4 — Üye listesi sayfalama · `in-progress`
+2026-07-16 · owner. Üye ekranı tüm kayıtları tek seferde gösteriyor. İstenen: **10'ar kayıt**, tablo altında
+**numaralı sayfalama**, üstte filtre (mevcut arama+çipler kalır), bir de **"Tümünü göster"** butonu. Client-side.
+
+## PF-5 — KK/Havale ödeme farkı (+1000, ayardan) + taksit seçimi · `in-progress`
+2026-07-16 · owner. Kural: **sadece nakitte fark YOK**; diğer tüm ödemelerde (KK, havale, cüzdan-üyelik)
+**default 1000 ₺** eklenir — **Ayarlar'dan düzenlenir** (kodda sabit değil). PAYTR ödemesinde tutar =
+paket + fark, üyeye kırılım gösterilmez; **taksit seçimi** (max ayardan, default 3). Bu turda PAYTR kart
+akışı yapılıyor.
+
+## PF-6 — Fark'ı manuel satışa da uygula (havale/kart, nakit hariç) · `backlog`
+2026-07-16 · owner (PF-5'in kapsamı). Resepsiyon paketi manuel satarken (Kasa/sell akışı) yöntem nakit
+DEĞİLSE aynı ayardaki fark uygulanmalı. PAYTR (kart) config'i inince bu ayrı akışa da bağlanacak. Cüzdan
+üyelik ödemesi de dahil (cüzdan top-up hariç); cüzdan henüz seam (DEBT-035).
+
 ---
 
 ## PF-1 — "Ürün Sat" butonu Ayarlar ekranında olmamalı · `backlog`

@@ -36,6 +36,22 @@ const STATUS_LABEL: Record<string, string> = {
   deleted: 'Silindi',
 }
 
+const PAGE_SIZE = 10
+
+// The page numbers to draw: all of them when there are few, otherwise a window around the current one
+// with gaps — 1 … 4 5 [6] 7 8 … 20.
+function pageWindow(current: number, total: number): (number | 'gap')[] {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1)
+  const pages: (number | 'gap')[] = [1]
+  const start = Math.max(2, current - 1)
+  const end = Math.min(total - 1, current + 1)
+  if (start > 2) pages.push('gap')
+  for (let p = start; p <= end; p++) pages.push(p)
+  if (end < total - 1) pages.push('gap')
+  pages.push(total)
+  return pages
+}
+
 export function MembersScreen({
   members,
   defaultBranchId,
@@ -49,6 +65,8 @@ export function MembersScreen({
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState<MemberFilter>('all')
   const [formOpen, setFormOpen] = useState(false)
+  const [page, setPage] = useState(1)
+  const [showAll, setShowAll] = useState(false)
 
   // Quick action (?new=1) — open the create form once on mount.
   const opened = useRef(false)
@@ -72,6 +90,15 @@ export function MembersScreen({
       )
     })
   }, [members, query, filter])
+
+  // Paginate the (already filtered) list to 10 a page. Reset to page 1 whenever the search or filter
+  // changes so a narrowing search never strands you on an empty page 7; `currentPage` clamps to range.
+  useEffect(() => {
+    setPage(1)
+  }, [query, filter])
+  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+  const currentPage = Math.min(page, pageCount)
+  const pageItems = showAll ? filtered : filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
 
   // The count on each chip is the point of the chip. "Bitecek" is a word; "Bitecek 4" is a morning's
   // work — and a zero tells her, truthfully, that there is nothing to do there today.
@@ -163,7 +190,7 @@ export function MembersScreen({
         <>
           {/* Mobile: one card, rows inside — not a stack of boxes (Doc 09 §9). */}
           <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card shadow-sm md:hidden">
-            {filtered.map((m) => (
+            {pageItems.map((m) => (
               <button
                 key={m.id}
                 type="button"
@@ -196,7 +223,7 @@ export function MembersScreen({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.map((m) => (
+                {pageItems.map((m) => (
                   <TableRow
                     key={m.id}
                     onClick={() => open(m)}
@@ -212,6 +239,55 @@ export function MembersScreen({
               </TableBody>
             </Table>
           </div>
+
+          {/* Range + numbered pagination + "show all" toggle — only when the list overflows a page. */}
+          {filtered.length > PAGE_SIZE ? (
+            <div className="flex flex-col items-center gap-2 pt-1 sm:flex-row sm:justify-between">
+              <span className="text-xs tabular-nums text-muted-foreground">
+                {showAll
+                  ? `${filtered.length} üye`
+                  : `${(currentPage - 1) * PAGE_SIZE + 1}–${Math.min(currentPage * PAGE_SIZE, filtered.length)} / ${filtered.length}`}
+              </span>
+              {!showAll && pageCount > 1 ? (
+                <div className="flex items-center gap-1">
+                  <Button variant="ghost" size="sm" className="min-w-9" disabled={currentPage === 1} onClick={() => setPage(currentPage - 1)}>
+                    ‹
+                  </Button>
+                  {pageWindow(currentPage, pageCount).map((p, i) =>
+                    p === 'gap' ? (
+                      <span key={`gap-${i}`} className="px-1 text-xs text-muted-foreground">
+                        …
+                      </span>
+                    ) : (
+                      <Button
+                        key={p}
+                        variant={p === currentPage ? 'default' : 'ghost'}
+                        size="sm"
+                        className="min-w-9 tabular-nums"
+                        onClick={() => setPage(p)}
+                      >
+                        {p}
+                      </Button>
+                    ),
+                  )}
+                  <Button variant="ghost" size="sm" className="min-w-9" disabled={currentPage === pageCount} onClick={() => setPage(currentPage + 1)}>
+                    ›
+                  </Button>
+                </div>
+              ) : null}
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-primary"
+                onClick={() => {
+                  setShowAll((v) => !v)
+                  setPage(1)
+                }}
+              >
+                {showAll ? 'Sayfalı göster' : 'Tümünü göster'}
+              </Button>
+            </div>
+          ) : null}
         </>
       )}
 

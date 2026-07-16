@@ -93,6 +93,15 @@ const schema = z.object({
     })
     .nullable()
     .optional(),
+  // Plus (pilot) — the KK/havale surcharge (integer kuruş) + max installments for PAYTR. Optional:
+  // a save that does not touch it preserves whatever is stored.
+  paymentSurcharge: z
+    .object({
+      cardTransferSurchargeKurus: z.number().int().min(0),
+      maxInstallments: z.number().int().min(1).max(12),
+    })
+    .nullable()
+    .optional(),
 })
 
 /** Read. Reception may READ them (the session form needs the default duration); only the owner writes. */
@@ -138,6 +147,7 @@ export async function updateStudioSettingsAction(input: unknown) {
     // Preserve the stored occupancy config unless the caller explicitly sends one (the settings form
     // may save other sections without touching it). `undefined` = untouched; `null` = cleared.
     fitness: p.fitness === undefined ? current?.fitness ?? null : p.fitness,
+    paymentSurcharge: p.paymentSurcharge === undefined ? current?.paymentSurcharge ?? null : p.paymentSurcharge,
   }
 
   const res = await observed('studio.settings_update', ctx, undefined, {}, () =>

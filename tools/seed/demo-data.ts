@@ -169,6 +169,7 @@ export async function seedDemoData(trainerUid: string | null): Promise<void> {
     // another thing the typechecker would have said on the day, had it been looking here.
     notifications: null,
     fitness: { capacity: 30, moderateAt: 0.4, busyAt: 0.7, veryBusyAt: 0.9 },
+    paymentSurcharge: { cardTransferSurchargeKurus: 100_000, maxInstallments: 3 },
     qr: { tokenTtlSeconds: 60, checkInWindowMinutes: 30 },
     }),
     'updateStudioSettings',

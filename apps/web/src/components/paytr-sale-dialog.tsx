@@ -23,12 +23,16 @@ export function PaytrSaleDialog({
   memberId,
   memberPhone,
   products,
+  surchargeKurus = 0,
+  maxInstallments = 3,
   open,
   onClose,
 }: {
   memberId: string
   memberPhone: string | null
   products: readonly ProductView[]
+  surchargeKurus?: number
+  maxInstallments?: number
   open: boolean
   onClose: () => void
 }) {
@@ -36,10 +40,15 @@ export function PaytrSaleDialog({
   const [productId, setProductId] = useState(active[0]?.id ?? '')
   const [flow, setFlow] = useState<'pos' | 'link'>('link')
   const [validFrom, setValidFrom] = useState(todayStr())
+  const [installments, setInstallments] = useState(Math.max(1, maxInstallments))
   const [busy, setBusy] = useState(false)
   const [link, setLink] = useState<string | null>(null)
 
   const product = active.find((p) => p.id === productId)
+  // Card/transfer price = catalogue price + the studio's surcharge. The member is only ever shown this
+  // final total; the server recomputes it, so this display is informational.
+  const total = product ? product.priceInKurus + surchargeKurus : 0
+  const installmentOptions = Array.from({ length: Math.max(1, maxInstallments) }, (_, i) => i + 1)
 
   async function start() {
     if (!product) return
@@ -55,6 +64,7 @@ export function PaytrSaleDialog({
         validUntil: null,
         creditOverride: null,
         note: '',
+        installments,
       })
       if (!res.ok) {
         toast.error(domainErrorMessage(res.error))
@@ -137,7 +147,27 @@ export function PaytrSaleDialog({
               Başlangıç tarihi
               <Input type="date" value={validFrom} onChange={(e) => setValidFrom(e.target.value)} />
             </label>
-            {product ? <p className="text-sm text-muted-foreground">Tutar: <strong className="text-foreground">{tl(product.priceInKurus)}</strong></p> : null}
+            <label className="flex flex-col gap-1 text-sm">
+              Taksit
+              <Select value={String(installments)} onValueChange={(v) => setInstallments(Number(v ?? maxInstallments))}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {installmentOptions.map((n) => (
+                    <SelectItem key={n} value={String(n)}>
+                      {n === 1 ? 'Tek çekim' : `${n} taksit`}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </label>
+            {product ? (
+              <p className="text-sm text-muted-foreground">
+                Tutar: <strong className="text-foreground">{tl(total)}</strong>
+                {surchargeKurus > 0 ? <span className="ml-1 text-xs">(kart/havale farkı dahil)</span> : null}
+              </p>
+            ) : null}
             <DialogFooter>
               <Button variant="outline" onClick={onClose} disabled={busy}>
                 Vazgeç

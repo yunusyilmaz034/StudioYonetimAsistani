@@ -89,6 +89,10 @@ export interface StudioSettings {
    *  here rather than imported so `scheduling` does not fall behind `fitness` in the graph for one
    *  struct (the same reason `notifications` is mirrored above). `null` ⇒ never configured. */
   readonly fitness: FitnessOccupancyConfig | null
+  /** Plus (pilot) — the card/transfer payment surcharge and the installment cap for PAYTR. DATA,
+   *  never a literal (#4/#12: nothing in the code knows "1000" or "3"). `null` ⇒ never configured
+   *  (no surcharge, default installment cap). Amount in integer kuruş. */
+  readonly paymentSurcharge: PaymentSurchargeConfig | null
 }
 
 // Mirrors the fitness module's `FitnessOccupancyConfig` (see the note on `notifications`). Capacity
@@ -98,6 +102,14 @@ export interface FitnessOccupancyConfig {
   readonly moderateAt: number
   readonly busyAt: number
   readonly veryBusyAt: number
+}
+
+// The flat surcharge (integer kuruş) added to a package's price when the member pays by card/transfer
+// via PAYTR, and the maximum number of installments reception may offer. Declared here (not imported)
+// for the same graph reason as the mirrored structs above.
+export interface PaymentSurchargeConfig {
+  readonly cardTransferSurchargeKurus: number
+  readonly maxInstallments: number
 }
 
 // Mirrors the notifications module's own type. It is DECLARED here rather than imported because a

@@ -10,6 +10,7 @@ import {
   FirestoreCatalogRepository,
   FirestoreMemberRepository,
   FirestorePaymentIntentRepository,
+  FirestoreSchedulingRepository,
   instant,
   money,
   newCorrelationId,
@@ -92,6 +93,9 @@ export async function createPackagePaymentAction(input: unknown) {
       validUntil: z.string().nullable(),
       creditOverride: z.number().int().min(0).nullable(),
       note: z.string().default(''),
+      // The installment cap reception offered for this payment (1 = tek çekim). Clamped to the
+      // studio's configured maximum server-side.
+      installments: z.number().int().min(1).max(12).optional(),
     })
     .parse(input)
   const ctx = await requireTenantContext(OPS)
@@ -101,7 +105,17 @@ export async function createPackagePaymentAction(input: unknown) {
 
   const product = await new FirestoreCatalogRepository(adminDb()).getProduct(ctx, p.productId as ProductId)
   if (!product) return { ok: false as const, error: { code: 'no_bookable_entitlement' as const } }
-  const amount = money(p.priceAgreedKurus ?? product.priceInKurus)
+
+  // KK/havale farkı + taksit — DATA from settings, never a literal. The card price = base + surcharge;
+  // priceAgreed (below) becomes that total, so revenue and the member's link both reflect it. The
+  // member never sees a breakdown. (TODO(surcharge): the manual cash/havale sell + wallet-membership
+  // paths are separate and NOT surcharged here.)
+  const studioSettings = await new FirestoreSchedulingRepository(adminDb()).getStudioSettings(ctx)
+  const surchargeKurus = studioSettings?.paymentSurcharge?.cardTransferSurchargeKurus ?? 0
+  const maxInstallments = studioSettings?.paymentSurcharge?.maxInstallments ?? 3
+  const base = p.priceAgreedKurus ?? product.priceInKurus
+  const amount = money(base + surchargeKurus)
+  const installmentCap = Math.min(Math.max(p.installments ?? maxInstallments, 1), maxInstallments)
 
   const providerRef = randomUUID().replace(/-/g, '') // alphanumeric merchant_oid
   const id = `pin_${providerRef.slice(0, 20)}`
@@ -153,6 +167,7 @@ export async function createPackagePaymentAction(input: unknown) {
     callbackUrl: callbackUrl(ctx, config),
     testMode: config.testMode,
     expiresInSeconds: 30 * 60,
+    maxInstallment: installmentCap,
   })
   if (!checkout.ok || !checkout.redirectUrl) {
     return { ok: false as const, error: { code: 'payment_provider_not_configured' as const }, providerError: checkout.errorCode }

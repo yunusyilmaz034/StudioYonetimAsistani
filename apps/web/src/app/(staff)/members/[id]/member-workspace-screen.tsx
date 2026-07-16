@@ -115,6 +115,8 @@ export function MemberWorkspaceScreen({
   isOwner = false,
   isPlatformAdmin,
   canManageTraining = false,
+  surchargeKurus = 0,
+  maxInstallments = 3,
 }: {
   data: MemberWorkspaceData
   products: readonly ProductView[]
@@ -122,6 +124,8 @@ export function MemberWorkspaceScreen({
   defaultBranchId: string | null
   isOwner?: boolean
   isPlatformAdmin: boolean
+  surchargeKurus?: number
+  maxInstallments?: number
   // Owner + platform_admin see and edit programmes, measurements and photos; reception gets a
   // boolean "aktif program var mı?" only (§13). Trainers do not reach the members list at all.
   canManageTraining?: boolean
@@ -306,6 +310,8 @@ export function MemberWorkspaceScreen({
         memberId={member.id}
         memberPhone={member.phone}
         products={products}
+        surchargeKurus={surchargeKurus}
+        maxInstallments={maxInstallments}
         open={paytrSale}
         onClose={() => setPaytrSale(false)}
       />

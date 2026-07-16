@@ -34,6 +34,7 @@ const settings = (over: Partial<StudioSettings> = {}): StudioSettings => ({
   qr: null,
   notifications: null,
   fitness: null,
+  paymentSurcharge: null,
   ...over,
 })
 

@@ -25,6 +25,9 @@ export interface CreateCheckoutInput {
   readonly callbackUrl: string
   readonly testMode: boolean
   readonly expiresInSeconds: number
+  // The installment CAP reception offers: 0 = provider default / unlimited, 1 = tek çekim (single
+  // payment only), N≥2 = up to N installments. The customer picks up to this on the PAYTR page.
+  readonly maxInstallment: number
 }
 
 export interface CheckoutResult {

@@ -117,6 +117,9 @@ export function SettingsScreen({
   const [moderatePct, setModeratePct] = useState(((settings?.fitness?.moderateAt ?? 0.4) * 100).toString())
   const [busyPct, setBusyPct] = useState(((settings?.fitness?.busyAt ?? 0.7) * 100).toString())
   const [veryBusyPct, setVeryBusyPct] = useState(((settings?.fitness?.veryBusyAt ?? 0.9) * 100).toString())
+  // Plus (pilot) — KK/havale farkı (edited in ₺, stored in kuruş) + PAYTR max taksit.
+  const [surchargeTl, setSurchargeTl] = useState(((settings?.paymentSurcharge?.cardTransferSurchargeKurus ?? 0) / 100).toString())
+  const [maxInstallments, setMaxInstallments] = useState((settings?.paymentSurcharge?.maxInstallments ?? 3).toString())
 
   const setDay = (key: 0 | 1 | 2 | 3 | 4 | 5 | 6, value: DayHours | null) =>
     setHours((h) => ({ ...h, [key]: value }))
@@ -181,6 +184,10 @@ export function SettingsScreen({
                 busyAt: Number(busyPct) / 100,
                 veryBusyAt: Number(veryBusyPct) / 100,
               },
+        paymentSurcharge: {
+          cardTransferSurchargeKurus: Math.max(0, Math.round(Number(surchargeTl || '0') * 100)),
+          maxInstallments: Math.max(1, Math.min(12, Number(maxInstallments || '3'))),
+        },
       })
       if (res.ok) toast.success('Ayarlar kaydedildi.')
       else toast.error(domainErrorMessage(res.error))
@@ -427,6 +434,21 @@ export function SettingsScreen({
         <p className="mt-2 text-sm text-muted-foreground">
           Eşikler artan olmalı: Orta ≤ Yoğun ≤ Çok yoğun.
         </p>
+      </Section>
+
+      {/* ── Ödeme (PAYTR) ─────────────────────────────────────────────────────────────────── */}
+      <Section
+        title="Ödeme (PAYTR)"
+        hint="Kredi kartı / havale ile ödemede paket fiyatına eklenecek fark ve izin verilen en fazla taksit. Üyeye kırılım gösterilmez — yalnızca son tutar."
+      >
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="KK/Havale farkı (₺)" hint="Karta/havaleye ödemede paket fiyatına eklenir. 0 = fark yok.">
+            <Input type="number" value={surchargeTl} onChange={(e) => setSurchargeTl(e.target.value)} />
+          </Field>
+          <Field label="En fazla taksit" hint="Ödeme sırasında sunulacak en yüksek taksit sayısı (1 = tek çekim).">
+            <Input type="number" min={1} max={12} value={maxInstallments} onChange={(e) => setMaxInstallments(e.target.value)} />
+          </Field>
+        </div>
       </Section>
 
       {/* ── Bildirimler (DEBT-024) ────────────────────────────────────────────────────────── */}

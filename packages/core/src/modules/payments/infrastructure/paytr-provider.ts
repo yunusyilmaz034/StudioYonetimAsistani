@@ -58,8 +58,10 @@ export class PaytrProvider implements PaymentProviderPort {
     const { merchantId, merchantKey, merchantSalt, testMode } = this.config
     const paymentAmount = String(input.amount.amount) // kuruş, integer
     const testFlag = testMode ? '1' : '0'
-    const noInstallment = '0'
-    const maxInstallment = '0'
+    // PAYTR: no_installment='1' forbids installments (single payment) and then max_installment MUST be
+    // '0'; otherwise no_installment='0' and max_installment is the cap ('0' = provider default).
+    const noInstallment = input.maxInstallment === 1 ? '1' : '0'
+    const maxInstallment = input.maxInstallment <= 1 ? '0' : String(input.maxInstallment)
     const currency = 'TL'
     // A single-line basket: [[name, unitPriceTL, count]]. base64(JSON).
     const basket = Buffer.from(JSON.stringify([[input.itemName, lira(input.amount), 1]]), 'utf8').toString('base64')
@@ -120,7 +122,9 @@ export class PaytrProvider implements PaymentProviderPort {
     // paytr_token = base64( HMAC_SHA256( name + price + currency + max_installment + link_type + lang
     //   + min_count + merchant_salt, key ) ) — the documented Link-create order.
     const currency = 'TL'
-    const maxInstallment = '0'
+    // The installment cap ('0' = provider default / unlimited). The Link API has no separate
+    // no_installment flag, so a "tek çekim" cap (1) also maps to '0' here; the POS flow enforces single.
+    const maxInstallment = input.maxInstallment <= 1 ? '0' : String(input.maxInstallment)
     const linkType = 'product'
     const lang = 'tr'
     const minCount = '1'

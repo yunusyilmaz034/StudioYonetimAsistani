@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation'
 
 import { requirePageAccess } from '@/server/auth'
 import { listTrainersAction } from '@/server/actions/bulk-reservations'
+import { getStudioSettingsAction } from '@/server/actions/settings'
 import { listProducts } from '@/server/catalog-query'
 import { loadMemberWorkspace } from '@/server/member-workspace-query'
 
@@ -18,12 +19,14 @@ export default async function MemberWorkspacePage({
   const ctx = await requirePageAccess('/members')
 
   const { id } = await params
-  const [data, products, trainers] = await Promise.all([
+  const [data, products, trainers, settings] = await Promise.all([
     loadMemberWorkspace(ctx, id, Date.now()),
     listProducts(ctx),
     // The trainers, for the Member Override "eğitmen kısıtı" picker (Plus Phase 4) — the same
     // reception-readable source the schedule and bulk screens use.
     listTrainersAction(),
+    // The KK/havale surcharge + installment cap for the PAYTR sale dialog (data, from settings).
+    getStudioSettingsAction(),
   ])
   if (!data) {
     notFound()
@@ -43,6 +46,8 @@ export default async function MemberWorkspacePage({
       // Training content (programmes, measurements, photos) is owner/platform_admin; reception gets a
       // boolean only. The training actions refuse reception regardless — this only picks the view.
       canManageTraining={ctx.role === 'owner' || ctx.actor.type === 'platform_admin'}
+      surchargeKurus={settings?.paymentSurcharge?.cardTransferSurchargeKurus ?? 0}
+      maxInstallments={settings?.paymentSurcharge?.maxInstallments ?? 3}
     />
   )
 }
