@@ -141,7 +141,7 @@ function MonthGrid<T extends CalendarItem>({
             return (
               <div
                 key={d}
-                className={`relative min-h-32 space-y-1 rounded-md px-1.5 py-2 transition-[transform,box-shadow,background-color] duration-150 hover:z-30 hover:scale-[2.3] hover:bg-card hover:shadow-2xl hover:ring-1 hover:ring-border ${
+                className={`group relative min-h-32 space-y-1 rounded-md px-1.5 py-2 transition-colors duration-150 hover:z-20 ${
                   isToday
                     ? 'bg-primary-soft/60'
                     : isFocus
@@ -191,6 +191,30 @@ function MonthGrid<T extends CalendarItem>({
                   >
                     +{overflow} etkinlik
                   </button>
+                ) : null}
+
+                {/* Hover magnifier: the whole day, bigger and readable — EVERY session, no "+N", no
+                    truncation. It floats out of flow (no reflow of the grid) and, on desktop, out of the
+                    card (md:overflow-visible), so a glance shows the day in full. */}
+                {list.length > 0 ? (
+                  <div className="absolute left-1/2 top-1 z-40 hidden w-56 -translate-x-1/2 rounded-lg border border-border bg-popover p-2 text-left shadow-2xl group-hover:block">
+                    <div className="mb-1 flex items-center justify-between px-1">
+                      <span className="text-sm font-semibold text-foreground tabular-nums">{Number(d.slice(8, 10))}</span>
+                      <span className="text-xs text-muted-foreground">{list.length} etkinlik</span>
+                    </div>
+                    <div className="max-h-[60vh] space-y-0.5 overflow-y-auto">
+                      {list.map((it) => (
+                        <button
+                          key={it.id}
+                          type="button"
+                          onClick={() => onSelect(it)}
+                          className="block w-full rounded-md px-1 py-1 text-left leading-[1.5] transition-colors hover:bg-primary-soft/70"
+                        >
+                          {renderChip(it)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 ) : null}
               </div>
             )
