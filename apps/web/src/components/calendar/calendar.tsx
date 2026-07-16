@@ -139,13 +139,13 @@ function MonthGrid<T extends CalendarItem>({
             return (
               <div
                 key={d}
-                className={`min-h-32 space-y-1 px-1.5 py-2 transition-colors ${
+                className={`relative min-h-32 space-y-1 rounded-md px-1.5 py-2 transition-[transform,box-shadow,background-color] duration-150 hover:z-20 hover:scale-[1.05] hover:bg-card hover:shadow-xl hover:ring-1 hover:ring-border ${
                   isToday
                     ? 'bg-primary-soft/50'
                     : isFocus
                       ? 'bg-primary-soft/25'
                       : inMonth
-                        ? 'bg-surface hover:bg-muted/40'
+                        ? 'bg-surface'
                         : 'bg-background'
                 }`}
               >
