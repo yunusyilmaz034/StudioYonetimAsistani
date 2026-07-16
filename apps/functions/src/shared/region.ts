@@ -26,12 +26,15 @@ export const EMAIL_SECRETS = ['RESEND_API_KEY'] as const
 
 // ── WHATSAPP (Plus Phase 5) ──────────────────────────────────────────────────────────────────
 //
-// The Meta Cloud API permanent token is a SECRET (it sends messages and costs money). The phone
-// number id and API version are not secret — they are identifiers — but binding all three here keeps
-// the whole WhatsApp config in one place the deployed function actually reads. Absent them, the
-// provider falls back to the mock (loudly). Same lesson as e-mail above: a v2 function sees a secret
-// only if it asks. `WHATSAPP_ACCESS_TOKEN` is the secret; the others come from apphosting env.
-export const WHATSAPP_SECRETS = ['WHATSAPP_ACCESS_TOKEN'] as const
+// The Meta Cloud API permanent token is a SECRET (it sends messages and costs money). Absent it, the
+// provider falls back to the mock (loudly). A v2 function sees a secret only if it asks — but it can
+// only be deployed if a secret it asks for EXISTS. WhatsApp is not configured (no Meta contract), so
+// `WHATSAPP_ACCESS_TOKEN` does not exist in Secret Manager, and BINDING it here would fail every
+// functions deploy on a 404. So we do not bind it until it is provisioned: the code already reads
+// `process.env.WHATSAPP_ACCESS_TOKEN` and falls back to the mock when it is undefined, which is the
+// intended behaviour today. Re-add `'WHATSAPP_ACCESS_TOKEN'` here the moment the token is set in
+// Secret Manager (the same act that turns WhatsApp real). Keep the name so the seam is obvious.
+export const WHATSAPP_SECRETS = [] as const
 
 // The union the notification functions (onEventCreated + the retry sweep) must bind so both e-mail
 // and WhatsApp can leave the building.
