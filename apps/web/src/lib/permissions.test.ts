@@ -62,9 +62,13 @@ describe('reception — she runs the day, and she does not run the business', ()
 })
 
 describe('the owner', () => {
-  it('sees everything — there is no screen she is kept out of', () => {
+  // The two PERSONAL trainer screens ("Derslerim", "Hakedişim") are not part of the admin panel —
+  // the owner manages the studio here and uses her separate TRAINER account for her own teaching day
+  // and earnings (owner request, 2026-07-16). Everything else, she sees.
+  const TRAINER_PERSONAL = ['/my-classes', '/my-payroll'] as const
+  it('sees every management screen — kept out of nothing but the two personal trainer screens', () => {
     for (const area of AREAS) {
-      expect(canSee('owner', area), area).toBe(true)
+      expect(canSee('owner', area), area).toBe(!TRAINER_PERSONAL.includes(area as (typeof TRAINER_PERSONAL)[number]))
     }
   })
 })

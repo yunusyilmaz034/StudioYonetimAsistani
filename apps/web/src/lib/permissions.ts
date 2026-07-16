@@ -90,18 +90,22 @@ export const PERMISSIONS: Readonly<Record<Area, readonly PrincipalRole[]>> = {
   // enforces the second half of that sentence.
   '/reports': OWNER_ONLY,
 
-  // The trainer's ONLY screen. Her classes, her week, her registers, and the names of the women in
-  // front of her. Not a phone number, not a package, not a balance.
-  '/my-classes': ['owner', 'trainer'], // the owner may look at it; nobody else may
+  // The trainer's OWN daily classes — her week, her registers, the names of the women in front of
+  // her. It is a PERSONAL screen ("Derslerim"), not a management one, so the admin panel does not
+  // carry it: the owner keeps the studio-wide view (Ders Ajandası) here, and sees her own teaching
+  // day by signing in with her TRAINER account (owner request, 2026-07-16). Trainer only.
+  '/my-classes': ['trainer'],
 
-  // Plus Phase 7 — the training workspace: the exercise library and the feedback center. It is the
-  // trainer's OTHER screen (her actual craft), and the owner's. Reception is not here: she sees only
-  // a boolean "aktif program var mı?" on the member card, never a member's programme or photos.
+  // Plus Phase 7 — the training workspace: the exercise library and the feedback center. This is
+  // studio-content management (a shared catalogue + cross-member feedback), not a personal "my"
+  // screen, so the owner keeps it. Reception is not here: she sees only a boolean "aktif program var
+  // mı?" on the member card, never a member's programme or photos.
   '/training': ['owner', 'trainer'],
 
-  // Plus Phase 9 — the trainer's own earnings, read-only. She sees her breakdown and status, never a
-  // rate control, never another trainer. The owner may look; reception may not.
-  '/my-payroll': ['owner', 'trainer'],
+  // Plus Phase 9 — the trainer's OWN earnings, read-only ("Hakedişim"). A personal screen, so the
+  // admin panel does not carry it — the owner sees the studio-wide Bordro here, and her own earnings
+  // by signing in with her TRAINER account (owner request, 2026-07-16). Trainer only.
+  '/my-payroll': ['trainer'],
 }
 
 export function canSee(role: PrincipalRole, area: Area): boolean {
