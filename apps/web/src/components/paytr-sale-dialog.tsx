@@ -67,7 +67,8 @@ export function PaytrSaleDialog({
         installments,
       })
       if (!res.ok) {
-        toast.error(domainErrorMessage(res.error))
+        const detail = 'providerError' in res && res.providerError ? ` — PAYTR: ${res.providerError}` : ''
+        toast.error(domainErrorMessage(res.error) + detail)
         setBusy(false)
         return
       }

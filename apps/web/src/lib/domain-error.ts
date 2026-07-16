@@ -191,6 +191,8 @@ export function domainErrorMessage(error: DomainError): string {
       return 'İade tutarı ödenen tutardan fazla olamaz.'
     case 'payment_provider_not_configured':
       return 'Ödeme sağlayıcısı yapılandırılmamış. Ayarlar › Entegrasyonlar’dan PAYTR’ı bağlayın.'
+    case 'payment_checkout_failed':
+      return 'PAYTR ödeme başlatılamadı (sağlayıcı reddetti).'
     case 'retail_out_of_stock':
       return `Yeterli stok yok (mevcut: ${error.available}).`
     // ── Plus Phase 7 (Training & Progress) ──

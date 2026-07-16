@@ -170,7 +170,10 @@ export async function createPackagePaymentAction(input: unknown) {
     maxInstallment: installmentCap,
   })
   if (!checkout.ok || !checkout.redirectUrl) {
-    return { ok: false as const, error: { code: 'payment_provider_not_configured' as const }, providerError: checkout.errorCode }
+    // The provider WAS configured (checked above) — this is a live PAYTR rejection. Surface the real
+    // reason; mislabelling it "not configured" sent an hour of debugging at the wrong problem.
+    console.error('[paytr] createCheckout failed', { flow: p.flow, reason: checkout.errorCode, testMode: config.testMode })
+    return { ok: false as const, error: { code: 'payment_checkout_failed' as const }, providerError: checkout.errorCode }
   }
 
   const session = decideSessionCreated(

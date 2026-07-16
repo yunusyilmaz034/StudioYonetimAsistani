@@ -143,6 +143,9 @@ export type DomainError =
   | { readonly code: 'payment_not_refundable' }
   | { readonly code: 'refund_exceeds_paid' }
   | { readonly code: 'payment_provider_not_configured' }
+  // The provider IS configured, but the PAYTR API rejected the checkout/link call. The real reason
+  // rides alongside as `providerError` — NOT a configuration problem, so it must not read as one.
+  | { readonly code: 'payment_checkout_failed' }
   | { readonly code: 'retail_out_of_stock'; readonly available: number }
   // ── Plus Phase 7 (Training & Progress) ──
   | { readonly code: 'program_archived' }
