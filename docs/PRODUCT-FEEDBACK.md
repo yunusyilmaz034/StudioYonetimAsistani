@@ -32,7 +32,7 @@ veriyor → tüm dropdown'lar ilk boyamada doğru etiketi gösteriyor. Canlıda.
 
 ---
 
-## PF-3 — İptal edilen seans takvimde görünüyor (üstü çizili) · `backlog` (owner kararı bekliyor)
+## PF-3 — İptal edilen seans takvimde görünüyor (üstü çizili) · ✅ `done` (033a76f)
 
 **Taken:** 2026-07-16 · owner ("yanlış açtım, iptal ettim ama ajandada üstü çizili gözüküyor; gözükmese
 daha iyi mi?").
