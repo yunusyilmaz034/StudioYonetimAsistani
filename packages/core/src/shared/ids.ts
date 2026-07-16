@@ -55,6 +55,8 @@ const PREFIX = {
   measurement: 'mea',
   trainingFeedback: 'fbk',
   progressPhoto: 'pht',
+  // ── Trainer Payroll (Plus Phase 9) ──
+  payrollAdjustment: 'adj',
 } as const
 
 // ULID gives lexicographic time-ordering; the prefix disambiguates the id kind.
@@ -86,3 +88,4 @@ export const newProgramId = (): string => mint(PREFIX.program)
 export const newMeasurementId = (): string => mint(PREFIX.measurement)
 export const newTrainingFeedbackId = (): string => mint(PREFIX.trainingFeedback)
 export const newProgressPhotoId = (): string => mint(PREFIX.progressPhoto)
+export const newPayrollAdjustmentId = (): string => mint(PREFIX.payrollAdjustment)

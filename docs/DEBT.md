@@ -808,6 +808,25 @@ matters, or when move is exposed to members (self-service) rather than staff-onl
 
 ---
 
+## DEBT-037 — Marking a payroll statement paid posts no cash outflow
+
+**Taken:** 2026-07-16 · Product Plus Phase 9 (Trainer Payroll & Commission) · Yunus (owner-approved autonomy)
+**What:** `payroll.statement_paid` records the FACT that a trainer was settled (amount, date, note) as a
+payroll-domain event, but it does **not** move the kasa or post a finance expense. The finance module
+(Doc 26) models revenue and receivables — it has **no expense side**, and inventing one for payroll
+would be exactly the "parallel accounting system" roadmap §9 forbids. So payroll computes earnings from
+existing facts and records the pay decision; the actual cash-drawer outflow is out of scope this phase.
+**Cost:** a studio that pays a trainer in cash from the till sees the payroll statement marked paid, but
+the kasa balance is not reduced by that outflow — payroll and cash reconciliation live in two places
+until a real expense/outflow primitive exists in finance.
+**Trigger to repay:** the first time the owner wants trainer pay to hit the kasa / a P&L, i.e. when an
+expense/outflow ledger is added to finance.
+**Repayment:** add an expense primitive to the finance module (an outflow that debits a drawer with a
+category), and have `payStatement` optionally emit that finance event in the same operation (shared
+`operationId`), so paying a trainer is one act recorded once, on both sides.
+
+---
+
 ## DEBT-036 — Progress-photo Storage is not wired (no bucket, no Storage rules)
 
 **Taken:** 2026-07-16 · Product Plus Phase 7 (Training & Progress) · Yunus (owner-approved autonomy)

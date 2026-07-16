@@ -108,7 +108,7 @@ came.
   consumes nothing, so check-in *is* the whole signal — provided it is never dressed up as an
   attendance observation.
 
-### 9 — Trainer Payroll  ·  *new; a money module — slow down*
+### 9 — Trainer Payroll  ·  *new; a money module — slow down*  ·  ✅ **CLOSED (2026-07-16, tag `plus-v0.9-trainer-payroll`)**
 Compute trainer pay from the sessions taught and the studio's rates.
 - **Rule:** it reuses the **finance ledger** (Doc 26), never a parallel accounting system (the Doc 27
   warning, again). A trainer's rate is **versioned policy data**, never an `if`. And it reads the

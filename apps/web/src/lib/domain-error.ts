@@ -200,6 +200,19 @@ export function domainErrorMessage(error: DomainError): string {
       return 'Programda en az bir gün ve hareket olmalı.'
     case 'program_version_conflict':
       return 'Program versiyonu çakıştı. Sayfayı yenileyip tekrar deneyin.'
+    // ── Plus Phase 9 (Trainer Payroll & Commission) ──
+    case 'invalid_compensation_rate':
+      return 'Geçersiz ücret. Seçilen modelin gerektirdiği ücreti girin (negatif olamaz).'
+    case 'invalid_commission_percent':
+      return 'Komisyon yüzdesi 0 ile 100 arasında olmalı.'
+    case 'compensation_plan_missing':
+      return 'Bu eğitmen için önce bir ücret planı tanımlayın.'
+    case 'payroll_already_finalized':
+      return 'Bu dönem zaten kesinleştirilmiş. Kesinleşen bir hakediş yeniden hesaplanmaz.'
+    case 'statement_not_finalized':
+      return 'Önce hakedişi kesinleştirin, sonra ödendi olarak işaretleyin.'
+    case 'statement_already_paid':
+      return 'Bu hakediş zaten ödendi olarak işaretlenmiş.'
     case 'cancellation_allowance_exhausted':
       return `İptal hakkı doldu (${error.allowance} hakkın tamamı kullanıldı). Bu rezervasyon iptal edilemez; üye derse katılabilir.`
     case 'day_not_allowed':

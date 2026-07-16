@@ -10,12 +10,16 @@ import { canSee, homeFor, PERMISSIONS, type Area } from './permissions'
 const AREAS = Object.keys(PERMISSIONS) as Area[]
 
 describe('the trainer — staff, and the person least entitled to the studio’s data', () => {
-  it('sees only her own two screens — her classes and the training workspace (Plus Phase 7)', () => {
-    // Her classes, and — since Plus Phase 7 — the training workspace (the exercise library and her
-    // feedback center). Still not the members list, the till, or the funnel; the training screen
-    // reveals only her trainees' names, never the roster or a balance.
+  it('sees only her own screens — her classes, the training workspace (Plus Phase 7) and her own pay (Plus Phase 9)', () => {
+    // Her classes, the training workspace (the exercise library and her feedback center), and — since
+    // Plus Phase 9 — her OWN earnings (read-only, never another trainer's). Still not the members
+    // list, the till, the funnel, or the payroll cost side.
     const visible = AREAS.filter((a) => canSee('trainer', a))
-    expect(visible).toEqual(['/my-classes', '/training'])
+    expect(visible).toEqual(['/my-classes', '/training', '/my-payroll'])
+  })
+
+  it('cannot see the studio-wide payroll — it is owner-confidential (Plus Phase 9)', () => {
+    expect(canSee('trainer', '/payroll')).toBe(false)
   })
 
   it('cannot see the members list — the studio’s PII', () => {
@@ -44,8 +48,8 @@ describe('reception — she runs the day, and she does not run the business', ()
     expect(canSee('trainer', '/fitness')).toBe(false)
   })
 
-  it('is refused the audit log, the analytics, the settings, and the staff list (owner, 2026-07-13)', () => {
-    for (const area of ['/audit', '/analytics', '/settings', '/staff'] as const) {
+  it('is refused the audit log, the analytics, the settings, the staff list, and payroll (owner, 2026-07-13)', () => {
+    for (const area of ['/audit', '/analytics', '/settings', '/staff', '/payroll', '/my-payroll'] as const) {
       expect(canSee('receptionist', area), area).toBe(false)
     }
   })

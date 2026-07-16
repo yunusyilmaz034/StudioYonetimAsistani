@@ -148,6 +148,13 @@ export type DomainError =
   | { readonly code: 'program_archived' }
   | { readonly code: 'program_empty' }
   | { readonly code: 'program_version_conflict' }
+  // ── Plus Phase 9 (Trainer Payroll & Commission) ──
+  | { readonly code: 'invalid_compensation_rate' }
+  | { readonly code: 'invalid_commission_percent' }
+  | { readonly code: 'compensation_plan_missing' }
+  | { readonly code: 'payroll_already_finalized' }
+  | { readonly code: 'statement_not_finalized' }
+  | { readonly code: 'statement_already_paid' }
   // Reservation-time enforcement of the effective (resolved) policy. Each says WHICH rule refused,
   // so the UI can tell the member why — never a bare "rezervasyon yapılamadı".
   | { readonly code: 'cancellation_allowance_exhausted'; readonly allowance: number }

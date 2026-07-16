@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { signOut } from 'firebase/auth'
 import {
   ActivityIcon,
+  BanknoteIcon,
   BarChart3Icon,
   BellIcon,
   CalendarClockIcon,
@@ -66,6 +67,8 @@ export const GROUPS: readonly NavGroup[] = [
       { href: '/my-classes', label: 'Derslerim', icon: ClipboardCheckIcon },
       // Plus Phase 7 — the training workspace. Owner + trainer only (reception is filtered out).
       { href: '/training', label: 'Antrenman', icon: DumbbellIcon },
+      // Plus Phase 9 — the trainer's own earnings (owner + trainer; read-only for her).
+      { href: '/my-payroll', label: 'Hakedişim', icon: BanknoteIcon },
     ],
   },
   {
@@ -95,6 +98,8 @@ export const GROUPS: readonly NavGroup[] = [
     label: 'Sahip',
     items: [
       { href: '/operations', label: 'Operasyonlar', icon: LayersIcon },
+      // Plus Phase 9 — trainer payroll & commission. Owner-confidential.
+      { href: '/payroll', label: 'Bordro', icon: BanknoteIcon },
       { href: '/reports', label: 'Raporlar', icon: FileTextIcon },
       { href: '/analytics', label: 'Analiz', icon: BarChart3Icon },
       { href: '/staff', label: 'Personel', icon: UserCogIcon },

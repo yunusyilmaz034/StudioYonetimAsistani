@@ -40,6 +40,8 @@ export type Area =
   | '/staff' // S1 — who may work here, and as what
   | '/my-classes' // the trainer's one screen
   | '/training' // Plus Phase 7 — exercise library + feedback center (owner + trainer)
+  | '/payroll' // Plus Phase 9 — trainer payroll & commission (owner-confidential)
+  | '/my-payroll' // Plus Phase 9 — the trainer's own earnings, read-only (owner + trainer)
   | '/receipt' // the printable slip reception hands a member
   | '/import' // S5 — the BulutGym import
   | '/reports' // S6 — the seven reports
@@ -74,6 +76,9 @@ export const PERMISSIONS: Readonly<Record<Area, readonly PrincipalRole[]>> = {
   '/audit': OWNER_ONLY,
   '/settings': OWNER_ONLY,
   '/staff': OWNER_ONLY,
+  // Plus Phase 9 — payroll is the business's cost side. Owner-confidential; reception never, a
+  // trainer never sees another trainer (she gets /my-payroll instead).
+  '/payroll': OWNER_ONLY,
   // It writes forty-five member records in one press. That belongs to the owner.
   '/import': OWNER_ONLY,
   // Reports are the business, in a file, on a laptop (owner, 2026-07-13: reception does not get
@@ -89,6 +94,10 @@ export const PERMISSIONS: Readonly<Record<Area, readonly PrincipalRole[]>> = {
   // trainer's OTHER screen (her actual craft), and the owner's. Reception is not here: she sees only
   // a boolean "aktif program var mı?" on the member card, never a member's programme or photos.
   '/training': ['owner', 'trainer'],
+
+  // Plus Phase 9 — the trainer's own earnings, read-only. She sees her breakdown and status, never a
+  // rate control, never another trainer. The owner may look; reception may not.
+  '/my-payroll': ['owner', 'trainer'],
 }
 
 export function canSee(role: PrincipalRole, area: Area): boolean {
