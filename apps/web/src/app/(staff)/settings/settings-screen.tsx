@@ -1,7 +1,7 @@
 'use client'
 
 import type { DayHours, StudioSettings, WorkingHours } from '@studio/core'
-import { CalendarDaysIcon, CreditCardIcon } from 'lucide-react'
+import { CalendarDaysIcon, CreditCardIcon, ShieldAlertIcon } from 'lucide-react'
 import Link from 'next/link'
 import { useState, useTransition } from 'react'
 import { toast } from 'sonner'
@@ -569,6 +569,15 @@ export function SettingsScreen({
         <Button variant="outline" render={<Link href="/settings/integrations" />}>
           <CreditCardIcon />
           Ödeme Sağlayıcıları
+        </Button>
+      </Section>
+
+      {/* KVKK erasure lives here now, not on every member card (PF-9) — one deliberate surface for an
+          irreversible act. The action still enforces platform_admin (AD-67). */}
+      <Section title="KVKK / Gizlilik" hint="Üye kaydını kalıcı olarak anonimleştirme (geri alınamaz, yetkili işlemi).">
+        <Button variant="outline" render={<Link href="/settings/privacy" />}>
+          <ShieldAlertIcon />
+          Üye Kaydını Anonimleştir
         </Button>
       </Section>
 

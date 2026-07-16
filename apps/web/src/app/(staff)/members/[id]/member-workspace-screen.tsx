@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
   ArrowLeftIcon,
@@ -60,7 +61,6 @@ import type {
 } from '@/server/member-workspace-query'
 import { deactivateMember } from '@/server/actions/members'
 
-import { ErasurePanel } from './erasure-panel'
 import { RestrictionPanel } from './restriction-panel'
 import { TrainingPanel } from './training-panel'
 import { MemberFitnessSummary } from './fitness-summary'
@@ -421,11 +421,15 @@ function ProfilePanel({ member, isPlatformAdmin }: { member: Member; isPlatformA
         </div>
       ) : null}
 
-      {/* v1.27 S5 — KVKK. Below "Pasife Al" on purpose: deactivation is the reversible act, and the
-          one reception reaches for. This is the other one. */}
+      {/* v1.27 S5 · PF-9 — KVKK erasure moved OFF the member card onto Ayarlar › KVKK / Gizlilik: an
+          irreversible action does not belong one accidental tap away on every member's screen. Only a
+          discreet pointer remains for the platform admin who is looking for it. */}
       {isPlatformAdmin ? (
         <div className="border-t border-border pt-4">
-          <ErasurePanel memberId={member.id} memberName={member.fullName} />
+          <Button variant="ghost" size="sm" render={<Link href="/settings/privacy" />}>
+            <ShieldAlertIcon />
+            KVKK — kaydı anonimleştir (Ayarlar › Gizlilik)
+          </Button>
         </div>
       ) : null}
 
