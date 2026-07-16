@@ -1,1 +1,0 @@
-﻿<%@ Page Language="C#" Debug="true" AutoEventWireup="true"  CodeFile="paytr_link_api_callback.aspx.cs" Inherits="paytr_link_api_callback" %>
