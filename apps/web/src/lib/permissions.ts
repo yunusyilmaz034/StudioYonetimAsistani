@@ -32,6 +32,7 @@ export type Area =
   | '/crm'
   | '/calendar'
   | '/operations' // bulk credit ops, closures — they move credits
+  | '/advisor' // Plus Phase 10 — AI Insights L1 (owner-confidential decision-support)
   | '/activity'
   | '/notifications'
   | '/analytics'
@@ -72,6 +73,9 @@ export const PERMISSIONS: Readonly<Record<Area, readonly PrincipalRole[]>> = {
   // The owner's alone. Each of these either moves credits, reveals the business, or changes who may
   // work here — and none of them is part of reception's day.
   '/operations': OWNER_ONLY, // bulk credit ops and closures MOVE CREDITS
+  // Plus Phase 10 — the advisor reveals the business (who owes, who is about to churn). Owner-first
+  // decision-support; reception and trainers have no access.
+  '/advisor': OWNER_ONLY,
   '/analytics': OWNER_ONLY,
   '/audit': OWNER_ONLY,
   '/settings': OWNER_ONLY,

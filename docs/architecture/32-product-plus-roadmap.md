@@ -115,8 +115,13 @@ Compute trainer pay from the sessions taught and the studio's rates.
   attendance semantics: whether a *presumed*-attended class (DEBT-007) or a no-show pays the trainer
   is a **policy decision** to settle explicitly, not a default to stumble into.
 
-### 10 — AI Insights L1  ·  *the product vision's "Phase 2"*
+### 10 — AI Insights L1  ·  *the product vision's "Phase 2"*  ·  ✅ **CLOSED (2026-07-16, tag `plus-v0.10-ai-insights`)**
 The event log was built for this from day one. Nothing is built early for it.
+- **Shipped as a DETERMINISTIC, rule-based advisor** (`/advisor` "Öneriler"), not a live LLM: L1 ranks
+  the facts the studio already records into a "what needs attention today" list, each with a suggested
+  tool it deep-links to. It never acts — a human decides. An `InsightSource` seam is built so a future
+  L2 LLM narrator plugs in behind the same interface, no reshaping. (Rationale: #7 keeps decision
+  functions pure/testable — a non-deterministic advisor cannot be trusted before it is clever.)
 - **Rule:** its feasibility is a **function of Phases 2–9 keeping the event discipline** — no
   presumption written as an observation (#11), no PII in an event (#6). The insight layer is only as
   trustworthy as the log beneath it, and the log is protected by every phase above.

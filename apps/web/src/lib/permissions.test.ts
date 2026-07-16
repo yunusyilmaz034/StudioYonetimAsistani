@@ -49,7 +49,7 @@ describe('reception — she runs the day, and she does not run the business', ()
   })
 
   it('is refused the audit log, the analytics, the settings, the staff list, and payroll (owner, 2026-07-13)', () => {
-    for (const area of ['/audit', '/analytics', '/settings', '/staff', '/payroll', '/my-payroll'] as const) {
+    for (const area of ['/audit', '/analytics', '/settings', '/staff', '/payroll', '/my-payroll', '/advisor'] as const) {
       expect(canSee('receptionist', area), area).toBe(false)
     }
   })
