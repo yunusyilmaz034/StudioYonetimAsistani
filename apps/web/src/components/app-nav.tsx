@@ -34,6 +34,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 
+import { ShortcutHint } from '@/components/shortcut-hint'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { clientAuth } from '@/lib/firebase-client'
 import type { PrincipalRole } from '@studio/core'
@@ -213,7 +214,9 @@ function DesktopRail({ pathname, groups }: { pathname: string; groups: readonly 
         >
           <SearchIcon className="size-4 shrink-0" />
           <span>Ara…</span>
-          <kbd className="ml-auto rounded border border-border px-1.5 py-0.5 text-[10px] font-medium">⌘K</kbd>
+          <kbd className="ml-auto rounded border border-border px-1.5 py-0.5 text-[10px] font-medium">
+            <ShortcutHint letter="K" />
+          </kbd>
         </button>
       </div>
       <nav className="flex-1 space-y-5 overflow-y-auto px-3 py-2">

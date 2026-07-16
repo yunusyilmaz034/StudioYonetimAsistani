@@ -16,6 +16,7 @@ import {
 import type { PrincipalRole } from '@studio/core'
 
 import { GROUPS } from '@/components/app-nav'
+import { ShortcutHint } from '@/components/shortcut-hint'
 import { canSee } from '@/lib/permissions'
 import { openWhatsApp, WA_TEMPLATES, isWhatsAppReachable } from '@/lib/whatsapp'
 import { searchMembersAction, type MemberHit } from '@/server/actions/search'
@@ -210,7 +211,7 @@ export function CommandPalette({ role }: { role: PrincipalRole }) {
         <div className="flex items-center gap-3 border-t border-border px-4 py-2 text-[11px] text-muted-foreground">
           <span className="flex items-center gap-1"><kbd className="rounded border border-border px-1">↑</kbd><kbd className="rounded border border-border px-1">↓</kbd> gez</span>
           <span className="flex items-center gap-1"><kbd className="rounded border border-border px-1">↵</kbd> seç</span>
-          <span className="ml-auto flex items-center gap-1"><kbd className="rounded border border-border px-1">⌘</kbd><kbd className="rounded border border-border px-1">K</kbd></span>
+          <span className="ml-auto flex items-center gap-1"><kbd className="rounded border border-border px-1"><ShortcutHint letter="K" /></kbd></span>
         </div>
       </div>
     </div>
