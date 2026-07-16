@@ -37,6 +37,10 @@ describe('middleware — the coarse gate', () => {
     expect(locationOf(middleware(request('/invite/abc')))).toBeNull()
     expect(locationOf(middleware(request('/portal/login')))).toBeNull()
   })
+
+  it('lets the cookie-less PAYTR callback through — it grants the package, and PAYTR carries no session', () => {
+    expect(locationOf(middleware(request('/api/payments/paytr/callback')))).toBeNull()
+  })
 })
 
 describe('DEBT-012 — a stale cookie must never become a redirect loop', () => {

@@ -9,7 +9,11 @@ import { SESSION_COOKIE_NAME } from '@/server/session-config'
 // unauthenticated request to /login without a server round-trip.
 // v1.21 — the invite link and the member login are PUBLIC by necessity: the member has no
 // account (and therefore no cookie) until she has used them.
-const PUBLIC_PREFIXES = ['/login', '/design-system', '/invite', '/portal/login']
+// Plus Phase 6 — the PAYTR callback is a server-to-server POST from PAYTR's IPs; it carries no
+// session cookie, so the coarse gate would bounce it to /login and the payment would NEVER be
+// recorded (the entitlement is granted ONLY on this verified callback). The route itself verifies
+// the PAYTR notification hash, so "public" here means "reachable", not "unauthenticated & trusted".
+const PUBLIC_PREFIXES = ['/login', '/design-system', '/invite', '/portal/login', '/api/payments/paytr/callback']
 
 function isPublic(pathname: string): boolean {
   return PUBLIC_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`))
