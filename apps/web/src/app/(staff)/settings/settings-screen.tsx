@@ -553,8 +553,13 @@ export function SettingsScreen({
         quietTo={Number(quietTo)}
       />
 
-      <div className="flex justify-end">
-        <Button onClick={save} disabled={pending}>
+      {/* Form-end save bar (PF-7): a labelled row, not a button adrift mid-page. It says exactly what it
+          saves, so the sections BELOW (which save themselves) never look governed by this button. */}
+      <div className="flex flex-col-reverse items-stretch gap-2 rounded-xl border border-border bg-muted/30 p-3 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-sm text-muted-foreground">
+          Yukarıdaki stüdyo ayarlarını kaydeder. Entegrasyonlar ve tanımlar (aşağıda) ayrı kaydedilir.
+        </p>
+        <Button onClick={save} disabled={pending} className="sm:w-auto">
           Kaydet
         </Button>
       </div>
