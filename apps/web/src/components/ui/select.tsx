@@ -6,7 +6,38 @@ import { Select as SelectPrimitive } from "@base-ui/react/select"
 import { cn } from "@/lib/utils"
 import { ChevronDownIcon, CheckIcon, ChevronUpIcon } from "lucide-react"
 
-const Select = SelectPrimitive.Root
+// Base UI's Select.Value can only show the selected item's LABEL once the item has mounted (the popup
+// registers item labels in its store on open). Until then it renders the raw VALUE — so a freshly
+// opened form showed "svc_01K…" or "__none__" instead of the name, app-wide, until you clicked the
+// dropdown once. The fix Base UI documents is the Root `items` prop (a value→label map it can resolve
+// from without opening). We derive that map automatically from the SelectItem children, so every
+// dropdown is fixed centrally and a new one needs nothing. If it can't derive (unusual children) it
+// falls back to the previous behaviour — no regression. A call site may still pass `items` explicitly.
+function collectSelectItems(node: React.ReactNode): Record<string, React.ReactNode> {
+  const map: Record<string, React.ReactNode> = {}
+  const walk = (n: React.ReactNode): void => {
+    React.Children.forEach(n, (child) => {
+      if (!React.isValidElement(child)) return
+      const childProps = child.props as { value?: unknown; children?: React.ReactNode }
+      if (child.type === SelectItem && childProps.value != null) {
+        map[String(childProps.value)] = childProps.children
+      } else if (childProps.children != null) {
+        walk(childProps.children)
+      }
+    })
+  }
+  walk(node)
+  return map
+}
+
+function Select<Value>({ children, items, ...props }: SelectPrimitive.Root.Props<Value>) {
+  const derivedItems = (items ?? collectSelectItems(children)) as SelectPrimitive.Root.Props<Value>['items']
+  return (
+    <SelectPrimitive.Root items={derivedItems} {...props}>
+      {children}
+    </SelectPrimitive.Root>
+  )
+}
 
 function SelectGroup({ className, ...props }: SelectPrimitive.Group.Props) {
   return (

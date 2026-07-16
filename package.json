@@ -40,6 +40,7 @@
     "setup:catalog": "tsx tools/setup/catalog.ts",
     "setup:trainers": "tsx tools/setup/trainers.ts",
     "setup:exercises": "tsx tools/setup/exercises.ts",
+    "setup:exercise-videos": "tsx tools/setup/exercise-videos.ts",
     "setup:program-a": "tsx tools/setup/program-a.ts"
   },
   "dependencies": {},
