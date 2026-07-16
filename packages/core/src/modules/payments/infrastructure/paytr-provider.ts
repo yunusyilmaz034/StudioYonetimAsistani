@@ -128,12 +128,14 @@ export class PaytrProvider implements PaymentProviderPort {
     const linkType = 'product'
     const lang = 'tr'
     const minCount = '1'
-    const email = input.memberEmail ?? ''
-    // Official Link-create order (PAYTR docs): name + price + currency + max_installment + link_type +
-    // lang, then min_count for a `product` link, then the email WHEN one is sent — then merchant_salt.
-    // The hash MUST match the body exactly: sending an email but omitting it from the hash → bad token.
-    let required = input.itemName + price + currency + maxInstallment + linkType + lang + minCount
-    if (email) required += email
+    // Official Link-create token order (PAYTR docs, Create sample): name + price + currency +
+    // max_installment + link_type + lang, THEN min_count for a `product` link, or the buyer e-mail for a
+    // `collection` link — NEVER both, then merchant_salt. A product link must not carry the e-mail in the
+    // token OR the body; adding it (even when the member happens to have one) breaks the hash → PAYTR
+    // rejects the create. The hash MUST match the body exactly.
+    const isCollection: boolean = linkType !== 'product'
+    const email = isCollection ? (input.memberEmail ?? '') : ''
+    const required = input.itemName + price + currency + maxInstallment + linkType + lang + (isCollection ? email : minCount)
     const paytrToken = b64hmac(merchantKey, required + merchantSalt)
 
     const body = new URLSearchParams({
@@ -154,9 +156,11 @@ export class PaytrProvider implements PaymentProviderPort {
 
     try {
       const res = await this.fetchImpl(LINK_CREATE_URL, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body })
-      const json = (await res.json().catch(() => ({}))) as { status?: string; link?: string; reason?: string }
+      // PAYTR's Link API reports failure as `{status:'error', err_msg}` (not `reason`, which the iFrame
+      // token API uses). Read err_msg first so the real cause surfaces instead of a generic fallback.
+      const json = (await res.json().catch(() => ({}))) as { status?: string; link?: string; reason?: string; err_msg?: string }
       if (json.status === 'success' && json.link) return { ok: true, configured: true, redirectUrl: json.link }
-      return { ok: false, configured: true, errorCode: json.reason ?? 'paytr_link_failed' }
+      return { ok: false, configured: true, errorCode: json.err_msg ?? json.reason ?? 'paytr_link_failed' }
     } catch {
       return { ok: false, configured: true, errorCode: 'network_error' }
     }
