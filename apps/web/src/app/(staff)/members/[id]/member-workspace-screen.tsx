@@ -229,7 +229,7 @@ export function MemberWorkspaceScreen({
           />
         </TabsContent>
         <TabsContent value="packages">
-          <SubscriptionsPanel memberId={member.id} products={products} />
+          <SubscriptionsPanel memberId={member.id} products={products} surchargeKurus={surchargeKurus} />
         </TabsContent>
         <TabsContent value="training">
           {/* Plus Phase 7 — the member's programmes, measurements and progress photos. Content for

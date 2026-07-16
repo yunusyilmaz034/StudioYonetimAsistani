@@ -14,6 +14,7 @@ import {
   FirestoreCatalogRepository,
   FirestoreEntitlementRepository,
   FirestoreFinanceRepository,
+  FirestoreSchedulingRepository,
   instant,
   money,
   reactivateEntitlement,
@@ -107,6 +108,14 @@ export async function assignSubscriptionAction(input: unknown) {
 
   const drawerId = await drawerFor(ctx, p.method as PaymentMethod)
 
+  // KK/havale farkı (PF-6): the SAME data-driven surcharge as the PAYTR flow. Cash pays the base;
+  // every non-cash method (credit_card / bank_transfer) adds the studio's configured surcharge to what
+  // is OWED (priceAgreed). Added once, server-side — the client sends the base price. #4/#12: the amount
+  // is a setting, never a literal; 0 when unset.
+  const settings = await new FirestoreSchedulingRepository(adminDb()).getStudioSettings(ctx)
+  const surchargeKurus = p.method !== 'cash' ? settings?.paymentSurcharge?.cardTransferSurchargeKurus ?? 0 : 0
+  const priceAgreedKurus = (p.priceAgreedKurus ?? product.priceInKurus) + surchargeKurus
+
   const grant: Grant =
     product.type === 'credit'
       ? { kind: 'credits', credits: product.creditCount ?? 0, validForDays: product.durationDays }
@@ -131,7 +140,7 @@ export async function assignSubscriptionAction(input: unknown) {
       activeReservationLimit: product.activeReservationLimit,
     },
     policyRef: { policyId: product.id, version: 1 },
-    priceAgreed: money(p.priceAgreedKurus ?? product.priceInKurus),
+    priceAgreed: money(priceAgreedKurus),
     validFrom: dayMs(p.validFrom),
     validUntil: p.validUntil ? dayMs(p.validUntil) : null,
     freezeDays: product.freezeAllowanceDays > 0 ? product.freezeAllowanceDays : null,

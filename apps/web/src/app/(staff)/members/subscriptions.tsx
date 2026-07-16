@@ -48,7 +48,7 @@ const addDays = (d: string, days: number) => {
   return t.toISOString().slice(0, 10)
 }
 
-export function SubscriptionsPanel({ memberId, products }: { memberId: string; products: readonly ProductView[] }) {
+export function SubscriptionsPanel({ memberId, products, surchargeKurus = 0 }: { memberId: string; products: readonly ProductView[]; surchargeKurus?: number }) {
   const [subs, setSubs] = useState<readonly SubscriptionView[] | null>(null)
   const [adding, setAdding] = useState(false)
 
@@ -86,6 +86,7 @@ export function SubscriptionsPanel({ memberId, products }: { memberId: string; p
         <AssignForm
           memberId={memberId}
           products={activeProducts}
+          surchargeKurus={surchargeKurus}
           onCancel={() => setAdding(false)}
           onDone={() => {
             setAdding(false)
@@ -273,11 +274,13 @@ function Row({ label, value }: { label: string; value: string }) {
 function AssignForm({
   memberId,
   products,
+  surchargeKurus = 0,
   onCancel,
   onDone,
 }: {
   memberId: string
   products: readonly ProductView[]
+  surchargeKurus?: number
   onCancel: () => void
   onDone: () => void
 }) {
@@ -381,6 +384,12 @@ function AssignForm({
             </SelectContent>
           </Select>
         </Labeled>
+        {method !== 'cash' && surchargeKurus > 0 ? (
+          <p className="col-span-2 rounded-lg bg-muted/60 px-3 py-2 text-sm text-muted-foreground">
+            Kart/havale farkı +{tl(surchargeKurus)} · üyeye toplam{' '}
+            <strong className="text-foreground">{tl((toKurus(effectivePrice) || 0) + surchargeKurus)}</strong>
+          </p>
+        ) : null}
       </div>
 
       <Labeled label="Açıklama">
