@@ -14,6 +14,23 @@ import {
 } from '@/server/actions/notifications'
 import { listBookingMembersAction, type BookingMember } from '@/server/actions/booking'
 
+// The params a bulk send can fill for EVERY member. A template that needs anything else (a balance, a
+// class time) can't be sent this way — it would be refused per member with `template_params_missing`.
+const BULK_PARAMS = new Set(['memberName'])
+
+// Failure codes → a human reason, so "1 başarısız" says WHY.
+const REASON_TR: Record<string, string> = {
+  template_params_missing: 'şablon üyeye özel bilgi istiyor (toplu gönderimde doldurulamaz)',
+  daily_limit_reached: 'günlük gönderim limiti doldu',
+  template_not_found: 'şablon bulunamadı',
+  template_inactive: 'şablon pasif',
+  member_not_found: 'üye bulunamadı',
+}
+const reasonText = (reasons: Record<string, number>): string =>
+  Object.entries(reasons)
+    .map(([code, n]) => `${n} ${REASON_TR[code] ?? code}`)
+    .join(', ')
+
 // A SIMPLE bulk send (owner, §13): pick a template, pick the members, send. Every message goes
 // through the same notify() pipeline — consent, quiet hours, retry, audit. It is deliberately NOT a
 // campaign engine: no segments, no scheduling, no A/B — those stay in the future backlog. A member
@@ -54,14 +71,25 @@ export function BulkSend({ templates }: { templates: readonly TemplateRow[] }) {
       return next
     })
 
+  // A template the bulk flow can't fill for everyone → the send would fail per member. Warn and block.
+  const selectedTemplate = templates.find((t) => t.id === templateId)
+  const unfillable = (selectedTemplate?.requiredParams ?? []).filter((p) => !BULK_PARAMS.has(p))
+  const blocked = unfillable.length > 0
+
   async function send() {
     if (!templateId || selected.size === 0) return
     setBusy(true)
     try {
       const res = await sendBulkNotificationAction({ memberIds: [...selected], templateId })
       if (res.ok) {
-        toast.success(`${res.value.sent} gönderildi, ${res.value.failed} başarısız.`)
-        setSelected(new Set())
+        const { sent, failed, reasons } = res.value
+        if (failed > 0) {
+          const why = reasonText(reasons)
+          toast.error(`${sent} gönderildi, ${failed} başarısız${why ? ` — ${why}` : ''}.`)
+        } else {
+          toast.success(`${sent} gönderildi.`)
+          setSelected(new Set())
+        }
       } else {
         toast.error('Gönderim tamamlanamadı.')
       }
@@ -94,6 +122,16 @@ export function BulkSend({ templates }: { templates: readonly TemplateRow[] }) {
               ))}
           </select>
         </label>
+
+        {blocked ? (
+          <div className="rounded-lg border border-warning/30 bg-warning/10 p-2.5 text-sm">
+            <p className="font-medium">Bu şablon toplu gönderime uygun değil</p>
+            <p className="text-muted-foreground">
+              Üyeye özel bilgi gerektiriyor ({unfillable.join(', ')}) — toplu gönderimde bu alanlar doldurulamaz.
+              Bu şablonu üye kartından <strong>tek tek</strong> gönderin.
+            </p>
+          </div>
+        ) : null}
 
         <div className="space-y-2">
           <div className="flex items-center justify-between gap-2">
@@ -141,7 +179,7 @@ export function BulkSend({ templates }: { templates: readonly TemplateRow[] }) {
           <p className="text-xs text-muted-foreground">
             Gelişmiş segmentasyon (paket sahipleri, süresi bitecekler) şimdilik kapsam dışı.
           </p>
-          <Button disabled={busy || !templateId || selected.size === 0} onClick={() => void send()}>
+          <Button disabled={busy || !templateId || selected.size === 0 || blocked} onClick={() => void send()}>
             {busy ? <Loader2Icon className="animate-spin" /> : <SendIcon />}
             {selected.size > 0 ? `${selected.size} kişiye gönder` : 'Gönder'}
           </Button>

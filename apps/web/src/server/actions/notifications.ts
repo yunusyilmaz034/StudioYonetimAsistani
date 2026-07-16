@@ -209,10 +209,18 @@ export async function sendBulkNotificationAction(input: unknown) {
   const opId = newOperationId()
   let sent = 0
   let failed = 0
+  // Why each failure happened, aggregated by code — so the owner sees "1 başarısız (şablon parametreleri
+  // eksik)" instead of a mute count. A refused-at-creation send records NO attempt, so this is the only
+  // place its reason survives.
+  const reasons: Record<string, number> = {}
+  const bump = (code: string) => {
+    reasons[code] = (reasons[code] ?? 0) + 1
+  }
   for (const memberId of p.memberIds) {
     const member = await memberRepo.findById(ctx, memberId as MemberId)
     if (!member) {
       failed++
+      bump('member_not_found')
       continue
     }
     const recipient: RecipientRef = {
@@ -232,9 +240,12 @@ export async function sendBulkNotificationAction(input: unknown) {
       params: { memberName: member.fullName },
     })
     if (res.ok) sent++
-    else failed++
+    else {
+      failed++
+      bump(res.error.code)
+    }
   }
-  return { ok: true as const, value: { sent, failed, operationId: opId } }
+  return { ok: true as const, value: { sent, failed, reasons, operationId: opId } }
 }
 
 export interface NotificationRow {
