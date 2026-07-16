@@ -50,7 +50,7 @@ function Section({ title, hint, children }: { title: string; hint?: string; chil
   return (
     <section className="space-y-4">
       <div className="space-y-0.5">
-        <h2 className="text-h3 font-semibold text-foreground">{title}</h2>
+        <h2 className="font-heading text-h3 font-medium text-foreground">{title}</h2>
         {hint ? <p className="text-xs text-muted-foreground">{hint}</p> : null}
       </div>
       {children}
@@ -59,27 +59,30 @@ function Section({ title, hint, children }: { title: string; hint?: string; chil
 }
 
 const COLORS = [
-  ['Primary', 'bg-primary'],
-  ['Primary hover', 'bg-primary-hover'],
-  ['Primary soft', 'bg-primary-soft'],
-  ['Background', 'bg-background'],
-  ['Surface', 'bg-surface'],
-  ['Muted', 'bg-muted'],
-  ['Border', 'bg-border'],
-  ['Foreground', 'bg-foreground'],
+  ['Mulberry', 'bg-primary'],
+  ['Mulberry koyu', 'bg-primary-hover'],
+  ['Blush', 'bg-primary-soft'],
+  ['Altın (gold)', 'bg-gold'],
+  ['Altın soft', 'bg-gold-soft'],
+  ['Porselen', 'bg-background'],
+  ['Sıcak beyaz', 'bg-surface'],
+  ['Greige', 'bg-muted'],
+  ['Çizgi', 'bg-border'],
+  ['Erik-siyah', 'bg-foreground'],
   ['Success', 'bg-success'],
   ['Warning', 'bg-warning'],
   ['Danger', 'bg-danger'],
   ['Info', 'bg-info'],
 ] as const
 
+// Editorial serif for the display/heading rows (Doc 33); body stays sans.
 const TYPE = [
-  ['text-display font-semibold', 'Display · 28', 'Stüdyo Yönetim Asistanı'],
-  ['text-h1 font-semibold', 'H1 · 22', 'Genel Görünüm'],
-  ['text-h2 font-semibold', 'H2 · 18', 'Bugünkü Dersler'],
-  ['text-h3 font-semibold', 'H3 · 15', 'Reformer Pilates'],
-  ['text-base', 'Body · 16', 'Üye rezervasyonu başarıyla oluşturuldu.'],
-  ['text-sm', 'Body S · 14', 'Reception bu ekranı gün boyu kullanır.'],
+  ['font-heading text-display font-medium', 'Display · Serif', 'Kontrollü Zarafet'],
+  ['font-heading text-h1 font-medium', 'H1 · Serif', 'Genel Görünüm'],
+  ['font-heading text-h2 font-medium', 'H2 · Serif', 'Bugünkü Dersler'],
+  ['font-heading text-h3 font-medium', 'H3 · Serif', 'Reformer Pilates'],
+  ['text-base', 'Body · Sans 16', 'Üye rezervasyonu başarıyla oluşturuldu.'],
+  ['text-sm', 'Body S · Sans 14', 'Reception bu ekranı gün boyu kullanır.'],
   ['text-xs text-muted-foreground', 'Caption · 12', '30 Ağustos · son kullanım'],
 ] as const
 

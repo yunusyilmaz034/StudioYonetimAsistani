@@ -11,7 +11,11 @@
 */
 
 @theme inline {
-  --font-heading: var(--font-sans);
+  /* Editorial display (Doc 33) — a humanist old-style serif for HEADINGS and gauge NUMERALS only.
+     The UI body stays --font-sans (Geist). Contrast is the antidote to "flat"; keeping serif to the
+     big moments is what stops it becoming the serif cliché. */
+  --font-heading: 'Iowan Old Style', 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, ui-serif,
+    serif;
   --font-sans: var(--font-sans);
 
   /* ── type scale (DS v2) — a deliberate hierarchy on the operational 14px base.
@@ -30,21 +34,29 @@
   --text-h3--line-height: 1.375rem;
   --text-h3--letter-spacing: -0.006em;
 
-  /* ── elevation (DS v2) — soft, low, Stripe/Linear register. Structure is a hairline
-     border PLUS a quiet shadow; never a heavy drop-shadow. ── */
-  --shadow-xs: 0 1px 2px 0 color-mix(in oklch, var(--foreground) 5%, transparent);
-  --shadow-sm: 0 1px 3px 0 color-mix(in oklch, var(--foreground) 6%, transparent),
-    0 1px 2px -1px color-mix(in oklch, var(--foreground) 5%, transparent);
-  --shadow-md: 0 4px 12px -2px color-mix(in oklch, var(--foreground) 8%, transparent),
-    0 2px 6px -2px color-mix(in oklch, var(--foreground) 5%, transparent);
-  --shadow-lg: 0 12px 28px -6px color-mix(in oklch, var(--foreground) 12%, transparent),
-    0 4px 10px -4px color-mix(in oklch, var(--foreground) 6%, transparent);
+  /* ── elevation (DS v3, Doc 33) — WARM, layered depth. The tint is `--foreground` (now a warm
+     plum-black), so every shadow carries the palette's warmth for free; a touch more presence than
+     v2's near-flat register, because "premium, not flat" was Işıl's ask. Structure is still a
+     hairline border PLUS the shadow — never a heavy black drop-shadow. ── */
+  --shadow-xs: 0 1px 2px 0 color-mix(in oklch, var(--foreground) 6%, transparent);
+  --shadow-sm: 0 1px 3px 0 color-mix(in oklch, var(--foreground) 8%, transparent),
+    0 1px 2px -1px color-mix(in oklch, var(--foreground) 6%, transparent);
+  --shadow-md: 0 6px 16px -3px color-mix(in oklch, var(--foreground) 12%, transparent),
+    0 2px 6px -2px color-mix(in oklch, var(--foreground) 8%, transparent);
+  --shadow-lg: 0 18px 40px -10px color-mix(in oklch, var(--foreground) 20%, transparent),
+    0 6px 14px -6px color-mix(in oklch, var(--foreground) 10%, transparent);
 
   /* ── brand ── */
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
   --color-primary-hover: var(--primary-hover);
   --color-primary-soft: var(--primary-soft);
+
+  /* ── premium accent — golden-hour honey, used SPARINGLY (Doc 33): VIP, premium highlights.
+     Never a status colour; the semantic family below owns meaning. ── */
+  --color-gold: var(--gold);
+  --color-gold-foreground: var(--gold-foreground);
+  --color-gold-soft: var(--gold-soft);
 
   /* ── surfaces & text ── */
   --color-background: var(--background);
@@ -92,49 +104,113 @@
 }
 
 :root {
-  /* ── brand ── */
-  --primary: #0f9f96;
-  --primary-foreground: #ffffff;
-  --primary-hover: #0c837c;
-  --primary-soft: #e8f7f5;
+  /* ══ Design System v3 — "Controlled Poise" (Doc 33, approved owner + Işıl 2026-07-15). ══
+     Warm boutique women's-pilates premium. Light-first; dark is deferred to a later Plus batch.
+     Deliberately NOT the cream+terracotta cliché: rose-grey porcelain ground, mulberry signature. ══ */
 
-  /* ── surfaces & text ── */
-  --background: #f7f8fa;
-  --foreground: #17202a;
-  --surface: #ffffff;
-  --card: #ffffff;
-  --card-foreground: #17202a;
-  --popover: #ffffff;
-  --popover-foreground: #17202a;
-  --secondary: #f0f2f5;
-  --secondary-foreground: #17202a;
-  --muted: #f0f2f5;
-  --muted-foreground: #667085;
-  --accent: #f0f2f5;
-  --accent-foreground: #17202a;
+  /* ── brand — mulberry / raspberry-plum, the one confident hue ── */
+  --primary: #a22d60;
+  --primary-foreground: #fcf4f1;
+  --primary-hover: #85234e;
+  --primary-soft: #f3e2e9;
+
+  /* ── premium accent — golden-hour honey, sparing ── */
+  --gold: #b5842f;
+  --gold-foreground: #ffffff;
+  --gold-soft: #f2e8d6;
+
+  /* ── surfaces & text — warm porcelain ground, warm-white cards, plum-black ink ── */
+  --background: #f4eeec;
+  --foreground: #241c20;
+  --surface: #fcf8f7;
+  --card: #fcf8f7;
+  --card-foreground: #241c20;
+  --popover: #fcf8f7;
+  --popover-foreground: #241c20;
+  --secondary: #ece1dd;
+  --secondary-foreground: #241c20;
+  --muted: #ece1dd;
+  --muted-foreground: #6b5a5f;
+  --accent: #ece1dd; /* shadcn 'accent' = warm neutral hover surface, NOT the gold */
+  --accent-foreground: #241c20;
 
   /* ── lines & focus ── */
-  --border: #e4e7ec;
-  --input: #e4e7ec;
-  --ring: #0f9f96;
+  --border: #e3d6d2;
+  --input: #e3d6d2;
+  --ring: #a22d60;
 
-  /* ── class categories (v1.21) ── */
-  --cat-pilates: #7c3aed;
-  --cat-pilates-soft: #f3eefe;
-  --cat-fitness: #0f9f96;
-  --cat-fitness-soft: #e8f7f5;
-  --cat-private: #b45309;
-  --cat-private-soft: #fdf3e7;
+  /* ── class categories (v1.21) — re-harmonised to the warm palette, still three DISTINCT hues
+     (they carry the category-wall meaning; colour never stands alone — every chip is labelled). ── */
+  --cat-pilates: #955b8b;
+  --cat-pilates-soft: #f2e6ef;
+  --cat-fitness: #4e7c5a;
+  --cat-fitness-soft: #e3eee7;
+  --cat-private: #b5842f;
+  --cat-private-soft: #f2e8d6;
 
-  /* ── status ── */
-  --success: #16a34a;
-  --warning: #d97706;
-  --danger: #dc2626;
-  --info: #2563eb;
-  --destructive: #dc2626;
+  /* ── status — warmed to sit in the palette; a separate family from the gold accent ── */
+  --success: #3e7a57;
+  --warning: #a9761c;
+  --danger: #ac3a3a;
+  --info: #7a5ca8; /* warm plum-indigo, not a cold corporate blue */
+  --destructive: #ac3a3a;
 
-  /* control 8px, card 12px (Doc 09 §5) */
-  --radius: 0.5rem;
+  /* control ~10px, card (xl) ~14px — a touch more generous than v2, reads premium (Doc 33 §4) */
+  --radius: 0.625rem;
+}
+
+/* ── Motion (Plus DS v3) — a gentle draw/rise for charts and a stagger for cards. Tasteful, not
+   busy; fully disabled under prefers-reduced-motion (accessibility, and "restraint over effects"). ── */
+@keyframes chart-draw {
+  from {
+    stroke-dasharray: 900;
+    stroke-dashoffset: 900;
+  }
+  to {
+    stroke-dasharray: 900;
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes chart-rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes fade-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.chart-draw {
+  animation: chart-draw 1.1s cubic-bezier(0.22, 0.7, 0.2, 1) forwards;
+}
+.chart-rise {
+  transform-origin: bottom;
+  animation: chart-rise 0.7s cubic-bezier(0.22, 0.7, 0.2, 1) forwards;
+}
+.fade-rise {
+  opacity: 0;
+  animation: fade-rise 0.6s cubic-bezier(0.22, 0.7, 0.2, 1) forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .chart-draw,
+  .chart-rise,
+  .fade-rise {
+    animation: none;
+    opacity: 1;
+    transform: none;
+    stroke-dashoffset: 0;
+  }
 }
 
 @layer base {

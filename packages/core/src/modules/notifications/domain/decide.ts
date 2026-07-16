@@ -104,9 +104,10 @@ export function selectChannels(
       channels.push(channel)
       continue
     }
-    // The KVKK line: v1.25 sends OPERATIONAL only. A marketing message with no consent record must
-    // never leave the building — and there is no consent surface yet, so there is no marketing.
-    if (category === 'marketing') {
+    // The KVKK line. A MARKETING message needs the member's explicit campaign consent; an OPERATIONAL
+    // one (her class was cancelled) never does. Without consent the marketing send is suppressed
+    // with `no_consent` — the reason is recorded, so a suppressed campaign is never a silent one.
+    if (category === 'marketing' && !prefs.campaign) {
       suppressed.push({ channel, reason: 'no_consent' })
       continue
     }
@@ -161,14 +162,19 @@ export interface CreateIntentInput {
   readonly prefs: NotificationPrefs
   readonly settings: NotificationSettings
   readonly sentToday: number
+  // Plus Phase 5 — the RESOLVED template: the studio's override if it has one, else the code seed.
+  // The caller resolves it so this stays pure. Absent ⇒ fall back to the code catalogue.
+  readonly template?: NotificationTemplate
 }
 
 export function decideCreateIntent(
   ctx: DecideContext,
   input: CreateIntentInput,
 ): Result<{ intent: NotificationIntent; events: readonly NewEvent[] }, DomainError> {
-  const template = TEMPLATES[input.templateId]
+  const template = input.template ?? TEMPLATES[input.templateId]
   if (!template) return err({ code: 'template_not_found' })
+  // A deactivated template stops NEW sends (the owner turned it off); past sends keep their snapshot.
+  if (template.active === false) return err({ code: 'template_inactive' })
 
   // The daily ceiling (owner, decision 3). A runaway loop must cost a WARNING, not a month's
   // revenue — so when the limit trips we stop creating intents and say so, loudly.
@@ -312,16 +318,22 @@ export function decideAttemptResult(
     }
   }
 
+  // Plus Phase 5 — the channel has no real transport (WhatsApp without Meta credentials). Its own
+  // terminal status, never a retry: retrying a channel that does not exist yet is a loop that ends
+  // when someone provisions credentials, not when a timer fires. The Notification Center shows it as
+  // "sağlayıcı yapılandırılmamış" so the owner knows to connect the channel, not to chase a bug.
+  const notConfigured = result.code === 'provider_not_configured' || result.code === 'no_provider'
+
   // A permanent failure is NOT retried: an invalid phone number will still be invalid in an hour,
   // and retrying it is a bill with no upside. When a provider will not tell us which it is, we treat
   // it as permanent — we do not spend money on a guess.
   const policy = DEFAULT_RETRY[attempt.channel]
-  const canRetry = !result.permanent && attempt.attemptNo < policy.maxAttempts
+  const canRetry = !notConfigured && !result.permanent && attempt.attemptNo < policy.maxAttempts
   const backoff = policy.backoffMinutes[attempt.attemptNo - 1] ?? 0
 
   const next: DeliveryAttempt = {
     ...attempt,
-    status: canRetry ? 'queued' : 'failed',
+    status: notConfigured ? 'provider_not_configured' : canRetry ? 'queued' : 'failed',
     error: { code: result.code, message: result.message, permanent: result.permanent },
     nextRetryAt: canRetry ? instant(ctx.now + backoff * 60_000) : null,
   }

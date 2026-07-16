@@ -154,16 +154,19 @@ export function BookingPanel({ session, onMutated }: { session: CalendarSession;
     setBusy(false)
   }
 
-  async function confirmCancel() {
+  // `replace` — the "wrong member" fix: cancel this reservation, then open the add picker so
+  // reception books the correct member. Two clean, independent events; no fragile combined write.
+  async function confirmCancel(replace = false) {
     if (!cancelling) return
     setBusy(true)
     try {
       const res = await cancelReservationAction({ reservationId: cancelling.reservationId })
       if (res.ok) {
-        toast.success('Rezervasyon iptal edildi.')
+        toast.success(replace ? 'İptal edildi — doğru üyeyi seçin.' : 'Rezervasyon iptal edildi.')
         setCancelling(null)
         await loadRoster()
         onMutated()
+        if (replace) await openPicker()
       } else {
         toast.error(domainErrorMessage(res.error))
       }
@@ -367,13 +370,17 @@ export function BookingPanel({ session, onMutated }: { session: CalendarSession;
               Geç iptal: ders başlamasına {Math.max(0, Math.floor(hoursUntil))} saatten az kaldı — bu üyenin kredisi yanacak.
             </p>
           ) : null}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setCancelling(null)} disabled={busy}>
-              Vazgeç
+          <DialogFooter className="sm:flex-col sm:gap-2">
+            {/* "Wrong member" — cancel and immediately pick the correct one, without leaving. */}
+            <Button variant="outline" onClick={() => void confirmCancel(true)} disabled={busy}>
+              İptal Et ve Üye Değiştir
             </Button>
-            <Button variant="destructive" onClick={confirmCancel} disabled={busy}>
+            <Button variant="destructive" onClick={() => void confirmCancel()} disabled={busy}>
               {busy ? <Loader2Icon className="animate-spin" /> : null}
               Rezervasyonu İptal Et
+            </Button>
+            <Button variant="ghost" onClick={() => setCancelling(null)} disabled={busy}>
+              Vazgeç
             </Button>
           </DialogFooter>
         </DialogContent>

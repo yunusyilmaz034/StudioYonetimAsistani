@@ -16,9 +16,10 @@ import { runAutoResolveSweep } from './scheduled/auto-resolve-attendance'
 import { runExpirySweep } from './scheduled/expire-credits'
 import { runFastHealthChecks, runNightlyHealthChecks } from './scheduled/health'
 import { runNotificationRetrySweep } from './scheduled/notification-retry'
+import { runPaymentReconcileSweep } from './scheduled/reconcile-payments'
 import { runReminderSweep } from './scheduled/reminders'
 import { runUnfreezeSweep } from './scheduled/unfreeze-expired'
-import { EMAIL_SECRETS, REGION } from './shared/region'
+import { NOTIFICATION_SECRETS, REGION } from './shared/region'
 import { onCommandCreated } from './triggers/on-command-created'
 import { onEventCreated } from './triggers/on-event-created'
 
@@ -50,6 +51,9 @@ export const nightlySweep = onSchedule(
     // it; time merely passed). They run last, so they see the night's expiries.
     await runReminderSweep()
 
+    // Plus Phase 6 — time out abandoned checkouts, flag stuck payments for a human (§22).
+    await runPaymentReconcileSweep()
+
     // v1.26 — the drift checks run AFTER the sweeps, and they only ever REPORT. Running them first
     // would flag the very rows the sweeps are about to settle; running them at all is how we find
     // out that a write path bypassed a transaction, which is a bug and not a number to correct.
@@ -70,7 +74,7 @@ export const healthCheck = onSchedule({ schedule: 'every 15 minutes' }, async ()
 // backoff, and a PERMANENT failure is never picked up at all.
 export const notificationRetry = onSchedule(
   // It re-sends what failed and releases what the quiet hours held — the same provider, the same key.
-  { schedule: 'every 15 minutes', secrets: [...EMAIL_SECRETS] },
+  { schedule: 'every 15 minutes', secrets: [...NOTIFICATION_SECRETS] },
   async () => {
     await runNotificationRetrySweep()
   },

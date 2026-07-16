@@ -1,6 +1,7 @@
 import { getApps, initializeApp, type App } from 'firebase-admin/app'
 import { getAuth, type Auth } from 'firebase-admin/auth'
 import { getFirestore, type Firestore } from 'firebase-admin/firestore'
+import { getStorage, type Storage } from 'firebase-admin/storage'
 
 // Admin SDK singleton — server only (its directory is the enforced boundary; see
 // the dependency-cruiser `no-firestore-outside-infrastructure` rule).
@@ -27,4 +28,20 @@ export function adminAuth(): Auth {
 // bypasses security rules by design (authorization is requireTenantContext()).
 export function adminDb(): Firestore {
   return getFirestore(adminApp())
+}
+
+// Admin Storage. Progress photos (member PII, §2) live in a private bucket; a short-lived signed
+// URL is minted on read, and NOTHING is ever made public. The bucket name comes from config, so a
+// misconfigured environment fails loudly rather than writing to the wrong bucket.
+const STORAGE_BUCKET =
+  process.env.FIREBASE_STORAGE_BUCKET ??
+  process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET ??
+  `${PROJECT_ID}.firebasestorage.app`
+
+export function adminStorage(): Storage {
+  return getStorage(adminApp())
+}
+
+export function storageBucketName(): string {
+  return STORAGE_BUCKET
 }

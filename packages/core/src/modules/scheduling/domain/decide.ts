@@ -25,6 +25,7 @@ import {
   CLASS_SESSION_SCHEDULED,
   CLASS_SESSION_SCHEDULED_VERSION,
   STUDIO_SETTINGS_UPDATED,
+  CLASS_SESSION_RESCHEDULED,
   CLASS_SESSION_TRAINER_CHANGED,
   CLASS_TEMPLATE_CREATED,
   CLASS_TEMPLATE_DEACTIVATED,
@@ -443,6 +444,45 @@ export function decideCancelSession(
       ...base(ctx, 'classSession', session.id, session.branchId, { classSessionId: session.id }),
       type: CLASS_SESSION_CANCELLED,
       payload: { reason, startsAt: session.startsAt },
+    },
+  ])
+}
+
+// Move the session to a new time (Plus Phase 2 — Edit Experience). The same guards as creation apply
+// to the NEW time: the session must not have started, the range must be valid, and the studio must be
+// open then (AG-1 — unless the calendar marks it a special working day). A no-op (same time) writes
+// nothing. Category, service and bookings are untouched — this only moves the clock.
+export function decideReschedule(
+  ctx: DecideContext,
+  session: ClassSession,
+  toStartsAt: Instant,
+  toEndsAt: Instant,
+  studio: StudioHours,
+  reason: string,
+): Result<NewEvent[], DomainError> {
+  const started = editable_(ctx, session)
+  if (started) return started
+  const bad = reason_(reason)
+  if (bad) return bad
+  if (toEndsAt <= toStartsAt) return err({ code: 'invalid_time_range' })
+  const hours = checkWorkingHours(studio, toStartsAt, toEndsAt)
+  if (!hours.ok) {
+    return hours.reason === 'closed_day'
+      ? err({ code: 'studio_closed_on_day' })
+      : err({ code: 'outside_working_hours', open: hours.hours!.open, close: hours.hours!.close })
+  }
+  if (toStartsAt === session.startsAt && toEndsAt === session.endsAt) return ok([])
+  return ok([
+    {
+      ...base(ctx, 'classSession', session.id, session.branchId, { classSessionId: session.id }),
+      type: CLASS_SESSION_RESCHEDULED,
+      payload: {
+        fromStartsAt: session.startsAt,
+        toStartsAt,
+        fromEndsAt: session.endsAt,
+        toEndsAt,
+        reason,
+      },
     },
   ])
 }

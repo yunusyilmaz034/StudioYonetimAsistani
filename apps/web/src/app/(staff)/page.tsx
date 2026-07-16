@@ -2,6 +2,7 @@ import type { PrincipalRole } from '@studio/core'
 
 import { requirePageAccess } from '@/server/auth'
 import { loadOwnerDashboard } from '@/server/owner-dashboard'
+import { loadTodayOps } from '@/server/today-ops'
 
 import { DashboardScreen } from './dashboard-screen'
 
@@ -14,8 +15,9 @@ import { DashboardScreen } from './dashboard-screen'
 // data — so her home is not this one minus a few widgets; it is a different screen entirely.
 export default async function HomePage() {
   const ctx = await requirePageAccess('/')
-  const data = await loadOwnerDashboard(ctx, Date.now())
-  return <DashboardScreen data={data} role={ctx.role} roleLabel={roleLabel(ctx.role)} />
+  const now = Date.now()
+  const [data, todayOps] = await Promise.all([loadOwnerDashboard(ctx, now), loadTodayOps(ctx, now)])
+  return <DashboardScreen data={data} todayOps={todayOps} role={ctx.role} roleLabel={roleLabel(ctx.role)} />
 }
 
 function roleLabel(role: PrincipalRole): string {

@@ -20,6 +20,7 @@ const member = (id: string, fullName: string) =>
     status: 'active',
     joinedAt: 0,
     stats: { lastAttendanceAt: null, lastCheckInAt: null, totalAttended: 0, activeEntitlementCount: 0, balanceDue: 0 },
+    restriction: null,
   }) as unknown as Member
 
 const staff: StaffMember[] = [

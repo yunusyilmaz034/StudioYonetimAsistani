@@ -25,6 +25,8 @@ import {
 import {
   ENTITLEMENT_ADJUSTED,
   ENTITLEMENT_AMENDED,
+  ENTITLEMENT_CANCELLATION_CHARGED,
+  ENTITLEMENT_CANCELLATION_REFUNDED,
   ENTITLEMENT_CANCELLED,
   ENTITLEMENT_CREDIT_CONSUMED,
   ENTITLEMENT_CREDIT_HELD,
@@ -41,7 +43,9 @@ import {
 } from '../events'
 import {
   available,
+  cancellationsUsed,
   type AdjustmentReason,
+  type CancellationLedger,
   type CreditLedger,
   type Entitlement,
   type FreezeState,
@@ -89,6 +93,53 @@ const relOf = (ent: Entitlement, reservationId?: ReservationId): EventRelated =>
     : { memberId: ent.memberId, entitlementId: ent.id }
 
 const withCredits = (ent: Entitlement, credits: CreditLedger): Entitlement => ({ ...ent, credits })
+const withCancellation = (ent: Entitlement, cancellationLedger: CancellationLedger): Entitlement => ({
+  ...ent,
+  cancellationLedger,
+})
+
+// ── Cancellation allowance (Plus Phase 3). Pure ledger moves; NO refusal here — the caller
+//    (reservations' decideCancellation) knows the effective allowance and refuses at zero. These only
+//    record that the meter moved. `charge` on an in-window cancel that spends the right; `refund` when
+//    a compensating undo/correction gives it back. ──
+export function decideChargeCancellation(
+  ctx: DecideContext,
+  ent: Entitlement,
+  reservationId: ReservationId,
+): LedgerOutcome {
+  const ledger: CancellationLedger = { ...ent.cancellationLedger, used: ent.cancellationLedger.used + 1 }
+  const next = withCancellation(ent, ledger)
+  return {
+    next,
+    events: [
+      {
+        ...base(ctx, next, relOf(next, reservationId)),
+        type: ENTITLEMENT_CANCELLATION_CHARGED,
+        payload: { reservationId, cancellationsUsedAfter: cancellationsUsed(ledger) },
+      },
+    ],
+  }
+}
+
+export function decideRefundCancellation(
+  ctx: DecideContext,
+  ent: Entitlement,
+  reservationId: ReservationId,
+  reason: string,
+): LedgerOutcome {
+  const ledger: CancellationLedger = { ...ent.cancellationLedger, refunded: ent.cancellationLedger.refunded + 1 }
+  const next = withCancellation(ent, ledger)
+  return {
+    next,
+    events: [
+      {
+        ...base(ctx, next, relOf(next, reservationId)),
+        type: ENTITLEMENT_CANCELLATION_REFUNDED,
+        payload: { reservationId, reason, cancellationsUsedAfter: cancellationsUsed(ledger) },
+      },
+    ],
+  }
+}
 
 // ── Purchase — creates the entitlement (Doc 2 §5.2). No refusal path here; the
 //    application constructs a valid aggregate. Carries policyVersion (I-12). ──

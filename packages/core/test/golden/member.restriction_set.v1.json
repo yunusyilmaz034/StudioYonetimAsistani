@@ -1,0 +1,13 @@
+{
+  "reason": "vip",
+  "rules": {
+    "allowedWeekdays": [1, 2, 3, 4, 5],
+    "allowedHourRanges": [{ "startMinutes": 600, "endMinutes": 1200 }],
+    "allowedTrainerIds": ["stf_isil"],
+    "effectiveFrom": 1800000000000,
+    "effectiveUntil": 1802592000000,
+    "cancellationAllowance": 3,
+    "dailyReservationLimit": 2,
+    "activeReservationLimit": 4
+  }
+}

@@ -84,6 +84,20 @@ export interface StudioSettings {
   /** v1.27 S2 (DEBT-024). Quiet hours, the daily ceiling, and which channels are on. Data, not a
    *  literal — a studio that wants a different quiet window should not need a deploy. */
   readonly notifications: NotificationSettings | null
+  /** Plus Phase 8 — the studio's physical capacity and occupancy bands (Sakin/Orta/Yoğun/Çok yoğun).
+   *  DATA, never a literal. Shape MIRRORS the fitness module's `FitnessOccupancyConfig` — declared
+   *  here rather than imported so `scheduling` does not fall behind `fitness` in the graph for one
+   *  struct (the same reason `notifications` is mirrored above). `null` ⇒ never configured. */
+  readonly fitness: FitnessOccupancyConfig | null
+}
+
+// Mirrors the fitness module's `FitnessOccupancyConfig` (see the note on `notifications`). Capacity
+// in people; the `*At` values are ascending fractions (0..1) of it. Capacity 0 = unset.
+export interface FitnessOccupancyConfig {
+  readonly capacity: number
+  readonly moderateAt: number
+  readonly busyAt: number
+  readonly veryBusyAt: number
 }
 
 // Mirrors the notifications module's own type. It is DECLARED here rather than imported because a

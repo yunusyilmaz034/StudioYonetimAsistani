@@ -168,6 +168,7 @@ export async function seedDemoData(trainerUid: string | null): Promise<void> {
       // S2 added notification settings to the studio document. The seed never learned about them —
     // another thing the typechecker would have said on the day, had it been looking here.
     notifications: null,
+    fitness: { capacity: 30, moderateAt: 0.4, busyAt: 0.7, veryBusyAt: 0.9 },
     qr: { tokenTtlSeconds: 60, checkInWindowMinutes: 30 },
     }),
     'updateStudioSettings',
@@ -345,7 +346,7 @@ async function product(
   const res = ok(
     await createProduct(catalogDeps, ctx, {
       name, category, serviceIds, type, durationDays, creditCount, priceInKurus,
-      freezeAllowanceDays, dailyReservationLimit, cancellationAllowanceCount: null,
+      freezeAllowanceDays, dailyReservationLimit, cancellationAllowanceCount: null, activeReservationLimit: null,
       description: `${name} — demo`,
     }),
     `createProduct ${name}`,

@@ -13,7 +13,7 @@ import {
 
 import { systemTenantContext } from '../shared/context'
 import { db } from '../shared/firebase'
-import { EMAIL_SECRETS, REGION } from '../shared/region'
+import { NOTIFICATION_SECRETS, REGION } from '../shared/region'
 import { notifyForEvent, toEventLike } from './on-event-notify'
 
 // ── onEventCreated → the daily read model (v1.23, D29). ─────────────────────────────────────
@@ -40,7 +40,7 @@ export const onEventCreated = onDocumentCreated(
     region: REGION,
     document: 'studios/{studioId}/events/{eventId}',
     // Without this the e-mail provider silently degrades to the console (see `region.ts`).
-    secrets: [...EMAIL_SECRETS],
+    secrets: [...NOTIFICATION_SECRETS],
   },
   async (event) => {
     const data = event.data?.data()

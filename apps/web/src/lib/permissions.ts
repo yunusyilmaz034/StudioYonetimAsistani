@@ -24,6 +24,7 @@ export type Area =
   | '/schedule'
   | '/reservations'
   | '/checkin'
+  | '/fitness' // Plus Phase 8 — fitness attendance & occupancy (read/report; owner + reception)
   | '/attendance'
   | '/members'
   | '/packages'
@@ -31,6 +32,7 @@ export type Area =
   | '/crm'
   | '/calendar'
   | '/operations' // bulk credit ops, closures — they move credits
+  | '/advisor' // Plus Phase 10 — AI Insights L1 (owner-confidential decision-support)
   | '/activity'
   | '/notifications'
   | '/analytics'
@@ -38,6 +40,9 @@ export type Area =
   | '/settings' // S2
   | '/staff' // S1 — who may work here, and as what
   | '/my-classes' // the trainer's one screen
+  | '/training' // Plus Phase 7 — exercise library + feedback center (owner + trainer)
+  | '/payroll' // Plus Phase 9 — trainer payroll & commission (owner-confidential)
+  | '/my-payroll' // Plus Phase 9 — the trainer's own earnings, read-only (owner + trainer)
   | '/receipt' // the printable slip reception hands a member
   | '/import' // S5 — the BulutGym import
   | '/reports' // S6 — the seven reports
@@ -51,6 +56,9 @@ export const PERMISSIONS: Readonly<Record<Area, readonly PrincipalRole[]>> = {
   '/schedule': DESK,
   '/reservations': DESK,
   '/checkin': DESK,
+  // Plus Phase 8 — occupancy & entry reports. Operational (who came, how busy), not private training
+  // content, so it is reception's too. A trainer does not get it (it is the studio's usage data).
+  '/fitness': DESK,
   '/attendance': DESK,
   '/members': DESK,
   '/packages': DESK,
@@ -65,10 +73,16 @@ export const PERMISSIONS: Readonly<Record<Area, readonly PrincipalRole[]>> = {
   // The owner's alone. Each of these either moves credits, reveals the business, or changes who may
   // work here — and none of them is part of reception's day.
   '/operations': OWNER_ONLY, // bulk credit ops and closures MOVE CREDITS
+  // Plus Phase 10 — the advisor reveals the business (who owes, who is about to churn). Owner-first
+  // decision-support; reception and trainers have no access.
+  '/advisor': OWNER_ONLY,
   '/analytics': OWNER_ONLY,
   '/audit': OWNER_ONLY,
   '/settings': OWNER_ONLY,
   '/staff': OWNER_ONLY,
+  // Plus Phase 9 — payroll is the business's cost side. Owner-confidential; reception never, a
+  // trainer never sees another trainer (she gets /my-payroll instead).
+  '/payroll': OWNER_ONLY,
   // It writes forty-five member records in one press. That belongs to the owner.
   '/import': OWNER_ONLY,
   // Reports are the business, in a file, on a laptop (owner, 2026-07-13: reception does not get
@@ -79,6 +93,15 @@ export const PERMISSIONS: Readonly<Record<Area, readonly PrincipalRole[]>> = {
   // The trainer's ONLY screen. Her classes, her week, her registers, and the names of the women in
   // front of her. Not a phone number, not a package, not a balance.
   '/my-classes': ['owner', 'trainer'], // the owner may look at it; nobody else may
+
+  // Plus Phase 7 — the training workspace: the exercise library and the feedback center. It is the
+  // trainer's OTHER screen (her actual craft), and the owner's. Reception is not here: she sees only
+  // a boolean "aktif program var mı?" on the member card, never a member's programme or photos.
+  '/training': ['owner', 'trainer'],
+
+  // Plus Phase 9 — the trainer's own earnings, read-only. She sees her breakdown and status, never a
+  // rate control, never another trainer. The owner may look; reception may not.
+  '/my-payroll': ['owner', 'trainer'],
 }
 
 export function canSee(role: PrincipalRole, area: Area): boolean {

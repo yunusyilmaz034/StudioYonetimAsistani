@@ -61,7 +61,8 @@ export function MetricFace({
   return (
     <div className="flex items-start justify-between gap-2">
       <div className="min-w-0">
-        <p className={`text-h1 font-semibold tabular-nums ${toneClass[tone]}`}>{value}</p>
+        {/* Editorial serif gauge numeral (Doc 33) — the dashboard's headline numbers. */}
+        <p className={`font-heading text-display font-medium tabular-nums ${toneClass[tone]}`}>{value}</p>
         {hint ? <p className="truncate text-xs text-muted-foreground">{hint}</p> : null}
       </div>
       <Icon className="size-4 shrink-0 text-muted-foreground/70" />

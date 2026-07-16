@@ -23,6 +23,7 @@ export interface ProductFields {
   readonly freezeAllowanceDays: number
   readonly dailyReservationLimit: number | null
   readonly cancellationAllowanceCount: number | null
+  readonly activeReservationLimit: number | null
   readonly description: string
 }
 
@@ -71,6 +72,7 @@ export async function updateProduct(
     freezeAllowanceDays: input.freezeAllowanceDays,
     dailyReservationLimit: input.dailyReservationLimit,
     cancellationAllowanceCount: input.cancellationAllowanceCount,
+    activeReservationLimit: input.activeReservationLimit,
     description: input.description,
     active: input.active,
   }

@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 
 import { AppShell } from '@/components/app-nav'
 import { Toaster } from '@/components/ui/sonner'
+import { UndoProvider } from '@/lib/undo'
 import { getTenantContext } from '@/server/auth'
 
 // The STAFF application shell — owner / reception / trainer only.
@@ -34,7 +35,8 @@ export default async function StaffLayout({ children }: { children: ReactNode })
   return (
     <AppShell role={ctx.role}>
       <Toaster />
-      {children}
+      {/* Undo/Redo is a pure UX layer over compensating actions (Phase 2 Edit Experience). */}
+      <UndoProvider>{children}</UndoProvider>
     </AppShell>
   )
 }

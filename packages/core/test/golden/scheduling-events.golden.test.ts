@@ -6,6 +6,7 @@ import {
   decideCancelSession,
   decideChangeCapacity,
   decideChangeRoom,
+  decideReschedule,
   decideCreateService,
   decideScheduleSession,
   decideSetSessionNote,
@@ -39,6 +40,7 @@ import sessionScheduledV1 from './class_session.scheduled.v1.json'
 import sessionScheduledV2 from './class_session.scheduled.v2.json'
 import sessionScheduledV3 from './class_session.scheduled.v3.json'
 import roomChanged from './class_session.room_changed.v1.json'
+import rescheduled from './class_session.rescheduled.v1.json'
 import capacityChanged from './class_session.capacity_changed.v1.json'
 import noteSet from './class_session.note_set.v1.json'
 import templateUpdated from './class_template.updated.v1.json'
@@ -155,6 +157,41 @@ describe('scheduling event payloads match golden fixtures (AD-33)', () => {
     const r = decideChangeRoom(ctx, futureSession, room2, 'Salon bakımda')
     expect(r.ok).toBe(true)
     if (r.ok) expect(r.value[0]?.payload).toEqual(roomChanged)
+  })
+
+  it('class_session.rescheduled', () => {
+    const r = decideReschedule(
+      ctx,
+      futureSession,
+      instant(1_800_007_200_000),
+      instant(1_800_010_800_000),
+      NO_HOURS,
+      'Salon çakışması',
+    )
+    expect(r.ok).toBe(true)
+    if (r.ok) expect(r.value[0]?.payload).toEqual(rescheduled)
+  })
+
+  // Reschedule refusals — the new time obeys the same guards as creation.
+  it('reschedule refuses a session that already started', () => {
+    // `session` starts at 1_000_000, long before ctx.now (1_700_000_000_000).
+    const r = decideReschedule(ctx, session, instant(1_800_007_200_000), instant(1_800_010_800_000), NO_HOURS, 'x')
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.error.code).toBe('session_not_editable')
+  })
+  it('reschedule refuses an end at or before the start', () => {
+    const r = decideReschedule(ctx, futureSession, instant(1_800_010_800_000), instant(1_800_007_200_000), NO_HOURS, 'x')
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.error.code).toBe('invalid_time_range')
+  })
+  it('reschedule refuses an empty reason (a correction is never anonymous)', () => {
+    const r = decideReschedule(ctx, futureSession, instant(1_800_007_200_000), instant(1_800_010_800_000), NO_HOURS, '  ')
+    expect(r.ok).toBe(false)
+  })
+  it('reschedule to the same time writes nothing (no-op)', () => {
+    const r = decideReschedule(ctx, futureSession, futureSession.startsAt, futureSession.endsAt, NO_HOURS, 'x')
+    expect(r.ok).toBe(true)
+    if (r.ok) expect(r.value.length).toBe(0)
   })
   it('class_session.capacity_changed', () => {
     const r = decideChangeCapacity(ctx, futureSession, room2, 10, 'Talep arttı')

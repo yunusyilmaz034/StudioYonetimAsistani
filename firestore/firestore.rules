@@ -49,6 +49,22 @@ service cloud.firestore {
         return tenant() && (role() == 'owner' || role() == 'receptionist');
       }
 
+      // Collections that carry OWNER-CONFIDENTIAL pay or member HEALTH/TRAINING PII, or payment
+      // intents. They are read ONLY through the Admin SDK on the server (owner-only / role-gated
+      // Server Actions) — nothing in the browser reads them. Excluding them from the desk() catch-all
+      // below denies every client-SDK read (deny by absence of a matching rule), the same posture
+      // that already protects a trainer's whole surface. Without this, a receptionist's token could be
+      // pointed at Firestore to pull every trainer's salary and every member's body-composition data
+      // (the Server Action guards it, but the RULE was more permissive than the action).
+      function serverOnly(col) {
+        return col in [
+          'events', 'commands',
+          'payrollStatements', 'compensationPlans', 'payrollAdjustments',
+          'measurements', 'progressPhotos', 'programs', 'trainingFeedback',
+          'paymentIntents'
+        ];
+      }
+
       // ── Events: append-only log. Owner-only read; never client-writable. ──
       match /events/{eventId} {
         allow read:  if desk() && role() == 'owner';
@@ -69,11 +85,12 @@ service cloud.firestore {
       }
 
       // ── Everything else in the studio: DESK-readable, never client-writable. ──
-      //    Events and commands are excluded here so their stricter rules above are
-      //    not widened by this one (Firestore ORs all matching allow rules).
-      //    A trainer matches NO read rule at all — the same posture as a member.
+      //    events/commands (their own stricter rules above) AND the owner-confidential /
+      //    PII collections (serverOnly) are excluded so this rule cannot widen them — Firestore
+      //    ORs all matching allow rules, so an excluded collection matches NO client read here and
+      //    is denied. A trainer matches NO read rule at all — the same posture as a member.
       match /{col}/{docId} {
-        allow read:  if desk() && !(col in ['events', 'commands']);
+        allow read:  if desk() && !serverOnly(col);
         allow write: if false;
       }
     }

@@ -12,7 +12,7 @@ import {
   type DecideContext,
 } from './decide'
 import { TEMPLATES } from './templates'
-import { rulesFor } from './rules'
+import { RULES, rulesFor } from './rules'
 import {
   DEFAULT_NOTIFICATION_SETTINGS,
   DEFAULT_PREFS,
@@ -91,7 +91,7 @@ describe('channel selection — the KVKK line and the preference line (v1.25)', 
   it('in_app can NEVER be turned off: it is her record, not a message', () => {
     const d = selectChannels(
       member,
-      { email: false, sms: false, whatsapp: false, push: false },
+      { email: false, sms: false, whatsapp: false, push: false, campaign: false },
       DEFAULT_NOTIFICATION_SETTINGS,
       'operational',
     )
@@ -99,10 +99,19 @@ describe('channel selection — the KVKK line and the preference line (v1.25)', 
     expect(d.suppressed).toEqual([{ channel: 'email', reason: 'member_preference' }])
   })
 
-  it('a marketing message is SUPPRESSED on every external channel — there is no consent surface yet', () => {
+  it('a marketing message is SUPPRESSED without campaign consent (KVKK)', () => {
     const d = selectChannels(member, DEFAULT_PREFS, DEFAULT_NOTIFICATION_SETTINGS, 'marketing')
     expect(d.channels).toEqual(['in_app'])
     expect(d.suppressed).toEqual([{ channel: 'email', reason: 'no_consent' }])
+  })
+
+  it('WITH campaign consent, marketing may leave — but consent never gates an OPERATIONAL send (Plus Phase 5)', () => {
+    const consented = { ...DEFAULT_PREFS, campaign: true }
+    // Marketing now allowed on e-mail.
+    expect(selectChannels(member, consented, DEFAULT_NOTIFICATION_SETTINGS, 'marketing').channels).toEqual(['in_app', 'email'])
+    // And an OPERATIONAL message is sent regardless of the campaign flag — a cancelled class is not marketing.
+    const noCampaign = { ...DEFAULT_PREFS, campaign: false }
+    expect(selectChannels(member, noCampaign, DEFAULT_NOTIFICATION_SETTINGS, 'operational').channels).toEqual(['in_app', 'email'])
   })
 
   it('a member with no e-mail on file is suppressed BY NAME, not silently dropped', () => {
@@ -225,5 +234,37 @@ describe('delivery attempts (v1.25)', () => {
       permanent: false,
     })
     expect(r.attempt.status).toBe('failed') // e-mail: maxAttempts = 3
+  })
+
+  it('an unconfigured provider gets its OWN terminal status, never a retry (Plus Phase 5)', () => {
+    const r = decideAttemptResult(ctx, intent(), attempt({ channel: 'whatsapp' }), {
+      ok: false,
+      code: 'provider_not_configured',
+      message: 'WhatsApp yapılandırılmamış',
+      permanent: true,
+    })
+    expect(r.attempt.status).toBe('provider_not_configured')
+    expect(r.attempt.nextRetryAt).toBeNull()
+  })
+})
+
+// ── Rules ↔ templates coherence (Plus Phase 5) — an event that maps to a template nobody wrote is a
+//    silent no-message. This is the exact class of bug the gap analysis found (credits_low vs
+//    low_credit); the test makes it a build failure, forever.
+describe('every rule points at a real template (Phase 5)', () => {
+  it('maps each RULES template to an existing TEMPLATES entry', () => {
+    const missing: string[] = []
+    for (const rules of Object.values(RULES)) {
+      for (const rule of rules) {
+        if (!TEMPLATES[rule.template]) missing.push(rule.template)
+      }
+    }
+    expect(missing).toEqual([])
+  })
+  it('resolves the new Phase-5 intents to their templates', () => {
+    expect(rulesFor('class_session.rescheduled')[0]?.template).toBe('session_rescheduled')
+    expect(rulesFor('entitlement.expired')[0]?.template).toBe('package_expired')
+    expect(TEMPLATES.session_rescheduled).toBeDefined()
+    expect(TEMPLATES.package_expired).toBeDefined()
   })
 })

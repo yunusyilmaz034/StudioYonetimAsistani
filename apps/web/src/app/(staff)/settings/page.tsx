@@ -15,5 +15,5 @@ import { SettingsScreen } from './settings-screen'
 export default async function SettingsPage() {
   const ctx = await requirePageAccess('/settings')
   const settings = await getStudioSettingsAction()
-  return <SettingsScreen settings={settings} branchId={ctx?.branchIds[0] ?? null} />
+  return <SettingsScreen settings={settings} branchId={ctx?.branchIds[0] ?? null} canManage={ctx?.role === 'owner'} />
 }

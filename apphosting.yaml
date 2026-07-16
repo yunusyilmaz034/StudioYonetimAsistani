@@ -112,3 +112,18 @@ env:
     secret: RESEND_API_KEY
     availability:
       - RUNTIME
+
+  # ── PAYTR (Plus Phase 6) — the merchant key + salt sign every token and verify every callback.
+  # The web tier verifies callbacks and starts checkouts, so it reads both. Merchant id is NOT a
+  # secret — it lives in the studio's payment-provider settings doc. Provision with:
+  #   firebase apphosting:secrets:set PAYTR_MERCHANT_KEY --project <prod>
+  #   firebase apphosting:secrets:set PAYTR_MERCHANT_SALT --project <prod>
+  # Absent them, the provider is Unconfigured and every flow shows configuration_required.
+  # - variable: PAYTR_MERCHANT_KEY
+  #   secret: PAYTR_MERCHANT_KEY
+  #   availability:
+  #     - RUNTIME
+  # - variable: PAYTR_MERCHANT_SALT
+  #   secret: PAYTR_MERCHANT_SALT
+  #   availability:
+  #     - RUNTIME

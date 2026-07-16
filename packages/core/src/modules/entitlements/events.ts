@@ -54,6 +54,17 @@ export const ENTITLEMENT_EXTENDED = 'entitlement.extended'
 export const ENTITLEMENT_FROZEN = 'entitlement.frozen'
 export const ENTITLEMENT_UNFROZEN = 'entitlement.unfrozen'
 
+// ── CANCELLATION ALLOWANCE (Plus Phase 3) ────────────────────────────────────────────────────
+//
+// A package may grant N free (in-window) cancellations. The count is a LEDGER, not a mutable field:
+// each in-window cancellation that spends the allowance appends `cancellation_charged`; a compensating
+// undo/correction appends `cancellation_refunded`. Net used = charged − refunded, rebuildable from the
+// log. Both carry the reservation they belong to (no PII, I-13) and the post-state net-used (AD-19),
+// so the number that moved is always in the event that moved it. Idempotency is the caller's: a retry
+// of the same cancellation must not append a second charge (the reservation is already resolved).
+export const ENTITLEMENT_CANCELLATION_CHARGED = 'entitlement.cancellation_charged'
+export const ENTITLEMENT_CANCELLATION_REFUNDED = 'entitlement.cancellation_refunded'
+
 export type EntitlementPurchasedPayload = {
   readonly productId: ProductId
   readonly grant: Grant
@@ -122,6 +133,16 @@ export type EntitlementExtendedPayload = {
 
 export type EntitlementReactivatedPayload = {
   readonly reason: string
+}
+
+export type CancellationChargedPayload = {
+  readonly reservationId: ReservationId
+  readonly cancellationsUsedAfter: number // net used (charged − refunded) after this event
+}
+export type CancellationRefundedPayload = {
+  readonly reservationId: ReservationId
+  readonly reason: string
+  readonly cancellationsUsedAfter: number
 }
 
 

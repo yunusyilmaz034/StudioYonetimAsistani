@@ -22,7 +22,8 @@ function Section({
     <section className={cn('space-y-3', className)}>
       <div className="flex items-baseline justify-between gap-3">
         <h2 className="flex items-baseline gap-2">
-          <span className="text-h3 font-semibold text-foreground">{title}</span>
+          {/* Editorial serif section headers (Doc 33) — quiet structure, premium register. */}
+          <span className="font-heading text-h2 font-medium text-foreground">{title}</span>
           {hint ? <span className="text-xs text-muted-foreground">{hint}</span> : null}
         </h2>
         {actions ?? null}

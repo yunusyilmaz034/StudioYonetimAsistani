@@ -6,21 +6,26 @@ import { usePathname, useRouter } from 'next/navigation'
 import { signOut } from 'firebase/auth'
 import {
   ActivityIcon,
+  BanknoteIcon,
   BarChart3Icon,
   BellIcon,
   CalendarClockIcon,
   CalendarDaysIcon,
   LayersIcon,
+  LightbulbIcon,
   ShieldIcon,
   TargetIcon,
   WalletIcon,
   CalendarIcon,
   ClipboardCheckIcon,
+  DumbbellIcon,
   DoorOpenIcon,
+  GaugeIcon,
   LayoutDashboardIcon,
   LogOutIcon,
   PackageIcon,
   FileTextIcon,
+  SearchIcon,
   SettingsIcon,
   UploadIcon,
   UserCogIcon,
@@ -33,15 +38,17 @@ import type { PrincipalRole } from '@studio/core'
 
 import { canSee, type Area } from '@/lib/permissions'
 import { destroySession } from '@/server/actions/session'
+import { CommandPalette } from '@/components/command-palette'
+import { QuickBooking } from '@/components/quick-booking'
 
-interface NavItem {
+export interface NavItem {
   // The route IS the permission key. There is no second list to keep in step, and therefore no way
   // for the nav and the guard to disagree — which is how a trainer ends up with a link to the kasa.
   readonly href: Area
   readonly label: string
   readonly icon: LucideIcon
 }
-interface NavGroup {
+export interface NavGroup {
   readonly label?: string
   readonly items: readonly NavItem[]
 }
@@ -50,12 +57,20 @@ interface NavGroup {
 // Grouped: overview, then daily operations, then management. Same destinations on desktop
 // (left rail) and mobile (bottom bar). Calm active state (soft tint, not a saturated
 // fill) for all-day comfort; token-driven, no hex (DS-1).
-const GROUPS: readonly NavGroup[] = [
+// Exported so the ⌘K command palette (Phase 2) navigates from the SAME source of truth as the rail —
+// one list, so the two can never drift.
+export const GROUPS: readonly NavGroup[] = [
   { items: [{ href: '/', label: 'Genel Görünüm', icon: LayoutDashboardIcon }] },
   {
     // The trainer's whole product. It sits alone, and it is filtered in for her and out for
     // reception by the same matrix as everything else.
-    items: [{ href: '/my-classes', label: 'Derslerim', icon: ClipboardCheckIcon }],
+    items: [
+      { href: '/my-classes', label: 'Derslerim', icon: ClipboardCheckIcon },
+      // Plus Phase 7 — the training workspace. Owner + trainer only (reception is filtered out).
+      { href: '/training', label: 'Antrenman', icon: DumbbellIcon },
+      // Plus Phase 9 — the trainer's own earnings (owner + trainer; read-only for her).
+      { href: '/my-payroll', label: 'Hakedişim', icon: BanknoteIcon },
+    ],
   },
   {
     label: 'Operasyon',
@@ -63,6 +78,8 @@ const GROUPS: readonly NavGroup[] = [
       { href: '/schedule', label: 'Ders Ajandası', icon: CalendarIcon },
       { href: '/reservations', label: 'Rezervasyon Ajandası', icon: CalendarClockIcon },
       { href: '/checkin', label: 'Check-in', icon: DoorOpenIcon },
+      // Plus Phase 8 — occupancy & entry reports (owner + reception).
+      { href: '/fitness', label: 'Katılım', icon: GaugeIcon },
       { href: '/attendance', label: 'Yoklama', icon: ClipboardCheckIcon },
     ],
   },
@@ -81,7 +98,10 @@ const GROUPS: readonly NavGroup[] = [
   {
     label: 'Sahip',
     items: [
+      { href: '/advisor', label: 'Öneriler', icon: LightbulbIcon },
       { href: '/operations', label: 'Operasyonlar', icon: LayersIcon },
+      // Plus Phase 9 — trainer payroll & commission. Owner-confidential.
+      { href: '/payroll', label: 'Bordro', icon: BanknoteIcon },
       { href: '/reports', label: 'Raporlar', icon: FileTextIcon },
       { href: '/analytics', label: 'Analiz', icon: BarChart3Icon },
       { href: '/staff', label: 'Personel', icon: UserCogIcon },
@@ -115,6 +135,10 @@ export function AppShell({ children, role }: { children: ReactNode; role: Princi
     <div data-slot="app-shell" className="min-h-dvh pb-16 md:pb-0 md:pl-60">
       <DesktopRail pathname={pathname} groups={groups} />
       <BottomBar pathname={pathname} groups={groups} />
+      {/* ⌘K anywhere — the operations command palette (Phase 2 §1). */}
+      <CommandPalette role={role} />
+      {/* "N" or ⌘K → the quick-booking modal (Phase 2 §2). */}
+      <QuickBooking />
       {children}
     </div>
   )
@@ -135,11 +159,12 @@ function useLogout() {
 function Brand() {
   return (
     <Link href="/" className="flex items-center gap-2.5 px-3 py-1">
-      <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-primary text-sm font-semibold text-primary-foreground shadow-xs">
+      <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-primary font-heading text-base font-medium text-primary-foreground shadow-sm">
         S
       </span>
       <span className="leading-tight">
-        <span className="block text-sm font-semibold text-foreground">Studio</span>
+        {/* Editorial serif wordmark (Doc 33) — the brand's premium signal, top-left of every screen. */}
+        <span className="block font-heading text-[0.95rem] font-medium text-foreground">Studio</span>
         <span className="block text-xs text-muted-foreground">Yönetim Asistanı</span>
       </span>
     </Link>
@@ -173,6 +198,18 @@ function DesktopRail({ pathname, groups }: { pathname: string; groups: readonly 
     >
       <div className="px-3 pt-4 pb-2">
         <Brand />
+      </div>
+      {/* The ⌘K palette's visible handle — reception's fastest path to a member or a screen. */}
+      <div className="px-3 pb-1">
+        <button
+          type="button"
+          onClick={() => window.dispatchEvent(new Event('sos:open-command'))}
+          className="flex w-full items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+        >
+          <SearchIcon className="size-4 shrink-0" />
+          <span>Ara…</span>
+          <kbd className="ml-auto rounded border border-border px-1.5 py-0.5 text-[10px] font-medium">⌘K</kbd>
+        </button>
       </div>
       <nav className="flex-1 space-y-5 overflow-y-auto px-3 py-2">
         {groups.map((group, gi) => (

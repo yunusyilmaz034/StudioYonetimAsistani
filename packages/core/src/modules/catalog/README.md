@@ -9,9 +9,12 @@ bought, so a later catalogue edit can never rewrite history.
 
 A `Product` is a **credit** package (`creditCount` credits, valid `durationDays`) or a
 **period** package (unlimited for `durationDays`). It also carries `priceInKurus`
-(integer kuruş, non-negotiable #10), a `freezeAllowanceDays` budget, and optional
-`dailyReservationLimit` / `cancellationAllowanceCount` (stored and shown; **not**
-enforced in Phase 1).
+(integer kuruş, non-negotiable #10), a `freezeAllowanceDays` budget, and the Package
+Rules 2.0 fields `dailyReservationLimit` / `cancellationAllowanceCount` /
+`activeReservationLimit` (each `null` ⇒ unlimited). Since Plus Phase 3 these are **enforced**
+by the reservation deciders via `resolveReservationPolicy` (studio → package → member override);
+they are frozen onto the entitlement's product snapshot at purchase, so a later catalogue edit
+never changes a rule a member already bought.
 
 ## Public API (`index.ts`)
 

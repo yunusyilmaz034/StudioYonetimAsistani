@@ -50,7 +50,11 @@ export function ProductForm({
   const [priceTl, setPriceTl] = useState(product ? tl(product.priceInKurus) : '')
   const [freezeDays, setFreezeDays] = useState(product?.freezeAllowanceDays ?? 0)
   const [dailyLimit, setDailyLimit] = useState<number | null>(product?.dailyReservationLimit ?? null)
-  const [cancelCount, setCancelCount] = useState<number | null>(product?.cancellationAllowanceCount ?? null)
+  const [activeLimit, setActiveLimit] = useState<number | null>(product?.activeReservationLimit ?? null)
+  // Cancellation right — null ⇒ unlimited. The toggle is the explicit "Sınırsız iptal"; a number is a
+  // counted allowance (0 = no free cancels at all, which is NOT the same as "unlimited").
+  const [unlimitedCancel, setUnlimitedCancel] = useState(product ? product.cancellationAllowanceCount === null : true)
+  const [cancelCount, setCancelCount] = useState<number>(product?.cancellationAllowanceCount ?? 0)
   const [description, setDescription] = useState(product?.description ?? '')
   const [serviceIds, setServiceIds] = useState<string[]>([...(product?.serviceIds ?? [])])
   const [active, setActive] = useState(product?.active ?? true)
@@ -74,7 +78,8 @@ export function ProductForm({
       priceInKurus: toKurus(priceTl),
       freezeAllowanceDays: freezeDays,
       dailyReservationLimit: dailyLimit,
-      cancellationAllowanceCount: cancelCount,
+      cancellationAllowanceCount: unlimitedCancel ? null : cancelCount,
+      activeReservationLimit: activeLimit,
       description: description.trim(),
     }
     try {
@@ -144,24 +149,52 @@ export function ProductForm({
         <Field id="p-freeze" label="Dondurma hakkı (gün)">
           <Input id="p-freeze" type="number" min={0} value={freezeDays} onChange={(e) => setFreezeDays(Math.max(0, Number(e.target.value) || 0))} />
         </Field>
-        <Field id="p-daily" label="Günlük rez. limiti (ops.)">
+        <Field id="p-daily" label="Günlük rez. limiti">
           <Input
             id="p-daily"
             type="number"
             min={1}
+            placeholder="Sınırsız"
             value={dailyLimit ?? ''}
             onChange={(e) => setDailyLimit(e.target.value ? Math.max(1, Number(e.target.value)) : null)}
           />
+          <p className="mt-1 text-xs text-muted-foreground">Boş = sınırsız. Üye aynı gün en fazla bu kadar aktif rezervasyon yapar.</p>
         </Field>
-        <Field id="p-cancel" label="İptal hakkı adedi (ops.)">
+        <Field id="p-active-limit" label="Aktif rez. limiti">
           <Input
-            id="p-cancel"
+            id="p-active-limit"
             type="number"
-            min={0}
-            value={cancelCount ?? ''}
-            onChange={(e) => setCancelCount(e.target.value ? Math.max(0, Number(e.target.value)) : null)}
+            min={1}
+            placeholder="Sınırsız"
+            value={activeLimit ?? ''}
+            onChange={(e) => setActiveLimit(e.target.value ? Math.max(1, Number(e.target.value)) : null)}
           />
+          <p className="mt-1 text-xs text-muted-foreground">Boş = sınırsız. Aynı anda açık toplam rezervasyon tavanı.</p>
         </Field>
+        <div className="sm:col-span-2">
+          <label className="flex items-center gap-2 text-sm font-medium">
+            <Checkbox checked={unlimitedCancel} onCheckedChange={(v) => setUnlimitedCancel(v === true)} />
+            Sınırsız iptal hakkı
+          </label>
+          {unlimitedCancel ? (
+            <p className="mt-1 text-xs text-muted-foreground">Üye, iptal penceresi uygun oldukça sınırsız kez ücretsiz iptal edebilir.</p>
+          ) : (
+            <div className="mt-2">
+              <Field id="p-cancel" label="İptal hakkı adedi">
+                <Input
+                  id="p-cancel"
+                  type="number"
+                  min={0}
+                  value={cancelCount}
+                  onChange={(e) => setCancelCount(Math.max(0, Number(e.target.value) || 0))}
+                />
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Pencere içinde ücretsiz iptal sayısı. Hak bitince iptal reddedilir. <strong>0</strong> = hiç ücretsiz iptal yok (boştan farklıdır).
+                </p>
+              </Field>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* D12 — the services a package covers are now the RIGHT it grants, not a label. At

@@ -80,6 +80,7 @@ function ent(over: Partial<Entitlement> = {}, snapOver: Partial<ProductSnapshot>
     validUntil: instant(NOW + 30 * DAY),
     credits: { granted: 8, held: 0, consumed: 0, restored: 0, revoked: 0, expired: 0 },
     freeze: null,
+    cancellationLedger: { used: 0, refunded: 0 },
     priceAgreed: money(640_000),
     paidTotal: money(0),
     manualPayment: null,

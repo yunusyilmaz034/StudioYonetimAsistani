@@ -40,6 +40,20 @@ export type AggregateKind =
   | 'reservation'
   | 'payment'
   | 'policy'
+  // Plus Phase 6 (Commerce & Payments) — additive.
+  | 'payment_intent'
+  | 'retail_product'
+  // Plus Phase 7 (Training & Progress) — additive.
+  | 'exercise'
+  | 'program'
+  | 'measurement'
+  | 'training_feedback'
+  // Plus Phase 8 (Fitness Attendance) is a pure READ layer over `member.checked_in` — it defines no
+  // aggregate of its own (see modules/fitness/README).
+  // Plus Phase 9 (Trainer Payroll & Commission) — additive. Earnings are DERIVED from existing facts;
+  // only the human decisions (set a rate, adjust, finalize, pay) are events.
+  | 'compensation_plan'
+  | 'payroll_statement'
 
 export interface PolicyRef {
   readonly policyId: PolicyId
@@ -59,6 +73,14 @@ export interface EventRelated {
   readonly reservationId?: ReservationId
   readonly paymentId?: PaymentId
   readonly trainerId?: StaffUserId
+  // Plus Phase 6+ — additive join keys (opaque ids only, still no PII).
+  readonly saleId?: string
+  readonly paymentIntentId?: string
+  readonly programId?: string
+  readonly visitId?: string
+  // Plus Phase 9 (Trainer Payroll) — additive join keys (opaque ids, no PII).
+  readonly compensationPlanId?: string
+  readonly statementId?: string
 }
 
 // Small JSON: the delta plus the post-state of every number changed (AD-19).

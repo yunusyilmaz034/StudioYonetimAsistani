@@ -38,6 +38,7 @@ export function entitlementToFirestore(e: Entitlement): DocumentData {
     // `available` is denormalised for reads (AD-14); the counters remain the truth.
     credits: e.credits ? { ...e.credits, available: available(e.credits) } : null,
     freeze: e.freeze,
+    cancellationLedger: e.cancellationLedger,
     priceAgreed: e.priceAgreed,
     paidTotal: e.paidTotal,
     manualPayment: e.manualPayment
@@ -71,6 +72,11 @@ export function entitlementFromFirestore(id: EntitlementId, d: DocumentData): En
         }
       : null,
     freeze: (d.freeze as FreezeState | null) ?? null,
+    // Plus Phase 3 — legacy entitlements have no ledger; they start fresh at {0,0}.
+    cancellationLedger: (d.cancellationLedger as { used: number; refunded: number } | undefined) ?? {
+      used: 0,
+      refunded: 0,
+    },
     priceAgreed: d.priceAgreed as Money,
     paidTotal: d.paidTotal as Money,
     manualPayment: d.manualPayment

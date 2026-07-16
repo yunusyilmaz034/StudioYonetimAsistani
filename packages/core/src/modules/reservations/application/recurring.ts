@@ -1,4 +1,5 @@
 import {
+  isOverrideActiveAt,
   newOperationId,
   newReservationId,
   ok,
@@ -14,6 +15,7 @@ import { decideHold, type Entitlement } from '../../entitlements'
 import type { MemberSnapshot } from '../../members'
 import type { ClassSession } from '../../scheduling'
 import { decideBooking } from '../domain/decide'
+import { localMinuteOfDay, localWeekday, packageRuleFromSnapshot, resolveReservationPolicy } from '../domain/policy'
 import { computeRecurringPlan, type RecurringPlan } from '../domain/recurring'
 import { decideContext } from './context'
 import type { BookDecision, ReservationsDeps } from './ports'
@@ -104,13 +106,26 @@ export async function applyRecurring(
   let failed = 0
   const hours = await deps.hours.getStudioHours(ctx)
 
+  // Package Rules 2.0 — the resolved policy applies to a series too. Counts are a RUNNING tally: each
+  // week booked raises the member's active/day totals, so week N is judged against weeks 1…N−1.
+  const offset = deps.utcOffsetMinutes
+  const dayNum = (ms: number): number => Math.floor((ms + offset * 60_000) / 86_400_000)
+  const rawOverride = deps.policy ? await deps.policy.getMemberOverride(ctx, input.memberId) : null
+  const override = rawOverride && isOverrideActiveAt(rawOverride, dctx.now) ? rawOverride : null
+  const openStarts = planned.world.memberReservations
+    .filter((r) => r.status === 'booked')
+    .map((r) => r.sessionStartsAt as number)
+
   for (const t of planned.plan.toBook) {
     const reservationId = newReservationId()
+    const startsAt = planned.world.sessions.find((s) => s.id === t.sessionId)?.startsAt as number | undefined
     const res = await deps.repo.book(ctx, {
       sessionId: t.sessionId as ClassSessionId,
       entitlementId: t.entitlementId as EntitlementId,
       memberId: input.memberId,
       decide: (session, entitlement, memberHasBooked): Result<BookDecision, DomainError> => {
+        const eff = resolveReservationPolicy(packageRuleFromSnapshot(entitlement.productSnapshot), override)
+        const sDay = dayNum(session.startsAt)
         const decided = decideBooking(
           dctx,
           session,
@@ -118,6 +133,13 @@ export async function applyRecurring(
           { reservationId, memberId: input.memberId, memberSnapshot: planned.world.memberSnapshot },
           memberHasBooked,
           hours,
+          {
+            policy: eff,
+            sessionWeekday: localWeekday(session.startsAt, offset),
+            sessionStartMinutes: localMinuteOfDay(session.startsAt, offset),
+            memberDayReservationCount: openStarts.filter((s) => dayNum(s) === sDay).length,
+            memberActiveReservationCount: openStarts.length,
+          },
         )
         if (!decided.ok) return decided
         const held = decideHold(dctx, entitlement, reservationId)
@@ -132,8 +154,10 @@ export async function applyRecurring(
     })
     // A week that loses its seat between the preview and the write is a FAILURE, not a silent
     // omission: the caller reports `failed` beside `booked`, and the plan says which weeks.
-    if (res.ok) booked++
-    else failed++
+    if (res.ok) {
+      booked++
+      if (startsAt !== undefined) openStarts.push(startsAt) // the running tally grows with the series
+    } else failed++
   }
 
   return { ok: true, value: { booked, failed, operationId, plan: planned.plan } }

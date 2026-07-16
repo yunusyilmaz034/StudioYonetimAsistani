@@ -1,15 +1,17 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  decideClearRestriction,
   decideDeactivate,
   decideErase,
   decideIssueInvite,
   decidePortalActivated,
   decidePortalLogin,
   decideRegisterMember,
+  decideSetRestriction,
   decideUpdateProfile,
 } from '../../src/modules/members/domain/decide'
-import { emptyStats, type Member, type PhoneE164 } from '../../src/modules/members/domain/member'
+import { emptyStats, type Member, type MemberRestriction, type PhoneE164 } from '../../src/modules/members/domain/member'
 import {
   instant,
   type BranchId,
@@ -25,6 +27,7 @@ import deactivated from './member.deactivated.v1.json'
 import invited from './member.invited.v1.json'
 import portalActivated from './member.portal_activated.v1.json'
 import portalLogin from './member.portal_login.v1.json'
+import restrictionSet from './member.restriction_set.v1.json'
 
 // Golden fixtures (AD-33): the committed payload contract per event type. A change
 // to a payload shape fails here, forcing an explicit version bump + upcaster.
@@ -51,6 +54,7 @@ const member: Member = {
   status: 'active',
   joinedAt: now,
   stats: emptyStats(),
+  restriction: null,
 }
 
 describe('member event payloads match golden fixtures', () => {
@@ -72,6 +76,51 @@ describe('member event payloads match golden fixtures', () => {
     const r = decideDeactivate(ctx, member, 'Üye ayrıldı')
     expect(r.ok).toBe(true)
     if (r.ok) expect(r.value[0]?.payload).toEqual(deactivated)
+  })
+
+  // ── "Kısıtlı Üyelik" (Plus Phase 3) — the rules enter the log; the note does NOT. ──
+  const restriction: MemberRestriction = {
+    reason: 'vip',
+    note: 'Kurumsal anlaşma — sağlık bilgisi burada dursaydı log’a girmemeli',
+    allowedWeekdays: [1, 2, 3, 4, 5],
+    allowedHourRanges: [{ startMinutes: 600, endMinutes: 1200 }],
+    allowedTrainerIds: ['stf_isil'],
+    effectiveFrom: 1_800_000_000_000,
+    effectiveUntil: 1_802_592_000_000,
+    cancellationAllowance: 3,
+    dailyReservationLimit: 2,
+    activeReservationLimit: 4,
+  }
+
+  it('member.restriction_set — payload carries reason + rules, and NEVER the note', () => {
+    const r = decideSetRestriction(ctx, member, restriction)
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.value.events[0]?.payload).toEqual(restrictionSet)
+    expect(JSON.stringify(r.value.events[0]?.payload)).not.toContain('sağlık')
+    expect(r.value.next.restriction).toEqual(restriction)
+  })
+
+  it('refuses a restriction with no note (AD-39), and a malformed hour window', () => {
+    expect(decideSetRestriction(ctx, member, { ...restriction, note: '  ' }).ok).toBe(false)
+    const crossing = decideSetRestriction(ctx, member, {
+      ...restriction,
+      allowedHourRanges: [{ startMinutes: 1200, endMinutes: 120 }],
+    })
+    expect(crossing.ok).toBe(false)
+    if (!crossing.ok) expect(crossing.error.code).toBe('invalid_hour_range')
+  })
+
+  it('clear is idempotent, and refuses an empty reason', () => {
+    expect(decideClearRestriction(ctx, member, '  ').ok).toBe(false)
+    const noop = decideClearRestriction(ctx, member, 'artık gerekmiyor')
+    expect(noop.ok).toBe(true)
+    if (noop.ok) expect(noop.value.events).toHaveLength(0) // member had no restriction
+    const setR = decideSetRestriction(ctx, member, restriction)
+    if (!setR.ok) return
+    const cleared = decideClearRestriction(ctx, setR.value.next, 'artık gerekmiyor')
+    expect(cleared.ok).toBe(true)
+    if (cleared.ok) expect(cleared.value.events[0]?.type).toBe('member.restriction_cleared')
   })
 })
 

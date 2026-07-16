@@ -10,6 +10,7 @@ import { Section } from '@/components/ui/section'
 import type { PortalDashboard } from '@/server/portal-query'
 
 import { CATEGORY_CHIP, CATEGORY_LABEL } from '../category'
+import { OccupancyCard } from './occupancy-card'
 
 const TZ = 'Europe/Istanbul'
 const tl = (k: number) => `${(k / 100).toLocaleString('tr-TR')} TL`
@@ -41,6 +42,9 @@ export function PortalDashboardScreen({ data }: { data: PortalDashboard }) {
         <QuickLink href="/portal/reservations" icon={ClipboardListIcon} label="Rezervasyonlarım" />
         <QuickLink href="/portal/qr" icon={QrCodeIcon} label="QR Kodum" />
       </div>
+
+      {/* Plus Phase 8 — how busy the studio is right now, anonymously (a band, never a headcount). */}
+      <OccupancyCard />
 
       <Section title="Yaklaşan rezervasyonum">
         {data.upcoming.length === 0 ? (

@@ -81,6 +81,7 @@ export async function assignSubscription(
     validUntil,
     credits: ledgerFor(grant),
     freeze: freezeFor(input.freezeDays),
+    cancellationLedger: { used: 0, refunded: 0 }, // Plus Phase 3
     priceAgreed: input.priceAgreed,
     paidTotal: { amount: 0, currency: input.priceAgreed.currency },
     manualPayment: null,

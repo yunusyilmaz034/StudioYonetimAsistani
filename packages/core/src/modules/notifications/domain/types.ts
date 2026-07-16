@@ -29,12 +29,15 @@ export type Audience = 'member' | 'owner' | 'reception' | 'roster'
 
 export type DeliveryStatus =
   | 'pending' // created, not yet handed to a channel
-  | 'queued' // waiting (quiet hours, or a retry's backoff)
+  | 'queued' // waiting (quiet hours, or a retry's backoff) — the "retry_scheduled" of the spec
   | 'sent' // the provider accepted it
   | 'delivered' // the provider (or our own DB, for in_app) confirmed it arrived
   | 'failed' // permanently, or out of retries
   | 'cancelled' // a human stopped it
   | 'suppressed' // WE chose not to send: preference · consent · budget ceiling
+  // Plus Phase 5 — the channel has NO real transport configured (WhatsApp without Meta credentials).
+  // NOT a mock success and NOT a retryable failure: a truthful, terminal "we could not send this".
+  | 'provider_not_configured'
 
 // Why we chose not to send. A silent suppression is indistinguishable from a bug.
 export type SuppressionReason =
@@ -102,6 +105,10 @@ export interface NotificationPrefs {
   readonly sms: boolean
   readonly whatsapp: boolean
   readonly push: boolean
+  // Plus Phase 5 — MARKETING consent (KVKK açık rıza), separate from the operational channels above.
+  // An operational message (a class was cancelled) NEVER depends on it; only a `marketing` template
+  // is suppressed without it. Opt-in by default false — consent must be given, never assumed.
+  readonly campaign: boolean
 }
 
 export const DEFAULT_PREFS: NotificationPrefs = {
@@ -109,6 +116,7 @@ export const DEFAULT_PREFS: NotificationPrefs = {
   sms: true,
   whatsapp: false,
   push: false,
+  campaign: false,
 }
 
 // Retry is DATA, per channel (#4 — nothing in the code knows the number three). Every SMS retry
@@ -151,4 +159,11 @@ export interface NotificationTemplate {
   readonly requiredParams: readonly string[]
   readonly subject: string // for e-mail; ignored by in-app
   readonly body: string // Turkish, with {{param}} placeholders. No technical event names, ever.
+  // Plus Phase 5 — template management. The code catalogue is the SEED; a studio may override a
+  // template's copy (subject/body/active) per studio, which bumps `version` and stamps who/when. A
+  // past send is NEVER rewritten — the DeliveryAttempt keeps the rendered snapshot (I-38).
+  readonly lang?: string // 'tr' default; per-language variants are additive
+  readonly active?: boolean // absent ⇒ active; a deactivated template stops NEW sends
+  readonly updatedBy?: string // actor id of the last editor (studio override only)
+  readonly updatedAt?: Instant
 }

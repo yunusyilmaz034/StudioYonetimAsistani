@@ -21,8 +21,13 @@ export interface Product {
   readonly creditCount: number | null // credit ⇒ N; period ⇒ null (unlimited)
   readonly priceInKurus: number // integer kuruş (non-negotiable #10)
   readonly freezeAllowanceDays: number
-  readonly dailyReservationLimit: number | null // optional; not enforced in Phase 1
-  readonly cancellationAllowanceCount: number | null // optional; not enforced in Phase 1
+  // ── Package rules (Plus Phase 3). null ⇒ UNLIMITED / no limit — the safe default that preserves
+  //    pre-Phase-3 behaviour (a package with no rule cancels and books without limit). A number is a
+  //    counted limit, resolved against the member override at reservation time. Never enforced by an
+  //    `if` in the UI; read by the reservation deciders via `resolveReservationPolicy`. ──
+  readonly dailyReservationLimit: number | null // max active reservations per studio-local day; null ⇒ unlimited
+  readonly cancellationAllowanceCount: number | null // free (in-window) cancellations allowed; null ⇒ unlimited
+  readonly activeReservationLimit: number | null // max concurrent active/future reservations; null ⇒ unlimited
   readonly description: string
   readonly active: boolean
 }

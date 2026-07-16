@@ -8,16 +8,24 @@ import {
   ClipboardListIcon,
   CreditCardIcon,
   DoorOpenIcon,
+  DumbbellIcon,
   HistoryIcon,
   Loader2Icon,
+  MessageSquareIcon,
   PackageIcon,
   PencilIcon,
+  ShieldAlertIcon,
   UserIcon,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
 import type { Member, MemberId } from '@studio/core'
 
+import { ManualSendDialog } from '@/components/manual-send-dialog'
+import { PaytrSaleDialog } from '@/components/paytr-sale-dialog'
+import { PaymentHistoryPanel } from './payment-history-panel'
+import { WhatsAppButton } from '@/components/whatsapp-button'
+import { WA_TEMPLATES } from '@/lib/whatsapp'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -53,6 +61,9 @@ import type {
 import { deactivateMember } from '@/server/actions/members'
 
 import { ErasurePanel } from './erasure-panel'
+import { RestrictionPanel } from './restriction-panel'
+import { TrainingPanel } from './training-panel'
+import { MemberFitnessSummary } from './fitness-summary'
 import {
   listUpcomingSessionsAction,
   type UpcomingSession,
@@ -79,34 +90,49 @@ const dt = (ms: number) =>
 const d = (ms: number) => new Date(ms).toLocaleDateString('tr-TR', { timeZone: 'Europe/Istanbul' })
 const tl = (k: number) => `${(k / 100).toLocaleString('tr-TR')} TL`
 
-type SectionId = 'profile' | 'packages' | 'reservations' | 'checkin' | 'payments' | 'audit'
+type SectionId = 'profile' | 'packages' | 'reservations' | 'override' | 'training' | 'checkin' | 'payments' | 'audit'
 const SECTIONS: readonly { id: SectionId; label: string; icon: typeof UserIcon }[] = [
   { id: 'profile', label: 'Genel', icon: UserIcon },
   { id: 'packages', label: 'Paketler', icon: PackageIcon },
   { id: 'reservations', label: 'Rezervasyonlar', icon: ClipboardListIcon },
+  { id: 'override', label: 'Kısıtlı Üyelik', icon: ShieldAlertIcon },
+  { id: 'training', label: 'Antrenman', icon: DumbbellIcon },
   { id: 'checkin', label: 'Check-in', icon: DoorOpenIcon },
   { id: 'payments', label: 'Cari Hesap', icon: CreditCardIcon },
   { id: 'audit', label: 'Geçmiş', icon: HistoryIcon },
 ]
 
+export interface TrainerOption {
+  readonly id: string
+  readonly name: string
+}
+
 export function MemberWorkspaceScreen({
   data,
   products,
+  trainers,
   defaultBranchId,
   isOwner = false,
   isPlatformAdmin,
+  canManageTraining = false,
 }: {
   data: MemberWorkspaceData
   products: readonly ProductView[]
+  trainers: readonly TrainerOption[]
   defaultBranchId: string | null
   isOwner?: boolean
   isPlatformAdmin: boolean
+  // Owner + platform_admin see and edit programmes, measurements and photos; reception gets a
+  // boolean "aktif program var mı?" only (§13). Trainers do not reach the members list at all.
+  canManageTraining?: boolean
 }) {
   const router = useRouter()
   const { member } = data
   const [active, setActive] = useState<SectionId>('profile')
   const [editing, setEditing] = useState(false)
   const [booking, setBooking] = useState(false)
+  const [messaging, setMessaging] = useState(false)
+  const [paytrSale, setPaytrSale] = useState(false)
 
   const s = member.stats
 
@@ -130,6 +156,15 @@ export function MemberWorkspaceScreen({
             </h1>
             <div className="flex flex-wrap items-center gap-2 pt-0.5 text-sm text-muted-foreground">
               <span className="tabular-nums">{member.phone}</span>
+              <WhatsAppButton phone={member.phone} text={WA_TEMPLATES.greeting(member.fullName)} className="h-7" />
+              <Button variant="outline" size="sm" className="h-7" onClick={() => setMessaging(true)}>
+                <MessageSquareIcon className="size-3.5" />
+                Mesaj Gönder
+              </Button>
+              <Button variant="outline" size="sm" className="h-7" onClick={() => setPaytrSale(true)}>
+                <CreditCardIcon className="size-3.5" />
+                PAYTR ile Sat
+              </Button>
               {member.status !== 'active' ? (
                 <Badge className="bg-muted text-muted-foreground">{MEMBER_STATUS[member.status]}</Badge>
               ) : null}
@@ -178,14 +213,35 @@ export function MemberWorkspaceScreen({
             <InvitePanel memberId={member.id} studioId={member.studioId} />
           </div>
         </TabsContent>
+        <TabsContent value="override">
+          {/* "Kısıtlı Üyelik / Member Override" (Plus Phase 4) — its own tab now. A per-member
+              override of the package rules. Editing is a policy act: owner / platform_admin only
+              (the action refuses anyone else too). */}
+          <RestrictionPanel
+            memberId={member.id}
+            restriction={member.restriction}
+            trainers={trainers}
+            canEdit={isOwner || isPlatformAdmin}
+          />
+        </TabsContent>
         <TabsContent value="packages">
           <SubscriptionsPanel memberId={member.id} products={products} />
+        </TabsContent>
+        <TabsContent value="training">
+          {/* Plus Phase 7 — the member's programmes, measurements and progress photos. Content for
+              owner/platform_admin; reception sees only whether a programme exists. */}
+          <TrainingPanel
+            memberId={member.id}
+            studioId={member.studioId}
+            mode={canManageTraining ? 'full' : 'boolean'}
+          />
         </TabsContent>
         <TabsContent value="reservations">
           <ReservationsPanel upcoming={data.upcomingReservations} past={data.pastReservations} />
         </TabsContent>
         <TabsContent value="checkin">
           <CheckinPanel
+            memberId={member.id}
             insideNow={data.insideNow}
             lastCheckInAt={data.lastCheckInAt}
             history={data.checkInHistory}
@@ -199,6 +255,11 @@ export function MemberWorkspaceScreen({
             branchId={member.homeBranchId ?? defaultBranchId ?? ''}
             isOwner={isOwner}
           />
+          {/* Plus Phase 6 — online (PAYTR) payment history, with owner refund. */}
+          <div className="mt-4 space-y-2">
+            <h3 className="text-[0.6875rem] font-medium uppercase tracking-wide text-muted-foreground">Online Ödemeler</h3>
+            <PaymentHistoryPanel memberId={member.id} isOwner={isOwner} />
+          </div>
         </TabsContent>
         <TabsContent value="audit">
           <AuditPanel memberId={member.id} />
@@ -232,6 +293,21 @@ export function MemberWorkspaceScreen({
           setBooking(false)
           router.refresh()
         }}
+      />
+
+      {/* Templated pipeline send (Plus Phase 5) — complementary to the manual wa.me button. */}
+      <ManualSendDialog
+        memberId={member.id}
+        memberName={member.fullName}
+        open={messaging}
+        onClose={() => setMessaging(false)}
+      />
+      <PaytrSaleDialog
+        memberId={member.id}
+        memberPhone={member.phone}
+        products={products}
+        open={paytrSale}
+        onClose={() => setPaytrSale(false)}
       />
     </main>
   )
@@ -494,10 +570,12 @@ function ReservationItem({ r, cancelable = false }: { r: MemberReservationRow; c
 
 // ── Check-in ──────────────────────────────────────────────────────────────────
 function CheckinPanel({
+  memberId,
   insideNow,
   lastCheckInAt,
   history,
 }: {
+  memberId: string
   insideNow: boolean
   lastCheckInAt: number | null
   history: readonly MemberCheckInRow[]
@@ -505,6 +583,9 @@ function CheckinPanel({
   const router = useRouter()
   return (
     <div className="space-y-5">
+      {/* Plus Phase 8 — her consistency, computed on read from her check-in days. */}
+      <MemberFitnessSummary memberId={memberId} />
+
       <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-card p-4 shadow-sm">
         <div className="flex items-center gap-2 text-sm">
           <Badge className={insideNow ? 'bg-success/10 text-success' : 'bg-muted text-muted-foreground'}>

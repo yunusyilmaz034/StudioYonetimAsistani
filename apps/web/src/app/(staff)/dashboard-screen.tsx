@@ -1,8 +1,9 @@
 'use client'
 
 import Link from 'next/link'
-import { AlertTriangleIcon, BarChart3Icon } from 'lucide-react'
+import { AlertTriangleIcon, BarChart3Icon, CalendarIcon, ClipboardCheckIcon, DoorOpenIcon, UsersIcon } from 'lucide-react'
 
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { PageHeader } from '@/components/ui/page-header'
 import { canSee } from '@/lib/permissions'
@@ -11,6 +12,7 @@ import { Section } from '@/components/ui/section'
 import { ActivityRow } from '@/components/activity/activity-row'
 import { WIDGETS, WIDGET_ICON } from '@/lib/widgets/registry'
 import type { OwnerDashboard } from '@/server/owner-dashboard'
+import type { TodayOps } from '@/server/today-ops'
 
 import { LogoutButton } from './logout-button'
 
@@ -23,10 +25,12 @@ import { LogoutButton } from './logout-button'
 
 export function DashboardScreen({
   data,
+  todayOps,
   role,
   roleLabel,
 }: {
   data: OwnerDashboard
+  todayOps: TodayOps
   role: PrincipalRole
   roleLabel: string
 }) {
@@ -61,6 +65,10 @@ export function DashboardScreen({
           </>
         }
       />
+
+      {/* "Bugün" — reception's one-glance operational summary. What is on today, what still needs
+          marking, who is waiting, which rooms have a note. Every number read from live state. */}
+      <TodayStrip ops={todayOps} />
 
       {/* The projector is the dashboard's only silent failure mode: a number that is simply late.
           A wrong number must be LOUD. */}
@@ -172,5 +180,51 @@ export function DashboardScreen({
         </div>
       </Section>
     </main>
+  )
+}
+
+// The "Bugün" strip: quiet facts on the left (how much is on, how full), loud items on the right —
+// each shown ONLY when it is non-zero, because a "0 katılım bekliyor" chip is noise that trains the
+// eye to skip the row where a real number will one day appear.
+function TodayStrip({ ops }: { ops: TodayOps }) {
+  const pct = ops.capacity > 0 ? Math.round((ops.booked / ops.capacity) * 100) : 0
+  return (
+    <section className="flex flex-wrap items-center gap-x-6 gap-y-3 rounded-xl border border-border bg-card p-4 shadow-sm">
+      <span className="flex items-center gap-2 text-sm">
+        <CalendarIcon className="size-4 text-muted-foreground" />
+        <span className="font-semibold tabular-nums text-foreground">{ops.sessionCount}</span>
+        <span className="text-muted-foreground">seans bugün</span>
+      </span>
+      <span className="flex items-center gap-2 text-sm">
+        <UsersIcon className="size-4 text-muted-foreground" />
+        <span className="font-semibold tabular-nums text-foreground">
+          {ops.booked}/{ops.capacity}
+        </span>
+        <span className="text-muted-foreground">dolu · %{pct}</span>
+      </span>
+
+      <span className="ml-auto flex flex-wrap items-center gap-2">
+        {ops.pendingAttendance > 0 ? (
+          <Link href="/attendance">
+            <Badge className="gap-1 bg-warning/10 text-warning hover:bg-warning/20">
+              <ClipboardCheckIcon className="size-3.5" />
+              {ops.pendingAttendance} ders katılım bekliyor
+            </Badge>
+          </Link>
+        ) : null}
+        {ops.waiting > 0 ? (
+          <Badge className="gap-1 bg-warning/10 text-warning">
+            <UsersIcon className="size-3.5" />
+            {ops.waiting} kişi bekleme listesinde
+          </Badge>
+        ) : null}
+        {ops.activeRoomNotes > 0 ? (
+          <Badge className="gap-1 bg-warning/10 text-warning">
+            <DoorOpenIcon className="size-3.5" />
+            {ops.activeRoomNotes} salon notu aktif
+          </Badge>
+        ) : null}
+      </span>
+    </section>
   )
 }

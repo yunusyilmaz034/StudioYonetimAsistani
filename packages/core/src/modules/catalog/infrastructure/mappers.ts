@@ -24,6 +24,7 @@ export function productToFirestore(p: Product): DocumentData {
     freezeAllowanceDays: p.freezeAllowanceDays,
     dailyReservationLimit: p.dailyReservationLimit,
     cancellationAllowanceCount: p.cancellationAllowanceCount,
+    activeReservationLimit: p.activeReservationLimit,
     description: p.description,
     active: p.active,
     updatedAt: FieldValue.serverTimestamp(),
@@ -44,6 +45,7 @@ export function productFromFirestore(id: ProductId, d: DocumentData): Product {
     freezeAllowanceDays: (d.freezeAllowanceDays as number | undefined) ?? 0,
     dailyReservationLimit: (d.dailyReservationLimit as number | null) ?? null,
     cancellationAllowanceCount: (d.cancellationAllowanceCount as number | null) ?? null,
+    activeReservationLimit: (d.activeReservationLimit as number | null) ?? null,
     description: (d.description as string | undefined) ?? '',
     active: d.active !== false,
   }

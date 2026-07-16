@@ -22,6 +22,17 @@ export {
   type AttendanceOutcome,
 } from './commands'
 export { isBookable, selectEntitlement } from './domain/select-entitlement'
+// Package Rules 2.0 (Plus Phase 3) — the resolver + its helpers. One resolution of studio→package→
+// member, read by every write path so the same member is judged the same way everywhere.
+export {
+  resolveReservationPolicy,
+  packageRuleFromSnapshot,
+  localWeekday,
+  localMinuteOfDay,
+  type EffectiveReservationPolicy,
+  type PackageRule,
+} from './domain/policy'
+export type { BookingLimits, CancellationInputs } from './domain/decide'
 export { bookReservation, type BookReservationInput } from './application/book'
 export { cancelReservation, type CancelReservationInput } from './application/cancel'
 export { moveReservation, type MoveReservationInput } from './application/move'
@@ -59,6 +70,7 @@ export type {
   ResolveTxInput,
   ReservationRepository,
   ReservationsDeps,
+  ReservationPolicyPort,
 } from './application/ports'
 export { FirestoreReservationRepository } from './infrastructure/repos'
 export {

@@ -10,9 +10,16 @@ import { canSee, homeFor, PERMISSIONS, type Area } from './permissions'
 const AREAS = Object.keys(PERMISSIONS) as Area[]
 
 describe('the trainer — staff, and the person least entitled to the studio’s data', () => {
-  it('sees ONE screen, and it is her own', () => {
+  it('sees only her own screens — her classes, the training workspace (Plus Phase 7) and her own pay (Plus Phase 9)', () => {
+    // Her classes, the training workspace (the exercise library and her feedback center), and — since
+    // Plus Phase 9 — her OWN earnings (read-only, never another trainer's). Still not the members
+    // list, the till, the funnel, or the payroll cost side.
     const visible = AREAS.filter((a) => canSee('trainer', a))
-    expect(visible).toEqual(['/my-classes'])
+    expect(visible).toEqual(['/my-classes', '/training', '/my-payroll'])
+  })
+
+  it('cannot see the studio-wide payroll — it is owner-confidential (Plus Phase 9)', () => {
+    expect(canSee('trainer', '/payroll')).toBe(false)
   })
 
   it('cannot see the members list — the studio’s PII', () => {
@@ -31,14 +38,18 @@ describe('the trainer — staff, and the person least entitled to the studio’s
 })
 
 describe('reception — she runs the day, and she does not run the business', () => {
-  it('has the desk: members, packages, the calendar, the till, check-in', () => {
-    for (const area of ['/', '/members', '/packages', '/schedule', '/checkin', '/finance'] as const) {
+  it('has the desk: members, packages, the calendar, the till, check-in, fitness', () => {
+    for (const area of ['/', '/members', '/packages', '/schedule', '/checkin', '/fitness', '/finance'] as const) {
       expect(canSee('receptionist', area), area).toBe(true)
     }
   })
 
-  it('is refused the audit log, the analytics, the settings, and the staff list (owner, 2026-07-13)', () => {
-    for (const area of ['/audit', '/analytics', '/settings', '/staff'] as const) {
+  it('a trainer does not get the fitness usage screen — it is the studio’s data, not her craft', () => {
+    expect(canSee('trainer', '/fitness')).toBe(false)
+  })
+
+  it('is refused the audit log, the analytics, the settings, the staff list, and payroll (owner, 2026-07-13)', () => {
+    for (const area of ['/audit', '/analytics', '/settings', '/staff', '/payroll', '/my-payroll', '/advisor'] as const) {
       expect(canSee('receptionist', area), area).toBe(false)
     }
   })

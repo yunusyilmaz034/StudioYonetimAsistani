@@ -49,6 +49,7 @@ export {
   changeCapacity,
   changeRoom,
   changeTrainer,
+  rescheduleSession,
   generateSessions,
   scheduleSession,
   setSessionNote,

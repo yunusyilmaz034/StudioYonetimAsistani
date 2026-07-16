@@ -42,39 +42,51 @@ WhatsApp actions, trainer notes, room notes, the waiting list, the daily-operati
 - **Note:** WhatsApp here is a *channel of Phase 5*; start the Meta approval (ED-1) now — it is
   external and slow, and must not block this phase.
 
-### 3 — Package Rules 2.0  ·  *detail: Doc 30*
-Per-package rules from the catalogue: cancellation-right count (e.g. 3 / 5 / unlimited), late-cancel
-right, no-show right, active-reservation limit. The seam is half-built — `cancellationAllowanceCount`
-and `dailyReservationLimit` already exist on `Product`, read by no decision function yet.
+### 3 — Package Rules 2.0  ·  *detail: Doc 30*  ·  ✅ **CLOSED (2026-07-15, tag `plus-v0.3-package-rules`)**
+Per-package rules from the catalogue: cancellation-right count (e.g. 3 / 5 / unlimited),
+active-reservation limit, daily limit — **shipped and enforced** via `resolveReservationPolicy`. The
+free-cancellation allowance is an entitlement ledger. Member restrictions (allowed days/hours + the
+three limit overrides) shipped alongside. Late-cancel right and no-show right stayed out of scope
+(future backlog). Deferred with triggers: DEBT-031 (per-booking read), DEBT-032 (move enforcement).
 - **Rule:** each allowance is a **ledger, decremented by an event** (the credit-ledger discipline,
   Doc 13) — never a mutable counter, or it drifts exactly as credits would. The rule is read by the
   decider, never an `if` in a Server Action (#4).
 
-### 4 — Member Override  ·  *detail: Doc 30*
-Per-member "Kısıtlı Üyelik" on the member card: allowed days, allowed hours, max cancellations, max
-active reservations — overriding the package rule for VIP / corporate / promotional / problem members.
-Resolution order: **studio default → package rule → member override** (strongest last).
+### 4 — Member Override  ·  *detail: Doc 30*  ·  ✅ **CLOSED (2026-07-15, tag `plus-v0.4-member-override`)**
+Per-member "Kısıtlı Üyelik" on its own member-card tab: allowed days, allowed hours, **allowed
+trainers**, max cancellations, daily + active limits — overriding the package rule, with a **validity
+window** that auto-returns the member to package rules when it expires (read-time gating, no sweep).
+Reason is a closed enum (VIP / Kurumsal / Promosyon / Şikayet Telafisi / Sağlık / Diğer); the note
+stays on state, never in the event. Resolution order: **studio default → package rule → member
+override** (strongest last), through the one `resolveReservationPolicy` every write path reads.
 - **Rule:** the override *values* are member state (fine on `/members`); the override *change events*
   carry a **closed-enum reason + note**, and the note **never** enters the event payload (#6). A
   restriction with no author is the silent loosening this must not permit.
 
-### 5 — Notification & Communication Center  ·  *extends the shipped Doc 28 / v1.25*
-The core (Event → Intent → Delivery, in-app + e-mail, quiet hours) shipped in Alpha; this phase makes
-it multi-channel: **WhatsApp, richer e-mail, Push notifications, campaign messages, automatic
-templates.** It stays a distinct milestone because the channel and campaign surface is substantial.
+### 5 — Notification & Communication Center  ·  *extends the shipped Doc 28 / v1.25*  ·  ✅ **CLOSED (2026-07-16, tag `plus-v0.5-notification-center`)**
+Made the pipeline multi-channel and manageable: a **real Meta Cloud API WhatsApp transport** (template
+messages; provider_not_configured — never a mock — until the owner provisions Meta credentials, with
+the manual wa.me action still working), **richer HTML e-mail**, **per-studio template management**
+(editable copy, versioned, render-refuses a dropped param), a filterable **Notification Center**
+(all statuses, role-gated), **manual + simple bulk send** through the same notify() pipeline, and
+**marketing consent** (campaign) split from operational. Push stayed a seam only (no real device
+integration — provider_not_configured), advanced campaign automation deferred to future backlog.
 - **Rule:** every channel is a **provider behind the existing port** (`NotificationProvider`); the
   center still hands over and classifies, and never claims "delivered" when it means "handed over".
 
-### 6 — Commerce & Payments (PAYTR)  ·  *detail: Doc 27*
-Real online payments, **provider confirmed: PAYTR** (owner, 2026-07-15). Scope: a **virtual POS**,
-**pay-by-link**, package sales, **membership renewal**, the **wallet**, **payment history**, and the
-CRM sales flow — the whole money-in surface, on the v1.24 finance spine.
+### 6 — Commerce & Payments (PAYTR)  ·  *detail: Doc 27*  ·  ✅ **CLOSED (2026-07-16, tag `plus-v0.6-commerce-payments`)**
+Real online payments on the v1.24 finance spine, provider-independent (business logic never imports
+PAYTR — only the PaymentProvider port). Shipped: PaymentIntent + PAYTR adapter (token/link/callback
+hash-verify/refund), the callback route (verify → idempotent grant-AFTER-payment), Sanal POS + Link,
+package sale, refund, a reconciliation sweep, retail products (minimal), payment history, and provider
+settings. **PAYTR is not connected** — no merchant secrets, so every flow shows configuration_required
+(nothing faked); wallet/retail-online/CRM-link are seams (DEBT-035). Go-live is env-only.
 - **Rule:** PAYTR is a `PaymentProvider` **behind the existing port** (Doc 26 §9) — `providerRef` on
   every payment, a webhook that confirms rather than a client that asserts. The wallet is **one payment
   method and one liability ledger** (`Sale → Payment(method) → Allocation`), never a second set of
   books. Money is integer kuruş (#10), and a confirmed payment is an event, never a client's word.
 
-### 7 — Training & Progress  ·  *detail: Doc 25 (vision expanded below)*
+### 7 — Training & Progress  ·  *detail: Doc 25 (vision expanded below)*  ·  ✅ **CLOSED (2026-07-16, tag `plus-v0.7-training-progress`)**
 A core premium module — **managing the member's development, not writing workouts.** Assign a
 programme to a member; exercise video explanations; movement-level notes; a **trainer ↔ member
 feedback loop**; measurements; **photo tracking**; progress charts; **programme versioning** (a
@@ -84,7 +96,7 @@ programme is never edited — every change is a new version, history kept foreve
   snapshot discipline as `SaleLine` and `productSnapshot`). Photos/measurements are member PII — they
   live on the member's records, **never in an event payload** (#6).
 
-### 8 — Fitness Attendance  ·  *new; deliberately minimal*
+### 8 — Fitness Attendance  ·  *new; deliberately minimal*  ·  ✅ **CLOSED (2026-07-16, tag `plus-v0.8-fitness-attendance-occupancy`)**
 A fitness check-in system, nothing more: **entry to the studio, entry history, consistency/streaks,
 and usage reports.** For fitness (unlimited/period) memberships there is **no reservation and no
 class**, and this **contains no training analysis** — no sets, no minutes, no machine (that is
@@ -96,15 +108,20 @@ came.
   consumes nothing, so check-in *is* the whole signal — provided it is never dressed up as an
   attendance observation.
 
-### 9 — Trainer Payroll  ·  *new; a money module — slow down*
+### 9 — Trainer Payroll  ·  *new; a money module — slow down*  ·  ✅ **CLOSED (2026-07-16, tag `plus-v0.9-trainer-payroll`)**
 Compute trainer pay from the sessions taught and the studio's rates.
 - **Rule:** it reuses the **finance ledger** (Doc 26), never a parallel accounting system (the Doc 27
   warning, again). A trainer's rate is **versioned policy data**, never an `if`. And it reads the
   attendance semantics: whether a *presumed*-attended class (DEBT-007) or a no-show pays the trainer
   is a **policy decision** to settle explicitly, not a default to stumble into.
 
-### 10 — AI Insights L1  ·  *the product vision's "Phase 2"*
+### 10 — AI Insights L1  ·  *the product vision's "Phase 2"*  ·  ✅ **CLOSED (2026-07-16, tag `plus-v0.10-ai-insights`)**
 The event log was built for this from day one. Nothing is built early for it.
+- **Shipped as a DETERMINISTIC, rule-based advisor** (`/advisor` "Öneriler"), not a live LLM: L1 ranks
+  the facts the studio already records into a "what needs attention today" list, each with a suggested
+  tool it deep-links to. It never acts — a human decides. An `InsightSource` seam is built so a future
+  L2 LLM narrator plugs in behind the same interface, no reshaping. (Rationale: #7 keeps decision
+  functions pure/testable — a non-deterministic advisor cannot be trusted before it is clever.)
 - **Rule:** its feasibility is a **function of Phases 2–9 keeping the event discipline** — no
   presumption written as an observation (#11), no PII in an event (#6). The insight layer is only as
   trustworthy as the log beneath it, and the log is protected by every phase above.

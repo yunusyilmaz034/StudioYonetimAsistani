@@ -66,6 +66,7 @@ const PRODUCT_FIELDS = [
   'freezeAllowanceDays',
   'dailyReservationLimit',
   'cancellationAllowanceCount',
+  'activeReservationLimit',
   'description',
   'active',
   'serviceIds',

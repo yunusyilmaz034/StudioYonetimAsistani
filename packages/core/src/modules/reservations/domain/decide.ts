@@ -17,7 +17,11 @@ import {
   type ReservationId,
   type Result,
   type StudioId,
+  timeAllowed,
+  trainerAllowed,
+  weekdayAllowed,
 } from '../../../shared'
+import type { EffectiveReservationPolicy } from './policy'
 import {
   checkWorkingHours,
   type ClassSession,
@@ -68,7 +72,25 @@ export interface DecideContext {
   readonly commandId?: CommandId | null
 }
 
-export type ReservationOutcome = { readonly reservation: Reservation; readonly events: readonly NewEvent[] }
+export type ReservationOutcome = {
+  readonly reservation: Reservation
+  readonly events: readonly NewEvent[]
+  // Plus Phase 3 — set by a cancellation that SPENT a free-cancellation allowance, so the application
+  // knows to append the entitlement's `cancellation_charged` ledger move in the same transaction.
+  readonly allowanceConsumed?: boolean
+}
+
+// ── Package Rules 2.0 (Plus Phase 3) — the resolved limits + the counts a booking is judged against.
+//    Provided by the application (it resolves the policy and loads the member's counts). OPTIONAL:
+//    absent ⇒ unlimited/unrestricted (used by tests and pre-Phase-3 call sites). The real paths
+//    always pass it, so the domain — not a Server Action — is where a restricted booking is refused.
+export interface BookingLimits {
+  readonly policy: EffectiveReservationPolicy
+  readonly sessionWeekday: number // 0=Sun … 6=Sat, studio-local
+  readonly sessionStartMinutes: number // minutes from midnight, studio-local
+  readonly memberDayReservationCount: number // member's active reservations on the session's day
+  readonly memberActiveReservationCount: number // member's total active/future reservations
+}
 
 function policyRefOf(r: Reservation): PolicyRef {
   return { policyId: r.policyRef.policyId as PolicyId, version: r.policyRef.version }
@@ -116,6 +138,8 @@ export function decideBooking(
   // AG-1 — the studio's opening hours. REQUIRED: a seat cannot be taken at an hour the studio is
   // shut, even if the class somehow exists (the hours may have changed after it was scheduled).
   hours: StudioHours,
+  // Plus Phase 3 — the resolved package/member limits + the member's counts. Absent ⇒ unrestricted.
+  limits?: BookingLimits,
 ): Result<ReservationOutcome, DomainError> {
   // I-9.1
   if (session.status !== 'scheduled' || session.startsAt <= ctx.now) {
@@ -166,6 +190,22 @@ export function decideBooking(
   // category-wide right, and is never narrowed after the fact.
   if (!coversService(entitlement.productSnapshot, session.serviceId)) {
     return err({ code: 'service_not_covered', sessionServiceId: session.serviceId })
+  }
+
+  // ── Package Rules 2.0 (Plus Phase 3). The effective (studio→package→member) policy, enforced HERE
+  //    so every write path is judged the same. Each refusal names the rule that stopped it. ──
+  if (limits) {
+    const p = limits.policy
+    if (!weekdayAllowed(p.allowedWeekdays, limits.sessionWeekday)) return err({ code: 'day_not_allowed' })
+    if (!timeAllowed(p.allowedHourRanges, limits.sessionStartMinutes)) return err({ code: 'time_not_allowed' })
+    // Plus Phase 4 — trainer restriction. A session with no trainer cannot satisfy a whitelist.
+    if (!trainerAllowed(p.allowedTrainerIds, session.trainerId ?? null)) return err({ code: 'trainer_not_allowed' })
+    if (p.dailyReservationLimit !== null && limits.memberDayReservationCount >= p.dailyReservationLimit) {
+      return err({ code: 'daily_reservation_limit_reached', limit: p.dailyReservationLimit })
+    }
+    if (p.activeReservationLimit !== null && limits.memberActiveReservationCount >= p.activeReservationLimit) {
+      return err({ code: 'active_reservation_limit_reached', limit: p.activeReservationLimit })
+    }
   }
 
   const isCredit = entitlement.credits !== null
@@ -321,10 +361,18 @@ export function decideMove(
 // ── Cancellation (Doc 2 §7.2). Pure: the six-hour window is `policy.cancellation
 //    WindowHours`; nothing knows the number six. A studio-cancelled class always
 //    releases (I-14). ──
+// Plus Phase 3 — the effective free-cancellation allowance for THIS reservation, and how much of it
+// has already been spent on this entitlement. Absent ⇒ unlimited (pre-Phase-3 / period bookings).
+export interface CancellationInputs {
+  readonly allowance: number | null // resolved (studio→package→member); null ⇒ unlimited
+  readonly usedNet: number // charged − refunded so far on this entitlement
+}
+
 export function decideCancellation(
   ctx: DecideContext,
   reservation: Reservation,
   session: ClassSession,
+  cancellation?: CancellationInputs,
 ): Result<ReservationOutcome, DomainError> {
   if (reservation.status !== 'booked') return err({ code: 'reservation_not_open' })
   const policy: SessionPolicySnapshot = session.policySnapshot
@@ -333,24 +381,33 @@ export function decideCancellation(
   // nothing regardless of the window.
   const heldACredit = reservation.creditEffect !== 'none'
 
-  // Studio-cancelled class → always release the held credit, unconditionally (I-14).
+  // Studio-cancelled class → always release the held credit, unconditionally (I-14). The studio
+  // cancelled it, not the member, so it NEVER spends her allowance.
   if (session.status === 'cancelled') {
     const effect: CreditEffect = heldACredit ? 'released' : 'none'
-    return ok(resolveCancel(ctx, reservation, hoursBeforeStart, true, effect, 'cancelled'))
+    return ok(resolveCancel(ctx, reservation, hoursBeforeStart, true, effect, 'cancelled', false))
   }
 
   if (hoursBeforeStart >= policy.cancellationWindowHours) {
+    // In-window (free) cancel — this is the ONLY branch the allowance gates. A finite allowance is
+    // spent one per in-window cancel; at zero the member is REFUSED (owner: the reservation stays,
+    // no credit is burned "yine de iptal"). Unlimited (null) allowance never gates.
+    const finite = cancellation != null && cancellation.allowance !== null
+    if (finite && cancellation.usedNet >= (cancellation.allowance as number)) {
+      return err({ code: 'cancellation_allowance_exhausted', allowance: cancellation.allowance as number })
+    }
     const effect: CreditEffect = heldACredit ? 'released' : 'none'
-    return ok(resolveCancel(ctx, reservation, hoursBeforeStart, true, effect, 'cancelled'))
+    return ok(resolveCancel(ctx, reservation, hoursBeforeStart, true, effect, 'cancelled', finite))
   }
   // Inside the window: late cancel. Burns per policy; otherwise the hold is released
-  // (a resolved reservation can never keep a hold — I-2).
+  // (a resolved reservation can never keep a hold — I-2). A late cancel does NOT spend the
+  // free-cancellation allowance (only in-window cancels count, owner).
   const effect: CreditEffect = !heldACredit
     ? 'none'
     : policy.lateCancellationConsumesCredit
       ? 'consumed'
       : 'released'
-  return ok(resolveCancel(ctx, reservation, hoursBeforeStart, false, effect, 'late_cancelled'))
+  return ok(resolveCancel(ctx, reservation, hoursBeforeStart, false, effect, 'late_cancelled', false))
 }
 
 function resolveCancel(
@@ -360,6 +417,7 @@ function resolveCancel(
   withinWindow: boolean,
   creditEffect: CreditEffect,
   status: 'cancelled' | 'late_cancelled',
+  allowanceConsumed: boolean,
 ): ReservationOutcome {
   const next: Reservation = {
     ...reservation,
@@ -377,6 +435,7 @@ function resolveCancel(
         payload: { hoursBeforeStart, withinWindow, creditEffect },
       },
     ],
+    allowanceConsumed,
   }
 }
 
@@ -451,7 +510,7 @@ export function decideAutoResolution(
     const heldACredit = reservation.creditEffect !== 'none'
     const effect: CreditEffect = heldACredit ? 'released' : 'none'
     return ok(
-      resolveCancel(ctx, reservation, hoursBetween(ctx.now, session.startsAt), true, effect, 'cancelled'),
+      resolveCancel(ctx, reservation, hoursBetween(ctx.now, session.startsAt), true, effect, 'cancelled', false),
     )
   }
 

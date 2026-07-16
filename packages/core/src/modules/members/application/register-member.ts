@@ -59,6 +59,7 @@ export async function registerMember(
     status: 'active',
     joinedAt: now,
     stats: emptyStats(),
+    restriction: null,
   }
 
   const events = decideRegisterMember(

@@ -1,16 +1,25 @@
 'use server'
 
 import {
-  ConsoleEmailProvider,
   DEFAULT_NOTIFICATION_SETTINGS,
   DEFAULT_PREFS,
   deliver,
+  FirestoreMemberRepository,
+  instant,
   FirestoreNotificationRepository,
-  InAppProvider,
+  newOperationId,
+  notify,
+  render,
+  standardNotificationProviders,
   systemClock,
   TEMPLATES,
+  type MetaWhatsAppConfig,
+  type MemberId,
   type NotificationDeps,
   type NotificationPrefs,
+  type NotificationProvidersConfig,
+  type NotificationTemplate,
+  type RecipientRef,
 } from '@studio/core'
 import { z } from 'zod'
 
@@ -20,22 +29,212 @@ import { adminDb } from '../firebase-admin'
 // The Notification Center is never a "send an SMS" screen (owner). It is the centre of Intent ·
 // Queue · Attempt · Delivery · Retry · Audit — the record of who we tried to reach, how it went, and
 // what we chose not to send.
-const STAFF = ['owner', 'receptionist', 'trainer', 'platform_admin'] as const
+// `/notifications` is DESK (owner + receptionist) in the permission matrix. A trainer must NOT read
+// notification history / templates or send member messages — the action guard has to match the matrix,
+// not just the hidden nav. platform_admin is the developer superuser.
+const OPS = ['owner', 'receptionist', 'platform_admin'] as const
 const OWNER = ['owner', 'platform_admin'] as const
+
+// Same config the functions trigger reads, so an owner's manual resend uses the SAME real providers
+// production does — not a console/mock that quietly succeeds while nothing leaves the building.
+function providerConfig(): NotificationProvidersConfig {
+  const config: { email?: { apiKey: string; from: string }; whatsapp?: MetaWhatsAppConfig } = {}
+  const apiKey = process.env.RESEND_API_KEY
+  const from = process.env.EMAIL_FROM
+  if (apiKey && from) config.email = { apiKey, from }
+  const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID
+  const accessToken = process.env.WHATSAPP_ACCESS_TOKEN
+  if (phoneNumberId && accessToken)
+    config.whatsapp = {
+      phoneNumberId,
+      accessToken,
+      ...(process.env.WHATSAPP_API_VERSION ? { apiVersion: process.env.WHATSAPP_API_VERSION } : {}),
+    }
+  return config
+}
 
 const deps = (): NotificationDeps => {
   const db = adminDb()
   return {
     repo: new FirestoreNotificationRepository(db),
     clock: systemClock,
-    providers: [new InAppProvider(db), new ConsoleEmailProvider()],
+    providers: standardNotificationProviders(db, providerConfig()),
     settings: DEFAULT_NOTIFICATION_SETTINGS,
     utcOffsetMinutes: 180,
     loadPrefs: async (ctx, memberId) => {
       const snap = await db.doc(`studios/${ctx.studioId}/members/${memberId}`).get()
       return { ...DEFAULT_PREFS, ...((snap.get('notificationPrefs') as NotificationPrefs) ?? {}) }
     },
+    loadTemplate: async (ctx, templateId) => {
+      const snap = await db.doc(`studios/${ctx.studioId}/notificationTemplates/${templateId}`).get()
+      return snap.exists ? (snap.data() as NotificationTemplate) : null
+    },
   }
+}
+
+// ── Template management (Plus Phase 5) — a per-studio OVERRIDE store over the code seed. Not
+//    event-sourced (like room notes): a template edit is config, and each SEND already keeps its
+//    rendered snapshot, so a past message is never rewritten (I-38, §15). The edit stamps who/when
+//    and bumps the version. Owner + platform_admin only; reception may READ, never edit copy. ──
+export interface TemplateRow {
+  readonly id: string
+  readonly name: string
+  readonly category: string
+  readonly channelLabel: string
+  readonly subject: string
+  readonly body: string
+  readonly requiredParams: readonly string[]
+  readonly active: boolean
+  readonly version: number
+  readonly overridden: boolean
+  readonly updatedAt: number | null
+}
+
+export async function listNotificationTemplatesAction(): Promise<readonly TemplateRow[]> {
+  const ctx = await requireTenantContext(OPS)
+  const db = adminDb()
+  const overrides = await db.collection(`studios/${ctx.studioId}/notificationTemplates`).get()
+  const overrideById = new Map(overrides.docs.map((d) => [d.id, d.data() as NotificationTemplate]))
+  return Object.values(TEMPLATES)
+    .map((seed) => {
+      const o = overrideById.get(seed.id)
+      const t = o ?? seed
+      return {
+        id: seed.id,
+        name: t.name,
+        category: t.category,
+        channelLabel: t.category === 'marketing' ? 'Pazarlama' : 'Operasyonel',
+        subject: t.subject,
+        body: t.body,
+        requiredParams: seed.requiredParams,
+        active: t.active ?? true,
+        version: t.version,
+        overridden: Boolean(o),
+        updatedAt: (o?.updatedAt as number | undefined) ?? null,
+      }
+    })
+    .sort((a, b) => a.name.localeCompare(b.name, 'tr'))
+}
+
+export async function updateNotificationTemplateAction(input: unknown) {
+  const p = z
+    .object({
+      id: z.string().min(1),
+      subject: z.string().min(1),
+      body: z.string().min(1),
+      active: z.boolean(),
+    })
+    .parse(input)
+  const ctx = await requireTenantContext(OWNER)
+  const seed = TEMPLATES[p.id]
+  if (!seed) return { ok: false as const, error: { code: 'template_not_found' as const } }
+
+  // The body must still declare every required param, or a live send would be refused at render.
+  const missing = seed.requiredParams.filter((param) => !p.body.includes(`{{${param}}}`))
+  if (missing.length > 0) return { ok: false as const, error: { code: 'template_params_missing' as const, missing } }
+
+  const ref = adminDb().doc(`studios/${ctx.studioId}/notificationTemplates/${p.id}`)
+  const existing = (await ref.get()).data() as NotificationTemplate | undefined
+  const next: NotificationTemplate = {
+    ...seed,
+    subject: p.subject,
+    body: p.body,
+    active: p.active,
+    version: (existing?.version ?? seed.version) + 1,
+    updatedBy: ctx.actor.id,
+    updatedAt: instant(Date.now()),
+  }
+  await ref.set(next)
+  return { ok: true as const }
+}
+
+export async function resetNotificationTemplateAction(input: unknown) {
+  const p = z.object({ id: z.string().min(1) }).parse(input)
+  const ctx = await requireTenantContext(OWNER)
+  await adminDb().doc(`studios/${ctx.studioId}/notificationTemplates/${p.id}`).delete()
+  return { ok: true as const }
+}
+
+// ── Manual & bulk send (Plus Phase 5, §12/§13) ───────────────────────────────────────────────
+//
+// Staff sends a template to a member (from the member card / reservation) or to a set of members.
+// It goes through the SAME notify() pipeline — same channel selection, consent, quiet hours, retry,
+// audit — never a side channel. Params are supplied by the caller (pre-filled + editable in the UI),
+// so any template works; render REFUSES a missing param, so a blank message can never be sent.
+
+async function resolvedTemplate(studioId: string, id: string): Promise<NotificationTemplate | undefined> {
+  const snap = await adminDb().doc(`studios/${studioId}/notificationTemplates/${id}`).get()
+  return snap.exists ? (snap.data() as NotificationTemplate) : TEMPLATES[id]
+}
+
+/** Render preview for the manual-send dialog. Returns the missing params rather than a blank message. */
+export async function previewNotificationAction(input: unknown) {
+  const p = z.object({ templateId: z.string().min(1), params: z.record(z.string(), z.string()) }).parse(input)
+  const ctx = await requireTenantContext(OPS)
+  const template = await resolvedTemplate(ctx.studioId, p.templateId)
+  if (!template) return { ok: false as const, error: { code: 'template_not_found' as const } }
+  const r = render(template, p.params)
+  return r.ok ? { ok: true as const, value: r.value } : r
+}
+
+export async function sendManualNotificationAction(input: unknown) {
+  const p = z.object({ memberId: z.string().min(1), templateId: z.string().min(1), params: z.record(z.string(), z.string()) }).parse(input)
+  const ctx = await requireTenantContext(OPS)
+  const member = await new FirestoreMemberRepository(adminDb()).findById(ctx, p.memberId as MemberId)
+  if (!member) return { ok: false as const, error: { code: 'member_not_found' as const } }
+
+  const recipient: RecipientRef = {
+    kind: 'member',
+    id: member.id as string,
+    email: (member.email as string | null) ?? null,
+    phone: (member.phone as string | null) ?? null,
+    displayName: member.fullName,
+  }
+  const opId = newOperationId()
+  return notify(deps(), ctx, {
+    intentId: `manual:${p.templateId}:${member.id}:${opId}`,
+    eventId: null,
+    eventType: 'manual_send',
+    operationId: opId,
+    templateId: p.templateId,
+    recipient,
+    params: { memberName: member.fullName, ...p.params },
+  })
+}
+
+export async function sendBulkNotificationAction(input: unknown) {
+  const p = z.object({ memberIds: z.array(z.string().min(1)).min(1).max(500), templateId: z.string().min(1) }).parse(input)
+  const ctx = await requireTenantContext(OWNER)
+  const memberRepo = new FirestoreMemberRepository(adminDb())
+  const opId = newOperationId()
+  let sent = 0
+  let failed = 0
+  for (const memberId of p.memberIds) {
+    const member = await memberRepo.findById(ctx, memberId as MemberId)
+    if (!member) {
+      failed++
+      continue
+    }
+    const recipient: RecipientRef = {
+      kind: 'member',
+      id: member.id as string,
+      email: (member.email as string | null) ?? null,
+      phone: (member.phone as string | null) ?? null,
+      displayName: member.fullName,
+    }
+    const res = await notify(deps(), ctx, {
+      intentId: `bulk:${p.templateId}:${member.id}:${opId}`,
+      eventId: null,
+      eventType: 'bulk_send',
+      operationId: opId,
+      templateId: p.templateId,
+      recipient,
+      params: { memberName: member.fullName },
+    })
+    if (res.ok) sent++
+    else failed++
+  }
+  return { ok: true as const, value: { sent, failed, operationId: opId } }
 }
 
 export interface NotificationRow {
@@ -59,7 +258,7 @@ export interface NotificationRow {
 // Everything the owner asked for on one row: message · recipient · channel · time · what triggered
 // it · status · error · retries · OperationId.
 export async function listNotificationsAction(): Promise<readonly NotificationRow[]> {
-  const ctx = await requireTenantContext(STAFF)
+  const ctx = await requireTenantContext(OPS)
   const repo = new FirestoreNotificationRepository(adminDb())
 
   const [attempts, intents] = await Promise.all([repo.listAttempts(ctx, 200), repo.listIntents(ctx, 200)])
@@ -129,7 +328,14 @@ export async function markInboxReadAction(input: unknown) {
 // cancelled" — which is why `in_app` is not on this list.
 export async function setPrefsAction(input: unknown) {
   const p = z
-    .object({ email: z.boolean(), sms: z.boolean(), whatsapp: z.boolean(), push: z.boolean() })
+    .object({
+      email: z.boolean(),
+      sms: z.boolean(),
+      whatsapp: z.boolean(),
+      push: z.boolean(),
+      // Plus Phase 5 — marketing consent (KVKK), separate from the operational channels.
+      campaign: z.boolean().optional(),
+    })
     .parse(input)
   const { ctx, memberId } = await requireMemberContext()
   await adminDb()

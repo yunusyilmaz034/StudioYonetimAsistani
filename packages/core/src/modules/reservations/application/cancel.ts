@@ -1,13 +1,16 @@
 import {
+  isOverrideActiveAt,
   ok,
   type DomainError,
   type OperationId,
   type ReservationId,
+  type ReservationOverride,
   type Result,
   type TenantContext,
 } from '../../../shared'
-import { decideConsume, decideRelease } from '../../entitlements'
+import { cancellationsUsed, decideChargeCancellation, decideConsume, decideRelease } from '../../entitlements'
 import { decideCancellation } from '../domain/decide'
+import { packageRuleFromSnapshot, resolveReservationPolicy } from '../domain/policy'
 import { decideContext } from './context'
 import type { CancelDecision, ReservationsDeps } from './ports'
 
@@ -29,30 +32,48 @@ export async function cancelReservation(
 ): Promise<Result<void, DomainError>> {
   const dctx = decideContext(deps, ctx, input.operationId ? { operationId: input.operationId } : {})
 
+  // Package Rules 2.0 — the member's override is loaded before the transaction (one extra read on the
+  // cool cancel path). Only a MEMBER/reception cancel spends her free-cancellation allowance; a bulk /
+  // studio cancellation goes through a different path and never charges her.
+  const existing = await deps.repo.getReservation(ctx, input.reservationId)
+  const raw = deps.policy && existing ? await deps.policy.getMemberOverride(ctx, existing.memberId) : null
+  const override: ReservationOverride | null = raw && isOverrideActiveAt(raw, dctx.now) ? raw : null
+
   return deps.repo.cancel(ctx, {
     reservationId: input.reservationId,
     decide: (reservation, session, entitlement): Result<CancelDecision, DomainError> => {
-      const cancelled = decideCancellation(dctx, reservation, session)
+      const eff = resolveReservationPolicy(packageRuleFromSnapshot(entitlement.productSnapshot), override)
+      const cancelled = decideCancellation(dctx, reservation, session, {
+        allowance: eff.cancellationAllowance,
+        usedNet: cancellationsUsed(entitlement.cancellationLedger),
+      })
       if (!cancelled.ok) return cancelled
 
       const effect = cancelled.value.reservation.creditEffect
       const bookedCountAfter = Math.max(0, session.bookedCount - 1)
-      const baseEvents = cancelled.value.events
+      let nextEntitlement = null as CancelDecision['nextEntitlement']
+      let events = [...cancelled.value.events]
 
-      if (entitlement.credits === null || effect === 'none') {
-        return ok({ reservation: cancelled.value.reservation, nextEntitlement: null, bookedCountAfter, events: baseEvents })
+      // Credit movement (release / late-consume). Period bookings hold nothing.
+      if (entitlement.credits !== null && effect !== 'none') {
+        const ledger =
+          effect === 'consumed'
+            ? decideConsume(dctx, entitlement, input.reservationId, 'late_cancellation')
+            : decideRelease(dctx, entitlement, input.reservationId, 'cancellation')
+        if (!ledger.ok) return ledger
+        nextEntitlement = ledger.value.next
+        events = [...events, ...ledger.value.events]
       }
-      const ledger =
-        effect === 'consumed'
-          ? decideConsume(dctx, entitlement, input.reservationId, 'late_cancellation')
-          : decideRelease(dctx, entitlement, input.reservationId, 'cancellation')
-      if (!ledger.ok) return ledger
-      return ok({
-        reservation: cancelled.value.reservation,
-        nextEntitlement: ledger.value.next,
-        bookedCountAfter,
-        events: [...baseEvents, ...ledger.value.events],
-      })
+
+      // Free-cancellation allowance charge — independent of the credit move (it applies even to a
+      // period package that somehow carries a finite allowance). One per in-window cancel.
+      if (cancelled.value.allowanceConsumed) {
+        const charge = decideChargeCancellation(dctx, nextEntitlement ?? entitlement, input.reservationId)
+        nextEntitlement = charge.next
+        events = [...events, ...charge.events]
+      }
+
+      return ok({ reservation: cancelled.value.reservation, nextEntitlement, bookedCountAfter, events })
     },
   })
 }

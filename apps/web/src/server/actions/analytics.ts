@@ -15,7 +15,10 @@ import { adminDb } from '../firebase-admin'
 // D25 — analytics. Every number comes from the daily read model or from the sessions themselves;
 // not one is maintained by hand. Loaded LAZILY, on its own route: charts must never slow the
 // dashboard's first paint (owner).
-const STAFF = ['owner', 'receptionist', 'trainer'] as const
+// Owner-only: `/analytics` is OWNER_ONLY in the permission matrix, and this action returns revenue
+// (salesByProduct) + per-trainer performance. The page guard hides the screen; the action must refuse
+// reception/trainer too, or the number is one direct POST away.
+const OWNER = ['owner', 'platform_admin'] as const
 
 const OFFSET = 180
 
@@ -40,7 +43,7 @@ export async function loadAnalyticsAction(input: unknown): Promise<AnalyticsSeri
       toMs: z.number(),
     })
     .parse(input)
-  const ctx = await requireTenantContext(STAFF)
+  const ctx = await requireTenantContext(OWNER)
   const db = adminDb()
 
   const fromMs = p.fromMs

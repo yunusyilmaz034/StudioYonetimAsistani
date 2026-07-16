@@ -702,3 +702,246 @@ the exact mistake that used to reach the emulator — now fails at **compile tim
 AG-1** — they would have thrown on their first line. Their job had long since been taken over by the
 integration suite (35 tests), `verify:alpha`, `stress` and `monkey`. They were deleted rather than
 resurrected: **a verification tool that cannot run is worse than none, because it lies.**
+
+---
+
+## DEBT-035 — PAYTR is not live; retail/wallet/CRM-link are seams
+
+**Taken:** 2026-07-16 · Product Plus Phase 6 (Commerce & Payments) · Yunus
+**What:** The Commerce backend is complete and provider-independent — PaymentIntent, the PAYTR adapter
+(token + link + callback hash verify + refund, PAYTR's documented HMAC forms), the callback route
+(verify → idempotent grant-after-payment), refund, and the reconciliation sweep. But:
+- **PAYTR is not connected.** No merchant key/salt in Secret Manager, so the provider is Unconfigured
+  and every flow shows `configuration_required` — nothing is faked. The hash formulas are the
+  canonical PAYTR forms and MUST be verified against the official iFrame-API zip before go-live.
+- **Retail** is deliberately minimal (a config collection + transactional stock decrement + a finance
+  sale) — no barcode, no variants, no warehouse (§6 "gereksiz depo yapma"). Retail sells via manual
+  methods; routing a retail order through PAYTR reuses the same createPackagePaymentAction seam.
+- **Wallet** rests on the existing DERIVED cari hesap (`memberBalance`, unallocated payment = member
+  credit). "Refund-to-balance" and "pay-with-balance" are expressible on the ledger but have no
+  dedicated UI action yet.
+- **CRM auto-link** (offer → payment link → "won") is a seam: `Offer.saleId` exists; the automatic
+  stage transition on payment success is not wired.
+- **Multi-tenant secrets:** merchant key/salt are GLOBAL env (one PAYTR account). A second studio with
+  its own PAYTR merchant would need per-studio secrets.
+**Cost:** none that lies — the status is truthful. But online payment does not actually charge until
+the owner provisions PAYTR, and three surfaces (wallet actions, retail-via-PAYTR, CRM auto-link) are
+seams rather than finished flows.
+**Trigger to repay:** the owner provisions the PAYTR merchant (key/salt → Secret Manager, uncomment
+apphosting.yaml, set the merchant id + callback URL in Ayarlar › Entegrasyonlar) — then verify the
+hash forms against the official zip and run a real test-mode payment end to end.
+**Repayment:** env only for go-live; the wallet/retail-online/CRM-link flows are additive on the seams.
+
+---
+
+## DEBT-033 — WhatsApp & Push have no live transport (owner-provisioned / greenfield)
+
+**Taken:** 2026-07-16 · Product Plus Phase 5 · Yunus
+**What:** The WhatsApp adapter is REAL code (`metaWhatsAppTransport`, Meta Cloud API, approved
+templates) but has no credentials, so it reports `provider_not_configured` and sends nothing — the
+manual `wa.me` action is the working path meanwhile. Push is a channel enum + retry policy only: no
+`PushProvider`, no FCM, no device-token registration; a push intent resolves to
+`provider_not_configured` too.
+**Cost:** none that lies — the status is truthful and visible in the Notification Center; nothing is
+faked. But two channels the owner may expect are not actually delivering.
+**Trigger to repay:** WhatsApp — the owner provisions a Meta WABA (phone-number id + permanent token
+in `WHATSAPP_*` secrets) and registers the `<id>_tr` templates; the transport goes live with no code
+change (the ResendEmailProvider pattern). Push — the first real mobile app / web-push requirement.
+**Repayment:** WhatsApp is env only. Push is a `PushProvider` (FCM HTTP v1) + device-token
+registration + a service worker.
+
+---
+
+## DEBT-034 — Notification template overrides are config, not events
+
+**Taken:** 2026-07-16 · Product Plus Phase 5 · Yunus
+**What:** A per-studio template edit writes `studios/{sid}/notificationTemplates/{id}` directly
+(version bump + updatedBy/updatedAt), NOT through the event log — the same deliberate choice as room
+notes (DEBT-030). A template is presentation config, not a credit/money/attendance fact.
+**Cost:** the *history* of who changed a template's copy, and when, is the current stamp only — not a
+full append-only trail. Bounded and visible: a PAST send is never affected, because the rendered
+subject/body is snapshotted onto each `DeliveryAttempt` (I-38, §15). So "what did we actually send
+her?" is always answerable from the attempt; only "how did the template read three edits ago?" is not.
+**Trigger to repay:** the first time template-edit history must be audited (a dispute about what a
+studio's copy said on a given date).
+**Repayment:** a `notification.template_updated` event carrying the changed field names + editor
+(no PII), folded into the Activity Center.
+
+---
+
+## DEBT-031 — Every booking reads the member's whole reservation history
+
+**Taken:** 2026-07-15 · Product Plus Phase 3 (Package Rules 2.0) · Yunus
+**What:** To enforce the daily and active reservation limits, `bookReservation` calls
+`repo.listByMember` once before the transaction and counts the member's open reservations. The read
+is UNCONDITIONAL — it happens on every booking, even for the common package that configures no daily
+/active limit (the seed ships both as `null` = unlimited), because the limit lives on the entitlement
+which is only read inside the transaction, so the count cannot be skipped based on it beforehand.
+**Cost:** one extra read on the hottest path, and it is `listByMember` (the member's *entire*
+reservation history), so a long-standing member with hundreds of past reservations pays for all of
+them on each new booking. Bounded per-member, but it grows with her history. The count is also read
+outside the transaction, so it can be one booking stale — acceptable for a soft limit (capacity and
+credits stay atomic), not for anything that moves money.
+**Trigger to repay:** the first studio where booking latency is measurably slow, or the first member
+whose history makes the read expensive.
+**Repayment:** a bounded count query (`where memberId == … and status == 'booked'`, an index) instead
+of `listByMember`; or push the count into the booking transaction so it is read only when the resolved
+policy actually has a daily/active limit.
+
+---
+
+## DEBT-032 — Move does not enforce the day/hour/limit restrictions
+
+**Taken:** 2026-07-15 · Product Plus Phase 3 · Yunus
+**What:** `decideMove` re-checks every *hard* booking wall on the target (category, service, PT
+ownership, capacity, expiry, window) but NOT the Phase-3 member restrictions (allowed weekdays /
+hours) or the daily / active limits. Book, quick-book, recurring, and waitlist-promote all enforce
+them; move does not.
+**Cost:** a member restricted to weekdays could be MOVED (by reception) into a weekend slot she could
+not have booked directly. Bounded: a move is net-zero on her active/daily totals (it relocates one
+reservation, never adds one), and moving past the free window already requires a written staff reason
+— so the gap is only the allowed-days/hours dimension, and only via a deliberate staff move.
+**Trigger to repay:** the first time a restricted member is moved past her allowed day/hour and it
+matters, or when move is exposed to members (self-service) rather than staff-only.
+**Repayment:** thread the same `resolveReservationPolicy` + `localWeekday`/`localMinuteOfDay` into
+`decideMove` and refuse `day_not_allowed` / `time_not_allowed` on the target.
+
+---
+
+## DEBT-041 — Payroll report re-reads the whole studio's period once per trainer
+
+**Taken:** 2026-07-16 · Production-readiness audit (performance) · Yunus (owner-approved)
+**What:** `/payroll` fires `statementDraftAction` for every trainer in parallel, and each
+`loadStatementDraft` (`payroll-query.ts`) issues studio-wide, unbounded range reads
+(`listSessionsForDay`, `listBySessionStartRange`, `listSalesBetween`) and filters to the one trainer in
+memory. Because sessions/reservations/sales carry no `trainerId`, the identical period-wide sets are
+re-fetched once per trainer → O(trainers × monthly activity). Also `fitness-query.ts`'s 30-day usage read
+(`listCheckInsForDay`) has no `.limit()` and returns every check-in in the window.
+**Cost:** a single payroll-screen open for a 6-trainer studio with a busy month can issue on the order of
+~10–15k Firestore reads, and it repeats on each period switch; the fitness usage page reads every check-in
+for 30 days. At boutique scale (a handful of trainers, low-hundreds of check-ins/day) this is a few cents
+and a slower load on **occasional owner-only screens**, not a hot path — tolerable for launch, wasteful at
+growth.
+**Trigger to repay:** the studio grows past ~10 trainers, or the payroll/fitness screens feel slow, or the
+Firestore read bill is noticed.
+**Repayment:** load the studio-wide sessions/reservations/sales ONCE for the period
+(`loadAllStatementDrafts`) and compute every trainer's draft from that single set (collapses the fan-out to
+one read set); add a sensible `.limit()` (or aggregation) to the fitness usage query. Deferred now because
+it is a query-layer restructure and the production merge must not carry a risky refactor.
+
+---
+
+## DEBT-039 — `recordedAt` uses `Timestamp.now()` (app clock) in the later modules, not `serverTimestamp()`
+
+**Taken:** 2026-07-16 · Production-readiness audit · Yunus (owner-approved)
+**What:** Non-negotiable #3 says `recordedAt` "is `serverTimestamp()`". The Phase-1 modules obey it, but
+every module from finance (v1.24) onward — finance, calendar, crm, notifications, operations, waitlist,
+training, payroll — writes `recordedAt: Timestamp.now()` (the app server's wall clock at
+transaction-build time) inside their `runTransaction`/batch event writes, instead of
+`FieldValue.serverTimestamp()`. It is systemic and pre-existing, not introduced by any single Plus phase.
+**Cost:** on app-server clock skew, the append-only log's *record-time* ordering can misrepresent reality
+by the skew. `occurredAt` (domain time) is unaffected; only the audit's secondary timestamp drifts. In a
+single-region App Hosting deployment the skew is milliseconds, so the practical impact today is nil.
+**Trigger to repay:** any move to multi-region / multi-process event writers, or the first time record-time
+ordering is used for a decision (it must not be — that is what `occurredAt` is for).
+**Repayment:** switch the shared event-write helpers to `FieldValue.serverTimestamp()` fleet-wide (it works
+inside `runTransaction`); one change per module's repo `writeEvents`. Deferred now because it is a
+cross-module change and `main` must stay a working state through the production merge (no refactor mid-audit).
+
+---
+
+## DEBT-040 — Plus-phase events have no golden fixtures (the PII guard is asserted, not tested)
+
+**Taken:** 2026-07-16 · Production-readiness audit · Yunus (owner-approved)
+**What:** `packages/core/test/golden/` has PII-free fixtures for Phase-1 + finance events, but none for the
+Plus events: payments (`payment_intent.*`), training (`program.*`, `measurement.*`, `training_feedback.*`,
+`progress_photo.*`), or payroll (`compensation_plan.*`, `payroll.*`). CLAUDE.md makes golden fixtures the
+enforcement mechanism for #6/I-13 ("PII in an event payload — caught by golden fixture tests").
+**Cost:** the payloads ARE PII-free today (audited: ids/enums/counts/Money only; measurement values, photo
+URLs, and feedback text live on member-scoped state, never the log). But a future edit that added a name or
+free-text note to one of these payloads would fail no test — the guard for the highest-PII module (training)
+is a comment, not a test.
+**Trigger to repay:** before the next change to any Plus event's payload shape, or the first KVKK review.
+**Repayment:** add `test/golden/<event>.v1.json` + a golden test per Plus module, mirroring
+`finance-events.golden.test.ts` (which asserts the serialized payload contains no PII field).
+
+---
+
+## DEBT-038 — PAYTR callback completion is check-then-act, not one transaction
+
+**Taken:** 2026-07-16 · Production-readiness audit (security §1) · Yunus (owner-approved)
+**What:** `handlePaytrCallback` reads the intent (`getIntentByProviderRef`) and `completePaidIntent` then
+transitions it + grants the package in a SEPARATE write. Idempotency rests on the intent's terminal-status
+check inside `decideCallbackResult`, but the read is outside the write and `saveIntent` is a `batch.set`
+with no status precondition. Two genuinely concurrent duplicate PAYTR success callbacks for the same
+`providerRef` could both observe `awaiting_payment`, both pass the check, and both call `sellPackage` →
+double entitlement grant + double finance payment.
+**Cost:** a rare double-grant on a money+credit path. Mitigated by PAYTR's mostly-sequential retry
+behaviour and the reconciliation sweep. **Not reachable in production today: PAYTR is not live (no merchant
+credentials), so no real callback fires** — the same gate as DEBT-036/Storage.
+**Trigger to repay:** before PAYTR is switched on in production (the moment real merchant credentials are
+set). This is a go-live gate, not an optional cleanup.
+**Repayment:** run the callback transition inside `db.runTransaction` — `tx.get` the intent, verify
+non-terminal, write intent+event in that transaction, and only then grant. (The BLOCKER — these functions
+being exposed as public Server Actions — was fixed in this audit by moving them to `server/payment-callback.ts`,
+a non-`'use server'` module.)
+
+---
+
+## DEBT-037 — Marking a payroll statement paid posts no cash outflow
+
+**Taken:** 2026-07-16 · Product Plus Phase 9 (Trainer Payroll & Commission) · Yunus (owner-approved autonomy)
+**What:** `payroll.statement_paid` records the FACT that a trainer was settled (amount, date, note) as a
+payroll-domain event, but it does **not** move the kasa or post a finance expense. The finance module
+(Doc 26) models revenue and receivables — it has **no expense side**, and inventing one for payroll
+would be exactly the "parallel accounting system" roadmap §9 forbids. So payroll computes earnings from
+existing facts and records the pay decision; the actual cash-drawer outflow is out of scope this phase.
+**Cost:** a studio that pays a trainer in cash from the till sees the payroll statement marked paid, but
+the kasa balance is not reduced by that outflow — payroll and cash reconciliation live in two places
+until a real expense/outflow primitive exists in finance.
+**Trigger to repay:** the first time the owner wants trainer pay to hit the kasa / a P&L, i.e. when an
+expense/outflow ledger is added to finance.
+**Repayment:** add an expense primitive to the finance module (an outflow that debits a drawer with a
+category), and have `payStatement` optionally emit that finance event in the same operation (shared
+`operationId`), so paying a trainer is one act recorded once, on both sides.
+
+---
+
+## DEBT-036 — Progress-photo Storage is not wired (no bucket, no Storage rules)
+
+**Taken:** 2026-07-16 · Product Plus Phase 7 (Training & Progress) · Yunus (owner-approved autonomy)
+**What:** The progress-photo feature is built end-to-end — the private path
+`studios/{sid}/members/{memberId}/progress/{file}`, a client-SDK upload, a metadata-only event (the
+url NEVER in the payload), a server-minted **5-minute signed READ url**, and role-gated read (owner /
+the member's trainer / the member herself, `memberVisible` only). But the project has **no Firebase
+Storage bucket configured** (`NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET` unset) and **no `storage.rules`**
+in `firebase.json`. The UI degrades honestly: `storageConfigured()` is false, the upload dialog shows
+"yükleme yapılandırılmamış", and no fake success is produced.
+**Cost:** progress photos cannot be uploaded or viewed until Storage is provisioned. Measurements,
+programmes and feedback are unaffected (they are Firestore). Until the rules exist, the private path
+is protected only by the fact that reads go through a server-minted signed url and writes need an
+authenticated client — there is no bucket to leak from yet.
+**Trigger to repay:** the first time the owner wants to use progress photos in production.
+**Repayment:** create the bucket, set `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET` (web) + the emulator
+binding, add `storage.rules` to `firebase.json` restricting `studios/{sid}/members/{mid}/progress/**`
+to the studio's authenticated staff (and read to the same), and add a `deploy:storage` script.
+
+---
+
+## DEBT-030 — Salon Notları sits outside the event log
+
+**Taken:** 2026-07-15 · Product Plus Phase 2 (Operations Workspace) · Yunus (owner-approved)
+**What:** A room note (`studios/{sid}/roomNotes/{id}`) is a lightweight operational annotation —
+"Reformer 3 arızalı", "Salon B bugün bakımda". It is written **directly** by a Server Action, with
+`active`/`resolvedAt` as mutable state and **no `room_note.opened` / `.resolved` events**. It is the
+one place in the app that changes state without appending an event (non-negotiable #1), taken
+deliberately because a note affects no credit, no money, and no attendance — it changes no decision
+the ledger records.
+**Cost:** the note's history is not in the event log. `authorId` + `createdAt` + `resolvedAt` are
+kept, but a resolve overwrites rather than appends, so "who reopened this / how many times" is not
+reconstructable, and the note never reaches Phase 2 projections.
+**Trigger to repay:** the first time a room note must **affect a decision** — e.g. auto-blocking
+bookings into an out-of-service room, or a report on room downtime. At that point it is a domain
+concept, not a whiteboard.
+**Repayment:** promote to a small event-sourced module (`room_note.opened` / `room_note.resolved`,
+golden fixtures), reading the current collection as the seed.

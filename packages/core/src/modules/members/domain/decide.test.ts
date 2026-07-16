@@ -34,6 +34,7 @@ function makeMember(overrides: Partial<Member> = {}): Member {
     status: 'active',
     joinedAt: instant(1_700_000_000_000),
     stats: emptyStats(),
+    restriction: null,
     ...overrides,
   }
 }

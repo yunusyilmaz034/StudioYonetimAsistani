@@ -165,6 +165,66 @@ export function domainErrorMessage(error: DomainError): string {
       return 'Stüdyo o gün kapalı. Çalışma saatlerini Ayarlar’dan değiştirebilirsiniz.'
     case 'outside_working_hours':
       return `Bu saat stüdyonun çalışma saatleri dışında (${error.open}–${error.close}). Dersin tamamı bu aralığa sığmalı.`
+    // ── Package Rules 2.0 (Plus Phase 3) — each says WHICH rule refused, never a bare failure. ──
+    case 'invalid_weekday':
+      return 'Geçersiz gün seçimi.'
+    case 'invalid_hour_range':
+      return 'Geçersiz saat aralığı. Bitiş, başlangıçtan sonra olmalı ve aralık gün içinde kalmalı.'
+    case 'invalid_allowance':
+      return 'Geçersiz iptal hakkı değeri.'
+    case 'invalid_limit':
+      return 'Geçersiz limit değeri.'
+    case 'invalid_trainer':
+      return 'Eğitmen kısıtı için en az bir eğitmen seçilmelidir.'
+    case 'invalid_validity_range':
+      return 'Geçersiz geçerlilik aralığı. Bitiş tarihi başlangıçtan sonra olmalı.'
+    case 'template_inactive':
+      return 'Bu şablon pasif durumda; gönderim yapılmadı.'
+    // ── Plus Phase 6 (Commerce & Payments) ──
+    case 'payment_ref_mismatch':
+      return 'Ödeme referansı eşleşmiyor.'
+    case 'payment_not_pending':
+      return 'Bu ödeme artık beklemede değil.'
+    case 'payment_not_refundable':
+      return 'Bu ödeme iade edilebilir durumda değil.'
+    case 'refund_exceeds_paid':
+      return 'İade tutarı ödenen tutardan fazla olamaz.'
+    case 'payment_provider_not_configured':
+      return 'Ödeme sağlayıcısı yapılandırılmamış. Ayarlar › Entegrasyonlar’dan PAYTR’ı bağlayın.'
+    case 'retail_out_of_stock':
+      return `Yeterli stok yok (mevcut: ${error.available}).`
+    // ── Plus Phase 7 (Training & Progress) ──
+    case 'program_archived':
+      return 'Arşivlenmiş program düzenlenemez. Yeni bir program oluşturun.'
+    case 'program_empty':
+      return 'Programda en az bir gün ve hareket olmalı.'
+    case 'program_version_conflict':
+      return 'Program versiyonu çakıştı. Sayfayı yenileyip tekrar deneyin.'
+    // ── Plus Phase 9 (Trainer Payroll & Commission) ──
+    case 'invalid_compensation_rate':
+      return 'Geçersiz ücret. Seçilen modelin gerektirdiği ücreti girin (negatif olamaz).'
+    case 'invalid_commission_percent':
+      return 'Komisyon yüzdesi 0 ile 100 arasında olmalı.'
+    case 'compensation_plan_missing':
+      return 'Bu eğitmen için önce bir ücret planı tanımlayın.'
+    case 'payroll_already_finalized':
+      return 'Bu dönem zaten kesinleştirilmiş. Kesinleşen bir hakediş yeniden hesaplanmaz.'
+    case 'statement_not_finalized':
+      return 'Önce hakedişi kesinleştirin, sonra ödendi olarak işaretleyin.'
+    case 'statement_already_paid':
+      return 'Bu hakediş zaten ödendi olarak işaretlenmiş.'
+    case 'cancellation_allowance_exhausted':
+      return `İptal hakkı doldu (${error.allowance} hakkın tamamı kullanıldı). Bu rezervasyon iptal edilemez; üye derse katılabilir.`
+    case 'day_not_allowed':
+      return 'Bu üye bu gün için rezervasyon yapamıyor (Kısıtlı Üyelik: izin verilen günler).'
+    case 'time_not_allowed':
+      return 'Bu üye bu saat için rezervasyon yapamıyor (Kısıtlı Üyelik: izin verilen saatler).'
+    case 'trainer_not_allowed':
+      return 'Bu üye bu eğitmenden rezervasyon yapamıyor (Kısıtlı Üyelik: izin verilen eğitmenler).'
+    case 'daily_reservation_limit_reached':
+      return `Günlük rezervasyon limitine ulaşıldı (en fazla ${error.limit}).`
+    case 'active_reservation_limit_reached':
+      return `Aktif rezervasyon limitine ulaşıldı (en fazla ${error.limit}).`
     default: {
       const exhaustive: never = error
       void exhaustive

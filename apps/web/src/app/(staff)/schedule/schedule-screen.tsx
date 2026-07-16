@@ -25,6 +25,7 @@ import { DAY_TYPE_CHIP, DAY_TYPE_LABEL, isClosedType, marksOn } from '@/lib/cale
 import type { CalendarSession, ScheduleData } from '@/server/schedule-query'
 
 import { DuplicateWeekDialog } from './duplicate-week-dialog'
+import { RoomNotesBanner } from './room-notes-banner'
 import { SessionForm } from './session-form'
 import { SessionWorkspace } from './session-workspace'
 import { TemplatePanel } from './template-panel'
@@ -164,6 +165,9 @@ export function ScheduleScreen({
           tone={summary.cancelled > 0 ? 'danger' : 'default'}
         />
       </MetricStrip>
+
+      {/* Active room notes — an operational banner ABOVE the calendar; the grid is untouched. */}
+      <RoomNotesBanner branchId={filters.branchId || defaultBranchId} />
 
       {/* Calendar (shared engine) */}
       <Calendar

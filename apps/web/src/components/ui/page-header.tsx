@@ -26,7 +26,8 @@ function PageHeader({
       )}
     >
       <div className="space-y-1">
-        <h1 className="text-h1 font-semibold text-foreground">{title}</h1>
+        {/* Editorial serif for the page title (Doc 33) — the premium/editorial signal. */}
+        <h1 className="font-heading text-h1 font-medium text-foreground">{title}</h1>
         {description ? (
           <p className="text-sm text-muted-foreground">{description}</p>
         ) : null}

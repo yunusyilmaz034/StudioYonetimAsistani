@@ -1,8 +1,25 @@
-import type { BranchId, Instant } from '../../shared'
+import type { BranchId, Instant, ReservationOverride } from '../../shared'
 
 export const MEMBER_REGISTERED = 'member.registered'
 export const MEMBER_PROFILE_UPDATED = 'member.profile_updated'
 export const MEMBER_DEACTIVATED = 'member.deactivated'
+
+// ── "Kısıtlı Üyelik" (Plus Phase 3) ──────────────────────────────────────────────────────────
+// A member restriction is an override of the package rules, set/cleared by staff. Like the erasure
+// reason, the WHY is a CLOSED ENUM in the log; the free-text `note` a human writes lives on member
+// STATE, never here. The structured `rules` are PII-free (weekdays, hour windows, counts) and are
+// safe to record — they are what makes "why was she refused?" answerable from the log.
+export const MEMBER_RESTRICTION_SET = 'member.restriction_set'
+export const MEMBER_RESTRICTION_CLEARED = 'member.restriction_cleared'
+// The WHY of a restriction — a closed enum (like the erasure reason), so the log stays analysable
+// and free of the PII a free-text reason could smuggle in. VIP/corporate/promotional loosen; problem
+// tightens; other is the escape hatch. Lives here (not on the Member) so events.ts imports nothing
+// from domain/member — that would be a cycle.
+// Plus Phase 4 — the owner's closed set. `health` is a CATEGORY, not a health record: it says "this
+// override exists for a health reason", never what the condition is (that would be sensitive PII, and
+// it stays out of the log entirely — the free-text note lives on state and can be erased).
+export const RestrictionReasons = ['vip', 'corporate', 'promotional', 'complaint_compensation', 'health', 'other'] as const
+export type RestrictionReason = (typeof RestrictionReasons)[number]
 
 // v1.21 — the member portal. `member.invited` is emitted by STAFF; the other two by the MEMBER
 // herself (actor: { type: 'member' }), which is the entire point of the actor taxonomy: her
@@ -64,4 +81,13 @@ export type MemberErasedPayload = {
   readonly memberId: string
   readonly reason: ErasureReason
   readonly erasedAt: Instant
+}
+
+// The structured rules DO enter the log (they are not PII); the note does NOT.
+export type MemberRestrictionSetPayload = {
+  readonly reason: RestrictionReason
+  readonly rules: ReservationOverride
+}
+export type MemberRestrictionClearedPayload = {
+  readonly reason: string
 }

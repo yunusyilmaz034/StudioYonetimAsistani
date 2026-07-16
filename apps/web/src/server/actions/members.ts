@@ -1,14 +1,18 @@
 'use server'
 
 import {
+  clearMemberRestriction as clearMemberRestrictionUseCase,
   deactivateMember as deactivateMemberUseCase,
   FirestoreMemberRepository,
   registerMember,
+  RestrictionReasons,
+  setMemberRestriction as setMemberRestrictionUseCase,
   systemClock,
   updateMember as updateMemberUseCase,
   type BranchId,
   type DomainError,
   type MemberId,
+  type MemberRestriction,
   type MembersDeps,
   type Result,
 } from '@studio/core'
@@ -49,6 +53,53 @@ function deps(): MembersDeps {
 }
 
 const WRITERS = ['owner', 'receptionist'] as const
+// A member override loosens or tightens the package rules for one person — a policy act, not a daily
+// edit. Owner + platform_admin only (test: an unauthorized role may not change a member override).
+const RESTRICTION_ROLES = ['owner', 'platform_admin'] as const
+
+const restrictionSchema = z.object({
+  memberId: z.string().min(1),
+  reason: z.enum(RestrictionReasons),
+  note: z.string().min(1),
+  allowedWeekdays: z.array(z.number().int().min(0).max(6)).nullable(),
+  allowedHourRanges: z
+    .array(z.object({ startMinutes: z.number().int().min(0).max(1439), endMinutes: z.number().int().min(1).max(1440) }))
+    .nullable(),
+  // Tri-state: key ABSENT ⇒ inherit the package; null ⇒ unlimited; a number ⇒ that value.
+  cancellationAllowance: z.number().int().min(0).nullable().optional(),
+  dailyReservationLimit: z.number().int().min(1).nullable().optional(),
+  activeReservationLimit: z.number().int().min(1).nullable().optional(),
+  // Plus Phase 4 — trainer whitelist (null ⇒ any) and validity window (epoch ms; null ⇒ open-ended).
+  allowedTrainerIds: z.array(z.string().min(1)).nullable(),
+  effectiveFrom: z.number().int().nullable(),
+  effectiveUntil: z.number().int().nullable(),
+})
+
+export async function setMemberRestrictionAction(input: unknown): Promise<Result<void, DomainError>> {
+  const p = restrictionSchema.parse(input)
+  const ctx = await requireTenantContext(RESTRICTION_ROLES)
+  // Build the restriction OMITTING undefined keys — Firestore rejects `undefined`, and an absent key
+  // is what "inherit" means. The domain refuses a malformed hour window / missing note.
+  const restriction: MemberRestriction = {
+    reason: p.reason,
+    note: p.note,
+    allowedWeekdays: p.allowedWeekdays,
+    allowedHourRanges: p.allowedHourRanges,
+    allowedTrainerIds: p.allowedTrainerIds,
+    effectiveFrom: p.effectiveFrom,
+    effectiveUntil: p.effectiveUntil,
+    ...(p.cancellationAllowance !== undefined ? { cancellationAllowance: p.cancellationAllowance } : {}),
+    ...(p.dailyReservationLimit !== undefined ? { dailyReservationLimit: p.dailyReservationLimit } : {}),
+    ...(p.activeReservationLimit !== undefined ? { activeReservationLimit: p.activeReservationLimit } : {}),
+  }
+  return setMemberRestrictionUseCase(deps(), ctx, { memberId: p.memberId as MemberId, restriction })
+}
+
+export async function clearMemberRestrictionAction(input: unknown): Promise<Result<void, DomainError>> {
+  const p = z.object({ memberId: z.string().min(1), reason: z.string().min(1) }).parse(input)
+  const ctx = await requireTenantContext(RESTRICTION_ROLES)
+  return clearMemberRestrictionUseCase(deps(), ctx, { memberId: p.memberId as MemberId, reason: p.reason })
+}
 
 export async function createMember(
   input: unknown,

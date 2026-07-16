@@ -124,6 +124,11 @@ export async function assignSubscriptionAction(input: unknown) {
       // D12 — the service-level right, frozen at purchase. A later catalogue edit cannot
       // reach it; that is the point. Every NEW purchase carries it explicitly.
       serviceIds: product.serviceIds,
+      // Package rules (Plus Phase 3) — frozen at purchase like the rest of the snapshot, so a later
+      // catalogue edit never changes the rules a member already bought.
+      cancellationAllowanceCount: product.cancellationAllowanceCount,
+      dailyReservationLimit: product.dailyReservationLimit,
+      activeReservationLimit: product.activeReservationLimit,
     },
     policyRef: { policyId: product.id, version: 1 },
     priceAgreed: money(p.priceAgreedKurus ?? product.priceInKurus),

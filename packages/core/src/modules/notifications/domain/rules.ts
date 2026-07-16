@@ -39,6 +39,10 @@ export const RULES: Readonly<Record<string, readonly IntentRule[]>> = {
   'class_session.cancelled': [
     { template: 'session_cancelled', to: 'roster', category: 'operational', priority: 'urgent' },
   ],
+  // Plus Phase 5 — the class MOVED (time/room changed): the whole roster needs to know the new time.
+  'class_session.rescheduled': [
+    { template: 'session_rescheduled', to: 'roster', category: 'operational', priority: 'high' },
+  ],
   'studio_closure.applied': [
     { template: 'closure_applied', to: 'roster', category: 'operational', priority: 'urgent', collapseByOperation: true },
   ],
@@ -56,6 +60,10 @@ export const RULES: Readonly<Record<string, readonly IntentRule[]>> = {
   'entitlement.exhausted': [
     { template: 'credits_exhausted', to: 'member', category: 'operational', priority: 'normal' },
   ],
+  // Plus Phase 5 — the membership's time ran out (distinct from credits running out).
+  'entitlement.expired': [
+    { template: 'package_expired', to: 'member', category: 'operational', priority: 'normal' },
+  ],
   'payment.received': [
     { template: 'payment_received', to: 'member', category: 'operational', priority: 'normal' },
   ],
@@ -67,6 +75,25 @@ export const RULES: Readonly<Record<string, readonly IntentRule[]>> = {
   ],
   'wallet.topup': [
     { template: 'wallet_topup', to: 'member', category: 'operational', priority: 'normal' },
+  ],
+
+  // ── Plus Phase 6 — payments. Success & renewal already notify via payment.received /
+  //    entitlement.purchased; these cover the two that otherwise pass in silence. ──
+  'payment_intent.failed': [
+    { template: 'payment_failed', to: 'member', category: 'operational', priority: 'high' },
+  ],
+  'payment_intent.refunded': [
+    { template: 'refund_completed', to: 'member', category: 'operational', priority: 'normal' },
+  ],
+
+  // ── Plus Phase 7 — training. The member is told THAT her programme is ready or her feedback was
+  //    answered; the content stays behind the portal (the event has no PII). Trainer-direct alerts on
+  //    feedback.left await a 'trainer' audience seam (DEBT).
+  'program.version_published': [
+    { template: 'program_published', to: 'member', category: 'operational', priority: 'normal' },
+  ],
+  'training_feedback.answered': [
+    { template: 'feedback_answered', to: 'member', category: 'operational', priority: 'normal' },
   ],
 
   // ── STAFF ALERTS. Today nothing tells the owner when an operation fails. That is the most

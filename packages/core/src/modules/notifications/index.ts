@@ -63,7 +63,13 @@ export {
   ConsoleEmailProvider,
   InAppProvider,
   META_TEMPLATE,
+  metaWhatsAppTransport,
   MockSmsProvider,
   ResendEmailProvider,
+  standardNotificationProviders,
   WhatsAppProvider,
+  type MetaTemplateRef,
+  type MetaWhatsAppConfig,
+  type NotificationProvidersConfig,
+  type WhatsAppTransport,
 } from './infrastructure/providers'
