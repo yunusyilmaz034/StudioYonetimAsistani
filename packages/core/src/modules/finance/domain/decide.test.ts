@@ -2,13 +2,16 @@ import { describe, expect, it } from 'vitest'
 
 import {
   decideAllocate,
+  decideArchiveDrawer,
   decideCancelSale,
   decideCloseDrawer,
   decideCreatePlan,
   decideCreateSale,
   decideOpenDrawer,
+  decideReactivateDrawer,
   decideReceivePayment,
   decideRefund,
+  decideRenameDrawer,
   decideVoidPayment,
   couponDiscount,
   type DecideContext,
@@ -100,6 +103,7 @@ const drawer = (over: Partial<CashDrawer> = {}): CashDrawer => ({
   branchId: 'brn_1' as BranchId,
   name: 'Merkez Kasa',
   kind: 'cash',
+  active: true,
   status: 'closed',
   openingFloat: zeroMoney(),
   expected: zeroMoney(),
@@ -472,3 +476,47 @@ function input(over: Partial<Parameters<typeof decideReceivePayment>[1]> = {}) {
     ...over,
   }
 }
+
+describe('drawer rename / archive (PF-15)', () => {
+  it('renames a till and records the previous name', () => {
+    const r = decideRenameDrawer(ctx(), drawer({ name: 'Merkez Kasa' }), '  Ana Kasa ')
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.value.next.name).toBe('Ana Kasa')
+    expect(r.value.events[0]?.type).toBe('drawer.renamed')
+    expect((r.value.events[0]?.payload as { previousName: string }).previousName).toBe('Merkez Kasa')
+  })
+
+  it('refuses an empty name and a no-op rename', () => {
+    expect(decideRenameDrawer(ctx(), drawer(), '   ').ok).toBe(false)
+    expect(decideRenameDrawer(ctx(), drawer({ name: 'Merkez Kasa' }), 'Merkez Kasa').ok).toBe(false)
+  })
+
+  it('archives a CLOSED till → inactive + event', () => {
+    const r = decideArchiveDrawer(ctx(), drawer({ status: 'closed', active: true }))
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.value.next.active).toBe(false)
+    expect(r.value.events[0]?.type).toBe('drawer.archived')
+  })
+
+  it('REFUSES archiving an OPEN till (close it first)', () => {
+    const r = decideArchiveDrawer(ctx(), drawer({ status: 'open', active: true }))
+    expect(r.ok).toBe(false)
+    if (r.ok) return
+    expect(r.error.code).toBe('drawer_open_cannot_archive')
+  })
+
+  it('refuses archiving an already-archived till', () => {
+    expect(decideArchiveDrawer(ctx(), drawer({ active: false })).ok).toBe(false)
+  })
+
+  it('reactivates an archived till, and refuses reactivating an active one', () => {
+    const r = decideReactivateDrawer(ctx(), drawer({ active: false }))
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.value.next.active).toBe(true)
+    expect(r.value.events[0]?.type).toBe('drawer.reactivated')
+    expect(decideReactivateDrawer(ctx(), drawer({ active: true })).ok).toBe(false)
+  })
+})

@@ -25,7 +25,7 @@ import { Section } from '@/components/ui/section'
 import { RetailPanel } from './retail-panel'
 import { Textarea } from '@/components/ui/textarea'
 import { domainErrorMessage } from '@/lib/domain-error'
-import { createDrawerAction, listDrawersAction } from '@/server/actions/finance'
+import { createDrawerAction, listDrawersAction, renameDrawerAction, setDrawerActiveAction } from '@/server/actions/finance'
 import {
   createRoomNoteAction,
   listRoomNotesAction,
@@ -67,6 +67,7 @@ interface DrawerRow {
   name: string
   kind: string
   status: string
+  active: boolean
 }
 
 export function DefinitionsPanel({ branchId, canManage = false }: { branchId: string | null; canManage?: boolean }) {
@@ -78,6 +79,8 @@ export function DefinitionsPanel({ branchId, canManage = false }: { branchId: st
   const [newRoom, setNewRoom] = useState(false)
   const [newDrawer, setNewDrawer] = useState(false)
   const [newNote, setNewNote] = useState(false)
+  const [renamingId, setRenamingId] = useState<string | null>(null)
+  const [drawerName, setDrawerName] = useState('')
 
   const load = useCallback(async () => {
     try {
@@ -94,6 +97,22 @@ export function DefinitionsPanel({ branchId, canManage = false }: { branchId: st
   useEffect(() => {
     void load()
   }, [load])
+
+  const saveRename = async (id: string) => {
+    const res = await renameDrawerAction({ drawerId: id, name: drawerName.trim() })
+    if (res.ok) {
+      setRenamingId(null)
+      await load()
+    } else toast.error(domainErrorMessage(res.error))
+  }
+
+  const toggleArchive = async (d: DrawerRow) => {
+    const res = await setDrawerActiveAction({ drawerId: d.id, active: !d.active })
+    if (res.ok) {
+      toast.success(d.active ? 'Kasa arşivlendi.' : 'Kasa geri alındı.')
+      await load()
+    } else toast.error(domainErrorMessage(res.error))
+  }
 
   const toggleService = async (s: ServiceRow) => {
     const res = s.active
@@ -268,14 +287,40 @@ export function DefinitionsPanel({ branchId, canManage = false }: { branchId: st
         ) : (
           <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
             {drawers.map((d) => (
-              <li key={d.id} className="flex flex-wrap items-center justify-between gap-2 px-3 py-3">
-                <div className="min-w-0">
-                  <p className="text-sm font-medium">{d.name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {d.kind === 'cash' ? 'Nakit' : 'POS'} ·{' '}
-                    {d.status === 'open' ? 'açık' : 'kapalı'}
-                  </p>
-                </div>
+              <li key={d.id} className={`flex flex-wrap items-center justify-between gap-2 px-3 py-3 ${d.active ? '' : 'opacity-60'}`}>
+                {renamingId === d.id ? (
+                  <div className="flex flex-1 flex-wrap items-center gap-2">
+                    <Input value={drawerName} onChange={(e) => setDrawerName(e.target.value)} className="h-8 max-w-56" autoFocus />
+                    <Button size="sm" onClick={() => void saveRename(d.id)}>
+                      Kaydet
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => setRenamingId(null)}>
+                      Vazgeç
+                    </Button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="min-w-0">
+                      <p className="flex items-center gap-1.5 text-sm font-medium">
+                        {d.name}
+                        {d.active ? null : (
+                          <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">Arşivli</span>
+                        )}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {d.kind === 'cash' ? 'Nakit' : 'POS'} · {d.status === 'open' ? 'açık' : 'kapalı'}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <Button size="sm" variant="ghost" onClick={() => { setRenamingId(d.id); setDrawerName(d.name) }}>
+                        Düzenle
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => void toggleArchive(d)}>
+                        {d.active ? 'Arşivle' : 'Geri Al'}
+                      </Button>
+                    </div>
+                  </>
+                )}
               </li>
             ))}
           </ul>

@@ -21,6 +21,10 @@ export const DRAWER_CREATED = 'drawer.created'
 export const DRAWER_OPENED = 'drawer.opened'
 export const DRAWER_CLOSED = 'drawer.closed'
 export const DRAWER_DISCREPANCY = 'drawer.discrepancy_recorded'
+// PF-15 — a till is renamed or retired (archived), never deleted; its history stays intact.
+export const DRAWER_RENAMED = 'drawer.renamed'
+export const DRAWER_ARCHIVED = 'drawer.archived'
+export const DRAWER_REACTIVATED = 'drawer.reactivated'
 export const GIFTCARD_ISSUED = 'giftcard.issued'
 export const GIFTCARD_REDEEMED = 'giftcard.redeemed'
 export const COUPON_CREATED = 'coupon.created'
@@ -81,6 +85,14 @@ export type DrawerCreatedPayload = {
   readonly name: string
   readonly kind: 'cash' | 'pos'
 }
+
+// PF-15 — previousName carries the audit trail (the new name is on the till state).
+export type DrawerRenamedPayload = {
+  readonly previousName: string
+  readonly name: string
+}
+export type DrawerArchivedPayload = { readonly name: string }
+export type DrawerReactivatedPayload = { readonly name: string }
 
 export type DrawerOpenedPayload = {
   readonly openingFloat: Money

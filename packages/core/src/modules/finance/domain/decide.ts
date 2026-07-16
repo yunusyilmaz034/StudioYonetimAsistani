@@ -21,7 +21,10 @@ import {
 import {
   ALLOCATION_APPLIED,
   COUPON_REDEEMED,
+  DRAWER_ARCHIVED,
   DRAWER_CLOSED,
+  DRAWER_REACTIVATED,
+  DRAWER_RENAMED,
   DRAWER_DISCREPANCY,
   DRAWER_CREATED,
   DRAWER_OPENED,
@@ -427,6 +430,7 @@ export function decideCreateDrawer(
     branchId: input.branchId,
     name: input.name.trim(),
     kind: input.kind,
+    active: true,
     // Created CLOSED. It holds nothing until a human opens it and says what was in it — and that
     // opening float is the number the whole day-end count is judged against.
     status: 'closed',
@@ -526,6 +530,39 @@ export function decideCloseDrawer(
     })
   }
   return ok({ next, events })
+}
+
+// ── Rename / archive (PF-15). A till is corrected or retired, never deleted — its opens, closes and the
+//    payments that reference it stay intact. ──
+export function decideRenameDrawer(ctx: DecideContext, drawer: CashDrawer, name: string): Result<Outcome<CashDrawer>, DomainError> {
+  const trimmed = name.trim()
+  if (trimmed.length === 0) return err({ code: 'reason_required' })
+  if (trimmed === drawer.name) return err({ code: 'operation_not_applicable' })
+  const next: CashDrawer = { ...drawer, name: trimmed }
+  return ok({
+    next,
+    events: [{ ...base(ctx, 'branch', drawer.id, drawer.branchId, {}), type: DRAWER_RENAMED, payload: { previousName: drawer.name, name: trimmed } }],
+  })
+}
+
+export function decideArchiveDrawer(ctx: DecideContext, drawer: CashDrawer): Result<Outcome<CashDrawer>, DomainError> {
+  // An OPEN till holds counted money — close it (gün sonu) before retiring it, so nothing is orphaned.
+  if (drawer.status === 'open') return err({ code: 'drawer_open_cannot_archive' })
+  if (!drawer.active) return err({ code: 'operation_not_applicable' })
+  const next: CashDrawer = { ...drawer, active: false }
+  return ok({
+    next,
+    events: [{ ...base(ctx, 'branch', drawer.id, drawer.branchId, {}), type: DRAWER_ARCHIVED, payload: { name: drawer.name } }],
+  })
+}
+
+export function decideReactivateDrawer(ctx: DecideContext, drawer: CashDrawer): Result<Outcome<CashDrawer>, DomainError> {
+  if (drawer.active) return err({ code: 'operation_not_applicable' })
+  const next: CashDrawer = { ...drawer, active: true }
+  return ok({
+    next,
+    events: [{ ...base(ctx, 'branch', drawer.id, drawer.branchId, {}), type: DRAWER_REACTIVATED, payload: { name: drawer.name } }],
+  })
 }
 
 // ── GIFT CARD ───────────────────────────────────────────────────────────────────────────────

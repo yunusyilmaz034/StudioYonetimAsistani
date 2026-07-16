@@ -126,6 +126,9 @@ export interface CashDrawer {
   readonly branchId: BranchId
   readonly name: string // 'Merkez Kasa', 'POS'
   readonly kind: 'cash' | 'pos'
+  // Archived tills are kept (history references them) but can no longer be opened or take a sale — a
+  // mislabelled/duplicate till is retired, never deleted (PF-15). Legacy docs without the field are active.
+  readonly active: boolean
   readonly status: DrawerStatus
   readonly openingFloat: Money
   readonly expected: Money // opening + cash in − cash out; derived, denormalised for the screen

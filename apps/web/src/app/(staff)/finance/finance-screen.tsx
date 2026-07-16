@@ -74,18 +74,19 @@ export function FinanceScreen({ isOwner }: { isOwner: boolean }) {
                     >
                       {d.status === 'open' ? 'Açık' : 'Kapalı'}
                     </Badge>
+                    {d.active ? null : <Badge className="bg-muted text-muted-foreground">Arşivli</Badge>}
                   </p>
                   {d.status === 'open' ? (
                     <Button size="sm" variant="outline" onClick={() => setClosing(d)}>
                       <LockIcon />
                       Gün Sonu
                     </Button>
-                  ) : (
+                  ) : d.active ? (
                     <Button size="sm" onClick={() => setOpening(d)}>
                       <LockOpenIcon />
                       Kasayı Aç
                     </Button>
-                  )}
+                  ) : null}
                 </div>
 
                 {d.status === 'open' ? (

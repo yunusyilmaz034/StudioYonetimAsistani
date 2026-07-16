@@ -44,6 +44,7 @@ export type DomainError =
   | { readonly code: 'drawer_required' }
   | { readonly code: 'drawer_not_open' }
   | { readonly code: 'drawer_already_open' }
+  | { readonly code: 'drawer_open_cannot_archive' }
   | { readonly code: 'giftcard_not_found' }
   | { readonly code: 'giftcard_not_active' }
   | { readonly code: 'giftcard_insufficient'; readonly remaining: number }

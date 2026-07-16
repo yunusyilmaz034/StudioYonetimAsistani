@@ -74,6 +74,8 @@ const drawerTo = (x: CashDrawer): DocumentData => ({
 const drawerFrom = (id: string, d: DocumentData): CashDrawer => ({
   ...(d as CashDrawer),
   id,
+  // A till written before PF-15 has no `active` flag — it is active.
+  active: (d.active as boolean | undefined) ?? true,
   openedAt: d.openedAt ? instant(ms(d.openedAt)) : null,
   closedAt: d.closedAt ? instant(ms(d.closedAt)) : null,
 })

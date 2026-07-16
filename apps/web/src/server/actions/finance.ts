@@ -4,6 +4,8 @@ import {
   cancelSale,
   closeDrawer,
   createDrawer,
+  renameDrawer,
+  setDrawerActive,
   collect,
   createPlan,
   FirestoreFinanceRepository,
@@ -251,6 +253,7 @@ export async function listDrawersAction() {
     name: d.name,
     kind: d.kind,
     status: d.status,
+    active: d.active,
     expected: d.expected.amount,
     openingFloat: d.openingFloat.amount,
     openedAt: d.openedAt as number | null,
@@ -290,6 +293,30 @@ export async function createDrawerAction(input: unknown) {
       name: p.name,
       kind: p.kind,
     }),
+  )
+  revalidatePath('/finance')
+  revalidatePath('/settings')
+  return res
+}
+
+export async function renameDrawerAction(input: unknown) {
+  const p = z.object({ drawerId: nonEmpty, name: nonEmpty }).parse(input)
+  const ctx = await requireTenantContext(OWNER)
+  const opId = newOperationId()
+  const res = await observed('finance.rename_drawer', ctx, opId, { drawerId: p.drawerId }, () =>
+    renameDrawer(deps(), ctx, { drawerId: p.drawerId, name: p.name }),
+  )
+  revalidatePath('/finance')
+  revalidatePath('/settings')
+  return res
+}
+
+export async function setDrawerActiveAction(input: unknown) {
+  const p = z.object({ drawerId: nonEmpty, active: z.boolean() }).parse(input)
+  const ctx = await requireTenantContext(OWNER)
+  const opId = newOperationId()
+  const res = await observed('finance.set_drawer_active', ctx, opId, { drawerId: p.drawerId, active: p.active }, () =>
+    setDrawerActive(deps(), ctx, { drawerId: p.drawerId, active: p.active }),
   )
   revalidatePath('/finance')
   revalidatePath('/settings')

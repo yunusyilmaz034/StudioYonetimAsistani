@@ -22,8 +22,11 @@ import {
   decideCreatePlan,
   decideCreateSale,
   decideIssueGiftCard,
+  decideArchiveDrawer,
   decideCreateDrawer,
   decideOpenDrawer,
+  decideReactivateDrawer,
+  decideRenameDrawer,
   decideReceivePayment,
   decideRefund,
   decideVoidPayment,
@@ -387,6 +390,34 @@ export async function openDrawer(
   if (!drawer) return { ok: false, error: { code: 'operation_not_applicable' } }
 
   const decided = decideOpenDrawer(dctx(deps, ctx, newOperationId()), drawer, input.openingFloat)
+  if (!decided.ok) return decided
+  await deps.repo.saveDrawer(ctx, decided.value.next, decided.value.events)
+  return { ok: true, value: undefined }
+}
+
+// Rename / archive / reactivate a till (PF-15). Load → decide → transact, like the others.
+export async function renameDrawer(
+  deps: FinanceDeps,
+  ctx: TenantContext,
+  input: { drawerId: string; name: string },
+): Promise<Result<void, DomainError>> {
+  const drawer = await deps.repo.getDrawer(ctx, input.drawerId)
+  if (!drawer) return { ok: false, error: { code: 'operation_not_applicable' } }
+  const decided = decideRenameDrawer(dctx(deps, ctx, newOperationId()), drawer, input.name)
+  if (!decided.ok) return decided
+  await deps.repo.saveDrawer(ctx, decided.value.next, decided.value.events)
+  return { ok: true, value: undefined }
+}
+
+export async function setDrawerActive(
+  deps: FinanceDeps,
+  ctx: TenantContext,
+  input: { drawerId: string; active: boolean },
+): Promise<Result<void, DomainError>> {
+  const drawer = await deps.repo.getDrawer(ctx, input.drawerId)
+  if (!drawer) return { ok: false, error: { code: 'operation_not_applicable' } }
+  const c = dctx(deps, ctx, newOperationId())
+  const decided = input.active ? decideReactivateDrawer(c, drawer) : decideArchiveDrawer(c, drawer)
   if (!decided.ok) return decided
   await deps.repo.saveDrawer(ctx, decided.value.next, decided.value.events)
   return { ok: true, value: undefined }

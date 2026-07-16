@@ -111,6 +111,8 @@ export function domainErrorMessage(error: DomainError): string {
       return 'Kasa kapalı. Önce kasayı açın.'
     case 'drawer_already_open':
       return 'Bu kasa zaten açık.'
+    case 'drawer_open_cannot_archive':
+      return 'Açık kasa arşivlenemez. Önce Gün Sonu ile kapatın.'
     case 'giftcard_not_found':
       return 'Hediye kartı bulunamadı.'
     case 'giftcard_not_active':
