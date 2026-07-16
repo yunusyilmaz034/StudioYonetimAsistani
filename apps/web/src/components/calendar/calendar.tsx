@@ -197,20 +197,20 @@ function MonthGrid<T extends CalendarItem>({
                     truncation. It floats out of flow (no reflow of the grid) and, on desktop, out of the
                     card (md:overflow-visible), so a glance shows the day in full. */}
                 {list.length > 0 ? (
-                  <div className="absolute left-1/2 top-1 z-40 hidden w-56 -translate-x-1/2 rounded-lg border border-border bg-popover p-2 text-left shadow-2xl group-hover:block">
-                    <div className="mb-1 flex items-center justify-between px-1">
-                      <span className="text-sm font-semibold text-foreground tabular-nums">{Number(d.slice(8, 10))}</span>
-                      <span className="text-xs text-muted-foreground">{list.length} etkinlik</span>
+                  <div className="absolute left-1/2 top-1 z-40 hidden w-80 max-w-[92vw] -translate-x-1/2 overflow-hidden rounded-xl border border-border bg-popover text-left shadow-2xl group-hover:block">
+                    <div className="flex items-center justify-between border-b border-border px-3 py-2">
+                      <span className="text-base font-semibold text-foreground tabular-nums">{Number(d.slice(8, 10))}</span>
+                      <span className="text-xs font-medium text-muted-foreground">{list.length} etkinlik</span>
                     </div>
-                    <div className="max-h-[60vh] space-y-0.5 overflow-y-auto">
+                    <div className="max-h-[60vh] divide-y divide-border overflow-y-auto">
                       {list.map((it) => (
                         <button
                           key={it.id}
                           type="button"
                           onClick={() => onSelect(it)}
-                          className="block w-full rounded-md px-1 py-1 text-left leading-[1.5] transition-colors hover:bg-primary-soft/70"
+                          className="block w-full text-left transition-colors hover:bg-primary-soft/40"
                         >
-                          {renderChip(it)}
+                          {renderRow(it)}
                         </button>
                       ))}
                     </div>
