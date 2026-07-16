@@ -38,7 +38,8 @@
     "kvkk:erase": "tsx tools/kvkk/erase-member.ts",
     "bootstrap:owner": "tsx tools/bootstrap/owner.ts",
     "setup:catalog": "tsx tools/setup/catalog.ts",
-    "setup:trainers": "tsx tools/setup/trainers.ts"
+    "setup:trainers": "tsx tools/setup/trainers.ts",
+    "setup:exercises": "tsx tools/setup/exercises.ts"
   },
   "dependencies": {},
   "devDependencies": {
