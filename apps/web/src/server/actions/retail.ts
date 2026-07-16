@@ -99,6 +99,9 @@ export async function sellRetailProductAction(input: unknown) {
       memberId: z.string().min(1),
       items: z.array(z.object({ retailProductId: z.string().min(1), quantity: z.number().int().min(1) })).min(1),
       method: z.enum(['cash', 'bank_transfer', 'credit_card']),
+      // Optional explicit till: honoured only if it is open and of the method's kind; otherwise the
+      // server auto-picks the single open till. Havale needs none.
+      drawerId: z.string().min(1).nullable().optional(),
     })
     .parse(input)
   const ctx = await requireTenantContext(OPS)
@@ -139,11 +142,14 @@ export async function sellRetailProductAction(input: unknown) {
     return { ok: false as const, error: { code: 'no_bookable_entitlement' as const } }
   }
 
-  // ── The money, through the ONE sale path. Cash needs an open till. ──
-  const drawerId =
-    p.method === 'cash'
-      ? (await financeDeps().repo.listDrawers(ctx)).find((d) => d.status === 'open' && d.kind === 'cash')?.id ?? null
-      : null
+  // ── The money, through the ONE sale path. Cash needs an open cash till, a card (POS) an open pos
+  //    till; havale needs none. Honour an explicit open till of the right kind, else auto-pick. ──
+  const drawerKind: 'cash' | 'pos' | null = p.method === 'cash' ? 'cash' : p.method === 'credit_card' ? 'pos' : null
+  let drawerId: string | null = null
+  if (drawerKind) {
+    const openTills = (await financeDeps().repo.listDrawers(ctx)).filter((d) => d.status === 'open' && d.kind === drawerKind)
+    drawerId = (p.drawerId ? openTills.find((d) => d.id === p.drawerId)?.id : undefined) ?? openTills[0]?.id ?? null
+  }
   const opId = newOperationId()
   const suffix = opId.slice(4)
   return sell(financeDeps(), ctx, {

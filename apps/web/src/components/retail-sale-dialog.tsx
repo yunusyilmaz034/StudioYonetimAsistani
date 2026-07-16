@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { Loader2Icon, PackageIcon, SearchIcon } from 'lucide-react'
+import Link from 'next/link'
+import { Loader2Icon, PackageIcon, SearchIcon, WalletIcon } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
@@ -10,7 +11,15 @@ import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { domainErrorMessage } from '@/lib/domain-error'
 import { listBookingMembersAction, type BookingMember } from '@/server/actions/booking'
+import { listDrawersAction } from '@/server/actions/finance'
 import { sellRetailProductAction, type RetailProductRow } from '@/server/actions/retail'
+
+interface Till {
+  id: string
+  name: string
+  kind: string
+  status: string
+}
 
 const tl = (kurus: number) => `${(kurus / 100).toLocaleString('tr-TR')} ₺`
 
@@ -31,13 +40,33 @@ export function RetailSaleDialog({
   const [member, setMember] = useState<BookingMember | null>(null)
   const [qty, setQty] = useState<Record<string, number>>({})
   const [method, setMethod] = useState<'cash' | 'bank_transfer' | 'credit_card'>('cash')
+  const [tills, setTills] = useState<readonly Till[]>([])
+  const [tillId, setTillId] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
   useEffect(() => {
     listBookingMembersAction()
       .then(setMembers)
       .catch(() => setMembers([]))
+    listDrawersAction()
+      .then((d) => setTills(d as unknown as Till[]))
+      .catch(() => setTills([]))
   }, [])
+
+  // Which till kind does this method draw from? Cash → a cash till, card (POS) → a pos till, havale none.
+  const tillKind = method === 'cash' ? 'cash' : method === 'credit_card' ? 'pos' : null
+  const openTills = useMemo(
+    () => (tillKind ? tills.filter((t) => t.status === 'open' && t.kind === tillKind) : []),
+    [tills, tillKind],
+  )
+  const needsTill = tillKind !== null
+  const noOpenTill = needsTill && openTills.length === 0
+
+  // Keep the selected till valid for the current method: default to the single open one, drop a stale pick.
+  useEffect(() => {
+    if (!needsTill) return
+    setTillId((prev) => (prev && openTills.some((t) => t.id === prev) ? prev : (openTills[0]?.id ?? null)))
+  }, [needsTill, openTills])
 
   const filtered = useMemo(() => {
     if (!members) return []
@@ -56,6 +85,7 @@ export function RetailSaleDialog({
         memberId: member.id,
         items: items.map((x) => ({ retailProductId: x.p.id, quantity: x.q })),
         method,
+        drawerId: needsTill ? tillId : null,
       })
       if (res.ok) {
         toast.success('Satış tamamlandı.')
@@ -136,6 +166,42 @@ export function RetailSaleDialog({
                   <SelectItem value="credit_card">Kredi kartı</SelectItem>
                 </SelectContent>
               </Select>
+
+              {/* The till: cash/POS must land in an open till. No open till → sale is refused, so say so
+                  here (with the way to fix it) instead of failing on submit. */}
+              {noOpenTill ? (
+                <div className="flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/10 p-2.5 text-sm">
+                  <WalletIcon className="mt-0.5 size-4 shrink-0 text-warning" />
+                  <div>
+                    <p className="font-medium">Açık kasa yok</p>
+                    <p className="text-muted-foreground">
+                      {method === 'cash' ? 'Nakit' : 'Kart (POS)'} tahsilatı için açık bir kasa gerekir.{' '}
+                      <Link href="/finance" className="font-medium text-primary underline">
+                        Kasa ekranından açın
+                      </Link>
+                      .
+                    </p>
+                  </div>
+                </div>
+              ) : needsTill && openTills.length > 1 ? (
+                <Select value={tillId ?? ''} onValueChange={(v) => setTillId((v as string) || null)}>
+                  <SelectTrigger>
+                    <SelectValue>{(v: unknown) => openTills.find((t) => t.id === v)?.name ?? 'Kasa seçin'}</SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {openTills.map((t) => (
+                      <SelectItem key={t.id} value={t.id}>
+                        {t.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : needsTill && openTills.length === 1 ? (
+                <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <WalletIcon className="size-3.5" /> Kasa: <span className="font-medium text-foreground">{openTills[0]?.name}</span>
+                </p>
+              ) : null}
+
               <p className="text-right text-sm font-semibold">Toplam: {tl(total)}</p>
             </>
           ) : null}
@@ -144,7 +210,7 @@ export function RetailSaleDialog({
           <Button variant="outline" onClick={onClose} disabled={busy}>
             Vazgeç
           </Button>
-          <Button onClick={() => void submit()} disabled={busy || !member || items.length === 0}>
+          <Button onClick={() => void submit()} disabled={busy || !member || items.length === 0 || noOpenTill}>
             {busy ? <Loader2Icon className="animate-spin" /> : null} Sat ({tl(total)})
           </Button>
         </DialogFooter>
