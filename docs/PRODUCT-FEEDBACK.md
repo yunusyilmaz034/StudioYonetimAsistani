@@ -69,3 +69,16 @@ varsayılan olarak "İptal"i hariç tutsun (istenince gösterilir). Karar owner'
 **Proposed fix:** Bölümleri **kart/gruplara** ayır (net başlık + kenarlık), iki-kolon düzeni tutarlı olsun,
 **Kaydet**'i sabit alt bar (sticky footer) ya da her grubun net bir yerine al. Sadece görsel/düzen — davranış
 (alan doğrulama, "boş-gerekli" uyarıları) aynı kalır. Düşük risk, orta iş.
+
+---
+
+## PF-8 — İkon-only butonlarda hover tooltip'i (app-geneli) · `backlog`
+
+**Taken:** 2026-07-16 · owner ("bu buton siliyor mu değiştiriyor mu belli değil; mouse üstüne gelince küçük
+popup söylesin — genel olarak tüm uygulamada").
+**Where:** Her yerde, örnek: seans workspace → Rezervasyon satırı ikonları (Düzenle / Geçmiş / Seansa taşı /
+Üye değiştir / İptal) — sadece ikon, etiketi yok, "siler mi değiştirir mi" belirsiz.
+**Proposed fix:** Uygulamadaki **ikon-only butonlara** hover/focus **tooltip** ekle (ne yaptığını net Türkçe:
+"Düzenle", "İptal et", "Başka seansa taşı" vb.). Yıkıcı olanlar (İptal/Sil) tooltip'te de belli olsun. En
+temizi: paylaşılan bir `IconButton`/`Tooltip` deseni — tek yerde tanımla, tüm ikon butonlar `title`/tooltip
+alsın. Erişilebilirlik artısı: `aria-label` da gelir. Düşük risk, orta iş (çok call-site).
