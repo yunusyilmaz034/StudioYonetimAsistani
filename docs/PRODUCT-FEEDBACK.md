@@ -16,7 +16,7 @@ Status: `backlog` (recorded, do later) · `in-progress` · `done` (struck throug
 paket + fark, üyeye kırılım gösterilmez; **taksit seçimi** (max ayardan, default 3). Bu turda PAYTR kart
 akışı yapılıyor.
 
-## PF-6 — Fark'ı manuel satışa da uygula (havale/kart, nakit hariç) · `backlog`
+## PF-6 — Fark'ı manuel satışa da uygula (havale/kart, nakit hariç) · ✅ `done` (2fd8c1c)
 2026-07-16 · owner (PF-5'in kapsamı). Resepsiyon paketi manuel satarken (Kasa/sell akışı) yöntem nakit
 DEĞİLSE aynı ayardaki fark uygulanmalı. PAYTR (kart) config'i inince bu ayrı akışa da bağlanacak. Cüzdan
 üyelik ödemesi de dahil (cüzdan top-up hariç); cüzdan henüz seam (DEBT-035).
