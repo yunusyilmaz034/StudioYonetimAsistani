@@ -120,12 +120,25 @@ export async function handlePaytrCallback(sid: string, fields: Record<string, st
     role: 'owner',
     actor: { type: 'system', id: 'paytr_callback' } as TenantContext['actor'],
   }
+  console.log('[paytr-callback] received', {
+    sid,
+    merchant_oid: fields.merchant_oid,
+    callback_id: fields.callback_id,
+    status: fields.status,
+    total_amount: fields.total_amount,
+    hasHash: Boolean(fields.hash),
+  })
   const { provider } = await paymentProviderFor(ctx)
   const verification = provider.verifyCallback(fields)
+  console.log('[paytr-callback] verified', { valid: verification.valid, ref: verification.providerRef, status: verification.status })
   if (!verification.valid || !verification.providerRef) return { body: 'PAYTR notification failed: bad hash', status: 200 }
 
   const intent = await intentRepo().getIntentByProviderRef(ctx, verification.providerRef)
-  if (!intent) return { body: 'OK', status: 200 } // unknown ref — quarantined, reconciliation surfaces it
+  if (!intent) {
+    console.warn('[paytr-callback] no intent for ref', verification.providerRef)
+    return { body: 'OK', status: 200 } // unknown ref — quarantined, reconciliation surfaces it
+  }
+  console.log('[paytr-callback] granting', { intent: intent.id, status: verification.status })
 
   const verdict: CallbackVerdict =
     verification.status === 'success'

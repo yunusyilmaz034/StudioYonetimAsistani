@@ -194,9 +194,11 @@ function baseUrl(config: { callbackUrl: string }): string {
   }
 }
 function callbackUrl(ctx: TenantContext, config: { callbackUrl: string }): string {
+  // sid rides in the PATH, not a query string: PAYTR does not reliably call back a callback_link that
+  // carries a `?…` query, so the link would be created but no notification ever sent. `…/callback/{sid}`.
   const base = config.callbackUrl || `${baseUrl(config)}/api/payments/paytr/callback`
-  const sep = base.includes('?') ? '&' : '?'
-  return `${base}${sep}sid=${ctx.studioId}`
+  const clean = (base.split('?')[0] ?? base).replace(/\/+$/, '')
+  return `${clean}/${ctx.studioId}`
 }
 
 // COMPLETION and the PAYTR callback handler live in `../payment-callback` (a plain server module, NOT
