@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { DumbbellIcon, LayersIcon, Loader2Icon, MessageCircleIcon, PencilIcon, PlusIcon, SendIcon, Trash2Icon } from 'lucide-react'
+import { DumbbellIcon, LayersIcon, Loader2Icon, MessageCircleIcon, PencilIcon, PlayCircleIcon, PlusIcon, SendIcon, Trash2Icon } from 'lucide-react'
 import { toast } from 'sonner'
 
 import type { Exercise, ProgramTemplate, TrainingFeedback } from '@studio/core'
@@ -365,6 +365,7 @@ function TemplateDialog({
 function ExerciseLibrary({ initial }: { initial: readonly Exercise[] }) {
   const [exercises, setExercises] = useState<readonly Exercise[]>(initial)
   const [editing, setEditing] = useState<Exercise | null>(null)
+  const [viewing, setViewing] = useState<Exercise | null>(null)
   const [creating, setCreating] = useState(false)
 
   async function reload() {
@@ -401,7 +402,7 @@ function ExerciseLibrary({ initial }: { initial: readonly Exercise[] }) {
                 ex.active ? '' : 'opacity-60'
               }`}
             >
-              <div className="min-w-0">
+              <button type="button" className="min-w-0 flex-1 text-left" onClick={() => setViewing(ex)} aria-label={`${ex.nameTr} rehberi`}>
                 <p className="flex flex-wrap items-center gap-1.5 text-sm font-medium text-foreground">
                   {ex.nameTr}
                   {!ex.active ? <Badge className="bg-muted text-muted-foreground">Pasif</Badge> : null}
@@ -410,8 +411,8 @@ function ExerciseLibrary({ initial }: { initial: readonly Exercise[] }) {
                   {[ex.muscleGroup, ex.equipment].filter(Boolean).join(' · ') || 'Detay yok'}
                   {ex.videoUrl ? ' · video' : ''}
                 </p>
-              </div>
-              <Button variant="ghost" size="sm" onClick={() => setEditing(ex)}>
+              </button>
+              <Button variant="ghost" size="sm" aria-label="Düzenle" onClick={() => setEditing(ex)}>
                 <PencilIcon className="size-3.5" />
               </Button>
             </li>
@@ -441,7 +442,68 @@ function ExerciseLibrary({ initial }: { initial: readonly Exercise[] }) {
           }}
         />
       ) : null}
+      {viewing ? (
+        <ExerciseGuideDialog exercise={viewing} onClose={() => setViewing(null)} onEdit={() => { setEditing(viewing); setViewing(null) }} />
+      ) : null}
     </Section>
+  )
+}
+
+// Read-only "Hareket Rehberi" (PF-11): the guidance the model already stores (muscle group, açıklama,
+// ipuçları, sık hatalar, video) had no surface to be READ — it lived only inside the edit dialog. This
+// shows it. Empty sections are hidden; a fully-empty exercise says so and points to Düzenle. Görseller
+// (başlangıç/yapılış + doğru/yanlış) telif kararı bekliyor — model onlara hazır (photoUrl/gifUrl).
+function ExerciseGuideDialog({ exercise, onClose, onEdit }: { exercise: Exercise; onClose: () => void; onEdit: () => void }) {
+  const ex = exercise
+  const sections: { title: string; body: string }[] = [
+    { title: 'Açıklama', body: ex.description },
+    { title: 'İpuçları', body: ex.tips },
+    { title: 'Sık Yapılan Hatalar', body: ex.commonMistakes },
+  ].filter((s) => s.body.trim().length > 0)
+  const empty = sections.length === 0 && !ex.videoUrl
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{ex.nameTr}</DialogTitle>
+          {ex.muscleGroup || ex.equipment ? (
+            <DialogDescription>{[ex.muscleGroup, ex.equipment].filter(Boolean).join(' · ')}</DialogDescription>
+          ) : null}
+        </DialogHeader>
+        <div className="space-y-4">
+          {ex.videoUrl ? (
+            <a
+              href={ex.videoUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-primary underline"
+            >
+              <PlayCircleIcon className="size-4" /> Videoyu izle
+            </a>
+          ) : null}
+          {sections.map((s) => (
+            <div key={s.title}>
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{s.title}</p>
+              <p className="mt-1 whitespace-pre-line text-sm leading-relaxed text-foreground">{s.body}</p>
+            </div>
+          ))}
+          {empty ? (
+            <p className="text-sm text-muted-foreground">
+              Bu hareket için henüz rehber girilmemiş. <strong>Düzenle</strong>’den açıklama, ipuçları ve sık yapılan
+              hataları ekleyebilirsiniz.
+            </p>
+          ) : null}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            Kapat
+          </Button>
+          <Button onClick={onEdit}>
+            <PencilIcon className="size-3.5" /> Düzenle
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }
 
