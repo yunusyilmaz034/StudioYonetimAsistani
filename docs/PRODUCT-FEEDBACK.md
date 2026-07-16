@@ -6,6 +6,13 @@ accumulate here and are triaged into V2 after the pilot. Each item: what · why 
 
 Status: `backlog` (recorded, do later) · `in-progress` · `done` (struck through, kept for the record).
 
+## Pilot Batch — kapandı (2026-07-16, tek deploy)
+**✅ done:** PF-1 (Ürün Sat ekranı) · PF-2/3/4/5/6 · PF-7 (Ayarlar Kaydet barı) · PF-8 (ikon tooltip, aria-label→title) ·
+PF-9 (KVKK → Ayarlar/Gizlilik) · PF-10 (üye/portal tab responsive) · PF-11 (egzersiz rehberi görünümü + içerik seed;
+görseller+yapısal kas ertelendi) · PF-12 (Tema editörü: renk+font+size, presets-first) · PF-13 (takvim seans renk) ·
+PF-14 (Ürün Sat kasa seçici/bug) · PF-16 (toast top-center) · PF-17 (toplu gönderim sebep+guard).
+**⏸ ertelendi (insan kararı):** PF-15 (kasa rename/sil → yeni event tipi gerekir).
+
 ## PF-4 — Üye listesi sayfalama · ✅ `done`
 2026-07-16 · owner. Üye ekranı tüm kayıtları tek seferde gösteriyor. İstenen: **10'ar kayıt**, tablo altında
 **numaralı sayfalama**, üstte filtre (mevcut arama+çipler kalır), bir de **"Tümünü göster"** butonu. Client-side.
