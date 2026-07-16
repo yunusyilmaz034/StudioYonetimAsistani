@@ -143,6 +143,158 @@ const GUIDES: Readonly<Record<string, Guide>> = {
     tips: 'Sırtı düz tut, aşırı geriye atma.\nHareketi kontrollü yap.\nEn üstte vücudu düz çizgide durdur, aşırı uzatma.',
     commonMistakes: 'En üstte aşırı geriye kavis yapmak.\nMomentumla sıçramak.\nBoynu aşırı yukarı kaldırmak.',
   },
+  'Incline Chest Press': {
+    description:
+      '🎯 Ana: Üst göğüs · İkincil: Ön omuz, Triceps\n\nEğik sehpada, ağırlığı üst göğüs hizasından yukarı it, kontrollü indir.',
+    tips: 'Kürek kemiklerini geride/sabit tut, göğsü yukarı ver.\nDirsekleri gövdeyle ~45° tut.\nİnişte üst göğse dokundur, zıplatma.',
+    commonMistakes: 'Beli aşırı köprü yapmak.\nDirsekleri tam yana açmak (omuz riski).\nYarım hareket.',
+  },
+  'Chest Press (Düz)': {
+    description:
+      '🎯 Ana: Göğüs · İkincil: Ön omuz, Triceps\n\nDüz sehpada ağırlığı göğüs hizasından yukarı it, kontrollü indir.',
+    tips: 'Kürekleri sıkıp sabitle.\nDirsekler ~45°, bilekler dik.\nTam aralıkta, kontrollü.',
+    commonMistakes: 'Ağırlığı sıçratmak.\nDirsekleri kilitleyip momentum yapmak.\nKalçayı sehpadan kaldırmak.',
+  },
+  'Pec Fly (Peck Deck)': {
+    description: '🎯 Ana: Göğüs (iç kısım) · İzole hareket\n\nMakinede kolları önde kavis çizerek birleştir, kontrollü aç.',
+    tips: 'Dirsek açısını sabit tut (kavis, itiş değil).\nOrtada 1 saniye sık.\nAçarken kontrol et, bırakma.',
+    commonMistakes: 'Ağırlığı sıçratarak kapatmak.\nDirsekleri fazla bükerek presse çevirmek.',
+  },
+  'Front Raise': {
+    description: '🎯 Ana: Ön omuz (ön deltoid) · İzole hareket\n\nDumbbell/plakayı omuz hizasına kadar öne kaldır, kontrollü indir.',
+    tips: 'Gövdeyi sabit tut, sallama.\nOmuz hizasını geçme.\nKontrollü in-çık.',
+    commonMistakes: 'Momentumla savurmak.\nÇok ağırlıkla trapezi devreye sokmak.',
+  },
+  'Face Pull': {
+    description:
+      '🎯 Ana: Arka omuz, Trapez · İkincil: Rotator cuff (omuz sağlığı)\n\nHalatı yüz hizasına, dirsekleri dışa/yukarı açarak çek; ellerini kulak yanına getir.',
+    tips: 'Dirsekleri yüksek tut.\nEn arkada kürekleri sık.\nHafif ağırlık, kaliteli tekrar.',
+    commonMistakes: 'Çok ağırlıkla sırtı/momentumu kullanmak.\nDirsekleri düşürmek.',
+  },
+  'Triceps Pushdown (V-Bar)': {
+    description: '🎯 Ana: Triceps · İzole hareket\n\nV-bar ile dirsekler gövdeye sabit; kolları aşağı düz iterek triceps’i sık.',
+    tips: 'Dirsekler gövdede sabit, öne-arkaya gitmesin.\nEn altta 1 saniye sık.\nYukarı kontrollü dön.',
+    commonMistakes: 'Dirsekleri sallamak.\nGövdeyi öne eğip vücut ağırlığıyla itmek.',
+  },
+  'Triceps Pushdown (Halat)': {
+    description: '🎯 Ana: Triceps (dış baş vurgulu) · İzole hareket\n\nHalatla aşağı it ve en altta halatı hafif dışa aç; triceps’i sık.',
+    tips: 'Dirsekleri sabit tut.\nEn altta halatı ayırıp sık.\nKontrollü dön.',
+    commonMistakes: 'Omuzdan/gövdeden itmek.\nDirsekleri kaydırmak.',
+  },
+  'Dumbbell Biceps Curl': {
+    description: '🎯 Ana: Biceps · İzole hareket\n\nDirsekler gövdede sabit; dumbbell’i büküp yukarı kaldır, kontrollü indir.',
+    tips: 'Dirsekleri sabit tut.\nEn üstte sık, inişi kontrol et.\nBileği nötr/dik tut.',
+    commonMistakes: 'Gövdeyi sallayıp momentum yapmak.\nDirseği öne kaydırmak.\nYarım hareket.',
+  },
+  'Hammer Curl': {
+    description: '🎯 Ana: Biceps + Brachialis · İkincil: Önkol\n\nAvuç içi karşılıklı (nötr) tutuşla dumbbell’i büküp kaldır.',
+    tips: 'Nötr tutuşu koru.\nDirsekleri sabit tut.\nKontrollü in-çık.',
+    commonMistakes: 'Sallanmak.\nBileği kırmak.',
+  },
+  'Lat Pulldown': {
+    description:
+      '🎯 Ana: Sırt (latissimus) · İkincil: Biceps, Arka omuz\n\nBarı göğüs üstüne, dirsekleri aşağı-geri çekerek indir; kürekleri sık.',
+    tips: 'Göğsü yukarı ver, hafif geriye yaslan.\nBarı boynun önüne çek.\nDirseklerden başlat, koldan değil.',
+    commonMistakes: 'Barı ense arkasına çekmek.\nMomentumla sallanmak.\nOmuzları kulağa kaldırmak.',
+  },
+  'Seated Cable Row': {
+    description:
+      '🎯 Ana: Sırt (orta), Latissimus · İkincil: Biceps, Arka omuz\n\nTutamağı göbeğe doğru çek, kürekleri sık; kontrollü uzat.',
+    tips: 'Sırtı düz tut, öne çökme.\nDirsekleri gövdeye yakın çek.\nEn arkada kürekleri sık.',
+    commonMistakes: 'Beli yuvarlamak.\nGövdeyi öne-arkaya sallayıp momentum yapmak.\nOmuz silkme.',
+  },
+  'Single Arm Row': {
+    description:
+      '🎯 Ana: Sırt (latissimus, tek taraf) · İkincil: Biceps, Arka omuz\n\nBir el/diz bankta, diğer elle dumbbell’i kalçaya doğru çek.',
+    tips: 'Sırtı düz tut.\nDirseği gövdeye yakın, kalçaya doğru çek.\nEn üstte küreği sık.',
+    commonMistakes: 'Gövdeyi döndürüp momentum yapmak.\nOmuzdan silkmek.',
+  },
+  'Cable Glute Kickback': {
+    description: '🎯 Ana: Gluteus (kalça) · İzole hareket\n\nAyak bileği kablo bağlı; bacağı dizden çok bükmeden geriye doğru sık.',
+    tips: 'Gövdeyi sabit tut, beli çukurlaştırma.\nEn arkada kalçayı sık.\nKontrollü geri dön.',
+    commonMistakes: 'Beli kullanarak tekmelemek.\nMomentumla savurmak.',
+  },
+  'Reverse Hack Squat': {
+    description:
+      '🎯 Ana: Quadriceps, Gluteus · İkincil: Hamstring\n\nMakinede yüz platforma dönük; kalçayı geriye iterek çömel, topuktan it.',
+    tips: 'Göğsü dik tut.\nDizler ayak yönünde.\nTam aralıkta, kontrollü.',
+    commonMistakes: 'Dizleri içe bırakmak.\nTopukları kaldırmak.\nYarım hareket.',
+  },
+  'Frog Pump': {
+    description: '🎯 Ana: Gluteus (kalça) · İzole hareket\n\nSırt üstü, tabanlar birbirine bakacak (kurbağa) şekilde; kalçayı yukarı sıkarak kaldır.',
+    tips: 'Tabanları birleştir, dizleri dışa aç.\nEn üstte kalçayı güçlü sık.\nBeli değil kalçayı kullan.',
+    commonMistakes: 'Beli çukurlaştırmak.\nEn üstte sıkmamak.',
+  },
+  'Cable Pull Through': {
+    description:
+      '🎯 Ana: Gluteus, Hamstring · İkincil: Bel\n\nKabloya sırtı dönük; kalçayı geriye iterek öne eğil, kalçayı öne sıkarak doğrul.',
+    tips: 'Hareket kalçadan (hip hinge), belden değil.\nSırtı düz tut.\nEn üstte kalçayı sık.',
+    commonMistakes: 'Sırtı yuvarlamak.\nSquat’a çevirmek (dizden çömelmek).',
+  },
+  'Cable Abduction (Ayakta)': {
+    description: '🎯 Ana: Gluteus medius (dış kalça) · İzole hareket\n\nAyak bileği kablo bağlı; bacağı yana açarak dış kalçayı çalıştır.',
+    tips: 'Gövdeyi dik ve sabit tut.\nEn dışta 1 saniye sık.\nKontrollü geri getir.',
+    commonMistakes: 'Gövdeyi yana eğip momentum yapmak.\nÇok ağırlıkla kısa hareket.',
+  },
+  'Hack Squat': {
+    description:
+      '🎯 Ana: Quadriceps · İkincil: Gluteus\n\nMakinede sırt yastığa dayalı; kalçayı indirerek çömel, topuklardan it.',
+    tips: 'Sırtı yastığa yasla.\nDizler ayak yönünde.\nUyluk en az paralel insin.',
+    commonMistakes: 'Topukları kaldırmak.\nDizleri içe bırakmak.\nYarım hareket.',
+  },
+  'Smith Machine Squat': {
+    description:
+      '🎯 Ana: Quadriceps, Gluteus · İkincil: Hamstring\n\nSabit barla kontrollü çömel; topuklardan iterek kalk.',
+    tips: 'Ayak konumunu barın altına doğru ayarla.\nGöğsü dik tut.\nParalel/altına in.',
+    commonMistakes: 'Dizleri içe bırakmak.\nYarım çömelmek.\nTopukları kaldırmak.',
+  },
+  'Sumo Squat': {
+    description:
+      '🎯 Ana: Quadriceps, İç bacak (adductor), Gluteus\n\nGeniş duruş, ayak uçları dışa; dik gövdeyle çömel, topuklardan kalk.',
+    tips: 'Ayak uçları dışa, dizler aynı yönde.\nGöğsü dik tut.\nTopuklara bas.',
+    commonMistakes: 'Dizleri içe bırakmak.\nGövdeyi öne eğmek.\nYarım hareket.',
+  },
+  'Yürüyen Lunge': {
+    description:
+      '🎯 Ana: Quadriceps, Gluteus · İkincil: Hamstring, Core (denge)\n\nÖne adım atarak alçal, ön topuktan iterek kalk ve öbür ayakla devam et.',
+    tips: 'Gövdeyi dik tut.\nÖn diz ayak ucunu geçmesin.\nAdımı yeterince uzun at.',
+    commonMistakes: 'Kısa adım (diz öne kayar).\nGövdeyi öne düşürmek.\nDengeyi kaybedip acele etmek.',
+  },
+  'Step Up': {
+    description:
+      '🎯 Ana: Quadriceps, Gluteus · İkincil: Denge/Core\n\nBir ayağı basamağa koy, o bacakla iterek yukarı çık, kontrollü in.',
+    tips: 'İtişi üstteki topuktan al.\nGövdeyi dik tut.\nİnişi kontrol et, zıplamadan.',
+    commonMistakes: 'Alttaki ayakla zıplamak.\nDizi içe bırakmak.',
+  },
+  Deadlift: {
+    description:
+      '🎯 Ana: Sırt alt, Gluteus, Hamstring · İkincil: Trapez, Önkol, Core\n\nBar bacaklara yakın; sırtı düz tutup kalça+dizden kalkarak barı yukarı taşı.',
+    tips: 'Sırtı düz tut (kamburlaşma yok).\nBarı vücuda yakın sürükle.\nKalça ve omuz aynı anda kalksın.\nCore’u sık.',
+    commonMistakes: 'Sırtı yuvarlamak (ciddi bel riski).\nBarı vücuttan uzak tutmak.\nKalçayı erken kaldırıp beli yormak.',
+  },
+  'Good Morning': {
+    description:
+      '🎯 Ana: Hamstring, Bel (erektör) · İkincil: Gluteus\n\nBar omuzda; dizler hafif bükülü, kalçayı geriye iterek gövdeyi öne eğ, kalçayı sıkarak doğrul.',
+    tips: 'Sırtı düz tut.\nHareket kalçadan, belden değil.\nHafif ağırlıkla, kontrollü.',
+    commonMistakes: 'Sırtı yuvarlamak.\nDizleri fazla büküp squat’a çevirmek.\nÇok ağırlık.',
+  },
+  'Cable Crunch': {
+    description: '🎯 Ana: Karın (rektus abdominis) · İzole hareket\n\nHalat başın yanında diz çökerek; karnı sıkıp gövdeyi aşağı kıvır.',
+    tips: 'Hareketi karından yap, kalçadan değil.\nEn altta sık.\nKontrollü geri dön.',
+    commonMistakes: 'Kalçadan öne eğilmek.\nKolla çekmek.\nMomentum.',
+  },
+  'Russian Twist': {
+    description:
+      '🎯 Ana: Karın (yan/oblik) · İkincil: Core\n\nOturur, gövde hafif geride; ağırlığı iki yana kontrollü döndür.',
+    tips: 'Sırtı düz tut, çökme.\nHareketi gövdeden döndür.\nKontrollü tempo.',
+    commonMistakes: 'Sadece kolları sallamak.\nBeli yuvarlamak.\nÇok hızlı, kontrolsüz.',
+  },
+  'Cable Woodchopper': {
+    description:
+      '🎯 Ana: Karın (yan/oblik), Core · İkincil: Omuz\n\nKabloyu bir üst köşeden çapraz aşağı (ya da tersi) gövdeyi döndürerek çek.',
+    tips: 'Hareketi gövdeden döndür, sadece koldan değil.\nCore’u sık.\nAyakları sabit, kalçadan dön.',
+    commonMistakes: 'Sadece kollarla çekmek.\nBeli zorlamak.\nÇok ağırlıkla kontrolü kaybetmek.',
+  },
 }
 
 async function main(): Promise<void> {
