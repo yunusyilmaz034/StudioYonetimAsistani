@@ -128,8 +128,13 @@ export class PaytrProvider implements PaymentProviderPort {
     const linkType = 'product'
     const lang = 'tr'
     const minCount = '1'
-    const hashStr = input.itemName + price + currency + maxInstallment + linkType + lang + minCount + merchantSalt
-    const paytrToken = b64hmac(merchantKey, hashStr)
+    const email = input.memberEmail ?? ''
+    // Official Link-create order (PAYTR docs): name + price + currency + max_installment + link_type +
+    // lang, then min_count for a `product` link, then the email WHEN one is sent — then merchant_salt.
+    // The hash MUST match the body exactly: sending an email but omitting it from the hash → bad token.
+    let required = input.itemName + price + currency + maxInstallment + linkType + lang + minCount
+    if (email) required += email
+    const paytrToken = b64hmac(merchantKey, required + merchantSalt)
 
     const body = new URLSearchParams({
       merchant_id: merchantId,
@@ -140,7 +145,7 @@ export class PaytrProvider implements PaymentProviderPort {
       link_type: linkType,
       lang,
       min_count: minCount,
-      email: input.memberEmail ?? '',
+      email,
       callback_link: input.callbackUrl,
       callback_id: input.providerRef,
       debug_on: testMode ? '1' : '0',
@@ -158,22 +163,37 @@ export class PaytrProvider implements PaymentProviderPort {
   }
 
   // ── Callback verification (notification hash). ──
-  // hash = base64( HMAC_SHA256( merchant_oid + merchant_salt + status + total_amount, merchant_key ) )
-  // Reject on ANY mismatch — an unverified callback is never a grant (spec §9).
+  // The two PAYTR APIs sign the notification DIFFERENTLY, and getting it wrong means a real payment
+  // never completes:
+  //   • iFrame: hash = base64( HMAC_SHA256( merchant_oid + merchant_salt + status + total_amount, key ) )
+  //     — our reference is `merchant_oid` (we set it to our providerRef when we created the session).
+  //   • Link:   hash = base64( HMAC_SHA256( callback_id + merchant_oid + merchant_salt + status + total_amount, key ) )
+  //     — here `merchant_oid` is PAYTR's own order id and `callback_id` is OUR reference (we sent it as
+  //     callback_id at link creation). The Link API only ever posts a SUCCESS callback.
+  // We detect the Link callback by the presence of `callback_id`, verify with the matching formula, and
+  // return OUR reference either way. Reject on ANY mismatch — an unverified callback is never a grant (§9).
   verifyCallback(fields: Readonly<Record<string, string>>): CallbackVerification {
     const merchantOid = fields.merchant_oid ?? ''
+    const callbackId = fields.callback_id ?? ''
     const status = fields.status ?? ''
     const totalAmount = fields.total_amount ?? ''
     const posted = fields.hash ?? ''
-    const expected = b64hmac(this.config.merchantKey, merchantOid + this.config.merchantSalt + status + totalAmount)
+    const isLink = callbackId !== ''
+    const salt = this.config.merchantSalt
+    const hashBase = isLink
+      ? callbackId + merchantOid + salt + status + totalAmount
+      : merchantOid + salt + status + totalAmount
+    const expected = b64hmac(this.config.merchantKey, hashBase)
     if (!posted || posted !== expected) return { valid: false }
+    // Our intent is keyed by the reference WE chose: callback_id for a Link, merchant_oid for the iFrame.
+    const ourRef = isLink ? callbackId : merchantOid
     if (status === 'success') {
       // total_amount is in kuruş, integer.
       const amount = Number(totalAmount)
       if (!Number.isInteger(amount) || amount < 0) return { valid: false }
-      return { valid: true, providerRef: merchantOid, status: 'success', paidAmount: money(amount) }
+      return { valid: true, providerRef: ourRef, status: 'success', paidAmount: money(amount) }
     }
-    return { valid: true, providerRef: merchantOid, status: 'failed', failureCode: fields.failed_reason_code ?? 'failed' }
+    return { valid: true, providerRef: ourRef, status: 'failed', failureCode: fields.failed_reason_code ?? 'failed' }
   }
 
   // ── Refund (iade). ──

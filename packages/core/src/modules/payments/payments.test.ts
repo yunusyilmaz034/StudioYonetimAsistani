@@ -116,4 +116,19 @@ describe('PaytrProvider.verifyCallback', () => {
     expect(v.valid).toBe(true)
     expect(v.status).toBe('failed')
   })
+  // The LINK API signs differently: callback_id is prepended, and callback_id is OUR reference while
+  // merchant_oid is PAYTR's. Verifying a Link callback with the iFrame formula would fail every real
+  // Link payment.
+  const linkHash = (cbId: string, oid: string, status: string, total: string) =>
+    createHmac('sha256', CONFIG.merchantKey).update(cbId + oid + CONFIG.merchantSalt + status + total).digest('base64')
+  it('accepts a LINK callback (callback_id-prefixed hash) and returns OUR reference, not merchant_oid', () => {
+    const v = provider.verifyCallback({ callback_id: 'pin_ours', merchant_oid: 'PAYTR_OID', status: 'success', total_amount: '900000', hash: linkHash('pin_ours', 'PAYTR_OID', 'success', '900000') })
+    expect(v.valid).toBe(true)
+    expect(v.providerRef).toBe('pin_ours')
+    expect(v.paidAmount?.amount).toBe(900_000)
+  })
+  it('rejects a Link callback hashed with the iFrame formula (callback_id omitted)', () => {
+    const v = provider.verifyCallback({ callback_id: 'pin_ours', merchant_oid: 'PAYTR_OID', status: 'success', total_amount: '900000', hash: validHash('PAYTR_OID', 'success', '900000') })
+    expect(v.valid).toBe(false)
+  })
 })
