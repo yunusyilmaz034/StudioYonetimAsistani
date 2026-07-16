@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ActivityIcon, DumbbellIcon, Loader2Icon, MessageCircleIcon, PlayCircleIcon } from 'lucide-react'
+import { ActivityIcon, BookOpenIcon, DumbbellIcon, Loader2Icon, MessageCircleIcon, PlayCircleIcon } from 'lucide-react'
 import { toast } from 'sonner'
 
 import type { FeedbackReason, Measurement, Program, ProgramExercise, TrainingFeedback } from '@studio/core'
@@ -21,6 +21,7 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
+import { ExerciseGuideDialog, type ExerciseGuide } from '@/components/exercise-guide-dialog'
 import { MeasurementChart } from '@/components/training/measurement-chart'
 import { domainErrorMessage } from '@/lib/domain-error'
 import {
@@ -48,12 +49,14 @@ export function PortalTrainingScreen({
   measurements,
   feedback,
   photos,
+  guides,
 }: {
   active: Program | null
   programs: readonly Program[]
   measurements: readonly Measurement[]
   feedback: readonly TrainingFeedback[]
   photos: readonly PortalPhoto[]
+  guides: Record<string, ExerciseGuide>
 }) {
   const past = programs.filter((p) => p.id !== active?.id)
   return (
@@ -74,7 +77,7 @@ export function PortalTrainingScreen({
         </TabsList>
 
         <TabsContent value="program">
-          <ProgramTab active={active} past={past} feedback={feedback} />
+          <ProgramTab active={active} past={past} feedback={feedback} guides={guides} />
         </TabsContent>
         <TabsContent value="progress">
           <ProgressTab measurements={measurements} photos={photos} />
@@ -89,10 +92,12 @@ function ProgramTab({
   active,
   past,
   feedback,
+  guides,
 }: {
   active: Program | null
   past: readonly Program[]
   feedback: readonly TrainingFeedback[]
+  guides: Record<string, ExerciseGuide>
 }) {
   if (!active) {
     return (
@@ -122,6 +127,7 @@ function ProgramTab({
               <ExerciseCard
                 key={ex.order}
                 ex={ex}
+                guide={guides[ex.exerciseId]}
                 programId={active.id}
                 programVersion={version.version}
                 dayOrder={day.order}
@@ -175,16 +181,19 @@ function ProgramTab({
 
 function ExerciseCard({
   ex,
+  guide,
   programId,
   programVersion,
   dayOrder,
 }: {
   ex: ProgramExercise
+  guide: ExerciseGuide | undefined
   programId: string
   programVersion: number
   dayOrder: number
 }) {
   const [feedbackOpen, setFeedbackOpen] = useState(false)
+  const [guideOpen, setGuideOpen] = useState(false)
   return (
     <li className="space-y-2 rounded-xl border border-border bg-card p-3 shadow-xs">
       <div className="flex items-start justify-between gap-3">
@@ -208,9 +217,18 @@ function ExerciseCard({
           </a>
         ) : null}
       </div>
-      <Button variant="outline" size="sm" className="h-8" onClick={() => setFeedbackOpen(true)}>
-        <MessageCircleIcon className="size-3.5" /> Geri bildirim ver
-      </Button>
+      <div className="flex flex-wrap gap-2">
+        {guide ? (
+          <Button variant="outline" size="sm" className="h-8" onClick={() => setGuideOpen(true)}>
+            <BookOpenIcon className="size-3.5" /> Hareket rehberi
+          </Button>
+        ) : null}
+        <Button variant="outline" size="sm" className="h-8" onClick={() => setFeedbackOpen(true)}>
+          <MessageCircleIcon className="size-3.5" /> Geri bildirim ver
+        </Button>
+      </div>
+
+      {guide && guideOpen ? <ExerciseGuideDialog exercise={guide} onClose={() => setGuideOpen(false)} /> : null}
 
       {feedbackOpen ? (
         <FeedbackDialog

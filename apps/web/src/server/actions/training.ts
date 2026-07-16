@@ -24,6 +24,7 @@ import {
 } from '@studio/core'
 import { z } from 'zod'
 
+import type { ExerciseGuide } from '@/components/exercise-guide-dialog'
 import { ForbiddenError, requireMemberContext, requireTenantContext } from '../auth'
 import { adminDb, adminStorage, storageBucketName } from '../firebase-admin'
 
@@ -389,6 +390,31 @@ export async function removeProgressPhotoAction(input: unknown) {
 export async function listMyProgramsAction() {
   const { ctx, memberId } = await requireMemberContext()
   return repo().listProgramsByMember(ctx, memberId)
+}
+
+// The guidance (Hareket Rehberi) for the exercises in HER programs — so the portal can show the guide
+// (PF-11) next to each program exercise. Scoped to her own programs' exercises, never the whole library.
+export async function listMyProgramGuidesAction(): Promise<Record<string, ExerciseGuide>> {
+  const { ctx, memberId } = await requireMemberContext()
+  const [programs, exercises] = await Promise.all([repo().listProgramsByMember(ctx, memberId), repo().listExercises(ctx)])
+  const used = new Set<string>()
+  for (const p of programs) for (const v of p.versions) for (const day of v.days) for (const e of day.exercises) used.add(e.exerciseId)
+  const guides: Record<string, ExerciseGuide> = {}
+  for (const ex of exercises) {
+    if (!used.has(ex.id)) continue
+    guides[ex.id] = {
+      nameTr: ex.nameTr,
+      muscleGroup: ex.muscleGroup,
+      equipment: ex.equipment,
+      description: ex.description,
+      tips: ex.tips,
+      commonMistakes: ex.commonMistakes,
+      videoUrl: ex.videoUrl,
+      photoUrl: ex.photoUrl,
+      gifUrl: ex.gifUrl,
+    }
+  }
+  return guides
 }
 
 export async function getMyActiveProgramAction() {

@@ -1,10 +1,23 @@
 'use client'
 
 import { PencilIcon, PlayCircleIcon } from 'lucide-react'
-import type { Exercise } from '@studio/core'
 
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+
+// The guidance fields the dialog reads — a subset of the full Exercise, so the same component serves the
+// library (a full Exercise, which is assignable) AND the portal (a light object fetched for the member).
+export interface ExerciseGuide {
+  readonly nameTr: string
+  readonly muscleGroup: string
+  readonly equipment: string
+  readonly description: string
+  readonly tips: string
+  readonly commonMistakes: string
+  readonly videoUrl: string | null
+  readonly photoUrl: string | null
+  readonly gifUrl: string | null
+}
 
 // Read-only "Hareket Rehberi" (PF-11) — one component, used wherever an exercise is shown: the library,
 // the member's program (staff), and the portal. It reads the guidance the exercise already stores
@@ -15,7 +28,7 @@ export function ExerciseGuideDialog({
   onClose,
   onEdit,
 }: {
-  exercise: Exercise
+  exercise: ExerciseGuide
   onClose: () => void
   onEdit?: () => void
 }) {
