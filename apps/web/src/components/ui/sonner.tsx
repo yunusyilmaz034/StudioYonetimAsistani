@@ -17,6 +17,9 @@ const Toaster = ({ ...props }: ToasterProps) => {
   return (
     <Sonner
       theme="light"
+      // top-center (owner, PF-16): reception was missing errors tucked in the bottom-right corner. The
+      // top-center slot is noticed without covering the work area the way a dead-centre toast would.
+      position="top-center"
       className="toaster group"
       icons={{
         success: <CircleCheckIcon className="size-4" />,
