@@ -52,6 +52,10 @@ const OVERRIDE: Record<string, string> = {
   'Cable Pull Through': 'Pull Through',
   'Hip Thrust': 'Barbell Hip Thrust',
   Hyperextension: 'Hyperextensions',
+  'Bulgarian Split Squat': 'Split Squat with Dumbbells',
+  'Cable Glute Kickback': 'Glute Kickback',
+  'Cable Woodchopper': 'Standing Cable Wood Chop',
+  'Reverse Hack Squat': 'Hack Squat',
 }
 const tok = (s: string) => s.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(Boolean)
 
