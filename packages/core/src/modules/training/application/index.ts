@@ -3,6 +3,7 @@ import {
   newExerciseId,
   newMeasurementId,
   newProgramId,
+  newProgramTemplateId,
   newProgressPhotoId,
   newTrainingFeedbackId,
   ok,
@@ -34,7 +35,10 @@ import type {
   ProgramDay,
   ProgramExercise,
   ProgramStatus,
+  ProgramTemplate,
+  ProgramTemplateDay,
   ProgressPhoto,
+  TemplateLevel,
   TrainingFeedback,
 } from '../domain/types'
 import type { TrainingDeps } from './ports'
@@ -335,6 +339,120 @@ export async function removePhoto(deps: TrainingDeps, ctx: TenantContext, photoI
   if (!r.ok) return r
   await deps.repo.deletePhoto(ctx, photoId, r.value)
   return ok({ storagePath: photo.storagePath })
+}
+
+// ── Program templates (CONFIG — no events; assigning one to a member IS event-sourced) ──
+export interface TemplateExerciseInput {
+  readonly exerciseId: string
+  readonly order: number
+  readonly sets: number
+  readonly reps: string
+  readonly restSeconds?: number | undefined
+  readonly tempo?: string | undefined
+  readonly note?: string | undefined
+  readonly alternativeExerciseId?: string | null | undefined
+}
+export interface TemplateDayInput {
+  readonly order: number
+  readonly name: string
+  readonly exercises: readonly TemplateExerciseInput[]
+}
+export interface UpsertTemplateInput {
+  readonly id?: string | undefined
+  readonly name: string
+  readonly level: TemplateLevel
+  readonly description?: string | undefined
+  readonly days: readonly TemplateDayInput[]
+}
+
+export async function upsertProgramTemplate(deps: TrainingDeps, ctx: TenantContext, input: UpsertTemplateInput, source: EventSource): Promise<Result<ProgramTemplate, DomainError>> {
+  if (input.name.trim().length === 0) return { ok: false, error: { code: 'template_name_required' } }
+  if (input.days.length === 0 || input.days.some((d) => d.exercises.length === 0)) return { ok: false, error: { code: 'template_empty' } }
+  if (input.days.some((d) => d.exercises.some((x) => x.sets < 1 || x.reps.trim().length === 0))) return { ok: false, error: { code: 'template_empty' } }
+
+  const dc = dctx(deps, ctx, source)
+  // Resolve each exercise's current library name so the template shows real names in its own list.
+  const library = await deps.repo.listExercises(ctx)
+  const nameById = new Map(library.map((e) => [e.id, e.nameTr]))
+  const days: readonly ProgramTemplateDay[] = input.days.map((d) => ({
+    order: d.order,
+    name: d.name,
+    exercises: d.exercises.map((x) => ({
+      exerciseId: x.exerciseId,
+      order: x.order,
+      nameTr: nameById.get(x.exerciseId) ?? '',
+      sets: x.sets,
+      reps: x.reps,
+      restSeconds: x.restSeconds ?? 60,
+      tempo: x.tempo ?? '',
+      note: x.note ?? '',
+      alternativeExerciseId: x.alternativeExerciseId ?? null,
+    })),
+  }))
+  const existing = input.id ? await deps.repo.getTemplate(ctx, input.id) : null
+  const template: ProgramTemplate = {
+    id: existing?.id ?? input.id ?? newProgramTemplateId(),
+    studioId: ctx.studioId,
+    name: input.name.trim(),
+    level: input.level,
+    description: input.description ?? existing?.description ?? '',
+    days,
+    active: existing?.active ?? true,
+    updatedBy: actorId(dc.actor),
+    updatedAt: dc.now,
+  }
+  await deps.repo.saveTemplate(ctx, template)
+  return ok(template)
+}
+
+export async function listProgramTemplates(deps: TrainingDeps, ctx: TenantContext): Promise<readonly ProgramTemplate[]> {
+  return deps.repo.listTemplates(ctx)
+}
+export async function getProgramTemplate(deps: TrainingDeps, ctx: TenantContext, id: string): Promise<ProgramTemplate | null> {
+  return deps.repo.getTemplate(ctx, id)
+}
+export async function deleteProgramTemplate(deps: TrainingDeps, ctx: TenantContext, id: string): Promise<Result<{ readonly id: string }, DomainError>> {
+  const existing = await deps.repo.getTemplate(ctx, id)
+  if (!existing) return { ok: false, error: { code: 'template_not_found_pt' } }
+  await deps.repo.deleteTemplate(ctx, id)
+  return ok({ id })
+}
+
+export interface AssignTemplateInput {
+  readonly templateId: string
+  readonly memberId: string
+  readonly trainerId: string
+  readonly title?: string | undefined
+}
+// Instantiate a template onto a member — the ONLY event-emitting path here: it creates a real
+// programme (createProgram) and publishes v1 from the template's days (publishProgramVersion, which
+// snapshots the library). A later edit to the template never touches the member's published programme.
+export async function instantiateTemplate(deps: TrainingDeps, ctx: TenantContext, input: AssignTemplateInput, source: EventSource): Promise<Result<Program, DomainError>> {
+  const template = await deps.repo.getTemplate(ctx, input.templateId)
+  if (!template) return { ok: false, error: { code: 'template_not_found_pt' } }
+
+  const created = await createProgram(deps, ctx, {
+    memberId: input.memberId,
+    trainerId: input.trainerId,
+    title: input.title ?? template.name,
+  }, source)
+  if (!created.ok) return created
+
+  const days: readonly DraftProgramDay[] = template.days.map((d) => ({
+    order: d.order,
+    name: d.name,
+    exercises: d.exercises.map((x): DraftProgramExercise => ({
+      exerciseId: x.exerciseId,
+      order: x.order,
+      sets: x.sets,
+      reps: x.reps,
+      restSeconds: x.restSeconds,
+      tempo: x.tempo,
+      note: x.note,
+      alternativeExerciseId: x.alternativeExerciseId,
+    })),
+  }))
+  return publishProgramVersion(deps, ctx, { programId: created.value.id, days, note: `Şablon: ${template.name}` }, source)
 }
 
 function actorId(actor: ActorRef): string {

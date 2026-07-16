@@ -139,3 +139,37 @@ export interface ProgressPhoto {
   readonly uploadedBy: ActorRef
   readonly uploadedAt: Instant
 }
+
+// ── Program templates (Plus, pilot) — reusable programme skeletons ("Program A") the studio assigns
+//    to members. CONFIG, NOT event-sourced (the same posture as notification templates / room notes):
+//    a template changes no credit, money or attendance, so editing one appends no event. ASSIGNING a
+//    template to a member DOES go through the event-sourced programme flow (createProgram +
+//    publishProgramVersion). Stored at `studios/{sid}/programTemplates/{id}`.
+export type TemplateLevel = 'beginner' | 'intermediate' | 'advanced'
+export interface ProgramTemplateExercise {
+  readonly exerciseId: string
+  readonly order: number
+  readonly nameTr: string // snapshot at save, for the template's own display
+  readonly sets: number
+  readonly reps: string // "15" (→ 3x15) or "12-10-8-8" (a pyramid, one string)
+  readonly restSeconds: number
+  readonly tempo: string
+  readonly note: string
+  readonly alternativeExerciseId: string | null
+}
+export interface ProgramTemplateDay {
+  readonly order: number // 1, 2, 3 …
+  readonly name: string // "Gün 1"
+  readonly exercises: readonly ProgramTemplateExercise[]
+}
+export interface ProgramTemplate {
+  readonly id: string
+  readonly studioId: StudioId
+  readonly name: string // "Program A"
+  readonly level: TemplateLevel
+  readonly description: string
+  readonly days: readonly ProgramTemplateDay[]
+  readonly active: boolean
+  readonly updatedBy: string
+  readonly updatedAt: Instant
+}

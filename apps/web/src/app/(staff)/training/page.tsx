@@ -1,5 +1,5 @@
 import { requirePageAccess } from '@/server/auth'
-import { listExercisesAction, listOpenFeedbackAction } from '@/server/actions/training'
+import { listExercisesAction, listOpenFeedbackAction, listProgramTemplatesAction } from '@/server/actions/training'
 import { listMembers } from '@/server/members-query'
 
 import { TrainingScreen } from './training-screen'
@@ -13,14 +13,22 @@ import { TrainingScreen } from './training-screen'
 // trainees — never the whole roster.
 export default async function TrainingPage() {
   const ctx = await requirePageAccess('/training')
-  const [exercises, feedback, members] = await Promise.all([
+  const [exercises, feedback, members, templates] = await Promise.all([
     listExercisesAction(),
     listOpenFeedbackAction(),
     listMembers(ctx),
+    listProgramTemplatesAction(),
   ])
   const involved = new Set(feedback.map((f) => f.memberId))
   const memberNames: Record<string, string> = {}
   for (const m of members) if (involved.has(m.id)) memberNames[m.id] = m.fullName
 
-  return <TrainingScreen initialExercises={exercises} initialFeedback={feedback} memberNames={memberNames} />
+  return (
+    <TrainingScreen
+      initialExercises={exercises}
+      initialFeedback={feedback}
+      memberNames={memberNames}
+      initialTemplates={templates}
+    />
+  )
 }

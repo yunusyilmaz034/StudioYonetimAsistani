@@ -8,7 +8,7 @@ import {
 } from 'firebase-admin/firestore'
 
 import { instant, newEventId, type NewEvent, type StudioId, type TenantContext } from '../../../shared'
-import type { Exercise, Measurement, Program, ProgramVersion, ProgressPhoto, TrainingFeedback } from '../domain/types'
+import type { Exercise, Measurement, Program, ProgramTemplate, ProgramVersion, ProgressPhoto, TrainingFeedback } from '../domain/types'
 
 // The training module's ONLY firebase-admin importer. State document(s) + their events commit together
 // (#1): a programme version published without its event, or a photo removed without its audit event,
@@ -55,6 +55,10 @@ const feedbackFrom = (id: string, d: DocumentData): TrainingFeedback => ({
 
 const photoTo = (p: ProgressPhoto): DocumentData => ({ ...p, uploadedAt: ts(p.uploadedAt) })
 const photoFrom = (id: string, d: DocumentData): ProgressPhoto => ({ ...(d as ProgressPhoto), id, uploadedAt: instant(ms(d.uploadedAt)) })
+
+// Program templates are CONFIG (no events) — a plain doc, days/exercises are JSON, only updatedAt is a Timestamp.
+const templateTo = (t: ProgramTemplate): DocumentData => ({ ...t, updatedAt: ts(t.updatedAt) })
+const templateFrom = (id: string, d: DocumentData): ProgramTemplate => ({ ...(d as ProgramTemplate), id, updatedAt: instant(ms(d.updatedAt)) })
 
 export class FirestoreTrainingRepository {
   constructor(private readonly db: Firestore = getFirestore()) {}
@@ -166,5 +170,22 @@ export class FirestoreTrainingRepository {
       tx.delete(this.col(sid, 'progressPhotos').doc(id))
       this.writeEvents(sid, tx, events)
     })
+  }
+
+  // ── Program templates (CONFIG — no events; a reusable skeleton, not a business fact) ──
+  async getTemplate(ctx: TenantContext, id: string): Promise<ProgramTemplate | null> {
+    const s = await this.col(ctx.studioId, 'programTemplates').doc(id).get()
+    const d = s.data()
+    return d ? templateFrom(id, d) : null
+  }
+  async listTemplates(ctx: TenantContext): Promise<readonly ProgramTemplate[]> {
+    const snap = await this.col(ctx.studioId, 'programTemplates').get()
+    return snap.docs.map((d) => templateFrom(d.id, d.data())).sort((a, b) => a.name.localeCompare(b.name, 'tr'))
+  }
+  async saveTemplate(ctx: TenantContext, template: ProgramTemplate): Promise<void> {
+    await this.col(ctx.studioId, 'programTemplates').doc(template.id).set(templateTo(template))
+  }
+  async deleteTemplate(ctx: TenantContext, id: string): Promise<void> {
+    await this.col(ctx.studioId, 'programTemplates').doc(id).delete()
   }
 }

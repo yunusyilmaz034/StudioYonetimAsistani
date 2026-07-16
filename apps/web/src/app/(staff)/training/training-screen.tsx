@@ -1,10 +1,10 @@
 'use client'
 
 import { useState } from 'react'
-import { DumbbellIcon, Loader2Icon, MessageCircleIcon, PencilIcon, PlusIcon, SendIcon } from 'lucide-react'
+import { DumbbellIcon, LayersIcon, Loader2Icon, MessageCircleIcon, PencilIcon, PlusIcon, SendIcon, Trash2Icon } from 'lucide-react'
 import { toast } from 'sonner'
 
-import type { Exercise, TrainingFeedback } from '@studio/core'
+import type { Exercise, ProgramTemplate, TrainingFeedback } from '@studio/core'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -27,11 +27,16 @@ import { FEEDBACK_REASON_LABEL, FEEDBACK_REASON_TONE, FEEDBACK_STATUS_LABEL } fr
 import {
   answerFeedbackAction,
   deactivateExerciseAction,
+  deleteProgramTemplateAction,
   listExercisesAction,
   listOpenFeedbackAction,
+  listProgramTemplatesAction,
   resolveFeedbackAction,
   upsertExerciseAction,
+  upsertProgramTemplateAction,
 } from '@/server/actions/training'
+
+const LEVEL_LABEL: Record<string, string> = { beginner: 'Başlangıç', intermediate: 'Orta', advanced: 'İleri' }
 
 const TZ = 'Europe/Istanbul'
 const dt = (ms: number) => new Date(ms).toLocaleString('tr-TR', { timeZone: TZ, dateStyle: 'medium', timeStyle: 'short' })
@@ -40,17 +45,19 @@ export function TrainingScreen({
   initialExercises,
   initialFeedback,
   memberNames,
+  initialTemplates,
 }: {
   initialExercises: readonly Exercise[]
   initialFeedback: readonly TrainingFeedback[]
   memberNames: Readonly<Record<string, string>>
+  initialTemplates: readonly ProgramTemplate[]
 }) {
   const openCount = initialFeedback.filter((f) => f.status !== 'resolved').length
   return (
     <main className="mx-auto max-w-5xl space-y-5 p-4 sm:p-6 lg:p-8">
       <PageHeader
         title="Antrenman"
-        description="Egzersiz kütüphanesi ve üye geri bildirimleri. Üye programları, ölçümleri ve fotoğrafları üye kartından yönetilir."
+        description="Egzersiz kütüphanesi, program şablonları ve üye geri bildirimleri. Üye programları, ölçümleri ve fotoğrafları üye kartından yönetilir."
       />
       <Tabs defaultValue="library">
         <TabsList className="flex w-full">
@@ -58,6 +65,11 @@ export function TrainingScreen({
             <DumbbellIcon className="size-4" />
             <span className="hidden sm:inline">Egzersiz Kütüphanesi</span>
             <span className="sm:hidden">Kütüphane</span>
+          </TabsTrigger>
+          <TabsTrigger value="templates" className="min-h-9 flex-1">
+            <LayersIcon className="size-4" />
+            <span className="hidden sm:inline">Program Şablonları</span>
+            <span className="sm:hidden">Şablonlar</span>
           </TabsTrigger>
           <TabsTrigger value="feedback" className="min-h-9 flex-1">
             <MessageCircleIcon className="size-4" />
@@ -70,11 +82,282 @@ export function TrainingScreen({
         <TabsContent value="library">
           <ExerciseLibrary initial={initialExercises} />
         </TabsContent>
+        <TabsContent value="templates">
+          <TemplatesManager initial={initialTemplates} exercises={initialExercises} />
+        </TabsContent>
         <TabsContent value="feedback">
           <FeedbackCenter initial={initialFeedback} memberNames={memberNames} />
         </TabsContent>
       </Tabs>
     </main>
+  )
+}
+
+// ── Program templates ────────────────────────────────────────────────────────────────────────
+type DraftItem = { exerciseId: string; sets: number; reps: string }
+type DraftDay = { name: string; items: DraftItem[] }
+
+function TemplatesManager({ initial, exercises }: { initial: readonly ProgramTemplate[]; exercises: readonly Exercise[] }) {
+  const [templates, setTemplates] = useState<readonly ProgramTemplate[]>(initial)
+  const [editing, setEditing] = useState<ProgramTemplate | null>(null)
+  const [creating, setCreating] = useState(false)
+
+  async function reload() {
+    setTemplates(await listProgramTemplatesAction())
+  }
+  async function remove(t: ProgramTemplate) {
+    if (!confirm(`"${t.name}" şablonu silinsin mi?`)) return
+    const r = await deleteProgramTemplateAction({ id: t.id })
+    if (r && 'ok' in r && !r.ok) {
+      toast.error(domainErrorMessage(r.error))
+      return
+    }
+    toast.success('Şablon silindi.')
+    await reload()
+  }
+
+  return (
+    <Section
+      title="Program Şablonları"
+      hint={`${templates.length} şablon`}
+      actions={
+        <Button size="sm" onClick={() => setCreating(true)}>
+          <PlusIcon /> Şablon Ekle
+        </Button>
+      }
+    >
+      {exercises.length === 0 ? (
+        <EmptyState icon={LayersIcon} title="Önce egzersiz ekleyin" description="Şablon oluşturmak için egzersiz kütüphanesinde en az bir hareket olmalı." />
+      ) : templates.length === 0 ? (
+        <EmptyState
+          icon={LayersIcon}
+          title="Henüz şablon yok"
+          description="Stüdyonun standart programlarını şablon olarak oluşturun (Program A gibi). Sonra üye kartından tek tıkla atarsınız."
+          action={
+            <Button size="sm" onClick={() => setCreating(true)}>
+              <PlusIcon /> Şablon Ekle
+            </Button>
+          }
+        />
+      ) : (
+        <ul className="grid gap-2">
+          {templates.map((t) => (
+            <li key={t.id} className="flex items-start justify-between gap-3 rounded-xl border border-border bg-card p-3 shadow-xs">
+              <div className="min-w-0">
+                <p className="flex flex-wrap items-center gap-1.5 text-sm font-medium text-foreground">
+                  {t.name}
+                  <Badge className="bg-primary/10 text-primary">{LEVEL_LABEL[t.level] ?? t.level}</Badge>
+                  {!t.active ? <Badge className="bg-muted text-muted-foreground">Pasif</Badge> : null}
+                </p>
+                <p className="truncate text-xs text-muted-foreground">
+                  {t.days.length} gün · {t.days.reduce((n, d) => n + d.exercises.length, 0)} hareket
+                </p>
+              </div>
+              <div className="flex shrink-0 gap-1">
+                <Button variant="ghost" size="sm" onClick={() => setEditing(t)}>
+                  <PencilIcon className="size-3.5" />
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => void remove(t)}>
+                  <Trash2Icon className="size-3.5 text-danger" />
+                </Button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {creating || editing ? (
+        <TemplateDialog
+          initial={editing}
+          exercises={exercises}
+          onClose={() => {
+            setCreating(false)
+            setEditing(null)
+          }}
+          onSaved={async () => {
+            setCreating(false)
+            setEditing(null)
+            await reload()
+          }}
+        />
+      ) : null}
+    </Section>
+  )
+}
+
+function TemplateDialog({
+  initial,
+  exercises,
+  onClose,
+  onSaved,
+}: {
+  initial: ProgramTemplate | null
+  exercises: readonly Exercise[]
+  onClose: () => void
+  onSaved: () => void
+}) {
+  const [name, setName] = useState(initial?.name ?? '')
+  const [level, setLevel] = useState(initial?.level ?? 'beginner')
+  const [days, setDays] = useState<DraftDay[]>(
+    initial
+      ? initial.days.map((d) => ({ name: d.name, items: d.exercises.map((x) => ({ exerciseId: x.exerciseId, sets: x.sets, reps: x.reps })) }))
+      : [{ name: 'Gün 1', items: [] }],
+  )
+  const [busy, setBusy] = useState(false)
+  const active = exercises.filter((e) => e.active)
+
+  function addDay() {
+    setDays((d) => [...d, { name: `Gün ${d.length + 1}`, items: [] }])
+  }
+  function removeDay(di: number) {
+    setDays((d) => d.filter((_, i) => i !== di).map((day, i) => ({ ...day, name: `Gün ${i + 1}` })))
+  }
+  function addItem(di: number) {
+    setDays((d) => d.map((day, i) => (i === di ? { ...day, items: [...day.items, { exerciseId: active[0]?.id ?? '', sets: 3, reps: '12' }] } : day)))
+  }
+  function setItem(di: number, xi: number, patch: Partial<DraftItem>) {
+    setDays((d) => d.map((day, i) => (i === di ? { ...day, items: day.items.map((it, j) => (j === xi ? { ...it, ...patch } : it)) } : day)))
+  }
+  function removeItem(di: number, xi: number) {
+    setDays((d) => d.map((day, i) => (i === di ? { ...day, items: day.items.filter((_, j) => j !== xi) } : day)))
+  }
+
+  async function submit() {
+    if (name.trim().length === 0) {
+      toast.error('Şablon adı zorunludur.')
+      return
+    }
+    if (days.every((d) => d.items.length === 0)) {
+      toast.error('En az bir güne hareket ekleyin.')
+      return
+    }
+    setBusy(true)
+    try {
+      const payload = {
+        id: initial?.id,
+        name: name.trim(),
+        level,
+        days: days
+          .filter((d) => d.items.length > 0)
+          .map((d, di) => ({
+            order: di + 1,
+            name: d.name,
+            exercises: d.items
+              .filter((it) => it.exerciseId)
+              .map((it, xi) => ({ exerciseId: it.exerciseId, order: xi + 1, sets: it.sets, reps: it.reps.trim() || '12' })),
+          })),
+      }
+      const r = await upsertProgramTemplateAction(payload)
+      if (r && 'ok' in r && !r.ok) return void toast.error(domainErrorMessage(r.error))
+      toast.success('Şablon kaydedildi.')
+      onSaved()
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>{initial ? 'Şablonu düzenle' : 'Yeni şablon'}</DialogTitle>
+          <DialogDescription>Günleri 1, 2, 3… olarak ekleyin; her güne kütüphaneden hareket + set × tekrar girin. Piramit için tekrar alanına “12-10-8-8” yazabilirsiniz.</DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="space-y-1.5">
+              <span className="text-xs font-medium text-muted-foreground">Şablon adı</span>
+              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Program A" />
+            </label>
+            <label className="space-y-1.5">
+              <span className="text-xs font-medium text-muted-foreground">Seviye</span>
+              <select
+                value={level}
+                onChange={(e) => setLevel(e.target.value as ProgramTemplate['level'])}
+                className="h-9 w-full rounded-lg border border-border bg-background px-3 text-sm"
+              >
+                <option value="beginner">Başlangıç</option>
+                <option value="intermediate">Orta</option>
+                <option value="advanced">İleri</option>
+              </select>
+            </label>
+          </div>
+
+          {days.map((day, di) => (
+            <div key={di} className="space-y-2 rounded-xl border border-border bg-surface/50 p-3">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold text-foreground">{day.name}</p>
+                <div className="flex gap-1">
+                  <Button variant="ghost" size="sm" onClick={() => addItem(di)}>
+                    <PlusIcon className="size-3.5" /> Hareket
+                  </Button>
+                  {days.length > 1 ? (
+                    <Button variant="ghost" size="sm" onClick={() => removeDay(di)}>
+                      <Trash2Icon className="size-3.5 text-danger" />
+                    </Button>
+                  ) : null}
+                </div>
+              </div>
+              {day.items.length === 0 ? (
+                <p className="text-xs text-muted-foreground">Bu güne henüz hareket eklenmedi.</p>
+              ) : (
+                <ul className="space-y-1.5">
+                  {day.items.map((it, xi) => (
+                    <li key={xi} className="flex items-center gap-1.5">
+                      <select
+                        value={it.exerciseId}
+                        onChange={(e) => setItem(di, xi, { exerciseId: e.target.value })}
+                        className="h-9 min-w-0 flex-1 rounded-lg border border-border bg-background px-2 text-sm"
+                      >
+                        {active.map((ex) => (
+                          <option key={ex.id} value={ex.id}>
+                            {ex.nameTr}
+                            {ex.muscleGroup ? ` — ${ex.muscleGroup}` : ''}
+                          </option>
+                        ))}
+                      </select>
+                      <Input
+                        type="number"
+                        min={1}
+                        value={it.sets}
+                        onChange={(e) => setItem(di, xi, { sets: Math.max(1, Number(e.target.value) || 1) })}
+                        className="w-14"
+                        aria-label="set"
+                      />
+                      <span className="text-xs text-muted-foreground">×</span>
+                      <Input
+                        value={it.reps}
+                        onChange={(e) => setItem(di, xi, { reps: e.target.value })}
+                        className="w-24"
+                        placeholder="12"
+                        aria-label="tekrar"
+                      />
+                      <Button variant="ghost" size="sm" onClick={() => removeItem(di, xi)}>
+                        <Trash2Icon className="size-3.5 text-danger" />
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          ))}
+
+          <Button variant="secondary" size="sm" onClick={addDay}>
+            <PlusIcon className="size-3.5" /> Gün ekle
+          </Button>
+        </div>
+
+        <DialogFooter>
+          <Button variant="ghost" onClick={onClose}>
+            Vazgeç
+          </Button>
+          <Button onClick={() => void submit()} disabled={busy}>
+            {busy ? <Loader2Icon className="size-4 animate-spin" /> : null} Kaydet
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }
 

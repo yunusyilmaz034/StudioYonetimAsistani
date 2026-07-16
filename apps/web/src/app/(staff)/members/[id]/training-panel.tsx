@@ -7,6 +7,7 @@ import {
   DumbbellIcon,
   EyeIcon,
   EyeOffIcon,
+  LayersIcon,
   Loader2Icon,
   PlusIcon,
   Trash2Icon,
@@ -14,7 +15,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 
-import type { Exercise, Measurement, Program, ProgramDay } from '@studio/core'
+import type { Exercise, Measurement, Program, ProgramDay, ProgramTemplate } from '@studio/core'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -38,6 +39,7 @@ import { PHOTO_ANGLE_LABEL, PROGRAM_STATUS_LABEL, PROGRAM_STATUS_TONE } from '@/
 import { PhotoStorageUnconfiguredError, progressUploadConfigured, uploadProgressPhoto } from '@/lib/photo-upload'
 import {
   addProgressPhotoAction,
+  assignTemplateAction,
   changeProgramStatusAction,
   correctMeasurementAction,
   createProgramAction,
@@ -45,11 +47,14 @@ import {
   listMemberMeasurementsAction,
   listMemberPhotosAction,
   listMemberProgramsAction,
+  listProgramTemplatesAction,
   memberProgramStatusAction,
   publishProgramVersionAction,
   recordMeasurementAction,
   removeProgressPhotoAction,
 } from '@/server/actions/training'
+
+const LEVEL_LABEL: Record<string, string> = { beginner: 'Başlangıç', intermediate: 'Orta', advanced: 'İleri' }
 
 const TZ = 'Europe/Istanbul'
 const dtime = (ms: number) => new Date(ms).toLocaleString('tr-TR', { timeZone: TZ, dateStyle: 'medium', timeStyle: 'short' })
@@ -115,13 +120,16 @@ function FullTrainingPanel({ memberId, studioId }: { memberId: string; studioId:
 function ProgramsSection({ memberId }: { memberId: string }) {
   const [programs, setPrograms] = useState<readonly Program[] | null>(null)
   const [exercises, setExercises] = useState<readonly Exercise[]>([])
+  const [templates, setTemplates] = useState<readonly ProgramTemplate[]>([])
   const [creating, setCreating] = useState(false)
+  const [assigning, setAssigning] = useState(false)
   const [openId, setOpenId] = useState<string | null>(null)
 
   const reload = useCallback(async () => {
-    const [ps, ex] = await Promise.all([listMemberProgramsAction({ memberId }), listExercisesAction()])
+    const [ps, ex, tps] = await Promise.all([listMemberProgramsAction({ memberId }), listExercisesAction(), listProgramTemplatesAction()])
     setPrograms(ps)
     setExercises(ex)
+    setTemplates(tps)
   }, [memberId])
 
   useEffect(() => {
@@ -135,9 +143,16 @@ function ProgramsSection({ memberId }: { memberId: string }) {
       title="Programlar"
       hint={programs ? `${programs.length}` : ''}
       actions={
-        <Button size="sm" onClick={() => setCreating(true)}>
-          <PlusIcon /> Program Oluştur
-        </Button>
+        <div className="flex gap-1.5">
+          {templates.length > 0 ? (
+            <Button size="sm" variant="secondary" onClick={() => setAssigning(true)}>
+              <LayersIcon /> Şablondan Ata
+            </Button>
+          ) : null}
+          <Button size="sm" onClick={() => setCreating(true)}>
+            <PlusIcon /> Program Oluştur
+          </Button>
+        </div>
       }
     >
       {programs === null ? (
@@ -182,6 +197,19 @@ function ProgramsSection({ memberId }: { memberId: string }) {
         />
       ) : null}
 
+      {assigning ? (
+        <AssignTemplateDialog
+          memberId={memberId}
+          templates={templates}
+          onClose={() => setAssigning(false)}
+          onAssigned={async (id) => {
+            setAssigning(false)
+            await reload()
+            setOpenId(id)
+          }}
+        />
+      ) : null}
+
       {open ? (
         <ProgramDetailSheet
           program={open}
@@ -191,6 +219,73 @@ function ProgramsSection({ memberId }: { memberId: string }) {
         />
       ) : null}
     </Section>
+  )
+}
+
+function AssignTemplateDialog({
+  memberId,
+  templates,
+  onClose,
+  onAssigned,
+}: {
+  memberId: string
+  templates: readonly ProgramTemplate[]
+  onClose: () => void
+  onAssigned: (programId: string) => void
+}) {
+  const [templateId, setTemplateId] = useState(templates[0]?.id ?? '')
+  const [busy, setBusy] = useState(false)
+  const chosen = templates.find((t) => t.id === templateId) ?? null
+
+  async function submit() {
+    if (!templateId) return
+    setBusy(true)
+    try {
+      const r = await assignTemplateAction({ templateId, memberId })
+      if (r && 'ok' in r && !r.ok) return void toast.error(domainErrorMessage(r.error))
+      toast.success('Program şablondan oluşturuldu.')
+      if (r && 'ok' in r && r.ok) onAssigned(r.value.id)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Şablondan program ata</DialogTitle>
+          <DialogDescription>Bir program şablonu seçin — üye için o programı yeni bir program olarak oluşturur. Sonra üyeye özel düzenleyebilirsiniz.</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3">
+          <Select value={templateId} onValueChange={(v) => setTemplateId(v ?? '')}>
+            <SelectTrigger>
+              <SelectValue placeholder="Şablon seç" />
+            </SelectTrigger>
+            <SelectContent>
+              {templates.map((t) => (
+                <SelectItem key={t.id} value={t.id}>
+                  {t.name} · {LEVEL_LABEL[t.level] ?? t.level}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {chosen ? (
+            <p className="text-xs text-muted-foreground">
+              {chosen.days.length} gün · {chosen.days.reduce((n, d) => n + d.exercises.length, 0)} hareket
+            </p>
+          ) : null}
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={onClose}>
+            Vazgeç
+          </Button>
+          <Button onClick={() => void submit()} disabled={busy || !templateId}>
+            {busy ? <Loader2Icon className="size-4 animate-spin" /> : null} Ata
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }
 

@@ -1,5 +1,5 @@
 import type { Clock, NewEvent, TenantContext } from '../../../shared'
-import type { Exercise, Measurement, Program, ProgressPhoto, TrainingFeedback } from '../domain/types'
+import type { Exercise, Measurement, Program, ProgramTemplate, ProgressPhoto, TrainingFeedback } from '../domain/types'
 
 // The training repository port. Infrastructure (FirestoreTrainingRepository) implements it; the
 // application composes the pure deciders against it. State + events always commit together (#1).
@@ -25,6 +25,12 @@ export interface TrainingRepository {
   listPhotosByMember(ctx: TenantContext, memberId: string): Promise<readonly ProgressPhoto[]>
   savePhoto(ctx: TenantContext, photo: ProgressPhoto, events: readonly NewEvent[]): Promise<void>
   deletePhoto(ctx: TenantContext, id: string, events: readonly NewEvent[]): Promise<void>
+
+  // Program templates — CONFIG, no events.
+  getTemplate(ctx: TenantContext, id: string): Promise<ProgramTemplate | null>
+  listTemplates(ctx: TenantContext): Promise<readonly ProgramTemplate[]>
+  saveTemplate(ctx: TenantContext, template: ProgramTemplate): Promise<void>
+  deleteTemplate(ctx: TenantContext, id: string): Promise<void>
 }
 
 export interface TrainingDeps {

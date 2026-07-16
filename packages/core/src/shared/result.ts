@@ -148,6 +148,10 @@ export type DomainError =
   | { readonly code: 'program_archived' }
   | { readonly code: 'program_empty' }
   | { readonly code: 'program_version_conflict' }
+  // ── Program templates (Plus, pilot) ──
+  | { readonly code: 'template_name_required' }
+  | { readonly code: 'template_empty' }
+  | { readonly code: 'template_not_found_pt' }
   // ── Plus Phase 9 (Trainer Payroll & Commission) ──
   | { readonly code: 'invalid_compensation_rate' }
   | { readonly code: 'invalid_commission_percent' }

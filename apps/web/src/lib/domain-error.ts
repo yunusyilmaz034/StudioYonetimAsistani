@@ -200,6 +200,12 @@ export function domainErrorMessage(error: DomainError): string {
       return 'Programda en az bir gün ve hareket olmalı.'
     case 'program_version_conflict':
       return 'Program versiyonu çakıştı. Sayfayı yenileyip tekrar deneyin.'
+    case 'template_name_required':
+      return 'Şablon adı gerekli.'
+    case 'template_empty':
+      return 'Şablonda en az bir gün ve her günde en az bir hareket olmalı.'
+    case 'template_not_found_pt':
+      return 'Program şablonu bulunamadı.'
     // ── Plus Phase 9 (Trainer Payroll & Commission) ──
     case 'invalid_compensation_rate':
       return 'Geçersiz ücret. Seçilen modelin gerektirdiği ücreti girin (negatif olamaz).'

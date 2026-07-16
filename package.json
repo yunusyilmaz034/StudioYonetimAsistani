@@ -39,7 +39,8 @@
     "bootstrap:owner": "tsx tools/bootstrap/owner.ts",
     "setup:catalog": "tsx tools/setup/catalog.ts",
     "setup:trainers": "tsx tools/setup/trainers.ts",
-    "setup:exercises": "tsx tools/setup/exercises.ts"
+    "setup:exercises": "tsx tools/setup/exercises.ts",
+    "setup:program-a": "tsx tools/setup/program-a.ts"
   },
   "dependencies": {},
   "devDependencies": {

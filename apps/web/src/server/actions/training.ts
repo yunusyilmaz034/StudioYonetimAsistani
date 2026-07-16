@@ -7,14 +7,18 @@ import {
   correctMeasurement,
   createProgram,
   deactivateExercise,
+  deleteProgramTemplate,
   FirestoreTrainingRepository,
+  instantiateTemplate,
   leaveFeedback,
+  listProgramTemplates,
   publishProgramVersion,
   recordMeasurement,
   removePhoto,
   resolveFeedback,
   systemClock,
   upsertExercise,
+  upsertProgramTemplate,
   type TrainingDeps,
   type TenantContext,
 } from '@studio/core'
@@ -119,6 +123,59 @@ const draftExercise = z.object({
   note: z.string(),
   alternativeExerciseId: z.string().nullable(),
 })
+
+// ── Program templates (reusable skeletons; assigning one to a member creates her programme) ──────
+export async function listProgramTemplatesAction() {
+  const ctx = await requireTenantContext(TRAINER)
+  return listProgramTemplates(trainingDeps(), ctx)
+}
+
+export async function getProgramTemplateAction(input: unknown) {
+  const p = z.object({ id: z.string().min(1) }).parse(input)
+  const ctx = await requireTenantContext(TRAINER)
+  return trainingDeps().repo.getTemplate(ctx, p.id)
+}
+
+const templateExercise = z.object({
+  exerciseId: z.string().min(1),
+  order: z.number().int(),
+  sets: z.number().int().min(1),
+  reps: z.string().trim().min(1),
+  restSeconds: z.number().int().min(0).optional(),
+  tempo: z.string().optional(),
+  note: z.string().optional(),
+  alternativeExerciseId: z.string().nullable().optional(),
+})
+
+export async function upsertProgramTemplateAction(input: unknown) {
+  const p = z
+    .object({
+      id: z.string().optional(),
+      name: z.string().trim().min(1),
+      level: z.enum(['beginner', 'intermediate', 'advanced']),
+      description: z.string().optional(),
+      days: z.array(z.object({ order: z.number().int(), name: z.string(), exercises: z.array(templateExercise).min(1) })).min(1),
+    })
+    .parse(input)
+  const ctx = await requireTenantContext(TRAINER)
+  return upsertProgramTemplate(trainingDeps(), ctx, p, STAFF_SOURCE)
+}
+
+export async function deleteProgramTemplateAction(input: unknown) {
+  const p = z.object({ id: z.string().min(1) }).parse(input)
+  const ctx = await requireTenantContext(TRAINER)
+  return deleteProgramTemplate(trainingDeps(), ctx, p.id)
+}
+
+// Assign a template TO a member → creates her programme (event-sourced). Trainer authors as herself.
+export async function assignTemplateAction(input: unknown) {
+  const p = z.object({ templateId: z.string().min(1), memberId: z.string().min(1), trainerId: z.string().optional() }).parse(input)
+  const ctx = await requireTenantContext(TRAINER)
+  const a = actorRef(ctx)
+  const trainerId = a.type === 'trainer' ? a.id : p.trainerId ?? a.id
+  await assertMayReadMemberContent(ctx, p.memberId)
+  return instantiateTemplate(trainingDeps(), ctx, { templateId: p.templateId, memberId: p.memberId, trainerId }, STAFF_SOURCE)
+}
 
 export async function publishProgramVersionAction(input: unknown) {
   const p = z
