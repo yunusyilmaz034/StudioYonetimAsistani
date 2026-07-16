@@ -33,6 +33,7 @@ import { Section } from '@/components/ui/section'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Textarea } from '@/components/ui/textarea'
+import { ExerciseGuideDialog } from '@/components/exercise-guide-dialog'
 import { MeasurementChart } from '@/components/training/measurement-chart'
 import { domainErrorMessage } from '@/lib/domain-error'
 import { PHOTO_ANGLE_LABEL, PROGRAM_STATUS_LABEL, PROGRAM_STATUS_TONE } from '@/lib/training-labels'
@@ -357,6 +358,7 @@ function ProgramDetailSheet({
 }) {
   const [building, setBuilding] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [guide, setGuide] = useState<Exercise | null>(null)
   const latest = program.versions[program.versions.length - 1] ?? null
 
   async function setStatus(to: Program['status']) {
@@ -426,15 +428,29 @@ function ProgramDetailSheet({
                       <div key={day.order} className="rounded-lg bg-muted/40 p-2">
                         <p className="text-xs font-medium text-foreground">{day.name}</p>
                         <ul className="mt-1 space-y-0.5">
-                          {day.exercises.map((ex) => (
-                            <li key={ex.order} className="flex items-baseline justify-between gap-2 text-xs text-muted-foreground">
-                              <span className="truncate text-foreground">{ex.nameTr}</span>
-                              <span className="shrink-0 tabular-nums">
-                                {ex.sets}×{ex.reps}
-                                {ex.restSeconds ? ` · ${ex.restSeconds}sn` : ''}
-                              </span>
-                            </li>
-                          ))}
+                          {day.exercises.map((ex) => {
+                            const lib = exercises.find((e) => e.id === ex.exerciseId)
+                            return (
+                              <li key={ex.order} className="flex items-baseline justify-between gap-2 text-xs text-muted-foreground">
+                                {lib ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => setGuide(lib)}
+                                    title="Hareket rehberi"
+                                    className="truncate text-left text-foreground hover:text-primary hover:underline"
+                                  >
+                                    {ex.nameTr}
+                                  </button>
+                                ) : (
+                                  <span className="truncate text-foreground">{ex.nameTr}</span>
+                                )}
+                                <span className="shrink-0 tabular-nums">
+                                  {ex.sets}×{ex.reps}
+                                  {ex.restSeconds ? ` · ${ex.restSeconds}sn` : ''}
+                                </span>
+                              </li>
+                            )
+                          })}
                         </ul>
                       </div>
                     ))}
@@ -457,6 +473,7 @@ function ProgramDetailSheet({
             }}
           />
         ) : null}
+        {guide ? <ExerciseGuideDialog exercise={guide} onClose={() => setGuide(null)} /> : null}
       </SheetContent>
     </Sheet>
   )

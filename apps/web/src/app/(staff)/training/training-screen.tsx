@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { DumbbellIcon, LayersIcon, Loader2Icon, MessageCircleIcon, PencilIcon, PlayCircleIcon, PlusIcon, SendIcon, Trash2Icon } from 'lucide-react'
+import { DumbbellIcon, LayersIcon, Loader2Icon, MessageCircleIcon, PencilIcon, PlusIcon, SendIcon, Trash2Icon } from 'lucide-react'
 import { toast } from 'sonner'
 
 import type { Exercise, ProgramTemplate, TrainingFeedback } from '@studio/core'
@@ -22,6 +22,7 @@ import { PageHeader } from '@/components/ui/page-header'
 import { Section } from '@/components/ui/section'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
+import { ExerciseGuideDialog } from '@/components/exercise-guide-dialog'
 import { domainErrorMessage } from '@/lib/domain-error'
 import { FEEDBACK_REASON_LABEL, FEEDBACK_REASON_TONE, FEEDBACK_STATUS_LABEL } from '@/lib/training-labels'
 import {
@@ -449,63 +450,6 @@ function ExerciseLibrary({ initial }: { initial: readonly Exercise[] }) {
   )
 }
 
-// Read-only "Hareket Rehberi" (PF-11): the guidance the model already stores (muscle group, açıklama,
-// ipuçları, sık hatalar, video) had no surface to be READ — it lived only inside the edit dialog. This
-// shows it. Empty sections are hidden; a fully-empty exercise says so and points to Düzenle. Görseller
-// (başlangıç/yapılış + doğru/yanlış) telif kararı bekliyor — model onlara hazır (photoUrl/gifUrl).
-function ExerciseGuideDialog({ exercise, onClose, onEdit }: { exercise: Exercise; onClose: () => void; onEdit: () => void }) {
-  const ex = exercise
-  const sections: { title: string; body: string }[] = [
-    { title: 'Açıklama', body: ex.description },
-    { title: 'İpuçları', body: ex.tips },
-    { title: 'Sık Yapılan Hatalar', body: ex.commonMistakes },
-  ].filter((s) => s.body.trim().length > 0)
-  const empty = sections.length === 0 && !ex.videoUrl
-  return (
-    <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{ex.nameTr}</DialogTitle>
-          {ex.muscleGroup || ex.equipment ? (
-            <DialogDescription>{[ex.muscleGroup, ex.equipment].filter(Boolean).join(' · ')}</DialogDescription>
-          ) : null}
-        </DialogHeader>
-        <div className="space-y-4">
-          {ex.videoUrl ? (
-            <a
-              href={ex.videoUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-sm font-medium text-primary underline"
-            >
-              <PlayCircleIcon className="size-4" /> Videoyu izle
-            </a>
-          ) : null}
-          {sections.map((s) => (
-            <div key={s.title}>
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{s.title}</p>
-              <p className="mt-1 whitespace-pre-line text-sm leading-relaxed text-foreground">{s.body}</p>
-            </div>
-          ))}
-          {empty ? (
-            <p className="text-sm text-muted-foreground">
-              Bu hareket için henüz rehber girilmemiş. <strong>Düzenle</strong>’den açıklama, ipuçları ve sık yapılan
-              hataları ekleyebilirsiniz.
-            </p>
-          ) : null}
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            Kapat
-          </Button>
-          <Button onClick={onEdit}>
-            <PencilIcon className="size-3.5" /> Düzenle
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  )
-}
 
 function ExerciseDialog({
   initial,
