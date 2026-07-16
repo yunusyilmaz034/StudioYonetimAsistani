@@ -808,6 +808,86 @@ matters, or when move is exposed to members (self-service) rather than staff-onl
 
 ---
 
+## DEBT-041 — Payroll report re-reads the whole studio's period once per trainer
+
+**Taken:** 2026-07-16 · Production-readiness audit (performance) · Yunus (owner-approved)
+**What:** `/payroll` fires `statementDraftAction` for every trainer in parallel, and each
+`loadStatementDraft` (`payroll-query.ts`) issues studio-wide, unbounded range reads
+(`listSessionsForDay`, `listBySessionStartRange`, `listSalesBetween`) and filters to the one trainer in
+memory. Because sessions/reservations/sales carry no `trainerId`, the identical period-wide sets are
+re-fetched once per trainer → O(trainers × monthly activity). Also `fitness-query.ts`'s 30-day usage read
+(`listCheckInsForDay`) has no `.limit()` and returns every check-in in the window.
+**Cost:** a single payroll-screen open for a 6-trainer studio with a busy month can issue on the order of
+~10–15k Firestore reads, and it repeats on each period switch; the fitness usage page reads every check-in
+for 30 days. At boutique scale (a handful of trainers, low-hundreds of check-ins/day) this is a few cents
+and a slower load on **occasional owner-only screens**, not a hot path — tolerable for launch, wasteful at
+growth.
+**Trigger to repay:** the studio grows past ~10 trainers, or the payroll/fitness screens feel slow, or the
+Firestore read bill is noticed.
+**Repayment:** load the studio-wide sessions/reservations/sales ONCE for the period
+(`loadAllStatementDrafts`) and compute every trainer's draft from that single set (collapses the fan-out to
+one read set); add a sensible `.limit()` (or aggregation) to the fitness usage query. Deferred now because
+it is a query-layer restructure and the production merge must not carry a risky refactor.
+
+---
+
+## DEBT-039 — `recordedAt` uses `Timestamp.now()` (app clock) in the later modules, not `serverTimestamp()`
+
+**Taken:** 2026-07-16 · Production-readiness audit · Yunus (owner-approved)
+**What:** Non-negotiable #3 says `recordedAt` "is `serverTimestamp()`". The Phase-1 modules obey it, but
+every module from finance (v1.24) onward — finance, calendar, crm, notifications, operations, waitlist,
+training, payroll — writes `recordedAt: Timestamp.now()` (the app server's wall clock at
+transaction-build time) inside their `runTransaction`/batch event writes, instead of
+`FieldValue.serverTimestamp()`. It is systemic and pre-existing, not introduced by any single Plus phase.
+**Cost:** on app-server clock skew, the append-only log's *record-time* ordering can misrepresent reality
+by the skew. `occurredAt` (domain time) is unaffected; only the audit's secondary timestamp drifts. In a
+single-region App Hosting deployment the skew is milliseconds, so the practical impact today is nil.
+**Trigger to repay:** any move to multi-region / multi-process event writers, or the first time record-time
+ordering is used for a decision (it must not be — that is what `occurredAt` is for).
+**Repayment:** switch the shared event-write helpers to `FieldValue.serverTimestamp()` fleet-wide (it works
+inside `runTransaction`); one change per module's repo `writeEvents`. Deferred now because it is a
+cross-module change and `main` must stay a working state through the production merge (no refactor mid-audit).
+
+---
+
+## DEBT-040 — Plus-phase events have no golden fixtures (the PII guard is asserted, not tested)
+
+**Taken:** 2026-07-16 · Production-readiness audit · Yunus (owner-approved)
+**What:** `packages/core/test/golden/` has PII-free fixtures for Phase-1 + finance events, but none for the
+Plus events: payments (`payment_intent.*`), training (`program.*`, `measurement.*`, `training_feedback.*`,
+`progress_photo.*`), or payroll (`compensation_plan.*`, `payroll.*`). CLAUDE.md makes golden fixtures the
+enforcement mechanism for #6/I-13 ("PII in an event payload — caught by golden fixture tests").
+**Cost:** the payloads ARE PII-free today (audited: ids/enums/counts/Money only; measurement values, photo
+URLs, and feedback text live on member-scoped state, never the log). But a future edit that added a name or
+free-text note to one of these payloads would fail no test — the guard for the highest-PII module (training)
+is a comment, not a test.
+**Trigger to repay:** before the next change to any Plus event's payload shape, or the first KVKK review.
+**Repayment:** add `test/golden/<event>.v1.json` + a golden test per Plus module, mirroring
+`finance-events.golden.test.ts` (which asserts the serialized payload contains no PII field).
+
+---
+
+## DEBT-038 — PAYTR callback completion is check-then-act, not one transaction
+
+**Taken:** 2026-07-16 · Production-readiness audit (security §1) · Yunus (owner-approved)
+**What:** `handlePaytrCallback` reads the intent (`getIntentByProviderRef`) and `completePaidIntent` then
+transitions it + grants the package in a SEPARATE write. Idempotency rests on the intent's terminal-status
+check inside `decideCallbackResult`, but the read is outside the write and `saveIntent` is a `batch.set`
+with no status precondition. Two genuinely concurrent duplicate PAYTR success callbacks for the same
+`providerRef` could both observe `awaiting_payment`, both pass the check, and both call `sellPackage` →
+double entitlement grant + double finance payment.
+**Cost:** a rare double-grant on a money+credit path. Mitigated by PAYTR's mostly-sequential retry
+behaviour and the reconciliation sweep. **Not reachable in production today: PAYTR is not live (no merchant
+credentials), so no real callback fires** — the same gate as DEBT-036/Storage.
+**Trigger to repay:** before PAYTR is switched on in production (the moment real merchant credentials are
+set). This is a go-live gate, not an optional cleanup.
+**Repayment:** run the callback transition inside `db.runTransaction` — `tx.get` the intent, verify
+non-terminal, write intent+event in that transaction, and only then grant. (The BLOCKER — these functions
+being exposed as public Server Actions — was fixed in this audit by moving them to `server/payment-callback.ts`,
+a non-`'use server'` module.)
+
+---
+
 ## DEBT-037 — Marking a payroll statement paid posts no cash outflow
 
 **Taken:** 2026-07-16 · Product Plus Phase 9 (Trainer Payroll & Commission) · Yunus (owner-approved autonomy)

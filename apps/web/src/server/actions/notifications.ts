@@ -29,7 +29,10 @@ import { adminDb } from '../firebase-admin'
 // The Notification Center is never a "send an SMS" screen (owner). It is the centre of Intent ·
 // Queue · Attempt · Delivery · Retry · Audit — the record of who we tried to reach, how it went, and
 // what we chose not to send.
-const STAFF = ['owner', 'receptionist', 'trainer', 'platform_admin'] as const
+// `/notifications` is DESK (owner + receptionist) in the permission matrix. A trainer must NOT read
+// notification history / templates or send member messages — the action guard has to match the matrix,
+// not just the hidden nav. platform_admin is the developer superuser.
+const OPS = ['owner', 'receptionist', 'platform_admin'] as const
 const OWNER = ['owner', 'platform_admin'] as const
 
 // Same config the functions trigger reads, so an owner's manual resend uses the SAME real providers
@@ -88,7 +91,7 @@ export interface TemplateRow {
 }
 
 export async function listNotificationTemplatesAction(): Promise<readonly TemplateRow[]> {
-  const ctx = await requireTenantContext(STAFF)
+  const ctx = await requireTenantContext(OPS)
   const db = adminDb()
   const overrides = await db.collection(`studios/${ctx.studioId}/notificationTemplates`).get()
   const overrideById = new Map(overrides.docs.map((d) => [d.id, d.data() as NotificationTemplate]))
@@ -167,7 +170,7 @@ async function resolvedTemplate(studioId: string, id: string): Promise<Notificat
 /** Render preview for the manual-send dialog. Returns the missing params rather than a blank message. */
 export async function previewNotificationAction(input: unknown) {
   const p = z.object({ templateId: z.string().min(1), params: z.record(z.string(), z.string()) }).parse(input)
-  const ctx = await requireTenantContext(STAFF)
+  const ctx = await requireTenantContext(OPS)
   const template = await resolvedTemplate(ctx.studioId, p.templateId)
   if (!template) return { ok: false as const, error: { code: 'template_not_found' as const } }
   const r = render(template, p.params)
@@ -176,7 +179,7 @@ export async function previewNotificationAction(input: unknown) {
 
 export async function sendManualNotificationAction(input: unknown) {
   const p = z.object({ memberId: z.string().min(1), templateId: z.string().min(1), params: z.record(z.string(), z.string()) }).parse(input)
-  const ctx = await requireTenantContext(STAFF)
+  const ctx = await requireTenantContext(OPS)
   const member = await new FirestoreMemberRepository(adminDb()).findById(ctx, p.memberId as MemberId)
   if (!member) return { ok: false as const, error: { code: 'member_not_found' as const } }
 
@@ -255,7 +258,7 @@ export interface NotificationRow {
 // Everything the owner asked for on one row: message · recipient · channel · time · what triggered
 // it · status · error · retries · OperationId.
 export async function listNotificationsAction(): Promise<readonly NotificationRow[]> {
-  const ctx = await requireTenantContext(STAFF)
+  const ctx = await requireTenantContext(OPS)
   const repo = new FirestoreNotificationRepository(adminDb())
 
   const [attempts, intents] = await Promise.all([repo.listAttempts(ctx, 200), repo.listIntents(ctx, 200)])

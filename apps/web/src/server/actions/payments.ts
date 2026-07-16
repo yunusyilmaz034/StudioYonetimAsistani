@@ -3,27 +3,20 @@
 import { randomUUID } from 'node:crypto'
 
 import {
-  decideCallbackResult,
   decideCreatePaymentIntent,
   decideRefundConfirmed,
   decideRequestRefund,
   decideSessionCreated,
   FirestoreCatalogRepository,
-  FirestoreEntitlementRepository,
-  FirestoreFinanceRepository,
   FirestoreMemberRepository,
   FirestorePaymentIntentRepository,
   instant,
   money,
   newCorrelationId,
-  sellPackage,
   systemClock,
-  type CallbackVerdict,
-  type Grant,
   type MemberId,
   type PaymentIntent,
   type ProductId,
-  type SellPackageDeps,
   type TenantContext,
 } from '@studio/core'
 import { z } from 'zod'
@@ -44,11 +37,6 @@ const dctx = (ctx: TenantContext) => ({
   correlationId: newCorrelationId(),
   source: 'system_payment' as const,
 })
-const sellDeps = (): SellPackageDeps => ({
-  finance: { repo: new FirestoreFinanceRepository(adminDb()), clock: systemClock },
-  entitlements: { repo: new FirestoreEntitlementRepository(adminDb()), clock: systemClock },
-})
-
 // ── Provider config (Ayarlar › Entegrasyonlar › Payment Providers) ───────────────────────────
 export async function getPaymentProviderSettingsAction() {
   const ctx = await requireTenantContext(OPS)
@@ -193,63 +181,9 @@ function callbackUrl(ctx: TenantContext, config: { callbackUrl: string }): strin
   return `${base}${sep}sid=${ctx.studioId}`
 }
 
-// ── COMPLETION — called by the verified callback route ONLY (not a client). Grants the package after
-//    payment, records the online payment in the ledger with the real providerRef. Idempotent via the
-//    intent status (a replayed callback finds it terminal and does nothing). ──
-export async function completePaidIntent(ctx: TenantContext, intent: PaymentIntent, verdict: CallbackVerdict): Promise<void> {
-  const decided = decideCallbackResult(dctx(ctx), intent, verdict)
-  if (!decided.ok) return
-  await intentRepo().saveIntent(ctx, decided.value.next, decided.value.events)
-  if (!decided.value.completed) return
-
-  if (intent.purpose === 'package' || intent.purpose === 'renewal') {
-    const product = await new FirestoreCatalogRepository(adminDb()).getProduct(ctx, intent.context.productId as ProductId)
-    if (!product) return // reconciliation will flag: paid but no product
-    const grant: Grant =
-      product.type === 'credit'
-        ? { kind: 'credits', credits: product.creditCount ?? 0, validForDays: product.durationDays }
-        : { kind: 'period', durationDays: product.durationDays, access: 'unlimited' }
-    await sellPackage(sellDeps(), ctx, {
-      branchId: (ctx.branchIds[0] ?? null) as never,
-      subscription: {
-        memberId: intent.memberId as MemberId,
-        productId: product.id,
-        productSnapshot: {
-          productId: product.id,
-          name: product.name,
-          category: product.category,
-          grant,
-          listPrice: money(product.priceInKurus),
-          serviceIds: product.serviceIds,
-          cancellationAllowanceCount: product.cancellationAllowanceCount,
-          dailyReservationLimit: product.dailyReservationLimit,
-          activeReservationLimit: product.activeReservationLimit,
-        },
-        policyRef: { policyId: product.id, version: 1 },
-        priceAgreed: money(intent.context.priceAgreedKurus ?? intent.amount.amount),
-        validFrom: dayMs(intent.context.validFrom ?? ''),
-        validUntil: intent.context.validUntil ? dayMs(intent.context.validUntil) : null,
-        freezeDays: product.freezeAllowanceDays > 0 ? product.freezeAllowanceDays : null,
-        creditOverride: intent.context.creditOverride ?? null,
-        collectedAmount: money(0),
-        // The entitlement's own (informational) method enum has no 'online'; the real money method is
-        // on the finance payment below (method: 'online'). collectedAmount is zeroed, so this is inert.
-        method: 'credit_card',
-        note: intent.context.note ?? 'PAYTR',
-      },
-      discountCeilingPercent: null,
-      payment: {
-        amount: intent.amount,
-        method: 'online',
-        receivedAt: instant(systemClock.now()),
-        drawerId: null,
-        giftCardCode: null,
-        note: 'PAYTR',
-        providerRef: intent.providerRef,
-      },
-    })
-  }
-}
+// COMPLETION and the PAYTR callback handler live in `../payment-callback` (a plain server module, NOT
+// `'use server'`): they grant a package from a caller-supplied ctx/intent/verdict and must never be a
+// public Server-Action endpoint. See that file for why.
 
 export interface PaymentIntentRow {
   readonly id: string
@@ -302,40 +236,4 @@ export async function refundPaymentIntentAction(input: unknown) {
   const confirmed = decideRefundConfirmed(dctx(ctx), requested.value.next, money(p.amountKurus), p.reason)
   await intentRepo().saveIntent(ctx, confirmed.next, confirmed.events)
   return { ok: true as const }
-}
-
-// ── The PAYTR callback, server-side (the route only forwards to this — depcruise keeps Firestore out
-//    of app/api). Verify → load intent by reference → complete. Returns exactly what to send PAYTR. ──
-export async function handlePaytrCallback(sid: string, fields: Record<string, string>): Promise<{ body: string; status: number }> {
-  const ctx: TenantContext = {
-    studioId: sid as never,
-    branchIds: [],
-    role: 'owner',
-    actor: { type: 'system', id: 'paytr_callback' } as TenantContext['actor'],
-  }
-  const { provider } = await paymentProviderFor(ctx)
-  const verification = provider.verifyCallback(fields)
-  if (!verification.valid || !verification.providerRef) return { body: 'PAYTR notification failed: bad hash', status: 200 }
-
-  const intent = await intentRepo().getIntentByProviderRef(ctx, verification.providerRef)
-  if (!intent) return { body: 'OK', status: 200 } // unknown ref — quarantined, reconciliation surfaces it
-
-  const verdict: CallbackVerdict =
-    verification.status === 'success'
-      ? { ok: true, providerRef: verification.providerRef, paidAmount: verification.paidAmount ?? money(0) }
-      : { ok: false, providerRef: verification.providerRef, reason: verification.failureCode ?? 'failed' }
-
-  try {
-    await completePaidIntent(ctx, intent, verdict)
-  } catch {
-    // The money is taken; a completion error must not tell PAYTR "failed". Respond OK; reconciliation
-    // grants the package (paid, no entitlement → manual_review / retry, §21/§22).
-    return { body: 'OK', status: 200 }
-  }
-  return { body: 'OK', status: 200 }
-}
-
-const OFFSET_MIN = 180
-function dayMs(localDate: string): number {
-  return Date.parse(`${localDate}T00:00:00Z`) - OFFSET_MIN * 60_000
 }

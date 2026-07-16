@@ -1,6 +1,6 @@
 import type { NextRequest } from 'next/server'
 
-import { handlePaytrCallback } from '@/server/actions/payments'
+import { handlePaytrCallback } from '@/server/payment-callback'
 
 // ── PAYTR server-to-server callback (Plus Phase 6, §9). ──────────────────────────────────────
 //
