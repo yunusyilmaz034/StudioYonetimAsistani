@@ -250,7 +250,10 @@ function SessionChip({ session }: { session: CalendarSession }) {
   return (
     // A tighter gap and a 1px-smaller face buy several more characters of the class name
     // before it truncates — in a month cell that is the difference between reading it and not.
-    <span className={`flex w-full items-center gap-1 truncate text-[0.6875rem] ${cancelled ? 'text-muted-foreground line-through' : 'text-foreground'}`}>
+    // A cancelled session STAYS on the calendar (it reconciles with the "İPTAL" counter and is an
+    // honest record), but it is faded well back so it never competes with a live class next to it —
+    // colour/opacity only, the calendar's layout is untouched (owner rule).
+    <span className={`flex w-full items-center gap-1 truncate text-[0.6875rem] ${cancelled ? 'text-muted-foreground line-through opacity-50' : 'text-foreground'}`}>
       <span className={`size-1.5 shrink-0 rounded-full ${STATUS_DOT[session.status] ?? 'bg-muted-foreground'}`} />
       <span className="shrink-0 font-medium tabular-nums text-muted-foreground">{timeLabel(session.startsAt)}</span>
       <span className="truncate font-medium">{session.serviceName}</span>
