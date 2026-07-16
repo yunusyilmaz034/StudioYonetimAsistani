@@ -95,3 +95,16 @@ tetikleme riski. Kişisel "Pasife Al" burada kalabilir (geri alınabilir); ama k
 **Proposed fix:** Erasure panelini üye kartından **kaldır**, **Ayarlar** altında ayrı bir "KVKK / Gizlilik"
 bölümüne taşı — orada üye ara/seç → anonimleştir. Yetki yine `platform_admin` (AD-67) kalır; bu sadece
 YERİNİ değiştirir, davranışı/güvenliği değil. Orta iş (yeni küçük ekran + member picker), düşük risk.
+
+---
+
+## PF-10 — Üye kartı + üye portalı üst tabları sıkışık · `backlog`
+
+**Taken:** 2026-07-16 · owner ("Kısıtlı Üyelik/Cari Hesap sığmamış iki satıra kırılıyor, hoş durmuyor; üye
+portalında da Rezervasyon yap / Rezervasyonlarım / Antrenman tabları çok sıkışık").
+**Where:** (1) Üye kartı üst sekmeleri (Genel · Paketler · Rezervasyonlar · Kısıtlı Üyelik · Antrenman ·
+Check-in · Cari Hesap · Geçmiş) — dar ekranda kırılıyor. (2) Üye portalı üst navigasyonu — aynı sıkışıklık.
+**Proposed fix:** Tab şeridini **responsive** yap — yatay **kaydırılabilir** (overflow-x, tek satır, kırılma
+yok) ve/veya dar ekranda ikon + kısa etiket; ya da mantıklı gruplama (ör. az kullanılanları bir "Daha fazla"
+altına). İki-satıra-kırılma olmasın, tek satır düzgün dursun. Sadece görsel/düzen; sekme içerikleri aynı.
+Orta iş (paylaşılan Tabs deseni + portal nav), düşük risk.
