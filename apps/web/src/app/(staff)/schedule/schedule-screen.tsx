@@ -38,6 +38,15 @@ const STATUS_DOT: Record<string, string> = {
   cancelled: 'bg-danger',
 }
 
+// Category → a soft cell tint (PF-13). Colour ONLY — no box changes; the calendar's layout is untouched
+// (owner rule). The status dot still encodes status, so a cell now reads category (background) AND status
+// (dot) at a glance. Colours are the same category hues the domain already uses (globals.css --cat-*).
+const CAT_TINT: Record<string, string> = {
+  pilates: 'bg-cat-pilates-soft',
+  fitness: 'bg-cat-fitness-soft',
+  private: 'bg-cat-private-soft',
+}
+
 export function ScheduleScreen({
   data,
   date,
@@ -253,7 +262,11 @@ function SessionChip({ session }: { session: CalendarSession }) {
     // A cancelled session STAYS on the calendar (it reconciles with the "İPTAL" counter and is an
     // honest record), but it is faded well back so it never competes with a live class next to it —
     // colour/opacity only, the calendar's layout is untouched (owner rule).
-    <span className={`flex w-full items-center gap-1 truncate text-[0.6875rem] ${cancelled ? 'text-muted-foreground line-through opacity-50' : 'text-foreground'}`}>
+    <span
+      className={`flex w-full items-center gap-1 truncate rounded text-[0.6875rem] ${
+        cancelled ? 'text-muted-foreground line-through opacity-50' : `text-foreground ${CAT_TINT[session.category] ?? ''}`
+      }`}
+    >
       <span className={`size-1.5 shrink-0 rounded-full ${STATUS_DOT[session.status] ?? 'bg-muted-foreground'}`} />
       <span className="shrink-0 font-medium tabular-nums text-muted-foreground">{timeLabel(session.startsAt)}</span>
       <span className="truncate font-medium">{session.serviceName}</span>
@@ -266,7 +279,11 @@ function SessionRow({ session }: { session: CalendarSession }) {
   const occ = occupancy(session.bookedCount, session.capacity)
   const cancelled = session.status === 'cancelled'
   return (
-    <div className="flex w-full items-center gap-3 px-3 py-3 transition-colors hover:bg-primary-soft/40">
+    <div
+      className={`flex w-full items-center gap-3 px-3 py-3 transition-colors hover:bg-primary-soft/40 ${
+        cancelled ? '' : (CAT_TINT[session.category] ?? '')
+      }`}
+    >
       <span className={`size-1.5 shrink-0 rounded-full ${STATUS_DOT[session.status] ?? 'bg-muted-foreground'}`} />
       <span className={`shrink-0 text-sm font-medium tabular-nums ${cancelled ? 'text-muted-foreground' : 'text-foreground'}`}>
         {timeLabel(session.startsAt)}
