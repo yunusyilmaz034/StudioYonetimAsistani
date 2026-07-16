@@ -82,3 +82,16 @@ popup söylesin — genel olarak tüm uygulamada").
 "Düzenle", "İptal et", "Başka seansa taşı" vb.). Yıkıcı olanlar (İptal/Sil) tooltip'te de belli olsun. En
 temizi: paylaşılan bir `IconButton`/`Tooltip` deseni — tek yerde tanımla, tüm ikon butonlar `title`/tooltip
 alsın. Erişilebilirlik artısı: `aria-label` da gelir. Düşük risk, orta iş (çok call-site).
+
+---
+
+## PF-9 — KVKK "anonimleştir" üye kartından çıksın, Ayarlar'a taşınsın · `backlog`
+
+**Taken:** 2026-07-16 · owner ("her üye kartında kalıcı silme mantıksız + riskli; Ayarlar'da olsun, orada üye
+seçip yapılsın").
+**Where:** Üye kartı → Genel sekmesi → "KVKK — üye kaydını anonimleştir" paneli (`members/[id]/erasure-panel.tsx`).
+**Problem:** Geri alınamaz kalıcı KVKK silme her üyenin detay ekranında duruyor — dağınık ve yanlışlıkla
+tetikleme riski. Kişisel "Pasife Al" burada kalabilir (geri alınabilir); ama kalıcı silme burada olmamalı.
+**Proposed fix:** Erasure panelini üye kartından **kaldır**, **Ayarlar** altında ayrı bir "KVKK / Gizlilik"
+bölümüne taşı — orada üye ara/seç → anonimleştir. Yetki yine `platform_admin` (AD-67) kalır; bu sadece
+YERİNİ değiştirir, davranışı/güvenliği değil. Orta iş (yeni küçük ekran + member picker), düşük risk.
