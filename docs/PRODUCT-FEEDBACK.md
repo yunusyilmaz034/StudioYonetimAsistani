@@ -58,3 +58,14 @@ sayacı ile takvim çelişmesin (görünmezse "1 iptal var ama takvimde yok" dah
 seans açınca, soluk-üstüçizili 15:00 açıkça "bu iptal, boşver" diye okunur. Takvim "sadece renk" kuralına
 uygun (yalnızca opaklık/renk değişir, düzen değil). **Alternatif:** owner isterse "Tüm Durumlar" filtresi
 varsayılan olarak "İptal"i hariç tutsun (istenince gösterilir). Karar owner'ın.
+
+---
+
+## PF-7 — Ayarlar ekranı dağınık, düzenlensin · `backlog`
+
+**Taken:** 2026-07-16 · owner ("çok karışık, grupla, kaydet butonu ortada, dağınık").
+**Where:** Ayarlar ekranı (Şirket · Çalışma saatleri · Rezervasyon kuralları · QR · Doluluk · Ödeme · Bildirim).
+**Problem:** Tüm bölümler tek uzun kolonda akıyor, görsel gruplama zayıf; Kaydet butonunun yeri ortada/dağınık.
+**Proposed fix:** Bölümleri **kart/gruplara** ayır (net başlık + kenarlık), iki-kolon düzeni tutarlı olsun,
+**Kaydet**'i sabit alt bar (sticky footer) ya da her grubun net bir yerine al. Sadece görsel/düzen — davranış
+(alan doğrulama, "boş-gerekli" uyarıları) aynı kalır. Düşük risk, orta iş.

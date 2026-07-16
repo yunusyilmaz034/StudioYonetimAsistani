@@ -386,6 +386,12 @@ export function decideUpdateStudioSettings(
     { key: 'workingHours', a: current?.workingHours ?? null, b: next.workingHours },
     { key: 'qr', a: current?.qr ?? null, b: next.qr },
     { key: 'notifications', a: current?.notifications ?? null, b: next.notifications },
+    // Plus Phase 8 / pilot — the occupancy config and the KK/havale surcharge are settings too. Without
+    // them here, changing ONLY one of them produced zero changed fields → the save silently no-op'd
+    // (updateStudioSettings returns ok without writing). That is exactly why the seeded surcharge never
+    // persisted and why editing only these in the form did nothing.
+    { key: 'fitness', a: current?.fitness ?? null, b: next.fitness },
+    { key: 'paymentSurcharge', a: current?.paymentSurcharge ?? null, b: next.paymentSurcharge },
   ]
   for (const { key, a, b } of config) {
     if (JSON.stringify(a) !== JSON.stringify(b)) changedFields.push(key)
