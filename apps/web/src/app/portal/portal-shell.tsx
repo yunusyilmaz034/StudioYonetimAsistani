@@ -70,8 +70,9 @@ export function MemberPortalShell({
             <span className="text-sm font-semibold text-foreground">Studio</span>
           </Link>
 
-          {/* Desktop: the destinations live up here, which is why no bottom bar is needed. */}
-          <nav className="hidden items-center gap-1 md:flex">
+          {/* Desktop: the destinations live up here, which is why no bottom bar is needed. Eight labelled
+              links crowd a narrow desktop — a single scrollable row keeps them tidy (PF-10). */}
+          <nav className="hidden min-w-0 items-center gap-1 overflow-x-auto whitespace-nowrap md:flex [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {ITEMS.map((it) => {
               const on = isActive(pathname, it.href)
               return (
@@ -79,7 +80,7 @@ export function MemberPortalShell({
                   key={it.href}
                   href={it.href}
                   aria-current={on ? 'page' : undefined}
-                  className={`rounded-lg px-3 py-1.5 text-sm transition-colors ${
+                  className={`shrink-0 rounded-lg px-3 py-1.5 text-sm transition-colors ${
                     on
                       ? 'bg-primary-soft font-medium text-primary'
                       : 'text-muted-foreground hover:bg-muted hover:text-foreground'

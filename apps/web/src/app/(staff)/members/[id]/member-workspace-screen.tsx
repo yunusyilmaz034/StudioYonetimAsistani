@@ -197,11 +197,13 @@ export function MemberWorkspaceScreen({
       {/* Section nav — the house Tabs (DS v2): desktop tabs, the same control as the mobile
           section switcher (UX-1). */}
       <Tabs value={active} onValueChange={(v) => setActive(v as SectionId)}>
-        <TabsList className="flex w-full flex-wrap">
+        {/* One row that scrolls — never two rows. Eight tabs + labels overflowed the width and wrapped;
+            a horizontally-scrollable strip keeps the layout intact (PF-10). */}
+        <TabsList className="max-w-full overflow-x-auto whitespace-nowrap [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {SECTIONS.map((sec) => {
             const Icon = sec.icon
             return (
-              <TabsTrigger key={sec.id} value={sec.id} className="min-h-9 flex-1">
+              <TabsTrigger key={sec.id} value={sec.id} className="min-h-9 shrink-0">
                 <Icon className="size-4" />
                 <span className="hidden sm:inline">{sec.label}</span>
               </TabsTrigger>
