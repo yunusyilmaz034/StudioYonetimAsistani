@@ -34,6 +34,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 
+import { ThemeToggle } from '@/components/theme-toggle'
 import { clientAuth } from '@/lib/firebase-client'
 import type { PrincipalRole } from '@studio/core'
 
@@ -198,8 +199,9 @@ function DesktopRail({ pathname, groups }: { pathname: string; groups: readonly 
       data-slot="app-shell-nav"
       className="fixed inset-y-0 left-0 hidden w-60 flex-col border-r border-border bg-surface md:flex"
     >
-      <div className="px-3 pt-4 pb-2">
+      <div className="flex items-center justify-between gap-1 px-3 pt-4 pb-2">
         <Brand />
+        <ThemeToggle className="shrink-0 text-muted-foreground" />
       </div>
       {/* The ⌘K palette's visible handle — reception's fastest path to a member or a screen. */}
       <div className="px-3 pb-1">

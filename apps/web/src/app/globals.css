@@ -2,12 +2,17 @@
 @import 'tw-animate-css';
 @import 'shadcn/tailwind.css';
 
+/* Tailwind's `dark:` variant keys off OUR explicit theme attribute (PF-18), not the OS media query — so
+   `dark:` utilities agree with the token overrides below and with the user's toggle, never the OS alone. */
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
 /*
   Design System v1 — tokens only (Doc 09).
   This file holds semantic design tokens and the minimal base layer. It contains
   no component styles and no utilities. Components reference token roles
   (bg-primary, text-muted-foreground, border-border) — never a hex literal (DS-1).
-  No dark mode in Phase 1 (DS-3): no `.dark` block and no dark variant are defined.
+  Dark theme (PF-18): tokens are re-defined under `:root[data-theme='dark']` below; an explicit
+  attribute set by a no-FOUC head script (OS preference or the user's toggle) drives it.
 */
 
 @theme inline {
@@ -157,6 +162,52 @@
 
   /* control ~10px, card (xl) ~14px — a touch more generous than v2, reads premium (Doc 33 §4) */
   --radius: 0.625rem;
+}
+
+/* ══ Dark theme (PF-18) — "Controlled Poise" after dark: a warm plum-charcoal ground, not pure black,
+   so the mulberry signature and the warm neutrals still read as the same studio. Keyed on an explicit
+   `[data-theme="dark"]` set by a no-FOUC head script from either the OS preference OR the user's toggle;
+   `[data-theme]` (specificity 0,2,0) also wins over the per-studio accent injected on `:root` (0,1,0), so
+   the theme presets keep working — only `--primary-soft`/category softs are re-derived for a dark ground.
+   The accent (`--primary`) itself is left to the preset; everything around it changes. ══ */
+:root[data-theme='dark'] {
+  --primary-foreground: #fbeef3;
+  --primary-soft: color-mix(in oklch, var(--primary) 26%, #1b1418);
+
+  --gold: #d9a441;
+  --gold-foreground: #201a1d;
+  --gold-soft: color-mix(in oklch, var(--gold) 22%, #1b1418);
+
+  --background: #171215;
+  --foreground: #efe6e9;
+  --surface: #211a1e;
+  --card: #211a1e;
+  --card-foreground: #efe6e9;
+  --popover: #251d22;
+  --popover-foreground: #efe6e9;
+  --secondary: #2c2328;
+  --secondary-foreground: #efe6e9;
+  --muted: #2c2328;
+  --muted-foreground: #b1a2a8;
+  --accent: #2c2328;
+  --accent-foreground: #efe6e9;
+
+  --border: #382e34;
+  --input: #382e34;
+
+  /* category hues lifted for a dark ground; softs derived from them */
+  --cat-pilates: #c78fbc;
+  --cat-pilates-soft: color-mix(in oklch, #c78fbc 20%, #1b1418);
+  --cat-fitness: #7fb891;
+  --cat-fitness-soft: color-mix(in oklch, #7fb891 20%, #1b1418);
+  --cat-private: #d9a441;
+  --cat-private-soft: color-mix(in oklch, #d9a441 20%, #1b1418);
+
+  --success: #5aa87b;
+  --warning: #cf9a3a;
+  --danger: #d76a6a;
+  --info: #a98fd0;
+  --destructive: #d76a6a;
 }
 
 /* ── Motion (Plus DS v3) — a gentle draw/rise for charts and a stagger for cards. Tasteful, not

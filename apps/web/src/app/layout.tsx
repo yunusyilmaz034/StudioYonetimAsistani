@@ -17,10 +17,16 @@ export const metadata: Metadata = {
 //   • login / invite            → no shell at all
 // Keeping the staff shell out of here is what makes it structurally impossible for a member to
 // render an admin sidebar — hiding it with CSS would still have put it in her HTML.
+// Sets the theme BEFORE first paint (PF-18), so there is no flash of light on a dark preference. Reads
+// the saved choice, else the OS preference; the toggle later overwrites localStorage + data-theme. Runs
+// synchronously as the first thing in <body>, so `data-theme` is on <html> before the page is painted.
+const THEME_INIT = `(function(){try{var t=localStorage.getItem('theme');if(t!=='dark'&&t!=='light'){t=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}document.documentElement.dataset.theme=t;}catch(e){}})();`
+
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="tr" className={cn('font-sans', geist.variable)}>
+    <html lang="tr" className={cn('font-sans', geist.variable)} suppressHydrationWarning>
       <body>
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT }} />
         {children}
       </body>
     </html>

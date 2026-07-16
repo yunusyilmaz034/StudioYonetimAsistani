@@ -2,6 +2,7 @@
 
 import * as React from 'react'
 import { Toaster as Sonner, type ToasterProps } from 'sonner'
+import { useEffect, useState } from 'react'
 import {
   CircleCheckIcon,
   InfoIcon,
@@ -10,13 +11,21 @@ import {
   Loader2Icon,
 } from 'lucide-react'
 
-// Phase 1 is single-theme (DS-3): the toaster is always light. The generated
-// component depended on next-themes/useTheme for a dark variant we do not ship,
-// so that dependency is removed and the theme is fixed.
+// The toaster follows the app theme (PF-18): it reads `data-theme` off <html> and re-syncs on change,
+// so toasts are light in the light theme and dark in the dark one — no next-themes dependency.
 const Toaster = ({ ...props }: ToasterProps) => {
+  // Follow the app's theme (PF-18): read data-theme and keep in sync so toasts match light/dark.
+  const [theme, setTheme] = useState<'light' | 'dark'>('light')
+  useEffect(() => {
+    const read = () => setTheme(document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light')
+    read()
+    const obs = new MutationObserver(read)
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
+    return () => obs.disconnect()
+  }, [])
   return (
     <Sonner
-      theme="light"
+      theme={theme}
       // top-center (owner, PF-16): reception was missing errors tucked in the bottom-right corner. The
       // top-center slot is noticed without covering the work area the way a dead-centre toast would.
       position="top-center"

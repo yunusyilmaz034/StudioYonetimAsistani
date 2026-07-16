@@ -16,6 +16,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 
+import { ThemeToggle } from '@/components/theme-toggle'
 import { clientAuth } from '@/lib/firebase-client'
 import { destroySession } from '@/server/actions/session'
 
@@ -93,6 +94,7 @@ export function MemberPortalShell({
           </nav>
 
           <div className="flex shrink-0 items-center gap-3">
+            <ThemeToggle className="text-muted-foreground" />
             <Link
               href="/portal/profile"
               className="hidden max-w-40 truncate text-sm text-muted-foreground transition-colors hover:text-foreground sm:block"
