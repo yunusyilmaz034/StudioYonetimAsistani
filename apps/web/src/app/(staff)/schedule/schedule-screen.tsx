@@ -263,7 +263,7 @@ function SessionChip({ session }: { session: CalendarSession }) {
     // honest record), but it is faded well back so it never competes with a live class next to it —
     // colour/opacity only, the calendar's layout is untouched (owner rule).
     <span
-      className={`flex w-full items-center gap-1 truncate rounded text-[0.6875rem] ${
+      className={`flex w-full items-center gap-1 truncate rounded text-xs ${
         cancelled ? 'text-muted-foreground line-through opacity-50' : `text-foreground ${CAT_TINT[session.category] ?? ''}`
       }`}
     >

@@ -123,7 +123,9 @@ function MonthGrid<T extends CalendarItem>({
 
   return (
     <>
-      <div className="overflow-x-auto rounded-xl border border-border shadow-sm">
+      {/* md+ lets the hover-magnify pop OUT of the grid instead of being clipped; mobile keeps the
+          horizontal scroll (no hover there anyway). */}
+      <div className="overflow-x-auto rounded-xl border border-border shadow-sm md:overflow-visible">
         <div className="grid min-w-[42rem] grid-cols-7 gap-px bg-border">
           {WEEKDAYS_TR.map((w) => (
             <div key={w} className="bg-surface py-2 text-center text-xs font-medium text-muted-foreground">
@@ -139,14 +141,14 @@ function MonthGrid<T extends CalendarItem>({
             return (
               <div
                 key={d}
-                className={`relative min-h-32 space-y-1 rounded-md px-1.5 py-2 transition-[transform,box-shadow,background-color] duration-150 hover:z-20 hover:scale-[1.05] hover:bg-card hover:shadow-xl hover:ring-1 hover:ring-border ${
+                className={`relative min-h-32 space-y-1 rounded-md px-1.5 py-2 transition-[transform,box-shadow,background-color] duration-150 hover:z-30 hover:scale-[2.3] hover:bg-card hover:shadow-2xl hover:ring-1 hover:ring-border ${
                   isToday
-                    ? 'bg-primary-soft/50'
+                    ? 'bg-primary-soft/60'
                     : isFocus
-                      ? 'bg-primary-soft/25'
+                      ? 'bg-primary-soft/35'
                       : inMonth
-                        ? 'bg-surface'
-                        : 'bg-background'
+                        ? 'bg-muted'
+                        : 'bg-muted/40'
                 }`}
               >
                 {/* D23 — the day's mark. It is a BACKGROUND fact: it must not compete with the
