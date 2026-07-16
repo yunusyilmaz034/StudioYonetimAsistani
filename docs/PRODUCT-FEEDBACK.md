@@ -72,7 +72,15 @@ varsayılan olarak "İptal"i hariç tutsun (istenince gösterilir). Karar owner'
 
 ---
 
-## PF-8 — İkon-only butonlarda hover tooltip'i (app-geneli) · `backlog`
+## PF-8 — İkon-only butonlarda hover tooltip'i (app-geneli) · ✅ `done` (native, aria-label→title)
+
+**Çözüm:** Paylaşılan `Button` artık `aria-label` verilmiş ama `title` verilmemiş her butonda **aria-label'ı
+`title`'a yansıtıyor** → aria-label'lı tüm ikon butonlar (rezervasyon satırı: Geçmiş/Sabit/Taşı/İptal, takvim
+okları, vs.) **sıfır call-site değişikliğiyle** native hover tooltip'i kazandı. Erişilebilirlik artısı korunur.
+**Kalan (ileride):** (a) aria-label'ı OLMAYAN ikon butonlara aria-label ekle (hem a11y hem tooltip); (b) daha
+premium, stillenmiş bir tooltip (native `title` yerine) istenirse ayrı bir polish. Şimdilik native yeterli.
+
+<details><summary>orijinal not</summary>
 
 **Taken:** 2026-07-16 · owner ("bu buton siliyor mu değiştiriyor mu belli değil; mouse üstüne gelince küçük
 popup söylesin — genel olarak tüm uygulamada").
@@ -82,6 +90,7 @@ popup söylesin — genel olarak tüm uygulamada").
 "Düzenle", "İptal et", "Başka seansa taşı" vb.). Yıkıcı olanlar (İptal/Sil) tooltip'te de belli olsun. En
 temizi: paylaşılan bir `IconButton`/`Tooltip` deseni — tek yerde tanımla, tüm ikon butonlar `title`/tooltip
 alsın. Erişilebilirlik artısı: `aria-label` da gelir. Düşük risk, orta iş (çok call-site).
+</details>
 
 ---
 
