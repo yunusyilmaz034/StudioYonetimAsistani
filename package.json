@@ -42,6 +42,7 @@
     "setup:exercises": "tsx tools/setup/exercises.ts",
     "setup:exercise-videos": "tsx tools/setup/exercise-videos.ts",
     "setup:payment-surcharge": "tsx tools/setup/payment-surcharge.ts",
+    "setup:payment-provider": "tsx tools/setup/payment-provider.ts",
     "setup:program-a": "tsx tools/setup/program-a.ts"
   },
   "dependencies": {},
