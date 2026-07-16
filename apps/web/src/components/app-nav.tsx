@@ -68,8 +68,6 @@ export const GROUPS: readonly NavGroup[] = [
     // reception by the same matrix as everything else.
     items: [
       { href: '/my-classes', label: 'Derslerim', icon: ClipboardCheckIcon },
-      // Plus Phase 7 — the training workspace. Owner + trainer only (reception is filtered out).
-      { href: '/training', label: 'Antrenman', icon: DumbbellIcon },
       // Plus Phase 9 — the trainer's own earnings (owner + trainer; read-only for her).
       { href: '/my-payroll', label: 'Hakedişim', icon: BanknoteIcon },
     ],
@@ -90,6 +88,9 @@ export const GROUPS: readonly NavGroup[] = [
     items: [
       { href: '/members', label: 'Üyeler', icon: UsersIcon },
       { href: '/packages', label: 'Paketler', icon: PackageIcon },
+      // Plus Phase 7 — the training workspace (owner + trainer; reception is filtered out). For the owner
+      // it is a management surface (exercise library + templates), so it lives here (PF-16 nav fix).
+      { href: '/training', label: 'Antrenman', icon: DumbbellIcon },
       { href: '/finance', label: 'Kasa', icon: WalletIcon },
       { href: '/retail', label: 'Ürün Sat', icon: ShoppingCartIcon },
       { href: '/crm', label: 'Satış Hunisi', icon: TargetIcon },
