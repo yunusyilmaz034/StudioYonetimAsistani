@@ -40,7 +40,7 @@ export function FitnessScreen({ occupancy, usage }: { occupancy: OccupancyNow; u
   }, [usage])
 
   return (
-    <div className="space-y-6">
+    <div className="mx-auto max-w-5xl space-y-6 p-4 sm:p-6 lg:p-8">
       <PageHeader
         title="Katılım & Doluluk"
         description="Stüdyonun şu anki doluluğu ve son 30 günün kullanım özeti. Giriş kayıtlarından okunur — tahminler geçmişe göredir."

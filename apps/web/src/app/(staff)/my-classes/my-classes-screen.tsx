@@ -72,7 +72,7 @@ export function MyClassesScreen({ date, trainerName }: { date: string; trainerNa
   const pending = classes?.reduce((n, c) => n + c.pending, 0) ?? 0
 
   return (
-    <div className="space-y-6">
+    <div className="mx-auto max-w-4xl space-y-6 p-4 sm:p-6 lg:p-8">
       <PageHeader
         title="Derslerim"
         description={

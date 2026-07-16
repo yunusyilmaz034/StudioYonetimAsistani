@@ -69,7 +69,7 @@ export function ImportScreen({ branchId }: { branchId: string | null }) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="mx-auto max-w-4xl space-y-6 p-4 sm:p-6 lg:p-8">
       <PageHeader
         title="Üye içe aktarma"
         description="Eski sistemden gelen CSV dosyasından üyeleri aktarır. Ad soyad ve telefon — başka hiçbir şey."
@@ -77,7 +77,7 @@ export function ImportScreen({ branchId }: { branchId: string | null }) {
 
       <Section
         title="1. Dosyayı seç"
-        hint="Excel'de: Farklı Kaydet → CSV UTF-8. Sütunlar: ad · soyad · telefon."
+        hint={'Excel\'de: Farklı Kaydet → CSV UTF-8. Sütun: tek "Üye / Müşteri" (ad soyad) veya ayrı "ad" + "soyad", ve "telefon".'}
       >
         <label className="flex min-h-32 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-border p-6 hover:bg-muted/50">
           <UploadIcon className="size-8 text-muted-foreground" />

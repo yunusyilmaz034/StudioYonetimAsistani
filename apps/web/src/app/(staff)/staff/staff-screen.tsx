@@ -58,7 +58,7 @@ export function StaffScreen({ staff }: { staff: readonly StaffRow[] }) {
   const [adding, setAdding] = useState(false)
 
   return (
-    <div className="space-y-6">
+    <div className="mx-auto max-w-3xl space-y-6 p-4 sm:p-6 lg:p-8">
       <PageHeader
         title="Personel"
         description="Stüdyoda kimin çalıştığı ve neyi görebildiği."

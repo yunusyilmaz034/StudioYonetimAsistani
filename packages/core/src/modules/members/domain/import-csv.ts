@@ -62,15 +62,26 @@ function parseCsv(text: string): string[][] {
   return rows.filter((r) => r.some((cell) => cell.trim() !== ''))
 }
 
+// A header, folded to bare ASCII letters: lower-cased in Turkish locale, every Turkish accent mapped
+// to its Latin base (ç→c, ğ→g, ı→i, ö→o, ş→s, ü→u), then everything that is not a-z removed. So
+// "Üye / Müşteri" → "uyemusteri", "Telefon" → "telefon", "Ad Soyad" → "adsoyad" — the match survives
+// spaces, slashes, punctuation and Turkish characters.
+function foldHeader(h: string): string {
+  return h
+    .trim()
+    .replace(/İ/g, 'i').replace(/I/g, 'i').toLowerCase()
+    .replace(/ı/g, 'i')
+    .replace(/ş/g, 's')
+    .replace(/ğ/g, 'g')
+    .replace(/ü/g, 'u')
+    .replace(/ö/g, 'o')
+    .replace(/ç/g, 'c')
+    .replace(/[^a-z]/g, '')
+}
+
 /** Find a column by any of its plausible headings. Case- and accent-tolerant, never positional. */
 function columnIndex(header: readonly string[], candidates: readonly string[]): number {
-  const normalised = header.map((h) =>
-    h
-      .trim()
-      .toLocaleLowerCase('tr-TR')
-      .replace(/[ıİ]/g, 'i')
-      .replace(/[^a-z]/g, ''),
-  )
+  const normalised = header.map(foldHeader)
   for (const candidate of candidates) {
     const at = normalised.indexOf(candidate)
     if (at >= 0) return at
@@ -81,26 +92,42 @@ function columnIndex(header: readonly string[], candidates: readonly string[]): 
 export class MissingColumnError extends Error {}
 
 /**
- * Read the BulutGym export. The columns are `ad`, `soyad`, `telefon` (owner, 2026-07-13).
+ * Read the BulutGym export. Accepts EITHER a single full-name column ("Üye / Müşteri", "Ad Soyad", …)
+ * OR separate `ad` + `soyad` columns — plus `telefon`. Nothing else is read (packages, credits and
+ * balances are opened by hand). (owner, 2026-07-13; single-column names added 2026-07-16.)
  *
- * A missing column THROWS. It does not fall back to a positional guess: a file whose columns we
- * cannot name is a file we do not understand, and importing a file you do not understand is how a
- * phone number ends up in the name field of forty-five member records.
+ * A missing name/phone column THROWS. It does not fall back to a positional guess: a file whose
+ * columns we cannot name is a file we do not understand, and importing a file you do not understand is
+ * how a phone number ends up in the name field of forty-five member records.
  */
 export function readBulutGymMembers(text: string): readonly MemberImportRow[] {
   const rows = parseCsv(text)
   const header = rows[0]
   if (!header) throw new MissingColumnError('Dosya boş')
 
-  const iName = columnIndex(header, ['ad', 'adi', 'isim', 'name'])
+  // A single column that already holds the whole name — the BulutGym export's "Üye / Müşteri".
+  const iFull = columnIndex(header, [
+    'uyemusteri', 'uye', 'musteri', 'uyeadi', 'adsoyad', 'adsoyadi', 'adsoyisim', 'isimsoyisim',
+    'isimsoyad', 'advesoyad', 'name', 'fullname', 'namesurname',
+  ])
+  const iName = columnIndex(header, ['ad', 'adi', 'isim', 'firstname'])
   const iSurname = columnIndex(header, ['soyad', 'soyadi', 'surname', 'lastname'])
-  const iPhone = columnIndex(header, ['telefon', 'tel', 'gsm', 'cep', 'phone', 'telefonno'])
+  const iPhone = columnIndex(header, ['telefon', 'tel', 'gsm', 'cep', 'phone', 'telefonno', 'telefonnumarasi', 'numara'])
+
+  // Prefer a single full-name column; else first+last; else just a first-name column.
+  const nameOf: ((cells: readonly string[]) => string) | null =
+    iFull >= 0
+      ? (cells) => (cells[iFull] ?? '').trim()
+      : iName >= 0 && iSurname >= 0
+        ? (cells) => `${(cells[iName] ?? '').trim()} ${(cells[iSurname] ?? '').trim()}`.trim()
+        : iName >= 0
+          ? (cells) => (cells[iName] ?? '').trim()
+          : null
 
   const missing: string[] = []
-  if (iName < 0) missing.push('ad')
-  if (iSurname < 0) missing.push('soyad')
+  if (!nameOf) missing.push('isim (tek "Üye / Müşteri" sütunu ya da "ad" + "soyad")')
   if (iPhone < 0) missing.push('telefon')
-  if (missing.length) {
+  if (missing.length || !nameOf) {
     throw new MissingColumnError(
       `Zorunlu sütun(lar) bulunamadı: ${missing.join(', ')}. Bulunan sütunlar: ${header.join(' | ')}`,
     )
@@ -110,7 +137,7 @@ export function readBulutGymMembers(text: string): readonly MemberImportRow[] {
     // +2: the header is line 1, and a human counts from 1. This number is the whole point of the
     // error report — it is what she types into the "go to line" box.
     line: i + 2,
-    fullName: `${(cells[iName] ?? '').trim()} ${(cells[iSurname] ?? '').trim()}`.trim(),
+    fullName: nameOf(cells),
     phoneRaw: (cells[iPhone] ?? '').trim(),
   }))
 }
