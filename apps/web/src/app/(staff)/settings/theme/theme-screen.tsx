@@ -11,9 +11,13 @@ import { PageHeader } from '@/components/ui/page-header'
 import { Section } from '@/components/ui/section'
 import {
   FONT_FAMILIES,
+  CATEGORY_DEFAULT,
+  CATEGORY_KEYS,
+  CATEGORY_LABEL,
   FONT_SCALES,
   THEME_PRESETS,
   themeCss,
+  type CategoryKey,
   type FontFamilyId,
   type FontScale,
   type StudioTheme,
@@ -28,9 +32,12 @@ export function ThemeScreen({ initial }: { initial: StudioTheme }) {
   const [presetId, setPresetId] = useState(initial.presetId)
   const [fontScale, setFontScale] = useState<FontScale>(initial.fontScale)
   const [fontFamily, setFontFamily] = useState<FontFamilyId>(initial.fontFamily)
+  const [categories, setCategories] = useState<Record<CategoryKey, string | null>>(initial.categories)
   const [busy, setBusy] = useState(false)
 
-  const dirty = presetId !== initial.presetId || fontScale !== initial.fontScale || fontFamily !== initial.fontFamily
+  const catsDiffer = CATEGORY_KEYS.some((k) => categories[k] !== initial.categories[k])
+  const dirty =
+    presetId !== initial.presetId || fontScale !== initial.fontScale || fontFamily !== initial.fontFamily || catsDiffer
   const dirtyRef = useRef(dirty)
   dirtyRef.current = dirty
 
@@ -41,8 +48,8 @@ export function ThemeScreen({ initial }: { initial: StudioTheme }) {
       el.id = PREVIEW_ID
       document.head.appendChild(el)
     }
-    el.textContent = themeCss({ presetId, fontScale, fontFamily })
-  }, [presetId, fontScale, fontFamily])
+    el.textContent = themeCss({ presetId, fontScale, fontFamily, categories })
+  }, [presetId, fontScale, fontFamily, categories])
 
   // Left the screen with the change unsaved? Don't keep the preview applied for the rest of the session.
   useEffect(
@@ -55,7 +62,7 @@ export function ThemeScreen({ initial }: { initial: StudioTheme }) {
   async function save() {
     setBusy(true)
     try {
-      await updateStudioThemeAction({ presetId, fontScale, fontFamily })
+      await updateStudioThemeAction({ presetId, fontScale, fontFamily, categories })
       dirtyRef.current = false
       toast.success('Tema kaydedildi.')
     } catch {
@@ -117,6 +124,33 @@ export function ThemeScreen({ initial }: { initial: StudioTheme }) {
               {FONT_FAMILIES[f].label}
             </Button>
           ))}
+        </div>
+      </Section>
+
+      <Section title="Ders tipi renkleri" hint="Takvimde her ders tipinin rengi. Boş bırakılırsa varsayılan kullanılır.">
+        <div className="space-y-2">
+          {CATEGORY_KEYS.map((k) => {
+            const value = categories[k] ?? CATEGORY_DEFAULT[k]
+            const custom = categories[k] !== null
+            return (
+              <div key={k} className="flex items-center gap-3">
+                <input
+                  type="color"
+                  value={value}
+                  onChange={(e) => setCategories((c) => ({ ...c, [k]: e.target.value }))}
+                  aria-label={`${CATEGORY_LABEL[k]} rengi`}
+                  className="h-9 w-12 shrink-0 cursor-pointer rounded-md border border-border bg-transparent p-0.5"
+                />
+                <span className="flex-1 text-sm font-medium">{CATEGORY_LABEL[k]}</span>
+                <span className="text-xs tabular-nums text-muted-foreground">{value}</span>
+                {custom ? (
+                  <Button variant="ghost" size="sm" onClick={() => setCategories((c) => ({ ...c, [k]: null }))}>
+                    Sıfırla
+                  </Button>
+                ) : null}
+              </div>
+            )
+          })}
         </div>
       </Section>
 

@@ -43,19 +43,54 @@ export const FONT_FAMILIES: Readonly<Record<FontFamilyId, { label: string; stack
   rounded: { label: 'Yuvarlak', stack: '"Trebuchet MS", "Segoe UI", system-ui, sans-serif' },
 }
 
+// Per-class-type colours (PF-12 phase 2) — what tints a session on the calendar. Overridable one by one;
+// null = the shipped default. The `-soft` cell tint is DERIVED, so a chosen hue always sits right on both
+// light and dark grounds. (Sidebar / agenda-ground overrides can join this map later the same way.)
+export const CATEGORY_KEYS = ['pilates', 'fitness', 'private'] as const
+export type CategoryKey = (typeof CATEGORY_KEYS)[number]
+export const CATEGORY_LABEL: Readonly<Record<CategoryKey, string>> = {
+  pilates: 'Pilates',
+  fitness: 'Fitness',
+  private: 'Özel Ders (PT)',
+}
+// The shipped defaults, so a picker can show/reset to them.
+export const CATEGORY_DEFAULT: Readonly<Record<CategoryKey, string>> = {
+  pilates: '#955b8b',
+  fitness: '#4e7c5a',
+  private: '#b5842f',
+}
+
 export interface StudioTheme {
   readonly presetId: string
   readonly fontScale: FontScale
   readonly fontFamily: FontFamilyId
+  readonly categories: Readonly<Record<CategoryKey, string | null>>
 }
 
-export const DEFAULT_THEME: StudioTheme = { presetId: 'murdum', fontScale: 'md', fontFamily: 'default' }
+export const DEFAULT_THEME: StudioTheme = {
+  presetId: 'murdum',
+  fontScale: 'md',
+  fontFamily: 'default',
+  categories: { pilates: null, fitness: null, private: null },
+}
 
-export function normalizeTheme(raw: Partial<StudioTheme> | null | undefined): StudioTheme {
-  const presetId = THEME_PRESETS.some((p) => p.id === raw?.presetId) ? raw!.presetId! : DEFAULT_THEME.presetId
-  const fontScale = raw?.fontScale && raw.fontScale in FONT_SCALES ? raw.fontScale : DEFAULT_THEME.fontScale
-  const fontFamily = raw?.fontFamily && raw.fontFamily in FONT_FAMILIES ? raw.fontFamily : DEFAULT_THEME.fontFamily
-  return { presetId, fontScale, fontFamily }
+const HEX = /^#[0-9a-fA-F]{6}$/
+const hexOrNull = (v: unknown): string | null => (typeof v === 'string' && HEX.test(v) ? v : null)
+
+export function normalizeTheme(raw: Readonly<Record<string, unknown>> | null | undefined): StudioTheme {
+  const r = (raw ?? {}) as Record<string, unknown>
+  const presetId = THEME_PRESETS.some((p) => p.id === r.presetId) ? (r.presetId as string) : DEFAULT_THEME.presetId
+  const fontScale =
+    typeof r.fontScale === 'string' && r.fontScale in FONT_SCALES ? (r.fontScale as FontScale) : DEFAULT_THEME.fontScale
+  const fontFamily =
+    typeof r.fontFamily === 'string' && r.fontFamily in FONT_FAMILIES ? (r.fontFamily as FontFamilyId) : DEFAULT_THEME.fontFamily
+  const rc = (r.categories ?? {}) as Partial<Record<CategoryKey, unknown>>
+  const categories = {
+    pilates: hexOrNull(rc.pilates),
+    fitness: hexOrNull(rc.fitness),
+    private: hexOrNull(rc.private),
+  }
+  return { presetId, fontScale, fontFamily, categories }
 }
 
 // The `:root`/`html` overrides for a theme, as a CSS string. Injected AFTER globals.css so it wins.
@@ -71,5 +106,12 @@ export function themeCss(theme: StudioTheme): string {
     `--ring:${preset.primary}`,
     ...(family ? [`--font-sans:${family}`] : []),
   ].join(';')
-  return `:root{${rootVars}}html{font-size:${rootPx}}`
+  // Per-category overrides: the hue + a DERIVED soft cell tint. Emitted on BOTH :root and the dark
+  // selector so the owner's choice wins in either theme (the dark block sets its own --cat-* otherwise).
+  const catVars = CATEGORY_KEYS.flatMap((k) => {
+    const v = theme.categories[k]
+    return v ? [`--cat-${k}:${v}`, `--cat-${k}-soft:color-mix(in oklch, ${v} 14%, var(--background))`] : []
+  }).join(';')
+  const catRule = catVars ? `:root{${catVars}}:root[data-theme='dark']{${catVars}}` : ''
+  return `:root{${rootVars}}${catRule}html{font-size:${rootPx}}`
 }

@@ -16,11 +16,13 @@ export async function getStudioThemeAction(): Promise<StudioTheme> {
 }
 
 export async function updateStudioThemeAction(input: unknown): Promise<{ ok: true }> {
+  const hex = z.string().regex(/^#[0-9a-fA-F]{6}$/).nullable()
   const p = z
     .object({
       presetId: z.string().min(1),
       fontScale: z.enum(['sm', 'md', 'lg']),
       fontFamily: z.enum(['default', 'system', 'rounded']),
+      categories: z.object({ pilates: hex, fitness: hex, private: hex }).optional(),
     })
     .parse(input)
   const ctx = await requireTenantContext(OWNER)
