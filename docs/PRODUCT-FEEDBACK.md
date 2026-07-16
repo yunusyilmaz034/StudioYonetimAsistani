@@ -20,3 +20,26 @@ ama "Ürün Sat" yanlış yerde.
 adet → tahsilat). Ayarlar sadece kataloğu yönetsin.
 **Notes:** Satış zaten `retail.ts` action'ında var (transactional stok düşümü, `retail_out_of_stock`); iş
 sadece butonu doğru yüzeye taşımak + gerekiyorsa küçük bir satış ekranı. Düşük risk.
+
+---
+
+## PF-2 — Dropdown'lar açılmadan ham value gösteriyordu (svc_… / __none__) · ✅ `done` (43d94f0)
+
+**Taken/Fixed:** 2026-07-16 · owner-reported, hotfix. Base UI `Select.Value` etiketi ancak popup bir kez
+açılınca çözüyordu → ilk açılışta `svc_01K…` / `__none__` görünüyordu, app-genelinde. Merkezi fix:
+paylaşılan `Select`, `SelectItem` çocuklarından value→label haritası türetip Root'un `items` prop'una
+veriyor → tüm dropdown'lar ilk boyamada doğru etiketi gösteriyor. Canlıda.
+
+---
+
+## PF-3 — İptal edilen seans takvimde görünüyor (üstü çizili) · `backlog` (owner kararı bekliyor)
+
+**Taken:** 2026-07-16 · owner ("yanlış açtım, iptal ettim ama ajandada üstü çizili gözüküyor; gözükmese
+daha iyi mi?").
+**Where:** Ders Ajandası (aylık görünüm) — iptal edilen seans üstü çizili + soluk gösteriliyor.
+**Recommendation (benim):** **Tamamen gizleme; sadece daha da SOLUKLAŞTIR.** Sebep: (1) üstteki "İPTAL 1"
+sayacı ile takvim çelişmesin (görünmezse "1 iptal var ama takvimde yok" daha kafa karıştırıcı olur);
+(2) iptalin gerçekten olduğu, dürüst bir kayıt — "iptal ettim mi acaba" şüphesi kalmaz; (3) 15:30'a yeni
+seans açınca, soluk-üstüçizili 15:00 açıkça "bu iptal, boşver" diye okunur. Takvim "sadece renk" kuralına
+uygun (yalnızca opaklık/renk değişir, düzen değil). **Alternatif:** owner isterse "Tüm Durumlar" filtresi
+varsayılan olarak "İptal"i hariç tutsun (istenince gösterilir). Karar owner'ın.
