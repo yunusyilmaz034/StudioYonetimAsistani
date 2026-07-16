@@ -44,17 +44,14 @@ function Button({
   className,
   variant = "default",
   size = "default",
-  title,
   ...props
 }: ButtonPrimitive.Props & VariantProps<typeof buttonVariants>) {
-  // App-wide hover hint (PF-8): an icon-only button should say what it does. When a caller gave an
-  // aria-label (which every icon button ought to) but no explicit title, mirror it to `title` so the
-  // browser shows a tooltip on hover — for free, at every call-site, with no markup change.
-  const ariaLabel = (props as { "aria-label"?: string })["aria-label"]
+  // App-wide hover hint (PF-8): an icon-only button says what it does on hover. The label comes from
+  // `aria-label` and is rendered as a STYLED tooltip (globals.css, `[data-slot=button][aria-label]`),
+  // not the browser's native `title` — premium look, keyboard-focus aware, zero markup per call-site.
   return (
     <ButtonPrimitive
       data-slot="button"
-      title={title ?? ariaLabel}
       className={cn(buttonVariants({ variant, size, className }))}
       {...props}
     />

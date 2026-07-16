@@ -212,6 +212,45 @@
   --destructive: #dd7272;
 }
 
+/* Styled tooltip for icon buttons (PF-8) — the label IS the button's aria-label, shown as a small
+   popover above it on hover/keyboard-focus. No native `title`, no per-call-site markup; every icon
+   button that carries an aria-label gets a premium, theme-aware hint for free. */
+[data-slot='button'][aria-label] {
+  position: relative;
+}
+[data-slot='button'][aria-label]::after {
+  content: attr(aria-label);
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  translate: -50% 2px;
+  z-index: 50;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  background: var(--popover);
+  color: var(--popover-foreground);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.2;
+  box-shadow: 0 6px 16px -4px rgb(0 0 0 / 0.22);
+}
+@media (prefers-reduced-motion: no-preference) {
+  [data-slot='button'][aria-label]::after {
+    transition:
+      opacity 0.12s ease,
+      translate 0.12s ease;
+  }
+}
+[data-slot='button'][aria-label]:hover::after,
+[data-slot='button'][aria-label]:focus-visible::after {
+  opacity: 1;
+  translate: -50% 0;
+}
+
 /* ── Motion (Plus DS v3) — a gentle draw/rise for charts and a stagger for cards. Tasteful, not
    busy; fully disabled under prefers-reduced-motion (accessibility, and "restraint over effects"). ── */
 @keyframes chart-draw {
