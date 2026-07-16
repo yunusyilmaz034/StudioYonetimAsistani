@@ -131,18 +131,45 @@ export function IntegrationsScreen({ config, secretsPresent }: { config: Config;
             </label>
           </div>
 
-          <div className="space-y-2">
+          <div
+            className={`rounded-md border px-3 py-2 text-sm font-medium ${
+              !c.active
+                ? 'border-muted-foreground/20 bg-muted text-muted-foreground'
+                : c.testMode
+                  ? 'border-amber-500/30 bg-amber-50 text-amber-900 dark:bg-amber-950/40 dark:text-amber-200'
+                  : 'border-emerald-500/30 bg-emerald-50 text-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200'
+            }`}
+          >
+            {!c.active
+              ? 'Sağlayıcı kapalı — bu mağazadan ödeme alınmaz.'
+              : c.testMode
+                ? 'TEST modu — gerçek para çekilmez. Test kartıyla akışı deneyebilirsiniz.'
+                : 'CANLI — gerçek ödeme alınır, kartlardan para çekilir.'}
+          </div>
+
+          <div className="space-y-3">
             <label className="flex items-center gap-2 text-sm">
               <Checkbox checked={c.posEnabled} onCheckedChange={(v) => set('posEnabled', v === true)} /> Sanal POS aktif
             </label>
             <label className="flex items-center gap-2 text-sm">
               <Checkbox checked={c.linkEnabled} onCheckedChange={(v) => set('linkEnabled', v === true)} /> Link ile Ödeme aktif
             </label>
-            <label className="flex items-center gap-2 text-sm">
-              <Checkbox checked={c.testMode} onCheckedChange={(v) => set('testMode', v === true)} /> Test modu
+            <label className="flex flex-col gap-0.5 text-sm">
+              <span className="flex items-center gap-2">
+                <Checkbox checked={c.testMode} onCheckedChange={(v) => set('testMode', v === true)} /> Test modu
+              </span>
+              <span className="ml-6 text-xs text-muted-foreground">
+                İşaretliyken gerçek para çekilmez — canlıya geçmek için bu tiki KALDIRIN.
+              </span>
             </label>
-            <label className="flex items-center gap-2 text-sm font-medium">
-              <Checkbox checked={c.active} onCheckedChange={(v) => set('active', v === true)} /> Aktif (canlı ödeme)
+            <label className="flex flex-col gap-0.5 text-sm font-medium">
+              <span className="flex items-center gap-2">
+                <Checkbox checked={c.active} onCheckedChange={(v) => set('active', v === true)} /> Sağlayıcı aktif
+              </span>
+              <span className="ml-6 text-xs font-normal text-muted-foreground">
+                Ödeme sağlayıcısı açık/kapalı. Açık olması "canlı" demek değildir — canlı/test kararı
+                yukarıdaki "Test modu" tikidir.
+              </span>
             </label>
           </div>
 
