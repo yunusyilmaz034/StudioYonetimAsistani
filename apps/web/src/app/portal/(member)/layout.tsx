@@ -1,9 +1,11 @@
 import { redirect } from 'next/navigation'
 
+import { ThemeStyle } from '@/components/theme-style'
 import { Toaster } from '@/components/ui/sonner'
 import { requireMemberContext } from '@/server/auth'
 import { getMemberClaims } from '@/server/auth'
 import { loadPortalProfile } from '@/server/portal-query'
+import { getStudioTheme } from '@/server/theme'
 
 import { MemberPortalShell } from '../portal-shell'
 
@@ -21,9 +23,12 @@ export default async function MemberLayout({ children }: { children: React.React
 
   const { ctx, memberId } = await requireMemberContext()
   const profile = await loadPortalProfile(ctx, memberId)
+  // The member sees the studio's own branding too (PF-12).
+  const theme = await getStudioTheme(ctx.studioId)
 
   return (
     <MemberPortalShell studioId={claims.studioId} memberName={profile.fullName}>
+      <ThemeStyle theme={theme} />
       <Toaster />
       {children}
     </MemberPortalShell>

@@ -1,7 +1,7 @@
 'use client'
 
 import type { DayHours, StudioSettings, WorkingHours } from '@studio/core'
-import { CalendarDaysIcon, CreditCardIcon, ShieldAlertIcon } from 'lucide-react'
+import { CalendarDaysIcon, CreditCardIcon, PaletteIcon, ShieldAlertIcon } from 'lucide-react'
 import Link from 'next/link'
 import { useState, useTransition } from 'react'
 import { toast } from 'sonner'
@@ -565,6 +565,14 @@ export function SettingsScreen({
       </div>
 
       {/* Plus Phase 6 — payment providers live on their own page (secrets, provider-based). */}
+      {/* Görünüm — the studio's palette + type size (PF-12). */}
+      <Section title="Tema" hint="Uygulamanın rengi ve yazı boyutu — stüdyonuza göre.">
+        <Button variant="outline" render={<Link href="/settings/theme" />}>
+          <PaletteIcon />
+          Renk ve Yazı Tipi
+        </Button>
+      </Section>
+
       <Section title="Entegrasyonlar" hint="Ödeme sağlayıcıları (PAYTR) ve gelecekteki entegrasyonlar.">
         <Button variant="outline" render={<Link href="/settings/integrations" />}>
           <CreditCardIcon />

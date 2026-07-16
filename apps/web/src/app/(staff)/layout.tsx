@@ -1,9 +1,11 @@
 import type { ReactNode } from 'react'
 
 import { AppShell } from '@/components/app-nav'
+import { ThemeStyle } from '@/components/theme-style'
 import { Toaster } from '@/components/ui/sonner'
 import { UndoProvider } from '@/lib/undo'
 import { getTenantContext } from '@/server/auth'
+import { getStudioTheme } from '@/server/theme'
 
 // The STAFF application shell — owner / reception / trainer only.
 //
@@ -20,6 +22,9 @@ export default async function StaffLayout({ children }: { children: ReactNode })
   // is sent away, and it shows her nothing.
   if (!ctx) return <>{children}</>
 
+  // The studio's chosen palette + type size (PF-12), injected once for the whole staff app.
+  const theme = await getStudioTheme(ctx.studioId)
+
   // The nav is DERIVED from the permission matrix (`lib/permissions.ts`) — the same table the page
   // guard reads. A link nobody may follow is never drawn, and the two can never disagree, because
   // there is only one of them.
@@ -34,6 +39,7 @@ export default async function StaffLayout({ children }: { children: ReactNode })
   // will one day decide no. So it is not the screen's decision any more.
   return (
     <AppShell role={ctx.role}>
+      <ThemeStyle theme={theme} />
       <Toaster />
       {/* Undo/Redo is a pure UX layer over compensating actions (Phase 2 Edit Experience). */}
       <UndoProvider>{children}</UndoProvider>

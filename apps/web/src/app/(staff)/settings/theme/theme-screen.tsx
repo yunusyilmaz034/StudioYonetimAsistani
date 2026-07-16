@@ -1,0 +1,146 @@
+'use client'
+
+import { useEffect, useRef, useState } from 'react'
+import Link from 'next/link'
+import { ArrowLeftIcon, CheckIcon, Loader2Icon } from 'lucide-react'
+import { toast } from 'sonner'
+
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { PageHeader } from '@/components/ui/page-header'
+import { Section } from '@/components/ui/section'
+import {
+  FONT_FAMILIES,
+  FONT_SCALES,
+  THEME_PRESETS,
+  themeCss,
+  type FontFamilyId,
+  type FontScale,
+  type StudioTheme,
+} from '@/lib/theme/presets'
+import { updateStudioThemeAction } from '@/server/actions/theme'
+
+const PREVIEW_ID = 'studio-theme-preview'
+
+// Ayarlar › Tema (PF-12) — pick a curated palette + type size and see it apply live before saving. The
+// preview is a style tag we keep in sync; on save it is persisted and injected server-side on next load.
+export function ThemeScreen({ initial }: { initial: StudioTheme }) {
+  const [presetId, setPresetId] = useState(initial.presetId)
+  const [fontScale, setFontScale] = useState<FontScale>(initial.fontScale)
+  const [fontFamily, setFontFamily] = useState<FontFamilyId>(initial.fontFamily)
+  const [busy, setBusy] = useState(false)
+
+  const dirty = presetId !== initial.presetId || fontScale !== initial.fontScale || fontFamily !== initial.fontFamily
+  const dirtyRef = useRef(dirty)
+  dirtyRef.current = dirty
+
+  useEffect(() => {
+    let el = document.getElementById(PREVIEW_ID) as HTMLStyleElement | null
+    if (!el) {
+      el = document.createElement('style')
+      el.id = PREVIEW_ID
+      document.head.appendChild(el)
+    }
+    el.textContent = themeCss({ presetId, fontScale, fontFamily })
+  }, [presetId, fontScale, fontFamily])
+
+  // Left the screen with the change unsaved? Don't keep the preview applied for the rest of the session.
+  useEffect(
+    () => () => {
+      if (dirtyRef.current) document.getElementById(PREVIEW_ID)?.remove()
+    },
+    [],
+  )
+
+  async function save() {
+    setBusy(true)
+    try {
+      await updateStudioThemeAction({ presetId, fontScale, fontFamily })
+      dirtyRef.current = false
+      toast.success('Tema kaydedildi.')
+    } catch {
+      toast.error('Tema kaydedilemedi.')
+    }
+    setBusy(false)
+  }
+
+  return (
+    <main className="mx-auto max-w-3xl space-y-6 p-4 sm:p-6 lg:p-8">
+      <PageHeader
+        title="Tema"
+        description="Uygulamanın rengi ve yazı boyutu — stüdyonuza göre"
+        actions={
+          <Button variant="outline" size="sm" render={<Link href="/settings" />}>
+            <ArrowLeftIcon />
+            Ayarlar
+          </Button>
+        }
+      />
+
+      <Section title="Renk" hint="Ana vurgu rengi. Nötr zemin ve kontrast korunur; seçenekler el ile ayarlanmıştır.">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          {THEME_PRESETS.map((p) => {
+            const on = p.id === presetId
+            return (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => setPresetId(p.id)}
+                aria-pressed={on}
+                className={`flex items-center gap-2.5 rounded-xl border p-2.5 text-left text-sm transition-colors ${
+                  on ? 'border-primary ring-2 ring-primary/30' : 'border-border hover:bg-muted'
+                }`}
+              >
+                <span className="size-7 shrink-0 rounded-full ring-1 ring-black/10" style={{ backgroundColor: p.primary }} />
+                <span className="min-w-0 flex-1 truncate font-medium">{p.name}</span>
+                {on ? <CheckIcon className="size-4 shrink-0 text-primary" /> : null}
+              </button>
+            )
+          })}
+        </div>
+      </Section>
+
+      <Section title="Yazı boyutu">
+        <div className="flex flex-wrap gap-2">
+          {(Object.keys(FONT_SCALES) as FontScale[]).map((s) => (
+            <Button key={s} variant={s === fontScale ? 'default' : 'outline'} size="sm" onClick={() => setFontScale(s)}>
+              {FONT_SCALES[s].label}
+            </Button>
+          ))}
+        </div>
+      </Section>
+
+      <Section title="Yazı tipi" hint="Sistemde her zaman bulunan seçenekler; ileride daha fazla yazı tipi eklenebilir.">
+        <div className="flex flex-wrap gap-2">
+          {(Object.keys(FONT_FAMILIES) as FontFamilyId[]).map((f) => (
+            <Button key={f} variant={f === fontFamily ? 'default' : 'outline'} size="sm" onClick={() => setFontFamily(f)}>
+              {FONT_FAMILIES[f].label}
+            </Button>
+          ))}
+        </div>
+      </Section>
+
+      <Section title="Önizleme" hint="Değişiklik anında burada (ve tüm ekranda) görünür — kaydedene kadar kalıcı olmaz.">
+        <div className="space-y-3 rounded-xl border border-border p-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <Button size="sm">Birincil</Button>
+            <Button size="sm" variant="outline">
+              İkincil
+            </Button>
+            <Badge className="bg-primary-soft text-primary">Etiket</Badge>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Bu, üyelerin ve resepsiyonun gördüğü renk ve yazı boyutudur. Örnek bir cümle ile nasıl durduğunu görün.
+          </p>
+        </div>
+      </Section>
+
+      <div className="flex items-center justify-end gap-3">
+        {dirty ? <span className="text-sm text-muted-foreground">Kaydedilmemiş değişiklik var</span> : null}
+        <Button onClick={() => void save()} disabled={busy || !dirty}>
+          {busy ? <Loader2Icon className="animate-spin" /> : null} Kaydet
+        </Button>
+      </div>
+    </main>
+  )
+}
