@@ -38,8 +38,8 @@ describe('the trainer — staff, and the person least entitled to the studio’s
 })
 
 describe('reception — she runs the day, and she does not run the business', () => {
-  it('has the desk: members, packages, the calendar, the till, check-in, fitness', () => {
-    for (const area of ['/', '/members', '/packages', '/schedule', '/checkin', '/fitness', '/finance'] as const) {
+  it('has the desk: members, packages, the calendar, the till, check-in, fitness, retail', () => {
+    for (const area of ['/', '/members', '/packages', '/schedule', '/checkin', '/fitness', '/finance', '/retail'] as const) {
       expect(canSee('receptionist', area), area).toBe(true)
     }
   })

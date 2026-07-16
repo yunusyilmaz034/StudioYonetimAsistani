@@ -29,6 +29,7 @@ export type Area =
   | '/members'
   | '/packages'
   | '/finance' // kasa · gün sonu
+  | '/retail' // Ürün Sat — retail sale surface (owner + reception)
   | '/crm'
   | '/calendar'
   | '/operations' // bulk credit ops, closures — they move credits
@@ -63,6 +64,7 @@ export const PERMISSIONS: Readonly<Record<Area, readonly PrincipalRole[]>> = {
   '/members': DESK,
   '/packages': DESK,
   '/finance': DESK, // she takes the money, so she counts the till
+  '/retail': DESK, // selling a bottle/towel is reception's day, not a config act
   '/crm': DESK,
   '/calendar': DESK,
   '/activity': DESK, // "ben bunu iptal etmiştim" — she needs the record of her own day
