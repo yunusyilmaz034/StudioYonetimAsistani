@@ -68,6 +68,7 @@ export {
   ResendEmailProvider,
   standardNotificationProviders,
   WhatsAppProvider,
+  type EmailBrand,
   type MetaTemplateRef,
   type MetaWhatsAppConfig,
   type NotificationProvidersConfig,

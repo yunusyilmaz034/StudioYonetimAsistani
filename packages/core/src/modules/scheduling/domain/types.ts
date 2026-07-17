@@ -139,6 +139,9 @@ export interface CompanyInfo {
   readonly email: string
   readonly website: string | null
   readonly address: string
+  // Google Maps / directions link — the "Yol tarifi al" button in member e-mails. Optional: a studio
+  // that has not set it simply gets an e-mail without the button.
+  readonly mapsUrl?: string | null
 }
 
 /** `HH:MM` wall-clock, in the studio's timezone. */

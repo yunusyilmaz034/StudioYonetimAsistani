@@ -75,16 +75,37 @@ export class ConsoleEmailProvider implements NotificationProvider {
 function escapeHtml(s: string): string {
   return s.replace(/[&<>"]/g, (c) => (c === '&' ? '&amp;' : c === '<' ? '&lt;' : c === '>' ? '&gt;' : '&quot;'))
 }
-export function renderEmailHtml(subject: string, body: string): string {
+// The studio's identity for the e-mail chrome — the header name, the warm sign-off, the address and
+// its directions link. All of it is DATA (the studio's settings), never a literal in here: this file
+// is shared by every tenant, and a studio name compiled into it is one that is wrong for the next
+// customer (Doc 0 · the platform is not one studio).
+export interface EmailBrand {
+  readonly studioName?: string
+  readonly address?: string | null
+  readonly mapsUrl?: string | null // Google Maps / directions link → the "Yol tarifi al" button
+}
+
+export function renderEmailHtml(subject: string, body: string, brand: EmailBrand = {}): string {
   const paragraphs = body
     .split(/\n{2,}/)
     .map((p) => `<p style="margin:0 0 16px;line-height:1.6">${escapeHtml(p).replace(/\n/g, '<br/>')}</p>`)
     .join('')
+  const name = brand.studioName?.trim() || 'Studio'
+  const address = brand.address?.trim()
+  const maps = brand.mapsUrl?.trim()
+  // A warm sign-off, built from the studio's own name so it reads as coming from a team, not a system.
+  const signoff = `${escapeHtml(name)} ekibi olarak her zaman yanınızdayız 💜`
+  const footer = `<tr><td style="padding:22px 28px;background:#faf6f4;border-top:1px solid #efe6e2">
+<p style="margin:0 0 ${address || maps ? '10px' : '0'};font-size:14px;color:#6b5a63;line-height:1.6">${signoff}</p>
+${address ? `<p style="margin:0 0 ${maps ? '12px' : '0'};font-size:13px;color:#8a7a82;line-height:1.5">${escapeHtml(address)}</p>` : ''}
+${maps ? `<a href="${escapeHtml(maps)}" style="display:inline-block;background:#a22d60;color:#ffffff;text-decoration:none;font-size:13px;font-weight:600;padding:9px 16px;border-radius:8px">📍 Yol tarifi al</a>` : ''}
+</td></tr>`
   return `<!doctype html><html lang="tr"><body style="margin:0;background:#f4eeec;padding:24px;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#2b2028">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center">
 <table role="presentation" width="100%" style="max-width:520px;background:#ffffff;border-radius:14px;overflow:hidden;box-shadow:0 1px 3px rgba(43,32,40,.08)">
-<tr><td style="background:#a22d60;padding:20px 28px"><span style="color:#fff;font-size:16px;font-weight:600;letter-spacing:.2px">${escapeHtml(subject)}</span></td></tr>
-<tr><td style="padding:28px;font-size:15px">${paragraphs}</td></tr>
+<tr><td style="background:#a22d60;padding:18px 28px"><span style="color:#fff;font-size:17px;font-weight:700;letter-spacing:.2px">${escapeHtml(name)}</span></td></tr>
+<tr><td style="padding:26px 28px 8px;font-size:15px"><h1 style="margin:0 0 14px;font-size:18px;font-weight:600;color:#2b2028">${escapeHtml(subject)}</h1>${paragraphs}</td></tr>
+${footer}
 </table></td></tr></table></body></html>`
 }
 
@@ -95,6 +116,7 @@ export class ResendEmailProvider implements NotificationProvider {
     private readonly apiKey: string,
     private readonly from: string,
     private readonly fetchImpl: typeof fetch = fetch,
+    private readonly brand: EmailBrand = {},
   ) {}
 
   async send(_ctx: TenantContext, message: RenderedMessage): Promise<ProviderResult> {
@@ -126,7 +148,7 @@ export class ResendEmailProvider implements NotificationProvider {
           // Plain text stays (the accessible, deliverable fallback every client renders); the HTML
           // part is the "richer e-mail" — a clean branded shell around the same rendered body.
           text: message.body,
-          html: renderEmailHtml(message.subject, message.body),
+          html: renderEmailHtml(message.subject, message.body, this.brand),
         }),
       })
     } catch (err) {
@@ -392,7 +414,7 @@ export function metaWhatsAppTransport(config: MetaWhatsAppConfig, fetchImpl: typ
 //    resend action, so a channel that is real in production is real when reception resends. A channel
 //    with credentials becomes real; without them it falls back to its honest stub/mock. ──
 export interface NotificationProvidersConfig {
-  readonly email?: { readonly apiKey: string; readonly from: string }
+  readonly email?: { readonly apiKey: string; readonly from: string; readonly brand?: EmailBrand }
   readonly whatsapp?: MetaWhatsAppConfig
 }
 
@@ -402,7 +424,7 @@ export function standardNotificationProviders(
 ): NotificationProvider[] {
   return [
     new InAppProvider(db),
-    config.email ? new ResendEmailProvider(config.email.apiKey, config.email.from) : new ConsoleEmailProvider(),
+    config.email ? new ResendEmailProvider(config.email.apiKey, config.email.from, fetch, config.email.brand) : new ConsoleEmailProvider(),
     new WhatsAppProvider(config.whatsapp ? metaWhatsAppTransport(config.whatsapp) : undefined),
   ]
 }

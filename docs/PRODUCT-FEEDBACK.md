@@ -13,6 +13,14 @@ görseller+yapısal kas ertelendi) · PF-12 (Tema editörü: renk+font+size, pre
 PF-14 (Ürün Sat kasa seçici/bug) · PF-16 (toast top-center) · PF-17 (toplu gönderim sebep+guard).
 **⏸ ertelendi (insan kararı):** PF-15 (kasa rename/sil → yeni event tipi gerekir).
 
+## PF-21 — Üye e-postalarını markala + yol tarifi butonu · ✅ `done`
+2026-07-17 · owner. E-posta çok sade, "nereden geldiği" belli değil. İstenen: stüdyo kimliği (kimden),
+sıcak bir imza ("… ekibi olarak her zaman yanınızdayız"), ve adres/harita — "Yol tarifi al" butonu
+(owner'ın linki: maps.app.goo.gl/7z3KrAKm7HY5N8cf6). Yapıldı: `renderEmailHtml` başlıkta stüdyo adı +
+altta sıcak imza + adres + "📍 Yol tarifi al" butonu; hepsi **stüdyo ayarından** (CompanyInfo.mapsUrl
+yeni alan, Ayarlar › Genel'de düzenlenir — kodda literal YOK, çok kiracılı). Otomatik e-postalar
+(functions) markalı; retro'nun mapsUrl'i set edildi.
+
 ## PF-20 — Canlı akış'ı dashboard'dan hover-menüye taşı · ✅ `done`
 2026-07-17 · owner. Genel Görünüm altındaki açık "Canlı akış" listesi dashboard'u çok dolu gösteriyor.
 İstenen: o bölümü kaldır; sağ üstte **Analiz** butonunun yanına **"Canlı akış"** butonu koy, **mouse ile

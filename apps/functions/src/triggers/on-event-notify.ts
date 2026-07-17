@@ -5,6 +5,7 @@ import {
   collapsedIntentId,
   DEFAULT_NOTIFICATION_SETTINGS,
   DEFAULT_PREFS,
+  type EmailBrand,
   FirestoreEntitlementRepository,
   FirestoreIdentityRepository,
   FirestoreMemberRepository,
@@ -54,12 +55,14 @@ const OFFSET_MIN = 180
 // The provider config, read from the environment — the one place a channel becomes REAL. A channel
 // with credentials leaves the building; without them it falls back to its honest stub/mock, LOUDLY,
 // so a studio can never go live telling members "we messaged you" while nothing was sent.
-function providerConfig(): NotificationProvidersConfig {
-  const config: { email?: { apiKey: string; from: string }; whatsapp?: MetaWhatsAppConfig } = {}
+function providerConfig(brand?: EmailBrand): NotificationProvidersConfig {
+  const config: { email?: { apiKey: string; from: string; brand?: EmailBrand }; whatsapp?: MetaWhatsAppConfig } = {}
 
   const apiKey = process.env.RESEND_API_KEY
   const from = process.env.EMAIL_FROM
-  if (apiKey && from) config.email = { apiKey, from }
+  // The brand (studio name, address, directions link) rides on the e-mail config so the branded
+  // template is used everywhere the real provider is — the trigger here and the web resend action.
+  if (apiKey && from) config.email = brand ? { apiKey, from, brand } : { apiKey, from }
   else
     logger.warn('e-mail transport is the CONSOLE — no message will leave the building', {
       alert: 'email_transport_not_configured',
@@ -103,7 +106,26 @@ export async function studioNotificationSettings(studioId: StudioId): Promise<No
   return { ...stored, enabledChannels: [...channels] as NotificationSettings['enabledChannels'] }
 }
 
-export function notificationDeps(settings: NotificationSettings = DEFAULT_NOTIFICATION_SETTINGS): NotificationDeps {
+// The studio's public identity for the e-mail chrome (header name, sign-off, address, directions).
+// Read from the SAME settings doc as the notification settings; a studio whose owner has not filled
+// it in simply gets an unbranded (but still correct) e-mail. It is DATA — never a literal in core.
+export async function studioBrand(studioId: StudioId): Promise<EmailBrand | undefined> {
+  const snap = await db().doc(`studios/${studioId}/settings/studio`).get()
+  const company = snap.get('company') as
+    | { displayName?: string; address?: string | null; mapsUrl?: string | null }
+    | undefined
+  if (!company) return undefined
+  return {
+    ...(company.displayName ? { studioName: company.displayName } : {}),
+    ...(company.address ? { address: company.address } : {}),
+    ...(company.mapsUrl ? { mapsUrl: company.mapsUrl } : {}),
+  }
+}
+
+export function notificationDeps(
+  settings: NotificationSettings = DEFAULT_NOTIFICATION_SETTINGS,
+  brand?: EmailBrand,
+): NotificationDeps {
   const database = db()
   return {
     repo: new FirestoreNotificationRepository(database),
@@ -122,7 +144,7 @@ export function notificationDeps(settings: NotificationSettings = DEFAULT_NOTIFI
     // ask when a production credential is needed).
     // ONE registry, built from config, shared with the web resend action (standardNotificationProviders):
     // a channel that is real in production is real when reception resends.
-    providers: standardNotificationProviders(database, providerConfig()),
+    providers: standardNotificationProviders(database, providerConfig(brand)),
     settings,
     utcOffsetMinutes: OFFSET_MIN,
     loadPrefs: async (ctx, memberId): Promise<NotificationPrefs> => {
@@ -150,7 +172,8 @@ export async function notifyForEvent(studioId: StudioId, event: EventLike): Prom
   const rules = rulesFor(event.type)
   if (rules.length === 0) return 0
 
-  const deps = notificationDeps(await studioNotificationSettings(studioId))
+  const [settings, brand] = await Promise.all([studioNotificationSettings(studioId), studioBrand(studioId)])
+  const deps = notificationDeps(settings, brand)
   const ctx: TenantContext = {
     studioId,
     branchIds: [],

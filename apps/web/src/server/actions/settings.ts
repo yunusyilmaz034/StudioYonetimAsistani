@@ -47,6 +47,7 @@ const schema = z.object({
       email: z.string(),
       website: z.string().nullable(),
       address: z.string(),
+      mapsUrl: z.string().nullable().optional(),
     })
     .nullable(),
   workingHours: z
@@ -122,7 +123,9 @@ export async function updateStudioSettingsAction(input: unknown) {
   const next: StudioSettings = {
     studioId: ctx.studioId,
     timeZone: current?.timeZone ?? DEFAULT_TIME_ZONE,
-    company: p.company,
+    // Normalise the optional maps link to null (never an explicit `undefined`, which
+    // exactOptionalPropertyTypes rejects on an optional `string | null` field).
+    company: p.company ? { ...p.company, mapsUrl: p.company.mapsUrl ?? null } : null,
     workingHours: p.workingHours as StudioSettings['workingHours'],
     defaultCancellationWindowHours: p.defaultCancellationWindowHours,
     defaultSessionDurationMinutes: p.defaultSessionDurationMinutes,

@@ -92,6 +92,7 @@ export function SettingsScreen({
     email: settings?.company?.email ?? '',
     website: settings?.company?.website ?? '',
     address: settings?.company?.address ?? '',
+    mapsUrl: settings?.company?.mapsUrl ?? '',
   })
   const [hours, setHours] = useState<WorkingHours>(settings?.workingHours ?? EMPTY_HOURS)
   const [cancelHours, setCancelHours] = useState(
@@ -163,7 +164,9 @@ export function SettingsScreen({
     }
     start(async () => {
       const res = await updateStudioSettingsAction({
-        company: company.legalName.trim() ? { ...company, website: company.website || null } : null,
+        company: company.legalName.trim()
+          ? { ...company, website: company.website || null, mapsUrl: company.mapsUrl || null }
+          : null,
         workingHours: hours,
         defaultCancellationWindowHours: num(cancelHours),
         defaultSessionDurationMinutes: num(duration),
@@ -271,6 +274,16 @@ export function SettingsScreen({
             <Input
               value={company.address}
               onChange={(e) => setCompany({ ...company, address: e.target.value })}
+            />
+          </Field>
+          <Field
+            label="Google Maps / Yol tarifi linki"
+            hint="Üyeye giden e-postaların altındaki “Yol tarifi al” butonu buraya gider. Google Maps’te stüdyonu bul → Paylaş → linki yapıştır."
+          >
+            <Input
+              value={company.mapsUrl}
+              onChange={(e) => setCompany({ ...company, mapsUrl: e.target.value })}
+              placeholder="https://maps.app.goo.gl/…"
             />
           </Field>
         </div>
