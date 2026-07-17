@@ -121,6 +121,7 @@ export function SettingsScreen({
   // Plus (pilot) — KK/havale farkı (edited in ₺, stored in kuruş) + PAYTR max taksit.
   const [surchargeTl, setSurchargeTl] = useState(((settings?.paymentSurcharge?.cardTransferSurchargeKurus ?? 0) / 100).toString())
   const [maxInstallments, setMaxInstallments] = useState((settings?.paymentSurcharge?.maxInstallments ?? 3).toString())
+  const [tab, setTab] = useState('genel')
 
   const setDay = (key: 0 | 1 | 2 | 3 | 4 | 5 | 6, value: DayHours | null) =>
     setHours((h) => ({ ...h, [key]: value }))
@@ -209,11 +210,13 @@ export function SettingsScreen({
 
       {/* Long config → tabs (PF-7): the form's sections are grouped so the page no longer scrolls forever.
           One Kaydet (below, always visible) still saves the whole form; links + definitions sit under it. */}
-      <Tabs defaultValue="genel">
+      <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="max-w-full overflow-x-auto whitespace-nowrap [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <TabsTrigger value="genel" className="shrink-0">Genel</TabsTrigger>
           <TabsTrigger value="rezervasyon" className="shrink-0">Rezervasyon</TabsTrigger>
           <TabsTrigger value="odeme" className="shrink-0">Ödeme &amp; Bildirim</TabsTrigger>
+          <TabsTrigger value="gorunum" className="shrink-0">Görünüm</TabsTrigger>
+          <TabsTrigger value="tanimlar" className="shrink-0">Tanımlar</TabsTrigger>
         </TabsList>
 
         <TabsContent value="genel" className="space-y-6">
@@ -558,60 +561,61 @@ export function SettingsScreen({
       </Section>
 
         </TabsContent>
+
+        <TabsContent value="gorunum" className="space-y-6">
+          {/* Görünüm — palette + type size (PF-12), integrations, KVKK — their own tab, not repeated. */}
+          <Section title="Tema" hint="Uygulamanın rengi ve yazı boyutu — stüdyonuza göre.">
+            <Button variant="outline" render={<Link href="/settings/theme" />}>
+              <PaletteIcon />
+              Renk ve Yazı Tipi
+            </Button>
+          </Section>
+
+          <Section title="Entegrasyonlar" hint="Ödeme sağlayıcıları (PAYTR) ve gelecekteki entegrasyonlar.">
+            <Button variant="outline" render={<Link href="/settings/integrations" />}>
+              <CreditCardIcon />
+              Ödeme Sağlayıcıları
+            </Button>
+          </Section>
+
+          {/* KVKK erasure lives here now, not on every member card (PF-9). Action enforces platform_admin. */}
+          <Section title="KVKK / Gizlilik" hint="Üye kaydını kalıcı olarak anonimleştirme (geri alınamaz, yetkili işlemi).">
+            <Button variant="outline" render={<Link href="/settings/privacy" />}>
+              <ShieldAlertIcon />
+              Üye Kaydını Anonimleştir
+            </Button>
+          </Section>
+        </TabsContent>
+
+        <TabsContent value="tanimlar" className="space-y-6">
+          {/* Ders türleri · salonlar · kasalar · oda notları — they save themselves. */}
+          <DefinitionsPanel branchId={branchId} canManage={canManage} />
+        </TabsContent>
       </Tabs>
 
-      {/* ── Önizleme: what the system will DO with this ───────────────────────────────────── */}
-      <Preview
-        hours={hours}
-        cancelHours={num(cancelHours)}
-        duration={num(duration)}
-        lowCredit={num(lowCredit)}
-        ceiling={num(ceiling)}
-        ttl={Number(ttl)}
-        checkInWindow={Number(checkInWindow)}
-        quietFrom={Number(quietFrom)}
-        quietTo={Number(quietTo)}
-      />
-
-      {/* Form-end save bar (PF-7): a labelled row, not a button adrift mid-page. It says exactly what it
-          saves, so the sections BELOW (which save themselves) never look governed by this button. */}
-      <div className="flex flex-col-reverse items-stretch gap-2 rounded-xl border border-border bg-muted/30 p-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm text-muted-foreground">
-          Yukarıdaki stüdyo ayarlarını kaydeder. Entegrasyonlar ve tanımlar (aşağıda) ayrı kaydedilir.
-        </p>
-        <Button onClick={save} disabled={pending} className="sm:w-auto">
-          Kaydet
-        </Button>
-      </div>
-
-      {/* Plus Phase 6 — payment providers live on their own page (secrets, provider-based). */}
-      {/* Görünüm — the studio's palette + type size (PF-12). */}
-      <Section title="Tema" hint="Uygulamanın rengi ve yazı boyutu — stüdyonuza göre.">
-        <Button variant="outline" render={<Link href="/settings/theme" />}>
-          <PaletteIcon />
-          Renk ve Yazı Tipi
-        </Button>
-      </Section>
-
-      <Section title="Entegrasyonlar" hint="Ödeme sağlayıcıları (PAYTR) ve gelecekteki entegrasyonlar.">
-        <Button variant="outline" render={<Link href="/settings/integrations" />}>
-          <CreditCardIcon />
-          Ödeme Sağlayıcıları
-        </Button>
-      </Section>
-
-      {/* KVKK erasure lives here now, not on every member card (PF-9) — one deliberate surface for an
-          irreversible act. The action still enforces platform_admin (AD-67). */}
-      <Section title="KVKK / Gizlilik" hint="Üye kaydını kalıcı olarak anonimleştirme (geri alınamaz, yetkili işlemi).">
-        <Button variant="outline" render={<Link href="/settings/privacy" />}>
-          <ShieldAlertIcon />
-          Üye Kaydını Anonimleştir
-        </Button>
-      </Section>
-
-      {/* The studio's own definitions. They have their own save paths, so they sit BELOW the settings
-          form's Kaydet — pressing it must never look like it also saved these. */}
-      <DefinitionsPanel branchId={branchId} canManage={canManage} />
+      {/* Preview + form save bar — only on the FORM tabs (Genel/Rezervasyon/Ödeme); the other tabs save
+          themselves, so a form Kaydet under them would be misleading. */}
+      {tab === 'genel' || tab === 'rezervasyon' || tab === 'odeme' ? (
+        <>
+          <Preview
+            hours={hours}
+            cancelHours={num(cancelHours)}
+            duration={num(duration)}
+            lowCredit={num(lowCredit)}
+            ceiling={num(ceiling)}
+            ttl={Number(ttl)}
+            checkInWindow={Number(checkInWindow)}
+            quietFrom={Number(quietFrom)}
+            quietTo={Number(quietTo)}
+          />
+          <div className="flex flex-col-reverse items-stretch gap-2 rounded-xl border border-border bg-muted/30 p-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-muted-foreground">Tüm form sekmelerindeki (Genel · Rezervasyon · Ödeme) stüdyo ayarlarını kaydeder.</p>
+            <Button onClick={save} disabled={pending} className="sm:w-auto">
+              Kaydet
+            </Button>
+          </div>
+        </>
+      ) : null}
     </div>
   )
 }
