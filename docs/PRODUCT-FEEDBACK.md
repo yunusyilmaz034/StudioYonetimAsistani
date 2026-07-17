@@ -13,6 +13,12 @@ görseller+yapısal kas ertelendi) · PF-12 (Tema editörü: renk+font+size, pre
 PF-14 (Ürün Sat kasa seçici/bug) · PF-16 (toast top-center) · PF-17 (toplu gönderim sebep+guard).
 **⏸ ertelendi (insan kararı):** PF-15 (kasa rename/sil → yeni event tipi gerekir).
 
+## PF-20 — Canlı akış'ı dashboard'dan hover-menüye taşı · ✅ `done`
+2026-07-17 · owner. Genel Görünüm altındaki açık "Canlı akış" listesi dashboard'u çok dolu gösteriyor.
+İstenen: o bölümü kaldır; sağ üstte **Analiz** butonunun yanına **"Canlı akış"** butonu koy, **mouse ile
+üzerine gelince aşağı doğru açılan** bir panelde **son 10 işlemi** göster, en altına **"Tümü"** linki →
+tam sayfa (`/activity`). Yapıldı: `LiveFeedMenu` (group-hover, dokunmatikte buton doğrudan /activity linki).
+
 ## PF-19 — Duvara asılı tablet için ayrı "Kiosk" rolü · ✅ `done`
 2026-07-17 · owner ("hepsini yapalım ama b isterim"). QR ile giriş ekranı tablette gösterilecek; üye
 kendi QR'ını okutacak. İstenen: tablet **hiçbir hassas şeye** (üyeler/kasa/ayarlar) ulaşamasın.

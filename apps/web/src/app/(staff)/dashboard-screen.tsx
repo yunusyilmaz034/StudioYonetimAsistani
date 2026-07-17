@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { AlertTriangleIcon, BarChart3Icon, CalendarIcon, ClipboardCheckIcon, DoorOpenIcon, UsersIcon } from 'lucide-react'
+import { ActivityIcon, AlertTriangleIcon, BarChart3Icon, CalendarIcon, ClipboardCheckIcon, DoorOpenIcon, UsersIcon } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -61,6 +61,10 @@ export function DashboardScreen({
                 <span className="hidden sm:inline">Analiz</span>
               </Button>
             ) : null}
+            {/* The live feed used to sit OPEN at the bottom of the dashboard and made it look busy
+                (owner, 2026-07-17). It moves here: a button that opens the last ten on hover, and
+                whose click — and "Tümü" — go to the full page. */}
+            {canSee(role, '/activity') ? <LiveFeedMenu feed={data.feed} /> : null}
             <LogoutButton />
           </>
         }
@@ -163,23 +167,44 @@ export function DashboardScreen({
         </div>
       </Section>
 
-      <Section
-        title="Canlı akış"
-        actions={
-          <Link href="/activity" className="text-sm font-medium text-primary hover:underline">
-            Tümü
-          </Link>
-        }
-      >
-        <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card shadow-sm">
-          {data.feed.length === 0 ? (
-            <p className="px-3 py-6 text-center text-sm text-muted-foreground">Bugün henüz hareket yok.</p>
-          ) : (
-            data.feed.map((e) => <ActivityRow key={e.eventId} event={e} showDate={false} />)
-          )}
-        </div>
-      </Section>
     </main>
+  )
+}
+
+// The live feed, moved off the dashboard body into a hover menu next to "Analiz" (owner, 2026-07-17):
+// the last ten movements open on hover, the button and "Tümü" both go to the full page. The gap
+// between the trigger and the panel is padding INSIDE the hover group, so the mouse can cross it
+// without the menu closing. It is a desktop affordance — on touch the button is a plain link to
+// `/activity`, which is the same door.
+function LiveFeedMenu({ feed }: { feed: OwnerDashboard['feed'] }) {
+  const recent = feed.slice(0, 10)
+  return (
+    <div className="group relative">
+      <Button variant="outline" render={<Link href="/activity" />}>
+        <ActivityIcon />
+        <span className="hidden sm:inline">Canlı akış</span>
+      </Button>
+      <div className="invisible absolute right-0 z-40 w-[22rem] max-w-[calc(100vw-2rem)] pt-2 opacity-0 transition-opacity duration-100 group-hover:visible group-hover:opacity-100">
+        <div className="overflow-hidden rounded-xl border border-border bg-card shadow-lg">
+          <p className="border-b border-border px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Son hareketler
+          </p>
+          <div className="max-h-[26rem] divide-y divide-border overflow-y-auto">
+            {recent.length === 0 ? (
+              <p className="px-3 py-6 text-center text-sm text-muted-foreground">Bugün henüz hareket yok.</p>
+            ) : (
+              recent.map((e) => <ActivityRow key={e.eventId} event={e} showDate={false} />)
+            )}
+          </div>
+          <Link
+            href="/activity"
+            className="block border-t border-border px-3 py-2 text-center text-sm font-medium text-primary hover:bg-primary-soft/20"
+          >
+            Tümü →
+          </Link>
+        </div>
+      </div>
+    </div>
   )
 }
 
