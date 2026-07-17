@@ -1,7 +1,11 @@
 import type { ActorRef } from './actor'
 import type { BranchId, StudioId } from './ids'
 
-export type StaffRole = 'owner' | 'receptionist' | 'trainer'
+// The `kiosk` role is a wall-mounted self-service tablet, not a person: it may reach the QR check-in
+// kiosk and nothing else — never a member, the till, or the settings. It is the studio's LEAST
+// privileged principal. What it RECORDS is attributed to a `device` actor (claims.ts · toActor),
+// never a human's identity (non-negotiable #5) — the tablet is not reception wearing a costume.
+export type StaffRole = 'owner' | 'receptionist' | 'trainer' | 'kiosk'
 
 // D11 (v1.21) — a member is a principal too. She never reaches a staff Server Action
 // (`requireTenantContext` only ever accepts staff roles + platform_admin), and she has NO

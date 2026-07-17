@@ -22,13 +22,24 @@ import { QrScanner } from '../qr-scanner'
 //      who came before her.
 //   3. It is HONEST about the internet. QR is verified on the server or it is not verified (D16), so
 //      offline it says so and points at the desk — it does not scan a code it can do nothing with.
+//
+// ── `locked` — the dedicated kiosk role ───────────────────────────────────────────────────────
+// When the wall tablet is signed in with the KIOSK role (not reception's own session), it is locked:
+// no name-search (it has no member list, and would not want one on a public tablet) and no escape
+// link to the desk (which that role may not see anyway). QR, and only QR.
+//
+// ── Busy times — keep the camera WARM ─────────────────────────────────────────────────────────
+// The welcome does not tear the scanner down. The camera stays mounted the whole time; the result is
+// an OVERLAY on top of it. So when the 2.5 s welcome clears, the next woman scans instantly — there is
+// no getUserMedia re-warm-up between back-to-back arrivals, which is exactly when the queue forms.
 
-/** How long a result stays up before the kiosk forgets it. Long enough to read, short enough that the
- *  next member does not see it. */
-const RESET_MS = 4_000
+/** How long a result stays up before the kiosk forgets it. Long enough to read a name, short enough
+ *  that a queue at 08:59 keeps moving and the next woman never sees the last one's name. */
+const RESET_MS = 2_500
 
-/** The same member, scanned twice by a camera running at 4 fps, is one arrival. */
-const DEBOUNCE_MS = 4_000
+/** The same member, scanned twice by a camera running at 4 fps, is one arrival. Longer than the reset,
+ *  so a code still held up after the welcome clears is not read as a second arrival. */
+const DEBOUNCE_MS = 5_000
 
 type Result =
   | { readonly kind: 'welcome'; readonly name: string }
@@ -38,9 +49,11 @@ type Result =
 export function KioskScreen({
   state,
   members,
+  locked = false,
 }: {
   state: CheckinState
   members: readonly BookingMember[]
+  locked?: boolean
 }) {
   const [result, setResult] = useState<Result | null>(null)
   const [searching, setSearching] = useState(false)
@@ -99,6 +112,7 @@ export function KioskScreen({
 
   // The MANUAL path, and the reason it exists: it rides the OFFLINE `/commands` queue. When the wifi
   // drops, QR stops (a signature must be verified on the server), and this keeps the door working.
+  // Reception's fallback only — the locked kiosk role has no member list and never reaches it.
   const checkInByName = useCallback(
     async (member: BookingMember) => {
       const wasInside = insideIds.has(member.id)
@@ -125,51 +139,18 @@ export function KioskScreen({
 
   if (!state.isOpen) {
     return (
-      <Shell>
+      <Shell locked={locked}>
         <p className="text-center text-h2 font-semibold">Stüdyo kapalı.</p>
         <p className="mt-2 text-center text-muted-foreground">Lütfen resepsiyona başvurun.</p>
       </Shell>
     )
   }
 
-  // ── The result screen. One thing, big, and then it goes away. ─────────────────────────────
-  if (result) {
+  // ── Manual search — the offline path, and the one for a member who forgot her phone. Reception
+  //    only; the locked kiosk never gets here (the button that opens it is not drawn). ───────────
+  if (searching && !locked && !result) {
     return (
-      <Shell>
-        <div className="text-center">
-          {result.kind === 'welcome' ? (
-            <>
-              <div className="mx-auto flex size-24 items-center justify-center rounded-full bg-success/15">
-                <CheckIcon className="size-12 text-success" />
-              </div>
-              <p className="mt-6 text-display font-semibold">Hoş geldin</p>
-              <p className="mt-1 text-h1 font-medium">{result.name}</p>
-            </>
-          ) : result.kind === 'goodbye' ? (
-            <>
-              <div className="mx-auto flex size-24 items-center justify-center rounded-full bg-muted">
-                <CheckIcon className="size-12 text-muted-foreground" />
-              </div>
-              <p className="mt-6 text-display font-semibold">Görüşürüz</p>
-              <p className="mt-1 text-h1 font-medium">{result.name}</p>
-            </>
-          ) : (
-            <>
-              <div className="mx-auto flex size-24 items-center justify-center rounded-full bg-danger/15">
-                <XIcon className="size-12 text-danger" />
-              </div>
-              <p className="mt-6 text-h1 font-semibold">{result.message}</p>
-            </>
-          )}
-        </div>
-      </Shell>
-    )
-  }
-
-  // ── Manual search — the offline path, and the one for a member who forgot her phone. ──────
-  if (searching) {
-    return (
-      <Shell>
+      <Shell locked={locked}>
         <div className="w-full max-w-md">
           <Input
             autoFocus
@@ -210,9 +191,10 @@ export function KioskScreen({
     )
   }
 
-  // ── The camera. What a member sees when she walks in. ─────────────────────────────────────
+  // ── The camera, ALWAYS MOUNTED. The result is layered on top (below) rather than replacing it, so
+  //    the stream never tears down between two women in a queue. ────────────────────────────────
   return (
-    <Shell>
+    <Shell locked={locked}>
       <div className="w-full max-w-lg text-center">
         <h1 className="text-h1 font-semibold">QR kodunu okut</h1>
         <p className="mt-1 text-muted-foreground">Telefonundaki kodu kameraya göster.</p>
@@ -234,37 +216,77 @@ export function KioskScreen({
             <WifiOffIcon className="size-12 text-warning" />
             <p className="mt-4 text-h3 font-semibold">İnternet bağlantısı yok</p>
             <p className="mt-1 text-muted-foreground">
-              QR okutma şu an çalışmıyor. Aşağıdan adınızla giriş yapabilirsiniz — kaydınız alınır.
+              {locked
+                ? 'QR okutma şu an çalışmıyor. Lütfen resepsiyona başvurun.'
+                : 'QR okutma şu an çalışmıyor. Aşağıdan adınızla giriş yapabilirsiniz — kaydınız alınır.'}
             </p>
           </div>
         )}
 
-        <Button
-          variant="outline"
-          className="mt-6 min-h-16 w-full text-h3"
-          onClick={() => setSearching(true)}
-        >
-          <SearchIcon className="size-5" />
-          Adımla giriş yap
-        </Button>
+        {/* Reception's manual fallback. The locked kiosk role has no member list, so it is not drawn. */}
+        {!locked ? (
+          <Button
+            variant="outline"
+            className="mt-6 min-h-16 w-full text-h3"
+            onClick={() => setSearching(true)}
+          >
+            <SearchIcon className="size-5" />
+            Adımla giriş yap
+          </Button>
+        ) : null}
       </div>
+
+      {/* ── The result, one thing, big — an OVERLAY so the camera stays warm underneath. ─────────── */}
+      {result ? (
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-background p-8">
+          <div className="text-center">
+            {result.kind === 'welcome' ? (
+              <>
+                <div className="mx-auto flex size-24 items-center justify-center rounded-full bg-success/15">
+                  <CheckIcon className="size-12 text-success" />
+                </div>
+                <p className="mt-6 text-display font-semibold">Hoş geldin</p>
+                <p className="mt-1 text-h1 font-medium">{result.name}</p>
+              </>
+            ) : result.kind === 'goodbye' ? (
+              <>
+                <div className="mx-auto flex size-24 items-center justify-center rounded-full bg-muted">
+                  <CheckIcon className="size-12 text-muted-foreground" />
+                </div>
+                <p className="mt-6 text-display font-semibold">Görüşürüz</p>
+                <p className="mt-1 text-h1 font-medium">{result.name}</p>
+              </>
+            ) : (
+              <>
+                <div className="mx-auto flex size-24 items-center justify-center rounded-full bg-danger/15">
+                  <XIcon className="size-12 text-danger" />
+                </div>
+                <p className="mt-6 text-h1 font-semibold">{result.message}</p>
+              </>
+            )}
+          </div>
+        </div>
+      ) : null}
     </Shell>
   )
 }
 
-/** Fullscreen. No navigation: a member must not be one stray tap from the members list. */
-function Shell({ children }: { children: React.ReactNode }) {
+/** Fullscreen. No navigation: a member must not be one stray tap from the members list. The escape
+ *  link to reception's desk is for a staff session mounting the kiosk on a spare iPad — the locked
+ *  kiosk role may not see that screen, so it is not drawn for it. */
+function Shell({ children, locked }: { children: React.ReactNode; locked: boolean }) {
   return (
     <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-background p-8">
       {children}
 
-      {/* The way out, for reception — deliberately small, in a corner, and boring. */}
-      <Link
-        href="/checkin"
-        className="absolute bottom-4 right-4 text-sm text-muted-foreground/60 hover:text-muted-foreground"
-      >
-        Resepsiyon ekranı
-      </Link>
+      {locked ? null : (
+        <Link
+          href="/checkin"
+          className="absolute bottom-4 right-4 text-sm text-muted-foreground/60 hover:text-muted-foreground"
+        >
+          Resepsiyon ekranı
+        </Link>
+      )}
     </div>
   )
 }

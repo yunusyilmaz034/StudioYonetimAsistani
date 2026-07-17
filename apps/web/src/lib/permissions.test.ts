@@ -37,6 +37,32 @@ describe('the trainer — staff, and the person least entitled to the studio’s
   })
 })
 
+describe('the kiosk — the studio’s least-privileged principal, a tablet on a wall', () => {
+  it('sees exactly one screen: its own QR scanner, and nothing else', () => {
+    const visible = AREAS.filter((a) => canSee('kiosk', a))
+    expect(visible).toEqual(['/checkin/kiosk'])
+  })
+
+  it('cannot see the DESK check-in screen — that shows who is inside and who is expected, by name', () => {
+    expect(canSee('kiosk', '/checkin')).toBe(false)
+  })
+
+  it('cannot see members, the till, or the settings — the whole reason it is a separate role', () => {
+    for (const area of ['/members', '/finance', '/settings', '/staff', '/'] as const) {
+      expect(canSee('kiosk', area), area).toBe(false)
+    }
+  })
+
+  it('lands on its scanner when it signs in — its one screen is its home', () => {
+    expect(homeFor('kiosk')).toBe('/checkin/kiosk')
+  })
+
+  it('reception mounts the same kiosk screen from her own session (a spare iPad)', () => {
+    expect(canSee('receptionist', '/checkin/kiosk')).toBe(true)
+    expect(canSee('owner', '/checkin/kiosk')).toBe(true)
+  })
+})
+
 describe('reception — she runs the day, and she does not run the business', () => {
   it('has the desk: members, packages, the calendar, the till, check-in, fitness, retail', () => {
     for (const area of ['/', '/members', '/packages', '/schedule', '/checkin', '/fitness', '/finance', '/retail'] as const) {

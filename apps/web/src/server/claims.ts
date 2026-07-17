@@ -1,6 +1,7 @@
 import type {
   ActorRef,
   BranchId,
+  DeviceId,
   StaffRole,
   StaffUserId,
   StudioId,
@@ -24,7 +25,7 @@ export interface StaffClaims {
 // The guard vocabulary: a studio role, or the cross-tenant platform_admin flag.
 export type GuardRole = StaffRole | 'platform_admin'
 
-const STAFF_ROLES: readonly StaffRole[] = ['owner', 'receptionist', 'trainer']
+const STAFF_ROLES: readonly StaffRole[] = ['owner', 'receptionist', 'trainer', 'kiosk']
 
 function isStaffRole(v: unknown): v is StaffRole {
   return typeof v === 'string' && (STAFF_ROLES as readonly string[]).includes(v)
@@ -64,6 +65,12 @@ function toActor(claims: StaffClaims): ActorRef {
       return { type: 'receptionist', id: claims.uid }
     case 'trainer':
       return { type: 'trainer', id: claims.uid }
+    // The kiosk is a THING, not a person (non-negotiable #5). A check-in it records is attributed to
+    // the tablet as a `device` — the actor taxonomy carries this variant from the first commit for
+    // exactly this — never to the human whose login happens to be signed into it. Its uid is the
+    // device's stable id, so the log still names WHICH tablet.
+    case 'kiosk':
+      return { type: 'device', id: claims.uid as unknown as DeviceId }
     default: {
       const exhaustive: never = claims.role
       return exhaustive

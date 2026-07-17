@@ -31,7 +31,9 @@ const deps = (): IdentityDeps => ({
   clock: systemClock,
 })
 
-const ROLES = ['owner', 'receptionist', 'trainer'] as const
+// `kiosk` is a creatable role: the owner makes ONE account for the tablet on the wall (option A), and
+// it is the studio's least-privileged principal — the QR scanner and nothing else.
+const ROLES = ['owner', 'receptionist', 'trainer', 'kiosk'] as const
 
 export interface StaffRow {
   readonly id: string

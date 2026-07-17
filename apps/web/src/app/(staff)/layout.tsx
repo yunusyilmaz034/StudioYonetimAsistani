@@ -25,6 +25,19 @@ export default async function StaffLayout({ children }: { children: ReactNode })
   // The studio's chosen palette + type size (PF-12), injected once for the whole staff app.
   const theme = await getStudioTheme(ctx.studioId)
 
+  // The KIOSK role gets NO shell — no sidebar, no nav, no way to reach a second screen. The wall
+  // tablet is signed in once and shows exactly one thing (its own page renders full-screen). Drawing
+  // the admin navigation around it, even a navigation derived to be empty, is a door we do not build.
+  if (ctx.role === 'kiosk') {
+    return (
+      <>
+        <ThemeStyle theme={theme} />
+        <Toaster />
+        {children}
+      </>
+    )
+  }
+
   // The nav is DERIVED from the permission matrix (`lib/permissions.ts`) — the same table the page
   // guard reads. A link nobody may follow is never drawn, and the two can never disagree, because
   // there is only one of them.

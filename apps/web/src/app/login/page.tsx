@@ -7,6 +7,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import { homeFor } from '@/lib/permissions'
 import { getMemberClaims, getTenantContext } from '@/server/auth'
 
 import { LoginForm } from './login-form'
@@ -22,7 +23,9 @@ import { LoginForm } from './login-form'
 export default async function LoginPage() {
   const ctx = await getTenantContext()
   if (ctx) {
-    redirect('/')
+    // Home is role-dependent: a trainer lands on her classes, a kiosk on its scanner. Sending
+    // everyone to `/` would bounce them right back through the page guard.
+    redirect(homeFor(ctx.role))
   }
   // A MEMBER holds a valid session but is not staff: her door is the portal, not this form.
   if (await getMemberClaims()) {

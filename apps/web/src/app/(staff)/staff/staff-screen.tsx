@@ -44,6 +44,7 @@ const ROLE_LABEL: Record<string, string> = {
   owner: 'Sahip',
   receptionist: 'Resepsiyon',
   trainer: 'Eğitmen',
+  kiosk: 'Kiosk (Tablet)',
 }
 
 // The permission matrix, in the owner's language, at the moment she is choosing. A role name means
@@ -52,6 +53,7 @@ const ROLE_MEANS: Record<string, string> = {
   owner: 'Her şeyi görür ve yönetir — denetim kaydı, analiz, personel dahil.',
   receptionist: 'Üyeler, paketler, rezervasyon, satış, tahsilat, kasa. Analiz ve denetim kaydını görmez.',
   trainer: 'Yalnızca kendi derslerini ve o derslerdeki üyelerin adlarını görür. Başka hiçbir şeyi.',
+  kiosk: 'Duvardaki tablet için. Yalnızca QR ile giriş ekranını gösterir — üyeleri, kasayı, ayarları asla. Bu hesapla tablete bir kez giriş yapıp bırakırsınız.',
 }
 
 export function StaffScreen({ staff }: { staff: readonly StaffRow[] }) {

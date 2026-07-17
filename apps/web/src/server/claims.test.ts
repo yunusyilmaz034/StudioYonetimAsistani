@@ -48,6 +48,14 @@ describe('claimsToTenantContext', () => {
     const c = parseStaffClaims('usr_1', { ...base, platformAdmin: true })
     expect(claimsToTenantContext(c!).actor).toEqual({ type: 'platform_admin', id: 'usr_1' })
   })
+
+  it('attributes the kiosk to a DEVICE, not a human (non-negotiable #5)', () => {
+    // The wall tablet is a thing, not a person. A check-in it records must never carry a human's
+    // identity — it is the tablet, a `device`, and its uid names WHICH tablet.
+    const c = parseStaffClaims('usr_kiosk', { ...base, role: 'kiosk' })
+    expect(c?.role).toBe('kiosk')
+    expect(claimsToTenantContext(c!).actor).toEqual({ type: 'device', id: 'usr_kiosk' })
+  })
 })
 
 describe('isAuthorized — the catalogue guard (AD-46)', () => {

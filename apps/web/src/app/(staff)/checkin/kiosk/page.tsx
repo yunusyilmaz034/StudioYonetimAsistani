@@ -17,15 +17,32 @@ import { KioskScreen } from './kiosk-screen'
 //     the server or it is not verified), so when the connection drops the kiosk SAYS SO and points at
 //     the desk, rather than scanning a code it can do nothing with.
 //
-// It runs under reception's session — the tablet is signed in once, in the morning. We did NOT invent
-// an unauthenticated kiosk mode: that would be a new authentication surface, and the studio's problem
-// is a camera that does not work on Safari, not a login it does not want to do.
+// It can run two ways, and the difference is the whole security story:
+//
+//   • Reception mounts it on a spare iPad from her OWN session (owner/receptionist). She keeps the
+//     manual name-search fallback (it rides the offline `/commands` queue when the wifi drops), so
+//     the page loads the member list for her.
+//   • The DEDICATED KIOSK ROLE signs in on the wall tablet and gets a locked screen: QR only. It
+//     never receives the member list (that is PII on a public tablet), and the page does not even
+//     fetch it — the least-privileged principal is handed the least data. What it records is stamped
+//     with a `device` actor, never a human's.
+//
+// We did NOT invent an unauthenticated kiosk mode: that would be a new authentication surface, and the
+// studio's problem is a camera that does not work on Safari, not a login it does not want to do.
 export default async function KioskPage() {
-  const ctx = await requirePageAccess('/checkin')
+  const ctx = await requirePageAccess('/checkin/kiosk')
+  const locked = ctx.role === 'kiosk'
+
   const [state, members] = await Promise.all([
     loadCheckinState(ctx, Date.now()),
-    listBookingMembersAction(),
+    // The kiosk role never sees the member list. Reception (opening it from her own session) does.
+    locked ? Promise.resolve([]) : listBookingMembersAction(),
   ])
 
-  return <KioskScreen state={state} members={members} />
+  // Belt and braces: `loadCheckinState` fetches the expected-soon list BY NAME to power reception's
+  // desk. The kiosk never renders it — but props are serialised to the client, so on the locked
+  // tablet we strip every name (and the presence ids it does not use) before it leaves the server.
+  const safeState = locked ? { ...state, inside: [], expectedSoon: [] } : state
+
+  return <KioskScreen state={safeState} members={members} locked={locked} />
 }

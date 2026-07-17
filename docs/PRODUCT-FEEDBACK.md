@@ -13,6 +13,27 @@ görseller+yapısal kas ertelendi) · PF-12 (Tema editörü: renk+font+size, pre
 PF-14 (Ürün Sat kasa seçici/bug) · PF-16 (toast top-center) · PF-17 (toplu gönderim sebep+guard).
 **⏸ ertelendi (insan kararı):** PF-15 (kasa rename/sil → yeni event tipi gerekir).
 
+## PF-19 — Duvara asılı tablet için ayrı "Kiosk" rolü · ✅ `done`
+2026-07-17 · owner ("hepsini yapalım ama b isterim"). QR ile giriş ekranı tablette gösterilecek; üye
+kendi QR'ını okutacak. İstenen: tablet **hiçbir hassas şeye** (üyeler/kasa/ayarlar) ulaşamasın.
+
+**Karar (B — ayrı rol):** Yeni bir `StaffRole = 'kiosk'` — sistemin **en düşük yetkili** principal'ı.
+Yalnızca `/checkin/kiosk` alanını ve QR check-in action'ını görür; başka hiçbir ekranı yok, AppShell
+(sidebar) çizilmez, isim-arama (üye listesi = PII) verilmez.
+
+**Actor kararı (kritik):** Kiosk bir **cihaz**, insan değil. Kaydettiği check-in event'i `actor.type:
+'device'` ile damgalanır — bir insanın kimliğini asla ödünç almaz (12 kural #5). `device` variant
+taksonomide ilk commit'ten beri var → **şema değişikliği yok**, yeni event/payload yok, migration yok.
+`staff.created` payload'ındaki `role` union'ı `'kiosk'` ile genişler (geriye uyumlu).
+
+**Nasıl kurulur:** Ayarlar → Personel → yeni hesap, rol = *Kiosk (Tablet)* (opsiyon A: özel hesap).
+Tablette bu hesapla bir kez giriş yapılır. Reception kendi oturumundan aynı ekranı yedek iPad'de
+açmaya devam eder (isim-arama fallback'i onda kalır).
+
+**Yoğun-saat ayarı (opsiyon 3):** Kamera artık sonuç ekranında **sökülmüyor** — "Hoş geldin" bir
+overlay olarak biniyor, alttaki stream sıcak kalıyor; sonuç 2.5 sn'de temizleniyor. Arka arkaya
+girişlerde getUserMedia yeniden-ısınması yok.
+
 ## PF-4 — Üye listesi sayfalama · ✅ `done`
 2026-07-16 · owner. Üye ekranı tüm kayıtları tek seferde gösteriyor. İstenen: **10'ar kayıt**, tablo altında
 **numaralı sayfalama**, üstte filtre (mevcut arama+çipler kalır), bir de **"Tümünü göster"** butonu. Client-side.

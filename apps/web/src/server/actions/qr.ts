@@ -68,7 +68,9 @@ export async function mintCheckInTokenAction(input: unknown) {
 // be verified, and that cannot happen on a client or later in a trigger.
 export async function checkInByQrAction(input: unknown) {
   const p = z.object({ token: z.string().min(1), branchId: z.string().min(1) }).parse(input)
-  const ctx = await requireTenantContext(['owner', 'receptionist', 'platform_admin'])
+  // `kiosk` is the wall tablet: this — verifying a signed QR and recording a check-in — is the ONE
+  // write it may make. The check-in it records is stamped with a `device` actor, not a human's.
+  const ctx = await requireTenantContext(['owner', 'receptionist', 'kiosk', 'platform_admin'])
 
   const claims = verifyQrToken(p.token, qrVerificationSecrets())
   if (!claims) return { ok: false as const, error: { code: 'qr_invalid' as const } }

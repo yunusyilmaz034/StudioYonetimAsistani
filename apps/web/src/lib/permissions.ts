@@ -24,6 +24,7 @@ export type Area =
   | '/schedule'
   | '/reservations'
   | '/checkin'
+  | '/checkin/kiosk' // the self-service wall tablet — a SEPARATE area from the desk check-in screen
   | '/fitness' // Plus Phase 8 — fitness attendance & occupancy (read/report; owner + reception)
   | '/attendance'
   | '/members'
@@ -50,6 +51,9 @@ export type Area =
 
 const OWNER_ONLY: readonly PrincipalRole[] = ['owner']
 const DESK: readonly PrincipalRole[] = ['owner', 'receptionist']
+// The kiosk tablet, plus the desk (reception mounts the same screen on a spare iPad). The kiosk role
+// gets THIS area and nothing else — its one screen, and no way to reach a second.
+const KIOSK: readonly PrincipalRole[] = ['owner', 'receptionist', 'kiosk']
 
 export const PERMISSIONS: Readonly<Record<Area, readonly PrincipalRole[]>> = {
   // Reception runs the day.
@@ -57,6 +61,9 @@ export const PERMISSIONS: Readonly<Record<Area, readonly PrincipalRole[]>> = {
   '/schedule': DESK,
   '/reservations': DESK,
   '/checkin': DESK,
+  // The desk screen stays reception's (it shows who is inside and the expected-soon list, by name).
+  // The kiosk is a DIFFERENT area: the QR scanner alone, and the only screen the kiosk role may see.
+  '/checkin/kiosk': KIOSK,
   // Plus Phase 8 — occupancy & entry reports. Operational (who came, how busy), not private training
   // content, so it is reception's too. A trainer does not get it (it is the studio's usage data).
   '/fitness': DESK,
@@ -121,5 +128,9 @@ export function canSee(role: PrincipalRole, area: Area): boolean {
  * is her own screen, and it is the only one she has.
  */
 export function homeFor(role: PrincipalRole): string {
-  return role === 'trainer' ? '/my-classes' : '/'
+  if (role === 'trainer') return '/my-classes'
+  // The kiosk's only screen IS its home. Signed in on the tablet, it lands on the scanner and can go
+  // nowhere else — every other area redirects right back here.
+  if (role === 'kiosk') return '/checkin/kiosk'
+  return '/'
 }
