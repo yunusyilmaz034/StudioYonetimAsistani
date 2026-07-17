@@ -346,6 +346,34 @@ export function SettingsScreen({
         </Card>
       </Section>
 
+      {/* ── Saat dilimi: read-only, and honestly so. A studio-level fact, so it lives in Genel —
+          it is not a payment setting (owner, 2026-07-17). ──────────────────────────────────── */}
+      <Section
+        title="Saat dilimi"
+        hint="Alpha’da değiştirilemez — tek stüdyo, tek saat dilimi."
+      >
+        <Card>
+          <CardContent className="p-4">
+            <p className="font-medium tabular-nums">{settings?.timeZone ?? 'Europe/Istanbul'}</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Sistem bunu kullanır ve UTC farkını buradan türetir — saklamaz. Değiştirilebilir hale
+              gelmesi ikinci stüdyoyla birlikte gelecek; çalışmayan bir ayarı bugün göstermiyoruz.
+            </p>
+          </CardContent>
+        </Card>
+      </Section>
+
+      {/* ── KVKK / Gizlilik ───────────────────────────────────────────────────────────────────
+          A legal/privacy action on the studio's own data — it belongs with the studio's legal
+          identity (Genel), never under "Görünüm". Not on every member card (PF-9); the action
+          enforces platform_admin. Self-contained screen, so it is not tied to the form Kaydet. */}
+      <Section title="KVKK / Gizlilik" hint="Üye kaydını kalıcı olarak anonimleştirme (geri alınamaz, yetkili işlemi).">
+        <Button variant="outline" render={<Link href="/settings/privacy" />}>
+          <ShieldAlertIcon />
+          Üye Kaydını Anonimleştir
+        </Button>
+      </Section>
+
         </TabsContent>
 
         <TabsContent value="rezervasyon" className="space-y-6">
@@ -471,6 +499,17 @@ export function SettingsScreen({
         </div>
       </Section>
 
+      {/* ── Ödeme sağlayıcısı bağlantısı ──────────────────────────────────────────────────────
+          PAYTR bağlantısının kendisi (merchant bilgileri, test modu, bildirim URL'i) — bir ÖDEME
+          entegrasyonu, o yüzden parayla birlikte burada yaşar, "Görünüm"ün altında değil (owner,
+          2026-07-17). Kendi ekranında saklandığı için form Kaydet'ine bağlı değildir. */}
+      <Section title="Ödeme sağlayıcısı (PAYTR)" hint="Bağlantı, merchant bilgileri, test modu ve bildirim URL'i.">
+        <Button variant="outline" render={<Link href="/settings/integrations" />}>
+          <CreditCardIcon />
+          PAYTR Bağlantısı
+        </Button>
+      </Section>
+
       {/* ── Bildirimler (DEBT-024) ────────────────────────────────────────────────────────── */}
       <Section
         title="Bildirimler"
@@ -544,45 +583,16 @@ export function SettingsScreen({
         </div>
       </Section>
 
-      {/* ── Saat dilimi: read-only, and honestly so ───────────────────────────────────────── */}
-      <Section
-        title="Saat dilimi"
-        hint="Alpha’da değiştirilemez — tek stüdyo, tek saat dilimi."
-      >
-        <Card>
-          <CardContent className="p-4">
-            <p className="font-medium tabular-nums">{settings?.timeZone ?? 'Europe/Istanbul'}</p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Sistem bunu kullanır ve UTC farkını buradan türetir — saklamaz. Değiştirilebilir hale
-              gelmesi ikinci stüdyoyla birlikte gelecek; çalışmayan bir ayarı bugün göstermiyoruz.
-            </p>
-          </CardContent>
-        </Card>
-      </Section>
-
         </TabsContent>
 
         <TabsContent value="gorunum" className="space-y-6">
-          {/* Görünüm — palette + type size (PF-12), integrations, KVKK — their own tab, not repeated. */}
+          {/* Görünüm — YALNIZCA tema (renk + yazı boyutu, PF-12). Ödeme sağlayıcısı "Ödeme & Bildirim"e,
+              KVKK "Genel"e taşındı (owner, 2026-07-17): bir ödeme entegrasyonu da yasal bir işlem de bir
+              görünüm ayarı değildir. */}
           <Section title="Tema" hint="Uygulamanın rengi ve yazı boyutu — stüdyonuza göre.">
             <Button variant="outline" render={<Link href="/settings/theme" />}>
               <PaletteIcon />
               Renk ve Yazı Tipi
-            </Button>
-          </Section>
-
-          <Section title="Entegrasyonlar" hint="Ödeme sağlayıcıları (PAYTR) ve gelecekteki entegrasyonlar.">
-            <Button variant="outline" render={<Link href="/settings/integrations" />}>
-              <CreditCardIcon />
-              Ödeme Sağlayıcıları
-            </Button>
-          </Section>
-
-          {/* KVKK erasure lives here now, not on every member card (PF-9). Action enforces platform_admin. */}
-          <Section title="KVKK / Gizlilik" hint="Üye kaydını kalıcı olarak anonimleştirme (geri alınamaz, yetkili işlemi).">
-            <Button variant="outline" render={<Link href="/settings/privacy" />}>
-              <ShieldAlertIcon />
-              Üye Kaydını Anonimleştir
             </Button>
           </Section>
         </TabsContent>
@@ -593,28 +603,32 @@ export function SettingsScreen({
         </TabsContent>
       </Tabs>
 
-      {/* Preview + form save bar — only on the FORM tabs (Genel/Rezervasyon/Ödeme); the other tabs save
-          themselves, so a form Kaydet under them would be misleading. */}
+      {/* The whole-studio summary — the system's reading of ALL form settings (hours, rules, QR,
+          notifications) — lives ONCE, on the overview tab (Genel). Repeating the same box under every
+          form tab was noise the owner reads three times (owner, 2026-07-17). */}
+      {tab === 'genel' ? (
+        <Preview
+          hours={hours}
+          cancelHours={num(cancelHours)}
+          duration={num(duration)}
+          lowCredit={num(lowCredit)}
+          ceiling={num(ceiling)}
+          ttl={Number(ttl)}
+          checkInWindow={Number(checkInWindow)}
+          quietFrom={Number(quietFrom)}
+          quietTo={Number(quietTo)}
+        />
+      ) : null}
+
+      {/* One Kaydet, on the FORM tabs (Genel/Rezervasyon/Ödeme); the other tabs save themselves, so a
+          form Kaydet under them would be misleading. */}
       {tab === 'genel' || tab === 'rezervasyon' || tab === 'odeme' ? (
-        <>
-          <Preview
-            hours={hours}
-            cancelHours={num(cancelHours)}
-            duration={num(duration)}
-            lowCredit={num(lowCredit)}
-            ceiling={num(ceiling)}
-            ttl={Number(ttl)}
-            checkInWindow={Number(checkInWindow)}
-            quietFrom={Number(quietFrom)}
-            quietTo={Number(quietTo)}
-          />
-          <div className="flex flex-col-reverse items-stretch gap-2 rounded-xl border border-border bg-muted/30 p-3 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm text-muted-foreground">Tüm form sekmelerindeki (Genel · Rezervasyon · Ödeme) stüdyo ayarlarını kaydeder.</p>
-            <Button onClick={save} disabled={pending} className="sm:w-auto">
-              Kaydet
-            </Button>
-          </div>
-        </>
+        <div className="flex flex-col-reverse items-stretch gap-2 rounded-xl border border-border bg-muted/30 p-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-muted-foreground">Tüm form sekmelerindeki (Genel · Rezervasyon · Ödeme) stüdyo ayarlarını kaydeder.</p>
+          <Button onClick={save} disabled={pending} className="sm:w-auto">
+            Kaydet
+          </Button>
+        </div>
       ) : null}
     </div>
   )
