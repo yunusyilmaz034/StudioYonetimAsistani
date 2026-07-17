@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  decideAddDocument,
   decideClearRestriction,
   decideDeactivate,
   decideErase,
@@ -8,9 +9,11 @@ import {
   decidePortalActivated,
   decidePortalLogin,
   decideRegisterMember,
+  decideRemoveDocument,
   decideSetRestriction,
   decideUpdateProfile,
 } from '../../src/modules/members/domain/decide'
+import type { MemberDocument } from '../../src/modules/members/domain/document'
 import { emptyStats, type Member, type MemberRestriction, type PhoneE164 } from '../../src/modules/members/domain/member'
 import {
   instant,
@@ -28,6 +31,8 @@ import invited from './member.invited.v1.json'
 import portalActivated from './member.portal_activated.v1.json'
 import portalLogin from './member.portal_login.v1.json'
 import restrictionSet from './member.restriction_set.v1.json'
+import documentAdded from './member.document_added.v1.json'
+import documentRemoved from './member.document_removed.v1.json'
 
 // Golden fixtures (AD-33): the committed payload contract per event type. A change
 // to a payload shape fails here, forcing an explicit version bump + upcaster.
@@ -109,6 +114,46 @@ describe('member event payloads match golden fixtures', () => {
     })
     expect(crossing.ok).toBe(false)
     if (!crossing.ok) expect(crossing.error.code).toBe('invalid_hour_range')
+  })
+
+  // ── The signed-document archive (v1.28) — the KIND enters the log; the image NEVER does. ──
+  const document: MemberDocument = {
+    id: 'mdoc_1',
+    memberId: 'mem_1' as MemberId,
+    kind: 'membership_contract',
+    // Two private Storage paths — they carry the woman's TC kimlik and signature, and they must
+    // NEVER reach the payload. The assertion below is the whole point of this fixture.
+    pages: [
+      'studios/std_1/members/mem_1/documents/aaaa-1111.jpg',
+      'studios/std_1/members/mem_1/documents/bbbb-2222.jpg',
+    ],
+    uploadedBy: { type: 'receptionist', id: 'usr_1' as StaffUserId },
+    uploadedAt: now,
+  }
+
+  it('member.document_added — carries the kind + page count, and NEVER a path or a pixel', () => {
+    const r = decideAddDocument(ctx, member, document)
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.value[0]?.payload).toEqual(documentAdded)
+    // An AI agent that "helpfully" puts the storagePath (or a filename) in this payload breaks the
+    // build, not KVKK: the images are PII and live only in private Storage.
+    const json = JSON.stringify(r.value[0]?.payload)
+    expect(json).not.toContain('documents/')
+    expect(json).not.toContain('.jpg')
+  })
+
+  it('member.document_removed — a removal is a compensating event and refuses an empty reason', () => {
+    const r = decideRemoveDocument(ctx, member, document, 'yanlış üyeye yüklendi')
+    expect(r.ok).toBe(true)
+    if (r.ok) expect(r.value[0]?.payload).toEqual(documentRemoved)
+    expect(decideRemoveDocument(ctx, member, document, '  ').ok).toBe(false)
+  })
+
+  it('refuses a document with no pages — an empty archive record is meaningless', () => {
+    const r = decideAddDocument(ctx, member, { ...document, pages: [] })
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.error.code).toBe('document_empty')
   })
 
   it('clear is idempotent, and refuses an empty reason', () => {

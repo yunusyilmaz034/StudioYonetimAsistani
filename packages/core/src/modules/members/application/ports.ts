@@ -9,6 +9,7 @@ import type {
   Result,
   TenantContext,
 } from '../../../shared'
+import type { MemberDocument } from '../domain/document'
 import type { Member } from '../domain/member'
 import type { MemberInvite } from '../domain/invite'
 
@@ -85,6 +86,19 @@ export interface MemberRepository {
 
   // Append-only: an event with no state change (the member logged in).
   appendEvents(ctx: TenantContext, events: readonly NewEvent[]): Promise<void>
+
+  // ── The signed-document archive (v1.28) ──
+  // Metadata lives in a server-only subcollection `members/{id}/documents`; the images are private
+  // Storage objects the client uploaded before calling in. Each write commits state + event atomically.
+  saveDocument(ctx: TenantContext, document: MemberDocument, events: readonly NewEvent[]): Promise<void>
+  listDocuments(ctx: TenantContext, memberId: MemberId): Promise<readonly MemberDocument[]>
+  findDocument(ctx: TenantContext, memberId: MemberId, documentId: string): Promise<MemberDocument | null>
+  deleteDocument(
+    ctx: TenantContext,
+    memberId: MemberId,
+    documentId: string,
+    events: readonly NewEvent[],
+  ): Promise<void>
 }
 
 export interface MembersDeps {

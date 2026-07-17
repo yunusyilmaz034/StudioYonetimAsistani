@@ -34,6 +34,7 @@ const PREFIX = {
   studio: 'std',
   branch: 'brn',
   member: 'mem',
+  memberDocument: 'mdoc', // signed membership contract / KVKK / consent scans (v1.28)
   entitlement: 'ent',
   product: 'prd',
   service: 'svc',
@@ -70,6 +71,7 @@ function mint(prefix: string): string {
 export const newStudioId = (): StudioId => mint(PREFIX.studio) as StudioId
 export const newBranchId = (): BranchId => mint(PREFIX.branch) as BranchId
 export const newMemberId = (): MemberId => mint(PREFIX.member) as MemberId
+export const newMemberDocumentId = (): string => mint(PREFIX.memberDocument)
 export const newEntitlementId = (): EntitlementId => mint(PREFIX.entitlement) as EntitlementId
 export const newProductId = (): ProductId => mint(PREFIX.product) as ProductId
 export const newServiceId = (): ServiceId => mint(PREFIX.service) as ServiceId

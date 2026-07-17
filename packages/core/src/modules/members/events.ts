@@ -39,6 +39,23 @@ export const MEMBER_PORTAL_LOGIN = 'member.portal_login'
 // PII can hide in an immutable log ("Ayşe Yılmaz'ın avukatı aradı"), and the log is forever. The
 // enum makes the erasure analysable; a `note` — where a human explains — lives on the member's
 // tombstone in STATE, where it can itself be erased.
+// v1.28 — the signed-document archive (owner, 2026-07-17).
+//
+// Reception photographs the signed membership contract / KVKK notice / explicit-consent form with the
+// tablet camera and archives the images against the member. The IMAGE is dense PII (name, TC kimlik,
+// signature, address) and lives in private Storage — NEVER here. The event records only that a
+// document of a given KIND was archived, and how many pages; the storagePath, the file, and every
+// pixel stay out of the log (#6). This is what lets KVKK erasure delete the images and leave the log
+// balancing (the purger empties the Storage prefix + the metadata subcollection).
+export const MEMBER_DOCUMENT_ADDED = 'member.document_added'
+export const MEMBER_DOCUMENT_REMOVED = 'member.document_removed'
+
+// The KIND is a CLOSED ENUM, not free text — these three are legally distinct instruments
+// (the membership contract, the KVKK aydınlatma notice, the açık rıza consent) and the enum keeps the
+// log analysable and free of any label a human could smuggle PII into. Extending it later is additive.
+export const DocumentKinds = ['membership_contract', 'kvkk_consent', 'explicit_consent'] as const
+export type DocumentKind = (typeof DocumentKinds)[number]
+
 export const MEMBER_ERASED = 'member.erased'
 export const ErasureReasons = [
   'kvkk_request',
@@ -81,6 +98,20 @@ export type MemberErasedPayload = {
   readonly memberId: string
   readonly reason: ErasureReason
   readonly erasedAt: Instant
+}
+
+// No image, no filename, no storagePath — only the opaque documentId, the closed-enum kind, and the
+// page count. The pixels (and the PII on them) live in private Storage; a golden fixture asserts this
+// payload never carries them.
+export type MemberDocumentAddedPayload = {
+  readonly documentId: string
+  readonly kind: DocumentKind
+  readonly pageCount: number
+}
+// A correction, never a silent delete (#9): a `reason` is mandatory, enforced in the domain.
+export type MemberDocumentRemovedPayload = {
+  readonly documentId: string
+  readonly reason: string
 }
 
 // The structured rules DO enter the log (they are not PII); the note does NOT.

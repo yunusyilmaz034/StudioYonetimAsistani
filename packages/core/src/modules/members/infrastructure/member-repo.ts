@@ -3,6 +3,7 @@ import {
   getFirestore,
   Timestamp,
   type CollectionReference,
+  type DocumentData,
   type Firestore,
   type Transaction,
 } from 'firebase-admin/firestore'
@@ -11,6 +12,7 @@ import {
   err,
   instant,
   ok,
+  type ActorRef,
   type ActorType,
   type DomainError,
   type Instant,
@@ -20,8 +22,10 @@ import {
   type StudioId,
   type TenantContext,
 } from '../../../shared'
+import type { MemberDocument } from '../domain/document'
 import type { Member } from '../domain/member'
 import type { MemberInvite } from '../domain/invite'
+import type { DocumentKind } from '../events'
 import type { MemberEventRecord, MemberRepository } from '../application/ports'
 import { eventToFirestore, memberFromFirestore, memberToFirestore } from './member-mapper'
 
@@ -46,6 +50,11 @@ export class FirestoreMemberRepository implements MemberRepository {
   // Keyed by the token HASH — the raw token lives only in the link we hand to the member.
   private invites(sid: StudioId): CollectionReference {
     return this.db.collection('studios').doc(sid).collection('invites')
+  }
+  // Signed-document metadata (v1.28) — a subcollection under the member. It matches NO client-read
+  // rule (subcollections are deny-by-default in firestore.rules), so it is server-only by construction.
+  private documents(sid: StudioId, memberId: MemberId): CollectionReference {
+    return this.members(sid).doc(memberId).collection('documents')
   }
 
   async findById(ctx: TenantContext, id: MemberId): Promise<Member | null> {
@@ -187,6 +196,40 @@ export class FirestoreMemberRepository implements MemberRepository {
     })
   }
 
+  // ── The signed-document archive (v1.28) ──
+
+  async saveDocument(ctx: TenantContext, document: MemberDocument, events: readonly NewEvent[]): Promise<void> {
+    const ref = this.documents(ctx.studioId, document.memberId).doc(document.id)
+    await this.db.runTransaction(async (tx) => {
+      tx.set(ref, documentToFirestore(document))
+      this.writeEvents(ctx.studioId, tx, events)
+    })
+  }
+
+  async listDocuments(ctx: TenantContext, memberId: MemberId): Promise<readonly MemberDocument[]> {
+    const snap = await this.documents(ctx.studioId, memberId).orderBy('uploadedAt', 'desc').get()
+    return snap.docs.map((d) => documentFromFirestore(d.id, memberId, d.data()))
+  }
+
+  async findDocument(ctx: TenantContext, memberId: MemberId, documentId: string): Promise<MemberDocument | null> {
+    const snap = await this.documents(ctx.studioId, memberId).doc(documentId).get()
+    const d = snap.data()
+    return d ? documentFromFirestore(documentId, memberId, d) : null
+  }
+
+  async deleteDocument(
+    ctx: TenantContext,
+    memberId: MemberId,
+    documentId: string,
+    events: readonly NewEvent[],
+  ): Promise<void> {
+    const ref = this.documents(ctx.studioId, memberId).doc(documentId)
+    await this.db.runTransaction(async (tx) => {
+      tx.delete(ref)
+      this.writeEvents(ctx.studioId, tx, events)
+    })
+  }
+
   async listMemberEvents(
     ctx: TenantContext,
     id: MemberId,
@@ -212,5 +255,27 @@ export class FirestoreMemberRepository implements MemberRepository {
       const { id, data } = eventToFirestore(e)
       tx.set(this.events(sid).doc(id), data)
     }
+  }
+}
+
+// ── Signed-document metadata mapping (v1.28). The domain never sees a Timestamp; the doc id is the
+//    Firestore document id and is reconstructed on read (like the member id, decision #2). ──
+function documentToFirestore(doc: MemberDocument) {
+  return {
+    kind: doc.kind,
+    pages: doc.pages,
+    uploadedBy: { type: doc.uploadedBy.type, id: doc.uploadedBy.id },
+    uploadedAt: Timestamp.fromMillis(doc.uploadedAt),
+  }
+}
+
+function documentFromFirestore(id: string, memberId: MemberId, data: DocumentData): MemberDocument {
+  return {
+    id,
+    memberId,
+    kind: data.kind as DocumentKind,
+    pages: (data.pages as string[] | undefined) ?? [],
+    uploadedBy: data.uploadedBy as ActorRef,
+    uploadedAt: instant((data.uploadedAt as Timestamp).toMillis()),
   }
 }

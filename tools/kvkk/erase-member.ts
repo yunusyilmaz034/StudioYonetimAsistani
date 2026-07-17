@@ -14,6 +14,7 @@ import {
 import { initializeApp } from 'firebase-admin/app'
 import { getAuth } from 'firebase-admin/auth'
 import { getFirestore, type Firestore } from 'firebase-admin/firestore'
+import { getStorage } from 'firebase-admin/storage'
 
 // KVKK / GDPR ERASURE — the break-glass script, run by hand.
 //
@@ -69,6 +70,7 @@ interface Plan {
   readonly notificationIntents: number
   readonly inboxMessages: number
   readonly invites: number
+  readonly signedDocuments: number
   readonly authUser: boolean
 }
 
@@ -87,6 +89,7 @@ async function buildPlan(db: Firestore, sid: string, mid: string): Promise<Plan>
 
   const inbox = await db.collection(`studios/${sid}/members/${mid}/inbox`).get()
   const invites = await db.collection(`studios/${sid}/members/${mid}/invites`).get()
+  const documents = await db.collection(`studios/${sid}/members/${mid}/documents`).get()
 
   let authUser = false
   try {
@@ -103,6 +106,7 @@ async function buildPlan(db: Firestore, sid: string, mid: string): Promise<Plan>
     notificationIntents: intents.size,
     inboxMessages: inbox.size,
     invites: invites.size,
+    signedDocuments: documents.size,
     authUser,
   }
 }
@@ -158,6 +162,7 @@ async function main(): Promise<void> {
   console.log(`  • bildirim intent’leri        : ${plan.notificationIntents}`)
   console.log(`  • uygulama içi mesajlar       : ${plan.inboxMessages}`)
   console.log(`  • davetler                    : ${plan.invites}`)
+  console.log(`  • imzalı belgeler (+görseller): ${plan.signedDocuments}`)
   console.log(`  • Auth kullanıcısı            : ${plan.authUser ? 'evet' : 'yok'}`)
   console.log('\nDOKUNULMAYACAK:')
   console.log('  • /events        — PII içermez (#6). Silinecek bir şey yok.')
@@ -205,6 +210,18 @@ async function main(): Promise<void> {
   // Two implementations of an erasure are two behaviours, and the day they drift is the day one of
   // them forgets her phone number — quietly, in a collection nobody thought to check.
   await new FirestorePiiPurger(db).purge(sid as StudioId, mid as MemberId)
+
+  // The signed-document IMAGES (v1.28) — the purger emptied their metadata; the pixels (her TC kimlik
+  // and signature) live in Storage and must go too. The bucket name is explicit config: a wrong bucket
+  // is how a script silently talks to the wrong project.
+  const bucket = process.env.FIREBASE_STORAGE_BUCKET ?? process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+  if (bucket) {
+    await getStorage()
+      .bucket(bucket)
+      .deleteFiles({ prefix: `studios/${sid}/members/${mid}/documents/` })
+  } else if (plan.signedDocuments > 0) {
+    console.warn('⚠️  FIREBASE_STORAGE_BUCKET tanımlı değil — imzalı belge GÖRSELLERİ silinmedi. Metadata gitti.')
+  }
 
   if (plan.authUser) {
     await getAuth().deleteUser(memberUid(sid, mid))

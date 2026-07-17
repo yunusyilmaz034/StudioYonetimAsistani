@@ -107,6 +107,10 @@ export type DomainError =
   | { readonly code: 'auto_resolve_too_early'; readonly resolvableAt: number }
   | { readonly code: 'reservation_not_resolved' }
   | { readonly code: 'correction_credit_unsupported' }
+  // ── The signed-document archive (v1.28) ──
+  // A document must have at least one page; a removal must name the document it removes.
+  | { readonly code: 'document_empty' }
+  | { readonly code: 'document_not_found' }
   // ── KVKK erasure (v1.26 · AD-67) ──
   // Erasure is a BREAK-GLASS act, not an operation. Reception must not be able to make a member
   // disappear — and neither must the owner, in the middle of an argument.

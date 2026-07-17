@@ -29,6 +29,7 @@
     "migrate:dry-run": "tsx tools/migration/run.ts",
     "migrate:reconcile": "tsx tools/migration/reconcile.ts",
     "deploy:rules": "firebase deploy --only firestore:rules,firestore:indexes",
+    "deploy:storage": "firebase deploy --only storage",
     "deploy:functions": "firebase deploy --only functions",
     "deploy": "pnpm check && firebase deploy",
     "projections:rebuild": "tsx tools/projections/rebuild.ts",

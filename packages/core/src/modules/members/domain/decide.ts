@@ -14,6 +14,8 @@ import {
 } from '../../../shared'
 import {
   MEMBER_DEACTIVATED,
+  MEMBER_DOCUMENT_ADDED,
+  MEMBER_DOCUMENT_REMOVED,
   MEMBER_ERASED,
   MEMBER_INVITED,
   MEMBER_PORTAL_ACTIVATED,
@@ -24,10 +26,13 @@ import {
   MEMBER_RESTRICTION_SET,
   type ErasureReason,
   type MemberDeactivatedPayload,
+  type MemberDocumentAddedPayload,
+  type MemberDocumentRemovedPayload,
   type MemberErasedPayload,
   type MemberProfileUpdatedPayload,
   type MemberRegisteredPayload,
 } from '../events'
+import type { MemberDocument } from './document'
 import type { Member, MemberRestriction } from './member'
 
 // Pure decision functions: (state, command, context) → events. No I/O, no clock,
@@ -119,6 +124,46 @@ export function decideDeactivate(
   return ok([{ ...base(ctx, current), type: MEMBER_DEACTIVATED, payload: { reason } }])
 }
 
+
+// ── The signed-document archive (v1.28) ───────────────────────────────────────────────────────
+//
+// Archive a photographed legal instrument against the member, or remove one. The pure part is small
+// on purpose: the images have already landed in private Storage by the time we get here, and the only
+// judgements that belong in the domain are "a document must have at least one page" and "a removal
+// must say why". The event carries the opaque id, the kind, and the page count — never a path or a
+// pixel (#6). The subject stays the MEMBER, so an archived contract shows on her audit timeline.
+export function decideAddDocument(
+  ctx: DecideContext,
+  member: Member,
+  document: MemberDocument,
+): Result<NewEvent<typeof MEMBER_DOCUMENT_ADDED, MemberDocumentAddedPayload>[], DomainError> {
+  if (document.pages.length === 0) return err({ code: 'document_empty' })
+  return ok([
+    {
+      ...base(ctx, member),
+      type: MEMBER_DOCUMENT_ADDED,
+      payload: { documentId: document.id, kind: document.kind, pageCount: document.pages.length },
+    },
+  ])
+}
+
+// A removal is a compensating event, never a silent delete (#9) — the `reason` is mandatory and
+// enforced here, not in the UI.
+export function decideRemoveDocument(
+  ctx: DecideContext,
+  member: Member,
+  document: MemberDocument,
+  reason: string,
+): Result<NewEvent<typeof MEMBER_DOCUMENT_REMOVED, MemberDocumentRemovedPayload>[], DomainError> {
+  if (reason.trim().length === 0) return err({ code: 'reason_required' })
+  return ok([
+    {
+      ...base(ctx, member),
+      type: MEMBER_DOCUMENT_REMOVED,
+      payload: { documentId: document.id, reason },
+    },
+  ])
+}
 
 // ── "Kısıtlı Üyelik" (Plus Phase 3) ──────────────────────────────────────────────────────────
 //

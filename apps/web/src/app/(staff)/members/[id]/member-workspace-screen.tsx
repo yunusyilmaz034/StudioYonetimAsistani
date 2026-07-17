@@ -10,6 +10,7 @@ import {
   CreditCardIcon,
   DoorOpenIcon,
   DumbbellIcon,
+  FileTextIcon,
   HistoryIcon,
   Loader2Icon,
   MessageSquareIcon,
@@ -62,6 +63,7 @@ import type {
 import { deactivateMember } from '@/server/actions/members'
 
 import { RestrictionPanel } from './restriction-panel'
+import { DocumentsPanel } from './documents-panel'
 import { TrainingPanel } from './training-panel'
 import { MemberFitnessSummary } from './fitness-summary'
 import {
@@ -90,7 +92,16 @@ const dt = (ms: number) =>
 const d = (ms: number) => new Date(ms).toLocaleDateString('tr-TR', { timeZone: 'Europe/Istanbul' })
 const tl = (k: number) => `${(k / 100).toLocaleString('tr-TR')} TL`
 
-type SectionId = 'profile' | 'packages' | 'reservations' | 'override' | 'training' | 'checkin' | 'payments' | 'audit'
+type SectionId =
+  | 'profile'
+  | 'packages'
+  | 'reservations'
+  | 'override'
+  | 'training'
+  | 'checkin'
+  | 'payments'
+  | 'documents'
+  | 'audit'
 const SECTIONS: readonly { id: SectionId; label: string; icon: typeof UserIcon }[] = [
   { id: 'profile', label: 'Genel', icon: UserIcon },
   { id: 'packages', label: 'Paketler', icon: PackageIcon },
@@ -99,6 +110,7 @@ const SECTIONS: readonly { id: SectionId; label: string; icon: typeof UserIcon }
   { id: 'training', label: 'Antrenman', icon: DumbbellIcon },
   { id: 'checkin', label: 'Check-in', icon: DoorOpenIcon },
   { id: 'payments', label: 'Cari Hesap', icon: CreditCardIcon },
+  { id: 'documents', label: 'Belgeler', icon: FileTextIcon },
   { id: 'audit', label: 'Geçmiş', icon: HistoryIcon },
 ]
 
@@ -241,6 +253,11 @@ export function MemberWorkspaceScreen({
             studioId={member.studioId}
             mode={canManageTraining ? 'full' : 'boolean'}
           />
+        </TabsContent>
+        <TabsContent value="documents">
+          {/* v1.28 — the signed-document archive: membership contract, KVKK notice, açık rıza.
+              Photographed with the tablet camera, stored in private Storage, PII kept out of the log. */}
+          <DocumentsPanel memberId={member.id} studioId={member.studioId} />
         </TabsContent>
         <TabsContent value="reservations">
           <ReservationsPanel upcoming={data.upcomingReservations} past={data.pastReservations} />

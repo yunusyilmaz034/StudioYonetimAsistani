@@ -12,6 +12,10 @@ export function domainErrorMessage(error: DomainError): string {
       return 'Bir sebep girin.'
     case 'note_required':
       return 'Bir açıklama girin.'
+    case 'document_empty':
+      return 'En az bir sayfa yükleyin.'
+    case 'document_not_found':
+      return 'Belge bulunamadı.'
     case 'session_capacity_exceeds_room':
       return `Kapasite salon kapasitesini (${error.roomCapacity}) aşamaz.`
     case 'branch_mismatch':

@@ -132,6 +132,7 @@ export function ErasurePanel({ memberId, memberName }: { memberId: string; membe
               <li>• Bildirim kayıtları: {preview?.notificationIntents ?? 0}</li>
               <li>• Uygulama içi mesajları: {preview?.inboxMessages ?? 0}</li>
               <li>• Portal davetleri: {preview?.invites ?? 0}</li>
+              <li>• İmzalı belgeleri (sözleşme, KVKK, rıza) ve görselleri: {preview?.memberDocuments ?? 0}</li>
               <li>
                 • Portal hesabı: {preview?.hasPortalAccount ? 'silinecek' : 'yok'}
               </li>

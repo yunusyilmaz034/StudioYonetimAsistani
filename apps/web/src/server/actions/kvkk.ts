@@ -15,7 +15,7 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 
 import { requireTenantContext } from '../auth'
-import { adminAuth, adminDb } from '../firebase-admin'
+import { adminAuth, adminDb, adminStorage, storageBucketName } from '../firebase-admin'
 import { observed } from '../log'
 
 // KVKK / GDPR erasure, from the product (v1.27 S5).
@@ -96,8 +96,16 @@ export async function eraseMemberAction(input: unknown) {
   )
   if (!res.ok) return res
 
-  // 2. The PII that leaked outward — the same purger the break-glass script runs.
+  // 2. The PII that leaked outward — the same purger the break-glass script runs. It empties the
+  //    document METADATA subcollection; the purger owns Firestore, not the bucket.
   await new FirestorePiiPurger(adminDb()).purge(ctx.studioId, p.memberId as MemberId)
+
+  // 2b. The signed-document IMAGES (v1.28). Those files carry her TC kimlik and signature, so an
+  //     erasure that left them in the bucket would not have erased her. Wipe the whole private prefix.
+  await adminStorage()
+    .bucket(storageBucketName())
+    .deleteFiles({ prefix: `studios/${ctx.studioId}/members/${p.memberId}/documents/` })
+    .catch(() => undefined) // no bucket / no objects — the metadata is already gone
 
   // 3. Her login. It is DELETED, not disabled: an account that can still be signed into is an
   //    identity that still exists.

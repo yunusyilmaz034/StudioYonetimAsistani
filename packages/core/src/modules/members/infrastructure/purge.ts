@@ -33,6 +33,9 @@ export interface PurgePlan {
   readonly notificationIntents: number
   readonly inboxMessages: number
   readonly invites: number
+  // v1.28 — signed-document metadata records. The IMAGE objects in Storage are deleted by the caller
+  // that owns the bucket (the erase Server Action / break-glass script); this class owns Firestore.
+  readonly memberDocuments: number
 }
 
 const ERASED = '[silindi]'
@@ -42,17 +45,19 @@ export class FirestorePiiPurger {
 
   /** What WOULD be purged. The dry run, and the number the owner sees before she agrees. */
   async plan(studioId: StudioId, memberId: MemberId): Promise<PurgePlan> {
-    const [reservations, intents, inbox, invites] = await Promise.all([
+    const [reservations, intents, inbox, invites, documents] = await Promise.all([
       this.reservations(studioId, memberId).get(),
       this.intents(studioId, memberId).get(),
       this.db.collection(`studios/${studioId}/members/${memberId}/inbox`).get(),
       this.db.collection(`studios/${studioId}/members/${memberId}/invites`).get(),
+      this.db.collection(`studios/${studioId}/members/${memberId}/documents`).get(),
     ])
     return {
       reservationSnapshots: reservations.size,
       notificationIntents: intents.size,
       inboxMessages: inbox.size,
       invites: invites.size,
+      memberDocuments: documents.size,
     }
   }
 
@@ -90,6 +95,15 @@ export class FirestorePiiPurger {
     }
     for (const doc of (
       await this.db.collection(`studios/${studioId}/members/${memberId}/invites`).get()
+    ).docs) {
+      batch.delete(doc.ref)
+    }
+
+    // v1.28 — the signed-document metadata (kind, page paths). The IMAGE objects those paths point at
+    // hold her TC kimlik and signature; deleting them is the caller's job (it owns the bucket and wipes
+    // the `members/{id}/documents/` Storage prefix). Here we sever the pointers.
+    for (const doc of (
+      await this.db.collection(`studios/${studioId}/members/${memberId}/documents`).get()
     ).docs) {
       batch.delete(doc.ref)
     }

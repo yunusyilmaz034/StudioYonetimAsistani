@@ -30,6 +30,17 @@ export {
   type MemberProfileUpdatedPayload,
   type MemberRegisteredPayload,
 } from './events'
+// v1.28 — the signed-document archive.
+export type { MemberDocument } from './domain/document'
+export {
+  DocumentKinds,
+  MEMBER_DOCUMENT_ADDED,
+  MEMBER_DOCUMENT_REMOVED,
+  type DocumentKind,
+  type MemberDocumentAddedPayload,
+  type MemberDocumentRemovedPayload,
+} from './events'
+export { addMemberDocument, listMemberDocuments, removeMemberDocument } from './application/documents'
 export { registerMember, type RegisterMemberInput } from './application/register-member'
 export { updateMember, type UpdateMemberInput } from './application/update-member'
 export { deactivateMember } from './application/deactivate-member'

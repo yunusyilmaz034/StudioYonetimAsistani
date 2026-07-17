@@ -65,6 +65,16 @@ env:
       - BUILD
       - RUNTIME
 
+  # The private-media bucket (v1.28). Progress photos and signed member documents live here; nothing is
+  # public (reads are server-minted signed URLs, storage.rules denies client reads). The name is an
+  # IDENTIFIER, not a secret. Setting it flips `storageConfigured()` to true so the upload UI works
+  # instead of degrading to "yükleme yapılandırılmamış". BUILD too: the client SDK reads it at build.
+  - variable: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+    value: studio-yonetim-prod.firebasestorage.app
+    availability:
+      - BUILD
+      - RUNTIME
+
   # ── Server-side, not secret ───────────────────────────────────────────────────────────────
   - variable: FIREBASE_PROJECT_ID
     value: studio-yonetim-prod

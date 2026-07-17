@@ -926,6 +926,16 @@ authenticated client — there is no bucket to leak from yet.
 binding, add `storage.rules` to `firebase.json` restricting `studios/{sid}/members/{mid}/progress/**`
 to the studio's authenticated staff (and read to the same), and add a `deploy:storage` script.
 
+**✅ REPAID 2026-07-17 (v1.28 · signed-document archive).** Storage is now provisioned end-to-end:
+- `firebasestorage.googleapis.com` + `storage.googleapis.com` enabled on `studio-yonetim-prod`.
+- Default bucket **`studio-yonetim-prod.firebasestorage.app`** created in **EUROPE-WEST4** (co-located
+  with the App Hosting backend — no hairpin/egress), **uniform bucket-level access ON** (no object ACLs).
+- `storage.rules` in the repo (root), wired into `firebase.json`, deployed via `pnpm deploy:storage`.
+  Guards BOTH `progress/` and `documents/` prefixes: read **false** (server-minted signed URLs only),
+  write to same-studio staff. `deploy:storage` script added.
+- `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET` set in `apphosting.yaml` (BUILD+RUNTIME) → `storageConfigured()`
+  is true, so both the document archive AND progress photos (Plus Phase 7) now work in production.
+
 ---
 
 ## DEBT-030 — Salon Notları sits outside the event log

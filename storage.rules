@@ -1,0 +1,28 @@
+rules_version = '2';
+
+// Private member media (v1.28 · DEBT-036 repayment). Two kinds of object live under a member:
+//   • progress/   — training progress photos (Plus Phase 7)
+//   • documents/  — the signed membership contract / KVKK notice / açık rıza (v1.28)
+// Both are dense PII. The posture mirrors the Firestore perimeter (firestore.rules):
+//
+//   • READ is ALWAYS false from the client SDK. Every image is served through a SHORT-LIVED signed URL
+//     the server mints on the Admin SDK (which bypasses these rules). Nothing is ever public, and there
+//     is no client-SDK path to leak through.
+//   • WRITE is the studio's authenticated STAFF uploading into their OWN studio's prefix — a
+//     cross-tenant path is one you cannot construct, not a filter you forget. The precise role
+//     (reception for documents, trainer for progress) and the exact prefix are RE-CHECKED in the
+//     Server Action before any metadata is recorded; an object with no record is invisible and orphaned.
+//
+// A member's token (role 'member') matches NO write rule here: she never uploads: she views her own
+// media through server-minted signed URLs. Deletes are done on the Admin SDK by the server too.
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /studios/{sid}/members/{mid}/{area}/{file=**} {
+      allow read: if false;
+      allow write: if request.auth != null
+        && request.auth.token.studioId == sid
+        && request.auth.token.role in ['owner', 'receptionist', 'trainer'];
+    }
+    // Anything outside a member's private prefix is denied by the absence of a rule.
+  }
+}
