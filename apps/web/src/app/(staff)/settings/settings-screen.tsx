@@ -11,6 +11,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { PageHeader } from '@/components/ui/page-header'
 import { Section } from '@/components/ui/section'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { cn } from '@/lib/utils'
 
 import { DefinitionsPanel } from './definitions-panel'
@@ -206,8 +207,18 @@ export function SettingsScreen({
         }
       />
 
-      {/* ── Şirket ────────────────────────────────────────────────────────────────────────── */}
-      <Section title="Şirket bilgileri" hint="Makbuzda, e-postada ve ileride e-faturada görünecek olanlar.">
+      {/* Long config → tabs (PF-7): the form's sections are grouped so the page no longer scrolls forever.
+          One Kaydet (below, always visible) still saves the whole form; links + definitions sit under it. */}
+      <Tabs defaultValue="genel">
+        <TabsList className="max-w-full overflow-x-auto whitespace-nowrap [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <TabsTrigger value="genel" className="shrink-0">Genel</TabsTrigger>
+          <TabsTrigger value="rezervasyon" className="shrink-0">Rezervasyon</TabsTrigger>
+          <TabsTrigger value="odeme" className="shrink-0">Ödeme &amp; Bildirim</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="genel" className="space-y-6">
+          {/* ── Şirket ────────────────────────────────────────────────────────────────────────── */}
+          <Section title="Şirket bilgileri" hint="Makbuzda, e-postada ve ileride e-faturada görünecek olanlar.">
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Ticari unvan">
             <Input
@@ -332,9 +343,12 @@ export function SettingsScreen({
         </Card>
       </Section>
 
-      {/* ── Rezervasyon kuralları ─────────────────────────────────────────────────────────── */}
-      <Section
-        title="Rezervasyon kuralları"
+        </TabsContent>
+
+        <TabsContent value="rezervasyon" className="space-y-6">
+          {/* ── Rezervasyon kuralları ─────────────────────────────────────────────────────────── */}
+          <Section
+            title="Rezervasyon kuralları"
         hint="Bunlar bir kararı değiştirir — o yüzden her değişiklik eski ve yeni değeriyle denetim kaydına yazılır."
       >
         <div className="grid gap-4 sm:grid-cols-2">
@@ -436,9 +450,12 @@ export function SettingsScreen({
         </p>
       </Section>
 
-      {/* ── Ödeme (PAYTR) ─────────────────────────────────────────────────────────────────── */}
-      <Section
-        title="Ödeme (PAYTR)"
+        </TabsContent>
+
+        <TabsContent value="odeme" className="space-y-6">
+          {/* ── Ödeme (PAYTR) ─────────────────────────────────────────────────────────────────── */}
+          <Section
+            title="Ödeme (PAYTR)"
         hint="Kredi kartı / havale ile ödemede paket fiyatına eklenecek fark ve izin verilen en fazla taksit. Üyeye kırılım gösterilmez — yalnızca son tutar."
       >
         <div className="grid gap-4 sm:grid-cols-2">
@@ -539,6 +556,9 @@ export function SettingsScreen({
           </CardContent>
         </Card>
       </Section>
+
+        </TabsContent>
+      </Tabs>
 
       {/* ── Önizleme: what the system will DO with this ───────────────────────────────────── */}
       <Preview
