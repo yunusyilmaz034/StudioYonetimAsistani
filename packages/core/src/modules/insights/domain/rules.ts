@@ -15,6 +15,10 @@ export const DEFAULT_INSIGHT_CONFIG: InsightConfig = {
   expiringAttentionDays: 7,
   lowCreditAttentionAtOrBelow: 1,
   emptySessionAttentionHours: 24,
+  // A member with an active package who has not come in three weeks is cooling; five weeks is a
+  // serious risk of a quiet, unannounced churn — the exact thing the studio can still act on.
+  dormantAttentionDays: 21,
+  dormantUrgentDays: 35,
 }
 
 const band = (value: number, urgentAt: number, attentionAt: number): InsightSeverity =>
@@ -66,6 +70,21 @@ export function deriveInsights(facts: InsightFacts, config: InsightConfig): read
       metrics: { remaining: l.remaining },
       suggestedAction: 'offer_renewal',
       urgency: -l.remaining,
+    })
+  }
+
+  for (const dm of facts.dormant) {
+    // Below the attention threshold she is simply a normal member between visits — not news.
+    if (dm.daysSinceActivity < config.dormantAttentionDays) continue
+    out.push({
+      id: `dormant_member__${dm.memberId}`,
+      kind: 'dormant_member',
+      severity: band(dm.daysSinceActivity, config.dormantUrgentDays, config.dormantAttentionDays),
+      subject: { type: 'member', id: dm.memberId },
+      refs: { memberId: dm.memberId },
+      metrics: { daysSinceActivity: dm.daysSinceActivity },
+      suggestedAction: 'contact_member',
+      urgency: dm.daysSinceActivity,
     })
   }
 

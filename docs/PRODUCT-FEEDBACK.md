@@ -290,3 +290,25 @@ rızası** uygun değil. Hotfix sırasında: gerçek `attempt.status`/hata kodun
 başarısız denemeler de loglanmalı/görünmeli. (2) Bildirimler'de e-postalar **"Gönderildi"** görünüyor ama owner
 **gerçekten teslim edildi mi** şüpheli ("sanki burası çalışmıyor gibi"). Teşhis: Resend gerçekten yolluyor mu
 (prod log + Resend), "Gönderildi" statüsü sağlayıcı onayını mı yoksa sadece "denendi"yi mi gösteriyor — netleştir.
+
+---
+
+## PF-24 — İşletme Sağlık Panosu (sistem/entegrasyon sağlığı) · 📋 önerildi (ayrı milestone)
+
+**Taken:** 2026-07-18 · owner ("patron sabah bilgisayarı açtığında işletmede neyin dikkat gerektirdiğini 30 saniyede
+görecek").
+**Ne:** Owner dashboard'a bir **sistem sağlığı** şeridi — iş/karar-destek (churn, yenileme, bakiye = advisor/Öneriler)
+değil, **altyapı gözlemlenebilirliği**. İçerik:
+- **Çalışmayan entegrasyonlar** — WhatsApp/e-posta/PAYTR provider yapılandırılmış mı (settings + `provider_not_configured`).
+- **Başarısız bildirimler** — son N günde `notification` status=failed/error olanların sayısı + link (Bildirim Merkezi).
+- **PAYTR durumu** — provider config var mı, test_mode?, son callback başarı/hata (payment_intent sonuçları).
+- **Storage durumu** — bucket yapılandırılmış + erişilebilir mi (env + hafif probe).
+- **Functions sağlığı** — trigger/scheduled job'lar çalışıyor mu; `projectionLagsBehind` zaten var (tohum), scheduled
+  job son-çalışma zamanı (expire-credits / auto-resolve) eklenir.
+- **Kritik alarmlar** — yukarıdakilerin "kırmızı" olanlarını tek yere toplayan özet.
+**Neden ayrı milestone:** domain farklı (infra/ops probe'ları vs üye/iş sorguları). Churn milestone'una karıştırmak
+kapsam disiplinini bozar (owner da "uygunsa dahil et değilse not et" dedi → değil, not edildi).
+**Mimari notu:** çoğu "şu an" durumu → **bounded state query/probe**, projeksiyon DEĞİL (daily.ts §16-20 kuralı).
+Bazıları yeni denorm/sinyal gerektirebilir (scheduled job heartbeat). "Normal sessiz, anormal gürültülü" deseni
+(dashboard-screen) burada da uygulanır.
+**Sıra:** churn sinyali (PF-23) bitince önerilecek bir sonraki milestone.

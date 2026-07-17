@@ -19,7 +19,7 @@ const member = (id: string, fullName: string) =>
     phone: '+905321112233',
     status: 'active',
     joinedAt: 0,
-    stats: { lastAttendanceAt: null, lastCheckInAt: null, totalAttended: 0, activeEntitlementCount: 0, balanceDue: 0 },
+    stats: { lastAttendanceAt: null, lastCheckInAt: null, lastBookingAt: null, totalAttended: 0, activeEntitlementCount: 0, balanceDue: 0 },
     restriction: null,
   }) as unknown as Member
 

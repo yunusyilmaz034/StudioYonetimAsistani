@@ -9,6 +9,7 @@ import type {
   Result,
   TenantContext,
 } from '../../../shared'
+import type { MemberActivityField } from '../domain/activity'
 import type { MemberDocument } from '../domain/document'
 import type { Member } from '../domain/member'
 import type { MemberInvite } from '../domain/invite'
@@ -86,6 +87,12 @@ export interface MemberRepository {
 
   // Append-only: an event with no state change (the member logged in).
   appendEvents(ctx: TenantContext, events: readonly NewEvent[]): Promise<void>
+
+  // ── Activity stats (Phase 2 · churn) ──
+  // Move a recency field (lastCheckInAt / lastAttendanceAt) FORWARD to `at`, transactionally. A MAX:
+  // idempotent, and it never regresses on a redelivery or an out-of-order event. Denormalised state on
+  // the member doc; no event (it is rebuildable from the log via member-stats:rebuild).
+  touchActivity(ctx: TenantContext, memberId: MemberId, field: MemberActivityField, at: Instant): Promise<void>
 
   // ── The signed-document archive (v1.28) ──
   // Metadata lives in a server-only subcollection `members/{id}/documents`; the images are private

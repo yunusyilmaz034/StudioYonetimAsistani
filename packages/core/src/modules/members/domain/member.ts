@@ -29,6 +29,9 @@ export interface EmergencyContact {
 export interface MemberStats {
   readonly lastAttendanceAt: Instant | null
   readonly lastCheckInAt: Instant | null
+  // Phase 2 — last time she BOOKED a class. Member-initiated engagement (not a presumption), and the
+  // signal a studio that does not door-scan still produces. Part of the dormancy recency.
+  readonly lastBookingAt: Instant | null
   readonly totalAttended: number
   readonly activeEntitlementCount: number
   readonly balanceDue: number // kuruş
@@ -73,6 +76,7 @@ export interface Member {
 export const emptyStats = (): MemberStats => ({
   lastAttendanceAt: null,
   lastCheckInAt: null,
+  lastBookingAt: null,
   totalAttended: 0,
   activeEntitlementCount: 0,
   balanceDue: 0,

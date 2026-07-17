@@ -14,6 +14,7 @@ import { WIDGETS, WIDGET_ICON } from '@/lib/widgets/registry'
 import type { OwnerDashboard } from '@/server/owner-dashboard'
 import type { TodayOps } from '@/server/today-ops'
 
+import { ChurnPulse } from './churn-pulse'
 import { LogoutButton } from './logout-button'
 
 // The dashboard renders the REGISTRY. It does not know what a widget contains — which is what makes
@@ -102,6 +103,9 @@ export function DashboardScreen({
           </ul>
         </Section>
       ) : null}
+
+      {/* Phase 2 — the churn signal made visible: who has an active package but stopped coming. */}
+      <ChurnPulse distribution={data.activityDistribution} dormant={data.dormant} />
 
       <Section title="Bugün">
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">

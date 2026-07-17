@@ -46,6 +46,7 @@ export function memberToFirestore(m: Member): DocumentData {
     stats: {
       lastAttendanceAt: nullableToTs(m.stats.lastAttendanceAt),
       lastCheckInAt: nullableToTs(m.stats.lastCheckInAt),
+      lastBookingAt: nullableToTs(m.stats.lastBookingAt),
       totalAttended: m.stats.totalAttended,
       activeEntitlementCount: m.stats.activeEntitlementCount,
       balanceDue: m.stats.balanceDue,
@@ -73,6 +74,7 @@ export function memberFromFirestore(id: MemberId, data: DocumentData): Member {
   const memberStats: MemberStats = {
     lastAttendanceAt: nullableFromTs((stats.lastAttendanceAt as Timestamp | null) ?? null),
     lastCheckInAt: nullableFromTs((stats.lastCheckInAt as Timestamp | null) ?? null),
+    lastBookingAt: nullableFromTs((stats.lastBookingAt as Timestamp | null) ?? null),
     totalAttended: stats.totalAttended as number,
     activeEntitlementCount: stats.activeEntitlementCount as number,
     balanceDue: stats.balanceDue as number,

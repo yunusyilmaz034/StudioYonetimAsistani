@@ -32,6 +32,7 @@
     "deploy:storage": "firebase deploy --only storage",
     "deploy:functions": "firebase deploy --only functions",
     "deploy": "pnpm check && firebase deploy",
+    "member-stats:rebuild": "tsx tools/member-stats/rebuild.ts",
     "projections:rebuild": "tsx tools/projections/rebuild.ts",
     "projections:verify": "tsx tools/projections/verify.ts",
     "migrate:import": "tsx tools/migration/run.ts",

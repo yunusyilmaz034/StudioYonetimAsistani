@@ -69,6 +69,18 @@ function present(insight: Insight, memberName: Map<string, string>, sessionName:
         href: '/reservations',
         actionLabel: 'Dersi doldur',
       }
+    case 'dormant_member': {
+      const days = Math.round(m.daysSinceActivity ?? 0)
+      return {
+        id: insight.id,
+        kind: insight.kind,
+        severity: insight.severity,
+        title: `${name} — ${days} gündür gelmiyor`,
+        detail: 'Aktif paketi var ama uzaklaşıyor. Bir arayıp hatırını sorun — geç olmadan.',
+        href: memberHref,
+        actionLabel: 'Üyeyi aç',
+      }
+    }
   }
 }
 
@@ -82,6 +94,7 @@ export async function loadAdvisor(ctx: TenantContext): Promise<readonly AdvisorI
   for (const r of dash.expiringSoon) memberName.set(r.id, r.name)
   for (const r of dash.lowCredit) memberName.set(r.id, r.name)
   for (const r of dash.pendingPayments) memberName.set(r.id, r.name)
+  for (const r of dash.dormant) memberName.set(r.id, r.name)
   for (const s of dash.emptySessions) sessionName.set(s.sessionId, s.serviceName)
 
   const facts: InsightFacts = {
@@ -91,6 +104,8 @@ export async function loadAdvisor(ctx: TenantContext): Promise<readonly AdvisorI
     // The dashboard's emptySessions list is already filtered to bookedCount === 0 (owner-dashboard),
     // so booked is 0 by construction.
     emptySessions: dash.emptySessions.map((s) => ({ sessionId: s.sessionId, capacity: s.capacity, booked: 0, hoursAway: s.hoursAway })),
+    // Already filtered to daysSinceActivity >= the attention threshold by the dashboard.
+    dormant: dash.dormant.map((r) => ({ memberId: r.id, daysSinceActivity: r.daysSinceActivity })),
   }
 
   // deriveInsights returns the ranked order (urgent → attention → info); preserve it.

@@ -41,6 +41,13 @@ export {
   type MemberDocumentRemovedPayload,
 } from './events'
 export { addMemberDocument, listMemberDocuments, removeMemberDocument } from './application/documents'
+// Phase 2 — the churn seam: activity-recency stats fed from events, read by the dormancy signal.
+export {
+  lastActivityAt,
+  memberActivityFromEvent,
+  type MemberActivityField,
+  type MemberActivityTouch,
+} from './domain/activity'
 export { registerMember, type RegisterMemberInput } from './application/register-member'
 export { updateMember, type UpdateMemberInput } from './application/update-member'
 export { deactivateMember } from './application/deactivate-member'

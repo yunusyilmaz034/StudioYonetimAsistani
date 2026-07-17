@@ -8,6 +8,7 @@ const facts = (over: Partial<InsightFacts> = {}): InsightFacts => ({
   lowCredit: [],
   balances: [],
   emptySessions: [],
+  dormant: [],
   ...over,
 })
 
@@ -33,6 +34,23 @@ describe('deriveInsights — deterministic, ranked, PII-free', () => {
     )
     expect(r[0]).toMatchObject({ severity: 'urgent', metrics: { daysLeft: 1 } })
     expect(r[1]).toMatchObject({ severity: 'attention', metrics: { daysLeft: 5 } })
+  })
+
+  it('flags a dormant member by how long she has been away, and stays quiet below the threshold', () => {
+    const r = deriveInsights(
+      facts({
+        dormant: [
+          { memberId: 'm1', daysSinceActivity: 40 }, // urgent (>= 35)
+          { memberId: 'm2', daysSinceActivity: 25 }, // attention (>= 21)
+          { memberId: 'm3', daysSinceActivity: 10 }, // normal — no insight
+        ],
+      }),
+      DEFAULT_INSIGHT_CONFIG,
+    )
+    expect(r).toHaveLength(2)
+    expect(r[0]).toMatchObject({ kind: 'dormant_member', severity: 'urgent', suggestedAction: 'contact_member', metrics: { daysSinceActivity: 40 } })
+    expect(r[1]).toMatchObject({ kind: 'dormant_member', severity: 'attention' })
+    expect(JSON.stringify(r)).not.toMatch(/name|phone/i)
   })
 
   it('ranks urgent before attention before info across kinds', () => {

@@ -12,6 +12,7 @@ export type InsightKind =
   | 'low_credit' // few credits left → renewal opportunity
   | 'outstanding_balance' // sold, not fully paid → collect
   | 'empty_session' // an upcoming class with no/low bookings → fill it
+  | 'dormant_member' // has an active package but has stopped coming → the behavioural churn signal
 
 export type InsightSeverity = 'info' | 'attention' | 'urgent'
 
@@ -51,6 +52,9 @@ export interface InsightConfig {
   readonly expiringAttentionDays: number
   readonly lowCreditAttentionAtOrBelow: number
   readonly emptySessionAttentionHours: number
+  // Days since a member with an active package last came. Longer = more likely gone for good.
+  readonly dormantAttentionDays: number
+  readonly dormantUrgentDays: number
 }
 
 // The seam that makes this "AI Insights L1" and not just a report: a source produces insights from the
@@ -85,10 +89,17 @@ export interface EmptySessionFact {
   readonly booked: number
   readonly hoursAway: number
 }
+// A member with an active package who has not come in `daysSinceActivity` days — the behavioural churn
+// the whole event model exists to surface (whether her package is ALSO expiring is a separate insight).
+export interface DormantFact {
+  readonly memberId: string
+  readonly daysSinceActivity: number
+}
 
 export interface InsightFacts {
   readonly expiring: readonly ExpiringFact[]
   readonly lowCredit: readonly LowCreditFact[]
   readonly balances: readonly BalanceFact[]
   readonly emptySessions: readonly EmptySessionFact[]
+  readonly dormant: readonly DormantFact[]
 }

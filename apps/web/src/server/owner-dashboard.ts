@@ -1,5 +1,6 @@
 import {
   available,
+  DEFAULT_INSIGHT_CONFIG,
   FirestoreFinanceRepository,
   saleBalanceDue,
   emptyDaily,
@@ -11,6 +12,7 @@ import {
   FirestoreSchedulingRepository,
   FirestoreWaitlistRepository,
   instant,
+  lastActivityAt,
   localDateAt,
   type Category,
   type DailyReadModel,
@@ -39,6 +41,11 @@ import { loadFeed, type ActivityEvent } from './activity-query'
 const DAY_MS = 86_400_000
 const OFFSET_MIN = 180 // studio timezone (Europe/Istanbul, no DST) — every metric is studio-local
 const DEFAULT_LOW_CREDIT_THRESHOLD = 2 // owner D-4; overridden by studio settings
+// Phase 2 — the dormancy horizon. Same thresholds the advisor bands on, so the dashboard's "cooling /
+// at-risk" buckets and the Öneriler list agree. A "steady" visit cadence is once every ~week.
+const DORMANT_ATTENTION_DAYS = DEFAULT_INSIGHT_CONFIG.dormantAttentionDays
+const DORMANT_URGENT_DAYS = DEFAULT_INSIGHT_CONFIG.dormantUrgentDays
+const STEADY_DAYS = 7
 
 // "Bugün" is the studio's calendar day, 00:00:00–23:59:59 (owner).
 const studioDayStart = (nowMs: number): number =>
@@ -100,6 +107,25 @@ export interface PendingPaymentRow extends MemberRef {
   readonly daysOpen: number
 }
 
+// Phase 2 — a member with an active package who has stopped coming (the behavioural churn signal).
+export interface DormantRow extends MemberRef {
+  readonly lastActivityAt: number // max(lastCheckIn, lastAttendance, joinedAt)
+  readonly daysSinceActivity: number
+}
+
+// The activity-recency spread across ALL active-with-package members — the shape the "Üye Nabzı"
+// graphic draws. Buckets: taze (<7g) · düzenli (7–20g) · soğuyor (21–34g) · riskli (≥35g) · kayıtsız
+// (we have never recorded her engaging — check-in/attendance/booking). `unrecorded` is NOT churn: it
+// says the studio is not logging visits, which is a different (and fixable) problem.
+export interface ActivityDistribution {
+  readonly fresh: number
+  readonly steady: number
+  readonly cooling: number
+  readonly atRisk: number
+  readonly unrecorded: number
+  readonly total: number
+}
+
 export interface OpenDrawerRow {
   readonly id: string
   readonly name: string
@@ -133,6 +159,9 @@ export interface OwnerDashboard {
   // are bounded state queries; a counter cannot know that a drawer is still open.
   readonly pendingPayments: readonly PendingPaymentRow[]
   readonly openDrawers: readonly OpenDrawerRow[]
+  // Phase 2 — the churn signal: who has an active package but stopped coming, and the recency spread.
+  readonly dormant: readonly DormantRow[]
+  readonly activityDistribution: ActivityDistribution
   readonly feed: readonly ActivityEvent[]
 }
 
@@ -304,6 +333,38 @@ export async function loadOwnerDashboard(
       openedAt: d.openedAt as number | null,
     }))
 
+  // ── Phase 2 — the DORMANCY signal. Over the members who are supposed to be here (active record +
+  // valid active package), how long since each last came? `lastActivityAt` maxes her check-in /
+  // attendance recency, floored at joinedAt (a new member is not dormant). Zero extra reads: the member
+  // list and `withValidPackage` are already in hand. NOT a projection — it is "how the world is right
+  // now", a bounded state computation (daily.ts's rule).
+  const activeWithPackage = members.filter((m) => m.status === 'active' && withValidPackage.has(m.id as string))
+  let fresh = 0
+  let steady = 0
+  let cooling = 0
+  let atRisk = 0
+  let unrecorded = 0
+  const dormant: DormantRow[] = []
+  for (const m of activeWithPackage) {
+    const last = lastActivityAt(m.stats)
+    // Never observed engaging → UNKNOWN, not dormant. She is not put on the call list; she is counted
+    // so the owner can see how much of the studio has no activity recorded at all.
+    if (last === null) {
+      unrecorded++
+      continue
+    }
+    const days = Math.floor((nowMs - last) / DAY_MS)
+    if (days >= DORMANT_URGENT_DAYS) atRisk++
+    else if (days >= DORMANT_ATTENTION_DAYS) cooling++
+    else if (days >= STEADY_DAYS) steady++
+    else fresh++
+    if (days >= DORMANT_ATTENTION_DAYS) {
+      dormant.push({ id: m.id as string, name: m.fullName, lastActivityAt: last, daysSinceActivity: days })
+    }
+  }
+  dormant.sort((a, b) => b.daysSinceActivity - a.daysSinceActivity)
+  const activityDistribution: ActivityDistribution = { fresh, steady, cooling, atRisk, unrecorded, total: activeWithPackage.length }
+
   const newest = feed.entries[0]?.recordedAt ?? 0
 
   return {
@@ -332,6 +393,8 @@ export async function loadOwnerDashboard(
     upcomingOperations,
     pendingPayments,
     openDrawers,
+    dormant,
+    activityDistribution,
     recentMembers: [...members]
       .sort((a, b) => b.joinedAt - a.joinedAt)
       .slice(0, 5)

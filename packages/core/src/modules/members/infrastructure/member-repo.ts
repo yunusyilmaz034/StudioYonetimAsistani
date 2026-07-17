@@ -196,6 +196,29 @@ export class FirestoreMemberRepository implements MemberRepository {
     })
   }
 
+  // ── Activity stats (Phase 2 · churn) ──
+  // A MAX in a transaction: read the current recency, write `at` only if it is newer. This makes the
+  // reactor idempotent (a redelivery re-applies the same max → no-op) and safe against out-of-order
+  // arrival (an older check-in that syncs late cannot pull the recency backwards). A targeted field
+  // update leaves the rest of the member doc untouched.
+  async touchActivity(
+    ctx: TenantContext,
+    memberId: MemberId,
+    field: 'lastCheckInAt' | 'lastAttendanceAt' | 'lastBookingAt',
+    at: Instant,
+  ): Promise<void> {
+    const ref = this.members(ctx.studioId).doc(memberId)
+    await this.db.runTransaction(async (tx) => {
+      const snap = await tx.get(ref)
+      if (!snap.exists) return
+      const stats = (snap.data()?.stats ?? {}) as Record<string, unknown>
+      const current = stats[field]
+      const currentMs = current instanceof Timestamp ? current.toMillis() : 0
+      if (at <= currentMs) return
+      tx.update(ref, { [`stats.${field}`]: Timestamp.fromMillis(at) })
+    })
+  }
+
   // ── The signed-document archive (v1.28) ──
 
   async saveDocument(ctx: TenantContext, document: MemberDocument, events: readonly NewEvent[]): Promise<void> {

@@ -4,8 +4,10 @@ import * as logger from 'firebase-functions/logger'
 
 import {
   DEFAULT_STUDIO_CONFIG,
+  FirestoreMemberRepository,
   FirestoreProjectionRepository,
   instant,
+  memberActivityFromEvent,
   projectDaily,
   type StudioId,
   type SystemJobId,
@@ -94,6 +96,24 @@ export const onEventCreated = onDocumentCreated(
       // Loud in the log, silent to the caller. The projection can always be rebuilt; the event
       // cannot be un-written.
       logger.error('projection failed — rebuild will heal it', { eventId, err })
+    }
+
+    // ── The THIRD consumer: member activity stats (Phase 2 · churn). member.checked_in and
+    // reservation.attended move the member's recency (lastCheckInAt / lastAttendanceAt) forward, so the
+    // dormancy signal can tell who has stopped coming. A MAX write — idempotent, order-safe, and (like
+    // the projection) it NEVER fails the event and is rebuildable via `member-stats:rebuild`.
+    try {
+      const touch = memberActivityFromEvent({
+        type: data.type as string,
+        occurredAt: instant(occurredAt),
+        related: (data.related ?? null) as { memberId?: string | null } | null,
+      })
+      if (touch) {
+        const ctx = systemTenantContext(studioId, 'member_activity' as SystemJobId)
+        await new FirestoreMemberRepository(db()).touchActivity(ctx, touch.memberId, touch.field, touch.at)
+      }
+    } catch (err) {
+      logger.error('member activity update failed — rebuild will heal it', { eventId, err })
     }
   },
 )
