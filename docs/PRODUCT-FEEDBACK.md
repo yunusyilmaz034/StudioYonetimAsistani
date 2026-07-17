@@ -312,3 +312,30 @@ kapsam disiplinini bozar (owner da "uygunsa dahil et değilse not et" dedi → d
 Bazıları yeni denorm/sinyal gerektirebilir (scheduled job heartbeat). "Normal sessiz, anormal gürültülü" deseni
 (dashboard-screen) burada da uygulanır.
 **Sıra:** churn sinyali (PF-23) bitince önerilecek bir sonraki milestone.
+
+---
+
+## PF-25 — Üye workspace sekmeleri sığmıyor (yatay taşma) · 🔧 hotfix
+
+**Taken:** 2026-07-18 · owner (görsel: sekmeler sağda kesiliyor).
+**Where:** `member-workspace-screen.tsx` — `TabsList` (9 sekme: Genel · Paketler · Rezervasyonlar · Kısıtlı
+Üyelik · Antrenman · Check-in · Cari Hesap · **Belgeler** · Geçmiş). "Belgeler" (v1.28) 9'a çıkardı.
+**Problem:** Şerit `overflow-x-auto whitespace-nowrap` ile YATAY KAYIYOR (PF-10 kararı: tek sıra, wrap yok),
+ama masaüstünde son sekme yarım kesik görünüyor — kaydırılabilir olduğu belli değil, "bozuk" gibi duruyor.
+Mobilde ikon-only (label `hidden sm:inline`) — orada da doğrula.
+**Hotfix önerisi:** kaydırma ipucu ekle — sağ kenara **fade/gradient maske** (kaydırılabilir olduğu görünür),
+veya sekme padding/font'unu biraz sıkıştır ki daha çok sığsın. Wrap'e DÖNME (PF-10). 375/430/768/1280'de test.
+
+---
+
+## PF-26 — "Açık bakiye 4210 TL doğru mu?" (test üyesi) · ✅ incelendi · HATA YOK
+
+**Taken:** 2026-07-18 · owner ("en son 10 TL aldık başarılı, neden açık bakiyeye yansımış").
+**İnceleme (mem_01KXKT5432M8Z54AQKZWB4FW5V "ışıl deneme" satışları, prod Firestore):**
+8 satış — settled: 20 + 9000×4 + 10 (başarılı PAYTR); **open: 4200 + 10**. Açık bakiye = 4200 + 10 = **4210 ✓**.
+**Sonuç:** Bakiye ARİTMETİĞİ DOĞRU. Başarılı 10 TL PAYTR **settled** (ödendi) ve açık bakiyeye YANSIMIYOR —
+owner'ın endişesi yersiz; açık bakiye 2 GERÇEKTEN ödenmemiş satıştan geliyor (4200'lük eski test satışı +
+21:56'daki ödenmemiş 10'luk test paketi). Payment ⟂ Entitlement (Doc 2): ödemesiz satış meşru, balanceDue>0.
+Kod hatası yok. **Aksiyon:** sadece test verisi temizliği — owner o iki açık satışı "İptal" ile kapatabilir
+(ya da ödeyebilir). Not: PAYTR sale'i yalnızca başarılı callback'te oluşuyor (abandoned link phantom borç
+YARATMIYOR — doğrulandı).
