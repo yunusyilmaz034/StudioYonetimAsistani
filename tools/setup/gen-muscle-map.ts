@@ -38,7 +38,9 @@ const M: Record<string, string> = {
   'lower back': 'lower-back', 'middle back': 'upper-back', neck: 'neck', quadriceps: 'quadriceps',
   shoulders: 'front-deltoids', traps: 'trapezius', triceps: 'triceps',
 }
-const mapMuscles = (arr: readonly string[]) => [...new Set(arr.map((m) => M[m]).filter(Boolean))]
+const mapMuscles = (arr: readonly string[]): string[] => [
+  ...new Set(arr.map((m) => M[m]).filter((x): x is string => Boolean(x))),
+]
 
 async function main(): Promise<void> {
   initializeApp({ projectId: PROJECT })
