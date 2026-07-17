@@ -19,6 +19,7 @@ import { runNotificationRetrySweep } from './scheduled/notification-retry'
 import { runPaymentReconcileSweep } from './scheduled/reconcile-payments'
 import { runReminderSweep } from './scheduled/reminders'
 import { runUnfreezeSweep } from './scheduled/unfreeze-expired'
+import { paytrCallback } from './http/paytr-callback'
 import { NOTIFICATION_SECRETS, REGION } from './shared/region'
 import { onCommandCreated } from './triggers/on-command-created'
 import { onEventCreated } from './triggers/on-event-created'
@@ -28,6 +29,13 @@ import { onEventCreated } from './triggers/on-event-created'
 setGlobalOptions({ region: REGION })
 
 export { onCommandCreated }
+
+// Plus Phase 6 (2026-07-17) — the PAYTR callback reachability shim. PAYTR's servers cannot reach our
+// App Hosting endpoint (a `35.x` GCLB IP); a Cloud Function is fronted by Google's core edge, which
+// they can. It forwards the notification byte-for-byte to the one real callback endpoint. See the
+// file for the full why. Public (unauthenticated) — PAYTR is the caller; the hash is the auth,
+// verified downstream.
+export { paytrCallback }
 // v1.23 — the daily read model behind the owner dashboard. Disposable: if it is ever wrong, it is
 // deleted and replayed from the log (`pnpm projections:rebuild`).
 export { onEventCreated }
