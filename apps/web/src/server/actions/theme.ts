@@ -23,6 +23,7 @@ export async function updateStudioThemeAction(input: unknown): Promise<{ ok: tru
       fontScale: z.enum(['sm', 'md', 'lg']),
       fontFamily: z.enum(['default', 'system', 'rounded']),
       categories: z.object({ pilates: hex, fitness: hex, private: hex }).optional(),
+      surfaces: z.object({ sidebar: hex, agenda: hex }).optional(),
     })
     .parse(input)
   const ctx = await requireTenantContext(OWNER)

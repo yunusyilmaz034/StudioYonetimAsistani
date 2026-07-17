@@ -67,6 +67,8 @@
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-surface: var(--surface);
+  --color-sidebar: var(--sidebar);
+  --color-calendar-cell: var(--calendar-cell);
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
   --color-popover: var(--popover);
@@ -128,6 +130,9 @@
   --background: #f4eeec;
   --foreground: #241c20;
   --surface: #fcf8f7;
+  /* Themeable surfaces (PF-12 phase 2) — default to surface / muted; the owner may override each. */
+  --sidebar: var(--surface);
+  --calendar-cell: var(--muted);
   --card: #fcf8f7;
   --card-foreground: #241c20;
   --popover: #fcf8f7;
@@ -183,6 +188,8 @@
   --background: #2a2230;
   --foreground: #f3ebf0;
   --surface: #362c3e;
+  --sidebar: var(--surface);
+  --calendar-cell: var(--muted);
   --card: #362c3e;
   --card-foreground: #f3ebf0;
   --popover: #3b3043;

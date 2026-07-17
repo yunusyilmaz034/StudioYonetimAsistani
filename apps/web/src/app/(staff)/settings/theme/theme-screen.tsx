@@ -15,12 +15,16 @@ import {
   CATEGORY_KEYS,
   CATEGORY_LABEL,
   FONT_SCALES,
+  SURFACE_DEFAULT,
+  SURFACE_KEYS,
+  SURFACE_LABEL,
   THEME_PRESETS,
   themeCss,
   type CategoryKey,
   type FontFamilyId,
   type FontScale,
   type StudioTheme,
+  type SurfaceKey,
 } from '@/lib/theme/presets'
 import { updateStudioThemeAction } from '@/server/actions/theme'
 
@@ -33,11 +37,17 @@ export function ThemeScreen({ initial }: { initial: StudioTheme }) {
   const [fontScale, setFontScale] = useState<FontScale>(initial.fontScale)
   const [fontFamily, setFontFamily] = useState<FontFamilyId>(initial.fontFamily)
   const [categories, setCategories] = useState<Record<CategoryKey, string | null>>(initial.categories)
+  const [surfaces, setSurfaces] = useState<Record<SurfaceKey, string | null>>(initial.surfaces)
   const [busy, setBusy] = useState(false)
 
   const catsDiffer = CATEGORY_KEYS.some((k) => categories[k] !== initial.categories[k])
+  const surfDiffer = SURFACE_KEYS.some((k) => surfaces[k] !== initial.surfaces[k])
   const dirty =
-    presetId !== initial.presetId || fontScale !== initial.fontScale || fontFamily !== initial.fontFamily || catsDiffer
+    presetId !== initial.presetId ||
+    fontScale !== initial.fontScale ||
+    fontFamily !== initial.fontFamily ||
+    catsDiffer ||
+    surfDiffer
   const dirtyRef = useRef(dirty)
   dirtyRef.current = dirty
 
@@ -48,8 +58,8 @@ export function ThemeScreen({ initial }: { initial: StudioTheme }) {
       el.id = PREVIEW_ID
       document.head.appendChild(el)
     }
-    el.textContent = themeCss({ presetId, fontScale, fontFamily, categories })
-  }, [presetId, fontScale, fontFamily, categories])
+    el.textContent = themeCss({ presetId, fontScale, fontFamily, categories, surfaces })
+  }, [presetId, fontScale, fontFamily, categories, surfaces])
 
   // Left the screen with the change unsaved? Don't keep the preview applied for the rest of the session.
   useEffect(
@@ -62,7 +72,7 @@ export function ThemeScreen({ initial }: { initial: StudioTheme }) {
   async function save() {
     setBusy(true)
     try {
-      await updateStudioThemeAction({ presetId, fontScale, fontFamily, categories })
+      await updateStudioThemeAction({ presetId, fontScale, fontFamily, categories, surfaces })
       dirtyRef.current = false
       toast.success('Tema kaydedildi.')
     } catch {
@@ -145,6 +155,33 @@ export function ThemeScreen({ initial }: { initial: StudioTheme }) {
                 <span className="text-xs tabular-nums text-muted-foreground">{value}</span>
                 {custom ? (
                   <Button variant="ghost" size="sm" onClick={() => setCategories((c) => ({ ...c, [k]: null }))}>
+                    Sıfırla
+                  </Button>
+                ) : null}
+              </div>
+            )
+          })}
+        </div>
+      </Section>
+
+      <Section title="Yüzey renkleri" hint="Kenar çubuğu ve ajanda hücresinin zemini. Boş bırakılırsa varsayılan.">
+        <div className="space-y-2">
+          {SURFACE_KEYS.map((k) => {
+            const value = surfaces[k] ?? SURFACE_DEFAULT[k]
+            const custom = surfaces[k] !== null
+            return (
+              <div key={k} className="flex items-center gap-3">
+                <input
+                  type="color"
+                  value={value}
+                  onChange={(e) => setSurfaces((s) => ({ ...s, [k]: e.target.value }))}
+                  aria-label={`${SURFACE_LABEL[k]} rengi`}
+                  className="h-9 w-12 shrink-0 cursor-pointer rounded-md border border-border bg-transparent p-0.5"
+                />
+                <span className="flex-1 text-sm font-medium">{SURFACE_LABEL[k]}</span>
+                <span className="text-xs tabular-nums text-muted-foreground">{value}</span>
+                {custom ? (
+                  <Button variant="ghost" size="sm" onClick={() => setSurfaces((s) => ({ ...s, [k]: null }))}>
                     Sıfırla
                   </Button>
                 ) : null}

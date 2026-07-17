@@ -60,11 +60,20 @@ export const CATEGORY_DEFAULT: Readonly<Record<CategoryKey, string>> = {
   private: '#b5842f',
 }
 
+// Per-surface colours (PF-12 phase 2) — the sidebar background and the calendar (agenda) cell ground.
+// Each maps to a dedicated CSS var; null = the shipped default. Same override mechanism as categories.
+export const SURFACE_KEYS = ['sidebar', 'agenda'] as const
+export type SurfaceKey = (typeof SURFACE_KEYS)[number]
+export const SURFACE_VAR: Readonly<Record<SurfaceKey, string>> = { sidebar: '--sidebar', agenda: '--calendar-cell' }
+export const SURFACE_LABEL: Readonly<Record<SurfaceKey, string>> = { sidebar: 'Kenar çubuğu (sidebar)', agenda: 'Ajanda hücresi' }
+export const SURFACE_DEFAULT: Readonly<Record<SurfaceKey, string>> = { sidebar: '#fcf8f7', agenda: '#ece1dd' }
+
 export interface StudioTheme {
   readonly presetId: string
   readonly fontScale: FontScale
   readonly fontFamily: FontFamilyId
   readonly categories: Readonly<Record<CategoryKey, string | null>>
+  readonly surfaces: Readonly<Record<SurfaceKey, string | null>>
 }
 
 export const DEFAULT_THEME: StudioTheme = {
@@ -72,6 +81,7 @@ export const DEFAULT_THEME: StudioTheme = {
   fontScale: 'md',
   fontFamily: 'default',
   categories: { pilates: null, fitness: null, private: null },
+  surfaces: { sidebar: null, agenda: null },
 }
 
 const HEX = /^#[0-9a-fA-F]{6}$/
@@ -90,7 +100,9 @@ export function normalizeTheme(raw: Readonly<Record<string, unknown>> | null | u
     fitness: hexOrNull(rc.fitness),
     private: hexOrNull(rc.private),
   }
-  return { presetId, fontScale, fontFamily, categories }
+  const rs = (r.surfaces ?? {}) as Partial<Record<SurfaceKey, unknown>>
+  const surfaces = { sidebar: hexOrNull(rs.sidebar), agenda: hexOrNull(rs.agenda) }
+  return { presetId, fontScale, fontFamily, categories, surfaces }
 }
 
 // The `:root`/`html` overrides for a theme, as a CSS string. Injected AFTER globals.css so it wins.
@@ -113,5 +125,11 @@ export function themeCss(theme: StudioTheme): string {
     return v ? [`--cat-${k}:${v}`, `--cat-${k}-soft:color-mix(in oklch, ${v} 14%, var(--background))`] : []
   }).join(';')
   const catRule = catVars ? `:root{${catVars}}:root[data-theme='dark']{${catVars}}` : ''
-  return `:root{${rootVars}}${catRule}html{font-size:${rootPx}}`
+  // Per-surface overrides (sidebar, agenda cell) → their dedicated vars, both themes.
+  const surfVars = SURFACE_KEYS.flatMap((k) => {
+    const v = theme.surfaces[k]
+    return v ? [`${SURFACE_VAR[k]}:${v}`] : []
+  }).join(';')
+  const surfRule = surfVars ? `:root{${surfVars}}:root[data-theme='dark']{${surfVars}}` : ''
+  return `:root{${rootVars}}${catRule}${surfRule}html{font-size:${rootPx}}`
 }

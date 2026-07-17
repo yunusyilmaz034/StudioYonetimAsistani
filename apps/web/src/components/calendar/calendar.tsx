@@ -147,8 +147,8 @@ function MonthGrid<T extends CalendarItem>({
                     : isFocus
                       ? 'bg-primary-soft/35'
                       : inMonth
-                        ? 'bg-muted'
-                        : 'bg-muted/40'
+                        ? 'bg-calendar-cell'
+                        : 'bg-calendar-cell/40'
                 }`}
               >
                 {/* D23 — the day's mark. It is a BACKGROUND fact: it must not compete with the

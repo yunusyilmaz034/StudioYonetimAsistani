@@ -199,7 +199,7 @@ function DesktopRail({ pathname, groups }: { pathname: string; groups: readonly 
   return (
     <aside
       data-slot="app-shell-nav"
-      className="fixed inset-y-0 left-0 hidden w-60 flex-col border-r border-border bg-surface md:flex"
+      className="fixed inset-y-0 left-0 hidden w-60 flex-col border-r border-border bg-sidebar md:flex"
     >
       <div className="flex items-center justify-between gap-1 px-3 pt-4 pb-2">
         <Brand />
@@ -253,7 +253,7 @@ function BottomBar({ pathname, groups }: { pathname: string; groups: readonly Na
   return (
     <nav
       data-slot="app-shell-nav"
-      className="fixed inset-x-0 bottom-0 z-40 flex overflow-x-auto border-t border-border bg-surface/95 backdrop-blur md:hidden"
+      className="fixed inset-x-0 bottom-0 z-40 flex overflow-x-auto border-t border-border bg-sidebar/95 backdrop-blur md:hidden"
     >
       {items.map((it) => {
         const Icon = it.icon
