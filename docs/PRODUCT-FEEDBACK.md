@@ -339,3 +339,18 @@ owner'ın endişesi yersiz; açık bakiye 2 GERÇEKTEN ödenmemiş satıştan ge
 Kod hatası yok. **Aksiyon:** sadece test verisi temizliği — owner o iki açık satışı "İptal" ile kapatabilir
 (ya da ödeyebilir). Not: PAYTR sale'i yalnızca başarılı callback'te oluşuyor (abandoned link phantom borç
 YARATMIYOR — doğrulandı).
+
+---
+
+## PF-27 — Kiosk için USB QR okuyucu donanımı (opsiyonel akıcılık) · 💡 fikir/karar
+
+**Taken:** 2026-07-18 · owner ("kiosk tablet yerine QR reader donanımı alsam?").
+**Danışma sonucu:** Donanım tableti YERİNE koymaz, TAMAMLAR — ucuz okuyucular keyboard-wedge (okuduğu metni
+yazar), yani yine host (tablet/mini-PC) + kiosk ekranı gerekir; okuyucu kameranın yerine geçer. **Öneri:
+tablet + USB 2D IMAGER okuyucu** (lazer/1D DEĞİL — telefon ekranından okuyamaz). Bağımsız ağ terminali =
+overkill (kapı/turnike istemiyorsak). Dinamik üye QR'ı (D16) okuyucu için sorun değil.
+**Asıl mesele:** şu an HİÇ check-in yapılmıyor → sorun donanım değil, alışkanlık. Önce tableti iyi konumlandırıp
+bedava dene; kalabalık saatlerde akıcılık kritikse imager al.
+**Yazılım işi (owner okuyucu alırsa):** kiosk ekranına (`checkin/kiosk/kiosk-screen.tsx`) okuyucudan gelen
+"yazılan token + Enter" girişini dinleyip aynı `checkInByQrAction`'ı çağıran bir yol ekle (şu an sadece
+getUserMedia kamera var). Küçük milestone. Karar owner'da.
