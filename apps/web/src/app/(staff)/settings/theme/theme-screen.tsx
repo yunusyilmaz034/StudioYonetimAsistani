@@ -32,7 +32,9 @@ const PREVIEW_ID = 'studio-theme-preview'
 
 // Ayarlar › Tema (PF-12) — pick a curated palette + type size and see it apply live before saving. The
 // preview is a style tag we keep in sync; on save it is persisted and injected server-side on next load.
-export function ThemeScreen({ initial }: { initial: StudioTheme }) {
+// `embedded` renders the editor inline (inside the settings Görünüm tab) without its own page chrome —
+// clicking the tab shows the theme controls directly, no second screen (owner, 2026-07-17).
+export function ThemeScreen({ initial, embedded = false }: { initial: StudioTheme; embedded?: boolean }) {
   const [presetId, setPresetId] = useState(initial.presetId)
   const [fontScale, setFontScale] = useState<FontScale>(initial.fontScale)
   const [fontFamily, setFontFamily] = useState<FontFamilyId>(initial.fontFamily)
@@ -81,19 +83,8 @@ export function ThemeScreen({ initial }: { initial: StudioTheme }) {
     setBusy(false)
   }
 
-  return (
-    <main className="mx-auto max-w-3xl space-y-6 p-4 sm:p-6 lg:p-8">
-      <PageHeader
-        title="Tema"
-        description="Uygulamanın rengi ve yazı boyutu — stüdyonuza göre"
-        actions={
-          <Button variant="outline" size="sm" render={<Link href="/settings" />}>
-            <ArrowLeftIcon />
-            Ayarlar
-          </Button>
-        }
-      />
-
+  const content = (
+    <>
       <Section title="Renk" hint="Ana vurgu rengi. Nötr zemin ve kontrast korunur; seçenekler el ile ayarlanmıştır.">
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
           {THEME_PRESETS.map((p) => {
@@ -212,6 +203,24 @@ export function ThemeScreen({ initial }: { initial: StudioTheme }) {
           {busy ? <Loader2Icon className="animate-spin" /> : null} Kaydet
         </Button>
       </div>
+    </>
+  )
+
+  if (embedded) return <div className="space-y-6">{content}</div>
+
+  return (
+    <main className="mx-auto max-w-3xl space-y-6 p-4 sm:p-6 lg:p-8">
+      <PageHeader
+        title="Tema"
+        description="Uygulamanın rengi ve yazı boyutu — stüdyonuza göre"
+        actions={
+          <Button variant="outline" size="sm" render={<Link href="/settings" />}>
+            <ArrowLeftIcon />
+            Ayarlar
+          </Button>
+        }
+      />
+      {content}
     </main>
   )
 }

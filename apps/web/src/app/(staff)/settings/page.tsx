@@ -1,4 +1,5 @@
 import { getStudioSettingsAction } from '@/server/actions/settings'
+import { getStudioThemeAction } from '@/server/actions/theme'
 import { requirePageAccess } from '@/server/auth'
 
 import { SettingsScreen } from './settings-screen'
@@ -14,6 +15,13 @@ import { SettingsScreen } from './settings-screen'
 // name that will be wrong in one of them.
 export default async function SettingsPage() {
   const ctx = await requirePageAccess('/settings')
-  const settings = await getStudioSettingsAction()
-  return <SettingsScreen settings={settings} branchId={ctx?.branchIds[0] ?? null} canManage={ctx?.role === 'owner'} />
+  const [settings, theme] = await Promise.all([getStudioSettingsAction(), getStudioThemeAction()])
+  return (
+    <SettingsScreen
+      settings={settings}
+      theme={theme}
+      branchId={ctx?.branchIds[0] ?? null}
+      canManage={ctx?.role === 'owner'}
+    />
+  )
 }

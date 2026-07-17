@@ -1,7 +1,7 @@
 'use client'
 
 import type { DayHours, StudioSettings, WorkingHours } from '@studio/core'
-import { CalendarDaysIcon, CreditCardIcon, PaletteIcon, ShieldAlertIcon } from 'lucide-react'
+import { CalendarDaysIcon, CreditCardIcon, ShieldAlertIcon } from 'lucide-react'
 import Link from 'next/link'
 import { useState, useTransition } from 'react'
 import { toast } from 'sonner'
@@ -15,7 +15,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { cn } from '@/lib/utils'
 
 import { DefinitionsPanel } from './definitions-panel'
+import { ThemeScreen } from './theme/theme-screen'
 import { domainErrorMessage } from '@/lib/domain-error'
+import type { StudioTheme } from '@/lib/theme/presets'
 import { updateStudioSettingsAction } from '@/server/actions/settings'
 
 // The settings screen. Plain on purpose: it is opened when a studio is set up, and then perhaps
@@ -74,10 +76,12 @@ function Field({
 
 export function SettingsScreen({
   settings,
+  theme,
   branchId,
   canManage = false,
 }: {
   settings: StudioSettings | null
+  theme: StudioTheme
   branchId: string | null
   canManage?: boolean
 }) {
@@ -599,15 +603,10 @@ export function SettingsScreen({
         </TabsContent>
 
         <TabsContent value="gorunum" className="space-y-6">
-          {/* Görünüm — YALNIZCA tema (renk + yazı boyutu, PF-12). Ödeme sağlayıcısı "Ödeme & Bildirim"e,
-              KVKK "Genel"e taşındı (owner, 2026-07-17): bir ödeme entegrasyonu da yasal bir işlem de bir
-              görünüm ayarı değildir. */}
-          <Section title="Tema" hint="Uygulamanın rengi ve yazı boyutu — stüdyonuza göre.">
-            <Button variant="outline" render={<Link href="/settings/theme" />}>
-              <PaletteIcon />
-              Renk ve Yazı Tipi
-            </Button>
-          </Section>
+          {/* Görünüm — tema (renk + yazı boyutu, PF-12) INLINE: sekmeye basınca kontroller doğrudan gelir,
+              ikinci bir ekran açılmaz (owner, 2026-07-17). Ödeme sağlayıcısı "Ödeme & Bildirim"e, KVKK
+              "Genel"e taşındı: bir ödeme entegrasyonu da yasal bir işlem de bir görünüm ayarı değildir. */}
+          <ThemeScreen initial={theme} embedded />
         </TabsContent>
 
         <TabsContent value="tanimlar" className="space-y-6">
