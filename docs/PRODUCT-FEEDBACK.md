@@ -13,6 +13,16 @@ görseller+yapısal kas ertelendi) · PF-12 (Tema editörü: renk+font+size, pre
 PF-14 (Ürün Sat kasa seçici/bug) · PF-16 (toast top-center) · PF-17 (toplu gönderim sebep+guard).
 **⏸ ertelendi (insan kararı):** PF-15 (kasa rename/sil → yeni event tipi gerekir).
 
+## PF-22 — WhatsApp bildirimleri + anti-spam stratejisi · 🟡 `owner'da (Meta kurulumu)`
+2026-07-17 · owner ("en önemli konu; whatsapp ile bildir, ama spama düşme; üst üste/toplu gönderme;
+sen araştır + her şeyi hazırla"). BULGU: anti-spam motoru **zaten kurulu** (üye opt-in default OFF,
+marketing→kampanya izni/KVKK, sessiz saat, günlük tavan, toplu→tek mesaj), Meta Cloud API transport
+mock olarak hazır. Araştırma + tam onboarding + strateji + 17 şablon içeriği → **`docs/WHATSAPP-SETUP.md`**.
+Derin anti-spam tasarımı (üye başına frekans tavanı + min aralık, toplu pacing ≤40/saat, olay-bazlı
+izin listesi, ≤2/hafta pazarlama, kalite izleme) dokümanda — canlıya geçişte/owner parametre onayında
+uygulanacak. **ENGEL owner'da:** Meta Business+WABA, özel numara, işletme doğrulama, 17 şablon onayı,
+kimlik bilgileri (Secret Manager'a — sohbete değil). + 2 karar: opt-in default, hangi olaylar WhatsApp'a.
+
 ## PF-21 — Üye e-postalarını markala + yol tarifi butonu · ✅ `done`
 2026-07-17 · owner. E-posta çok sade, "nereden geldiği" belli değil. İstenen: stüdyo kimliği (kimden),
 sıcak bir imza ("… ekibi olarak her zaman yanınızdayız"), ve adres/harita — "Yol tarifi al" butonu
