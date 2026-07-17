@@ -3,8 +3,10 @@
 import type { ReactNode } from 'react'
 import { AlertTriangleIcon, CheckCircle2Icon, ClipboardListIcon, PencilIcon, PlayCircleIcon, TargetIcon, XCircleIcon } from 'lucide-react'
 
+import { MuscleMap } from '@/components/muscle-map'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogTitle } from '@/components/ui/dialog'
+import { EXERCISE_MUSCLES } from '@/lib/exercise-muscles'
 
 // The guidance fields the dialog reads — a subset of the full Exercise, so the same component serves the
 // library (a full Exercise, which is assignable) AND the portal (a light object fetched for the member).
@@ -65,6 +67,7 @@ export function ExerciseGuideDialog({
   const tips = lines(ex.tips)
   const mistakes = lines(ex.commonMistakes)
   const hasTargets = Boolean(t.ana || t.ikincil || t.zayif || t.note)
+  const muscles = EXERCISE_MUSCLES[ex.nameTr]
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
@@ -79,15 +82,22 @@ export function ExerciseGuideDialog({
 
         <div className="space-y-5">
           {/* HEDEF KAS GRUPLARI */}
-          {hasTargets ? (
+          {hasTargets || muscles ? (
             <section>
               <SectionTitle icon={<TargetIcon className="size-4" />}>Hedef Kas Grupları</SectionTitle>
-              <ul className="mt-2 space-y-1.5">
-                {t.ana ? <Target color="#dc2626" label="Ana Hedef" value={t.ana} /> : null}
-                {t.ikincil ? <Target color="#f59e0b" label="İkincil Hedef" value={t.ikincil} /> : null}
-                {t.zayif ? <Target color="#f9a8d4" label="Zayıf Etki" value={t.zayif} /> : null}
-                {t.note ? <li className="text-xs text-muted-foreground">{t.note}</li> : null}
-              </ul>
+              <div className="mt-2 flex flex-col items-center gap-3 sm:flex-row sm:items-center">
+                {muscles ? (
+                  <div className="w-full max-w-[16rem] sm:w-1/2">
+                    <MuscleMap primary={muscles.primary} secondary={muscles.secondary} />
+                  </div>
+                ) : null}
+                <ul className="w-full space-y-1.5 sm:flex-1">
+                  {t.ana ? <Target color="#d62828" label="Ana Hedef" value={t.ana} /> : null}
+                  {t.ikincil ? <Target color="#f0a1a1" label="İkincil Hedef" value={t.ikincil} /> : null}
+                  {t.zayif ? <Target color="#f9c0c0" label="Zayıf Etki" value={t.zayif} /> : null}
+                  {t.note ? <li className="text-xs text-muted-foreground">{t.note}</li> : null}
+                </ul>
+              </div>
             </section>
           ) : null}
 

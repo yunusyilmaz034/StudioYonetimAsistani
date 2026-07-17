@@ -45,7 +45,8 @@
     "setup:exercise-images": "tsx tools/setup/exercise-images.ts",
     "setup:payment-surcharge": "tsx tools/setup/payment-surcharge.ts",
     "setup:payment-provider": "tsx tools/setup/payment-provider.ts",
-    "setup:program-a": "tsx tools/setup/program-a.ts"
+    "setup:program-a": "tsx tools/setup/program-a.ts",
+    "gen:muscle-map": "tsx tools/setup/gen-muscle-map.ts"
   },
   "dependencies": {},
   "devDependencies": {
