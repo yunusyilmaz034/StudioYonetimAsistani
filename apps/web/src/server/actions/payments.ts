@@ -204,10 +204,20 @@ const publicCtx = (studioId: string): TenantContext => ({
 
 export async function getPaymentLinkPublicAction(input: unknown) {
   const p = z.object({ studioId: nonEmpty, linkId: nonEmpty }).parse(input)
-  const link = await new FirestorePaymentLinkRepository(adminDb()).get(publicCtx(p.studioId), p.linkId)
-  if (!link || !link.active) return { ok: false as const }
+  const ctx = publicCtx(p.studioId)
+  const [link, settings] = await Promise.all([
+    new FirestorePaymentLinkRepository(adminDb()).get(ctx, p.linkId),
+    new FirestoreSchedulingRepository(adminDb()).getStudioSettings(ctx),
+  ])
+  // The name a customer knows the studio by — the one shown on the link's WhatsApp preview and the page.
+  const studioName = settings?.company?.displayName || settings?.company?.legalName || 'Stüdyo'
+  if (!link || !link.active) return { ok: false as const, studioName }
   // No PII, no studio secrets — only what the public page must render.
-  return { ok: true as const, value: { label: link.label, amountKurus: link.amount.amount, maxInstallments: link.maxInstallments } }
+  return {
+    ok: true as const,
+    studioName,
+    value: { label: link.label, amountKurus: link.amount.amount, maxInstallments: link.maxInstallments },
+  }
 }
 
 export async function createCollectionCheckoutAction(input: unknown) {

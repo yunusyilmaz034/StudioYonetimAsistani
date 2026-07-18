@@ -87,7 +87,11 @@ export function TrainingScreen({
           <TemplatesManager initial={initialTemplates} exercises={initialExercises} />
         </TabsContent>
         <TabsContent value="feedback">
-          <FeedbackCenter initial={initialFeedback} memberNames={memberNames} />
+          <FeedbackCenter
+            initial={initialFeedback}
+            memberNames={memberNames}
+            exerciseNames={Object.fromEntries(initialExercises.map((e) => [e.id, e.nameTr]))}
+          />
         </TabsContent>
       </Tabs>
     </main>
@@ -603,9 +607,11 @@ function ExerciseDialog({
 function FeedbackCenter({
   initial,
   memberNames,
+  exerciseNames,
 }: {
   initial: readonly TrainingFeedback[]
   memberNames: Readonly<Record<string, string>>
+  exerciseNames: Readonly<Record<string, string>>
 }) {
   const [feedback, setFeedback] = useState<readonly TrainingFeedback[]>(initial)
 
@@ -634,7 +640,13 @@ function FeedbackCenter({
     <Section title="Geri Bildirim Merkezi" hint={`${ordered.length} açık`}>
       <ul className="space-y-2">
         {ordered.map((f) => (
-          <FeedbackCard key={f.id} f={f} memberName={memberNames[f.memberId] ?? 'Üye'} onChanged={reload} />
+          <FeedbackCard
+            key={f.id}
+            f={f}
+            memberName={memberNames[f.memberId] ?? 'Üye'}
+            exerciseName={exerciseNames[f.exerciseId] ?? 'Egzersiz'}
+            onChanged={reload}
+          />
         ))}
       </ul>
     </Section>
@@ -644,10 +656,12 @@ function FeedbackCenter({
 function FeedbackCard({
   f,
   memberName,
+  exerciseName,
   onChanged,
 }: {
   f: TrainingFeedback
   memberName: string
+  exerciseName: string
   onChanged: () => Promise<void>
 }) {
   const [reply, setReply] = useState(f.trainerReply ?? '')
@@ -696,6 +710,12 @@ function FeedbackCard({
         </span>
         <Badge className="ml-auto bg-muted text-muted-foreground">{FEEDBACK_STATUS_LABEL[f.status]}</Badge>
       </div>
+
+      {/* WHICH exercise the feedback is about — the whole point of the note (owner). */}
+      <p className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
+        <DumbbellIcon className="size-4 shrink-0 text-muted-foreground" />
+        {exerciseName}
+      </p>
 
       <p className="whitespace-pre-wrap text-sm text-foreground">{f.message}</p>
 

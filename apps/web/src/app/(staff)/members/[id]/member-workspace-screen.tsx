@@ -209,10 +209,11 @@ export function MemberWorkspaceScreen({
       {/* Section nav — the house Tabs (DS v2): desktop tabs, the same control as the mobile
           section switcher (UX-1). */}
       <Tabs value={active} onValueChange={(v) => setActive(v as SectionId)}>
-        {/* One row that scrolls — never two rows (PF-10). Nine tabs + labels overflow the width; the
-            strip scrolls horizontally and the right edge FADES so the last tab reads as "there is more,
-            scroll", not "cut off / broken" (PF-25). Mobile shows icons only (label `hidden sm:inline`). */}
-        <TabsList className="max-w-full overflow-x-auto scroll-smooth whitespace-nowrap [mask-image:linear-gradient(to_right,#000_92%,transparent)] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {/* One row that scrolls — never two rows (PF-10). `w-fit` shrinks the strip to its content, so on a
+            wide screen every tab shows in full; only when the tabs genuinely exceed the width does it cap at
+            `max-w-full` and scroll. No permanent right-edge fade — that read as a half-cut last tab even when
+            everything fit (owner). Mobile shows icons only (label `hidden sm:inline`). */}
+        <TabsList className="w-fit max-w-full overflow-x-auto scroll-smooth whitespace-nowrap [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {SECTIONS.map((sec) => {
             const Icon = sec.icon
             return (

@@ -1,8 +1,33 @@
+import type { Metadata } from 'next'
 import { CheckCircle2Icon, ShieldCheckIcon, XCircleIcon } from 'lucide-react'
 
 import { getPaymentLinkPublicAction } from '@/server/actions/payments'
 
 import { PayForm } from './pay-form'
+
+// The WhatsApp/social link preview: the studio's real name + a reassuring line, not the app's internal
+// title. `generateMetadata` runs server-side and reads the same public action the page renders from.
+export async function generateMetadata({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ linkId: string }>
+  searchParams: Promise<{ s?: string }>
+}): Promise<Metadata> {
+  const [{ linkId }, sp] = await Promise.all([params, searchParams])
+  const studioId = sp.s ?? ''
+  const link = studioId ? await getPaymentLinkPublicAction({ studioId, linkId }) : ({ ok: false, studioName: 'Stüdyo' } as const)
+  const studio = link.studioName
+  const label = link.ok ? link.value.label : ''
+  const title = label ? `${studio} · ${label}` : `${studio} · Güvenli Ödeme`
+  const description = `${studio} ödeme sayfası. Bu güvenli bağlantı üzerinden ödemenizi kolayca ve güvenle tamamlayabilirsiniz.`
+  return {
+    title,
+    description,
+    openGraph: { title, description, siteName: studio, type: 'website' },
+    twitter: { card: 'summary', title, description },
+  }
+}
 
 // PF-37 — the PUBLIC payment page. Outside the (staff) route group, so no staff shell and no auth ever
 // runs. Anyone with the shared link opens it, sees the fixed amount, types her name + phone, and pays
@@ -18,13 +43,16 @@ export default async function PayPage({
   const { linkId } = await params
   const sp = await searchParams
   const studioId = sp.s ?? ''
-  const link = studioId ? await getPaymentLinkPublicAction({ studioId, linkId }) : ({ ok: false } as const)
+  const link = studioId ? await getPaymentLinkPublicAction({ studioId, linkId }) : ({ ok: false, studioName: 'Stüdyo' } as const)
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-6 p-6">
-      <div className="flex items-center justify-center gap-2 text-muted-foreground">
-        <ShieldCheckIcon className="size-5" />
-        <span className="text-sm font-medium">Güvenli Ödeme</span>
+      <div className="flex flex-col items-center gap-1.5 text-center">
+        <p className="text-lg font-semibold text-foreground">{link.studioName}</p>
+        <div className="flex items-center gap-1.5 text-muted-foreground">
+          <ShieldCheckIcon className="size-4" />
+          <span className="text-sm font-medium">Güvenli Ödeme</span>
+        </div>
       </div>
 
       {sp.ok ? (
