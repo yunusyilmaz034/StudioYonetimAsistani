@@ -31,6 +31,7 @@ export type ActivityKind =
   | 'payment'
   | 'credit'
   | 'checkin'
+  | 'notification' // a message that reached a MEMBER (sent/delivered/failed) — business, not plumbing
   | 'operation'
   | 'schedule'
   | 'system'
@@ -97,11 +98,13 @@ export const KIND_OF: Record<string, ActivityKind> = {
   'plan.instalment_paid': 'payment',
   'plan.cancelled': 'payment',
   // ── notifications (v1.25) ──
+  // The member-facing outcomes are business events (owner: "üye bildirimleri akışta olsun"); the
+  // internal plumbing (intent/queue/retry/suppress) stays 'system' noise, off the live feed.
   'notification.intent_created': 'system',
   'notification.queued': 'system',
-  'notification.sent': 'system',
-  'notification.delivered': 'system',
-  'notification.failed': 'system',
+  'notification.sent': 'notification',
+  'notification.delivered': 'notification',
+  'notification.failed': 'notification',
   'notification.suppressed': 'system',
   'notification.retried': 'system',
   'entitlement.expiring': 'system',
@@ -195,14 +198,27 @@ const RECEPTION_KINDS: readonly ActivityKind[] = [
   'payment',
   'credit',
   'checkin',
+  'notification',
   'operation',
   'schedule',
 ]
 
 const visibleKinds = (ctx: TenantContext): readonly ActivityKind[] =>
   ctx.role === 'owner'
-    ? ['reservation', 'membership', 'payment', 'credit', 'checkin', 'operation', 'schedule', 'system']
+    ? ['reservation', 'membership', 'payment', 'credit', 'checkin', 'notification', 'operation', 'schedule', 'system']
     : RECEPTION_KINDS
+
+// The DASHBOARD live feed (the hover menu) — a quick glance at what is HAPPENING in the business, not
+// the audit log. Owner: "rezervasyonlar, üye bildirimleri vs. olsun; sistem logları değil." So it is a
+// tight business allow-list; schedule edits, bulk operations and every 'system' event stay OFF it (the
+// full /activity audit log still has them, and system health goes to its own panel).
+export const FEED_KINDS: readonly ActivityKind[] = [
+  'reservation',
+  'checkin',
+  'payment',
+  'membership',
+  'notification',
+]
 
 // ── the name resolver ───────────────────────────────────────────────────────────────────────
 // One batched read per page, whatever the row count. A page of 50 rows touching 12 members costs

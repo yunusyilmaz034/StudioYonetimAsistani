@@ -354,3 +354,44 @@ bedava dene; kalabalık saatlerde akıcılık kritikse imager al.
 **Yazılım işi (owner okuyucu alırsa):** kiosk ekranına (`checkin/kiosk/kiosk-screen.tsx`) okuyucudan gelen
 "yazılan token + Enter" girişini dinleyip aynı `checkInByQrAction`'ı çağıran bir yol ekle (şu an sadece
 getUserMedia kamera var). Küçük milestone. Karar owner'da.
+
+---
+## Kullanım geri bildirimi batch (2026-07-18, owner) — PF-28…PF-36 (sıra onaylı)
+
+**PF-28 — Site üye girişi linki çalışmıyor · 🔧 hotfix.** `~/pilates-site` "Üye Girişi" butonu portal'a `?s=retro`
+olmadan gidiyor → stüdyo belirsiz, giriş olmuyor. Doğru URL: `https://panel.pilatesfitnessbyisil.com/portal/login?s=retro`.
+Site ayrı deploy (Firebase Hosting `pilatesfitnessbyisil-web`).
+
+**PF-29 — Girişlerde captcha · özellik.** KARAR: **2a = basit captcha** (matematik/"robot değilim") + giriş
+**rate-limit**. Dış servis YOK (reCAPTCHA/CSP değil). Üye portal + staff login.
+
+**PF-30 — Admin ↔ üye girişi oturum çakışması · düşük öncelik fix.** Aynı tarayıcıda staff oturumu varken
+`/portal/login`'e gidince admin'e yönleniyor. Gerçek üyeyi etkilemez (sadece staff test ederken). Geçici:
+gizli sekme. Kalıcı: portal girişi staff oturumunu görmezden gelsin. Owner: düşük öncelik onayladı.
+
+**PF-31 — Canlı akış = iş olayları, sistem logları değil · özellik.** Akışta yalnız: rezervasyonlar, check-in'ler,
+ödeme/PAYTR sonuçları (PF-8 birleşik), üye bildirimleri. Teknik olaylar (exercise.upserted, notification.queued
+vb.) ÇIKSIN. Sistem sağlığı ayrı (PF-24).
+
+**PF-32 — Antrenman geri bildirimi → anlık bildirim + detay · özellik.** Bildirim hangi üye + **hangi egzersiz/
+hareket + hangi program** desin (şu an sadece üye). trainingFeedback + notifications.
+
+**PF-33 — Üyeler listesi default "son eklenen" + sıralama butonu · 🔧 hotfix.** Şu an isim (A-Z) sıralı
+(member-repo `orderBy('fullName')`). Default son-eklenen; toggle: A-Z / Son eklenen.
+
+**PF-34 — Program aktif/pasif lifecycle (7a) · özellik.** Üye kartında aktif program vs pasif programlar;
+aktif↔pasif geçiş, düzenleme. AI'sız. PF-35'in altyapısı.
+
+**PF-35 — AI ile program oluşturma (7b) · 🤖 BÜYÜK AI MILESTONE.** Program oluştur → "AI ile mi?" → evet →
+"ne ağırlıklı? (sırt/karın/göğüs/kalça/zayıflama)" → eski programı da dikkate alıp **bizim 45'lik egzersiz
+havuzundan** (kas-etiketli) yeni program → **hoca gör/düzenle/kabul (ONAY ZORUNLU — egzersiz reçetesi,
+sakatlık riski)** → aktif yap + eskiler pasif + üyeye bildirim. AI SADECE havuzdan seçer (serbest uydurmaz).
+7a'dan SONRA. İlk AI özelliği — Faz 2 Dalga 3 ruhu.
+
+**PF-36 — QR check-in → resepsiyon toast (yeşil/kırmızı) · özellik.** Üye giriş yapınca resepsiyon ekranında
+toast: üye adı + paket + başlangıç/bitiş + aktif bildirim var/yok + kredi kaç kaldı. **Aktif üyelik → YEŞİL bariz,
+yoksa KIRMIZI.** Check-in olayını resepsiyon ekranına anlık düşürmek gerek.
+
+**QR yönü kararı (PF-27 ek):** owner scanner (Q22) ile çözecek → **mevcut yön korunur, ters çevrilmez.**
+
+**SIRA (owner onaylı):** PF-28/33/31 (hızlı) → PF-36 + PF-32 → PF-34 → PF-29 → PF-35 (AI) → PF-30 (düşük).

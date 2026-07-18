@@ -22,7 +22,7 @@ import {
 } from '@studio/core'
 
 import { adminDb } from './firebase-admin'
-import { loadFeed, type ActivityEvent } from './activity-query'
+import { FEED_KINDS, loadFeed, type ActivityEvent } from './activity-query'
 
 // ── THE OWNER DASHBOARD'S READ LAYER (v1.23, D24 + D29). ────────────────────────────────────
 //
@@ -207,7 +207,9 @@ export async function loadOwnerDashboard(
       new FirestoreOperationsRepository(db).listClosures(ctx),
       new FirestoreFinanceRepository(db).listOpenSales(ctx),
       new FirestoreFinanceRepository(db).listDrawers(ctx),
-      loadFeed(ctx, {}),
+      // The dashboard's live feed is a business glance, not the audit log: reservations, check-ins,
+      // payments, memberships and member notifications — no 'system' plumbing (PF-31).
+      loadFeed(ctx, { kinds: FEED_KINDS }),
     ])
 
   const today = daily ?? emptyDaily(date)

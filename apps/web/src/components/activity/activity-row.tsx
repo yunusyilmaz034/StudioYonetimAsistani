@@ -4,6 +4,7 @@ import Link from 'next/link'
 import {
   ArrowRightLeftIcon,
   BanIcon,
+  BellIcon,
   CalendarIcon,
   CoinsIcon,
   CreditCardIcon,
@@ -34,6 +35,7 @@ const ICON: Record<ActivityKind, LucideIcon> = {
   payment: CreditCardIcon,
   credit: CoinsIcon,
   checkin: LogInIcon,
+  notification: BellIcon,
   operation: LayersIcon,
   schedule: ArrowRightLeftIcon,
   system: SettingsIcon,
