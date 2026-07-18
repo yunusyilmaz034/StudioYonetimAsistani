@@ -37,6 +37,14 @@ import { ExerciseGuideDialog } from '@/components/exercise-guide-dialog'
 import { MeasurementChart } from '@/components/training/measurement-chart'
 import { domainErrorMessage } from '@/lib/domain-error'
 import { PHOTO_ANGLE_LABEL, PROGRAM_STATUS_LABEL, PROGRAM_STATUS_TONE } from '@/lib/training-labels'
+import {
+  buildProgram,
+  focusLabel,
+  PROGRAM_FOCUSES,
+  toPublishDays,
+  type BuiltProgram,
+  type ProgramFocus,
+} from '@/lib/training/program-builder'
 import { PhotoStorageUnconfiguredError, progressUploadConfigured, uploadProgressPhoto } from '@/lib/photo-upload'
 import {
   addProgressPhotoAction,
@@ -226,6 +234,15 @@ function ProgramsSection({ memberId }: { memberId: string }) {
       {creating ? (
         <CreateProgramDialog
           memberId={memberId}
+          exercises={exercises}
+          // The exercises already in ANY of her programmes — so the smart builder proposes something new.
+          excludeExerciseIds={[
+            ...new Set(
+              (programs ?? []).flatMap((prog) =>
+                prog.versions.flatMap((v) => v.days.flatMap((day) => day.exercises.map((e) => e.exerciseId))),
+              ),
+            ),
+          ]}
           onClose={() => setCreating(false)}
           onCreated={async (id) => {
             setCreating(false)
@@ -327,32 +344,79 @@ function AssignTemplateDialog({
   )
 }
 
+// PF-35 — create a programme manually OR with the smart builder: pick a muscle focus, see a proposed
+// programme from OUR pool (avoiding the member's existing exercises), review it, and on accept it is
+// published, made the member's single active programme, and she is notified. The trainer can refine it
+// afterwards in the detail sheet. No LLM: a deterministic, pool-locked suggestion (owner's decision).
 function CreateProgramDialog({
   memberId,
+  exercises,
+  excludeExerciseIds,
   onClose,
   onCreated,
 }: {
   memberId: string
+  exercises: readonly Exercise[]
+  excludeExerciseIds: readonly string[]
   onClose: () => void
   onCreated: (programId: string) => void
 }) {
   const [title, setTitle] = useState('')
+  const [focus, setFocus] = useState<ProgramFocus | null>(null)
+  const [built, setBuilt] = useState<BuiltProgram | null>(null)
   const [busy, setBusy] = useState(false)
 
-  async function submit() {
-    if (title.trim().length === 0) {
-      toast.error('Program adı zorunludur.')
-      return
-    }
+  // Manual: create an empty programme and open the builder (the original flow).
+  async function createEmpty() {
+    if (title.trim().length === 0) return void toast.error('Program adı zorunludur.')
     setBusy(true)
     try {
       const res = await createProgramAction({ memberId, title: title.trim() })
-      if (res.ok) {
-        toast.success('Program oluşturuldu. Şimdi ilk sürümü yayınlayın.')
-        onCreated(res.value.id)
-      } else {
-        toast.error(domainErrorMessage(res.error))
+      if (res.ok) onCreated(res.value.id)
+      else toast.error(domainErrorMessage(res.error))
+    } catch {
+      toast.error('İşlem tamamlanamadı.')
+    }
+    setBusy(false)
+  }
+
+  // Smart: propose a programme for the chosen focus, then show it for review before committing.
+  function propose() {
+    if (!focus) return
+    const b = buildProgram({ exercises, focus, excludeExerciseIds })
+    if (b.exercises.length === 0) {
+      toast.error('Bu odağa uygun egzersiz havuzda bulunamadı. Elle oluşturmayı deneyin.')
+      return
+    }
+    setBuilt(b)
+  }
+
+  // Accept: create → publish the proposed version → make it the single active programme (retiring
+  // others) → the member is notified by program.version_published.
+  async function accept() {
+    if (!built) return
+    setBusy(true)
+    try {
+      const created = await createProgramAction({ memberId, title: title.trim() || built.title })
+      if (!created.ok) {
+        toast.error(domainErrorMessage(created.error))
+        setBusy(false)
+        return
       }
+      const programId = created.value.id
+      const pub = await publishProgramVersionAction({
+        programId,
+        days: toPublishDays(built),
+        note: `${focusLabel(built.focus)} — akıllı öneri`,
+      })
+      if (pub && 'ok' in pub && !pub.ok) {
+        toast.error(domainErrorMessage(pub.error))
+        setBusy(false)
+        return
+      }
+      await setActiveProgramAction({ memberId, programId })
+      toast.success('Program oluşturuldu, aktif edildi ve üyeye bildirildi.')
+      onCreated(programId)
     } catch {
       toast.error('İşlem tamamlanamadı.')
     }
@@ -362,19 +426,81 @@ function CreateProgramDialog({
   return (
     <Dialog open onOpenChange={(o) => (o ? null : onClose())}>
       <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Program Oluştur</DialogTitle>
-          <DialogDescription>Adını verin; içeriği sürüm yayınlayarak eklersiniz.</DialogDescription>
-        </DialogHeader>
-        <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="ör. Başlangıç — 3 gün" />
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={busy}>
-            Vazgeç
-          </Button>
-          <Button onClick={() => void submit()} disabled={busy}>
-            {busy ? <Loader2Icon className="animate-spin" /> : null} Oluştur
-          </Button>
-        </DialogFooter>
+        {built === null ? (
+          <>
+            <DialogHeader>
+              <DialogTitle>Program Oluştur</DialogTitle>
+              <DialogDescription>Elle oluşturun ya da bir odak seçip akıllı öneri alın.</DialogDescription>
+            </DialogHeader>
+            <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Program adı (ör. Başlangıç)" />
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-foreground">Akıllı öneri — ne ağırlıklı?</p>
+              <div className="flex flex-wrap gap-2">
+                {PROGRAM_FOCUSES.map((f) => (
+                  <button
+                    key={f.id}
+                    type="button"
+                    onClick={() => setFocus((cur) => (cur === f.id ? null : f.id))}
+                    className={`min-h-9 rounded-full border px-3 text-xs transition-colors ${
+                      focus === f.id
+                        ? 'border-primary bg-primary-soft font-medium text-primary'
+                        : 'border-border text-muted-foreground hover:bg-muted'
+                    }`}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Bir odak seçerseniz havuzdan uygun hareketlerle bir program önerilir; onaylamadan önce görürsünüz.
+              </p>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={onClose} disabled={busy}>
+                Vazgeç
+              </Button>
+              {focus ? (
+                <Button onClick={propose} disabled={busy}>
+                  Öneri Getir
+                </Button>
+              ) : (
+                <Button onClick={() => void createEmpty()} disabled={busy}>
+                  {busy ? <Loader2Icon className="animate-spin" /> : null} Boş Oluştur
+                </Button>
+              )}
+            </DialogFooter>
+          </>
+        ) : (
+          <>
+            <DialogHeader>
+              <DialogTitle>{focusLabel(built.focus)} Programı — Öneri</DialogTitle>
+              <DialogDescription>
+                {built.exercises.length} hareket. Kabul edince aktif olur ve üyeye bildirilir; sonra düzenleyebilirsiniz.
+              </DialogDescription>
+            </DialogHeader>
+            <ul className="max-h-72 space-y-1 overflow-y-auto">
+              {built.exercises.map((e, i) => (
+                <li key={e.exerciseId} className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2 text-sm">
+                  <span className="min-w-0 truncate">
+                    <span className="mr-2 text-muted-foreground tabular-nums">{i + 1}.</span>
+                    {e.nameTr}
+                  </span>
+                  <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                    {e.sets}×{e.reps} · {e.restSeconds}sn
+                  </span>
+                </li>
+              ))}
+            </ul>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setBuilt(null)} disabled={busy}>
+                Geri
+              </Button>
+              <Button onClick={() => void accept()} disabled={busy}>
+                {busy ? <Loader2Icon className="animate-spin" /> : null} Kabul Et ve Aktif Yap
+              </Button>
+            </DialogFooter>
+          </>
+        )}
       </DialogContent>
     </Dialog>
   )
