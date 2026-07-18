@@ -42,6 +42,7 @@ import {
   addProgressPhotoAction,
   assignTemplateAction,
   changeProgramStatusAction,
+  setActiveProgramAction,
   correctMeasurementAction,
   createProgramAction,
   listExercisesAction,
@@ -139,6 +140,25 @@ function ProgramsSection({ memberId }: { memberId: string }) {
 
   const open = programs?.find((p) => p.id === openId) ?? null
 
+  // PF-34 — active programme first, then passive (draft), then completed/archived; newest within a band.
+  const STATUS_ORDER: Record<Program['status'], number> = { active: 0, draft: 1, completed: 2, archived: 3 }
+  const ordered = programs
+    ? [...programs].sort((a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status] || b.updatedAt - a.updatedAt)
+    : null
+
+  // Activate one programme (retiring any active sibling) or set the active one back to passive.
+  async function toggleActive(programId: string, makeActive: boolean) {
+    const res = makeActive
+      ? await setActiveProgramAction({ memberId, programId })
+      : await changeProgramStatusAction({ programId, to: 'draft' })
+    if (res && 'ok' in res && !res.ok) {
+      toast.error(domainErrorMessage(res.error))
+      return
+    }
+    toast.success(makeActive ? 'Program aktif edildi.' : 'Program pasife alındı.')
+    await reload()
+  }
+
   return (
     <Section
       title="Programlar"
@@ -166,23 +186,40 @@ function ProgramsSection({ memberId }: { memberId: string }) {
         />
       ) : (
         <ul className="space-y-2">
-          {programs.map((p) => (
-            <li key={p.id}>
-              <button
-                type="button"
-                onClick={() => setOpenId(p.id)}
-                className="flex w-full items-center justify-between gap-3 rounded-xl border border-border bg-card p-3 text-left shadow-xs transition-colors hover:bg-muted/50"
-              >
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-foreground">{p.title}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {p.currentVersion > 0 ? `v${p.currentVersion} · ${p.versions.length} sürüm` : 'Henüz sürüm yayınlanmadı'}
-                  </p>
+          {(ordered ?? []).map((p) => {
+            const isActive = p.status === 'active'
+            const canActivate = p.status === 'draft' || p.status === 'completed' // archived is terminal
+            return (
+              <li key={p.id}>
+                <div
+                  className={`flex items-center justify-between gap-3 rounded-xl border p-3 shadow-xs transition-colors ${
+                    isActive ? 'border-primary/50 bg-primary-soft/20' : 'border-border bg-card'
+                  }`}
+                >
+                  <button type="button" onClick={() => setOpenId(p.id)} className="flex min-w-0 flex-1 items-center text-left">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-foreground">{p.title}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {p.currentVersion > 0 ? `v${p.currentVersion} · ${p.versions.length} sürüm` : 'Henüz sürüm yayınlanmadı'}
+                      </p>
+                    </div>
+                  </button>
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    <Badge className={PROGRAM_STATUS_TONE[p.status]}>{PROGRAM_STATUS_LABEL[p.status]}</Badge>
+                    {isActive ? (
+                      <Button size="sm" variant="outline" onClick={() => void toggleActive(p.id, false)}>
+                        Pasife Al
+                      </Button>
+                    ) : canActivate ? (
+                      <Button size="sm" variant="secondary" onClick={() => void toggleActive(p.id, true)}>
+                        Aktif Yap
+                      </Button>
+                    ) : null}
+                  </div>
                 </div>
-                <Badge className={PROGRAM_STATUS_TONE[p.status]}>{PROGRAM_STATUS_LABEL[p.status]}</Badge>
-              </button>
-            </li>
-          ))}
+              </li>
+            )
+          })}
         </ul>
       )}
 

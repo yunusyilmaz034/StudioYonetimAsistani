@@ -211,6 +211,28 @@ export async function getProgramAction(input: unknown) {
   return program
 }
 
+// PF-34 — make ONE programme the member's active one. A member follows a single programme at a time, so
+// activating a new one RETIRES any currently-active sibling to 'draft' (the reversible passive state —
+// 'archived' is terminal and never used here). This is also what PF-35's AI builder leans on ("aktif yap,
+// varsa eskileri pasife al").
+export async function setActiveProgramAction(input: unknown) {
+  const p = z.object({ memberId: z.string().min(1), programId: z.string().min(1) }).parse(input)
+  const ctx = await requireTenantContext(TRAINER)
+  const target = await repo().getProgram(ctx, p.programId)
+  if (!target) return { ok: false as const, error: { code: 'note_required' as const } }
+  assertTrainerOwns(ctx, target.trainerId)
+
+  const a = actorRef(ctx)
+  const siblings = await repo().listProgramsByMember(ctx, p.memberId)
+  for (const prog of siblings) {
+    // Only retire ACTIVE siblings the actor may touch (a trainer edits only her own; owner/admin all).
+    if (prog.id === p.programId || prog.status !== 'active') continue
+    if (a.type === 'trainer' && prog.trainerId !== a.id) continue
+    await changeProgramStatus(trainingDeps(), ctx, prog.id, 'draft', STAFF_SOURCE)
+  }
+  return changeProgramStatus(trainingDeps(), ctx, p.programId, 'active', STAFF_SOURCE)
+}
+
 export async function listMemberProgramsAction(input: unknown) {
   const p = z.object({ memberId: z.string().min(1) }).parse(input)
   const ctx = await requireTenantContext(TRAINER)
