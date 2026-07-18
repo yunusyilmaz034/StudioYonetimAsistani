@@ -61,7 +61,10 @@ service cloud.firestore {
           'events', 'commands',
           'payrollStatements', 'compensationPlans', 'payrollAdjustments',
           'measurements', 'progressPhotos', 'programs', 'trainingFeedback',
-          'paymentIntents'
+          'paymentIntents',
+          // PF-37 — payment links + unattributed PAYTR collections (buyer PII). Server-only; the
+          // staff app reads them through Server Actions on the Admin SDK, never the client SDK.
+          'paytrLinks', 'paytrCollections'
         ];
       }
 
