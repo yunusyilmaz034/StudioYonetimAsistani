@@ -10,33 +10,38 @@ import { EXERCISE_MUSCLES } from '@/lib/exercise-muscles'
 //
 // Muscle data lives in the web layer (`EXERCISE_MUSCLES`, keyed by nameTr), so the builder lives here.
 
-export type ProgramFocus = 'sirt' | 'karin' | 'gogus' | 'kalca' | 'zayiflama'
+export type ProgramFocus = 'karin' | 'kalca' | 'sirt' | 'gogus' | 'kol' | 'omuz' | 'bacak'
 
 export const PROGRAM_FOCUSES: readonly { readonly id: ProgramFocus; readonly label: string }[] = [
-  { id: 'sirt', label: 'Sırt' },
-  { id: 'gogus', label: 'Göğüs' },
   { id: 'karin', label: 'Karın' },
   { id: 'kalca', label: 'Kalça' },
-  { id: 'zayiflama', label: 'Zayıflama' },
+  { id: 'sirt', label: 'Sırt' },
+  { id: 'gogus', label: 'Göğüs' },
+  { id: 'kol', label: 'Kol' },
+  { id: 'omuz', label: 'Omuz' },
+  { id: 'bacak', label: 'Bacak' },
 ]
 
 // Focus → the muscles a matching exercise should hit (values from the body-highlighter map).
 const FOCUS_MUSCLES: Record<ProgramFocus, readonly Muscle[]> = {
-  sirt: ['upper-back', 'lower-back', 'trapezius'],
-  gogus: ['chest'],
   karin: ['abs'],
   kalca: ['gluteal', 'abductors', 'adductor', 'hamstring'],
-  // Fat-loss leans on the big movers (more calories) plus core.
-  zayiflama: ['quadriceps', 'gluteal', 'hamstring', 'chest', 'upper-back', 'abs'],
+  sirt: ['upper-back', 'lower-back', 'trapezius'],
+  gogus: ['chest'],
+  kol: ['biceps', 'triceps', 'forearm'],
+  omuz: ['front-deltoids', 'trapezius'],
+  bacak: ['quadriceps', 'hamstring', 'calves', 'gluteal'],
 }
 
 // A sensible starting prescription per focus. The trainer adjusts anything on review.
 const FOCUS_RX: Record<ProgramFocus, { readonly sets: number; readonly reps: string; readonly rest: number; readonly count: number }> = {
-  sirt: { sets: 3, reps: '10-12', rest: 60, count: 6 },
-  gogus: { sets: 3, reps: '10-12', rest: 60, count: 6 },
   karin: { sets: 3, reps: '15', rest: 45, count: 6 },
   kalca: { sets: 3, reps: '12-15', rest: 60, count: 6 },
-  zayiflama: { sets: 3, reps: '15-20', rest: 30, count: 8 },
+  sirt: { sets: 3, reps: '10-12', rest: 60, count: 6 },
+  gogus: { sets: 3, reps: '10-12', rest: 60, count: 6 },
+  kol: { sets: 3, reps: '12-15', rest: 45, count: 5 },
+  omuz: { sets: 3, reps: '12-15', rest: 45, count: 5 },
+  bacak: { sets: 3, reps: '12', rest: 60, count: 6 },
 }
 
 export const focusLabel = (f: ProgramFocus): string => PROGRAM_FOCUSES.find((x) => x.id === f)?.label ?? f
