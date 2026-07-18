@@ -395,3 +395,19 @@ yoksa KIRMIZI.** Check-in olayını resepsiyon ekranına anlık düşürmek gere
 **QR yönü kararı (PF-27 ek):** owner scanner (Q22) ile çözecek → **mevcut yön korunur, ters çevrilmez.**
 
 **SIRA (owner onaylı):** PF-28/33/31 (hızlı) → PF-36 + PF-32 → PF-34 → PF-29 → PF-35 (AI) → PF-30 (düşük).
+
+---
+
+## PF-37 — Instagram/herkese açık "paketi doğrudan satın al" linki (taksitli) · 💡 fikir/feature
+
+**Taken:** 2026-07-18 · owner ("Instagram'a 'Fitness 3 aylık 9bin TL 3 taksit', '6 aylık 14bin 3 taksit' diye
+link koyabilir miyim?").
+**Taksit (ön koşul):** PAYTR taksit DESTEKLİYOR, bizde `maxInstallments: 3` ayarı zaten var → ödeme ekranında
+taksit çıkar. AMA owner'ın **PAYTR/banka anlaşmasında taksit AKTİF olmalı** (+ taksit banka komisyonu stüdyoya
+biner). Owner PAYTR'a "hesabımda taksit açık mı, 3'e kadar" diye sormalı.
+**Özellik:** Şu an ödeme linkleri resepsiyonun bir ÜYEYE kestiği satışa bağlı. Instagram için **herkese açık,
+üye gerektirmeyen** link lazım: public sayfa (paket + fiyat + "Taksitle Öde") → alıcı ad+telefon girer → PAYTR
+taksitli link → öder → **callback telefondan üyeyi bulur ya da YENİ üye oluşturur + paketi tanımlar + ödemeyi
+kaydeder** (mevcut PAYTR grant mantığı + member create/phone-uniqueness). Instagram → self-servis satın alma →
+yeni üye (funnel/büyüme). Mimari: public route (login yok), rate-limit/captcha (PF-29 hook'u), callback'te
+member upsert. Orta boy feature.
