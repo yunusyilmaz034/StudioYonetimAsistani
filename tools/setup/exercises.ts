@@ -34,6 +34,7 @@ const EXERCISES: readonly { nameTr: string; muscleGroup: string; equipment: stri
   { nameTr: 'Incline Chest Press', muscleGroup: 'Göğüs', equipment: 'Makine' },
   { nameTr: 'Chest Press (Düz)', muscleGroup: 'Göğüs', equipment: 'Makine' },
   { nameTr: 'Pec Fly (Peck Deck)', muscleGroup: 'Göğüs', equipment: 'Makine' },
+  { nameTr: 'Cable Crossover', muscleGroup: 'Göğüs', equipment: 'Kablo' },
   // Omuz
   { nameTr: 'Shoulder Press', muscleGroup: 'Omuz', equipment: 'Makine' },
   { nameTr: 'Lateral Raise', muscleGroup: 'Omuz', equipment: 'Serbest Ağırlık' },
@@ -48,6 +49,7 @@ const EXERCISES: readonly { nameTr: string; muscleGroup: string; equipment: stri
   { nameTr: 'Lat Pulldown', muscleGroup: 'Sırt', equipment: 'Makine' },
   { nameTr: 'Seated Cable Row', muscleGroup: 'Sırt', equipment: 'Kablo' },
   { nameTr: 'Single Arm Row', muscleGroup: 'Sırt', equipment: 'Kablo' },
+  { nameTr: 'Straight-Arm Pulldown', muscleGroup: 'Sırt', equipment: 'Kablo' },
   // Kalça
   { nameTr: 'Hip Thrust', muscleGroup: 'Kalça', equipment: 'Makine' },
   { nameTr: 'Cable Glute Kickback', muscleGroup: 'Kalça', equipment: 'Kablo' },

@@ -22,47 +22,51 @@ const BRANCH = process.argv[3] ?? 'mutlukent'
 
 const yt = (id: string) => `https://www.youtube.com/watch?v=${id}`
 
-// nameTr → demonstration video. Best-effort, owner-reviewed candidates (2026-07-16).
+// nameTr → demonstration video. `⭐` = owner-supplied (Işıl chose these; mostly the "demicstory"
+// channel's clean form shorts, 2026-07-19). The rest are earlier best-effort candidates the owner may
+// still swap from the panel. A shorts id works fine at watch?v= too, so `yt()` is used uniformly.
 const VIDEOS: Readonly<Record<string, string>> = {
   'Incline Chest Press': yt('LiDArz1R2NU'),
   'Chest Press (Düz)': yt('rY0B8UFdne0'),
-  'Pec Fly (Peck Deck)': yt('H4mVGHaK2f4'),
+  'Pec Fly (Peck Deck)': yt('OdEwN1Ma3OQ'), // ⭐ owner
+  'Cable Crossover': yt('hxveCzwK3p4'), // ⭐ owner (cable cross / chest fly)
   'Shoulder Press': yt('BAZkFGeUy5U'),
   'Lateral Raise': yt('Y29xKcze8Ik'),
   'Front Raise': yt('CH9JzDStL3U'),
-  'Face Pull': yt('0Po47vvj9g4'),
-  'Triceps Pushdown (V-Bar)': yt('odbyvJm7d8s'),
+  'Face Pull': yt('bfCAUl1gWmE'), // ⭐ owner (rear delt)
+  'Triceps Pushdown (V-Bar)': yt('Up8QOILH_Ms'), // ⭐ owner (cable push down)
   'Triceps Pushdown (Halat)': yt('qHDrQglWgS4'),
   'Dumbbell Biceps Curl': yt('6DeLZ6cbgWQ'),
   'Hammer Curl': yt('8XLxfXROrTo'),
-  'Lat Pulldown': yt('AOpi-p0cJkc'),
-  'Seated Cable Row': yt('7BkgqzC6WsM'),
-  'Single Arm Row': yt('CrylzZHfO1c'),
-  'Hip Thrust': yt('S_uZP4UH6J0'),
-  'Cable Glute Kickback': yt('5jJNfIlKTmg'),
-  'Reverse Hack Squat': yt('autJdK0Fk-Y'),
+  'Lat Pulldown': yt('xJad-PjfyBE'), // ⭐ owner
+  'Seated Cable Row': yt('HpgTMXSo-WQ'), // ⭐ owner
+  'Single Arm Row': yt('QelgBRgIsjY'), // ⭐ owner (low cable bent-over row)
+  'Straight-Arm Pulldown': yt('q3UbvOJu1JI'), // ⭐ owner (lat pushdown / cable pullover)
+  'Hip Thrust': yt('I_neK5C5WA0'), // ⭐ owner
+  'Cable Glute Kickback': yt('8Ir5yQ-T4po'), // ⭐ owner
+  'Reverse Hack Squat': yt('YobwFd06p2k'), // ⭐ owner
   'Glute Bridge (Kalça Köprüsü)': yt('0od5lwWMGV8'),
   'Frog Pump': yt('rgljhH1X4vc'),
   'Cable Pull Through': yt('yXopOhzEoeo'),
   'Cable Abduction (Ayakta)': yt('bGlm-qTnfTI'),
-  'Leg Press': yt('K5n2vg3oZa4'),
-  'Leg Extension': yt('4zOky6-n78I'),
-  'Hack Squat': yt('hglQExHCM9Q'),
-  'Smith Machine Squat': yt('DUWK_gKcRCc'),
+  'Leg Press': yt('LTrVoFr5Sb0'), // ⭐ owner
+  'Leg Extension': yt('-Ms11gRaCy0'), // ⭐ owner
+  'Hack Squat': yt('-6KOCaoPA08'), // ⭐ owner
+  'Smith Machine Squat': yt('RBCPr1PqMYY'), // ⭐ owner
   'Sumo Squat': yt('pcY33kEoKZ4'),
   'Goblet Squat': yt('JO7D6GJ98wY'),
   'Bulgarian Split Squat': yt('VPhhE6bBzZE'),
   'Yürüyen Lunge': yt('_DLIS8SySzs'),
   'Step Up': yt('aKj-6hgiViA'),
-  'Leg Curl (Yatarak)': yt('3gZm9wGTsEo'),
+  'Leg Curl (Yatarak)': yt('ykKkuaeMhTk'), // ⭐ owner (horizontal leg curl)
   'Seated Leg Curl': yt('t9sTSr-JYSs'),
   'Deadlift': yt('ntr64W6ZWB0'),
   'Romanian Deadlift (RDL)': yt('aa57T45iFSE'),
   'Good Morning': yt('nWyx81AfTos'),
-  'Adductor (İç Bacak)': yt('MLBm7i341Rw'),
-  'Abductor (Dış Kalça)': yt('OjI5OpV6IWA'),
+  'Adductor (İç Bacak)': yt('b9zDd7EgYgk'), // ⭐ owner
+  'Abductor (Dış Kalça)': yt('b9zDd7EgYgk'), // ⭐ owner (same clip as adductor, per owner)
   'Calf Raise (Baldır)': yt('GAQ-oohMhog'),
-  Hyperextension: yt('CgbmrF-DRSE'),
+  Hyperextension: yt('V7HN6K9D3xY'), // ⭐ owner
   Crunch: yt('0t4t3IpiEao'),
   'Cable Crunch': yt('aBd6T01PBqw'),
   'Leg Raise (Bacak Kaldırma)': yt('sY2ZgV2Sj_s'),
