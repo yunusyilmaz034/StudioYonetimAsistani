@@ -209,17 +209,18 @@ export function MemberWorkspaceScreen({
       {/* Section nav — the house Tabs (DS v2): desktop tabs, the same control as the mobile
           section switcher (UX-1). */}
       <Tabs value={active} onValueChange={(v) => setActive(v as SectionId)}>
-        {/* One row that scrolls — never two rows (PF-10). `w-fit` shrinks the strip to its content, so on a
-            wide screen every tab shows in full; only when the tabs genuinely exceed the width does it cap at
-            `max-w-full` and scroll. No permanent right-edge fade — that read as a half-cut last tab even when
-            everything fit (owner). Mobile shows icons only (label `hidden sm:inline`). */}
-        <TabsList className="w-fit max-w-full overflow-x-auto scroll-smooth whitespace-nowrap [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {/* One row, ALL tabs, always aligned — never scrolled, never a cut last tab (PF-10, owner asked
+            repeatedly). The strip is full-width and the nine tabs share it equally (`flex-1` + `min-w-0`),
+            so they fit edge-to-edge on any width instead of overflowing. On a wide screen every label shows
+            in full; when a width is too narrow for a label it truncates rather than pushing a tab off-screen.
+            Below `sm` it is icons only (label `hidden sm:inline`), which always fits. */}
+        <TabsList className="flex w-full">
           {SECTIONS.map((sec) => {
             const Icon = sec.icon
             return (
-              <TabsTrigger key={sec.id} value={sec.id} className="min-h-9 shrink-0">
-                <Icon className="size-4" />
-                <span className="hidden sm:inline">{sec.label}</span>
+              <TabsTrigger key={sec.id} value={sec.id} className="min-h-9 min-w-0 px-1.5 sm:px-2.5">
+                <Icon className="size-4 shrink-0" />
+                <span className="hidden truncate sm:inline">{sec.label}</span>
               </TabsTrigger>
             )
           })}
