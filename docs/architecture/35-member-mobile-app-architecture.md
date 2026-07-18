@@ -131,9 +131,9 @@ None of these block M1 development (Expo runs on a simulator/Expo Go and via EAS
 
 ---
 
-## 12. Open questions for the owner
+## 12. Owner decisions (resolved 2026-07-19)
 
-- **OQ-M1 — App store timing.** Ship to the stores at the end of **M1** (bookings + QR, no push) so members install early, or hold until **M2** (with push) so the first store impression includes notifications? *(Recommendation: TestFlight/internal-track at end of M1, public store listing at end of M2.)*
-- **OQ-M2 — Login parity.** Keep phone + password (identical to the web portal), or add a "magic link / OTP by SMS" convenience for mobile? *(Recommendation: phone + password for v1 — reuses everything, no new SMS cost; revisit OTP after WhatsApp go-live gives us a message channel.)*
+- **OQ-M1 — App store timing → RESOLVED.** TestFlight / Play internal track at the end of **M1**; public store listing at the end of **M2** (so the first public impression includes push). M1 development needs no store account.
+- **OQ-M2 — Login → RESOLVED.** **Phone + password, identical to the web portal.** No new SMS/OTP infrastructure in v1; reuses the existing Firebase Auth flow verbatim. OTP may be revisited after WhatsApp go-live provides a message channel.
 
-Everything else in this document is an architect decision and needs no owner sign-off to proceed.
+Everything else in this document is an architect decision and needs no owner sign-off to proceed. **The plan is locked; M1 implementation is the next milestone.**
