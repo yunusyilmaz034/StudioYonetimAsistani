@@ -27,17 +27,17 @@ const yt = (id: string) => `https://www.youtube.com/watch?v=${id}`
 // still swap from the panel. A shorts id works fine at watch?v= too, so `yt()` is used uniformly.
 const VIDEOS: Readonly<Record<string, string>> = {
   'Incline Chest Press': yt('LiDArz1R2NU'),
-  'Chest Press (Düz)': yt('rY0B8UFdne0'),
+  'Chest Press (Düz)': yt('NHDb8seHMUE'), // demicstory (part-2)
   'Pec Fly (Peck Deck)': yt('OdEwN1Ma3OQ'), // ⭐ owner
   'Cable Crossover': yt('hxveCzwK3p4'), // ⭐ owner (cable cross / chest fly)
-  'Shoulder Press': yt('BAZkFGeUy5U'),
-  'Lateral Raise': yt('Y29xKcze8Ik'),
+  'Shoulder Press': yt('Ybadtxf61Sk'), // demicstory (part-2)
+  'Lateral Raise': yt('N7z24ERl3Cg'), // demicstory (part-2)
   'Front Raise': yt('CH9JzDStL3U'),
   'Face Pull': yt('bfCAUl1gWmE'), // ⭐ owner (rear delt)
   'Triceps Pushdown (V-Bar)': yt('Up8QOILH_Ms'), // ⭐ owner (cable push down)
-  'Triceps Pushdown (Halat)': yt('qHDrQglWgS4'),
-  'Dumbbell Biceps Curl': yt('6DeLZ6cbgWQ'),
-  'Hammer Curl': yt('8XLxfXROrTo'),
+  'Triceps Pushdown (Halat)': yt('YrJI0Q3qpkU'), // demicstory (part-2)
+  'Dumbbell Biceps Curl': yt('ImRGmmJiA24'), // demicstory (part-2)
+  'Hammer Curl': yt('gOj7RHKyRfg'), // demicstory (part-2)
   'Lat Pulldown': yt('xJad-PjfyBE'), // ⭐ owner
   'Seated Cable Row': yt('HpgTMXSo-WQ'), // ⭐ owner
   'Single Arm Row': yt('QelgBRgIsjY'), // ⭐ owner (low cable bent-over row)
@@ -53,26 +53,26 @@ const VIDEOS: Readonly<Record<string, string>> = {
   'Leg Extension': yt('-Ms11gRaCy0'), // ⭐ owner
   'Hack Squat': yt('-6KOCaoPA08'), // ⭐ owner
   'Smith Machine Squat': yt('RBCPr1PqMYY'), // ⭐ owner
-  'Sumo Squat': yt('pcY33kEoKZ4'),
-  'Goblet Squat': yt('JO7D6GJ98wY'),
+  'Sumo Squat': yt('DWjT_JviX90'), // demicstory (part-2)
+  'Goblet Squat': yt('doEjvIjY0Gc'), // demicstory (part-2)
   'Bulgarian Split Squat': yt('VPhhE6bBzZE'),
-  'Yürüyen Lunge': yt('_DLIS8SySzs'),
+  'Yürüyen Lunge': yt('haWZrtxQjBI'), // demicstory (part-2)
   'Step Up': yt('aKj-6hgiViA'),
   'Leg Curl (Yatarak)': yt('ykKkuaeMhTk'), // ⭐ owner (horizontal leg curl)
   'Seated Leg Curl': yt('t9sTSr-JYSs'),
-  'Deadlift': yt('ntr64W6ZWB0'),
-  'Romanian Deadlift (RDL)': yt('aa57T45iFSE'),
+  'Deadlift': yt('hbF3IBPEDZs'), // demicstory (part-2)
+  'Romanian Deadlift (RDL)': yt('Zz-85L5J2RE'), // demicstory (part-2)
   'Good Morning': yt('nWyx81AfTos'),
   'Adductor (İç Bacak)': yt('b9zDd7EgYgk'), // ⭐ owner
   'Abductor (Dış Kalça)': yt('b9zDd7EgYgk'), // ⭐ owner (same clip as adductor, per owner)
-  'Calf Raise (Baldır)': yt('GAQ-oohMhog'),
+  'Calf Raise (Baldır)': yt('xDE0c_0n-jg'), // demicstory (part-2)
   Hyperextension: yt('V7HN6K9D3xY'), // ⭐ owner
-  Crunch: yt('0t4t3IpiEao'),
+  Crunch: yt('tUkZrBn-Ddk'), // demicstory (part-2)
   'Cable Crunch': yt('aBd6T01PBqw'),
   'Leg Raise (Bacak Kaldırma)': yt('sY2ZgV2Sj_s'),
   'Russian Twist': yt('IJDOoVyVjhc'),
   'Cable Woodchopper': yt('he4IhLc1d5k'),
-  Plank: yt('mwlp75MS6Rg'),
+  Plank: yt('VhMB7EFkJMc'), // demicstory (part-2)
 }
 
 async function main(): Promise<void> {
