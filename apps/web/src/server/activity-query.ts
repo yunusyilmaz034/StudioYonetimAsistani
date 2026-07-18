@@ -215,17 +215,15 @@ const visibleKinds = (ctx: TenantContext): readonly ActivityKind[] =>
     ? ['reservation', 'membership', 'payment', 'credit', 'checkin', 'feedback', 'notification', 'operation', 'schedule', 'system']
     : RECEPTION_KINDS
 
-// The DASHBOARD live feed (the hover menu) — a quick glance at what is HAPPENING in the business, not
-// the audit log. Owner (2026-07-18): reservation actions (create/change/cancel), training FEEDBACK,
-// payments and check-ins — and explicitly NOT the "Bildirim gönderildi/iletildi" delivery events, which
-// are plumbing. So notification/schedule/operation/system all stay OFF the feed (the /activity audit
-// log still has them).
+// The DASHBOARD live feed (the hover menu) — a quick glance at what MEMBERS are DOING right now, not
+// the audit log. Owner (2026-07-18, tightened): exactly three things belong here — a member's
+// reservation actions, her QR check-in, and her training feedback. Nothing else: sales/collections
+// ("satış tahsil edildi"), membership edits, notifications, schedule, operations — all plumbing or
+// back-office, all OFF the feed. The /activity audit log still carries everything for the owner.
 export const FEED_KINDS: readonly ActivityKind[] = [
   'reservation',
-  'feedback',
-  'payment',
   'checkin',
-  'membership',
+  'feedback',
 ]
 
 // ── the name resolver ───────────────────────────────────────────────────────────────────────
