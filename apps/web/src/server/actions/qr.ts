@@ -53,11 +53,15 @@ async function qrTtlSeconds(ctx: TenantContext): Promise<number> {
 export async function mintCheckInTokenAction(input: unknown) {
   const p = z.object({ branchId: z.string().min(1) }).parse(input)
   const { ctx, memberId } = await requireMemberContext()
+  return mintCheckInToken(ctx, memberId, p.branchId)
+}
 
+// ctx-taking core, shared by the cookie Server Action and the Bearer member API (mobile app).
+export async function mintCheckInToken(ctx: TenantContext, memberId: MemberId, branchId: string) {
   const ttlSeconds = await qrTtlSeconds(ctx)
   const exp = Date.now() + ttlSeconds * 1000
   return {
-    token: signQrToken({ memberId, branchId: p.branchId, exp, jti: newJti() }, qrSigningSecret()),
+    token: signQrToken({ memberId, branchId, exp, jti: newJti() }, qrSigningSecret()),
     expiresAt: exp,
     ttlSeconds,
   }
@@ -115,6 +119,10 @@ export async function checkInByQrAction(input: unknown) {
 // The branch her QR is minted for. A member has no branch claim, so it comes from her record.
 export async function qrStudioBranchAction(): Promise<{ studioId: StudioId; branchId: string | null }> {
   const { ctx, memberId } = await requireMemberContext()
+  return qrStudioBranch(ctx, memberId)
+}
+
+export async function qrStudioBranch(ctx: TenantContext, memberId: MemberId): Promise<{ studioId: StudioId; branchId: string | null }> {
   const member = await new FirestoreMemberRepository(adminDb()).findById(ctx, memberId)
   return { studioId: ctx.studioId, branchId: member?.homeBranchId ?? null }
 }

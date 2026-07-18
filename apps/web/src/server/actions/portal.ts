@@ -16,8 +16,10 @@ import {
   updateMember,
   type ClassSessionId,
   type Email,
+  type MemberId,
   type PhoneE164,
   type ReservationId,
+  type TenantContext,
 } from '@studio/core'
 import { z } from 'zod'
 
@@ -44,10 +46,18 @@ const resDeps = () => ({
   hours: new FirestoreStudioHours(adminDb()),
 })
 
+// The write logic is extracted into ctx-taking core functions so BOTH the cookie-authed Server Action
+// (below) and the Bearer-token member API (`api/member/*`, the mobile app) run the exact same code —
+// the only difference is where the verified `{ ctx, memberId }` came from (D11 stays intact either way).
+
 // ── Book ──────────────────────────────────────────────────────────────────────────────────
 export async function bookOwnReservationAction(input: unknown) {
-  const p = z.object({ sessionId: z.string().min(1) }).parse(input)
   const { ctx, memberId } = await requireMemberContext()
+  return bookOwnReservation(ctx, memberId, input)
+}
+
+export async function bookOwnReservation(ctx: TenantContext, memberId: MemberId, input: unknown) {
+  const p = z.object({ sessionId: z.string().min(1) }).parse(input)
   const db = adminDb()
 
   const session = await new FirestoreSchedulingRepository(db).getSession(ctx, p.sessionId as ClassSessionId)
@@ -80,8 +90,12 @@ export async function bookOwnReservationAction(input: unknown) {
 
 // ── Cancel ────────────────────────────────────────────────────────────────────────────────
 export async function cancelOwnReservationAction(input: unknown) {
-  const p = z.object({ reservationId: z.string().min(1) }).parse(input)
   const { ctx, memberId } = await requireMemberContext()
+  return cancelOwnReservation(ctx, memberId, input)
+}
+
+export async function cancelOwnReservation(ctx: TenantContext, memberId: MemberId, input: unknown) {
+  const p = z.object({ reservationId: z.string().min(1) }).parse(input)
 
   const repo = new FirestoreReservationRepository(adminDb())
   const reservation = await repo.getReservation(ctx, p.reservationId as ReservationId)
@@ -107,6 +121,15 @@ export async function cancelOwnReservationAction(input: unknown) {
 export async function updateOwnProfileAction(
   input: unknown,
 ): Promise<{ ok: true; value: void } | { ok: false; error: DomainError }> {
+  const { ctx, memberId } = await requireMemberContext()
+  return updateOwnProfile(ctx, memberId, input)
+}
+
+export async function updateOwnProfile(
+  ctx: TenantContext,
+  memberId: MemberId,
+  input: unknown,
+): Promise<{ ok: true; value: void } | { ok: false; error: DomainError }> {
   const p = z
     .object({
       email: z.string().email().nullable(),
@@ -115,7 +138,6 @@ export async function updateOwnProfileAction(
     })
     .parse(input)
 
-  const { ctx, memberId } = await requireMemberContext()
   const member = await new FirestoreMemberRepository(adminDb()).findById(ctx, memberId)
   if (!member) return { ok: false as const, error: { code: 'invite_invalid' as const } }
 
@@ -147,10 +169,14 @@ export async function updateOwnProfileAction(
 // Password change. Re-authentication happens on the CLIENT (she must prove she knows the
 // current one); this only writes the new password for the member the cookie names.
 export async function changeOwnPasswordAction(input: unknown) {
+  const { ctx, memberId } = await requireMemberContext()
+  return changeOwnPassword(ctx, memberId, input)
+}
+
+export async function changeOwnPassword(ctx: TenantContext, memberId: MemberId, input: unknown) {
   const p = z.object({ password: z.string() }).parse(input)
   if (p.password.length < 8) return { ok: false as const, error: { code: 'weak_password' as const } }
 
-  const { memberId, ctx } = await requireMemberContext()
   const member = await new FirestoreMemberRepository(adminDb()).findById(ctx, memberId)
   if (!member) return { ok: false as const, error: { code: 'invite_invalid' as const } }
 

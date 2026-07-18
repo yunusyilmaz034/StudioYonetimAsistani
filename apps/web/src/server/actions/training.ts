@@ -20,6 +20,7 @@ import {
   upsertExercise,
   upsertProgramTemplate,
   type TrainingDeps,
+  type MemberId,
   type TenantContext,
 } from '@studio/core'
 import { z } from 'zod'
@@ -292,6 +293,12 @@ export async function listMemberMeasurementsAction(input: unknown) {
 
 // ── Feedback ─────────────────────────────────────────────────────────────────────────────────
 export async function leaveFeedbackAction(input: unknown) {
+  const { ctx, memberId } = await requireMemberContext()
+  return leaveOwnFeedback(ctx, memberId, input)
+}
+
+// ctx-taking core, shared by the cookie Server Action and the Bearer member API (mobile app).
+export async function leaveOwnFeedback(ctx: TenantContext, memberId: MemberId, input: unknown) {
   const p = z
     .object({
       programId: z.string().min(1),
@@ -302,7 +309,6 @@ export async function leaveFeedbackAction(input: unknown) {
       message: z.string().trim().min(1),
     })
     .parse(input)
-  const { ctx, memberId } = await requireMemberContext()
   // A member leaves feedback only on HER OWN programme.
   const program = await repo().getProgram(ctx, p.programId)
   if (!program || program.memberId !== memberId) return { ok: false as const, error: { code: 'note_required' as const } }
@@ -409,6 +415,49 @@ export async function removeProgressPhotoAction(input: unknown) {
 }
 
 // ── Member portal reads (memberId ALWAYS from the verified session — never a parameter) ────────
+
+// Everything the training screen shows, in one ctx-taking call — shared by the cookie portal and the
+// Bearer member API (the mobile app). Photos carry short-lived signed URLs; the raw path never leaves.
+export async function loadMyTraining(ctx: TenantContext, memberId: MemberId) {
+  const [programs, exercises, measurements, feedback, photos] = await Promise.all([
+    repo().listProgramsByMember(ctx, memberId),
+    repo().listExercises(ctx),
+    repo().listMeasurementsByMember(ctx, memberId),
+    repo().listFeedbackByMember(ctx, memberId),
+    repo().listPhotosByMember(ctx, memberId),
+  ])
+  const used = new Set<string>()
+  for (const p of programs) for (const v of p.versions) for (const day of v.days) for (const e of day.exercises) used.add(e.exerciseId)
+  const guides: Record<string, ExerciseGuide> = {}
+  for (const ex of exercises) {
+    if (!used.has(ex.id)) continue
+    guides[ex.id] = {
+      nameTr: ex.nameTr,
+      muscleGroup: ex.muscleGroup,
+      equipment: ex.equipment,
+      description: ex.description,
+      tips: ex.tips,
+      commonMistakes: ex.commonMistakes,
+      videoUrl: ex.videoUrl,
+      photoUrl: ex.photoUrl,
+      gifUrl: ex.gifUrl,
+    }
+  }
+  const visiblePhotos = await Promise.all(
+    photos
+      .filter((photo) => photo.memberVisible)
+      .map(async (photo) => ({ id: photo.id, takenOn: photo.takenOn, angle: photo.angle, note: photo.note, url: await signedReadUrl(photo.storagePath) })),
+  )
+  return {
+    programs,
+    activeProgram: programs.find((p) => p.status === 'active') ?? null,
+    guides,
+    measurements,
+    feedback,
+    photos: visiblePhotos,
+  }
+}
+
 export async function listMyProgramsAction() {
   const { ctx, memberId } = await requireMemberContext()
   return repo().listProgramsByMember(ctx, memberId)

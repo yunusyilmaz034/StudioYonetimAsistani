@@ -17,7 +17,10 @@ import { SESSION_COOKIE_NAME } from '@/server/session-config'
 // opens it from WhatsApp to pay. Without this it bounced to /login, so the link showed the staff
 // sign-in screen to every customer and to WhatsApp's link-preview bot. The page reveals only a label
 // and amount (no PII) and the checkout action re-verifies the link is active.
-const PUBLIC_PREFIXES = ['/login', '/design-system', '/invite', '/portal/login', '/pay', '/api/payments/paytr/callback']
+// `/api/member/*` is the mobile app's API. It carries a Firebase ID token in an Authorization header,
+// not a `__session` cookie, and each handler verifies that token itself (see `member-api.ts`). "Public"
+// here means "reachable without the cookie gate" — the handler, not the middleware, does the auth.
+const PUBLIC_PREFIXES = ['/login', '/design-system', '/invite', '/portal/login', '/pay', '/api/member', '/api/payments/paytr/callback']
 
 function isPublic(pathname: string): boolean {
   return PUBLIC_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`))

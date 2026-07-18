@@ -73,6 +73,7 @@ module.exports = {
           'apps/functions/build.mjs', // the build script itself — it PRODUCES the graph, it is not in it
           'apps/web/src/app/', // Next.js App Router: framework entrypoints, found by convention
           'apps/web/src/components/ui/', // design-system foundations: exist ahead of their consumers (Doc 09 §10)
+          'packages/core/src/client.ts', // the @studio/core/client wire contract — consumed by apps/mobile, which is outside depcruise's scope
         ],
       },
       to: {},
