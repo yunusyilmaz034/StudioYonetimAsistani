@@ -24,6 +24,7 @@ When you wonder *"why is it like this?"*, the answer is here, numbered `AD-nn`, 
 | **12** | [Product UX Principles](./12-product-ux-principles.md) | **Binding product-level UX law** (UX-1…UX-8): Single Workspace, Mobile-First, Scheduling UX, Owner First — the rules every business module obeys |
 | **13** | [Entitlements & the Credit Ledger](./13-entitlements-credit-ledger.md) | The money core: entitlement aggregate, six-counter ledger, hold/consume/release/restore, admin adjustment, expiry |
 | **14** | [Reservations Engine](./14-reservations-engine.md) | Booking (I-9/I-10 transaction), cancellation, attendance, auto-resolution (AD-38), correction, `selectEntitlement` (I-17) |
+| **35** | [Member Mobile App Architecture](./35-member-mobile-app-architecture.md) | **The member native app: React Native + Expo (AD-68).** Auth bridge, thin member API, push infra, milestones. **Supersedes the "Phase 2 = Flutter" notes in docs 01/03/05** — the domain-stays-framework-free principle is unchanged; the client is now RN/Expo. |
 | — | [DEBT.md](../DEBT.md) | Deliberate debt, each with a trigger to repay |
 
 **Reading order for a new session:** `CLAUDE.md` → the module's own `README.md` → the doc that owns the thing you are changing.
