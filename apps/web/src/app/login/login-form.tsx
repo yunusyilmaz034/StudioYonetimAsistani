@@ -8,6 +8,7 @@ import { Loader2Icon } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { useMathCaptcha } from '@/components/math-captcha'
 import { clientAuth } from '@/lib/firebase-client'
 import { requestPasswordReset } from '@/server/actions/password-reset'
 import { createSession } from '@/server/actions/session'
@@ -19,6 +20,10 @@ export function LoginForm() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [resetSent, setResetSent] = useState(false)
+  // PF-29 — after the first failure, require a simple captcha before the next attempt.
+  const [attempts, setAttempts] = useState(0)
+  const captcha = useMathCaptcha()
+  const needsCaptcha = attempts >= 1
 
   // The answer is the same whether or not the address exists — see `requestPasswordReset`. The login
   // page must not become a way to find out who works here.
@@ -36,6 +41,10 @@ export function LoginForm() {
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (needsCaptcha && !captcha.solved) {
+      setError('Lütfen doğrulama sorusunu doğru yanıtlayın.')
+      return
+    }
     setLoading(true)
     setError(null)
     try {
@@ -45,6 +54,8 @@ export function LoginForm() {
       router.replace('/')
     } catch (err) {
       setError(toMessage(err))
+      setAttempts((a) => a + 1)
+      captcha.reset()
       setLoading(false)
     }
   }
@@ -80,6 +91,8 @@ export function LoginForm() {
         />
       </div>
 
+      {needsCaptcha ? captcha.node : null}
+
       {error ? (
         <p role="alert" className="text-sm text-danger">
           {error}
@@ -92,7 +105,7 @@ export function LoginForm() {
         </p>
       ) : null}
 
-      <Button type="submit" className="min-h-11 w-full" disabled={loading}>
+      <Button type="submit" className="min-h-11 w-full" disabled={loading || (needsCaptcha && !captcha.solved)}>
         {loading ? (
           <>
             <Loader2Icon className="animate-spin" />

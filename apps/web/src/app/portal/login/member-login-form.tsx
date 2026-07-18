@@ -8,6 +8,7 @@ import { Loader2Icon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { useMathCaptcha } from '@/components/math-captcha'
 import { clientAuth } from '@/lib/firebase-client'
 import { createSession } from '@/server/actions/session'
 import { memberLoginIdentifierAction, recordPortalLoginAction } from '@/server/actions/portal-auth'
@@ -24,8 +25,16 @@ export function MemberLoginForm() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  // PF-29 — a simple captcha appears after the first failed attempt.
+  const [attempts, setAttempts] = useState(0)
+  const captcha = useMathCaptcha()
+  const needsCaptcha = attempts >= 1
 
   async function submit() {
+    if (needsCaptcha && !captcha.solved) {
+      setError('Lütfen doğrulama sorusunu doğru yanıtlayın.')
+      return
+    }
     setBusy(true)
     setError(null)
     try {
@@ -45,6 +54,8 @@ export function MemberLoginForm() {
       // One message for every failure: wrong phone, wrong password, no account. A prober learns
       // nothing about which members exist.
       setError('Telefon veya şifre hatalı.')
+      setAttempts((a) => a + 1)
+      captcha.reset()
       setBusy(false)
     }
   }
@@ -72,8 +83,9 @@ export function MemberLoginForm() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />
+        {needsCaptcha ? captcha.node : null}
         {error ? <p className="text-sm text-danger">{error}</p> : null}
-        <Button className="min-h-11 w-full" onClick={submit} disabled={busy || !studioId}>
+        <Button className="min-h-11 w-full" onClick={submit} disabled={busy || !studioId || (needsCaptcha && !captcha.solved)}>
           {busy ? <Loader2Icon className="animate-spin" /> : null} Giriş Yap
         </Button>
         {!studioId ? (
