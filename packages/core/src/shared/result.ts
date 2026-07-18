@@ -107,6 +107,9 @@ export type DomainError =
   | { readonly code: 'auto_resolve_too_early'; readonly resolvableAt: number }
   | { readonly code: 'reservation_not_resolved' }
   | { readonly code: 'correction_credit_unsupported' }
+  // ── PF-37: PAYTR collections ──
+  // A collection can only be reconciled or cancelled while it is still unreconciled.
+  | { readonly code: 'paytr_collection_not_open' }
   // ── The signed-document archive (v1.28) ──
   // A document must have at least one page; a removal must name the document it removes.
   | { readonly code: 'document_empty' }

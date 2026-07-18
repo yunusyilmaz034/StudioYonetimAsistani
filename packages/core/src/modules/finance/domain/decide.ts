@@ -30,9 +30,14 @@ import {
   DRAWER_OPENED,
   GIFTCARD_ISSUED,
   GIFTCARD_REDEEMED,
+  PAYMENT_LINK_CREATED,
+  PAYMENT_LINK_DEACTIVATED,
   PAYMENT_RECEIVED,
   PAYMENT_REFUNDED,
   PAYMENT_VOIDED,
+  PAYTR_COLLECTION_CANCELLED,
+  PAYTR_COLLECTION_RECEIVED,
+  PAYTR_COLLECTION_RECONCILED,
   PLAN_CREATED,
   SALE_CANCELLED,
   SALE_CREATED,
@@ -49,8 +54,10 @@ import {
   type GiftCard,
   type Instalment,
   type Payment,
+  type PaymentLink,
   type PaymentMethod,
   type PaymentPlan,
+  type PaytrCollection,
   type Sale,
   type SaleLine,
 } from './types'
@@ -627,3 +634,62 @@ export const couponDiscount = (coupon: Coupon, gross: Money): Money =>
   coupon.kind === 'percent'
     ? money(Math.round((gross.amount * coupon.value) / 100)) // rounded to kuruş AT SALE TIME (I-34)
     : money(Math.min(coupon.value, gross.amount))
+
+// ── PF-37: shareable PAYTR links + unattributed collections ───────────────────────────────────
+// The link is a template (config); the collection is MONEY that arrived without a member, so it sits
+// in an "unreconciled" inbox until reception attributes it — where the real ledger entry is born.
+
+export function decideCreatePaymentLink(ctx: DecideContext, link: PaymentLink): NewEvent[] {
+  return [
+    {
+      ...base(ctx, 'payment_link', link.id, null, {}),
+      type: PAYMENT_LINK_CREATED,
+      payload: { linkId: link.id, amount: link.amount, maxInstallments: link.maxInstallments },
+    },
+  ]
+}
+
+export function decideDeactivatePaymentLink(ctx: DecideContext, link: PaymentLink): Outcome<PaymentLink> {
+  if (!link.active) return { next: link, events: [] } // idempotent
+  return {
+    next: { ...link, active: false },
+    events: [{ ...base(ctx, 'payment_link', link.id, null, {}), type: PAYMENT_LINK_DEACTIVATED, payload: { linkId: link.id } }],
+  }
+}
+
+export function decideReceiveCollection(ctx: DecideContext, collection: PaytrCollection): NewEvent[] {
+  return [
+    {
+      ...base(ctx, 'paytr_collection', collection.id, null, { linkId: collection.linkId }),
+      type: PAYTR_COLLECTION_RECEIVED,
+      payload: { collectionId: collection.id, linkId: collection.linkId, amount: collection.amount, installments: collection.installments },
+    },
+  ]
+}
+
+export function decideReconcileCollection(
+  ctx: DecideContext,
+  collection: PaytrCollection,
+  memberId: MemberId,
+  paymentId: string,
+): Result<Outcome<PaytrCollection>, DomainError> {
+  if (collection.status !== 'unreconciled') return err({ code: 'paytr_collection_not_open' })
+  const next: PaytrCollection = { ...collection, status: 'reconciled', memberId, paymentId, reconciledBy: ctx.actor, reconciledAt: ctx.now }
+  return ok({
+    next,
+    events: [{ ...base(ctx, 'paytr_collection', collection.id, null, { memberId }), type: PAYTR_COLLECTION_RECONCILED, payload: { collectionId: collection.id, memberId, paymentId } }],
+  })
+}
+
+export function decideCancelCollection(
+  ctx: DecideContext,
+  collection: PaytrCollection,
+  reason: string,
+): Result<Outcome<PaytrCollection>, DomainError> {
+  if (reason.trim().length === 0) return err({ code: 'reason_required' })
+  if (collection.status !== 'unreconciled') return err({ code: 'paytr_collection_not_open' })
+  return ok({
+    next: { ...collection, status: 'cancelled' },
+    events: [{ ...base(ctx, 'paytr_collection', collection.id, null, {}), type: PAYTR_COLLECTION_CANCELLED, payload: { collectionId: collection.id, reason } }],
+  })
+}

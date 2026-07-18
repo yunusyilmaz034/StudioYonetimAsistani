@@ -58,6 +58,9 @@ const PREFIX = {
   progressPhoto: 'pht',
   // ── Trainer Payroll (Plus Phase 9) ──
   payrollAdjustment: 'adj',
+  // ── Shareable PAYTR payment links + unattributed collections (PF-37) ──
+  paymentLink: 'plink',
+  paytrCollection: 'pcol',
   // ── Program Templates (Plus, pilot) ──
   programTemplate: 'ptpl',
 } as const
@@ -94,3 +97,5 @@ export const newTrainingFeedbackId = (): string => mint(PREFIX.trainingFeedback)
 export const newProgressPhotoId = (): string => mint(PREFIX.progressPhoto)
 export const newProgramTemplateId = (): string => mint(PREFIX.programTemplate)
 export const newPayrollAdjustmentId = (): string => mint(PREFIX.payrollAdjustment)
+export const newPaymentLinkId = (): string => mint(PREFIX.paymentLink)
+export const newPaytrCollectionId = (): string => mint(PREFIX.paytrCollection)

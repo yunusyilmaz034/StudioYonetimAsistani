@@ -117,6 +117,46 @@ export interface Refund {
   readonly drawerId: string | null
 }
 
+// ── Shareable PAYTR payment links + unattributed collections (PF-37) ─────────────────────────
+//
+// A studio shares a link on Instagram/WhatsApp for a fixed amount ("Fitness 3 Aylık — 9.000 ₺, 3
+// taksit"). Anyone can pay it — there is NO member and NO sale yet. So it deliberately sits OUTSIDE
+// the ledger (Payment/Sale hard-require a member, and we never weaken that invariant): the money lands
+// as a `PaytrCollection` in an "unreconciled" inbox, and reception later ATTRIBUTES it to a member —
+// selling the package with the collection's card payment — which is where the real ledger entry is born.
+export interface PaymentLink {
+  readonly id: string
+  readonly studioId: StudioId
+  readonly label: string // "Fitness 3 Aylık" — shown on the public page; not a product reference
+  readonly amount: Money
+  readonly maxInstallments: number // 1 = tek çekim
+  readonly active: boolean
+  readonly createdBy: ActorRef
+  readonly createdAt: Instant
+}
+
+export type PaytrCollectionStatus = 'unreconciled' | 'reconciled' | 'cancelled'
+
+export interface PaytrCollection {
+  readonly id: string
+  readonly studioId: StudioId
+  readonly linkId: string
+  readonly amount: Money
+  readonly installments: number
+  // Buyer identity, collected on OUR public page (never from the callback). PII — lives here in state,
+  // never in an event payload (#6). Until reconciled she is not a member; this is a lead's contact.
+  readonly buyerName: string
+  readonly buyerPhone: string // normalised E.164
+  readonly providerRef: string // PAYTR merchant_oid — the card ref, carried onto the ledger on reconcile
+  readonly paidAt: Instant
+  readonly status: PaytrCollectionStatus
+  // Set on reconcile: who she turned out to be, and the ledger payment the money became.
+  readonly memberId: MemberId | null
+  readonly paymentId: string | null
+  readonly reconciledBy: ActorRef | null
+  readonly reconciledAt: Instant | null
+}
+
 // ── the kasa (owner, OQ-5: per branch, per shift) ───────────────────────────────────────────
 export type DrawerStatus = 'open' | 'closed'
 

@@ -32,6 +32,12 @@ export const COUPON_REDEEMED = 'coupon.redeemed'
 export const PLAN_CREATED = 'plan.created'
 export const PLAN_INSTALMENT_PAID = 'plan.instalment_paid'
 export const PLAN_CANCELLED = 'plan.cancelled'
+// ── Shareable PAYTR links + unattributed collections (PF-37) ──
+export const PAYMENT_LINK_CREATED = 'payment_link.created'
+export const PAYMENT_LINK_DEACTIVATED = 'payment_link.deactivated'
+export const PAYTR_COLLECTION_RECEIVED = 'paytr_collection.received'
+export const PAYTR_COLLECTION_RECONCILED = 'paytr_collection.reconciled'
+export const PAYTR_COLLECTION_CANCELLED = 'paytr_collection.cancelled'
 
 export type SaleCreatedPayload = {
   readonly gross: Money
@@ -158,5 +164,31 @@ export type PlanInstalmentPaidPayload = {
 
 export type PlanCancelledPayload = {
   readonly saleId: string
+  readonly reason: string
+}
+
+// ── PF-37 payloads. NO PII (#6): the buyer's name/phone live on the PaytrCollection STATE, never here.
+//    Money is Money (integer kuruş). The memberId on reconcile is opaque, so it is safe in the log.
+export type PaymentLinkCreatedPayload = {
+  readonly linkId: string
+  readonly amount: Money
+  readonly maxInstallments: number
+}
+export type PaymentLinkDeactivatedPayload = {
+  readonly linkId: string
+}
+export type PaytrCollectionReceivedPayload = {
+  readonly collectionId: string
+  readonly linkId: string
+  readonly amount: Money
+  readonly installments: number
+}
+export type PaytrCollectionReconciledPayload = {
+  readonly collectionId: string
+  readonly memberId: MemberId
+  readonly paymentId: string
+}
+export type PaytrCollectionCancelledPayload = {
+  readonly collectionId: string
   readonly reason: string
 }

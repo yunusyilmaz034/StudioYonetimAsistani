@@ -54,6 +54,9 @@ export type AggregateKind =
   // only the human decisions (set a rate, adjust, finalize, pay) are events.
   | 'compensation_plan'
   | 'payroll_statement'
+  // PF-37 — shareable PAYTR links + unattributed collections. Additive.
+  | 'payment_link'
+  | 'paytr_collection'
 
 export interface PolicyRef {
   readonly policyId: PolicyId

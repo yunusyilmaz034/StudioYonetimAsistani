@@ -12,6 +12,8 @@ export function domainErrorMessage(error: DomainError): string {
       return 'Bir sebep girin.'
     case 'note_required':
       return 'Bir açıklama girin.'
+    case 'paytr_collection_not_open':
+      return 'Bu tahsilat zaten eşleştirilmiş ya da iptal edilmiş.'
     case 'document_empty':
       return 'En az bir sayfa yükleyin.'
     case 'document_not_found':
