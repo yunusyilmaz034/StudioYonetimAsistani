@@ -1,0 +1,30 @@
+{
+  "expo": {
+    "name": "Pilates Fitness By Işıl",
+    "slug": "studio-member-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "studiomember",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#F4F1EE"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.pilatesfitnessbyisil.member"
+    },
+    "android": {
+      "package": "com.pilatesfitnessbyisil.member",
+      "adaptiveIcon": {
+        "backgroundColor": "#7A1F3D"
+      }
+    },
+    "plugins": ["expo-router", "expo-secure-store", "expo-notifications"],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

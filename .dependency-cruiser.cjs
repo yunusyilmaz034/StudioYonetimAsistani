@@ -84,7 +84,7 @@ module.exports = {
     tsConfig: { fileName: 'tsconfig.json' },
     tsPreCompilationDeps: true,
     exclude: {
-      path: '(node_modules|\\.next|dist|lib|coverage|test/|\\.test\\.ts$)',
+      path: '(node_modules|\\.next|dist|lib|coverage|test/|\\.test\\.ts$|apps/mobile)',
     },
   },
 }

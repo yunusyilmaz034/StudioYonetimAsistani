@@ -1,3 +1,7 @@
 packages:
   - 'apps/*'
   - 'packages/*'
+  # The Expo app is a STANDALONE project with its own lockfile — kept out of the pnpm workspace so its
+  # React Native dependency tree never touches the root `--frozen-lockfile` gate. It shares the wire
+  # contract by importing `@studio/core/client` through a Metro/tsconfig path alias, not `workspace:*`.
+  - '!apps/mobile'

@@ -33,6 +33,10 @@ export default tseslint.config(
       // material (PayTR's own .js/.php/.cs example apps). None of it is code we own or ship, so none
       // of it is linted. (The PayTR docs are also git-ignored — read-only, not part of the repo.)
       'docs/**',
+      // `apps/mobile/**` is the Expo/React Native app. It has its OWN toolchain (its own tsconfig,
+      // eslint, and lockfile) and is NOT part of the root `pnpm check` gate — the owner validates and
+      // runs it with `expo`. Linting RN/JSX here with the web config would only produce noise.
+      'apps/mobile/**',
     ],
   },
 
