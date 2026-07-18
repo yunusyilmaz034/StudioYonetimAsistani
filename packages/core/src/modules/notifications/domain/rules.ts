@@ -87,10 +87,15 @@ export const RULES: Readonly<Record<string, readonly IntentRule[]>> = {
   ],
 
   // ── Plus Phase 7 — training. The member is told THAT her programme is ready or her feedback was
-  //    answered; the content stays behind the portal (the event has no PII). Trainer-direct alerts on
-  //    feedback.left await a 'trainer' audience seam (DEBT).
+  //    answered; the content stays behind the portal (the event has no PII). And now (PF-32) the OWNER
+  //    is told the instant a member leaves feedback — resolved to who/which programme/which exercise
+  //    off state in the trigger. (This studio's owner IS the trainer, so 'owner' is the right audience;
+  //    a dedicated 'trainer' audience is still a future seam when studios add separate trainers.)
   'program.version_published': [
     { template: 'program_published', to: 'member', category: 'operational', priority: 'normal' },
+  ],
+  'training_feedback.left': [
+    { template: 'feedback_left', to: 'owner', category: 'operational', priority: 'high' },
   ],
   'training_feedback.answered': [
     { template: 'feedback_answered', to: 'member', category: 'operational', priority: 'normal' },

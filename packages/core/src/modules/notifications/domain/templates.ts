@@ -229,6 +229,18 @@ export const TEMPLATES: Readonly<Record<string, NotificationTemplate>> = {
     subject: 'Geri bildiriminize yanıt verildi',
     body: 'Merhaba {{memberName}}, antrenörünüz geri bildiriminize yanıt verdi. Üye portalınızdan görebilirsiniz.',
   },
+  // PF-32 — a member left feedback on a specific movement. The owner/trainer needs to know NOW, and
+  // which member, which programme, which exercise, and why (the reason). Goes to the owner in-app.
+  feedback_left: {
+    id: 'feedback_left',
+    version: 1,
+    name: 'Antrenman geri bildirimi (owner)',
+    category: 'operational',
+    priority: 'high',
+    requiredParams: ['memberName', 'programName', 'exerciseName', 'reason'],
+    subject: 'Yeni antrenman geri bildirimi',
+    body: '{{memberName}}, "{{programName}}" programındaki {{exerciseName}} hareketi için geri bildirim bıraktı: {{reason}}. Üye portalından yanıtlayabilirsiniz.',
+  },
 
   // ── STAFF ALERTS (owner, decision 6). The most important line on the owner's list: today NOTHING
   //    tells her when an operation fails. These are half of this milestone, not an afterthought.

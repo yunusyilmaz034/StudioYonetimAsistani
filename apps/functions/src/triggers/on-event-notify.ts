@@ -12,6 +12,7 @@ import {
   FirestoreNotificationRepository,
   FirestoreReservationRepository,
   FirestoreSchedulingRepository,
+  FirestoreTrainingRepository,
   intentIdFor,
   notify,
   rulesFor,
@@ -272,6 +273,17 @@ const memberRef = (m: {
   displayName: m.fullName,
 })
 
+// PF-32 — the closed-enum feedback reason, in Turkish, for the owner's alert.
+const FEEDBACK_REASON_TR: Record<string, string> = {
+  pain: 'ağrı/rahatsızlık hissetti',
+  too_easy: 'çok kolay buldu',
+  too_hard: 'çok zor buldu',
+  not_felt: 'hedef kası hissetmedi',
+  machine_busy: 'alet meşguldü',
+  video_unclear: 'video net değildi',
+  other: 'başka bir sebep belirtti',
+}
+
 // The params come from STATE, never from the event — the event has no name, no class time and no
 // amount in lira. This is where identity and behaviour finally meet, and it is the only place they do.
 async function resolveParams(
@@ -379,6 +391,25 @@ async function resolveParams(
     case 'program.version_published':
     case 'training_feedback.answered':
       return base
+    // PF-32 — the OWNER's feedback alert. The recipient is the owner, so `base.memberName` is HERS;
+    // resolve the FEEDBACK member (and her programme + exercise) from state instead.
+    case 'training_feedback.left': {
+      const training = new FirestoreTrainingRepository(database)
+      const [program, exercise] = await Promise.all([
+        training.getProgram(ctx, String(p.programId ?? '')),
+        training.getExercise(ctx, String(p.exerciseId ?? '')),
+      ])
+      const memberId = event.related.memberId ?? program?.memberId ?? null
+      const member = memberId
+        ? await new FirestoreMemberRepository(database).findById(ctx, memberId as MemberId)
+        : null
+      return {
+        memberName: member?.fullName ?? 'Bir üye',
+        programName: program?.title ?? 'programı',
+        exerciseName: exercise?.nameTr ?? 'bir hareket',
+        reason: FEEDBACK_REASON_TR[String(p.reason)] ?? 'geri bildirim',
+      }
+    }
     case 'notification.failed':
       return {
         memberName: recipient.displayName,
