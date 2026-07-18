@@ -10,14 +10,17 @@ import {
   FirestoreCatalogRepository,
   FirestoreMemberRepository,
   FirestorePaymentIntentRepository,
+  FirestorePaymentLinkRepository,
   FirestoreSchedulingRepository,
   instant,
   money,
   newCorrelationId,
+  normalizePhone,
   systemClock,
   type MemberId,
   type PaymentIntent,
   type ProductId,
+  type StudioId,
   type TenantContext,
 } from '@studio/core'
 import { z } from 'zod'
@@ -184,6 +187,96 @@ export async function createPackagePaymentAction(input: unknown) {
   )
   await intentRepo().saveIntent(ctx, session.next, session.events)
   return { ok: true as const, value: { intentId: id, redirectUrl: checkout.redirectUrl, flow: p.flow } }
+}
+
+// ── PF-37: PUBLIC payment-link collection. UNAUTHENTICATED — anyone with the link may pay. ─────
+// A powerless system context (like the portal invite) builds Admin-SDK paths; the payer has no session.
+// It loads the link's FIXED amount + installment cap, and creates a `collection` intent that carries
+// the buyer's OWN details (name/phone she typed here, never from PAYTR). NO member, NO product. The
+// verified callback turns the paid intent into an unattributed kasa collection, which reception
+// reconciles to a member. Errors are plain strings (public flow), not DomainError.
+const publicCtx = (studioId: string): TenantContext => ({
+  studioId: studioId as StudioId,
+  branchIds: [],
+  role: 'member',
+  actor: { type: 'system', id: 'sys_payment_link' as never },
+})
+
+export async function getPaymentLinkPublicAction(input: unknown) {
+  const p = z.object({ studioId: nonEmpty, linkId: nonEmpty }).parse(input)
+  const link = await new FirestorePaymentLinkRepository(adminDb()).get(publicCtx(p.studioId), p.linkId)
+  if (!link || !link.active) return { ok: false as const }
+  // No PII, no studio secrets — only what the public page must render.
+  return { ok: true as const, value: { label: link.label, amountKurus: link.amount.amount, maxInstallments: link.maxInstallments } }
+}
+
+export async function createCollectionCheckoutAction(input: unknown) {
+  const p = z
+    .object({
+      studioId: nonEmpty,
+      linkId: nonEmpty,
+      buyerName: z.string().trim().min(2).max(120),
+      buyerPhone: z.string().trim().min(7),
+    })
+    .parse(input)
+  const ctx = publicCtx(p.studioId)
+
+  const link = await new FirestorePaymentLinkRepository(adminDb()).get(ctx, p.linkId)
+  if (!link || !link.active) return { ok: false as const, reason: 'unavailable' as const }
+
+  const phone = normalizePhone(p.buyerPhone)
+  if (!phone.ok) return { ok: false as const, reason: 'invalid_phone' as const }
+
+  const { provider, config } = await paymentProviderFor(ctx)
+  if (!provider.configured) return { ok: false as const, reason: 'not_configured' as const }
+
+  const providerRef = randomUUID().replace(/-/g, '')
+  const id = `pin_${providerRef.slice(0, 20)}`
+  const intent: PaymentIntent = {
+    id,
+    studioId: ctx.studioId,
+    memberId: 'unattributed',
+    saleId: `sal_${providerRef.slice(0, 20)}`,
+    purpose: 'collection',
+    amount: link.amount,
+    provider: 'paytr',
+    flow: 'link',
+    providerRef,
+    redirectUrl: null,
+    idempotencyKey: providerRef,
+    status: 'draft',
+    context: { linkId: link.id, buyerName: p.buyerName.trim(), buyerPhone: phone.value.e164, installments: link.maxInstallments },
+    expiresAt: null,
+    failureReason: null,
+    refundedAmount: money(0),
+    createdBy: ctx.actor,
+    createdAt: instant(systemClock.now()),
+    updatedAt: instant(systemClock.now()),
+  }
+  const created = decideCreatePaymentIntent(dctx(ctx), intent)
+  await intentRepo().saveIntent(ctx, created.next, created.events)
+
+  const checkout = await provider.createCheckout('link', {
+    intentId: id,
+    providerRef,
+    amount: link.amount,
+    itemName: link.label,
+    memberName: p.buyerName.trim(),
+    memberEmail: null,
+    memberPhone: phone.value.e164,
+    userIp: '85.34.78.112',
+    okUrl: `${baseUrl(config)}/pay/${link.id}?ok=1`,
+    failUrl: `${baseUrl(config)}/pay/${link.id}?fail=1`,
+    callbackUrl: callbackUrl(ctx, config),
+    testMode: config.testMode,
+    expiresInSeconds: 30 * 60,
+    maxInstallment: link.maxInstallments,
+  })
+  if (!checkout.ok || !checkout.redirectUrl) return { ok: false as const, reason: 'checkout_failed' as const }
+
+  const session = decideSessionCreated(dctx(ctx), created.next, checkout.redirectUrl, checkout.expiresAt ? instant(checkout.expiresAt) : null)
+  await intentRepo().saveIntent(ctx, session.next, session.events)
+  return { ok: true as const, redirectUrl: checkout.redirectUrl }
 }
 
 function baseUrl(config: { callbackUrl: string }): string {

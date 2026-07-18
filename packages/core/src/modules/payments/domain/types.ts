@@ -56,6 +56,13 @@ export type PaymentIntentContext = {
     readonly quantity: number
     readonly unitPriceKurus: number
   }[]
+  // For a shareable payment-link collection (PF-37, purpose 'collection') — the buyer's OWN details,
+  // collected on our public page (never from PAYTR), so the callback can create an unattributed
+  // PaytrCollection. No PII reaches the event; it lives on the collection state written from here.
+  readonly linkId?: string
+  readonly buyerName?: string
+  readonly buyerPhone?: string
+  readonly installments?: number
 }
 
 export type PaymentIntent = {
