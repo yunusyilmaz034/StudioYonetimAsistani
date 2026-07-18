@@ -327,8 +327,8 @@ const lowCredit: Widget<{ rows: DashboardSnapshot['lowCredit']; threshold: numbe
   present: (d) => ({
     headline:
       d.rows.length === 0
-        ? `Kredisi ${d.threshold} ve altına düşen üye yok.`
-        : `${d.rows.length} üyenin ${d.threshold} veya daha az kredisi kaldı.`,
+        ? `Ders hakkı ${d.threshold} ve altına düşen üye yok.`
+        : `${d.rows.length} üyenin ders hakkı azaldı (${d.threshold} veya daha az kaldı).`,
     tone: d.rows.length > 0 ? 'warning' : 'default',
     needsAttention: d.rows.length > 0,
   }),

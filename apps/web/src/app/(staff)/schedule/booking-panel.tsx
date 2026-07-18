@@ -218,7 +218,7 @@ export function BookingPanel({ session, onMutated }: { session: CalendarSession;
       ) : roster.length === 0 ? (
         <p className="text-sm text-muted-foreground">Henüz rezervasyon yok.</p>
       ) : (
-        <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card shadow-xs">
+        <ul className="divide-y divide-border rounded-xl border border-border bg-card shadow-xs [&>li:first-child]:rounded-t-xl [&>li:last-child]:rounded-b-xl">
           {roster.map((r) => (
             <li key={r.reservationId} className="flex items-center justify-between gap-2 px-3 py-2.5 transition-colors hover:bg-primary-soft/40">
               {/* The name/main area is a link to the member's workspace — independent of

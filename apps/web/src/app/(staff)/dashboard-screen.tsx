@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { ActivityIcon, AlertTriangleIcon, BarChart3Icon, CalendarIcon, ClipboardCheckIcon, DoorOpenIcon, UsersIcon } from 'lucide-react'
+import { ActivityIcon, AlertTriangleIcon, BarChart3Icon, CalendarIcon, ChevronRightIcon, ClipboardCheckIcon, DoorOpenIcon, UsersIcon } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -88,18 +88,38 @@ export function DashboardScreen({
       {attention.length > 0 ? (
         <Section title="Bugün ilgilenmen gerekenler">
           <ul className="space-y-1.5">
-            {attention.map(({ w, p }) => (
-              <li
-                key={w.id}
-                className="flex items-start gap-2 rounded-xl border border-warning/25 bg-warning/5 px-3 py-2 text-sm"
-              >
-                <span className="mt-0.5 size-1.5 shrink-0 rounded-full bg-warning" />
-                <span>
-                  <span className="font-medium text-foreground">{p.headline}</span>
-                  {p.detail ? <span className="text-muted-foreground"> {p.detail}</span> : null}
-                </span>
-              </li>
-            ))}
+            {attention.map(({ w, p }) => {
+              // Each item links to WHO/WHAT it is about (the widget's drill-down), so "1 üyenin kredisi
+              // azaldı" is one click from the actual list of members (owner, PF-hotfix).
+              const href = w.href(data)
+              const openable = canOpen(href)
+              const body = (
+                <>
+                  <span className="mt-0.5 size-1.5 shrink-0 rounded-full bg-warning" />
+                  <span className="min-w-0 flex-1">
+                    <span className="font-medium text-foreground">{p.headline}</span>
+                    {p.detail ? <span className="text-muted-foreground"> {p.detail}</span> : null}
+                  </span>
+                  {openable ? <ChevronRightIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" /> : null}
+                </>
+              )
+              return (
+                <li key={w.id}>
+                  {openable ? (
+                    <Link
+                      href={href}
+                      className="flex items-start gap-2 rounded-xl border border-warning/25 bg-warning/5 px-3 py-2 text-sm transition-colors hover:bg-warning/10"
+                    >
+                      {body}
+                    </Link>
+                  ) : (
+                    <div className="flex items-start gap-2 rounded-xl border border-warning/25 bg-warning/5 px-3 py-2 text-sm">
+                      {body}
+                    </div>
+                  )}
+                </li>
+              )
+            })}
           </ul>
         </Section>
       ) : null}

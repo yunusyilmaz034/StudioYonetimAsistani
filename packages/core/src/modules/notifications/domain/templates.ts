@@ -20,8 +20,8 @@ export const TEMPLATES: Readonly<Record<string, NotificationTemplate>> = {
     category: 'operational',
     priority: 'normal',
     requiredParams: ['memberName', 'sessionName', 'sessionTime'],
-    subject: 'Rezervasyonunuz oluşturuldu',
-    body: 'Merhaba {{memberName}}, {{sessionTime}} tarihindeki {{sessionName}} dersiniz için rezervasyonunuz oluşturuldu.',
+    subject: 'Rezervasyonunuz alındı',
+    body: 'Merhaba {{memberName}}, {{sessionName}} dersiniz için {{sessionTime}} tarihinde yeriniz ayrıldı. Görüşmek üzere!',
   },
   booking_cancelled: {
     id: 'booking_cancelled',
@@ -94,7 +94,7 @@ export const TEMPLATES: Readonly<Record<string, NotificationTemplate>> = {
     priority: 'normal',
     requiredParams: ['memberName', 'productName', 'daysLeft'],
     subject: 'Üyeliğinizin süresi doluyor',
-    body: 'Merhaba {{memberName}}, {{productName}} üyeliğinizin bitmesine {{daysLeft}} gün kaldı.',
+    body: 'Merhaba {{memberName}}, {{productName}} üyeliğinizin bitmesine {{daysLeft}} gün kaldı. Yenilemek isterseniz bize ulaşabilirsiniz.',
   },
   package_expired: {
     id: 'package_expired',
@@ -144,7 +144,7 @@ export const TEMPLATES: Readonly<Record<string, NotificationTemplate>> = {
     priority: 'low',
     requiredParams: ['memberName', 'remaining'],
     subject: 'Ders hakkınız azalıyor',
-    body: 'Merhaba {{memberName}}, {{remaining}} ders hakkınız kaldı.',
+    body: 'Merhaba {{memberName}}, {{remaining}} ders hakkınız kaldı. Yeni paket için istediğiniz zaman bize ulaşabilirsiniz.',
   },
   credits_exhausted: {
     id: 'credits_exhausted',
@@ -154,7 +154,7 @@ export const TEMPLATES: Readonly<Record<string, NotificationTemplate>> = {
     priority: 'normal',
     requiredParams: ['memberName'],
     subject: 'Ders hakkınız bitti',
-    body: 'Merhaba {{memberName}}, paketinizdeki ders hakkınız bitti. Yeni paket için resepsiyona başvurabilirsiniz.',
+    body: 'Merhaba {{memberName}}, paketinizdeki ders hakları doldu. Dilerseniz yeni bir paketle devam edebilirsiniz.',
   },
   payment_received: {
     id: 'payment_received',

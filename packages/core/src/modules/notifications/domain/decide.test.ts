@@ -66,7 +66,7 @@ describe('templates & rendering (v1.25)', () => {
     })
     expect(r.ok).toBe(true)
     if (!r.ok) return
-    expect(r.value.body).toBe('Merhaba Ayşe, yarın 09:00 tarihindeki Reformer dersiniz için rezervasyonunuz oluşturuldu.')
+    expect(r.value.body).toBe('Merhaba Ayşe, Reformer dersiniz için yarın 09:00 tarihinde yeriniz ayrıldı. Görüşmek üzere!')
   })
 
   it('REFUSES to render a template with a missing param — we would rather send nothing than "Merhaba {{memberName}}"', () => {
