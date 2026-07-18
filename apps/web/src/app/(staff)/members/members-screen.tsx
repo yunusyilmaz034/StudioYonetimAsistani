@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { PlusIcon, SearchIcon, UsersIcon } from 'lucide-react'
+import { ArrowDownUpIcon, PlusIcon, SearchIcon, UsersIcon } from 'lucide-react'
 
 
 import { Badge } from '@/components/ui/badge'
@@ -64,6 +64,9 @@ export function MembersScreen({
   const router = useRouter()
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState<MemberFilter>('all')
+  // Default: newest first — the list you scan after adding someone is the one that ends with her
+  // (owner, PF-33). A-Z stays one tap away.
+  const [sort, setSort] = useState<'newest' | 'name'>('newest')
   const [formOpen, setFormOpen] = useState(false)
   const [page, setPage] = useState(1)
   const [showAll, setShowAll] = useState(false)
@@ -81,7 +84,7 @@ export function MembersScreen({
   const filtered = useMemo(() => {
     const q = query.trim().toLocaleLowerCase('tr')
     const digits = query.replace(/\D/g, '')
-    return members.filter((m) => {
+    const rows = members.filter((m) => {
       if (!matches(filter, m.badges)) return false
       if (!q && !digits) return true
       return (
@@ -89,13 +92,16 @@ export function MembersScreen({
         (digits.length > 0 && m.phoneNormalized.includes(digits))
       )
     })
-  }, [members, query, filter])
+    return [...rows].sort((a, b) =>
+      sort === 'newest' ? b.joinedAt - a.joinedAt : a.fullName.localeCompare(b.fullName, 'tr'),
+    )
+  }, [members, query, filter, sort])
 
   // Paginate the (already filtered) list to 10 a page. Reset to page 1 whenever the search or filter
   // changes so a narrowing search never strands you on an empty page 7; `currentPage` clamps to range.
   useEffect(() => {
     setPage(1)
-  }, [query, filter])
+  }, [query, filter, sort])
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const currentPage = Math.min(page, pageCount)
   const pageItems = showAll ? filtered : filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
@@ -148,6 +154,17 @@ export function MembersScreen({
             {filtered.length} / {members.length}
           </span>
         ) : null}
+        {/* Sort toggle (PF-33): default newest, one tap to A–Z. */}
+        <Button
+          variant="outline"
+          size="sm"
+          className="shrink-0"
+          onClick={() => setSort((s) => (s === 'newest' ? 'name' : 'newest'))}
+          title="Sıralama"
+        >
+          <ArrowDownUpIcon />
+          <span className="hidden sm:inline">{sort === 'newest' ? 'Son eklenen' : 'A–Z'}</span>
+        </Button>
       </div>
 
       {/* The filters (v1.27 S7). Search answers a question you already know the answer to — "where is

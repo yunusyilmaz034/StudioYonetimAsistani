@@ -26,6 +26,7 @@ export interface MemberRow {
   readonly phone: string
   readonly phoneNormalized: string
   readonly status: string
+  readonly joinedAt: number // for the "son eklenen" sort (PF-33)
   readonly badges: MemberBadges
 }
 
@@ -71,6 +72,7 @@ export async function listMemberRows(ctx: TenantContext, nowMs: number): Promise
     phone: m.phone as string,
     phoneNormalized: m.phoneNormalized,
     status: m.status,
+    joinedAt: m.joinedAt as number,
     badges: badgesFor(
       {
         status: m.status,
