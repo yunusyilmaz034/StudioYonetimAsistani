@@ -4,6 +4,7 @@ import { AppShell } from '@/components/app-nav'
 import { ThemeStyle } from '@/components/theme-style'
 import { Toaster } from '@/components/ui/sonner'
 import { UndoProvider } from '@/lib/undo'
+import { CheckInToaster } from './checkin-toaster'
 import { getTenantContext } from '@/server/auth'
 import { getStudioTheme } from '@/server/theme'
 
@@ -54,6 +55,9 @@ export default async function StaffLayout({ children }: { children: ReactNode })
     <AppShell role={ctx.role}>
       <ThemeStyle theme={theme} />
       <Toaster />
+      {/* PF-36 — desk-only: a green/red toast when a member checks in (from the kiosk or the desk).
+          Owner + reception; NOT trainer (she never sees the members list), NOT kiosk (its own overlay). */}
+      {ctx.role === 'owner' || ctx.role === 'receptionist' ? <CheckInToaster studioId={ctx.studioId} /> : null}
       {/* Undo/Redo is a pure UX layer over compensating actions (Phase 2 Edit Experience). */}
       <UndoProvider>{children}</UndoProvider>
     </AppShell>
