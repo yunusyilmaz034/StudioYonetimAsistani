@@ -527,6 +527,14 @@ export function SettingsScreen({
         </Button>
       </Section>
 
+      {/* PF-37 — sabit tutarlı, taksitli, paylaşılabilir ödeme linkleri (Instagram/WhatsApp). */}
+      <Section title="Ödeme Linkleri" hint="Sabit tutarlı, taksitli link oluşturup paylaşın; ödeme kasaya düşer, üyeye siz eşleştirirsiniz.">
+        <Button variant="outline" render={<Link href="/settings/payment-links" />}>
+          <CreditCardIcon />
+          Ödeme Linki Oluştur
+        </Button>
+      </Section>
+
       {/* ── Bildirimler (DEBT-024) ────────────────────────────────────────────────────────── */}
       <Section
         title="Bildirimler"
