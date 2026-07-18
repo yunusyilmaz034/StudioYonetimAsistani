@@ -12,9 +12,12 @@ import {
   FirestoreEntitlementRepository,
   FirestoreFinanceRepository,
   FirestorePaymentIntentRepository,
+  FirestorePaymentLinkRepository,
+  FirestorePaytrCollectionRepository,
   instant,
   money,
   newCorrelationId,
+  receiveCollection,
   sellPackage,
   systemClock,
   type CallbackVerdict,
@@ -108,6 +111,29 @@ export async function completePaidIntent(ctx: TenantContext, intent: PaymentInte
         providerRef: intent.providerRef,
       },
     })
+  }
+
+  // PF-37 — a shareable-link payment becomes an UNATTRIBUTED kasa collection (no member, no product);
+  // reception reconciles it to a member later. Idempotent via the intent status above. Mirror of the
+  // Cloud Function branch (DEBT-PAYTR-CALLBACK: two copies kept in sync).
+  if (intent.purpose === 'collection') {
+    await receiveCollection(
+      {
+        linkRepo: new FirestorePaymentLinkRepository(adminDb()),
+        collectionRepo: new FirestorePaytrCollectionRepository(adminDb()),
+        clock: systemClock,
+        source: 'paytr_callback',
+      },
+      ctx,
+      {
+        linkId: intent.context.linkId ?? '',
+        amount: intent.amount,
+        installments: intent.context.installments ?? 1,
+        buyerName: intent.context.buyerName ?? '',
+        buyerPhone: intent.context.buyerPhone ?? '',
+        providerRef: intent.providerRef,
+      },
+    )
   }
 }
 

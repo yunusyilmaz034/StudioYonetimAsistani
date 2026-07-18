@@ -4,10 +4,13 @@ import {
   FirestoreEntitlementRepository,
   FirestoreFinanceRepository,
   FirestorePaymentIntentRepository,
+  FirestorePaymentLinkRepository,
+  FirestorePaytrCollectionRepository,
   instant,
   money,
   newCorrelationId,
   paytrProvider,
+  receiveCollection,
   sellPackage,
   systemClock,
   type CallbackVerdict,
@@ -143,6 +146,29 @@ async function completePaidIntent(
         providerRef: intent.providerRef,
       },
     })
+  }
+
+  // PF-37 — a shareable-link payment. No member, no product: it becomes an UNATTRIBUTED collection in
+  // the kasa, which reception reconciles to a member later. Idempotent via the intent status above
+  // (a replayed callback finds it terminal and returns before here).
+  if (intent.purpose === 'collection') {
+    await receiveCollection(
+      {
+        linkRepo: new FirestorePaymentLinkRepository(database),
+        collectionRepo: new FirestorePaytrCollectionRepository(database),
+        clock: systemClock,
+        source: 'paytr_callback',
+      },
+      ctx,
+      {
+        linkId: intent.context.linkId ?? '',
+        amount: intent.amount,
+        installments: intent.context.installments ?? 1,
+        buyerName: intent.context.buyerName ?? '',
+        buyerPhone: intent.context.buyerPhone ?? '',
+        providerRef: intent.providerRef,
+      },
+    )
   }
 }
 
