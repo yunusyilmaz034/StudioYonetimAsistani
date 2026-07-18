@@ -8,6 +8,7 @@ import {
   FirestoreEntitlementRepository,
   FirestoreMemberRepository,
   FirestoreOperationsRepository,
+  FirestorePaytrCollectionRepository,
   FirestoreProjectionRepository,
   FirestoreSchedulingRepository,
   FirestoreWaitlistRepository,
@@ -133,6 +134,14 @@ export interface OpenDrawerRow {
   readonly openedAt: number | null
 }
 
+// PF-37 — a shareable-link payment that arrived but has not been attributed to a member yet.
+export interface UnreconciledCollectionRow {
+  readonly id: string
+  readonly buyerName: string
+  readonly amountKurus: number
+  readonly paidAt: number
+}
+
 export interface OwnerDashboard {
   readonly date: string
   readonly today: DailyReadModel
@@ -159,6 +168,8 @@ export interface OwnerDashboard {
   // are bounded state queries; a counter cannot know that a drawer is still open.
   readonly pendingPayments: readonly PendingPaymentRow[]
   readonly openDrawers: readonly OpenDrawerRow[]
+  // PF-37 — shareable-link payments that arrived but are not yet attributed to a member.
+  readonly unreconciledCollections: readonly UnreconciledCollectionRow[]
   // Phase 2 — the churn signal: who has an active package but stopped coming, and the recency spread.
   readonly dormant: readonly DormantRow[]
   readonly activityDistribution: ActivityDistribution
@@ -191,6 +202,7 @@ export async function loadOwnerDashboard(
     openSales,
     drawers,
     feed,
+    collections,
   ] = await Promise.all([
       new FirestoreProjectionRepository(db).getDaily(ctx, date),
       new FirestoreMemberRepository(db).list(ctx),
@@ -210,6 +222,7 @@ export async function loadOwnerDashboard(
       // The dashboard's live feed is a business glance, not the audit log: reservations, check-ins,
       // payments, memberships and member notifications — no 'system' plumbing (PF-31).
       loadFeed(ctx, { kinds: FEED_KINDS }),
+      new FirestorePaytrCollectionRepository(db).listUnreconciled(ctx), // PF-37
     ])
 
   const today = daily ?? emptyDaily(date)
@@ -395,6 +408,12 @@ export async function loadOwnerDashboard(
     upcomingOperations,
     pendingPayments,
     openDrawers,
+    unreconciledCollections: collections.map((c) => ({
+      id: c.id,
+      buyerName: c.buyerName,
+      amountKurus: c.amount.amount,
+      paidAt: c.paidAt,
+    })),
     dormant,
     activityDistribution,
     recentMembers: [...members]

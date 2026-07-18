@@ -515,6 +515,46 @@ const pendingPayments: Widget<DashboardSnapshot['pendingPayments']> = {
   ),
 }
 
+// PF-37 — a shareable-link payment arrived but is not yet attributed to a member. Reception opens it,
+// finds who paid (name/phone), and adds her package — the money enters the ledger, attributed.
+const unreconciledPaytr: Widget<DashboardSnapshot['unreconciledCollections']> = {
+  id: 'finance.unreconciled_paytr',
+  title: 'Eşleştirilecek PAYTR ödemeleri',
+  kind: 'list',
+  href: () => '/finance/collections',
+  table: (s): ExportableTable => ({
+    name: 'eslestirilecek-paytr-odemeleri',
+    columns: ['Ödeyen', 'Tutar (₺)', 'Tarih'],
+    rows: s.unreconciledCollections.map((r) => [r.buyerName, r.amountKurus / 100, formatDateTime(r.paidAt)]),
+  }),
+  select: (s) => s.unreconciledCollections,
+  present: (rows) => {
+    const total = rows.reduce((n, r) => n + r.amountKurus, 0)
+    return {
+      headline:
+        rows.length === 0
+          ? 'Eşleştirilecek PAYTR ödemesi yok.'
+          : `${rows.length} PAYTR ödemesi (${tl(total)}) üyeye eşleştirilmeyi bekliyor.`,
+      detail: rows[0] ? `${rows[0].buyerName} — ${tl(rows[0].amountKurus)}.` : undefined,
+      tone: rows.length > 0 ? 'warning' : 'success',
+      needsAttention: rows.length > 0,
+    }
+  },
+  render: (rows) =>
+    rows.length === 0 ? (
+      <p className="text-sm text-muted-foreground">Bekleyen ödeme yok.</p>
+    ) : (
+      <ul className="space-y-1">
+        {rows.slice(0, 6).map((r) => (
+          <li key={r.id} className="flex items-center justify-between gap-2 text-sm">
+            <span className="min-w-0 truncate">{r.buyerName}</span>
+            <span className="shrink-0 tabular-nums text-muted-foreground">{tl(r.amountKurus)}</span>
+          </li>
+        ))}
+      </ul>
+    ),
+}
+
 // A kasa left open overnight is how a cash difference becomes untraceable.
 const openDrawers: Widget<DashboardSnapshot['openDrawers']> = {
   id: 'finance.drawers',
@@ -583,6 +623,7 @@ export const WIDGETS: readonly AnyWidget[] = [
   activeMembers,
   emptySessions,
   pendingPayments,
+  unreconciledPaytr,
   openDrawers,
   lowCredit,
   exhausted,
@@ -609,5 +650,6 @@ export const WIDGET_ICON: Record<string, LucideIcon> = {
   'operations.upcoming': LayersIcon,
   'members.recent': UserPlusIcon,
   'finance.pending': CoinsIcon,
+  'finance.unreconciled_paytr': CreditCardIcon,
   'finance.drawers': CreditCardIcon,
 }
