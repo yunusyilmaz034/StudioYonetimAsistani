@@ -76,3 +76,14 @@ export {
   moneyByEntitlement,
   type EntitlementMoney,
 } from './application/entitlement-money'
+// PF-37 — shareable PAYTR links + unattributed collections (a separate aggregate; the ledger is untouched).
+export type { PaymentLink, PaytrCollection, PaytrCollectionStatus } from './domain/types'
+export { FirestorePaymentLinkRepository, FirestorePaytrCollectionRepository } from './infrastructure/paytr-repos'
+export {
+  cancelCollection,
+  createPaymentLink,
+  deactivatePaymentLink,
+  receiveCollection,
+  reconcileCollection,
+  type PaytrDeps,
+} from './application/paytr'
