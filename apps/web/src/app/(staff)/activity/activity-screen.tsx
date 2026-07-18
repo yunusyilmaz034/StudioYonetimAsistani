@@ -22,6 +22,7 @@ const FILTERS: readonly { kind: ActivityKind; label: string }[] = [
   { kind: 'membership', label: 'Üyelikler' },
   { kind: 'payment', label: 'Ödemeler' },
   { kind: 'credit', label: 'Krediler' },
+  { kind: 'feedback', label: 'Geri bildirimler' },
   { kind: 'notification', label: 'Bildirimler' },
   { kind: 'operation', label: 'Toplu İşlemler' },
   { kind: 'checkin', label: 'Check-in' },

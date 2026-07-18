@@ -31,7 +31,8 @@ export type ActivityKind =
   | 'payment'
   | 'credit'
   | 'checkin'
-  | 'notification' // a message that reached a MEMBER (sent/delivered/failed) — business, not plumbing
+  | 'feedback' // a member left training feedback, or a trainer answered it
+  | 'notification' // message delivery (sent/delivered) — kept for the audit log, OFF the live feed
   | 'operation'
   | 'schedule'
   | 'system'
@@ -63,6 +64,11 @@ export const KIND_OF: Record<string, ActivityKind> = {
   'member.checked_in': 'checkin',
   'member.checked_out': 'checkin',
   'member.auto_checked_out': 'system',
+
+  // ── training feedback (owner: "geri bildirimler akışta olsun") ──
+  'training_feedback.left': 'feedback',
+  'training_feedback.answered': 'feedback',
+  'training_feedback.resolved': 'system',
 
   'entitlement.purchased': 'membership',
   'entitlement.payment_recorded': 'payment',
@@ -198,6 +204,7 @@ const RECEPTION_KINDS: readonly ActivityKind[] = [
   'payment',
   'credit',
   'checkin',
+  'feedback',
   'notification',
   'operation',
   'schedule',
@@ -205,19 +212,20 @@ const RECEPTION_KINDS: readonly ActivityKind[] = [
 
 const visibleKinds = (ctx: TenantContext): readonly ActivityKind[] =>
   ctx.role === 'owner'
-    ? ['reservation', 'membership', 'payment', 'credit', 'checkin', 'notification', 'operation', 'schedule', 'system']
+    ? ['reservation', 'membership', 'payment', 'credit', 'checkin', 'feedback', 'notification', 'operation', 'schedule', 'system']
     : RECEPTION_KINDS
 
 // The DASHBOARD live feed (the hover menu) — a quick glance at what is HAPPENING in the business, not
-// the audit log. Owner: "rezervasyonlar, üye bildirimleri vs. olsun; sistem logları değil." So it is a
-// tight business allow-list; schedule edits, bulk operations and every 'system' event stay OFF it (the
-// full /activity audit log still has them, and system health goes to its own panel).
+// the audit log. Owner (2026-07-18): reservation actions (create/change/cancel), training FEEDBACK,
+// payments and check-ins — and explicitly NOT the "Bildirim gönderildi/iletildi" delivery events, which
+// are plumbing. So notification/schedule/operation/system all stay OFF the feed (the /activity audit
+// log still has them).
 export const FEED_KINDS: readonly ActivityKind[] = [
   'reservation',
-  'checkin',
+  'feedback',
   'payment',
+  'checkin',
   'membership',
-  'notification',
 ]
 
 // ── the name resolver ───────────────────────────────────────────────────────────────────────

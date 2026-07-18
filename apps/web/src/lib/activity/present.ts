@@ -58,6 +58,17 @@ const REASON_TR: Record<string, string> = {
   support: 'destek',
 }
 
+// Training-feedback reason, in Turkish (for the live feed detail line).
+const FEEDBACK_REASON_TR: Record<string, string> = {
+  pain: 'Ağrı/rahatsızlık hissetti',
+  too_easy: 'Çok kolay buldu',
+  too_hard: 'Çok zor buldu',
+  not_felt: 'Hedef kası hissetmedi',
+  machine_busy: 'Alet meşguldü',
+  video_unclear: 'Video net değildi',
+  other: 'Başka bir sebep belirtti',
+}
+
 // The audit's "which fields changed" list, in Turkish. Values are NOT shown for a member profile
 // edit — those values are the PII, and PII never enters the log (#6).
 const FIELD_TR: Record<string, string> = {
@@ -194,6 +205,18 @@ export function present(e: ActivityEvent): PresentedEntry {
       return entry(`${member ?? 'Üye'} portal hesabını aktifleştirdi.`, null, 'success')
     case 'member.portal_login':
       return entry(`${member ?? 'Üye'} portala giriş yaptı.`, null, 'default')
+
+    // ── training feedback (owner: akışta düzgün Türkçe ile görünsün) ──
+    case 'training_feedback.left':
+      return entry(
+        `${member ?? 'Üye'} bir egzersiz için geri bildirim bıraktı.`,
+        FEEDBACK_REASON_TR[str(p.reason) ?? ''] ?? null,
+        'info',
+      )
+    case 'training_feedback.answered':
+      return entry(`${of_(member)} geri bildirimine yanıt verildi.`, null, 'success')
+    case 'training_feedback.resolved':
+      return entry(`${of_(member)} geri bildirimi kapatıldı.`, null, 'default')
 
     // ── staff (v1.27 S1) — the quietest way to widen access in this system ────────────────
     // "Deniz'e resepsiyon yetkisi verildi" is a sentence about the till and about every member's
