@@ -13,7 +13,11 @@ import { SESSION_COOKIE_NAME } from '@/server/session-config'
 // session cookie, so the coarse gate would bounce it to /login and the payment would NEVER be
 // recorded (the entitlement is granted ONLY on this verified callback). The route itself verifies
 // the PAYTR notification hash, so "public" here means "reachable", not "unauthenticated & trusted".
-const PUBLIC_PREFIXES = ['/login', '/design-system', '/invite', '/portal/login', '/api/payments/paytr/callback']
+// PF-37 — `/pay/{linkId}` is the shareable payment page: a customer with no account (and no cookie)
+// opens it from WhatsApp to pay. Without this it bounced to /login, so the link showed the staff
+// sign-in screen to every customer and to WhatsApp's link-preview bot. The page reveals only a label
+// and amount (no PII) and the checkout action re-verifies the link is active.
+const PUBLIC_PREFIXES = ['/login', '/design-system', '/invite', '/portal/login', '/pay', '/api/payments/paytr/callback']
 
 function isPublic(pathname: string): boolean {
   return PUBLIC_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`))

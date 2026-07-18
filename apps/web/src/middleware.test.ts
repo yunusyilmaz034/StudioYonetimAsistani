@@ -41,6 +41,10 @@ describe('middleware — the coarse gate', () => {
   it('lets the cookie-less PAYTR callback through — it grants the package, and PAYTR carries no session', () => {
     expect(locationOf(middleware(request('/api/payments/paytr/callback')))).toBeNull()
   })
+
+  it('lets the cookie-less shareable payment page through — a customer pays without an account (PF-37)', () => {
+    expect(locationOf(middleware(request('/pay/plink_abc?s=retro')))).toBeNull()
+  })
 })
 
 describe('DEBT-012 — a stale cookie must never become a redirect loop', () => {
