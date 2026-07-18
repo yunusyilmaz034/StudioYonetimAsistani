@@ -411,3 +411,11 @@ taksitli link → öder → **callback telefondan üyeyi bulur ya da YENİ üye 
 kaydeder** (mevcut PAYTR grant mantığı + member create/phone-uniqueness). Instagram → self-servis satın alma →
 yeni üye (funnel/büyüme). Mimari: public route (login yok), rate-limit/captcha (PF-29 hook'u), callback'te
 member upsert. Orta boy feature.
+
+**PF-37 GENİŞLETİLDİ (2026-07-18, owner):** Sadece sabit paket linki değil — **Ayarlar'dan genel link üreteci**:
+istenen fiyat + istenen taksit sayısı (+ etiket) seçilir → link üretilir → "paylaş/kopyala" (Instagram/WhatsApp).
+Link herkese açık ödeme sayfasına gider. **AÇIK TASARIM KARARI (owner'a soruldu):** ödeme yapınca (a) BELİRLİ
+bir PAKET mi tanımlanır (ör. Fitness 3 Aylık → üye + paket), yoksa (b) serbest tutar mı tahsil edilir (paket yok,
+sadece ödeme/bakiye)? Öneri: **(a) ürün-bağlı** — link bir ürün + fiyat override + taksit taşır; ödeyince
+telefon/ad'dan üye bulunur/oluşturulur + o paket tanımlanır (mevcut PAYTR grant + member upsert). Feature olarak
+geliştirilecek; deploy ayrı. PAYTR taksit hesapta aktif olmalı (owner PAYTR'a soracak).
