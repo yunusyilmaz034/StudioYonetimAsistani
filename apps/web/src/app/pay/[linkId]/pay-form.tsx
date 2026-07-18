@@ -61,6 +61,12 @@ export function PayForm({
         ) : null}
       </div>
 
+      <div className="rounded-xl bg-muted/50 px-3 py-2.5 text-center text-xs leading-relaxed text-muted-foreground">
+        Üyelik <span className="font-medium text-foreground">kimin adına</span> alınacaksa onun ad-soyad ve telefon
+        bilgisini girin. Burası henüz ödeme sayfası değildir; bilgileri aldıktan sonra sizi güvenli ödeme sayfasına
+        yönlendireceğiz.
+      </div>
+
       <div className="space-y-2">
         <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ad Soyad" autoComplete="name" />
         <Input

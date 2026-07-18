@@ -122,9 +122,10 @@ export class PaytrProvider implements PaymentProviderPort {
     // paytr_token = base64( HMAC_SHA256( name + price + currency + max_installment + link_type + lang
     //   + min_count + merchant_salt, key ) ) — the documented Link-create order.
     const currency = 'TL'
-    // The installment cap ('0' = provider default / unlimited). The Link API has no separate
-    // no_installment flag, so a "tek çekim" cap (1) also maps to '0' here; the POS flow enforces single.
-    const maxInstallment = input.maxInstallment <= 1 ? '0' : String(input.maxInstallment)
+    // The installment cap. The Link API REJECTS '0' ("Zorunlu alan degeri gecersiz: max_installment") —
+    // unlike the iFrame token API, its minimum is 1. So "tek çekim" is '1' (single, no installment), and a
+    // higher cap is that number. Verified against the live create endpoint: '0' fails, '1' and '12' succeed.
+    const maxInstallment = String(Math.max(1, Math.floor(input.maxInstallment)))
     const linkType = 'product'
     const lang = 'tr'
     const minCount = '1'
