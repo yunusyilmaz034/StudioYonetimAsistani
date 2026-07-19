@@ -9,7 +9,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Section } from '@/components/ui/section'
 import { Textarea } from '@/components/ui/textarea'
-import { getMobileSettingsAction, setMobileBannerAction, setMobileBrandingAction } from '@/server/actions/mobile-settings'
+import { getMobileSettingsAction, setMobileBannerAction, setMobileBrandingAction, setMobileCampaignAction } from '@/server/actions/mobile-settings'
 
 type Tone = 'accent' | 'gold' | 'good'
 const TONES: { key: Tone; label: string; className: string }[] = [
@@ -36,6 +36,12 @@ export function MobilePanel({ canEdit }: { canEdit: boolean }) {
   const [bannerImage, setBannerImage] = useState('')
   const [appName, setAppName] = useState('')
   const [logoUrl, setLogoUrl] = useState('')
+  const [campActive, setCampActive] = useState(false)
+  const [campImage, setCampImage] = useState('')
+  const [campTitle, setCampTitle] = useState('')
+  const [campCta, setCampCta] = useState('')
+  const [campUrl, setCampUrl] = useState('')
+  const [savingCamp, setSavingCamp] = useState(false)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [savingBrand, setSavingBrand] = useState(false)
@@ -45,10 +51,22 @@ export function MobilePanel({ canEdit }: { canEdit: boolean }) {
       .then((s) => {
         if (s.banner) { setActive(s.banner.active); setTitle(s.banner.title); setBody(s.banner.body); setTone(s.banner.tone); setBannerImage(s.banner.imageUrl ?? '') }
         if (s.branding) { setAppName(s.branding.appName); setLogoUrl(s.branding.logoUrl) }
+        if (s.campaign) { setCampActive(s.campaign.active); setCampImage(s.campaign.imageUrl); setCampTitle(s.campaign.title); setCampCta(s.campaign.ctaLabel); setCampUrl(s.campaign.ctaUrl) }
       })
       .catch(() => {})
       .finally(() => setLoading(false))
   }, [])
+
+  async function saveCampaign() {
+    setSavingCamp(true)
+    try {
+      const r = await setMobileCampaignAction({ active: campActive, imageUrl: campImage.trim(), title: campTitle.trim(), ctaLabel: campCta.trim(), ctaUrl: campUrl.trim() })
+      if (r.ok) toast.success('Kampanya popup kaydedildi.')
+    } catch {
+      toast.error('Kaydedilemedi.')
+    }
+    setSavingCamp(false)
+  }
 
   async function saveBranding() {
     setSavingBrand(true)
@@ -196,6 +214,55 @@ export function MobilePanel({ canEdit }: { canEdit: boolean }) {
           ) : (
             <p className="text-sm text-muted-foreground">Banner'ı yalnızca işletme sahibi düzenleyebilir.</p>
           )}
+        </div>
+      </Section>
+
+      <Section
+        title="Kampanya popup'ı (açılışta)"
+        hint="Uygulama açıldığında bir kez gösterilen tam görsel (ör. Instagram reklamı). Günde 1 kez; üye kapatınca susar. Kapalıyken çıkmaz."
+      >
+        <div className="space-y-4">
+          <label className="flex items-center gap-3">
+            <Checkbox checked={campActive} onCheckedChange={(v) => setCampActive(Boolean(v))} disabled={!canEdit} />
+            <span className="text-sm font-medium">Popup'ı üyelere göster</span>
+          </label>
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">Görsel URL'i <span className="font-normal text-muted-foreground">(kare/dikey — Instagram kreatifi)</span></label>
+            <Input value={campImage} onChange={(e) => setCampImage(e.target.value)} placeholder="https://.../kampanya.jpg" disabled={!canEdit} />
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Başlık <span className="font-normal text-muted-foreground">(opsiyonel)</span></label>
+              <Input value={campTitle} onChange={(e) => setCampTitle(e.target.value)} maxLength={80} placeholder="Yaz Kampanyası" disabled={!canEdit} />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Buton metni <span className="font-normal text-muted-foreground">(boş = buton yok)</span></label>
+              <Input value={campCta} onChange={(e) => setCampCta(e.target.value)} maxLength={30} placeholder="Detaylar / WhatsApp" disabled={!canEdit} />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">Buton bağlantısı <span className="font-normal text-muted-foreground">(link ya da https://wa.me/90…)</span></label>
+            <Input value={campUrl} onChange={(e) => setCampUrl(e.target.value)} placeholder="https://instagram.com/... ya da https://wa.me/90..." disabled={!canEdit} />
+          </div>
+          {campImage ? (
+            <div className="rounded-2xl border border-border bg-muted/40 p-4">
+              <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Önizleme</p>
+              <div className="mx-auto max-w-[240px] overflow-hidden rounded-2xl border bg-card shadow-sm">
+                <img src={campImage} alt="kampanya" className="max-h-72 w-full object-cover" />
+                {campTitle || campCta ? (
+                  <div className="space-y-2 p-3">
+                    {campTitle ? <p className="text-sm font-semibold">{campTitle}</p> : null}
+                    {campCta ? <div className="rounded-lg bg-accent px-3 py-1.5 text-center text-sm font-semibold text-accent-foreground">{campCta}</div> : null}
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
+          {canEdit ? (
+            <Button onClick={() => void saveCampaign()} disabled={savingCamp}>
+              {savingCamp ? <Loader2Icon className="animate-spin" /> : null} Kaydet
+            </Button>
+          ) : null}
         </div>
       </Section>
     </div>

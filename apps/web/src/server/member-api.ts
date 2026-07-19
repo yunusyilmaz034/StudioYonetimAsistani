@@ -6,7 +6,7 @@ import type { RetailItem, StoredWallet } from '@studio/core/client'
 import { loadOccupancyNow } from './fitness-query'
 import { adminAuth, adminDb, adminStorage, storageBucketName } from './firebase-admin'
 import { memberClaimsToTenantContext, parseMemberClaims } from './member-claims'
-import type { MobileBanner, MobileBranding, MobileSettings } from './actions/mobile-settings'
+import type { MobileBanner, MobileBranding, MobileCampaign, MobileSettings } from './actions/mobile-settings'
 import { readWalletView } from './wallet-query'
 
 // The mobile member API's authentication (AD-70). A native app has no `__session` cookie; it sends the
@@ -84,7 +84,13 @@ export async function memberHomeExtras(ctx: TenantContext) {
   const data = snap.data() as MobileSettings | undefined
   const banner = (data?.banner ?? null) as MobileBanner | null
   const branding = (data?.branding ?? null) as MobileBranding | null
-  return { occupancyLevel: occ.level, banner: banner?.active ? banner : null, branding }
+  const campaign = (data?.campaign ?? null) as MobileCampaign | null
+  return {
+    occupancyLevel: occ.level,
+    banner: banner?.active ? banner : null,
+    branding,
+    campaign: campaign?.active && campaign.imageUrl ? campaign : null,
+  }
 }
 
 // ── Profile photo (member's own avatar) ────────────────────────────────────────────────────────

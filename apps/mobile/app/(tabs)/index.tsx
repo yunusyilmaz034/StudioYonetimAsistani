@@ -10,6 +10,7 @@ import { dateTime, formatKurus } from '@/lib/format'
 import { useFetch } from '@/lib/useFetch'
 import { FadeInUp, ProgressBar } from '@/components/motion'
 import { Body, Card, Eyebrow, Empty, GradientFill, Hero, Loading, Pill, Screen } from '@/components/ui'
+import { CampaignPopup } from '@/components/campaign-popup'
 import { radius, shadow, space, typo as t, usePalette } from '@/theme'
 
 const todayTr = () => new Date().toLocaleDateString('tr-TR', { weekday: 'long', day: 'numeric', month: 'long' })
@@ -49,6 +50,7 @@ export default function Home() {
 
   return (
     <Screen refreshControl={<RefreshControl refreshing={dash.loading} onRefresh={() => { void dash.reload(); void inbox.reload(); void home.reload(); void fitness.reload() }} tintColor={p.accent} />}>
+      <CampaignPopup campaign={home.data?.campaign ?? null} />
       <FadeInUp index={0}>
         <Hero gradient={{ from: tod.from, to: tod.to }}>
           {/* brand header — date on the left, the studio name + logo on the right (from admin) */}

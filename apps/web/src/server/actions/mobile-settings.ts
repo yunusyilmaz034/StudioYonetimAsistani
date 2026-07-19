@@ -23,12 +23,23 @@ export interface MobileBranding {
   readonly logoUrl: string
 }
 
+// The full-creative campaign shown as a tasteful open-screen POPUP (e.g. the Instagram ad). Distinct
+// from the inline banner. Frequency is capped on the device (once/day, silenced once dismissed).
+export interface MobileCampaign {
+  readonly active: boolean
+  readonly imageUrl: string // the creative (square/portrait); the popup is image-first
+  readonly title: string // optional overline shown under the image
+  readonly ctaLabel: string // '' ⇒ no button
+  readonly ctaUrl: string // link or wa.me/... opened on tap
+}
+
 export interface MobileSettings {
   readonly banner: MobileBanner | null
   readonly branding: MobileBranding | null
+  readonly campaign: MobileCampaign | null
 }
 
-const DEFAULT: MobileSettings = { banner: null, branding: null }
+const DEFAULT: MobileSettings = { banner: null, branding: null, campaign: null }
 
 export async function getMobileSettingsAction(): Promise<MobileSettings> {
   const ctx = await requireTenantContext(OPS)
@@ -48,6 +59,21 @@ export async function setMobileBannerAction(input: unknown) {
     .parse(input)
   const ctx = await requireTenantContext(OWNER)
   await adminDb().doc(`studios/${ctx.studioId}/settings/mobile`).set({ banner: p }, { merge: true })
+  return { ok: true as const }
+}
+
+export async function setMobileCampaignAction(input: unknown) {
+  const p = z
+    .object({
+      active: z.boolean(),
+      imageUrl: z.string().trim().url().or(z.literal('')),
+      title: z.string().trim().max(80).default(''),
+      ctaLabel: z.string().trim().max(30).default(''),
+      ctaUrl: z.string().trim().max(500).default(''),
+    })
+    .parse(input)
+  const ctx = await requireTenantContext(OWNER)
+  await adminDb().doc(`studios/${ctx.studioId}/settings/mobile`).set({ campaign: p }, { merge: true })
   return { ok: true as const }
 }
 

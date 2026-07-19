@@ -119,10 +119,18 @@ export interface HomeBanner {
   readonly tone: 'accent' | 'gold' | 'good'
   readonly imageUrl?: string
 }
+export interface HomeCampaign {
+  readonly active: boolean
+  readonly imageUrl: string
+  readonly title: string
+  readonly ctaLabel: string
+  readonly ctaUrl: string
+}
 export interface HomeExtras {
   readonly occupancyLevel: string | null
   readonly banner: HomeBanner | null
   readonly branding: Branding | null
+  readonly campaign: HomeCampaign | null
 }
 
 // The training endpoint returns everything the screen shows; the app reads the parts it renders.
