@@ -50,6 +50,7 @@ export function PortalTrainingScreen({
   feedback,
   photos,
   guides,
+  showPrograms = true,
 }: {
   active: Program | null
   programs: readonly Program[]
@@ -57,32 +58,40 @@ export function PortalTrainingScreen({
   feedback: readonly TrainingFeedback[]
   photos: readonly PortalPhoto[]
   guides: Record<string, ExerciseGuide>
+  showPrograms?: boolean
 }) {
   const past = programs.filter((p) => p.id !== active?.id)
   return (
     <main className="mx-auto max-w-3xl space-y-5 p-4 pb-8">
       <div>
         <h1 className="text-display font-semibold text-foreground">Antrenmanım</h1>
-        <p className="text-sm text-muted-foreground">Programın, gelişimin ve eğitmenine geri bildirimlerin.</p>
+        <p className="text-sm text-muted-foreground">
+          {showPrograms ? 'Programın, gelişimin ve eğitmenine geri bildirimlerin.' : 'Gelişimini takip et.'}
+        </p>
       </div>
 
-      <Tabs defaultValue="program">
-        <TabsList className="flex w-full">
-          <TabsTrigger value="program" className="min-h-9 flex-1">
-            <DumbbellIcon className="size-4" /> Programım
-          </TabsTrigger>
-          <TabsTrigger value="progress" className="min-h-9 flex-1">
-            <ActivityIcon className="size-4" /> Gelişimim
-          </TabsTrigger>
-        </TabsList>
+      {/* A pilates-only member has no workout programme — she sees only her progress (measurements). */}
+      {showPrograms ? (
+        <Tabs defaultValue="program">
+          <TabsList className="flex w-full">
+            <TabsTrigger value="program" className="min-h-9 flex-1">
+              <DumbbellIcon className="size-4" /> Programım
+            </TabsTrigger>
+            <TabsTrigger value="progress" className="min-h-9 flex-1">
+              <ActivityIcon className="size-4" /> Gelişimim
+            </TabsTrigger>
+          </TabsList>
 
-        <TabsContent value="program">
-          <ProgramTab active={active} past={past} feedback={feedback} guides={guides} />
-        </TabsContent>
-        <TabsContent value="progress">
-          <ProgressTab measurements={measurements} photos={photos} />
-        </TabsContent>
-      </Tabs>
+          <TabsContent value="program">
+            <ProgramTab active={active} past={past} feedback={feedback} guides={guides} />
+          </TabsContent>
+          <TabsContent value="progress">
+            <ProgressTab measurements={measurements} photos={photos} />
+          </TabsContent>
+        </Tabs>
+      ) : (
+        <ProgressTab measurements={measurements} photos={photos} />
+      )}
     </main>
   )
 }

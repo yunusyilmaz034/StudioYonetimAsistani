@@ -133,4 +133,5 @@ export interface TrainingBundle {
   readonly measurements: readonly import('@studio/core/client').MemberMeasurement[]
   readonly feedback: readonly import('@studio/core/client').MemberFeedback[]
   readonly photos: readonly import('@studio/core/client').MemberPhoto[]
+  readonly showPrograms: boolean // pilates-only members see only measurements, no training programmes
 }

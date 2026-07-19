@@ -8,6 +8,7 @@ import {
   createProgram,
   deactivateExercise,
   deleteProgramTemplate,
+  FirestoreEntitlementRepository,
   FirestoreTrainingRepository,
   instantiateTemplate,
   leaveFeedback,
@@ -419,13 +420,20 @@ export async function removeProgressPhotoAction(input: unknown) {
 // Everything the training screen shows, in one ctx-taking call — shared by the cookie portal and the
 // Bearer member API (the mobile app). Photos carry short-lived signed URLs; the raw path never leaves.
 export async function loadMyTraining(ctx: TenantContext, memberId: MemberId) {
-  const [programs, exercises, measurements, feedback, photos] = await Promise.all([
+  const [programs, exercises, measurements, feedback, photos, entitlements] = await Promise.all([
     repo().listProgramsByMember(ctx, memberId),
     repo().listExercises(ctx),
     repo().listMeasurementsByMember(ctx, memberId),
     repo().listFeedbackByMember(ctx, memberId),
     repo().listPhotosByMember(ctx, memberId),
+    new FirestoreEntitlementRepository(adminDb()).listActiveByMember(ctx, memberId),
   ])
+  // Training PROGRAMMES are for members who actually train — fitness (gym) or PT. A pilates-only member
+  // has no use for a workout plan; she sees only her measurements. Kept honest by a real membership
+  // check, and a safety net: if a programme somehow exists, never hide it.
+  const showPrograms =
+    entitlements.some((e) => e.productSnapshot.category === 'fitness' || e.productSnapshot.category === 'private') ||
+    programs.length > 0
   const used = new Set<string>()
   for (const p of programs) for (const v of p.versions) for (const day of v.days) for (const e of day.exercises) used.add(e.exerciseId)
   const guides: Record<string, ExerciseGuide> = {}
@@ -455,12 +463,25 @@ export async function loadMyTraining(ctx: TenantContext, memberId: MemberId) {
     measurements,
     feedback,
     photos: visiblePhotos,
+    showPrograms,
   }
 }
 
 export async function listMyProgramsAction() {
   const { ctx, memberId } = await requireMemberContext()
   return repo().listProgramsByMember(ctx, memberId)
+}
+
+// Training programmes are for members who train — fitness (gym) or PT. A pilates-only member sees only
+// her measurements, so the portal hides the "Programım" tab. Safety net: never hide a programme that
+// actually exists.
+export async function showMyProgramsAction(): Promise<boolean> {
+  const { ctx, memberId } = await requireMemberContext()
+  const [programs, ents] = await Promise.all([
+    repo().listProgramsByMember(ctx, memberId),
+    new FirestoreEntitlementRepository(adminDb()).listActiveByMember(ctx, memberId),
+  ])
+  return ents.some((e) => e.productSnapshot.category === 'fitness' || e.productSnapshot.category === 'private') || programs.length > 0
 }
 
 // The guidance (Hareket Rehberi) for the exercises in HER programs — so the portal can show the guide

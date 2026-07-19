@@ -33,14 +33,18 @@ export default function Training() {
 
   return (
     <Screen refreshControl={<RefreshControl refreshing={loading} onRefresh={reload} tintColor={p.accent} />}>
-      <Title sub="Programların ve gelişimin">Antrenman</Title>
+      <Title sub={t?.showPrograms ? 'Programların ve gelişimin' : 'Gelişimini takip et'}>Antrenman</Title>
 
-      <Eyebrow>Programlarım</Eyebrow>
-      {programs.length > 0 ? (
-        programs.map((prog, i) => <ProgramCard key={prog.id} program={prog} index={i} />)
-      ) : (
-        <Card><Empty icon={<Ionicons name="clipboard-outline" size={30} color={p.textFaint} />} text="Sana atanmış bir program yok." /></Card>
-      )}
+      {t?.showPrograms ? (
+        <>
+          <Eyebrow>Programlarım</Eyebrow>
+          {programs.length > 0 ? (
+            programs.map((prog, i) => <ProgramCard key={prog.id} program={prog} index={i} />)
+          ) : (
+            <Card><Empty icon={<Ionicons name="clipboard-outline" size={30} color={p.textFaint} />} text="Sana atanmış bir program yok." /></Card>
+          )}
+        </>
+      ) : null}
 
       <FadeInUp index={programs.length + 1}>
         <Eyebrow>Ölçümlerim</Eyebrow>
