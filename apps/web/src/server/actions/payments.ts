@@ -27,6 +27,7 @@ import { z } from 'zod'
 
 import { requireTenantContext } from '../auth'
 import { adminDb } from '../firebase-admin'
+import { allowRate } from '../rate-limit'
 import { getPaymentProviderConfig, paymentProviderFor, paymentSecretsPresent, DEFAULT_PAYMENT_CONFIG } from '../payment-provider'
 
 const OPS = ['owner', 'receptionist', 'platform_admin'] as const
@@ -346,6 +347,10 @@ export async function createCollectionCheckoutAction(input: unknown) {
     })
     .parse(input)
   const ctx = publicCtx(p.studioId)
+
+  // This is the ONE unauthenticated write in the app — throttle it per IP so the public form can't be
+  // spammed into thousands of bogus PaymentIntents (12/hour is far above any real buyer).
+  if (!(await allowRate(p.studioId, 'pay_checkout', 12, 60 * 60 * 1000))) return { ok: false as const, reason: 'rate_limited' as const }
 
   const link = await new FirestorePaymentLinkRepository(adminDb()).get(ctx, p.linkId)
   if (!link || !link.active) return { ok: false as const, reason: 'unavailable' as const }

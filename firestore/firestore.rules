@@ -67,7 +67,9 @@ service cloud.firestore {
           'paytrLinks', 'paytrCollections',
           // v1.27 — member wallets (stored value). Read only through the Admin SDK: the member app via
           // the Bearer member-api, the staff app via Server Actions. Never written or read client-side.
-          'wallets'
+          'wallets',
+          // v1.27 — internal counters (public-form rate limits, hashed IPs). Server-only; no client read.
+          'rateLimits'
         ];
       }
 

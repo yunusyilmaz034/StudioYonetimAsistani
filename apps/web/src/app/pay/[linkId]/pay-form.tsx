@@ -15,6 +15,7 @@ const REASON_TR: Record<string, string> = {
   not_configured: 'Ödeme sistemi şu an kullanılamıyor. Lütfen stüdyoyla iletişime geçin.',
   unavailable: 'Bu ödeme linki artık geçerli değil.',
   checkout_failed: 'Ödeme başlatılamadı. Lütfen tekrar deneyin.',
+  rate_limited: 'Çok fazla deneme yapıldı. Lütfen biraz sonra tekrar deneyin.',
 }
 
 export function PayForm({
