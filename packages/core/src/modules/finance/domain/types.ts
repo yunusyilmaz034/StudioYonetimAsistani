@@ -27,7 +27,18 @@ import type {
 // that changed them, and have a rebuild path.
 
 export type SaleStatus = 'open' | 'settled' | 'cancelled'
-export type PaymentMethod = 'cash' | 'bank_transfer' | 'credit_card' | 'pos' | 'online' | 'gift_card'
+export type PaymentMethod = 'cash' | 'bank_transfer' | 'credit_card' | 'pos' | 'online' | 'gift_card' | 'wallet'
+
+// ── Member WALLET (Doc 27). One per member. `balance` is DERIVED from the wallet events (topups −
+//    purchases ± adjustments…), denormalised here for a one-read balance and rebuildable at any time.
+//    The decision functions load it to enforce I-37 (never spent below zero). Money is kuruş. ──
+export interface Wallet {
+  readonly id: string // wal_{memberId} — stable, one per member
+  readonly studioId: StudioId
+  readonly memberId: MemberId
+  readonly balance: Money
+  readonly updatedAt: Instant
+}
 export type DiscountReason = 'campaign' | 'coupon' | 'referral' | 'gift' | 'manual'
 
 // A discount is an AMOUNT, stamped at sale time — never a percentage re-evaluated later (I-34).

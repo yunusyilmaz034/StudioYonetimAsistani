@@ -48,6 +48,8 @@ export type DomainError =
   | { readonly code: 'giftcard_not_found' }
   | { readonly code: 'giftcard_not_active' }
   | { readonly code: 'giftcard_insufficient'; readonly remaining: number }
+  // ── member wallet (v1.27, Doc 27) — a debit that would go below zero is REFUSED, never clamped (I-37) ──
+  | { readonly code: 'wallet_insufficient'; readonly balance: number; readonly requested: number }
   | { readonly code: 'allocation_exceeds_payment' }
   | { readonly code: 'allocation_exceeds_sale' }
   | { readonly code: 'plan_total_mismatch' }

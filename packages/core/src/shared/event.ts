@@ -57,6 +57,8 @@ export type AggregateKind =
   // PF-37 — shareable PAYTR links + unattributed collections. Additive.
   | 'payment_link'
   | 'paytr_collection'
+  // v1.27 (Doc 27) — the member WALLET: one stored-value account per member. Additive.
+  | 'wallet'
 
 export interface PolicyRef {
   readonly policyId: PolicyId

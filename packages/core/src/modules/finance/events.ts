@@ -39,6 +39,15 @@ export const PAYTR_COLLECTION_RECEIVED = 'paytr_collection.received'
 export const PAYTR_COLLECTION_RECONCILED = 'paytr_collection.reconciled'
 export const PAYTR_COLLECTION_CANCELLED = 'paytr_collection.cancelled'
 
+// ── Member WALLET (Doc 27 / v1.27). A gift card with the member's name: money in (topup), money out
+//    (purchase, method 'wallet'), refunds, reasoned adjustments, and a void. Balance is DERIVED, never
+//    spent below zero (I-37). Every payload carries `balanceAfter` so the log alone reconstructs it. ──
+export const WALLET_TOPUP = 'wallet.topup'
+export const WALLET_PURCHASE = 'wallet.purchase'
+export const WALLET_REFUND = 'wallet.refund'
+export const WALLET_ADJUSTMENT = 'wallet.adjustment'
+export const WALLET_VOIDED = 'wallet.voided'
+
 export type SaleCreatedPayload = {
   readonly gross: Money
   readonly discountTotal: Money
@@ -132,6 +141,45 @@ export type GiftCardRedeemedPayload = {
   readonly amount: Money
   readonly remainingAfter: Money
   readonly paymentId: string
+}
+
+// ── Wallet payloads. `amount` is always POSITIVE (kuruş); the event TYPE says the direction. Money in
+//    (topup/refund/adjustment-credit) raises the balance; money out (purchase/void/adjustment-debit)
+//    lowers it. `balanceAfter` is the derived balance once this event is applied. No PII (#6). ──
+export type WalletTopupSource = 'pos' | 'cash' | 'bank_transfer' | 'manual'
+export type WalletAdjustReason = 'gift' | 'correction' | 'migration' | 'support'
+
+export type WalletTopupPayload = {
+  readonly amount: Money
+  readonly source: WalletTopupSource
+  readonly paymentId: string | null
+  readonly providerRef: string | null
+  readonly balanceAfter: Money
+}
+export type WalletPurchasePayload = {
+  readonly amount: Money
+  readonly saleId: string
+  readonly paymentId: string
+  readonly balanceAfter: Money
+}
+export type WalletRefundPayload = {
+  readonly amount: Money
+  readonly reason: string
+  readonly originalSaleId: string | null
+  readonly balanceAfter: Money
+}
+export type WalletAdjustmentPayload = {
+  readonly direction: 'credit' | 'debit'
+  readonly amount: Money
+  readonly reason: WalletAdjustReason
+  readonly note: string
+  readonly balanceAfter: Money
+}
+export type WalletVoidedPayload = {
+  readonly amount: Money
+  readonly topupId: string
+  readonly reason: string
+  readonly balanceAfter: Money
 }
 
 export type CouponCreatedPayload = {

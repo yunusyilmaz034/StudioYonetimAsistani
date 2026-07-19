@@ -42,6 +42,13 @@ import {
   SALE_CANCELLED,
   SALE_CREATED,
   SALE_SETTLED,
+  WALLET_ADJUSTMENT,
+  WALLET_PURCHASE,
+  WALLET_REFUND,
+  WALLET_TOPUP,
+  WALLET_VOIDED,
+  type WalletAdjustReason,
+  type WalletTopupSource,
 } from '../events'
 import {
   giftCardRemaining,
@@ -60,6 +67,7 @@ import {
   type PaytrCollection,
   type Sale,
   type SaleLine,
+  type Wallet,
 } from './types'
 
 // PURE. (state, command, now) → events. No I/O, no clock, no randomness — ids arrive from the
@@ -592,6 +600,148 @@ export function decideIssueGiftCard(
           issuedToMemberId: card.issuedToMemberId,
           validUntil: card.validUntil,
         },
+      },
+    ],
+  })
+}
+
+// ── MEMBER WALLET (Doc 27, v1.27) — stored value: money in (topup/refund/credit), money out
+//    (purchase/void/debit). The wallet's `balance` is denormalised; these are the ONLY functions
+//    allowed to move it. Every op carries `balanceAfter`, and a debit that would cross zero is
+//    REFUSED, never clamped (I-37). `amount` is always positive kuruş — the event TYPE says direction.
+const walletMoved = (wallet: Wallet, balance: Money, now: Instant): Wallet => ({
+  ...wallet,
+  balance,
+  updatedAt: now,
+})
+
+export function decideWalletTopup(
+  ctx: DecideContext,
+  wallet: Wallet,
+  input: {
+    readonly amount: Money
+    readonly source: WalletTopupSource
+    readonly paymentId: string | null
+    readonly providerRef: string | null
+  },
+): Result<Outcome<Wallet>, DomainError> {
+  if (input.amount.amount <= 0) return err({ code: 'invalid_amount' })
+  const balanceAfter = addMoney(wallet.balance, input.amount)
+  return ok({
+    next: walletMoved(wallet, balanceAfter, ctx.now),
+    events: [
+      {
+        ...base(ctx, 'wallet', wallet.id, null, { memberId: wallet.memberId }),
+        type: WALLET_TOPUP,
+        payload: {
+          amount: input.amount,
+          source: input.source,
+          paymentId: input.paymentId,
+          providerRef: input.providerRef,
+          balanceAfter,
+        },
+      },
+    ],
+  })
+}
+
+export function decideWalletPurchase(
+  ctx: DecideContext,
+  wallet: Wallet,
+  input: { readonly amount: Money; readonly saleId: string; readonly paymentId: string },
+): Result<Outcome<Wallet>, DomainError> {
+  if (input.amount.amount <= 0) return err({ code: 'invalid_amount' })
+  if (wallet.balance.amount < input.amount.amount)
+    return err({ code: 'wallet_insufficient', balance: wallet.balance.amount, requested: input.amount.amount })
+  const balanceAfter = subtractMoney(wallet.balance, input.amount)
+  return ok({
+    next: walletMoved(wallet, balanceAfter, ctx.now),
+    events: [
+      {
+        ...base(ctx, 'wallet', wallet.id, null, { memberId: wallet.memberId }),
+        type: WALLET_PURCHASE,
+        payload: { amount: input.amount, saleId: input.saleId, paymentId: input.paymentId, balanceAfter },
+      },
+    ],
+  })
+}
+
+export function decideWalletRefund(
+  ctx: DecideContext,
+  wallet: Wallet,
+  input: { readonly amount: Money; readonly reason: string; readonly originalSaleId: string | null },
+): Result<Outcome<Wallet>, DomainError> {
+  if (input.amount.amount <= 0) return err({ code: 'invalid_amount' })
+  if (input.reason.trim() === '') return err({ code: 'reason_required' })
+  const balanceAfter = addMoney(wallet.balance, input.amount)
+  return ok({
+    next: walletMoved(wallet, balanceAfter, ctx.now),
+    events: [
+      {
+        ...base(ctx, 'wallet', wallet.id, null, { memberId: wallet.memberId }),
+        type: WALLET_REFUND,
+        payload: {
+          amount: input.amount,
+          reason: input.reason,
+          originalSaleId: input.originalSaleId,
+          balanceAfter,
+        },
+      },
+    ],
+  })
+}
+
+export function decideWalletAdjustment(
+  ctx: DecideContext,
+  wallet: Wallet,
+  input: {
+    readonly direction: 'credit' | 'debit'
+    readonly amount: Money
+    readonly reason: WalletAdjustReason
+    readonly note: string
+  },
+): Result<Outcome<Wallet>, DomainError> {
+  if (input.amount.amount <= 0) return err({ code: 'invalid_amount' })
+  if (input.note.trim() === '') return err({ code: 'note_required' }) // AD-39 shape: a reasoned note is mandatory
+  if (input.direction === 'debit' && wallet.balance.amount < input.amount.amount)
+    return err({ code: 'wallet_insufficient', balance: wallet.balance.amount, requested: input.amount.amount })
+  const balanceAfter =
+    input.direction === 'credit' ? addMoney(wallet.balance, input.amount) : subtractMoney(wallet.balance, input.amount)
+  return ok({
+    next: walletMoved(wallet, balanceAfter, ctx.now),
+    events: [
+      {
+        ...base(ctx, 'wallet', wallet.id, null, { memberId: wallet.memberId }),
+        type: WALLET_ADJUSTMENT,
+        payload: {
+          direction: input.direction,
+          amount: input.amount,
+          reason: input.reason,
+          note: input.note,
+          balanceAfter,
+        },
+      },
+    ],
+  })
+}
+
+export function decideWalletVoid(
+  ctx: DecideContext,
+  wallet: Wallet,
+  input: { readonly amount: Money; readonly topupId: string; readonly reason: string },
+): Result<Outcome<Wallet>, DomainError> {
+  if (input.amount.amount <= 0) return err({ code: 'invalid_amount' })
+  if (input.reason.trim() === '') return err({ code: 'reason_required' })
+  if (wallet.balance.amount < input.amount.amount)
+    return err({ code: 'wallet_insufficient', balance: wallet.balance.amount, requested: input.amount.amount })
+  const balanceAfter = subtractMoney(wallet.balance, input.amount)
+  return ok({
+    next: walletMoved(wallet, balanceAfter, ctx.now),
+    events: [
+      {
+        ...base(ctx, 'wallet', wallet.id, null, { memberId: wallet.memberId }),
+        type: WALLET_VOIDED,
+        payload: { amount: input.amount, topupId: input.topupId, reason: input.reason, balanceAfter },
       },
     ],
   })

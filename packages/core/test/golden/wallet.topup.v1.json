@@ -1,0 +1,7 @@
+{
+  "amount": { "amount": 50000, "currency": "TRY" },
+  "source": "pos",
+  "paymentId": "pay_1",
+  "providerRef": "oid_abc",
+  "balanceAfter": { "amount": 50000, "currency": "TRY" }
+}

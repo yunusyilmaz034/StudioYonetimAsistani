@@ -21,6 +21,7 @@ export type {
   Sale,
   SaleLine,
   SaleStatus,
+  Wallet,
 } from './domain/types'
 export {
   giftCardRemaining,
@@ -42,6 +43,11 @@ export {
   decideReceivePayment,
   decideRefund,
   decideVoidPayment,
+  decideWalletAdjustment,
+  decideWalletPurchase,
+  decideWalletRefund,
+  decideWalletTopup,
+  decideWalletVoid,
 } from './domain/decide'
 export {
   cancelSale,

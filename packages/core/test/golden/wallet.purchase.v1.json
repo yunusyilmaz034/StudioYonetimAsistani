@@ -1,0 +1,6 @@
+{
+  "amount": { "amount": 12000, "currency": "TRY" },
+  "saleId": "sale_1",
+  "paymentId": "pay_2",
+  "balanceAfter": { "amount": 38000, "currency": "TRY" }
+}

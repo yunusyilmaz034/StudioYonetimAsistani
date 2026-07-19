@@ -241,6 +241,8 @@ export function domainErrorMessage(error: DomainError): string {
       return `Günlük rezervasyon limitine ulaşıldı (en fazla ${error.limit}).`
     case 'active_reservation_limit_reached':
       return `Aktif rezervasyon limitine ulaşıldı (en fazla ${error.limit}).`
+    case 'wallet_insufficient':
+      return `Cüzdan bakiyesi yetersiz (bakiye ${(error.balance / 100).toLocaleString('tr-TR')} ₺, istenen ${(error.requested / 100).toLocaleString('tr-TR')} ₺).`
     default: {
       const exhaustive: never = error
       void exhaustive
