@@ -9,6 +9,7 @@ import {
   BanknoteIcon,
   BarChart3Icon,
   BellIcon,
+  BookOpenIcon,
   CalendarClockIcon,
   CalendarDaysIcon,
   LayersIcon,
@@ -98,6 +99,7 @@ export const GROUPS: readonly NavGroup[] = [
       { href: '/calendar', label: 'Takvim', icon: CalendarDaysIcon },
       { href: '/activity', label: 'Hareket Merkezi', icon: ActivityIcon },
       { href: '/notifications', label: 'Bildirim Merkezi', icon: BellIcon },
+      { href: '/knowledge', label: 'Bilgi Merkezi', icon: BookOpenIcon },
     ],
   },
   {

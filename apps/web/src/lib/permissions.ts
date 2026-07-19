@@ -37,6 +37,7 @@ export type Area =
   | '/advisor' // Plus Phase 10 — AI Insights L1 (owner-confidential decision-support)
   | '/activity'
   | '/notifications'
+  | '/knowledge' // Bilgi Merkezi — the living help base; all staff read, owner edits
   | '/analytics'
   | '/audit'
   | '/settings' // S2
@@ -76,6 +77,9 @@ export const PERMISSIONS: Readonly<Record<Area, readonly PrincipalRole[]>> = {
   '/calendar': DESK,
   '/activity': DESK, // "ben bunu iptal etmiştim" — she needs the record of her own day
   '/notifications': DESK,
+  // The help base is for everyone who works here — owner, reception AND the trainer. Reading is open;
+  // editing is owner-only, enforced in the Server Action (this only gates the screen).
+  '/knowledge': ['owner', 'receptionist', 'trainer'],
   // Reception hands it over, so reception prints it.
   '/receipt': DESK,
 

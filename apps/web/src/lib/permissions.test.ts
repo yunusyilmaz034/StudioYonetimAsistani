@@ -15,7 +15,8 @@ describe('the trainer — staff, and the person least entitled to the studio’s
     // Plus Phase 9 — her OWN earnings (read-only, never another trainer's). Still not the members
     // list, the till, the funnel, or the payroll cost side.
     const visible = AREAS.filter((a) => canSee('trainer', a))
-    expect(visible).toEqual(['/my-classes', '/training', '/my-payroll'])
+    // + the Bilgi Merkezi, which every staff role can read (owner edits it).
+    expect(visible).toEqual(['/knowledge', '/my-classes', '/training', '/my-payroll'])
   })
 
   it('cannot see the studio-wide payroll — it is owner-confidential (Plus Phase 9)', () => {
