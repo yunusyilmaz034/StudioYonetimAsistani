@@ -29,11 +29,19 @@ export interface RecordCheckInInput {
 // pick). A toggle: outside → check in, inside → check out. Idempotent by construction
 // (a redelivery re-reads the presence and produces the mirror state); the branch must
 // be open (D3).
+// The result carries the toggle DIRECTION and the check-in id, so a caller can react to a door ENTRY
+// (e.g. spend a fitness serbest-giriş entry, v1.27) without re-deriving presence — a check-OUT never
+// spends anything.
+export interface RecordCheckInResult {
+  readonly direction: 'in' | 'out'
+  readonly checkInId: string
+}
+
 export async function recordCheckIn(
   deps: CheckinDeps,
   ctx: TenantContext,
   input: RecordCheckInInput,
-): Promise<Result<void, DomainError>> {
+): Promise<Result<RecordCheckInResult, DomainError>> {
   const now = deps.clock.now()
   const dctx = decideContext(deps, ctx, { now: clampOccurredAt(input.occurredAt, now), commandId: input.commandId })
 
@@ -59,5 +67,5 @@ export async function recordCheckIn(
     decided.value.presenceNext,
     decided.value.events,
   )
-  return { ok: true, value: undefined }
+  return { ok: true, value: { direction: decided.value.checkIn.direction, checkInId: decided.value.checkIn.id } }
 }

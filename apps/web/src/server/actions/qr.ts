@@ -1,9 +1,13 @@
 'use server'
 
 import {
+  decideConsumeEntry,
+  entriesUsed,
   FirestoreCheckinRepository,
+  FirestoreEntitlementRepository,
   FirestoreMemberRepository,
   FirestoreSchedulingRepository,
+  newCorrelationId,
   recordCheckIn,
   systemClock,
   type BranchId,
@@ -70,6 +74,36 @@ export async function mintCheckInToken(ctx: TenantContext, memberId: MemberId, b
 // ── Reception: scan and check in ──────────────────────────────────────────────────────────
 // ONLINE-ONLY by design (D16). This is a Server Action, not a /commands write: a signature must
 // be verified, and that cannot happen on a client or later in a trigger.
+// EC3 (v1.27) — fitness serbest-giriş. On a door ENTRY (never an exit), if the member has a LIMITED
+// fitness membership (and no unlimited fitness access), spend one entry — SOFT: never blocks the door,
+// just records it so the toast/panel can show "3/4 kaldı". Returns the state to show, or null.
+export interface FitnessEntryInfo {
+  readonly used: number
+  readonly allowance: number
+}
+async function consumeFitnessEntry(
+  ctx: TenantContext,
+  memberId: MemberId,
+  checkInId: string,
+  direction: 'in' | 'out',
+): Promise<FitnessEntryInfo | null> {
+  if (direction !== 'in') return null
+  const entRepo = new FirestoreEntitlementRepository(adminDb())
+  const fitness = (await entRepo.listActiveByMember(ctx, memberId)).filter((e) => e.productSnapshot.category === 'fitness')
+  // No fitness membership, or ANY unlimited fitness access ⇒ nothing to spend.
+  if (fitness.length === 0 || fitness.some((e) => (e.productSnapshot.entryAllowance ?? null) === null)) return null
+  const target = [...fitness].sort((a, b) => a.validUntil - b.validUntil || a.purchasedAt - b.purchasedAt || (a.id < b.id ? -1 : 1))[0]
+  if (!target) return null
+  const decided = decideConsumeEntry(
+    { studioId: ctx.studioId, actor: ctx.actor, now: systemClock.now(), correlationId: newCorrelationId(), source: 'reception_web', commandId: null },
+    target,
+    checkInId,
+  )
+  if (!decided.ok) return null
+  await entRepo.saveEntitlement(ctx, decided.value.next, decided.value.events)
+  return { used: entriesUsed(decided.value.next.entryLedger), allowance: target.productSnapshot.entryAllowance ?? 0 }
+}
+
 export async function checkInByQrAction(input: unknown) {
   const p = z.object({ token: z.string().min(1), branchId: z.string().min(1) }).parse(input)
   // `kiosk` is the wall tablet: this — verifying a signed QR and recording a check-in — is the ONE
@@ -113,7 +147,8 @@ export async function checkInByQrAction(input: unknown) {
     },
   )
   if (!res.ok) return res
-  return { ok: true as const, value: { memberId: claims.memberId, memberName: member.fullName } }
+  const entry = await consumeFitnessEntry(ctx, claims.memberId as MemberId, res.value.checkInId, res.value.direction)
+  return { ok: true as const, value: { memberId: claims.memberId, memberName: member.fullName, direction: res.value.direction, entry } }
 }
 
 // The branch her QR is minted for. A member has no branch claim, so it comes from her record.
@@ -167,5 +202,6 @@ export async function memberCheckInByToken(ctx: TenantContext, memberId: MemberI
     { memberId, branchId: claims.branchId as BranchId, method: 'qr', occurredAt: systemClock.now(), commandId: null },
   )
   if (!res.ok) return res
-  return { ok: true as const, value: { branchId: claims.branchId } }
+  const entry = await consumeFitnessEntry(ctx, memberId, res.value.checkInId, res.value.direction)
+  return { ok: true as const, value: { branchId: claims.branchId, direction: res.value.direction, entry } }
 }
