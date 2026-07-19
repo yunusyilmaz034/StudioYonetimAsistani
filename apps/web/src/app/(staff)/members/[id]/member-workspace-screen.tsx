@@ -72,7 +72,8 @@ import {
   listUpcomingSessionsAction,
   type UpcomingSession,
 } from '@/server/actions/booking'
-import { bookReservationAction, cancelReservationAction } from '@/server/actions/reservations'
+import { applyRecurringMultiAction, bookReservationAction, cancelReservationAction, previewRecurringMultiAction } from '@/server/actions/reservations'
+import { Checkbox } from '@/components/ui/checkbox'
 
 import { MemberForm } from '../member-form'
 import { InvitePanel } from './invite-panel'
@@ -92,6 +93,9 @@ const RES_STATUS: Record<string, string> = {
 const dt = (ms: number) =>
   new Date(ms).toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul', dateStyle: 'medium', timeStyle: 'short' })
 const d = (ms: number) => new Date(ms).toLocaleDateString('tr-TR', { timeZone: 'Europe/Istanbul' })
+// Weekday + time, for a standing slot label ("Pazartesi 19:00").
+const wdt = (ms: number) =>
+  `${new Date(ms).toLocaleDateString('tr-TR', { timeZone: 'Europe/Istanbul', weekday: 'long' })} ${new Date(ms).toLocaleTimeString('tr-TR', { timeZone: 'Europe/Istanbul', hour: '2-digit', minute: '2-digit' })}`
 const tl = (k: number) => `${(k / 100).toLocaleString('tr-TR')} TL`
 
 type SectionId =
@@ -726,20 +730,80 @@ function QuickBookSheet({
     }
   }
 
+  // ── Sabit Rezervasyon (D18) — pick one or more weekly slots and fix the member on them. ──
+  const [mode, setMode] = useState<'once' | 'standing'>('once')
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [dur, setDur] = useState<'package' | 'weeks'>('package')
+  const [weeksInput, setWeeksInput] = useState('8')
+  const [preview, setPreview] = useState<{ slots: { sessionId: string; weeks: number; plan: { toBook: unknown[]; skipped: unknown[] } | null }[] } | null>(null)
+  const [working, setWorking] = useState(false)
+
+  const durationValue = (): number | 'package' => (dur === 'package' ? 'package' : Math.max(1, Math.min(52, parseInt(weeksInput, 10) || 8)))
+  const toggle = (id: string) => {
+    setPreview(null)
+    setSelected((prev) => {
+      const n = new Set(prev)
+      if (n.has(id)) n.delete(id)
+      else n.add(id)
+      return n
+    })
+  }
+
+  async function doPreview() {
+    setWorking(true)
+    setPreview(null)
+    try {
+      const res = await previewRecurringMultiAction({ memberId, sessionIds: [...selected], mode: durationValue(), skipDates: [] })
+      setPreview(res as typeof preview)
+    } catch {
+      toast.error('Önizleme yapılamadı.')
+    } finally {
+      setWorking(false)
+    }
+  }
+
+  async function doApply() {
+    setWorking(true)
+    try {
+      const res = await applyRecurringMultiAction({ memberId, sessionIds: [...selected], mode: durationValue(), skipDates: [] })
+      if (res.ok) {
+        toast.success(`${res.value.booked} ders sabitlendi${res.value.failed ? `, ${res.value.failed} açılamadı` : ''}.`)
+        onBooked()
+        onOpenChange(false)
+      } else {
+        toast.error('Sabitleme başarısız.')
+      }
+    } catch {
+      toast.error('Sabitleme başarısız.')
+    } finally {
+      setWorking(false)
+    }
+  }
+
+  const totalToBook = preview?.slots.reduce((n, s) => n + (s.plan?.toBook.length ?? 0), 0) ?? 0
+  const totalSkip = preview?.slots.reduce((n, s) => n + (s.plan?.skipped.length ?? 0), 0) ?? 0
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="gap-4 overflow-y-auto p-4 sm:p-5">
         <SheetHeader className="p-0">
-          <SheetTitle className="text-h1">Hızlı Rezervasyon</SheetTitle>
-          <SheetDescription>Önümüzdeki 14 gündeki uygun seanslar.</SheetDescription>
+          <SheetTitle className="text-h1">Rezervasyon</SheetTitle>
+          <SheetDescription>{mode === 'once' ? 'Önümüzdeki 14 gündeki uygun seanslar.' : 'Slot(ları) seç, üyeyi paket boyunca sabitle.'}</SheetDescription>
         </SheetHeader>
+
+        {/* mode toggle */}
+        <div className="inline-flex rounded-full bg-muted p-1 text-sm">
+          <button type="button" onClick={() => setMode('once')} className={`rounded-full px-4 py-1.5 font-medium transition-colors ${mode === 'once' ? 'bg-card shadow-sm' : 'text-muted-foreground'}`}>Tek Sefer</button>
+          <button type="button" onClick={() => setMode('standing')} className={`rounded-full px-4 py-1.5 font-medium transition-colors ${mode === 'standing' ? 'bg-card shadow-sm' : 'text-muted-foreground'}`}>Sabit Rezervasyon</button>
+        </div>
+
         {sessions === null ? (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Loader2Icon className="size-4 animate-spin" /> Yükleniyor…
           </div>
         ) : sessions.length === 0 ? (
           <p className="text-sm text-muted-foreground">Uygun seans yok.</p>
-        ) : (
+        ) : mode === 'once' ? (
           <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card shadow-xs">
             {sessions.map((s) => {
               const full = s.bookedCount >= s.capacity
@@ -763,6 +827,57 @@ function QuickBookSheet({
               )
             })}
           </ul>
+        ) : (
+          <>
+            <p className="text-xs text-muted-foreground">Sabitlemek istediğin haftalık slot(ları) seç — ör. Pazartesi 19:00 ve Çarşamba 19:00. Her hafta ayrı rezervasyon olarak açılır; birini iptal edip başka saate alabilirsin.</p>
+            <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card shadow-xs">
+              {sessions.map((s) => (
+                <li key={s.sessionId}>
+                  <label className="flex cursor-pointer items-center gap-3 px-3 py-2.5">
+                    <Checkbox checked={selected.has(s.sessionId)} onCheckedChange={() => toggle(s.sessionId)} />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium">{wdt(s.startsAt)} · {s.serviceName}</p>
+                      <p className="truncate text-xs text-muted-foreground">{dt(s.startsAt)}{s.trainerName ? ` · ${s.trainerName}` : ''}</p>
+                    </div>
+                  </label>
+                </li>
+              ))}
+            </ul>
+
+            {/* duration */}
+            <div className="space-y-2">
+              <p className="text-sm font-medium">Süre</p>
+              <div className="flex flex-wrap items-center gap-2">
+                <button type="button" onClick={() => { setDur('package'); setPreview(null) }} className={`rounded-full px-3 py-1.5 text-sm font-medium ${dur === 'package' ? 'bg-accent text-accent-foreground' : 'bg-muted text-muted-foreground'}`}>Paket süresince</button>
+                <button type="button" onClick={() => { setDur('weeks'); setPreview(null) }} className={`rounded-full px-3 py-1.5 text-sm font-medium ${dur === 'weeks' ? 'bg-accent text-accent-foreground' : 'bg-muted text-muted-foreground'}`}>Hafta sayısı</button>
+                {dur === 'weeks' ? (
+                  <input type="number" min={1} max={52} value={weeksInput} onChange={(e) => { setWeeksInput(e.target.value); setPreview(null) }} className="w-20 rounded-md border bg-background px-2 py-1.5 text-sm" />
+                ) : null}
+              </div>
+              <p className="text-xs text-muted-foreground">Kredili pakette krediler bitince otomatik durur.</p>
+            </div>
+
+            {preview ? (
+              <div className="space-y-2 rounded-xl border bg-muted/40 p-3">
+                <p className="text-sm font-semibold">{totalToBook} ders açılacak{totalSkip > 0 ? `, ${totalSkip} hafta atlanacak` : ''}.</p>
+                <ul className="space-y-1 text-xs text-muted-foreground">
+                  {preview.slots.map((sl) => {
+                    const s = sessions.find((x) => x.sessionId === sl.sessionId)
+                    return <li key={sl.sessionId}>{s ? wdt(s.startsAt) : sl.sessionId}: {sl.plan?.toBook.length ?? 0} açılacak{(sl.plan?.skipped.length ?? 0) > 0 ? `, ${sl.plan?.skipped.length} atlandı` : ''} ({sl.weeks} hafta)</li>
+                  })}
+                </ul>
+              </div>
+            ) : null}
+
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => void doPreview()} disabled={working || selected.size === 0}>
+                {working && !preview ? <Loader2Icon className="animate-spin" /> : null} Önizle
+              </Button>
+              <Button onClick={() => void doApply()} disabled={working || selected.size === 0}>
+                {working ? <Loader2Icon className="animate-spin" /> : null} Sabitle
+              </Button>
+            </div>
+          </>
         )}
       </SheetContent>
     </Sheet>
