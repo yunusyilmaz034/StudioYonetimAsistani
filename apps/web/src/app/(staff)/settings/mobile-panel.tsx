@@ -111,7 +111,7 @@ export function MobilePanel({ canEdit }: { canEdit: boolean }) {
       const r = await setMobileBrandingAction({ appName: appName.trim(), logoUrl: logoUrl.trim() })
       if (r.ok) toast.success('Uygulama markası kaydedildi.')
     } catch {
-      toast.error('Kaydedilemedi (logo bir geçerli URL olmalı).')
+      toast.error('Kaydedilemedi. Sayfayı yenileyip tekrar deneyin.')
     }
     setSavingBrand(false)
   }
