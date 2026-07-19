@@ -5,6 +5,7 @@ import { router, useFocusEffect } from 'expo-router'
 
 import type { MemberProfile, NotificationPrefs } from '@studio/core/client'
 import { api } from '@/lib/api'
+import { localDate } from '@/lib/format'
 import { useFetch } from '@/lib/useFetch'
 import { useAuth } from '@/lib/auth'
 import { FadeInUp } from '@/components/motion'
@@ -65,7 +66,7 @@ export default function Profile() {
         <Card>
           <Row icon="mail-outline" label="E-posta" value={pr?.email ?? '—'} />
           <Divider />
-          <Row icon="calendar-outline" label="Doğum tarihi" value={pr?.birthDate ?? '—'} />
+          <Row icon="calendar-outline" label="Doğum tarihi" value={pr?.birthDate ? localDate(pr.birthDate) : '—'} />
           <Divider />
           <Row icon="medkit-outline" label="Acil durum" value={pr?.emergencyName ? `${pr.emergencyName} · ${pr.emergencyPhone}` : '—'} />
         </Card>

@@ -431,7 +431,7 @@ function ProfilePanel({ member, isPlatformAdmin }: { member: Member; isPlatformA
       <dl className="grid gap-4 text-sm sm:grid-cols-3">
         <Row label="Telefon" value={member.phone} />
         <Row label="E-posta" value={member.email ?? '—'} />
-        <Row label="Doğum tarihi" value={member.birthDate ?? '—'} />
+        <Row label="Doğum tarihi" value={member.birthDate ? member.birthDate.split('-').reverse().join('/') : '—'} />
         <Row label="Katılım" value={d(member.joinedAt)} />
         <Row label="Durum" value={MEMBER_STATUS[member.status] ?? member.status} />
         <Row

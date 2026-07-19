@@ -89,7 +89,7 @@ export function PortalProfileScreen(props: {
         <div className="space-y-3 rounded-xl border border-border bg-card p-4 shadow-sm">
           <ReadOnly label="Ad Soyad" value={props.fullName} />
           <ReadOnly label="Telefon" value={props.phone} />
-          <ReadOnly label="Doğum tarihi" value={props.birthDate ?? '—'} />
+          <ReadOnly label="Doğum tarihi" value={props.birthDate ? props.birthDate.split('-').reverse().join('/') : '—'} />
           <p className="text-xs text-muted-foreground">
             Ad, telefon ve doğum tarihinizi değiştirmek için stüdyoyla iletişime geçin.
           </p>

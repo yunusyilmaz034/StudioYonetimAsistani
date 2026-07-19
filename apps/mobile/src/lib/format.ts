@@ -19,3 +19,10 @@ export function dayLabel(ms: number): string {
 export function shortDate(iso: string): string {
   return new Date(`${iso}T00:00:00`).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' })
 }
+
+// A LocalDate ("YYYY-MM-DD") as gg/aa/yyyy — the numeric format Turkish users expect. Falls back to the
+// raw string if it isn't a plain date.
+export function localDate(iso: string): string {
+  const [y, m, d] = iso.split('-')
+  return y && m && d ? `${d}/${m}/${y}` : iso
+}

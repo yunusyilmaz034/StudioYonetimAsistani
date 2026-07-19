@@ -22,13 +22,16 @@ export function CampaignPopup({ campaign }: { campaign: HomeCampaign | null }) {
   useEffect(() => {
     if (!url) return
     let alive = true
+    // Once a day PER creative: a new campaign the owner just set shows even the same day; the same
+    // creative shows at most once per day. (This also makes testing sane — change the image, it reappears.)
+    const sig = `${todayKey()}|${url}`
     void (async () => {
       const [last, dismissed] = await Promise.all([AsyncStorage.getItem(LAST), AsyncStorage.getItem(DISMISSED)])
       if (!alive) return
       if (dismissed === url) return // she asked never to see this creative again
-      if (last === todayKey()) return // already shown today — once a day, no more
+      if (last === sig) return // this exact creative already shown today
       setShow(true)
-      await AsyncStorage.setItem(LAST, todayKey())
+      await AsyncStorage.setItem(LAST, sig)
     })()
     return () => {
       alive = false
