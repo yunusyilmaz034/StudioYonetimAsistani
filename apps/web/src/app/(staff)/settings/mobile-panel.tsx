@@ -139,7 +139,6 @@ export function MobilePanel({ canEdit }: { canEdit: boolean }) {
                     onClick={() => setBannerImage(ex.url)}
                     className={`size-12 overflow-hidden rounded-lg border transition-all ${bannerImage === ex.url ? 'border-primary ring-2 ring-primary' : 'border-border hover:border-primary'}`}
                   >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={ex.url} alt={ex.label} className="size-full object-cover" />
                   </button>
                 ))}
@@ -175,7 +174,6 @@ export function MobilePanel({ canEdit }: { canEdit: boolean }) {
             <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Önizleme</p>
             {bannerImage ? (
               <div className="relative min-h-32 overflow-hidden rounded-xl shadow-sm">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={bannerImage} alt="banner" className="absolute inset-0 size-full object-cover" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-black/10" />
                 <div className="relative flex min-h-32 flex-col justify-end p-4 text-white">
