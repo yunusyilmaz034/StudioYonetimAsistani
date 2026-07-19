@@ -45,15 +45,22 @@ export default function Home() {
   const banner = home.data?.banner ?? null
   const occ = home.data?.occupancyLevel ? OCC[home.data.occupancyLevel] : null
   const tod = timeOfDay()
+  const brand = home.data?.branding ?? null
 
   return (
     <Screen refreshControl={<RefreshControl refreshing={dash.loading} onRefresh={() => { void dash.reload(); void inbox.reload(); void home.reload(); void fitness.reload() }} tintColor={p.accent} />}>
       <FadeInUp index={0}>
         <Hero gradient={{ from: tod.from, to: tod.to }}>
-          {home.data?.branding?.logoUrl ? (
-            <Image source={{ uri: home.data.branding.logoUrl }} style={{ position: 'absolute', top: space(4), right: space(4), width: 44, height: 44, borderRadius: 12 }} resizeMode="contain" />
-          ) : null}
-          <Body style={[t.caption, { color: p.onGradMuted }]}>{todayTr()}</Body>
+          {/* brand header — date on the left, the studio name + logo on the right (from admin) */}
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: space(2) }}>
+            <Body style={[t.caption, { color: p.onGradMuted }]}>{todayTr()}</Body>
+            {brand?.appName || brand?.logoUrl ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space(2), flexShrink: 1 }}>
+                {brand?.appName ? <Body numberOfLines={1} style={{ color: p.onGrad, fontSize: 13, fontWeight: '800', letterSpacing: 0.2 }}>{brand.appName}</Body> : null}
+                {brand?.logoUrl ? <Image source={{ uri: brand.logoUrl }} style={{ width: 34, height: 34, borderRadius: 10 }} resizeMode="contain" /> : null}
+              </View>
+            ) : null}
+          </View>
           <Body style={[t.display, { color: p.onGrad }]}>{tod.hi}, {d ? d.memberName.split(' ')[0] : ''}</Body>
           <View style={{ flexDirection: 'row', gap: space(2), marginTop: space(1) }}>
             <Chip icon="calendar-outline" text={`${d?.upcoming.length ?? 0} yaklaşan ders`} />
