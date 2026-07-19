@@ -147,11 +147,12 @@ export function Card({ children, style, onPress, level = 1, inset }: { children:
 }
 
 // The premium hero header — a deep mahogany band with a soft glow, used at the top of each main screen.
-export function Hero({ children, style }: { children: ReactNode; style?: StyleProp<ViewStyle> }) {
+// `gradient` lets a screen tint the band by context (e.g. the home shifts it with the time of day).
+export function Hero({ children, style, gradient }: { children: ReactNode; style?: StyleProp<ViewStyle>; gradient?: { from: string; to: string } }) {
   const p = usePalette()
   return (
     <View style={[{ borderRadius: radius.xl, overflow: 'hidden' }, shadow(3), style]}>
-      <GradientFill from={p.gradFrom} to={p.gradTo} />
+      <GradientFill from={gradient?.from ?? p.gradFrom} to={gradient?.to ?? p.gradTo} />
       {/* layered glows for real depth */}
       <View style={{ position: 'absolute', top: -80, right: -50, width: 220, height: 220, borderRadius: 110, backgroundColor: '#FFFFFF', opacity: 0.1 }} />
       <View style={{ position: 'absolute', top: 20, right: 30, width: 90, height: 90, borderRadius: 45, backgroundColor: p.gold, opacity: 0.12 }} />

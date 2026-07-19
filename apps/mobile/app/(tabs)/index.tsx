@@ -13,6 +13,16 @@ import { Body, Card, Eyebrow, Empty, GradientFill, Hero, Loading, Pill, Screen }
 import { radius, shadow, space, typo as t, usePalette } from '@/theme'
 
 const todayTr = () => new Date().toLocaleDateString('tr-TR', { weekday: 'long', day: 'numeric', month: 'long' })
+
+// Greeting AND hero tint by the hour on the phone — dawn rosé, bright midday mahogany, sunset, then a
+// deep night. `hi` is the salutation; `from`/`to` retint the hero band to match the moment.
+function timeOfDay(): { hi: string; from: string; to: string } {
+  const h = new Date().getHours()
+  if (h >= 5 && h < 12) return { hi: 'Günaydın', from: '#9C4A63', to: '#57192F' } // sabah — sıcak şafak
+  if (h >= 12 && h < 18) return { hi: 'Tünaydın', from: '#7A1F3D', to: '#4E1226' } // öğle — marka mahogany
+  if (h >= 18 && h < 22) return { hi: 'İyi akşamlar', from: '#611A38', to: '#330C1E' } // akşam — gün batımı
+  return { hi: 'İyi geceler', from: '#3E1224', to: '#180610' } // gece — koyu, dingin
+}
 const OCC: Record<string, { label: string; tone: 'good' | 'warn' | 'danger' }> = {
   quiet: { label: 'Sakin', tone: 'good' },
   moderate: { label: 'Orta', tone: 'good' },
@@ -34,16 +44,17 @@ export default function Home() {
   const announcement = (inbox.data ?? []).find((m) => !m.read) ?? (inbox.data ?? [])[0] ?? null
   const banner = home.data?.banner ?? null
   const occ = home.data?.occupancyLevel ? OCC[home.data.occupancyLevel] : null
+  const tod = timeOfDay()
 
   return (
     <Screen refreshControl={<RefreshControl refreshing={dash.loading} onRefresh={() => { void dash.reload(); void inbox.reload(); void home.reload(); void fitness.reload() }} tintColor={p.accent} />}>
       <FadeInUp index={0}>
-        <Hero>
+        <Hero gradient={{ from: tod.from, to: tod.to }}>
           {home.data?.branding?.logoUrl ? (
             <Image source={{ uri: home.data.branding.logoUrl }} style={{ position: 'absolute', top: space(4), right: space(4), width: 44, height: 44, borderRadius: 12 }} resizeMode="contain" />
           ) : null}
           <Body style={[t.caption, { color: p.onGradMuted }]}>{todayTr()}</Body>
-          <Body style={[t.display, { color: p.onGrad }]}>Merhaba, {d ? d.memberName.split(' ')[0] : ''}</Body>
+          <Body style={[t.display, { color: p.onGrad }]}>{tod.hi}, {d ? d.memberName.split(' ')[0] : ''}</Body>
           <View style={{ flexDirection: 'row', gap: space(2), marginTop: space(1) }}>
             <Chip icon="calendar-outline" text={`${d?.upcoming.length ?? 0} yaklaşan ders`} />
             {pkg ? <Chip icon="ticket-outline" text={pkg.remaining === null ? 'Sınırsız' : `${pkg.remaining} ders`} /> : null}
