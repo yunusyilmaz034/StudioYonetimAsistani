@@ -24,6 +24,7 @@ export interface ProductFields {
   readonly dailyReservationLimit: number | null
   readonly cancellationAllowanceCount: number | null
   readonly activeReservationLimit: number | null
+  readonly entryAllowance: number | null // v1.27 — fitness serbest-giriş cap; null ⇒ unlimited
   readonly description: string
 }
 
@@ -73,6 +74,7 @@ export async function updateProduct(
     dailyReservationLimit: input.dailyReservationLimit,
     cancellationAllowanceCount: input.cancellationAllowanceCount,
     activeReservationLimit: input.activeReservationLimit,
+    entryAllowance: input.entryAllowance,
     description: input.description,
     active: input.active,
   }

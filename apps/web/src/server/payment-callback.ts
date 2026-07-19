@@ -88,6 +88,7 @@ export async function completePaidIntent(ctx: TenantContext, intent: PaymentInte
           cancellationAllowanceCount: product.cancellationAllowanceCount,
           dailyReservationLimit: product.dailyReservationLimit,
           activeReservationLimit: product.activeReservationLimit,
+          entryAllowance: product.entryAllowance ?? null,
         },
         policyRef: { policyId: product.id, version: 1 },
         priceAgreed: money(intent.context.priceAgreedKurus ?? intent.amount.amount),

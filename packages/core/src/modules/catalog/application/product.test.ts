@@ -26,7 +26,7 @@ const FIELDS = {
   freezeAllowanceDays: 0,
   dailyReservationLimit: null,
   cancellationAllowanceCount: null,
-  activeReservationLimit: null,
+  activeReservationLimit: null, entryAllowance: null,
   description: '',
 }
 

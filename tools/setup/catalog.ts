@@ -155,6 +155,7 @@ async function main(): Promise<void> {
       dailyReservationLimit: null,
       cancellationAllowanceCount: null,
       activeReservationLimit: null,
+    entryAllowance: null,
       description: '',
     }
     const priceTL = (p.priceInKurus / 100).toLocaleString('tr-TR')

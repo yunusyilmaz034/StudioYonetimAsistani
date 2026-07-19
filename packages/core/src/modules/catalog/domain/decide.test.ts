@@ -33,6 +33,7 @@ const product = (over: Partial<Product> = {}): Product => ({
   dailyReservationLimit: null,
   cancellationAllowanceCount: null,
   activeReservationLimit: null,
+  entryAllowance: null,
   description: '',
   active: true,
   ...over,

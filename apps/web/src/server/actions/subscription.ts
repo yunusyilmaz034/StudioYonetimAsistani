@@ -138,6 +138,7 @@ export async function assignSubscriptionAction(input: unknown) {
       cancellationAllowanceCount: product.cancellationAllowanceCount,
       dailyReservationLimit: product.dailyReservationLimit,
       activeReservationLimit: product.activeReservationLimit,
+      entryAllowance: product.entryAllowance ?? null,
     },
     policyRef: { policyId: product.id, version: 1 },
     priceAgreed: money(priceAgreedKurus),

@@ -51,6 +51,8 @@ export function ProductForm({
   const [freezeDays, setFreezeDays] = useState(product?.freezeAllowanceDays ?? 0)
   const [dailyLimit, setDailyLimit] = useState<number | null>(product?.dailyReservationLimit ?? null)
   const [activeLimit, setActiveLimit] = useState<number | null>(product?.activeReservationLimit ?? null)
+  // v1.27 — fitness serbest-giriş cap. null ⇒ unlimited access; a number ⇒ that many door check-ins.
+  const [entryAllowance, setEntryAllowance] = useState<number | null>(product?.entryAllowance ?? null)
   // Cancellation right — null ⇒ unlimited. The toggle is the explicit "Sınırsız iptal"; a number is a
   // counted allowance (0 = no free cancels at all, which is NOT the same as "unlimited").
   const [unlimitedCancel, setUnlimitedCancel] = useState(product ? product.cancellationAllowanceCount === null : true)
@@ -80,6 +82,7 @@ export function ProductForm({
       dailyReservationLimit: dailyLimit,
       cancellationAllowanceCount: unlimitedCancel ? null : cancelCount,
       activeReservationLimit: activeLimit,
+      entryAllowance: type === 'period' ? entryAllowance : null,
       description: description.trim(),
     }
     try {
@@ -171,6 +174,19 @@ export function ProductForm({
           />
           <p className="mt-1 text-xs text-muted-foreground">Boş = sınırsız. Aynı anda açık toplam rezervasyon tavanı.</p>
         </Field>
+        {type === 'period' ? (
+          <Field id="p-entry" label="Giriş hakkı">
+            <Input
+              id="p-entry"
+              type="number"
+              min={1}
+              placeholder="Sınırsız"
+              value={entryAllowance ?? ''}
+              onChange={(e) => setEntryAllowance(e.target.value ? Math.max(1, Number(e.target.value)) : null)}
+            />
+            <p className="mt-1 text-xs text-muted-foreground">Boş = sınırsız katılım. Bir sayı girilirse fitness serbest-girişte bu kadar giriş hakkı olur (yumuşak — dolunca resepsiyon uyarılır, kapıda engellenmez).</p>
+          </Field>
+        ) : null}
         <div className="sm:col-span-2">
           <label className="flex items-center gap-2 text-sm font-medium">
             <Checkbox checked={unlimitedCancel} onCheckedChange={(v) => setUnlimitedCancel(v === true)} />

@@ -28,6 +28,11 @@ export interface Product {
   readonly dailyReservationLimit: number | null // max active reservations per studio-local day; null ⇒ unlimited
   readonly cancellationAllowanceCount: number | null // free (in-window) cancellations allowed; null ⇒ unlimited
   readonly activeReservationLimit: number | null // max concurrent active/future reservations; null ⇒ unlimited
+  // ── Fitness serbest-giriş cap (v1.27). Meaningful for a PERIOD (unlimited-access) membership: the
+  //    MAX door check-ins allowed. null ⇒ unlimited access (the default). A number ⇒ a soft cap that
+  //    each fitness check-in spends (over-use is recorded, not blocked). Credit packages ignore it —
+  //    their credits already cap usage. ──
+  readonly entryAllowance: number | null
   readonly description: string
   readonly active: boolean
 }

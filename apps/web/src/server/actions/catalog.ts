@@ -35,6 +35,7 @@ const fields = z.object({
   dailyReservationLimit: z.number().int().min(1).nullable(),
   cancellationAllowanceCount: z.number().int().min(0).nullable(),
   activeReservationLimit: z.number().int().min(1).nullable(),
+  entryAllowance: z.number().int().min(1).nullable().default(null),
   description: z.string(),
 })
 
@@ -51,6 +52,8 @@ function toFields(p: z.infer<typeof fields>) {
     dailyReservationLimit: p.dailyReservationLimit,
     cancellationAllowanceCount: p.cancellationAllowanceCount,
     activeReservationLimit: p.activeReservationLimit,
+    // Only a PERIOD (unlimited-access) membership carries an entry cap; a credit package caps itself.
+    entryAllowance: p.type === 'period' ? p.entryAllowance : null,
     description: p.description,
   }
 }
