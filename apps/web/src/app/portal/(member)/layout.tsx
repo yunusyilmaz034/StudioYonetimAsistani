@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 
+import { AnalyticsSetup } from '@/components/analytics-setup'
 import { ThemeStyle } from '@/components/theme-style'
 import { Toaster } from '@/components/ui/sonner'
 import { requireMemberContext } from '@/server/auth'
@@ -30,6 +31,8 @@ export default async function MemberLayout({ children }: { children: React.React
     <MemberPortalShell studioId={claims.studioId} memberName={profile.fullName}>
       <ThemeStyle theme={theme} />
       <Toaster />
+      {/* Non-PII analytics context (studio + member role) + the global error sink. No name/phone. */}
+      <AnalyticsSetup studioId={ctx.studioId} role="member" />
       {children}
     </MemberPortalShell>
   )

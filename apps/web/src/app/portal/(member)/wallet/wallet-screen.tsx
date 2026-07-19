@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 
 import { formatKurus, type RetailItem, type StoredWallet } from '@studio/core/client'
 import { Button } from '@/components/ui/button'
+import { track } from '@/lib/analytics'
 import { portalBuyFromWalletAction, portalWalletTopupAction } from '@/server/actions/wallet'
 
 const TOPUPS = [10000, 25000, 50000] // 100 / 250 / 500 ₺
@@ -19,8 +20,11 @@ export function PortalWalletScreen({ wallet: initial, store }: { wallet: StoredW
     setBusy(`top-${amountKurus}`)
     try {
       const res = await portalWalletTopupAction({ amountKurus })
-      if (res.ok) window.location.assign(res.value.redirectUrl)
-      else toast.error('Yükleme başlatılamadı.')
+      if (res.ok) {
+        track('wallet_topup', { amount_kurus: amountKurus })
+        track('payment_started', { method: 'wallet_topup', amount_kurus: amountKurus })
+        window.location.assign(res.value.redirectUrl)
+      } else toast.error('Yükleme başlatılamadı.')
     } catch {
       toast.error('Yükleme başlatılamadı.')
     } finally {
@@ -38,6 +42,7 @@ export function PortalWalletScreen({ wallet: initial, store }: { wallet: StoredW
       const res = await portalBuyFromWalletAction({ productId: item.id, quantity: 1 })
       if (res.ok) {
         setWallet(res.value)
+        track('wallet_purchase', { product_id: item.id })
         toast.success(`${item.name} alındı.`)
       } else {
         const code = (res.error as { code?: string })?.code

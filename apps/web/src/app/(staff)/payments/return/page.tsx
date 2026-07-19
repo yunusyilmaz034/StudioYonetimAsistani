@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { CheckCircle2Icon, ClockIcon, XCircleIcon } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
+import { PaymentReturnTrack } from './payment-return-track'
 
 // PAYTR dönüş sayfası (Plus Phase 6). Tarayıcı dönüşü ödemenin KANITI değildir — asıl doğrulama
 // sunucu callback'iyle yapılır. Bu ekran yalnızca bilgilendirir; sonuç kısa sürede yansır.
@@ -10,6 +11,7 @@ export default async function PaymentReturnPage({ searchParams }: { searchParams
   const success = ok === '1'
   return (
     <main className="mx-auto flex min-h-[60vh] max-w-md flex-col items-center justify-center gap-4 p-6 text-center">
+      <PaymentReturnTrack success={success} />
       {success ? (
         <>
           <CheckCircle2Icon className="size-14 text-success" />

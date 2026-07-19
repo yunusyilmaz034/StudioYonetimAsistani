@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 
+import { AnalyticsSetup } from '@/components/analytics-setup'
 import { AppShell } from '@/components/app-nav'
 import { PwaSetup } from '@/components/pwa-setup'
 import { ThemeStyle } from '@/components/theme-style'
@@ -59,6 +60,8 @@ export default async function StaffLayout({ children }: { children: ReactNode })
       {/* PF-36 — desk-only: a green/red toast when a member checks in (from the kiosk or the desk).
           Owner + reception; NOT trainer (she never sees the members list), NOT kiosk (its own overlay). */}
       {ctx.role === 'owner' || ctx.role === 'receptionist' ? <CheckInToaster studioId={ctx.studioId} /> : null}
+      {/* Non-PII analytics context (studio + staff role) + the global error sink. No name/phone. */}
+      <AnalyticsSetup studioId={ctx.studioId} role={ctx.role} />
       {/* Undo/Redo is a pure UX layer over compensating actions (Phase 2 Edit Experience). */}
       <UndoProvider>{children}</UndoProvider>
       {/* Admin PWA: register the SW + the iOS "Ana Ekrana Ekle" hint so the panel installs from the link. */}

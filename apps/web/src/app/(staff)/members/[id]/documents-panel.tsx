@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Section } from '@/components/ui/section'
+import { track } from '@/lib/analytics'
 import { domainErrorMessage } from '@/lib/domain-error'
 import { DocumentStorageUnconfiguredError, uploadMemberDocumentPage } from '@/lib/document-upload'
 import {
@@ -196,6 +197,7 @@ function CaptureDialog({
           toast.error(domainErrorMessage(res.error))
           return
         }
+        track('image_uploaded', { where: 'member_document', kind })
       }
       toast.success('Belgeler arşivlendi.')
       onUploaded()

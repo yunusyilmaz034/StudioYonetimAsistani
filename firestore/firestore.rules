@@ -69,7 +69,11 @@ service cloud.firestore {
           // the Bearer member-api, the staff app via Server Actions. Never written or read client-side.
           'wallets',
           // v1.27 — internal counters (public-form rate limits, hashed IPs). Server-only; no client read.
-          'rateLimits'
+          'rateLimits',
+          // v1.28 — coarse, consented check-in locations (KVKK). Written ONLY via the Server Action,
+          // which checks consent server-side; a member never writes her own location. Erasable (not an
+          // event) so a KVKK deletion request can wipe it with the rest of her identity.
+          'checkinLocations'
         ];
       }
 

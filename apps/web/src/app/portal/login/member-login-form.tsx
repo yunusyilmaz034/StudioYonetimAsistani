@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { useMathCaptcha } from '@/components/math-captcha'
+import { track } from '@/lib/analytics'
 import { clientAuth } from '@/lib/firebase-client'
 import { createSession } from '@/server/actions/session'
 import { memberLoginIdentifierAction, recordPortalLoginAction } from '@/server/actions/portal-auth'
@@ -63,10 +64,12 @@ export function MemberLoginForm() {
       const cred = await signInWithEmailAndPassword(clientAuth(), id.value.email, password)
       await createSession(await cred.user.getIdToken())
       await recordPortalLoginAction()
+      track('login_success', { surface: 'member' })
       router.replace('/portal')
     } catch {
       // One message for every failure: wrong phone, wrong password, no account. A prober learns
       // nothing about which members exist.
+      track('login_failure', { surface: 'member' })
       setError('Telefon veya şifre hatalı.')
       setAttempts((a) => a + 1)
       captcha.reset()

@@ -33,15 +33,32 @@ import { connectStorageEmulator, getStorage, type FirebaseStorage } from 'fireba
 // yapılandırılmamış" rather than pretending an upload happened. (Kept off the literal to satisfy
 // exactOptionalPropertyTypes.)
 const storageBucket = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+// The GA4 measurement id (Firebase Analytics). A PUBLIC identifier like the rest of this config — it
+// names the analytics stream, it is not a secret. Absent, `analyticsConfigured()` is false and the
+// analytics layer is a silent no-op (dev, tests, and any deployment that forgot the env var).
+const measurementId = process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY ?? 'demo-api-key',
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN ?? 'demo-sos.firebaseapp.com',
   projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ?? 'demo-sos',
   ...(storageBucket ? { storageBucket } : {}),
+  ...(measurementId ? { measurementId } : {}),
 }
 
 function app(): FirebaseApp {
   return getApps()[0] ?? initializeApp(firebaseConfig)
+}
+
+// The initialised Firebase app, for the analytics layer (lib/analytics.ts) which lives outside this
+// file because `firebase/analytics` is browser-only and must not be pulled into the SSR bundle.
+export function clientApp(): FirebaseApp {
+  return app()
+}
+
+// Whether GA4 is wired at all. Analytics collection is gated on this AND on production AND on the
+// browser AND on `isSupported()` — four gates, so a dev run or a test never ships an event.
+export function analyticsConfigured(): boolean {
+  return Boolean(measurementId) && !useEmulator()
 }
 
 let cachedAuth: Auth | null = null

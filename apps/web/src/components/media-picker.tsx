@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { track } from '@/lib/analytics'
 import { listMediaAction, uploadMediaAction, type MediaItem } from '@/server/actions/media'
 
 // The reusable picker: opened wherever an image is needed, it uploads a new file OR picks one from the
@@ -32,6 +33,7 @@ export function MediaPicker({ open, onOpenChange, onSelect }: { open: boolean; o
       })
       const out = await uploadMediaAction({ dataUrl, name: file.name })
       if (out.ok) {
+        track('image_uploaded', { where: 'media_center' })
         onSelect(out.value.url)
         onOpenChange(false)
       } else toast.error('Yüklenemedi.')

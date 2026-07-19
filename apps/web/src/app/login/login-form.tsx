@@ -9,6 +9,7 @@ import { Loader2Icon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useMathCaptcha } from '@/components/math-captcha'
+import { track } from '@/lib/analytics'
 import { clientAuth } from '@/lib/firebase-client'
 import { requestPasswordReset } from '@/server/actions/password-reset'
 import { createSession } from '@/server/actions/session'
@@ -51,8 +52,10 @@ export function LoginForm() {
       const credential = await signInWithEmailAndPassword(clientAuth(), email, password)
       const idToken = await credential.user.getIdToken()
       await createSession(idToken)
+      track('login_success', { surface: 'staff' })
       router.replace('/')
     } catch (err) {
+      track('login_failure', { surface: 'staff' })
       setError(toMessage(err))
       setAttempts((a) => a + 1)
       captcha.reset()
