@@ -64,6 +64,21 @@ export interface MemberReservations {
   readonly past: readonly MemberReservation[]
 }
 
+export interface MemberSubscription {
+  readonly entitlementId: string
+  readonly productName: string
+  readonly category: string
+  readonly remaining: number | null
+  readonly total: number | null
+  readonly validUntil: number
+  readonly purchasedAt: number
+  readonly status: string
+}
+export interface MemberSubscriptions {
+  readonly active: readonly MemberSubscription[]
+  readonly past: readonly MemberSubscription[]
+}
+
 // ── Agenda (what she may see & whether she may book) ────────────────────────────────────────
 export interface MemberSession {
   readonly sessionId: string

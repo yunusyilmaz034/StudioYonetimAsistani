@@ -15,6 +15,7 @@ export interface MobileBanner {
   readonly title: string
   readonly body: string
   readonly tone: 'accent' | 'gold' | 'good'
+  readonly imageUrl?: string // optional background image (any public URL)
 }
 
 export interface MobileBranding {
@@ -42,6 +43,7 @@ export async function setMobileBannerAction(input: unknown) {
       title: z.string().trim().max(80),
       body: z.string().trim().max(240),
       tone: z.enum(['accent', 'gold', 'good']).default('accent'),
+      imageUrl: z.string().trim().url().or(z.literal('')).optional(),
     })
     .parse(input)
   const ctx = await requireTenantContext(OWNER)

@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 
-import { DEFAULT_PREFS, FirestoreNotificationRepository, type MemberId, type NotificationPrefs, type TenantContext } from '@studio/core'
+import { available, DEFAULT_PREFS, FirestoreEntitlementRepository, FirestoreNotificationRepository, type Entitlement, type MemberId, type NotificationPrefs, type TenantContext } from '@studio/core'
 
 import { loadOccupancyNow } from './fitness-query'
 import { adminAuth, adminDb, adminStorage, storageBucketName } from './firebase-admin'
@@ -115,6 +115,24 @@ export async function memberUploadPhoto(ctx: TenantContext, memberId: MemberId, 
   await adminStorage().bucket(storageBucketName()).file(path).save(buf, { contentType: mime, resumable: false })
   await adminDb().doc(`studios/${ctx.studioId}/members/${memberId}`).set({ avatarPath: path }, { merge: true })
   return { ok: true as const, value: { avatarUrl: await signedUrl(path) } }
+}
+
+// All of her subscriptions — active and past — for the subscriptions detail screen.
+export async function memberSubscriptions(ctx: TenantContext, memberId: MemberId) {
+  const all = await new FirestoreEntitlementRepository(adminDb()).listByMember(ctx, memberId)
+  const map = (e: Entitlement) => ({
+    entitlementId: e.id as string,
+    productName: e.productSnapshot.name,
+    category: e.productSnapshot.category,
+    remaining: e.credits ? available(e.credits) : null,
+    total: e.credits ? e.credits.granted : null,
+    validUntil: Number(e.validUntil),
+    purchasedAt: Number(e.purchasedAt),
+    status: e.status,
+  })
+  const active = all.filter((e) => e.status === 'active').map(map).sort((a, b) => a.validUntil - b.validUntil)
+  const past = all.filter((e) => e.status !== 'active').map(map).sort((a, b) => b.purchasedAt - a.purchasedAt)
+  return { active, past }
 }
 
 export async function memberRegisterDevice(ctx: TenantContext, memberId: MemberId, token: string, platform: string) {

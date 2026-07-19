@@ -9,8 +9,8 @@ import { api } from '@/lib/api'
 import { dateTime, formatKurus } from '@/lib/format'
 import { useFetch } from '@/lib/useFetch'
 import { FadeInUp, ProgressBar } from '@/components/motion'
-import { Body, Card, Eyebrow, Empty, Hero, Loading, Pill, Screen } from '@/components/ui'
-import { radius, space, typo as t, usePalette } from '@/theme'
+import { Body, Card, Eyebrow, Empty, GradientFill, Hero, Loading, Pill, Screen } from '@/components/ui'
+import { radius, shadow, space, typo as t, usePalette } from '@/theme'
 
 const todayTr = () => new Date().toLocaleDateString('tr-TR', { weekday: 'long', day: 'numeric', month: 'long' })
 const OCC: Record<string, { label: string; tone: 'good' | 'warn' | 'danger' }> = {
@@ -102,24 +102,30 @@ export default function Home() {
         <AttendanceCard visits={fitness.data?.visits ?? []} streak={fitness.data?.currentStreak ?? 0} last30={fitness.data?.last30Count ?? 0} />
       </FadeInUp>
 
-      {pkg ? (
+      {d && d.packages.length > 0 ? (
         <FadeInUp index={5}>
-          <Eyebrow>Aboneliğin</Eyebrow>
-          <Card>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <View style={{ flex: 1 }}>
-                <Body strong numberOfLines={1}>{pkg.productName}</Body>
-                <Body muted>Geçerli: {new Date(pkg.validUntil).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' })}</Body>
-              </View>
-              {pkg.balanceDue > 0 ? <Pill label={`${formatKurus(pkg.balanceDue)} borç`} tone="danger" /> : <Pill label="Ödendi" tone="good" />}
-            </View>
-            {pkg.remaining !== null ? (
-              <View style={{ gap: 6 }}>
-                <ProgressBar value={pkg.remaining / Math.max(pkg.remaining, 8)} color={p.accent} track={p.surfaceMuted} />
-                <Body faint style={{ fontSize: 12.5 }}>{pkg.remaining} ders kaldı</Body>
-              </View>
-            ) : <Pill label="Sınırsız kullanım" tone="gold" />}
-          </Card>
+          <Eyebrow right={<Body style={{ color: p.accent, fontWeight: '700', fontSize: 13 }} onPress={() => router.push('/subscriptions')}>Tümü</Body>}>
+            {d.packages.length > 1 ? 'Aboneliklerin' : 'Aboneliğin'}
+          </Eyebrow>
+          <View style={{ gap: space(2.5) }}>
+            {d.packages.map((pk) => (
+              <Card key={pk.entitlementId} onPress={() => router.push('/subscriptions')}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <View style={{ flex: 1 }}>
+                    <Body strong numberOfLines={1}>{pk.productName}</Body>
+                    <Body muted>Geçerli: {new Date(pk.validUntil).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' })}</Body>
+                  </View>
+                  {pk.balanceDue > 0 ? <Pill label={`${formatKurus(pk.balanceDue)} borç`} tone="danger" /> : <Pill label="Ödendi" tone="good" />}
+                </View>
+                {pk.remaining !== null ? (
+                  <View style={{ gap: 6 }}>
+                    <ProgressBar value={pk.remaining / Math.max(pk.remaining, 8)} color={p.accent} track={p.surfaceMuted} />
+                    <Body faint style={{ fontSize: 12.5 }}>{pk.remaining} ders kaldı</Body>
+                  </View>
+                ) : <Pill label="Sınırsız kullanım" tone="gold" />}
+              </Card>
+            ))}
+          </View>
         </FadeInUp>
       ) : null}
     </Screen>
@@ -139,15 +145,24 @@ function Chip({ icon, text }: { icon: keyof typeof Ionicons.glyphMap; text: stri
 function BannerCard({ banner }: { banner: HomeBanner }) {
   const p = usePalette()
   const bg = banner.tone === 'gold' ? p.gold : banner.tone === 'good' ? p.good : p.accent
+  const hasImage = Boolean(banner.imageUrl)
   return (
-    <View style={{ borderRadius: radius.lg, overflow: 'hidden', backgroundColor: bg }}>
-      <View style={{ position: 'absolute', top: -40, right: -20, width: 130, height: 130, borderRadius: 65, backgroundColor: '#FFFFFF', opacity: 0.12 }} />
+    <View style={[{ borderRadius: radius.lg, overflow: 'hidden', backgroundColor: bg, minHeight: hasImage ? 148 : undefined, justifyContent: 'flex-end' }, shadow(2)]}>
+      {hasImage ? (
+        <>
+          <Image source={{ uri: banner.imageUrl! }} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} resizeMode="cover" />
+          {/* dark gradient so the text stays readable over any photo */}
+          <GradientFill from="#00000010" to="#000000CC" />
+        </>
+      ) : (
+        <View style={{ position: 'absolute', top: -40, right: -20, width: 130, height: 130, borderRadius: 65, backgroundColor: '#FFFFFF', opacity: 0.12 }} />
+      )}
       <View style={{ padding: space(4.5), gap: 4 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <Ionicons name="sparkles" size={18} color="#FFFFFF" />
           <Body style={{ color: '#FFFFFF', fontWeight: '800', fontSize: 16, flex: 1 }} numberOfLines={1}>{banner.title}</Body>
         </View>
-        <Body style={{ color: '#FFFFFFEE', fontSize: 14 }}>{banner.body}</Body>
+        <Body style={{ color: '#FFFFFFEE', fontSize: 14 }} numberOfLines={3}>{banner.body}</Body>
       </View>
     </View>
   )

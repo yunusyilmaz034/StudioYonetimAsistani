@@ -25,6 +25,7 @@ export function MobilePanel({ canEdit }: { canEdit: boolean }) {
   const [title, setTitle] = useState('')
   const [body, setBody] = useState('')
   const [tone, setTone] = useState<Tone>('accent')
+  const [bannerImage, setBannerImage] = useState('')
   const [appName, setAppName] = useState('')
   const [logoUrl, setLogoUrl] = useState('')
   const [loading, setLoading] = useState(true)
@@ -34,7 +35,7 @@ export function MobilePanel({ canEdit }: { canEdit: boolean }) {
   useEffect(() => {
     getMobileSettingsAction()
       .then((s) => {
-        if (s.banner) { setActive(s.banner.active); setTitle(s.banner.title); setBody(s.banner.body); setTone(s.banner.tone) }
+        if (s.banner) { setActive(s.banner.active); setTitle(s.banner.title); setBody(s.banner.body); setTone(s.banner.tone); setBannerImage(s.banner.imageUrl ?? '') }
         if (s.branding) { setAppName(s.branding.appName); setLogoUrl(s.branding.logoUrl) }
       })
       .catch(() => {})
@@ -59,7 +60,7 @@ export function MobilePanel({ canEdit }: { canEdit: boolean }) {
     }
     setSaving(true)
     try {
-      const r = await setMobileBannerAction({ active, title: title.trim(), body: body.trim(), tone })
+      const r = await setMobileBannerAction({ active, title: title.trim(), body: body.trim(), tone, imageUrl: bannerImage.trim() })
       if (r.ok) toast.success('Mobil banner kaydedildi.')
     } catch {
       toast.error('Kaydedilemedi.')
@@ -113,6 +114,12 @@ export function MobilePanel({ canEdit }: { canEdit: boolean }) {
           <div className="space-y-1.5">
             <label className="text-sm font-medium">Metin</label>
             <Textarea value={body} onChange={(e) => setBody(e.target.value)} maxLength={240} rows={3} placeholder="Örn. Ağustos sonuna kadar 8 derslik pakette %20 indirim. Detaylar için resepsiyona ulaşın." disabled={!canEdit} />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">Görsel URL'i <span className="font-normal text-muted-foreground">(opsiyonel)</span></label>
+            <Input value={bannerImage} onChange={(e) => setBannerImage(e.target.value)} placeholder="https://.../kampanya.jpg — herkese açık bir görsel" disabled={!canEdit} />
+            <p className="text-xs text-muted-foreground">Eklenirse banner'da arka plan görseli olarak gösterilir (üzerine metin okunaklı kalır).</p>
           </div>
 
           <div className="space-y-1.5">

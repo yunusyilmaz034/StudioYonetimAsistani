@@ -73,6 +73,7 @@ export const api = {
   dashboard: () => get<MemberDashboard>('/dashboard'),
   agenda: () => get<MemberAgenda>('/agenda'),
   reservations: () => get<MemberReservations>('/reservations'),
+  subscriptions: () => get<import('@studio/core/client').MemberSubscriptions>('/subscriptions'),
   book: (sessionId: string) => post<ApiResult<{ reservationId: string }>>('/book', { sessionId }),
   cancel: (reservationId: string) => post<ApiResult<unknown>>('/cancel', { reservationId }),
   profile: () => get<MemberProfile>('/profile'),
@@ -109,6 +110,7 @@ export interface HomeBanner {
   readonly title: string
   readonly body: string
   readonly tone: 'accent' | 'gold' | 'good'
+  readonly imageUrl?: string
 }
 export interface HomeExtras {
   readonly occupancyLevel: string | null
