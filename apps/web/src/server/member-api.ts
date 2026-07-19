@@ -132,7 +132,7 @@ export async function memberSubscriptions(ctx: TenantContext, memberId: MemberId
     entitlementId: e.id as string,
     productName: e.productSnapshot.name,
     category: e.productSnapshot.category,
-    remaining: e.credits ? available(e.credits) : null,
+    remaining: e.credits ? (e.status === 'active' ? available(e.credits) : 0) : null,
     total: e.credits ? e.credits.granted : null,
     validUntil: Number(e.validUntil),
     purchasedAt: Number(e.purchasedAt),

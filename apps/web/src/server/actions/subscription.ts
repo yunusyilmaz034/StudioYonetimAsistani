@@ -295,7 +295,7 @@ export async function listMemberSubscriptionsAction(input: unknown): Promise<rea
       validFrom: e.validFrom,
       validUntil: e.validUntil,
       creditsGranted: e.credits ? e.credits.granted : null,
-      creditsAvailable: e.credits ? available(e.credits) : null,
+      creditsAvailable: e.credits ? (e.status === 'active' ? available(e.credits) : 0) : null,
       priceAgreedKurus: e.priceAgreed.amount,
       paidKurus: ledger.get(e.id as string)?.paid.amount ?? 0,
       balanceDueKurus: ledger.get(e.id as string)?.due.amount ?? 0,

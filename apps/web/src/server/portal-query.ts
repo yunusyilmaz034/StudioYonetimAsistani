@@ -103,7 +103,7 @@ export async function loadPortalDashboard(
       entitlementId: e.id,
       productName: e.productSnapshot.name,
       category: e.productSnapshot.category,
-      remaining: e.credits ? available(e.credits) : null,
+      remaining: e.credits ? (e.status === 'active' ? available(e.credits) : 0) : null,
       validUntil: e.validUntil,
       balanceDue: ledger.get(e.id as string)?.due.amount ?? 0,
     })),

@@ -67,7 +67,7 @@ export async function searchMembersAction(query: string): Promise<MemberHit[]> {
     list.push({
       status: e.status,
       validUntil: e.validUntil,
-      creditsAvailable: e.credits ? available(e.credits) : null,
+      creditsAvailable: e.credits ? (e.status === 'active' ? available(e.credits) : 0) : null,
     })
     byMember.set(e.memberId as string, list)
   }

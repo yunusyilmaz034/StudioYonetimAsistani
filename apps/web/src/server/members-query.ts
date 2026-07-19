@@ -61,7 +61,7 @@ export async function listMemberRows(ctx: TenantContext, nowMs: number): Promise
       validUntil: e.validUntil,
       // `null` ⇔ a period package: it grants time, not a number of classes, and it has no number to
       // run out of.
-      creditsAvailable: e.credits ? available(e.credits) : null,
+      creditsAvailable: e.credits ? (e.status === 'active' ? available(e.credits) : 0) : null,
     })
     byMember.set(e.memberId as string, list)
   }
