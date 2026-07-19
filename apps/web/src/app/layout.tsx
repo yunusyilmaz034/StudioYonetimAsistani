@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import type { ReactNode } from 'react'
 import { Geist } from 'next/font/google'
 import { cn } from '@/lib/utils'
@@ -7,8 +7,18 @@ import './globals.css'
 const geist = Geist({ subsets: ['latin'], variable: '--font-sans' })
 
 export const metadata: Metadata = {
-  title: 'Studio Yönetim Asistanı',
-  description: 'Phase 1',
+  title: 'Studio Yönetim Paneli',
+  description: 'Stüdyo yönetim paneli',
+  applicationName: 'Studio Panel',
+  manifest: '/manifest.webmanifest',
+  // Installed to a phone/tablet home screen it runs full-screen like an app (iOS "Ana Ekrana Ekle").
+  appleWebApp: { capable: true, title: 'Studio Panel', statusBarStyle: 'default' },
+}
+
+export const viewport: Viewport = {
+  themeColor: '#7A1F3D',
+  // A calendar-heavy panel on a phone: let the user pinch-zoom, and fit the notch.
+  viewportFit: 'cover',
 }
 
 // The root layout carries NO shell. Each surface brings its own:

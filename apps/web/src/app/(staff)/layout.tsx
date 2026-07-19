@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 
 import { AppShell } from '@/components/app-nav'
+import { PwaSetup } from '@/components/pwa-setup'
 import { ThemeStyle } from '@/components/theme-style'
 import { Toaster } from '@/components/ui/sonner'
 import { UndoProvider } from '@/lib/undo'
@@ -60,6 +61,8 @@ export default async function StaffLayout({ children }: { children: ReactNode })
       {ctx.role === 'owner' || ctx.role === 'receptionist' ? <CheckInToaster studioId={ctx.studioId} /> : null}
       {/* Undo/Redo is a pure UX layer over compensating actions (Phase 2 Edit Experience). */}
       <UndoProvider>{children}</UndoProvider>
+      {/* Admin PWA: register the SW + the iOS "Ana Ekrana Ekle" hint so the panel installs from the link. */}
+      <PwaSetup />
     </AppShell>
   )
 }
