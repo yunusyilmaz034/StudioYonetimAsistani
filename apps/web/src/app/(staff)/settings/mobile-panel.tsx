@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { Loader2Icon } from 'lucide-react'
+import { useEffect, useRef, useState, type ChangeEvent } from 'react'
+import { Loader2Icon, UploadIcon } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
@@ -9,7 +9,44 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Section } from '@/components/ui/section'
 import { Textarea } from '@/components/ui/textarea'
-import { getMobileSettingsAction, setMobileBannerAction, setMobileBrandingAction, setMobileCampaignAction } from '@/server/actions/mobile-settings'
+import { getMobileSettingsAction, setMobileBannerAction, setMobileBrandingAction, setMobileCampaignAction, uploadMobileImageAction } from '@/server/actions/mobile-settings'
+
+// Upload an image file (instead of pasting a URL) → returns a stable Storage URL we drop into the field.
+function UploadButton({ kind, onUploaded, disabled }: { kind: 'banner' | 'campaign' | 'logo'; onUploaded: (url: string) => void; disabled?: boolean }) {
+  const [busy, setBusy] = useState(false)
+  const ref = useRef<HTMLInputElement>(null)
+  async function pick(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setBusy(true)
+    try {
+      const dataUrl = await new Promise<string>((res, rej) => {
+        const r = new FileReader()
+        r.onload = () => res(String(r.result))
+        r.onerror = rej
+        r.readAsDataURL(file)
+      })
+      const out = await uploadMobileImageAction({ dataUrl, kind })
+      if (out.ok) {
+        onUploaded(out.value.url)
+        toast.success('Görsel yüklendi.')
+      } else toast.error('Görsel yüklenemedi.')
+    } catch {
+      toast.error('Görsel yüklenemedi.')
+    } finally {
+      setBusy(false)
+      if (ref.current) ref.current.value = ''
+    }
+  }
+  return (
+    <>
+      <input ref={ref} type="file" accept="image/*" className="hidden" onChange={(e) => void pick(e)} />
+      <Button type="button" variant="outline" size="sm" onClick={() => ref.current?.click()} disabled={disabled || busy}>
+        {busy ? <Loader2Icon className="animate-spin" /> : <UploadIcon className="size-4" />} Yükle
+      </Button>
+    </>
+  )
+}
 
 type Tone = 'accent' | 'gold' | 'good'
 const TONES: { key: Tone; label: string; className: string }[] = [
@@ -105,8 +142,11 @@ export function MobilePanel({ canEdit }: { canEdit: boolean }) {
             <Input value={appName} onChange={(e) => setAppName(e.target.value)} maxLength={60} placeholder="Pilates Fitness By Işıl" disabled={!canEdit} />
           </div>
           <div className="space-y-1.5">
-            <label className="text-sm font-medium">Logo URL'i</label>
-            <Input value={logoUrl} onChange={(e) => setLogoUrl(e.target.value)} placeholder="https://www.pilatesfitnessbyisil.com/logo.png" disabled={!canEdit} />
+            <label className="text-sm font-medium">Logo <span className="font-normal text-muted-foreground">(yükle ya da URL)</span></label>
+            <div className="flex gap-2">
+              <Input value={logoUrl} onChange={(e) => setLogoUrl(e.target.value)} placeholder="https://.../logo.png ya da yükle →" disabled={!canEdit} />
+              <UploadButton kind="logo" onUploaded={setLogoUrl} disabled={!canEdit} />
+            </div>
           </div>
           {logoUrl ? (
             <div className="flex items-center gap-3 rounded-lg border border-border bg-muted/40 p-3">
@@ -143,8 +183,11 @@ export function MobilePanel({ canEdit }: { canEdit: boolean }) {
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-sm font-medium">Görsel URL'i <span className="font-normal text-muted-foreground">(opsiyonel)</span></label>
-            <Input value={bannerImage} onChange={(e) => setBannerImage(e.target.value)} placeholder="https://.../kampanya.jpg — herkese açık bir görsel" disabled={!canEdit} />
+            <label className="text-sm font-medium">Görsel <span className="font-normal text-muted-foreground">(opsiyonel — yükle ya da URL yapıştır)</span></label>
+            <div className="flex gap-2">
+              <Input value={bannerImage} onChange={(e) => setBannerImage(e.target.value)} placeholder="https://.../kampanya.jpg ya da yükle →" disabled={!canEdit} />
+              <UploadButton kind="banner" onUploaded={setBannerImage} disabled={!canEdit} />
+            </div>
             <p className="text-xs text-muted-foreground">Eklenirse banner'da arka plan görseli olarak gösterilir (üzerine metin okunaklı kalır).</p>
             {canEdit ? (
               <div className="flex flex-wrap items-center gap-2 pt-1">
@@ -227,8 +270,11 @@ export function MobilePanel({ canEdit }: { canEdit: boolean }) {
             <span className="text-sm font-medium">Popup'ı üyelere göster</span>
           </label>
           <div className="space-y-1.5">
-            <label className="text-sm font-medium">Görsel URL'i <span className="font-normal text-muted-foreground">(kare/dikey — Instagram kreatifi)</span></label>
-            <Input value={campImage} onChange={(e) => setCampImage(e.target.value)} placeholder="https://.../kampanya.jpg" disabled={!canEdit} />
+            <label className="text-sm font-medium">Görsel <span className="font-normal text-muted-foreground">(kare/dikey — yükle ya da URL)</span></label>
+            <div className="flex gap-2">
+              <Input value={campImage} onChange={(e) => setCampImage(e.target.value)} placeholder="https://.../kampanya.jpg ya da yükle →" disabled={!canEdit} />
+              <UploadButton kind="campaign" onUploaded={setCampImage} disabled={!canEdit} />
+            </div>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
