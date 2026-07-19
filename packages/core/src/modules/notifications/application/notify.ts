@@ -135,9 +135,15 @@ export async function dispatch(
     isQuietHour(c.now, deps.settings, deps.utcOffsetMinutes)
 
   for (const channel of intent.channels) {
-    const created = newAttempt(c, intent, channel, rendered.value, quiet)
+    // `in_app` is NEVER quieted. Quiet hours exist so we do not INTERRUPT a member at night — a push,
+    // an SMS, a WhatsApp. `in_app` interrupts nobody: it is a write to her own inbox that she reads
+    // when she next opens the app (it "always lands", the same reason a preference cannot switch it
+    // off). Queueing it until 08:00 only meant a low-priority message sent at 01:30 was invisible in
+    // her inbox all night for no benefit. So it delivers now; only the intrusive channels wait.
+    const channelQuiet = quiet && channel !== 'in_app'
+    const created = newAttempt(c, intent, channel, rendered.value, channelQuiet)
     await deps.repo.saveAttempt(ctx, created.attempt, created.events)
-    if (quiet) continue // the retry sweep picks it up when the studio wakes
+    if (channelQuiet) continue // the retry sweep picks it up when the studio wakes
     await deliver(deps, ctx, intent, created.attempt)
   }
 }
@@ -229,7 +235,10 @@ export async function sweepRetries(
     if (!intent || intent.cancelled) continue
 
     // Still inside quiet hours? Leave it queued — that is not a failure, it is the policy working.
+    // But `in_app` is exempt for the same reason as in `dispatch`: it interrupts no one, so there is
+    // nothing to be quiet about. This also drains any in_app attempt queued before that fix landed.
     if (
+      attempt.channel !== 'in_app' &&
       waitsForQuietHours(intent.priority) &&
       isQuietHour(instant(now), deps.settings, deps.utcOffsetMinutes)
     ) {
