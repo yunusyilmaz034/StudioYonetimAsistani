@@ -297,6 +297,59 @@ export async function sendEngagementAction(input: unknown) {
   return { ok: true as const, value: { sent, failed, total: ids.length, operationId: opId } }
 }
 
+// Approve engagement SUGGESTIONS (birthday, seni özledik, kilometre taşı…) — one draft per member. Sends
+// through the same passthrough, then stamps the cooldown log so the same nudge won't be suggested again.
+export async function sendSuggestionsAction(input: unknown) {
+  const p = z
+    .object({
+      items: z
+        .array(
+          z.object({
+            memberId: z.string().min(1),
+            subject: z.string().trim().min(1).max(120),
+            body: z.string().trim().min(1).max(600),
+            logKey: z.string().min(1).max(40),
+          }),
+        )
+        .min(1)
+        .max(500),
+    })
+    .parse(input)
+  const ctx = await requireTenantContext(OWNER)
+  const memberRepo = new FirestoreMemberRepository(adminDb())
+  const opId = newOperationId()
+  let sent = 0
+  let failed = 0
+  for (const it of p.items) {
+    const member = await memberRepo.findById(ctx, it.memberId as MemberId)
+    if (!member) {
+      failed++
+      continue
+    }
+    const recipient: RecipientRef = {
+      kind: 'member',
+      id: member.id as string,
+      email: (member.email as string | null) ?? null,
+      phone: (member.phone as string | null) ?? null,
+      displayName: member.fullName,
+    }
+    const res = await notify(deps(), ctx, {
+      intentId: `suggestion:${opId}:${member.id}:${it.logKey}`,
+      eventId: null,
+      eventType: 'engagement_suggestion',
+      operationId: opId,
+      templateId: 'engagement_broadcast',
+      recipient,
+      params: { memberName: member.fullName, subject: it.subject, body: it.body },
+    })
+    if (res.ok) {
+      sent++
+      await adminDb().doc(`studios/${ctx.studioId}/engagementLog/${it.memberId}_${it.logKey}`).set({ sentAt: Date.now() })
+    } else failed++
+  }
+  return { ok: true as const, value: { sent, failed } }
+}
+
 export interface NotificationRow {
   readonly attemptId: string
   readonly intentId: string

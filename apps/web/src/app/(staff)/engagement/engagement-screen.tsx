@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { Loader2Icon, PencilIcon, PlusIcon, SendIcon, SparklesIcon, Trash2Icon, UsersIcon } from 'lucide-react'
+import { BellRingIcon, Loader2Icon, PencilIcon, PlusIcon, SendIcon, SparklesIcon, Trash2Icon, UsersIcon } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
@@ -11,20 +11,25 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   deleteEngagementContentAction,
+  engagementSuggestionsAction,
   listEngagementContentAction,
   seedEngagementContentAction,
   upsertEngagementContentAction,
   type EngagementCategory,
   type EngagementContent,
+  type EngagementSuggestion,
   type SegmentInfo,
   type SegmentKey,
 } from '@/server/actions/engagement'
-import { sendEngagementAction } from '@/server/actions/notifications'
+import { sendEngagementAction, sendSuggestionsAction } from '@/server/actions/notifications'
 
 const CAT_LABEL: Record<EngagementCategory, string> = {
   motivation: 'Motivasyon',
   birthday: 'Doğum günü',
   missed: 'Seni özledik',
+  welcome: 'Hoş geldin',
+  cancellation: 'İptal',
+  milestone: 'Kilometre taşı',
   campaign: 'Kampanya',
   custom: 'Diğer',
 }
@@ -34,10 +39,12 @@ const EMPTY = { id: '', category: 'motivation' as EngagementCategory, title: '',
 export function EngagementScreen({
   initialContent,
   segments,
+  initialSuggestions,
   canManage,
 }: {
   initialContent: EngagementContent[]
   segments: SegmentInfo[]
+  initialSuggestions: EngagementSuggestion[]
   canManage: boolean
 }) {
   const [content, setContent] = useState<EngagementContent[]>(initialContent)
@@ -50,11 +57,22 @@ export function EngagementScreen({
         <p className="text-sm text-muted-foreground">Üyelerinle bağ kur — motivasyon, kutlama ve kampanyaları doğru kitleye gönder. Her gönderim senin onayınla.</p>
       </div>
 
-      <Tabs defaultValue="send">
+      <Tabs defaultValue={canManage && initialSuggestions.length > 0 ? 'suggestions' : 'send'}>
         <TabsList>
+          {canManage ? (
+            <TabsTrigger value="suggestions">
+              <BellRingIcon className="size-4" /> Öneriler{initialSuggestions.length > 0 ? ` (${initialSuggestions.length})` : ''}
+            </TabsTrigger>
+          ) : null}
           <TabsTrigger value="send"><SendIcon className="size-4" /> Gönder</TabsTrigger>
           <TabsTrigger value="library"><SparklesIcon className="size-4" /> İçerik Kütüphanesi</TabsTrigger>
         </TabsList>
+
+        {canManage ? (
+          <TabsContent value="suggestions">
+            <Suggestions initial={initialSuggestions} />
+          </TabsContent>
+        ) : null}
 
         <TabsContent value="send">
           <Composer content={content} segments={segments} />
@@ -64,6 +82,65 @@ export function EngagementScreen({
           <Library content={content} canManage={canManage} onChanged={reloadContent} />
         </TabsContent>
       </Tabs>
+    </div>
+  )
+}
+
+// ── Öneriler ──────────────────────────────────────────────────────────────────────────────────
+function Suggestions({ initial }: { initial: EngagementSuggestion[] }) {
+  const [items, setItems] = useState<EngagementSuggestion[]>(initial)
+  const [busy, setBusy] = useState<string | null>(null)
+
+  async function send(list: EngagementSuggestion[], key: string) {
+    setBusy(key)
+    try {
+      const res = await sendSuggestionsAction({ items: list.map((s) => ({ memberId: s.memberId, subject: s.subject, body: s.body, logKey: s.logKey })) })
+      if (res.ok) {
+        const ids = new Set(list.map((s) => s.id))
+        setItems((prev) => prev.filter((s) => !ids.has(s.id)))
+        toast.success(`${res.value.sent} mesaj gönderildi.`)
+        setItems([...(await engagementSuggestionsAction())])
+      } else toast.error('Gönderilemedi.')
+    } catch {
+      toast.error('Gönderilemedi.')
+    } finally {
+      setBusy(null)
+    }
+  }
+  const edit = (id: string, patch: Partial<EngagementSuggestion>) => setItems((prev) => prev.map((s) => (s.id === id ? { ...s, ...patch } : s)))
+
+  if (items.length === 0) {
+    return (
+      <div className="rounded-2xl border border-dashed p-8 text-center">
+        <BellRingIcon className="mx-auto size-8 text-accent" />
+        <p className="mt-3 font-medium">Bugün için öneri yok</p>
+        <p className="mt-1 text-sm text-muted-foreground">Doğum günleri, soğuyan üyeler ve kilometre taşları burada belirir — hepsi senin onayınla gider.</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-muted-foreground">{items.length} öneri — her biri düzenlenebilir, gönderim senin onayınla.</p>
+        <Button size="sm" onClick={() => void send(items, 'all')} disabled={!!busy}>
+          {busy === 'all' ? <Loader2Icon className="animate-spin" /> : <SendIcon className="size-4" />} Hepsini gönder
+        </Button>
+      </div>
+      {items.map((s) => (
+        <div key={s.id} className="space-y-2 rounded-xl border bg-card p-3.5 shadow-xs">
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            <span className="font-medium text-accent">{s.typeLabel}</span>
+            <span className="font-semibold">{s.memberName}</span>
+            <span className="text-muted-foreground">· {s.reason}</span>
+          </div>
+          <Input value={s.subject} onChange={(e) => edit(s.id, { subject: e.target.value })} className="text-sm font-medium" />
+          <Textarea value={s.body} onChange={(e) => edit(s.id, { body: e.target.value })} rows={2} className="text-sm" />
+          <Button size="sm" variant="outline" onClick={() => void send([s], s.id)} disabled={!!busy}>
+            {busy === s.id ? <Loader2Icon className="animate-spin" /> : <SendIcon className="size-4" />} Gönder
+          </Button>
+        </div>
+      ))}
     </div>
   )
 }
