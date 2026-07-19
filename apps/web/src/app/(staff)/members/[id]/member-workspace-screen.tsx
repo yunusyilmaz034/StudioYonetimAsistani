@@ -8,6 +8,7 @@ import {
   CalendarPlusIcon,
   ClipboardListIcon,
   CreditCardIcon,
+  WalletIcon,
   DoorOpenIcon,
   DumbbellIcon,
   FileTextIcon,
@@ -63,6 +64,7 @@ import type {
 import { deactivateMember } from '@/server/actions/members'
 
 import { RestrictionPanel } from './restriction-panel'
+import { WalletPanel } from './wallet-panel'
 import { DocumentsPanel } from './documents-panel'
 import { TrainingPanel } from './training-panel'
 import { MemberFitnessSummary } from './fitness-summary'
@@ -100,6 +102,7 @@ type SectionId =
   | 'training'
   | 'checkin'
   | 'payments'
+  | 'wallet'
   | 'documents'
   | 'audit'
 const SECTIONS: readonly { id: SectionId; label: string; icon: typeof UserIcon }[] = [
@@ -110,6 +113,7 @@ const SECTIONS: readonly { id: SectionId; label: string; icon: typeof UserIcon }
   { id: 'training', label: 'Antrenman', icon: DumbbellIcon },
   { id: 'checkin', label: 'Check-in', icon: DoorOpenIcon },
   { id: 'payments', label: 'Cari Hesap', icon: CreditCardIcon },
+  { id: 'wallet', label: 'Cüzdan', icon: WalletIcon },
   { id: 'documents', label: 'Belgeler', icon: FileTextIcon },
   { id: 'audit', label: 'Geçmiş', icon: HistoryIcon },
 ]
@@ -286,6 +290,10 @@ export function MemberWorkspaceScreen({
             <h3 className="text-[0.6875rem] font-medium uppercase tracking-wide text-muted-foreground">Online Ödemeler</h3>
             <PaymentHistoryPanel memberId={member.id} isOwner={isOwner} />
           </div>
+        </TabsContent>
+        <TabsContent value="wallet">
+          {/* Doc 27 — the stored-value wallet: load balance at the desk, buy from it in the shop. */}
+          <WalletPanel memberId={member.id} />
         </TabsContent>
         <TabsContent value="audit">
           <AuditPanel memberId={member.id} />
