@@ -2,7 +2,7 @@
 import type { ReactNode } from 'react'
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View, type StyleProp, type TextStyle, type ViewStyle } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg'
+import Svg, { Circle, Defs, G, LinearGradient, Path, Rect, Stop } from 'react-native-svg'
 
 import { radius, shadow, space, typo as t, usePalette } from '@/theme'
 import { PressableScale } from './motion'
@@ -19,6 +19,28 @@ export function GradientFill({ from, to }: { from: string; to: string }) {
         </LinearGradient>
       </Defs>
       <Rect x="0" y="0" width="100%" height="100%" fill="url(#g)" />
+    </Svg>
+  )
+}
+
+// A chic line-art silhouette of a woman in a seated pilates/meditation pose (hair in a sporty bun) —
+// the hero's contextual signature. Pure vector: subtle white fill + a thin gold edge, no photo, no
+// native dependency. Cropped by the hero's rounded corners so it reads as an embossed motif.
+export function HeroFigure({ tint = '#FFFFFF', gold = '#D9A441' }: { tint?: string; gold?: string }) {
+  const body =
+    'M82 76 C72 96 66 108 64 122 C62 133 67 141 75 145 C63 148 55 156 57 165 ' +
+    'C59 173 69 179 84 181 L110 183 L136 181 C151 179 161 173 163 165 ' +
+    'C165 156 157 148 145 145 C153 141 158 133 156 122 C154 108 148 96 138 76 ' +
+    'C131 68 121 65 110 65 C99 65 89 68 82 76 Z'
+  return (
+    <Svg width={214} height={196} viewBox="0 0 220 200">
+      <G>
+        {/* bun + head */}
+        <Circle cx={110} cy={26} r={8.5} fill={tint} fillOpacity={0.08} stroke={gold} strokeOpacity={0.28} strokeWidth={1.4} />
+        <Circle cx={110} cy={47} r={16} fill={tint} fillOpacity={0.08} stroke={gold} strokeOpacity={0.28} strokeWidth={1.4} />
+        {/* seated body with hands resting on knees */}
+        <Path d={body} fill={tint} fillOpacity={0.07} stroke={gold} strokeOpacity={0.26} strokeWidth={1.5} strokeLinejoin="round" />
+      </G>
     </Svg>
   )
 }
@@ -111,6 +133,10 @@ export function Hero({ children, style }: { children: ReactNode; style?: StylePr
       <View style={{ position: 'absolute', top: -80, right: -50, width: 220, height: 220, borderRadius: 110, backgroundColor: '#FFFFFF', opacity: 0.1 }} />
       <View style={{ position: 'absolute', top: 20, right: 30, width: 90, height: 90, borderRadius: 45, backgroundColor: p.gold, opacity: 0.12 }} />
       <View style={{ position: 'absolute', bottom: -90, left: -60, width: 240, height: 240, borderRadius: 120, backgroundColor: '#FFFFFF', opacity: 0.05 }} />
+      {/* the contextual signature — a woman athlete silhouette anchored bottom-right */}
+      <View style={{ position: 'absolute', right: -6, bottom: -12 }} pointerEvents="none">
+        <HeroFigure gold={p.gold} />
+      </View>
       <View style={{ padding: space(5.5), gap: space(2) }}>{children}</View>
     </View>
   )
