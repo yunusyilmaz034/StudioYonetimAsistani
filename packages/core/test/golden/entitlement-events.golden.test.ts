@@ -6,6 +6,8 @@ import {
   decideCancel,
   decideChargeCancellation,
   decideConsume,
+  decideConsumeEntry,
+  decideRestoreEntry,
   decideExpire,
   decideHold,
   decidePurchase,
@@ -43,6 +45,8 @@ import expired from './entitlement.expired.v1.json'
 import purchased from './entitlement.purchased.v1.json'
 import cancellationCharged from './entitlement.cancellation_charged.v1.json'
 import cancellationRefunded from './entitlement.cancellation_refunded.v1.json'
+import entryConsumed from './entitlement.entry_consumed.v1.json'
+import entryRestored from './entitlement.entry_restored.v1.json'
 
 const ctx: DecideContext = {
   studioId: 'std_1' as StudioId,
@@ -81,6 +85,7 @@ const ent = (credits: CreditLedger = ledger()): Entitlement => ({
   credits,
   freeze: null,
   cancellationLedger: { used: 0, refunded: 0 },
+  entryLedger: { consumed: 0, restored: 0 },
   priceAgreed: money(294_000),
   paidTotal: money(0),
   manualPayment: null,
@@ -142,5 +147,13 @@ describe('entitlement event payloads match golden fixtures (AD-33)', () => {
   it('entitlement.cancellation_refunded', () => {
     const charged: Entitlement = { ...ent(), cancellationLedger: { used: 1, refunded: 0 } }
     expect(decideRefundCancellation(ctx, charged, RES, 'undo').events[0]?.payload).toEqual(cancellationRefunded)
+  })
+  it('entitlement.entry_consumed', () => {
+    const limited: Entitlement = { ...ent(), productSnapshot: { ...ent().productSnapshot, category: 'fitness', entryAllowance: 4 } }
+    expect(okEvents(decideConsumeEntry(ctx, limited, 'chk_1'))[0]?.payload).toEqual(entryConsumed)
+  })
+  it('entitlement.entry_restored', () => {
+    const used: Entitlement = { ...ent(), productSnapshot: { ...ent().productSnapshot, category: 'fitness', entryAllowance: 4 }, entryLedger: { consumed: 1, restored: 0 } }
+    expect(okEvents(decideRestoreEntry(ctx, used, 'chk_1', 'correction'))[0]?.payload).toEqual(entryRestored)
   })
 })

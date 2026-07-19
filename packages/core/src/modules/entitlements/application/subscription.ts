@@ -82,6 +82,7 @@ export async function assignSubscription(
     credits: ledgerFor(grant),
     freeze: freezeFor(input.freezeDays),
     cancellationLedger: { used: 0, refunded: 0 }, // Plus Phase 3
+    entryLedger: { consumed: 0, restored: 0 }, // v1.27 — fitness serbest-giriş meter
     priceAgreed: input.priceAgreed,
     paidTotal: { amount: 0, currency: input.priceAgreed.currency },
     manualPayment: null,

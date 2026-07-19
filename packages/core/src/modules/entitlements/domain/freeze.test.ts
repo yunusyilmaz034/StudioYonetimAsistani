@@ -55,6 +55,7 @@ const ent = (over: Partial<Entitlement> = {}): Entitlement => ({
   credits: null,
   freeze: freeze(),
   cancellationLedger: { used: 0, refunded: 0 },
+    entryLedger: { consumed: 0, restored: 0 },
   priceAgreed: money(300_000),
   paidTotal: money(300_000),
   manualPayment: null,

@@ -78,6 +78,7 @@ function ent(over: Partial<Entitlement> = {}): Entitlement {
     credits: ledger(),
     freeze: null,
     cancellationLedger: { used: 0, refunded: 0 },
+    entryLedger: { consumed: 0, restored: 0 },
     priceAgreed: money(294_000),
     paidTotal: money(0),
     manualPayment: null,

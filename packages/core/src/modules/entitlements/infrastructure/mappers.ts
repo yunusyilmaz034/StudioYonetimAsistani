@@ -39,6 +39,7 @@ export function entitlementToFirestore(e: Entitlement): DocumentData {
     credits: e.credits ? { ...e.credits, available: available(e.credits) } : null,
     freeze: e.freeze,
     cancellationLedger: e.cancellationLedger,
+    entryLedger: e.entryLedger,
     priceAgreed: e.priceAgreed,
     paidTotal: e.paidTotal,
     manualPayment: e.manualPayment
@@ -76,6 +77,11 @@ export function entitlementFromFirestore(id: EntitlementId, d: DocumentData): En
     cancellationLedger: (d.cancellationLedger as { used: number; refunded: number } | undefined) ?? {
       used: 0,
       refunded: 0,
+    },
+    // v1.27 — same for the entry meter; legacy/unlimited docs read as {0,0}.
+    entryLedger: (d.entryLedger as { consumed: number; restored: number } | undefined) ?? {
+      consumed: 0,
+      restored: 0,
     },
     priceAgreed: d.priceAgreed as Money,
     paidTotal: d.paidTotal as Money,

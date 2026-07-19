@@ -52,6 +52,10 @@ export type ProductSnapshot = {
   readonly cancellationAllowanceCount?: number | null
   readonly dailyReservationLimit?: number | null
   readonly activeReservationLimit?: number | null
+  // ── Fitness serbest-giriş cap (v1.27). The MAX number of door check-ins this membership allows,
+  //    frozen at purchase. ABSENT or null ⇒ unlimited access (a normal period membership). A number ⇒
+  //    a soft cap: each fitness check-in consumes one entry; over-use is recorded, not blocked. ──
+  readonly entryAllowance?: number | null
 }
 
 export type EntitlementStatus = 'active' | 'frozen' | 'expired' | 'cancelled'
@@ -96,6 +100,18 @@ export function cancellationsUsed(l: CancellationLedger): number {
   return l.used - l.refunded
 }
 
+// ── Entry ledger (v1.27) — fitness serbest-giriş cap. Same shape/discipline as the cancellation
+//    ledger: `consumed` is door check-ins that spent an entry; `restored` is the ones a correction
+//    gave back. Net = consumed − refunded, rebuildable from the log. The MAX (entryAllowance) is NOT
+//    stored here — it lives on the product snapshot, so a later edit never rewrites the entitlement.
+export type EntryLedger = {
+  readonly consumed: number
+  readonly restored: number
+}
+export function entriesUsed(l: EntryLedger): number {
+  return l.consumed - l.restored
+}
+
 // Freeze is modelled here so the aggregate shape is stable and I-8 holds, but the
 // freeze/unfreeze OPERATIONS are deferred (their arithmetic is an open question).
 export type FreezePeriod = {
@@ -132,6 +148,9 @@ export type Entitlement = {
   // Plus Phase 3 — the free-cancellation ledger. Present on every entitlement (init {0,0}); inert
   // when the package allowance resolves to unlimited. Legacy docs default to {0,0} on read.
   readonly cancellationLedger: CancellationLedger
+  // v1.27 — the fitness entry ledger. Present on every entitlement (init {0,0}); inert unless the
+  // product snapshot carries an entryAllowance. Legacy docs default to {0,0} on read.
+  readonly entryLedger: EntryLedger
 
   // What was owed, and what has been collected (payment is optional, OQ-10).
   readonly priceAgreed: Money

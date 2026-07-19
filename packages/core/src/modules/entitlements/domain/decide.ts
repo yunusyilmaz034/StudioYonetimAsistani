@@ -28,6 +28,8 @@ import {
   ENTITLEMENT_CANCELLATION_CHARGED,
   ENTITLEMENT_CANCELLATION_REFUNDED,
   ENTITLEMENT_CANCELLED,
+  ENTITLEMENT_ENTRY_CONSUMED,
+  ENTITLEMENT_ENTRY_RESTORED,
   ENTITLEMENT_CREDIT_CONSUMED,
   ENTITLEMENT_CREDIT_HELD,
   ENTITLEMENT_CREDIT_RELEASED,
@@ -44,10 +46,12 @@ import {
 import {
   available,
   cancellationsUsed,
+  entriesUsed,
   type AdjustmentReason,
   type CancellationLedger,
   type CreditLedger,
   type Entitlement,
+  type EntryLedger,
   type FreezeState,
   type ManualPayment,
   type PaymentMethod,
@@ -97,6 +101,7 @@ const withCancellation = (ent: Entitlement, cancellationLedger: CancellationLedg
   ...ent,
   cancellationLedger,
 })
+const withEntries = (ent: Entitlement, entryLedger: EntryLedger): Entitlement => ({ ...ent, entryLedger })
 
 // ── Cancellation allowance (Plus Phase 3). Pure ledger moves; NO refusal here — the caller
 //    (reservations' decideCancellation) knows the effective allowance and refuses at zero. These only
@@ -139,6 +144,56 @@ export function decideRefundCancellation(
       },
     ],
   }
+}
+
+// ── Fitness serbest-giriş entry (v1.27). A door check-in SPENDS an entry from a LIMITED fitness
+//    membership. SOFT cap: over-use is recorded, never refused (that stays the caller's/UI's job) — so
+//    the only refusals here are structural (not active, or not a capped membership). The MAX lives on
+//    the snapshot; this only moves the meter.
+export function decideConsumeEntry(
+  ctx: DecideContext,
+  ent: Entitlement,
+  checkInId: string,
+): Result<LedgerOutcome, DomainError> {
+  if (ent.status !== 'active') return err({ code: 'entitlement_not_active' })
+  // An unlimited (or legacy) membership has nothing to spend — the caller should never pick it.
+  if (ent.productSnapshot.entryAllowance == null) return err({ code: 'operation_not_applicable' })
+  const ledger: EntryLedger = { ...ent.entryLedger, consumed: ent.entryLedger.consumed + 1 }
+  const next = withEntries(ent, ledger)
+  return ok({
+    next,
+    events: [
+      {
+        ...base(ctx, next, { memberId: next.memberId, entitlementId: next.id, checkInId }),
+        type: ENTITLEMENT_ENTRY_CONSUMED,
+        payload: { checkInId, entriesUsedAfter: entriesUsed(ledger) },
+      },
+    ],
+  })
+}
+
+// A compensating restore (a mistaken check-in was voided). Reason mandatory (#9); refuses when there
+// is nothing to give back.
+export function decideRestoreEntry(
+  ctx: DecideContext,
+  ent: Entitlement,
+  checkInId: string | null,
+  reason: string,
+): Result<LedgerOutcome, DomainError> {
+  if (reason.trim() === '') return err({ code: 'reason_required' })
+  if (entriesUsed(ent.entryLedger) <= 0) return err({ code: 'operation_not_applicable' })
+  const ledger: EntryLedger = { ...ent.entryLedger, restored: ent.entryLedger.restored + 1 }
+  const next = withEntries(ent, ledger)
+  return ok({
+    next,
+    events: [
+      {
+        ...base(ctx, next, { memberId: next.memberId, entitlementId: next.id, ...(checkInId ? { checkInId } : {}) }),
+        type: ENTITLEMENT_ENTRY_RESTORED,
+        payload: { checkInId, reason, entriesUsedAfter: entriesUsed(ledger) },
+      },
+    ],
+  })
 }
 
 // ── Purchase — creates the entitlement (Doc 2 §5.2). No refusal path here; the

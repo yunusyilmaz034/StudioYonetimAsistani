@@ -88,6 +88,7 @@ function ent(opts: {
     credits: grant.kind === 'credits' ? { granted: avail, held: 0, consumed: 0, restored: 0, revoked: 0, expired: 0 } : null,
     freeze: null,
     cancellationLedger: { used: 0, refunded: 0 },
+    entryLedger: { consumed: 0, restored: 0 },
     priceAgreed: money(1),
     paidTotal: money(0),
     manualPayment: null,

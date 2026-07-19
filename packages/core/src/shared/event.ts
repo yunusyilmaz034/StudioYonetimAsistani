@@ -83,6 +83,8 @@ export interface EventRelated {
   readonly paymentIntentId?: string
   readonly programId?: string
   readonly visitId?: string
+  // v1.27 — the door check-in an entitlement entry was consumed against (fitness serbest-giriş cap).
+  readonly checkInId?: string
   // Plus Phase 9 (Trainer Payroll) — additive join keys (opaque ids, no PII).
   readonly compensationPlanId?: string
   readonly statementId?: string

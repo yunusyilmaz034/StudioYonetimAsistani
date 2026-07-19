@@ -64,6 +64,9 @@ export const ENTITLEMENT_UNFROZEN = 'entitlement.unfrozen'
 // of the same cancellation must not append a second charge (the reservation is already resolved).
 export const ENTITLEMENT_CANCELLATION_CHARGED = 'entitlement.cancellation_charged'
 export const ENTITLEMENT_CANCELLATION_REFUNDED = 'entitlement.cancellation_refunded'
+// v1.27 — fitness serbest-giriş cap. A door check-in spends an entry; a correction gives one back.
+export const ENTITLEMENT_ENTRY_CONSUMED = 'entitlement.entry_consumed'
+export const ENTITLEMENT_ENTRY_RESTORED = 'entitlement.entry_restored'
 
 export type EntitlementPurchasedPayload = {
   readonly productId: ProductId
@@ -89,6 +92,19 @@ export type EntitlementAdjustedPayload = {
   readonly reason: AdjustmentReason
   readonly note: string
   readonly creditsAvailableAfter: number
+}
+
+// v1.27 — no PII (#6): a check-in is an opaque id, a member is an id. `entriesUsedAfter` is the net
+// entries used (consumed − restored) after this event, so the remaining is derived by the reader
+// (entryAllowance − entriesUsedAfter) — AD-19.
+export type EntryConsumedPayload = {
+  readonly checkInId: string
+  readonly entriesUsedAfter: number
+}
+export type EntryRestoredPayload = {
+  readonly checkInId: string | null
+  readonly reason: string // mandatory (#9) — a correction always carries why
+  readonly entriesUsedAfter: number
 }
 
 export type EntitlementExhaustedPayload = Record<string, never>
