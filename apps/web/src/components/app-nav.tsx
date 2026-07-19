@@ -13,6 +13,7 @@ import {
   CalendarClockIcon,
   CalendarDaysIcon,
   LayersIcon,
+  MegaphoneIcon,
   LightbulbIcon,
   ShieldIcon,
   TargetIcon,
@@ -105,6 +106,7 @@ export const GROUPS: readonly NavGroup[] = [
   {
     label: 'Sahip',
     items: [
+      { href: '/engagement', label: 'Stüdyodan', icon: MegaphoneIcon },
       { href: '/advisor', label: 'Öneriler', icon: LightbulbIcon },
       { href: '/operations', label: 'Operasyonlar', icon: LayersIcon },
       // Plus Phase 9 — trainer payroll & commission. Owner-confidential.

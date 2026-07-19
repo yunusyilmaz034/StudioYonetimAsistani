@@ -25,6 +25,7 @@ import { z } from 'zod'
 
 import { requireMemberContext, requireTenantContext } from '../auth'
 import { adminDb } from '../firebase-admin'
+import { resolveSegment } from './engagement'
 
 // The Notification Center is never a "send an SMS" screen (owner). It is the centre of Intent ·
 // Queue · Attempt · Delivery · Retry · Audit — the record of who we tried to reach, how it went, and
@@ -246,6 +247,54 @@ export async function sendBulkNotificationAction(input: unknown) {
     }
   }
   return { ok: true as const, value: { sent, failed, reasons, operationId: opId } }
+}
+
+// ── "STÜDYODAN" engagement send (v1.27) — owner-approved, never automatic. Resolve an audience segment
+//    (or explicit ids) → send the owner-written subject/body through the SAME notify() pipeline via the
+//    engagement_broadcast passthrough. In-app always lands; push/WhatsApp respect marketing consent. ──
+export async function sendEngagementAction(input: unknown) {
+  const p = z
+    .object({
+      subject: z.string().trim().min(1).max(120),
+      body: z.string().trim().min(1).max(600),
+      segment: z.enum(['all', 'fitness', 'pilates', 'dormant', 'regular', 'new', 'birthday']).optional(),
+      memberIds: z.array(z.string().min(1)).max(2000).optional(),
+    })
+    .parse(input)
+  const ctx = await requireTenantContext(OWNER)
+  const ids = p.segment ? await resolveSegment(ctx.studioId, p.segment) : (p.memberIds ?? [])
+  if (ids.length === 0) return { ok: false as const, error: { code: 'no_recipients' as const } }
+
+  const memberRepo = new FirestoreMemberRepository(adminDb())
+  const opId = newOperationId()
+  let sent = 0
+  let failed = 0
+  for (const memberId of ids) {
+    const member = await memberRepo.findById(ctx, memberId as MemberId)
+    if (!member) {
+      failed++
+      continue
+    }
+    const recipient: RecipientRef = {
+      kind: 'member',
+      id: member.id as string,
+      email: (member.email as string | null) ?? null,
+      phone: (member.phone as string | null) ?? null,
+      displayName: member.fullName,
+    }
+    const res = await notify(deps(), ctx, {
+      intentId: `engagement:${opId}:${member.id}`,
+      eventId: null,
+      eventType: 'engagement_broadcast',
+      operationId: opId,
+      templateId: 'engagement_broadcast',
+      recipient,
+      params: { memberName: member.fullName, subject: p.subject, body: p.body },
+    })
+    if (res.ok) sent++
+    else failed++
+  }
+  return { ok: true as const, value: { sent, failed, total: ids.length, operationId: opId } }
 }
 
 export interface NotificationRow {

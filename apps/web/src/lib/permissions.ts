@@ -37,6 +37,7 @@ export type Area =
   | '/advisor' // Plus Phase 10 — AI Insights L1 (owner-confidential decision-support)
   | '/activity'
   | '/notifications'
+  | '/engagement' // Stüdyodan — owner engagement/marketing composer + content library
   | '/knowledge' // Bilgi Merkezi — the living help base; all staff read, owner edits
   | '/analytics'
   | '/audit'
@@ -91,6 +92,8 @@ export const PERMISSIONS: Readonly<Record<Area, readonly PrincipalRole[]>> = {
   '/advisor': OWNER_ONLY,
   '/analytics': OWNER_ONLY,
   '/audit': OWNER_ONLY,
+  // Stüdyodan — sending engagement/marketing content is the owner's call ("her gönderim onayında").
+  '/engagement': OWNER_ONLY,
   '/settings': OWNER_ONLY,
   '/staff': OWNER_ONLY,
   // Plus Phase 9 — payroll is the business's cost side. Owner-confidential; reception never, a
