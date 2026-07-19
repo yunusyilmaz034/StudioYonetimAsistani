@@ -1,11 +1,28 @@
+import { useEffect } from 'react'
 import { Stack } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 
 import { AuthProvider } from '@/lib/auth'
+import { trackError } from '@/lib/analytics'
 
 export default function RootLayout() {
+  // Global crash sink — chains the RN global error handler so a fatal JS error is reported (a no-op
+  // until @react-native-firebase Crashlytics is wired; see lib/analytics.ts) without swallowing the
+  // default red-box/crash behaviour.
+  useEffect(() => {
+    const g = globalThis as { ErrorUtils?: { getGlobalHandler?: () => unknown; setGlobalHandler?: (h: unknown) => void } }
+    const eu = g.ErrorUtils
+    if (!eu?.getGlobalHandler || !eu.setGlobalHandler) return
+    const prev = eu.getGlobalHandler() as ((e: unknown, fatal?: boolean) => void) | undefined
+    eu.setGlobalHandler((error: unknown, isFatal?: boolean) => {
+      trackError(error, { where: 'global', fatal: Boolean(isFatal) })
+      prev?.(error, isFatal)
+    })
+    return () => { if (prev) eu.setGlobalHandler?.(prev) }
+  }, [])
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>

@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons'
 import { router } from 'expo-router'
 
 import { api } from '@/lib/api'
+import { track } from '@/lib/analytics'
 import { pickPhotoDataUrl } from '@/lib/photo'
 import { useFetch } from '@/lib/useFetch'
 import { PressableScale } from '@/components/motion'
@@ -37,7 +38,7 @@ export default function ProfileEdit() {
       if (!dataUrl) return
       setUploading(true)
       const res = await api.uploadPhoto(dataUrl)
-      if (res.ok) { setAvatar(res.value.avatarUrl); Alert.alert('Fotoğraf güncellendi ✓') }
+      if (res.ok) { track('image_uploaded', { where: 'mobile_avatar' }); setAvatar(res.value.avatarUrl); Alert.alert('Fotoğraf güncellendi ✓') }
       else Alert.alert('Yüklenemedi', 'Tekrar dene.')
     } catch { Alert.alert('Hata', 'Fotoğraf yüklenemedi.') } finally { setUploading(false) }
   }

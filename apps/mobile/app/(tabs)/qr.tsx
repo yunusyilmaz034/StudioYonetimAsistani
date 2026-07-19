@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons'
 import { CameraView, useCameraPermissions } from 'expo-camera'
 
 import { api } from '@/lib/api'
+import { track } from '@/lib/analytics'
 import { FadeInUp, PressableScale } from '@/components/motion'
 import { Body, Button, Card, Loading, Screen, Title } from '@/components/ui'
 import { radius, shadow, space, usePalette } from '@/theme'
@@ -20,6 +21,7 @@ export default function Qr() {
   const refresh = useCallback(async (branch: string) => {
     const res = await api.mintQr(branch)
     setToken(res.token)
+    track('qr_scanned', { surface: 'mobile' })
     const leadMs = Math.max(5000, res.ttlSeconds * 1000 - 5000)
     if (timer.current) clearTimeout(timer.current)
     timer.current = setTimeout(() => void refresh(branch), leadMs)
@@ -76,7 +78,10 @@ function Scanner() {
     setBusy(true)
     try {
       const res = await api.checkin(data)
-      if (res.ok) Alert.alert('Giriş yapıldı ✓', 'Hoş geldin! Stüdyoya girişin kaydedildi.')
+      if (res.ok) {
+        track('checkin_recorded', { surface: 'mobile' })
+        Alert.alert('Giriş yapıldı ✓', 'Hoş geldin! Stüdyoya girişin kaydedildi.')
+      }
       else Alert.alert('Giriş yapılamadı', res.error.code === 'qr_expired' ? 'Kodun süresi doldu, tekrar tara.' : 'Geçersiz ya da kullanılmış kod.')
     } catch { Alert.alert('Hata', 'Giriş yapılamadı, tekrar dene.') }
     finally { setBusy(false); setTimeout(() => { handled.current = false }, 2500) }

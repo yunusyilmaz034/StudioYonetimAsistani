@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons'
 
 import type { RetailItem, WalletTxn } from '@studio/core/client'
 import { api } from '@/lib/api'
+import { track } from '@/lib/analytics'
 import { formatKurus } from '@/lib/format'
 import { useFetch } from '@/lib/useFetch'
 import { FadeInUp } from '@/components/motion'
@@ -27,8 +28,11 @@ export default function Wallet() {
     setBusy(`top-${amount}`)
     try {
       const res = await api.walletTopup(amount)
-      if (res.ok) router.push({ pathname: '/checkout', params: { url: res.value.redirectUrl } })
-      else Alert.alert('Yükleme başlatılamadı', 'Lütfen tekrar dene ya da stüdyoyla iletişime geç.')
+      if (res.ok) {
+        track('wallet_topup', { amount_kurus: amount })
+        track('payment_started', { method: 'wallet_topup', amount_kurus: amount })
+        router.push({ pathname: '/checkout', params: { url: res.value.redirectUrl } })
+      } else Alert.alert('Yükleme başlatılamadı', 'Lütfen tekrar dene ya da stüdyoyla iletişime geç.')
     } catch {
       Alert.alert('Hata', 'Yükleme başlatılamadı.')
     } finally {
@@ -45,6 +49,7 @@ export default function Wallet() {
     try {
       const res = await api.walletBuy(item.id)
       if (res.ok) {
+        track('wallet_purchase', { product_id: item.id })
         void wallet.reload()
         void store.reload()
         Alert.alert('Alındı', `${item.name} cüzdanından alındı.`)

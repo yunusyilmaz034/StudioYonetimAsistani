@@ -3,6 +3,7 @@ import { Image, KeyboardAvoidingView, Platform, Text, TextInput, View } from 're
 import { Redirect } from 'expo-router'
 
 import { fetchBranding, type Branding } from '@/lib/api'
+import { track } from '@/lib/analytics'
 import { Body, Button, H1 } from '@/components/ui'
 import { useAuth } from '@/lib/auth'
 import { radius, space, usePalette } from '@/theme'
@@ -26,7 +27,9 @@ export default function Login() {
     setBusy(true)
     try {
       await signIn(phone.trim(), password)
+      track('login_success', { surface: 'mobile' })
     } catch (e) {
+      track('login_failure', { surface: 'mobile' })
       const code = (e as Error).message
       setError(code === 'invalid_phone' ? 'Telefon numarası geçersiz.' : 'Giriş yapılamadı. Bilgilerini kontrol et.')
     } finally { setBusy(false) }
