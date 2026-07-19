@@ -365,7 +365,7 @@ Site ayrı deploy (Firebase Hosting `pilatesfitnessbyisil-web`).
 **PF-29 — Girişlerde captcha · özellik.** KARAR: **2a = basit captcha** (matematik/"robot değilim") + giriş
 **rate-limit**. Dış servis YOK (reCAPTCHA/CSP değil). Üye portal + staff login.
 
-**PF-30 — Admin ↔ üye girişi oturum çakışması · düşük öncelik fix.** Aynı tarayıcıda staff oturumu varken
+**PF-30 — Admin ↔ üye girişi oturum çakışması · ✅ ÇÖZÜLDÜ (v1.27).** Aynı tarayıcıda staff oturumu varken
 `/portal/login`'e gidince admin'e yönleniyor. Gerçek üyeyi etkilemez (sadece staff test ederken). Geçici:
 gizli sekme. Kalıcı: portal girişi staff oturumunu görmezden gelsin. Owner: düşük öncelik onayladı.
 

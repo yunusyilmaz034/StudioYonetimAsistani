@@ -1,8 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { signInWithEmailAndPassword } from 'firebase/auth'
+import { signInWithEmailAndPassword, signOut } from 'firebase/auth'
 import { Loader2Icon } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -29,6 +29,20 @@ export function MemberLoginForm() {
   const [attempts, setAttempts] = useState(0)
   const captcha = useMathCaptcha()
   const needsCaptcha = attempts >= 1
+
+  // PF-30 — the member portal ignores a STAFF session in the same browser. If a non-member Firebase
+  // user is signed in (the owner testing both), sign it out so member login starts clean and never
+  // bounces to the admin app. A genuine member session is left alone.
+  useEffect(() => {
+    const u = clientAuth().currentUser
+    if (!u) return
+    void u
+      .getIdTokenResult()
+      .then((t) => {
+        if (t.claims.role !== 'member') void signOut(clientAuth())
+      })
+      .catch(() => {})
+  }, [])
 
   async function submit() {
     if (needsCaptcha && !captcha.solved) {
