@@ -75,8 +75,6 @@ export default function Profile() {
       <FadeInUp index={2}>
         <Eyebrow>Hesabım</Eyebrow>
         <Card inset>
-          <LinkRow icon="wallet-outline" label="Cüzdanım" onPress={() => router.push('/wallet')} />
-          <Divider />
           <LinkRow icon="ticket-outline" label="Aboneliklerim" onPress={() => router.push('/subscriptions')} />
         </Card>
       </FadeInUp>

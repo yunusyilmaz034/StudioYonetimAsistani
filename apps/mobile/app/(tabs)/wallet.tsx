@@ -63,7 +63,7 @@ export default function Wallet() {
   const history = wallet.data?.history ?? []
 
   return (
-    <Screen header refreshControl={<RefreshControl refreshing={wallet.loading} onRefresh={() => { void wallet.reload(); void store.reload() }} tintColor={p.accent} />}>
+    <Screen refreshControl={<RefreshControl refreshing={wallet.loading} onRefresh={() => { void wallet.reload(); void store.reload() }} tintColor={p.accent} />}>
       <FadeInUp index={0}>
         <Hero>
           <Body style={[t.caption, { color: p.onGradMuted }]}>Cüzdan Bakiyen</Body>

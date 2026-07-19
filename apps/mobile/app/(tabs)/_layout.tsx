@@ -46,6 +46,7 @@ export default function TabsLayout() {
       <Tabs.Screen name="agenda" options={{ title: 'Ajanda', tabBarIcon: ({ color, size }) => <Ionicons name="calendar-outline" color={color} size={size} /> }} />
       <Tabs.Screen name="training" options={{ title: 'Antrenman', tabBarIcon: ({ color, size }) => <Ionicons name="barbell-outline" color={color} size={size} /> }} />
       <Tabs.Screen name="qr" options={{ title: 'QR', tabBarIcon: ({ color, size }) => <Ionicons name="qr-code-outline" color={color} size={size} /> }} />
+      <Tabs.Screen name="wallet" options={{ title: 'Cüzdan', tabBarIcon: ({ color, size }) => <Ionicons name="wallet-outline" color={color} size={size} /> }} />
       <Tabs.Screen name="profile" options={{ title: 'Profil', tabBarIcon: ({ color, size }) => <Ionicons name="person-outline" color={color} size={size} /> }} />
     </Tabs>
   )
