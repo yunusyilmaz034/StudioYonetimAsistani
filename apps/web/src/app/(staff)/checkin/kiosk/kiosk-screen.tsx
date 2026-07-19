@@ -43,7 +43,7 @@ const RESET_MS = 2_500
 const DEBOUNCE_MS = 5_000
 
 type Result =
-  | { readonly kind: 'welcome'; readonly name: string }
+  | { readonly kind: 'welcome'; readonly name: string; readonly entry?: { used: number; allowance: number } | null }
   | { readonly kind: 'goodbye'; readonly name: string }
   | { readonly kind: 'error'; readonly message: string }
 
@@ -102,7 +102,12 @@ export function KioskScreen({
 
       try {
         const res = await checkInByQrAction({ token, branchId: state.branchId })
-        if (res.ok) setResult({ kind: 'welcome', name: res.value.memberName })
+        if (res.ok)
+          setResult(
+            res.value.direction === 'out'
+              ? { kind: 'goodbye', name: res.value.memberName }
+              : { kind: 'welcome', name: res.value.memberName, entry: res.value.entry },
+          )
         else setResult({ kind: 'error', message: domainErrorMessage(res.error) })
       } catch {
         setResult({
@@ -271,6 +276,13 @@ export function KioskScreen({
                 </div>
                 <p className="mt-6 text-display font-semibold">Hoş geldin</p>
                 <p className="mt-1 text-h1 font-medium">{result.name}</p>
+                {result.entry ? (
+                  <p className={`mt-3 inline-block rounded-full px-4 py-1.5 text-h3 font-semibold ${result.entry.used >= result.entry.allowance ? 'bg-danger/15 text-danger' : 'bg-accent/10 text-accent'}`}>
+                    {result.entry.used >= result.entry.allowance
+                      ? `Fitness giriş hakkı doldu (${result.entry.used}/${result.entry.allowance})`
+                      : `Fitness: ${Math.max(0, result.entry.allowance - result.entry.used)}/${result.entry.allowance} giriş kaldı`}
+                  </p>
+                ) : null}
               </>
             ) : result.kind === 'goodbye' ? (
               <>
