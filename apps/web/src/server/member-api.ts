@@ -1,11 +1,13 @@
 import { NextResponse, type NextRequest } from 'next/server'
 
-import { available, DEFAULT_PREFS, FirestoreEntitlementRepository, FirestoreNotificationRepository, type Entitlement, type MemberId, type NotificationPrefs, type TenantContext } from '@studio/core'
+import { available, DEFAULT_PREFS, FirestoreEntitlementRepository, FirestoreFinanceRepository, FirestoreNotificationRepository, money, newOperationId, sell, systemClock, type BranchId, type Entitlement, type FinanceDeps, type MemberId, type NotificationPrefs, type TenantContext } from '@studio/core'
+import type { RetailItem, StoredWallet } from '@studio/core/client'
 
 import { loadOccupancyNow } from './fitness-query'
 import { adminAuth, adminDb, adminStorage, storageBucketName } from './firebase-admin'
 import { memberClaimsToTenantContext, parseMemberClaims } from './member-claims'
 import type { MobileBanner, MobileBranding, MobileSettings } from './actions/mobile-settings'
+import { readWalletView } from './wallet-query'
 
 // The mobile member API's authentication (AD-70). A native app has no `__session` cookie; it sends the
 // member's Firebase ID token as a Bearer header. We verify it EXACTLY the way the cookie is verified —
@@ -143,4 +145,94 @@ export async function memberRegisterDevice(ctx: TenantContext, memberId: MemberI
   await memberRef.collection('devices').doc(deviceId).set({ token, platform, updatedAt: Date.now() }, { merge: true })
   await memberRef.set({ notificationPrefs: { push: true } }, { merge: true })
   return { ok: true as const }
+}
+
+// ── STORED-VALUE WALLET (Doc 27) — the member reads her balance/history and buys retail items from it.
+//    All Admin-SDK (the wallets collection is server-only). The money goes through the finance `sell`
+//    use-case with method 'wallet', so the same I-37 that guards the desk guards the app.
+const financeDeps = (): FinanceDeps => ({ repo: new FirestoreFinanceRepository(adminDb()), clock: systemClock, source: 'member_app' })
+
+export function memberStoredWallet(ctx: TenantContext, memberId: MemberId): Promise<StoredWallet> {
+  return readWalletView(ctx, memberId)
+}
+
+export async function memberStore(ctx: TenantContext): Promise<readonly RetailItem[]> {
+  const snap = await adminDb().collection(`studios/${ctx.studioId}/retailProducts`).get()
+  return snap.docs
+    .map((d) => {
+      const x = d.data()
+      return {
+        id: d.id,
+        name: String(x.name ?? 'Ürün'),
+        priceInKurus: Number(x.priceInKurus ?? 0),
+        category: String(x.category ?? ''),
+        stock: x.trackStock === true ? Number(x.stock ?? 0) : null,
+        active: x.active !== false,
+      }
+    })
+    .filter((p) => p.active)
+    .sort((a, b) => a.name.localeCompare(b.name, 'tr'))
+    .map((p) => ({ id: p.id, name: p.name, priceInKurus: p.priceInKurus, category: p.category, stock: p.stock }))
+}
+
+export async function memberBuyFromWallet(ctx: TenantContext, memberId: MemberId, productId: string, quantity: number) {
+  const db = adminDb()
+  const qty = Math.max(1, Math.floor(quantity || 1))
+  const ref = db.doc(`studios/${ctx.studioId}/retailProducts/${productId}`)
+
+  // Decrement stock first (no oversell), then take the money. If the wallet is short, put stock back.
+  let line: { productId: null; description: string; quantity: number; unitPrice: ReturnType<typeof money>; entitlementId: null; giftCardId: null } | null = null
+  let total = 0
+  let tracked = false
+  try {
+    const built = await db.runTransaction(async (tx) => {
+      const doc = await tx.get(ref)
+      if (!doc.exists) throw new Error('not_found')
+      const x = doc.data()!
+      if (x.active === false) throw new Error('not_found')
+      const price = Number(x.priceInKurus ?? 0)
+      if (x.trackStock === true) {
+        const stock = Number(x.stock ?? 0)
+        if (stock < qty) throw new Error('out_of_stock')
+        tx.set(ref, { stock: stock - qty, updatedAt: Date.now() }, { merge: true })
+      }
+      return { price, name: String(x.name ?? 'Ürün'), tracked: x.trackStock === true }
+    })
+    total = built.price * qty
+    tracked = built.tracked
+    line = { productId: null, description: built.name, quantity: qty, unitPrice: money(built.price), entitlementId: null, giftCardId: null }
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : ''
+    if (msg === 'out_of_stock') return { ok: false as const, error: { code: 'retail_out_of_stock' as const, available: 0 } }
+    return { ok: false as const, error: { code: 'product_not_found' as const } }
+  }
+
+  const suffix = newOperationId().slice(4)
+  const result = await sell(financeDeps(), ctx, {
+    saleId: `sal_${suffix}`,
+    memberId,
+    branchId: (ctx.branchIds[0] ?? null) as BranchId,
+    lines: [line],
+    discounts: [],
+    discountCeilingPercent: null,
+    payment: {
+      paymentId: `pay_${suffix}`,
+      allocationId: `alc_${suffix}`,
+      amount: money(total),
+      method: 'wallet',
+      receivedAt: systemClock.now(),
+      drawerId: null,
+      giftCardCode: null,
+      note: 'Cüzdan alışverişi',
+    },
+  })
+
+  if (!result.ok && tracked) {
+    await db.runTransaction(async (tx) => {
+      const s = await tx.get(ref)
+      if (s.exists) tx.set(ref, { stock: Number(s.data()!.stock ?? 0) + qty, updatedAt: Date.now() }, { merge: true })
+    })
+  }
+  if (!result.ok) return { ok: false as const, error: result.error }
+  return { ok: true as const, value: await readWalletView(ctx, memberId) }
 }

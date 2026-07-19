@@ -98,7 +98,7 @@ export async function sellRetailProductAction(input: unknown) {
     .object({
       memberId: z.string().min(1),
       items: z.array(z.object({ retailProductId: z.string().min(1), quantity: z.number().int().min(1) })).min(1),
-      method: z.enum(['cash', 'bank_transfer', 'credit_card']),
+      method: z.enum(['cash', 'bank_transfer', 'credit_card', 'wallet']),
       // Optional explicit till: honoured only if it is open and of the method's kind; otherwise the
       // server auto-picks the single open till. Havale needs none.
       drawerId: z.string().min(1).nullable().optional(),
@@ -109,10 +109,12 @@ export async function sellRetailProductAction(input: unknown) {
 
   // ── Stock + line build, transactionally (refuse oversell). ──
   let lines: { productId: null; description: string; quantity: number; unitPrice: ReturnType<typeof money>; entitlementId: null; giftCardId: null }[] = []
+  let decremented: { id: string; qty: number }[] = []
   let total = 0
   try {
-    lines = await db.runTransaction(async (tx) => {
+    const out = await db.runTransaction(async (tx) => {
       const built: typeof lines = []
+      const dec: typeof decremented = []
       for (const item of p.items) {
         const ref = col(ctx.studioId).doc(item.retailProductId)
         const doc = await tx.get(ref)
@@ -123,6 +125,7 @@ export async function sellRetailProductAction(input: unknown) {
           const stock = Number(x.stock ?? 0)
           if (stock < item.quantity) throw new Error(`out_of_stock:${stock}`)
           tx.set(ref, { stock: stock - item.quantity, updatedAt: Date.now() }, { merge: true })
+          dec.push({ id: item.retailProductId, qty: item.quantity })
         }
         total += price * item.quantity
         built.push({
@@ -134,8 +137,10 @@ export async function sellRetailProductAction(input: unknown) {
           giftCardId: null,
         })
       }
-      return built
+      return { built, dec }
     })
+    lines = out.built
+    decremented = out.dec
   } catch (e) {
     const msg = e instanceof Error ? e.message : ''
     if (msg.startsWith('out_of_stock:')) return { ok: false as const, error: { code: 'retail_out_of_stock' as const, available: Number(msg.split(':')[1] ?? 0) } }
@@ -143,7 +148,8 @@ export async function sellRetailProductAction(input: unknown) {
   }
 
   // ── The money, through the ONE sale path. Cash needs an open cash till, a card (POS) an open pos
-  //    till; havale needs none. Honour an explicit open till of the right kind, else auto-pick. ──
+  //    till; havale and WALLET need none (wallet money is the balance itself). Honour an explicit open
+  //    till of the right kind, else auto-pick. ──
   const drawerKind: 'cash' | 'pos' | null = p.method === 'cash' ? 'cash' : p.method === 'credit_card' ? 'pos' : null
   let drawerId: string | null = null
   if (drawerKind) {
@@ -152,7 +158,7 @@ export async function sellRetailProductAction(input: unknown) {
   }
   const opId = newOperationId()
   const suffix = opId.slice(4)
-  return sell(financeDeps(), ctx, {
+  const result = await sell(financeDeps(), ctx, {
     saleId: `sal_${suffix}`,
     memberId: p.memberId as MemberId,
     branchId: (ctx.branchIds[0] ?? null) as BranchId,
@@ -170,4 +176,18 @@ export async function sellRetailProductAction(input: unknown) {
       note: 'Ürün satışı',
     },
   })
+
+  // The stock moved in a separate transaction from the money. If the sale is REFUSED (e.g. a wallet
+  // with too little balance), put the stock back — an un-sold item that vanished from the shelf is a
+  // phantom shortage reception would chase for nothing.
+  if (!result.ok && decremented.length > 0) {
+    await db.runTransaction(async (tx) => {
+      const refs = decremented.map((d) => col(ctx.studioId).doc(d.id))
+      const snaps = await Promise.all(refs.map((r) => tx.get(r)))
+      snaps.forEach((s, i) => {
+        if (s.exists) tx.set(s.ref, { stock: Number(s.data()!.stock ?? 0) + decremented[i]!.qty, updatedAt: Date.now() }, { merge: true })
+      })
+    })
+  }
+  return result
 }

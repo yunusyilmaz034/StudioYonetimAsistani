@@ -13,6 +13,7 @@ import {
   receiveCollection,
   sellPackage,
   systemClock,
+  topUpWallet,
   type CallbackVerdict,
   type Grant,
   type MemberId,
@@ -168,6 +169,16 @@ async function completePaidIntent(
         buyerPhone: intent.context.buyerPhone ?? '',
         providerRef: intent.providerRef,
       },
+    )
+  }
+
+  // Doc 27 — a wallet top-up credits her stored-value balance (source 'online'). Idempotent via the
+  // intent status above. Mirror of the web tier (DEBT-PAYTR-CALLBACK: two copies kept in sync).
+  if (intent.purpose === 'wallet_topup') {
+    await topUpWallet(
+      { repo: new FirestoreFinanceRepository(database), clock: systemClock, source: 'paytr_callback' },
+      ctx,
+      { memberId: intent.memberId as MemberId, amount: intent.amount, source: 'online', paymentId: intent.id, providerRef: intent.providerRef },
     )
   }
 }

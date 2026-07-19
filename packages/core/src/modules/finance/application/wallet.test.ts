@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
-import { instant, money, type MemberId, type TenantContext } from '../../../shared'
+import { instant, money, type BranchId, type MemberId, type TenantContext } from '../../../shared'
 import type { Wallet } from '../domain/types'
+import { sell } from './finance'
 import type { FinanceDeps, FinanceRepository, FinanceWrite } from './ports'
 import { adjustWallet, topUpWallet } from './wallet'
 
@@ -71,5 +72,49 @@ describe('adjustWallet — a reasoned correction', () => {
     const { deps } = fake(null)
     const r = await adjustWallet(deps, ctx, { memberId: MEMBER, direction: 'credit', amount: money(1000), reason: 'gift', note: '  ' })
     expect(r.ok).toBe(false)
+  })
+})
+
+describe('sell paid from the wallet (W3)', () => {
+  function sellFake(wallet: Wallet | null) {
+    const writes: FinanceWrite[] = []
+    const repo = {
+      getDrawer: async () => null,
+      getGiftCardByCode: async () => null,
+      getWalletByMember: async () => wallet,
+      commit: async (_c: TenantContext, w: FinanceWrite) => {
+        writes.push(w)
+      },
+    } as unknown as FinanceRepository
+    return { deps: { repo, clock } as unknown as FinanceDeps, writes }
+  }
+  const line = { productId: null, description: 'Su', quantity: 1, unitPrice: money(5000), entitlementId: null, giftCardId: null } as const
+  const payment = { paymentId: 'pay_1', allocationId: 'alc_1', amount: money(5000), method: 'wallet' as const, receivedAt: instant(1_700_000_000_000), drawerId: null, giftCardCode: null, note: 'Ürün satışı' }
+
+  it('debits the wallet by the sale total and records revenue', async () => {
+    const wallet: Wallet = { id: 'wal_mbr_1', studioId: ctx.studioId, memberId: MEMBER, balance: money(12000), updatedAt: instant(1) }
+    const { deps, writes } = sellFake(wallet)
+    const r = await sell(deps, ctx, { saleId: 'sal_1', memberId: MEMBER, branchId: 'brn_1' as BranchId, lines: [line], discounts: [], discountCeilingPercent: null, payment })
+    expect(r.ok).toBe(true)
+    const apply = writes[0]!.walletApplies![0]!
+    expect(apply.deltaKurus).toBe(-5000)
+    expect(apply.refuseBelowZero).toBe(true)
+    expect(writes[0]!.payments![0]!.method).toBe('wallet')
+    expect(writes[0]!.drawerDeltas ?? []).toHaveLength(0) // no till for wallet money
+  })
+
+  it('refuses the sale when the wallet is short — nothing committed', async () => {
+    const wallet: Wallet = { id: 'wal_mbr_1', studioId: ctx.studioId, memberId: MEMBER, balance: money(3000), updatedAt: instant(1) }
+    const { deps, writes } = sellFake(wallet)
+    const r = await sell(deps, ctx, { saleId: 'sal_1', memberId: MEMBER, branchId: 'brn_1' as BranchId, lines: [line], discounts: [], discountCeilingPercent: null, payment })
+    expect(r.ok).toBe(false)
+    expect(writes).toHaveLength(0)
+  })
+
+  it('refuses when the member has no wallet at all', async () => {
+    const { deps, writes } = sellFake(null)
+    const r = await sell(deps, ctx, { saleId: 'sal_1', memberId: MEMBER, branchId: 'brn_1' as BranchId, lines: [line], discounts: [], discountCeilingPercent: null, payment })
+    expect(r.ok).toBe(false)
+    expect(writes).toHaveLength(0)
   })
 })

@@ -30,6 +30,7 @@ import {
   decideReceivePayment,
   decideRefund,
   decideVoidPayment,
+  decideWalletPurchase,
   type DecideContext,
 } from '../domain/decide'
 import {
@@ -46,7 +47,7 @@ import {
   type Sale,
   type SaleLine,
 } from '../domain/types'
-import type { DrawerDelta, FinanceDeps } from './ports'
+import type { DrawerDelta, FinanceDeps, WalletApply } from './ports'
 
 const SOURCE: EventSource = 'reception_web'
 export const dctx = (deps: FinanceDeps, ctx: TenantContext, correlationId: OperationId): DecideContext => ({
@@ -116,7 +117,8 @@ export async function sell(
     allocations: NonNullable<Parameters<typeof deps.repo.commit>[1]['allocations']>[number][]
     drawerDeltas: DrawerDelta[]
     giftCards: GiftCard[]
-  } = { sales: [], payments: [], allocations: [], drawerDeltas: [], giftCards: [] }
+    walletApplies: WalletApply[]
+  } = { sales: [], payments: [], allocations: [], drawerDeltas: [], giftCards: [], walletApplies: [] }
 
   let paymentId: string | null = null
 
@@ -172,6 +174,23 @@ export async function sell(
     }
     if (card) {
       write.giftCards.push({ ...card, redeemed: addMoney(card.redeemed, payment.amount) })
+    }
+    // The WALLET as a payment method — the stored-value balance IS the money. Debit it in the SAME
+    // transaction (a purchase never spends below zero, I-37), and recognise revenue here on the wallet
+    // payment, exactly as cash would. The wallet event's balanceAfter is finalised in the transaction,
+    // so the log never records a stale balance.
+    if (payment.method === 'wallet') {
+      const wallet = await deps.repo.getWalletByMember(ctx, input.memberId)
+      if (!wallet) return { ok: false, error: { code: 'wallet_insufficient', balance: 0, requested: payment.amount.amount } }
+      const spent = decideWalletPurchase(c, wallet, { amount: payment.amount, saleId: sale.id, paymentId: payment.id })
+      if (!spent.ok) return spent
+      write.walletApplies.push({
+        walletId: wallet.id,
+        memberId: input.memberId,
+        deltaKurus: -payment.amount.amount,
+        refuseBelowZero: true,
+        event: spent.value.events[0]!,
+      })
     }
     write.payments.push(payment)
     paymentId = payment.id

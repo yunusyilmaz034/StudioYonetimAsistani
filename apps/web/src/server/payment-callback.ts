@@ -20,6 +20,7 @@ import {
   receiveCollection,
   sellPackage,
   systemClock,
+  topUpWallet,
   type CallbackVerdict,
   type Grant,
   type MemberId,
@@ -133,6 +134,17 @@ export async function completePaidIntent(ctx: TenantContext, intent: PaymentInte
         buyerPhone: intent.context.buyerPhone ?? '',
         providerRef: intent.providerRef,
       },
+    )
+  }
+
+  // Doc 27 — a wallet top-up. The verified money credits her stored-value balance (source 'online').
+  // Idempotent via the intent status above (a replayed callback returns before here). Mirror of the
+  // Cloud Function branch (DEBT-PAYTR-CALLBACK: two copies kept in sync).
+  if (intent.purpose === 'wallet_topup') {
+    await topUpWallet(
+      { repo: new FirestoreFinanceRepository(adminDb()), clock: systemClock, source: 'paytr_callback' },
+      ctx,
+      { memberId: intent.memberId as MemberId, amount: intent.amount, source: 'online', paymentId: intent.id, providerRef: intent.providerRef },
     )
   }
 }

@@ -227,6 +227,70 @@ export async function createMemberPackageCheckout(ctx: TenantContext, memberId: 
   })
 }
 
+// ── Wallet top-up via virtual POS (Doc 27) — the member loads her stored-value balance. Same PAYTR
+//    link flow as a package, but the intent's purpose is 'wallet_topup': it grants NO package. On a
+//    verified callback the money becomes a `wallet.topup` (source 'online'), idempotent via the intent.
+export async function createWalletTopupCheckout(ctx: TenantContext, memberId: MemberId, amountKurus: number) {
+  const { provider, config } = await paymentProviderFor(ctx)
+  if (!provider.configured) return { ok: false as const, error: { code: 'payment_provider_not_configured' as const } }
+  if (!Number.isInteger(amountKurus) || amountKurus <= 0) return { ok: false as const, error: { code: 'invalid_amount' as const } }
+
+  const providerRef = randomUUID().replace(/-/g, '')
+  const id = `pin_${providerRef.slice(0, 20)}`
+  const amount = money(amountKurus)
+  const member = await new FirestoreMemberRepository(adminDb()).findById(ctx, memberId)
+
+  const intent: PaymentIntent = {
+    id,
+    studioId: ctx.studioId,
+    memberId: memberId as string,
+    saleId: `wtop_${providerRef.slice(0, 20)}`, // reserved id; a wallet top-up creates no Sale
+    purpose: 'wallet_topup',
+    amount,
+    provider: 'paytr',
+    flow: 'link',
+    providerRef,
+    redirectUrl: null,
+    idempotencyKey: providerRef,
+    status: 'draft',
+    context: { note: 'Cüzdan yükleme' },
+    expiresAt: null,
+    failureReason: null,
+    refundedAmount: money(0),
+    createdBy: ctx.actor,
+    createdAt: instant(systemClock.now()),
+    updatedAt: instant(systemClock.now()),
+  }
+
+  const created = decideCreatePaymentIntent(dctx(ctx), intent)
+  await intentRepo().saveIntent(ctx, created.next, created.events)
+
+  const checkout = await provider.createCheckout('link', {
+    intentId: id,
+    providerRef,
+    amount,
+    itemName: 'Cüzdan Yükleme',
+    memberName: member?.fullName ?? 'Üye',
+    memberEmail: (member?.email as string | null) ?? null,
+    memberPhone: (member?.phone as string | null) ?? null,
+    userIp: '85.34.78.112',
+    okUrl: config.successUrl || `${baseUrl(config)}/portal`,
+    failUrl: config.failUrl || `${baseUrl(config)}/portal`,
+    callbackUrl: callbackUrl(ctx, config),
+    testMode: config.testMode,
+    expiresInSeconds: 30 * 60,
+    maxInstallment: 1,
+  })
+  if (!checkout.ok || !checkout.redirectUrl) {
+    console.error('[paytr] wallet topup checkout failed', { reason: checkout.errorCode, testMode: config.testMode })
+    return { ok: false as const, error: { code: 'payment_checkout_failed' as const }, providerError: checkout.errorCode }
+  }
+
+  const session = decideSessionCreated(dctx(ctx), created.next, checkout.redirectUrl, checkout.expiresAt ? instant(checkout.expiresAt) : null)
+  await intentRepo().saveIntent(ctx, session.next, session.events)
+  return { ok: true as const, value: { redirectUrl: checkout.redirectUrl } }
+}
+
 // Her own payment history (the staff read is memberId-parameterised and OPS-gated; this derives her id
 // from the token). Newest first, only what a receipt would show — no provider internals.
 const PURPOSE_TR: Record<string, string> = { package: 'Paket', renewal: 'Yenileme', product: 'Ürün', collection: 'Tahsilat' }

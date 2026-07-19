@@ -261,6 +261,32 @@ export interface WalletSummary {
   readonly history: readonly PaymentHistoryItem[]
 }
 
+// ── STORED-VALUE WALLET (Doc 27, v1.27) — distinct from WalletSummary above (which is her ACCOUNT:
+//    what she owes + her packages). This is a prepaid balance she loads (virtual POS or at the desk)
+//    and spends on retail items (su, çorap, havlu…). Money is integer kuruş; a debit never goes below
+//    zero (I-37). ──────────────────────────────────────────────────────────────────────────────
+export type WalletTxnKind = 'topup' | 'purchase' | 'refund' | 'adjustment' | 'void'
+export interface WalletTxn {
+  readonly id: string
+  readonly kind: WalletTxnKind
+  readonly direction: 'in' | 'out' // in raises the balance, out lowers it
+  readonly amount: number // kuruş, always positive — `direction` says the sign
+  readonly label: string // ready-to-show Turkish, e.g. "Bakiye yükleme" / "Su"
+  readonly at: number
+  readonly balanceAfter: number // kuruş
+}
+export interface StoredWallet {
+  readonly balance: number // kuruş
+  readonly history: readonly WalletTxn[]
+}
+export interface RetailItem {
+  readonly id: string
+  readonly name: string
+  readonly priceInKurus: number
+  readonly category: string
+  readonly stock: number | null // null ⇒ stock not tracked (always buyable)
+}
+
 // ── QR check-in token (member displays it; reception scans) ───────────────────────────────────
 export interface QrToken {
   readonly token: string

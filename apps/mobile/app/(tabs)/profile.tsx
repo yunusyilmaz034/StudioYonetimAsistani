@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Image, Switch, View } from 'react-native'
+import { Image, Pressable, Switch, View } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { router, useFocusEffect } from 'expo-router'
 
@@ -73,6 +73,15 @@ export default function Profile() {
       </FadeInUp>
 
       <FadeInUp index={2}>
+        <Eyebrow>Hesabım</Eyebrow>
+        <Card inset>
+          <LinkRow icon="wallet-outline" label="Cüzdanım" onPress={() => router.push('/wallet')} />
+          <Divider />
+          <LinkRow icon="ticket-outline" label="Aboneliklerim" onPress={() => router.push('/subscriptions')} />
+        </Card>
+      </FadeInUp>
+
+      <FadeInUp index={3}>
         <Eyebrow>Bildirim Tercihleri</Eyebrow>
         <Card inset>
           {prefs
@@ -90,10 +99,23 @@ export default function Profile() {
         </Card>
       </FadeInUp>
 
-      <FadeInUp index={3}>
+      <FadeInUp index={4}>
         <Button label="Çıkış Yap" tone="muted" icon={<Ionicons name="log-out-outline" size={18} color={p.danger} />} onPress={() => void signOutMember()} />
       </FadeInUp>
     </Screen>
+  )
+}
+
+function LinkRow({ icon, label, onPress }: { icon: keyof typeof Ionicons.glyphMap; label: string; onPress: () => void }) {
+  const p = usePalette()
+  return (
+    <Pressable onPress={onPress} style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space(3), paddingVertical: space(2.5) }}>
+        <Ionicons name={icon} size={19} color={p.textMuted} />
+        <View style={{ flex: 1 }}><Body strong>{label}</Body></View>
+        <Ionicons name="chevron-forward" size={18} color={p.textFaint} />
+      </View>
+    </Pressable>
   )
 }
 

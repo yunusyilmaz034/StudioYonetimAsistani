@@ -146,7 +146,7 @@ export type GiftCardRedeemedPayload = {
 // ── Wallet payloads. `amount` is always POSITIVE (kuruş); the event TYPE says the direction. Money in
 //    (topup/refund/adjustment-credit) raises the balance; money out (purchase/void/adjustment-debit)
 //    lowers it. `balanceAfter` is the derived balance once this event is applied. No PII (#6). ──
-export type WalletTopupSource = 'pos' | 'cash' | 'bank_transfer' | 'manual'
+export type WalletTopupSource = 'online' | 'pos' | 'cash' | 'bank_transfer' | 'manual'
 export type WalletAdjustReason = 'gift' | 'correction' | 'migration' | 'support'
 
 export type WalletTopupPayload = {

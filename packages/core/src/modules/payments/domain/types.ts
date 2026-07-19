@@ -27,7 +27,7 @@ export type PaymentStatus =
   | 'manual_review' // reconciliation could not resolve it automatically — a human must look
 
 // What the money buys — used to complete the right thing on success.
-export type PaymentPurpose = 'package' | 'renewal' | 'product' | 'collection'
+export type PaymentPurpose = 'package' | 'renewal' | 'product' | 'collection' | 'wallet_topup'
 
 // Sanal POS (an iframe/redirect) vs a shareable payment link.
 export type PaymentFlow = 'pos' | 'link'

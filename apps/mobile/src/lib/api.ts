@@ -12,6 +12,8 @@ import type {
   MemberReservations,
   NotificationPrefs,
   QrToken,
+  RetailItem,
+  StoredWallet,
   WalletSummary,
 } from '@studio/core/client'
 
@@ -93,6 +95,11 @@ export const api = {
   wallet: () => get<WalletSummary>('/wallet'),
   products: () => get<readonly MemberProduct[]>('/products'),
   purchase: (productId: string) => post<ApiResult<{ intentId: string; redirectUrl: string; flow: string }>>('/purchase', { productId }),
+  // Stored-value wallet (Doc 27): balance + history, the retail shelf, and buying from the balance.
+  walletBalance: () => get<StoredWallet>('/wallet-balance'),
+  store: () => get<readonly RetailItem[]>('/store'),
+  walletBuy: (productId: string, quantity = 1) => post<ApiResult<StoredWallet>>('/wallet-buy', { productId, quantity }),
+  walletTopup: (amountKurus: number) => post<ApiResult<{ redirectUrl: string }>>('/wallet-topup', { amountKurus }),
   registerDevice: (token: string, platform: string) => post<ApiResult<unknown>>('/devices', { token, platform }),
   uploadPhoto: (dataUrl: string) => post<ApiResult<{ avatarUrl: string | null }>>('/photo', { dataUrl }),
 }
