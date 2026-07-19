@@ -18,6 +18,14 @@ const TONES: { key: Tone; label: string; className: string }[] = [
   { key: 'good', label: 'Yeşil', className: 'bg-emerald-600' },
 ]
 
+// Curated, freely-usable (Pexels) fitness/pilates photos for a women-only studio — one tap to preview
+// the image banner. The owner replaces these with her own studio photos.
+const EXAMPLE_IMAGES: { url: string; label: string }[] = [
+  { url: 'https://images.pexels.com/photos/25599825/pexels-photo-25599825.jpeg?auto=compress&cs=tinysrgb&w=1200', label: 'Reformer Pilates' },
+  { url: 'https://images.pexels.com/photos/3823039/pexels-photo-3823039.jpeg?auto=compress&cs=tinysrgb&w=1200', label: 'Pilates / Yoga' },
+  { url: 'https://images.pexels.com/photos/28080/pexels-photo.jpg?auto=compress&cs=tinysrgb&w=1200', label: 'Fitness' },
+]
+
 // Ayarlar → Mobil. Everything the owner controls in the member app is collected here. Today: the
 // home-screen campaign banner (the top card in the app).
 export function MobilePanel({ canEdit }: { canEdit: boolean }) {
@@ -120,6 +128,28 @@ export function MobilePanel({ canEdit }: { canEdit: boolean }) {
             <label className="text-sm font-medium">Görsel URL'i <span className="font-normal text-muted-foreground">(opsiyonel)</span></label>
             <Input value={bannerImage} onChange={(e) => setBannerImage(e.target.value)} placeholder="https://.../kampanya.jpg — herkese açık bir görsel" disabled={!canEdit} />
             <p className="text-xs text-muted-foreground">Eklenirse banner'da arka plan görseli olarak gösterilir (üzerine metin okunaklı kalır).</p>
+            {canEdit ? (
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                <span className="text-xs text-muted-foreground">Örnek görsel:</span>
+                {EXAMPLE_IMAGES.map((ex) => (
+                  <button
+                    key={ex.url}
+                    type="button"
+                    title={ex.label}
+                    onClick={() => setBannerImage(ex.url)}
+                    className={`size-12 overflow-hidden rounded-lg border transition-all ${bannerImage === ex.url ? 'border-primary ring-2 ring-primary' : 'border-border hover:border-primary'}`}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={ex.url} alt={ex.label} className="size-full object-cover" />
+                  </button>
+                ))}
+                {bannerImage ? (
+                  <button type="button" onClick={() => setBannerImage('')} className="text-xs text-muted-foreground underline">
+                    Görseli kaldır
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
           </div>
 
           <div className="space-y-1.5">
@@ -143,10 +173,22 @@ export function MobilePanel({ canEdit }: { canEdit: boolean }) {
           {/* live preview */}
           <div className="rounded-2xl border border-border bg-muted/40 p-4">
             <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Önizleme</p>
-            <div className={`rounded-xl border-l-4 bg-card p-3 shadow-sm ${tone === 'gold' ? 'border-amber-500' : tone === 'good' ? 'border-emerald-600' : 'border-primary'}`}>
-              <p className="text-sm font-semibold">{title || 'Başlık'}</p>
-              <p className="text-sm text-muted-foreground">{body || 'Metin buraya gelecek.'}</p>
-            </div>
+            {bannerImage ? (
+              <div className="relative min-h-32 overflow-hidden rounded-xl shadow-sm">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={bannerImage} alt="banner" className="absolute inset-0 size-full object-cover" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-black/10" />
+                <div className="relative flex min-h-32 flex-col justify-end p-4 text-white">
+                  <p className="text-base font-semibold">{title || 'Başlık'}</p>
+                  <p className="text-sm text-white/85">{body || 'Metin buraya gelecek.'}</p>
+                </div>
+              </div>
+            ) : (
+              <div className={`rounded-xl border-l-4 bg-card p-3 shadow-sm ${tone === 'gold' ? 'border-amber-500' : tone === 'good' ? 'border-emerald-600' : 'border-primary'}`}>
+                <p className="text-sm font-semibold">{title || 'Başlık'}</p>
+                <p className="text-sm text-muted-foreground">{body || 'Metin buraya gelecek.'}</p>
+              </div>
+            )}
           </div>
 
           {canEdit ? (
