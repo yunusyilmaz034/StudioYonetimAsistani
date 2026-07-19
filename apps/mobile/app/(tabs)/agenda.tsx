@@ -1,24 +1,44 @@
-import { useState } from 'react'
-import { Alert, RefreshControl, View } from 'react-native'
+import { useMemo, useState } from 'react'
+import { Alert, ScrollView, View } from 'react-native'
+import { Ionicons } from '@expo/vector-icons'
+import { SafeAreaView } from 'react-native-safe-area-context'
 
 import type { MemberSession } from '@studio/core/client'
 import { api } from '@/lib/api'
-import { dateTime } from '@/lib/format'
 import { useFetch } from '@/lib/useFetch'
-import { Body, Button, Card, Empty, H1, Loading, Pill, Screen } from '@/components/ui'
-import { space, usePalette } from '@/theme'
+import { FadeInUp, PressableScale } from '@/components/motion'
+import { Body, Button, Card, Empty, Loading, Pill, Title } from '@/components/ui'
+import { radius, shadow, space, usePalette } from '@/theme'
 
 const BLOCKED_TR: Record<string, string> = {
   full: 'Kontenjan dolu',
   no_credit: 'Uygun paket/kredi yok',
-  self_booking_off: 'Bu ders online rezervasyona kapalı',
-  past: 'Geçmiş ders',
+  self_booking_off: 'Online rezervasyona kapalı',
+  past: 'Geçmiş',
 }
+const dayKey = (ms: number) => new Date(ms).toLocaleDateString('tr-TR', { timeZone: 'Europe/Istanbul', year: 'numeric', month: '2-digit', day: '2-digit' })
+const WD = ['Paz', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt']
+const hhmm = (ms: number) => new Date(ms).toLocaleTimeString('tr-TR', { timeZone: 'Europe/Istanbul', hour: '2-digit', minute: '2-digit' })
 
 export default function Agenda() {
   const p = usePalette()
   const { data, loading, reload } = useFetch(api.agenda)
+  const [sel, setSel] = useState<string | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
+
+  const days = useMemo(() => {
+    const map = new Map<string, { key: string; ms: number; count: number }>()
+    for (const s of data?.sessions ?? []) {
+      const k = dayKey(s.startsAt)
+      const e = map.get(k)
+      if (e) e.count++
+      else map.set(k, { key: k, ms: s.startsAt, count: 1 })
+    }
+    return [...map.values()].sort((a, b) => a.ms - b.ms)
+  }, [data])
+
+  const active = sel ?? days[0]?.key ?? null
+  const daySessions = (data?.sessions ?? []).filter((s) => dayKey(s.startsAt) === active).sort((a, b) => a.startsAt - b.startsAt)
 
   if (loading && !data) return <Loading />
 
@@ -26,44 +46,71 @@ export default function Agenda() {
     setBusyId(s.sessionId)
     try {
       const res = await api.book(s.sessionId)
-      if (res.ok) {
-        Alert.alert('Rezervasyon alındı', `${s.serviceName} — ${dateTime(s.startsAt)}`)
-        await reload()
-      } else {
-        Alert.alert('Rezervasyon yapılamadı', res.error.code)
-      }
-    } catch {
-      Alert.alert('Hata', 'Rezervasyon yapılamadı, tekrar dene.')
-    } finally {
-      setBusyId(null)
-    }
+      if (res.ok) { Alert.alert('Rezervasyon alındı ✓', `${s.serviceName} — ${hhmm(s.startsAt)}`); await reload() }
+      else Alert.alert('Rezervasyon yapılamadı', BLOCKED_TR[res.error.code] ?? res.error.code)
+    } catch { Alert.alert('Hata', 'Rezervasyon yapılamadı, tekrar dene.') }
+    finally { setBusyId(null) }
   }
 
   return (
-    <Screen refreshControl={<RefreshControl refreshing={loading} onRefresh={reload} tintColor={p.accent} />}>
-      <H1>Ajanda</H1>
-      {!data || data.sessions.length === 0 ? (
-        <Empty text="Önümüzdeki günlerde sana uygun ders görünmüyor." />
-      ) : (
-        data.sessions.map((s) => (
-          <Card key={s.sessionId}>
-            <Body>{s.serviceName}</Body>
-            <Body muted>{dateTime(s.startsAt)}</Body>
-            <View style={{ flexDirection: 'row', gap: space(2), flexWrap: 'wrap' }}>
-              {s.trainerName ? <Pill label={s.trainerName} /> : null}
-              {s.roomName ? <Pill label={s.roomName} /> : null}
-              <Pill label={`${s.bookedCount}/${s.capacity}`} tone={s.bookedCount >= s.capacity ? 'warn' : 'muted'} />
-            </View>
-            {s.alreadyBooked ? (
-              <Pill label="Rezervasyonun var" tone="good" />
-            ) : s.blockedReason ? (
-              <Pill label={BLOCKED_TR[s.blockedReason] ?? 'Rezerve edilemez'} tone="warn" />
-            ) : (
-              <Button label="Rezerve Et" onPress={() => void book(s)} loading={busyId === s.sessionId} />
-            )}
-          </Card>
-        ))
-      )}
-    </Screen>
+    <SafeAreaView style={{ flex: 1, backgroundColor: p.bg }} edges={['top']}>
+      <View style={{ paddingHorizontal: space(5), paddingTop: space(2) }}>
+        <Title sub="Derslerini seç ve yerini ayırt">Ajanda</Title>
+      </View>
+
+      {/* the calendar day strip — scrolls left/right */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: space(5), gap: space(2.5), paddingVertical: space(2) }}>
+        {days.map((d) => {
+          const on = d.key === active
+          const dt = new Date(d.ms)
+          return (
+            <PressableScale key={d.key} onPress={() => setSel(d.key)}>
+              <View style={[{ width: 60, paddingVertical: space(2.5), borderRadius: radius.lg, alignItems: 'center', gap: 3, backgroundColor: on ? p.accent : p.surface, borderWidth: 1, borderColor: on ? p.accent : p.hairline }, on ? shadow(1) : null]}>
+                <Body style={{ fontSize: 12, fontWeight: '700', color: on ? p.onGradMuted : p.textMuted }}>{WD[dt.getDay()]}</Body>
+                <Body style={{ fontSize: 22, fontWeight: '800', color: on ? p.onGrad : p.text }}>{dt.getDate()}</Body>
+                <View style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: on ? p.onGrad : p.accent, opacity: 0.9 }} />
+              </View>
+            </PressableScale>
+          )
+        })}
+      </ScrollView>
+
+      <ScrollView contentContainerStyle={{ paddingHorizontal: space(5), paddingBottom: space(10), gap: space(3) }} showsVerticalScrollIndicator={false}>
+        {daySessions.length === 0 ? (
+          <Card><Empty icon={<Ionicons name="calendar-clear-outline" size={30} color={p.textFaint} />} text="Bu gün için sana uygun ders yok." /></Card>
+        ) : (
+          daySessions.map((s, i) => (
+            <FadeInUp key={s.sessionId} index={i}>
+              <Card inset>
+                <View style={{ flexDirection: 'row', gap: space(3.5), alignItems: 'center' }}>
+                  <View style={{ alignItems: 'center', minWidth: 56 }}>
+                    <Body style={{ fontSize: 19, fontWeight: '800', color: p.accent }}>{hhmm(s.startsAt)}</Body>
+                    <Body faint style={{ fontSize: 11 }}>{s.bookedCount}/{s.capacity}</Body>
+                  </View>
+                  <View style={{ width: 1, alignSelf: 'stretch', backgroundColor: p.hairline }} />
+                  <View style={{ flex: 1, gap: 5 }}>
+                    <Body strong numberOfLines={1}>{s.serviceName}</Body>
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space(1.5) }}>
+                      {s.trainerName ? <Pill label={s.trainerName} /> : null}
+                      {s.roomName ? <Pill label={s.roomName} /> : null}
+                    </View>
+                    {s.alreadyBooked ? (
+                      <Pill label="Rezervasyonun var ✓" tone="good" />
+                    ) : s.blockedReason ? (
+                      <Pill label={BLOCKED_TR[s.blockedReason] ?? 'Kapalı'} tone="warn" />
+                    ) : null}
+                  </View>
+                  {!s.alreadyBooked && !s.blockedReason ? (
+                    <View style={{ minWidth: 96 }}>
+                      <Button label="Rezerve" onPress={() => void book(s)} loading={busyId === s.sessionId} />
+                    </View>
+                  ) : null}
+                </View>
+              </Card>
+            </FadeInUp>
+          ))
+        )}
+      </ScrollView>
+    </SafeAreaView>
   )
 }

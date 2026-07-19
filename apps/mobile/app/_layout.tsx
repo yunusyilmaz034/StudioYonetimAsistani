@@ -19,6 +19,8 @@ export default function RootLayout() {
             <Stack.Screen name="wallet" options={{ headerShown: true, title: 'Cüzdan' }} />
             <Stack.Screen name="messages" options={{ headerShown: true, title: 'Bildirimler' }} />
             <Stack.Screen name="checkout" options={{ headerShown: true, title: 'Güvenli Ödeme', presentation: 'modal' }} />
+            <Stack.Screen name="program/[id]" options={{ headerShown: true, title: 'Program', headerBackTitle: 'Geri' }} />
+            <Stack.Screen name="profile-edit" options={{ headerShown: true, title: 'Bilgilerimi Düzenle', presentation: 'modal' }} />
           </Stack>
         </AuthProvider>
       </SafeAreaProvider>

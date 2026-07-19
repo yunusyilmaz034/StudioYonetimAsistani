@@ -1,19 +1,22 @@
 import { useEffect, useState } from 'react'
 import { Switch, View } from 'react-native'
+import { Ionicons } from '@expo/vector-icons'
+import { router } from 'expo-router'
 
-import type { NotificationPrefs } from '@studio/core/client'
+import type { MemberProfile, NotificationPrefs } from '@studio/core/client'
 import { api } from '@/lib/api'
 import { useFetch } from '@/lib/useFetch'
 import { useAuth } from '@/lib/auth'
-import { Body, Button, Card, H1, H2, Loading, Screen } from '@/components/ui'
-import { space, usePalette } from '@/theme'
+import { FadeInUp } from '@/components/motion'
+import { Body, Button, Card, Eyebrow, Hero, Loading, Screen } from '@/components/ui'
+import { radius, space, typo as t, usePalette } from '@/theme'
 
-const CHANNELS: { key: keyof NotificationPrefs; label: string }[] = [
-  { key: 'push', label: 'Uygulama bildirimleri' },
-  { key: 'email', label: 'E-posta' },
-  { key: 'sms', label: 'SMS' },
-  { key: 'whatsapp', label: 'WhatsApp' },
-  { key: 'campaign', label: 'Kampanya / duyuru' },
+const CHANNELS: { key: keyof NotificationPrefs; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
+  { key: 'push', label: 'Uygulama bildirimleri', icon: 'notifications-outline' },
+  { key: 'email', label: 'E-posta', icon: 'mail-outline' },
+  { key: 'sms', label: 'SMS', icon: 'chatbubble-outline' },
+  { key: 'whatsapp', label: 'WhatsApp', icon: 'logo-whatsapp' },
+  { key: 'campaign', label: 'Kampanya / duyuru', icon: 'megaphone-outline' },
 ]
 
 export default function Profile() {
@@ -22,52 +25,87 @@ export default function Profile() {
   const { data: profile, loading } = useFetch(api.profile)
   const { data: loadedPrefs } = useFetch(api.prefs)
   const [prefs, setPrefs] = useState<NotificationPrefs | null>(null)
-
-  useEffect(() => {
-    if (loadedPrefs) setPrefs(loadedPrefs)
-  }, [loadedPrefs])
+  useEffect(() => { if (loadedPrefs) setPrefs(loadedPrefs) }, [loadedPrefs])
 
   if (loading && !profile) return <Loading />
+  const pr = profile as MemberProfile | null
 
   async function toggle(key: keyof NotificationPrefs, value: boolean) {
     if (!prefs) return
     const next = { ...prefs, [key]: value }
     setPrefs(next)
-    try {
-      await api.setPrefs(next)
-    } catch {
-      setPrefs(prefs) // revert
-    }
+    try { await api.setPrefs(next) } catch { setPrefs(prefs) }
   }
+
+  const initials = (pr?.fullName ?? '').split(' ').map((s) => s[0]).slice(0, 2).join('').toLocaleUpperCase('tr')
 
   return (
     <Screen>
-      <H1>Profil</H1>
-      {profile ? (
+      <FadeInUp index={0}>
+        <Hero>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space(4) }}>
+            <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: '#FFFFFF25', alignItems: 'center', justifyContent: 'center' }}>
+              <Body style={{ color: p.onGrad, fontSize: 24, fontWeight: '800' }}>{initials}</Body>
+            </View>
+            <View style={{ flex: 1, gap: 2 }}>
+              <Body style={[t.h1, { color: p.onGrad }]} numberOfLines={1}>{pr?.fullName}</Body>
+              <Body style={{ color: p.onGradMuted }}>{pr?.phone}</Body>
+            </View>
+          </View>
+        </Hero>
+      </FadeInUp>
+
+      <FadeInUp index={1}>
         <Card>
-          <Body>{profile.fullName}</Body>
-          <Body muted>{profile.phone}</Body>
-          {profile.email ? <Body muted>{profile.email}</Body> : null}
-          {profile.emergencyName ? <Body muted>Acil durum: {profile.emergencyName} · {profile.emergencyPhone}</Body> : null}
+          <Row icon="mail-outline" label="E-posta" value={pr?.email ?? '—'} />
+          <Divider />
+          <Row icon="calendar-outline" label="Doğum tarihi" value={pr?.birthDate ?? '—'} />
+          <Divider />
+          <Row icon="medkit-outline" label="Acil durum" value={pr?.emergencyName ? `${pr.emergencyName} · ${pr.emergencyPhone}` : '—'} />
         </Card>
-      ) : null}
+        <Button label="Bilgilerimi Düzenle" tone="muted" icon={<Ionicons name="create-outline" size={18} color={p.text} />} onPress={() => router.push('/profile-edit')} />
+      </FadeInUp>
 
-      <H2>Bildirim Tercihleri</H2>
-      <Card>
-        {prefs
-          ? CHANNELS.map((c, i) => (
-              <View
-                key={c.key}
-                style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: space(2), borderTopWidth: i === 0 ? 0 : 1, borderTopColor: p.border }}
-              >
-                <Body>{c.label}</Body>
-                <Switch value={Boolean(prefs[c.key])} onValueChange={(v) => void toggle(c.key, v)} trackColor={{ true: p.accent }} />
-              </View>
-            ))
-          : <Body muted>Yükleniyor…</Body>}
-      </Card>
+      <FadeInUp index={2}>
+        <Eyebrow>Bildirim Tercihleri</Eyebrow>
+        <Card inset>
+          {prefs
+            ? CHANNELS.map((c, i) => (
+                <View key={c.key}>
+                  {i > 0 ? <Divider /> : null}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: space(3), paddingVertical: space(2.5) }}>
+                    <Ionicons name={c.icon} size={19} color={p.textMuted} />
+                    <Body style={{ flex: 1 }}>{c.label}</Body>
+                    <Switch value={Boolean(prefs[c.key])} onValueChange={(v) => void toggle(c.key, v)} trackColor={{ true: p.accent, false: p.surfaceMuted }} />
+                  </View>
+                </View>
+              ))
+            : <Body muted>Yükleniyor…</Body>}
+        </Card>
+      </FadeInUp>
 
-      <Button label="Çıkış Yap" tone="muted" onPress={() => void signOutMember()} />
+      <FadeInUp index={3}>
+        <Button label="Çıkış Yap" tone="muted" icon={<Ionicons name="log-out-outline" size={18} color={p.danger} />} onPress={() => void signOutMember()} />
+      </FadeInUp>
     </Screen>
   )
+}
+
+function Row({ icon, label, value }: { icon: keyof typeof Ionicons.glyphMap; label: string; value: string }) {
+  const p = usePalette()
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: space(3), paddingVertical: space(1.5) }}>
+      <View style={{ width: 38, height: 38, borderRadius: radius.sm, backgroundColor: p.surfaceMuted, alignItems: 'center', justifyContent: 'center' }}>
+        <Ionicons name={icon} size={18} color={p.textMuted} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Body faint style={{ fontSize: 12 }}>{label}</Body>
+        <Body strong numberOfLines={1}>{value}</Body>
+      </View>
+    </View>
+  )
+}
+function Divider() {
+  const p = usePalette()
+  return <View style={{ height: 1, backgroundColor: p.hairline }} />
 }

@@ -30,8 +30,16 @@ export default function TabsLayout() {
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: p.accent,
-        tabBarInactiveTintColor: p.textMuted,
-        tabBarStyle: { backgroundColor: p.surface, borderTopColor: p.border },
+        tabBarInactiveTintColor: p.textFaint,
+        tabBarLabelStyle: { fontSize: 11, fontWeight: '700' },
+        tabBarStyle: {
+          backgroundColor: p.bgElevated,
+          borderTopColor: p.hairline,
+          borderTopWidth: 1,
+          height: 88,
+          paddingTop: 8,
+        },
+        tabBarItemStyle: { paddingTop: 2 },
       }}
     >
       <Tabs.Screen name="index" options={{ title: 'Ana Sayfa', tabBarIcon: ({ color, size }) => <Ionicons name="home-outline" color={color} size={size} /> }} />

@@ -1,89 +1,138 @@
-// A tiny, semantic UI kit so every screen reads from the same palette + spacing (mirrors the web DS).
+// The premium UI kit — every screen composes from these so the app reads as one designed system.
 import type { ReactNode } from 'react'
-import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-  type StyleProp,
-  type ViewStyle,
-} from 'react-native'
+import { ActivityIndicator, ScrollView, Text, View, type StyleProp, type TextStyle, type ViewStyle } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
-import { radius, space, usePalette } from '@/theme'
+import { radius, shadow, space, typo as t, usePalette } from '@/theme'
+import { PressableScale } from './motion'
 
 export function Screen({ children, scroll = true, refreshControl }: { children: ReactNode; scroll?: boolean; refreshControl?: ReactNode }) {
   const p = usePalette()
-  const body = scroll ? (
-    <ScrollView
-      contentContainerStyle={{ padding: space(4), gap: space(3) }}
-      refreshControl={refreshControl as never}
-    >
-      {children}
-    </ScrollView>
-  ) : (
-    <View style={{ flex: 1, padding: space(4), gap: space(3) }}>{children}</View>
+  if (!scroll) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: p.bg }} edges={['top']}>
+        <View style={{ flex: 1, paddingHorizontal: space(5), paddingTop: space(2), gap: space(3) }}>{children}</View>
+      </SafeAreaView>
+    )
+  }
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: p.bg }} edges={['top']}>
+      <ScrollView
+        contentContainerStyle={{ paddingHorizontal: space(5), paddingTop: space(2), paddingBottom: space(10), gap: space(3.5) }}
+        showsVerticalScrollIndicator={false}
+        refreshControl={refreshControl as never}
+      >
+        {children}
+      </ScrollView>
+    </SafeAreaView>
   )
-  return <SafeAreaView style={{ flex: 1, backgroundColor: p.bg }} edges={['top']}>{body}</SafeAreaView>
 }
 
-export function H1({ children }: { children: ReactNode }) {
-  const p = usePalette()
-  return <Text style={{ fontSize: 26, fontWeight: '700', color: p.text }}>{children}</Text>
-}
-
-export function H2({ children }: { children: ReactNode }) {
-  const p = usePalette()
-  return <Text style={{ fontSize: 13, fontWeight: '700', letterSpacing: 0.6, color: p.textMuted, textTransform: 'uppercase' }}>{children}</Text>
-}
-
-export function Body({ children, muted }: { children: ReactNode; muted?: boolean }) {
-  const p = usePalette()
-  return <Text style={{ fontSize: 15, color: muted ? p.textMuted : p.text }}>{children}</Text>
-}
-
-export function Card({ children, style }: { children: ReactNode; style?: StyleProp<ViewStyle> }) {
+export function Title({ children, sub }: { children: ReactNode; sub?: string }) {
   const p = usePalette()
   return (
-    <View style={[{ backgroundColor: p.surface, borderColor: p.border, borderWidth: StyleSheet.hairlineWidth, borderRadius: radius.md, padding: space(4), gap: space(2) }, style]}>
-      {children}
+    <View style={{ gap: 2, marginBottom: space(1) }}>
+      <Text style={[t.display, { color: p.text }]}>{children}</Text>
+      {sub ? <Text style={[t.caption, { color: p.textMuted }]}>{sub}</Text> : null}
     </View>
   )
 }
 
-export function Button({ label, onPress, disabled, tone = 'accent', loading }: { label: string; onPress: () => void; disabled?: boolean; tone?: 'accent' | 'muted' | 'danger'; loading?: boolean }) {
+export function Eyebrow({ children, right }: { children: ReactNode; right?: ReactNode }) {
+  const p = usePalette()
+  return (
+    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: space(1) }}>
+      <Text style={[t.eyebrow, { color: p.textMuted }]}>{children}</Text>
+      {right}
+    </View>
+  )
+}
+
+export function Body({ children, muted, faint, strong, style, numberOfLines, onPress }: { children: ReactNode; muted?: boolean; faint?: boolean; strong?: boolean; style?: StyleProp<TextStyle>; numberOfLines?: number; onPress?: () => void }) {
+  const p = usePalette()
+  return (
+    <Text onPress={onPress} numberOfLines={numberOfLines} style={[strong ? t.bodyStrong : t.body, { color: faint ? p.textFaint : muted ? p.textMuted : p.text }, style]}>
+      {children}
+    </Text>
+  )
+}
+
+export function Card({ children, style, onPress, level = 1, inset }: { children: ReactNode; style?: StyleProp<ViewStyle>; onPress?: () => void; level?: 1 | 2 | 3; inset?: boolean }) {
+  const p = usePalette()
+  const body = (
+    <View
+      style={[
+        {
+          backgroundColor: p.surface,
+          borderColor: p.hairline,
+          borderWidth: 1,
+          borderRadius: radius.lg,
+          padding: inset ? space(3.5) : space(4.5),
+          gap: space(2.5),
+        },
+        shadow(level),
+        style,
+      ]}
+    >
+      {children}
+    </View>
+  )
+  return onPress ? <PressableScale onPress={onPress}>{body}</PressableScale> : body
+}
+
+// The premium hero header — a deep mahogany band with a soft glow, used at the top of each main screen.
+export function Hero({ children, style }: { children: ReactNode; style?: StyleProp<ViewStyle> }) {
+  const p = usePalette()
+  return (
+    <View style={[{ borderRadius: radius.xl, overflow: 'hidden', backgroundColor: p.gradFrom }, shadow(2), style]}>
+      <View style={{ backgroundColor: p.gradTo, opacity: 0.55, position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} />
+      {/* two soft glows for depth */}
+      <View style={{ position: 'absolute', top: -60, right: -30, width: 180, height: 180, borderRadius: 90, backgroundColor: '#FFFFFF', opacity: 0.08 }} />
+      <View style={{ position: 'absolute', bottom: -70, left: -40, width: 200, height: 200, borderRadius: 100, backgroundColor: '#000000', opacity: 0.12 }} />
+      <View style={{ padding: space(5), gap: space(2) }}>{children}</View>
+    </View>
+  )
+}
+
+export function Pill({ label, tone = 'muted', solid, icon }: { label: string; tone?: 'muted' | 'good' | 'warn' | 'danger' | 'accent' | 'gold'; solid?: boolean; icon?: ReactNode }) {
+  const p = usePalette()
+  const c = tone === 'good' ? p.good : tone === 'warn' ? p.warn : tone === 'danger' ? p.danger : tone === 'accent' ? p.accent : tone === 'gold' ? p.gold : p.textMuted
+  const bg = tone === 'good' ? p.goodSoft : tone === 'warn' ? p.warnSoft : tone === 'danger' ? p.dangerSoft : tone === 'accent' ? p.accentSoft : p.surfaceMuted
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start', paddingHorizontal: space(2.5), paddingVertical: space(1.25), borderRadius: radius.pill, backgroundColor: solid ? c : bg }}>
+      {icon}
+      <Text style={{ color: solid ? p.accentText : c, fontSize: 12.5, fontWeight: '700' }}>{label}</Text>
+    </View>
+  )
+}
+
+export function Button({ label, onPress, disabled, tone = 'accent', loading, icon }: { label: string; onPress: () => void; disabled?: boolean; tone?: 'accent' | 'muted' | 'danger'; loading?: boolean; icon?: ReactNode }) {
   const p = usePalette()
   const bg = tone === 'accent' ? p.accent : tone === 'danger' ? p.danger : p.surfaceMuted
   const fg = tone === 'muted' ? p.text : p.accentText
   return (
-    <Pressable
-      onPress={onPress}
-      disabled={disabled || loading}
-      style={({ pressed }) => ({
-        backgroundColor: bg,
-        opacity: disabled ? 0.5 : pressed ? 0.85 : 1,
-        borderRadius: radius.md,
-        paddingVertical: space(3.5),
-        alignItems: 'center',
-        justifyContent: 'center',
-        minHeight: 48,
-      })}
-    >
-      {loading ? <ActivityIndicator color={fg} /> : <Text style={{ color: fg, fontSize: 16, fontWeight: '600' }}>{label}</Text>}
-    </Pressable>
+    <PressableScale onPress={disabled || loading ? undefined : onPress} disabled={disabled || loading}>
+      <View
+        style={[
+          { backgroundColor: bg, opacity: disabled ? 0.5 : 1, borderRadius: radius.md, paddingVertical: space(3.75), alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8, minHeight: 52 },
+          tone === 'accent' ? shadow(1) : null,
+        ]}
+      >
+        {loading ? <ActivityIndicator color={fg} /> : icon}
+        <Text style={{ color: fg, fontSize: 16, fontWeight: '700' }}>{label}</Text>
+      </View>
+    </PressableScale>
   )
 }
 
-export function Pill({ label, tone = 'muted' }: { label: string; tone?: 'muted' | 'good' | 'warn' | 'danger' }) {
+// Back-compat aliases for the secondary stack screens (reservations / wallet / messages / login).
+export function H1({ children }: { children: ReactNode }) {
   const p = usePalette()
-  const color = tone === 'good' ? p.good : tone === 'warn' ? p.warn : tone === 'danger' ? p.danger : p.textMuted
-  return (
-    <View style={{ alignSelf: 'flex-start', paddingHorizontal: space(2.5), paddingVertical: space(1), borderRadius: 999, backgroundColor: color + '22' }}>
-      <Text style={{ color, fontSize: 12, fontWeight: '600' }}>{label}</Text>
-    </View>
-  )
+  return <Text style={[t.display, { color: p.text, marginBottom: space(1) }]}>{children}</Text>
+}
+export function H2({ children }: { children: ReactNode }) {
+  const p = usePalette()
+  return <Text style={[t.eyebrow, { color: p.textMuted, marginTop: space(2) }]}>{children}</Text>
 }
 
 export function Loading() {
@@ -95,10 +144,12 @@ export function Loading() {
   )
 }
 
-export function Empty({ text }: { text: string }) {
+export function Empty({ text, icon }: { text: string; icon?: ReactNode }) {
+  const p = usePalette()
   return (
-    <Card>
-      <Body muted>{text}</Body>
-    </Card>
+    <View style={{ alignItems: 'center', gap: space(2), paddingVertical: space(6), paddingHorizontal: space(4) }}>
+      {icon}
+      <Body muted style={{ textAlign: 'center' }}>{text}</Body>
+    </View>
   )
 }
