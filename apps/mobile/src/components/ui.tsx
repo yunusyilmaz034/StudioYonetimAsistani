@@ -7,18 +7,35 @@ import Svg, { Circle, Defs, G, LinearGradient, Path, Rect, Stop } from 'react-na
 import { radius, shadow, space, typo as t, usePalette } from '@/theme'
 import { PressableScale } from './motion'
 
-// A real diagonal gradient fill (react-native-svg — already in the app for the QR code), the backbone
-// of the premium look. No extra native dependency.
-export function GradientFill({ from, to }: { from: string; to: string }) {
+// A real gradient fill (react-native-svg — already in the app for the QR code), the backbone of the
+// premium look. No extra native dependency. Transparency goes through `fromOpacity`/`toOpacity` (the
+// stopOpacity prop) — NOT 8-digit hex alpha, which react-native-svg silently renders as opaque (that
+// bug turned the image banner into a solid black block). `id` is unique per use so two gradients on
+// one screen never collide.
+export function GradientFill({
+  from,
+  to,
+  fromOpacity = 1,
+  toOpacity = 1,
+  vertical = false,
+  id = 'g',
+}: {
+  from: string
+  to: string
+  fromOpacity?: number
+  toOpacity?: number
+  vertical?: boolean
+  id?: string
+}) {
   return (
     <Svg style={StyleSheet.absoluteFill} width="100%" height="100%">
       <Defs>
-        <LinearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-          <Stop offset="0" stopColor={from} />
-          <Stop offset="1" stopColor={to} />
+        <LinearGradient id={id} x1="0" y1="0" x2={vertical ? '0' : '1'} y2="1">
+          <Stop offset="0" stopColor={from} stopOpacity={fromOpacity} />
+          <Stop offset="1" stopColor={to} stopOpacity={toOpacity} />
         </LinearGradient>
       </Defs>
-      <Rect x="0" y="0" width="100%" height="100%" fill="url(#g)" />
+      <Rect x="0" y="0" width="100%" height="100%" fill={`url(#${id})`} />
     </Svg>
   )
 }

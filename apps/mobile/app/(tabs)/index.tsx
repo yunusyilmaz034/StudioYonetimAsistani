@@ -169,8 +169,8 @@ function BannerCard({ banner }: { banner: HomeBanner }) {
       {hasImage ? (
         <>
           <Image source={{ uri: banner.imageUrl! }} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} resizeMode="cover" />
-          {/* dark gradient so the text stays readable over any photo */}
-          <GradientFill from="#00000010" to="#000000CC" />
+          {/* dark gradient (real opacity, not hex-alpha) so the text stays readable over any photo */}
+          <GradientFill id="banner" vertical from="#000000" to="#000000" fromOpacity={0.05} toOpacity={0.82} />
         </>
       ) : (
         <View style={{ position: 'absolute', top: -40, right: -20, width: 130, height: 130, borderRadius: 65, backgroundColor: '#FFFFFF', opacity: 0.12 }} />
