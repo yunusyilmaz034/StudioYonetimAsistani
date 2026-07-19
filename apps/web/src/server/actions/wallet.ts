@@ -12,9 +12,11 @@ import {
 import type { StoredWallet } from '@studio/core/client'
 import { z } from 'zod'
 
-import { requireTenantContext } from '../auth'
+import { requireMemberContext, requireTenantContext } from '../auth'
 import { adminDb } from '../firebase-admin'
+import { memberBuyFromWallet, memberStore } from '../member-api'
 import { readWalletView } from '../wallet-query'
+import { createWalletTopupCheckout } from './payments'
 
 // The stored-value wallet, from the desk. Reception/owner loads a member's balance (cash into a till,
 // or a manual/havale record) and makes reasoned corrections. The MONEY goes through the finance
@@ -77,4 +79,24 @@ export async function adjustMemberWalletAction(input: unknown) {
   })
   if (!r.ok) return { ok: false as const, error: r.error }
   return { ok: true as const, value: await readWalletView(ctx, p.memberId as MemberId) }
+}
+
+// ── Portal (web member, cookie-authed) — the member reads and spends her own stored-value wallet.
+//    memberId comes from her session, never the request; the buy/topup reuse the exact member-app paths.
+export async function portalWalletAction() {
+  const { ctx, memberId } = await requireMemberContext()
+  const [wallet, store] = await Promise.all([readWalletView(ctx, memberId), memberStore(ctx)])
+  return { wallet, store }
+}
+
+export async function portalBuyFromWalletAction(input: unknown) {
+  const p = z.object({ productId: z.string().min(1), quantity: z.number().int().min(1).default(1) }).parse(input)
+  const { ctx, memberId } = await requireMemberContext()
+  return memberBuyFromWallet(ctx, memberId, p.productId, p.quantity)
+}
+
+export async function portalWalletTopupAction(input: unknown) {
+  const p = z.object({ amountKurus: z.number().int().positive() }).parse(input)
+  const { ctx, memberId } = await requireMemberContext()
+  return createWalletTopupCheckout(ctx, memberId, p.amountKurus)
 }

@@ -13,6 +13,7 @@ import {
   LogOutIcon,
   QrCodeIcon,
   UserIcon,
+  WalletIcon,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -34,6 +35,7 @@ const ITEMS: readonly { href: string; label: string; short: string; icon: Lucide
   { href: '/portal/training', label: 'Antrenmanım', short: 'Antrenman', icon: DumbbellIcon },
   { href: '/portal/fitness', label: 'Katılımım', short: 'Katılım', icon: GaugeIcon },
   { href: '/portal/qr', label: 'QR Kodum', short: 'QR', icon: QrCodeIcon },
+  { href: '/portal/wallet', label: 'Cüzdanım', short: 'Cüzdan', icon: WalletIcon },
   { href: '/portal/messages', label: 'Bildirimler', short: 'Bildirim', icon: BellIcon },
   { href: '/portal/profile', label: 'Profil', short: 'Profil', icon: UserIcon },
 ]
