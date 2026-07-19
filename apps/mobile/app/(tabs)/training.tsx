@@ -2,13 +2,19 @@ import { RefreshControl, View } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { router } from 'expo-router'
 
-import type { MemberProgram } from '@studio/core/client'
+import type { MemberMeasurement, MemberProgram } from '@studio/core/client'
 import { api, type TrainingBundle } from '@/lib/api'
 import { shortDate } from '@/lib/format'
 import { useFetch } from '@/lib/useFetch'
 import { FadeInUp } from '@/components/motion'
 import { Body, Card, Empty, Eyebrow, Loading, Pill, Screen, Title } from '@/components/ui'
 import { radius, space, usePalette } from '@/theme'
+
+// A measurement can be saved with only some fields; the card shows whatever is there, and says so
+// plainly when the record is genuinely empty (so an empty card never reads as a bug).
+const measurementHasData = (m: MemberMeasurement): boolean =>
+  m.weightKg != null || m.fatPercent != null || m.musclePercent != null || m.waterPercent != null ||
+  m.bmi != null || m.bmr != null || m.visceralFat != null || Object.keys(m.circumferences).length > 0 || Boolean(m.note)
 
 const STATUS: Record<string, { label: string; tone: 'good' | 'muted' | 'gold' }> = {
   active: { label: 'Aktif', tone: 'good' },
@@ -44,12 +50,30 @@ export default function Training() {
               <Body strong>Son ölçüm</Body>
               <Body muted>{shortDate(lastM.takenOn)}</Body>
             </View>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space(2) }}>
-              {lastM.weightKg != null ? <Metric label="Kilo" value={`${lastM.weightKg} kg`} /> : null}
-              {lastM.fatPercent != null ? <Metric label="Yağ" value={`%${lastM.fatPercent}`} /> : null}
-              {lastM.musclePercent != null ? <Metric label="Kas" value={`%${lastM.musclePercent}`} /> : null}
-              {lastM.bmi != null ? <Metric label="BMI" value={`${lastM.bmi}`} /> : null}
-            </View>
+            {measurementHasData(lastM) ? (
+              <>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space(2) }}>
+                  {lastM.weightKg != null ? <Metric label="Kilo" value={`${lastM.weightKg} kg`} /> : null}
+                  {lastM.fatPercent != null ? <Metric label="Yağ" value={`%${lastM.fatPercent}`} /> : null}
+                  {lastM.musclePercent != null ? <Metric label="Kas" value={`%${lastM.musclePercent}`} /> : null}
+                  {lastM.waterPercent != null ? <Metric label="Su" value={`%${lastM.waterPercent}`} /> : null}
+                  {lastM.bmi != null ? <Metric label="BMI" value={`${lastM.bmi}`} /> : null}
+                  {lastM.bmr != null ? <Metric label="BMR" value={`${lastM.bmr}`} /> : null}
+                  {lastM.visceralFat != null ? <Metric label="Visseral" value={`${lastM.visceralFat}`} /> : null}
+                </View>
+                {Object.keys(lastM.circumferences).length > 0 ? (
+                  <View style={{ gap: space(1.5) }}>
+                    <Body faint style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.4 }}>Çevre ölçüleri</Body>
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space(2) }}>
+                      {Object.entries(lastM.circumferences).map(([k, v]) => <Metric key={k} label={k} value={`${v} cm`} />)}
+                    </View>
+                  </View>
+                ) : null}
+                {lastM.note ? <Body muted style={{ fontStyle: 'italic' }}>{lastM.note}</Body> : null}
+              </>
+            ) : (
+              <Body muted>Bu ölçümde değer girilmemiş. (Kayıt {shortDate(lastM.takenOn)} tarihinde açılmış ama alanlar boş.)</Body>
+            )}
           </Card>
         ) : (
           <Card><Empty icon={<Ionicons name="pulse-outline" size={28} color={p.textFaint} />} text="Henüz ölçüm kaydın yok." /></Card>
