@@ -57,7 +57,9 @@ describe('templates & rendering (v1.25)', () => {
   it('renders Turkish sentences with no technical event name and no leftover placeholder', () => {
     for (const t of Object.values(TEMPLATES)) {
       expect(t.body).not.toMatch(/[a-z_]+\.[a-z_]+/) // no `reservation.booked` leaking into copy
-      expect(t.body.length).toBeGreaterThan(10)
+      // `engagement_broadcast` is a PASSTHROUGH — its body is deliberately `{{body}}`, filled at send
+      // time from the owner's own content, so the "real sentence" length rule doesn't apply to it.
+      if (t.id !== 'engagement_broadcast') expect(t.body.length).toBeGreaterThan(10)
     }
     const r = render(TEMPLATES.booking_confirmed!, {
       memberName: 'Ayşe',

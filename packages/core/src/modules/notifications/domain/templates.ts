@@ -284,4 +284,17 @@ export const TEMPLATES: Readonly<Record<string, NotificationTemplate>> = {
     subject: 'Bir üyeye bildirim iletilemedi',
     body: '{{memberName}} adlı üyeye {{channel}} ile bildirim iletilemedi ({{reason}}). Telefonla ulaşmanız gerekebilir.',
   },
+  // ── "Stüdyodan" engagement broadcast (v1.27) — a PASSTHROUGH: the owner-written subject/body ride in
+  //    as params, so the whole notify()/inbox/preference pipeline is reused for motivation, birthday and
+  //    campaign content. category 'marketing' ⇒ push/WhatsApp respect consent; in-app always lands. ──
+  engagement_broadcast: {
+    id: 'engagement_broadcast',
+    version: 1,
+    name: 'Stüdyodan mesaj',
+    category: 'marketing',
+    priority: 'low',
+    requiredParams: ['memberName', 'subject', 'body'],
+    subject: '{{subject}}',
+    body: '{{body}}',
+  },
 }
