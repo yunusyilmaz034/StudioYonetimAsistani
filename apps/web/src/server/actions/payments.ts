@@ -102,7 +102,24 @@ export async function createPackagePaymentAction(input: unknown) {
     })
     .parse(input)
   const ctx = await requireTenantContext(OPS)
+  return createPackageCheckout(ctx, p)
+}
 
+export interface PackageCheckoutInput {
+  readonly memberId: string
+  readonly productId: string
+  readonly flow: 'pos' | 'link'
+  readonly priceAgreedKurus: number | null
+  readonly validFrom: string
+  readonly validUntil: string | null
+  readonly creditOverride: number | null
+  readonly note: string
+  readonly installments?: number | undefined
+}
+
+// ctx-taking core: BOTH the staff sell (above) and the member self-purchase (member API) run this one
+// tested money path — the only difference is who the actor is and where the ctx came from.
+export async function createPackageCheckout(ctx: TenantContext, p: PackageCheckoutInput) {
   const { provider, config } = await paymentProviderFor(ctx)
   if (!provider.configured) return { ok: false as const, error: { code: 'payment_provider_not_configured' as const } }
 
@@ -187,6 +204,41 @@ export async function createPackagePaymentAction(input: unknown) {
   )
   await intentRepo().saveIntent(ctx, session.next, session.events)
   return { ok: true as const, value: { intentId: id, redirectUrl: checkout.redirectUrl, flow: p.flow } }
+}
+
+// M3 — a MEMBER buying her own package from the app. memberId comes from her verified token; she picks
+// a product and pays via a PAYTR link (opened in-app). Same money path as the staff sell, with sensible
+// defaults (list price, today → today+duration, no credit override, single tap of installments).
+export async function createMemberPackageCheckout(ctx: TenantContext, memberId: MemberId, productId: string) {
+  const product = await new FirestoreCatalogRepository(adminDb()).getProduct(ctx, productId as ProductId)
+  if (!product) return { ok: false as const, error: { code: 'no_bookable_entitlement' as const } }
+  const nowTr = new Date(systemClock.now() + 3 * 3_600_000)
+  const validFrom = nowTr.toISOString().slice(0, 10)
+  const validUntil = product.durationDays > 0 ? new Date(nowTr.getTime() + product.durationDays * 86_400_000).toISOString().slice(0, 10) : null
+  return createPackageCheckout(ctx, {
+    memberId: memberId as string,
+    productId,
+    flow: 'link',
+    priceAgreedKurus: null,
+    validFrom,
+    validUntil,
+    creditOverride: null,
+    note: 'Üye uygulaması',
+  })
+}
+
+// Her own payment history (the staff read is memberId-parameterised and OPS-gated; this derives her id
+// from the token). Newest first, only what a receipt would show — no provider internals.
+const PURPOSE_TR: Record<string, string> = { package: 'Paket', renewal: 'Yenileme', product: 'Ürün', collection: 'Tahsilat' }
+export async function memberPaymentHistory(
+  ctx: TenantContext,
+  memberId: MemberId,
+): Promise<{ id: string; amount: number; method: string; at: number; description: string }[]> {
+  const intents = await intentRepo().listByMember(ctx, memberId as string)
+  return intents
+    .filter((i) => i.status === 'paid')
+    .map((i) => ({ id: i.id, amount: i.amount.amount, method: 'Kredi Kartı', at: Number(i.createdAt), description: PURPOSE_TR[i.purpose] ?? i.purpose }))
+    .sort((a, b) => b.at - a.at)
 }
 
 // ── PF-37: PUBLIC payment-link collection. UNAUTHENTICATED — anyone with the link may pay. ─────

@@ -72,7 +72,17 @@ export const api = {
   qrContext: () => get<{ studioId: string; branchId: string | null }>('/qr'),
   mintQr: (branchId: string) => post<QrToken>('/qr', { branchId }),
   wallet: () => get<WalletSummary>('/wallet'),
+  products: () => get<readonly MemberProduct[]>('/products'),
+  purchase: (productId: string) => post<ApiResult<{ intentId: string; redirectUrl: string; flow: string }>>('/purchase', { productId }),
   registerDevice: (token: string, platform: string) => post<ApiResult<unknown>>('/devices', { token, platform }),
+}
+
+export interface MemberProduct {
+  readonly id: string
+  readonly name: string
+  readonly priceInKurus: number
+  readonly category: string
+  readonly durationDays: number
 }
 
 // The training endpoint returns everything the screen shows; the app reads the parts it renders.

@@ -18,6 +18,7 @@ export default function RootLayout() {
             <Stack.Screen name="reservations" options={{ headerShown: true, title: 'Rezervasyonlarım', presentation: 'card' }} />
             <Stack.Screen name="wallet" options={{ headerShown: true, title: 'Cüzdan' }} />
             <Stack.Screen name="messages" options={{ headerShown: true, title: 'Bildirimler' }} />
+            <Stack.Screen name="checkout" options={{ headerShown: true, title: 'Güvenli Ödeme', presentation: 'modal' }} />
           </Stack>
         </AuthProvider>
       </SafeAreaProvider>

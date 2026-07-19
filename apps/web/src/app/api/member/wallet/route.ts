@@ -1,16 +1,19 @@
 import { type NextRequest } from 'next/server'
 
+import { memberPaymentHistory } from '@/server/actions/payments'
 import { loadPortalDashboard } from '@/server/portal-query'
 import { withMember } from '@/server/member-api'
 
-// The member wallet: what she owns (packages) and what she still owes (balanceDue). Payment history and
-// in-app purchase are wired in M3; for now the balance + package view is real and live.
+// The member wallet: what she owns (packages), what she still owes (balanceDue), and her paid history.
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 export async function GET(req: NextRequest) {
   return withMember(req, async (ctx, memberId) => {
-    const dash = await loadPortalDashboard(ctx, memberId, Date.now())
+    const [dash, history] = await Promise.all([
+      loadPortalDashboard(ctx, memberId, Date.now()),
+      memberPaymentHistory(ctx, memberId),
+    ])
     return {
       balanceDue: dash.balanceDue,
       packages: dash.packages.map((pk) => ({
@@ -20,7 +23,7 @@ export async function GET(req: NextRequest) {
         remaining: pk.remaining,
         validUntil: pk.validUntil,
       })),
-      history: [] as const,
+      history,
     }
   })
 }
