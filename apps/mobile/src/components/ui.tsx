@@ -23,24 +23,47 @@ export function GradientFill({ from, to }: { from: string; to: string }) {
   )
 }
 
-// A chic line-art silhouette of a woman in a seated pilates/meditation pose (hair in a sporty bun) —
-// the hero's contextual signature. Pure vector: subtle white fill + a thin gold edge, no photo, no
-// native dependency. Cropped by the hero's rounded corners so it reads as an embossed motif.
-export function HeroFigure({ tint = '#FFFFFF', gold = '#D9A441' }: { tint?: string; gold?: string }) {
-  const body =
-    'M82 76 C72 96 66 108 64 122 C62 133 67 141 75 145 C63 148 55 156 57 165 ' +
-    'C59 173 69 179 84 181 L110 183 L136 181 C151 179 161 173 163 165 ' +
-    'C165 156 157 148 145 145 C153 141 158 133 156 122 C154 108 148 96 138 76 ' +
-    'C131 68 121 65 110 65 C99 65 89 68 82 76 Z'
+// The hero's contextual signature — a composed pilates/fitness scene, all vector, no photo, no native
+// dependency. A line-art woman seated in a meditation pose (sporty top-bun, hands resting on knees)
+// sits inside concentric motion rings, with a small dumbbell and a scatter of sparkles for a premium,
+// unmistakably-fitness read. Drawn in gold over the mahogany so it glows rather than smudges.
+const sparklePath = (cx: number, cy: number, r: number) => {
+  const k = r * 0.16
   return (
-    <Svg width={214} height={196} viewBox="0 0 220 200">
-      <G>
-        {/* bun + head */}
-        <Circle cx={110} cy={26} r={8.5} fill={tint} fillOpacity={0.08} stroke={gold} strokeOpacity={0.28} strokeWidth={1.4} />
-        <Circle cx={110} cy={47} r={16} fill={tint} fillOpacity={0.08} stroke={gold} strokeOpacity={0.28} strokeWidth={1.4} />
-        {/* seated body with hands resting on knees */}
-        <Path d={body} fill={tint} fillOpacity={0.07} stroke={gold} strokeOpacity={0.26} strokeWidth={1.5} strokeLinejoin="round" />
+    `M${cx} ${cy - r} C${cx + k} ${cy - k} ${cx + k} ${cy - k} ${cx + r} ${cy} ` +
+    `C${cx + k} ${cy + k} ${cx + k} ${cy + k} ${cx} ${cy + r} ` +
+    `C${cx - k} ${cy + k} ${cx - k} ${cy + k} ${cx - r} ${cy} ` +
+    `C${cx - k} ${cy - k} ${cx - k} ${cy - k} ${cx} ${cy - r} Z`
+  )
+}
+
+export function HeroFigure({ tint = '#FFFFFF', gold = '#D9A441' }: { tint?: string; gold?: string }) {
+  const stroke = { stroke: gold, strokeWidth: 2.4, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const, fill: 'none' }
+  return (
+    <Svg width={210} height={200} viewBox="0 0 200 200">
+      {/* motion rings — energy, centred on the figure */}
+      <Circle cx={112} cy={112} r={82} stroke={tint} strokeOpacity={0.09} strokeWidth={1.4} fill="none" />
+      <Circle cx={112} cy={112} r={60} stroke={tint} strokeOpacity={0.06} strokeWidth={1.2} fill="none" />
+      {/* seated meditation woman, line-art */}
+      <G opacity={0.6}>
+        <Circle cx={112} cy={44} r={7} {...stroke} />
+        <Circle cx={112} cy={61} r={13} {...stroke} />
+        <Path d="M84 85 Q112 75 140 85" {...stroke} />
+        <Path d="M84 85 Q70 109 85 135" {...stroke} />
+        <Path d="M140 85 Q154 109 139 135" {...stroke} />
+        <Path d="M85 135 Q112 157 135 149" {...stroke} />
+        <Path d="M139 135 Q112 157 89 149" {...stroke} />
       </G>
+      {/* a small dumbbell — the fitness note */}
+      <G opacity={0.34}>
+        <Rect x={46} y={70} width={22} height={3.2} rx={1.6} fill={gold} />
+        <Rect x={42} y={65} width={5} height={13} rx={2} fill={gold} />
+        <Rect x={67} y={65} width={5} height={13} rx={2} fill={gold} />
+      </G>
+      {/* sparkles */}
+      <Path d={sparklePath(62, 128, 6)} fill={gold} opacity={0.42} />
+      <Path d={sparklePath(150, 156, 5)} fill={gold} opacity={0.36} />
+      <Path d={sparklePath(96, 34, 4.5)} fill={gold} opacity={0.4} />
     </Svg>
   )
 }
