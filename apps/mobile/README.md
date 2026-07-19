@@ -15,8 +15,10 @@ contract by importing `@studio/core/client` through a Metro + tsconfig **path al
 
 ```bash
 cd apps/mobile
-pnpm install          # or npm install — its own lockfile
+npm install           # ⚠ npm, NOT pnpm — this app is OUTSIDE the pnpm workspace, so `pnpm install`
+                      #   here installs the workspace and skips Expo. npm gives it its own node_modules.
 npx expo start        # press i (iOS sim) / a (Android) / scan the QR with Expo Go
+# If Expo warns about package versions: npx expo install --fix
 ```
 
 - Sign in with a member's **phone + password** (the same credentials as the web portal).
