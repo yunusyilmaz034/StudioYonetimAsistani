@@ -65,6 +65,7 @@ export const api = {
   training: () => get<TrainingBundle>('/training'),
   leaveFeedback: (body: LeaveFeedbackInput) => post<ApiResult<unknown>>('/feedback', body),
   fitness: () => get<MemberFitness>('/fitness'),
+  home: () => get<HomeExtras>('/home'),
   inbox: () => get<readonly InboxItem[]>('/inbox'),
   markRead: (intentId: string) => post<ApiResult<unknown>>('/inbox', { intentId }),
   prefs: () => get<NotificationPrefs>('/prefs'),
@@ -83,6 +84,17 @@ export interface MemberProduct {
   readonly priceInKurus: number
   readonly category: string
   readonly durationDays: number
+}
+
+export interface HomeBanner {
+  readonly active: boolean
+  readonly title: string
+  readonly body: string
+  readonly tone: 'accent' | 'gold' | 'good'
+}
+export interface HomeExtras {
+  readonly occupancyLevel: string | null
+  readonly banner: HomeBanner | null
 }
 
 // The training endpoint returns everything the screen shows; the app reads the parts it renders.

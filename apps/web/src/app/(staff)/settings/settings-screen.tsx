@@ -15,6 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { cn } from '@/lib/utils'
 
 import { DefinitionsPanel } from './definitions-panel'
+import { MobilePanel } from './mobile-panel'
 import { ThemeScreen } from './theme/theme-screen'
 import { domainErrorMessage } from '@/lib/domain-error'
 import type { StudioTheme } from '@/lib/theme/presets'
@@ -224,6 +225,7 @@ export function SettingsScreen({
           <TabsTrigger value="odeme" className="shrink-0">Ödeme &amp; Bildirim</TabsTrigger>
           <TabsTrigger value="gorunum" className="shrink-0">Görünüm</TabsTrigger>
           <TabsTrigger value="tanimlar" className="shrink-0">Tanımlar</TabsTrigger>
+          <TabsTrigger value="mobil" className="shrink-0">Mobil</TabsTrigger>
         </TabsList>
 
         <TabsContent value="genel" className="space-y-6">
@@ -620,6 +622,11 @@ export function SettingsScreen({
         <TabsContent value="tanimlar" className="space-y-6">
           {/* Ders türleri · salonlar · kasalar · oda notları — they save themselves. */}
           <DefinitionsPanel branchId={branchId} canManage={canManage} />
+        </TabsContent>
+
+        <TabsContent value="mobil" className="space-y-6">
+          {/* The member mobile app's owner-controlled settings (home-screen campaign banner, …). */}
+          <MobilePanel canEdit={canManage} />
         </TabsContent>
       </Tabs>
 

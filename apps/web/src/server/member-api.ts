@@ -2,8 +2,10 @@ import { NextResponse, type NextRequest } from 'next/server'
 
 import { DEFAULT_PREFS, FirestoreNotificationRepository, type MemberId, type NotificationPrefs, type TenantContext } from '@studio/core'
 
+import { loadOccupancyNow } from './fitness-query'
 import { adminAuth, adminDb } from './firebase-admin'
 import { memberClaimsToTenantContext, parseMemberClaims } from './member-claims'
+import type { MobileBanner, MobileSettings } from './actions/mobile-settings'
 
 // The mobile member API's authentication (AD-70). A native app has no `__session` cookie; it sends the
 // member's Firebase ID token as a Bearer header. We verify it EXACTLY the way the cookie is verified —
@@ -71,6 +73,16 @@ export async function memberPrefsSet(ctx: TenantContext, memberId: MemberId, pre
 // M2 — register (or refresh) a device's Expo push token. Idempotent by a hash of the token; the raw
 // token lives ONLY in this server-only subcollection (rules deny client reads). Registering a device
 // flips `prefs.push` on so she starts receiving push — she can turn it back off from Profil.
+// Home-screen extras: anonymous occupancy level + the owner's active campaign banner.
+export async function memberHomeExtras(ctx: TenantContext) {
+  const [occ, snap] = await Promise.all([
+    loadOccupancyNow(ctx),
+    adminDb().doc(`studios/${ctx.studioId}/settings/mobile`).get(),
+  ])
+  const banner = ((snap.data() as MobileSettings | undefined)?.banner ?? null) as MobileBanner | null
+  return { occupancyLevel: occ.level, banner: banner?.active ? banner : null }
+}
+
 export async function memberRegisterDevice(ctx: TenantContext, memberId: MemberId, token: string, platform: string) {
   if (!token.startsWith('ExponentPushToken')) return { ok: false as const, error: { code: 'invalid_token' } }
   const { createHash } = await import('node:crypto')

@@ -6,19 +6,23 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { radius, shadow, space, typo as t, usePalette } from '@/theme'
 import { PressableScale } from './motion'
 
-export function Screen({ children, scroll = true, refreshControl }: { children: ReactNode; scroll?: boolean; refreshControl?: ReactNode }) {
+export function Screen({ children, scroll = true, refreshControl, header }: { children: ReactNode; scroll?: boolean; refreshControl?: ReactNode; header?: boolean }) {
   const p = usePalette()
+  // `header` = a stack header is already shown above, so don't add the top safe-area inset (that was the
+  // double gap on the program detail), and start content close to the header.
+  const edges = header ? ([] as const) : (['top'] as const)
+  const topPad = header ? space(4) : space(2)
   if (!scroll) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: p.bg }} edges={['top']}>
-        <View style={{ flex: 1, paddingHorizontal: space(5), paddingTop: space(2), gap: space(3) }}>{children}</View>
+      <SafeAreaView style={{ flex: 1, backgroundColor: p.bg }} edges={edges}>
+        <View style={{ flex: 1, paddingHorizontal: space(5), paddingTop: topPad, gap: space(3) }}>{children}</View>
       </SafeAreaView>
     )
   }
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: p.bg }} edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: p.bg }} edges={edges}>
       <ScrollView
-        contentContainerStyle={{ paddingHorizontal: space(5), paddingTop: space(2), paddingBottom: space(10), gap: space(3.5) }}
+        contentContainerStyle={{ paddingHorizontal: space(5), paddingTop: topPad, paddingBottom: space(10), gap: space(3.5) }}
         showsVerticalScrollIndicator={false}
         refreshControl={refreshControl as never}
       >
@@ -41,7 +45,7 @@ export function Title({ children, sub }: { children: ReactNode; sub?: string }) 
 export function Eyebrow({ children, right }: { children: ReactNode; right?: ReactNode }) {
   const p = usePalette()
   return (
-    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: space(1) }}>
+    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: space(1.5), marginBottom: space(2.5) }}>
       <Text style={[t.eyebrow, { color: p.textMuted }]}>{children}</Text>
       {right}
     </View>
