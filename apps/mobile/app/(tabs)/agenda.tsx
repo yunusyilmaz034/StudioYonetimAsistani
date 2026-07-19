@@ -10,6 +10,20 @@ import { FadeInUp, PressableScale } from '@/components/motion'
 import { Body, Button, Card, Empty, Loading, Pill, Title } from '@/components/ui'
 import { radius, shadow, space, usePalette } from '@/theme'
 
+function ActionPill({ label, tone, busy, onPress }: { label: string; tone: 'accent' | 'danger'; busy: boolean; onPress: () => void }) {
+  const p = usePalette()
+  const c = tone === 'danger' ? p.danger : p.accent
+  const bg = tone === 'danger' ? p.dangerSoft : p.accent
+  const fg = tone === 'danger' ? p.danger : p.accentText
+  return (
+    <PressableScale onPress={onPress}>
+      <View style={{ paddingHorizontal: space(3.5), paddingVertical: space(2), borderRadius: radius.pill, backgroundColor: bg, borderWidth: tone === 'danger' ? 1 : 0, borderColor: c + '30', minWidth: 72, alignItems: 'center' }}>
+        <Body style={{ color: fg, fontWeight: '700', fontSize: 13.5 }}>{busy ? '…' : label}</Body>
+      </View>
+    </PressableScale>
+  )
+}
+
 const BLOCKED_TR: Record<string, string> = { full: 'Kontenjan dolu', no_credit: 'Uygun paket/kredi yok', self_booking_off: 'Online rezervasyona kapalı', past: 'Geçmiş' }
 const dayKey = (ms: number) => new Date(ms).toLocaleDateString('tr-TR', { timeZone: 'Europe/Istanbul', year: 'numeric', month: '2-digit', day: '2-digit' })
 const WD = ['Paz', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt']
@@ -76,11 +90,11 @@ export default function Agenda() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: p.bg }} edges={['top']}>
-      <View style={{ paddingHorizontal: space(5), paddingTop: space(2) }}>
+      <View style={{ paddingHorizontal: space(5), paddingTop: space(2), paddingBottom: space(2) }}>
         <Title sub="Derslerini seç ve yerini ayırt">Ajanda</Title>
       </View>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: space(5), gap: space(2.5), paddingTop: space(2), paddingBottom: space(3) }} style={{ flexGrow: 0, marginBottom: space(2) }}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: space(5), gap: space(2.5), paddingTop: space(3), paddingBottom: space(4) }} style={{ flexGrow: 0, marginBottom: space(1) }}>
         {days.map((d) => {
           const on = d.key === active
           const dt = new Date(d.ms)
@@ -120,13 +134,9 @@ export default function Agenda() {
                       {s.alreadyBooked ? <Pill label="Rezervasyonun var ✓" tone="good" /> : s.blockedReason ? <Pill label={BLOCKED_TR[s.blockedReason] ?? 'Kapalı'} tone="warn" /> : null}
                     </View>
                     {s.alreadyBooked && res ? (
-                      <View style={{ minWidth: 92 }}>
-                        <Button label="İptal" tone="danger" onPress={() => askCancel(s, res)} loading={busyId === s.sessionId} />
-                      </View>
+                      <ActionPill label="İptal" tone="danger" busy={busyId === s.sessionId} onPress={() => askCancel(s, res)} />
                     ) : !s.alreadyBooked && !s.blockedReason ? (
-                      <View style={{ minWidth: 96 }}>
-                        <Button label="Rezerve" onPress={() => void book(s)} loading={busyId === s.sessionId} />
-                      </View>
+                      <ActionPill label="Rezerve" tone="accent" busy={busyId === s.sessionId} onPress={() => void book(s)} />
                     ) : null}
                   </View>
                 </Card>

@@ -31,7 +31,7 @@ export default function Home() {
   const d = dash.data
   const next = d?.upcoming[0] ?? null
   const pkg = d?.packages[0] ?? null
-  const announcement = (inbox.data ?? []).find((m) => !m.readAt) ?? (inbox.data ?? [])[0] ?? null
+  const announcement = (inbox.data ?? []).find((m) => !m.read) ?? (inbox.data ?? [])[0] ?? null
   const banner = home.data?.banner ?? null
   const occ = home.data?.occupancyLevel ? OCC[home.data.occupancyLevel] : null
 
@@ -43,7 +43,7 @@ export default function Home() {
             <Image source={{ uri: home.data.branding.logoUrl }} style={{ position: 'absolute', top: space(4), right: space(4), width: 44, height: 44, borderRadius: 12 }} resizeMode="contain" />
           ) : null}
           <Body style={[t.caption, { color: p.onGradMuted }]}>{todayTr()}</Body>
-          <Body style={[t.display, { color: p.onGrad }]}>Merhaba, {d ? d.memberName.split(' ')[0] : ''} 👋</Body>
+          <Body style={[t.display, { color: p.onGrad }]}>Merhaba, {d ? d.memberName.split(' ')[0] : ''}</Body>
           <View style={{ flexDirection: 'row', gap: space(2), marginTop: space(1) }}>
             <Chip icon="calendar-outline" text={`${d?.upcoming.length ?? 0} yaklaşan ders`} />
             {pkg ? <Chip icon="ticket-outline" text={pkg.remaining === null ? 'Sınırsız' : `${pkg.remaining} ders`} /> : null}
@@ -59,8 +59,8 @@ export default function Home() {
           <Card level={1} onPress={() => router.push('/messages')} style={{ borderLeftWidth: 3, borderLeftColor: p.accent }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <Ionicons name="megaphone-outline" size={18} color={p.accent} />
-              <Body strong style={{ flex: 1 }} numberOfLines={1}>{announcement.title}</Body>
-              {!announcement.readAt ? <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: p.accent }} /> : null}
+              <Body strong style={{ flex: 1 }} numberOfLines={1}>{announcement.subject}</Body>
+              {!announcement.read ? <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: p.accent }} /> : null}
             </View>
             <Body muted numberOfLines={2}>{announcement.body}</Body>
           </Card>

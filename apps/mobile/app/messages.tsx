@@ -18,18 +18,18 @@ export default function Messages() {
   }
 
   return (
-    <Screen refreshControl={<RefreshControl refreshing={loading} onRefresh={reload} tintColor={p.accent} />}>
+    <Screen header refreshControl={<RefreshControl refreshing={loading} onRefresh={reload} tintColor={p.accent} />}>
       {data && data.length > 0 ? (
         data.map((m, i) => (
           <FadeInUp key={m.intentId} index={i}>
-            <Card onPress={m.readAt ? undefined : () => void open(m.intentId)} style={{ opacity: m.readAt ? 0.65 : 1, borderLeftWidth: m.readAt ? 0 : 3, borderLeftColor: p.accent }}>
+            <Card onPress={m.read ? undefined : () => void open(m.intentId)} style={{ opacity: m.read ? 0.62 : 1, borderLeftWidth: m.read ? 0 : 3, borderLeftColor: p.accent }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <Ionicons name={m.readAt ? 'mail-open-outline' : 'mail'} size={18} color={m.readAt ? p.textMuted : p.accent} />
-                <Body strong style={{ flex: 1 }} numberOfLines={1}>{m.title}</Body>
-                {!m.readAt ? <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: p.accent }} /> : null}
+                <Ionicons name={m.read ? 'mail-open-outline' : 'mail'} size={18} color={m.read ? p.textMuted : p.accent} />
+                <Body strong style={{ flex: 1 }} numberOfLines={1}>{m.subject}</Body>
+                {!m.read ? <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: p.accent }} /> : null}
               </View>
               <Body muted>{m.body}</Body>
-              <Body faint style={{ fontSize: 12 }}>{dateTime(m.createdAt)}</Body>
+              <Body faint style={{ fontSize: 12 }}>{dateTime(m.at)}</Body>
             </Card>
           </FadeInUp>
         ))

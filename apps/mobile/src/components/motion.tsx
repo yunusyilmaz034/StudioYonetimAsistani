@@ -50,14 +50,17 @@ export function PressableScale({
 }) {
   const s = useSharedValue(1)
   const anim = useAnimatedStyle(() => ({ transform: [{ scale: s.value }] }))
+  // The layout style (flex/width) goes on the Pressable so it can stretch (e.g. flex:1 segments); the
+  // scale animation rides an inner view.
   return (
     <Pressable
       onPress={onPress}
       disabled={disabled}
+      style={style}
       onPressIn={() => (s.value = withSpring(0.97, { damping: 18, stiffness: 320 }))}
       onPressOut={() => (s.value = withSpring(1, { damping: 14, stiffness: 260 }))}
     >
-      <Animated.View style={[style, anim]}>{children}</Animated.View>
+      <Animated.View style={anim}>{children}</Animated.View>
     </Pressable>
   )
 }

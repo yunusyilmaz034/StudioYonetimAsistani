@@ -212,10 +212,10 @@ export interface MemberFitness {
 // ── Inbox / preferences ───────────────────────────────────────────────────────────────────────
 export interface InboxItem {
   readonly intentId: string
-  readonly title: string
+  readonly subject: string
   readonly body: string
-  readonly createdAt: number
-  readonly readAt: number | null
+  readonly at: number
+  readonly read: boolean
 }
 export interface NotificationPrefs {
   readonly email: boolean

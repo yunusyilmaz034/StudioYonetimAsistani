@@ -34,7 +34,7 @@ export default function Wallet() {
   }
 
   return (
-    <Screen refreshControl={<RefreshControl refreshing={loading} onRefresh={reload} tintColor={p.accent} />}>
+    <Screen header refreshControl={<RefreshControl refreshing={loading} onRefresh={reload} tintColor={p.accent} />}>
       <Card>
         <H2>Bakiye</H2>
         <H1>{formatKurus(data?.balanceDue ?? 0)}</H1>
