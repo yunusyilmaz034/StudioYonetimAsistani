@@ -88,6 +88,7 @@ export const api = {
   setPrefs: (prefs: NotificationPrefs) => post<ApiResult<unknown>>('/prefs', prefs),
   qrContext: () => get<{ studioId: string; branchId: string | null }>('/qr'),
   mintQr: (branchId: string) => post<QrToken>('/qr', { branchId }),
+  checkin: (token: string) => post<ApiResult<{ branchId: string }>>('/checkin', { token }),
   wallet: () => get<WalletSummary>('/wallet'),
   products: () => get<readonly MemberProduct[]>('/products'),
   purchase: (productId: string) => post<ApiResult<{ intentId: string; redirectUrl: string; flow: string }>>('/purchase', { productId }),

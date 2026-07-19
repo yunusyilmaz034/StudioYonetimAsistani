@@ -22,7 +22,13 @@
         "backgroundColor": "#7A1F3D"
       }
     },
-    "plugins": ["expo-router", "expo-secure-store", "expo-notifications"],
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-notifications",
+      ["expo-camera", { "cameraPermission": "Kiosk ekranındaki QR kodunu okutup giriş yapabilmen için kamera erişimi gerekir." }],
+      ["expo-image-picker", { "photosPermission": "Profil fotoğrafını seçebilmen için galerine erişim gerekir." }]
+    ],
     "experiments": {
       "typedRoutes": true
     }

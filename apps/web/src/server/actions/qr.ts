@@ -126,3 +126,46 @@ export async function qrStudioBranch(ctx: TenantContext, memberId: MemberId): Pr
   const member = await new FirestoreMemberRepository(adminDb()).findById(ctx, memberId)
   return { studioId: ctx.studioId, branchId: member?.homeBranchId ?? null }
 }
+
+// ── Inverted flow (owner ask): the KIOSK displays a rotating QR, the MEMBER scans it to check in. ──
+// The kiosk token carries `memberId: 'kiosk'` (a sentinel, never a real member) so it can never be
+// mistaken for a member's own QR. It rotates like the member's, so a screenshot is useless after the TTL.
+const KIOSK_SENTINEL = 'kiosk'
+
+export async function mintKioskCheckInTokenAction(input: unknown) {
+  const p = z.object({ branchId: z.string().min(1) }).parse(input)
+  const ctx = await requireTenantContext(['owner', 'receptionist', 'kiosk', 'platform_admin'])
+  const ttlSeconds = await qrTtlSeconds(ctx)
+  const exp = Date.now() + ttlSeconds * 1000
+  return {
+    token: signQrToken({ memberId: KIOSK_SENTINEL, branchId: p.branchId, exp, jti: newJti() }, qrSigningSecret()),
+    expiresAt: exp,
+    ttlSeconds,
+  }
+}
+
+// The member scanned the kiosk QR — check HER (from her token) in at the kiosk's branch. ctx-taking core
+// shared by the member API. Single-use (jti burn), online-only, verified — never trusts the client.
+export async function memberCheckInByToken(ctx: TenantContext, memberId: MemberId, token: string) {
+  const claims = verifyQrToken(token, qrVerificationSecrets())
+  if (!claims || claims.memberId !== KIOSK_SENTINEL) return { ok: false as const, error: { code: 'qr_invalid' as const } }
+  if (Date.now() > claims.exp) return { ok: false as const, error: { code: 'qr_expired' as const } }
+  const db = adminDb()
+  const jtiRef = db.collection('studios').doc(ctx.studioId).collection('qrTokens').doc(claims.jti)
+  try {
+    await db.runTransaction(async (tx) => {
+      const snap = await tx.get(jtiRef)
+      if (snap.exists) throw new Error('qr_used')
+      tx.set(jtiRef, { usedAt: new Date(claims.exp), memberId })
+    })
+  } catch {
+    return { ok: false as const, error: { code: 'qr_used' as const } }
+  }
+  const res = await recordCheckIn(
+    { repo: new FirestoreCheckinRepository(db), clock: systemClock },
+    ctx,
+    { memberId, branchId: claims.branchId as BranchId, method: 'qr', occurredAt: systemClock.now(), commandId: null },
+  )
+  if (!res.ok) return res
+  return { ok: true as const, value: { branchId: claims.branchId } }
+}

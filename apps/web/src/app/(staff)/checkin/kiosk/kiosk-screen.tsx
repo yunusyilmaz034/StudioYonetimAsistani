@@ -1,14 +1,15 @@
 'use client'
 
-import { CheckIcon, SearchIcon, WifiOffIcon, XIcon } from 'lucide-react'
+import { CheckIcon, QrCodeIcon, ScanLineIcon, SearchIcon, WifiOffIcon, XIcon } from 'lucide-react'
 import Link from 'next/link'
+import QRCode from 'qrcode'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { domainErrorMessage } from '@/lib/domain-error'
 import { checkInCommand } from '@/lib/commands'
-import { checkInByQrAction } from '@/server/actions/qr'
+import { checkInByQrAction, mintKioskCheckInTokenAction } from '@/server/actions/qr'
 import type { BookingMember } from '@/server/actions/booking'
 import type { CheckinState } from '@/server/checkin-query'
 
@@ -59,6 +60,9 @@ export function KioskScreen({
   const [searching, setSearching] = useState(false)
   const [query, setQuery] = useState('')
   const [online, setOnline] = useState(true)
+  // Two ways to check in (owner): the kiosk SCANS the member's QR, OR it SHOWS a QR the member scans
+  // with her phone. Both verified server-side; the shown code rotates so a screenshot is useless.
+  const [mode, setMode] = useState<'scan' | 'show'>('scan')
 
   const lastScan = useRef<Map<string, number>>(new Map())
   const insideIds = useMemo(() => new Set(state.inside.map((i) => i.memberId)), [state.inside])
@@ -196,19 +200,39 @@ export function KioskScreen({
   return (
     <Shell locked={locked}>
       <div className="w-full max-w-lg text-center">
-        <h1 className="text-h1 font-semibold">QR kodunu okut</h1>
-        <p className="mt-1 text-muted-foreground">Telefonundaki kodu kameraya göster.</p>
+        {/* Two ways to check in — reception/kiosk picks. */}
+        <div className="mb-6 inline-flex rounded-full bg-muted p-1">
+          <button
+            type="button"
+            onClick={() => setMode('scan')}
+            className={`flex items-center gap-2 rounded-full px-5 py-2 text-sm font-semibold transition-colors ${mode === 'scan' ? 'bg-card shadow-sm' : 'text-muted-foreground'}`}
+          >
+            <ScanLineIcon className="size-4" /> QR Oku
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode('show')}
+            className={`flex items-center gap-2 rounded-full px-5 py-2 text-sm font-semibold transition-colors ${mode === 'show' ? 'bg-card shadow-sm' : 'text-muted-foreground'}`}
+          >
+            <QrCodeIcon className="size-4" /> QR Göster
+          </button>
+        </div>
+
+        <h1 className="text-h1 font-semibold">{mode === 'scan' ? 'QR kodunu okut' : 'Bu kodu telefonunla tara'}</h1>
+        <p className="mt-1 text-muted-foreground">
+          {mode === 'scan' ? 'Telefonundaki kodu kameraya göster.' : 'Uygulamada Giriş → Tara ile aşağıdaki kodu okut.'}
+        </p>
 
         {online ? (
-          <div className="relative mt-6 overflow-hidden rounded-2xl">
-            <QrScanner
-              active
-              onScan={(token) => void scan(token)}
-              className="aspect-square w-full bg-black object-cover"
-            />
-            {/* A frame to aim at. A camera with no target is a camera people wave a phone at. */}
-            <div className="pointer-events-none absolute inset-8 rounded-xl border-4 border-white/70" />
-          </div>
+          mode === 'scan' ? (
+            <div className="relative mt-6 overflow-hidden rounded-2xl">
+              <QrScanner active onScan={(token) => void scan(token)} className="aspect-square w-full bg-black object-cover" />
+              {/* A frame to aim at. A camera with no target is a camera people wave a phone at. */}
+              <div className="pointer-events-none absolute inset-8 rounded-xl border-4 border-white/70" />
+            </div>
+          ) : (
+            <KioskQrDisplay branchId={state.branchId} />
+          )
         ) : (
           // Rule 3. QR is verified on the server or it is not verified (D16) — so offline it is not
           // a slower QR, it is no QR, and saying otherwise wastes her morning in front of a camera.
@@ -268,6 +292,45 @@ export function KioskScreen({
         </div>
       ) : null}
     </Shell>
+  )
+}
+
+/** The kiosk's own rotating QR — a member scans it with her phone (app → Giriş → Tara) to check herself
+ *  in. The token carries a `kiosk` sentinel and a short TTL, so a screenshot is useless after it rolls. */
+function KioskQrDisplay({ branchId }: { branchId: string | null }) {
+  const [dataUrl, setDataUrl] = useState<string | null>(null)
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    if (!branchId) return
+    let alive = true
+    const roll = async () => {
+      try {
+        const res = await mintKioskCheckInTokenAction({ branchId })
+        const url = await QRCode.toDataURL(res.token, { margin: 1, width: 320 })
+        if (!alive) return
+        setDataUrl(url)
+        const leadMs = Math.max(5000, res.ttlSeconds * 1000 - 5000)
+        timer.current = setTimeout(() => void roll(), leadMs)
+      } catch {
+        /* offline / no signing — the outer online guard already handles the message */
+      }
+    }
+    void roll()
+    return () => {
+      alive = false
+      if (timer.current) clearTimeout(timer.current)
+    }
+  }, [branchId])
+
+  if (!branchId) return <p className="mt-6 text-muted-foreground">Şube bulunamadı.</p>
+  return (
+    <div className="mt-6 flex flex-col items-center">
+      <div className="rounded-2xl bg-white p-6 shadow-sm">
+        {dataUrl ? <img src={dataUrl} width={280} height={280} alt="Giriş QR" /> : <div className="size-[280px] animate-pulse rounded bg-muted" />}
+      </div>
+      <p className="mt-3 text-sm text-muted-foreground">Kod güvenlik için sürekli yenilenir.</p>
+    </div>
   )
 }
 
