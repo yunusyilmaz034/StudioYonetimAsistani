@@ -214,9 +214,20 @@ function CaptureDialog({
         <DialogHeader>
           <DialogTitle>Belge Ekle</DialogTitle>
           <DialogDescription>
-            Her kutuya dokunup imzalı belgeyi tablet kamerasıyla çekin. Elinizdeki kadarını ekleyebilirsiniz.
+            Her kutuya dokunup imzalı belgeyi telefon/tablet kamerasıyla çekin. Elinizdeki kadarını ekleyebilirsiniz.
           </DialogDescription>
         </DialogHeader>
+
+        {/* Belge kılavuzu — the native camera can't be overlaid, so the guide lives here. */}
+        <div className="rounded-lg border border-accent/30 bg-accent/5 p-3 text-xs">
+          <p className="font-medium text-foreground">📸 Net bir belge fotoğrafı için</p>
+          <ul className="mt-1 list-disc space-y-0.5 pl-4 text-muted-foreground">
+            <li>Belgeyi düz bir zemine koy; <b>tüm kenarları</b> çerçeveye sığdır.</li>
+            <li>Tepeden, <b>dik açıyla</b> çek — eğik ya da açılı olmasın.</li>
+            <li>İyi ışık: <b>gölge ve parlama</b> olmasın.</li>
+            <li>Yazılar net okunmalı; bulanıksa kutuya tekrar dokunup yeniden çek.</li>
+          </ul>
+        </div>
 
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {SLOTS.map((slot, i) => (

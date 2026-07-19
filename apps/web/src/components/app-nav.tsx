@@ -37,6 +37,8 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 
+import { MenuIcon } from 'lucide-react'
+
 import { ShortcutHint } from '@/components/shortcut-hint'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { clientAuth } from '@/lib/firebase-client'
@@ -46,6 +48,7 @@ import { canSee, type Area } from '@/lib/permissions'
 import { destroySession } from '@/server/actions/session'
 import { CommandPalette } from '@/components/command-palette'
 import { QuickBooking } from '@/components/quick-booking'
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 
 export interface NavItem {
   // The route IS the permission key. There is no second list to keep in step, and therefore no way
@@ -145,7 +148,7 @@ export function AppShell({ children, role }: { children: ReactNode; role: Princi
   return (
     <div data-slot="app-shell" className="min-h-dvh pb-16 md:pb-0 md:pl-60">
       <DesktopRail pathname={pathname} groups={groups} />
-      <BottomBar pathname={pathname} groups={groups} />
+      <MobileNav pathname={pathname} groups={groups} />
       {/* ⌘K anywhere — the operations command palette (Phase 2 §1). */}
       <CommandPalette role={role} />
       {/* "N" or ⌘K → the quick-booking modal (Phase 2 §2). */}
@@ -182,11 +185,12 @@ function Brand() {
   )
 }
 
-function RailLink({ item, active }: { item: NavItem; active: boolean }) {
+function RailLink({ item, active, onClick }: { item: NavItem; active: boolean; onClick?: () => void }) {
   const Icon = item.icon
   return (
     <Link
       href={item.href}
+      onClick={() => onClick?.()}
       aria-current={active ? 'page' : undefined}
       className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${
         active
@@ -254,32 +258,128 @@ function DesktopRail({ pathname, groups }: { pathname: string; groups: readonly 
   )
 }
 
-function BottomBar({ pathname, groups }: { pathname: string; groups: readonly NavGroup[] }) {
+// The bottom bar carries at most FOUR primary destinations + a "Menü" button; the full grouped nav
+// lives in a slide-out drawer. A phone can't fairly show twenty-five icons in a scroll strip — the
+// owner's tenth screen is unreachable without a horizontal drag nobody discovers. Reception lives on
+// the operational four (agenda, reservations, check-in); the drawer holds the rest, grouped exactly
+// like the desktop rail (one source of truth — `groups`).
+const MOBILE_PRIMARY: readonly Area[] = ['/', '/my-classes', '/schedule', '/reservations', '/checkin', '/members']
+
+function MobileNav({ pathname, groups }: { pathname: string; groups: readonly NavGroup[] }) {
+  const [open, setOpen] = useState(false)
   const items = groups.flatMap((g) => g.items)
+  // Role-adaptive: keep only the primaries this role can actually see, in priority order, capped at 4.
+  const primary = MOBILE_PRIMARY.map((href) => items.find((it) => it.href === href))
+    .filter((it): it is NavItem => Boolean(it))
+    .slice(0, 4)
+
   return (
-    <nav
-      data-slot="app-shell-nav"
-      className="fixed inset-x-0 bottom-0 z-40 flex overflow-x-auto border-t border-border bg-sidebar/95 backdrop-blur md:hidden"
-    >
-      {items.map((it) => {
-        const Icon = it.icon
-        const on = isActive(pathname, it.href)
-        return (
-          <Link
-            key={it.href}
-            href={it.href}
-            aria-current={on ? 'page' : undefined}
-            className={`flex min-w-[4.25rem] flex-1 flex-col items-center gap-1 px-1 pt-2 pb-1.5 text-[10px] font-medium transition-colors ${
-              on ? 'text-primary' : 'text-muted-foreground'
-            }`}
+    <>
+      <nav
+        data-slot="app-shell-nav"
+        className="fixed inset-x-0 bottom-0 z-40 flex border-t border-border bg-sidebar/95 backdrop-blur md:hidden"
+      >
+        {primary.map((it) => {
+          const Icon = it.icon
+          const on = isActive(pathname, it.href)
+          return (
+            <Link
+              key={it.href}
+              href={it.href}
+              aria-current={on ? 'page' : undefined}
+              className={`flex flex-1 flex-col items-center gap-1 px-1 pt-2 pb-1.5 text-[10px] font-medium transition-colors ${
+                on ? 'text-primary' : 'text-muted-foreground'
+              }`}
+            >
+              <span className={`grid size-7 place-items-center rounded-lg ${on ? 'bg-primary-soft' : ''}`}>
+                <Icon className="size-[1.15rem]" />
+              </span>
+              <span className="max-w-full truncate">{it.label.split(' ')[0]}</span>
+            </Link>
+          )
+        })}
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="flex flex-1 flex-col items-center gap-1 px-1 pt-2 pb-1.5 text-[10px] font-medium text-muted-foreground transition-colors"
+        >
+          <span className="grid size-7 place-items-center rounded-lg">
+            <MenuIcon className="size-[1.15rem]" />
+          </span>
+          <span>Menü</span>
+        </button>
+      </nav>
+
+      <MobileDrawer open={open} onOpenChange={setOpen} pathname={pathname} groups={groups} />
+    </>
+  )
+}
+
+function MobileDrawer({
+  open,
+  onOpenChange,
+  pathname,
+  groups,
+}: {
+  open: boolean
+  onOpenChange: (o: boolean) => void
+  pathname: string
+  groups: readonly NavGroup[]
+}) {
+  const { logout, loading } = useLogout()
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="left" className="w-[17rem] p-0">
+        <SheetHeader className="flex-row items-center justify-between gap-1 border-b border-border px-3 py-3">
+          <SheetTitle className="p-0">
+            <Brand />
+          </SheetTitle>
+          <ThemeToggle className="shrink-0 text-muted-foreground" />
+        </SheetHeader>
+        <div className="px-3 pt-3">
+          <button
+            type="button"
+            onClick={() => {
+              onOpenChange(false)
+              window.dispatchEvent(new Event('sos:open-command'))
+            }}
+            className="flex w-full items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
           >
-            <span className={`grid size-7 place-items-center rounded-lg ${on ? 'bg-primary-soft' : ''}`}>
-              <Icon className="size-[1.15rem]" />
-            </span>
-            <span className="max-w-full truncate">{it.label.split(' ')[0]}</span>
-          </Link>
-        )
-      })}
-    </nav>
+            <SearchIcon className="size-4 shrink-0" />
+            <span>Ara…</span>
+          </button>
+        </div>
+        <nav className="flex-1 space-y-5 overflow-y-auto px-3 py-3">
+          {groups.map((group, gi) => (
+            <div key={gi} className="space-y-1">
+              {group.label ? (
+                <p className="px-3 pb-1 text-[0.6875rem] font-medium tracking-wide text-muted-foreground/70 uppercase">
+                  {group.label}
+                </p>
+              ) : null}
+              {group.items.map((it) => (
+                <RailLink
+                  key={it.href}
+                  item={it}
+                  active={isActive(pathname, it.href)}
+                  onClick={() => onOpenChange(false)}
+                />
+              ))}
+            </div>
+          ))}
+        </nav>
+        <div className="border-t border-border p-3">
+          <button
+            type="button"
+            onClick={logout}
+            disabled={loading}
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50"
+          >
+            <LogOutIcon className="size-[1.05rem] shrink-0" />
+            Çıkış Yap
+          </button>
+        </div>
+      </SheetContent>
+    </Sheet>
   )
 }
