@@ -1,10 +1,27 @@
 // The premium UI kit — every screen composes from these so the app reads as one designed system.
 import type { ReactNode } from 'react'
-import { ActivityIndicator, ScrollView, Text, View, type StyleProp, type TextStyle, type ViewStyle } from 'react-native'
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View, type StyleProp, type TextStyle, type ViewStyle } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg'
 
 import { radius, shadow, space, typo as t, usePalette } from '@/theme'
 import { PressableScale } from './motion'
+
+// A real diagonal gradient fill (react-native-svg — already in the app for the QR code), the backbone
+// of the premium look. No extra native dependency.
+export function GradientFill({ from, to }: { from: string; to: string }) {
+  return (
+    <Svg style={StyleSheet.absoluteFill} width="100%" height="100%">
+      <Defs>
+        <LinearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+          <Stop offset="0" stopColor={from} />
+          <Stop offset="1" stopColor={to} />
+        </LinearGradient>
+      </Defs>
+      <Rect x="0" y="0" width="100%" height="100%" fill="url(#g)" />
+    </Svg>
+  )
+}
 
 export function Screen({ children, scroll = true, refreshControl, header }: { children: ReactNode; scroll?: boolean; refreshControl?: ReactNode; header?: boolean }) {
   const p = usePalette()
@@ -88,12 +105,13 @@ export function Card({ children, style, onPress, level = 1, inset }: { children:
 export function Hero({ children, style }: { children: ReactNode; style?: StyleProp<ViewStyle> }) {
   const p = usePalette()
   return (
-    <View style={[{ borderRadius: radius.xl, overflow: 'hidden', backgroundColor: p.gradFrom }, shadow(2), style]}>
-      <View style={{ backgroundColor: p.gradTo, opacity: 0.55, position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} />
-      {/* two soft glows for depth */}
-      <View style={{ position: 'absolute', top: -60, right: -30, width: 180, height: 180, borderRadius: 90, backgroundColor: '#FFFFFF', opacity: 0.08 }} />
-      <View style={{ position: 'absolute', bottom: -70, left: -40, width: 200, height: 200, borderRadius: 100, backgroundColor: '#000000', opacity: 0.12 }} />
-      <View style={{ padding: space(5), gap: space(2) }}>{children}</View>
+    <View style={[{ borderRadius: radius.xl, overflow: 'hidden' }, shadow(3), style]}>
+      <GradientFill from={p.gradFrom} to={p.gradTo} />
+      {/* layered glows for real depth */}
+      <View style={{ position: 'absolute', top: -80, right: -50, width: 220, height: 220, borderRadius: 110, backgroundColor: '#FFFFFF', opacity: 0.1 }} />
+      <View style={{ position: 'absolute', top: 20, right: 30, width: 90, height: 90, borderRadius: 45, backgroundColor: p.gold, opacity: 0.12 }} />
+      <View style={{ position: 'absolute', bottom: -90, left: -60, width: 240, height: 240, borderRadius: 120, backgroundColor: '#FFFFFF', opacity: 0.05 }} />
+      <View style={{ padding: space(5.5), gap: space(2) }}>{children}</View>
     </View>
   )
 }

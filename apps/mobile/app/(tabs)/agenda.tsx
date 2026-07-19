@@ -110,7 +110,7 @@ export default function Agenda() {
         })}
       </ScrollView>
 
-      <ScrollView contentContainerStyle={{ paddingHorizontal: space(5), paddingBottom: space(10), gap: space(3) }} showsVerticalScrollIndicator={false}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: space(5), paddingTop: space(1), paddingBottom: space(10), gap: space(3) }} showsVerticalScrollIndicator={false}>
         {daySessions.length === 0 ? (
           <Card><Empty icon={<Ionicons name="calendar-clear-outline" size={30} color={p.textFaint} />} text="Bu gün için sana uygun ders yok." /></Card>
         ) : (
