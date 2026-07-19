@@ -39,6 +39,7 @@ export type Area =
   | '/notifications'
   | '/engagement' // Stüdyodan — owner engagement/marketing composer + content library
   | '/knowledge' // Bilgi Merkezi — the living help base; all staff read, owner edits
+  | '/media' // Medya Merkezi — uploaded image library; desk browses, owner uploads/deletes
   | '/analytics'
   | '/audit'
   | '/settings' // S2
@@ -81,6 +82,8 @@ export const PERMISSIONS: Readonly<Record<Area, readonly PrincipalRole[]>> = {
   // The help base is for everyone who works here — owner, reception AND the trainer. Reading is open;
   // editing is owner-only, enforced in the Server Action (this only gates the screen).
   '/knowledge': ['owner', 'receptionist', 'trainer'],
+  // Media library — desk browses/copies; upload & delete are owner-only (enforced in the actions).
+  '/media': DESK,
   // Reception hands it over, so reception prints it.
   '/receipt': DESK,
 

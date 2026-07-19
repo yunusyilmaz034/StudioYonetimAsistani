@@ -14,6 +14,7 @@ import {
   CalendarDaysIcon,
   LayersIcon,
   MegaphoneIcon,
+  ImageIcon,
   LightbulbIcon,
   ShieldIcon,
   TargetIcon,
@@ -101,6 +102,7 @@ export const GROUPS: readonly NavGroup[] = [
       { href: '/activity', label: 'Hareket Merkezi', icon: ActivityIcon },
       { href: '/notifications', label: 'Bildirim Merkezi', icon: BellIcon },
       { href: '/knowledge', label: 'Bilgi Merkezi', icon: BookOpenIcon },
+      { href: '/media', label: 'Medya Merkezi', icon: ImageIcon },
     ],
   },
   {
