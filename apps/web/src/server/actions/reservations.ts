@@ -13,7 +13,10 @@ import {
   FirestoreSchedulingRepository,
   FirestoreStudioHours,
   instant,
+  newOperationId,
   selectEntitlement,
+  weeksUntilPackageEnd,
+  type OperationId,
   type RecurringDeps,
   setReservationNote,
   systemClock,
@@ -230,6 +233,77 @@ export async function applyRecurringAction(input: unknown) {
     weeks: p.weeks,
     skipDates: p.skipDates,
   })
+}
+
+// ── D18+ (v1.27) — MULTI-SLOT standing booking from the member's screen. "Pzt VE Çrş 19:00, paket
+//    süresince." Each picked slot is a seed; `mode: 'package'` derives the week count from the covering
+//    package's end (a credit package still stops itself early), else a fixed number. Every slot shares
+//    ONE operation id so the whole standing setup reads and undoes as a single act. ──
+const multiSchema = z.object({
+  memberId: nonEmpty,
+  sessionIds: z.array(nonEmpty).min(1).max(7),
+  mode: z.union([z.number().int().min(1).max(52), z.literal('package')]),
+  skipDates: z.array(z.string()).default([]),
+})
+
+async function resolveWeeks(
+  ctx: Awaited<ReturnType<typeof requireTenantContext>>,
+  memberId: MemberId,
+  sessionId: ClassSessionId,
+  mode: number | 'package',
+): Promise<number> {
+  if (typeof mode === 'number') return mode
+  const db = adminDb()
+  const seed = await new FirestoreSchedulingRepository(db).getSession(ctx, sessionId)
+  if (!seed) return 12
+  const ents = await new FirestoreEntitlementRepository(db).listActiveByMember(ctx, memberId)
+  return weeksUntilPackageEnd(ents, seed, systemClock.now()) ?? 12
+}
+
+export async function previewRecurringMultiAction(input: unknown) {
+  const p = multiSchema.parse(input)
+  const ctx = await requireTenantContext(OPS)
+  const deps = recurringDeps()
+  const slots = []
+  for (const sessionId of p.sessionIds) {
+    const weeks = await resolveWeeks(ctx, p.memberId as MemberId, sessionId as ClassSessionId, p.mode)
+    const plan = await previewRecurring(deps, ctx, {
+      memberId: p.memberId as MemberId,
+      sessionId: sessionId as ClassSessionId,
+      weeks,
+      skipDates: p.skipDates,
+    })
+    slots.push({ sessionId, weeks, plan })
+  }
+  return { slots }
+}
+
+export async function applyRecurringMultiAction(input: unknown) {
+  const p = multiSchema.parse(input)
+  const ctx = await requireTenantContext(OPS)
+  const deps = recurringDeps()
+  const operationId = newOperationId() as OperationId
+  let booked = 0
+  let failed = 0
+  const slots = []
+  for (const sessionId of p.sessionIds) {
+    const weeks = await resolveWeeks(ctx, p.memberId as MemberId, sessionId as ClassSessionId, p.mode)
+    const r = await applyRecurring(deps, ctx, {
+      memberId: p.memberId as MemberId,
+      sessionId: sessionId as ClassSessionId,
+      weeks,
+      skipDates: p.skipDates,
+      operationId,
+    })
+    if (r.ok) {
+      booked += r.value.booked
+      failed += r.value.failed
+      slots.push({ sessionId, weeks, ...r.value })
+    } else {
+      slots.push({ sessionId, weeks, error: r.error })
+    }
+  }
+  return { ok: true as const, value: { booked, failed, operationId, slots } }
 }
 
 // Set the staff quick note (Hızlı Not) on a reservation. Staff-only metadata; empty text

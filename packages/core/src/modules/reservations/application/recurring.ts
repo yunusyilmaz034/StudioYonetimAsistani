@@ -49,6 +49,9 @@ export interface RecurringInputDto {
   readonly sessionId: ClassSessionId // the slot to repeat
   readonly weeks: number
   readonly skipDates?: readonly string[] // D23 — marked days the owner ticked off
+  // When a member is fixed on MORE than one slot (Pzt + Çrş), every slot shares ONE operation id, so
+  // "her hafta Pazartesi VE Çarşamba 19:00" reads and undoes as a single act. Omitted ⇒ its own id.
+  readonly operationId?: OperationId
 }
 
 export interface RecurringSummary {
@@ -98,8 +101,8 @@ export async function applyRecurring(
   const planned = await plan(deps, ctx, input)
   if (!planned) return { ok: false, error: { code: 'session_not_bookable' } }
 
-  // OP-2 — one id for the whole series.
-  const operationId = newOperationId()
+  // OP-2 — one id for the whole series (shared across slots when the caller supplies one).
+  const operationId = input.operationId ?? newOperationId()
   const dctx = decideContext(deps, ctx, { operationId })
 
   let booked = 0

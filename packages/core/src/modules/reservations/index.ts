@@ -21,7 +21,7 @@ export {
   type AttendanceMarkType,
   type AttendanceOutcome,
 } from './commands'
-export { isBookable, selectEntitlement } from './domain/select-entitlement'
+export { isBookable, selectEntitlement, weeksUntilPackageEnd } from './domain/select-entitlement'
 // Package Rules 2.0 (Plus Phase 3) — the resolver + its helpers. One resolution of studio→package→
 // member, read by every write path so the same member is judged the same way everywhere.
 export {

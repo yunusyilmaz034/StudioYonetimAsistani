@@ -15,7 +15,7 @@ import {
   type ServiceId,
   type StudioId,
 } from '../../../shared'
-import { selectEntitlement } from './select-entitlement'
+import { selectEntitlement, weeksUntilPackageEnd } from './select-entitlement'
 
 const NOW = instant(1_000_000_000_000)
 const D = 86_400_000
@@ -136,5 +136,20 @@ describe('selectEntitlement (I-17)', () => {
   it('returns null when the only package covers a different service', () => {
     const wrongService = ent({ id: 'e_wrong', validUntil: instant(NOW + 40 * D), serviceIds: ['svc_9' as ServiceId] })
     expect(selectEntitlement([wrongService], sess(), NOW)).toBeNull()
+  })
+})
+
+describe('weeksUntilPackageEnd — "paket süresince"', () => {
+  it('rounds the week count up from the covering package validUntil', () => {
+    const e = ent({ id: 'ent_1', validUntil: instant(NOW + 30 * D) }) // ~4.3 weeks → 5
+    expect(weeksUntilPackageEnd([e], sess(), NOW)).toBe(5)
+  })
+  it('returns null when no package covers the slot', () => {
+    const e = ent({ id: 'ent_1', validUntil: instant(NOW + 30 * D), category: 'fitness' }) // vs a pilates session
+    expect(weeksUntilPackageEnd([e], sess(), NOW)).toBeNull()
+  })
+  it('caps a mis-typed far-future date', () => {
+    const e = ent({ id: 'ent_1', validUntil: instant(NOW + 1000 * D) })
+    expect(weeksUntilPackageEnd([e], sess(), NOW, 52)).toBe(52)
   })
 })

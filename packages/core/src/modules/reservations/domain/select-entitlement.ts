@@ -34,3 +34,20 @@ export function selectEntitlement(
 ): Entitlement | null {
   return [...candidates].filter((e) => isBookable(e, session, now)).sort(compare)[0] ?? null
 }
+
+// "Paket süresince" — how many weeks a standing booking should span, taken from the covering package's
+// validUntil (the same package selectEntitlement would spend). A CREDIT package stops itself early
+// when its credits run out mid-series (the generator reports no_eligible_entitlement), so this is an
+// upper bound; a PERIOD package runs to its end. Capped so a mis-typed far-future date can't schedule
+// forever. null ⇒ no package covers this slot (nothing to fix).
+export function weeksUntilPackageEnd(
+  candidates: readonly Entitlement[],
+  session: ClassSession,
+  now: Instant,
+  maxWeeks = 52,
+): number | null {
+  const covering = selectEntitlement(candidates, session, now)
+  if (!covering) return null
+  const weeks = Math.ceil((covering.validUntil - now) / (7 * 86_400_000))
+  return Math.max(1, Math.min(weeks, maxWeeks))
+}
