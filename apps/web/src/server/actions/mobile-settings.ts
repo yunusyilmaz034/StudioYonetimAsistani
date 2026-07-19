@@ -17,11 +17,17 @@ export interface MobileBanner {
   readonly tone: 'accent' | 'gold' | 'good'
 }
 
-export interface MobileSettings {
-  readonly banner: MobileBanner | null
+export interface MobileBranding {
+  readonly appName: string
+  readonly logoUrl: string
 }
 
-const DEFAULT: MobileSettings = { banner: null }
+export interface MobileSettings {
+  readonly banner: MobileBanner | null
+  readonly branding: MobileBranding | null
+}
+
+const DEFAULT: MobileSettings = { banner: null, branding: null }
 
 export async function getMobileSettingsAction(): Promise<MobileSettings> {
   const ctx = await requireTenantContext(OPS)
@@ -41,4 +47,21 @@ export async function setMobileBannerAction(input: unknown) {
   const ctx = await requireTenantContext(OWNER)
   await adminDb().doc(`studios/${ctx.studioId}/settings/mobile`).set({ banner: p }, { merge: true })
   return { ok: true as const }
+}
+
+// The app's branding — the name + logo shown on the login screen and the home hero. A logo URL is any
+// public image (e.g. the studio's website logo). Owner-only.
+export async function setMobileBrandingAction(input: unknown) {
+  const p = z
+    .object({ appName: z.string().trim().max(60), logoUrl: z.string().trim().url().or(z.literal('')) })
+    .parse(input)
+  const ctx = await requireTenantContext(OWNER)
+  await adminDb().doc(`studios/${ctx.studioId}/settings/mobile`).set({ branding: p }, { merge: true })
+  return { ok: true as const }
+}
+
+// PUBLIC read for the app's login screen (pre-auth) — name + logo only, no secrets.
+export async function getMobileBrandingPublic(studioId: string): Promise<MobileBranding | null> {
+  const snap = await adminDb().doc(`studios/${studioId}/settings/mobile`).get()
+  return ((snap.data() as MobileSettings | undefined)?.branding ?? null) as MobileBranding | null
 }

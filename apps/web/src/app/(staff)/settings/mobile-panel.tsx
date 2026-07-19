@@ -9,7 +9,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Section } from '@/components/ui/section'
 import { Textarea } from '@/components/ui/textarea'
-import { getMobileSettingsAction, setMobileBannerAction } from '@/server/actions/mobile-settings'
+import { getMobileSettingsAction, setMobileBannerAction, setMobileBrandingAction } from '@/server/actions/mobile-settings'
 
 type Tone = 'accent' | 'gold' | 'good'
 const TONES: { key: Tone; label: string; className: string }[] = [
@@ -25,17 +25,32 @@ export function MobilePanel({ canEdit }: { canEdit: boolean }) {
   const [title, setTitle] = useState('')
   const [body, setBody] = useState('')
   const [tone, setTone] = useState<Tone>('accent')
+  const [appName, setAppName] = useState('')
+  const [logoUrl, setLogoUrl] = useState('')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [savingBrand, setSavingBrand] = useState(false)
 
   useEffect(() => {
     getMobileSettingsAction()
       .then((s) => {
         if (s.banner) { setActive(s.banner.active); setTitle(s.banner.title); setBody(s.banner.body); setTone(s.banner.tone) }
+        if (s.branding) { setAppName(s.branding.appName); setLogoUrl(s.branding.logoUrl) }
       })
       .catch(() => {})
       .finally(() => setLoading(false))
   }, [])
+
+  async function saveBranding() {
+    setSavingBrand(true)
+    try {
+      const r = await setMobileBrandingAction({ appName: appName.trim(), logoUrl: logoUrl.trim() })
+      if (r.ok) toast.success('Uygulama markası kaydedildi.')
+    } catch {
+      toast.error('Kaydedilemedi (logo bir geçerli URL olmalı).')
+    }
+    setSavingBrand(false)
+  }
 
   async function save() {
     if (active && (title.trim().length === 0 || body.trim().length === 0)) {
@@ -56,6 +71,30 @@ export function MobilePanel({ canEdit }: { canEdit: boolean }) {
 
   return (
     <div className="space-y-6">
+      <Section title="Uygulama markası" hint="Üyelerin giriş ekranında ve ana sayfada gördüğü uygulama adı ve logo. Logo herkese açık bir görsel URL'i olmalı (örn. web sitenizdeki logo).">
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">Uygulama adı</label>
+            <Input value={appName} onChange={(e) => setAppName(e.target.value)} maxLength={60} placeholder="Pilates Fitness By Işıl" disabled={!canEdit} />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">Logo URL'i</label>
+            <Input value={logoUrl} onChange={(e) => setLogoUrl(e.target.value)} placeholder="https://www.pilatesfitnessbyisil.com/logo.png" disabled={!canEdit} />
+          </div>
+          {logoUrl ? (
+            <div className="flex items-center gap-3 rounded-lg border border-border bg-muted/40 p-3">
+              <img src={logoUrl} alt="logo" className="size-12 rounded-lg object-contain" />
+              <span className="text-sm text-muted-foreground">Logo önizleme</span>
+            </div>
+          ) : null}
+          {canEdit ? (
+            <Button onClick={() => void saveBranding()} disabled={savingBrand}>
+              {savingBrand ? <Loader2Icon className="animate-spin" /> : null} Markayı Kaydet
+            </Button>
+          ) : null}
+        </div>
+      </Section>
+
       <Section
         title="Ana sayfa kampanya banner'ı"
         hint="Üyelerin mobil uygulamayı açtığında en üstte gördüğü duyuru/kampanya kartı. Kapalıyken görünmez."

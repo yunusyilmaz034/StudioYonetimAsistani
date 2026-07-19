@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Switch, View } from 'react-native'
+import { Image, Switch, View } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { router } from 'expo-router'
 
@@ -44,9 +44,13 @@ export default function Profile() {
       <FadeInUp index={0}>
         <Hero>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: space(4) }}>
-            <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: '#FFFFFF25', alignItems: 'center', justifyContent: 'center' }}>
-              <Body style={{ color: p.onGrad, fontSize: 24, fontWeight: '800' }}>{initials}</Body>
-            </View>
+            {pr?.avatarUrl ? (
+              <Image source={{ uri: pr.avatarUrl }} style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: '#FFFFFF25' }} />
+            ) : (
+              <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: '#FFFFFF25', alignItems: 'center', justifyContent: 'center' }}>
+                <Body style={{ color: p.onGrad, fontSize: 24, fontWeight: '800' }}>{initials}</Body>
+              </View>
+            )}
             <View style={{ flex: 1, gap: 2 }}>
               <Body style={[t.h1, { color: p.onGrad }]} numberOfLines={1}>{pr?.fullName}</Body>
               <Body style={{ color: p.onGradMuted }}>{pr?.phone}</Body>

@@ -1,4 +1,4 @@
-import { RefreshControl, View } from 'react-native'
+import { Image, RefreshControl, View } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { router } from 'expo-router'
 import Animated, { useAnimatedStyle, useSharedValue, withDelay, withTiming, Easing } from 'react-native-reanimated'
@@ -39,6 +39,9 @@ export default function Home() {
     <Screen refreshControl={<RefreshControl refreshing={dash.loading} onRefresh={() => { void dash.reload(); void inbox.reload(); void home.reload(); void fitness.reload() }} tintColor={p.accent} />}>
       <FadeInUp index={0}>
         <Hero>
+          {home.data?.branding?.logoUrl ? (
+            <Image source={{ uri: home.data.branding.logoUrl }} style={{ position: 'absolute', top: space(4), right: space(4), width: 44, height: 44, borderRadius: 12 }} resizeMode="contain" />
+          ) : null}
           <Body style={[t.caption, { color: p.onGradMuted }]}>{todayTr()}</Body>
           <Body style={[t.display, { color: p.onGrad }]}>Merhaba, {d ? d.memberName.split(' ')[0] : ''} 👋</Body>
           <View style={{ flexDirection: 'row', gap: space(2), marginTop: space(1) }}>

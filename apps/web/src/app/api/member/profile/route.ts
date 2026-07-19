@@ -2,13 +2,16 @@ import { type NextRequest } from 'next/server'
 
 import { updateOwnProfile } from '@/server/actions/portal'
 import { loadPortalProfile } from '@/server/portal-query'
-import { withMember } from '@/server/member-api'
+import { memberAvatarUrl, withMember } from '@/server/member-api'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 export async function GET(req: NextRequest) {
-  return withMember(req, (ctx, memberId) => loadPortalProfile(ctx, memberId))
+  return withMember(req, async (ctx, memberId) => {
+    const [profile, avatarUrl] = await Promise.all([loadPortalProfile(ctx, memberId), memberAvatarUrl(ctx, memberId)])
+    return { ...profile, avatarUrl }
+  })
 }
 
 export async function POST(req: NextRequest) {

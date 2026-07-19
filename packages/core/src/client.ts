@@ -94,6 +94,7 @@ export interface MemberProfile {
   readonly email: string | null
   readonly emergencyName: string | null
   readonly emergencyPhone: string | null
+  readonly avatarUrl?: string | null // a short-lived signed URL for her profile photo
 }
 
 // ── Training: exercise guide + programme (wire snapshot) ─────────────────────────────────────

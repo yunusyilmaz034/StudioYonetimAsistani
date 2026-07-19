@@ -41,6 +41,22 @@ async function post<T>(path: string, body: unknown): Promise<T> {
   return (await res.json()) as T
 }
 
+export interface Branding {
+  readonly appName: string
+  readonly logoUrl: string
+}
+
+// PUBLIC — the login screen's studio name + logo, before anyone signs in.
+export async function fetchBranding(): Promise<Branding | null> {
+  try {
+    const res = await fetch(`${API_BASE}/branding?s=${STUDIO_ID}`)
+    const data = (await res.json()) as { branding: Branding | null }
+    return data.branding
+  } catch {
+    return null
+  }
+}
+
 // PUBLIC — no token yet: turn the phone she typed into the synthetic email she signs in with.
 export async function resolveLoginEmail(phone: string): Promise<string> {
   const res = await fetch(`${API_BASE}/login-identifier`, {
@@ -76,6 +92,7 @@ export const api = {
   products: () => get<readonly MemberProduct[]>('/products'),
   purchase: (productId: string) => post<ApiResult<{ intentId: string; redirectUrl: string; flow: string }>>('/purchase', { productId }),
   registerDevice: (token: string, platform: string) => post<ApiResult<unknown>>('/devices', { token, platform }),
+  uploadPhoto: (dataUrl: string) => post<ApiResult<{ avatarUrl: string | null }>>('/photo', { dataUrl }),
 }
 
 export interface MemberProduct {
@@ -95,6 +112,7 @@ export interface HomeBanner {
 export interface HomeExtras {
   readonly occupancyLevel: string | null
   readonly banner: HomeBanner | null
+  readonly branding: Branding | null
 }
 
 // The training endpoint returns everything the screen shows; the app reads the parts it renders.
