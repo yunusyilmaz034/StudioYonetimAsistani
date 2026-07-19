@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 
-import { available, DEFAULT_PREFS, FirestoreEntitlementRepository, FirestoreFinanceRepository, FirestoreNotificationRepository, money, newOperationId, sell, systemClock, type BranchId, type Entitlement, type FinanceDeps, type MemberId, type NotificationPrefs, type TenantContext } from '@studio/core'
+import { available, DEFAULT_PREFS, entriesUsed, FirestoreEntitlementRepository, FirestoreFinanceRepository, FirestoreNotificationRepository, money, newOperationId, sell, systemClock, type BranchId, type Entitlement, type FinanceDeps, type MemberId, type NotificationPrefs, type TenantContext } from '@studio/core'
 import type { RetailItem, StoredWallet } from '@studio/core/client'
 
 import { loadOccupancyNow } from './fitness-query'
@@ -131,6 +131,10 @@ export async function memberSubscriptions(ctx: TenantContext, memberId: MemberId
     validUntil: Number(e.validUntil),
     purchasedAt: Number(e.purchasedAt),
     status: e.status,
+    fitnessEntry:
+      e.productSnapshot.entryAllowance != null
+        ? { used: entriesUsed(e.entryLedger), allowance: e.productSnapshot.entryAllowance }
+        : null,
   })
   const active = all.filter((e) => e.status === 'active').map(map).sort((a, b) => a.validUntil - b.validUntil)
   const past = all.filter((e) => e.status !== 'active').map(map).sort((a, b) => b.purchasedAt - a.purchasedAt)

@@ -73,6 +73,9 @@ export interface MemberSubscription {
   readonly validUntil: number
   readonly purchasedAt: number
   readonly status: string
+  // Fitness serbest-giriş cap (v1.27) — present only on a capped fitness membership. `used` door
+  // check-ins of `allowance`; remaining = allowance − used (soft, so `used` may exceed `allowance`).
+  readonly fitnessEntry: { readonly used: number; readonly allowance: number } | null
 }
 export interface MemberSubscriptions {
   readonly active: readonly MemberSubscription[]

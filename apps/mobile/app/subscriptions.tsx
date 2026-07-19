@@ -60,6 +60,15 @@ function SubCard({ sub, index, active }: { sub: MemberSubscription; index: numbe
             <ProgressBar value={sub.remaining / Math.max(sub.total, 1)} color={p.accent} track={p.surfaceMuted} />
             <Body faint style={{ fontSize: 12.5 }}>{sub.remaining} / {sub.total} ders kaldı</Body>
           </View>
+        ) : active && sub.fitnessEntry ? (
+          <View style={{ gap: 6 }}>
+            <ProgressBar value={Math.max(0, sub.fitnessEntry.allowance - sub.fitnessEntry.used) / Math.max(sub.fitnessEntry.allowance, 1)} color={p.accent} track={p.surfaceMuted} />
+            <Body faint style={{ fontSize: 12.5 }}>
+              {sub.fitnessEntry.used >= sub.fitnessEntry.allowance
+                ? `Giriş hakkı doldu (${sub.fitnessEntry.used}/${sub.fitnessEntry.allowance})`
+                : `${Math.max(0, sub.fitnessEntry.allowance - sub.fitnessEntry.used)} / ${sub.fitnessEntry.allowance} giriş kaldı`}
+            </Body>
+          </View>
         ) : active && sub.remaining === null ? (
           <Pill label="Sınırsız kullanım" tone="gold" />
         ) : null}
