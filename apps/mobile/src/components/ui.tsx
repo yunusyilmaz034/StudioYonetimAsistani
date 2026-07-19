@@ -136,7 +136,7 @@ export function Button({ label, onPress, disabled, tone = 'accent', loading, ico
     <PressableScale onPress={disabled || loading ? undefined : onPress} disabled={disabled || loading}>
       <View
         style={[
-          { backgroundColor: bg, opacity: disabled ? 0.5 : 1, borderRadius: radius.md, paddingVertical: space(3.75), alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8, minHeight: 52 },
+          { backgroundColor: bg, opacity: disabled ? 0.5 : 1, borderRadius: radius.md, paddingVertical: space(3.75), paddingHorizontal: space(7), alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8, minHeight: 52 },
           tone === 'accent' ? shadow(1) : null,
         ]}
       >

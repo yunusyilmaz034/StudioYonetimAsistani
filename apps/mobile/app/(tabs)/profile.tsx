@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Image, Switch, View } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
-import { router } from 'expo-router'
+import { router, useFocusEffect } from 'expo-router'
 
 import type { MemberProfile, NotificationPrefs } from '@studio/core/client'
 import { api } from '@/lib/api'
@@ -22,10 +22,12 @@ const CHANNELS: { key: keyof NotificationPrefs; label: string; icon: keyof typeo
 export default function Profile() {
   const p = usePalette()
   const { signOutMember } = useAuth()
-  const { data: profile, loading } = useFetch(api.profile)
+  const { data: profile, loading, reload } = useFetch(api.profile)
   const { data: loadedPrefs } = useFetch(api.prefs)
   const [prefs, setPrefs] = useState<NotificationPrefs | null>(null)
   useEffect(() => { if (loadedPrefs) setPrefs(loadedPrefs) }, [loadedPrefs])
+  // Re-fetch when the tab regains focus — so a photo (or info) changed on the edit screen shows here.
+  useFocusEffect(useCallback(() => { void reload() }, [reload]))
 
   if (loading && !profile) return <Loading />
   const pr = profile as MemberProfile | null

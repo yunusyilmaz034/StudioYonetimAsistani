@@ -10,6 +10,16 @@ import { FadeInUp, PressableScale } from '@/components/motion'
 import { Body, Card, Empty, Eyebrow, Loading, Pill, Screen } from '@/components/ui'
 import { radius, space, usePalette } from '@/theme'
 
+const STATUS_TR: Record<string, string> = {
+  attended: 'Katıldı',
+  presumed_attended: 'Katıldı',
+  auto_resolved: 'Katıldı',
+  no_show: 'Gelmedi',
+  cancelled: 'İptal edildi',
+  late_cancelled: 'Geç iptal',
+  booked: 'Rezerve',
+}
+
 export default function Reservations() {
   const p = usePalette()
   const { data, loading, reload } = useFetch(api.reservations)
