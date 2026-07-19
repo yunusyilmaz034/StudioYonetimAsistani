@@ -125,7 +125,11 @@ export function selectChannels(
       suppressed.push({ channel, reason: 'member_preference' })
       continue
     }
-    const address = channel === 'email' ? recipient.email : recipient.phone
+    // Push's "address" is the member herself — her device tokens are resolved at delivery time by the
+    // PushProvider (they change, and they are not PII to carry here). A staff recipient has no app, so
+    // push is not an address for her.
+    const address =
+      channel === 'email' ? recipient.email : channel === 'push' ? (recipient.kind === 'member' ? recipient.id : null) : recipient.phone
     if (!address) {
       suppressed.push({ channel, reason: 'missing_contact' })
       continue

@@ -147,7 +147,10 @@ export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
   dailyLimit: 1000,
   quietFromHour: 22,
   quietToHour: 8,
-  enabledChannels: ['in_app', 'email'], // v1.25: SMS/WhatsApp/push are PORTS, not channels yet
+  // v1.25: SMS/WhatsApp are PORTS, not channels yet. M2: `push` is a real channel now — a real Expo Push
+  // provider is wired, and it is doubly gated (per-member `prefs.push`, default off, flipped on when she
+  // registers a device; and no-op if she has no device token), so enabling it studio-wide is safe.
+  enabledChannels: ['in_app', 'email', 'push'],
 }
 
 export interface NotificationTemplate {

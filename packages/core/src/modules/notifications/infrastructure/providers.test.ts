@@ -180,7 +180,7 @@ describe('standardNotificationProviders — one registry for functions and web',
   const db = {} as Firestore
   it('falls back to console e-mail + mock WhatsApp with no config', () => {
     const ps = standardNotificationProviders(db)
-    expect(ps.map((p) => p.channel)).toEqual(['in_app', 'email', 'whatsapp'])
+    expect(ps.map((p) => p.channel)).toEqual(['in_app', 'email', 'whatsapp', 'push'])
     expect(ps[1]).toBeInstanceOf(ConsoleEmailProvider)
     expect(ps[0]).toBeInstanceOf(InAppProvider)
   })

@@ -418,6 +418,51 @@ export interface NotificationProvidersConfig {
   readonly whatsapp?: MetaWhatsAppConfig
 }
 
+// ── PUSH: Expo Push Service (M2). ───────────────────────────────────────────────────────────
+//
+// A device token is not PII (#6 is untouched — the message body is rendered from templates + names at
+// send time, exactly like e-mail/WhatsApp; the event still records only that we tried). Tokens are
+// resolved HERE, at delivery, from the member's `devices` subcollection — so the intent pipeline and
+// RecipientRef never change. No provider credentials are needed for a basic Expo push.
+const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send'
+
+export class PushProvider implements NotificationProvider {
+  readonly channel = 'push' as const
+  constructor(
+    private readonly db: Firestore,
+    private readonly fetchImpl: typeof fetch = fetch,
+  ) {}
+
+  async send(ctx: TenantContext, message: RenderedMessage): Promise<ProviderResult> {
+    if (!message.to.memberId) return { ok: true, providerRef: null, delivered: false }
+    const snap = await this.db
+      .collection('studios').doc(ctx.studioId)
+      .collection('members').doc(message.to.memberId)
+      .collection('devices').get()
+    const tokens = snap.docs
+      .map((d) => d.get('token') as string | undefined)
+      .filter((t): t is string => typeof t === 'string' && t.startsWith('ExponentPushToken'))
+    // No registered device is not a failure — she simply has not installed the app. Retrying would
+    // never help, so we report a clean non-delivery, not an error.
+    if (tokens.length === 0) return { ok: true, providerRef: null, delivered: false }
+
+    try {
+      const res = await this.fetchImpl(EXPO_PUSH_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify(tokens.map((to) => ({ to, title: message.subject, body: message.body, data: { intentId: message.intentId } }))),
+      })
+      if (!res.ok) return { ok: false, providerRef: null, delivered: false, error: { code: 'push_http', message: `HTTP ${res.status}`, permanent: res.status >= 400 && res.status < 500 } }
+      const json = (await res.json().catch(() => ({}))) as { data?: { status?: string }[] }
+      const anyOk = (json.data ?? []).some((r) => r.status === 'ok')
+      // The receipt (final delivery) arrives later from Expo; "sent" is the honest claim here, like SMS.
+      return { ok: anyOk, providerRef: `expo:${message.intentId}`, delivered: false, ...(anyOk ? {} : { error: { code: 'push_rejected', message: 'Expo rejected all tokens', permanent: false } }) }
+    } catch (e) {
+      return { ok: false, providerRef: null, delivered: false, error: { code: 'push_network', message: (e as Error).message, permanent: false } }
+    }
+  }
+}
+
 export function standardNotificationProviders(
   db: Firestore,
   config: NotificationProvidersConfig = {},
@@ -426,5 +471,6 @@ export function standardNotificationProviders(
     new InAppProvider(db),
     config.email ? new ResendEmailProvider(config.email.apiKey, config.email.from, fetch, config.email.brand) : new ConsoleEmailProvider(),
     new WhatsAppProvider(config.whatsapp ? metaWhatsAppTransport(config.whatsapp) : undefined),
+    new PushProvider(db),
   ]
 }

@@ -1,13 +1,27 @@
+import { useEffect } from 'react'
 import { Ionicons } from '@expo/vector-icons'
-import { Redirect, Tabs } from 'expo-router'
+import * as Notifications from 'expo-notifications'
+import { Redirect, router, Tabs } from 'expo-router'
 
 import { useAuth } from '@/lib/auth'
+import { registerForPush } from '@/lib/push'
 import { Loading } from '@/components/ui'
 import { usePalette } from '@/theme'
 
 export default function TabsLayout() {
   const p = usePalette()
   const { user, loading } = useAuth()
+
+  // Register for push once she is signed in, and route a tapped notification to her inbox (M2).
+  useEffect(() => {
+    if (!user) return
+    void registerForPush()
+    const sub = Notifications.addNotificationResponseReceivedListener(() => {
+      router.push('/messages')
+    })
+    return () => sub.remove()
+  }, [user])
+
   if (loading) return <Loading />
   if (!user) return <Redirect href="/login" />
 

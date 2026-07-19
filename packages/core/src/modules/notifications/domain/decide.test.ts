@@ -96,13 +96,19 @@ describe('channel selection — the KVKK line and the preference line (v1.25)', 
       'operational',
     )
     expect(d.channels).toEqual(['in_app'])
-    expect(d.suppressed).toEqual([{ channel: 'email', reason: 'member_preference' }])
+    expect(d.suppressed).toEqual([
+      { channel: 'email', reason: 'member_preference' },
+      { channel: 'push', reason: 'member_preference' },
+    ])
   })
 
   it('a marketing message is SUPPRESSED without campaign consent (KVKK)', () => {
     const d = selectChannels(member, DEFAULT_PREFS, DEFAULT_NOTIFICATION_SETTINGS, 'marketing')
     expect(d.channels).toEqual(['in_app'])
-    expect(d.suppressed).toEqual([{ channel: 'email', reason: 'no_consent' }])
+    expect(d.suppressed).toEqual([
+      { channel: 'email', reason: 'no_consent' },
+      { channel: 'push', reason: 'no_consent' },
+    ])
   })
 
   it('WITH campaign consent, marketing may leave — but consent never gates an OPERATIONAL send (Plus Phase 5)', () => {
@@ -117,7 +123,10 @@ describe('channel selection — the KVKK line and the preference line (v1.25)', 
   it('a member with no e-mail on file is suppressed BY NAME, not silently dropped', () => {
     const d = selectChannels({ ...member, email: null }, DEFAULT_PREFS, DEFAULT_NOTIFICATION_SETTINGS, 'operational')
     expect(d.channels).toEqual(['in_app'])
-    expect(d.suppressed).toEqual([{ channel: 'email', reason: 'missing_contact' }])
+    expect(d.suppressed).toEqual([
+      { channel: 'email', reason: 'missing_contact' },
+      { channel: 'push', reason: 'member_preference' },
+    ])
   })
 })
 
@@ -173,7 +182,8 @@ describe('intent (v1.25)', () => {
     if (!r.ok) return
     expect(r.value.events.map((e) => e.type)).toEqual([
       'notification.intent_created',
-      'notification.suppressed',
+      'notification.suppressed', // email — member turned it off
+      'notification.suppressed', // push — she has not enabled push (no app / opted out)
     ])
     expect(r.value.events[1]?.payload).toMatchObject({ channel: 'email', reason: 'member_preference' })
   })

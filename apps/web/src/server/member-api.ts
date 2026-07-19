@@ -67,3 +67,16 @@ export async function memberPrefsSet(ctx: TenantContext, memberId: MemberId, pre
   await adminDb().doc(`studios/${ctx.studioId}/members/${memberId}`).set({ notificationPrefs: prefs }, { merge: true })
   return { ok: true as const }
 }
+
+// M2 — register (or refresh) a device's Expo push token. Idempotent by a hash of the token; the raw
+// token lives ONLY in this server-only subcollection (rules deny client reads). Registering a device
+// flips `prefs.push` on so she starts receiving push — she can turn it back off from Profil.
+export async function memberRegisterDevice(ctx: TenantContext, memberId: MemberId, token: string, platform: string) {
+  if (!token.startsWith('ExponentPushToken')) return { ok: false as const, error: { code: 'invalid_token' } }
+  const { createHash } = await import('node:crypto')
+  const deviceId = createHash('sha256').update(token).digest('hex').slice(0, 24)
+  const memberRef = adminDb().doc(`studios/${ctx.studioId}/members/${memberId}`)
+  await memberRef.collection('devices').doc(deviceId).set({ token, platform, updatedAt: Date.now() }, { merge: true })
+  await memberRef.set({ notificationPrefs: { push: true } }, { merge: true })
+  return { ok: true as const }
+}
