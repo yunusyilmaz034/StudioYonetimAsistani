@@ -16,15 +16,17 @@ import {
   type TenantContext,
 } from '../../../shared'
 import type { FinanceRepository, FinanceWrite } from '../application/ports'
-import type {
-  Allocation,
-  CashDrawer,
-  Coupon,
-  GiftCard,
-  Payment,
-  PaymentPlan,
-  Refund,
-  Sale,
+import {
+  walletIdFor,
+  type Allocation,
+  type CashDrawer,
+  type Coupon,
+  type GiftCard,
+  type Payment,
+  type PaymentPlan,
+  type Refund,
+  type Sale,
+  type Wallet,
 } from '../domain/types'
 
 // Timestamps in, millis out — the same convention as every other repository. Money is stored as the
@@ -117,6 +119,12 @@ const planFrom = (id: string, d: DocumentData): PaymentPlan => ({
     ...(i as PaymentPlan['instalments'][number]),
     dueAt: instant(ms(i.dueAt)),
   })),
+})
+
+const walletFrom = (id: string, d: DocumentData): Wallet => ({
+  ...(d as Wallet),
+  id,
+  updatedAt: instant(ms(d.updatedAt)),
 })
 
 export class FirestoreFinanceRepository implements FinanceRepository {
@@ -239,6 +247,15 @@ export class FirestoreFinanceRepository implements FinanceRepository {
     return snap.docs.map((d) => planFrom(d.id, d.data()))
   }
 
+  async getWallet(ctx: TenantContext, walletId: string): Promise<Wallet | null> {
+    const s = await this.col(ctx.studioId, 'wallets').doc(walletId).get()
+    const d = s.data()
+    return s.exists && d ? walletFrom(s.id, d) : null
+  }
+  async getWalletByMember(ctx: TenantContext, memberId: MemberId): Promise<Wallet | null> {
+    return this.getWallet(ctx, walletIdFor(memberId))
+  }
+
   // ONE transaction. The sale, the payment, the allocation, the drawer's expected balance, the
   // gift-card ledger and every event they emit commit together (#1) — a finance module whose parts
   // can drift is a finance module that will drift, and nobody will notice until the gün sonu.
@@ -280,6 +297,34 @@ export class FirestoreFinanceRepository implements FinanceRepository {
         }
       })
 
+      // WALLETS — the same race-safe delta the drawer uses. Read every touched wallet INSIDE the txn,
+      // apply the signed deltas in order (a running balance per wallet, so two applies to one wallet
+      // compound correctly), REFUSE any debit that would cross zero (I-37) at the serialisation point,
+      // and stamp the authoritative post-balance onto both the wallet doc and the event's payload.
+      const applies = write.walletApplies ?? []
+      const walletRefs = applies.map((a) => this.col(sid, 'wallets').doc(a.walletId))
+      const walletSnaps = walletRefs.length > 0 ? await tx.getAll(...walletRefs) : []
+      const running = new Map<string, { amount: number; currency: string }>()
+      applies.forEach((a, i) => {
+        if (running.has(a.walletId)) return
+        const data = walletSnaps[i]!.data()
+        const bal = data ? (data.balance as { amount: number; currency: string }) : { amount: 0, currency: 'TRY' }
+        running.set(a.walletId, { amount: bal.amount, currency: bal.currency })
+      })
+      const walletWrites = applies.map((a) => {
+        const cur = running.get(a.walletId)!
+        const nextAmount = cur.amount + a.deltaKurus
+        if (a.refuseBelowZero && nextAmount < 0) throw new Error('wallet_insufficient')
+        cur.amount = nextAmount
+        const balanceAfter = { amount: nextAmount, currency: cur.currency }
+        running.set(a.walletId, cur)
+        return {
+          ref: this.col(sid, 'wallets').doc(a.walletId),
+          doc: { id: a.walletId, studioId: sid, memberId: a.memberId, balance: balanceAfter, updatedAt: ts(a.event.occurredAt) },
+          event: { ...a.event, payload: { ...a.event.payload, balanceAfter } },
+        }
+      })
+
       for (const s of write.sales ?? []) tx.set(this.col(sid, 'sales').doc(s.id), saleTo(s))
       for (const p of write.payments ?? []) tx.set(this.col(sid, 'payments').doc(p.id), paymentTo(p))
       for (const a of write.allocations ?? [])
@@ -289,7 +334,9 @@ export class FirestoreFinanceRepository implements FinanceRepository {
       for (const g of write.giftCards ?? []) tx.set(this.col(sid, 'giftCards').doc(g.id), cardTo(g))
       for (const c of write.coupons ?? []) tx.set(this.col(sid, 'coupons').doc(c.id), couponTo(c))
       for (const p of write.plans ?? []) tx.set(this.col(sid, 'paymentPlans').doc(p.id), planTo(p))
-      this.writeEvents(sid, tx, write.events)
+      for (const w of walletWrites) tx.set(w.ref, w.doc)
+      // Wallet events are written with their in-transaction balanceAfter — never from `write.events`.
+      this.writeEvents(sid, tx, [...write.events, ...walletWrites.map((w) => w.event)])
     })
   }
 }

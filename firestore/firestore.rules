@@ -64,7 +64,10 @@ service cloud.firestore {
           'paymentIntents',
           // PF-37 — payment links + unattributed PAYTR collections (buyer PII). Server-only; the
           // staff app reads them through Server Actions on the Admin SDK, never the client SDK.
-          'paytrLinks', 'paytrCollections'
+          'paytrLinks', 'paytrCollections',
+          // v1.27 — member wallets (stored value). Read only through the Admin SDK: the member app via
+          // the Bearer member-api, the staff app via Server Actions. Never written or read client-side.
+          'wallets'
         ];
       }
 

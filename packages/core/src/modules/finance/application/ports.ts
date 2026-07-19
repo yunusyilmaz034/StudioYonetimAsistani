@@ -8,6 +8,7 @@ import type {
   PaymentPlan,
   Refund,
   Sale,
+  Wallet,
 } from '../domain/types'
 
 export interface FinanceRepository {
@@ -37,6 +38,10 @@ export interface FinanceRepository {
   listPlansByMember(ctx: TenantContext, memberId: MemberId): Promise<readonly PaymentPlan[]>
   listOpenPlans(ctx: TenantContext): Promise<readonly PaymentPlan[]> // "yaklaşan tahsilatlar"
 
+  // The member wallet. `null` before its first topup — the wallet is born the first time money lands.
+  getWallet(ctx: TenantContext, walletId: string): Promise<Wallet | null>
+  getWalletByMember(ctx: TenantContext, memberId: MemberId): Promise<Wallet | null>
+
   // The sale, the payment, the allocation, the drawer's expected balance, the gift-card ledger and
   // every event they emit commit TOGETHER (#1). A finance module whose parts can drift is a finance
   // module that will drift.
@@ -65,6 +70,24 @@ export interface DrawerDelta {
   readonly deltaKurus: number
 }
 
+/**
+ * A movement on a member's wallet — a signed DELTA, applied to the balance INSIDE the transaction,
+ * for the same reason the drawer is (above): the balance is a counter under contention, not a
+ * document in a race. Two concurrent purchases must serialise, or a wallet with 100 ₺ pays 200.
+ *
+ * `refuseBelowZero` (true for every debit) makes I-37 hold at the serialisation point: the repo
+ * re-reads the balance in the transaction and ABORTS if the delta would cross zero — the domain's
+ * load-time check is only the first line of defence. The txn also stamps the AUTHORITATIVE
+ * `balanceAfter` onto `event` before writing it, so the immutable log never records a stale balance.
+ */
+export interface WalletApply {
+  readonly walletId: string
+  readonly memberId: MemberId
+  readonly deltaKurus: number // signed: positive in, negative out
+  readonly refuseBelowZero: boolean
+  readonly event: NewEvent // its payload.balanceAfter is overwritten with the in-transaction value
+}
+
 export interface FinanceWrite {
   readonly sales?: readonly Sale[]
   readonly payments?: readonly Payment[]
@@ -74,6 +97,7 @@ export interface FinanceWrite {
   readonly giftCards?: readonly GiftCard[]
   readonly coupons?: readonly Coupon[]
   readonly plans?: readonly PaymentPlan[]
+  readonly walletApplies?: readonly WalletApply[]
   readonly events: readonly NewEvent[]
 }
 

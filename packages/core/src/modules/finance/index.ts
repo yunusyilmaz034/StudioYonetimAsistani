@@ -28,6 +28,7 @@ export {
   memberBalance,
   paymentUnallocated,
   saleBalanceDue,
+  walletIdFor,
 } from './domain/types'
 export * from './events'
 export {
@@ -68,8 +69,20 @@ export {
   type MemberAccount,
   type SellInput,
 } from './application/finance'
-export type { FinanceDeps, FinanceRepository, FinanceWrite } from './application/ports'
+export type { FinanceDeps, FinanceRepository, FinanceWrite, WalletApply } from './application/ports'
 export { FirestoreFinanceRepository } from './infrastructure/repos'
+// ── the member wallet (Doc 27, v1.27) ──
+export {
+  adjustWallet,
+  getWallet,
+  refundToWallet,
+  topUpWallet,
+  voidWalletTopup,
+  type AdjustWalletInput,
+  type RefundToWalletInput,
+  type TopUpWalletInput,
+  type VoidTopupInput,
+} from './application/wallet'
 export {
   amountDue,
   sellPackage,

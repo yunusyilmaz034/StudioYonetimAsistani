@@ -39,6 +39,9 @@ export interface Wallet {
   readonly balance: Money
   readonly updatedAt: Instant
 }
+
+// The wallet id is DERIVED from the member id — one wallet per member, addressable without a query.
+export const walletIdFor = (memberId: MemberId): string => `wal_${memberId}`
 export type DiscountReason = 'campaign' | 'coupon' | 'referral' | 'gift' | 'manual'
 
 // A discount is an AMOUNT, stamped at sale time — never a percentage re-evaluated later (I-34).
