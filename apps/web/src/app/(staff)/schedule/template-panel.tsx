@@ -28,11 +28,15 @@ import type { ScheduleData, TemplateView } from '@/server/schedule-query'
 
 // dayOfWeek follows JS getUTCDay: 0 = Sunday (occurrenceDates, time-window.ts).
 const DOW = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi']
+// Monday-first order + short labels for the new-template day picker (the old system's Pt/Sal/… row).
+const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0]
+const DAY_SHORT: Record<number, string> = { 0: 'Pz', 1: 'Pt', 2: 'Sal', 3: 'Çar', 4: 'Per', 5: 'Cum', 6: 'Cmt' }
 const NONE = '__none__'
 
 interface FormState {
   serviceId: string
-  dayOfWeek: number
+  dayOfWeek: number // used when EDITING an existing template (single day)
+  days: number[] // used when CREATING — one template per selected day, all sharing the other fields
   startTime: string
   durationMinutes: number
   capacity: number
@@ -73,6 +77,7 @@ export function TemplatePanel({
       setForm({
         serviceId: data.services[0]?.id ?? '',
         dayOfWeek: 1,
+        days: [1],
         startTime: '10:00',
         durationMinutes: 60,
         capacity: 8,
@@ -86,6 +91,7 @@ export function TemplatePanel({
       setForm({
         serviceId: t.serviceId,
         dayOfWeek: t.dayOfWeek,
+        days: [t.dayOfWeek],
         startTime: t.startTime,
         durationMinutes: t.durationMinutes,
         capacity: t.capacity,
@@ -106,6 +112,10 @@ export function TemplatePanel({
       toast.error('Bir ders seçin.')
       return
     }
+    if (isNew && form.days.length === 0) {
+      toast.error('En az bir gün seçin.')
+      return
+    }
     if (!isNew && form.reason.trim().length === 0) {
       toast.error('Bir sebep girin.')
       return
@@ -115,22 +125,45 @@ export function TemplatePanel({
       const common = {
         roomId: form.roomId === NONE ? null : form.roomId,
         trainerId: form.trainerId === NONE ? null : form.trainerId,
-        dayOfWeek: form.dayOfWeek,
         startTime: form.startTime,
         durationMinutes: form.durationMinutes,
         capacity: form.capacity,
         validFrom: form.validFrom,
         validUntil: form.validUntil,
       }
-      const res = isNew
-        ? await createTemplateAction({ ...common, serviceId: form.serviceId, branchId })
-        : await updateTemplateAction({ ...common, templateId: (editing as TemplateView).id, reason: form.reason.trim() })
-      if (res.ok) {
-        toast.success(isNew ? 'Şablon oluşturuldu.' : 'Şablon güncellendi.')
-        setEditing(null)
-        onMutated()
+      if (isNew) {
+        // One template PER selected day — "Pazartesi + Çarşamba + Cuma, aynı saat/eğitmen/kontenjan" in
+        // one save, exactly like the old system's day checkboxes. Each is an independent weekly template.
+        let created = 0
+        let failed: string | null = null
+        for (const d of [...form.days].sort((a, b) => a - b)) {
+          const res = await createTemplateAction({ ...common, dayOfWeek: d, serviceId: form.serviceId, branchId })
+          if (res.ok) created++
+          else {
+            failed = domainErrorMessage(res.error)
+            break
+          }
+        }
+        if (failed) toast.error(failed)
+        else {
+          toast.success(created > 1 ? `${created} gün için şablon oluşturuldu.` : 'Şablon oluşturuldu.')
+          setEditing(null)
+          onMutated()
+        }
       } else {
-        toast.error(domainErrorMessage(res.error))
+        const res = await updateTemplateAction({
+          ...common,
+          dayOfWeek: form.dayOfWeek,
+          templateId: (editing as TemplateView).id,
+          reason: form.reason.trim(),
+        })
+        if (res.ok) {
+          toast.success('Şablon güncellendi.')
+          setEditing(null)
+          onMutated()
+        } else {
+          toast.error(domainErrorMessage(res.error))
+        }
       }
     } catch {
       toast.error('İşlem tamamlanamadı.')
@@ -228,20 +261,53 @@ export function TemplatePanel({
               ) : null}
 
               <div className="grid grid-cols-2 gap-3">
-                <Labeled label="Gün">
-                  <Select value={String(form.dayOfWeek)} onValueChange={(v) => setForm({ ...form, dayOfWeek: Number(v) })}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {DOW.map((d, i) => (
-                        <SelectItem key={d} value={String(i)}>
-                          {d}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </Labeled>
+                {editing === 'new' ? (
+                  <div className="col-span-2">
+                    <Labeled label="Günler">
+                      {/* Pick several days and one save opens the same class (time/trainer/capacity) on
+                          each — Pt + Çar + Cum, tek tıkla, exactly like the old system. */}
+                      <div className="flex flex-wrap gap-1.5">
+                        {DAY_ORDER.map((d) => {
+                          const on = form.days.includes(d)
+                          return (
+                            <button
+                              key={d}
+                              type="button"
+                              onClick={() =>
+                                setForm({
+                                  ...form,
+                                  days: on ? form.days.filter((x) => x !== d) : [...form.days, d],
+                                })
+                              }
+                              className={`h-9 min-w-11 rounded-lg border px-2 text-sm font-medium transition-colors ${
+                                on
+                                  ? 'border-primary bg-primary-soft text-primary'
+                                  : 'border-border text-muted-foreground hover:bg-muted'
+                              }`}
+                            >
+                              {DAY_SHORT[d]}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </Labeled>
+                  </div>
+                ) : (
+                  <Labeled label="Gün">
+                    <Select value={String(form.dayOfWeek)} onValueChange={(v) => setForm({ ...form, dayOfWeek: Number(v) })}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {DOW.map((d, i) => (
+                          <SelectItem key={d} value={String(i)}>
+                            {d}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Labeled>
+                )}
                 <Labeled label="Saat">
                   <Input type="time" value={form.startTime} onChange={(e) => setForm({ ...form, startTime: e.target.value })} />
                 </Labeled>
