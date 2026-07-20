@@ -310,17 +310,20 @@ function AssignForm({
   onCancel: () => void
   onDone: () => void
 }) {
-  const [productId, setProductId] = useState(products[0]?.id ?? '')
+  // No product pre-selected (owner): the dropdown starts on "Paket seç" so reception picks deliberately
+  // instead of accidentally saving whatever happened to be first.
+  const [productId, setProductId] = useState('')
   const product = products.find((p) => p.id === productId)
   const [validFrom, setValidFrom] = useState(studioToday())
   const [validUntil, setValidUntil] = useState('')
-  const [creditOverride, setCreditOverride] = useState<number | null>(null)
+  // Credit is a freely-editable STRING (owner): reception can clear it and type any number; it defaults
+  // to the package's credit and is clamped to [0, packageCredit] only on save.
+  const [creditInput, setCreditInput] = useState('')
   // Price is fixed to the package (read-only field), so this never changes — kept only so `effectivePrice`
   // and the collected default read from one place.
   const [priceTl] = useState('')
   const [collectedTl, setCollectedTl] = useState('')
   const [method, setMethod] = useState('cash')
-  const [note, setNote] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -334,7 +337,7 @@ function AssignForm({
   // record a genuine partial payment (that debt is real and stays).
   const owedKurus = (toKurus(effectivePrice) || 0) + (method !== 'cash' ? surchargeKurus : 0)
   const effectiveCollected = collectedTl !== '' ? collectedTl : owedKurus ? (owedKurus / 100).toString() : ''
-  const effectiveCredit = creditOverride ?? product?.creditCount ?? null
+  const effectiveCredit = creditInput !== '' ? creditInput : product?.creditCount != null ? String(product.creditCount) : ''
 
   async function submit() {
     if (!product) return
@@ -347,10 +350,13 @@ function AssignForm({
         validFrom,
         validUntil: effectiveUntil || null,
         priceAgreedKurus: toKurus(effectivePrice),
-        creditOverride: product.type === 'credit' ? effectiveCredit : null,
+        creditOverride:
+          product.type === 'credit'
+            ? Math.min(product.creditCount ?? Infinity, Math.max(0, Math.trunc(Number(effectiveCredit) || 0)))
+            : null,
         collectedKurus: toKurus(effectiveCollected),
         method,
-        note: note.trim(),
+        note: '',
       })
       if (res.ok) {
         toast.success('Abonelik oluşturuldu.')
@@ -390,21 +396,9 @@ function AssignForm({
         </Labeled>
         {product?.type === 'credit' ? (
           <Labeled label="Kredi">
-            <Input
-              type="number"
-              min={0}
-              max={product.creditCount ?? undefined}
-              value={effectiveCredit ?? ''}
-              // Reception may LOWER the credit (an 8-class package sold as 3) but never RAISE it above
-              // what the package defines (a 24 must not become 25). Clamp to [0, product.creditCount].
-              onChange={(e) =>
-                setCreditOverride(
-                  e.target.value === ''
-                    ? null
-                    : Math.min(product.creditCount ?? Infinity, Math.max(0, Math.trunc(Number(e.target.value) || 0))),
-                )
-              }
-            />
+            {/* Freely editable (owner): a raw string so reception can clear and retype any number.
+                Defaults to the package credit; clamped to [0, packageCredit] on save. */}
+            <Input type="number" min={0} value={effectiveCredit} onChange={(e) => setCreditInput(e.target.value)} />
           </Labeled>
         ) : null}
         <Labeled label="Paket tutarı (TL)">
@@ -436,10 +430,6 @@ function AssignForm({
           </p>
         ) : null}
       </div>
-
-      <Labeled label="Açıklama">
-        <Textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="Örn. kredi/tarih override sebebi" />
-      </Labeled>
 
       {error ? <p role="alert" className="text-sm text-danger">{error}</p> : null}
 
