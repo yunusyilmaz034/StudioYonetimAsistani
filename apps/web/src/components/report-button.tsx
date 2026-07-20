@@ -25,7 +25,9 @@ export function ReportButton() {
     setCapturing(true)
     setShot(null)
     setNote('')
-    setOpen(true)
+    // Capture the page as it is NOW — with any dialog the reporter is looking at still open — and only
+    // THEN open our own dialog, so the report UI never ends up inside its own screenshot.
+    const t = toast.loading('Ekran görüntüsü alınıyor…')
     try {
       // Import lazily so html-to-image never enters the bundle until reception actually reports.
       const { toPng } = await import('html-to-image')
@@ -40,7 +42,9 @@ export function ReportButton() {
       // A screenshot is best-effort — a page it can't render (a cross-origin canvas) still gets a note.
       setShot(null)
     } finally {
+      toast.dismiss(t)
       setCapturing(false)
+      setOpen(true)
     }
   }
 
@@ -77,7 +81,7 @@ export function ReportButton() {
         data-report-ignore
         onClick={() => void start()}
         title="Bir sorun bildir"
-        className="fixed right-3 bottom-20 z-40 flex h-11 items-center gap-1.5 rounded-full border border-border bg-card px-3.5 text-sm font-medium text-foreground shadow-lg transition-colors hover:border-primary/50 hover:text-primary md:bottom-4"
+        className="fixed right-3 bottom-20 z-[60] flex h-11 items-center gap-1.5 rounded-full border border-border bg-card px-3.5 text-sm font-medium text-foreground shadow-lg transition-colors hover:border-primary/50 hover:text-primary md:bottom-4"
       >
         <MessageSquareWarningIcon className="size-4" />
         Bildir
