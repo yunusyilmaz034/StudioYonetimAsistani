@@ -7,9 +7,11 @@
     "scheme": "studiomember",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "icon": "./assets/icon.png",
     "splash": {
+      "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#F4F1EE"
+      "backgroundColor": "#0C0C0C"
     },
     "assetBundlePatterns": ["**/*"],
     "ios": {
@@ -19,7 +21,8 @@
     "android": {
       "package": "com.pilatesfitnessbyisil.member",
       "adaptiveIcon": {
-        "backgroundColor": "#7A1F3D"
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0C0C0C"
       }
     },
     "plugins": [

@@ -28,13 +28,6 @@ const PUBLIC_PREFIXES = [
   '/pay',
   '/api/member',
   '/api/payments/paytr/callback',
-  // PWA install assets: the OS fetches these WITHOUT a session cookie while adding the panel to the
-  // home screen. They are extensionless dynamic routes (`icon.tsx`/`apple-icon.tsx`), so — unlike
-  // `manifest.webmanifest` and `sw.js`, which carry a dot and the matcher already skips — the
-  // middleware runs on them and, without this, bounced the icon to /login. Result: a broken/generic
-  // app icon on install. They are just the generated logo; public by nature.
-  '/icon',
-  '/apple-icon',
 ]
 
 function isPublic(pathname: string): boolean {
