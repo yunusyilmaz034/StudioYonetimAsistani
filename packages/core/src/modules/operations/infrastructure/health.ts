@@ -84,25 +84,44 @@ async function stuckCommands(db: Firestore, studioId: StudioId, now: number): Pr
  * numbers are from an hour ago"; the owner simply reads yesterday's studio and makes today's
  * decision with it.
  */
-async function projectionLag(db: Firestore, studioId: StudioId): Promise<HealthFinding | null> {
-  const events = await col(db, studioId, 'events').orderBy('recordedAt', 'desc').limit(1).get()
+// The projector folds an event within a second or two of it being written. So an event YOUNGER than
+// this window has not "lagged" — it simply has not been folded YET, and reading its day's watermark
+// now is a race with eventual consistency, not a measurement of lag. We judge only events already old
+// enough that a healthy projector must have folded them. (Prod false alarm, 2026-07-20: the nightly
+// retry sweep delivered a queued notification at 04:02:04; this check ran ~1s later, at 04:02:04, and
+// onEventCreated folded it at 04:02:05 — so for one second the newest event's day had no document, the
+// watermark read as 0, and the lag as decades. A grace window ends this whole class of race, and it
+// does NOT hide a genuinely dead projector: a stuck projector leaves events UNFOLDED past the window,
+// and those are exactly the ones we still look at.)
+const PROJECTION_GRACE_MS = 10 * MS_PER_MIN
+
+async function projectionLag(db: Firestore, studioId: StudioId, now: number): Promise<HealthFinding | null> {
+  // The newest event OLD ENOUGH to have been folded. A fresh event (nightly notification, a booking a
+  // second ago) is excluded — its absence from the watermark is the consistency window, not a lag.
+  const events = await col(db, studioId, 'events')
+    .where('recordedAt', '<=', Timestamp.fromMillis(now - PROJECTION_GRACE_MS))
+    .orderBy('recordedAt', 'desc')
+    .limit(1)
+    .get()
   const doc = events.docs[0]?.data()
   const recorded = doc?.recordedAt
   const occurred = doc?.occurredAt
-  if (!(recorded instanceof Timestamp) || !(occurred instanceof Timestamp)) return null // no events yet
+  if (!(recorded instanceof Timestamp) || !(occurred instanceof Timestamp)) return null // nothing settled yet
 
-  // Read the watermark off the newest event's OWN day — not "today". The projector folds each event
-  // into `days/${localDate(occurredAt)}` (never a global doc), so that is the day whose watermark this
-  // event advanced. Reading "today" instead was wrong twice: for eight hours after every midnight, a
-  // quiet studio has no document for the new day yet, so the watermark read as 0 and the lag as ~56
-  // years — a false alarm every 15 minutes until the day's first booking. And "today" was computed in
-  // UTC while the projector keys by STUDIO-LOCAL day, so the two disagreed either side of local
-  // midnight. Both vanish when we ask the same question the projector answered: which day did THIS
-  // event land on, and did its watermark catch up? (Found in production, 2026-07-15.)
+  // Read the watermark off the event's OWN day — not "today". The projector folds each event into
+  // `days/${localDate(occurredAt)}` (never a global doc), so that is the day whose watermark this event
+  // advanced. Reading "today" instead was wrong twice: after local midnight a quiet studio has no
+  // document for the new day yet, and "today" in UTC disagreed with the projector's STUDIO-LOCAL day.
+  // Both vanish when we ask the same question the projector answered. (Found in production, 2026-07-15.)
   const eventDay = localDateAt(instant(occurred.toMillis()), DEFAULT_STUDIO_CONFIG.utcOffsetMinutes)
   const daily = await db.doc(`studios/${studioId}/readModels/daily/days/${eventDay}`).get()
-  const watermark = (daily.data()?.lastEventAt as number | undefined) ?? 0
-  const lagMs = recorded.toMillis() - watermark
+
+  // Doc present → lag is how far its watermark trails this (grace-old) event. Doc ABSENT → the projector
+  // has folded nothing for this day, so the honest lag is how long this event has WAITED unfolded (its
+  // age), never the distance from epoch 0 — that was the decades-long phantom number.
+  const lagMs = daily.exists
+    ? recorded.toMillis() - ((daily.data()?.lastEventAt as number | undefined) ?? 0)
+    : now - recorded.toMillis()
   if (lagMs <= 60 * MS_PER_MIN) return null
 
   return {
@@ -223,7 +242,7 @@ export async function runFastChecks(
   studioId: StudioId,
   now: number,
 ): Promise<readonly HealthFinding[]> {
-  const found = await Promise.all([stuckCommands(db, studioId, now), projectionLag(db, studioId)])
+  const found = await Promise.all([stuckCommands(db, studioId, now), projectionLag(db, studioId, now)])
   return found.filter((f): f is HealthFinding => f !== null)
 }
 
