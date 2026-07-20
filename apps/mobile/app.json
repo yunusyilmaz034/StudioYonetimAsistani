@@ -2,6 +2,7 @@
   "expo": {
     "name": "Pilates Fitness By Işıl",
     "slug": "studio-member-app",
+    "owner": "yunusyilmaz34",
     "version": "1.0.0",
     "orientation": "portrait",
     "scheme": "studiomember",
@@ -13,27 +14,52 @@
       "resizeMode": "contain",
       "backgroundColor": "#0C0C0C"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.pilatesfitnessbyisil.member"
+      "bundleIdentifier": "com.pilatesfitnessbyisil.member",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "com.pilatesfitnessbyisil.member",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0C0C0C"
-      }
+      },
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "plugins": [
       "expo-router",
       "expo-secure-store",
       "expo-notifications",
-      ["expo-camera", { "cameraPermission": "Kiosk ekranındaki QR kodunu okutup giriş yapabilmen için kamera erişimi gerekir." }],
-      ["expo-image-picker", { "photosPermission": "Profil fotoğrafını seçebilmen için galerine erişim gerekir." }]
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Kiosk ekranındaki QR kodunu okutup giriş yapabilmen için kamera erişimi gerekir."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Profil fotoğrafını seçebilmen için galerine erişim gerekir."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "a8b4df59-0a10-4dc2-9796-8304a997be51"
+      }
     }
   }
 }

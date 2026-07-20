@@ -41,9 +41,22 @@ const STATUS_LABEL: Record<string, string> = { active: 'Aktif', frozen: 'Donduru
 const tl = (k: number) => `${(k / 100).toLocaleString('tr-TR')} TL`
 const toKurus = (s: string) => Math.round((Number(s) || 0) * 100)
 const dateLabel = (ms: number) => new Date(ms).toLocaleDateString('tr-TR', { timeZone: 'Europe/Istanbul' })
+// ms → 'yyyy-mm-dd' for a date input, never throwing: an open-ended subscription has a null validUntil,
+// and `new Date(null/undefined).toISOString()` would crash the dialog on open.
+const toDateInput = (ms: number | null | undefined): string => {
+  if (ms == null) return ''
+  const t = new Date(ms)
+  return Number.isNaN(t.getTime()) ? '' : t.toISOString().slice(0, 10)
+}
 const studioToday = () => new Date(Date.now() + 180 * 60_000).toISOString().slice(0, 10)
 const addDays = (d: string, days: number) => {
+  // A `type="date"` input reports an EMPTY value for every intermediate keystroke until the whole
+  // date is valid — so while reception types the start date, `d` is '' on each keypress. Without this
+  // guard, `new Date('T00:00:00Z')` is Invalid and `.toISOString()` throws a RangeError, which React
+  // turns into a full white-screen "client-side exception" mid-typing. Return '' instead of crashing.
+  if (!d) return ''
   const t = new Date(`${d}T00:00:00Z`)
+  if (Number.isNaN(t.getTime())) return ''
   t.setUTCDate(t.getUTCDate() + days)
   return t.toISOString().slice(0, 10)
 }
@@ -464,8 +477,8 @@ function ReasonDialogShell({
 // the Cari Hesap tab, where it lands in the ledger and in the kasa. Two ways to record a payment are
 // two answers to "has she paid?", and reception would have had no way to know which one was believed.
 function AmendDialog({ sub, onClose, onDone }: { sub: SubscriptionView; onClose: () => void; onDone: () => void }) {
-  const [validFrom, setValidFrom] = useState(new Date(sub.validFrom).toISOString().slice(0, 10))
-  const [validUntil, setValidUntil] = useState(new Date(sub.validUntil).toISOString().slice(0, 10))
+  const [validFrom, setValidFrom] = useState(toDateInput(sub.validFrom))
+  const [validUntil, setValidUntil] = useState(toDateInput(sub.validUntil))
   const [priceTl, setPriceTl] = useState((sub.priceAgreedKurus / 100).toString())
   const [reason, setReason] = useState('')
   const [busy, setBusy] = useState(false)
