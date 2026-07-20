@@ -313,6 +313,10 @@ function AssignForm({
   const autoUntil = useMemo(() => (product ? addDays(validFrom, product.durationDays) : ''), [product, validFrom])
   const effectiveUntil = validUntil || autoUntil
   const effectivePrice = priceTl !== '' ? priceTl : product ? (product.priceInKurus / 100).toString() : ''
+  // Tahsilat defaults to the price: a normal sale is FULLY PAID, so it must not show a phantom debt.
+  // Reception migrating old members types the price once and the member is settled — no "borçlu". She
+  // can still lower it by hand to record a genuine partial payment (that debt is real and stays).
+  const effectiveCollected = collectedTl !== '' ? collectedTl : effectivePrice
   const effectiveCredit = creditOverride ?? product?.creditCount ?? null
 
   async function submit() {
@@ -327,7 +331,7 @@ function AssignForm({
         validUntil: effectiveUntil || null,
         priceAgreedKurus: toKurus(effectivePrice),
         creditOverride: product.type === 'credit' ? effectiveCredit : null,
-        collectedKurus: toKurus(collectedTl),
+        collectedKurus: toKurus(effectiveCollected),
         method,
         note: note.trim(),
       })
@@ -372,8 +376,17 @@ function AssignForm({
             <Input
               type="number"
               min={0}
+              max={product.creditCount ?? undefined}
               value={effectiveCredit ?? ''}
-              onChange={(e) => setCreditOverride(e.target.value === '' ? null : Math.max(0, Number(e.target.value)))}
+              // Reception may LOWER the credit (an 8-class package sold as 3) but never RAISE it above
+              // what the package defines (a 24 must not become 25). Clamp to [0, product.creditCount].
+              onChange={(e) =>
+                setCreditOverride(
+                  e.target.value === ''
+                    ? null
+                    : Math.min(product.creditCount ?? Infinity, Math.max(0, Math.trunc(Number(e.target.value) || 0))),
+                )
+              }
             />
           </Labeled>
         ) : null}
@@ -381,7 +394,7 @@ function AssignForm({
           <Input type="number" min={0} step="0.01" value={effectivePrice} onChange={(e) => setPriceTl(e.target.value)} />
         </Labeled>
         <Labeled label="Tahsilat (TL)">
-          <Input type="number" min={0} step="0.01" value={collectedTl} onChange={(e) => setCollectedTl(e.target.value)} placeholder="0" />
+          <Input type="number" min={0} step="0.01" value={effectiveCollected} onChange={(e) => setCollectedTl(e.target.value)} placeholder="0" />
         </Labeled>
         <Labeled label="Ödeme yöntemi">
           <Select value={method} onValueChange={(v) => setMethod(v ?? 'cash')}>

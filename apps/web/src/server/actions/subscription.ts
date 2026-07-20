@@ -145,7 +145,12 @@ export async function assignSubscriptionAction(input: unknown) {
     validFrom: dayMs(p.validFrom),
     validUntil: p.validUntil ? dayMs(p.validUntil) : null,
     freezeDays: product.freezeAllowanceDays > 0 ? product.freezeAllowanceDays : null,
-    creditOverride: p.creditOverride,
+    // Reception may LOWER the granted credits (an 8-class package sold as 3) but never RAISE them above
+    // what the package defines — a 24 can't become 25. Clamp server-side, not just in the UI.
+    creditOverride:
+      p.creditOverride == null
+        ? null
+        : Math.min(product.creditCount ?? Infinity, Math.max(0, Math.trunc(p.creditOverride))),
     // The entitlement no longer records money — the ledger does. This is passed only because the
     // shape demands it; `sellPackage` zeroes it, deliberately and in one place.
     collectedAmount: money(0),
