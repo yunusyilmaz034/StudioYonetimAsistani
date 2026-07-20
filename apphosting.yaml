@@ -101,7 +101,18 @@ env:
     availability:
       - RUNTIME
 
+  # WhatsApp (Meta Cloud API, 2026-07-20). Phone Number ID is an identifier; the token is the secret
+  # below. The web tier sends WhatsApp on the manual/bulk "Stüdyodan" + notification-center paths.
+  - variable: WHATSAPP_PHONE_NUMBER_ID
+    value: "1153884641150592"
+    availability:
+      - RUNTIME
+
   # ── Secrets: Secret Manager, runtime only, never in this file ─────────────────────────────
+  - variable: WHATSAPP_ACCESS_TOKEN
+    secret: WHATSAPP_ACCESS_TOKEN
+    availability:
+      - RUNTIME
   # Provision with:  firebase apphosting:secrets:set qr-token-secret --project <prod>
   - variable: QR_TOKEN_SECRET
     secret: qr-token-secret

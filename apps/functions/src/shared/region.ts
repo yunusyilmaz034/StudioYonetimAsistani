@@ -34,7 +34,10 @@ export const EMAIL_SECRETS = ['RESEND_API_KEY'] as const
 // `process.env.WHATSAPP_ACCESS_TOKEN` and falls back to the mock when it is undefined, which is the
 // intended behaviour today. Re-add `'WHATSAPP_ACCESS_TOKEN'` here the moment the token is set in
 // Secret Manager (the same act that turns WhatsApp real). Keep the name so the seam is obvious.
-export const WHATSAPP_SECRETS = [] as const
+// PROVISIONED (2026-07-20): the Meta Cloud API permanent token now lives in Secret Manager, so we
+// bind it — the notification functions read it as `process.env.WHATSAPP_ACCESS_TOKEN` at runtime and,
+// with the phone number id, wire the real transport. Absent a token the code still falls back to the mock.
+export const WHATSAPP_SECRETS = ['WHATSAPP_ACCESS_TOKEN'] as const
 
 // The union the notification functions (onEventCreated + the retry sweep) must bind so both e-mail
 // and WhatsApp can leave the building.
