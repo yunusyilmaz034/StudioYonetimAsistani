@@ -328,10 +328,12 @@ function AssignForm({
   const autoUntil = useMemo(() => (product ? addDays(validFrom, product.durationDays) : ''), [product, validFrom])
   const effectiveUntil = validUntil || autoUntil
   const effectivePrice = priceTl !== '' ? priceTl : product ? (product.priceInKurus / 100).toString() : ''
-  // Tahsilat defaults to the price: a normal sale is FULLY PAID, so it must not show a phantom debt.
-  // Reception migrating old members types the price once and the member is settled — no "borçlu". She
-  // can still lower it by hand to record a genuine partial payment (that debt is real and stays).
-  const effectiveCollected = collectedTl !== '' ? collectedTl : effectivePrice
+  // Tahsilat defaults to the FULL amount owed — a normal sale is fully paid, so no phantom debt, for
+  // ANY method. The server adds the card/transfer surcharge to what is owed, so the default must add it
+  // too (else a KK/havale sale shows a debt equal to the fee). Reception can still lower it by hand to
+  // record a genuine partial payment (that debt is real and stays).
+  const owedKurus = (toKurus(effectivePrice) || 0) + (method !== 'cash' ? surchargeKurus : 0)
+  const effectiveCollected = collectedTl !== '' ? collectedTl : owedKurus ? (owedKurus / 100).toString() : ''
   const effectiveCredit = creditOverride ?? product?.creditCount ?? null
 
   async function submit() {
