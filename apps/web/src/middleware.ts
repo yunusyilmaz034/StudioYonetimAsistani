@@ -28,6 +28,8 @@ const PUBLIC_PREFIXES = [
   '/pay',
   '/api/member',
   '/api/payments/paytr/callback',
+  // Public privacy policy / KVKK notice — the URL the app stores and members link to. No session.
+  '/gizlilik',
 ]
 
 function isPublic(pathname: string): boolean {
