@@ -560,13 +560,19 @@ function AmendDialog({ sub, onClose, onDone }: { sub: SubscriptionView; onClose:
 }
 
 function CreditDialog({ sub, onClose, onDone }: { sub: SubscriptionView; onClose: () => void; onDone: () => void }) {
-  const [delta, setDelta] = useState(0)
+  const current = sub.creditsAvailable ?? 0
+  // ABSOLUTE edit (owner): the field shows the CURRENT credit and reception types the NEW total —
+  // "17 → 4", not a "-13" delta. The value is a raw STRING so the box can be cleared and retyped
+  // freely (a number-bound value locked a leading "0" as "04"). The delta is computed on save.
+  const [value, setValue] = useState(String(current))
   const [reason, setReason] = useState('')
   const [busy, setBusy] = useState(false)
 
   async function submit() {
+    const target = Math.max(0, Math.trunc(Number(value) || 0))
+    const delta = target - current
     if (delta === 0) {
-      toast.error('Sıfırdan farklı bir değişim girin.')
+      toast.error('Kredi değişmedi.')
       return
     }
     setBusy(true)
@@ -588,14 +594,14 @@ function CreditDialog({ sub, onClose, onDone }: { sub: SubscriptionView; onClose
   return (
     <ReasonDialogShell
       title="Krediyi düzelt"
-      description={`Kalan kredi: ${sub.creditsAvailable}. Ekleme +, düşme − girin.`}
+      description={`Mevcut kredi: ${current}. Yeni kredi sayısını girin.`}
       reason={reason}
       setReason={setReason}
       busy={busy}
       onClose={onClose}
       onSubmit={submit}
     >
-      <Input type="number" value={delta} onChange={(e) => setDelta(Math.trunc(Number(e.target.value) || 0))} placeholder="+2 / -1" />
+      <Input type="number" min={0} value={value} onChange={(e) => setValue(e.target.value)} />
     </ReasonDialogShell>
   )
 }
