@@ -85,6 +85,7 @@ export interface SellInput {
     readonly giftCardCode: string | null
     readonly note: string | null
     readonly providerRef?: string | null // Plus Phase 6 — online (PAYTR) reference; null for cash/manual
+    readonly allowNoDrawer?: boolean // desk backfill: record cash truthfully drawerless when no kasa is open
   } | null
   // OP-2 — set when this sale is part of a larger act (a package sale grants the entitlement and
   // records the money under ONE operation id, so the Activity Center reads it as one sentence).
@@ -143,6 +144,7 @@ export async function sell(
         giftCardId: card?.id ?? null,
         providerRef: input.payment.providerRef ?? null,
         note: input.payment.note,
+        allowNoDrawer: input.payment.allowNoDrawer ?? false,
       },
       drawer,
       card,
@@ -212,6 +214,7 @@ export interface CollectInput {
   readonly drawerId: string | null
   readonly giftCardCode: string | null
   readonly note: string | null
+  readonly allowNoDrawer?: boolean // desk backfill: record cash truthfully drawerless when no kasa is open
   // Which sales it pays, in order. Omitted ⇒ oldest debt first, which is what reception means when
   // she says "bakiyesine yaz".
   readonly allocateTo?: readonly { saleId: string; amount: Money; allocationId: string }[]
@@ -242,6 +245,7 @@ export async function collect(
       giftCardId: card?.id ?? null,
       providerRef: null,
       note: input.note,
+      allowNoDrawer: input.allowNoDrawer ?? false,
     },
     drawer,
     card,

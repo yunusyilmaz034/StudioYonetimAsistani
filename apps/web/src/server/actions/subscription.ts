@@ -180,6 +180,9 @@ export async function assignSubscriptionAction(input: unknown) {
                 drawerId,
                 giftCardCode: null,
                 note: p.note || null,
+                // Reception records money at the desk (incl. migrating old members). If a kasa is open
+                // it is used; if not, the cash is recorded truthfully drawerless rather than refused.
+                allowNoDrawer: true,
               }
             : null,
         discountCeilingPercent: null,
@@ -192,7 +195,10 @@ export async function amendSubscriptionAction(input: unknown) {
   const p = z
     .object({
       entitlementId: nonEmpty,
-      reason: nonEmpty,
+      // Reason is OPTIONAL now (owner: migration speed — don't gate reception with mandatory notes).
+      // The correction is still an append-only compensating event; when reception leaves it blank we
+      // stamp a neutral default so the audit event always carries SOMETHING, never an empty string.
+      reason: z.string().optional(),
       validFrom: date.optional(),
       validUntil: date.optional(),
       priceAgreedKurus: z.number().int().min(0).optional(),
@@ -207,13 +213,19 @@ export async function amendSubscriptionAction(input: unknown) {
     ...(p.validUntil ? { validUntil: instant(dayMs(p.validUntil)) } : {}),
     ...(p.priceAgreedKurus !== undefined ? { priceAgreed: money(p.priceAgreedKurus) } : {}),
   }
-  return amendEntitlement(entDeps(), ctx, { entitlementId: p.entitlementId as EntitlementId, patch, reason: p.reason })
+  return amendEntitlement(entDeps(), ctx, {
+    entitlementId: p.entitlementId as EntitlementId,
+    patch,
+    reason: p.reason?.trim() || 'Düzenleme',
+  })
 }
 
 // Credit edit reuses the existing adjustment mechanism (no new arithmetic). The UI
 // sends a signed delta + a note; the reason is a correction.
 export async function adjustSubscriptionCreditsAction(input: unknown) {
-  const p = z.object({ entitlementId: nonEmpty, delta: z.number().int(), note: nonEmpty }).parse(input)
+  // Note is OPTIONAL now (owner: don't gate reception). The adjustment is still an append-only event
+  // that records who moved what; a blank note falls back to a neutral default so it is never empty.
+  const p = z.object({ entitlementId: nonEmpty, delta: z.number().int(), note: z.string().optional() }).parse(input)
   const ctx = await requireTenantContext(OPS)
   // A hand-moved credit is the most disputable number in the product: it is the one a member can
   // notice, and the one no arithmetic re-derives. The `note` is NOT logged — it is free text, and
@@ -229,24 +241,24 @@ export async function adjustSubscriptionCreditsAction(input: unknown) {
         entitlementId: p.entitlementId as EntitlementId,
         delta: p.delta,
         reason: 'correction',
-        note: p.note,
+        note: p.note?.trim() || 'Düzeltme',
       }),
   )
 }
 
 export async function reactivateSubscriptionAction(input: unknown) {
-  const p = z.object({ entitlementId: nonEmpty, reason: nonEmpty }).parse(input)
+  const p = z.object({ entitlementId: nonEmpty, reason: z.string().optional() }).parse(input)
   return reactivateEntitlement(entDeps(), await requireTenantContext(OPS), {
     entitlementId: p.entitlementId as EntitlementId,
-    reason: p.reason,
+    reason: p.reason?.trim() || 'Yeniden aktifleştirme',
   })
 }
 
 export async function cancelSubscriptionAction(input: unknown) {
-  const p = z.object({ entitlementId: nonEmpty, reason: nonEmpty }).parse(input)
+  const p = z.object({ entitlementId: nonEmpty, reason: z.string().optional() }).parse(input)
   return cancelEntitlement(entDeps(), await requireTenantContext(CANCEL), {
     entitlementId: p.entitlementId as EntitlementId,
-    reason: p.reason,
+    reason: p.reason?.trim() || 'İptal',
     refundPaymentId: null,
   })
 }

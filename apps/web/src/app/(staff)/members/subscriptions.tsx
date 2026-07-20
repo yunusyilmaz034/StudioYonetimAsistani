@@ -135,6 +135,7 @@ export function SubscriptionsPanel({ memberId, products, surchargeKurus = 0 }: {
 
 function SubscriptionRow({ sub, onChanged }: { sub: SubscriptionView; onChanged: () => void }) {
   const [open, setOpen] = useState(false)
+  const [historyOpen, setHistoryOpen] = useState(false)
   const [dialog, setDialog] = useState<'amend' | 'credit' | 'status' | null>(null)
   const [busy, setBusy] = useState(false)
 
@@ -256,13 +257,25 @@ function SubscriptionRow({ sub, onChanged }: { sub: SubscriptionView; onChanged:
               frozen → expired, each with the credit balance it left behind, the staff member who
               did it, and the OperationId that binds a bulk act's 121 extensions into ONE act. */}
           <div>
-            <p className="mb-1.5 text-xs font-medium text-muted-foreground">Paket geçmişi</p>
-            <Timeline
-              key={sub.id}
-              lifecycle
-              load={() => packageTimelineAction({ entitlementId: sub.id })}
-              emptyLabel="Bu paket için henüz hareket yok."
-            />
+            {/* Collapsed by default — the timeline is dense and rarely needed during day-to-day use. */}
+            <button
+              type="button"
+              onClick={() => setHistoryOpen((h) => !h)}
+              className="flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground"
+            >
+              Paket geçmişi
+              <ChevronDownIcon className={`size-3.5 transition ${historyOpen ? 'rotate-180' : ''}`} />
+            </button>
+            {historyOpen ? (
+              <div className="mt-1.5">
+                <Timeline
+                  key={sub.id}
+                  lifecycle
+                  load={() => packageTimelineAction({ entitlementId: sub.id })}
+                  emptyLabel="Bu paket için henüz hareket yok."
+                />
+              </div>
+            ) : null}
           </div>
         </div>
       ) : null}
@@ -302,7 +315,9 @@ function AssignForm({
   const [validFrom, setValidFrom] = useState(studioToday())
   const [validUntil, setValidUntil] = useState('')
   const [creditOverride, setCreditOverride] = useState<number | null>(null)
-  const [priceTl, setPriceTl] = useState('')
+  // Price is fixed to the package (read-only field), so this never changes — kept only so `effectivePrice`
+  // and the collected default read from one place.
+  const [priceTl] = useState('')
   const [collectedTl, setCollectedTl] = useState('')
   const [method, setMethod] = useState('cash')
   const [note, setNote] = useState('')
@@ -391,7 +406,9 @@ function AssignForm({
           </Labeled>
         ) : null}
         <Labeled label="Paket tutarı (TL)">
-          <Input type="number" min={0} step="0.01" value={effectivePrice} onChange={(e) => setPriceTl(e.target.value)} />
+          {/* Fixed to the package price (owner): reception records how much was COLLECTED, never edits
+              what the package costs. A different agreed price is a discount decision, not a data-entry one. */}
+          <Input type="number" value={effectivePrice} disabled readOnly />
         </Labeled>
         <Labeled label="Tahsilat (TL)">
           <Input type="number" min={0} step="0.01" value={effectiveCollected} onChange={(e) => setCollectedTl(e.target.value)} placeholder="0" />
@@ -468,12 +485,12 @@ function ReasonDialogShell({
           {description ? <DialogDescription>{description}</DialogDescription> : null}
         </DialogHeader>
         {children}
-        <Textarea placeholder="Sebep (zorunlu)" value={reason} onChange={(e) => setReason(e.target.value)} />
+        <Textarea placeholder="Sebep (opsiyonel)" value={reason} onChange={(e) => setReason(e.target.value)} />
         <DialogFooter>
           <Button variant="outline" onClick={onClose} disabled={busy}>
             Vazgeç
           </Button>
-          <Button variant={destructive ? 'destructive' : 'default'} onClick={onSubmit} disabled={busy || reason.trim().length === 0}>
+          <Button variant={destructive ? 'destructive' : 'default'} onClick={onSubmit} disabled={busy}>
             {busy ? <Loader2Icon className="animate-spin" /> : null}
             {submitLabel}
           </Button>

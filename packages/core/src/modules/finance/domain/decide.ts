@@ -214,6 +214,11 @@ export interface ReceivePaymentInput {
   readonly giftCardId: string | null
   readonly providerRef: string | null
   readonly note: string | null
+  // Desk backfill (owner, 2026-07-20): reception is migrating old members THROUGH the panel — not the
+  // `tools/migration` script the AD-66 exemption below was written for. When no cash drawer is open,
+  // the desk flow sets this so a cash payment records TRUTHFULLY (method 'cash', drawerId null) instead
+  // of being refused. When a kasa IS open the flow leaves this false and the drawer control still binds.
+  readonly allowNoDrawer?: boolean
 }
 
 export function decideReceivePayment(
@@ -246,7 +251,7 @@ export function decideReceivePayment(
   // loud (#5). It cannot be reached by a human, by a client, or by an AI: the actor is derived
   // server-side and a migration actor exists only inside `tools/migration`, run by hand.
   const isMigration = ctx.actor.type === 'migration'
-  if (!isMigration && (input.method === 'cash' || input.method === 'pos')) {
+  if (!isMigration && !input.allowNoDrawer && (input.method === 'cash' || input.method === 'pos')) {
     if (!drawer) return err({ code: 'drawer_required' })
     if (drawer.status !== 'open') return err({ code: 'drawer_not_open' })
   }

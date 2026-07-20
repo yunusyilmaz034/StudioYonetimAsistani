@@ -68,6 +68,8 @@ export interface SellPackagePayment {
   readonly note: string | null
   // Plus Phase 6 — the provider reference when this was collected online (PAYTR). null for cash/manual.
   readonly providerRef?: string | null
+  // Desk backfill (2026-07-20): record a cash payment with no open drawer, truthfully drawerless.
+  readonly allowNoDrawer?: boolean
 }
 
 export interface SellPackageInput {
@@ -134,6 +136,7 @@ export async function sellPackage(
         giftCardId: card?.id ?? null,
         providerRef: input.payment.providerRef ?? null,
         note: input.payment.note,
+        allowNoDrawer: input.payment.allowNoDrawer ?? false,
       },
       drawer,
       card,
@@ -173,6 +176,7 @@ export async function sellPackage(
           giftCardCode: input.payment.giftCardCode,
           providerRef: input.payment.providerRef ?? null,
           note: input.payment.note,
+          allowNoDrawer: input.payment.allowNoDrawer ?? false,
         }
       : null,
   })

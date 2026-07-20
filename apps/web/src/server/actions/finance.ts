@@ -165,6 +165,8 @@ export async function collectAction(input: unknown) {
         drawerId: p.drawerId,
         giftCardCode: p.giftCardCode,
         note: p.note, // the note is NOT logged: free text is where PII hides
+        // Desk collection: use the kasa if open, else record truthfully drawerless (no block).
+        allowNoDrawer: true,
       }),
   )
 }

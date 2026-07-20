@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import {
   ArrowLeftIcon,
   CalendarPlusIcon,
@@ -151,8 +151,20 @@ export function MemberWorkspaceScreen({
   canManageTraining?: boolean
 }) {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { member } = data
-  const [active, setActive] = useState<SectionId>('profile')
+  // The active tab lives in the URL (?tab=), so opening a package-history item and pressing Back returns
+  // to the SAME tab (Paketler), not the default Genel. (owner, 2026-07-20)
+  const urlTab = searchParams.get('tab') as SectionId | null
+  const [active, setActiveState] = useState<SectionId>(
+    urlTab && SECTIONS.some((s) => s.id === urlTab) ? urlTab : 'profile',
+  )
+  const setActive = (v: SectionId) => {
+    setActiveState(v)
+    const params = new URLSearchParams(searchParams.toString())
+    params.set('tab', v)
+    router.replace(`?${params.toString()}`, { scroll: false })
+  }
   const [editing, setEditing] = useState(false)
   const [booking, setBooking] = useState(false)
   const [messaging, setMessaging] = useState(false)
