@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import { AnalyticsSetup } from '@/components/analytics-setup'
 import { AppShell } from '@/components/app-nav'
 import { PwaSetup } from '@/components/pwa-setup'
+import { ReportButton } from '@/components/report-button'
 import { ThemeStyle } from '@/components/theme-style'
 import { Toaster } from '@/components/ui/sonner'
 import { UndoProvider } from '@/lib/undo'
@@ -66,6 +67,8 @@ export default async function StaffLayout({ children }: { children: ReactNode })
       <UndoProvider>{children}</UndoProvider>
       {/* Admin PWA: register the SW + the iOS "Ana Ekrana Ekle" hint so the panel installs from the link. */}
       <PwaSetup />
+      {/* "Bildir" — in-app bug report on every staff screen; lands in the owner's Geri Bildirim list. */}
+      <ReportButton />
     </AppShell>
   )
 }

@@ -73,7 +73,10 @@ service cloud.firestore {
           // v1.28 — coarse, consented check-in locations (KVKK). Written ONLY via the Server Action,
           // which checks consent server-side; a member never writes her own location. Erasable (not an
           // event) so a KVKK deletion request can wipe it with the rest of her identity.
-          'checkinLocations'
+          'checkinLocations',
+          // v1.29 — in-app bug reports (the "Bildir" button). A report's screenshot is a rendering of
+          // the panel and may show member data; only the owner reads them, through the Server Action.
+          'feedback'
         ];
       }
 
