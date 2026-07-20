@@ -8,10 +8,10 @@ import type { Metadata } from 'next'
 // These are the only blanks. Everything else is written to match what the app actually does. Replace
 // the placeholders with the studio's registered details, then it is ready to submit to the stores.
 const CONTROLLER = {
-  legalName: '[İŞLETME TİCARİ ÜNVANI]', // örn. "Işıl ... Spor Hizmetleri" — resmî ünvan
-  address: '[AÇIK ADRES]',
-  email: '[İLETİŞİM E-POSTASI]', // örn. kvkk@pilatesfitnessbyisil.com
-  phone: '[TELEFON]',
+  legalName: 'Retro Spor Hizmetleri Tic. Ltd. Şti.',
+  address: 'Akse Mah. Karasu Cad. No: 28/T, Çayırova / Kocaeli',
+  email: 'yunusyilmaz034@gmail.com',
+  phone: '0533 199 41 23',
   brand: 'Pilates Fitness by Işıl',
 }
 const UPDATED = '20 Temmuz 2026'
