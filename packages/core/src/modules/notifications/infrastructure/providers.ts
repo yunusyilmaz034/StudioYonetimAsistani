@@ -276,6 +276,11 @@ export const META_TEMPLATE: Readonly<Record<string, MetaTemplateRef>> = {
   instalment_due: { name: 'instalment_due_tr', params: ['memberName', 'amount', 'dueDate'] },
   portal_invite: { name: 'portal_invite_tr', params: ['memberName', 'inviteLink'] },
   wallet_topup: { name: 'wallet_topup_tr', params: ['memberName', 'amount', 'balance'] },
+  // MARKETING (not utility): the "Stüdyodan" campaign broadcast. Only reaches members who opted into
+  // campaign/marketing (the notify pipeline already gates category:'marketing' on that consent). The
+  // body carries the free campaign text as {{2}}, framed by fixed copy so Meta approves it. `subject`
+  // is dropped — WhatsApp has no subject line.
+  engagement_broadcast: { name: 'campaign_tr', params: ['memberName', 'body'] },
 }
 
 // The WhatsApp transport (the `send_` the provider is given). Absent ⇒ the provider is a mock.
