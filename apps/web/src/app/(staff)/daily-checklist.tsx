@@ -55,7 +55,18 @@ export function DailyChecklist({ items }: { items: readonly AdvisorItem[] }) {
         if (!alive || !res) return
         setIntro(res.intro)
         setAi(res.aiGenerated)
-        setRows(res.items.map((it) => ({ id: it.id, headline: it.headline, note: it.note, severity: it.severity, href: it.href })))
+        // The AI narration is cached per time-slot, so reconcile it with the FRESH deterministic items:
+        // keep the AI's order/phrasing for items that still exist, drop ones resolved since generation,
+        // and append any new items (deterministically phrased) so the list is never stale within a slot.
+        const currentIds = new Set(items.map((i) => i.id))
+        const aiRows = res.items
+          .filter((it) => currentIds.has(it.id))
+          .map((it) => ({ id: it.id, headline: it.headline, note: it.note, severity: it.severity, href: it.href }))
+        const aiIds = new Set(res.items.map((it) => it.id))
+        const newRows = items
+          .filter((it) => !aiIds.has(it.id))
+          .map((it) => ({ id: it.id, headline: it.title, note: it.detail, severity: it.severity, href: it.href }))
+        setRows([...aiRows, ...newRows])
       })
       .catch(() => {})
     return () => {
