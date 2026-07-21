@@ -16,7 +16,7 @@ import { adjustMemberWalletAction, getMemberWalletAction, topUpMemberWalletActio
 const SOURCES: { id: 'cash' | 'bank_transfer' | 'manual'; label: string }[] = [
   { id: 'cash', label: 'Nakit' },
   { id: 'bank_transfer', label: 'Havale' },
-  { id: 'manual', label: 'Manuel' },
+  { id: 'manual', label: 'Fiziksel POS' },
 ]
 const REASONS: { id: 'gift' | 'correction' | 'migration' | 'support'; label: string }[] = [
   { id: 'gift', label: 'Hediye' },
@@ -80,7 +80,6 @@ export function WalletPanel({ memberId, memberPhone = null }: { memberId: string
     try {
       const res = await createWalletTopupPaymentAction({ memberId, amountKurus: k, flow })
       if (res.ok) {
-        setAmount('')
         setCheckout({ flow, redirectUrl: res.value.redirectUrl, intentId: res.value.intentId })
       } else {
         toast.error(domainErrorMessage(res.error))
@@ -133,7 +132,7 @@ export function WalletPanel({ memberId, memberPhone = null }: { memberId: string
         </div>
       </Section>
 
-      <Section title="Bakiye Yükle" hint="Nakit tahsilat kasaya işlenir; havale/manuel yalnızca bakiyeye yazılır. Sanal POS / Link ile de yükleyebilirsiniz.">
+      <Section title="Bakiye Yükle" hint="Nakit tahsilat kasaya işlenir; havale/fiziksel POS yalnızca bakiyeye yazılır. Sanal POS / Link ile de yükleyebilirsiniz.">
         <div className="space-y-2">
           <div className="flex flex-wrap items-end gap-2">
             <div className="w-32">
@@ -212,7 +211,10 @@ export function WalletPanel({ memberId, memberPhone = null }: { memberId: string
         memberId={memberId}
         memberPhone={memberPhone}
         title="Cüzdana Yükle"
-        onPaid={load}
+        onPaid={() => {
+          setAmount('')
+          load()
+        }}
         onClose={() => {
           setCheckout(null)
           load()

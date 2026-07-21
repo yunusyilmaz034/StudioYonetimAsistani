@@ -221,18 +221,17 @@ export function MemberWorkspaceScreen({
       {/* Section nav — the house Tabs (DS v2): desktop tabs, the same control as the mobile
           section switcher (UX-1). */}
       <Tabs value={active} onValueChange={(v) => setActive(v as SectionId)}>
-        {/* One row, ALL tabs, always aligned — never scrolled, never a cut last tab (PF-10, owner asked
-            repeatedly). The strip is full-width and the nine tabs share it equally (`flex-1` + `min-w-0`),
-            so they fit edge-to-edge on any width instead of overflowing. On a wide screen every label shows
-            in full; when a width is too narrow for a label it truncates rather than pushing a tab off-screen.
-            Below `sm` it is icons only (label `hidden sm:inline`), which always fits. */}
-        <TabsList className="flex w-full">
+        {/* Ten tabs no longer fit one row with full labels, and the owner wants every label READABLE
+            (not truncated) and NEVER scrolled. So the strip WRAPS: each tab sizes to its own label
+            (`flex-none`) and the row flows onto a second line when needed. On a wide screen they sit on
+            one line; on a laptop they wrap to two. Below `sm` it is icons only (`hidden sm:inline`). */}
+        <TabsList className="flex w-full flex-wrap gap-1">
           {SECTIONS.map((sec) => {
             const Icon = sec.icon
             return (
-              <TabsTrigger key={sec.id} value={sec.id} className="min-h-9 min-w-0 px-1.5 sm:px-2.5">
+              <TabsTrigger key={sec.id} value={sec.id} className="min-h-9 flex-none px-2.5">
                 <Icon className="size-4 shrink-0" />
-                <span className="hidden truncate sm:inline">{sec.label}</span>
+                <span className="hidden sm:inline">{sec.label}</span>
               </TabsTrigger>
             )
           })}

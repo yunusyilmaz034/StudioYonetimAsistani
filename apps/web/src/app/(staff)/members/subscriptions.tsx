@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronDownIcon, Loader2Icon, PlusIcon, PrinterIcon } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -336,6 +336,7 @@ function AssignForm({
   const [error, setError] = useState<string | null>(null)
   // Sanal POS / Linkle Ödeme open the shared PAYTR checkout surface with this result.
   const [checkout, setCheckout] = useState<PaytrCheckout | null>(null)
+  const paidRef = useRef(false) // set when a Sanal POS payment confirms — decides whether closing keeps the form
 
   const isPaytr = method === 'sanal_pos' || method === 'link'
 
@@ -508,9 +509,17 @@ function AssignForm({
         memberId={memberId}
         memberPhone={memberPhone}
         title="PAYTR ile Paket Sat"
+        onPaid={() => {
+          paidRef.current = true
+        }}
         onClose={() => {
+          // Close the form (and reload) ONLY when something actually landed: a confirmed Sanal POS
+          // payment, or a Link sale (the package was already granted). A Sanal POS closed BEFORE payment
+          // must keep the form exactly as reception filled it — she may retry or switch method.
+          const settled = paidRef.current || checkout?.flow === 'link'
+          paidRef.current = false
           setCheckout(null)
-          onDone()
+          if (settled) onDone()
         }}
       />
     </div>
