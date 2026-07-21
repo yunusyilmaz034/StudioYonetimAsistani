@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { ActivityIcon, AlertTriangleIcon, BarChart3Icon, CalendarIcon, ChevronRightIcon, ClipboardCheckIcon, DoorOpenIcon, UsersIcon } from 'lucide-react'
+import { ActivityIcon, AlertTriangleIcon, BarChart3Icon, CalendarIcon, ClipboardCheckIcon, DoorOpenIcon, UsersIcon } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -12,9 +12,11 @@ import { Section } from '@/components/ui/section'
 import { ActivityRow } from '@/components/activity/activity-row'
 import { WIDGETS, WIDGET_ICON } from '@/lib/widgets/registry'
 import type { OwnerDashboard } from '@/server/owner-dashboard'
+import type { AdvisorItem } from '@/server/advisor-query'
 import type { TodayOps } from '@/server/today-ops'
 
 import { ChurnPulse } from './churn-pulse'
+import { DailyChecklist } from './daily-checklist'
 import { LogoutButton } from './logout-button'
 
 // The dashboard renders the REGISTRY. It does not know what a widget contains — which is what makes
@@ -27,11 +29,13 @@ import { LogoutButton } from './logout-button'
 export function DashboardScreen({
   data,
   todayOps,
+  advisorItems,
   role,
   roleLabel,
 }: {
   data: OwnerDashboard
   todayOps: TodayOps
+  advisorItems: readonly AdvisorItem[]
   role: PrincipalRole
   roleLabel: string
 }) {
@@ -42,7 +46,6 @@ export function DashboardScreen({
     href.startsWith('/insights') ? canSee(role, '/analytics') : true
 
   const presented = WIDGETS.map((w) => ({ w, p: w.present(data) }))
-  const attention = presented.filter((x) => x.p.needsAttention)
   const metrics = presented.filter((x) => x.w.kind === 'metric')
   const lists = presented.filter((x) => x.w.kind === 'list')
 
@@ -84,45 +87,10 @@ export function DashboardScreen({
         </p>
       ) : null}
 
-      {/* What needs a decision TODAY. Nothing here is a number for its own sake. */}
-      {attention.length > 0 ? (
-        <Section title="Bugün ilgilenmen gerekenler">
-          <ul className="space-y-1.5">
-            {attention.map(({ w, p }) => {
-              // Each item links to WHO/WHAT it is about (the widget's drill-down), so "1 üyenin kredisi
-              // azaldı" is one click from the actual list of members (owner, PF-hotfix).
-              const href = w.href(data)
-              const openable = canOpen(href)
-              const body = (
-                <>
-                  <span className="mt-0.5 size-1.5 shrink-0 rounded-full bg-warning" />
-                  <span className="min-w-0 flex-1">
-                    <span className="font-medium text-foreground">{p.headline}</span>
-                    {p.detail ? <span className="text-muted-foreground"> {p.detail}</span> : null}
-                  </span>
-                  {openable ? <ChevronRightIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" /> : null}
-                </>
-              )
-              return (
-                <li key={w.id}>
-                  {openable ? (
-                    <Link
-                      href={href}
-                      className="flex items-start gap-2 rounded-xl border border-warning/25 bg-warning/5 px-3 py-2 text-sm transition-colors hover:bg-warning/10"
-                    >
-                      {body}
-                    </Link>
-                  ) : (
-                    <div className="flex items-start gap-2 rounded-xl border border-warning/25 bg-warning/5 px-3 py-2 text-sm">
-                      {body}
-                    </div>
-                  )}
-                </li>
-              )
-            })}
-          </ul>
-        </Section>
-      ) : null}
+      {/* What needs a decision TODAY — the dashboard's focal point. An AI-prioritised, checkable list
+          built from the same signals the widgets below expose (advisor items); it declutters the "where
+          do I look?" problem. Falls back to the deterministic order when the AI key isn't set. */}
+      <DailyChecklist items={advisorItems} />
 
       {/* Phase 2 — the churn signal made visible: who has an active package but stopped coming. */}
       <ChurnPulse distribution={data.activityDistribution} dormant={data.dormant} />

@@ -3,7 +3,7 @@ import type { TenantContext } from '@studio/core'
 
 import { formatKurus } from '@/lib/payroll-labels'
 
-import { loadOwnerDashboard } from './owner-dashboard'
+import { loadOwnerDashboard, type OwnerDashboard } from './owner-dashboard'
 
 // AI Insights L1 — the advisor's read. It maps the owner dashboard (a single bounded read; NO new
 // heavy queries) into the PII-free `InsightFacts` the pure `deriveInsights` consumes, then resolves
@@ -18,6 +18,9 @@ export interface AdvisorItem {
   readonly detail: string
   readonly href: string
   readonly actionLabel: string
+  // The resolved subject (member/session) name — kept SEPARATE so the AI narrator can tokenise it out
+  // and no PII reaches the model. null when there is no named subject.
+  readonly subject: { readonly id: string; readonly name: string } | null
 }
 
 function present(insight: Insight, memberName: Map<string, string>, sessionName: Map<string, string>): AdvisorItem {
@@ -25,6 +28,8 @@ function present(insight: Insight, memberName: Map<string, string>, sessionName:
   const memberId = insight.refs.memberId
   const name = (memberId && memberName.get(memberId)) || (insight.refs.sessionId && sessionName.get(insight.refs.sessionId)) || 'Bilinmeyen'
   const memberHref = memberId ? `/members/${memberId}` : '/members'
+  const subjectId = memberId ?? insight.refs.sessionId ?? null
+  const subject = subjectId ? { id: subjectId, name } : null
 
   switch (insight.kind) {
     case 'outstanding_balance':
@@ -32,6 +37,7 @@ function present(insight: Insight, memberName: Map<string, string>, sessionName:
         id: insight.id,
         kind: insight.kind,
         severity: insight.severity,
+        subject,
         title: `${name} — ${formatKurus(m.dueKurus ?? 0)} açık bakiye`,
         detail: `${m.daysOpen ?? 0} gündür ödenmedi. Tahsilat için üyeyi açın.`,
         href: memberHref,
@@ -43,6 +49,7 @@ function present(insight: Insight, memberName: Map<string, string>, sessionName:
         id: insight.id,
         kind: insight.kind,
         severity: insight.severity,
+        subject,
         title: `${name} — paketi ${d <= 0 ? 'bugün doluyor' : `${d} gün sonra doluyor`}`,
         detail: 'Yenileme için üyeyle iletişime geçin.',
         href: memberHref,
@@ -54,6 +61,7 @@ function present(insight: Insight, memberName: Map<string, string>, sessionName:
         id: insight.id,
         kind: insight.kind,
         severity: insight.severity,
+        subject,
         title: `${name} — ${m.remaining ?? 0} ders hakkı kaldı`,
         detail: 'Yenileme fırsatı — üyeye yeni paket önerin.',
         href: memberHref,
@@ -64,6 +72,7 @@ function present(insight: Insight, memberName: Map<string, string>, sessionName:
         id: insight.id,
         kind: insight.kind,
         severity: insight.severity,
+        subject,
         title: `${name} — ${Math.round(m.hoursAway ?? 0)} saat sonra, rezervasyon yok`,
         detail: `Kapasite ${m.capacity ?? 0}. Bekleme listesi veya davetle doldurmayı deneyin.`,
         href: '/reservations',
@@ -75,6 +84,7 @@ function present(insight: Insight, memberName: Map<string, string>, sessionName:
         id: insight.id,
         kind: insight.kind,
         severity: insight.severity,
+        subject,
         title: `${name} — ${days} gündür gelmiyor`,
         detail: 'Aktif paketi var ama uzaklaşıyor. Bir arayıp hatırını sorun — geç olmadan.',
         href: memberHref,
@@ -84,9 +94,10 @@ function present(insight: Insight, memberName: Map<string, string>, sessionName:
   }
 }
 
-export async function loadAdvisor(ctx: TenantContext): Promise<readonly AdvisorItem[]> {
-  const dash = await loadOwnerDashboard(ctx, Date.now())
-
+// The pure mapping — takes an ALREADY-loaded dashboard and returns the ranked advisor items. Split out
+// so a caller that already holds the snapshot (the dashboard page, the AI checklist) doesn't pay for a
+// second read.
+export function deriveAdvisorItems(dash: OwnerDashboard): readonly AdvisorItem[] {
   // Names are resolved HERE, never in the domain (the insight is PII-free). The dashboard rows carry
   // them, so no extra read is needed.
   const memberName = new Map<string, string>()
@@ -110,4 +121,8 @@ export async function loadAdvisor(ctx: TenantContext): Promise<readonly AdvisorI
 
   // deriveInsights returns the ranked order (urgent → attention → info); preserve it.
   return deriveInsights(facts, DEFAULT_INSIGHT_CONFIG).map((i) => present(i, memberName, sessionName))
+}
+
+export async function loadAdvisor(ctx: TenantContext): Promise<readonly AdvisorItem[]> {
+  return deriveAdvisorItems(await loadOwnerDashboard(ctx, Date.now()))
 }

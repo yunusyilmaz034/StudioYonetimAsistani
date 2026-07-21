@@ -1,6 +1,7 @@
 import type { PrincipalRole } from '@studio/core'
 
 import { requirePageAccess } from '@/server/auth'
+import { deriveAdvisorItems } from '@/server/advisor-query'
 import { loadOwnerDashboard } from '@/server/owner-dashboard'
 import { loadTodayOps } from '@/server/today-ops'
 
@@ -17,7 +18,9 @@ export default async function HomePage() {
   const ctx = await requirePageAccess('/')
   const now = Date.now()
   const [data, todayOps] = await Promise.all([loadOwnerDashboard(ctx, now), loadTodayOps(ctx, now)])
-  return <DashboardScreen data={data} todayOps={todayOps} role={ctx.role} roleLabel={roleLabel(ctx.role)} />
+  // The advisor items are derived from the SAME snapshot (no extra read) and feed the AI checklist.
+  const advisorItems = deriveAdvisorItems(data)
+  return <DashboardScreen data={data} todayOps={todayOps} advisorItems={advisorItems} role={ctx.role} roleLabel={roleLabel(ctx.role)} />
 }
 
 function roleLabel(role: PrincipalRole): string {
