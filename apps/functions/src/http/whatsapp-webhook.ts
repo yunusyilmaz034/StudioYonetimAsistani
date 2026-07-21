@@ -11,11 +11,15 @@
 // PII (name/phone/message text) lives on the conversation doc (server-only), NEVER in an event. The model
 // sees the customer's own words (unavoidable for a reply) but no other member's data.
 import {
+  decideCaptureLead,
   FirestoreCatalogRepository,
+  FirestoreCrmRepository,
   FirestoreSchedulingRepository,
   instant,
+  newCorrelationId,
   sendWhatsAppText,
   type ClassSession,
+  type Lead,
   type MetaWhatsAppConfig,
   type Product,
   type TenantContext,
@@ -184,8 +188,41 @@ async function processMessage(sid: string, from: string, name: string, text: str
   const ctx = ctxOf(sid)
   const ref = database.doc(`studios/${sid}/conversations/${from}`)
   const snap = await ref.get()
+  const isNew = !snap.exists
   const conv = (snap.data() as Conversation | undefined) ?? { phone: from, name, status: 'ai', needsAttention: false, lastAt: 0, seenIds: [], messages: [] }
   if (conv.seenIds.includes(msgId)) return // idempotent: Meta retries the same message id
+
+  // FIRST contact → record the lead in the CRM funnel (existing lead.captured event, no schema change).
+  // The AI is a system principal (#5); a lead whose name we don't have yet gets a phone-tail placeholder.
+  if (isNew) {
+    try {
+      const correlationId = newCorrelationId()
+      const now = instant(Date.now())
+      const lead: Lead = {
+        id: `led_${correlationId.slice(4)}`,
+        studioId: ctx.studioId,
+        branchId: null,
+        fullName: name || `WhatsApp ${from.slice(-4)}`,
+        phone: from,
+        email: null,
+        source: 'instagram',
+        sourceDetail: 'WhatsApp AI',
+        stage: 'new',
+        ownerStaffId: null,
+        createdAt: now,
+        createdBy: ctx.actor,
+        lostReason: null,
+        lostNote: null,
+        convertedMemberId: null,
+        closedAt: null,
+        note: null,
+      }
+      const decided = decideCaptureLead({ studioId: ctx.studioId, actor: ctx.actor, now, correlationId, source: 'whatsapp_ai' }, lead)
+      if (decided.ok) await new FirestoreCrmRepository(database).saveLead(ctx, decided.value.next, decided.value.events)
+    } catch (e) {
+      logger.warn('[wa-webhook] lead capture failed', (e as Error)?.message)
+    }
+  }
 
   const now = Date.now()
   conv.name = conv.name || name
