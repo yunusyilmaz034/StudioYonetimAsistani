@@ -25,17 +25,22 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea'
 import { domainErrorMessage } from '@/lib/domain-error'
 import type { ProductView } from '@/server/catalog-query'
+import { PaytrCheckoutDialog, type PaytrCheckout } from '@/components/paytr-checkout'
+import { createPackagePaymentAction } from '@/server/actions/payments'
 import {
   adjustSubscriptionCreditsAction,
   amendSubscriptionAction,
   assignSubscriptionAction,
   cancelSubscriptionAction,
+  createPackageLinkSaleAction,
   listMemberSubscriptionsAction,
   reactivateSubscriptionAction,
   type SubscriptionView,
 } from '@/server/actions/subscription'
 
-const METHOD_LABEL: Record<string, string> = { cash: 'Nakit', credit_card: 'Kredi Kartı', bank_transfer: 'Havale / EFT' }
+// "Fiziksel POS" = the studio's own card terminal, recorded by hand (no PAYTR). The two PAYTR options
+// (Sanal POS, Linkle Ödeme) are added directly in the dropdown below.
+const METHOD_LABEL: Record<string, string> = { cash: 'Nakit', credit_card: 'Fiziksel POS', bank_transfer: 'Havale / EFT' }
 const STATUS_LABEL: Record<string, string> = { active: 'Aktif', frozen: 'Dondurulmuş', expired: 'Süresi doldu', cancelled: 'İptal' }
 
 const tl = (k: number) => `${(k / 100).toLocaleString('tr-TR')} TL`
@@ -61,7 +66,7 @@ const addDays = (d: string, days: number) => {
   return t.toISOString().slice(0, 10)
 }
 
-export function SubscriptionsPanel({ memberId, products, surchargeKurus = 0 }: { memberId: string; products: readonly ProductView[]; surchargeKurus?: number }) {
+export function SubscriptionsPanel({ memberId, memberPhone = null, products, surchargeKurus = 0 }: { memberId: string; memberPhone?: string | null; products: readonly ProductView[]; surchargeKurus?: number }) {
   const [subs, setSubs] = useState<readonly SubscriptionView[] | null>(null)
   const [adding, setAdding] = useState(false)
 
@@ -98,6 +103,7 @@ export function SubscriptionsPanel({ memberId, products, surchargeKurus = 0 }: {
       {adding ? (
         <AssignForm
           memberId={memberId}
+          memberPhone={memberPhone}
           products={activeProducts}
           surchargeKurus={surchargeKurus}
           onCancel={() => setAdding(false)}
@@ -299,12 +305,14 @@ function Row({ label, value }: { label: string; value: string }) {
 // ── Assign a new subscription (the 10-step flow, inline) ──
 function AssignForm({
   memberId,
+  memberPhone = null,
   products,
   surchargeKurus = 0,
   onCancel,
   onDone,
 }: {
   memberId: string
+  memberPhone?: string | null
   products: readonly ProductView[]
   surchargeKurus?: number
   onCancel: () => void
@@ -326,43 +334,83 @@ function AssignForm({
   const [method, setMethod] = useState('cash')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // Sanal POS / Linkle Ödeme open the shared PAYTR checkout surface with this result.
+  const [checkout, setCheckout] = useState<PaytrCheckout | null>(null)
+
+  const isPaytr = method === 'sanal_pos' || method === 'link'
 
   // Defaults follow the chosen product + start date.
   const autoUntil = useMemo(() => (product ? addDays(validFrom, product.durationDays) : ''), [product, validFrom])
   const effectiveUntil = validUntil || autoUntil
   const effectivePrice = priceTl !== '' ? priceTl : product ? (product.priceInKurus / 100).toString() : ''
-  // Tahsilat defaults to the FULL amount owed — a normal sale is fully paid, so no phantom debt, for
-  // ANY method. The server adds the card/transfer surcharge to what is owed, so the default must add it
-  // too (else a KK/havale sale shows a debt equal to the fee). Reception can still lower it by hand to
-  // record a genuine partial payment (that debt is real and stays).
+  // The amount field defaults to the FULL amount owed — a normal sale is fully paid, so no phantom debt,
+  // for ANY method. Non-cash (incl. Sanal POS / Link) adds the studio surcharge to what is owed. This is
+  // the ONE editable amount the admin always controls (kontrol her zaman admin'de): for manual methods it
+  // is what was COLLECTED (a lower value = real debt); for PAYTR it is what is CHARGED (and, for Link, the
+  // debt the link collects).
   const owedKurus = (toKurus(effectivePrice) || 0) + (method !== 'cash' ? surchargeKurus : 0)
   const effectiveCollected = collectedTl !== '' ? collectedTl : owedKurus ? (owedKurus / 100).toString() : ''
   const effectiveCredit = creditInput !== '' ? creditInput : product?.creditCount != null ? String(product.creditCount) : ''
+  const amountKurus = toKurus(effectiveCollected)
+  const creditOverride =
+    product?.type === 'credit'
+      ? Math.min(product.creditCount ?? Infinity, Math.max(0, Math.trunc(Number(effectiveCredit) || 0)))
+      : null
+
+  function paytrError(res: { error: { code?: string } | unknown; providerError?: string } | { error: unknown }): string {
+    const detail = 'providerError' in res && res.providerError ? ` — PAYTR: ${res.providerError}` : ''
+    return domainErrorMessage((res as { error: Parameters<typeof domainErrorMessage>[0] }).error) + detail
+  }
 
   async function submit() {
     if (!product) return
     setBusy(true)
     setError(null)
     try {
-      const res = await assignSubscriptionAction({
-        memberId,
-        productId,
-        validFrom,
-        validUntil: effectiveUntil || null,
-        priceAgreedKurus: toKurus(effectivePrice),
-        creditOverride:
-          product.type === 'credit'
-            ? Math.min(product.creditCount ?? Infinity, Math.max(0, Math.trunc(Number(effectiveCredit) || 0)))
-            : null,
-        collectedKurus: toKurus(effectiveCollected),
-        method,
-        note: '',
-      })
-      if (res.ok) {
-        toast.success('Abonelik oluşturuldu.')
-        onDone()
+      if (method === 'sanal_pos') {
+        const res = await createPackagePaymentAction({
+          memberId,
+          productId,
+          flow: 'pos',
+          priceAgreedKurus: amountKurus, // admin's charge, used verbatim (no re-surcharge)
+          validFrom,
+          validUntil: effectiveUntil || null,
+          creditOverride,
+          note: '',
+        })
+        if (res.ok) setCheckout({ flow: 'pos', redirectUrl: res.value.redirectUrl, intentId: res.value.intentId })
+        else setError(paytrError(res))
+      } else if (method === 'link') {
+        const res = await createPackageLinkSaleAction({
+          memberId,
+          productId,
+          validFrom,
+          validUntil: effectiveUntil || null,
+          creditOverride,
+          note: '',
+          amountKurus,
+        })
+        // Grant already happened (member is now borçlu); show the link to share.
+        if (res.ok) setCheckout({ flow: 'link', redirectUrl: res.value.redirectUrl, intentId: res.value.intentId })
+        else setError(paytrError(res))
       } else {
-        setError(domainErrorMessage(res.error))
+        const res = await assignSubscriptionAction({
+          memberId,
+          productId,
+          validFrom,
+          validUntil: effectiveUntil || null,
+          priceAgreedKurus: toKurus(effectivePrice),
+          creditOverride,
+          collectedKurus: amountKurus,
+          method,
+          note: '',
+        })
+        if (res.ok) {
+          toast.success('Abonelik oluşturuldu.')
+          onDone()
+        } else {
+          setError(domainErrorMessage(res.error))
+        }
       }
     } catch {
       setError('Kaydedilemedi. Lütfen tekrar deneyin.')
@@ -406,7 +454,7 @@ function AssignForm({
               what the package costs. A different agreed price is a discount decision, not a data-entry one. */}
           <Input type="number" value={effectivePrice} disabled readOnly />
         </Labeled>
-        <Labeled label="Tahsilat (TL)">
+        <Labeled label={isPaytr ? 'Tahsil edilecek tutar (TL)' : 'Tahsilat (TL)'}>
           <Input type="number" min={0} step="0.01" value={effectiveCollected} onChange={(e) => setCollectedTl(e.target.value)} placeholder="0" />
         </Labeled>
         <Labeled label="Ödeme yöntemi">
@@ -420,13 +468,25 @@ function AssignForm({
                   {label}
                 </SelectItem>
               ))}
+              <SelectItem value="sanal_pos">Sanal POS</SelectItem>
+              <SelectItem value="link">Linkle Ödeme</SelectItem>
             </SelectContent>
           </Select>
         </Labeled>
-        {method !== 'cash' && surchargeKurus > 0 ? (
+        {method === 'credit_card' || method === 'bank_transfer' ? (
+          surchargeKurus > 0 ? (
+            <p className="col-span-2 rounded-lg bg-muted/60 px-3 py-2 text-sm text-muted-foreground">
+              Kart/havale farkı +{tl(surchargeKurus)} · üyeye toplam{' '}
+              <strong className="text-foreground">{tl((toKurus(effectivePrice) || 0) + surchargeKurus)}</strong>
+            </p>
+          ) : null
+        ) : null}
+        {isPaytr ? (
           <p className="col-span-2 rounded-lg bg-muted/60 px-3 py-2 text-sm text-muted-foreground">
-            Kart/havale farkı +{tl(surchargeKurus)} · üyeye toplam{' '}
-            <strong className="text-foreground">{tl((toKurus(effectivePrice) || 0) + surchargeKurus)}</strong>
+            {method === 'sanal_pos'
+              ? 'Kart formu (taksit + 3D) panelde açılır; ödeme onaylanınca paket atanır.'
+              : 'Paket hemen atanır (üye borçlu görünür); link ödenince borç otomatik kapanır ve kasaya işlenir.'}
+            {surchargeKurus > 0 ? ' Tutar kart farkını içerir; düzenleyebilirsiniz.' : ''}
           </p>
         ) : null}
       </div>
@@ -439,9 +499,20 @@ function AssignForm({
         </Button>
         <Button className="flex-1" onClick={submit} disabled={busy || !product}>
           {busy ? <Loader2Icon className="animate-spin" /> : null}
-          Kaydet
+          {method === 'sanal_pos' ? 'Ödemeyi Başlat' : method === 'link' ? 'Link Oluştur' : 'Kaydet'}
         </Button>
       </div>
+
+      <PaytrCheckoutDialog
+        checkout={checkout}
+        memberId={memberId}
+        memberPhone={memberPhone}
+        title="PAYTR ile Paket Sat"
+        onClose={() => {
+          setCheckout(null)
+          onDone()
+        }}
+      />
     </div>
   )
 }

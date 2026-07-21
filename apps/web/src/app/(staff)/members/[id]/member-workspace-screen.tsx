@@ -25,7 +25,6 @@ import { toast } from 'sonner'
 import type { Member, MemberId } from '@studio/core'
 
 import { ManualSendDialog } from '@/components/manual-send-dialog'
-import { PaytrSaleDialog } from '@/components/paytr-sale-dialog'
 import { PaymentHistoryPanel } from './payment-history-panel'
 import { WhatsAppButton } from '@/components/whatsapp-button'
 import { WA_TEMPLATES } from '@/lib/whatsapp'
@@ -136,7 +135,6 @@ export function MemberWorkspaceScreen({
   isPlatformAdmin,
   canManageTraining = false,
   surchargeKurus = 0,
-  maxInstallments = 3,
 }: {
   data: MemberWorkspaceData
   products: readonly ProductView[]
@@ -145,7 +143,6 @@ export function MemberWorkspaceScreen({
   isOwner?: boolean
   isPlatformAdmin: boolean
   surchargeKurus?: number
-  maxInstallments?: number
   // Owner + platform_admin see and edit programmes, measurements and photos; reception gets a
   // boolean "aktif program var mı?" only (§13). Trainers do not reach the members list at all.
   canManageTraining?: boolean
@@ -168,7 +165,6 @@ export function MemberWorkspaceScreen({
   const [editing, setEditing] = useState(false)
   const [booking, setBooking] = useState(false)
   const [messaging, setMessaging] = useState(false)
-  const [paytrSale, setPaytrSale] = useState(false)
 
   const s = member.stats
 
@@ -196,10 +192,6 @@ export function MemberWorkspaceScreen({
               <Button variant="outline" size="sm" className="h-7" onClick={() => setMessaging(true)}>
                 <MessageSquareIcon className="size-3.5" />
                 Mesaj Gönder
-              </Button>
-              <Button variant="outline" size="sm" className="h-7" onClick={() => setPaytrSale(true)}>
-                <CreditCardIcon className="size-3.5" />
-                PAYTR ile Sat
               </Button>
               {member.status !== 'active' ? (
                 <Badge className="bg-muted text-muted-foreground">{MEMBER_STATUS[member.status]}</Badge>
@@ -266,7 +258,7 @@ export function MemberWorkspaceScreen({
           />
         </TabsContent>
         <TabsContent value="packages">
-          <SubscriptionsPanel memberId={member.id} products={products} surchargeKurus={surchargeKurus} />
+          <SubscriptionsPanel memberId={member.id} memberPhone={member.phone} products={products} surchargeKurus={surchargeKurus} />
         </TabsContent>
         <TabsContent value="training">
           {/* Plus Phase 7 — the member's programmes, measurements and progress photos. Content for
@@ -351,15 +343,6 @@ export function MemberWorkspaceScreen({
         memberName={member.fullName}
         open={messaging}
         onClose={() => setMessaging(false)}
-      />
-      <PaytrSaleDialog
-        memberId={member.id}
-        memberPhone={member.phone}
-        products={products}
-        surchargeKurus={surchargeKurus}
-        maxInstallments={maxInstallments}
-        open={paytrSale}
-        onClose={() => setPaytrSale(false)}
       />
     </main>
   )

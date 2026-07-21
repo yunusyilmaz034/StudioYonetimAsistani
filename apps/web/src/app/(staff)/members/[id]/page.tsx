@@ -47,7 +47,6 @@ export default async function MemberWorkspacePage({
       // boolean only. The training actions refuse reception regardless — this only picks the view.
       canManageTraining={ctx.role === 'owner' || ctx.actor.type === 'platform_admin'}
       surchargeKurus={settings?.paymentSurcharge?.cardTransferSurchargeKurus ?? 0}
-      maxInstallments={settings?.paymentSurcharge?.maxInstallments ?? 3}
     />
   )
 }
