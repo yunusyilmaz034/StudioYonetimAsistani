@@ -9,7 +9,7 @@ import { localDate } from '@/lib/format'
 import { useFetch } from '@/lib/useFetch'
 import { useAuth } from '@/lib/auth'
 import { FadeInUp } from '@/components/motion'
-import { Body, Button, Card, Eyebrow, Hero, Loading, Screen } from '@/components/ui'
+import { Body, Button, Card, Eyebrow, Hero, Screen, ScreenSkeleton } from '@/components/ui'
 import { radius, space, typo as t, usePalette } from '@/theme'
 
 const CHANNELS: { key: keyof NotificationPrefs; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
@@ -30,7 +30,7 @@ export default function Profile() {
   // Re-fetch when the tab regains focus — so a photo (or info) changed on the edit screen shows here.
   useFocusEffect(useCallback(() => { void reload() }, [reload]))
 
-  if (loading && !profile) return <Loading />
+  if (loading && !profile) return <ScreenSkeleton />
   const pr = profile as MemberProfile | null
 
   async function toggle(key: keyof NotificationPrefs, value: boolean) {

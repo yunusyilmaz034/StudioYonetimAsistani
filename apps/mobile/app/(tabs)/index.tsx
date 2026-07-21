@@ -9,7 +9,7 @@ import { api } from '@/lib/api'
 import { dateTime, formatKurus } from '@/lib/format'
 import { useFetch } from '@/lib/useFetch'
 import { FadeInUp, PressableScale, ProgressBar } from '@/components/motion'
-import { Body, Card, Eyebrow, Empty, GradientFill, Hero, Loading, Pill, Screen } from '@/components/ui'
+import { Body, Card, Eyebrow, Empty, GradientFill, Hero, Pill, Screen, ScreenSkeleton } from '@/components/ui'
 import { CampaignPopup } from '@/components/campaign-popup'
 import { radius, shadow, space, typo as t, usePalette } from '@/theme'
 
@@ -38,7 +38,7 @@ export default function Home() {
   const home = useFetch(api.home)
   const fitness = useFetch(api.fitness)
 
-  if (dash.loading && !dash.data) return <Loading />
+  if (dash.loading && !dash.data) return <ScreenSkeleton />
   const d = dash.data
   const next = d?.upcoming[0] ?? null
   const pkg = d?.packages[0] ?? null

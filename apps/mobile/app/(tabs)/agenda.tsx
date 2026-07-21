@@ -7,7 +7,7 @@ import type { MemberReservation, MemberSession } from '@studio/core/client'
 import { api } from '@/lib/api'
 import { useFetch } from '@/lib/useFetch'
 import { FadeInUp, PressableScale } from '@/components/motion'
-import { Body, Card, Empty, Loading, Pill, Title } from '@/components/ui'
+import { Body, Card, Empty, Pill, ScreenSkeleton, Title } from '@/components/ui'
 import { radius, shadow, space, usePalette } from '@/theme'
 
 function ActionPill({ label, tone, busy, onPress }: { label: string; tone: 'accent' | 'danger'; busy: boolean; onPress: () => void }) {
@@ -81,7 +81,7 @@ export default function Agenda() {
   const upcoming = [...(reservations.data?.upcoming ?? [])].sort((a, b) => a.startsAt - b.startsAt)
   const past = [...(reservations.data?.past ?? [])].sort((a, b) => b.startsAt - a.startsAt)
 
-  if (agenda.loading && !agenda.data) return <Loading />
+  if (agenda.loading && !agenda.data) return <ScreenSkeleton hero={false} />
 
   const refreshing = (agenda.loading || reservations.loading) && !!agenda.data
   const reload = () => { void agenda.reload(); void reservations.reload() }

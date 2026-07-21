@@ -1,7 +1,8 @@
 // The premium UI kit — every screen composes from these so the app reads as one designed system.
-import type { ReactNode } from 'react'
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View, type StyleProp, type TextStyle, type ViewStyle } from 'react-native'
+import { useEffect, type ReactNode } from 'react'
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View, type DimensionValue, type StyleProp, type TextStyle, type ViewStyle } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated'
 import Svg, { Circle, Defs, G, LinearGradient, Path, Rect, Stop } from 'react-native-svg'
 
 import { radius, shadow, space, typo as t, usePalette } from '@/theme'
@@ -230,6 +231,34 @@ export function Loading() {
     <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: p.bg }}>
       <ActivityIndicator color={p.accent} size="large" />
     </View>
+  )
+}
+
+// A softly-pulsing placeholder block — the premium alternative to a bare spinner. Screens compose these
+// into a content-shaped skeleton so the first paint already has the shape of what's loading.
+export function Skeleton({ h = 16, w = '100%', r = 10, style }: { h?: number; w?: DimensionValue; r?: number; style?: StyleProp<ViewStyle> }) {
+  const p = usePalette()
+  const o = useSharedValue(0.55)
+  useEffect(() => {
+    o.value = withRepeat(withSequence(withTiming(1, { duration: 750 }), withTiming(0.55, { duration: 750 })), -1, true)
+  }, [o])
+  const anim = useAnimatedStyle(() => ({ opacity: o.value }))
+  return <Animated.View style={[{ height: h, width: w, borderRadius: r, backgroundColor: p.surfaceMuted }, anim, style]} />
+}
+
+// The generic loading skeleton for a main screen — a hero band (or a title) plus a few card rows. Used
+// in place of <Loading/> so the wait reads as "content arriving", not "app frozen".
+export function ScreenSkeleton({ hero = true, rows = 3 }: { hero?: boolean; rows?: number }) {
+  const p = usePalette()
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: p.bg }} edges={['top']}>
+      <View style={{ paddingHorizontal: space(5), paddingTop: space(4), gap: space(4) }}>
+        {hero ? <Skeleton h={148} r={radius.xl} /> : <Skeleton h={38} w={168} r={12} />}
+        <View style={{ gap: space(3) }}>
+          {Array.from({ length: rows }, (_, i) => <Skeleton key={i} h={90} r={radius.lg} />)}
+        </View>
+      </View>
+    </SafeAreaView>
   )
 }
 
