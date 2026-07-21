@@ -134,8 +134,10 @@ export async function createPackageCheckout(ctx: TenantContext, p: PackageChecko
   const studioSettings = await new FirestoreSchedulingRepository(adminDb()).getStudioSettings(ctx)
   const surchargeKurus = studioSettings?.paymentSurcharge?.cardTransferSurchargeKurus ?? 0
   const maxInstallments = studioSettings?.paymentSurcharge?.maxInstallments ?? 3
-  const base = p.priceAgreedKurus ?? product.priceInKurus
-  const amount = money(base + surchargeKurus)
+  // Kontrol her zaman admin'de: an explicit priceAgreedKurus is the FINAL charged amount, used verbatim
+  // (the reception form pre-fills it with price + surcharge and lets the admin override). Only the
+  // default (member self-purchase → null) auto-adds the studio surcharge.
+  const amount = p.priceAgreedKurus != null ? money(p.priceAgreedKurus) : money(product.priceInKurus + surchargeKurus)
   const installmentCap = Math.min(Math.max(p.installments ?? maxInstallments, 1), maxInstallments)
 
   const providerRef = randomUUID().replace(/-/g, '') // alphanumeric merchant_oid
@@ -231,7 +233,7 @@ export async function createMemberPackageCheckout(ctx: TenantContext, memberId: 
 // ── Wallet top-up via virtual POS (Doc 27) — the member loads her stored-value balance. Same PAYTR
 //    link flow as a package, but the intent's purpose is 'wallet_topup': it grants NO package. On a
 //    verified callback the money becomes a `wallet.topup` (source 'online'), idempotent via the intent.
-export async function createWalletTopupCheckout(ctx: TenantContext, memberId: MemberId, amountKurus: number) {
+export async function createWalletTopupCheckout(ctx: TenantContext, memberId: MemberId, amountKurus: number, flow: 'pos' | 'link' = 'link') {
   const { provider, config } = await paymentProviderFor(ctx)
   if (!provider.configured) return { ok: false as const, error: { code: 'payment_provider_not_configured' as const } }
   if (!Number.isInteger(amountKurus) || amountKurus <= 0) return { ok: false as const, error: { code: 'invalid_amount' as const } }
@@ -249,7 +251,7 @@ export async function createWalletTopupCheckout(ctx: TenantContext, memberId: Me
     purpose: 'wallet_topup',
     amount,
     provider: 'paytr',
-    flow: 'link',
+    flow,
     providerRef,
     redirectUrl: null,
     idempotencyKey: providerRef,
@@ -266,7 +268,7 @@ export async function createWalletTopupCheckout(ctx: TenantContext, memberId: Me
   const created = decideCreatePaymentIntent(dctx(ctx), intent)
   await intentRepo().saveIntent(ctx, created.next, created.events)
 
-  const checkout = await provider.createCheckout('link', {
+  const checkout = await provider.createCheckout(flow, {
     intentId: id,
     providerRef,
     amount,
@@ -289,7 +291,85 @@ export async function createWalletTopupCheckout(ctx: TenantContext, memberId: Me
 
   const session = decideSessionCreated(dctx(ctx), created.next, checkout.redirectUrl, checkout.expiresAt ? instant(checkout.expiresAt) : null)
   await intentRepo().saveIntent(ctx, session.next, session.events)
-  return { ok: true as const, value: { redirectUrl: checkout.redirectUrl } }
+  return { ok: true as const, value: { intentId: id, redirectUrl: checkout.redirectUrl, flow } }
+}
+
+// Staff wrapper — reception loads a member's wallet by Sanal POS or Link (in addition to the manual
+// cash/havale/manuel buttons). Same verified PAYTR path; on callback the money credits her balance.
+export async function createWalletTopupPaymentAction(input: unknown) {
+  const p = z.object({ memberId: nonEmpty, amountKurus: z.number().int().min(1), flow: z.enum(['pos', 'link']) }).parse(input)
+  const ctx = await requireTenantContext(OPS)
+  return createWalletTopupCheckout(ctx, p.memberId as MemberId, p.amountKurus, p.flow)
+}
+
+// An ATTRIBUTED collection link/POS — reception sold a package on credit (grant-now, borçlu) and this
+// collects the debt from a KNOWN member. Unlike the public PF-37 collection (memberId 'unattributed',
+// carries a linkId), this has the real memberId and NO linkId; the callback discriminates on that and
+// settles it as HER payment (posts to the kasa/ledger + clears her debt) automatically — no manual
+// reconciliation. ctx-taking core (called by the staff action below), same exposure as the wallet core.
+export async function createMemberCollectionCheckout(
+  ctx: TenantContext,
+  args: { memberId: MemberId; amountKurus: number; flow: 'pos' | 'link'; branchId: string | null; note: string; itemName: string },
+) {
+  const { provider, config } = await paymentProviderFor(ctx)
+  if (!provider.configured) return { ok: false as const, error: { code: 'payment_provider_not_configured' as const } }
+  if (!Number.isInteger(args.amountKurus) || args.amountKurus <= 0) return { ok: false as const, error: { code: 'invalid_amount' as const } }
+
+  const providerRef = randomUUID().replace(/-/g, '')
+  const id = `pin_${providerRef.slice(0, 20)}`
+  const amount = money(args.amountKurus)
+  const member = await new FirestoreMemberRepository(adminDb()).findById(ctx, args.memberId)
+  const settings = await new FirestoreSchedulingRepository(adminDb()).getStudioSettings(ctx)
+  const maxInstallments = settings?.paymentSurcharge?.maxInstallments ?? 3
+
+  const intent: PaymentIntent = {
+    id,
+    studioId: ctx.studioId,
+    memberId: args.memberId as string,
+    saleId: `sal_${providerRef.slice(0, 20)}`,
+    purpose: 'collection',
+    amount,
+    provider: 'paytr',
+    flow: args.flow,
+    providerRef,
+    redirectUrl: null,
+    idempotencyKey: providerRef,
+    status: 'draft',
+    context: { note: args.note, ...(args.branchId ? { branchId: args.branchId } : {}) }, // NO linkId ⇒ attributed member payment
+    expiresAt: null,
+    failureReason: null,
+    refundedAmount: money(0),
+    createdBy: ctx.actor,
+    createdAt: instant(systemClock.now()),
+    updatedAt: instant(systemClock.now()),
+  }
+  const created = decideCreatePaymentIntent(dctx(ctx), intent)
+  await intentRepo().saveIntent(ctx, created.next, created.events)
+
+  const checkout = await provider.createCheckout(args.flow, {
+    intentId: id,
+    providerRef,
+    amount,
+    itemName: args.itemName,
+    memberName: member?.fullName ?? 'Üye',
+    memberEmail: (member?.email as string | null) ?? null,
+    memberPhone: (member?.phone as string | null) ?? null,
+    userIp: '85.34.78.112',
+    okUrl: config.successUrl || `${baseUrl(config)}/portal`,
+    failUrl: config.failUrl || `${baseUrl(config)}/portal`,
+    callbackUrl: callbackUrl(ctx, config),
+    testMode: config.testMode,
+    expiresInSeconds: 30 * 60,
+    maxInstallment: maxInstallments,
+  })
+  if (!checkout.ok || !checkout.redirectUrl) {
+    console.error('[paytr] member collection checkout failed', { flow: args.flow, reason: checkout.errorCode, testMode: config.testMode })
+    return { ok: false as const, error: { code: 'payment_checkout_failed' as const }, providerError: checkout.errorCode }
+  }
+
+  const session = decideSessionCreated(dctx(ctx), created.next, checkout.redirectUrl, checkout.expiresAt ? instant(checkout.expiresAt) : null)
+  await intentRepo().saveIntent(ctx, session.next, session.events)
+  return { ok: true as const, value: { intentId: id, redirectUrl: checkout.redirectUrl, flow: args.flow } }
 }
 
 // Her own payment history (the staff read is memberId-parameterised and OPS-gated; this derives her id

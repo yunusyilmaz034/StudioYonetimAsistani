@@ -37,6 +37,7 @@ import { z } from 'zod'
 import { requireTenantContext } from '../auth'
 import { observed } from '../log'
 import { adminDb } from '../firebase-admin'
+import { createMemberCollectionCheckout } from './payments'
 
 // Selling (assign) is owner + receptionist + platform_admin (Doc 13). Cancelling is
 // owner + platform_admin. Reads are gated the same as selling.
@@ -188,6 +189,86 @@ export async function assignSubscriptionAction(input: unknown) {
         discountCeilingPercent: null,
       }),
   )
+}
+
+// ── SELL A PACKAGE VIA PAYMENT LINK (Sanal POS/Link consolidation, 2026-07-21) ───────────────────
+//
+// Reception picks "Linkle Ödeme" in the sale form. The member is KNOWN, so — per the owner's model —
+// the package is granted RIGHT NOW with the full amount as debt (üye borçlu), and a PAYTR link is sent.
+// When the link is paid, the callback settles it automatically as HER payment (kasa + clears the debt);
+// see the attributed 'collection' branch in payment-callback.ts. `amountKurus` is the admin's final
+// total (price + surcharge, editable in the form) — used verbatim, NOT re-surcharged here.
+export async function createPackageLinkSaleAction(input: unknown) {
+  const p = z
+    .object({
+      memberId: nonEmpty,
+      productId: nonEmpty,
+      validFrom: date,
+      validUntil: date.nullable(),
+      creditOverride: z.number().int().min(0).nullable(),
+      note: z.string().default(''),
+      amountKurus: z.number().int().min(1),
+    })
+    .parse(input)
+  const ctx = await requireTenantContext(OPS)
+
+  const product = await new FirestoreCatalogRepository(adminDb()).getProduct(ctx, p.productId as ProductId)
+  if (!product) return { ok: false as const, error: { code: 'no_bookable_entitlement' as const } }
+  const branchId = (ctx.branchIds[0] ?? null) as BranchId | null
+
+  const grant: Grant =
+    product.type === 'credit'
+      ? { kind: 'credits', credits: product.creditCount ?? 0, validForDays: product.durationDays }
+      : { kind: 'period', durationDays: product.durationDays, access: 'unlimited' }
+
+  const subscription = {
+    memberId: p.memberId as MemberId,
+    productId: product.id,
+    productSnapshot: {
+      productId: product.id,
+      name: product.name,
+      category: product.category,
+      grant,
+      listPrice: money(product.priceInKurus),
+      serviceIds: product.serviceIds,
+      cancellationAllowanceCount: product.cancellationAllowanceCount,
+      dailyReservationLimit: product.dailyReservationLimit,
+      activeReservationLimit: product.activeReservationLimit,
+      entryAllowance: product.entryAllowance ?? null,
+    },
+    policyRef: { policyId: product.id, version: 1 },
+    priceAgreed: money(p.amountKurus),
+    validFrom: dayMs(p.validFrom),
+    validUntil: p.validUntil ? dayMs(p.validUntil) : null,
+    freezeDays: product.freezeAllowanceDays > 0 ? product.freezeAllowanceDays : null,
+    creditOverride:
+      p.creditOverride == null ? null : Math.min(product.creditCount ?? Infinity, Math.max(0, Math.trunc(p.creditOverride))),
+    collectedAmount: money(0),
+    // Inert: no payment is recorded here (collectedAmount 0). The real money lands on the link callback.
+    method: 'credit_card' as PaymentMethod,
+    note: p.note,
+  } satisfies AssignSubscriptionInput
+
+  // 1. Grant now with full debt. If this fails nothing else happens.
+  const sold = await observed(
+    'finance.sell_package',
+    ctx,
+    undefined,
+    { memberId: p.memberId, productId: p.productId, collectedKurus: 0 },
+    () => sellPackage(sellDeps(), ctx, { branchId: branchId as BranchId, subscription, payment: null, discountCeilingPercent: null }),
+  )
+  if (!sold.ok) return { ok: false as const, error: sold.error }
+
+  // 2. Create the attributed collection link. The grant is already committed; if the link fails the
+  //    member is simply borçlu (reception can collect from Cari Hesap or retry) — a valid state.
+  return createMemberCollectionCheckout(ctx, {
+    memberId: p.memberId as MemberId,
+    amountKurus: p.amountKurus,
+    flow: 'link',
+    branchId: branchId as string | null,
+    note: `Paket: ${product.name}`,
+    itemName: product.name,
+  })
 }
 
 // ── Edit an existing subscription (dates / price / payment), reason mandatory. ──

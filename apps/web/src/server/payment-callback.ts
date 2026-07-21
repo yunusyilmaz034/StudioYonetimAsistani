@@ -7,6 +7,7 @@
 // importable only by other server code (the callback route), never by the browser. Moving them out of
 // `actions/payments.ts` closes a remote, cross-tenant free-grant hole.
 import {
+  collect,
   decideCallbackResult,
   FirestoreCatalogRepository,
   FirestoreEntitlementRepository,
@@ -21,6 +22,7 @@ import {
   sellPackage,
   systemClock,
   topUpWallet,
+  type BranchId,
   type CallbackVerdict,
   type Grant,
   type MemberId,
@@ -115,27 +117,51 @@ export async function completePaidIntent(ctx: TenantContext, intent: PaymentInte
     })
   }
 
-  // PF-37 — a shareable-link payment becomes an UNATTRIBUTED kasa collection (no member, no product);
-  // reception reconciles it to a member later. Idempotent via the intent status above. Mirror of the
-  // Cloud Function branch (DEBT-PAYTR-CALLBACK: two copies kept in sync).
   if (intent.purpose === 'collection') {
-    await receiveCollection(
-      {
-        linkRepo: new FirestorePaymentLinkRepository(adminDb()),
-        collectionRepo: new FirestorePaytrCollectionRepository(adminDb()),
-        clock: systemClock,
-        source: 'paytr_callback',
-      },
-      ctx,
-      {
-        linkId: intent.context.linkId ?? '',
-        amount: intent.amount,
-        installments: intent.context.installments ?? 1,
-        buyerName: intent.context.buyerName ?? '',
-        buyerPhone: intent.context.buyerPhone ?? '',
-        providerRef: intent.providerRef,
-      },
-    )
+    // TWO kinds of collection share this purpose, told apart by the linkId:
+    //   • ATTRIBUTED (no linkId, real memberId) — reception's "Linkle Ödeme" package sale. The member
+    //     is known, so the verified money is recorded as HER payment: it posts to the kasa/ledger and
+    //     clears her debt AUTOMATICALLY (collect allocates oldest-debt-first).
+    //   • UNATTRIBUTED (has a linkId, memberId 'unattributed') — the public PF-37 link; reception
+    //     reconciles it to a member later.
+    // Idempotent via the intent status above. Mirror of the Cloud Function branch (DEBT-PAYTR-CALLBACK).
+    const attributed = !intent.context.linkId && !!intent.memberId && intent.memberId !== 'unattributed'
+    if (attributed) {
+      await collect(
+        { repo: new FirestoreFinanceRepository(adminDb()), clock: systemClock },
+        ctx,
+        {
+          paymentId: `pay_${intent.providerRef.slice(0, 20)}`,
+          memberId: intent.memberId as MemberId,
+          branchId: (intent.context.branchId ?? ctx.branchIds[0] ?? '') as BranchId,
+          amount: intent.amount,
+          method: 'online',
+          receivedAt: instant(systemClock.now()),
+          drawerId: null,
+          giftCardCode: null,
+          note: 'PAYTR link',
+          allowNoDrawer: true,
+        },
+      )
+    } else {
+      await receiveCollection(
+        {
+          linkRepo: new FirestorePaymentLinkRepository(adminDb()),
+          collectionRepo: new FirestorePaytrCollectionRepository(adminDb()),
+          clock: systemClock,
+          source: 'paytr_callback',
+        },
+        ctx,
+        {
+          linkId: intent.context.linkId ?? '',
+          amount: intent.amount,
+          installments: intent.context.installments ?? 1,
+          buyerName: intent.context.buyerName ?? '',
+          buyerPhone: intent.context.buyerPhone ?? '',
+          providerRef: intent.providerRef,
+        },
+      )
+    }
   }
 
   // Doc 27 — a wallet top-up. The verified money credits her stored-value balance (source 'online').

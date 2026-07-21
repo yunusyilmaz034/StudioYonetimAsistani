@@ -63,6 +63,11 @@ export type PaymentIntentContext = {
   readonly buyerName?: string
   readonly buyerPhone?: string
   readonly installments?: number
+  // For an ATTRIBUTED member collection (reception's "Linkle Ödeme" package sale) — the branch the
+  // verified money is posted to. Its ABSENCE of a linkId (with a real memberId) is what tells the
+  // callback to settle it as the member's own payment (kasa + clear her debt) rather than an
+  // unattributed PF-37 collection. State only — never part of an event payload.
+  readonly branchId?: string
 }
 
 export type PaymentIntent = {

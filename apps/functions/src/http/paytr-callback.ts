@@ -1,4 +1,5 @@
 import {
+  collect,
   decideCallbackResult,
   FirestoreCatalogRepository,
   FirestoreEntitlementRepository,
@@ -14,6 +15,7 @@ import {
   sellPackage,
   systemClock,
   topUpWallet,
+  type BranchId,
   type CallbackVerdict,
   type Grant,
   type MemberId,
@@ -150,27 +152,49 @@ async function completePaidIntent(
     })
   }
 
-  // PF-37 — a shareable-link payment. No member, no product: it becomes an UNATTRIBUTED collection in
-  // the kasa, which reception reconciles to a member later. Idempotent via the intent status above
-  // (a replayed callback finds it terminal and returns before here).
+  // A 'collection' payment — two kinds, told apart by the linkId (mirror of the web tier,
+  // DEBT-PAYTR-CALLBACK: two copies kept in sync). Idempotent via the intent status above.
+  //   • ATTRIBUTED (no linkId, real memberId) — reception's "Linkle Ödeme" package sale: settle as HER
+  //     payment (posts to kasa/ledger + clears her debt automatically, oldest-debt-first).
+  //   • UNATTRIBUTED (has a linkId, memberId 'unattributed') — the public PF-37 link; reconciled later.
   if (intent.purpose === 'collection') {
-    await receiveCollection(
-      {
-        linkRepo: new FirestorePaymentLinkRepository(database),
-        collectionRepo: new FirestorePaytrCollectionRepository(database),
-        clock: systemClock,
-        source: 'paytr_callback',
-      },
-      ctx,
-      {
-        linkId: intent.context.linkId ?? '',
-        amount: intent.amount,
-        installments: intent.context.installments ?? 1,
-        buyerName: intent.context.buyerName ?? '',
-        buyerPhone: intent.context.buyerPhone ?? '',
-        providerRef: intent.providerRef,
-      },
-    )
+    const attributed = !intent.context.linkId && !!intent.memberId && intent.memberId !== 'unattributed'
+    if (attributed) {
+      await collect(
+        { repo: new FirestoreFinanceRepository(database), clock: systemClock },
+        ctx,
+        {
+          paymentId: `pay_${intent.providerRef.slice(0, 20)}`,
+          memberId: intent.memberId as MemberId,
+          branchId: (intent.context.branchId ?? ctx.branchIds[0] ?? '') as BranchId,
+          amount: intent.amount,
+          method: 'online',
+          receivedAt: instant(systemClock.now()),
+          drawerId: null,
+          giftCardCode: null,
+          note: 'PAYTR link',
+          allowNoDrawer: true,
+        },
+      )
+    } else {
+      await receiveCollection(
+        {
+          linkRepo: new FirestorePaymentLinkRepository(database),
+          collectionRepo: new FirestorePaytrCollectionRepository(database),
+          clock: systemClock,
+          source: 'paytr_callback',
+        },
+        ctx,
+        {
+          linkId: intent.context.linkId ?? '',
+          amount: intent.amount,
+          installments: intent.context.installments ?? 1,
+          buyerName: intent.context.buyerName ?? '',
+          buyerPhone: intent.context.buyerPhone ?? '',
+          providerRef: intent.providerRef,
+        },
+      )
+    }
   }
 
   // Doc 27 — a wallet top-up credits her stored-value balance (source 'online'). Idempotent via the
