@@ -1,3 +1,5 @@
+import { Suspense } from 'react'
+
 import { requirePageAccess } from '@/server/auth'
 
 import { ConversationsScreen } from './conversations-screen'
@@ -7,5 +9,10 @@ import { ConversationsScreen } from './conversations-screen'
 // is server-only, reached through the conversation actions.
 export default async function ConversationsPage() {
   await requirePageAccess('/conversations')
-  return <ConversationsScreen />
+  // ConversationsScreen reads ?phone via useSearchParams — needs a Suspense boundary.
+  return (
+    <Suspense>
+      <ConversationsScreen />
+    </Suspense>
+  )
 }

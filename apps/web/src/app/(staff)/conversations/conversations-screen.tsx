@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { BotIcon, SendIcon, UserRoundIcon } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -31,6 +32,13 @@ export function ConversationsScreen() {
   const [text, setText] = useState('')
   const [busy, setBusy] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
+  const params = useSearchParams()
+
+  // Deep link from the dashboard checklist (?phone=…) — open that conversation on load.
+  useEffect(() => {
+    const phone = params.get('phone')
+    if (phone) setSelected(phone)
+  }, [params])
 
   const poll = useCallback(async () => {
     try {

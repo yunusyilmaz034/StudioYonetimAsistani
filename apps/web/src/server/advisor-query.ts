@@ -12,7 +12,7 @@ import { loadOwnerDashboard, type OwnerDashboard } from './owner-dashboard'
 
 export interface AdvisorItem {
   readonly id: string
-  readonly kind: InsightKind
+  readonly kind: InsightKind | 'hot_lead' // 'hot_lead' = a WhatsApp AI lead worth attention (not an insight)
   readonly severity: InsightSeverity
   readonly title: string
   readonly detail: string

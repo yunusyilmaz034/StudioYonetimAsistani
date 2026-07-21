@@ -2,6 +2,7 @@ import type { PrincipalRole } from '@studio/core'
 
 import { requirePageAccess } from '@/server/auth'
 import { deriveAdvisorItems } from '@/server/advisor-query'
+import { hotLeadAdvisorItems } from '@/server/lead-checklist'
 import { loadOwnerDashboard } from '@/server/owner-dashboard'
 import { loadTodayOps } from '@/server/today-ops'
 
@@ -17,9 +18,9 @@ import { DashboardScreen } from './dashboard-screen'
 export default async function HomePage() {
   const ctx = await requirePageAccess('/')
   const now = Date.now()
-  const [data, todayOps] = await Promise.all([loadOwnerDashboard(ctx, now), loadTodayOps(ctx, now)])
-  // The advisor items are derived from the SAME snapshot (no extra read) and feed the AI checklist.
-  const advisorItems = deriveAdvisorItems(data)
+  const [data, todayOps, hotLeads] = await Promise.all([loadOwnerDashboard(ctx, now), loadTodayOps(ctx, now), hotLeadAdvisorItems(ctx)])
+  // The checklist = hot WhatsApp leads FIRST (act now), then the dashboard-derived advisor items.
+  const advisorItems = [...hotLeads, ...deriveAdvisorItems(data)]
   return <DashboardScreen data={data} todayOps={todayOps} advisorItems={advisorItems} role={ctx.role} roleLabel={roleLabel(ctx.role)} />
 }
 
