@@ -1,14 +1,14 @@
-import { Image, RefreshControl, View } from 'react-native'
+import { Image, RefreshControl, useWindowDimensions, View } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { router } from 'expo-router'
 import Animated, { useAnimatedStyle, useSharedValue, withDelay, withTiming, Easing } from 'react-native-reanimated'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 
 import type { HomeBanner } from '@/lib/api'
 import { api } from '@/lib/api'
 import { dateTime, formatKurus } from '@/lib/format'
 import { useFetch } from '@/lib/useFetch'
-import { FadeInUp, ProgressBar } from '@/components/motion'
+import { FadeInUp, PressableScale, ProgressBar } from '@/components/motion'
 import { Body, Card, Eyebrow, Empty, GradientFill, Hero, Loading, Pill, Screen } from '@/components/ui'
 import { CampaignPopup } from '@/components/campaign-popup'
 import { radius, shadow, space, typo as t, usePalette } from '@/theme'
@@ -43,7 +43,7 @@ export default function Home() {
   const next = d?.upcoming[0] ?? null
   const pkg = d?.packages[0] ?? null
   const announcement = (inbox.data ?? []).find((m) => !m.read) ?? (inbox.data ?? [])[0] ?? null
-  const banner = home.data?.banner ?? null
+  const banners = home.data?.banners ?? (home.data?.banner ? [home.data.banner] : [])
   const occ = home.data?.occupancyLevel ? OCC[home.data.occupancyLevel] : null
   const tod = timeOfDay()
   const brand = home.data?.branding ?? null
@@ -71,7 +71,7 @@ export default function Home() {
         </Hero>
       </FadeInUp>
 
-      {banner ? <FadeInUp index={1}><BannerCard banner={banner} /></FadeInUp> : null}
+      {banners.length > 0 ? <FadeInUp index={1}><BannerCarousel banners={banners} /></FadeInUp> : null}
 
       <FadeInUp index={2}>
         <Eyebrow>Stüdyodan</Eyebrow>
@@ -162,17 +162,58 @@ function Chip({ icon, text }: { icon: keyof typeof Ionicons.glyphMap; text: stri
   )
 }
 
-function BannerCard({ banner }: { banner: HomeBanner }) {
+// Tap a banner → its detail screen (image + full text + contact). Data rides in query params so the
+// screen needs no extra fetch. `id` keys the gradient so two banners on one screen never collide.
+function openBanner(b: HomeBanner) {
+  router.push({ pathname: '/banner', params: { title: b.title, body: b.body, detail: b.detail ?? '', image: b.imageUrl ?? '', tone: b.tone } })
+}
+
+// The home banner(s) as a swipeable, admin-managed carousel. One banner → a plain card; several →
+// paged horizontal scroll with a dot indicator.
+function BannerCarousel({ banners }: { banners: readonly HomeBanner[] }) {
+  const p = usePalette()
+  const { width } = useWindowDimensions()
+  const [idx, setIdx] = useState(0)
+  const gap = space(3)
+  const cardW = width - space(5) * 2 // Screen adds space(5) padding on each side
+  if (banners.length === 1) return <BannerCard banner={banners[0]} onPress={() => openBanner(banners[0])} />
+  return (
+    <View style={{ gap: space(2.5) }}>
+      <Animated.ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        snapToInterval={cardW + gap}
+        snapToAlignment="start"
+        decelerationRate="fast"
+        onMomentumScrollEnd={(e) => setIdx(Math.round(e.nativeEvent.contentOffset.x / (cardW + gap)))}
+      >
+        {banners.map((b, i) => (
+          <View key={b.id ?? i} style={{ width: cardW, marginRight: gap }}>
+            <BannerCard banner={b} onPress={() => openBanner(b)} />
+          </View>
+        ))}
+      </Animated.ScrollView>
+      <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 6 }}>
+        {banners.map((b, i) => (
+          <View key={b.id ?? i} style={{ width: i === idx ? 18 : 6, height: 6, borderRadius: 3, backgroundColor: i === idx ? p.accent : p.hairline }} />
+        ))}
+      </View>
+    </View>
+  )
+}
+
+function BannerCard({ banner, onPress }: { banner: HomeBanner; onPress?: () => void }) {
   const p = usePalette()
   const bg = banner.tone === 'gold' ? p.gold : banner.tone === 'good' ? p.good : p.accent
   const hasImage = Boolean(banner.imageUrl)
-  return (
+  const gid = `banner-${banner.id ?? banner.title}`
+  const inner = (
     <View style={[{ borderRadius: radius.lg, overflow: 'hidden', backgroundColor: bg, minHeight: hasImage ? 148 : undefined, justifyContent: 'flex-end' }, shadow(2)]}>
       {hasImage ? (
         <>
           <Image source={{ uri: banner.imageUrl! }} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} resizeMode="cover" />
           {/* dark gradient (real opacity, not hex-alpha) so the text stays readable over any photo */}
-          <GradientFill id="banner" vertical from="#000000" to="#000000" fromOpacity={0.05} toOpacity={0.82} />
+          <GradientFill id={gid} vertical from="#000000" to="#000000" fromOpacity={0.05} toOpacity={0.82} />
         </>
       ) : (
         <View style={{ position: 'absolute', top: -40, right: -20, width: 130, height: 130, borderRadius: 65, backgroundColor: '#FFFFFF', opacity: 0.12 }} />
@@ -186,6 +227,7 @@ function BannerCard({ banner }: { banner: HomeBanner }) {
       </View>
     </View>
   )
+  return onPress ? <PressableScale onPress={onPress}>{inner}</PressableScale> : inner
 }
 
 // A small weekly attendance bar chart — the last 6 weeks, animated on mount.

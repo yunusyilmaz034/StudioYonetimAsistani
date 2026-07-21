@@ -81,15 +81,36 @@ export async function memberHomeExtras(ctx: TenantContext) {
     loadOccupancyNow(ctx),
     adminDb().doc(`studios/${ctx.studioId}/settings/mobile`).get(),
   ])
-  const data = snap.data() as MobileSettings | undefined
-  const banner = (data?.banner ?? null) as MobileBanner | null
+  const data = snap.data() as Partial<MobileSettings> | undefined
+  const legacy = (data?.banner ?? null) as MobileBanner | null
+  const list = (data?.banners as MobileBanner[] | undefined) ?? (legacy ? [legacy] : [])
+  const banners = list.filter((b) => b?.active)
   const branding = (data?.branding ?? null) as MobileBranding | null
   const campaign = (data?.campaign ?? null) as MobileCampaign | null
   return {
     occupancyLevel: occ.level,
-    banner: banner?.active ? banner : null,
+    banner: banners[0] ?? null, // legacy field — an old app build shows the first active banner
+    banners,
     branding,
     campaign: campaign?.active && campaign.imageUrl ? campaign : null,
+  }
+}
+
+// The studio's own contact card (phone / WhatsApp / address / maps) — NOT the member's PII, it is the
+// business's public info, edited in Ayarlar → Genel (settings/studio.company). The app has had no
+// contact anywhere; this backs the İletişim screen. Empty strings when the owner hasn't filled it in.
+export async function memberStudioContact(ctx: TenantContext) {
+  const snap = await adminDb().doc(`studios/${ctx.studioId}/settings/studio`).get()
+  const c = (snap.get('company') as
+    | { displayName?: string; legalName?: string; phone?: string; email?: string; website?: string | null; address?: string; mapsUrl?: string | null }
+    | undefined) ?? {}
+  return {
+    name: c.displayName || c.legalName || '',
+    phone: c.phone ?? '',
+    email: c.email ?? '',
+    website: c.website ?? null,
+    address: c.address ?? '',
+    mapsUrl: c.mapsUrl ?? null,
   }
 }
 

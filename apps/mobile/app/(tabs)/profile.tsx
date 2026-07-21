@@ -77,6 +77,8 @@ export default function Profile() {
         <Eyebrow>Hesabım</Eyebrow>
         <Card inset>
           <LinkRow icon="ticket-outline" label="Aboneliklerim" onPress={() => router.push('/subscriptions')} />
+          <Divider />
+          <LinkRow icon="call-outline" label="İletişim" onPress={() => router.push('/contact')} />
         </Card>
       </FadeInUp>
 

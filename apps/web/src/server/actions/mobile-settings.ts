@@ -11,11 +11,13 @@ const OWNER = ['owner', 'platform_admin'] as const
 const OPS = ['owner', 'receptionist', 'platform_admin'] as const
 
 export interface MobileBanner {
+  readonly id?: string // stable key for the carousel; assigned when a banner is created in the panel
   readonly active: boolean
   readonly title: string
-  readonly body: string
+  readonly body: string // short line shown on the card
   readonly tone: 'accent' | 'gold' | 'good'
   readonly imageUrl?: string // optional background image (any public URL)
+  readonly detail?: string // long text shown on the tap-through detail page
 }
 
 export interface MobileBranding {
@@ -34,31 +36,40 @@ export interface MobileCampaign {
 }
 
 export interface MobileSettings {
-  readonly banner: MobileBanner | null
+  readonly banner: MobileBanner | null // legacy single banner — kept so an old app build still reads one
+  readonly banners: readonly MobileBanner[] // the carousel (what the panel edits and the app renders)
   readonly branding: MobileBranding | null
   readonly campaign: MobileCampaign | null
 }
 
-const DEFAULT: MobileSettings = { banner: null, branding: null, campaign: null }
+const DEFAULT: MobileSettings = { banner: null, banners: [], branding: null, campaign: null }
 
 export async function getMobileSettingsAction(): Promise<MobileSettings> {
   const ctx = await requireTenantContext(OPS)
   const snap = await adminDb().doc(`studios/${ctx.studioId}/settings/mobile`).get()
-  return { ...DEFAULT, ...((snap.data() as MobileSettings | undefined) ?? {}) }
+  const raw = { ...DEFAULT, ...((snap.data() as Partial<MobileSettings> | undefined) ?? {}) }
+  // Back-compat: a studio that only ever had the single `banner` gets it lifted into the array, so the
+  // panel and app work off ONE model. Once `banners` is saved, the legacy field is ignored.
+  const banners = raw.banners.length > 0 ? raw.banners : raw.banner ? [{ ...raw.banner, id: raw.banner.id ?? 'legacy' }] : []
+  return { ...raw, banners }
 }
 
-export async function setMobileBannerAction(input: unknown) {
-  const p = z
-    .object({
-      active: z.boolean(),
-      title: z.string().trim().max(80),
-      body: z.string().trim().max(240),
-      tone: z.enum(['accent', 'gold', 'good']).default('accent'),
-      imageUrl: z.string().trim().url().or(z.literal('')).optional(),
-    })
-    .parse(input)
+const bannerSchema = z.object({
+  id: z.string().trim().min(1).max(40),
+  active: z.boolean(),
+  title: z.string().trim().max(80),
+  body: z.string().trim().max(240),
+  tone: z.enum(['accent', 'gold', 'good']).default('accent'),
+  imageUrl: z.string().trim().url().or(z.literal('')).optional(),
+  detail: z.string().trim().max(2000).optional(),
+})
+
+// The whole carousel is saved at once (the panel owns the ordered list). Max 10 keeps the home payload
+// small. Writing `banners` supersedes the legacy `banner` (which memberHomeExtras only falls back to).
+export async function setMobileBannersAction(input: unknown) {
+  const p = z.object({ banners: z.array(bannerSchema).max(10) }).parse(input)
   const ctx = await requireTenantContext(OWNER)
-  await adminDb().doc(`studios/${ctx.studioId}/settings/mobile`).set({ banner: p }, { merge: true })
+  await adminDb().doc(`studios/${ctx.studioId}/settings/mobile`).set({ banners: p.banners }, { merge: true })
   return { ok: true as const }
 }
 

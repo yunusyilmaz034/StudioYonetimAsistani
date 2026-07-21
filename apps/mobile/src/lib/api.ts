@@ -102,6 +102,18 @@ export const api = {
   walletTopup: (amountKurus: number) => post<ApiResult<{ redirectUrl: string }>>('/wallet-topup', { amountKurus }),
   registerDevice: (token: string, platform: string) => post<ApiResult<unknown>>('/devices', { token, platform }),
   uploadPhoto: (dataUrl: string) => post<ApiResult<{ avatarUrl: string | null }>>('/photo', { dataUrl }),
+  contact: () => get<MemberContact>('/contact'),
+}
+
+// The studio's own contact card (business info, not member PII) — mirrors memberStudioContact on the
+// server. Empty strings when the owner hasn't filled a field in.
+export interface MemberContact {
+  readonly name: string
+  readonly phone: string
+  readonly email: string
+  readonly website: string | null
+  readonly address: string
+  readonly mapsUrl: string | null
 }
 
 export interface MemberProduct {
@@ -113,11 +125,13 @@ export interface MemberProduct {
 }
 
 export interface HomeBanner {
+  readonly id?: string
   readonly active: boolean
   readonly title: string
   readonly body: string
   readonly tone: 'accent' | 'gold' | 'good'
   readonly imageUrl?: string
+  readonly detail?: string // long text shown on the banner detail screen
 }
 export interface HomeCampaign {
   readonly active: boolean
@@ -128,7 +142,8 @@ export interface HomeCampaign {
 }
 export interface HomeExtras {
   readonly occupancyLevel: string | null
-  readonly banner: HomeBanner | null
+  readonly banner: HomeBanner | null // legacy single banner (back-compat)
+  readonly banners?: readonly HomeBanner[] // the carousel
   readonly branding: Branding | null
   readonly campaign: HomeCampaign | null
 }

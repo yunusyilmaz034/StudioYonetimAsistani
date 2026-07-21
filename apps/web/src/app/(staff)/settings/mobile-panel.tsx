@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { ImageIcon, Loader2Icon } from 'lucide-react'
+import { ChevronDownIcon, ChevronUpIcon, ImageIcon, Loader2Icon, PlusIcon, Trash2Icon } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Section } from '@/components/ui/section'
 import { Textarea } from '@/components/ui/textarea'
 import { MediaPicker } from '@/components/media-picker'
-import { getMobileSettingsAction, setMobileBannerAction, setMobileBrandingAction, setMobileCampaignAction } from '@/server/actions/mobile-settings'
+import { getMobileSettingsAction, setMobileBannersAction, setMobileBrandingAction, setMobileCampaignAction } from '@/server/actions/mobile-settings'
 
 // A small "Medya" button that opens the Media Center picker (upload or choose existing) and drops the
 // chosen URL into a field.
@@ -29,6 +29,17 @@ const TONES: { key: Tone; label: string; className: string }[] = [
   { key: 'good', label: 'Yeşil', className: 'bg-emerald-600' },
 ]
 
+// One banner in the panel's editable list. `id` is a stable key so reorder/remove never scramble React.
+interface EditBanner {
+  id: string
+  active: boolean
+  title: string
+  body: string
+  detail: string
+  tone: Tone
+  imageUrl: string
+}
+
 // Curated, freely-usable (Pexels) fitness/pilates photos for a women-only studio — one tap to preview
 // the image banner. The owner replaces these with her own studio photos.
 const EXAMPLE_IMAGES: { url: string; label: string }[] = [
@@ -37,14 +48,14 @@ const EXAMPLE_IMAGES: { url: string; label: string }[] = [
   { url: 'https://images.pexels.com/photos/28080/pexels-photo.jpg?auto=compress&cs=tinysrgb&w=1200', label: 'Fitness' },
 ]
 
-// Ayarlar → Mobil. Everything the owner controls in the member app is collected here. Today: the
-// home-screen campaign banner (the top card in the app).
+const newId = () =>
+  typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `b${Date.now()}${Math.round(Math.random() * 1e6)}`
+
+// Ayarlar → Mobil. Everything the owner controls in the member app is collected here: the app branding,
+// the home-screen banner carousel (several, swipeable, each with a tap-through detail page), and the
+// open-screen campaign popup.
 export function MobilePanel({ canEdit }: { canEdit: boolean }) {
-  const [active, setActive] = useState(false)
-  const [title, setTitle] = useState('')
-  const [body, setBody] = useState('')
-  const [tone, setTone] = useState<Tone>('accent')
-  const [bannerImage, setBannerImage] = useState('')
+  const [banners, setBanners] = useState<EditBanner[]>([])
   const [appName, setAppName] = useState('')
   const [logoUrl, setLogoUrl] = useState('')
   const [campActive, setCampActive] = useState(false)
@@ -61,13 +72,43 @@ export function MobilePanel({ canEdit }: { canEdit: boolean }) {
   useEffect(() => {
     getMobileSettingsAction()
       .then((s) => {
-        if (s.banner) { setActive(s.banner.active); setTitle(s.banner.title); setBody(s.banner.body); setTone(s.banner.tone); setBannerImage(s.banner.imageUrl ?? '') }
+        setBanners(
+          (s.banners ?? []).map((b) => ({
+            id: b.id ?? newId(),
+            active: b.active,
+            title: b.title,
+            body: b.body,
+            detail: b.detail ?? '',
+            tone: b.tone,
+            imageUrl: b.imageUrl ?? '',
+          })),
+        )
         if (s.branding) { setAppName(s.branding.appName); setLogoUrl(s.branding.logoUrl) }
         if (s.campaign) { setCampActive(s.campaign.active); setCampImage(s.campaign.imageUrl); setCampTitle(s.campaign.title); setCampCta(s.campaign.ctaLabel); setCampUrl(s.campaign.ctaUrl) }
       })
       .catch(() => {})
       .finally(() => setLoading(false))
   }, [])
+
+  function patchBanner(id: string, patch: Partial<EditBanner>) {
+    setBanners((list) => list.map((b) => (b.id === id ? { ...b, ...patch } : b)))
+  }
+  function addBanner() {
+    setBanners((list) => [...list, { id: newId(), active: true, title: '', body: '', detail: '', tone: 'accent', imageUrl: '' }])
+  }
+  function removeBanner(id: string) {
+    setBanners((list) => list.filter((b) => b.id !== id))
+  }
+  function move(id: string, dir: -1 | 1) {
+    setBanners((list) => {
+      const i = list.findIndex((b) => b.id === id)
+      const j = i + dir
+      if (i < 0 || j < 0 || j >= list.length) return list
+      const next = [...list]
+      ;[next[i], next[j]] = [next[j]!, next[i]!]
+      return next
+    })
+  }
 
   async function saveCampaign() {
     setSavingCamp(true)
@@ -91,15 +132,25 @@ export function MobilePanel({ canEdit }: { canEdit: boolean }) {
     setSavingBrand(false)
   }
 
-  async function save() {
-    if (active && (title.trim().length === 0 || body.trim().length === 0)) {
-      toast.error('Banner açıkken başlık ve metin dolu olmalı.')
+  async function saveBanners() {
+    const bad = banners.find((b) => b.active && (b.title.trim().length === 0 || b.body.trim().length === 0))
+    if (bad) {
+      toast.error('Açık banner’larda başlık ve metin dolu olmalı.')
       return
     }
     setSaving(true)
     try {
-      const r = await setMobileBannerAction({ active, title: title.trim(), body: body.trim(), tone, imageUrl: bannerImage.trim() })
-      if (r.ok) toast.success('Mobil banner kaydedildi.')
+      const payload = banners.map((b) => ({
+        id: b.id,
+        active: b.active,
+        title: b.title.trim(),
+        body: b.body.trim(),
+        tone: b.tone,
+        imageUrl: b.imageUrl.trim(),
+        detail: b.detail.trim(),
+      }))
+      const r = await setMobileBannersAction({ banners: payload })
+      if (r.ok) toast.success('Banner’lar kaydedildi.')
     } catch {
       toast.error('Kaydedilemedi.')
     }
@@ -138,99 +189,40 @@ export function MobilePanel({ canEdit }: { canEdit: boolean }) {
       </Section>
 
       <Section
-        title="Ana sayfa kampanya banner'ı"
-        hint="Üyelerin mobil uygulamayı açtığında en üstte gördüğü duyuru/kampanya kartı. Kapalıyken görünmez."
+        title="Ana sayfa banner’ları"
+        hint="Üyelerin uygulamayı açtığında en üstte gördüğü, sağa-sola kayan kartlar. Her banner’a bir görsel + kısa metin, bastığında açılan detay sayfası için uzun metin ekleyebilirsin. Kapalı banner görünmez."
       >
         <div className="space-y-4">
-          <label className="flex items-center gap-3">
-            <Checkbox checked={active} onCheckedChange={(v) => setActive(Boolean(v))} disabled={!canEdit} />
-            <span className="text-sm font-medium">Banner'ı üyelere göster</span>
-          </label>
-
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium">Başlık</label>
-            <Input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={80} placeholder="Örn. Yaz Kampanyası 🌸" disabled={!canEdit} />
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium">Metin</label>
-            <Textarea value={body} onChange={(e) => setBody(e.target.value)} maxLength={240} rows={3} placeholder="Örn. Ağustos sonuna kadar 8 derslik pakette %20 indirim. Detaylar için resepsiyona ulaşın." disabled={!canEdit} />
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium">Görsel <span className="font-normal text-muted-foreground">(opsiyonel — yükle ya da URL yapıştır)</span></label>
-            <div className="flex gap-2">
-              <Input value={bannerImage} onChange={(e) => setBannerImage(e.target.value)} placeholder="https://.../kampanya.jpg ya da yükle →" disabled={!canEdit} />
-              <MediaButton onPick={() => setPicker(() => setBannerImage)} disabled={!canEdit} />
-            </div>
-            <p className="text-xs text-muted-foreground">Eklenirse banner'da arka plan görseli olarak gösterilir (üzerine metin okunaklı kalır).</p>
-            {canEdit ? (
-              <div className="flex flex-wrap items-center gap-2 pt-1">
-                <span className="text-xs text-muted-foreground">Örnek görsel:</span>
-                {EXAMPLE_IMAGES.map((ex) => (
-                  <button
-                    key={ex.url}
-                    type="button"
-                    title={ex.label}
-                    onClick={() => setBannerImage(ex.url)}
-                    className={`size-12 overflow-hidden rounded-lg border transition-all ${bannerImage === ex.url ? 'border-primary ring-2 ring-primary' : 'border-border hover:border-primary'}`}
-                  >
-                    <img src={ex.url} alt={ex.label} className="size-full object-cover" />
-                  </button>
-                ))}
-                {bannerImage ? (
-                  <button type="button" onClick={() => setBannerImage('')} className="text-xs text-muted-foreground underline">
-                    Görseli kaldır
-                  </button>
-                ) : null}
-              </div>
-            ) : null}
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium">Renk</label>
-            <div className="flex gap-2">
-              {TONES.map((tn) => (
-                <button
-                  key={tn.key}
-                  type="button"
-                  onClick={() => setTone(tn.key)}
-                  disabled={!canEdit}
-                  className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm ${tone === tn.key ? 'border-primary ring-1 ring-primary' : 'border-border'}`}
-                >
-                  <span className={`size-3.5 rounded-full ${tn.className}`} />
-                  {tn.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* live preview */}
-          <div className="rounded-2xl border border-border bg-muted/40 p-4">
-            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Önizleme</p>
-            {bannerImage ? (
-              <div className="relative min-h-32 overflow-hidden rounded-xl shadow-sm">
-                <img src={bannerImage} alt="banner" className="absolute inset-0 size-full object-cover" />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-black/10" />
-                <div className="relative flex min-h-32 flex-col justify-end p-4 text-white">
-                  <p className="text-base font-semibold">{title || 'Başlık'}</p>
-                  <p className="text-sm text-white/85">{body || 'Metin buraya gelecek.'}</p>
-                </div>
-              </div>
-            ) : (
-              <div className={`rounded-xl border-l-4 bg-card p-3 shadow-sm ${tone === 'gold' ? 'border-amber-500' : tone === 'good' ? 'border-emerald-600' : 'border-primary'}`}>
-                <p className="text-sm font-semibold">{title || 'Başlık'}</p>
-                <p className="text-sm text-muted-foreground">{body || 'Metin buraya gelecek.'}</p>
-              </div>
-            )}
-          </div>
+          {banners.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Henüz banner yok. “Banner Ekle” ile ilk kartını oluştur.</p>
+          ) : (
+            banners.map((b, i) => (
+              <BannerEditor
+                key={b.id}
+                banner={b}
+                index={i}
+                count={banners.length}
+                canEdit={canEdit}
+                onChange={(patch) => patchBanner(b.id, patch)}
+                onRemove={() => removeBanner(b.id)}
+                onMove={(dir) => move(b.id, dir)}
+                onPickImage={() => setPicker(() => (url: string) => patchBanner(b.id, { imageUrl: url }))}
+              />
+            ))
+          )}
 
           {canEdit ? (
-            <Button onClick={() => void save()} disabled={saving}>
-              {saving ? <Loader2Icon className="animate-spin" /> : null} Kaydet
-            </Button>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button type="button" variant="outline" onClick={addBanner} disabled={banners.length >= 10}>
+                <PlusIcon className="size-4" /> Banner Ekle
+              </Button>
+              <Button onClick={() => void saveBanners()} disabled={saving}>
+                {saving ? <Loader2Icon className="animate-spin" /> : null} Kaydet
+              </Button>
+              {banners.length >= 10 ? <span className="text-xs text-muted-foreground">En fazla 10 banner.</span> : null}
+            </div>
           ) : (
-            <p className="text-sm text-muted-foreground">Banner'ı yalnızca işletme sahibi düzenleyebilir.</p>
+            <p className="text-sm text-muted-foreground">Banner’ları yalnızca işletme sahibi düzenleyebilir.</p>
           )}
         </div>
       </Section>
@@ -288,6 +280,132 @@ export function MobilePanel({ canEdit }: { canEdit: boolean }) {
       </Section>
 
       <MediaPicker open={!!picker} onOpenChange={(o) => !o && setPicker(null)} onSelect={(url) => { picker?.(url); setPicker(null) }} />
+    </div>
+  )
+}
+
+// One banner card in the list editor: active toggle, order controls, remove, all fields + a live preview.
+function BannerEditor({
+  banner,
+  index,
+  count,
+  canEdit,
+  onChange,
+  onRemove,
+  onMove,
+  onPickImage,
+}: {
+  banner: EditBanner
+  index: number
+  count: number
+  canEdit: boolean
+  onChange: (patch: Partial<EditBanner>) => void
+  onRemove: () => void
+  onMove: (dir: -1 | 1) => void
+  onPickImage: () => void
+}) {
+  return (
+    <div className="space-y-4 rounded-2xl border border-border bg-muted/20 p-4">
+      <div className="flex items-center justify-between gap-2">
+        <label className="flex items-center gap-3">
+          <Checkbox checked={banner.active} onCheckedChange={(v) => onChange({ active: Boolean(v) })} disabled={!canEdit} />
+          <span className="text-sm font-medium">Banner {index + 1}{banner.active ? '' : ' (kapalı)'}</span>
+        </label>
+        {canEdit ? (
+          <div className="flex items-center gap-1">
+            <Button type="button" variant="ghost" size="icon" onClick={() => onMove(-1)} disabled={index === 0} title="Yukarı taşı">
+              <ChevronUpIcon className="size-4" />
+            </Button>
+            <Button type="button" variant="ghost" size="icon" onClick={() => onMove(1)} disabled={index === count - 1} title="Aşağı taşı">
+              <ChevronDownIcon className="size-4" />
+            </Button>
+            <Button type="button" variant="ghost" size="icon" onClick={onRemove} title="Sil">
+              <Trash2Icon className="size-4 text-destructive" />
+            </Button>
+          </div>
+        ) : null}
+      </div>
+
+      <div className="space-y-1.5">
+        <label className="text-sm font-medium">Başlık</label>
+        <Input value={banner.title} onChange={(e) => onChange({ title: e.target.value })} maxLength={80} placeholder="Örn. Yaz Kampanyası 🌸" disabled={!canEdit} />
+      </div>
+
+      <div className="space-y-1.5">
+        <label className="text-sm font-medium">Kısa metin <span className="font-normal text-muted-foreground">(kartta görünür)</span></label>
+        <Textarea value={banner.body} onChange={(e) => onChange({ body: e.target.value })} maxLength={240} rows={2} placeholder="Örn. Ağustos sonuna kadar 8 derslik pakette %20 indirim." disabled={!canEdit} />
+      </div>
+
+      <div className="space-y-1.5">
+        <label className="text-sm font-medium">Detay metni <span className="font-normal text-muted-foreground">(opsiyonel — bastığında açılan sayfada görünür)</span></label>
+        <Textarea value={banner.detail} onChange={(e) => onChange({ detail: e.target.value })} maxLength={2000} rows={4} placeholder="Kampanyanın tüm detayları, koşulları, tarihleri… Üye banner’a bastığında bu metni görür." disabled={!canEdit} />
+      </div>
+
+      <div className="space-y-1.5">
+        <label className="text-sm font-medium">Görsel <span className="font-normal text-muted-foreground">(opsiyonel — yükle ya da URL yapıştır)</span></label>
+        <div className="flex gap-2">
+          <Input value={banner.imageUrl} onChange={(e) => onChange({ imageUrl: e.target.value })} placeholder="https://.../kampanya.jpg ya da yükle →" disabled={!canEdit} />
+          <MediaButton onPick={onPickImage} disabled={!canEdit} />
+        </div>
+        {canEdit ? (
+          <div className="flex flex-wrap items-center gap-2 pt-1">
+            <span className="text-xs text-muted-foreground">Örnek görsel:</span>
+            {EXAMPLE_IMAGES.map((ex) => (
+              <button
+                key={ex.url}
+                type="button"
+                title={ex.label}
+                onClick={() => onChange({ imageUrl: ex.url })}
+                className={`size-12 overflow-hidden rounded-lg border transition-all ${banner.imageUrl === ex.url ? 'border-primary ring-2 ring-primary' : 'border-border hover:border-primary'}`}
+              >
+                <img src={ex.url} alt={ex.label} className="size-full object-cover" />
+              </button>
+            ))}
+            {banner.imageUrl ? (
+              <button type="button" onClick={() => onChange({ imageUrl: '' })} className="text-xs text-muted-foreground underline">
+                Görseli kaldır
+              </button>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
+
+      <div className="space-y-1.5">
+        <label className="text-sm font-medium">Renk <span className="font-normal text-muted-foreground">(görsel yoksa)</span></label>
+        <div className="flex gap-2">
+          {TONES.map((tn) => (
+            <button
+              key={tn.key}
+              type="button"
+              onClick={() => onChange({ tone: tn.key })}
+              disabled={!canEdit}
+              className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm ${banner.tone === tn.key ? 'border-primary ring-1 ring-primary' : 'border-border'}`}
+            >
+              <span className={`size-3.5 rounded-full ${tn.className}`} />
+              {tn.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-border bg-card/60 p-4">
+        <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Önizleme</p>
+        {banner.imageUrl ? (
+          <div className="relative min-h-32 overflow-hidden rounded-xl shadow-sm">
+            <img src={banner.imageUrl} alt="banner" className="absolute inset-0 size-full object-cover" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-black/10" />
+            <div className="relative flex min-h-32 flex-col justify-end p-4 text-white">
+              <p className="text-base font-semibold">{banner.title || 'Başlık'}</p>
+              <p className="text-sm text-white/85">{banner.body || 'Metin buraya gelecek.'}</p>
+            </div>
+          </div>
+        ) : (
+          <div className={`rounded-xl border-l-4 bg-card p-3 shadow-sm ${banner.tone === 'gold' ? 'border-amber-500' : banner.tone === 'good' ? 'border-emerald-600' : 'border-primary'}`}>
+            <p className="text-sm font-semibold">{banner.title || 'Başlık'}</p>
+            <p className="text-sm text-muted-foreground">{banner.body || 'Metin buraya gelecek.'}</p>
+          </div>
+        )}
+      </div>
     </div>
   )
 }
