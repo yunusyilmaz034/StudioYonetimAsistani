@@ -43,3 +43,4 @@ tools/migration/reports/
 
 # PayTR vendor reference docs (read-only, not part of the repo)
 docs/PayTR Linkle Ödeme/
+docs/PayTR IFrame API/

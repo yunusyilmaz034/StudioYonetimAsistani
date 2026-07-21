@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { CopyIcon, ExternalLinkIcon, Loader2Icon } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { CheckCircle2Icon, CopyIcon, ExternalLinkIcon, Loader2Icon, XCircleIcon } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
@@ -11,14 +12,15 @@ import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { domainErrorMessage } from '@/lib/domain-error'
 import { openWhatsApp } from '@/lib/whatsapp'
-import { createPackagePaymentAction } from '@/server/actions/payments'
+import { createPackagePaymentAction, listMemberPaymentIntentsAction } from '@/server/actions/payments'
 import type { ProductView } from '@/server/catalog-query'
 
 const todayStr = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Istanbul' }).format(Date.now())
 const tl = (kurus: number) => `${(kurus / 100).toLocaleString('tr-TR')} ₺`
 
-// PAYTR ile paket satışı — Sanal POS (yeni sekmede ödeme) veya Ödeme Linki (paylaş). Paket ödeme
-// DOĞRULANDIKTAN sonra atanır (callback); bu ekran yalnızca ödemeyi başlatır.
+// PAYTR ile paket satışı — Sanal POS (kart formu + taksit tablosu + 3D panelin İÇİNDE gömülü iframe'de)
+// veya Ödeme Linki (paylaş). Paket ödeme DOĞRULANDIKTAN sonra callback ile atanır; bu ekran ödemeyi
+// başlatır ve Sanal POS'ta sonucu intent durumundan izler.
 export function PaytrSaleDialog({
   memberId,
   memberPhone,
@@ -36,6 +38,7 @@ export function PaytrSaleDialog({
   open: boolean
   onClose: () => void
 }) {
+  const router = useRouter()
   const active = products.filter((p) => p.active)
   const [productId, setProductId] = useState(active[0]?.id ?? '')
   const [flow, setFlow] = useState<'pos' | 'link'>('link')
@@ -43,6 +46,50 @@ export function PaytrSaleDialog({
   const [installments, setInstallments] = useState(Math.max(1, maxInstallments))
   const [busy, setBusy] = useState(false)
   const [link, setLink] = useState<string | null>(null)
+  // Sanal POS embedded-iframe state.
+  const [posUrl, setPosUrl] = useState<string | null>(null)
+  const [posIntentId, setPosIntentId] = useState<string | null>(null)
+  const [posResult, setPosResult] = useState<'paid' | 'failed' | 'review' | null>(null)
+
+  // While the PayTR iframe is open, poll the intent — the ONLY source of truth is the callback, which
+  // flips the intent to `paid`. The browser returning is never enough (that's why we don't trust the
+  // iframe's own redirect). Stops on a terminal status, on close, or on unmount.
+  useEffect(() => {
+    if (!posUrl || !posIntentId || posResult) return
+    let alive = true
+    const tick = async () => {
+      try {
+        const rows = await listMemberPaymentIntentsAction({ memberId })
+        const row = rows.find((r) => r.id === posIntentId)
+        if (!row || !alive) return
+        if (row.status === 'paid') {
+          setPosResult('paid')
+          toast.success('Ödeme onaylandı — paket atandı.')
+          router.refresh()
+        } else if (row.status === 'failed' || row.status === 'expired' || row.status === 'cancelled') {
+          setPosResult('failed')
+        } else if (row.status === 'manual_review') {
+          setPosResult('review')
+        }
+      } catch {
+        /* transient — keep polling */
+      }
+    }
+    void tick()
+    const iv = setInterval(() => void tick(), 3500)
+    return () => {
+      alive = false
+      clearInterval(iv)
+    }
+  }, [posUrl, posIntentId, posResult, memberId, router])
+
+  function close() {
+    setLink(null)
+    setPosUrl(null)
+    setPosIntentId(null)
+    setPosResult(null)
+    onClose()
+  }
 
   const product = active.find((p) => p.id === productId)
   // Card/transfer price = catalogue price + the studio's surcharge. The member is only ever shown this
@@ -73,9 +120,9 @@ export function PaytrSaleDialog({
         return
       }
       if (res.value.flow === 'pos') {
-        window.open(res.value.redirectUrl, '_blank', 'noopener')
-        toast.success('PAYTR ödeme sayfası açıldı. Ödeme onaylanınca paket atanır.')
-        onClose()
+        // Embed the PayTR secure form (card + installment table + 3D) right here, and start polling.
+        setPosIntentId(res.value.intentId)
+        setPosUrl(res.value.redirectUrl)
       } else {
         setLink(res.value.redirectUrl)
         toast.success('Ödeme linki oluşturuldu.')
@@ -87,14 +134,54 @@ export function PaytrSaleDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={(o) => (o ? null : onClose())}>
-      <DialogContent>
+    <Dialog open={open} onOpenChange={(o) => (o ? null : close())}>
+      <DialogContent className={posUrl ? 'max-w-2xl' : undefined}>
         <DialogHeader>
           <DialogTitle>PAYTR ile Paket Sat</DialogTitle>
           <DialogDescription>Ödeme onaylanınca paket otomatik atanır — tarayıcı dönüşü tek başına yeterli değildir.</DialogDescription>
         </DialogHeader>
 
-        {link ? (
+        {posUrl ? (
+          <div className="space-y-3">
+            {posResult === 'paid' ? (
+              <div className="flex flex-col items-center gap-3 py-8 text-center">
+                <CheckCircle2Icon className="size-12 text-emerald-600" />
+                <p className="text-base font-semibold">Ödeme onaylandı</p>
+                <p className="text-sm text-muted-foreground">Paket üyeye atandı.</p>
+              </div>
+            ) : posResult === 'failed' ? (
+              <div className="flex flex-col items-center gap-3 py-8 text-center">
+                <XCircleIcon className="size-12 text-destructive" />
+                <p className="text-base font-semibold">Ödeme tamamlanmadı</p>
+                <p className="text-sm text-muted-foreground">İşlem başarısız oldu ya da iptal edildi. Tekrar deneyebilirsiniz.</p>
+              </div>
+            ) : posResult === 'review' ? (
+              <div className="flex flex-col items-center gap-3 py-8 text-center">
+                <Loader2Icon className="size-10 text-amber-500" />
+                <p className="text-base font-semibold">İnceleme gerekiyor</p>
+                <p className="text-sm text-muted-foreground">Ödeme otomatik doğrulanamadı; birazdan Cari Hesap üzerinden kontrol edin.</p>
+              </div>
+            ) : (
+              <>
+                <div className="flex items-center justify-between gap-2 text-sm">
+                  <span className="text-muted-foreground">Tutar</span>
+                  <strong>{tl(total)}{surchargeKurus > 0 ? <span className="ml-1 text-xs font-normal text-muted-foreground">(kart farkı dahil)</span> : null}</strong>
+                </div>
+                <iframe
+                  src={posUrl}
+                  title="PayTR Sanal POS"
+                  className="h-[68vh] w-full rounded-lg border border-border bg-white"
+                />
+                <p className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Loader2Icon className="size-3.5 animate-spin" /> Ödeme bekleniyor… onaylanınca paket otomatik atanır.
+                </p>
+              </>
+            )}
+            <DialogFooter>
+              <Button onClick={close}>{posResult === 'paid' ? 'Tamam' : 'Kapat'}</Button>
+            </DialogFooter>
+          </div>
+        ) : link ? (
           <div className="space-y-3">
             <p className="text-sm">Ödeme linki hazır. Üyeye gönderin:</p>
             <div className="flex items-center gap-2 rounded-lg border border-border p-2">
@@ -112,7 +199,7 @@ export function PaytrSaleDialog({
               </Button>
             </div>
             <DialogFooter>
-              <Button onClick={onClose}>Kapat</Button>
+              <Button onClick={close}>Kapat</Button>
             </DialogFooter>
           </div>
         ) : (
@@ -170,7 +257,7 @@ export function PaytrSaleDialog({
               </p>
             ) : null}
             <DialogFooter>
-              <Button variant="outline" onClick={onClose} disabled={busy}>
+              <Button variant="outline" onClick={close} disabled={busy}>
                 Vazgeç
               </Button>
               <Button onClick={() => void start()} disabled={busy || !product}>
