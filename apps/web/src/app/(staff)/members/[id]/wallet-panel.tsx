@@ -9,6 +9,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Section } from '@/components/ui/section'
 import { domainErrorMessage } from '@/lib/domain-error'
+import { PaytrCheckoutDialog, type PaytrCheckout } from '@/components/paytr-checkout'
+import { createWalletTopupPaymentAction } from '@/server/actions/payments'
 import { adjustMemberWalletAction, getMemberWalletAction, topUpMemberWalletAction } from '@/server/actions/wallet'
 
 const SOURCES: { id: 'cash' | 'bank_transfer' | 'manual'; label: string }[] = [
@@ -24,10 +26,11 @@ const REASONS: { id: 'gift' | 'correction' | 'migration' | 'support'; label: str
 ]
 const dt = (ms: number) => new Date(ms).toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul', dateStyle: 'medium', timeStyle: 'short' })
 
-export function WalletPanel({ memberId }: { memberId: string }) {
+export function WalletPanel({ memberId, memberPhone = null }: { memberId: string; memberPhone?: string | null }) {
   const [wallet, setWallet] = useState<StoredWallet | null>(null)
   const [amount, setAmount] = useState('')
   const [source, setSource] = useState<'cash' | 'bank_transfer' | 'manual'>('cash')
+  const [checkout, setCheckout] = useState<PaytrCheckout | null>(null)
   const [busy, setBusy] = useState(false)
   const [showAdjust, setShowAdjust] = useState(false)
   const [adjAmount, setAdjAmount] = useState('')
@@ -60,6 +63,30 @@ export function WalletPanel({ memberId }: { memberId: string }) {
       }
     } catch {
       toast.error('Yükleme yapılamadı.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  // Load the wallet by PAYTR — Sanal POS (embedded form) or Link (shared). On the verified callback the
+  // money credits her balance (source 'online'); the dialog polls and refreshes.
+  async function paytrTopUp(flow: 'pos' | 'link') {
+    const k = kurusOf(amount)
+    if (!Number.isFinite(k) || k <= 0) {
+      toast.error('Geçerli bir tutar gir.')
+      return
+    }
+    setBusy(true)
+    try {
+      const res = await createWalletTopupPaymentAction({ memberId, amountKurus: k, flow })
+      if (res.ok) {
+        setAmount('')
+        setCheckout({ flow, redirectUrl: res.value.redirectUrl, intentId: res.value.intentId })
+      } else {
+        toast.error(domainErrorMessage(res.error))
+      }
+    } catch {
+      toast.error('İşlem başlatılamadı.')
     } finally {
       setBusy(false)
     }
@@ -106,24 +133,30 @@ export function WalletPanel({ memberId }: { memberId: string }) {
         </div>
       </Section>
 
-      <Section title="Bakiye Yükle" hint="Nakit tahsilat kasaya işlenir; havale/manuel yalnızca bakiyeye yazılır.">
-        <div className="flex flex-wrap items-end gap-2">
-          <div className="w-32">
-            <Input inputMode="decimal" placeholder="Tutar (TL)" value={amount} onChange={(e) => setAmount(e.target.value)} />
+      <Section title="Bakiye Yükle" hint="Nakit tahsilat kasaya işlenir; havale/manuel yalnızca bakiyeye yazılır. Sanal POS / Link ile de yükleyebilirsiniz.">
+        <div className="space-y-2">
+          <div className="flex flex-wrap items-end gap-2">
+            <div className="w-32">
+              <Input inputMode="decimal" placeholder="Tutar (TL)" value={amount} onChange={(e) => setAmount(e.target.value)} />
+            </div>
+            <div className="flex gap-1">
+              {SOURCES.map((s) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => setSource(s.id)}
+                  className={`rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${source === s.id ? 'bg-accent text-accent-foreground' : 'bg-muted text-muted-foreground'}`}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
+            <Button onClick={() => void topUp()} disabled={busy}>Yükle</Button>
           </div>
-          <div className="flex gap-1">
-            {SOURCES.map((s) => (
-              <button
-                key={s.id}
-                type="button"
-                onClick={() => setSource(s.id)}
-                className={`rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${source === s.id ? 'bg-accent text-accent-foreground' : 'bg-muted text-muted-foreground'}`}
-              >
-                {s.label}
-              </button>
-            ))}
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" onClick={() => void paytrTopUp('pos')} disabled={busy}>Sanal POS ile Yükle</Button>
+            <Button variant="outline" size="sm" onClick={() => void paytrTopUp('link')} disabled={busy}>Link ile Yükle</Button>
           </div>
-          <Button onClick={() => void topUp()} disabled={busy}>Yükle</Button>
         </div>
       </Section>
 
@@ -173,6 +206,18 @@ export function WalletPanel({ memberId }: { memberId: string }) {
           </div>
         ) : null}
       </div>
+
+      <PaytrCheckoutDialog
+        checkout={checkout}
+        memberId={memberId}
+        memberPhone={memberPhone}
+        title="Cüzdana Yükle"
+        onPaid={load}
+        onClose={() => {
+          setCheckout(null)
+          load()
+        }}
+      />
     </div>
   )
 }

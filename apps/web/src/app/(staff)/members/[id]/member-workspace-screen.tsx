@@ -301,7 +301,7 @@ export function MemberWorkspaceScreen({
         </TabsContent>
         <TabsContent value="wallet">
           {/* Doc 27 — the stored-value wallet: load balance at the desk, buy from it in the shop. */}
-          <WalletPanel memberId={member.id} />
+          <WalletPanel memberId={member.id} memberPhone={member.phone} />
         </TabsContent>
         <TabsContent value="audit">
           <AuditPanel memberId={member.id} />
