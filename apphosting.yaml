@@ -144,3 +144,11 @@ env:
     secret: PAYTR_MERCHANT_SALT
     availability:
       - RUNTIME
+
+  # ── Anthropic (Faz 2) — the LLM behind the dashboard "bugün ilgilenmen gerekenler" AI checklist (and,
+  # later, the AI receptionist). Usage-based; RUNTIME only. With the secret absent the AI layer returns
+  # null and the deterministic list is shown, so a missing key degrades gracefully rather than breaking.
+  - variable: ANTHROPIC_API_KEY
+    secret: ANTHROPIC_API_KEY
+    availability:
+      - RUNTIME
