@@ -76,7 +76,10 @@ service cloud.firestore {
           'checkinLocations',
           // v1.29 — in-app bug reports (the "Bildir" button). A report's screenshot is a rendering of
           // the panel and may show member data; only the owner reads them, through the Server Action.
-          'feedback'
+          'feedback',
+          // Faz 2 — WhatsApp AI receptionist conversations (buyer phone/name + message text = PII).
+          // Written by the inbound webhook, read by reception through a Server Action; never client-side.
+          'conversations'
         ];
       }
 

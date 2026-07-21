@@ -415,6 +415,34 @@ export function metaWhatsAppTransport(config: MetaWhatsAppConfig, fetchImpl: typ
   }
 }
 
+// FREE-FORM text send — distinct from the template transport above. Meta allows a plain `text` message
+// ONLY inside the 24-hour customer-service window (i.e. a reply to an inbound message). The WhatsApp AI
+// receptionist always replies within that window, so it uses this; the template path stays for
+// business-initiated notifications outside the window. NOT wired into WhatsAppProvider (which is
+// template-only by design) — called directly by the inbound webhook.
+export async function sendWhatsAppText(
+  config: MetaWhatsAppConfig,
+  to: string,
+  body: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<{ ok: boolean; ref?: string; code?: string }> {
+  const version = config.apiVersion ?? 'v21.0'
+  const digits = to.replace(/\D/g, '')
+  try {
+    const res = await fetchImpl(`https://graph.facebook.com/${version}/${config.phoneNumberId}/messages`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${config.accessToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messaging_product: 'whatsapp', to: digits, type: 'text', text: { body } }),
+    })
+    if (!res.ok) return { ok: false, code: `meta_${res.status}` }
+    const data = (await res.json().catch(() => ({}))) as { messages?: { id?: string }[] }
+    const ref = data.messages?.[0]?.id
+    return ref ? { ok: true, ref } : { ok: true }
+  } catch {
+    return { ok: false, code: 'network_error' }
+  }
+}
+
 // ── One provider registry, built from config — used by BOTH the functions trigger and the web
 //    resend action, so a channel that is real in production is real when reception resends. A channel
 //    with credentials becomes real; without them it falls back to its honest stub/mock. ──

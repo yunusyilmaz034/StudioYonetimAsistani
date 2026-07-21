@@ -5,6 +5,7 @@ import { Loader2Icon, PlusIcon, SparklesIcon, Trash2Icon } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Section } from '@/components/ui/section'
 import { Textarea } from '@/components/ui/textarea'
@@ -23,6 +24,7 @@ export function AiSettingsPanel({ canEdit }: { canEdit: boolean }) {
   const [escalation, setEscalation] = useState('')
   const [neverDo, setNeverDo] = useState('')
   const [examples, setExamples] = useState('')
+  const [whatsappActive, setWhatsappActive] = useState(false)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
@@ -37,6 +39,7 @@ export function AiSettingsPanel({ canEdit }: { canEdit: boolean }) {
         setEscalation(s.escalation)
         setNeverDo(s.neverDo)
         setExamples(s.examples)
+        setWhatsappActive(s.whatsappActive)
       })
       .catch(() => {})
       .finally(() => setLoading(false))
@@ -58,6 +61,7 @@ export function AiSettingsPanel({ canEdit }: { canEdit: boolean }) {
         escalation: escalation.trim(),
         neverDo: neverDo.trim(),
         examples: examples.trim(),
+        whatsappActive,
       })
       if (r.ok) toast.success('AI ayarları kaydedildi.')
     } catch {
@@ -86,6 +90,16 @@ export function AiSettingsPanel({ canEdit }: { canEdit: boolean }) {
           canlı okur; buraya "yazılı olmayan" bilgileri yaz.
         </p>
       </div>
+
+      <Section title="WhatsApp AI Resepsiyonist" hint="Açıkken, WhatsApp'a gelen mesajlara AI otomatik cevap verir (aşağıdaki bilgi kartından). Kapalıyken mesajlar yine panele düşer ama cevap gitmez.">
+        <label className="flex items-center gap-3">
+          <Checkbox checked={whatsappActive} onCheckedChange={(v) => setWhatsappActive(Boolean(v))} disabled={!canEdit} />
+          <span className="text-sm font-medium">Gelen WhatsApp mesajlarına otomatik cevap ver</span>
+        </label>
+        {whatsappActive ? (
+          <p className="mt-2 text-xs text-warning">⚠️ AI şu an gerçek müşterilere cevap verecek. Bilgi kartını doldurduğundan emin ol.</p>
+        ) : null}
+      </Section>
 
       <Section title="Kimlik & üslup" hint="AI kim gibi konuşsun? Ton, dil ve karakter.">
         <div className="space-y-4">

@@ -27,9 +27,12 @@ export interface AiSettings {
   readonly escalation: string // when to hand to a human (Işıl)
   readonly neverDo: string // hard "never" rules (no price haggling, no medical advice, no promises)
   readonly examples: string // example dialogues / tone samples (optional)
+  // The MASTER switch for the WhatsApp AI receptionist. Default OFF: the webhook still captures the
+  // conversation, but the AI only auto-replies once the owner deliberately turns it on.
+  readonly whatsappActive: boolean
 }
 
-const DEFAULT: AiSettings = { tone: '', identity: '', basics: '', policies: '', faq: [], escalation: '', neverDo: '', examples: '' }
+const DEFAULT: AiSettings = { tone: '', identity: '', basics: '', policies: '', faq: [], escalation: '', neverDo: '', examples: '', whatsappActive: false }
 
 export async function getAiSettingsAction(): Promise<AiSettings> {
   const ctx = await requireTenantContext(OPS)
@@ -46,6 +49,7 @@ const schema = z.object({
   escalation: z.string().trim().max(2000),
   neverDo: z.string().trim().max(2000),
   examples: z.string().trim().max(6000),
+  whatsappActive: z.boolean().default(false),
 })
 
 export async function setAiSettingsAction(input: unknown) {

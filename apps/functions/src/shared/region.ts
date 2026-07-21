@@ -49,3 +49,9 @@ export const NOTIFICATION_SECRETS = [...EMAIL_SECRETS, ...WHATSAPP_SECRETS] as c
 // here. A function that reconciles payments (or a web tier that verifies a callback) sees these only
 // if it binds them. Absent them, the provider is Unconfigured and shows configuration_required.
 export const PAYTR_SECRETS = ['PAYTR_MERCHANT_KEY', 'PAYTR_MERCHANT_SALT'] as const
+
+// ── AI RECEPTIONIST (Faz 2) ─────────────────────────────────────────────────────────────────────
+// The inbound WhatsApp webhook replies with Claude. It sends WhatsApp (the Meta token) and calls
+// Anthropic (the API key). WHATSAPP_VERIFY_TOKEN (the GET handshake) is NOT a secret — a low-value
+// nonce that only gates the one-time webhook verification — so it rides in the functions .env.
+export const AI_RECEPTIONIST_SECRETS = ['WHATSAPP_ACCESS_TOKEN', 'ANTHROPIC_API_KEY'] as const

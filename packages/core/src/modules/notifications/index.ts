@@ -64,6 +64,7 @@ export {
   InAppProvider,
   META_TEMPLATE,
   metaWhatsAppTransport,
+  sendWhatsAppText,
   MockSmsProvider,
   ResendEmailProvider,
   standardNotificationProviders,

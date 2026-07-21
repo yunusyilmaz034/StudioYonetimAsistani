@@ -20,6 +20,7 @@ import { runPaymentReconcileSweep } from './scheduled/reconcile-payments'
 import { runReminderSweep } from './scheduled/reminders'
 import { runUnfreezeSweep } from './scheduled/unfreeze-expired'
 import { paytrCallback } from './http/paytr-callback'
+import { whatsappWebhook } from './http/whatsapp-webhook'
 import { NOTIFICATION_SECRETS, REGION } from './shared/region'
 import { onCommandCreated } from './triggers/on-command-created'
 import { onEventCreated } from './triggers/on-event-created'
@@ -36,6 +37,7 @@ export { onCommandCreated }
 // file for the full why. Public (unauthenticated) — PAYTR is the caller; the hash is the auth,
 // verified downstream.
 export { paytrCallback }
+export { whatsappWebhook }
 // v1.23 — the daily read model behind the owner dashboard. Disposable: if it is ever wrong, it is
 // deleted and replayed from the log (`pnpm projections:rebuild`).
 export { onEventCreated }
