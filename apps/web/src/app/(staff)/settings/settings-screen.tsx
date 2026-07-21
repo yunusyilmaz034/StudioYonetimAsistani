@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils'
 
 import { DefinitionsPanel } from './definitions-panel'
 import { MobilePanel } from './mobile-panel'
+import { AiSettingsPanel } from './ai-settings-panel'
 import { ThemeScreen } from './theme/theme-screen'
 import { domainErrorMessage } from '@/lib/domain-error'
 import type { StudioTheme } from '@/lib/theme/presets'
@@ -226,6 +227,7 @@ export function SettingsScreen({
           <TabsTrigger value="gorunum" className="shrink-0">Görünüm</TabsTrigger>
           <TabsTrigger value="tanimlar" className="shrink-0">Tanımlar</TabsTrigger>
           <TabsTrigger value="mobil" className="shrink-0">Mobil</TabsTrigger>
+          <TabsTrigger value="ai" className="shrink-0">AI</TabsTrigger>
         </TabsList>
 
         <TabsContent value="genel" className="space-y-6">
@@ -627,6 +629,11 @@ export function SettingsScreen({
         <TabsContent value="mobil" className="space-y-6">
           {/* The member mobile app's owner-controlled settings (home-screen campaign banner, …). */}
           <MobilePanel canEdit={canManage} />
+        </TabsContent>
+
+        <TabsContent value="ai" className="space-y-6">
+          {/* The studio's AI "knowledge card" — persona + basics + policies + FAQ the AI reads as context. */}
+          <AiSettingsPanel canEdit={canManage} />
         </TabsContent>
       </Tabs>
 

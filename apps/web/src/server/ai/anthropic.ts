@@ -54,9 +54,10 @@ function extractJson(text: string): string {
   return start >= 0 && end > start ? text.slice(start, end + 1) : text
 }
 
-export async function narrateChecklist(items: readonly AdvisorItem[], studioName: string): Promise<DailyChecklist | null> {
+export async function narrateChecklist(items: readonly AdvisorItem[], studioName: string, tone?: string): Promise<DailyChecklist | null> {
   const key = process.env.ANTHROPIC_API_KEY
   if (!key || items.length === 0) return null
+  const system = tone && tone.trim() ? `${SYSTEM}\n\nStüdyonun tercih ettiği üslup: ${tone.trim()}` : SYSTEM
 
   // ── Tokenise every subject name out (PII never leaves) ─────────────────────────────────────
   const nameByToken = new Map<string, string>()
@@ -92,7 +93,7 @@ export async function narrateChecklist(items: readonly AdvisorItem[], studioName
       body: JSON.stringify({
         model: MODEL,
         max_tokens: 1500,
-        system: SYSTEM,
+        system,
         messages: [{ role: 'user', content: JSON.stringify({ studio: studioName, items: aiItems }) }],
       }),
       // A daily briefing must never hang the dashboard — cap the wait, fall back to deterministic.

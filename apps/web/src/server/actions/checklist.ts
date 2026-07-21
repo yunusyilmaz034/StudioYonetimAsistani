@@ -2,6 +2,7 @@
 
 import { requireTenantContext } from '../auth'
 import { narrateChecklist, type DailyChecklist } from '../ai/anthropic'
+import { loadAiSettings } from './ai-settings'
 import type { AdvisorItem } from '../advisor-query'
 
 // The dashboard (owner + reception) asks the AI to turn today's deterministic advisor items into a warm,
@@ -11,6 +12,7 @@ import type { AdvisorItem } from '../advisor-query'
 const OPS = ['owner', 'receptionist', 'platform_admin'] as const
 
 export async function narrateChecklistAction(items: readonly AdvisorItem[]): Promise<DailyChecklist | null> {
-  await requireTenantContext(OPS)
-  return narrateChecklist(items, 'stüdyonuz')
+  const ctx = await requireTenantContext(OPS)
+  const ai = await loadAiSettings(ctx.studioId) // the studio's tone, set in Ayarlar → AI
+  return narrateChecklist(items, 'stüdyonuz', ai?.tone)
 }
