@@ -9,13 +9,19 @@ sonra kaldığın yerden devam et.** Blok blok commit + push. (Doc 10 · [[bug-h
 
 ## FAZ 1 — yakın vade (somut, bounded)
 
-### 1a · Sanal POS (PAYTR iFrame/Direct API) · money-critical
+### 1a · Sanal POS (PAYTR iFrame) · money-critical · ✅ BİTTİ (push edildi)
 Resepsiyon ödemeyi alırken "KK"ye **ek olarak "Sanal POS"** seçeneği → form açılır → müşterinin
 **taksit tablosu** gösterilir → **3D Secure** ile ödeme alınır. Link ödeme (Link API) zaten var; bu
 **iFrame API** — ayrı PAYTR ürünü, ek anlaşma yapıldı.
-- **Mimari:** mevcut PAYTR seam'ini büyütür (PAYTR_SECRETS, callback, PaymentIntent). iFrame token
-  üretimi + 3D akışı + callback doğrulama. Para yolu → yavaşla, tahminle yazma.
-- **BLOKER:** dev.paytr.com iFrame API dökümanı (owner gönderecek). Gelmeden başlanmaz.
+- **Keşif:** iFrame'in tüm para makinesi ZATEN kuruluydu (`createPosSession`/`flow:'pos'` token,
+  `verifyCallback` iFrame hash dalı, purpose-bazlı settlement, dialog'da "Sanal POS" seçeneği). Tek
+  eksik: form yeni sekmede açılıyordu.
+- **Yapıldı (commit `3c45c80`):** `paytr-sale-dialog.tsx` `flow:'pos'` artık formu **panele gömülü
+  iframe**'de açıyor (taksit tablosu + 3D), sonucu intent durumundan poll ediyor, onaylanınca paket
+  atanıp ekran yenileniyor. **Tamamen ek — Link akışı ve para yolu değişmedi.** CSP değişikliği yok.
+- **Kalan:** owner'ın gerçek ilk Sanal POS ödemesiyle canlı testi (test_mode=0 → gerçek çekim;
+  isterse geçici test_mode+test kartı). "Sanal POS aktif" ayarı açık olmalı; global Bildirim URL
+  zaten fonksiyona bakıyor.
 
 ### 1b · Üye mobil — premium görünüm + Ajanda + banner + iletişim
 - **Ajanda** tek karışık sekme yerine **"Rezervasyonlarım"** (mevcut/geçmiş rezervasyonlar) +
@@ -56,7 +62,7 @@ CCTV'den: personel/müşteri, kasada kim ne kadar kaldı, dwell-time raporları.
 ---
 
 ## Sıra (owner, 2026-07-21)
-1. **Faz 1b (üye mobil)** — ŞİMDİ başlandı (harici bağımlılık yok).
-2. **Faz 1a (Sanal POS)** — owner iFrame dökümanını gönderince.
-3. **Faz 2** — Faz 1 bitince, her biri ayrı ayrı scope edilerek. Muhtemel sıra: AI Resepsiyonist →
+1. **Faz 1b (üye mobil)** — ✅ BİTTİ, push + iOS build 2 TestFlight'ta (yükleme testi owner'da).
+2. **Faz 1a (Sanal POS)** — ✅ BİTTİ, push edildi (commit `3c45c80`). Kalan: owner canlı test.
+3. **Faz 2** — Faz 1 bitti; her biri ayrı ayrı scope edilerek. Muhtemel sıra: AI Resepsiyonist →
    AI Patron Asistanı → NVR (KVKK sonrası) → Home Assistant.
