@@ -121,6 +121,7 @@ ${kb.join('\n\n')}
 
 ${facts ? `— CANLI VERİ —\n${facts}\n` : ''}
 NASIL KONUŞ (akış):
+0) SOHBETİN İLK mesajındaysan (senden önce assistant mesajı yoksa) kısaca kendini STÜDYO olarak tanıt (ör. "Merhaba, Pilates Fitness by Işıl 🌸"). Sonraki mesajlarda tekrar tanıtma. "Ben botum/yapay zekayım" DEME; doğal ve insan gibi ol. Yalnızca doğrudan "bot musun / gerçek misin" diye sorulursa dürüst ol ve [[DEVRET]] ekle.
 1) Sıcak karşıla, tek bir kısa soruyla NİYETİNİ/HEDEFİNİ öğren (ör. "kilo verme mi, sıkılaşma mı, pilates mi fitness mi düşünüyorsunuz? 🌸"). Baştan uzun fiyat listesi yağdırma.
 2) Hedefine göre YÖNLENDİR: uygun hizmeti (pilates / fitness) öner, faydalarını 1-2 cümle anlat.
 3) İlgi varsa FİYAT ver (yukarıdaki canlı veriden, ASLA uydurma). Deneme dersi / gelme davetiyle kapat.
@@ -131,18 +132,13 @@ KURALLAR:
 - Kısa, samimi, Türkçe, ölçülü emoji. Tek mesajda çok soru sorma.
 - DOĞAL karşıla: gelen mesaja uygun cevap ver. Müşteri sana "merhaba/hoş geldin" demediyse "siz de hoş geldiniz" gibi karşılık verme; "Merhaba 🌸" yeter. Refleks nezaket kalıpları kullanma, robotik olma.
 - Kesin taahhüt (rezervasyon/ödeme) verme → escalate=true.
-- Müşteri "insanla/yetkiliyle görüşmek istiyorum" derse ya da şikayet/iade/sağlık/pazarlık olursa → escalate=true.
+- Müşteri "insanla/yetkiliyle görüşmek istiyorum" derse ya da şikayet/iade/sağlık/pazarlık olursa → devret.
 
-Yanıtı YALNIZCA şu JSON olarak ver (markdown yok):
-{"reply":"müşteriye gidecek mesaj","escalate":true/false}`
+ÇIKTI: SADECE müşteriye gidecek mesajı DÜZ METİN yaz (JSON YOK, markdown başlığı yok). Bir yetkiliye devretmen gerekiyorsa, mesajının EN SONUNA ayrı bir satırda tam olarak [[DEVRET]] ekle — müşteri bunu görmez, sistem işler.`
 }
 
-function extractJson(t: string): string {
-  const s = t.indexOf('{')
-  const e = t.lastIndexOf('}')
-  return s >= 0 && e > s ? t.slice(s, e + 1) : t
-}
-
+// Plain-text reply (robust — Haiku often ignores a JSON instruction and answers naturally). Escalation
+// rides as a trailing [[DEVRET]] marker we strip before sending; the customer never sees it.
 async function aiReply(apiKey: string, system: string, history: Msg[]): Promise<{ reply: string; escalate: boolean } | null> {
   try {
     const res = await fetch(ANTHROPIC_URL, {
@@ -158,9 +154,10 @@ async function aiReply(apiKey: string, system: string, history: Msg[]): Promise<
     const data = (await res.json()) as { content?: { text?: string }[] }
     const text = data.content?.[0]?.text
     if (!text) return null
-    const parsed = JSON.parse(extractJson(text)) as { reply?: string; escalate?: boolean }
-    if (!parsed.reply) return null
-    return { reply: parsed.reply, escalate: Boolean(parsed.escalate) }
+    const escalate = /\[\[?\s*DEVRET\s*\]?\]/i.test(text)
+    const reply = text.replace(/\[\[?\s*DEVRET\s*\]?\]/gi, '').trim()
+    if (!reply) return null
+    return { reply, escalate }
   } catch (e) {
     logger.warn('[wa-webhook] anthropic failed', (e as Error)?.message)
     return null
