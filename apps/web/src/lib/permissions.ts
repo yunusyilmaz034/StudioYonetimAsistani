@@ -52,6 +52,7 @@ export type Area =
   | '/import' // S5 — the BulutGym import
   | '/reports' // S6 — the seven reports
   | '/feedback' // Geri Bildirim — in-app bug reports from staff (owner reviews)
+  | '/conversations' // Faz 2 — WhatsApp AI receptionist conversations (owner + reception)
 
 const OWNER_ONLY: readonly PrincipalRole[] = ['owner']
 const DESK: readonly PrincipalRole[] = ['owner', 'receptionist']
@@ -100,6 +101,7 @@ export const PERMISSIONS: Readonly<Record<Area, readonly PrincipalRole[]>> = {
   '/engagement': OWNER_ONLY,
   // Geri Bildirim — staff file in-app bug reports (the "Bildir" button); the owner reviews them here.
   '/feedback': OWNER_ONLY,
+  '/conversations': DESK, // reception operates the AI hand-offs; owner monitors all conversations
   '/settings': OWNER_ONLY,
   '/staff': OWNER_ONLY,
   // Plus Phase 9 — payroll is the business's cost side. Owner-confidential; reception never, a

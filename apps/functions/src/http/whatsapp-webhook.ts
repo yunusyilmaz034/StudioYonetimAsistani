@@ -46,6 +46,8 @@ interface Conversation {
   lastAt: number
   seenIds: string[]
   messages: Msg[]
+  temp?: 'sıcak' | 'ılık' | 'soğuk' // AI's read of conversion likelihood (updated each turn)
+  reason?: string
 }
 
 interface AiSettingsDoc {
@@ -137,12 +139,15 @@ KURALLAR:
 - Kesin taahhüt (rezervasyon/ödeme) verme → escalate=true.
 - Müşteri "insanla/yetkiliyle görüşmek istiyorum" derse ya da şikayet/iade/sağlık/pazarlık olursa → devret.
 
-ÇIKTI: SADECE müşteriye gidecek mesajı DÜZ METİN yaz (JSON YOK, markdown başlığı yok). Bir yetkiliye devretmen gerekiyorsa, mesajının EN SONUNA ayrı bir satırda tam olarak [[DEVRET]] ekle — müşteri bunu görmez, sistem işler.`
+ÇIKTI: SADECE müşteriye gidecek mesajı DÜZ METİN yaz (JSON YOK, markdown başlığı yok). Sonrasında müşterinin GÖRMEYECEĞİ iki gizli satır ekle (sistem işler, müşteriye gitmez):
+- Devretmen gerekiyorsa ayrı bir satırda tam olarak: [[DEVRET]]
+- Ve her mesajda ayrı bir satırda bu kişinin ÜYE OLMA olasılığını değerlendir: ##SKOR: <sıcak|ılık|soğuk> | <tek satır gerekçe>. (sıcak=çok ilgili, fiyat sordu, gelmek/başlamak istiyor · ılık=ilgili ama kararsız · soğuk=ilgisiz, kısa/yanıtsız, sadece bilgi aldı.)`
 }
 
 // Plain-text reply (robust — Haiku often ignores a JSON instruction and answers naturally). Escalation
 // rides as a trailing [[DEVRET]] marker we strip before sending; the customer never sees it.
-async function aiReply(apiKey: string, system: string, history: Msg[]): Promise<{ reply: string; escalate: boolean } | null> {
+type Temp = 'sıcak' | 'ılık' | 'soğuk'
+async function aiReply(apiKey: string, system: string, history: Msg[]): Promise<{ reply: string; escalate: boolean; temp: Temp | null; reason: string } | null> {
   try {
     const res = await fetch(ANTHROPIC_URL, {
       method: 'POST',
@@ -158,9 +163,16 @@ async function aiReply(apiKey: string, system: string, history: Msg[]): Promise<
     const text = data.content?.[0]?.text
     if (!text) return null
     const escalate = /\[\[?\s*DEVRET\s*\]?\]/i.test(text)
-    const reply = text.replace(/\[\[?\s*DEVRET\s*\]?\]/gi, '').trim()
+    // Parse the hidden ##SKOR: <sıcak|ılık|soğuk> | <reason> line, then strip both markers from the reply.
+    const scoreLine = text.match(/##\s*SKOR\s*:\s*(sıcak|ılık|soğuk)\s*(?:\|\s*(.*))?/i)
+    const temp = (scoreLine?.[1]?.toLocaleLowerCase('tr') as Temp | undefined) ?? null
+    const reason = (scoreLine?.[2] ?? '').trim()
+    const reply = text
+      .replace(/##\s*SKOR\s*:.*/is, '')
+      .replace(/\[\[?\s*DEVRET\s*\]?\]/gi, '')
+      .trim()
     if (!reply) return null
-    return { reply, escalate }
+    return { reply, escalate, temp, reason }
   } catch (e) {
     logger.warn('[wa-webhook] anthropic failed', (e as Error)?.message)
     return null
@@ -208,6 +220,10 @@ async function processMessage(sid: string, from: string, name: string, text: str
   const config: MetaWhatsAppConfig = { phoneNumberId: phoneId, accessToken: token, ...(process.env.WHATSAPP_API_VERSION ? { apiVersion: process.env.WHATSAPP_API_VERSION } : {}) }
   const sent = await sendWhatsAppText(config, from, result.reply)
   conv.messages = [...conv.messages, { role: 'assistant' as Role, text: result.reply, at: Date.now() }].slice(-MAX_HISTORY)
+  if (result.temp) {
+    conv.temp = result.temp
+    conv.reason = result.reason
+  }
   if (result.escalate) {
     conv.status = 'human'
     conv.needsAttention = true

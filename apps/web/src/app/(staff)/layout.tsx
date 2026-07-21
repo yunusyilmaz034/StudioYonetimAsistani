@@ -9,6 +9,7 @@ import { Toaster } from '@/components/ui/sonner'
 import { UndoProvider } from '@/lib/undo'
 import { CheckInToaster } from './checkin-toaster'
 import { PaymentToaster } from './payment-toaster'
+import { WhatsAppDock } from './whatsapp-dock'
 import { getTenantContext } from '@/server/auth'
 import { getStudioTheme } from '@/server/theme'
 
@@ -65,6 +66,9 @@ export default async function StaffLayout({ children }: { children: ReactNode })
       {/* A green toast when a PAYTR payment lands — the Sanal POS charge, or a shared link paid later
           (borç kapandı / cüzdana yüklendi). Owner + reception only. */}
       {ctx.role === 'owner' || ctx.role === 'receptionist' ? <PaymentToaster studioId={ctx.studioId} /> : null}
+      {/* The WhatsApp AI receptionist operator dock — a floating right-side chat that survives page
+          navigation; the AI hands off here. Owner + reception only. */}
+      {ctx.role === 'owner' || ctx.role === 'receptionist' ? <WhatsAppDock /> : null}
       {/* Non-PII analytics context (studio + staff role) + the global error sink. No name/phone. */}
       <AnalyticsSetup studioId={ctx.studioId} role={ctx.role} />
       {/* Undo/Redo is a pure UX layer over compensating actions (Phase 2 Edit Experience). */}
