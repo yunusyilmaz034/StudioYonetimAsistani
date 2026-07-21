@@ -8,6 +8,7 @@ import { ThemeStyle } from '@/components/theme-style'
 import { Toaster } from '@/components/ui/sonner'
 import { UndoProvider } from '@/lib/undo'
 import { CheckInToaster } from './checkin-toaster'
+import { PaymentToaster } from './payment-toaster'
 import { getTenantContext } from '@/server/auth'
 import { getStudioTheme } from '@/server/theme'
 
@@ -61,6 +62,9 @@ export default async function StaffLayout({ children }: { children: ReactNode })
       {/* PF-36 — desk-only: a green/red toast when a member checks in (from the kiosk or the desk).
           Owner + reception; NOT trainer (she never sees the members list), NOT kiosk (its own overlay). */}
       {ctx.role === 'owner' || ctx.role === 'receptionist' ? <CheckInToaster studioId={ctx.studioId} /> : null}
+      {/* A green toast when a PAYTR payment lands — the Sanal POS charge, or a shared link paid later
+          (borç kapandı / cüzdana yüklendi). Owner + reception only. */}
+      {ctx.role === 'owner' || ctx.role === 'receptionist' ? <PaymentToaster studioId={ctx.studioId} /> : null}
       {/* Non-PII analytics context (studio + staff role) + the global error sink. No name/phone. */}
       <AnalyticsSetup studioId={ctx.studioId} role={ctx.role} />
       {/* Undo/Redo is a pure UX layer over compensating actions (Phase 2 Edit Experience). */}
