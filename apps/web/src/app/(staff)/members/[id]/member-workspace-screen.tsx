@@ -1,11 +1,12 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import {
   ArrowLeftIcon,
   CalendarPlusIcon,
+  CheckIcon,
   ClipboardListIcon,
   CreditCardIcon,
   WalletIcon,
@@ -694,7 +695,6 @@ function QuickBookSheet({
   onBooked: () => void
 }) {
   const [sessions, setSessions] = useState<readonly UpcomingSession[] | null>(null)
-  const [busyId, setBusyId] = useState<string | null>(null)
 
   const load = useCallback(() => {
     setSessions(null)
@@ -706,23 +706,6 @@ function QuickBookSheet({
   useEffect(() => {
     if (open) load()
   }, [open, load])
-
-  async function book(sessionId: string) {
-    setBusyId(sessionId)
-    try {
-      const res = await bookReservationAction({ memberId, sessionId })
-      if (!res.ok) {
-        toast.error(domainErrorMessage(res.error))
-      } else {
-        toast.success('Rezervasyon oluşturuldu.')
-        onBooked()
-      }
-    } catch {
-      toast.error('Rezervasyon başarısız.')
-    } finally {
-      setBusyId(null)
-    }
-  }
 
   // ── Sabit Rezervasyon (D18) — pick one or more weekly slots and fix the member on them. ──
   const [mode, setMode] = useState<'once' | 'standing'>('once')
@@ -798,29 +781,7 @@ function QuickBookSheet({
         ) : sessions.length === 0 ? (
           <p className="text-sm text-muted-foreground">Uygun seans yok.</p>
         ) : mode === 'once' ? (
-          <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card shadow-xs">
-            {sessions.map((s) => {
-              const full = s.bookedCount >= s.capacity
-              return (
-                <li key={s.sessionId} className="flex items-center justify-between gap-3 px-3 py-2.5">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium text-foreground">{s.serviceName}</p>
-                    <p className="truncate text-xs text-muted-foreground">
-                      {dt(s.startsAt)}
-                      {s.trainerName ? ` · ${s.trainerName}` : ''} ·{' '}
-                      <span className={`tabular-nums ${full ? 'text-danger' : ''}`}>
-                        {s.bookedCount}/{s.capacity}
-                      </span>
-                    </p>
-                  </div>
-                  <Button size="sm" onClick={() => book(s.sessionId)} disabled={busyId !== null || full}>
-                    {busyId === s.sessionId ? <Loader2Icon className="animate-spin" /> : null}
-                    {full ? 'Dolu' : 'Rezerve Et'}
-                  </Button>
-                </li>
-              )
-            })}
-          </ul>
+          <OnceBookingPanel sessions={sessions} memberId={memberId} onBooked={onBooked} onClose={() => onOpenChange(false)} />
         ) : (
           <>
             <p className="text-xs text-muted-foreground">Sabitlemek istediğin haftalık slot(ları) seç — ör. Pazartesi 19:00 ve Çarşamba 19:00. Her hafta ayrı rezervasyon olarak açılır; birini iptal edip başka saate alabilirsin.</p>
@@ -875,6 +836,167 @@ function QuickBookSheet({
         )}
       </SheetContent>
     </Sheet>
+  )
+}
+
+// "Tek Sefer" rezervasyon (owner, 2026-07-22): gün seç → o günün seansları (dolu olanlar da görünür,
+// iptaller gelmez) → tık tık çok seç → önizle → toplu onayla. Dolu seans görünür ama seçilemez.
+const TZ = 'Europe/Istanbul'
+const dayKeyOf = (ms: number) => new Date(ms).toLocaleDateString('en-CA', { timeZone: TZ })
+const dayLabelOf = (ms: number) => new Date(ms).toLocaleDateString('tr-TR', { timeZone: TZ, day: '2-digit', month: 'short', weekday: 'short' })
+const timeOf = (ms: number) => new Date(ms).toLocaleTimeString('tr-TR', { timeZone: TZ, hour: '2-digit', minute: '2-digit' })
+
+function OnceBookingPanel({
+  sessions,
+  memberId,
+  onBooked,
+  onClose,
+}: {
+  sessions: readonly UpcomingSession[]
+  memberId: string
+  onBooked: () => void
+  onClose: () => void
+}) {
+  const days = useMemo(() => [...new Set(sessions.map((s) => dayKeyOf(s.startsAt)))], [sessions]) // sessions are sorted asc
+  const [day, setDay] = useState(days[0] ?? '')
+  const [sel, setSel] = useState<Set<string>>(new Set())
+  const [phase, setPhase] = useState<'pick' | 'preview'>('pick')
+  const [busy, setBusy] = useState(false)
+
+  const daySessions = sessions.filter((s) => dayKeyOf(s.startsAt) === day)
+  const selected = sessions.filter((s) => sel.has(s.sessionId)).sort((a, b) => a.startsAt - b.startsAt)
+
+  const toggle = (s: UpcomingSession) => {
+    if (s.bookedCount >= s.capacity) return // full — visible but not selectable
+    setSel((prev) => {
+      const n = new Set(prev)
+      if (n.has(s.sessionId)) n.delete(s.sessionId)
+      else n.add(s.sessionId)
+      return n
+    })
+  }
+
+  async function confirm() {
+    setBusy(true)
+    let ok = 0
+    let fail = 0
+    for (const s of selected) {
+      try {
+        const res = await bookReservationAction({ memberId, sessionId: s.sessionId })
+        if (res.ok) ok++
+        else fail++
+      } catch {
+        fail++
+      }
+    }
+    setBusy(false)
+    if (ok > 0) toast.success(`${ok} rezervasyon oluşturuldu${fail > 0 ? `, ${fail} açılamadı` : ''}.`)
+    else toast.error('Rezervasyon açılamadı (kredi / kategori / dolu olabilir).')
+    onBooked()
+    if (fail === 0) onClose()
+    else {
+      setSel(new Set())
+      setPhase('pick')
+    }
+  }
+
+  if (phase === 'preview') {
+    return (
+      <div className="space-y-3">
+        <p className="text-sm font-medium text-foreground">{selected.length} seans onaya hazır</p>
+        <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card shadow-xs">
+          {selected.map((s) => (
+            <li key={s.sessionId} className="flex items-center justify-between gap-3 px-3 py-2.5">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium text-foreground">
+                  {dayLabelOf(s.startsAt)} · {timeOf(s.startsAt)}
+                </p>
+                <p className="truncate text-xs text-muted-foreground">
+                  {s.serviceName}
+                  {s.trainerName ? ` · ${s.trainerName}` : ''}
+                </p>
+              </div>
+              <button type="button" onClick={() => toggle(s)} className="shrink-0 text-xs font-medium text-danger hover:underline">
+                Çıkar
+              </button>
+            </li>
+          ))}
+        </ul>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setPhase('pick')} disabled={busy}>
+            Geri
+          </Button>
+          <Button onClick={() => void confirm()} disabled={busy || selected.length === 0}>
+            {busy ? <Loader2Icon className="animate-spin" /> : null} Onayla ({selected.length})
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-3">
+      {/* Days across the top — pick one, its sessions appear below. */}
+      <div className="flex gap-1.5 overflow-x-auto pb-1">
+        {days.map((dk) => {
+          const first = sessions.find((s) => dayKeyOf(s.startsAt) === dk)!
+          const count = sel.size > 0 ? sessions.filter((s) => dayKeyOf(s.startsAt) === dk && sel.has(s.sessionId)).length : 0
+          return (
+            <button
+              key={dk}
+              type="button"
+              onClick={() => setDay(dk)}
+              className={`relative shrink-0 rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${day === dk ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/70'}`}
+            >
+              {dayLabelOf(first.startsAt)}
+              {count > 0 ? <span className="ml-1.5 rounded-full bg-background/30 px-1.5 text-[11px] tabular-nums">{count}</span> : null}
+            </button>
+          )
+        })}
+      </div>
+
+      {/* Sessions for the selected day. Full ones show but can't be selected. */}
+      <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card shadow-xs">
+        {daySessions.map((s) => {
+          const full = s.bookedCount >= s.capacity
+          const checked = sel.has(s.sessionId)
+          return (
+            <li key={s.sessionId}>
+              <button
+                type="button"
+                disabled={full}
+                onClick={() => toggle(s)}
+                className={`flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors ${full ? 'cursor-not-allowed opacity-55' : checked ? 'bg-primary/5' : 'hover:bg-muted/40'}`}
+              >
+                <span className={`grid size-5 shrink-0 place-items-center rounded-[6px] border-2 transition-colors ${checked ? 'border-primary bg-primary text-primary-foreground' : 'border-muted-foreground/40'}`}>
+                  {checked ? <CheckIcon className="size-3.5" /> : null}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-medium text-foreground">
+                    {timeOf(s.startsAt)} · {s.serviceName}
+                  </span>
+                  <span className="block truncate text-xs text-muted-foreground">
+                    {s.trainerName ? `${s.trainerName} · ` : ''}
+                    <span className={full ? 'text-danger' : ''}>
+                      {s.bookedCount}/{s.capacity}
+                      {full ? ' · Dolu' : ''}
+                    </span>
+                  </span>
+                </span>
+              </button>
+            </li>
+          )
+        })}
+      </ul>
+
+      {/* Footer — how many picked, and the way forward. */}
+      <div className="flex items-center justify-between gap-2 border-t border-border pt-3">
+        <span className="text-sm text-muted-foreground">{sel.size > 0 ? `${sel.size} seans seçildi` : 'Seans seçin'}</span>
+        <Button onClick={() => setPhase('preview')} disabled={sel.size === 0}>
+          Önizle ({sel.size})
+        </Button>
+      </div>
+    </div>
   )
 }
 
