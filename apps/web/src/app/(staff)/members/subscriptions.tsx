@@ -325,8 +325,10 @@ function AssignForm({
   const [validFrom, setValidFrom] = useState(studioToday())
   const [validUntil, setValidUntil] = useState('')
   // Credit is a freely-editable STRING (owner): reception can clear it and type any number; it defaults
-  // to the package's credit and is clamped to [0, packageCredit] only on save.
+  // to the package's credit and is clamped to [0, packageCredit] only on save. `creditTouched` lets the
+  // field go EMPTY while editing — before, clearing it snapped back to the package default ("sildirmiyor").
   const [creditInput, setCreditInput] = useState('')
+  const [creditTouched, setCreditTouched] = useState(false)
   // Price is fixed to the package (read-only field), so this never changes — kept only so `effectivePrice`
   // and the collected default read from one place.
   const [priceTl] = useState('')
@@ -422,7 +424,15 @@ function AssignForm({
   return (
     <div className="space-y-3 rounded-xl border border-border p-3">
       <Labeled label="Paket">
-        <Select value={productId} onValueChange={(v) => setProductId(v ?? '')}>
+        <Select
+          value={productId}
+          onValueChange={(v) => {
+            setProductId(v ?? '')
+            // A new package resets the credit to that package's default (and re-enables the default view).
+            setCreditInput('')
+            setCreditTouched(false)
+          }}
+        >
           <SelectTrigger>
             <SelectValue placeholder="Paket seç" />
           </SelectTrigger>
@@ -447,8 +457,17 @@ function AssignForm({
         {product?.type === 'credit' ? (
           <Labeled label="Kredi">
             {/* Freely editable (owner): a raw string so reception can clear and retype any number.
-                Defaults to the package credit; clamped to [0, packageCredit] on save. */}
-            <Input type="number" min={0} value={effectiveCredit} onChange={(e) => setCreditInput(e.target.value)} />
+                Before touch, shows the package default; after touch, shows exactly what's typed (may be
+                empty). Empty still SAVES as the package default (never an accidental 0). */}
+            <Input
+              type="number"
+              min={0}
+              value={creditTouched ? creditInput : effectiveCredit}
+              onChange={(e) => {
+                setCreditInput(e.target.value)
+                setCreditTouched(true)
+              }}
+            />
           </Labeled>
         ) : null}
         <Labeled label="Paket tutarı (TL)">
