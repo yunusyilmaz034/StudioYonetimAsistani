@@ -38,16 +38,25 @@ Resepsiyon ödemeyi alırken "KK"ye **ek olarak "Sanal POS"** seçeneği → for
 
 ## FAZ 2 — stratejik vizyon (her biri AYRI, büyük proje; sırası gelince tek tek scope edilir)
 
-### 2.1 · 🤖 AI Resepsiyonist (en yüksek büyüme değeri)
+### 2.1 · 🤖 AI Resepsiyonist · ✅ BİTTİ (canlı)
 Reklamlardan WhatsApp API'mize düşen lead ile **resepsiyon personeli gibi konuşan**, her şeye hâkim,
-sıkışınca/yanıtlayamayınca **operatöre yönlendiren** AI. Satış hunisi (CRM) bununla canlanır.
-- **Gerekli altyapı:** WhatsApp **GELEN mesaj webhook'u** (şu an sadece giden/şablon var) + gerçek AI
-  API (Claude) + konuşma hafızası/state + operatöre devir (escalation) + lead → CRM akışı.
+sıkışınca/yanıtlayamayınca **operatöre yönlendiren** AI. Satış hunisi (CRM) bununla canlandı.
+- **Yapıldı:** WhatsApp GELEN webhook (`whatsapp-webhook.ts`) + Claude + konuşma hafızası +
+  `[[DEVRET]]` operatör devri + lead skoru (`##SKOR: sıcak/ılık/soğuk`) → CRM (`lead.captured`).
+  Operatör dock (sayfa geçişinde ölmez) + "Sohbetler" ekranı + Ayarlar → AI bilgi/üslup kartı.
+  Fiyat/program LIVE catalog'dan, üye adı AI'a gitmez (PII), `conversations` serverOnly.
+- **Ekstra (aynı fazda):** dashboard "Bugün İlgilenmen Gerekenler" AI checklist (10/14/19 slot,
+  gruplama) · **AI Rapor** huni (`/ai-report`) · **AI Program Üreticisi** (havuza kilitli).
+- **Kalan (operasyonel):** WhatsApp işletme adı+logo (Meta Manager) · üye WhatsApp opt-in yayılımı.
 
-### 2.2 · 📊 AI Patron Asistanı
-Satış grafiği, reklam afişi metni + zaman/dönem önerisi, kampanya önerisi, personel takibi/raporlama,
-dükkan açılış/kapanış protokolleri. Ürün vizyonundaki "AI Insights"ın genişlemiş hali; **event verisi
-biriktikçe** güçlenir (check-in/yoklama kullanımı şart).
+### 2.2 · 📊 AI Patron Asistanı · ✅ BİTTİ (canlı)
+İşletmeyi tanıyan, **gerçek rakamlarla** soru cevaplayan sohbet + **haftalık patron brifingi** +
+**tek-tık aksiyonlar** (borç hatırlatma / yenileme / kaçan üye dönüşü / kampanya taslağı).
+- **Yapıldı:** deterministik snapshot (owner dashboard + aylık ciro trendi + lead sinyali) → Claude
+  (rakam UYDURMAZ, isim token'lı) → `/patron` sohbet + haftalık cache'li brifing. Aksiyonlar sabit
+  kayıttan; kitle snapshot'tan; owner onaylı gönderim mevcut denetimli `sendEngagementAction` hattından.
+- **Sonraki genişleme (event verisi biriktikçe):** reklam afişi metni + dönem önerisi, personel
+  takibi/raporlama, açılış/kapanış protokolleri. Ayrı bloklar olarak eklenir.
 
 ### 2.3 · 🏠 Home Assistant (IoT) entegrasyonu
 Klima, kapı/pencere açık, içeride insan var, su vanası, ışık, havalandırma — otonom işler panelden.
@@ -61,8 +70,14 @@ CCTV'den: personel/müşteri, kasada kim ne kadar kaldı, dwell-time raporları.
 
 ---
 
-## Sıra (owner, 2026-07-21)
-1. **Faz 1b (üye mobil)** — ✅ BİTTİ, push + iOS build 2 TestFlight'ta (yükleme testi owner'da).
-2. **Faz 1a (Sanal POS)** — ✅ BİTTİ, push edildi (commit `3c45c80`). Kalan: owner canlı test.
-3. **Faz 2** — Faz 1 bitti; her biri ayrı ayrı scope edilerek. Muhtemel sıra: AI Resepsiyonist →
-   AI Patron Asistanı → NVR (KVKK sonrası) → Home Assistant.
+## Sıra (owner, güncel 2026-07-22)
+1. **Faz 1b (üye mobil)** — ✅ BİTTİ, push + iOS build TestFlight'ta.
+2. **Faz 1a (Sanal POS)** — ✅ BİTTİ, push edildi. Kalan: owner canlı test.
+3. **Faz 2.1 (AI Resepsiyonist)** — ✅ BİTTİ, canlı (+ AI Rapor + AI Program + checklist).
+4. **Faz 2.2 (AI Patron Asistanı)** — ✅ BİTTİ, canlı.
+5. **Şimdi sıradaki aday işler (owner kararı bekliyor):**
+   - **A) Operasyonel kapanış & canlı test** — WhatsApp adı+logo, iOS App Store onayı/v1.0.1,
+     Sanal POS gerçek çekim testi, yeni AI özelliklerinin sahada denenmesi + ince ayar.
+   - **B) AI Patron Asistanı v2** — reklam metni/dönem önerisi, personel raporu, protokoller.
+   - **C) Faz 2.4 NVR / Kamera** — KVKK hukuki çerçeve ÖNCE, sonra teknik.
+   - **D) Faz 2.3 Home Assistant (IoT)** — komuta merkezi; kapsam kararı gerekiyor.
