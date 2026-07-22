@@ -20,6 +20,7 @@ import {
   systemClock,
   upsertExercise,
   upsertProgramTemplate,
+  type Exercise,
   type TrainingDeps,
   type MemberId,
   type TenantContext,
@@ -27,7 +28,10 @@ import {
 import { z } from 'zod'
 
 import type { ExerciseGuide } from '@/components/exercise-guide-dialog'
+import type { AiProgramDay, AiProgramResult } from '@/lib/training/ai-program'
+import { buildProgram, focusLabel, type ProgramFocus } from '@/lib/training/program-builder'
 import { ForbiddenError, requireMemberContext, requireTenantContext } from '../auth'
+import { aiBuildProgram } from '../ai/program-ai'
 import { adminDb, adminStorage, storageBucketName } from '../firebase-admin'
 
 // ── TRAINING & PROGRESS web actions (Plus Phase 7). Roles (§13): Owner all; Trainer her own members;
@@ -126,6 +130,51 @@ const draftExercise = z.object({
   note: z.string(),
   alternativeExerciseId: z.string().nullable(),
 })
+
+// PF-35b — the AI programme designer. The trainer gives a goal (free text + focus areas), a level and a
+// day count; the model drafts a multi-day programme from the studio's OWN exercise pool. It only
+// PROPOSES — the trainer reviews/edits and then accepts, which runs the ordinary
+// createProgram → publishProgramVersion → setActive flow (no new event, no new schema).
+//
+// No member PII reaches the model (only the exercise catalogue + the trainer's words). If the AI key is
+// absent or the call fails, a deterministic pool-locked builder fills each day from the chosen focuses,
+// so the button always yields something the trainer can edit.
+export async function aiBuildProgramAction(input: unknown): Promise<AiProgramResult> {
+  const p = z
+    .object({
+      goal: z.string().trim().max(500).default(''),
+      level: z.enum(['beginner', 'intermediate', 'advanced']).default('beginner'),
+      days: z.number().int().min(1).max(6).default(3),
+      focuses: z.array(z.enum(['karin', 'kalca', 'sirt', 'gogus', 'kol', 'omuz', 'bacak'])).max(7).default([]),
+    })
+    .parse(input)
+  const ctx = await requireTenantContext(TRAINER)
+  const exercises = await repo().listExercises(ctx)
+
+  const ai = await aiBuildProgram({ exercises, goal: p.goal, level: p.level, days: p.days })
+  if (ai) return ai
+  return fallbackProgram(exercises, p.focuses, p.days)
+}
+
+// Deterministic fallback: one day per chosen focus (cycling if fewer focuses than days), each filled by
+// the pure pool builder and avoiding exercises already used on earlier days. No focus chosen → a
+// balanced default rotation. Never invents an exercise.
+function fallbackProgram(exercises: readonly Exercise[], focuses: readonly ProgramFocus[], days: number): AiProgramResult {
+  const rota: readonly ProgramFocus[] = focuses.length > 0 ? focuses : ['bacak', 'sirt', 'karin', 'kalca', 'gogus', 'kol']
+  const used = new Set<string>()
+  const outDays: AiProgramDay[] = []
+  for (let i = 0; i < days; i++) {
+    const focus = rota[i % rota.length]!
+    const built = buildProgram({ exercises, focus, excludeExerciseIds: [...used] })
+    if (built.exercises.length === 0) continue
+    for (const e of built.exercises) used.add(e.exerciseId)
+    outDays.push({
+      name: `Gün ${i + 1} — ${focusLabel(focus)}`,
+      exercises: built.exercises.map((e) => ({ exerciseId: e.exerciseId, nameTr: e.nameTr, sets: e.sets, reps: e.reps, restSeconds: e.restSeconds, note: '' })),
+    })
+  }
+  return { title: '', days: outDays, source: 'fallback' }
+}
 
 // ── Program templates (reusable skeletons; assigning one to a member creates her programme) ──────
 export async function listProgramTemplatesAction() {

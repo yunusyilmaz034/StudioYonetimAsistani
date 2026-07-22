@@ -10,6 +10,7 @@ import {
   LayersIcon,
   Loader2Icon,
   PlusIcon,
+  SparklesIcon,
   Trash2Icon,
   UploadIcon,
 } from 'lucide-react'
@@ -37,17 +38,12 @@ import { ExerciseGuideDialog } from '@/components/exercise-guide-dialog'
 import { MeasurementChart } from '@/components/training/measurement-chart'
 import { domainErrorMessage } from '@/lib/domain-error'
 import { PHOTO_ANGLE_LABEL, PROGRAM_STATUS_LABEL, PROGRAM_STATUS_TONE } from '@/lib/training-labels'
-import {
-  buildProgram,
-  focusLabel,
-  PROGRAM_FOCUSES,
-  toPublishDays,
-  type BuiltProgram,
-  type ProgramFocus,
-} from '@/lib/training/program-builder'
+import { focusLabel, PROGRAM_FOCUSES, type ProgramFocus } from '@/lib/training/program-builder'
+import { aiToPublishDays, PROGRAM_LEVELS, type ProgramLevel } from '@/lib/training/ai-program'
 import { PhotoStorageUnconfiguredError, progressUploadConfigured, uploadProgressPhoto } from '@/lib/photo-upload'
 import {
   addProgressPhotoAction,
+  aiBuildProgramAction,
   assignTemplateAction,
   changeProgramStatusAction,
   setActiveProgramAction,
@@ -235,14 +231,6 @@ function ProgramsSection({ memberId }: { memberId: string }) {
         <CreateProgramDialog
           memberId={memberId}
           exercises={exercises}
-          // The exercises already in ANY of her programmes — so the smart builder proposes something new.
-          excludeExerciseIds={[
-            ...new Set(
-              (programs ?? []).flatMap((prog) =>
-                prog.versions.flatMap((v) => v.days.flatMap((day) => day.exercises.map((e) => e.exerciseId))),
-              ),
-            ),
-          ]}
           onClose={() => setCreating(false)}
           onCreated={async (id) => {
             setCreating(false)
@@ -344,27 +332,55 @@ function AssignTemplateDialog({
   )
 }
 
-// PF-35 — create a programme manually OR with the smart builder: pick a muscle focus, see a proposed
-// programme from OUR pool (avoiding the member's existing exercises), review it, and on accept it is
-// published, made the member's single active programme, and she is notified. The trainer can refine it
-// afterwards in the detail sheet. No LLM: a deterministic, pool-locked suggestion (owner's decision).
+// PF-35b — create a programme manually OR with the AI designer: give a name, a day count, a level and
+// what to emphasise (focus chips + free text), and the AI drafts a multi-day programme from OUR pool.
+// The trainer REVIEWS and edits it (add/remove/adjust) and on accept it is published, made the member's
+// single active programme, and she is notified. No member PII reaches the model; it only arranges our
+// pool and can never invent an exercise. AI key absent/failed → a deterministic pool builder fills in.
+interface ReviewExercise {
+  exerciseId: string
+  nameTr: string
+  sets: number
+  reps: string
+  restSeconds: number
+  note: string
+}
+interface ReviewDay {
+  name: string
+  exercises: ReviewExercise[]
+}
+
 function CreateProgramDialog({
   memberId,
   exercises,
-  excludeExerciseIds,
   onClose,
   onCreated,
 }: {
   memberId: string
   exercises: readonly Exercise[]
-  excludeExerciseIds: readonly string[]
   onClose: () => void
   onCreated: (programId: string) => void
 }) {
   const [title, setTitle] = useState('')
-  const [focus, setFocus] = useState<ProgramFocus | null>(null)
-  const [built, setBuilt] = useState<BuiltProgram | null>(null)
+  const [days, setDays] = useState(3)
+  const [level, setLevel] = useState<ProgramLevel>('beginner')
+  const [focuses, setFocuses] = useState<Set<ProgramFocus>>(new Set())
+  const [goal, setGoal] = useState('')
+  const [review, setReview] = useState<ReviewDay[] | null>(null)
+  const [source, setSource] = useState<'ai' | 'fallback'>('ai')
   const [busy, setBusy] = useState(false)
+
+  const active = useMemo(() => exercises.filter((e) => e.active), [exercises])
+  const nameOf = (id: string) => exercises.find((e) => e.id === id)?.nameTr ?? 'Egzersiz'
+
+  function toggleFocus(f: ProgramFocus) {
+    setFocuses((cur) => {
+      const next = new Set(cur)
+      if (next.has(f)) next.delete(f)
+      else next.add(f)
+      return next
+    })
+  }
 
   // Manual: create an empty programme and open the builder (the original flow).
   async function createEmpty() {
@@ -380,35 +396,49 @@ function CreateProgramDialog({
     setBusy(false)
   }
 
-  // Smart: propose a programme for the chosen focus, then show it for review before committing.
-  function propose() {
-    if (!focus) return
-    const b = buildProgram({ exercises, focus, excludeExerciseIds })
-    if (b.exercises.length === 0) {
-      toast.error('Bu odağa uygun egzersiz havuzda bulunamadı. Elle oluşturmayı deneyin.')
-      return
-    }
-    setBuilt(b)
-  }
-
-  // Accept: create → publish the proposed version → make it the single active programme (retiring
-  // others) → the member is notified by program.version_published.
-  async function accept() {
-    if (!built) return
+  // AI: ask the designer for a draft, then show it for review + editing before committing.
+  async function propose() {
     setBusy(true)
     try {
-      const created = await createProgramAction({ memberId, title: title.trim() || built.title })
+      const goalText = [[...focuses].map(focusLabel).join(', '), goal.trim()].filter(Boolean).join(' — ')
+      const res = await aiBuildProgramAction({ goal: goalText, level, days, focuses: [...focuses] })
+      if (res.days.length === 0) {
+        toast.error('Havuzdan uygun hareket bulunamadı. Önce egzersiz kütüphanesini doldurun ya da elle oluşturun.')
+        setBusy(false)
+        return
+      }
+      setSource(res.source)
+      if (!title.trim() && res.title) setTitle(res.title)
+      setReview(res.days.map((d) => ({ name: d.name, exercises: d.exercises.map((e): ReviewExercise => ({ ...e })) })))
+    } catch {
+      toast.error('Öneri alınamadı.')
+    }
+    setBusy(false)
+  }
+
+  // ── review editing ──
+  const mutateDay = (di: number, fn: (d: ReviewDay) => ReviewDay) => setReview((ds) => (ds ? ds.map((d, i) => (i === di ? fn(d) : d)) : ds))
+  const setEx = (di: number, ei: number, patch: Partial<ReviewExercise>) =>
+    mutateDay(di, (d) => ({ ...d, exercises: d.exercises.map((x, j) => (j === ei ? { ...x, ...patch } : x)) }))
+  const removeEx = (di: number, ei: number) => mutateDay(di, (d) => ({ ...d, exercises: d.exercises.filter((_, j) => j !== ei) }))
+  const addEx = (di: number, exerciseId: string) =>
+    mutateDay(di, (d) => ({ ...d, exercises: [...d.exercises, { exerciseId, nameTr: nameOf(exerciseId), sets: 3, reps: '12', restSeconds: 60, note: '' }] }))
+
+  // Accept: create → publish the (edited) draft → make it the single active programme → notify member.
+  async function accept() {
+    if (!review) return
+    const publishDays = aiToPublishDays(review)
+    if (publishDays.length === 0) return void toast.error('En az bir güne en az bir hareket ekleyin.')
+    setBusy(true)
+    try {
+      const created = await createProgramAction({ memberId, title: title.trim() || 'Program' })
       if (!created.ok) {
         toast.error(domainErrorMessage(created.error))
         setBusy(false)
         return
       }
       const programId = created.value.id
-      const pub = await publishProgramVersionAction({
-        programId,
-        days: toPublishDays(built),
-        note: `${focusLabel(built.focus)} — akıllı öneri`,
-      })
+      const pub = await publishProgramVersionAction({ programId, days: publishDays, note: source === 'ai' ? 'AI önerisi' : 'Havuzdan öneri' })
       if (pub && 'ok' in pub && !pub.ok) {
         toast.error(domainErrorMessage(pub.error))
         setBusy(false)
@@ -425,74 +455,152 @@ function CreateProgramDialog({
 
   return (
     <Dialog open onOpenChange={(o) => (o ? null : onClose())}>
-      <DialogContent>
-        {built === null ? (
+      <DialogContent className="max-h-[88vh] overflow-y-auto">
+        {review === null ? (
           <>
             <DialogHeader>
               <DialogTitle>Program Oluştur</DialogTitle>
-              <DialogDescription>Elle oluşturun ya da bir odak seçip akıllı öneri alın.</DialogDescription>
+              <DialogDescription>AI ile üyeye özel bir program yazdırın ya da boş oluşturup elle girin.</DialogDescription>
             </DialogHeader>
-            <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Program adı (ör. Başlangıç)" />
-            <div className="space-y-2">
-              <p className="text-sm font-medium text-foreground">Akıllı öneri — ne ağırlıklı?</p>
-              <div className="flex flex-wrap gap-2">
-                {PROGRAM_FOCUSES.map((f) => (
-                  <button
-                    key={f.id}
-                    type="button"
-                    onClick={() => setFocus((cur) => (cur === f.id ? null : f.id))}
-                    className={`min-h-9 rounded-full border px-3 text-xs transition-colors ${
-                      focus === f.id
-                        ? 'border-primary bg-primary-soft font-medium text-primary'
-                        : 'border-border text-muted-foreground hover:bg-muted'
-                    }`}
-                  >
-                    {f.label}
-                  </button>
-                ))}
+
+            <div className="space-y-4">
+              <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Program adı (ör. Başlangıç)" />
+
+              <div className="grid grid-cols-2 gap-3">
+                <label className="flex flex-col gap-1 text-sm">
+                  <span className="text-xs uppercase tracking-wide text-muted-foreground">Kaç günlük?</span>
+                  <Select value={String(days)} onValueChange={(v) => v && setDays(Number(v))}>
+                    <SelectTrigger className="h-9">
+                      <SelectValue>{(v: unknown) => `${v} gün`}</SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {[1, 2, 3, 4, 5, 6].map((n) => (
+                        <SelectItem key={n} value={String(n)}>
+                          {n} gün
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </label>
+                <label className="flex flex-col gap-1 text-sm">
+                  <span className="text-xs uppercase tracking-wide text-muted-foreground">Seviye</span>
+                  <Select value={level} onValueChange={(v) => v && setLevel(v as ProgramLevel)}>
+                    <SelectTrigger className="h-9">
+                      <SelectValue>{(v: unknown) => PROGRAM_LEVELS.find((l) => l.id === v)?.label ?? 'Seviye'}</SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PROGRAM_LEVELS.map((l) => (
+                        <SelectItem key={l.id} value={l.id}>
+                          {l.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </label>
               </div>
-              <p className="text-xs text-muted-foreground">
-                Bir odak seçerseniz havuzdan uygun hareketlerle bir program önerilir; onaylamadan önce görürsünüz.
-              </p>
+
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-foreground">Ne ağırlıklı olsun?</p>
+                <div className="flex flex-wrap gap-2">
+                  {PROGRAM_FOCUSES.map((f) => (
+                    <button
+                      key={f.id}
+                      type="button"
+                      onClick={() => toggleFocus(f.id)}
+                      className={`min-h-9 rounded-full border px-3 text-xs transition-colors ${
+                        focuses.has(f.id) ? 'border-primary bg-primary-soft font-medium text-primary' : 'border-border text-muted-foreground hover:bg-muted'
+                      }`}
+                    >
+                      {f.label}
+                    </button>
+                  ))}
+                </div>
+                <Textarea
+                  value={goal}
+                  onChange={(e) => setGoal(e.target.value)}
+                  rows={2}
+                  placeholder="İstediğin gibi tarif et (ör. kilo verme + kalça-bacak ağırlıklı; dizini zorlamasın)"
+                />
+                <p className="text-xs text-muted-foreground">
+                  AI, stüdyonun egzersiz havuzundan seçerek program yazar; onaylamadan önce görür, düzenler, sonra atarsın.
+                </p>
+              </div>
             </div>
+
             <DialogFooter>
               <Button variant="outline" onClick={onClose} disabled={busy}>
                 Vazgeç
               </Button>
-              {focus ? (
-                <Button onClick={propose} disabled={busy}>
-                  Öneri Getir
-                </Button>
-              ) : (
-                <Button onClick={() => void createEmpty()} disabled={busy}>
-                  {busy ? <Loader2Icon className="animate-spin" /> : null} Boş Oluştur
-                </Button>
-              )}
+              <Button variant="secondary" onClick={() => void createEmpty()} disabled={busy}>
+                Boş Oluştur
+              </Button>
+              <Button onClick={() => void propose()} disabled={busy}>
+                {busy ? <Loader2Icon className="animate-spin" /> : <SparklesIcon className="size-3.5" />} AI ile Öner
+              </Button>
             </DialogFooter>
           </>
         ) : (
           <>
             <DialogHeader>
-              <DialogTitle>{focusLabel(built.focus)} Programı — Öneri</DialogTitle>
+              <DialogTitle>Program Önerisi — Gözden Geçir</DialogTitle>
               <DialogDescription>
-                {built.exercises.length} hareket. Kabul edince aktif olur ve üyeye bildirilir; sonra düzenleyebilirsiniz.
+                {source === 'ai' ? 'AI havuzdan bir program yazdı.' : 'AI şu an devrede değil; havuzdan bir öneri hazırlandı.'} Düzenleyip
+                kabul edince aktif olur ve üyeye bildirilir.
               </DialogDescription>
             </DialogHeader>
-            <ul className="max-h-72 space-y-1 overflow-y-auto">
-              {built.exercises.map((e, i) => (
-                <li key={e.exerciseId} className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2 text-sm">
-                  <span className="min-w-0 truncate">
-                    <span className="mr-2 text-muted-foreground tabular-nums">{i + 1}.</span>
-                    {e.nameTr}
-                  </span>
-                  <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
-                    {e.sets}×{e.reps} · {e.restSeconds}sn
-                  </span>
-                </li>
+
+            <div className="space-y-3">
+              {review.map((day, di) => (
+                <div key={di} className="space-y-2 rounded-xl border border-border bg-card p-3 shadow-xs">
+                  <div className="flex items-center gap-2">
+                    <Input value={day.name} onChange={(e) => mutateDay(di, (d) => ({ ...d, name: e.target.value }))} placeholder={`Gün ${di + 1}`} className="h-8" />
+                    {review.length > 1 ? (
+                      <Button variant="ghost" size="sm" onClick={() => setReview((ds) => (ds ? ds.filter((_, i) => i !== di) : ds))}>
+                        <Trash2Icon className="size-3.5" />
+                      </Button>
+                    ) : null}
+                  </div>
+
+                  {day.exercises.map((ex, ei) => (
+                    <div key={ei} className="space-y-2 rounded-lg bg-muted/40 p-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="truncate text-sm font-medium text-foreground">{ex.nameTr}</span>
+                        <Button variant="ghost" size="sm" onClick={() => removeEx(di, ei)}>
+                          <Trash2Icon className="size-3.5" />
+                        </Button>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        <NumField label="Set" value={ex.sets} onChange={(n) => setEx(di, ei, { sets: n })} />
+                        <TextField label="Tekrar" value={ex.reps} onChange={(v) => setEx(di, ei, { reps: v })} />
+                        <NumField label="Dinlenme (sn)" value={ex.restSeconds} onChange={(n) => setEx(di, ei, { restSeconds: n })} />
+                      </div>
+                    </div>
+                  ))}
+
+                  {active.length > 0 ? (
+                    <Select value="" onValueChange={(v) => v && addEx(di, v)}>
+                      <SelectTrigger className="h-8">
+                        <SelectValue>{() => '+ Egzersiz ekle'}</SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {active.map((e) => (
+                          <SelectItem key={e.id} value={e.id}>
+                            {e.nameTr}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : null}
+                </div>
               ))}
-            </ul>
+
+              <Button variant="outline" size="sm" onClick={() => setReview((ds) => [...(ds ?? []), { name: `Gün ${(ds?.length ?? 0) + 1}`, exercises: [] }])}>
+                <PlusIcon className="size-3.5" /> Gün Ekle
+              </Button>
+            </div>
+
             <DialogFooter>
-              <Button variant="outline" onClick={() => setBuilt(null)} disabled={busy}>
+              <Button variant="outline" onClick={() => setReview(null)} disabled={busy}>
                 Geri
               </Button>
               <Button onClick={() => void accept()} disabled={busy}>
