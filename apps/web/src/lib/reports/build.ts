@@ -122,29 +122,43 @@ export function buildMembership(
     byMember.set(e.memberId as string, list)
   }
 
-  const rows = live.map((m) => {
-    const own = (byMember.get(m.id as string) ?? [])
+  const DAY = 86_400_000
+  const enriched = live.map((m) => {
+    const all = byMember.get(m.id as string) ?? []
+    const own = all
       .filter((e) => e.status === 'active' || e.status === 'frozen')
       // Earliest-expiring first — the same order the booking path spends them in, so the package the
       // report names is the package the next class will actually take a credit from.
       .sort((a, b) => a.validUntil - b.validUntil)
     const e = own[0]
     const credits = e?.credits ? available(e.credits) : null
+    const kalanGun = e ? Math.max(0, Math.ceil((e.validUntil - nowMs) / DAY)) : null
+    // Default sort key: when the member's MOST RECENT subscription was added (any status) — newest first.
+    const latestSub = all.reduce((mx, x) => Math.max(mx, x.purchasedAt as number), 0)
 
-    return [
+    // Column order matches the studio's old system (owner): Üye · Üyelik · Kalan gün · Kredi · Bakiye,
+    // then the rest.
+    const row = [
       m.fullName,
-      m.phone as string,
-      e?.status === 'frozen' ? 'Dondurulmuş' : (MEMBER_STATUS[m.status] ?? m.status),
-      date(m.joinedAt),
       e ? e.productSnapshot.name : '—',
+      kalanGun === null ? '—' : kalanGun,
       credits === null ? (e ? 'Süresiz' : '—') : credits,
-      e ? date(e.validUntil) : '—',
-      m.stats.lastAttendanceAt ? date(m.stats.lastAttendanceAt) : 'Hiç gelmedi',
       lira(debtKurus.get(m.id as string) ?? 0),
+      e ? date(e.validUntil) : '—',
+      e?.status === 'frozen' ? 'Dondurulmuş' : (MEMBER_STATUS[m.status] ?? m.status),
+      m.phone as string,
+      date(m.joinedAt),
+      m.stats.lastAttendanceAt ? date(m.stats.lastAttendanceAt) : 'Hiç gelmedi',
     ] as const
+    return { latestSub, row }
   })
 
-  const withPackage = rows.filter((r) => r[4] !== '—').length
+  // Owner: default order is the most recently ADDED subscription first; members with no subscription
+  // (latestSub 0) fall to the bottom.
+  enriched.sort((a, b) => b.latestSub - a.latestSub)
+  const rows = enriched.map((x) => x.row)
+
+  const withPackage = rows.filter((r) => r[1] !== '—').length
   const expiringSoon = live.filter((m) =>
     (byMember.get(m.id as string) ?? []).some(
       (e) => e.status === 'active' && e.validUntil > nowMs && e.validUntil - nowMs < 14 * 86_400_000,
@@ -156,14 +170,15 @@ export function buildMembership(
       name: 'uyelik-raporu',
       columns: [
         'Üye',
-        'Telefon',
-        'Durum',
-        'Kayıt tarihi',
         'Aktif paket',
+        'Kalan gün',
         'Kalan kredi',
-        'Bitiş',
-        'Son gelişi',
         'Bakiye (₺)',
+        'Bitiş',
+        'Durum',
+        'Telefon',
+        'Kayıt tarihi',
+        'Son gelişi',
       ],
       rows: rows.map((r) => [...r]),
     },
