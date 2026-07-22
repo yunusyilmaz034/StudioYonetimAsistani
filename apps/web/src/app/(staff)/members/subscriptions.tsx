@@ -442,6 +442,7 @@ function AssignForm({
         </Labeled>
         <Labeled label="Bitiş">
           <Input type="date" value={effectiveUntil} onChange={(e) => setValidUntil(e.target.value)} />
+          {!product ? <p className="mt-1 text-xs text-muted-foreground">Paket seçince otomatik hesaplanır.</p> : null}
         </Labeled>
         {product?.type === 'credit' ? (
           <Labeled label="Kredi">
@@ -581,6 +582,14 @@ function ReasonDialogShell({
 function AmendDialog({ sub, onClose, onDone }: { sub: SubscriptionView; onClose: () => void; onDone: () => void }) {
   const [validFrom, setValidFrom] = useState(toDateInput(sub.validFrom))
   const [validUntil, setValidUntil] = useState(toDateInput(sub.validUntil))
+  // The package's original length in days, taken from what it was sold as. While reception hasn't
+  // hand-edited the end, changing the START shifts the END by this same length — so moving a start date
+  // keeps the package's duration ("paket özelliğine göre") instead of leaving a stale end behind.
+  const originalDurationDays =
+    sub.validUntil && sub.validFrom ? Math.round((sub.validUntil - sub.validFrom) / 86_400_000) : null
+  const [endPinned, setEndPinned] = useState(false)
+  const autoUntil = originalDurationDays && originalDurationDays > 0 ? addDays(validFrom, originalDurationDays) : ''
+  const effectiveUntil = endPinned ? validUntil : autoUntil || validUntil
   const [priceTl, setPriceTl] = useState((sub.priceAgreedKurus / 100).toString())
   const [reason, setReason] = useState('')
   const [busy, setBusy] = useState(false)
@@ -592,7 +601,7 @@ function AmendDialog({ sub, onClose, onDone }: { sub: SubscriptionView; onClose:
         entitlementId: sub.id,
         reason: reason.trim(),
         validFrom,
-        validUntil,
+        validUntil: effectiveUntil,
         priceAgreedKurus: toKurus(priceTl),
       })
       if (res.ok) {
@@ -615,12 +624,25 @@ function AmendDialog({ sub, onClose, onDone }: { sub: SubscriptionView; onClose:
           <Input type="date" value={validFrom} onChange={(e) => setValidFrom(e.target.value)} />
         </Labeled>
         <Labeled label="Bitiş">
-          <Input type="date" value={validUntil} onChange={(e) => setValidUntil(e.target.value)} />
+          <Input
+            type="date"
+            value={effectiveUntil}
+            onChange={(e) => {
+              setValidUntil(e.target.value)
+              setEndPinned(true)
+            }}
+          />
         </Labeled>
         <Labeled label="Paket tutarı (TL)">
           <Input type="number" min={0} step="0.01" value={priceTl} onChange={(e) => setPriceTl(e.target.value)} />
         </Labeled>
       </div>
+      {!endPinned && originalDurationDays && originalDurationDays > 0 ? (
+        <p className="text-xs text-muted-foreground">
+          Bitiş, başlangıca göre paketin süresi ({originalDurationDays} gün) kadar otomatik hesaplanır. Elle
+          değiştirebilirsiniz.
+        </p>
+      ) : null}
       <p className="text-xs text-muted-foreground">
         Tahsilat burada yapılmaz. Ödeme almak için <strong>Cari Hesap</strong> sekmesini kullanın —
         para orada kasaya ve raporlara işler.
