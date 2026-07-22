@@ -73,7 +73,6 @@ import {
   type UpcomingSession,
 } from '@/server/actions/booking'
 import { applyRecurringMultiAction, bookReservationAction, cancelReservationAction, previewRecurringMultiAction } from '@/server/actions/reservations'
-import { Checkbox } from '@/components/ui/checkbox'
 
 import { MemberForm } from '../member-form'
 import { InvitePanel } from './invite-panel'
@@ -709,28 +708,59 @@ function QuickBookSheet({
 
   // ── Sabit Rezervasyon (D18) — pick one or more weekly slots and fix the member on them. ──
   const [mode, setMode] = useState<'once' | 'standing'>('once')
-  const [selected, setSelected] = useState<Set<string>>(new Set())
   const [dur, setDur] = useState<'package' | 'weeks'>('package')
   const [weeksInput, setWeeksInput] = useState('8')
   const [preview, setPreview] = useState<{ slots: { sessionId: string; weeks: number; plan: { toBook: unknown[]; skipped: unknown[] } | null }[] } | null>(null)
   const [working, setWorking] = useState(false)
 
-  const durationValue = (): number | 'package' => (dur === 'package' ? 'package' : Math.max(1, Math.min(52, parseInt(weeksInput, 10) || 8)))
-  const toggle = (id: string) => {
-    setPreview(null)
-    setSelected((prev) => {
-      const n = new Set(prev)
-      if (n.has(id)) n.delete(id)
-      else n.add(id)
-      return n
+  // Sabit Rezervasyon wizard (owner, 2026-07-22): how many days/week → which weekdays (the studio's open
+  // days, read from the schedule) → a time for each → duration. The chosen sessions are the weekly template.
+  const [dayCount, setDayCount] = useState(2)
+  const [dayPicks, setDayPicks] = useState<string[]>(['', ''])
+  const [slotPicks, setSlotPicks] = useState<Record<string, string>>({})
+  const resetPreview = () => setPreview(null)
+  const setCount = (n: number) => {
+    setDayCount(n)
+    setDayPicks((prev) => {
+      const next = prev.slice(0, n)
+      while (next.length < n) next.push('')
+      return next
     })
+    resetPreview()
   }
+  const setDayPick = (i: number, wd: string) => {
+    setDayPicks((prev) => prev.map((v, idx) => (idx === i ? wd : v)))
+    resetPreview()
+  }
+  const setSlot = (wd: string, sid: string) => {
+    setSlotPicks((prev) => ({ ...prev, [wd]: sid }))
+    resetPreview()
+  }
+
+  // The studio's open weekdays + the NEXT occurrence's sessions per weekday, both from the loaded
+  // 14-day schedule — so Sunday (no sessions) never appears, only real class days, and a weekday that
+  // already passed this week shows next week's slots (no past days).
+  const openDays = useMemo(
+    () => (sessions ? WEEKDAY_ORDER.filter((wd) => sessions.some((s) => weekdayOf(s.startsAt) === wd)) : []),
+    [sessions],
+  )
+  const slotsForWeekday = (wd: string): readonly UpcomingSession[] => {
+    const list = (sessions ?? []).filter((s) => weekdayOf(s.startsAt) === wd)
+    if (list.length === 0) return []
+    const minDay = list.reduce((m, s) => (dayKeyOf(s.startsAt) < m ? dayKeyOf(s.startsAt) : m), dayKeyOf(list[0]!.startsAt))
+    return list.filter((s) => dayKeyOf(s.startsAt) === minDay).sort((a, b) => a.startsAt - b.startsAt)
+  }
+  const chosenDays = dayPicks.filter(Boolean)
+  const seedIds = chosenDays.map((wd) => slotPicks[wd]).filter(Boolean) as string[]
+  const wizardReady = chosenDays.length === dayCount && chosenDays.every((wd) => Boolean(slotPicks[wd]))
+
+  const durationValue = (): number | 'package' => (dur === 'package' ? 'package' : Math.max(1, Math.min(52, parseInt(weeksInput, 10) || 8)))
 
   async function doPreview() {
     setWorking(true)
     setPreview(null)
     try {
-      const res = await previewRecurringMultiAction({ memberId, sessionIds: [...selected], mode: durationValue(), skipDates: [] })
+      const res = await previewRecurringMultiAction({ memberId, sessionIds: seedIds, mode: durationValue(), skipDates: [] })
       setPreview(res as typeof preview)
     } catch {
       toast.error('Önizleme yapılamadı.')
@@ -742,7 +772,7 @@ function QuickBookSheet({
   async function doApply() {
     setWorking(true)
     try {
-      const res = await applyRecurringMultiAction({ memberId, sessionIds: [...selected], mode: durationValue(), skipDates: [] })
+      const res = await applyRecurringMultiAction({ memberId, sessionIds: seedIds, mode: durationValue(), skipDates: [] })
       if (res.ok) {
         toast.success(`${res.value.booked} ders sabitlendi${res.value.failed ? `, ${res.value.failed} açılamadı` : ''}.`)
         onBooked()
@@ -784,52 +814,109 @@ function QuickBookSheet({
           <OnceBookingPanel sessions={sessions} memberId={memberId} onBooked={onBooked} onClose={() => onOpenChange(false)} />
         ) : (
           <>
-            <p className="text-xs text-muted-foreground">Sabitlemek istediğin haftalık slot(ları) seç — ör. Pazartesi 19:00 ve Çarşamba 19:00. Her hafta ayrı rezervasyon olarak açılır; birini iptal edip başka saate alabilirsin.</p>
-            <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card shadow-xs">
-              {sessions.map((s) => (
-                <li key={s.sessionId}>
-                  <label className="flex cursor-pointer items-center gap-3 px-3 py-2.5">
-                    <Checkbox checked={selected.has(s.sessionId)} onCheckedChange={() => toggle(s.sessionId)} />
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium">{wdt(s.startsAt)} · {s.serviceName}</p>
-                      <p className="truncate text-xs text-muted-foreground">{dt(s.startsAt)}{s.trainerName ? ` · ${s.trainerName}` : ''}</p>
-                    </div>
-                  </label>
-                </li>
-              ))}
-            </ul>
+            <p className="text-xs text-muted-foreground">
+              Önce haftada kaç gün geleceğini seç, sonra günleri ve saatleri belirle. Seçtiğin haftalık şablon,
+              belirlediğin kadar hafta (ya da paket kredisi bitene kadar) her hafta tekrar eder.
+            </p>
 
-            {/* duration */}
+            {/* 1 — haftada kaç gün */}
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="text-xs uppercase tracking-wide text-muted-foreground">Haftada kaç gün gelecek?</span>
+              <select value={dayCount} onChange={(e) => setCount(Number(e.target.value))} className={SELECT_CLASS}>
+                {[1, 2, 3, 4].map((n) => (
+                  <option key={n} value={n}>
+                    {n} gün
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            {/* 2 — hangi günler (stüdyonun açık günleri, pazar yok) */}
             <div className="space-y-2">
-              <p className="text-sm font-medium">Süre</p>
+              {Array.from({ length: dayCount }).map((_, i) => (
+                <label key={i} className="flex flex-col gap-1 text-sm">
+                  <span className="text-xs uppercase tracking-wide text-muted-foreground">{i + 1}. gün</span>
+                  <select value={dayPicks[i] ?? ''} onChange={(e) => setDayPick(i, e.target.value)} className={SELECT_CLASS}>
+                    <option value="">Gün seç…</option>
+                    {openDays
+                      .filter((wd) => !dayPicks.includes(wd) || dayPicks[i] === wd)
+                      .map((wd) => (
+                        <option key={wd} value={wd}>
+                          {wd}
+                        </option>
+                      ))}
+                  </select>
+                </label>
+              ))}
+            </div>
+
+            {/* 3 — her gün için saat (o günün bir sonraki haftasındaki seansları) */}
+            {chosenDays.length > 0 ? (
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-foreground">Saatleri seç</p>
+                {chosenDays.map((wd) => {
+                  const opts = slotsForWeekday(wd)
+                  return (
+                    <label key={wd} className="flex flex-col gap-1 text-sm">
+                      <span className="text-xs text-muted-foreground">{wd}</span>
+                      {opts.length === 0 ? (
+                        <span className="text-xs text-danger">Bu güne ait seans bulunamadı.</span>
+                      ) : (
+                        <select value={slotPicks[wd] ?? ''} onChange={(e) => setSlot(wd, e.target.value)} className={SELECT_CLASS}>
+                          <option value="">Saat seç…</option>
+                          {opts.map((s) => (
+                            <option key={s.sessionId} value={s.sessionId}>
+                              {timeOf(s.startsAt)} · {s.serviceName}
+                              {s.trainerName ? ` · ${s.trainerName}` : ''} · {s.bookedCount}/{s.capacity}
+                              {s.bookedCount >= s.capacity ? ' (dolu)' : ''}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                    </label>
+                  )
+                })}
+              </div>
+            ) : null}
+
+            {/* 4 — süre */}
+            <div className="space-y-2">
+              <p className="text-sm font-medium">Kaç hafta sabitlensin?</p>
               <div className="flex flex-wrap items-center gap-2">
-                <button type="button" onClick={() => { setDur('package'); setPreview(null) }} className={`rounded-full px-3 py-1.5 text-sm font-medium ${dur === 'package' ? 'bg-accent text-accent-foreground' : 'bg-muted text-muted-foreground'}`}>Paket süresince</button>
+                <button type="button" onClick={() => { setDur('package'); setPreview(null) }} className={`rounded-full px-3 py-1.5 text-sm font-medium ${dur === 'package' ? 'bg-accent text-accent-foreground' : 'bg-muted text-muted-foreground'}`}>Paket kredisi yettiğince</button>
                 <button type="button" onClick={() => { setDur('weeks'); setPreview(null) }} className={`rounded-full px-3 py-1.5 text-sm font-medium ${dur === 'weeks' ? 'bg-accent text-accent-foreground' : 'bg-muted text-muted-foreground'}`}>Hafta sayısı</button>
                 {dur === 'weeks' ? (
                   <input type="number" min={1} max={52} value={weeksInput} onChange={(e) => { setWeeksInput(e.target.value); setPreview(null) }} className="w-20 rounded-md border bg-background px-2 py-1.5 text-sm" />
                 ) : null}
               </div>
-              <p className="text-xs text-muted-foreground">Kredili pakette krediler bitince otomatik durur.</p>
+              <p className="text-xs text-muted-foreground">Krediler / geçerlilik bitince otomatik durur — rezervasyon kuralları uygulanır.</p>
             </div>
 
+            {/* önizleme */}
             {preview ? (
               <div className="space-y-2 rounded-xl border bg-muted/40 p-3">
                 <p className="text-sm font-semibold">{totalToBook} ders açılacak{totalSkip > 0 ? `, ${totalSkip} hafta atlanacak` : ''}.</p>
                 <ul className="space-y-1 text-xs text-muted-foreground">
                   {preview.slots.map((sl) => {
                     const s = sessions.find((x) => x.sessionId === sl.sessionId)
-                    return <li key={sl.sessionId}>{s ? wdt(s.startsAt) : sl.sessionId}: {sl.plan?.toBook.length ?? 0} açılacak{(sl.plan?.skipped.length ?? 0) > 0 ? `, ${sl.plan?.skipped.length} atlandı` : ''} ({sl.weeks} hafta)</li>
+                    return (
+                      <li key={sl.sessionId}>
+                        {s ? wdt(s.startsAt) : sl.sessionId}: {sl.plan?.toBook.length ?? 0} açılacak
+                        {(sl.plan?.skipped.length ?? 0) > 0 ? `, ${sl.plan?.skipped.length} atlandı` : ''} ({sl.weeks} hafta)
+                      </li>
+                    )
                   })}
                 </ul>
               </div>
             ) : null}
 
+            {/* önce Önizle → sonra Onayla ve Sabitle (onay preview'den sonra) */}
             <div className="flex gap-2">
-              <Button variant="outline" onClick={() => void doPreview()} disabled={working || selected.size === 0}>
+              <Button variant="outline" onClick={() => void doPreview()} disabled={working || !wizardReady}>
                 {working && !preview ? <Loader2Icon className="animate-spin" /> : null} Önizle
               </Button>
-              <Button onClick={() => void doApply()} disabled={working || selected.size === 0}>
-                {working ? <Loader2Icon className="animate-spin" /> : null} Sabitle
+              <Button onClick={() => void doApply()} disabled={working || !wizardReady || !preview}>
+                {working && preview ? <Loader2Icon className="animate-spin" /> : null} Onayla ve Sabitle
               </Button>
             </div>
           </>
@@ -845,6 +932,11 @@ const TZ = 'Europe/Istanbul'
 const dayKeyOf = (ms: number) => new Date(ms).toLocaleDateString('en-CA', { timeZone: TZ })
 const dayLabelOf = (ms: number) => new Date(ms).toLocaleDateString('tr-TR', { timeZone: TZ, day: '2-digit', month: 'short', weekday: 'short' })
 const timeOf = (ms: number) => new Date(ms).toLocaleTimeString('tr-TR', { timeZone: TZ, hour: '2-digit', minute: '2-digit' })
+// Weekdays Mon–Sat (no Sunday — the studio is closed); the selectable set is narrowed to the days that
+// actually have sessions, so this is only the display order.
+const WEEKDAY_ORDER = ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'] as const
+const weekdayOf = (ms: number) => new Date(ms).toLocaleDateString('tr-TR', { timeZone: TZ, weekday: 'long' })
+const SELECT_CLASS = 'rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-primary'
 
 function OnceBookingPanel({
   sessions,
