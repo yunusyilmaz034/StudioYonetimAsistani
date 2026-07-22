@@ -211,8 +211,8 @@ export function MemberWorkspaceScreen({
 
       {s ? (
         <MetricStrip>
-          <Metric compact label="Aktif paket" value={s.activeEntitlementCount} icon={PackageIcon} />
-          <Metric compact label="Bakiye" value={tl(s.balanceDue)} icon={CreditCardIcon} tone={s.balanceDue > 0 ? 'danger' : 'default'} />
+          <Metric compact label="Aktif paket" value={data.activePackageCount} icon={PackageIcon} />
+          <Metric compact label="Bakiye" value={tl(data.balanceDueKurus)} icon={CreditCardIcon} tone={data.balanceDueKurus > 0 ? 'danger' : 'default'} />
           <Metric compact label="Son giriş" value={s.lastCheckInAt ? d(s.lastCheckInAt) : '—'} icon={DoorOpenIcon} />
           <Metric compact label="Son katılım" value={s.lastAttendanceAt ? d(s.lastAttendanceAt) : '—'} icon={ClipboardListIcon} />
         </MetricStrip>
