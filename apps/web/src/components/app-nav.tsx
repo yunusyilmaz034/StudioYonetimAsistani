@@ -18,6 +18,7 @@ import {
   MessageCircleIcon,
   ImageIcon,
   LightbulbIcon,
+  SparklesIcon,
   ShieldIcon,
   TargetIcon,
   ShoppingCartIcon,
@@ -114,6 +115,7 @@ export const GROUPS: readonly NavGroup[] = [
   {
     label: 'Sahip',
     items: [
+      { href: '/patron', label: 'Patron Asistanı', icon: SparklesIcon },
       { href: '/engagement', label: 'Stüdyodan', icon: MegaphoneIcon },
       { href: '/advisor', label: 'Öneriler', icon: LightbulbIcon },
       { href: '/ai-report', label: 'AI Rapor', icon: BarChart3Icon },
