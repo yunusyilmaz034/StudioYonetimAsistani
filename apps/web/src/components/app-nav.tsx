@@ -116,6 +116,7 @@ export const GROUPS: readonly NavGroup[] = [
     items: [
       { href: '/engagement', label: 'Stüdyodan', icon: MegaphoneIcon },
       { href: '/advisor', label: 'Öneriler', icon: LightbulbIcon },
+      { href: '/ai-report', label: 'AI Rapor', icon: BarChart3Icon },
       { href: '/operations', label: 'Operasyonlar', icon: LayersIcon },
       // Plus Phase 9 — trainer payroll & commission. Owner-confidential.
       { href: '/payroll', label: 'Bordro', icon: BanknoteIcon },

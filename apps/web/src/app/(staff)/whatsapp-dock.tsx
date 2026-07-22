@@ -123,7 +123,7 @@ export function WhatsAppDock() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="fixed right-4 bottom-4 z-50 flex h-12 items-center gap-2 rounded-full border border-border bg-emerald-600 px-4 text-sm font-semibold text-white shadow-lg transition-transform hover:scale-105"
+        className="fixed right-4 bottom-[136px] z-50 flex h-12 items-center gap-2 rounded-full border border-border bg-emerald-600 px-4 text-sm font-semibold text-white shadow-lg transition-transform hover:scale-105 md:bottom-[72px]"
         title="WhatsApp hattı"
       >
         <MessageCircleIcon className="size-5" />
@@ -136,7 +136,7 @@ export function WhatsAppDock() {
   }
 
   return (
-    <div className="fixed right-4 bottom-4 z-50 flex h-[min(72vh,600px)] w-[min(92vw,384px)] flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
+    <div className="fixed right-4 bottom-[136px] z-50 flex h-[min(64vh,560px)] w-[min(92vw,384px)] flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl md:bottom-[72px]">
       <div className="flex items-center justify-between gap-2 border-b border-border bg-emerald-600 px-3 py-2 text-white">
         <div className="flex items-center gap-2">
           {selected ? (

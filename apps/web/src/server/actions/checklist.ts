@@ -12,11 +12,11 @@ import type { AdvisorItem } from '../advisor-query'
 // server-rendered dashboard; the narrator tokenises names out before any model call.
 const OPS = ['owner', 'receptionist', 'platform_admin'] as const
 
-// The AI narration is regenerated at fixed studio times only (owner: 10:00, 13:00, 15:00, 18:00, 19:00
-// TRT) — NOT on every dashboard open — so cost is capped at ~5 calls/day. Within a slot the cached
-// narration is served; the client keeps the underlying list fresh (drops resolved items, appends new
-// ones) so mid-slot staleness never misleads the desk.
-const SLOTS = [10, 13, 15, 18, 19]
+// The AI narration is regenerated at fixed studio times only (owner: 10:00, 14:00, 19:00 TRT — three
+// times a day is enough) — NOT on every dashboard open — so cost is capped at ~3 calls/day. Within a
+// slot the cached narration is served; the client keeps the underlying list fresh (drops resolved
+// items, appends new ones) so mid-slot staleness never misleads the desk.
+const SLOTS = [10, 14, 19]
 function currentSlotKey(nowMs: number): string {
   const trt = new Date(nowMs + 3 * 3_600_000) // TRT = UTC+3, no DST
   const hour = trt.getUTCHours()
