@@ -9,6 +9,12 @@ import { Section } from '@/components/ui/section'
 import { aiReportAction, type AiReport } from '@/server/actions/ai-report'
 
 const d = (ms: number) => new Date(ms).toLocaleDateString('tr-TR', { timeZone: 'Europe/Istanbul', day: '2-digit', month: '2-digit', year: '2-digit' })
+// Digits like "905448441179" → "+90 544 844 11 79"; leaves anything unexpected as-is (with a leading +).
+const fmtPhone = (raw: string) => {
+  const s = raw.replace(/\D/g, '')
+  const m = /^90(\d{3})(\d{3})(\d{2})(\d{2})$/.exec(s)
+  return m ? `+90 ${m[1]} ${m[2]} ${m[3]} ${m[4]}` : raw ? `+${s}` : '—'
+}
 const pct = (n: number, of: number) => (of > 0 ? Math.round((n / of) * 100) : 0)
 const TEMP_LABEL: Record<string, string> = { sıcak: '🔴 Sıcak', ılık: '🟡 Ilık', soğuk: '⚪ Soğuk' }
 const PERIODS: { days: number; label: string }[] = [
@@ -86,6 +92,7 @@ export function AiReportScreen() {
                 <thead className="bg-muted/50 text-left text-xs text-muted-foreground">
                   <tr>
                     <th className="px-3 py-2">Kişi</th>
+                    <th className="px-3 py-2">Telefon</th>
                     <th className="px-3 py-2">İlk</th>
                     <th className="px-3 py-2">Son</th>
                     <th className="px-3 py-2 text-right">Mesaj</th>
@@ -103,6 +110,11 @@ export function AiReportScreen() {
                         </Link>
                         {p.converted ? <span className="ml-1.5 rounded bg-emerald-500/15 px-1.5 text-[10px] font-medium text-emerald-700">üye</span> : null}
                       </td>
+                      <td className="px-3 py-2 tabular-nums text-muted-foreground">
+                        <a href={`https://wa.me/${p.phone.replace(/\D/g, '')}`} target="_blank" rel="noreferrer" className="hover:text-foreground hover:underline">
+                          {fmtPhone(p.phone)}
+                        </a>
+                      </td>
                       <td className="px-3 py-2 text-muted-foreground">{d(p.firstAt)}</td>
                       <td className="px-3 py-2 text-muted-foreground">{d(p.lastAt)}</td>
                       <td className="px-3 py-2 text-right tabular-nums">{p.userMsgs}</td>
@@ -112,7 +124,7 @@ export function AiReportScreen() {
                     </tr>
                   ))}
                   {(report?.people.length ?? 0) === 0 ? (
-                    <tr><td colSpan={7} className="px-3 py-6 text-center text-muted-foreground">Bu dönemde yazan yok.</td></tr>
+                    <tr><td colSpan={8} className="px-3 py-6 text-center text-muted-foreground">Bu dönemde yazan yok.</td></tr>
                   ) : null}
                 </tbody>
               </table>

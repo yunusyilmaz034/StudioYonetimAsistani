@@ -11,12 +11,23 @@
 export type MemberFilter =
   | 'all'
   | 'active' // has a live package
+  | 'pilates' // has an active Pilates (reformer group) package
+  | 'fitness' // has an active Fitness package
+  | 'pt' // has an active PT (private) package
   | 'expiring' // its validity ends within two weeks
   | 'low_credits' // 2 or fewer classes left — the moment to sell the next package
   | 'frozen'
   | 'no_package' // a member with nothing to book with. She is not lost, she is un-sold.
   | 'inactive' // the STUDIO marked her passive
   | 'in_debt' // sold, not collected. It is legal here, and it must never be invisible.
+
+// The catalogue category behind each type filter (D0 — the catalogue is data, but these enum values are
+// the fixed category wall, safe to name). A member "has Pilates" if she has an ACTIVE package of it.
+const CATEGORY_OF: Partial<Record<MemberFilter, string>> = {
+  pilates: 'pilates_group',
+  fitness: 'fitness',
+  pt: 'private',
+}
 
 export interface MemberFacts {
   /** The member's own status, as the studio set it. */
@@ -28,6 +39,8 @@ export interface MemberFacts {
     readonly validUntil: number
     /** `null` ⇔ a period package: it grants time, not a number of classes. */
     readonly creditsAvailable: number | null
+    /** The catalogue category (`pilates_group` / `fitness` / `private`). Optional: older callers omit it. */
+    readonly category?: string
   }[]
 }
 
@@ -42,6 +55,8 @@ export interface MemberBadges {
   readonly noPackage: boolean
   readonly inactive: boolean
   readonly inDebt: boolean
+  /** Catalogue categories she holds a live (active or frozen) package in — powers the type filters. */
+  readonly categories: readonly string[]
 }
 
 export function badgesFor(m: MemberFacts, nowMs: number): MemberBadges {
@@ -51,6 +66,7 @@ export function badgesFor(m: MemberFacts, nowMs: number): MemberBadges {
 
   return {
     active: active.length > 0,
+    categories: [...new Set(live.map((p) => p.category).filter((c): c is string => Boolean(c)))],
     // A package still inside its window, ending soon. A frozen one is NOT expiring — that is the
     // whole point of freezing it, and telling reception to chase a frozen member would undo it.
     expiring: active.some((p) => p.validUntil > nowMs && p.validUntil - nowMs <= EXPIRING_WINDOW_MS),
@@ -72,6 +88,10 @@ export function matches(filter: MemberFilter, b: MemberBadges): boolean {
       return true
     case 'active':
       return b.active
+    case 'pilates':
+    case 'fitness':
+    case 'pt':
+      return b.categories.includes(CATEGORY_OF[filter]!)
     case 'expiring':
       return b.expiring
     case 'low_credits':
@@ -90,6 +110,9 @@ export function matches(filter: MemberFilter, b: MemberBadges): boolean {
 export const FILTERS: readonly { id: MemberFilter; label: string }[] = [
   { id: 'all', label: 'Tümü' },
   { id: 'active', label: 'Aktif paketi olan' },
+  { id: 'pilates', label: 'Pilates' },
+  { id: 'fitness', label: 'Fitness' },
+  { id: 'pt', label: 'PT' },
   { id: 'expiring', label: 'Bitecek' },
   { id: 'low_credits', label: 'Kredisi azalan' },
   { id: 'frozen', label: 'Donmuş' },

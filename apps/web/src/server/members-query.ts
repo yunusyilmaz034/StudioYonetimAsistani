@@ -62,6 +62,8 @@ export async function listMemberRows(ctx: TenantContext, nowMs: number): Promise
       // `null` ⇔ a period package: it grants time, not a number of classes, and it has no number to
       // run out of.
       creditsAvailable: e.credits ? (e.status === 'active' ? available(e.credits) : 0) : null,
+      // The catalogue category — powers the Pilates / Fitness / PT type filters.
+      category: e.productSnapshot.category,
     })
     byMember.set(e.memberId as string, list)
   }
