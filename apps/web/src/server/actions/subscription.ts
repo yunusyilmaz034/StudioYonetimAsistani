@@ -34,6 +34,8 @@ import {
 } from '@studio/core'
 import { z } from 'zod'
 
+import { autoSaleNote } from '@/lib/sale-credit-note'
+
 import { requireTenantContext } from '../auth'
 import { observed } from '../log'
 import { adminDb } from '../firebase-admin'
@@ -122,6 +124,10 @@ export async function assignSubscriptionAction(input: unknown) {
       ? { kind: 'credits', credits: product.creditCount ?? 0, validForDays: product.durationDays }
       : { kind: 'period', durationDays: product.durationDays, access: 'unlimited' }
 
+  const creditOverride =
+    p.creditOverride == null ? null : Math.min(product.creditCount ?? Infinity, Math.max(0, Math.trunc(p.creditOverride)))
+  const saleNote = autoSaleNote(product.creditCount, creditOverride, p.note)
+
   const subscription = {
     memberId: p.memberId as MemberId,
     productId: product.id,
@@ -147,16 +153,14 @@ export async function assignSubscriptionAction(input: unknown) {
     validUntil: p.validUntil ? dayMs(p.validUntil) : null,
     freezeDays: product.freezeAllowanceDays > 0 ? product.freezeAllowanceDays : null,
     // Reception may LOWER the granted credits (an 8-class package sold as 3) but never RAISE them above
-    // what the package defines — a 24 can't become 25. Clamp server-side, not just in the UI.
-    creditOverride:
-      p.creditOverride == null
-        ? null
-        : Math.min(product.creditCount ?? Infinity, Math.max(0, Math.trunc(p.creditOverride))),
+    // what the package defines — a 24 can't become 25. Clamped above; the sale note is auto-filled when
+    // the credit is lowered so reception isn't blocked by the adjustment's note requirement (AD-39).
+    creditOverride,
     // The entitlement no longer records money — the ledger does. This is passed only because the
     // shape demands it; `sellPackage` zeroes it, deliberately and in one place.
     collectedAmount: money(0),
     method: p.method as PaymentMethod,
-    note: p.note,
+    note: saleNote,
   } satisfies AssignSubscriptionInput
 
   const branchId = (ctx.branchIds[0] ?? null) as BranchId
@@ -221,6 +225,10 @@ export async function createPackageLinkSaleAction(input: unknown) {
       ? { kind: 'credits', credits: product.creditCount ?? 0, validForDays: product.durationDays }
       : { kind: 'period', durationDays: product.durationDays, access: 'unlimited' }
 
+  const creditOverride =
+    p.creditOverride == null ? null : Math.min(product.creditCount ?? Infinity, Math.max(0, Math.trunc(p.creditOverride)))
+  const saleNote = autoSaleNote(product.creditCount, creditOverride, p.note)
+
   const subscription = {
     memberId: p.memberId as MemberId,
     productId: product.id,
@@ -241,12 +249,11 @@ export async function createPackageLinkSaleAction(input: unknown) {
     validFrom: dayMs(p.validFrom),
     validUntil: p.validUntil ? dayMs(p.validUntil) : null,
     freezeDays: product.freezeAllowanceDays > 0 ? product.freezeAllowanceDays : null,
-    creditOverride:
-      p.creditOverride == null ? null : Math.min(product.creditCount ?? Infinity, Math.max(0, Math.trunc(p.creditOverride))),
+    creditOverride,
     collectedAmount: money(0),
     // Inert: no payment is recorded here (collectedAmount 0). The real money lands on the link callback.
     method: 'credit_card' as PaymentMethod,
-    note: p.note,
+    note: saleNote,
   } satisfies AssignSubscriptionInput
 
   // 1. Grant now with full debt. If this fails nothing else happens.

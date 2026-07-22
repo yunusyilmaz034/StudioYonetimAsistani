@@ -25,6 +25,8 @@ import {
 } from '@studio/core'
 import { z } from 'zod'
 
+import { autoSaleNote } from '@/lib/sale-credit-note'
+
 import { requireTenantContext } from '../auth'
 import { adminDb } from '../firebase-admin'
 import { allowRate } from '../rate-limit'
@@ -144,6 +146,13 @@ export async function createPackageCheckout(ctx: TenantContext, p: PackageChecko
   const id = `pin_${providerRef.slice(0, 20)}`
   const member = await new FirestoreMemberRepository(adminDb()).findById(ctx, p.memberId as MemberId)
 
+  // Auto-fill the audit note when the sale LOWERS the granted credits — the grant (with its credit
+  // adjustment, AD-39) runs on the PayTR callback, so an empty note there would fail AFTER the money was
+  // taken. Carry a clear reason in the intent context instead.
+  const clampedOverride =
+    p.creditOverride == null ? null : Math.min(product.creditCount ?? Infinity, Math.max(0, Math.trunc(p.creditOverride)))
+  const contextNote = autoSaleNote(product.creditCount, clampedOverride, p.note)
+
   const intent: PaymentIntent = {
     id,
     studioId: ctx.studioId,
@@ -163,7 +172,7 @@ export async function createPackageCheckout(ctx: TenantContext, p: PackageChecko
       validFrom: p.validFrom,
       validUntil: p.validUntil,
       creditOverride: p.creditOverride,
-      note: p.note,
+      note: contextNote,
     },
     expiresAt: null,
     failureReason: null,
