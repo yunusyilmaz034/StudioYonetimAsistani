@@ -227,8 +227,21 @@ export function BookingPanel({ session, onMutated }: { session: CalendarSession;
                 href={`/members/${r.memberId}`}
                 className="group min-w-0 flex-1 rounded outline-none focus-visible:ring-2 focus-visible:ring-primary"
               >
-                <p className="truncate text-sm font-medium text-foreground group-hover:text-primary group-hover:underline">
-                  {r.memberName}
+                <p className="flex items-center gap-1.5 truncate text-sm font-medium text-foreground group-hover:text-primary group-hover:underline">
+                  <span className="truncate">{r.memberName}</span>
+                  {r.status !== 'booked' ? (
+                    <span
+                      className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium ${
+                        r.status === 'attended'
+                          ? 'bg-success/10 text-success'
+                          : r.status === 'no_show'
+                            ? 'bg-danger/10 text-danger'
+                            : 'bg-warning/10 text-warning'
+                      }`}
+                    >
+                      {r.status === 'attended' ? 'Katıldı' : r.status === 'no_show' ? 'Gelmedi' : 'Geç iptal'}
+                    </span>
+                  ) : null}
                 </p>
                 {r.note ? (
                   <p className="flex items-center gap-1 truncate text-xs text-info" title={r.note}>

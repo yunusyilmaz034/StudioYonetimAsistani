@@ -29,6 +29,9 @@ export interface RosterMember {
   readonly memberName: string
   readonly phoneLast4: string
   readonly note: string | null // the staff quick note (Hızlı Not), if set
+  // The reservation's outcome, so a PAST session's roster (attended / no-show) doesn't read like a
+  // live booking. 'booked' for an upcoming, unresolved reservation.
+  readonly status: 'booked' | 'attended' | 'no_show' | 'late_cancelled'
 }
 
 // The session's active roster (booked reservations only — a cancelled seat is freed).
@@ -36,14 +39,19 @@ export async function getSessionRosterAction(input: unknown): Promise<readonly R
   const p = z.object({ sessionId: nonEmpty }).parse(input)
   const ctx = await requireTenantContext(OPS)
   const rows = await new FirestoreReservationRepository(adminDb()).listBySession(ctx, p.sessionId as ClassSessionId)
+  // Everyone who OCCUPIED the slot — matches the session's bookedCount. An in-window `cancelled` freed
+  // the slot (and is excluded); a past `attended`/`no_show`/`late_cancelled` did not, so the roster of a
+  // finished class still shows who was there instead of "Henüz rezervasyon yok" while the count says 2.
+  const OCCUPIES = new Set(['booked', 'attended', 'no_show', 'late_cancelled'])
   return rows
-    .filter((r) => r.status === 'booked')
+    .filter((r) => OCCUPIES.has(r.status))
     .map((r) => ({
       reservationId: r.id,
       memberId: r.memberId,
       memberName: r.memberSnapshot.displayName,
       phoneLast4: r.memberSnapshot.phoneLast4,
       note: r.note?.text ?? null,
+      status: r.status as RosterMember['status'],
     }))
     .sort((a, b) => a.memberName.localeCompare(b.memberName, 'tr'))
 }
