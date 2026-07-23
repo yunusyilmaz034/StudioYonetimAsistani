@@ -15,6 +15,21 @@ import { CATEGORY_LABEL, ProductForm } from './product-form'
 
 const tl = (kurus: number) => `${(kurus / 100).toLocaleString('tr-TR')} TL`
 
+const SHORT_CAT: Record<string, string> = { pilates_group: 'Pilates', fitness: 'Fitness', private: 'PT' }
+const isBundle = (p: ProductView) => (p.components?.length ?? 0) > 0
+// "Kategori" reads "Hibrit" for a bundle; "İçerik" spells out the components (e.g. "8 Pilates + 4 Fitness giriş").
+const catLabel = (p: ProductView) => (isBundle(p) ? 'Hibrit' : CATEGORY_LABEL[p.category] ?? p.category)
+const contentLabel = (p: ProductView) =>
+  isBundle(p)
+    ? p
+        .components!.map((c) =>
+          c.creditCount != null ? `${c.creditCount} ${SHORT_CAT[c.category] ?? c.category}` : `${c.entryAllowance ?? 0} ${SHORT_CAT[c.category] ?? c.category} giriş`,
+        )
+        .join(' + ')
+    : p.type === 'credit'
+      ? `${p.creditCount} ders`
+      : 'Sınırsız'
+
 export function PackagesScreen({
   products,
   services,
@@ -69,7 +84,7 @@ export function PackagesScreen({
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium text-foreground">{p.name}</p>
                   <p className="truncate text-xs text-muted-foreground">
-                    {CATEGORY_LABEL[p.category] ?? p.category} · {p.type === 'credit' ? `${p.creditCount} ders` : 'Sınırsız'} ·{' '}
+                    {catLabel(p)} · {contentLabel(p)} ·{' '}
                     <span className="tabular-nums">{tl(p.priceInKurus)}</span>
                   </p>
                 </div>
@@ -100,10 +115,8 @@ export function PackagesScreen({
                     className="cursor-pointer transition-colors hover:bg-primary-soft/40"
                   >
                     <td className="px-4 py-3 font-medium text-foreground">{p.name}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{CATEGORY_LABEL[p.category] ?? p.category}</td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {p.type === 'credit' ? `${p.creditCount} ders` : 'Sınırsız'}
-                    </td>
+                    <td className="px-4 py-3 text-muted-foreground">{catLabel(p)}</td>
+                    <td className="px-4 py-3 text-muted-foreground">{contentLabel(p)}</td>
                     <td className="px-4 py-3 text-right tabular-nums text-muted-foreground">{p.durationDays} gün</td>
                     <td className="px-4 py-3 text-right font-medium tabular-nums text-foreground">{tl(p.priceInKurus)}</td>
                     <td className="w-28 px-4 py-3 whitespace-nowrap">

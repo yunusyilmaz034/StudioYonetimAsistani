@@ -1,6 +1,7 @@
 import {
   FirestoreCatalogRepository,
   FirestoreSchedulingRepository,
+  type ProductComponent,
   type TenantContext,
 } from '@studio/core'
 
@@ -34,6 +35,7 @@ export interface ProductView {
   readonly cancellationAllowanceCount: number | null
   readonly activeReservationLimit: number | null
   readonly entryAllowance: number | null
+  readonly components: readonly ProductComponent[] | null
   readonly description: string
   readonly active: boolean
 }
@@ -55,6 +57,7 @@ export async function listProducts(ctx: TenantContext): Promise<readonly Product
       cancellationAllowanceCount: p.cancellationAllowanceCount,
       activeReservationLimit: p.activeReservationLimit,
       entryAllowance: (p as { entryAllowance?: number | null }).entryAllowance ?? null,
+      components: (p as { components?: readonly ProductComponent[] | null }).components ?? null,
       description: p.description,
       active: p.active,
     }))

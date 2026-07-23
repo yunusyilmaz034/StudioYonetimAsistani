@@ -19,6 +19,10 @@ export const CATEGORY_LABEL: Record<string, string> = {
   private: 'Özel / PT',
 }
 
+// Short faces for a bundle component's label (e.g. "8 Pilates dersi", "4 Fitness girişi").
+const SHORT_CAT: Record<string, string> = { pilates_group: 'Pilates', fitness: 'Fitness', private: 'PT' }
+type ComponentDraft = { category: string; count: number }
+
 const tl = (kurus: number) => (kurus / 100).toString()
 const toKurus = (t: string) => Math.round((Number(t) || 0) * 100)
 
@@ -45,6 +49,20 @@ export function ProductForm({
   const [name, setName] = useState(product?.name ?? '')
   const [category, setCategory] = useState(product?.category ?? 'pilates_group')
   const [type, setType] = useState<'credit' | 'period'>(product?.type ?? 'credit')
+  // Hibrit demet: a bundle grants one entitlement per component (pilates credits + fitness entries),
+  // each in its own category. When on, the single category/type/credit fields are replaced by the
+  // component builder; duration, price, freeze, limits, cancellation and description stay shared.
+  const [isBundle, setIsBundle] = useState((product?.components?.length ?? 0) > 0)
+  const [components, setComponents] = useState<ComponentDraft[]>(
+    product?.components && product.components.length > 0
+      ? product.components.map((c) => ({ category: c.category, count: c.creditCount ?? c.entryAllowance ?? 1 }))
+      : [
+          { category: 'pilates_group', count: 8 },
+          { category: 'fitness', count: 4 },
+        ],
+  )
+  const setComponent = (i: number, patch: Partial<ComponentDraft>) =>
+    setComponents((cs) => cs.map((c, idx) => (idx === i ? { ...c, ...patch } : c)))
   const [durationDays, setDurationDays] = useState(product?.durationDays ?? 30)
   const [creditCount, setCreditCount] = useState(product?.creditCount ?? 8)
   const [priceTl, setPriceTl] = useState(product ? tl(product.priceInKurus) : '')
@@ -70,19 +88,37 @@ export function ProductForm({
     e.preventDefault()
     setLoading(true)
     setError(null)
+    // A bundle: build one component per row (fitness ⇒ entry allowance, pilates/PT ⇒ credits). The
+    // top-level category is forced to pilates_group so the hybrid takes the 10% KK face (owner); the
+    // real grants come from the components, each in its own category.
+    const comps =
+      isBundle
+        ? components
+            .filter((c) => c.count > 0)
+            .map((c) => {
+              const isEntry = c.category === 'fitness'
+              return {
+                category: c.category,
+                creditCount: isEntry ? null : c.count,
+                entryAllowance: isEntry ? c.count : null,
+                label: isEntry ? `${c.count} Fitness girişi` : `${c.count} ${SHORT_CAT[c.category] ?? c.category} dersi`,
+              }
+            })
+        : null
     const fields = {
       name: name.trim(),
-      category,
+      category: isBundle ? 'pilates_group' : category,
       serviceIds,
-      type,
+      type: isBundle ? ('credit' as const) : type,
       durationDays,
-      creditCount: type === 'credit' ? creditCount : null,
+      creditCount: isBundle ? null : type === 'credit' ? creditCount : null,
       priceInKurus: toKurus(priceTl),
       freezeAllowanceDays: freezeDays,
       dailyReservationLimit: dailyLimit,
       cancellationAllowanceCount: unlimitedCancel ? null : cancelCount,
       activeReservationLimit: activeLimit,
-      entryAllowance: type === 'period' ? entryAllowance : null,
+      entryAllowance: isBundle ? null : type === 'period' ? entryAllowance : null,
+      components: comps,
       description: description.trim(),
     }
     try {
@@ -108,36 +144,108 @@ export function ProductForm({
         <Input id="p-name" required value={name} onChange={(e) => setName(e.target.value)} placeholder="Reformer 8 Ders" />
       </Field>
 
+      <Field id="p-kind" label="Paket türü">
+        <div className="flex gap-2">
+          {[
+            { on: false, label: 'Tek paket' },
+            { on: true, label: 'Hibrit (demet)' },
+          ].map((o) => (
+            <button
+              key={o.label}
+              type="button"
+              onClick={() => setIsBundle(o.on)}
+              className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+                isBundle === o.on ? 'border-primary bg-primary/10 text-primary' : 'border-border text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+      </Field>
+
+      {isBundle ? (
+        <Field id="p-comps" label="İçerik — bileşenler">
+          <div className="space-y-2">
+            {components.map((c, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <Select value={c.category} onValueChange={(v) => setComponent(i, { category: v ?? 'pilates_group' })}>
+                  <SelectTrigger className="w-40">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(CATEGORY_LABEL).map(([id, label]) => (
+                      <SelectItem key={id} value={id}>
+                        {label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Input
+                  type="number"
+                  min={1}
+                  className="w-24"
+                  value={c.count}
+                  onChange={(e) => setComponent(i, { count: Math.max(1, Number(e.target.value) || 1) })}
+                />
+                <span className="w-12 text-sm text-muted-foreground">{c.category === 'fitness' ? 'giriş' : 'kredi'}</span>
+                {components.length > 1 ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setComponents((cs) => cs.filter((_, idx) => idx !== i))}
+                  >
+                    Sil
+                  </Button>
+                ) : null}
+              </div>
+            ))}
+            <Button type="button" variant="outline" size="sm" onClick={() => setComponents((cs) => [...cs, { category: 'fitness', count: 1 }])}>
+              + Bileşen ekle
+            </Button>
+          </div>
+          <p className="mt-1.5 text-xs text-muted-foreground">
+            Her bileşen kendi kategorisini açar. Pilates / PT = kredi (ders), Fitness = giriş hakkı. Fiyat, süre, dondurma
+            ve limitler aşağıda — tüm demet için ortak.
+          </p>
+        </Field>
+      ) : null}
+
       <div className="grid grid-cols-2 gap-3">
-        <Field id="p-cat" label="Kategori">
-          <Select value={category} onValueChange={(v) => setCategory(v ?? 'pilates_group')}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {Object.entries(CATEGORY_LABEL).map(([id, label]) => (
-                <SelectItem key={id} value={id}>
-                  {label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </Field>
-        <Field id="p-type" label="Tür">
-          <Select value={type} onValueChange={(v) => setType((v as 'credit' | 'period') ?? 'credit')}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="credit">Kredi (ders sayısı)</SelectItem>
-              <SelectItem value="period">Süreli (sınırsız)</SelectItem>
-            </SelectContent>
-          </Select>
-        </Field>
+        {!isBundle ? (
+          <>
+            <Field id="p-cat" label="Kategori">
+              <Select value={category} onValueChange={(v) => setCategory(v ?? 'pilates_group')}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(CATEGORY_LABEL).map(([id, label]) => (
+                    <SelectItem key={id} value={id}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+            <Field id="p-type" label="Tür">
+              <Select value={type} onValueChange={(v) => setType((v as 'credit' | 'period') ?? 'credit')}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="credit">Kredi (ders sayısı)</SelectItem>
+                  <SelectItem value="period">Süreli (sınırsız)</SelectItem>
+                </SelectContent>
+              </Select>
+            </Field>
+          </>
+        ) : null}
         <Field id="p-dur" label="Süre (gün)">
           <Input id="p-dur" type="number" min={1} value={durationDays} onChange={(e) => setDurationDays(Math.max(1, Number(e.target.value) || 1))} />
         </Field>
-        {type === 'credit' ? (
+        {isBundle ? null : type === 'credit' ? (
           <Field id="p-credit" label="Kredi (ders)">
             <Input id="p-credit" type="number" min={1} value={creditCount} onChange={(e) => setCreditCount(Math.max(1, Number(e.target.value) || 1))} />
           </Field>
@@ -174,7 +282,7 @@ export function ProductForm({
           />
           <p className="mt-1 text-xs text-muted-foreground">Boş = sınırsız. Aynı anda açık toplam rezervasyon tavanı.</p>
         </Field>
-        {type === 'period' ? (
+        {!isBundle && type === 'period' ? (
           <Field id="p-entry" label="Giriş hakkı">
             <Input
               id="p-entry"
