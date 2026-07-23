@@ -282,8 +282,64 @@ async function processMessage(sid: string, from: string, name: string, text: str
   logger.info('[wa-webhook] replied', { sid, escalate: result.escalate, sent: sent.ok })
 }
 
+// Admin one-shot (owner): hand EVERY conversation back to the AI and let it answer the ones that are
+// waiting. "Waiting" = the last message is from the customer (a human message with no reply after it);
+// where the last message is the AI's own, nothing is pending so we leave it. Token-protected.
+async function resumeAll(sid: string): Promise<{ resumed: number; replied: number; total: number }> {
+  const database = db()
+  const ctx = ctxOf(sid)
+  const aiDoc = (await database.doc(`studios/${sid}/settings/ai`).get()).data() as AiSettingsDoc | undefined
+  const apiKey = process.env.ANTHROPIC_API_KEY
+  const token = process.env.WHATSAPP_ACCESS_TOKEN
+  const phoneId = process.env.WHATSAPP_PHONE_NUMBER_ID
+  if (!aiDoc?.whatsappActive || !apiKey || !token || !phoneId) return { resumed: 0, replied: 0, total: 0 }
+
+  const facts = await liveFacts(database, ctx)
+  const system = buildSystem(aiDoc, facts)
+  const config: MetaWhatsAppConfig = { phoneNumberId: phoneId, accessToken: token, ...(process.env.WHATSAPP_API_VERSION ? { apiVersion: process.env.WHATSAPP_API_VERSION } : {}) }
+
+  const convs = await database.collection(`studios/${sid}/conversations`).get()
+  let resumed = 0
+  let replied = 0
+  for (const doc of convs.docs) {
+    const conv = doc.data() as Conversation
+    let changed = false
+    if (conv.status === 'human') {
+      conv.status = 'ai'
+      resumed++
+      changed = true
+    }
+    const last = conv.messages[conv.messages.length - 1]
+    if (last?.role === 'user') {
+      const result = await aiReply(apiKey, system, conv.messages)
+      if (result) {
+        await sendWhatsAppText(config, conv.phone, result.reply)
+        conv.messages = [...conv.messages, { role: 'assistant' as Role, text: result.reply, at: Date.now() }].slice(-MAX_HISTORY)
+        if (result.temp) {
+          conv.temp = result.temp
+          conv.reason = result.reason
+        }
+        conv.needsAttention = result.escalate // AI handled it; only flag the desk if it wants a human
+        replied++
+        changed = true
+      }
+    } else if (changed) {
+      conv.needsAttention = false // taken back by the AI, nothing pending
+    }
+    if (changed) await doc.ref.set(conv, { merge: true })
+  }
+  return { resumed, replied, total: convs.size }
+}
+
 export const whatsappWebhook = onRequest({ region: REGION, secrets: [...AI_RECEPTIONIST_SECRETS] }, async (req, res) => {
   const sid = (req.path ?? '').replace(/^\/+/, '').split('/')[0] || 'retro'
+
+  // ── POST admin one-shot: hand all conversations back to the AI + answer the waiting ones ──
+  if (req.method === 'POST' && req.query.admin === 'resume' && req.query.token === process.env.WHATSAPP_VERIFY_TOKEN) {
+    const out = await resumeAll(sid)
+    res.status(200).json(out)
+    return
+  }
 
   // ── GET: Meta verification handshake ──
   if (req.method === 'GET') {
