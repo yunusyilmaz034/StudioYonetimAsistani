@@ -28,6 +28,13 @@ export interface MemberRow {
   readonly status: string
   readonly joinedAt: number // for the "son eklenen" sort (PF-33)
   readonly badges: MemberBadges
+  // The member's PRIMARY active package (the one keeping her active longest) — for the list's
+  // Başlangıç–Bitiş / Kalan gün / Kalan kredi columns. null ⇒ no active package.
+  readonly activeFrom: number | null
+  readonly activeUntil: number | null
+  readonly remainingDays: number | null
+  readonly creditsAvailable: number | null // null ⇒ a period package (no credit count) or no package
+  readonly balanceDueKurus: number
 }
 
 /**
@@ -54,6 +61,9 @@ export async function listMemberRows(ctx: TenantContext, nowMs: number): Promise
   ])
 
   const byMember = new Map<string, MemberFacts['packages'][number][]>()
+  // The PRIMARY active package per member: the active entitlement expiring LAST (keeps her active
+  // longest). Its dates + credits feed the list columns; a period package has no credit count (null).
+  const primary = new Map<string, { from: number; until: number; credits: number | null }>()
   for (const e of entitlements) {
     const list = byMember.get(e.memberId as string) ?? []
     list.push({
@@ -66,22 +76,42 @@ export async function listMemberRows(ctx: TenantContext, nowMs: number): Promise
       category: e.productSnapshot.category,
     })
     byMember.set(e.memberId as string, list)
+
+    if (e.status === 'active') {
+      const until = Number(e.validUntil)
+      const cur = primary.get(e.memberId as string)
+      if (!cur || until > cur.until) {
+        primary.set(e.memberId as string, {
+          from: Number(e.validFrom),
+          until,
+          credits: e.credits ? available(e.credits) : null,
+        })
+      }
+    }
   }
 
-  return members.map((m) => ({
-    id: m.id as string,
-    fullName: m.fullName,
-    phone: m.phone as string,
-    phoneNormalized: m.phoneNormalized,
-    status: m.status,
-    joinedAt: m.joinedAt as number,
-    badges: badgesFor(
-      {
-        status: m.status,
-        balanceDueKurus: debt.get(m.id as string)?.amount ?? 0,
-        packages: byMember.get(m.id as string) ?? [],
-      },
-      nowMs,
-    ),
-  }))
+  return members.map((m) => {
+    const pk = primary.get(m.id as string) ?? null
+    return {
+      id: m.id as string,
+      fullName: m.fullName,
+      phone: m.phone as string,
+      phoneNormalized: m.phoneNormalized,
+      status: m.status,
+      joinedAt: m.joinedAt as number,
+      badges: badgesFor(
+        {
+          status: m.status,
+          balanceDueKurus: debt.get(m.id as string)?.amount ?? 0,
+          packages: byMember.get(m.id as string) ?? [],
+        },
+        nowMs,
+      ),
+      activeFrom: pk?.from ?? null,
+      activeUntil: pk?.until ?? null,
+      remainingDays: pk ? Math.max(0, Math.ceil((pk.until - nowMs) / 86_400_000)) : null,
+      creditsAvailable: pk?.credits ?? null,
+      balanceDueKurus: debt.get(m.id as string)?.amount ?? 0,
+    }
+  })
 }

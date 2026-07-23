@@ -36,6 +36,14 @@ const STATUS_LABEL: Record<string, string> = {
   deleted: 'Silindi',
 }
 
+// Compact list formatters (PF — package glance columns).
+const dm = (ms: number) => new Date(ms).toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit' })
+const tlTRY = (kurus: number) => `${(kurus / 100).toLocaleString('tr-TR')} ₺`
+const dateRange = (m: MemberRow) => (m.activeFrom != null && m.activeUntil != null ? `${dm(m.activeFrom)} – ${dm(m.activeUntil)}` : '—')
+const daysLeft = (m: MemberRow) => (m.remainingDays != null ? `${m.remainingDays} gün` : '—')
+// null credits on an ACTIVE (period) package reads "Sınırsız"; no active package reads "—".
+const creditsLabel = (m: MemberRow) => (m.activeUntil == null ? '—' : m.creditsAvailable != null ? String(m.creditsAvailable) : 'Sınırsız')
+
 const PAGE_SIZE = 10
 
 // The page numbers to draw: all of them when there are few, otherwise a window around the current one
@@ -217,6 +225,13 @@ export function MembersScreen({
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium text-foreground">{m.fullName}</p>
                   <p className="truncate text-xs tabular-nums text-muted-foreground">{m.phone}</p>
+                  {m.activeUntil != null ? (
+                    <p className="truncate text-xs tabular-nums text-muted-foreground">
+                      {dateRange(m)} · {daysLeft(m)}
+                      {m.creditsAvailable != null ? ` · ${m.creditsAvailable} kredi` : ''}
+                      {m.balanceDueKurus > 0 ? ` · ${tlTRY(m.balanceDueKurus)}` : ''}
+                    </p>
+                  ) : null}
                 </div>
                 <MemberBadgeCell status={m.status} badges={m.badges} />
               </button>
@@ -234,6 +249,18 @@ export function MembersScreen({
                   <TableHead className="px-4 text-[0.6875rem] font-medium tracking-wide uppercase text-muted-foreground">
                     Telefon
                   </TableHead>
+                  <TableHead className="px-4 text-[0.6875rem] font-medium tracking-wide whitespace-nowrap uppercase text-muted-foreground">
+                    Paket (başl.–bitiş)
+                  </TableHead>
+                  <TableHead className="px-4 text-right text-[0.6875rem] font-medium tracking-wide whitespace-nowrap uppercase text-muted-foreground">
+                    Kalan gün
+                  </TableHead>
+                  <TableHead className="px-4 text-right text-[0.6875rem] font-medium tracking-wide whitespace-nowrap uppercase text-muted-foreground">
+                    Kalan kredi
+                  </TableHead>
+                  <TableHead className="px-4 text-right text-[0.6875rem] font-medium tracking-wide whitespace-nowrap uppercase text-muted-foreground">
+                    Bakiye
+                  </TableHead>
                   <TableHead className="w-32 px-4 text-[0.6875rem] font-medium tracking-wide whitespace-nowrap uppercase text-muted-foreground">
                     Durum
                   </TableHead>
@@ -248,6 +275,14 @@ export function MembersScreen({
                   >
                     <TableCell className="px-4 py-3 font-medium text-foreground">{m.fullName}</TableCell>
                     <TableCell className="px-4 py-3 tabular-nums text-muted-foreground">{m.phone}</TableCell>
+                    <TableCell className="px-4 py-3 tabular-nums whitespace-nowrap text-muted-foreground">{dateRange(m)}</TableCell>
+                    <TableCell className="px-4 py-3 text-right tabular-nums text-muted-foreground">{daysLeft(m)}</TableCell>
+                    <TableCell className="px-4 py-3 text-right tabular-nums text-muted-foreground">{creditsLabel(m)}</TableCell>
+                    <TableCell
+                      className={`px-4 py-3 text-right tabular-nums ${m.balanceDueKurus > 0 ? 'font-medium text-danger' : 'text-muted-foreground'}`}
+                    >
+                      {tlTRY(m.balanceDueKurus)}
+                    </TableCell>
                     <TableCell className="w-32 px-4 py-3 whitespace-nowrap">
                       <MemberBadgeCell status={m.status} badges={m.badges} />
                     </TableCell>

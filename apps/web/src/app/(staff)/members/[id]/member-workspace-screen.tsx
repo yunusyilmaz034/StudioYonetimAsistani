@@ -1026,8 +1026,10 @@ function OnceBookingPanel({
   }
 
   return (
-    <div className="space-y-3">
-      {/* Days across the top — pick one, its sessions appear below. */}
+    // min-w-0: as a flex item of the (flex-col) sheet, the default min-width:auto would let the wide day
+    // strip stretch the panel instead of scrolling. min-w-0 lets the row's overflow-x-auto actually scroll.
+    <div className="min-w-0 space-y-3">
+      {/* Days across the top — pick one, its sessions appear below. Scrolls sideways when they overflow. */}
       <div className="flex gap-1.5 overflow-x-auto pb-1">
         {days.map((dk) => {
           const first = sessions.find((s) => dayKeyOf(s.startsAt) === dk)!
