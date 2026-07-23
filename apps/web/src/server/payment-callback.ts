@@ -34,6 +34,7 @@ import {
 
 import { adminDb } from './firebase-admin'
 import { paymentProviderFor } from './payment-provider'
+import { grantBundleComponents } from './sell-bundle'
 
 const OFFSET_MIN = 180
 const intentRepo = () => new FirestorePaymentIntentRepository(adminDb())
@@ -71,6 +72,33 @@ export async function completePaidIntent(ctx: TenantContext, intent: PaymentInte
   if (intent.purpose === 'package' || intent.purpose === 'renewal') {
     const product = await new FirestoreCatalogRepository(adminDb()).getProduct(ctx, intent.context.productId as ProductId)
     if (!product) return // reconciliation will flag: paid but no product
+
+    // Hibrit demet: grant one entitlement PER COMPONENT; the primary carries the price + the online
+    // payment, the rest are granted at 0. Same multi-grant the manual + link paths use.
+    if (product.components && product.components.length > 0) {
+      await grantBundleComponents(sellDeps(), ctx, {
+        product,
+        memberId: intent.memberId as string,
+        branchId: (ctx.branchIds[0] ?? null) as never,
+        primaryPriceKurus: intent.context.priceAgreedKurus ?? intent.amount.amount,
+        componentOverrides: intent.context.componentOverrides ?? null,
+        validFromMs: dayMs(intent.context.validFrom ?? ''),
+        validUntilMs: intent.context.validUntil ? dayMs(intent.context.validUntil) : null,
+        method: 'credit_card',
+        note: intent.context.note ?? 'PAYTR',
+        payment: {
+          amount: intent.amount,
+          method: 'online',
+          receivedAt: instant(systemClock.now()),
+          drawerId: null,
+          giftCardCode: null,
+          note: 'PAYTR',
+          providerRef: intent.providerRef,
+        },
+      })
+      return
+    }
+
     const grant: Grant =
       product.type === 'credit'
         ? { kind: 'credits', credits: product.creditCount ?? 0, validForDays: product.durationDays }

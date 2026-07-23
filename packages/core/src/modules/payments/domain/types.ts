@@ -47,6 +47,9 @@ export type PaymentIntentContext = {
   readonly validFrom?: string // LocalDate — when the granted package should start
   readonly validUntil?: string | null
   readonly creditOverride?: number | null
+  // Hibrit demet (v1.30): per-component credit/entry counts the admin edited at the desk, index-aligned
+  // to the product's components. Absent ⇒ each component keeps its catalogue default.
+  readonly componentOverrides?: readonly (number | null)[]
   readonly startAfterCurrent?: boolean // renewal: begin when the current package ends
   readonly note?: string
   // For a retail/product sale — the lines to settle. { retailProductId, description, quantity, unitPriceKurus }.

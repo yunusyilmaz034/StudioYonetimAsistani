@@ -388,6 +388,7 @@ function AssignForm({
           validFrom,
           validUntil: effectiveUntil || null,
           creditOverride,
+          componentOverrides: isBundle ? componentCounts : null,
           note: '',
         })
         if (res.ok) setCheckout({ flow: 'pos', redirectUrl: res.value.redirectUrl, intentId: res.value.intentId })
@@ -399,6 +400,7 @@ function AssignForm({
           validFrom,
           validUntil: effectiveUntil || null,
           creditOverride,
+          componentOverrides: isBundle ? componentCounts : null,
           note: '',
           amountKurus,
         })
@@ -449,9 +451,10 @@ function AssignForm({
           <SelectTrigger>
             <SelectValue placeholder="Paket seç" />
           </SelectTrigger>
-          <SelectContent>
+          {/* Wider popup + no truncation: package names (esp. hybrids) are long and were getting cut. */}
+          <SelectContent className="max-h-[60vh] min-w-[min(28rem,88vw)]">
             {products.map((p) => (
-              <SelectItem key={p.id} value={p.id}>
+              <SelectItem key={p.id} value={p.id} className="whitespace-nowrap py-2.5">
                 {p.name} · {tl(p.priceInKurus)}
               </SelectItem>
             ))}
@@ -508,10 +511,26 @@ function AssignForm({
           <Input type="number" value={effectivePrice} disabled readOnly />
         </Labeled>
         <Labeled label={isPaytr ? 'Tahsil edilecek tutar (TL)' : 'Tahsilat (TL)'}>
-          <Input type="number" min={0} step="0.01" value={effectiveCollected} onChange={(e) => setCollectedTl(e.target.value)} placeholder="0" />
+          <Input
+            type="number"
+            min={0}
+            step="0.01"
+            value={effectiveCollected}
+            onChange={(e) => {
+              setCollectedTl(e.target.value)
+              setError(null) // a stale "geçerli tutar" from an earlier submit must not linger while editing
+            }}
+            placeholder="0"
+          />
         </Labeled>
         <Labeled label="Ödeme yöntemi">
-          <Select value={method} onValueChange={(v) => setMethod(v ?? 'cash')}>
+          <Select
+            value={method}
+            onValueChange={(v) => {
+              setMethod(v ?? 'cash')
+              setError(null)
+            }}
+          >
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>

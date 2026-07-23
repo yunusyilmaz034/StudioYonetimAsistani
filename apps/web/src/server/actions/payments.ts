@@ -99,6 +99,8 @@ export async function createPackagePaymentAction(input: unknown) {
       validFrom: z.string().min(1),
       validUntil: z.string().nullable(),
       creditOverride: z.number().int().min(0).nullable(),
+      // Hibrit demet: per-component counts the admin edited (index-aligned to product.components).
+      componentOverrides: z.array(z.number().int().min(0).nullable()).nullable().optional(),
       note: z.string().default(''),
       // The installment cap reception offered for this payment (1 = tek çekim). Clamped to the
       // studio's configured maximum server-side.
@@ -106,7 +108,7 @@ export async function createPackagePaymentAction(input: unknown) {
     })
     .parse(input)
   const ctx = await requireTenantContext(OPS)
-  return createPackageCheckout(ctx, p)
+  return createPackageCheckout(ctx, { ...p, componentOverrides: p.componentOverrides ?? null })
 }
 
 export interface PackageCheckoutInput {
@@ -117,6 +119,7 @@ export interface PackageCheckoutInput {
   readonly validFrom: string
   readonly validUntil: string | null
   readonly creditOverride: number | null
+  readonly componentOverrides?: readonly (number | null)[] | null
   readonly note: string
   readonly installments?: number | undefined
 }
@@ -173,6 +176,7 @@ export async function createPackageCheckout(ctx: TenantContext, p: PackageChecko
       validFrom: p.validFrom,
       validUntil: p.validUntil,
       creditOverride: p.creditOverride,
+      ...(p.componentOverrides ? { componentOverrides: p.componentOverrides } : {}),
       note: contextNote,
     },
     expiresAt: null,

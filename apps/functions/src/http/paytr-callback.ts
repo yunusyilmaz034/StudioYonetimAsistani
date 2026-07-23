@@ -108,6 +108,66 @@ async function completePaidIntent(
   if (intent.purpose === 'package' || intent.purpose === 'renewal') {
     const product = await new FirestoreCatalogRepository(database).getProduct(ctx, intent.context.productId as ProductId)
     if (!product) return // reconciliation will flag: paid but no product
+
+    // Hibrit demet: grant one entitlement PER COMPONENT (primary carries the price + the online
+    // payment, rest 0). Inline mirror of apps/web/src/server/sell-bundle.ts (DEBT-PAYTR-CALLBACK: two
+    // copies kept in sync).
+    if (product.components && product.components.length > 0) {
+      const overrides = intent.context.componentOverrides ?? null
+      const primaryPrice = intent.context.priceAgreedKurus ?? intent.amount.amount
+      for (let i = 0; i < product.components.length; i++) {
+        const c = product.components[i]!
+        const isPrimary = i === 0
+        const override = overrides?.[i] ?? null
+        const isCredit = c.creditCount != null
+        const cGrant: Grant = isCredit
+          ? { kind: 'credits', credits: override ?? c.creditCount ?? 0, validForDays: product.durationDays }
+          : { kind: 'period', durationDays: product.durationDays, access: 'unlimited' }
+        const cEntry = isCredit ? c.entryAllowance : override ?? c.entryAllowance
+        await sellPackage(sellDeps(database), ctx, {
+          branchId: (ctx.branchIds[0] ?? null) as never,
+          subscription: {
+            memberId: intent.memberId as MemberId,
+            productId: product.id,
+            productSnapshot: {
+              productId: product.id,
+              name: `${product.name} — ${c.label}`,
+              category: c.category,
+              grant: cGrant,
+              listPrice: money(product.priceInKurus),
+              serviceIds: product.serviceIds,
+              cancellationAllowanceCount: product.cancellationAllowanceCount,
+              dailyReservationLimit: product.dailyReservationLimit,
+              activeReservationLimit: product.activeReservationLimit,
+              entryAllowance: cEntry,
+            },
+            policyRef: { policyId: product.id, version: 1 },
+            priceAgreed: money(isPrimary ? primaryPrice : 0),
+            validFrom: dayMs(intent.context.validFrom ?? ''),
+            validUntil: intent.context.validUntil ? dayMs(intent.context.validUntil) : null,
+            freezeDays: product.freezeAllowanceDays > 0 ? product.freezeAllowanceDays : null,
+            creditOverride: null,
+            collectedAmount: money(0),
+            method: 'credit_card',
+            note: intent.context.note ?? 'PAYTR',
+          },
+          discountCeilingPercent: null,
+          payment: isPrimary
+            ? {
+                amount: intent.amount,
+                method: 'online',
+                receivedAt: instant(systemClock.now()),
+                drawerId: null,
+                giftCardCode: null,
+                note: 'PAYTR',
+                providerRef: intent.providerRef,
+              }
+            : null,
+        })
+      }
+      return
+    }
+
     const grant: Grant =
       product.type === 'credit'
         ? { kind: 'credits', credits: product.creditCount ?? 0, validForDays: product.durationDays }

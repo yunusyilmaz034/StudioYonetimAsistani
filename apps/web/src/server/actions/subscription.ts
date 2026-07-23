@@ -41,6 +41,7 @@ import { requireTenantContext } from '../auth'
 import { observed } from '../log'
 import { adminDb } from '../firebase-admin'
 import { createMemberCollectionCheckout } from './payments'
+import { grantBundleComponents } from '../sell-bundle'
 
 // Selling (assign) is owner + receptionist + platform_admin (Doc 13). Cancelling is
 // owner + platform_admin. Reads are gated the same as selling.
@@ -291,6 +292,7 @@ export async function createPackageLinkSaleAction(input: unknown) {
       validFrom: date,
       validUntil: date.nullable(),
       creditOverride: z.number().int().min(0).nullable(),
+      componentOverrides: z.array(z.number().int().min(0).nullable()).nullable().optional(),
       note: z.string().default(''),
       amountKurus: z.number().int().min(1),
     })
@@ -300,6 +302,34 @@ export async function createPackageLinkSaleAction(input: unknown) {
   const product = await new FirestoreCatalogRepository(adminDb()).getProduct(ctx, p.productId as ProductId)
   if (!product) return { ok: false as const, error: { code: 'no_bookable_entitlement' as const } }
   const branchId = (ctx.branchIds[0] ?? null) as BranchId | null
+
+  // Hibrit demet: grant one entitlement PER COMPONENT now (full debt on the primary = amountKurus); the
+  // link settles that debt on payment → balance 0. Same multi-grant as the manual/pos paths.
+  if (product.components && product.components.length > 0) {
+    const bundle = await observed('finance.sell_package', ctx, undefined, { memberId: p.memberId, productId: p.productId, collectedKurus: 0 }, () =>
+      grantBundleComponents(sellDeps(), ctx, {
+        product,
+        memberId: p.memberId,
+        branchId: branchId as BranchId,
+        primaryPriceKurus: p.amountKurus,
+        componentOverrides: p.componentOverrides ?? null,
+        validFromMs: dayMs(p.validFrom),
+        validUntilMs: p.validUntil ? dayMs(p.validUntil) : null,
+        method: 'credit_card' as PaymentMethod,
+        note: autoSaleNote(null, null, p.note),
+        payment: null,
+      }),
+    )
+    if (!bundle.ok) return { ok: false as const, error: bundle.error }
+    return createMemberCollectionCheckout(ctx, {
+      memberId: p.memberId as MemberId,
+      amountKurus: p.amountKurus,
+      flow: 'link',
+      branchId: branchId as string | null,
+      note: `Paket: ${product.name}`,
+      itemName: product.name,
+    })
+  }
 
   const grant: Grant =
     product.type === 'credit'
