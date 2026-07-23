@@ -24,18 +24,12 @@ export default function Subscriptions() {
 
   return (
     <Screen header refreshControl={<RefreshControl refreshing={loading} onRefresh={reload} tintColor={p.accent} />}>
+      {/* Owner: only ACTIVE subscriptions — the member has no reason to see expired/cancelled ones. */}
       <Eyebrow>Aktif Aboneliklerin</Eyebrow>
       {data && data.active.length > 0 ? (
         data.active.map((s, i) => <SubCard key={s.entitlementId} sub={s} index={i} active />)
       ) : (
         <Card><Empty icon={<Ionicons name="ticket-outline" size={30} color={p.textFaint} />} text="Aktif aboneliğin yok." /></Card>
-      )}
-
-      <Eyebrow>Geçmiş</Eyebrow>
-      {data && data.past.length > 0 ? (
-        data.past.map((s, i) => <SubCard key={s.entitlementId} sub={s} index={i} />)
-      ) : (
-        <Card><Empty icon={<Ionicons name="time-outline" size={28} color={p.textFaint} />} text="Geçmiş aboneliğin yok." /></Card>
       )}
     </Screen>
   )

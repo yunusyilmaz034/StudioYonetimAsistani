@@ -124,28 +124,20 @@ export default function Home() {
 
       {d && d.packages.length > 0 ? (
         <FadeInUp index={5}>
-          <Eyebrow right={<Body style={{ color: p.accent, fontWeight: '700', fontSize: 13 }} onPress={() => router.push('/subscriptions')}>Tümü</Body>}>
-            {d.packages.length > 1 ? 'Aboneliklerin' : 'Aboneliğin'}
-          </Eyebrow>
-          <View style={{ gap: space(2.5) }}>
-            {d.packages.map((pk) => (
-              <Card key={pk.entitlementId} onPress={() => router.push('/subscriptions')}>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <View style={{ flex: 1 }}>
-                    <Body strong numberOfLines={1}>{pk.productName}</Body>
-                    <Body muted>Geçerli: {new Date(pk.validUntil).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' })}</Body>
-                  </View>
-                  {pk.balanceDue > 0 ? <Pill label={`${formatKurus(pk.balanceDue)} borç`} tone="danger" /> : <Pill label="Ödendi" tone="good" />}
-                </View>
-                {pk.remaining !== null ? (
-                  <View style={{ gap: 6 }}>
-                    <ProgressBar value={pk.remaining / Math.max(pk.remaining, 8)} color={p.accent} track={p.surfaceMuted} />
-                    <Body faint style={{ fontSize: 12.5 }}>{pk.remaining} ders kaldı</Body>
-                  </View>
-                ) : <Pill label="Sınırsız kullanım" tone="gold" />}
-              </Card>
-            ))}
-          </View>
+          {/* A single clickable row (owner): the detail lives on the Aboneliklerim screen — home just
+              opens it. */}
+          <Card onPress={() => router.push('/subscriptions')}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: space(3) }}>
+              <View style={{ width: 42, height: 42, borderRadius: 12, backgroundColor: p.surfaceMuted, alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name="card-outline" size={20} color={p.accent} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Body strong>Aboneliklerim</Body>
+                <Body muted style={{ fontSize: 13 }}>{d.packages.length} aktif paket · detayları gör</Body>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={p.textFaint} />
+            </View>
+          </Card>
         </FadeInUp>
       ) : null}
     </Screen>

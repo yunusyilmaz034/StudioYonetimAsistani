@@ -6,8 +6,12 @@ import { SafeAreaProvider } from 'react-native-safe-area-context'
 
 import { AuthProvider } from '@/lib/auth'
 import { trackError } from '@/lib/analytics'
+import { usePalette } from '@/theme'
 
 export default function RootLayout() {
+  // The stack header is themed to the app's own palette — a white system bar on top of a dark screen
+  // was the "beyaz nav bar" reported everywhere (Bildirimler / İletişim / Program / Bilgi düzenle …).
+  const p = usePalette()
   // Global crash sink — chains the RN global error handler so a fatal JS error is reported (a no-op
   // until @react-native-firebase Crashlytics is wired; see lib/analytics.ts) without swallowing the
   // default red-box/crash behaviour.
@@ -28,7 +32,18 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <AuthProvider>
           <StatusBar style="auto" />
-          <Stack screenOptions={{ headerShown: false, animation: 'fade', headerBackButtonDisplayMode: 'minimal', headerShadowVisible: false }}>
+          <Stack
+            screenOptions={{
+              headerShown: false,
+              animation: 'fade',
+              headerBackButtonDisplayMode: 'minimal',
+              headerShadowVisible: false,
+              headerStyle: { backgroundColor: p.bg },
+              headerTintColor: p.text,
+              headerTitleStyle: { color: p.text, fontWeight: '700' },
+              contentStyle: { backgroundColor: p.bg },
+            }}
+          >
             <Stack.Screen name="index" />
             <Stack.Screen name="login" />
             <Stack.Screen name="(tabs)" />
