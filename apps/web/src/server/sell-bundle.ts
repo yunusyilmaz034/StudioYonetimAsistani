@@ -41,7 +41,7 @@ export async function grantBundleComponents(
         productId: args.product.id,
         productSnapshot: {
           productId: args.product.id,
-          name: `${args.product.name} — ${c.label}`,
+          name: args.product.name,
           category: c.category,
           grant,
           listPrice: money(args.product.priceInKurus),

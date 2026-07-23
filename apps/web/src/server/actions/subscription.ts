@@ -194,7 +194,7 @@ export async function assignSubscriptionAction(input: unknown) {
         productId: product.id,
         productSnapshot: {
           productId: product.id,
-          name: `${product.name} — ${c.label}`,
+          name: product.name,
           category: c.category,
           grant: cGrant,
           listPrice: money(product.priceInKurus),

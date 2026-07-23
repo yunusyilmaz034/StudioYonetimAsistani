@@ -70,6 +70,9 @@ const addDays = (d: string, days: number) => {
 export function SubscriptionsPanel({ memberId, memberPhone = null, products, surchargeByProduct = {} }: { memberId: string; memberPhone?: string | null; products: readonly ProductView[]; surchargeByProduct?: Record<string, number> }) {
   const [subs, setSubs] = useState<readonly SubscriptionView[] | null>(null)
   const [adding, setAdding] = useState(false)
+  // Passive (expired/cancelled) packages are hidden by default — they clutter the card and confuse
+  // (owner). A toggle reveals them when someone genuinely wants the history.
+  const [showPast, setShowPast] = useState(false)
 
   const load = useCallback(async () => {
     setSubs(null)
@@ -127,12 +130,18 @@ export function SubscriptionsPanel({ memberId, memberPhone = null, products, sur
             <SubscriptionRow key={s.id} sub={s} onChanged={load} />
           ))}
           {past.length > 0 ? (
-            <>
-              <p className="pt-2 text-xs font-medium text-muted-foreground">Geçmiş</p>
-              {past.map((s) => (
-                <SubscriptionRow key={s.id} sub={s} onChanged={load} />
-              ))}
-            </>
+            <div className="space-y-2 pt-1">
+              <button
+                type="button"
+                onClick={() => setShowPast((v) => !v)}
+                className="text-xs font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+              >
+                {showPast ? 'Pasif paketleri gizle' : `Pasif paketleri göster (${past.length})`}
+              </button>
+              {showPast
+                ? past.map((s) => <SubscriptionRow key={s.id} sub={s} onChanged={load} />)
+                : null}
+            </div>
           ) : null}
         </div>
       )}
