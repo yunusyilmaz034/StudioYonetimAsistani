@@ -38,12 +38,15 @@ export function ReservationsScreen({
   date,
   today,
   initialSessionId = null,
+  showCancelledDefault = false,
 }: {
   data: ReservationCalendarData
   date: string
   today: string
   defaultBranchId: string | null
   initialSessionId?: string | null
+  // Seeds the "İptalleri göster" toggle from the studio setting (default off); re-entering resets it.
+  showCancelledDefault?: boolean
 }) {
   const router = useRouter()
   const [view, setView] = useState<CalendarView>('month')
@@ -51,6 +54,7 @@ export function ReservationsScreen({
   const [trainer, setTrainer] = useState(ALL)
   const [service, setService] = useState(ALL)
   const [status, setStatus] = useState(ALL)
+  const [showCancelled, setShowCancelled] = useState(showCancelledDefault)
   const [selected, setSelected] = useState<CalendarSession | null>(null)
 
   // Mobile default is Agenda (UX-3); desktop keeps Month.
@@ -89,10 +93,12 @@ export function ReservationsScreen({
       if (trainer !== ALL && s.trainerId !== trainer) return false
       if (service !== ALL && s.serviceId !== service) return false
       if (status !== ALL && s.status !== status) return false
+      // Hide cancelled by default; the toggle (or an explicit status=İptal) reveals them.
+      if (s.status === 'cancelled' && !showCancelled && status !== 'cancelled') return false
       if (q) return (data.rosters[s.sessionId] ?? []).some((m) => m.memberName.toLocaleLowerCase('tr').includes(q))
       return true
     })
-  }, [data.sessions, data.rosters, memberQuery, trainer, service, status])
+  }, [data.sessions, data.rosters, memberQuery, trainer, service, status, showCancelled])
 
   const selectedLive = useMemo(
     () => (selected ? (data.sessions.find((s) => s.sessionId === selected.sessionId) ?? null) : null),
@@ -158,6 +164,15 @@ export function ReservationsScreen({
               { id: 'cancelled', name: 'İptal' },
             ]}
           />
+          <label className="flex items-center gap-1.5 text-sm text-muted-foreground">
+            <input
+              type="checkbox"
+              checked={showCancelled}
+              onChange={(e) => setShowCancelled(e.target.checked)}
+              className="size-4 accent-primary"
+            />
+            İptalleri göster
+          </label>
           {filtersActive ? (
             <Button
               variant="ghost"

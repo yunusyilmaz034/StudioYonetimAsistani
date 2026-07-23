@@ -1,5 +1,6 @@
 
 import { requirePageAccess } from '@/server/auth'
+import { getStudioSettingsAction } from '@/server/actions/settings'
 import { loadReservationCalendar } from '@/server/reservation-calendar-query'
 import { studioToday } from '@/components/calendar'
 
@@ -18,7 +19,7 @@ export default async function ReservationsPage({
   const today = studioToday()
   const dateStr = date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : today
 
-  const data = await loadReservationCalendar(ctx, dateStr)
+  const [data, settings] = await Promise.all([loadReservationCalendar(ctx, dateStr), getStudioSettingsAction()])
 
   return (
     <ReservationsScreen
@@ -27,6 +28,7 @@ export default async function ReservationsPage({
       today={today}
       defaultBranchId={ctx.branchIds[0] ?? null}
       initialSessionId={session ?? null}
+      showCancelledDefault={Boolean(settings?.showCancelledSessions)}
     />
   )
 }
