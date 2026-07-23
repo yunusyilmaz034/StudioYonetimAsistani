@@ -172,6 +172,7 @@ function SubscriptionRow({ sub, onChanged }: { sub: SubscriptionView; onChanged:
           <p className="truncate font-medium text-foreground">{sub.productName}</p>
           <p className="truncate text-xs text-muted-foreground">
             {dateLabel(sub.validFrom)} – {dateLabel(sub.validUntil)}
+            {sub.status === 'active' ? ` · ${Math.max(0, Math.ceil((sub.validUntil - Date.now()) / 86_400_000))} gün` : ''}
             {sub.type === 'credit' ? ` · ${sub.creditsAvailable}/${sub.creditsGranted} kredi` : ' · sınırsız'}
           </p>
         </div>
