@@ -22,3 +22,5 @@ npm-debug.*
 
 expo-env.d.ts
 # @end expo-cli
+# Google Play submit key (secret — never commit)
+google-play-service-account.json
