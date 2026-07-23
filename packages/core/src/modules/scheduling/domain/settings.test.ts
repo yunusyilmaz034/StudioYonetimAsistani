@@ -35,6 +35,7 @@ const settings = (over: Partial<StudioSettings> = {}): StudioSettings => ({
   notifications: null,
   fitness: null,
   paymentSurcharge: null,
+  showCancelledSessions: null,
   ...over,
 })
 

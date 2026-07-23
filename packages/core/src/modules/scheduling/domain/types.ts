@@ -94,6 +94,10 @@ export interface StudioSettings {
    *  never a literal (#4/#12: nothing in the code knows "1000" or "3"). `null` ⇒ never configured
    *  (no surcharge, default installment cap). Amount in integer kuruş. */
   readonly paymentSurcharge: PaymentSurchargeConfig | null
+  /** Whether the class agenda (Ders Ajandası) shows cancelled sessions BY DEFAULT. Off by default: a
+   *  cancelled class is noise on the day's board. Only seeds the view's toggle — the desk may still
+   *  reveal them for the current visit, and re-entering the screen falls back to this. `null` ⇒ off. */
+  readonly showCancelledSessions: boolean | null
 }
 
 // Mirrors the fitness module's `FitnessOccupancyConfig` (see the note on `notifications`). Capacity

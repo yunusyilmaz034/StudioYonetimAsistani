@@ -1,5 +1,6 @@
 
 import { requirePageAccess } from '@/server/auth'
+import { getStudioSettingsAction } from '@/server/actions/settings'
 import { loadSchedule, studioToday } from '@/server/schedule-query'
 
 import { ScheduleScreen } from './schedule-screen'
@@ -17,7 +18,15 @@ export default async function SchedulePage({
   const { date } = await searchParams
   const today = studioToday()
   const dateStr = date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : today
-  const data = await loadSchedule(ctx, dateStr)
+  const [data, settings] = await Promise.all([loadSchedule(ctx, dateStr), getStudioSettingsAction()])
 
-  return <ScheduleScreen data={data} date={dateStr} today={today} defaultBranchId={ctx.branchIds[0] ?? null} />
+  return (
+    <ScheduleScreen
+      data={data}
+      date={dateStr}
+      today={today}
+      defaultBranchId={ctx.branchIds[0] ?? null}
+      showCancelledDefault={Boolean(settings?.showCancelledSessions)}
+    />
+  )
 }

@@ -107,6 +107,7 @@ export function SettingsScreen({
   const [duration, setDuration] = useState(settings?.defaultSessionDurationMinutes?.toString() ?? '')
   const [lowCredit, setLowCredit] = useState(settings?.lowCreditThreshold?.toString() ?? '')
   const [ceiling, setCeiling] = useState(settings?.discountCeilingPercent?.toString() ?? '')
+  const [showCancelled, setShowCancelled] = useState(Boolean(settings?.showCancelledSessions))
   const [ttl, setTtl] = useState(settings?.qr?.tokenTtlSeconds?.toString() ?? '60')
   const [dailyLimit, setDailyLimit] = useState(settings?.notifications?.dailyLimit?.toString() ?? '1000')
   const [quietFrom, setQuietFrom] = useState(settings?.notifications?.quietFromHour?.toString() ?? '22')
@@ -197,6 +198,7 @@ export function SettingsScreen({
         defaultSessionDurationMinutes: num(duration),
         lowCreditThreshold: num(lowCredit),
         discountCeilingPercent: num(ceiling),
+        showCancelledSessions: showCancelled,
         qr: { tokenTtlSeconds: Number(ttl), checkInWindowMinutes: Number(checkInWindow) },
         notifications: {
           dailyLimit: Number(dailyLimit),
@@ -480,6 +482,21 @@ export function SettingsScreen({
             />
           </Field>
         </div>
+        <label className="mt-4 flex items-start gap-2.5 text-sm">
+          <input
+            type="checkbox"
+            checked={showCancelled}
+            onChange={(e) => setShowCancelled(e.target.checked)}
+            className="mt-0.5 size-4 accent-primary"
+          />
+          <span>
+            <span className="font-medium text-foreground">İptal edilen dersleri ajandada göster</span>
+            <span className="block text-muted-foreground">
+              Kapalıyken iptaller Ders Ajandası&apos;nda görünmez (varsayılan). Ajandadaki “İptalleri göster” kutusuyla o
+              anlık açabilirsin; sayfaya tekrar girince bu ayara döner.
+            </span>
+          </span>
+        </label>
       </Section>
 
       {/* ── QR ────────────────────────────────────────────────────────────────────────────── */}

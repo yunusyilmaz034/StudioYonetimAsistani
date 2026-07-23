@@ -31,6 +31,7 @@ const studio = (defaultCancellationWindowHours: number | null): StudioSettings =
   notifications: null,
   fitness: null,
   paymentSurcharge: null,
+  showCancelledSessions: null,
 })
 
 describe('resolveCancellationWindow (D14)', () => {

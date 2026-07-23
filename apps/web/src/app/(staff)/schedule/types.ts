@@ -10,6 +10,9 @@ export interface Filters {
   trainerId: string
   branchId: string
   status: string
+  // Whether cancelled sessions are shown. Seeded from the studio setting (default off) and toggled per
+  // visit; a cancelled class is noise on the board unless you deliberately ask for it.
+  showCancelled: boolean
 }
 
 export const EMPTY_FILTERS: Filters = {
@@ -18,6 +21,7 @@ export const EMPTY_FILTERS: Filters = {
   trainerId: 'all',
   branchId: 'all',
   status: 'all',
+  showCancelled: false,
 }
 
 export function passesFilters(s: CalendarSession, f: Filters): boolean {
@@ -26,6 +30,8 @@ export function passesFilters(s: CalendarSession, f: Filters): boolean {
   if (f.trainerId !== 'all' && s.trainerId !== f.trainerId) return false
   if (f.branchId !== 'all' && s.branchId !== f.branchId) return false
   if (f.status !== 'all' && s.status !== f.status) return false
+  // Hide cancelled unless the toggle is on OR the user explicitly filtered to cancelled.
+  if (s.status === 'cancelled' && !f.showCancelled && f.status !== 'cancelled') return false
   return true
 }
 

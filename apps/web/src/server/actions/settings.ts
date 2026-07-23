@@ -65,6 +65,7 @@ const schema = z.object({
   defaultSessionDurationMinutes: z.number().int().min(1).max(600).nullable(),
   lowCreditThreshold: z.number().int().min(0).max(100).nullable(),
   discountCeilingPercent: z.number().int().min(0).max(100).nullable(),
+  showCancelledSessions: z.boolean().nullable(),
   qr: z
     .object({
       tokenTtlSeconds: z.number().int().min(15).max(600),
@@ -139,6 +140,7 @@ export async function updateStudioSettingsAction(input: unknown) {
     defaultSessionDurationMinutes: p.defaultSessionDurationMinutes,
     lowCreditThreshold: p.lowCreditThreshold,
     discountCeilingPercent: p.discountCeilingPercent,
+    showCancelledSessions: p.showCancelledSessions,
     qr: p.qr,
     notifications: p.notifications
       ? {

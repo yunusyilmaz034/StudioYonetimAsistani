@@ -52,15 +52,20 @@ export function ScheduleScreen({
   date,
   today,
   defaultBranchId,
+  showCancelledDefault = false,
 }: {
   data: ScheduleData
   date: string
   today: string
   defaultBranchId: string | null
+  // Seeds the "İptalleri göster" toggle from the studio setting (default off). Re-mounting the screen
+  // (leaving and re-entering) restores this default — the per-visit toggle never persists.
+  showCancelledDefault?: boolean
 }) {
   const router = useRouter()
   const [view, setView] = useState<CalendarView>('month')
-  const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS)
+  const baseFilters = useMemo<Filters>(() => ({ ...EMPTY_FILTERS, showCancelled: showCancelledDefault }), [showCancelledDefault])
+  const [filters, setFilters] = useState<Filters>(baseFilters)
   const [selected, setSelected] = useState<CalendarSession | null>(null)
   const [createOpen, setCreateOpen] = useState(false)
   const [templatesOpen, setTemplatesOpen] = useState(false)
@@ -81,7 +86,7 @@ export function ScheduleScreen({
 
   const visible = useMemo(() => data.sessions.filter((s) => passesFilters(s, filters)), [data.sessions, filters])
 
-  const filtered = JSON.stringify(filters) !== JSON.stringify(EMPTY_FILTERS)
+  const filtered = JSON.stringify(filters) !== JSON.stringify(baseFilters)
 
   // The summary must describe exactly what is on screen. The query loads a whole month, so
   // it is scoped to the days the current view actually shows — otherwise Day view would
@@ -151,8 +156,17 @@ export function ScheduleScreen({
             onChange={(v) => setFilters((f) => ({ ...f, status: v }))}
             options={Object.entries(STATUS_LABEL).map(([id, name]) => ({ id, name }))}
           />
+          <label className="flex items-center gap-1.5 text-sm text-muted-foreground">
+            <input
+              type="checkbox"
+              checked={filters.showCancelled}
+              onChange={(e) => setFilters((f) => ({ ...f, showCancelled: e.target.checked }))}
+              className="size-4 accent-primary"
+            />
+            İptalleri göster
+          </label>
           {filtered ? (
-            <Button variant="ghost" size="sm" onClick={() => setFilters(EMPTY_FILTERS)}>
+            <Button variant="ghost" size="sm" onClick={() => setFilters(baseFilters)}>
               Temizle
             </Button>
           ) : null}
