@@ -46,6 +46,7 @@ const STATUS_LABEL: Record<string, string> = { active: 'Aktif', frozen: 'Donduru
 const tl = (k: number) => `${(k / 100).toLocaleString('tr-TR')} TL`
 const toKurus = (s: string) => Math.round((Number(s) || 0) * 100)
 const dateLabel = (ms: number) => new Date(ms).toLocaleDateString('tr-TR', { timeZone: 'Europe/Istanbul' })
+const BUNDLE_CAT: Record<string, string> = { pilates_group: 'Pilates', fitness: 'Fitness', private: 'PT' }
 // ms → 'yyyy-mm-dd' for a date input, never throwing: an open-ended subscription has a null validUntil,
 // and `new Date(null/undefined).toISOString()` would crash the dialog on open.
 const toDateInput = (ms: number | null | undefined): string => {
@@ -326,6 +327,10 @@ function AssignForm({
   // The non-cash surcharge for the SELECTED package (category rule, computed server-side). A default the
   // admin can override below — for a non-cash method it is added to what the member owes.
   const surchargeKurus = product ? surchargeByProduct[product.id] ?? 0 : 0
+  // Hibrit demet: the admin edits each component's credit / entry count at the desk, pre-filled from the
+  // catalogue. Index-aligned to product.components; sent as componentOverrides.
+  const isBundle = (product?.components?.length ?? 0) > 0
+  const [componentCounts, setComponentCounts] = useState<number[]>([])
   const [validFrom, setValidFrom] = useState(studioToday())
   const [validUntil, setValidUntil] = useState('')
   // Credit is a freely-editable STRING (owner): reception can clear it and type any number; it defaults
@@ -408,6 +413,7 @@ function AssignForm({
           validUntil: effectiveUntil || null,
           priceAgreedKurus: toKurus(effectivePrice),
           creditOverride,
+          componentOverrides: isBundle ? componentCounts : null,
           collectedKurus: amountKurus,
           method,
           note: '',
@@ -435,6 +441,9 @@ function AssignForm({
             // A new package resets the credit to that package's default (and re-enables the default view).
             setCreditInput('')
             setCreditTouched(false)
+            // Seed the bundle component counts from the newly-picked package's catalogue defaults.
+            const np = products.find((x) => x.id === v)
+            setComponentCounts(np?.components?.map((c) => c.creditCount ?? c.entryAllowance ?? 0) ?? [])
           }}
         >
           <SelectTrigger>
@@ -458,7 +467,26 @@ function AssignForm({
           <Input type="date" value={effectiveUntil} onChange={(e) => setValidUntil(e.target.value)} />
           {!product ? <p className="mt-1 text-xs text-muted-foreground">Paket seçince otomatik hesaplanır.</p> : null}
         </Labeled>
-        {product?.type === 'credit' ? (
+        {isBundle ? (
+          <div className="col-span-2 space-y-1.5">
+            <p className="text-sm font-medium text-foreground">İçerik (düzenlenebilir)</p>
+            {product!.components!.map((c, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <span className="w-28 text-sm text-muted-foreground">{BUNDLE_CAT[c.category] ?? c.category}</span>
+                <Input
+                  type="number"
+                  min={0}
+                  className="w-24"
+                  value={componentCounts[i] ?? 0}
+                  onChange={(e) =>
+                    setComponentCounts((cs) => cs.map((x, idx) => (idx === i ? Math.max(0, Number(e.target.value) || 0) : x)))
+                  }
+                />
+                <span className="text-sm text-muted-foreground">{c.creditCount != null ? 'kredi' : 'giriş'}</span>
+              </div>
+            ))}
+          </div>
+        ) : product?.type === 'credit' ? (
           <Labeled label="Kredi">
             {/* Freely editable (owner): a raw string so reception can clear and retype any number.
                 Before touch, shows the package default; after touch, shows exactly what's typed (may be

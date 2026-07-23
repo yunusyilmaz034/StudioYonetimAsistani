@@ -100,6 +100,9 @@ export async function assignSubscriptionAction(input: unknown) {
       validUntil: date.nullable(),
       priceAgreedKurus: z.number().int().min(0).nullable(),
       creditOverride: z.number().int().min(0).nullable(),
+      // Hibrit demet: per-component credit/entry counts the admin edited at the desk. Index-aligned to
+      // the product's components; a null entry keeps that component's catalogue default.
+      componentOverrides: z.array(z.number().int().min(0).nullable()).nullable().optional(),
       collectedKurus: z.number().int().min(0),
       method,
       note: z.string(),
@@ -177,10 +180,14 @@ export async function assignSubscriptionAction(input: unknown) {
     for (let i = 0; i < components.length; i++) {
       const c = components[i]!
       const isPrimary = i === 0
-      const cGrant: Grant =
-        c.creditCount != null
-          ? { kind: 'credits', credits: c.creditCount, validForDays: product.durationDays }
-          : { kind: 'period', durationDays: product.durationDays, access: 'unlimited' }
+      // The admin may edit each component's count at the desk (componentOverrides); null keeps the
+      // catalogue default. A credit component overrides its credits; an entry component its allowance.
+      const override = p.componentOverrides?.[i] ?? null
+      const isCredit = c.creditCount != null
+      const cGrant: Grant = isCredit
+        ? { kind: 'credits', credits: override ?? c.creditCount ?? 0, validForDays: product.durationDays }
+        : { kind: 'period', durationDays: product.durationDays, access: 'unlimited' }
+      const cEntry = isCredit ? c.entryAllowance : override ?? c.entryAllowance
       const cSub = {
         memberId: p.memberId as MemberId,
         productId: product.id,
@@ -194,7 +201,7 @@ export async function assignSubscriptionAction(input: unknown) {
           cancellationAllowanceCount: product.cancellationAllowanceCount,
           dailyReservationLimit: product.dailyReservationLimit,
           activeReservationLimit: product.activeReservationLimit,
-          entryAllowance: c.entryAllowance,
+          entryAllowance: cEntry,
         },
         policyRef: { policyId: product.id, version: 1 },
         // A hibrit'in KK farkı admin inisiyatifinde ve DENGESİZLİK YARATMAZ (owner): the agreed price is
