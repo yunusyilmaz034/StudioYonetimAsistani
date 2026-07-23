@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Alert, RefreshControl, ScrollView, View } from 'react-native'
+import { Alert, Pressable, RefreshControl, ScrollView, View } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
@@ -262,17 +262,21 @@ export default function Agenda() {
 
 function Segment({ label, on, onPress, badge }: { label: string; on: boolean; onPress: () => void; badge?: number }) {
   const p = usePalette()
+  // A PLAIN Pressable carries the flex:1 directly. PressableScale wraps its child in an intermediate
+  // Animated.View with no flex, which collapsed the label's width to zero here (the fixed-width day
+  // chips were unaffected) — so the segment showed as an empty pill. Segments don't need a press-scale.
   return (
-    <PressableScale onPress={onPress} style={{ flex: 1 }}>
-      <View style={[{ flex: 1, flexDirection: 'row', gap: 6, alignItems: 'center', justifyContent: 'center', paddingVertical: space(2.25), borderRadius: radius.pill, backgroundColor: on ? p.surface : 'transparent' }, on ? shadow(1) : null]}>
-        <Body style={{ fontSize: 13.5, fontWeight: '700', color: on ? p.text : p.textMuted }}>{label}</Body>
-        {badge ? (
-          <View style={{ minWidth: 18, height: 18, paddingHorizontal: 5, borderRadius: 9, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? p.accent : p.hairline }}>
-            <Body style={{ fontSize: 11, fontWeight: '800', color: on ? p.accentText : p.textMuted }}>{badge}</Body>
-          </View>
-        ) : null}
-      </View>
-    </PressableScale>
+    <Pressable
+      onPress={onPress}
+      style={[{ flex: 1, flexDirection: 'row', gap: 6, alignItems: 'center', justifyContent: 'center', paddingVertical: space(2.25), borderRadius: radius.pill, backgroundColor: on ? p.surface : 'transparent' }, on ? shadow(1) : null]}
+    >
+      <Body style={{ fontSize: 13.5, fontWeight: '700', color: on ? p.text : p.textMuted }}>{label}</Body>
+      {badge ? (
+        <View style={{ minWidth: 18, height: 18, paddingHorizontal: 5, borderRadius: 9, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? p.accent : p.hairline }}>
+          <Body style={{ fontSize: 11, fontWeight: '800', color: on ? p.accentText : p.textMuted }}>{badge}</Body>
+        </View>
+      ) : null}
+    </Pressable>
   )
 }
 
