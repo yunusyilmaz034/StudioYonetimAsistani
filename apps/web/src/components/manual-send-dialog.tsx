@@ -66,6 +66,20 @@ const MOTIVATION_LINES: readonly string[] = [
   'Seni yakında yeniden aramızda görmek isteriz 🌸',
 ]
 
+// The manual-send dropdown had ~20 templates in one flat list — too much to scan. Group them by purpose
+// so the desk picks a category first, then a short list. Groups are derived from the template id (the
+// catalogue is code, so the ids are stable); anything unmatched lands in "Diğer".
+const GROUP_ORDER = ['Serbest mesaj & Motivasyon', 'Rezervasyon & Ders', 'Paket & Kredi', 'Ödeme & Bakiye', 'Üyelik & Davet', 'Diğer'] as const
+function groupOf(t: { id: string }): string {
+  const id = t.id
+  if (id === 'engagement_broadcast') return 'Serbest mesaj & Motivasyon'
+  if (/booking|waitlist|session|closure/.test(id)) return 'Rezervasyon & Ders'
+  if (/package|credit|program/.test(id)) return 'Paket & Kredi'
+  if (/payment|refund|balance|instalment|wallet/.test(id)) return 'Ödeme & Bakiye'
+  if (/portal|invite/.test(id)) return 'Üyelik & Davet'
+  return 'Diğer'
+}
+
 export function ManualSendDialog({
   memberId,
   memberName,
@@ -80,6 +94,7 @@ export function ManualSendDialog({
   contextParams?: Readonly<Record<string, string>>
 }) {
   const [templates, setTemplates] = useState<readonly TemplateRow[] | null>(null)
+  const [group, setGroup] = useState<string>('')
   const [templateId, setTemplateId] = useState<string>('')
   const [values, setValues] = useState<Record<string, string>>({})
   const [preview, setPreview] = useState<{ subject: string; body: string } | null>(null)
@@ -88,6 +103,8 @@ export function ManualSendDialog({
   useEffect(() => {
     if (!open) return
     setPreview(null)
+    setGroup('')
+    setTemplateId('')
     listNotificationTemplatesAction()
       .then((rows) => setTemplates(rows.filter((t) => t.active)))
       .catch(() => setTemplates([]))
@@ -96,6 +113,13 @@ export function ManualSendDialog({
   const template = useMemo(() => templates?.find((t) => t.id === templateId) ?? null, [templates, templateId])
   // Every required param except memberName (the server fills that from the member record).
   const fields = useMemo(() => (template ? template.requiredParams.filter((p) => p !== 'memberName') : []), [template])
+  // Category-first: the first dropdown lists the groups that actually have templates; the second is
+  // filtered to the chosen group.
+  const groups = useMemo(() => {
+    const present = new Set((templates ?? []).map((t) => groupOf(t)))
+    return GROUP_ORDER.filter((g) => present.has(g))
+  }, [templates])
+  const groupTemplates = useMemo(() => (templates ?? []).filter((t) => groupOf(t) === group), [templates, group])
 
   // When the template changes, seed the fields from the caller's context params.
   useEffect(() => {
@@ -158,22 +182,47 @@ export function ManualSendDialog({
 
         <div className="space-y-3">
           <label className="flex flex-col gap-1 text-sm">
-            Şablon
-            <Select value={templateId} onValueChange={(v) => setTemplateId(v ?? '')}>
+            Kategori
+            <Select
+              value={group}
+              onValueChange={(v) => {
+                setGroup(v ?? '')
+                setTemplateId('')
+                setPreview(null)
+              }}
+            >
               <SelectTrigger>
-                <SelectValue>
-                  {(v: unknown) => templates?.find((t) => t.id === v)?.name ?? 'Şablon seç'}
-                </SelectValue>
+                <SelectValue>{(v: unknown) => (v ? String(v) : 'Kategori seç')}</SelectValue>
               </SelectTrigger>
               <SelectContent>
-                {(templates ?? []).map((t) => (
-                  <SelectItem key={t.id} value={t.id}>
-                    {t.name}
+                {groups.map((g) => (
+                  <SelectItem key={g} value={g}>
+                    {g}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </label>
+
+          {group ? (
+            <label className="flex flex-col gap-1 text-sm">
+              Şablon
+              <Select value={templateId} onValueChange={(v) => setTemplateId(v ?? '')}>
+                <SelectTrigger>
+                  <SelectValue>
+                    {(v: unknown) => groupTemplates.find((t) => t.id === v)?.name ?? 'Şablon seç'}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {groupTemplates.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>
+                      {t.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </label>
+          ) : null}
 
           {fields.map((f) =>
             f === 'body' ? (
