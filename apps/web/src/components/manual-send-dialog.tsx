@@ -21,6 +21,7 @@ import {
   listNotificationTemplatesAction,
   previewNotificationAction,
   sendManualNotificationAction,
+  sendWhatsAppTemplateAction,
   type TemplateRow,
 } from '@/server/actions/notifications'
 
@@ -86,13 +87,18 @@ export function ManualSendDialog({
   open,
   onClose,
   contextParams,
+  channel = 'notify',
 }: {
   memberId: string
   memberName?: string
   open: boolean
   onClose: () => void
   contextParams?: Readonly<Record<string, string>>
+  // 'notify' (default) = the member's preferred channels decide. 'whatsapp' = a deliberate WhatsApp
+  // template send: only Meta-approved templates are offered and it goes out over WhatsApp only.
+  channel?: 'notify' | 'whatsapp'
 }) {
+  const whatsapp = channel === 'whatsapp'
   const [templates, setTemplates] = useState<readonly TemplateRow[] | null>(null)
   const [group, setGroup] = useState<string>('')
   const [templateId, setTemplateId] = useState<string>('')
@@ -106,9 +112,9 @@ export function ManualSendDialog({
     setGroup('')
     setTemplateId('')
     listNotificationTemplatesAction()
-      .then((rows) => setTemplates(rows.filter((t) => t.active)))
+      .then((rows) => setTemplates(rows.filter((t) => t.active && (!whatsapp || t.whatsappCapable))))
       .catch(() => setTemplates([]))
-  }, [open])
+  }, [open, whatsapp])
 
   const template = useMemo(() => templates?.find((t) => t.id === templateId) ?? null, [templates, templateId])
   // Every required param except memberName (the server fills that from the member record).
@@ -157,9 +163,11 @@ export function ManualSendDialog({
     if (!template) return
     setBusy(true)
     try {
-      const res = await sendManualNotificationAction({ memberId, templateId: template.id, params: paramsPayload() })
+      const res = whatsapp
+        ? await sendWhatsAppTemplateAction({ memberId, templateId: template.id, params: paramsPayload() })
+        : await sendManualNotificationAction({ memberId, templateId: template.id, params: paramsPayload() })
       if (res.ok) {
-        toast.success('Mesaj gönderildi.')
+        toast.success(whatsapp ? 'WhatsApp mesajı gönderildi.' : 'Mesaj gönderildi.')
         onClose()
       } else {
         toast.error(sendErrorMessage(res.error))
@@ -174,9 +182,11 @@ export function ManualSendDialog({
     <Dialog open={open} onOpenChange={(o) => (o ? null : onClose())}>
       <DialogContent className="max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Mesaj Gönder</DialogTitle>
+          <DialogTitle>{whatsapp ? "WhatsApp'tan Gönder" : 'Mesaj Gönder'}</DialogTitle>
           <DialogDescription>
-            Şablon seçin, önizleyin ve gönderin. Mesaj, üyenin tercih ve izinlerine göre uygun kanallardan iletilir.
+            {whatsapp
+              ? 'Meta onaylı bir WhatsApp şablonu seçin, önizleyin ve gönderin. Mesaj WhatsApp üzerinden iletilir.'
+              : 'Şablon seçin, önizleyin ve gönderin. Mesaj, üyenin tercih ve izinlerine göre uygun kanallardan iletilir.'}
           </DialogDescription>
         </DialogHeader>
 

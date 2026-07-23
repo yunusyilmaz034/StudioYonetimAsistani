@@ -169,6 +169,10 @@ export interface CreateIntentInput {
   // Plus Phase 5 — the RESOLVED template: the studio's override if it has one, else the code seed.
   // The caller resolves it so this stays pure. Absent ⇒ fall back to the code catalogue.
   readonly template?: NotificationTemplate
+  // A DELIBERATE channel override (a desk-initiated WhatsApp template send): the staff explicitly
+  // chose the channel, so it is used verbatim, bypassing the consent-derived selection. Manual, 1:1,
+  // owner-driven — never a path an automated event can take. Absent ⇒ consent decides (the default).
+  readonly forceChannels?: readonly Channel[]
 }
 
 export function decideCreateIntent(
@@ -189,7 +193,9 @@ export function decideCreateIntent(
   const rendered = render(template, input.params)
   if (!rendered.ok) return rendered
 
-  const decision = selectChannels(input.recipient, input.prefs, input.settings, template.category)
+  const decision = input.forceChannels
+    ? { channels: input.forceChannels, suppressed: [] }
+    : selectChannels(input.recipient, input.prefs, input.settings, template.category)
 
   const intent: NotificationIntent = {
     id: input.intentId,

@@ -72,6 +72,9 @@ export interface NotifyInput {
   readonly templateId: string
   readonly recipient: RecipientRef
   readonly params: Readonly<Record<string, string>>
+  // A desk-initiated channel override (e.g. a manual WhatsApp template send). Verbatim, consent already
+  // exercised by the staff's deliberate act. Absent ⇒ the member's preferences decide (the default).
+  readonly forceChannels?: readonly Channel[]
 }
 
 // Create the intent (the DECISION to inform) and dispatch it. Idempotent: the intent id is derived
@@ -106,6 +109,7 @@ export async function notify(
     settings: deps.settings,
     sentToday,
     ...(template ? { template } : {}),
+    ...(input.forceChannels ? { forceChannels: input.forceChannels } : {}),
   })
   if (!decided.ok) return decided
 

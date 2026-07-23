@@ -7,6 +7,7 @@ import {
   FirestoreMemberRepository,
   instant,
   FirestoreNotificationRepository,
+  META_TEMPLATE,
   newOperationId,
   notify,
   render,
@@ -89,6 +90,9 @@ export interface TemplateRow {
   readonly version: number
   readonly overridden: boolean
   readonly updatedAt: number | null
+  // Mapped to a Meta-approved WhatsApp template (META_TEMPLATE), so it CAN be sent over WhatsApp as a
+  // business-initiated message. The WhatsApp-send screen lists only these.
+  readonly whatsappCapable: boolean
 }
 
 export async function listNotificationTemplatesAction(): Promise<readonly TemplateRow[]> {
@@ -112,6 +116,7 @@ export async function listNotificationTemplatesAction(): Promise<readonly Templa
         version: t.version,
         overridden: Boolean(o),
         updatedAt: (o?.updatedAt as number | undefined) ?? null,
+        whatsappCapable: seed.id in META_TEMPLATE,
       }
     })
     .sort((a, b) => a.name.localeCompare(b.name, 'tr'))
@@ -200,6 +205,38 @@ export async function sendManualNotificationAction(input: unknown) {
     templateId: p.templateId,
     recipient,
     params: { memberName: member.fullName, ...p.params },
+  })
+}
+
+// Desk-initiated WhatsApp template send (Task, owner). Unlike the multi-channel manual send above, this
+// goes out over WhatsApp ONLY, using a Meta-approved template (META_TEMPLATE) — a business-initiated
+// message the staff deliberately chose, so it bypasses the member's channel preference. Owner-only, and
+// only templates that are actually mapped to an approved Meta template may be sent.
+export async function sendWhatsAppTemplateAction(input: unknown) {
+  const p = z.object({ memberId: z.string().min(1), templateId: z.string().min(1), params: z.record(z.string(), z.string()) }).parse(input)
+  const ctx = await requireTenantContext(OWNER)
+  if (!(p.templateId in META_TEMPLATE)) return { ok: false as const, error: { code: 'template_not_approved' as const } }
+  const member = await new FirestoreMemberRepository(adminDb()).findById(ctx, p.memberId as MemberId)
+  if (!member) return { ok: false as const, error: { code: 'member_not_found' as const } }
+  if (!member.phone) return { ok: false as const, error: { code: 'missing_contact' as const } }
+
+  const recipient: RecipientRef = {
+    kind: 'member',
+    id: member.id as string,
+    email: (member.email as string | null) ?? null,
+    phone: member.phone as string,
+    displayName: member.fullName,
+  }
+  const opId = newOperationId()
+  return notify(deps(), ctx, {
+    intentId: `wa:${p.templateId}:${member.id}:${opId}`,
+    eventId: null,
+    eventType: 'manual_whatsapp',
+    operationId: opId,
+    templateId: p.templateId,
+    recipient,
+    params: { memberName: member.fullName, ...p.params },
+    forceChannels: ['whatsapp'],
   })
 }
 

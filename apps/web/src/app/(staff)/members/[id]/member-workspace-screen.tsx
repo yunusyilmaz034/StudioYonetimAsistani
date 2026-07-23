@@ -27,8 +27,7 @@ import type { Member, MemberId } from '@studio/core'
 
 import { ManualSendDialog } from '@/components/manual-send-dialog'
 import { PaymentHistoryPanel } from './payment-history-panel'
-import { WhatsAppButton } from '@/components/whatsapp-button'
-import { WA_TEMPLATES } from '@/lib/whatsapp'
+import { WhatsAppAction } from '@/components/whatsapp-action'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -188,7 +187,7 @@ export function MemberWorkspaceScreen({
             </h1>
             <div className="flex flex-wrap items-center gap-2 pt-0.5 text-sm text-muted-foreground">
               <span className="tabular-nums">{member.phone}</span>
-              <WhatsAppButton phone={member.phone} text={WA_TEMPLATES.greeting(member.fullName)} className="h-7" />
+              <WhatsAppAction memberId={member.id} phone={member.phone} memberName={member.fullName} className="h-7" />
               <Button variant="outline" size="sm" className="h-7" onClick={() => setMessaging(true)}>
                 <MessageSquareIcon className="size-3.5" />
                 Mesaj Gönder
