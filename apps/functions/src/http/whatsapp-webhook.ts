@@ -127,7 +127,7 @@ ${kb.join('\n\n')}
 
 ${facts ? `— CANLI VERİ —\n${facts}\n` : ''}
 NASIL KONUŞ (akış):
-0) SOHBETİN İLK mesajındaysan (senden önce assistant mesajı yoksa): sıcak karşıla, hoş geldin de, kısaca STÜDYO olarak tanıt ve — MÜŞTERİNİN ADINI BİLMİYORSAN — çağrı merkezi gibi kibarca ismini sor. Ör: "Merhaba, hoş geldiniz 🌸 Pilates Fitness by Işıl'ım. Size nasıl hitap edeyim, isminizi öğrenebilir miyim? 🌸". İsmini öğrenince sonraki mesajlarda ismiyle + "hanım/hanımcım" diye hitap et. Müşteri ismini vermek istemezse ISRAR ETME, bir daha sorma; "hanım" ya da "hanımefendi" diye hitap et. Sonraki mesajlarda tekrar tanıtma. "Ben botum/yapay zekayım" DEME; doğal, insan gibi ol. Yalnızca doğrudan "bot musun / gerçek misin" diye sorulursa dürüst ol ve [[DEVRET]] ekle. Bu İLK mesajda SADECE karşıla + kısa tanıt + isim sor; "Başka bir sorunuz var mı / yetkilimize aktarayım mı" gibi bir KAPANIŞ/AKTARMA cümlesi EKLEME — daha ortada bir soru yok, aktarılacak bir şey yok, ekleyince saçma duruyor.
+0) SOHBETİN İLK mesajındaysan (senden önce assistant mesajı yoksa): sıcak karşıla, hoş geldin de, kısaca STÜDYO olarak tanıt ve — MÜŞTERİNİN ADINI BİLMİYORSAN — çağrı merkezi gibi kibarca ismini sor. Ör: "Merhaba, hoş geldiniz 🌸 Pilates Fitness by Işıl'ım. Size nasıl hitap edeyim, isminizi öğrenebilir miyim? 🌸". İsmini öğrenince sonraki mesajlarda ismiyle + "hanım/hanımcım" diye hitap et. Müşteri ismini vermek istemezse ISRAR ETME, bir daha sorma; "hanım" ya da "hanımefendi" diye hitap et. Sonraki mesajlarda tekrar tanıtma. "Ben botum/yapay zekayım" DEME; doğal, insan gibi ol. Yalnızca doğrudan "bot musun / gerçek misin" diye sorulursa dürüst ol ve [[DEVRET]] ekle. Bu İLK mesajda SADECE karşıla + kısa tanıt + isim sor; "Başka bir sorunuz var mı / yetkilimize aktarayım mı" gibi bir KAPANIŞ/AKTARMA cümlesi EKLEME — daha ortada bir soru yok, aktarılacak bir şey yok, ekleyince saçma duruyor. Müşteri ismini verince (ör. "Melike ismim") ISIMLE DEVAM ET: kısa bir "Memnun oldum Melike hanım 🌸" + hemen 1. adıma geç (hedefini/niyetini sor). İsim aldın diye ASLA susma, sohbeti bitirme veya devretme.
 1) Sıcak karşıla, tek bir kısa soruyla NİYETİNİ/HEDEFİNİ öğren (ör. "kilo verme mi, sıkılaşma mı, pilates mi fitness mi düşünüyorsunuz? 🌸"). Baştan uzun fiyat listesi yağdırma.
 2) Hedefine göre YÖNLENDİR: uygun hizmeti (pilates / fitness) öner, faydalarını 1-2 cümle anlat.
 3) İlgi varsa FİYAT ver (yukarıdaki canlı veriden, ASLA uydurma). DENEME DERSİMİZ YOK — bunun yerine "gelip stüdyoyu görmeye / tanışmaya" davet ederek kapat.
@@ -145,9 +145,10 @@ KURALLAR:
 - Kesin taahhüt (rezervasyon/ödeme) verme → escalate=true.
 - Müşteri "insanla/yetkiliyle görüşmek istiyorum" derse ya da şikayet/iade/sağlık/pazarlık olursa → devret.
 
-ÇIKTI: SADECE müşteriye gidecek mesajı DÜZ METİN yaz (JSON YOK, markdown başlığı yok). Sonrasında müşterinin GÖRMEYECEĞİ iki gizli satır ekle (sistem işler, müşteriye gitmez):
-- Devretmen gerekiyorsa ayrı bir satırda tam olarak: [[DEVRET]]
-- Ve her mesajda ayrı bir satırda bu kişinin ÜYE OLMA olasılığını değerlendir: ##SKOR: <sıcak|ılık|soğuk> | <tek satır gerekçe>. (sıcak=çok ilgili, fiyat sordu, gelmek/başlamak istiyor · ılık=ilgili ama kararsız · soğuk=ilgisiz, kısa/yanıtsız, sadece bilgi aldı.)`
+ÇIKTI BİÇİMİ (ÇOK ÖNEMLİ — yanlış olursa müşteriye sızıyor):
+Önce SADECE müşteriye gidecek mesajı düz metin yaz. Ardından, SADECE gerekiyorsa, aşağıdaki gizli satırları TAM OLARAK bu formatta ekle. Bunları AYIRMAK için "---" veya başka ayraç KULLANMA; parantez içinde serbest not YAZMA:
+- Devretmek GERÇEKTEN gerekiyorsa (müşteri insan/yetkili ister, şikayet/iade/sağlık/pazarlık, ya da yanıtlayamıyorsan) ayrı satır: [[DEVRET]]. Selam, tanışma, isim sorma, normal bilgi/fiyat sorularında ASLA [[DEVRET]] yazma.
+- Skor için ayrı satır, TAM olarak şu formatta: ##SKOR: sıcak | tek satır gerekçe  (sıcak=çok ilgili/fiyat sordu/gelmek istiyor · ılık=ilgili ama kararsız · soğuk=ilgisiz/kısa). Bu satırı "##SKOR:" ile başlatMAZSAN sistem gizleyemez ve müşteri görür — bu yüzden ayracsız, tam bu formatta yaz.`
 }
 
 // Plain-text reply (robust — Haiku often ignores a JSON instruction and answers naturally). Escalation
@@ -169,13 +170,21 @@ async function aiReply(apiKey: string, system: string, history: Msg[]): Promise<
     const text = data.content?.[0]?.text
     if (!text) return null
     const escalate = /\[\[?\s*DEVRET\s*\]?\]/i.test(text)
-    // Parse the hidden ##SKOR: <sıcak|ılık|soğuk> | <reason> line, then strip both markers from the reply.
+    // Parse the hidden ##SKOR: <sıcak|ılık|soğuk> | <reason> line.
     const scoreLine = text.match(/##\s*SKOR\s*:\s*(sıcak|ılık|soğuk)\s*(?:\|\s*(.*))?/i)
     const temp = (scoreLine?.[1]?.toLocaleLowerCase('tr') as Temp | undefined) ?? null
     const reason = (scoreLine?.[2] ?? '').trim()
+    // The VISIBLE message is everything before the hidden section. The model separates it
+    // inconsistently — a "---" line, a "##SKOR" line, or a "[[DEVRET" — so cut at the EARLIEST such
+    // marker (otherwise a mis-formatted score line like "--- (kişi kimliği belirsiz)" leaks to the
+    // customer), then scrub any stray [[DEVRET]] token and lone "(reason)" lines the model leaks.
+    const cut = [/\n\s*-{3,}\s*(?:\n|$)/, /##\s*SKOR/i, /\[\[?\s*DEVRET/i]
+      .map((re) => text.search(re))
+      .filter((i) => i >= 0)
     const reply = text
-      .replace(/##\s*SKOR\s*:.*/is, '')
+      .slice(0, cut.length ? Math.min(...cut) : text.length)
       .replace(/\[\[?\s*DEVRET\s*\]?\]/gi, '')
+      .replace(/^\s*\([^)]*\)\s*$/gm, '')
       .trim()
     if (!reply) return null
     return { reply, escalate, temp, reason }
@@ -263,8 +272,10 @@ async function processMessage(sid: string, from: string, name: string, text: str
     conv.temp = result.temp
     conv.reason = result.reason
   }
+  // Devret (escalation) only FLAGS the desk (green "operatör devri geliyor" alert). It no longer silences
+  // the AI: the assistant KEEPS answering so the customer is never left hanging, until a human actually
+  // takes over — the operator clicking "Devral" or replying is what flips status to 'human' (owner).
   if (result.escalate) {
-    conv.status = 'human'
     conv.needsAttention = true
   }
   await ref.set(conv, { merge: true })
