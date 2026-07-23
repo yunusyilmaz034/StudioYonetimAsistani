@@ -33,7 +33,7 @@ export default function Training() {
 
   return (
     <Screen refreshControl={<RefreshControl refreshing={loading} onRefresh={reload} tintColor={p.accent} />}>
-      <Title sub={t?.showPrograms ? 'Programların ve gelişimin' : 'Gelişimini takip et'}>Antrenman</Title>
+      <Title sub={t?.showPrograms ? 'Programların ve gelişimin' : 'Gelişimini takip et'}>{t?.showPrograms ? 'Antrenman' : 'Ölçümler'}</Title>
 
       {t?.showPrograms ? (
         <>

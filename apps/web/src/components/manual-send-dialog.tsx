@@ -14,6 +14,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { domainErrorMessage } from '@/lib/domain-error'
 import {
@@ -37,6 +38,8 @@ function sendErrorMessage(error: { readonly code: string }): string {
 // caller has it (e.g. a reservation's session name + time). Render refuses a missing param, so a
 // blank "Merhaba {{memberName}}" can never be sent.
 const HUMAN_PARAM: Record<string, string> = {
+  subject: 'Başlık',
+  body: 'Mesaj',
   sessionName: 'Ders',
   sessionTime: 'Ders saati',
   fromTime: 'Eski saat',
@@ -51,6 +54,17 @@ const HUMAN_PARAM: Record<string, string> = {
   balance: 'Bakiye',
   dueDate: 'Vade',
 }
+
+// Ready-made motivation lines for a free-text "Stüdyodan mesaj". Clicking one fills the box; it stays
+// fully editable, so it is a starting point, never a canned send. Warm, women-only-studio tone.
+const MOTIVATION_LINES: readonly string[] = [
+  'Bugün harika bir iş çıkardın, seninle gurur duyuyoruz! 💛',
+  'Küçük adımlar büyük değişimler yaratır — böyle devam! 🌸',
+  'Sağlığın için attığın her adım çok değerli. ✨',
+  'Her ders bir adım daha güçlü, bir adım daha sen. 💪',
+  'Bu hafta kendine ayırdığın zaman için tebrikler. 🙌',
+  'Seni yakında yeniden aramızda görmek isteriz 🌸',
+]
 
 export function ManualSendDialog({
   memberId,
@@ -87,7 +101,8 @@ export function ManualSendDialog({
   useEffect(() => {
     if (!template) return
     const seeded: Record<string, string> = {}
-    for (const f of fields) seeded[f] = contextParams?.[f] ?? ''
+    // A free-text "Stüdyodan mesaj" gets a friendly default title so the desk only writes the body.
+    for (const f of fields) seeded[f] = contextParams?.[f] ?? (f === 'subject' ? 'Stüdyodan 💛' : '')
     setValues(seeded)
     setPreview(null)
   }, [templateId, template, fields, contextParams])
@@ -160,18 +175,48 @@ export function ManualSendDialog({
             </Select>
           </label>
 
-          {fields.map((f) => (
-            <label key={f} className="flex flex-col gap-1 text-sm">
-              {HUMAN_PARAM[f] ?? f}
-              <Input
-                value={values[f] ?? ''}
-                onChange={(e) => {
-                  setValues((prev) => ({ ...prev, [f]: e.target.value }))
-                  setPreview(null)
-                }}
-              />
-            </label>
-          ))}
+          {fields.map((f) =>
+            f === 'body' ? (
+              <label key={f} className="flex flex-col gap-1 text-sm">
+                {HUMAN_PARAM[f] ?? f}
+                <Textarea
+                  rows={4}
+                  placeholder="Mesajını yaz ya da aşağıdan bir öneri seç…"
+                  value={values[f] ?? ''}
+                  onChange={(e) => {
+                    setValues((prev) => ({ ...prev, [f]: e.target.value }))
+                    setPreview(null)
+                  }}
+                />
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {MOTIVATION_LINES.map((line) => (
+                    <button
+                      key={line}
+                      type="button"
+                      onClick={() => {
+                        setValues((prev) => ({ ...prev, body: line }))
+                        setPreview(null)
+                      }}
+                      className="rounded-full border border-border bg-muted/50 px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                    >
+                      {line.length > 34 ? `${line.slice(0, 32)}…` : line}
+                    </button>
+                  ))}
+                </div>
+              </label>
+            ) : (
+              <label key={f} className="flex flex-col gap-1 text-sm">
+                {HUMAN_PARAM[f] ?? f}
+                <Input
+                  value={values[f] ?? ''}
+                  onChange={(e) => {
+                    setValues((prev) => ({ ...prev, [f]: e.target.value }))
+                    setPreview(null)
+                  }}
+                />
+              </label>
+            ),
+          )}
 
           {preview ? (
             <div className="space-y-1 rounded-lg border border-border bg-muted/40 p-3 text-sm">
