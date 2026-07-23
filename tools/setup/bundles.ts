@@ -69,8 +69,10 @@ async function main(): Promise<void> {
       ],
     },
     {
+      // Representative category is pilates_group so BOTH hibrits get the 10% KK farkı (owner) — the real
+      // grants still come from `components`, each in its own category (the wall is component-level).
       name: 'Hibrit Aylık — 2 Fitness + 1 Pilates',
-      category: 'fitness',
+      category: 'pilates_group',
       type: 'period',
       priceInKurus: TRY(5_000),
       components: [

@@ -197,7 +197,10 @@ export async function assignSubscriptionAction(input: unknown) {
           entryAllowance: c.entryAllowance,
         },
         policyRef: { policyId: product.id, version: 1 },
-        priceAgreed: money(isPrimary ? priceAgreedKurus : 0),
+        // A hibrit'in KK farkı admin inisiyatifinde ve DENGESİZLİK YARATMAZ (owner): the agreed price is
+        // max(bundle base, what was collected). Applied surcharge (collected = base+%) → balance 0; waived
+        // (collected = base) → balance 0; on account (collected 0) → owes the BASE only, never the surcharge.
+        priceAgreed: money(isPrimary ? Math.max(product.priceInKurus, p.collectedKurus) : 0),
         validFrom: dayMs(p.validFrom),
         validUntil: p.validUntil ? dayMs(p.validUntil) : null,
         freezeDays: product.freezeAllowanceDays > 0 ? product.freezeAllowanceDays : null,
