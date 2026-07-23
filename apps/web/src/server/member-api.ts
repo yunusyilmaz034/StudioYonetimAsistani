@@ -115,9 +115,12 @@ export async function memberStudioContact(ctx: TenantContext) {
 }
 
 // ── Profile photo (member's own avatar) ────────────────────────────────────────────────────────
-// Stored in private Storage; read only through a short-lived server-signed URL (member PII). The
-// pointer is written directly to the member doc, the same way notificationPrefs already are.
-const AVATAR_TTL_MS = 60 * 60 * 1000
+// Stored in private Storage; read only through a server-signed URL (member PII). The avatar is found
+// by LISTING the member's avatar folder and taking the newest object — NOT a Firestore `avatarPath`
+// field. That field was silently wiped on every member update: the member doc is fully overwritten
+// (`tx.set(ref, memberToFirestore(member))`, member-repo.ts) and `avatarPath` isn't part of the domain
+// Member, so it vanished — the upload succeeded but the photo never showed.
+const AVATAR_TTL_MS = 24 * 60 * 60 * 1000
 async function signedUrl(path: string): Promise<string | null> {
   try {
     const [url] = await adminStorage().bucket(storageBucketName()).file(path).getSignedUrl({ action: 'read', expires: Date.now() + AVATAR_TTL_MS })
@@ -128,9 +131,16 @@ async function signedUrl(path: string): Promise<string | null> {
 }
 
 export async function memberAvatarUrl(ctx: TenantContext, memberId: MemberId): Promise<string | null> {
-  const snap = await adminDb().doc(`studios/${ctx.studioId}/members/${memberId}`).get()
-  const path = snap.get('avatarPath') as string | undefined
-  return path ? signedUrl(path) : null
+  try {
+    const prefix = `studios/${ctx.studioId}/members/${memberId}/avatar/`
+    const [files] = await adminStorage().bucket(storageBucketName()).getFiles({ prefix })
+    if (files.length === 0) return null
+    // Object names end with the upload epoch ms, so the lexicographically-largest name is the newest.
+    const newest = files.reduce((a, b) => (a.name >= b.name ? a : b))
+    return signedUrl(newest.name)
+  } catch {
+    return null
+  }
 }
 
 export async function memberUploadPhoto(ctx: TenantContext, memberId: MemberId, dataUrl: string) {
@@ -142,7 +152,7 @@ export async function memberUploadPhoto(ctx: TenantContext, memberId: MemberId, 
   if (buf.length > 4_000_000) return { ok: false as const, error: { code: 'image_too_large' } }
   const path = `studios/${ctx.studioId}/members/${memberId}/avatar/${Date.now()}.jpg`
   await adminStorage().bucket(storageBucketName()).file(path).save(buf, { contentType: mime, resumable: false })
-  await adminDb().doc(`studios/${ctx.studioId}/members/${memberId}`).set({ avatarPath: path }, { merge: true })
+  // No avatarPath pointer — the read side lists the folder. Nothing to be clobbered by a member save.
   return { ok: true as const, value: { avatarUrl: await signedUrl(path) } }
 }
 
