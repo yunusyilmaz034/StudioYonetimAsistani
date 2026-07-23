@@ -8,7 +8,7 @@ import {
   type TenantContext,
 } from '../../../shared'
 import { decideCreateProduct, decideUpdateProduct } from '../domain/decide'
-import type { Product, ProductType } from '../domain/types'
+import type { Product, ProductComponent, ProductType } from '../domain/types'
 import { decideContext } from './context'
 import type { CatalogDeps } from './ports'
 
@@ -25,6 +25,7 @@ export interface ProductFields {
   readonly cancellationAllowanceCount: number | null
   readonly activeReservationLimit: number | null
   readonly entryAllowance: number | null // v1.27 — fitness serbest-giriş cap; null ⇒ unlimited
+  readonly components: readonly ProductComponent[] | null // v1.30 — hibrit demet bileşenleri; null ⇒ normal ürün
   readonly description: string
 }
 
@@ -75,6 +76,7 @@ export async function updateProduct(
     cancellationAllowanceCount: input.cancellationAllowanceCount,
     activeReservationLimit: input.activeReservationLimit,
     entryAllowance: input.entryAllowance,
+    components: input.components,
     description: input.description,
     active: input.active,
   }

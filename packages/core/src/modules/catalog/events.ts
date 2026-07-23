@@ -1,6 +1,6 @@
 import type { FieldChange } from '../../shared'
 import type { Category } from '../../shared'
-import type { ProductType } from './domain/types'
+import type { ProductComponent, ProductType } from './domain/types'
 
 // Catalogue events (Doc 4). No PII. The catalogue is data (AD-41); its history exists
 // as these events. Two event types only — `product.updated` is generic (carries the
@@ -17,6 +17,9 @@ export type ProductCreatedPayload = {
   readonly durationDays: number
   readonly creditCount: number | null
   readonly priceInKurus: number
+  // Hibrit paket (v1.30) — additive. Present ONLY on a bundle product; absent on a normal product and
+  // on every product created before bundles existed (a bundle-less past is not invented, I-30).
+  readonly components?: readonly ProductComponent[]
 }
 
 export type ProductUpdatedPayload = {

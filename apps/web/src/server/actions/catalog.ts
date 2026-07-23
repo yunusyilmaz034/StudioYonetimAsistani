@@ -7,6 +7,7 @@ import {
   updateProduct,
   type CatalogDeps,
   type Category,
+  type ProductComponent,
   type ProductId,
   type ServiceId,
 } from '@studio/core'
@@ -36,6 +37,18 @@ const fields = z.object({
   cancellationAllowanceCount: z.number().int().min(0).nullable(),
   activeReservationLimit: z.number().int().min(1).nullable(),
   entryAllowance: z.number().int().min(1).nullable().default(null),
+  // Hibrit demet bileşenleri (v1.30). null/absent ⇒ normal ürün.
+  components: z
+    .array(
+      z.object({
+        category: z.enum(['pilates_group', 'fitness', 'private']),
+        creditCount: z.number().int().min(0).nullable(),
+        entryAllowance: z.number().int().min(0).nullable(),
+        label: z.string(),
+      }),
+    )
+    .nullable()
+    .default(null),
   description: z.string(),
 })
 
@@ -54,6 +67,7 @@ function toFields(p: z.infer<typeof fields>) {
     activeReservationLimit: p.activeReservationLimit,
     // Only a PERIOD (unlimited-access) membership carries an entry cap; a credit package caps itself.
     entryAllowance: p.type === 'period' ? p.entryAllowance : null,
+    components: (p.components as ProductComponent[] | null) ?? null,
     description: p.description,
   }
 }

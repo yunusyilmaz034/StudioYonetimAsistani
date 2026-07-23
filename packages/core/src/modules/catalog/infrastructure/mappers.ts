@@ -9,7 +9,7 @@ import {
   type ServiceId,
   type StudioId,
 } from '../../../shared'
-import type { Product, ProductType } from '../domain/types'
+import type { Product, ProductComponent, ProductType } from '../domain/types'
 
 export function productToFirestore(p: Product): DocumentData {
   return {
@@ -26,6 +26,7 @@ export function productToFirestore(p: Product): DocumentData {
     cancellationAllowanceCount: p.cancellationAllowanceCount,
     activeReservationLimit: p.activeReservationLimit,
     entryAllowance: p.entryAllowance ?? null,
+    components: p.components ?? null,
     description: p.description,
     active: p.active,
     updatedAt: FieldValue.serverTimestamp(),
@@ -48,6 +49,7 @@ export function productFromFirestore(id: ProductId, d: DocumentData): Product {
     cancellationAllowanceCount: (d.cancellationAllowanceCount as number | null) ?? null,
     activeReservationLimit: (d.activeReservationLimit as number | null) ?? null,
     entryAllowance: (d.entryAllowance as number | null) ?? null,
+    components: (d.components as ProductComponent[] | null | undefined) ?? null,
     description: (d.description as string | undefined) ?? '',
     active: d.active !== false,
   }

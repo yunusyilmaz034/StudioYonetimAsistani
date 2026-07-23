@@ -349,6 +349,7 @@ async function product(
     await createProduct(catalogDeps, ctx, {
       name, category, serviceIds, type, durationDays, creditCount, priceInKurus,
       freezeAllowanceDays, dailyReservationLimit, cancellationAllowanceCount: null, activeReservationLimit: null, entryAllowance: null,
+      components: null,
       description: `${name} — demo`,
     }),
     `createProduct ${name}`,

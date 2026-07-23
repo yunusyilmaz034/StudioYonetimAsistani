@@ -35,6 +35,8 @@ const product: Product = {
   dailyReservationLimit: null,
   cancellationAllowanceCount: null,
   activeReservationLimit: null,
+  entryAllowance: null,
+  components: null,
   description: '',
   active: true,
 }

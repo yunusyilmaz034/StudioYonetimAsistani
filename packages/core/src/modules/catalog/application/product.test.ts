@@ -27,6 +27,7 @@ const FIELDS = {
   dailyReservationLimit: null,
   cancellationAllowanceCount: null,
   activeReservationLimit: null, entryAllowance: null,
+  components: null,
   description: '',
 }
 

@@ -91,7 +91,14 @@ async function liveFacts(database: Firestore, ctx: TenantContext): Promise<strin
         // KK farkı kategoriye göre (pilates %10, fitness sabit, PT %10) — checkout ile birebir aynı hesap.
         const sc = cardSurchargeKurus(p.priceInKurus, p.category, surchargeCfg)
         const kk = sc > 0 ? ` / Kredi Kartı: ${tl(p.priceInKurus + sc)}` : ''
-        const detail = p.type === 'credit' ? `${p.creditCount ?? 0} ders / ${p.durationDays} gün` : `${p.durationDays} gün sınırsız`
+        // Hibrit demet: bileşenleri anlat (ör. "8 Pilates dersi + 4 Fitness girişi / 30 gün").
+        const CAT_TR: Record<string, string> = { pilates_group: 'Pilates', fitness: 'Fitness', private: 'PT' }
+        const detail =
+          p.components && p.components.length > 0
+            ? `${p.components.map((c) => (c.creditCount != null ? `${c.creditCount} ${CAT_TR[c.category] ?? c.category} dersi` : `${c.entryAllowance ?? 0} ${CAT_TR[c.category] ?? c.category} girişi`)).join(' + ')} / ${p.durationDays} gün`
+            : p.type === 'credit'
+              ? `${p.creditCount ?? 0} ders / ${p.durationDays} gün`
+              : `${p.durationDays} gün sınırsız`
         parts.push(`- ${p.name} (${detail}): Nakit ${tl(p.priceInKurus)}${kk}`)
       }
     }

@@ -167,6 +167,75 @@ export async function assignSubscriptionAction(input: unknown) {
 
   const branchId = (ctx.branchIds[0] ?? null) as BranchId
 
+  // ── HİBRİT DEMET (v1.30) — a bundle grants one entitlement PER COMPONENT, each in its OWN category so
+  //    the wall (I-9.7) stays intact (a pilates credit never opens fitness). The FIRST component's sale
+  //    carries the full price + the payment; the rest are granted at 0 (included in the bundle). N sales,
+  //    one price. A failing later component stops the loop and returns the error — reception retries. ──
+  if (product.components && product.components.length > 0) {
+    const components = product.components
+    let firstOk: Awaited<ReturnType<typeof sellPackage>> | null = null
+    for (let i = 0; i < components.length; i++) {
+      const c = components[i]!
+      const isPrimary = i === 0
+      const cGrant: Grant =
+        c.creditCount != null
+          ? { kind: 'credits', credits: c.creditCount, validForDays: product.durationDays }
+          : { kind: 'period', durationDays: product.durationDays, access: 'unlimited' }
+      const cSub = {
+        memberId: p.memberId as MemberId,
+        productId: product.id,
+        productSnapshot: {
+          productId: product.id,
+          name: `${product.name} — ${c.label}`,
+          category: c.category,
+          grant: cGrant,
+          listPrice: money(product.priceInKurus),
+          serviceIds: product.serviceIds,
+          cancellationAllowanceCount: product.cancellationAllowanceCount,
+          dailyReservationLimit: product.dailyReservationLimit,
+          activeReservationLimit: product.activeReservationLimit,
+          entryAllowance: c.entryAllowance,
+        },
+        policyRef: { policyId: product.id, version: 1 },
+        priceAgreed: money(isPrimary ? priceAgreedKurus : 0),
+        validFrom: dayMs(p.validFrom),
+        validUntil: p.validUntil ? dayMs(p.validUntil) : null,
+        freezeDays: product.freezeAllowanceDays > 0 ? product.freezeAllowanceDays : null,
+        creditOverride: null,
+        collectedAmount: money(0),
+        method: p.method as PaymentMethod,
+        note: saleNote,
+      } satisfies AssignSubscriptionInput
+      const r = await observed(
+        'finance.sell_package',
+        ctx,
+        undefined,
+        { memberId: p.memberId, productId: p.productId, collectedKurus: isPrimary ? p.collectedKurus : 0 },
+        () =>
+          sellPackage(sellDeps(), ctx, {
+            branchId,
+            subscription: cSub,
+            payment:
+              isPrimary && p.collectedKurus > 0
+                ? {
+                    amount: money(p.collectedKurus),
+                    method: p.method as PaymentMethod,
+                    receivedAt: instant(Date.now()),
+                    drawerId,
+                    giftCardCode: null,
+                    note: p.note || null,
+                    allowNoDrawer: true,
+                  }
+                : null,
+            discountCeilingPercent: null,
+          }),
+      )
+      if (!r.ok) return r
+      if (isPrimary) firstOk = r
+    }
+    return firstOk!
+  }
+
   return observed(
     'finance.sell_package',
     ctx,

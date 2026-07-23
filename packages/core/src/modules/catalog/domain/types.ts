@@ -10,6 +10,18 @@ import type { Category, ProductId, ServiceId, StudioId } from '../../../shared'
 
 export type ProductType = 'credit' | 'period'
 
+// A BUNDLE component (hibrit paket). A bundle product grants ONE entitlement per component, each in
+// its OWN category — so the category wall (I-9.7) stays intact: a pilates credit still opens only
+// pilates, a fitness entry only fitness. `creditCount` set ⇒ a credit component (N classes); otherwise
+// a period-access component capped by `entryAllowance` (N door check-ins; null ⇒ unlimited). The bundle
+// itself carries one price and one duration; components have no individual price.
+export interface ProductComponent {
+  readonly category: Category
+  readonly creditCount: number | null
+  readonly entryAllowance: number | null
+  readonly label: string
+}
+
 export interface Product {
   readonly id: ProductId
   readonly studioId: StudioId
@@ -33,6 +45,11 @@ export interface Product {
   //    each fitness check-in spends (over-use is recorded, not blocked). Credit packages ignore it —
   //    their credits already cap usage. ──
   readonly entryAllowance: number | null
+  // Hibrit paket (v1.30): when non-empty, this product is a BUNDLE — selling it grants one entitlement
+  // per component (each in its own category). The top-level `category`/`type`/`creditCount` are then a
+  // representative face for display/surcharge; the real grants come from `components`. `null`/empty ⇒ a
+  // normal single-category product. Absent on products created before this existed.
+  readonly components: readonly ProductComponent[] | null
   readonly description: string
   readonly active: boolean
 }

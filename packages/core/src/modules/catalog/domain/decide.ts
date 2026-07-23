@@ -48,6 +48,8 @@ export function decideCreateProduct(ctx: DecideContext, p: Product): NewEvent[] 
         durationDays: p.durationDays,
         creditCount: p.creditCount,
         priceInKurus: p.priceInKurus,
+        // Only stamped for a bundle — a normal product's payload is byte-for-byte unchanged (golden).
+        ...(p.components && p.components.length > 0 ? { components: p.components } : {}),
       },
     },
   ]
