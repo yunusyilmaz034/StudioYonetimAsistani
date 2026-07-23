@@ -3,6 +3,7 @@
 import { randomUUID } from 'node:crypto'
 
 import {
+  cardSurchargeKurus,
   decideCreatePaymentIntent,
   decideRefundConfirmed,
   decideRequestRefund,
@@ -134,7 +135,7 @@ export async function createPackageCheckout(ctx: TenantContext, p: PackageChecko
   // member never sees a breakdown. (TODO(surcharge): the manual cash/havale sell + wallet-membership
   // paths are separate and NOT surcharged here.)
   const studioSettings = await new FirestoreSchedulingRepository(adminDb()).getStudioSettings(ctx)
-  const surchargeKurus = studioSettings?.paymentSurcharge?.cardTransferSurchargeKurus ?? 0
+  const surchargeKurus = cardSurchargeKurus(product.priceInKurus, product.category, studioSettings?.paymentSurcharge)
   const maxInstallments = studioSettings?.paymentSurcharge?.maxInstallments ?? 3
   // Kontrol her zaman admin'de: an explicit priceAgreedKurus is the FINAL charged amount, used verbatim
   // (the reception form pre-fills it with price + surcharge and lets the admin override). Only the

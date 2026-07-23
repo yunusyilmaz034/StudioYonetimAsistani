@@ -134,7 +134,7 @@ export function MemberWorkspaceScreen({
   isOwner = false,
   isPlatformAdmin,
   canManageTraining = false,
-  surchargeKurus = 0,
+  surchargeByProduct = {},
 }: {
   data: MemberWorkspaceData
   products: readonly ProductView[]
@@ -142,7 +142,7 @@ export function MemberWorkspaceScreen({
   defaultBranchId: string | null
   isOwner?: boolean
   isPlatformAdmin: boolean
-  surchargeKurus?: number
+  surchargeByProduct?: Record<string, number>
   // Owner + platform_admin see and edit programmes, measurements and photos; reception gets a
   // boolean "aktif program var mı?" only (§13). Trainers do not reach the members list at all.
   canManageTraining?: boolean
@@ -257,7 +257,7 @@ export function MemberWorkspaceScreen({
           />
         </TabsContent>
         <TabsContent value="packages">
-          <SubscriptionsPanel memberId={member.id} memberPhone={member.phone} products={products} surchargeKurus={surchargeKurus} />
+          <SubscriptionsPanel memberId={member.id} memberPhone={member.phone} products={products} surchargeByProduct={surchargeByProduct} />
         </TabsContent>
         <TabsContent value="training">
           {/* Plus Phase 7 — the member's programmes, measurements and progress photos. Content for

@@ -11,6 +11,7 @@ import {
   amendEntitlement,
   available,
   cancelEntitlement,
+  cardSurchargeKurus,
   FirestoreCatalogRepository,
   FirestoreEntitlementRepository,
   FirestoreFinanceRepository,
@@ -116,8 +117,9 @@ export async function assignSubscriptionAction(input: unknown) {
   // is OWED (priceAgreed). Added once, server-side — the client sends the base price. #4/#12: the amount
   // is a setting, never a literal; 0 when unset.
   const settings = await new FirestoreSchedulingRepository(adminDb()).getStudioSettings(ctx)
-  const surchargeKurus = p.method !== 'cash' ? settings?.paymentSurcharge?.cardTransferSurchargeKurus ?? 0 : 0
-  const priceAgreedKurus = (p.priceAgreedKurus ?? product.priceInKurus) + surchargeKurus
+  const baseKurus = p.priceAgreedKurus ?? product.priceInKurus
+  const surchargeKurus = p.method !== 'cash' ? cardSurchargeKurus(baseKurus, product.category, settings?.paymentSurcharge) : 0
+  const priceAgreedKurus = baseKurus + surchargeKurus
 
   const grant: Grant =
     product.type === 'credit'

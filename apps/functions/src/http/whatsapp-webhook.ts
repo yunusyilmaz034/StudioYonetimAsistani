@@ -11,6 +11,7 @@
 // PII (name/phone/message text) lives on the conversation doc (server-only), NEVER in an event. The model
 // sees the customer's own words (unavoidable for a reply) but no other member's data.
 import {
+  cardSurchargeKurus,
   decideCaptureLead,
   FirestoreCatalogRepository,
   FirestoreCrmRepository,
@@ -18,6 +19,7 @@ import {
   instant,
   newCorrelationId,
   sendWhatsAppText,
+  type CardSurchargeConfig,
   type ClassSession,
   type Lead,
   type MetaWhatsAppConfig,
@@ -80,11 +82,15 @@ async function liveFacts(database: Firestore, ctx: TenantContext): Promise<strin
   const parts: string[] = []
   try {
     const products = (await new FirestoreCatalogRepository(database).listProducts(ctx)).filter((p: Product) => p.active)
-    const surcharge = ((await database.doc(`studios/${ctx.studioId}/settings/studio`).get()).get('paymentSurcharge')?.cardTransferSurchargeKurus as number | undefined) ?? 0
+    const surchargeCfg = (await database.doc(`studios/${ctx.studioId}/settings/studio`).get()).get('paymentSurcharge') as
+      | CardSurchargeConfig
+      | undefined
     if (products.length) {
       parts.push('GÜNCEL PAKETLER (fiyatlar buradan, ASLA uydurma):')
       for (const p of products) {
-        const kk = surcharge > 0 ? ` / Kredi Kartı: ${tl(p.priceInKurus + surcharge)}` : ''
+        // KK farkı kategoriye göre (pilates %10, fitness sabit, PT %10) — checkout ile birebir aynı hesap.
+        const sc = cardSurchargeKurus(p.priceInKurus, p.category, surchargeCfg)
+        const kk = sc > 0 ? ` / Kredi Kartı: ${tl(p.priceInKurus + sc)}` : ''
         const detail = p.type === 'credit' ? `${p.creditCount ?? 0} ders / ${p.durationDays} gün` : `${p.durationDays} gün sınırsız`
         parts.push(`- ${p.name} (${detail}): Nakit ${tl(p.priceInKurus)}${kk}`)
       }
@@ -140,7 +146,7 @@ KURALLAR:
 - Kısa, samimi, Türkçe, ölçülü emoji. Tek mesajda çok soru sorma.
 - DOĞAL karşıla: gelen mesaja uygun cevap ver. Müşteri sana "merhaba/hoş geldin" demediyse "siz de hoş geldiniz" gibi karşılık verme; "Merhaba 🌸" yeter. Refleks nezaket kalıpları kullanma, robotik olma.
 - Kadınlara özel stüdyoyuz: "kız" DEME, her zaman "kadın" de.
-- Devretmen gerekince kişi ADI verme ("Işıl'a aktarayım" DEME); "sizi bir hocamıza / yetkilimize aktarıyorum" de.
+- Devretmen gerekince kişi ADI verme ("Işıl'a aktarayım" DEME) ve "hoca / hocamız / yetiştiricimiz" gibi bir unvanla da ANMA; SADECE "sizi yetkilimize aktarıyorum" de.
 - DENEME DERSİ YOK. "İlk ders ücretsiz / deneme dersi" gibi bir şey ASLA söyleme; sadece "gelip görebilirsiniz / tanışabiliriz" de.
 - Kesin taahhüt (rezervasyon/ödeme) verme → escalate=true.
 - Müşteri "insanla/yetkiliyle görüşmek istiyorum" derse ya da şikayet/iade/sağlık/pazarlık olursa → devret.

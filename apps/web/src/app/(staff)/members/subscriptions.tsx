@@ -66,7 +66,7 @@ const addDays = (d: string, days: number) => {
   return t.toISOString().slice(0, 10)
 }
 
-export function SubscriptionsPanel({ memberId, memberPhone = null, products, surchargeKurus = 0 }: { memberId: string; memberPhone?: string | null; products: readonly ProductView[]; surchargeKurus?: number }) {
+export function SubscriptionsPanel({ memberId, memberPhone = null, products, surchargeByProduct = {} }: { memberId: string; memberPhone?: string | null; products: readonly ProductView[]; surchargeByProduct?: Record<string, number> }) {
   const [subs, setSubs] = useState<readonly SubscriptionView[] | null>(null)
   const [adding, setAdding] = useState(false)
 
@@ -105,7 +105,7 @@ export function SubscriptionsPanel({ memberId, memberPhone = null, products, sur
           memberId={memberId}
           memberPhone={memberPhone}
           products={activeProducts}
-          surchargeKurus={surchargeKurus}
+          surchargeByProduct={surchargeByProduct}
           onCancel={() => setAdding(false)}
           onDone={() => {
             setAdding(false)
@@ -307,14 +307,14 @@ function AssignForm({
   memberId,
   memberPhone = null,
   products,
-  surchargeKurus = 0,
+  surchargeByProduct = {},
   onCancel,
   onDone,
 }: {
   memberId: string
   memberPhone?: string | null
   products: readonly ProductView[]
-  surchargeKurus?: number
+  surchargeByProduct?: Record<string, number>
   onCancel: () => void
   onDone: () => void
 }) {
@@ -322,6 +322,9 @@ function AssignForm({
   // instead of accidentally saving whatever happened to be first.
   const [productId, setProductId] = useState('')
   const product = products.find((p) => p.id === productId)
+  // The non-cash surcharge for the SELECTED package (category rule, computed server-side). A default the
+  // admin can override below — for a non-cash method it is added to what the member owes.
+  const surchargeKurus = product ? surchargeByProduct[product.id] ?? 0 : 0
   const [validFrom, setValidFrom] = useState(studioToday())
   const [validUntil, setValidUntil] = useState('')
   // Credit is a freely-editable STRING (owner): reception can clear it and type any number; it defaults

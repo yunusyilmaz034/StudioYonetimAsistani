@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation'
 
+import { cardSurchargeKurus } from '@studio/core'
 import { requirePageAccess } from '@/server/auth'
 import { listTrainersAction } from '@/server/actions/bulk-reservations'
 import { getStudioSettingsAction } from '@/server/actions/settings'
@@ -32,6 +33,12 @@ export default async function MemberWorkspacePage({
     notFound()
   }
 
+  // KK/havale farkı per product (category rule → kuruş), computed server-side so the client never
+  // repeats the formula. Reception may still override the charged amount per sale.
+  const surchargeByProduct: Record<string, number> = Object.fromEntries(
+    products.map((p) => [p.id, cardSurchargeKurus(p.priceInKurus, p.category, settings?.paymentSurcharge)]),
+  )
+
   return (
     <MemberWorkspaceScreen
       data={data}
@@ -46,7 +53,7 @@ export default async function MemberWorkspacePage({
       // Training content (programmes, measurements, photos) is owner/platform_admin; reception gets a
       // boolean only. The training actions refuse reception regardless — this only picks the view.
       canManageTraining={ctx.role === 'owner' || ctx.actor.type === 'platform_admin'}
-      surchargeKurus={settings?.paymentSurcharge?.cardTransferSurchargeKurus ?? 0}
+      surchargeByProduct={surchargeByProduct}
     />
   )
 }

@@ -100,6 +100,14 @@ const schema = z.object({
     .object({
       cardTransferSurchargeKurus: z.number().int().min(0),
       maxInstallments: z.number().int().min(1).max(12),
+      // Per-category KK/havale rule: either a percent of the price or a fixed kuruş amount. A category
+      // absent here falls back to the flat `cardTransferSurchargeKurus`.
+      byCategory: z
+        .record(
+          z.string(),
+          z.union([z.object({ percent: z.number().min(0).max(100) }), z.object({ fixedKurus: z.number().int().min(0) })]),
+        )
+        .optional(),
     })
     .nullable()
     .optional(),
@@ -150,7 +158,20 @@ export async function updateStudioSettingsAction(input: unknown) {
     // Preserve the stored occupancy config unless the caller explicitly sends one (the settings form
     // may save other sections without touching it). `undefined` = untouched; `null` = cleared.
     fitness: p.fitness === undefined ? current?.fitness ?? null : p.fitness,
-    paymentSurcharge: p.paymentSurcharge === undefined ? current?.paymentSurcharge ?? null : p.paymentSurcharge,
+    paymentSurcharge:
+      p.paymentSurcharge === undefined
+        ? current?.paymentSurcharge ?? null
+        : p.paymentSurcharge === null
+          ? null
+          : {
+              cardTransferSurchargeKurus: p.paymentSurcharge.cardTransferSurchargeKurus,
+              maxInstallments: p.paymentSurcharge.maxInstallments,
+              // Only include byCategory when present (exactOptionalPropertyTypes forbids an explicit
+              // `undefined`); the zod-validated shape structurally matches the Category-keyed rule map.
+              ...(p.paymentSurcharge.byCategory
+                ? { byCategory: p.paymentSurcharge.byCategory as NonNullable<NonNullable<StudioSettings['paymentSurcharge']>['byCategory']> }
+                : {}),
+            },
   }
 
   const res = await observed('studio.settings_update', ctx, undefined, {}, () =>

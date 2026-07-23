@@ -125,8 +125,27 @@ export function SettingsScreen({
   const [moderatePct, setModeratePct] = useState(((settings?.fitness?.moderateAt ?? 0.4) * 100).toString())
   const [busyPct, setBusyPct] = useState(((settings?.fitness?.busyAt ?? 0.7) * 100).toString())
   const [veryBusyPct, setVeryBusyPct] = useState(((settings?.fitness?.veryBusyAt ?? 0.9) * 100).toString())
-  // Plus (pilot) — KK/havale farkı (edited in ₺, stored in kuruş) + PAYTR max taksit.
-  const [surchargeTl, setSurchargeTl] = useState(((settings?.paymentSurcharge?.cardTransferSurchargeKurus ?? 0) / 100).toString())
+  // Plus (pilot) — KK/havale farkı PER CATEGORY (percent or fixed ₺) + PAYTR max taksit. A category
+  // absent from `byCategory` falls back to the legacy flat amount on first load.
+  type SCat = 'pilates_group' | 'fitness' | 'private'
+  type SRow = { mode: 'percent' | 'fixed'; value: string }
+  const surchargeCats: { key: SCat; label: string }[] = [
+    { key: 'pilates_group' as const, label: 'Pilates' },
+    { key: 'fitness' as const, label: 'Fitness' },
+    { key: 'private' as const, label: 'PT (Özel Ders)' },
+  ]
+  const legacySurchargeKurus = settings?.paymentSurcharge?.cardTransferSurchargeKurus ?? 0
+  const initRule = (key: SCat): SRow => {
+    const r = settings?.paymentSurcharge?.byCategory?.[key]
+    if (r && 'percent' in r) return { mode: 'percent', value: String(r.percent) }
+    if (r && 'fixedKurus' in r) return { mode: 'fixed', value: String(r.fixedKurus / 100) }
+    return { mode: 'fixed', value: String(legacySurchargeKurus / 100) }
+  }
+  const [surcharge, setSurcharge] = useState<Record<SCat, SRow>>({
+    pilates_group: initRule('pilates_group'),
+    fitness: initRule('fitness'),
+    private: initRule('private'),
+  })
   const [maxInstallments, setMaxInstallments] = useState((settings?.paymentSurcharge?.maxInstallments ?? 3).toString())
   const [tab, setTab] = useState('genel')
 
@@ -196,8 +215,20 @@ export function SettingsScreen({
                 veryBusyAt: Number(veryBusyPct) / 100,
               },
         paymentSurcharge: {
-          cardTransferSurchargeKurus: Math.max(0, Math.round(Number(surchargeTl || '0') * 100)),
+          // byCategory is authoritative; the flat field stays 0 as the fallback for any future category.
+          cardTransferSurchargeKurus: 0,
           maxInstallments: Math.max(1, Math.min(12, Number(maxInstallments || '3'))),
+          byCategory: Object.fromEntries(
+            surchargeCats.map(({ key }) => {
+              const r = surcharge[key]
+              return [
+                key,
+                r.mode === 'percent'
+                  ? { percent: Math.max(0, Math.min(100, Number(r.value || '0'))) }
+                  : { fixedKurus: Math.max(0, Math.round(Number(r.value || '0') * 100)) },
+              ]
+            }),
+          ),
         },
       })
       if (res.ok) toast.success('Ayarlar kaydedildi.')
@@ -510,10 +541,40 @@ export function SettingsScreen({
             title="Ödeme (PAYTR)"
         hint="Kredi kartı / havale ile ödemede paket fiyatına eklenecek fark ve izin verilen en fazla taksit. Üyeye kırılım gösterilmez — yalnızca son tutar."
       >
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="KK/Havale farkı (₺)" hint="Karta/havaleye ödemede paket fiyatına eklenir. 0 = fark yok.">
-            <Input type="number" value={surchargeTl} onChange={(e) => setSurchargeTl(e.target.value)} />
-          </Field>
+        <div className="space-y-4">
+          <div className="space-y-3">
+            <p className="text-[0.6875rem] font-medium uppercase tracking-wide text-muted-foreground">
+              KK/Havale farkı (kategoriye göre)
+            </p>
+            {surchargeCats.map(({ key, label }) => {
+              const r = surcharge[key]
+              return (
+                <div key={key} className="grid grid-cols-[1fr_auto_5.5rem] items-center gap-2">
+                  <span className="text-sm text-foreground">{label}</span>
+                  <select
+                    className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+                    value={r.mode}
+                    onChange={(e) =>
+                      setSurcharge((s) => ({ ...s, [key]: { ...s[key], mode: e.target.value as 'percent' | 'fixed' } }) as Record<SCat, SRow>)
+                    }
+                  >
+                    <option value="percent">Yüzde %</option>
+                    <option value="fixed">Sabit ₺</option>
+                  </select>
+                  <Input
+                    type="number"
+                    min={0}
+                    value={r.value}
+                    onChange={(e) => setSurcharge((s) => ({ ...s, [key]: { ...s[key], value: e.target.value } }) as Record<SCat, SRow>)}
+                  />
+                </div>
+              )
+            })}
+            <p className="text-sm text-muted-foreground">
+              Karta/havaleye ödemede paket fiyatına eklenir. Yüzde = fiyatın %’si, Sabit = ₺ tutar. 0 = fark yok.
+              Zorunlu değil — resepsiyon satış sırasında tutarı değiştirebilir.
+            </p>
+          </div>
           <Field label="En fazla taksit" hint="Ödeme sırasında sunulacak en yüksek taksit sayısı (1 = tek çekim).">
             <Input type="number" min={1} max={12} value={maxInstallments} onChange={(e) => setMaxInstallments(e.target.value)} />
           </Field>

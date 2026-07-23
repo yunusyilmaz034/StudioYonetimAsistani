@@ -1,6 +1,7 @@
 import type {
   BranchId,
   Category,
+  CategorySurchargeRule,
   ClassSessionId,
   ClassTemplateId,
   Instant,
@@ -104,12 +105,15 @@ export interface FitnessOccupancyConfig {
   readonly veryBusyAt: number
 }
 
-// The flat surcharge (integer kuruş) added to a package's price when the member pays by card/transfer
-// via PAYTR, and the maximum number of installments reception may offer. Declared here (not imported)
-// for the same graph reason as the mirrored structs above.
+// The surcharge added to a package's price when the member pays by card/transfer (via PAYTR or a manual
+// non-cash method), and the maximum number of installments reception may offer. `cardTransferSurchargeKurus`
+// is the flat fallback; `byCategory` overrides it per product category with either a percent or a fixed
+// kuruş rule (see `cardSurchargeKurus`). Declared here (not imported) for the same graph reason as the
+// mirrored structs above; the rule shape rides in from `shared`.
 export interface PaymentSurchargeConfig {
   readonly cardTransferSurchargeKurus: number
   readonly maxInstallments: number
+  readonly byCategory?: Partial<Record<Category, CategorySurchargeRule>>
 }
 
 // Mirrors the notifications module's own type. It is DECLARED here rather than imported because a
