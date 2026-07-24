@@ -135,7 +135,7 @@ export function MembersScreen({
   const searching = query.trim().length > 0
 
   return (
-    <main className="mx-auto max-w-4xl space-y-4 p-4 sm:p-6 lg:p-8">
+    <main className="mx-auto max-w-5xl space-y-4 p-4 sm:p-6 lg:p-8">
       <PageHeader
         title="Üyeler"
         description={`${members.length} üye`}
@@ -225,6 +225,9 @@ export function MembersScreen({
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium text-foreground">{m.fullName}</p>
                   <p className="truncate text-xs tabular-nums text-muted-foreground">{m.phone}</p>
+                  {m.activePackageName != null ? (
+                    <p className="truncate text-xs text-foreground">{m.activePackageName}</p>
+                  ) : null}
                   {m.activeUntil != null ? (
                     <p className="truncate text-xs tabular-nums text-muted-foreground">
                       {dateRange(m)} · {daysLeft(m)}
@@ -250,7 +253,10 @@ export function MembersScreen({
                     Telefon
                   </TableHead>
                   <TableHead className="px-4 text-[0.6875rem] font-medium tracking-wide whitespace-nowrap uppercase text-muted-foreground">
-                    Paket (başl.–bitiş)
+                    Paket
+                  </TableHead>
+                  <TableHead className="px-4 text-[0.6875rem] font-medium tracking-wide whitespace-nowrap uppercase text-muted-foreground">
+                    Başl.–Bitiş
                   </TableHead>
                   <TableHead className="px-4 text-right text-[0.6875rem] font-medium tracking-wide whitespace-nowrap uppercase text-muted-foreground">
                     Kalan gün
@@ -275,6 +281,11 @@ export function MembersScreen({
                   >
                     <TableCell className="px-4 py-3 font-medium text-foreground">{m.fullName}</TableCell>
                     <TableCell className="px-4 py-3 tabular-nums text-muted-foreground">{m.phone}</TableCell>
+                    <TableCell className="px-4 py-3 text-foreground">
+                      <span className="block max-w-[14rem] truncate" title={m.activePackageName ?? undefined}>
+                        {m.activePackageName ?? '—'}
+                      </span>
+                    </TableCell>
                     <TableCell className="px-4 py-3 tabular-nums whitespace-nowrap text-muted-foreground">{dateRange(m)}</TableCell>
                     <TableCell className="px-4 py-3 text-right tabular-nums text-muted-foreground">{daysLeft(m)}</TableCell>
                     <TableCell className="px-4 py-3 text-right tabular-nums text-muted-foreground">{creditsLabel(m)}</TableCell>

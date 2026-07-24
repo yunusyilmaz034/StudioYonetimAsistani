@@ -14,6 +14,7 @@ export type MemberFilter =
   | 'pilates' // has an active Pilates (reformer group) package
   | 'fitness' // has an active Fitness package
   | 'pt' // has an active PT (private) package
+  | 'hybrid' // has an active HYBRID (bundle) package — a demet, whatever its components
   | 'expiring' // its validity ends within two weeks
   | 'low_credits' // 2 or fewer classes left — the moment to sell the next package
   | 'frozen'
@@ -41,6 +42,8 @@ export interface MemberFacts {
     readonly creditsAvailable: number | null
     /** The catalogue category (`pilates_group` / `fitness` / `private`). Optional: older callers omit it. */
     readonly category?: string
+    /** TRUE when this package is a component of a HYBRID (bundle) product. Optional: older callers omit it. */
+    readonly isBundle?: boolean
   }[]
 }
 
@@ -55,6 +58,8 @@ export interface MemberBadges {
   readonly noPackage: boolean
   readonly inactive: boolean
   readonly inDebt: boolean
+  /** Holds a live HYBRID (bundle) package — powers the "Hibrit" filter. */
+  readonly hybrid: boolean
   /** Catalogue categories she holds a live (active or frozen) package in — powers the type filters. */
   readonly categories: readonly string[]
 }
@@ -79,6 +84,10 @@ export function badgesFor(m: MemberFacts, nowMs: number): MemberBadges {
     noPackage: live.length === 0,
     inactive: m.status !== 'active',
     inDebt: m.balanceDueKurus > 0,
+    // A hybrid (demet) is any live package flagged as a bundle component — its content varies (pilates +
+    // fitness, etc.), but the studio thinks of it as one thing: "hibrit". A member counts as hybrid if
+    // ANY of her live packages is one.
+    hybrid: live.some((p) => p.isBundle === true),
   }
 }
 
@@ -92,6 +101,8 @@ export function matches(filter: MemberFilter, b: MemberBadges): boolean {
     case 'fitness':
     case 'pt':
       return b.categories.includes(CATEGORY_OF[filter]!)
+    case 'hybrid':
+      return b.hybrid
     case 'expiring':
       return b.expiring
     case 'low_credits':
@@ -113,6 +124,7 @@ export const FILTERS: readonly { id: MemberFilter; label: string }[] = [
   { id: 'pilates', label: 'Pilates' },
   { id: 'fitness', label: 'Fitness' },
   { id: 'pt', label: 'PT' },
+  { id: 'hybrid', label: 'Hibrit' },
   { id: 'expiring', label: 'Bitecek' },
   { id: 'low_credits', label: 'Kredisi azalan' },
   { id: 'frozen', label: 'Donmuş' },

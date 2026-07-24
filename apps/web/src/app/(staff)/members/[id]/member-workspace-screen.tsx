@@ -1029,8 +1029,15 @@ function OnceBookingPanel({
     // min-w-0: as a flex item of the (flex-col) sheet, the default min-width:auto would let the wide day
     // strip stretch the panel instead of scrolling. min-w-0 lets the row's overflow-x-auto actually scroll.
     <div className="min-w-0 space-y-3">
-      {/* Days across the top — pick one, its sessions appear below. Scrolls sideways when they overflow. */}
-      <div className="flex gap-1.5 overflow-x-auto pb-1">
+      {/* Days across the top — pick one, its sessions appear below. Scrolls sideways when they overflow.
+          On a mouse (desktop) a vertical wheel does nothing to a horizontal strip, so it read as stuck —
+          translate wheel-Y into scroll-X so the days slide with the wheel too (trackpad/touch already do). */}
+      <div
+        className="flex gap-1.5 overflow-x-auto pb-1"
+        onWheel={(e) => {
+          if (e.deltaY !== 0) e.currentTarget.scrollLeft += e.deltaY
+        }}
+      >
         {days.map((dk) => {
           const first = sessions.find((s) => dayKeyOf(s.startsAt) === dk)!
           const count = sel.size > 0 ? sessions.filter((s) => dayKeyOf(s.startsAt) === dk && sel.has(s.sessionId)).length : 0

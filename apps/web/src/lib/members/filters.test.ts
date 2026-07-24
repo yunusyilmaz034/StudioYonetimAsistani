@@ -70,4 +70,17 @@ describe('üye listesi filtreleri', () => {
     expect(badgesFor(facts({ balanceDueKurus: 30_000 }), NOW).inDebt).toBe(true)
     expect(badgesFor(facts({ balanceDueKurus: 0 }), NOW).inDebt).toBe(false)
   })
+
+  it('a live bundle component makes her “hibrit”; a plain package does not', () => {
+    const hybrid = badgesFor(
+      facts({ packages: [{ status: 'active', validUntil: NOW + 30 * DAY, creditsAvailable: 8, isBundle: true }] }),
+      NOW,
+    )
+    const plain = badgesFor(
+      facts({ packages: [{ status: 'active', validUntil: NOW + 30 * DAY, creditsAvailable: 8 }] }),
+      NOW,
+    )
+    expect(hybrid.hybrid).toBe(true)
+    expect(plain.hybrid).toBe(false)
+  })
 })

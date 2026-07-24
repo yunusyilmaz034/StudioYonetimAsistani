@@ -1,6 +1,7 @@
 import {
   available,
   debtByMember,
+  FirestoreCatalogRepository,
   FirestoreFinanceRepository,
   systemClock,
   FirestoreEntitlementRepository,
@@ -29,7 +30,8 @@ export interface MemberRow {
   readonly joinedAt: number // for the "son eklenen" sort (PF-33)
   readonly badges: MemberBadges
   // The member's PRIMARY active package (the one keeping her active longest) — for the list's
-  // Başlangıç–Bitiş / Kalan gün / Kalan kredi columns. null ⇒ no active package.
+  // Paket / Başlangıç–Bitiş / Kalan gün / Kalan kredi columns. null ⇒ no active package.
+  readonly activePackageName: string | null
   readonly activeFrom: number | null
   readonly activeUntil: number | null
   readonly remainingDays: number | null
@@ -54,16 +56,21 @@ export async function listMemberRows(ctx: TenantContext, nowMs: number): Promise
   // denormalised field that **nothing has ever written**: it was zero for every member, so the
   // "Borçlu" filter matched nobody and the membership report's Bakiye column was a column of zeros
   // (Alpha Review, 2026-07-13).
-  const [members, entitlements, debt] = await Promise.all([
+  const [members, entitlements, debt, products] = await Promise.all([
     new FirestoreMemberRepository(db).list(ctx),
     new FirestoreEntitlementRepository(db).listAll(ctx),
     debtByMember({ repo: new FirestoreFinanceRepository(db), clock: systemClock }, ctx),
+    new FirestoreCatalogRepository(db).listProducts(ctx),
   ])
+
+  // The catalogue is the truth for "is this a hybrid?": a product with components is a demet, and every
+  // entitlement it grants is a bundle component. Name-matching would be a guess; this is data (AD-41).
+  const bundleProductIds = new Set(products.filter((p) => (p.components?.length ?? 0) > 0).map((p) => p.id as string))
 
   const byMember = new Map<string, MemberFacts['packages'][number][]>()
   // The PRIMARY active package per member: the active entitlement expiring LAST (keeps her active
-  // longest). Its dates + credits feed the list columns; a period package has no credit count (null).
-  const primary = new Map<string, { from: number; until: number; credits: number | null }>()
+  // longest). Its name + dates + credits feed the list columns; a period package has no credit count.
+  const primary = new Map<string, { name: string; from: number; until: number; credits: number | null }>()
   for (const e of entitlements) {
     const list = byMember.get(e.memberId as string) ?? []
     list.push({
@@ -74,6 +81,8 @@ export async function listMemberRows(ctx: TenantContext, nowMs: number): Promise
       creditsAvailable: e.credits ? (e.status === 'active' ? available(e.credits) : 0) : null,
       // The catalogue category — powers the Pilates / Fitness / PT type filters.
       category: e.productSnapshot.category,
+      // Data-driven hybrid flag — powers the "Hibrit" filter.
+      isBundle: bundleProductIds.has(e.productSnapshot.productId as string),
     })
     byMember.set(e.memberId as string, list)
 
@@ -82,6 +91,7 @@ export async function listMemberRows(ctx: TenantContext, nowMs: number): Promise
       const cur = primary.get(e.memberId as string)
       if (!cur || until > cur.until) {
         primary.set(e.memberId as string, {
+          name: e.productSnapshot.name,
           from: Number(e.validFrom),
           until,
           credits: e.credits ? available(e.credits) : null,
@@ -107,6 +117,7 @@ export async function listMemberRows(ctx: TenantContext, nowMs: number): Promise
         },
         nowMs,
       ),
+      activePackageName: pk?.name ?? null,
       activeFrom: pk?.from ?? null,
       activeUntil: pk?.until ?? null,
       remainingDays: pk ? Math.max(0, Math.ceil((pk.until - nowMs) / 86_400_000)) : null,
