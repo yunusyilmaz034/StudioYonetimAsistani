@@ -356,6 +356,10 @@ function AssignForm({
   const [error, setError] = useState<string | null>(null)
   // Sanal POS / Linkle Ödeme open the shared PAYTR checkout surface with this result.
   const [checkout, setCheckout] = useState<PaytrCheckout | null>(null)
+  // A submit error is only meaningful for the inputs that produced it. The instant ANY field changes
+  // (package, method, dates, amount, credit, bundle counts), the old "Geçerli bir tutar girin." is stale
+  // — clear it in ONE place so no field can be forgotten (switching packages used to leave it lingering).
+  useEffect(() => setError(null), [productId, method, validFrom, validUntil, collectedTl, creditInput, componentCounts])
   const paidRef = useRef(false) // set when a Sanal POS payment confirms — decides whether closing keeps the form
 
   const isPaytr = method === 'sanal_pos' || method === 'link'
@@ -525,20 +529,14 @@ function AssignForm({
             min={0}
             step="0.01"
             value={effectiveCollected}
-            onChange={(e) => {
-              setCollectedTl(e.target.value)
-              setError(null) // a stale "geçerli tutar" from an earlier submit must not linger while editing
-            }}
+            onChange={(e) => setCollectedTl(e.target.value)}
             placeholder="0"
           />
         </Labeled>
         <Labeled label="Ödeme yöntemi">
           <Select
             value={method}
-            onValueChange={(v) => {
-              setMethod(v ?? 'cash')
-              setError(null)
-            }}
+            onValueChange={(v) => setMethod(v ?? 'cash')}
           >
             <SelectTrigger>
               <SelectValue />
