@@ -218,11 +218,11 @@ function SubscriptionRow({ sub, siblings, onChanged }: { sub: SubscriptionView; 
             <Button variant="outline" size="sm" onClick={() => setDialog('amend')}>
               Düzenle
             </Button>
-            {/* Hybrid → "İçerik" opens ALL components (credit + giriş) in one screen. A plain credit
+            {/* Hybrid → "Kredi/Giriş" opens ALL components (credit + giriş) in one screen. A plain credit
                 package keeps "Kredi"; a fitness package with a giriş cap gets "Giriş hakkı". */}
             {sub.isBundle || sub.type === 'credit' || sub.entryAllowance != null ? (
               <Button variant="outline" size="sm" onClick={() => setDialog('credit')}>
-                {sub.isBundle ? 'İçerik' : sub.type === 'credit' ? 'Kredi' : 'Giriş hakkı'}
+                {sub.isBundle ? 'Kredi/Giriş' : sub.type === 'credit' ? 'Kredi' : 'Giriş hakkı'}
               </Button>
             ) : null}
             <Button variant="outline" size="sm" onClick={() => setDialog('status')}>
@@ -787,7 +787,7 @@ function ContentDialog({ items, onClose, onDone }: { items: readonly Subscriptio
   const single = editable[0]
   return (
     <ReasonDialogShell
-      title={multi ? 'İçeriği düzenle' : single?.type === 'credit' ? 'Krediyi düzelt' : 'Giriş hakkını düzelt'}
+      title={multi ? 'Kredi/Giriş düzenle' : single?.type === 'credit' ? 'Krediyi düzelt' : 'Giriş hakkını düzelt'}
       description={
         multi || !single
           ? 'Paketin her bölümünü ayrı ayrı düzenleyin.'
