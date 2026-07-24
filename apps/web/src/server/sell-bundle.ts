@@ -1,4 +1,4 @@
-import { money, sellPackage, type Grant, type MemberId, type Product, type SellPackageDeps, type TenantContext } from '@studio/core'
+import { assignSubscription, money, sellPackage, type AssignSubscriptionInput, type Grant, type MemberId, type Product, type SellPackageDeps, type TenantContext } from '@studio/core'
 
 // Grant a HYBRID BUNDLE: one entitlement per component, each in its OWN category so the wall (I-9.7)
 // holds. The FIRST component carries the full agreed price + the payment (PAYTR/collection); the rest
@@ -34,38 +34,42 @@ export async function grantBundleComponents(
       ? { kind: 'credits', credits: override ?? c.creditCount ?? 0, validForDays: args.product.durationDays }
       : { kind: 'period', durationDays: args.product.durationDays, access: 'unlimited' }
     const cEntry = isCredit ? c.entryAllowance : override ?? c.entryAllowance
-    const r = await sellPackage(deps, ctx, {
-      branchId: args.branchId,
-      subscription: {
-        memberId: args.memberId as MemberId,
+    const subscription: AssignSubscriptionInput = {
+      memberId: args.memberId as MemberId,
+      productId: args.product.id,
+      productSnapshot: {
         productId: args.product.id,
-        productSnapshot: {
-          productId: args.product.id,
-          name: args.product.name,
-          category: c.category,
-          grant,
-          listPrice: money(args.product.priceInKurus),
-          serviceIds: args.product.serviceIds,
-          cancellationAllowanceCount: args.product.cancellationAllowanceCount,
-          dailyReservationLimit: args.product.dailyReservationLimit,
-          activeReservationLimit: args.product.activeReservationLimit,
-          entryAllowance: cEntry,
-        },
-        policyRef: { policyId: args.product.id, version: 1 },
-        priceAgreed: money(isPrimary ? args.primaryPriceKurus : 0),
-        validFrom: args.validFromMs,
-        validUntil: args.validUntilMs,
-        freezeDays: args.product.freezeAllowanceDays > 0 ? args.product.freezeAllowanceDays : null,
-        creditOverride: null,
-        collectedAmount: money(0),
-        method: args.method,
-        note: args.note,
+        name: args.product.name,
+        category: c.category,
+        grant,
+        listPrice: money(args.product.priceInKurus),
+        serviceIds: args.product.serviceIds,
+        cancellationAllowanceCount: args.product.cancellationAllowanceCount,
+        dailyReservationLimit: args.product.dailyReservationLimit,
+        activeReservationLimit: args.product.activeReservationLimit,
+        entryAllowance: cEntry,
       },
-      payment: isPrimary ? args.payment : null,
-      discountCeilingPercent: null,
-    })
-    if (!r.ok) return r
-    if (isPrimary) first = r
+      policyRef: { policyId: args.product.id, version: 1 },
+      priceAgreed: money(isPrimary ? args.primaryPriceKurus : 0),
+      validFrom: args.validFromMs,
+      validUntil: args.validUntilMs,
+      freezeDays: args.product.freezeAllowanceDays > 0 ? args.product.freezeAllowanceDays : null,
+      creditOverride: null,
+      collectedAmount: money(0),
+      method: args.method,
+      note: args.note,
+    }
+    // ONE sale, N entitlements. The PRIMARY carries the whole price + payment — it is the only real SALE.
+    // A non-primary component is priced at 0; a zero-gross sale is refused by the ledger (which silently
+    // dropped every non-primary component), so it is granted as a pure entitlement instead.
+    if (isPrimary) {
+      const r = await sellPackage(deps, ctx, { branchId: args.branchId, subscription, payment: args.payment, discountCeilingPercent: null })
+      if (!r.ok) return r
+      first = r
+    } else {
+      const r = await assignSubscription(deps.entitlements, ctx, subscription)
+      if (!r.ok) return r
+    }
   }
   // A bundle always has ≥1 component (enforced upstream); `first` is set on i===0.
   return first ?? { ok: false as const, error: { code: 'no_bookable_entitlement' } }

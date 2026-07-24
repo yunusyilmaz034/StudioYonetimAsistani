@@ -9,6 +9,7 @@ import {
   unfreezeEntitlement,
   adjustCredits,
   amendEntitlement,
+  assignSubscription,
   available,
   cancelEntitlement,
   cardSurchargeKurus,
@@ -218,32 +219,40 @@ export async function assignSubscriptionAction(input: unknown) {
         method: p.method as PaymentMethod,
         note: saleNote,
       } satisfies AssignSubscriptionInput
-      const r = await observed(
-        'finance.sell_package',
-        ctx,
-        undefined,
-        { memberId: p.memberId, productId: p.productId, collectedKurus: isPrimary ? p.collectedKurus : 0 },
-        () =>
-          sellPackage(sellDeps(), ctx, {
-            branchId,
-            subscription: cSub,
-            payment:
-              isPrimary && p.collectedKurus > 0
-                ? {
-                    amount: money(p.collectedKurus),
-                    method: p.method as PaymentMethod,
-                    receivedAt: instant(Date.now()),
-                    drawerId,
-                    giftCardCode: null,
-                    note: p.note || null,
-                    allowNoDrawer: true,
-                  }
-                : null,
-            discountCeilingPercent: null,
-          }),
-      )
-      if (!r.ok) return r
-      if (isPrimary) firstOk = r
+      // ONE sale, N entitlements. Only the PRIMARY component carries the price + payment, so it is the
+      // only real SALE — a zero-price sale is (rightly) refused by the ledger (gross ≤ 0), which is what
+      // silently dropped every non-primary component before. The rest are pure entitlement grants.
+      if (isPrimary) {
+        const r = await observed(
+          'finance.sell_package',
+          ctx,
+          undefined,
+          { memberId: p.memberId, productId: p.productId, collectedKurus: p.collectedKurus },
+          () =>
+            sellPackage(sellDeps(), ctx, {
+              branchId,
+              subscription: cSub,
+              payment:
+                p.collectedKurus > 0
+                  ? {
+                      amount: money(p.collectedKurus),
+                      method: p.method as PaymentMethod,
+                      receivedAt: instant(Date.now()),
+                      drawerId,
+                      giftCardCode: null,
+                      note: p.note || null,
+                      allowNoDrawer: true,
+                    }
+                  : null,
+              discountCeilingPercent: null,
+            }),
+        )
+        if (!r.ok) return r
+        firstOk = r
+      } else {
+        const r = await assignSubscription(entDeps(), ctx, cSub)
+        if (!r.ok) return r
+      }
     }
     return firstOk!
   }
