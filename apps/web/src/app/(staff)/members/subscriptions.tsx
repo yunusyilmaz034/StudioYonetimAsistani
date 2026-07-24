@@ -67,6 +67,38 @@ const addDays = (d: string, days: number) => {
   return t.toISOString().slice(0, 10)
 }
 
+// A HYBRID is ONE package the studio sold, but the domain stores it as one entitlement PER component
+// (so the category wall holds — a pilates credit never opens fitness). The card must read as ONE thing,
+// or two identical rows look like a duplicate (owner). Group a bundle's components by productId; the
+// PRIMARY — the component carrying the price + the sale — is the card's money/date/receipt face.
+type SubCard = { primary: SubscriptionView; components: SubscriptionView[] }
+function toCards(subs: readonly SubscriptionView[]): SubCard[] {
+  const bundles = new Map<string, SubscriptionView[]>()
+  const cards: SubCard[] = []
+  for (const s of subs) {
+    if (s.isBundle) {
+      const g = bundles.get(s.productId) ?? []
+      g.push(s)
+      bundles.set(s.productId, g)
+    } else {
+      cards.push({ primary: s, components: [s] })
+    }
+  }
+  for (const g of bundles.values()) {
+    const primary = g.reduce((a, b) => (b.priceAgreedKurus > a.priceAgreedKurus ? b : a), g[0]!)
+    cards.push({ primary, components: g })
+  }
+  return cards.sort((a, b) => b.primary.validFrom - a.primary.validFrom)
+}
+
+// What ONE component holds — a credit count, a giriş allowance, or unlimited time.
+const componentLine = (s: SubscriptionView): string =>
+  s.type === 'credit'
+    ? `${s.creditsAvailable}/${s.creditsGranted} kredi`
+    : s.entryAllowance != null
+      ? `${Math.max(0, s.entryAllowance - s.entriesUsed)}/${s.entryAllowance} giriş`
+      : 'sınırsız'
+
 export function SubscriptionsPanel({ memberId, memberPhone = null, products, surchargeByProduct = {} }: { memberId: string; memberPhone?: string | null; products: readonly ProductView[]; surchargeByProduct?: Record<string, number> }) {
   const [subs, setSubs] = useState<readonly SubscriptionView[] | null>(null)
   const [adding, setAdding] = useState(false)
@@ -126,8 +158,8 @@ export function SubscriptionsPanel({ memberId, memberPhone = null, products, sur
         <p className="text-sm text-muted-foreground">Henüz abonelik yok.</p>
       ) : (
         <div className="space-y-2">
-          {active.map((s) => (
-            <SubscriptionRow key={s.id} sub={s} siblings={active.filter((x) => x.productId === s.productId)} onChanged={load} />
+          {toCards(active).map((c) => (
+            <SubscriptionRow key={c.primary.id} sub={c.primary} siblings={c.components} onChanged={load} />
           ))}
           {past.length > 0 ? (
             <div className="space-y-2 pt-1">
@@ -139,7 +171,7 @@ export function SubscriptionsPanel({ memberId, memberPhone = null, products, sur
                 {showPast ? 'Pasif paketleri gizle' : `Pasif paketleri göster (${past.length})`}
               </button>
               {showPast
-                ? past.map((s) => <SubscriptionRow key={s.id} sub={s} siblings={past.filter((x) => x.productId === s.productId)} onChanged={load} />)
+                ? toCards(past).map((c) => <SubscriptionRow key={c.primary.id} sub={c.primary} siblings={c.components} onChanged={load} />)
                 : null}
             </div>
           ) : null}
@@ -157,16 +189,20 @@ function SubscriptionRow({ sub, siblings, onChanged }: { sub: SubscriptionView; 
 
   // Freeze and unfreeze are one click. The refusal — an upcoming booking, an exhausted budget — comes
   // back as a Turkish sentence, and NOTHING is fixed behind her back (owner, 2026-07-13).
-  const run = async (fn: () => Promise<{ ok: boolean; error?: unknown }>, done: string) => {
+  // A single act, whether it touches one entitlement or a bundle's several: run them in order, stop at
+  // the first refusal (a Turkish sentence), and refresh once. NOTHING is fixed behind her back.
+  const runAll = async (fns: (() => Promise<{ ok: boolean; error?: unknown }>)[], done: string) => {
     setBusy(true)
     try {
-      const res = await fn()
-      if (res.ok) {
-        toast.success(done)
-        onChanged()
-      } else {
-        toast.error(domainErrorMessage(res.error as never))
+      for (const fn of fns) {
+        const res = await fn()
+        if (!res.ok) {
+          toast.error(domainErrorMessage(res.error as never))
+          return
+        }
       }
+      toast.success(done)
+      onChanged()
     } finally {
       setBusy(false)
     }
@@ -174,7 +210,18 @@ function SubscriptionRow({ sub, siblings, onChanged }: { sub: SubscriptionView; 
 
   const expand = () => setOpen((o) => !o)
 
+  // A bundle is shown as ONE card; `sub` is its primary (money/date/receipt face), `siblings` its parts.
+  const bundle = siblings.length > 1
   const balance = sub.balanceDueKurus
+  // Freeze lives on whichever part actually grants it (a Pilates part has none). Its state drives the
+  // freeze UI; the action still fans out to every part that qualifies.
+  const freezeSub = siblings.find((s) => (s.freezeEntitledDays ?? 0) > 0) ?? sub
+  const groupFrozen = siblings.some((s) => s.status === 'frozen')
+  const cardStatus = groupFrozen ? 'frozen' : siblings.every((s) => s.status === 'cancelled') ? 'cancelled' : 'active'
+  const contentSummary = bundle
+    ? siblings.map((s) => `${BUNDLE_CAT[s.category] ?? s.category} ${componentLine(s)}`).join(' · ')
+    : componentLine(sub)
+
   return (
     <div className="rounded-xl border border-border">
       <button type="button" onClick={expand} className="flex w-full items-center justify-between gap-2 p-3 text-left">
@@ -182,19 +229,33 @@ function SubscriptionRow({ sub, siblings, onChanged }: { sub: SubscriptionView; 
           <p className="truncate font-medium text-foreground">{sub.productName}</p>
           <p className="truncate text-xs text-muted-foreground">
             {dateLabel(sub.validFrom)} – {dateLabel(sub.validUntil)}
-            {sub.status === 'active' ? ` · ${Math.max(0, Math.ceil((sub.validUntil - Date.now()) / 86_400_000))} gün` : ''}
-            {sub.type === 'credit' ? ` · ${sub.creditsAvailable}/${sub.creditsGranted} kredi` : ' · sınırsız'}
+            {cardStatus === 'active' ? ` · ${Math.max(0, Math.ceil((sub.validUntil - Date.now()) / 86_400_000))} gün` : ''}
+            {' · '}
+            {contentSummary}
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
           {balance > 0 ? <Badge className="bg-warning/10 text-warning">{tl(balance)} açık</Badge> : null}
-          <Badge variant={sub.status === 'cancelled' ? 'destructive' : 'outline'}>{STATUS_LABEL[sub.status] ?? sub.status}</Badge>
+          <Badge variant={cardStatus === 'cancelled' ? 'destructive' : 'outline'}>{STATUS_LABEL[cardStatus] ?? cardStatus}</Badge>
           <ChevronDownIcon className={`size-4 text-muted-foreground transition ${open ? 'rotate-180' : ''}`} />
         </div>
       </button>
 
       {open ? (
         <div className="space-y-3 border-t border-border p-3">
+          {/* A bundle's parts, each with what it holds — so ONE card still shows the pilates credit AND
+              the fitness giriş, instead of two look-alike rows that read as a duplicate. */}
+          {bundle ? (
+            <div className="space-y-1 rounded-lg bg-muted/40 p-2 text-sm">
+              {siblings.map((s) => (
+                <div key={s.id} className="flex items-center justify-between gap-2">
+                  <span className="text-muted-foreground">{BUNDLE_CAT[s.category] ?? s.category}</span>
+                  <span className="font-medium text-foreground">{componentLine(s)}</span>
+                </div>
+              ))}
+            </div>
+          ) : null}
+
           <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
             <Row label="Paket tutarı" value={tl(sub.priceAgreedKurus)} />
             <Row label="Tahsil edilen" value={tl(sub.paidKurus)} />
@@ -203,14 +264,14 @@ function SubscriptionRow({ sub, siblings, onChanged }: { sub: SubscriptionView; 
             {sub.note ? <Row label="Açıklama" value={sub.note} /> : null}
             {/* v1.27 S3 — her freeze budget. Shown only where it exists: a Pilates package has none,
                 and a row that says "0 gün" would read as a right she has and cannot use. */}
-            {sub.freezeEntitledDays ? (
+            {freezeSub.freezeEntitledDays ? (
               <Row
                 label="Dondurma hakkı"
-                value={`${sub.freezeDaysRemaining} / ${sub.freezeEntitledDays} gün`}
+                value={`${freezeSub.freezeDaysRemaining} / ${freezeSub.freezeEntitledDays} gün`}
               />
             ) : null}
-            {sub.frozenSince ? (
-              <Row label="Donduruldu" value={`${sub.frozenSince} tarihinden beri`} />
+            {freezeSub.frozenSince ? (
+              <Row label="Donduruldu" value={`${freezeSub.frozenSince} tarihinden beri`} />
             ) : null}
           </dl>
 
@@ -220,17 +281,18 @@ function SubscriptionRow({ sub, siblings, onChanged }: { sub: SubscriptionView; 
             </Button>
             {/* Hybrid → "Kredi/Giriş" opens ALL components (credit + giriş) in one screen. A plain credit
                 package keeps "Kredi"; a fitness package with a giriş cap gets "Giriş hakkı". */}
-            {sub.isBundle || sub.type === 'credit' || sub.entryAllowance != null ? (
+            {bundle || sub.type === 'credit' || sub.entryAllowance != null ? (
               <Button variant="outline" size="sm" onClick={() => setDialog('credit')}>
-                {sub.isBundle ? 'Kredi/Giriş' : sub.type === 'credit' ? 'Kredi' : 'Giriş hakkı'}
+                {bundle ? 'Kredi/Giriş' : sub.type === 'credit' ? 'Kredi' : 'Giriş hakkı'}
               </Button>
             ) : null}
             <Button variant="outline" size="sm" onClick={() => setDialog('status')}>
-              {sub.status === 'cancelled' ? 'Aktifleştir' : 'Pasife Al'}
+              {cardStatus === 'cancelled' ? 'Aktifleştir' : 'Pasife Al'}
             </Button>
 
             {/* v1.27 S3 — the slip reception hands the member. Opens in a new tab, because she is
-                about to print it and reception's screen must not go with her. */}
+                about to print it and reception's screen must not go with her. The receipt is the sale,
+                which lives on the primary. */}
             <a
               href={`/receipt/sale/${sub.id}`}
               target="_blank"
@@ -241,40 +303,51 @@ function SubscriptionRow({ sub, siblings, onChanged }: { sub: SubscriptionView; 
               Bilgi fişi
             </a>
 
-            {/* FREEZE (v1.27 S3). The button appears only where the product actually grants the
-                right — a Pilates package shows nothing, because it has nothing to offer. */}
-            {sub.status === 'frozen' ? (
+            {/* FREEZE (v1.27 S3). Appears only where a part actually grants the right; freezing/unfreezing
+                fans out to every part that qualifies, so the whole membership stops and resumes together. */}
+            {groupFrozen ? (
               <Button
                 variant="outline"
                 size="sm"
                 disabled={busy}
-                onClick={() => run(() => unfreezeSubscriptionAction({ entitlementId: sub.id }), 'Üyelik yeniden başladı.')}
+                onClick={() =>
+                  runAll(
+                    siblings.filter((s) => s.status === 'frozen').map((s) => () => unfreezeSubscriptionAction({ entitlementId: s.id })),
+                    'Üyelik yeniden başladı.',
+                  )
+                }
               >
                 Dondurmayı kaldır
               </Button>
-            ) : sub.status === 'active' && (sub.freezeDaysRemaining ?? 0) > 0 ? (
+            ) : freezeSub.status === 'active' && (freezeSub.freezeDaysRemaining ?? 0) > 0 ? (
               <Button
                 variant="outline"
                 size="sm"
                 disabled={busy}
-                onClick={() => run(() => freezeSubscriptionAction({ entitlementId: sub.id }), 'Üyelik donduruldu.')}
+                onClick={() =>
+                  runAll(
+                    siblings
+                      .filter((s) => s.status === 'active' && (s.freezeDaysRemaining ?? 0) > 0)
+                      .map((s) => () => freezeSubscriptionAction({ entitlementId: s.id })),
+                    'Üyelik donduruldu.',
+                  )
+                }
               >
                 Dondur
               </Button>
             ) : null}
           </div>
 
-          {sub.status === 'frozen' ? (
+          {groupFrozen ? (
             <p className="rounded-md bg-info/5 p-2 text-sm text-info">
               Üyelik durdu. Kaldırdığında, durduğu gün sayısı kadar süresi uzayacak — hakkı{' '}
-              <strong>{sub.freezeDaysRemaining} gün</strong> kaldı, dolduğunda sistem otomatik olarak
+              <strong>{freezeSub.freezeDaysRemaining} gün</strong> kaldı, dolduğunda sistem otomatik olarak
               devam ettirir.
             </p>
           ) : null}
 
           {/* The PACKAGE TIMELINE (v1.22): purchased → credit held → consumed → extended →
-              frozen → expired, each with the credit balance it left behind, the staff member who
-              did it, and the OperationId that binds a bulk act's 121 extensions into ONE act. */}
+              frozen → expired. Shown for the primary — the part that carries the sale. */}
           <div>
             {/* Collapsed by default — the timeline is dense and rarely needed during day-to-day use. */}
             <button
@@ -299,9 +372,9 @@ function SubscriptionRow({ sub, siblings, onChanged }: { sub: SubscriptionView; 
         </div>
       ) : null}
 
-      {dialog === 'amend' ? <AmendDialog sub={sub} onClose={() => setDialog(null)} onDone={() => { setDialog(null); onChanged() }} /> : null}
-      {dialog === 'credit' ? <ContentDialog items={sub.isBundle ? siblings : [sub]} onClose={() => setDialog(null)} onDone={() => { setDialog(null); onChanged() }} /> : null}
-      {dialog === 'status' ? <StatusDialog sub={sub} onClose={() => setDialog(null)} onDone={() => { setDialog(null); onChanged() }} /> : null}
+      {dialog === 'amend' ? <AmendDialog sub={sub} siblings={siblings} onClose={() => setDialog(null)} onDone={() => { setDialog(null); onChanged() }} /> : null}
+      {dialog === 'credit' ? <ContentDialog items={siblings} onClose={() => setDialog(null)} onDone={() => { setDialog(null); onChanged() }} /> : null}
+      {dialog === 'status' ? <StatusDialog sub={sub} siblings={siblings} onClose={() => setDialog(null)} onDone={() => { setDialog(null); onChanged() }} /> : null}
     </div>
   )
 }
@@ -658,7 +731,7 @@ function ReasonDialogShell({
 // money model, invisible to the till, the reports and the cari hesap. Money is taken in ONE place now,
 // the Cari Hesap tab, where it lands in the ledger and in the kasa. Two ways to record a payment are
 // two answers to "has she paid?", and reception would have had no way to know which one was believed.
-function AmendDialog({ sub, onClose, onDone }: { sub: SubscriptionView; onClose: () => void; onDone: () => void }) {
+function AmendDialog({ sub, siblings, onClose, onDone }: { sub: SubscriptionView; siblings: readonly SubscriptionView[]; onClose: () => void; onDone: () => void }) {
   const [validFrom, setValidFrom] = useState(toDateInput(sub.validFrom))
   const [validUntil, setValidUntil] = useState(toDateInput(sub.validUntil))
   // The package's original length in days, taken from what it was sold as. While reception hasn't
@@ -676,20 +749,24 @@ function AmendDialog({ sub, onClose, onDone }: { sub: SubscriptionView; onClose:
   async function submit() {
     setBusy(true)
     try {
-      const res = await amendSubscriptionAction({
-        entitlementId: sub.id,
-        reason: reason.trim(),
-        validFrom,
-        validUntil: effectiveUntil,
-        priceAgreedKurus: toKurus(priceTl),
-      })
-      if (res.ok) {
-        toast.success('Güncellendi.')
-        onDone()
-      } else {
-        toast.error(domainErrorMessage(res.error))
-        setBusy(false)
+      // Dates apply to EVERY part so a bundle stays in sync; the price sits on the primary alone (the
+      // other parts are priced 0 — the bundle's whole price is on the one that carries the sale).
+      for (const s of siblings) {
+        const res = await amendSubscriptionAction({
+          entitlementId: s.id,
+          reason: reason.trim(),
+          validFrom,
+          validUntil: effectiveUntil,
+          ...(s.id === sub.id ? { priceAgreedKurus: toKurus(priceTl) } : {}),
+        })
+        if (!res.ok) {
+          toast.error(domainErrorMessage(res.error))
+          setBusy(false)
+          return
+        }
       }
+      toast.success('Güncellendi.')
+      onDone()
     } catch {
       toast.error('Kaydedilemedi.')
       setBusy(false)
@@ -817,7 +894,7 @@ function ContentDialog({ items, onClose, onDone }: { items: readonly Subscriptio
   )
 }
 
-function StatusDialog({ sub, onClose, onDone }: { sub: SubscriptionView; onClose: () => void; onDone: () => void }) {
+function StatusDialog({ sub, siblings, onClose, onDone }: { sub: SubscriptionView; siblings: readonly SubscriptionView[]; onClose: () => void; onDone: () => void }) {
   const reactivating = sub.status === 'cancelled'
   const [reason, setReason] = useState('')
   const [busy, setBusy] = useState(false)
@@ -825,16 +902,20 @@ function StatusDialog({ sub, onClose, onDone }: { sub: SubscriptionView; onClose
   async function submit() {
     setBusy(true)
     try {
-      const res = reactivating
-        ? await reactivateSubscriptionAction({ entitlementId: sub.id, reason: reason.trim() })
-        : await cancelSubscriptionAction({ entitlementId: sub.id, reason: reason.trim() })
-      if (res.ok) {
-        toast.success(reactivating ? 'Aktifleştirildi.' : 'Pasife alındı.')
-        onDone()
-      } else {
-        toast.error(domainErrorMessage(res.error))
-        setBusy(false)
+      // A bundle is one membership: pasife al/ aktifleştir fans out to every part, or half the package
+      // would be live and half not. Stop at the first refusal so nothing is half-done silently.
+      for (const s of siblings) {
+        const res = reactivating
+          ? await reactivateSubscriptionAction({ entitlementId: s.id, reason: reason.trim() })
+          : await cancelSubscriptionAction({ entitlementId: s.id, reason: reason.trim() })
+        if (!res.ok) {
+          toast.error(domainErrorMessage(res.error))
+          setBusy(false)
+          return
+        }
       }
+      toast.success(reactivating ? 'Aktifleştirildi.' : 'Pasife alındı.')
+      onDone()
     } catch {
       toast.error('İşlem tamamlanamadı.')
       setBusy(false)
