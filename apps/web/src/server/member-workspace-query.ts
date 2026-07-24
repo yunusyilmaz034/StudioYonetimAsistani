@@ -1,4 +1,5 @@
 import {
+  FirestoreCatalogRepository,
   FirestoreCheckinRepository,
   FirestoreEntitlementRepository,
   FirestoreFinanceRepository,
@@ -79,7 +80,7 @@ export async function loadMemberWorkspace(
   const checkin = new FirestoreCheckinRepository(db)
   const entitlements = new FirestoreEntitlementRepository(db)
 
-  const [member, memberReservations, presence, checkIns, audit, activeEntitlements, money] = await Promise.all([
+  const [member, memberReservations, presence, checkIns, audit, activeEntitlements, money, products] = await Promise.all([
     members.findById(ctx, id),
     reservations.listByMember(ctx, id),
     checkin.getPresence(ctx, id),
@@ -87,9 +88,25 @@ export async function loadMemberWorkspace(
     members.listMemberEvents(ctx, id, MEMBER_WORKSPACE_LIMITS.auditEvents),
     entitlements.listActiveByMember(ctx, id),
     moneyByEntitlement({ repo: new FirestoreFinanceRepository(db), clock: systemClock }, ctx, id),
+    new FirestoreCatalogRepository(db).listProducts(ctx),
   ])
 
   if (!member) return null
+
+  // A HYBRID is ONE package the member holds, even though the domain stores it as one entitlement per
+  // component (the category wall). Count a bundle ONCE — by productId — so the header agrees with the
+  // single card the Paketler tab now shows; non-bundle packages each count on their own.
+  const bundleProductIds = new Set(products.filter((p) => (p.components?.length ?? 0) > 0).map((p) => p.id as string))
+  const seenBundles = new Set<string>()
+  let activePackageCount = 0
+  for (const e of activeEntitlements) {
+    const pid = e.productSnapshot.productId as string
+    if (bundleProductIds.has(pid)) {
+      if (seenBundles.has(pid)) continue
+      seenBundles.add(pid)
+    }
+    activePackageCount++
+  }
 
   // Sum the outstanding across every package this member bought (the ledger's `due`), so the header
   // balance matches the Cari Hesap tab to the kuruş.
@@ -125,7 +142,7 @@ export async function loadMemberWorkspace(
 
   return {
     member,
-    activePackageCount: activeEntitlements.length,
+    activePackageCount,
     balanceDueKurus,
     upcomingReservations: upcoming,
     pastReservations: past,
