@@ -12,6 +12,7 @@ import {
   available,
   cancelEntitlement,
   cardSurchargeKurus,
+  entriesUsed,
   FirestoreCatalogRepository,
   FirestoreEntitlementRepository,
   FirestoreFinanceRepository,
@@ -401,6 +402,9 @@ export async function amendSubscriptionAction(input: unknown) {
       validFrom: date.optional(),
       validUntil: date.optional(),
       priceAgreedKurus: z.number().int().min(0).optional(),
+      // Fitness serbest-giriş grant (the cap) — re-granted like a credit count is adjusted. `null` ⇒
+      // unlimited. Only meaningful on a period package that carries an entry allowance.
+      entryAllowance: z.number().int().min(0).nullable().optional(),
       // NO payment. Editing a package changes what was AGREED; it never records money. Money is taken
       // in the cari hesap, where it lands in the ledger and in the till (Alpha Review).
     })
@@ -411,6 +415,7 @@ export async function amendSubscriptionAction(input: unknown) {
     ...(p.validFrom ? { validFrom: instant(dayMs(p.validFrom)) } : {}),
     ...(p.validUntil ? { validUntil: instant(dayMs(p.validUntil)) } : {}),
     ...(p.priceAgreedKurus !== undefined ? { priceAgreed: money(p.priceAgreedKurus) } : {}),
+    ...(p.entryAllowance !== undefined ? { entryAllowance: p.entryAllowance } : {}),
   }
   return amendEntitlement(entDeps(), ctx, {
     entitlementId: p.entitlementId as EntitlementId,
@@ -465,6 +470,10 @@ export async function cancelSubscriptionAction(input: unknown) {
 // ── Reads ──
 export interface SubscriptionView {
   readonly id: string
+  readonly productId: string
+  // TRUE when this entitlement is a component of a HYBRID (bundle) product — its siblings (same
+  // productId) are the demet's other components, edited together in one screen.
+  readonly isBundle: boolean
   readonly productName: string
   readonly category: string
   readonly status: string
@@ -473,6 +482,10 @@ export interface SubscriptionView {
   readonly validUntil: number
   readonly creditsGranted: number | null
   readonly creditsAvailable: number | null
+  // Fitness serbest-giriş cap: the grant (allowance) and net used, so the desk can edit "giriş hakkı"
+  // the way it edits credits. `null` allowance ⇒ this package has no entry cap (not a fitness giriş).
+  readonly entryAllowance: number | null
+  readonly entriesUsed: number
   readonly priceAgreedKurus: number
   readonly paidKurus: number
   readonly balanceDueKurus: number
@@ -493,17 +506,23 @@ export async function listMemberSubscriptionsAction(input: unknown): Promise<rea
   // The money comes from the LEDGER, not from the entitlement (Alpha Review). The entitlement records
   // what was AGREED; the ledger records what was PAID. Asking the entitlement "has she paid?" is how
   // the packages screen came to disagree with the cari hesap on the very next tab.
-  const [rows, ledger] = await Promise.all([
+  const [rows, ledger, products] = await Promise.all([
     new FirestoreEntitlementRepository(adminDb()).listByMember(ctx, p.memberId as MemberId),
     moneyByEntitlement(
       { repo: new FirestoreFinanceRepository(adminDb()), clock: systemClock },
       ctx,
       p.memberId as MemberId,
     ),
+    new FirestoreCatalogRepository(adminDb()).listProducts(ctx),
   ])
+  // The catalogue decides "is this a hybrid?": a product with components is a demet (AD-41, data not
+  // name). Every entitlement it granted is a bundle component; its siblings share the productId.
+  const bundleProductIds = new Set(products.filter((pr) => (pr.components?.length ?? 0) > 0).map((pr) => pr.id as string))
   return rows
     .map((e) => ({
       id: e.id,
+      productId: e.productSnapshot.productId as string,
+      isBundle: bundleProductIds.has(e.productSnapshot.productId as string),
       productName: e.productSnapshot.name,
       category: e.productSnapshot.category,
       status: e.status,
@@ -512,6 +531,8 @@ export async function listMemberSubscriptionsAction(input: unknown): Promise<rea
       validUntil: e.validUntil,
       creditsGranted: e.credits ? e.credits.granted : null,
       creditsAvailable: e.credits ? (e.status === 'active' ? available(e.credits) : 0) : null,
+      entryAllowance: e.productSnapshot.entryAllowance ?? null,
+      entriesUsed: entriesUsed(e.entryLedger),
       priceAgreedKurus: e.priceAgreed.amount,
       paidKurus: ledger.get(e.id as string)?.paid.amount ?? 0,
       balanceDueKurus: ledger.get(e.id as string)?.due.amount ?? 0,

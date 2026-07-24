@@ -305,6 +305,20 @@ describe('decideAmend (v1.14, generic)', () => {
   it('refuses an empty reason', () => {
     expect(decideAmend(ctx, ent(), { priceAgreed: money(1) }, '  ')).toEqual({ ok: false, error: { code: 'reason_required' } })
   })
+  it('re-grants the fitness giriş allowance, recording before/after and updating the snapshot', () => {
+    const e = periodEnt({ productSnapshot: { ...snapshot(PERIOD_GRANT), entryAllowance: 12 } })
+    const r = decideAmend(ctx, e, { entryAllowance: 20 }, 'Hibrit giriş güncellendi')
+    expect(r.ok).toBe(true)
+    if (r.ok) {
+      expect(r.value.events[0]?.payload).toMatchObject({ changedFields: ['entryAllowance'], changes: { entryAllowance: { from: 12, to: 20 } } })
+      expect(r.value.next.productSnapshot.entryAllowance).toBe(20)
+    }
+  })
+  it('is a no-op when the giriş allowance is unchanged', () => {
+    const e = periodEnt({ productSnapshot: { ...snapshot(PERIOD_GRANT), entryAllowance: 12 } })
+    const r = decideAmend(ctx, e, { entryAllowance: 12 }, 'x')
+    expect(r.ok && r.value.events).toHaveLength(0)
+  })
 })
 
 describe('decideReactivate (v1.14)', () => {

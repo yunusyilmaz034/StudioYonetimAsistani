@@ -127,7 +127,7 @@ export function SubscriptionsPanel({ memberId, memberPhone = null, products, sur
       ) : (
         <div className="space-y-2">
           {active.map((s) => (
-            <SubscriptionRow key={s.id} sub={s} onChanged={load} />
+            <SubscriptionRow key={s.id} sub={s} siblings={active.filter((x) => x.productId === s.productId)} onChanged={load} />
           ))}
           {past.length > 0 ? (
             <div className="space-y-2 pt-1">
@@ -139,7 +139,7 @@ export function SubscriptionsPanel({ memberId, memberPhone = null, products, sur
                 {showPast ? 'Pasif paketleri gizle' : `Pasif paketleri göster (${past.length})`}
               </button>
               {showPast
-                ? past.map((s) => <SubscriptionRow key={s.id} sub={s} onChanged={load} />)
+                ? past.map((s) => <SubscriptionRow key={s.id} sub={s} siblings={past.filter((x) => x.productId === s.productId)} onChanged={load} />)
                 : null}
             </div>
           ) : null}
@@ -149,7 +149,7 @@ export function SubscriptionsPanel({ memberId, memberPhone = null, products, sur
   )
 }
 
-function SubscriptionRow({ sub, onChanged }: { sub: SubscriptionView; onChanged: () => void }) {
+function SubscriptionRow({ sub, siblings, onChanged }: { sub: SubscriptionView; siblings: readonly SubscriptionView[]; onChanged: () => void }) {
   const [open, setOpen] = useState(false)
   const [historyOpen, setHistoryOpen] = useState(false)
   const [dialog, setDialog] = useState<'amend' | 'credit' | 'status' | null>(null)
@@ -218,9 +218,11 @@ function SubscriptionRow({ sub, onChanged }: { sub: SubscriptionView; onChanged:
             <Button variant="outline" size="sm" onClick={() => setDialog('amend')}>
               Düzenle
             </Button>
-            {sub.type === 'credit' ? (
+            {/* Hybrid → "İçerik" opens ALL components (credit + giriş) in one screen. A plain credit
+                package keeps "Kredi"; a fitness package with a giriş cap gets "Giriş hakkı". */}
+            {sub.isBundle || sub.type === 'credit' || sub.entryAllowance != null ? (
               <Button variant="outline" size="sm" onClick={() => setDialog('credit')}>
-                Kredi
+                {sub.isBundle ? 'İçerik' : sub.type === 'credit' ? 'Kredi' : 'Giriş hakkı'}
               </Button>
             ) : null}
             <Button variant="outline" size="sm" onClick={() => setDialog('status')}>
@@ -298,7 +300,7 @@ function SubscriptionRow({ sub, onChanged }: { sub: SubscriptionView; onChanged:
       ) : null}
 
       {dialog === 'amend' ? <AmendDialog sub={sub} onClose={() => setDialog(null)} onDone={() => { setDialog(null); onChanged() }} /> : null}
-      {dialog === 'credit' ? <CreditDialog sub={sub} onClose={() => setDialog(null)} onDone={() => { setDialog(null); onChanged() }} /> : null}
+      {dialog === 'credit' ? <ContentDialog items={sub.isBundle ? siblings : [sub]} onClose={() => setDialog(null)} onDone={() => { setDialog(null); onChanged() }} /> : null}
       {dialog === 'status' ? <StatusDialog sub={sub} onClose={() => setDialog(null)} onDone={() => { setDialog(null); onChanged() }} /> : null}
     </div>
   )
@@ -728,49 +730,89 @@ function AmendDialog({ sub, onClose, onDone }: { sub: SubscriptionView; onClose:
   )
 }
 
-function CreditDialog({ sub, onClose, onDone }: { sub: SubscriptionView; onClose: () => void; onDone: () => void }) {
-  const current = sub.creditsAvailable ?? 0
-  // ABSOLUTE edit (owner): the field shows the CURRENT credit and reception types the NEW total —
-  // "17 → 4", not a "-13" delta. The value is a raw STRING so the box can be cleared and retyped
-  // freely (a number-bound value locked a leading "0" as "04"). The delta is computed on save.
-  const [value, setValue] = useState(String(current))
+// Editing a package's grant — ABSOLUTE (owner): the field shows the CURRENT amount and reception types
+// the NEW total ("17 → 4"), never a delta. Handles ONE or MANY components in a single screen: a HYBRID
+// (demet) grants a credit part AND a giriş part, and the desk edits both here. A credit component moves
+// through the credit ledger (adjust); a fitness giriş moves the granted allowance (amend the snapshot).
+// Each value is a raw STRING so the box can be cleared and retyped (a number-bound value locked "04").
+function ContentDialog({ items, onClose, onDone }: { items: readonly SubscriptionView[]; onClose: () => void; onDone: () => void }) {
+  // Only components with something to edit: a credit count, or a fitness giriş cap. A pure-unlimited
+  // period part (no cap) has no number to change and is left out.
+  const editable = items.filter((s) => s.type === 'credit' || s.entryAllowance != null)
+  const currentOf = (s: SubscriptionView) => (s.type === 'credit' ? (s.creditsAvailable ?? 0) : (s.entryAllowance ?? 0))
+  const [values, setValues] = useState<Record<string, string>>(() =>
+    Object.fromEntries(editable.map((s) => [s.id, String(currentOf(s))])),
+  )
   const [reason, setReason] = useState('')
   const [busy, setBusy] = useState(false)
 
+  const multi = editable.length > 1
+  const unitOf = (s: SubscriptionView) => (s.type === 'credit' ? 'kredi' : 'giriş')
+
   async function submit() {
-    const target = Math.max(0, Math.trunc(Number(value) || 0))
-    const delta = target - current
-    if (delta === 0) {
-      toast.error('Kredi değişmedi.')
+    // A credit component adjusts by the signed delta; a giriş re-grants the absolute allowance. Skip the
+    // ones that did not change; refuse a no-op so a blank save is not mistaken for success.
+    const ops: Promise<{ ok: boolean; error?: unknown }>[] = []
+    for (const s of editable) {
+      const target = Math.max(0, Math.trunc(Number(values[s.id]) || 0))
+      const current = currentOf(s)
+      if (target === current) continue
+      ops.push(
+        s.type === 'credit'
+          ? adjustSubscriptionCreditsAction({ entitlementId: s.id, delta: target - current, note: reason.trim() })
+          : amendSubscriptionAction({ entitlementId: s.id, entryAllowance: target, reason: reason.trim() }),
+      )
+    }
+    if (ops.length === 0) {
+      toast.error('Değişiklik yok.')
       return
     }
     setBusy(true)
     try {
-      const res = await adjustSubscriptionCreditsAction({ entitlementId: sub.id, delta, note: reason.trim() })
-      if (res.ok) {
-        toast.success('Kredi güncellendi.')
-        onDone()
-      } else {
-        toast.error(domainErrorMessage(res.error))
+      const results = await Promise.all(ops)
+      const bad = results.find((r) => !r.ok)
+      if (bad && !bad.ok) {
+        toast.error(domainErrorMessage((bad as { error: Parameters<typeof domainErrorMessage>[0] }).error))
         setBusy(false)
+        return
       }
+      toast.success('Güncellendi.')
+      onDone()
     } catch {
       toast.error('Kaydedilemedi.')
       setBusy(false)
     }
   }
 
+  const single = editable[0]
   return (
     <ReasonDialogShell
-      title="Krediyi düzelt"
-      description={`Mevcut kredi: ${current}. Yeni kredi sayısını girin.`}
+      title={multi ? 'İçeriği düzenle' : single?.type === 'credit' ? 'Krediyi düzelt' : 'Giriş hakkını düzelt'}
+      description={
+        multi || !single
+          ? 'Paketin her bölümünü ayrı ayrı düzenleyin.'
+          : `Mevcut ${unitOf(single)}: ${currentOf(single)}. Yeni ${unitOf(single)} sayısını girin.`
+      }
       reason={reason}
       setReason={setReason}
       busy={busy}
       onClose={onClose}
       onSubmit={submit}
     >
-      <Input type="number" min={0} value={value} onChange={(e) => setValue(e.target.value)} />
+      <div className="space-y-2">
+        {editable.map((s) => (
+          <div key={s.id} className="flex items-center gap-2">
+            {multi ? <span className="w-24 shrink-0 text-sm text-muted-foreground">{BUNDLE_CAT[s.category] ?? s.category}</span> : null}
+            <Input
+              type="number"
+              min={0}
+              value={values[s.id] ?? ''}
+              onChange={(e) => setValues((v) => ({ ...v, [s.id]: e.target.value }))}
+            />
+            <span className="w-12 shrink-0 text-sm text-muted-foreground">{unitOf(s)}</span>
+          </div>
+        ))}
+      </div>
     </ReasonDialogShell>
   )
 }

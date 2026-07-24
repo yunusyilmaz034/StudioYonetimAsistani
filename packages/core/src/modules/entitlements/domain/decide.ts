@@ -493,6 +493,11 @@ export interface AmendPatch {
   readonly validUntil?: Instant
   readonly priceAgreed?: Money
   readonly manualPayment?: ManualPayment | null
+  // The fitness serbest-giriş grant (the CAP). Frozen at purchase like the rest of the snapshot, but a
+  // human amend may re-grant it — the parallel, for a period package, of adjusting a credit package's
+  // credits. `null` ⇒ unlimited. Remaining is derived (allowance − used), so this moves what she is
+  // owed without touching the entry ledger the door writes.
+  readonly entryAllowance?: number | null
 }
 
 const sameManualPayment = (a: ManualPayment | null, b: ManualPayment | null): boolean => {
@@ -529,6 +534,13 @@ export function decideAmend(
       manualPayment: patch.manualPayment,
       paidTotal: patch.manualPayment?.collectedAmount ?? zeroMoney(ent.priceAgreed.currency),
     }
+  }
+  // The fitness giriş grant lives in the (otherwise frozen) snapshot; an amend re-grants it, recording
+  // the before/after like any other field. Compared against null so a legacy undefined reads as change-free.
+  const currentEntry = ent.productSnapshot.entryAllowance ?? null
+  if (patch.entryAllowance !== undefined && patch.entryAllowance !== currentEntry) {
+    changes.entryAllowance = { from: currentEntry, to: patch.entryAllowance }
+    next = { ...next, productSnapshot: { ...next.productSnapshot, entryAllowance: patch.entryAllowance } }
   }
 
   const changedFields = Object.keys(changes)
