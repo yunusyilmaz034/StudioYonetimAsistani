@@ -136,7 +136,7 @@ export function InviteScreen({
   const selectedCount = visible.filter((r) => selected.has(r.memberId)).length
 
   return (
-    <div className="space-y-5">
+    <main className="mx-auto max-w-5xl space-y-5 p-4 pb-24 sm:p-6 sm:pb-24 lg:p-8 lg:pb-28">
       <PageHeader
         title="Üyeleri portala davet et"
         description="Seçtiğin üyelere kişiye özel giriş bağlantısı gönderilir. Bağlantı 7 gün geçerlidir; üye şifresini kendi belirler."
@@ -192,7 +192,7 @@ export function InviteScreen({
         ))}
       </div>
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+      <div className="space-y-3">
         <div className="flex flex-wrap gap-1.5">
           {FILTERS.map((f) => {
             // The count is the point of the chip: "Fitness" is a word, "Fitness 6" is the next wave.
@@ -218,18 +218,18 @@ export function InviteScreen({
             )
           })}
         </div>
-        <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Ad veya telefon ara" className="sm:max-w-xs" />
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() =>
-            setSelected(allVisibleSelected ? new Set() : new Set(visible.map((r) => r.memberId)))
-          }
-          disabled={visible.length === 0}
-          className="sm:ml-auto"
-        >
-          {allVisibleSelected ? 'Seçimi kaldır' : `Görünen ${visible.length} kişiyi seç`}
-        </Button>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Ad veya telefon ara" className="sm:max-w-xs" />
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setSelected(allVisibleSelected ? new Set() : new Set(visible.map((r) => r.memberId)))}
+            disabled={visible.length === 0}
+            className="sm:ml-auto"
+          >
+            {allVisibleSelected ? 'Seçimi kaldır' : `Görünen ${visible.length} kişiyi seç`}
+          </Button>
+        </div>
       </div>
 
       {/* One row per member. Mobile-first: the row is a tap target, the status is a badge, no table
@@ -326,6 +326,6 @@ export function InviteScreen({
           </p>
         </div>
       ) : null}
-    </div>
+    </main>
   )
 }
