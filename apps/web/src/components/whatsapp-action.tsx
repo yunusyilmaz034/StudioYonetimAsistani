@@ -1,12 +1,14 @@
 'use client'
 
 import { useState } from 'react'
-import { ExternalLinkIcon, MessageCircleIcon, SendIcon } from 'lucide-react'
+import { ExternalLinkIcon, KeyRoundIcon, Loader2Icon, MessageCircleIcon, SendIcon } from 'lucide-react'
+import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { ManualSendDialog } from '@/components/manual-send-dialog'
-import { isWhatsAppReachable, openWhatsApp, WA_TEMPLATES } from '@/lib/whatsapp'
+import { prepareInviteMessageAction } from '@/server/actions/portal-onboarding'
+import { isWhatsAppReachable, openWhatsApp, openWhatsAppWhenReady, WA_TEMPLATES } from '@/lib/whatsapp'
 import { cn } from '@/lib/utils'
 
 // The member-card WhatsApp action (Task, owner). Clicking it offers TWO paths, because they are two
@@ -27,6 +29,7 @@ export function WhatsAppAction({
 }) {
   const [menu, setMenu] = useState(false)
   const [templateSend, setTemplateSend] = useState(false)
+  const [inviting, setInviting] = useState(false)
   const reachable = isWhatsAppReachable(phone)
 
   return (
@@ -62,6 +65,36 @@ export function WhatsAppAction({
             >
               <ExternalLinkIcon className="size-4" />
               WhatsApp&apos;ta aç (sohbet)
+            </Button>
+            {/* The portal rollout's workhorse. It mints her invite and opens WhatsApp with the whole
+                message already written — Işıl only presses send. No Meta template approval needed,
+                because this is a person messaging a person. */}
+            <Button
+              variant="outline"
+              className="justify-start"
+              disabled={inviting}
+              onClick={() => {
+                setInviting(true)
+                openWhatsAppWhenReady(
+                  prepareInviteMessageAction({ memberId })
+                    .then((res) => {
+                      if (res.ok) return { phone: res.phone, text: res.text }
+                      toast.error(res.reason)
+                      return null
+                    })
+                    .catch(() => {
+                      toast.error('Davet bağlantısı oluşturulamadı.')
+                      return null
+                    })
+                    .finally(() => {
+                      setInviting(false)
+                      setMenu(false)
+                    }),
+                )
+              }}
+            >
+              {inviting ? <Loader2Icon className="size-4 animate-spin" /> : <KeyRoundIcon className="size-4" />}
+              Üye giriş daveti gönder
             </Button>
             <Button
               className="justify-start"

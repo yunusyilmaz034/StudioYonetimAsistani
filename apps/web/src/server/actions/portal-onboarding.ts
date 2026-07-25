@@ -8,9 +8,12 @@ import {
   issueMemberInvite,
   newCorrelationId,
   notify,
+  render,
   systemClock,
+  TEMPLATES,
   type MemberId,
   type MembersDeps,
+  type NotificationTemplate,
 } from '@studio/core'
 import { z } from 'zod'
 
@@ -176,6 +179,53 @@ export async function sendPortalInvitesAction(input: unknown): Promise<readonly 
   }
 
   return results
+}
+
+// ── The MANUAL path: mint the invite, hand back the finished message. ───────────────────────
+//
+// This is how the rollout actually starts. The automated send above needs a Meta-approved template;
+// this one needs nothing — the studio's own WhatsApp opens with the text already written and Işıl
+// presses send. Same invite primitive, same wording (it renders the SAME `portal_invite` template,
+// so editing the copy in Ayarlar changes both paths), but it is a person sending a person a message.
+//
+// It returns the text rather than a `wa.me` URL: composing the link is the browser's job, and the
+// raw token must not sit in a server-built URL that could end up logged.
+export async function prepareInviteMessageAction(
+  input: unknown,
+): Promise<{ ok: true; phone: string; text: string } | { ok: false; reason: string }> {
+  const p = z.object({ memberId: z.string().min(1) }).parse(input)
+  const ctx = await requireTenantContext(OPS)
+
+  const base = (process.env.PUBLIC_APP_URL ?? '').replace(/\/+$/, '')
+  if (!base) return { ok: false as const, reason: 'Sunucu adresi tanımlı değil (PUBLIC_APP_URL).' }
+
+  const repo = new FirestoreMemberRepository(adminDb())
+  const member = await repo.findById(ctx, p.memberId as MemberId)
+  if (!member) return { ok: false as const, reason: 'Üye bulunamadı.' }
+
+  const token = randomBytes(32).toString('base64url')
+  const issued = await issueMemberInvite(deps(), ctx, { memberId: p.memberId as MemberId, tokenHash: hashToken(token) })
+  if (!issued.ok) return { ok: false as const, reason: 'Üye aktif değil.' }
+
+  // A fresh invite supersedes her previous link, so any session opened with the old one must go (D17).
+  try {
+    await adminAuth().revokeRefreshTokens(firebaseUidForMember(ctx.studioId, p.memberId))
+  } catch {
+    // No account yet — the common case.
+  }
+
+  // The studio's own edit of the template wins over the code seed, exactly as the automated path does.
+  const override = await adminDb().doc(`studios/${ctx.studioId}/notificationTemplates/portal_invite`).get()
+  const template = (override.exists ? (override.data() as NotificationTemplate) : undefined) ?? TEMPLATES.portal_invite
+  if (!template) return { ok: false as const, reason: 'Davet şablonu bulunamadı.' }
+
+  const rendered = render(template, {
+    memberName: member.fullName.split(' ')[0] ?? member.fullName,
+    inviteLink: `${base}/invite/${encodeURIComponent(ctx.studioId)}/${token}`,
+  })
+  if (!rendered.ok) return { ok: false as const, reason: 'Şablon alanları eksik.' }
+
+  return { ok: true as const, phone: member.phone as string, text: rendered.value.body }
 }
 
 const TR_REASON: Record<string, string> = {

@@ -21,6 +21,33 @@ export function openWhatsApp(phone: string, text = ''): void {
   window.open(url, '_blank', 'noopener,noreferrer')
 }
 
+// Same thing, for a message the SERVER has to compose first (the portal invite: a token has to be
+// minted before the text exists).
+//
+// The tab is opened SYNCHRONOUSLY inside the click and navigated once the text arrives. A
+// `window.open()` after an `await` is precisely what a popup blocker blocks — reception would tap
+// "davet gönder", the invite would be issued, and nothing would open.
+export function openWhatsAppWhenReady(textPromise: Promise<{ phone: string; text: string } | null>): void {
+  const win = window.open('', '_blank')
+  if (win) win.opener = null // no `noopener` flag: it makes window.open return null in some browsers
+  void textPromise
+    .then((ready) => {
+      if (!ready) {
+        win?.close()
+        return
+      }
+      const to = digits(ready.phone)
+      if (to.length < 10) {
+        win?.close()
+        return
+      }
+      const url = `https://wa.me/${to}?text=${encodeURIComponent(ready.text)}`
+      if (win) win.location.href = url
+      else window.open(url, '_blank', 'noopener,noreferrer') // blocked earlier; the direct try is all that is left
+    })
+    .catch(() => win?.close())
+}
+
 // The ready messages. A studio's voice: warm, short, and it never promises what the system did not do.
 export const WA_TEMPLATES = {
   greeting: (name: string) => `Merhaba ${name} 🌸`,
