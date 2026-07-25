@@ -124,6 +124,8 @@ async function issueInviteFor(ctx: TenantContext, memberId: string, intentId: st
     params: {
       memberName: member.fullName.split(' ')[0] ?? member.fullName,
       inviteLink: `${base}/invite/${encodeURIComponent(ctx.studioId)}/${token}`,
+      // Where she goes on every visit AFTER the invite is spent — the invite link is single-use.
+      loginLink: `${base}/portal/login?s=${encodeURIComponent(ctx.studioId)}`,
     },
     // She bought the membership on this phone seconds ago; this message IS the delivery of what she
     // paid for, not marketing — so the channel is forced rather than left to a preference she has had

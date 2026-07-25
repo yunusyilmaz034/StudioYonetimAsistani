@@ -161,6 +161,8 @@ export async function sendPortalInvitesAction(input: unknown): Promise<readonly 
         params: {
           memberName: member.fullName.split(' ')[0] ?? member.fullName,
           inviteLink: `${base}/invite/${encodeURIComponent(ctx.studioId)}/${token}`,
+          // Where she goes on every visit AFTER the invite is spent — the invite link is single-use.
+          loginLink: `${base}/portal/login?s=${encodeURIComponent(ctx.studioId)}`,
         },
         // The desk deliberately chose to send this, member by member, from a screen only staff can
         // open — the same standing this file's single-member sibling has. It is also the delivery of
@@ -222,6 +224,8 @@ export async function prepareInviteMessageAction(
   const rendered = render(template, {
     memberName: member.fullName.split(' ')[0] ?? member.fullName,
     inviteLink: `${base}/invite/${encodeURIComponent(ctx.studioId)}/${token}`,
+    // Where she goes on every visit AFTER the invite is spent — the invite link is single-use.
+    loginLink: `${base}/portal/login?s=${encodeURIComponent(ctx.studioId)}`,
   })
   if (!rendered.ok) return { ok: false as const, reason: 'Şablon alanları eksik.' }
 

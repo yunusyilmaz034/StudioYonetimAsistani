@@ -214,15 +214,18 @@ export const TEMPLATES: Readonly<Record<string, NotificationTemplate>> = {
   // callback (blok 2c). Never off `member.invited`: the token is deliberately absent from that event
   // (a secret in an append-only log is unrecoverable), so an event-driven send could only ever carry
   // a link that opens nothing.
+  // TWO links, deliberately. `inviteLink` is single-use — it is how she sets a password, and it dies
+  // the moment she does (or the moment a newer invite supersedes it). Without `loginLink` she would
+  // have nowhere to go on her second visit except back to a dead link.
   portal_invite: {
     id: 'portal_invite',
-    version: 2,
+    version: 3,
     name: 'Üyelik daveti',
     category: 'operational',
     priority: 'high',
-    requiredParams: ['memberName', 'inviteLink'],
+    requiredParams: ['memberName', 'inviteLink', 'loginLink'],
     subject: 'Üyeliğiniz hazır',
-    body: 'Merhaba {{memberName}} 🌸 Üyeliğiniz hazır! Rezervasyonlarınızı ve derslerinizi yönetmek için üye portalına giriş yapın: {{inviteLink}}',
+    body: 'Merhaba {{memberName}} 🌸 Üyeliğiniz hazır! Şifrenizi belirleyip giriş yapmak için: {{inviteLink}} — sonraki girişleriniz için adres: {{loginLink}}',
   },
   wallet_topup: {
     id: 'wallet_topup',
