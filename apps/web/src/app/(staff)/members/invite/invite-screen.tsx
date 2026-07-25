@@ -35,16 +35,35 @@ const STATE_VARIANT: Record<InviteState, 'default' | 'secondary' | 'outline' | '
   activated: 'default',
 }
 
-type Filter = 'todo' | 'package' | 'all'
+// The rollout is run in waves, and the waves are chosen along two axes: how far along she is
+// (never asked / asked and waiting) and what she bought (pilates first, then fitness, …). Both are
+// filters rather than a single list, because "who is left" and "who do I message next" are
+// different questions asked minutes apart.
+type Filter = 'todo' | 'never' | 'package' | 'pilates' | 'fitness' | 'pt' | 'hibrit' | 'all'
+
+const FILTERS: readonly { readonly id: Filter; readonly label: string }[] = [
+  { id: 'todo', label: 'Davet edilecekler' },
+  { id: 'never', label: 'Hiç davet edilmedi' },
+  { id: 'package', label: 'Paketi olanlar' },
+  { id: 'pilates', label: 'Pilates' },
+  { id: 'fitness', label: 'Fitness' },
+  { id: 'hibrit', label: 'Hibrit' },
+  { id: 'pt', label: 'PT' },
+  { id: 'all', label: 'Tümü' },
+]
 
 export function InviteScreen({
   rows,
   todayInvited,
   todayActivated,
+  yesterdayInvited,
+  yesterdayActivated,
 }: {
   rows: readonly InviteRow[]
   todayInvited: number
   todayActivated: number
+  yesterdayInvited: number
+  yesterdayActivated: number
 }) {
   const [filter, setFilter] = useState<Filter>('todo')
   const [reminding, setReminding] = useState<string | null>(null)
@@ -57,8 +76,13 @@ export function InviteScreen({
   const visible = useMemo(() => {
     const q = query.trim().toLocaleLowerCase('tr')
     return rows.filter((r) => {
-      if (filter === 'todo' && r.state === 'activated') return false
-      if (filter === 'package' && (!r.hasActivePackage || r.state === 'activated')) return false
+      // Every filter except "Tümü" hides members who already have an account: this screen exists to
+      // find who still needs one, and a done row is noise in every one of these lists.
+      if (filter !== 'all' && r.state === 'activated') return false
+      if (filter === 'never' && r.state !== 'never') return false
+      if (filter === 'package' && !r.hasActivePackage) return false
+      if ((filter === 'pilates' || filter === 'fitness' || filter === 'pt' || filter === 'hibrit') && !r.packageKinds.includes(filter))
+        return false
       if (q && !r.fullName.toLocaleLowerCase('tr').includes(q) && !r.phone.includes(q)) return false
       return true
     })
@@ -126,26 +150,29 @@ export function InviteScreen({
 
       {/* BUGÜN — the question you have while a rollout is running. A cumulative total can look healthy
           on a day where nothing moved; these two numbers cannot. */}
-      <div className="flex flex-wrap items-center gap-x-8 gap-y-3 rounded-2xl border border-primary/30 bg-primary-soft/30 p-4">
-        <div>
-          <p className="text-xs font-medium text-muted-foreground">Bugün gönderilen davet</p>
-          <p className="text-3xl font-semibold tabular-nums text-foreground">{todayInvited}</p>
-        </div>
-        <div>
-          <p className="text-xs font-medium text-muted-foreground">Bugün açılan hesap</p>
-          <p className="text-3xl font-semibold tabular-nums text-foreground">
-            {todayActivated}
-            {todayInvited > 0 ? (
-              <span className="ml-2 align-middle text-sm font-normal text-muted-foreground">
-                %{Math.round((todayActivated / todayInvited) * 100)}
-              </span>
-            ) : null}
-          </p>
+      <div className="rounded-2xl border border-primary/30 bg-primary-soft/30 p-4">
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+          {[
+            { label: 'Bugün gönderilen', value: todayInvited, of: null },
+            { label: 'Bugün açılan hesap', value: todayActivated, of: todayInvited },
+            { label: 'Dün gönderilen', value: yesterdayInvited, of: null },
+            { label: 'Dün açılan hesap', value: yesterdayActivated, of: yesterdayInvited },
+          ].map((s) => (
+            <div key={s.label}>
+              <p className="text-xs font-medium text-muted-foreground">{s.label}</p>
+              <p className="text-3xl font-semibold tabular-nums text-foreground">
+                {s.value}
+                {s.of != null && s.of > 0 ? (
+                  <span className="ml-1.5 align-middle text-sm font-normal text-muted-foreground">%{Math.round((s.value / s.of) * 100)}</span>
+                ) : null}
+              </p>
+            </div>
+          ))}
         </div>
         {counts.pending > 0 ? (
-          <p className="ml-auto max-w-xs text-xs text-muted-foreground">
-            <b className="text-foreground">{counts.pending} kişi</b> davetini açmadı. Aşağıdaki listeden <b className="text-foreground">Hatırlat</b> ile
-            güncel bağlantıyı yeniden gönderebilirsin.
+          <p className="mt-3 border-t border-primary/20 pt-3 text-xs text-muted-foreground">
+            <b className="text-foreground">{counts.pending} kişi</b> davetini açmadı. Listeden <b className="text-foreground">Hatırlat</b> ile güncel
+            bağlantıyı yeniden gönderebilirsin.
           </p>
         ) : null}
       </div>
@@ -166,25 +193,30 @@ export function InviteScreen({
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <div className="flex gap-1.5">
-          {(
-            [
-              ['todo', 'Davet edilecekler'],
-              ['package', 'Paketi olanlar'],
-              ['all', 'Tümü'],
-            ] as const
-          ).map(([key, label]) => (
-            <button
-              key={key}
-              type="button"
-              onClick={() => setFilter(key)}
-              className={`rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors ${
-                filter === key ? 'border-primary bg-primary-soft/50 text-foreground' : 'border-border text-muted-foreground hover:bg-muted/50'
-              }`}
-            >
-              {label}
-            </button>
-          ))}
+        <div className="flex flex-wrap gap-1.5">
+          {FILTERS.map((f) => {
+            // The count is the point of the chip: "Fitness" is a word, "Fitness 6" is the next wave.
+            const n = rows.filter((r) => {
+              if (f.id !== 'all' && r.state === 'activated') return false
+              if (f.id === 'never' && r.state !== 'never') return false
+              if (f.id === 'package' && !r.hasActivePackage) return false
+              if ((f.id === 'pilates' || f.id === 'fitness' || f.id === 'pt' || f.id === 'hibrit') && !r.packageKinds.includes(f.id)) return false
+              return true
+            }).length
+            return (
+              <button
+                key={f.id}
+                type="button"
+                onClick={() => setFilter(f.id)}
+                className={`rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors ${
+                  filter === f.id ? 'border-primary bg-primary-soft/50 text-foreground' : 'border-border text-muted-foreground hover:bg-muted/50'
+                }`}
+              >
+                {f.label}
+                <span className="ml-1.5 tabular-nums opacity-60">{n}</span>
+              </button>
+            )
+          })}
         </div>
         <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Ad veya telefon ara" className="sm:max-w-xs" />
         <Button

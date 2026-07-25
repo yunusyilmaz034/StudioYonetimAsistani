@@ -40,6 +40,13 @@ const firebaseUidForMember = (studioId: string, memberId: string): string =>
 
 export type InviteState = 'never' | 'pending' | 'expired' | 'activated'
 
+// What KIND of package she holds — the axis the studio actually rolls out along ("önce fitness
+// üyeleri, sonra pilates"). `hibrit` is not a category of its own in the catalogue: a bundle grants
+// one entitlement PER COMPONENT, so a hybrid member shows up holding two categories at once. Both
+// signals are honoured — the bundle's name and the two-category shape — because a member who bought
+// pilates and fitness separately is, for the purpose of this screen, the same audience.
+export type PackageKind = 'pilates' | 'fitness' | 'pt' | 'hibrit'
+
 export interface InviteRow {
   readonly memberId: string
   readonly fullName: string
@@ -47,6 +54,7 @@ export interface InviteRow {
   readonly state: InviteState
   readonly lastInvitedAt: number | null
   readonly hasActivePackage: boolean
+  readonly packageKinds: readonly PackageKind[]
 }
 
 // Today's movement, in the studio's own timezone. The cumulative totals answer "where are we";
@@ -56,6 +64,11 @@ export interface InviteSummary {
   readonly rows: readonly InviteRow[]
   readonly todayInvited: number
   readonly todayActivated: number
+  // Yesterday travels with today because the screen is read at all hours. At 00:44 "bugün 0" is
+  // accurate and useless — the 51 invites sent four hours ago have simply become yesterday's, and a
+  // panel that shows two zeroes looks broken rather than empty.
+  readonly yesterdayInvited: number
+  readonly yesterdayActivated: number
 }
 
 const TRT_OFFSET_MS = 3 * 60 * 60 * 1000
@@ -81,6 +94,24 @@ export async function listInviteStatusAction(): Promise<InviteSummary> {
 
   const withPackage = new Set(entitlementsSnap.docs.map((d) => d.get('memberId') as string))
 
+  // Category per member, from the entitlement's own snapshot — never from the live product, which
+  // may have been renamed or recategorised since she bought it.
+  const kindsByMember = new Map<string, Set<PackageKind>>()
+  for (const d of entitlementsSnap.docs) {
+    const memberId = d.get('memberId') as string
+    const snap = (d.get('productSnapshot') ?? {}) as { category?: string; name?: string }
+    const set = kindsByMember.get(memberId) ?? new Set<PackageKind>()
+    if (snap.category === 'fitness') set.add('fitness')
+    else if (snap.category === 'pilates_group') set.add('pilates')
+    else if (snap.category === 'private') set.add('pt')
+    if ((snap.name ?? '').toLocaleLowerCase('tr').includes('hibrit')) set.add('hibrit')
+    kindsByMember.set(memberId, set)
+  }
+  // Two categories at once IS the hybrid shape, whatever the product was called.
+  for (const set of kindsByMember.values()) {
+    if (set.has('fitness') && set.has('pilates')) set.add('hibrit')
+  }
+
   // Latest invite per member wins: a resend supersedes the old one, and `consumed` beats everything
   // (once she has set a password the link's own state stops being interesting).
   const byMember = new Map<string, { state: InviteState; at: number }>()
@@ -95,8 +126,13 @@ export async function listInviteStatusAction(): Promise<InviteSummary> {
   // Counted over the invites themselves, not the per-member roll-up: a member invited twice today is
   // one member but two sends, and "how many did we send today" is the send count.
   const todayStart = startOfTodayTRT(now)
+  const yStart = todayStart - 86_400_000
   const todayInvited = invites.filter((i) => i.issuedAt >= todayStart).length
   const todayActivated = invites.filter((i) => i.status === 'consumed' && (i.consumedAt ?? 0) >= todayStart).length
+  const yesterdayInvited = invites.filter((i) => i.issuedAt >= yStart && i.issuedAt < todayStart).length
+  const yesterdayActivated = invites.filter(
+    (i) => i.status === 'consumed' && (i.consumedAt ?? 0) >= yStart && (i.consumedAt ?? 0) < todayStart,
+  ).length
 
   const rows = members
     .filter((m) => m.status === 'active')
@@ -109,11 +145,12 @@ export async function listInviteStatusAction(): Promise<InviteSummary> {
         state: found?.state ?? ('never' as const),
         lastInvitedAt: found?.at ?? null,
         hasActivePackage: withPackage.has(m.id as string),
+        packageKinds: [...(kindsByMember.get(m.id as string) ?? [])],
       }
     })
     .sort((a, b) => a.fullName.localeCompare(b.fullName, 'tr'))
 
-  return { rows, todayInvited, todayActivated }
+  return { rows, todayInvited, todayActivated, yesterdayInvited, yesterdayActivated }
 }
 
 export interface InviteSendResult {

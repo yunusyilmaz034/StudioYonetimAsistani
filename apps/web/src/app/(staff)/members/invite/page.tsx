@@ -9,5 +9,11 @@ import { InviteScreen } from './invite-screen'
 export default async function BulkInvitePage() {
   await requirePageAccess('/members')
   const summary = await listInviteStatusAction()
-  return <InviteScreen rows={summary.rows} todayInvited={summary.todayInvited} todayActivated={summary.todayActivated} />
+  return <InviteScreen
+      rows={summary.rows}
+      todayInvited={summary.todayInvited}
+      todayActivated={summary.todayActivated}
+      yesterdayInvited={summary.yesterdayInvited}
+      yesterdayActivated={summary.yesterdayActivated}
+    />
 }
