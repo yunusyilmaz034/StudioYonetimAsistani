@@ -177,8 +177,22 @@ async function aiReply(apiKey: string, system: string, history: Msg[]): Promise<
     const res = await fetch(ANTHROPIC_URL, {
       method: 'POST',
       headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-      body: JSON.stringify({ model: MODEL, max_tokens: 1024, system, messages: history.map((m) => ({ role: m.role, content: m.text })) }),
-      signal: AbortSignal.timeout(15_000),
+      body: JSON.stringify({
+        model: MODEL,
+        max_tokens: 1024,
+        // Thinking OFF, effort LOW — and both are load-bearing, not tuning. Sonnet 5 thinks by
+        // default (Haiku did not), which pushed replies past the timeout below: three customers got
+        // no answer at all on the day of the switch. This is receptionist small talk — a price, an
+        // address, a class time — not a problem that rewards deliberation, and a fast good answer
+        // beats a slow better one when someone is waiting in a WhatsApp thread.
+        thinking: { type: 'disabled' },
+        output_config: { effort: 'low' },
+        system,
+        messages: history.map((m) => ({ role: m.role, content: m.text })),
+      }),
+      // Was 15s. A reply that arrives after this is not just late — it is DISCARDED, and the customer
+      // is left on read with no trace except a warning in the log.
+      signal: AbortSignal.timeout(25_000),
     })
     if (!res.ok) {
       logger.warn('[wa-webhook] anthropic', res.status)
