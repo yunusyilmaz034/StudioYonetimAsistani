@@ -27,7 +27,10 @@ export type PaymentStatus =
   | 'manual_review' // reconciliation could not resolve it automatically — a human must look
 
 // What the money buys — used to complete the right thing on success.
-export type PaymentPurpose = 'package' | 'renewal' | 'product' | 'collection' | 'wallet_topup'
+// `public_membership` — a self-service purchase from the public sales page by a customer who may not
+// yet be a member. The buyer's details ride in the context (buyerName/buyerPhone/buyerEmail/kvkkConsent);
+// the callback finds-or-creates the member, grants the package, and invites her.
+export type PaymentPurpose = 'package' | 'renewal' | 'product' | 'collection' | 'wallet_topup' | 'public_membership'
 
 // Sanal POS (an iframe/redirect) vs a shareable payment link.
 export type PaymentFlow = 'pos' | 'link'
@@ -66,6 +69,11 @@ export type PaymentIntentContext = {
   readonly buyerName?: string
   readonly buyerPhone?: string
   readonly installments?: number
+  // For a PUBLIC self-service membership purchase ('public_membership') — the buyer's e-mail and her
+  // KVKK consent, captured on our public page. The callback creates the member (if new) from these +
+  // buyerName/buyerPhone. State only; never part of an event payload (#6).
+  readonly buyerEmail?: string | null
+  readonly kvkkConsentAt?: string // ISO instant the consent checkbox was ticked
   // For an ATTRIBUTED member collection (reception's "Linkle Ödeme" package sale) — the branch the
   // verified money is posted to. Its ABSENCE of a linkId (with a real memberId) is what tells the
   // callback to settle it as the member's own payment (kasa + clear her debt) rather than an

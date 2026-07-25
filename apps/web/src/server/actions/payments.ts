@@ -504,6 +504,133 @@ export async function createCollectionCheckoutAction(input: unknown) {
   return { ok: true as const, redirectUrl: checkout.redirectUrl }
 }
 
+// ── ONLINE ÜYELİK SATIŞI (public sales page /uyelik) ────────────────────────────────────────
+// Two UNAUTHENTICATED actions. A customer — new or existing — picks a package and pays by card; the
+// member is found-or-created and the package granted on the VERIFIED callback (never here). Price is
+// always server-computed (base + card surcharge); the client neither sees nor sends an amount (§16).
+
+export async function getPublicProductsAction(input: unknown) {
+  const p = z.object({ studioId: nonEmpty }).parse(input)
+  const ctx = publicCtx(p.studioId)
+  const [products, settings] = await Promise.all([
+    new FirestoreCatalogRepository(adminDb()).listProducts(ctx),
+    new FirestoreSchedulingRepository(adminDb()).getStudioSettings(ctx),
+  ])
+  const studioName = settings?.company?.displayName || settings?.company?.legalName || 'Stüdyo'
+  // Online total = base + the studio's card surcharge (the customer pays by card). PT/private never
+  // appears — `onlineSellable` is off for it. No PII, no secrets: only what the page renders.
+  const items = products
+    .filter((pr) => pr.active && pr.onlineSellable)
+    .map((pr) => ({
+      id: pr.id as string,
+      name: pr.name,
+      description: pr.description,
+      durationDays: pr.durationDays,
+      totalKurus: pr.priceInKurus + cardSurchargeKurus(pr.priceInKurus, pr.category, settings?.paymentSurcharge),
+    }))
+    .sort((a, b) => a.totalKurus - b.totalKurus)
+  return { ok: true as const, studioName, items }
+}
+
+export async function createPublicMembershipCheckoutAction(input: unknown) {
+  const p = z
+    .object({
+      studioId: nonEmpty,
+      productId: nonEmpty,
+      buyerName: z.string().trim().min(2).max(120),
+      buyerPhone: z.string().trim().min(7),
+      buyerEmail: z.string().trim().email().or(z.literal('')).optional(),
+      kvkkConsent: z.boolean(),
+    })
+    .parse(input)
+  const ctx = publicCtx(p.studioId)
+
+  // KVKK onayı zorunlu — üye oluşturuyoruz, açık rıza olmadan ilerlemez.
+  if (!p.kvkkConsent) return { ok: false as const, reason: 'kvkk_required' as const }
+
+  // The unauthenticated write — throttle per studio so the public form can't be spammed into bogus
+  // PaymentIntents / members (12/hour is far above any real buyer).
+  if (!(await allowRate(p.studioId, 'uyelik_checkout', 12, 60 * 60 * 1000))) return { ok: false as const, reason: 'rate_limited' as const }
+
+  const product = await new FirestoreCatalogRepository(adminDb()).getProduct(ctx, p.productId as ProductId)
+  if (!product || !product.active || !product.onlineSellable) return { ok: false as const, reason: 'unavailable' as const }
+
+  const phone = normalizePhone(p.buyerPhone)
+  if (!phone.ok) return { ok: false as const, reason: 'invalid_phone' as const }
+
+  const { provider, config } = await paymentProviderFor(ctx)
+  if (!provider.configured) return { ok: false as const, reason: 'not_configured' as const }
+
+  const settings = await new FirestoreSchedulingRepository(adminDb()).getStudioSettings(ctx)
+  const surcharge = cardSurchargeKurus(product.priceInKurus, product.category, settings?.paymentSurcharge)
+  const amount = money(product.priceInKurus + surcharge)
+  const maxInstallments = settings?.paymentSurcharge?.maxInstallments ?? 3
+
+  const nowMs = systemClock.now()
+  const nowTr = new Date(nowMs + 3 * 3_600_000)
+  const validFrom = nowTr.toISOString().slice(0, 10)
+  const validUntil = product.durationDays > 0 ? new Date(nowTr.getTime() + product.durationDays * 86_400_000).toISOString().slice(0, 10) : null
+  const email = p.buyerEmail ? p.buyerEmail : null
+
+  const providerRef = randomUUID().replace(/-/g, '')
+  const id = `pin_${providerRef.slice(0, 20)}`
+  const intent: PaymentIntent = {
+    id,
+    studioId: ctx.studioId,
+    memberId: 'unattributed', // resolved (found-or-created) on the callback, from the buyer context
+    saleId: `sal_${providerRef.slice(0, 20)}`,
+    purpose: 'public_membership',
+    amount,
+    provider: 'paytr',
+    flow: 'link',
+    providerRef,
+    redirectUrl: null,
+    idempotencyKey: providerRef,
+    status: 'draft',
+    context: {
+      productId: product.id as string,
+      priceAgreedKurus: amount.amount,
+      validFrom,
+      validUntil,
+      buyerName: p.buyerName.trim(),
+      buyerPhone: phone.value.e164,
+      buyerEmail: email,
+      kvkkConsentAt: new Date(nowMs).toISOString(),
+      note: 'Online üyelik satışı',
+    },
+    expiresAt: null,
+    failureReason: null,
+    refundedAmount: money(0),
+    createdBy: ctx.actor,
+    createdAt: instant(nowMs),
+    updatedAt: instant(nowMs),
+  }
+  const created = decideCreatePaymentIntent(dctx(ctx), intent)
+  await intentRepo().saveIntent(ctx, created.next, created.events)
+
+  const checkout = await provider.createCheckout('link', {
+    intentId: id,
+    providerRef,
+    amount,
+    itemName: product.name,
+    memberName: p.buyerName.trim(),
+    memberEmail: email,
+    memberPhone: phone.value.e164,
+    userIp: '85.34.78.112',
+    okUrl: `${baseUrl(config)}/uyelik?s=${ctx.studioId}&ok=1`,
+    failUrl: `${baseUrl(config)}/uyelik?s=${ctx.studioId}&fail=1`,
+    callbackUrl: callbackUrl(ctx, config),
+    testMode: config.testMode,
+    expiresInSeconds: 30 * 60,
+    maxInstallment: maxInstallments,
+  })
+  if (!checkout.ok || !checkout.redirectUrl) return { ok: false as const, reason: 'checkout_failed' as const }
+
+  const session = decideSessionCreated(dctx(ctx), created.next, checkout.redirectUrl, checkout.expiresAt ? instant(checkout.expiresAt) : null)
+  await intentRepo().saveIntent(ctx, session.next, session.events)
+  return { ok: true as const, redirectUrl: checkout.redirectUrl }
+}
+
 function baseUrl(config: { callbackUrl: string }): string {
   try {
     return new URL(config.callbackUrl).origin
