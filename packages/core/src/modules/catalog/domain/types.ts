@@ -52,4 +52,8 @@ export interface Product {
   readonly components: readonly ProductComponent[] | null
   readonly description: string
   readonly active: boolean
+  // Online üyelik satışı: TRUE ⇒ this package appears on the public sales page and a customer may buy it
+  // herself (card, PAYTR). DATA, owner-controlled. Default FALSE — nothing is sellable online until the
+  // owner opts it in (PT/private stays off; coordination-heavy). Absent on products created before this.
+  readonly onlineSellable: boolean
 }

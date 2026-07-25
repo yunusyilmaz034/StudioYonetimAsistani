@@ -37,6 +37,7 @@ const product = (over: Partial<Product> = {}): Product => ({
   components: null,
   description: '',
   active: true,
+  onlineSellable: false,
   ...over,
 })
 

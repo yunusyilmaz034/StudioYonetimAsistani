@@ -29,6 +29,7 @@ export function productToFirestore(p: Product): DocumentData {
     components: p.components ?? null,
     description: p.description,
     active: p.active,
+    onlineSellable: p.onlineSellable,
     updatedAt: FieldValue.serverTimestamp(),
   }
 }
@@ -52,6 +53,9 @@ export function productFromFirestore(id: ProductId, d: DocumentData): Product {
     components: (d.components as ProductComponent[] | null | undefined) ?? null,
     description: (d.description as string | undefined) ?? '',
     active: d.active !== false,
+    // Legacy products (created before online sale existed) default to OFF — nothing becomes sellable
+    // online just because it predates the flag.
+    onlineSellable: d.onlineSellable === true,
   }
 }
 

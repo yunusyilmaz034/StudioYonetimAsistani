@@ -78,6 +78,9 @@ export function ProductForm({
   const [description, setDescription] = useState(product?.description ?? '')
   const [serviceIds, setServiceIds] = useState<string[]>([...(product?.serviceIds ?? [])])
   const [active, setActive] = useState(product?.active ?? true)
+  // Online üyelik satışı — this package shows on the public sales page and members can buy it themselves.
+  // Never available for PT/private (coordination-heavy); the toggle is hidden there.
+  const [onlineSellable, setOnlineSellable] = useState(product?.onlineSellable ?? false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -120,6 +123,7 @@ export function ProductForm({
       entryAllowance: isBundle ? null : type === 'period' ? entryAllowance : null,
       components: comps,
       description: description.trim(),
+      onlineSellable,
     }
     try {
       const res = product
@@ -354,6 +358,14 @@ export function ProductForm({
       <Field id="p-desc" label="Açıklama">
         <Textarea id="p-desc" value={description} onChange={(e) => setDescription(e.target.value)} />
       </Field>
+
+      {/* Online satış — PT/private hariç. Bundle'ın online yüzü pilates_group olduğu için demetler de açılabilir. */}
+      {(isBundle ? 'pilates_group' : category) !== 'private' ? (
+        <label className="flex items-center gap-2 text-sm">
+          <Checkbox checked={onlineSellable} onCheckedChange={(v) => setOnlineSellable(v === true)} />
+          Online satışa aç (üye kendisi satın alabilir)
+        </label>
+      ) : null}
 
       {product ? (
         <label className="flex items-center gap-2 text-sm">

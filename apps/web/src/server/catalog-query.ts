@@ -38,6 +38,7 @@ export interface ProductView {
   readonly components: readonly ProductComponent[] | null
   readonly description: string
   readonly active: boolean
+  readonly onlineSellable: boolean
 }
 
 export async function listProducts(ctx: TenantContext): Promise<readonly ProductView[]> {
@@ -60,6 +61,7 @@ export async function listProducts(ctx: TenantContext): Promise<readonly Product
       components: (p as { components?: readonly ProductComponent[] | null }).components ?? null,
       description: p.description,
       active: p.active,
+      onlineSellable: p.onlineSellable,
     }))
     .sort((a, b) => a.name.localeCompare(b.name, 'tr'))
 }

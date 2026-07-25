@@ -20,6 +20,9 @@ export type ProductCreatedPayload = {
   // Hibrit paket (v1.30) — additive. Present ONLY on a bundle product; absent on a normal product and
   // on every product created before bundles existed (a bundle-less past is not invented, I-30).
   readonly components?: readonly ProductComponent[]
+  // Online üyelik satışı — additive. Stamped ONLY when the product is opted into online sale; absent
+  // otherwise and on every product created before this existed (default off is not a written fact).
+  readonly onlineSellable?: boolean
 }
 
 export type ProductUpdatedPayload = {

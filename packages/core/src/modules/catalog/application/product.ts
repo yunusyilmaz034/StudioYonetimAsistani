@@ -27,6 +27,7 @@ export interface ProductFields {
   readonly entryAllowance: number | null // v1.27 — fitness serbest-giriş cap; null ⇒ unlimited
   readonly components: readonly ProductComponent[] | null // v1.30 — hibrit demet bileşenleri; null ⇒ normal ürün
   readonly description: string
+  readonly onlineSellable: boolean // online üyelik satışı — public satış sayfasında görünür mü
 }
 
 // D12 — a package must name the services it covers. Without this, "covers nothing" and
@@ -79,6 +80,7 @@ export async function updateProduct(
     components: input.components,
     description: input.description,
     active: input.active,
+    onlineSellable: input.onlineSellable,
   }
   const events = decideUpdateProduct(decideContext(deps, ctx), current, next)
   if (events.length === 0) return { ok: true, value: undefined }

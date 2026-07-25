@@ -50,6 +50,7 @@ const fields = z.object({
     .nullable()
     .default(null),
   description: z.string(),
+  onlineSellable: z.boolean().default(false),
 })
 
 function toFields(p: z.infer<typeof fields>) {
@@ -69,6 +70,8 @@ function toFields(p: z.infer<typeof fields>) {
     entryAllowance: p.type === 'period' ? p.entryAllowance : null,
     components: (p.components as ProductComponent[] | null) ?? null,
     description: p.description,
+    // PT/private is never online (coordination-heavy); the form also hides the toggle for it.
+    onlineSellable: p.category === 'private' ? false : p.onlineSellable,
   }
 }
 
