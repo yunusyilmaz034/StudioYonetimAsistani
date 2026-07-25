@@ -53,6 +53,22 @@ const COPY: Record<string, Copy> = {
     what: 'Paketin süresi doluyor ama üzerinde henüz sonuçlanmamış bir rezervasyon duruyor.',
     todo: 'Bu üyelerin yoklamasını bugün işaretleyin; aksi hâlde kredi paketle birlikte kapanır.',
   },
+  // ── Servis sağlığı (2026-07-26) ──
+  ai_not_replying: {
+    title: 'WhatsApp asistanı cevap vermiyor',
+    what: 'Yazan kişiler var ama asistan yanıt üretmedi. Onların ekranında mesaj okunmuş gibi duruyor, cevap gelmiyor.',
+    todo: 'Sohbetler ekranından bu kişilere elle yazın — bekleyen bir müşteri, kaybedilen bir müşteridir. Sonra bize haber verin.',
+  },
+  notifications_failing: {
+    title: 'Bildirimler gönderilemiyor',
+    what: 'Son saatlerdeki gönderimlerin büyük kısmı başarısız. Sistem "gönderildi" der ama üyeye ulaşmıyor.',
+    todo: 'Bugün önemli bir duyuru yaptıysanız ulaştığını varsaymayın. Bize bildirin — genelde WhatsApp şablonu ya da erişim anahtarıyla ilgilidir.',
+  },
+  payments_stuck: {
+    title: 'Online ödemeler yanıt bekliyor',
+    what: 'Birden fazla ödeme başlatıldı ama sonucu bize ulaşmadı. Üyenin kartından çekilmiş olabilir; bizde "bekliyor" görünüyor.',
+    todo: 'Bu üyeler ödeme yaptığını söylüyorsa paketlerini elle tanımlayın ve bize bildirin. Ödeme sağlayıcısıyla bağlantımız kopmuş olabilir.',
+  },
 }
 
 export function SystemAlerts() {

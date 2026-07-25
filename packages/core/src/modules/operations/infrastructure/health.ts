@@ -23,11 +23,21 @@ import { DEFAULT_STUDIO_CONFIG, instant, localDateAt, type StudioId } from '../.
 const MS_PER_MIN = 60_000
 
 export type HealthAlert =
+  // ── DATA health: is what we stored still true? ──
   | 'commands_stuck'
   | 'projection_lag'
   | 'booked_count_drift'
   | 'credit_ledger_drift'
   | 'expiring_with_held'
+  // ── SERVICE health: is the thing still doing its job? ──
+  //
+  // Added after 2026-07-25, when the WhatsApp receptionist stopped answering for six hours and every
+  // existing check stayed green — because every existing check asked whether the DATA was correct,
+  // and none asked whether the SERVICE was alive. Three customers were left on read; the owner found
+  // it by looking at a screen, which is not a monitoring strategy.
+  | 'ai_not_replying'
+  | 'notifications_failing'
+  | 'payments_stuck'
 
 export interface HealthFinding {
   readonly alert: HealthAlert
@@ -236,13 +246,125 @@ async function expiringWithHeld(db: Firestore, studioId: StudioId, now: number):
   }
 }
 
-/** The two cheap checks. Run every fifteen minutes by the alarm; run on every load of the screen. */
+// ── SERVICE SIGNALS ─────────────────────────────────────────────────────────────────────────
+//
+// Every one of these reads a small collection whole and filters in memory, rather than issuing a
+// composite query. Deliberate: a health check that needs its own Firestore index is a health check
+// that works locally and 500s in production the first time it matters (and the emulator will not
+// warn you — it does not enforce indexes). These collections are small by nature; when one is not,
+// it is capped with `limit`.
+
+/**
+ * SIGNAL 6 — the AI receptionist has gone quiet.
+ *
+ * A prospective member wrote, the assistant produced nothing, and WhatsApp shows her message sitting
+ * there unanswered. Nothing errors: the webhook returns 200, the conversation is stored, and the
+ * only trace is a warning in a log nobody reads. This is a lead walking away in silence.
+ *
+ * Only counts conversations the AI is supposed to be handling: a thread a human took over is not
+ * unanswered, it is being answered by a person.
+ */
+async function aiNotReplying(db: Firestore, studioId: StudioId, now: number): Promise<HealthFinding | null> {
+  const ai = await db.collection('studios').doc(studioId).collection('settings').doc('ai').get()
+  if (ai.get('whatsappActive') !== true) return null // the owner switched it off; silence is correct
+
+  const convs = await col(db, studioId, 'conversations').limit(500).get()
+  const waiting = convs.docs.filter((d) => {
+    const data = d.data() as { status?: string; messages?: { role?: string; at?: number }[] }
+    if (data.status !== 'ai') return false
+    const last = data.messages?.[data.messages.length - 1]
+    // Her message, unanswered, and old enough that a working assistant would have replied. The
+    // webhook answers within seconds; ten minutes is not slowness, it is failure.
+    return last?.role === 'user' && typeof last.at === 'number' && last.at < now - 10 * MS_PER_MIN
+  })
+
+  if (waiting.length === 0) return null
+  return {
+    alert: 'ai_not_replying',
+    severity: 'critical',
+    count: waiting.length,
+    ids: waiting.slice(0, 10).map((d) => d.id),
+    detail: `en eskisi ${Math.round((now - Math.min(...waiting.map((d) => (d.data() as { messages?: { at?: number }[] }).messages?.slice(-1)[0]?.at ?? now))) / MS_PER_MIN)} dk önce yazdı`,
+  }
+}
+
+/**
+ * SIGNAL 7 — messages are not leaving the building.
+ *
+ * The studio believes it reminded thirty members about tomorrow's class. The provider rejected every
+ * one of them — a dead token, a suspended number, an unapproved template. The pipeline records this
+ * honestly on each attempt and then nobody looks.
+ *
+ * `provider_not_configured` counts too: a channel with no credentials is a channel that silently
+ * sends nothing, which is exactly the failure this catches.
+ */
+async function notificationsFailing(db: Firestore, studioId: StudioId, now: number): Promise<HealthFinding | null> {
+  const since = now - 6 * 60 * MS_PER_MIN
+  const recent = await col(db, studioId, 'deliveryAttempts').orderBy('createdAt', 'desc').limit(200).get()
+  const window = recent.docs.filter((d) => {
+    const at = d.get('createdAt') as Timestamp | undefined
+    return at ? at.toMillis() >= since : false
+  })
+  if (window.length < 5) return null // too few to judge — one failure out of two proves nothing
+
+  const bad = window.filter((d) => {
+    const s = d.get('status') as string
+    return s === 'failed' || s === 'provider_not_configured'
+  })
+  // A third of recent sends failing is a broken channel, not bad luck.
+  if (bad.length * 3 < window.length) return null
+  return {
+    alert: 'notifications_failing',
+    severity: 'critical',
+    count: bad.length,
+    ids: bad.slice(0, 10).map((d) => d.id),
+    detail: `son 6 saatte ${window.length} denemenin ${bad.length} tanesi başarısız`,
+  }
+}
+
+/**
+ * SIGNAL 8 — money started moving and never arrived.
+ *
+ * A member began an online payment and the intent has sat in `awaiting_payment` ever since. One is a
+ * customer who changed her mind. Several, all stuck, is the callback not reaching us — which is a
+ * real failure this studio has already lived through once (PAYTR could not reach the App Hosting IP;
+ * the fix was moving the callback to a Cloud Function). It is silent by construction: the member is
+ * charged, we never hear, and nothing on any screen looks wrong.
+ */
+async function paymentsStuck(db: Firestore, studioId: StudioId, now: number): Promise<HealthFinding | null> {
+  const open = await col(db, studioId, 'paymentIntents').where('status', '==', 'awaiting_payment').limit(100).get()
+  const stale = open.docs.filter((d) => {
+    const at = d.get('createdAt') as Timestamp | undefined
+    return at ? at.toMillis() < now - 2 * 60 * MS_PER_MIN : false
+  })
+  // Two hours abandoned is normal for one shopper. Three of them at once is a pattern.
+  if (stale.length < 3) return null
+  return {
+    alert: 'payments_stuck',
+    severity: 'warning',
+    count: stale.length,
+    ids: stale.slice(0, 10).map((d) => d.id),
+    detail: `${stale.length} ödeme 2 saatten uzun süredir yanıt bekliyor`,
+  }
+}
+
+/** The cheap checks. Run every fifteen minutes by the alarm; run on every load of the screen. */
 export async function runFastChecks(
   db: Firestore,
   studioId: StudioId,
   now: number,
 ): Promise<readonly HealthFinding[]> {
-  const found = await Promise.all([stuckCommands(db, studioId, now), projectionLag(db, studioId, now)])
+  // Each is isolated: one collection missing (a studio with no conversations yet) must not blind the
+  // others. A monitor that reports nothing because one query threw is worse than no monitor.
+  const found = await Promise.all(
+    [
+      stuckCommands(db, studioId, now),
+      projectionLag(db, studioId, now),
+      aiNotReplying(db, studioId, now),
+      notificationsFailing(db, studioId, now),
+      paymentsStuck(db, studioId, now),
+    ].map((p) => p.catch(() => null)),
+  )
   return found.filter((f): f is HealthFinding => f !== null)
 }
 
