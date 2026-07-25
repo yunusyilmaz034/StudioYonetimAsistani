@@ -169,9 +169,12 @@ export interface CreateIntentInput {
   // Plus Phase 5 — the RESOLVED template: the studio's override if it has one, else the code seed.
   // The caller resolves it so this stays pure. Absent ⇒ fall back to the code catalogue.
   readonly template?: NotificationTemplate
-  // A DELIBERATE channel override (a desk-initiated WhatsApp template send): the staff explicitly
-  // chose the channel, so it is used verbatim, bypassing the consent-derived selection. Manual, 1:1,
-  // owner-driven — never a path an automated event can take. Absent ⇒ consent decides (the default).
+  // A DELIBERATE channel override, used verbatim and bypassing the consent-derived selection. Two
+  // callers may set it, and only these two: (1) a desk-initiated WhatsApp template send — staff chose
+  // the channel, manual and 1:1; (2) the online-sale invite (blok 2c) — she gave this number to buy a
+  // membership seconds ago and the message IS how she reaches what she paid for, so there is no
+  // preference yet to consult. NOT a general licence for automated sends: anything the member could
+  // reasonably want to switch off must go through consent. Absent ⇒ consent decides (the default).
   readonly forceChannels?: readonly Channel[]
 }
 

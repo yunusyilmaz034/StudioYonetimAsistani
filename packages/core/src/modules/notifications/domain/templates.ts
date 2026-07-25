@@ -210,15 +210,19 @@ export const TEMPLATES: Readonly<Record<string, NotificationTemplate>> = {
     subject: 'Taksit ödemeniz yaklaşıyor',
     body: 'Merhaba {{memberName}}, {{dueDate}} tarihinde {{amount}} tutarında taksit ödemeniz bulunuyor.',
   },
+  // Sent BY THE CODE PATH THAT HOLDS THE RAW TOKEN — reception's invite panel, or the online-sale
+  // callback (blok 2c). Never off `member.invited`: the token is deliberately absent from that event
+  // (a secret in an append-only log is unrecoverable), so an event-driven send could only ever carry
+  // a link that opens nothing.
   portal_invite: {
     id: 'portal_invite',
-    version: 1,
-    name: 'Üye portalı daveti',
+    version: 2,
+    name: 'Üyelik daveti',
     category: 'operational',
     priority: 'high',
     requiredParams: ['memberName', 'inviteLink'],
-    subject: 'Üye portalınıza davet',
-    body: 'Merhaba {{memberName}}, üye portalınıza şu adresten giriş yapabilirsiniz: {{inviteLink}}',
+    subject: 'Üyeliğiniz hazır',
+    body: 'Merhaba {{memberName}} 🌸 Üyeliğiniz hazır! Rezervasyonlarınızı ve derslerinizi yönetmek için üye portalına giriş yapın: {{inviteLink}}',
   },
   wallet_topup: {
     id: 'wallet_topup',

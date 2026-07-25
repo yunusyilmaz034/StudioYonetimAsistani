@@ -11,9 +11,11 @@ import {
   FirestorePaymentLinkRepository,
   FirestorePaytrCollectionRepository,
   instant,
+  intentIdFor,
   issueMemberInvite,
   money,
   newCorrelationId,
+  notify,
   paytrProvider,
   receiveCollection,
   registerMember,
@@ -38,6 +40,9 @@ import { onRequest } from 'firebase-functions/v2/https'
 
 import { db } from '../shared/firebase'
 import { PAYTR_SECRETS, REGION } from '../shared/region'
+// The same dependency builder the notify trigger uses, so an online invite goes out over the SAME real
+// providers a booking confirmation does (`notification-retry` imports it from here too).
+import { notificationDeps, studioNotificationSettings } from '../triggers/on-event-notify'
 
 // ── PAYTR callback, served from a Cloud Function (2026-07-17) ─────────────────────────────────
 //
@@ -100,12 +105,54 @@ async function resolveBuyer(database: Firestore, ctx: TenantContext, c: PaymentI
 }
 
 // A newly-created online buyer has no account yet — mint her portal invite so /invite/{studioId}/{token}
-// works and she can set a password. (The WhatsApp auto-send of the link is a follow-up; today reception
-// sees the new member + pending invite and can send it.)
-async function issueInviteFor(database: Firestore, ctx: TenantContext, memberId: string): Promise<void> {
+// works and she can set a password, then WhatsApp her the link (blok 2c).
+//
+// The send happens HERE, not off `member.invited`, because the raw token exists only in this scope: it
+// is never stored (only its SHA-256) and never entered the event. Whoever mints the token is the only
+// principal that can send a link which actually opens.
+async function issueInviteFor(database: Firestore, ctx: TenantContext, memberId: string, intentId: string): Promise<void> {
   const token = randomBytes(32).toString('base64url')
   const tokenHash = createHash('sha256').update(token).digest('hex')
-  await issueMemberInvite(membersDeps(database), ctx, { memberId: memberId as MemberId, tokenHash })
+  const issued = await issueMemberInvite(membersDeps(database), ctx, { memberId: memberId as MemberId, tokenHash })
+  if (!issued.ok) return
+
+  const base = (process.env.PUBLIC_APP_URL ?? '').replace(/\/+$/, '')
+  if (!base) {
+    // No base URL ⇒ we cannot build a link that opens. Say so loudly rather than send "/invite/…" —
+    // reception still sees the pending invite and can send it by hand.
+    logger.warn('online invite not sent — PUBLIC_APP_URL is not set', { alert: 'invite_base_url_missing', memberId })
+    return
+  }
+
+  const member = await new FirestoreMemberRepository(database).findById(ctx, memberId as MemberId)
+  if (!member) return
+
+  const settings = await studioNotificationSettings(ctx.studioId)
+  const res = await notify(notificationDeps(settings), ctx, {
+    // Derived from the payment intent, so a replayed callback finds the intent already there and
+    // sends nothing — she must not get the same welcome twice.
+    intentId: intentIdFor(intentId, 'portal_invite', memberId),
+    eventId: null,
+    eventType: 'payment_intent.succeeded',
+    operationId: newCorrelationId(),
+    templateId: 'portal_invite',
+    recipient: {
+      kind: 'member',
+      id: member.id,
+      email: member.email ?? null,
+      phone: member.phoneNormalized,
+      displayName: member.fullName,
+    },
+    params: {
+      memberName: member.fullName.split(' ')[0] ?? member.fullName,
+      inviteLink: `${base}/invite/${encodeURIComponent(ctx.studioId)}/${token}`,
+    },
+    // She bought the membership on this phone number seconds ago; this message IS the delivery of what
+    // she paid for (how she reaches it), not marketing. So the channel is forced rather than left to a
+    // preference she has had no chance to set — the same override reception's manual send uses.
+    forceChannels: ['whatsapp', 'in_app'],
+  })
+  if (!res.ok) logger.warn('online invite not sent', { memberId, error: res.error.code })
 }
 
 // Build the studio's provider from its (non-secret) config doc + the secrets from the environment —
@@ -211,7 +258,7 @@ async function completePaidIntent(
             : null,
         })
       }
-      if (invitee) await issueInviteFor(database, ctx, invitee)
+      if (invitee) await issueInviteFor(database, ctx, invitee, intent.id)
       return
     }
 
@@ -257,7 +304,7 @@ async function completePaidIntent(
         providerRef: intent.providerRef,
       },
     })
-    if (invitee) await issueInviteFor(database, ctx, invitee)
+    if (invitee) await issueInviteFor(database, ctx, invitee, intent.id)
     return
   }
 

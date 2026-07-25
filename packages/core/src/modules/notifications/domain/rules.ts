@@ -76,9 +76,10 @@ export const RULES: Readonly<Record<string, readonly IntentRule[]>> = {
   'plan.instalment_due': [
     { template: 'instalment_due', to: 'member', category: 'operational', priority: 'normal' },
   ],
-  'member.invited': [
-    { template: 'portal_invite', to: 'member', category: 'operational', priority: 'high' },
-  ],
+  // `member.invited` is deliberately NOT here (blok 2c). The invite's raw token never enters the
+  // event (members/domain/decide.ts — "never the token"), so a rule-driven send could only render a
+  // link that opens nothing. The invite is sent by whoever MINTED the token: reception's invite
+  // panel, or the online-sale callback, both through `portal_invite` with the real link.
   'wallet.topup': [
     { template: 'wallet_topup', to: 'member', category: 'operational', priority: 'normal' },
   ],

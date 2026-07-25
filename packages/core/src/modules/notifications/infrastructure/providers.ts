@@ -274,7 +274,10 @@ export const META_TEMPLATE: Readonly<Record<string, MetaTemplateRef>> = {
   payment_received: { name: 'payment_received_tr', params: ['memberName', 'amount'] },
   balance_reminder: { name: 'balance_reminder_tr', params: ['memberName', 'amount'] },
   instalment_due: { name: 'instalment_due_tr', params: ['memberName', 'amount', 'dueDate'] },
-  portal_invite: { name: 'portal_invite_tr', params: ['memberName', 'inviteLink'] },
+  // The owner registered this one as `uyelik_daveti` (Utility). The earlier `portal_invite_tr` name
+  // was never approved — Meta read a bare login link as Authentication/OTP — so the copy was reframed
+  // as a welcome ("üyeliğin hazır") and re-submitted under this name.
+  portal_invite: { name: 'uyelik_daveti', params: ['memberName', 'inviteLink'] },
   wallet_topup: { name: 'wallet_topup_tr', params: ['memberName', 'amount', 'balance'] },
   // Ders hatırlatmaları (Utility). The owner registered these Meta templates under these EXACT names
   // (no `_tr` suffix). Pilates carries name + time only ("Reformer Pilates" is fixed copy in the Meta

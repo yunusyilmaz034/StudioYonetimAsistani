@@ -78,6 +78,15 @@ describe('templates & rendering (v1.25)', () => {
     expect(r.error.code).toBe('template_params_missing')
   })
 
+  // The invite's raw token is never in `member.invited` (members/domain/decide.ts: "never the token"),
+  // so a rule-driven send could only render a link that opens nothing. The invite is sent by whoever
+  // MINTED the token — reception's panel, or the online-sale callback. Putting a rule back here would
+  // silently start sending dead links, which is why this is a test and not a comment.
+  it('member.invited routes to NO template — the sender holds the token, not the event', () => {
+    expect(rulesFor('member.invited')).toHaveLength(0)
+    expect(TEMPLATES.portal_invite).toBeDefined() // the template still exists; it is sent by hand
+  })
+
   it('every rule points at a template that exists', () => {
     const referenced = Object.values({ ...TEMPLATES }).length
     expect(referenced).toBeGreaterThan(0)

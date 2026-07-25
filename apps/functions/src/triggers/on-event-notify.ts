@@ -394,8 +394,8 @@ async function resolveParams(
       return { ...base, amount: tl(p.amount) }
     case 'plan.instalment_due':
       return { ...base, amount: tl(p.amount), dueDate: dt(Number(p.dueAt ?? 0)) }
-    case 'member.invited':
-      return { ...base, inviteLink: String(p.inviteUrl ?? '/portal/login') }
+    // `member.invited` has no case: it routes to no template (rules.ts). The raw token is not in the
+    // event, so this trigger can never build a working invite link — the minting code path sends it.
     case 'drawer.discrepancy_recorded':
       return { drawerName: String(p.drawerName ?? 'Kasa'), discrepancy: tl(p.discrepancy) }
     case 'system.operation_failed':

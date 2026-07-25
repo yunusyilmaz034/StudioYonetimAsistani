@@ -19,9 +19,11 @@ import {
   FirestorePaymentLinkRepository,
   FirestorePaytrCollectionRepository,
   instant,
+  intentIdFor,
   issueMemberInvite,
   money,
   newCorrelationId,
+  notify,
   receiveCollection,
   registerMember,
   sellPackage,
@@ -40,6 +42,7 @@ import {
 } from '@studio/core'
 
 import { adminDb } from './firebase-admin'
+import { notificationDeps } from './notification-deps'
 import { paymentProviderFor } from './payment-provider'
 import { grantBundleComponents } from './sell-bundle'
 
@@ -83,12 +86,51 @@ async function resolveBuyer(ctx: TenantContext, c: PaymentIntentContext): Promis
 }
 
 // A newly-created online buyer has no account yet — mint her portal invite so /invite/{studioId}/{token}
-// works and she can set a password. (This web module is the NON-LIVE mirror; the live Cloud Function
-// callback additionally WhatsApps her the link — DEBT-PAYTR-CALLBACK.)
-async function issueInviteFor(ctx: TenantContext, memberId: string): Promise<void> {
+// works and she can set a password, then WhatsApp her the link (blok 2c).
+//
+// The send happens HERE, not off `member.invited`, because the raw token exists only in this scope: it
+// is never stored (only its SHA-256) and never entered the event. Mirror of the Cloud Function branch
+// (DEBT-PAYTR-CALLBACK — the two copies must stay in step).
+async function issueInviteFor(ctx: TenantContext, memberId: string, intentId: string): Promise<void> {
   const token = randomBytes(32).toString('base64url')
   const tokenHash = createHash('sha256').update(token).digest('hex')
-  await issueMemberInvite(membersDeps(), ctx, { memberId: memberId as MemberId, tokenHash })
+  const issued = await issueMemberInvite(membersDeps(), ctx, { memberId: memberId as MemberId, tokenHash })
+  if (!issued.ok) return
+
+  const base = (process.env.PUBLIC_APP_URL ?? '').replace(/\/+$/, '')
+  if (!base) {
+    console.warn('[paytr-callback] online invite not sent — PUBLIC_APP_URL is not set', { memberId })
+    return
+  }
+
+  const member = await new FirestoreMemberRepository(adminDb()).findById(ctx, memberId as MemberId)
+  if (!member) return
+
+  const res = await notify(notificationDeps(), ctx, {
+    // Derived from the payment intent: a replayed callback finds the intent already there and sends
+    // nothing — she must not get the same welcome twice.
+    intentId: intentIdFor(intentId, 'portal_invite', memberId),
+    eventId: null,
+    eventType: 'payment_intent.succeeded',
+    operationId: newCorrelationId(),
+    templateId: 'portal_invite',
+    recipient: {
+      kind: 'member',
+      id: member.id,
+      email: member.email ?? null,
+      phone: member.phoneNormalized,
+      displayName: member.fullName,
+    },
+    params: {
+      memberName: member.fullName.split(' ')[0] ?? member.fullName,
+      inviteLink: `${base}/invite/${encodeURIComponent(ctx.studioId)}/${token}`,
+    },
+    // She bought the membership on this phone seconds ago; this message IS the delivery of what she
+    // paid for, not marketing — so the channel is forced rather than left to a preference she has had
+    // no chance to set.
+    forceChannels: ['whatsapp', 'in_app'],
+  })
+  if (!res.ok) console.warn('[paytr-callback] online invite not sent', { memberId, error: res.error.code })
 }
 
 // COMPLETION — called by the verified callback route ONLY (not a client). Grants the package after
@@ -143,7 +185,7 @@ export async function completePaidIntent(ctx: TenantContext, intent: PaymentInte
           providerRef: intent.providerRef,
         },
       })
-      if (invitee) await issueInviteFor(ctx, invitee)
+      if (invitee) await issueInviteFor(ctx, invitee, intent.id)
       return
     }
 
@@ -191,7 +233,7 @@ export async function completePaidIntent(ctx: TenantContext, intent: PaymentInte
         providerRef: intent.providerRef,
       },
     })
-    if (invitee) await issueInviteFor(ctx, invitee)
+    if (invitee) await issueInviteFor(ctx, invitee, intent.id)
     return
   }
 

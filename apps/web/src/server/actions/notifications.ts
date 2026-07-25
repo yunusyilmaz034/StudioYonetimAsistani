@@ -1,7 +1,6 @@
 'use server'
 
 import {
-  DEFAULT_NOTIFICATION_SETTINGS,
   DEFAULT_PREFS,
   deliver,
   FirestoreMemberRepository,
@@ -11,14 +10,9 @@ import {
   newOperationId,
   notify,
   render,
-  standardNotificationProviders,
-  systemClock,
   TEMPLATES,
-  type MetaWhatsAppConfig,
   type MemberId,
-  type NotificationDeps,
   type NotificationPrefs,
-  type NotificationProvidersConfig,
   type NotificationTemplate,
   type RecipientRef,
 } from '@studio/core'
@@ -26,6 +20,7 @@ import { z } from 'zod'
 
 import { requireMemberContext, requireTenantContext } from '../auth'
 import { adminDb } from '../firebase-admin'
+import { notificationDeps } from '../notification-deps'
 import { resolveSegment } from './engagement'
 
 // The Notification Center is never a "send an SMS" screen (owner). It is the centre of Intent ·
@@ -37,42 +32,9 @@ import { resolveSegment } from './engagement'
 const OPS = ['owner', 'receptionist', 'platform_admin'] as const
 const OWNER = ['owner', 'platform_admin'] as const
 
-// Same config the functions trigger reads, so an owner's manual resend uses the SAME real providers
-// production does — not a console/mock that quietly succeeds while nothing leaves the building.
-function providerConfig(): NotificationProvidersConfig {
-  const config: { email?: { apiKey: string; from: string }; whatsapp?: MetaWhatsAppConfig } = {}
-  const apiKey = process.env.RESEND_API_KEY
-  const from = process.env.EMAIL_FROM
-  if (apiKey && from) config.email = { apiKey, from }
-  const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID
-  const accessToken = process.env.WHATSAPP_ACCESS_TOKEN
-  if (phoneNumberId && accessToken)
-    config.whatsapp = {
-      phoneNumberId,
-      accessToken,
-      ...(process.env.WHATSAPP_API_VERSION ? { apiVersion: process.env.WHATSAPP_API_VERSION } : {}),
-    }
-  return config
-}
-
-const deps = (): NotificationDeps => {
-  const db = adminDb()
-  return {
-    repo: new FirestoreNotificationRepository(db),
-    clock: systemClock,
-    providers: standardNotificationProviders(db, providerConfig()),
-    settings: DEFAULT_NOTIFICATION_SETTINGS,
-    utcOffsetMinutes: 180,
-    loadPrefs: async (ctx, memberId) => {
-      const snap = await db.doc(`studios/${ctx.studioId}/members/${memberId}`).get()
-      return { ...DEFAULT_PREFS, ...((snap.get('notificationPrefs') as NotificationPrefs) ?? {}) }
-    },
-    loadTemplate: async (ctx, templateId) => {
-      const snap = await db.doc(`studios/${ctx.studioId}/notificationTemplates/${templateId}`).get()
-      return snap.exists ? (snap.data() as NotificationTemplate) : null
-    },
-  }
-}
+// The provider registry moved to `server/notification-deps.ts` — a plain module, so the PAYTR
+// callback (which can never be a Server Action) sends over the same real providers this screen does.
+const deps = notificationDeps
 
 // ── Template management (Plus Phase 5) — a per-studio OVERRIDE store over the code seed. Not
 //    event-sourced (like room notes): a template edit is config, and each SEND already keeps its
