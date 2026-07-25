@@ -227,6 +227,19 @@ export const TEMPLATES: Readonly<Record<string, NotificationTemplate>> = {
     subject: 'Üyeliğiniz hazır',
     body: 'Merhaba {{memberName}} 🌸 Üyeliğiniz hazır! Şifrenizi belirleyip giriş yapmak için: {{inviteLink}} — sonraki girişleriniz için adres: {{loginLink}}',
   },
+  // The alarm the OWNER receives, not the member. `urgent` on purpose: quiet hours must not hold it
+  // until 08:00 — a receptionist arriving to a system that broke at 23:00 needs to know at 23:00,
+  // and the whole point of a health check is that nobody is watching the screen when it fires.
+  system_alert: {
+    id: 'system_alert',
+    version: 1,
+    name: 'Sistem uyarısı (sahip)',
+    category: 'operational',
+    priority: 'urgent',
+    requiredParams: ['alertTitle', 'alertDetail'],
+    subject: 'Sistem uyarısı: {{alertTitle}}',
+    body: '⚠️ {{alertTitle}}\n{{alertDetail}}\n\nPanelde İşlemler → Sistem Uyarıları ekranından ne yapmanız gerektiğini görebilirsiniz.',
+  },
   wallet_topup: {
     id: 'wallet_topup',
     version: 1,
