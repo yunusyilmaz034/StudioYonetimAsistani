@@ -45,6 +45,13 @@ describe('middleware — the coarse gate', () => {
   it('lets the cookie-less shareable payment page through — a customer pays without an account (PF-37)', () => {
     expect(locationOf(middleware(request('/pay/plink_abc?s=retro')))).toBeNull()
   })
+
+  // The online sales page and the price list the marketing site reads. `/pay` once shipped behind the
+  // guard and showed strangers a STAFF LOGIN; every public route belongs in the allowlist and in a test.
+  it('lets the cookie-less online sales page and its public price list through', () => {
+    expect(locationOf(middleware(request('/uyelik?s=retro')))).toBeNull()
+    expect(locationOf(middleware(request('/api/public/products?s=retro')))).toBeNull()
+  })
 })
 
 describe('DEBT-012 — a stale cookie must never become a redirect loop', () => {

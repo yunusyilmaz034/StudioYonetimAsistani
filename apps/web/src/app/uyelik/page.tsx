@@ -26,7 +26,11 @@ export async function generateMetadata({ searchParams }: { searchParams: Promise
 // auth ever runs. Anyone with the link (web homepage, WhatsApp, Instagram) opens it, picks a package, and
 // pays by card via PAYTR. On success the member is created-or-found and the package granted by the
 // verified callback; an app invite is sent by WhatsApp. `?s=` carries the studio; `?ok`/`?fail` are PAYTR's return.
-export default async function UyelikPage({ searchParams }: { searchParams: Promise<{ s?: string; ok?: string; fail?: string }> }) {
+export default async function UyelikPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ s?: string; p?: string; ok?: string; fail?: string }>
+}) {
   const sp = await searchParams
   const studioId = sp.s ?? ''
   const res = studioId ? await getPublicProductsAction({ studioId }) : ({ ok: false as const, studioName: 'Stüdyo', items: [] })
@@ -66,7 +70,7 @@ export default async function UyelikPage({ searchParams }: { searchParams: Promi
           Şu anda online satışa açık paket yok. Lütfen stüdyoyla iletişime geç.
         </p>
       ) : (
-        <UyelikForm studioId={studioId} items={res.items} />
+        <UyelikForm studioId={studioId} items={res.items} {...(sp.p ? { initialProductId: sp.p } : {})} />
       )}
 
       <p className="text-center text-xs text-muted-foreground">

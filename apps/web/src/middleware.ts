@@ -28,6 +28,8 @@ const PUBLIC_PREFIXES = [
   '/pay',
   // Online üyelik satışı — the public sales page. Anyone (web / WhatsApp / Instagram) opens it, no session.
   '/uyelik',
+  // The online price list as JSON, read by the marketing site. Same data the sales page renders.
+  '/api/public',
   '/api/member',
   '/api/payments/paytr/callback',
   // Public privacy policy / KVKK notice — the URL the app stores and members link to. No session.

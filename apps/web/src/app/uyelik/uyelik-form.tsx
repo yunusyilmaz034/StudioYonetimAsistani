@@ -27,8 +27,20 @@ export interface UyelikItem {
   readonly totalKurus: number
 }
 
-export function UyelikForm({ studioId, items }: { studioId: string; items: readonly UyelikItem[] }) {
-  const [productId, setProductId] = useState(items[0]?.id ?? '')
+export function UyelikForm({
+  studioId,
+  items,
+  initialProductId,
+}: {
+  studioId: string
+  items: readonly UyelikItem[]
+  // The marketing site links straight to a package (`?p=`). An unknown id falls back to the first —
+  // a stale link from an old post must still land on a working page, never on an empty one.
+  initialProductId?: string
+}) {
+  const [productId, setProductId] = useState(
+    (initialProductId && items.some((i) => i.id === initialProductId) ? initialProductId : items[0]?.id) ?? '',
+  )
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
   const [email, setEmail] = useState('')
