@@ -29,7 +29,16 @@ Every alarm is a log line at severity `ERROR` carrying a stable `alert` field. C
 log-based alerts match on that field. **If an alarm fires and it is not in this table, that is a
 defect in this file, not an unknown.**
 
-**The same five checks are also on a screen** (v1.27 S7): the owner sees them live at the top of
+**Since 2026-07-26 the checks come in two families.** The original five ask *is the stored data still
+true?*; three new ones ask *is the service still doing its job?* — added the day after the WhatsApp
+receptionist stopped answering for six hours with every check green, because every check was of the
+first kind. `ai_not_replying` (a customer's message unanswered 10+ min while the AI owns the thread),
+`notifications_failing` (a third of recent sends failed or had no provider), `payments_stuck` (three
+or more intents awaiting a callback for 2h+). A **critical** finding now also reaches the owner
+through the notification pipeline at `urgent` priority — an ERROR log reaches a developer's mailbox,
+not the person on the studio floor — deduplicated to one message per alert per six hours.
+
+**The checks are also on a screen** (v1.27 S7): the owner sees them live at the top of
 `/operations`, in her own language, each one saying what to do. The checks themselves live in
 `@studio/core` (`operations/infrastructure/health.ts`) and the scheduled function and the screen run
 **the same code** — two implementations of *"is this studio healthy?"* are two answers, and the day
@@ -139,19 +148,52 @@ holds.
 
 ### Backup and restore
 
-*(Provisioned at go-live, against a real project — see B5. The procedure, so it is not invented
-under pressure:)*
+**Provisioned and REHEARSED (2026-07-26). This is no longer a plan; the numbers below were measured.**
+
+Firestore *managed backups* run on a schedule set on 2026-07-14 — nothing to maintain, no bucket to
+own, no export job that can silently stop:
+
+| Schedule | Kept |
+|---|---|
+| Daily | 7 days |
+| Weekly (Sunday) | 98 days |
+
+The hour is chosen by Google and cannot be pinned (managed backups take no time argument). That is
+not worth trading away: a scheduled export to a bucket *can* be timed, but it is a job that fails
+silently, and a backup nobody notices has stopped is worse than one at an inconvenient hour.
 
 ```bash
-# Scheduled daily export to Cloud Storage
-gcloud firestore export gs://<bucket>/backups/$(date +%F) --project <prod>
-
-# Restore — into a SEPARATE database or project first, never over the live one
-gcloud firestore import gs://<bucket>/backups/<date> --project <staging>
+gcloud firestore backups schedules list --database="(default)" --project <prod>
+gcloud firestore backups list --project <prod>          # what actually exists, with state
 ```
 
-> **A backup whose restore has never been rehearsed is not a backup.** It is a bill. The go-live
-> checklist contains a restore rehearsal for exactly this reason, and it is not optional.
+**Restore — into a SEPARATE database, never over the live one.** Firestore refuses to restore onto a
+database that already has data, so there is no way to overwrite production by mistake; the rehearsal
+still uses a fresh name, because "there is no way" is a thing people say before an outage.
+
+```bash
+gcloud firestore databases restore \
+  --source-backup=projects/<prod>/locations/eur3/backups/<id> \
+  --destination-database=restore-provasi --project <prod>
+
+# verify by reading the COPY (@google-cloud/firestore, databaseId: 'restore-provasi'), then:
+gcloud firestore databases delete --database=restore-provasi --project <prod> --quiet
+```
+
+**Rehearsal result, 2026-07-26** — restored the 2026-07-25 backup: 119 members and 56 packages,
+matching live exactly; 24 reservations against 39 live, which is *correct* — the backup predates a
+day's bookings. Documents read cleanly. Total time a few minutes; the live database was never
+addressed and was re-verified intact afterwards.
+
+**Storage is a separate problem, and it was not covered.** Firestore backups hold the database only —
+member contracts, KVKK forms and training photos live in Cloud Storage. As of 2026-07-26 that bucket
+has **object versioning on** (an overwrite or delete keeps the previous copy) plus a lifecycle rule
+that drops non-current versions after 90 days, and Google's own 7-day soft-delete underneath. This
+protects against the likely accident — someone deleting the wrong file. It does **not** protect
+against losing the bucket itself; a cross-bucket copy is the next step if the archive grows to
+matter (it was 1.6 MB at the time of writing).
+
+> **A backup whose restore has never been rehearsed is not a backup.** It is a bill.
 
 Note what a restore **cannot** do: the event log is append-only and authoritative. Restoring an
 older snapshot does not "undo" the events written since — it loses them. A restore is a
