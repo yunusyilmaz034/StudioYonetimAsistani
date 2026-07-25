@@ -6,19 +6,24 @@
 // PAYTR callback carries no owner session — the HMAC hash IS the authentication). Living here, they are
 // importable only by other server code (the callback route), never by the browser. Moving them out of
 // `actions/payments.ts` closes a remote, cross-tenant free-grant hole.
+import { createHash, randomBytes } from 'node:crypto'
+
 import {
   collect,
   decideCallbackResult,
   FirestoreCatalogRepository,
   FirestoreEntitlementRepository,
   FirestoreFinanceRepository,
+  FirestoreMemberRepository,
   FirestorePaymentIntentRepository,
   FirestorePaymentLinkRepository,
   FirestorePaytrCollectionRepository,
   instant,
+  issueMemberInvite,
   money,
   newCorrelationId,
   receiveCollection,
+  registerMember,
   sellPackage,
   systemClock,
   topUpWallet,
@@ -26,7 +31,9 @@ import {
   type CallbackVerdict,
   type Grant,
   type MemberId,
+  type MembersDeps,
   type PaymentIntent,
+  type PaymentIntentContext,
   type ProductId,
   type SellPackageDeps,
   type TenantContext,
@@ -55,6 +62,35 @@ function dayMs(localDate: string): number {
   return Date.UTC(y ?? 1970, (m ?? 1) - 1, d ?? 1) - OFFSET_MIN * 60_000
 }
 
+const membersDeps = (): MembersDeps => ({ repo: new FirestoreMemberRepository(adminDb()), clock: systemClock, source: 'system_payment' })
+
+// Online purchase: resolve the buyer to a member. registerMember reports the EXISTING member's id on a
+// phone collision (AD-40 — never merged), so this is a clean find-or-create — a new customer is created,
+// an existing one (a renewal) is reused.
+async function resolveBuyer(ctx: TenantContext, c: PaymentIntentContext): Promise<{ memberId: string; created: boolean } | null> {
+  const reg = await registerMember(membersDeps(), ctx, {
+    fullName: (c.buyerName ?? '').trim() || 'Üye',
+    phone: c.buyerPhone ?? '',
+    homeBranchId: (ctx.branchIds[0] ?? null) as BranchId | null,
+    email: c.buyerEmail ?? null,
+    birthDate: null,
+    notes: 'Online üyelik satışı',
+    emergencyContact: null,
+  })
+  if (reg.ok) return { memberId: reg.value.memberId as string, created: true }
+  if (reg.error.code === 'phone_already_registered') return { memberId: (reg.error as { memberId: string }).memberId, created: false }
+  return null
+}
+
+// A newly-created online buyer has no account yet — mint her portal invite so /invite/{studioId}/{token}
+// works and she can set a password. (This web module is the NON-LIVE mirror; the live Cloud Function
+// callback additionally WhatsApps her the link — DEBT-PAYTR-CALLBACK.)
+async function issueInviteFor(ctx: TenantContext, memberId: string): Promise<void> {
+  const token = randomBytes(32).toString('base64url')
+  const tokenHash = createHash('sha256').update(token).digest('hex')
+  await issueMemberInvite(membersDeps(), ctx, { memberId: memberId as MemberId, tokenHash })
+}
+
 // COMPLETION — called by the verified callback route ONLY (not a client). Grants the package after
 // payment, records the online payment in the ledger with the real providerRef. Idempotent via the
 // intent status (a replayed callback finds it terminal and does nothing).
@@ -69,16 +105,27 @@ export async function completePaidIntent(ctx: TenantContext, intent: PaymentInte
   await intentRepo().saveIntent(ctx, decided.value.next, decided.value.events)
   if (!decided.value.completed) return
 
-  if (intent.purpose === 'package' || intent.purpose === 'renewal') {
+  if (intent.purpose === 'package' || intent.purpose === 'renewal' || intent.purpose === 'public_membership') {
     const product = await new FirestoreCatalogRepository(adminDb()).getProduct(ctx, intent.context.productId as ProductId)
     if (!product) return // reconciliation will flag: paid but no product
+
+    // A public purchase may come from someone who is not a member yet — find-or-create her from the
+    // buyer context. The staff/member flows already carry a real memberId.
+    let memberId = intent.memberId
+    let invitee: string | null = null
+    if (intent.purpose === 'public_membership') {
+      const resolved = await resolveBuyer(ctx, intent.context)
+      if (!resolved) return // couldn't create — reconciliation flags (paid, no grant)
+      memberId = resolved.memberId
+      if (resolved.created) invitee = resolved.memberId
+    }
 
     // Hibrit demet: grant one entitlement PER COMPONENT; the primary carries the price + the online
     // payment, the rest are granted at 0. Same multi-grant the manual + link paths use.
     if (product.components && product.components.length > 0) {
       await grantBundleComponents(sellDeps(), ctx, {
         product,
-        memberId: intent.memberId as string,
+        memberId,
         branchId: (ctx.branchIds[0] ?? null) as never,
         primaryPriceKurus: intent.context.priceAgreedKurus ?? intent.amount.amount,
         componentOverrides: intent.context.componentOverrides ?? null,
@@ -96,6 +143,7 @@ export async function completePaidIntent(ctx: TenantContext, intent: PaymentInte
           providerRef: intent.providerRef,
         },
       })
+      if (invitee) await issueInviteFor(ctx, invitee)
       return
     }
 
@@ -106,7 +154,7 @@ export async function completePaidIntent(ctx: TenantContext, intent: PaymentInte
     await sellPackage(sellDeps(), ctx, {
       branchId: (ctx.branchIds[0] ?? null) as never,
       subscription: {
-        memberId: intent.memberId as MemberId,
+        memberId: memberId as MemberId,
         productId: product.id,
         productSnapshot: {
           productId: product.id,
@@ -143,6 +191,8 @@ export async function completePaidIntent(ctx: TenantContext, intent: PaymentInte
         providerRef: intent.providerRef,
       },
     })
+    if (invitee) await issueInviteFor(ctx, invitee)
+    return
   }
 
   if (intent.purpose === 'collection') {

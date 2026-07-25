@@ -1,17 +1,22 @@
+import { createHash, randomBytes } from 'node:crypto'
+
 import {
   collect,
   decideCallbackResult,
   FirestoreCatalogRepository,
   FirestoreEntitlementRepository,
   FirestoreFinanceRepository,
+  FirestoreMemberRepository,
   FirestorePaymentIntentRepository,
   FirestorePaymentLinkRepository,
   FirestorePaytrCollectionRepository,
   instant,
+  issueMemberInvite,
   money,
   newCorrelationId,
   paytrProvider,
   receiveCollection,
+  registerMember,
   sellPackage,
   systemClock,
   topUpWallet,
@@ -19,7 +24,9 @@ import {
   type CallbackVerdict,
   type Grant,
   type MemberId,
+  type MembersDeps,
   type PaymentIntent,
+  type PaymentIntentContext,
   type PaymentProviderPort,
   type ProductId,
   type SellPackageDeps,
@@ -73,6 +80,34 @@ function dayMs(localDate: string): number {
   return Date.UTC(y ?? 1970, (m ?? 1) - 1, d ?? 1) - OFFSET_MIN * 60_000
 }
 
+const membersDeps = (database: Firestore): MembersDeps => ({ repo: new FirestoreMemberRepository(database), clock: systemClock, source: 'system_payment' })
+
+// Online purchase: find-or-create the buyer. registerMember reports the EXISTING member's id on a phone
+// collision (AD-40 — never merged), so a new customer is created and an existing one (renewal) reused.
+async function resolveBuyer(database: Firestore, ctx: TenantContext, c: PaymentIntentContext): Promise<{ memberId: string; created: boolean } | null> {
+  const reg = await registerMember(membersDeps(database), ctx, {
+    fullName: (c.buyerName ?? '').trim() || 'Üye',
+    phone: c.buyerPhone ?? '',
+    homeBranchId: (ctx.branchIds[0] ?? null) as BranchId | null,
+    email: c.buyerEmail ?? null,
+    birthDate: null,
+    notes: 'Online üyelik satışı',
+    emergencyContact: null,
+  })
+  if (reg.ok) return { memberId: reg.value.memberId as string, created: true }
+  if (reg.error.code === 'phone_already_registered') return { memberId: (reg.error as { memberId: string }).memberId, created: false }
+  return null
+}
+
+// A newly-created online buyer has no account yet — mint her portal invite so /invite/{studioId}/{token}
+// works and she can set a password. (The WhatsApp auto-send of the link is a follow-up; today reception
+// sees the new member + pending invite and can send it.)
+async function issueInviteFor(database: Firestore, ctx: TenantContext, memberId: string): Promise<void> {
+  const token = randomBytes(32).toString('base64url')
+  const tokenHash = createHash('sha256').update(token).digest('hex')
+  await issueMemberInvite(membersDeps(database), ctx, { memberId: memberId as MemberId, tokenHash })
+}
+
 // Build the studio's provider from its (non-secret) config doc + the secrets from the environment —
 // the same shape as the web tier's `paymentProviderFor`. Absent config/secrets ⇒ Unconfigured, whose
 // verifyCallback always fails (a callback is never a grant without a verified hash).
@@ -105,9 +140,20 @@ async function completePaidIntent(
   await new FirestorePaymentIntentRepository(database).saveIntent(ctx, decided.value.next, decided.value.events)
   if (!decided.value.completed) return
 
-  if (intent.purpose === 'package' || intent.purpose === 'renewal') {
+  if (intent.purpose === 'package' || intent.purpose === 'renewal' || intent.purpose === 'public_membership') {
     const product = await new FirestoreCatalogRepository(database).getProduct(ctx, intent.context.productId as ProductId)
     if (!product) return // reconciliation will flag: paid but no product
+
+    // A public purchase may come from someone who is not a member yet — find-or-create her from the
+    // buyer context. The staff/member flows already carry a real memberId.
+    let memberId = intent.memberId
+    let invitee: string | null = null
+    if (intent.purpose === 'public_membership') {
+      const resolved = await resolveBuyer(database, ctx, intent.context)
+      if (!resolved) return // couldn't create — reconciliation flags (paid, no grant)
+      memberId = resolved.memberId
+      if (resolved.created) invitee = resolved.memberId
+    }
 
     // Hibrit demet: grant one entitlement PER COMPONENT (primary carries the price + the online
     // payment, rest 0). Inline mirror of apps/web/src/server/sell-bundle.ts (DEBT-PAYTR-CALLBACK: two
@@ -127,7 +173,7 @@ async function completePaidIntent(
         await sellPackage(sellDeps(database), ctx, {
           branchId: (ctx.branchIds[0] ?? null) as never,
           subscription: {
-            memberId: intent.memberId as MemberId,
+            memberId: memberId as MemberId,
             productId: product.id,
             productSnapshot: {
               productId: product.id,
@@ -165,6 +211,7 @@ async function completePaidIntent(
             : null,
         })
       }
+      if (invitee) await issueInviteFor(database, ctx, invitee)
       return
     }
 
@@ -175,7 +222,7 @@ async function completePaidIntent(
     await sellPackage(sellDeps(database), ctx, {
       branchId: (ctx.branchIds[0] ?? null) as never,
       subscription: {
-        memberId: intent.memberId as MemberId,
+        memberId: memberId as MemberId,
         productId: product.id,
         productSnapshot: {
           productId: product.id,
@@ -210,6 +257,8 @@ async function completePaidIntent(
         providerRef: intent.providerRef,
       },
     })
+    if (invitee) await issueInviteFor(database, ctx, invitee)
+    return
   }
 
   // A 'collection' payment — two kinds, told apart by the linkId (mirror of the web tier,
