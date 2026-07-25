@@ -1,0 +1,13 @@
+import { requirePageAccess } from '@/server/auth'
+import { listInviteStatusAction } from '@/server/actions/portal-onboarding'
+
+import { InviteScreen } from './invite-screen'
+
+// PORTAL ONBOARDING — the screen that turns "119 migrated members" into "119 members with an
+// account". Reads the rollout state once, server-side; every send is an explicit operator act on
+// the client screen.
+export default async function BulkInvitePage() {
+  await requirePageAccess('/members')
+  const rows = await listInviteStatusAction()
+  return <InviteScreen rows={rows} />
+}

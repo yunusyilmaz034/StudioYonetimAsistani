@@ -76,6 +76,11 @@ export interface MemberRepository {
   // Looked up by the HASH of the token; the raw token never reaches the database.
   findInviteByHash(ctx: TenantContext, tokenHash: string): Promise<MemberInvite | null>
 
+  // Every invite in the studio, for the DESK's bulk-invite screen: it needs to know who was
+  // already invited, whose link expired unused, and who has actually opened an account — a
+  // question no single member document answers. Reads the hashes but never a raw token.
+  listInvites(ctx: TenantContext): Promise<readonly MemberInvite[]>
+
   // Consume: mark used + append the activation event, atomically. A second attempt with the
   // same link finds `status !== 'pending'` and is refused.
   consumeInvite(

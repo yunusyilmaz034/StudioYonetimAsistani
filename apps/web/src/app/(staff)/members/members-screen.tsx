@@ -1,8 +1,9 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { ArrowDownUpIcon, PlusIcon, SearchIcon, UsersIcon } from 'lucide-react'
+import { ArrowDownUpIcon, PlusIcon, SearchIcon, SendIcon, UsersIcon } from 'lucide-react'
 
 
 import { Badge } from '@/components/ui/badge'
@@ -140,10 +141,20 @@ export function MembersScreen({
         title="Üyeler"
         description={`${members.length} üye`}
         actions={
-          <Button className="min-h-11 sm:min-h-0" onClick={() => setFormOpen(true)}>
-            <PlusIcon />
-            Yeni Üye
-          </Button>
+          <div className="flex gap-2">
+            {/* The portal rollout lives one click from the member list — that is where reception
+                already is when she wonders who still has no account. */}
+            <Link href="/members/invite">
+              <Button variant="outline" className="min-h-11 sm:min-h-0">
+                <SendIcon />
+                Portala davet
+              </Button>
+            </Link>
+            <Button className="min-h-11 sm:min-h-0" onClick={() => setFormOpen(true)}>
+              <PlusIcon />
+              Yeni Üye
+            </Button>
+          </div>
         }
       />
 

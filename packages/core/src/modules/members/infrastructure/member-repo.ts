@@ -172,6 +172,25 @@ export class FirestoreMemberRepository implements MemberRepository {
     }
   }
 
+  // Every invite in the studio — the bulk-invite screen's source of truth for "who already has an
+  // account". One read for the whole studio: an invite document is tiny and there is at most one
+  // live one per member (issueInvite supersedes the rest).
+  async listInvites(ctx: TenantContext): Promise<readonly MemberInvite[]> {
+    const snap = await this.invites(ctx.studioId).get()
+    return snap.docs.map((doc) => {
+      const d = doc.data()
+      return {
+        tokenHash: doc.id,
+        studioId: ctx.studioId,
+        memberId: d.memberId as MemberId,
+        status: d.status as MemberInvite['status'],
+        issuedAt: instant((d.issuedAt as Timestamp).toMillis()),
+        expiresAt: instant((d.expiresAt as Timestamp).toMillis()),
+        consumedAt: d.consumedAt ? instant((d.consumedAt as Timestamp).toMillis()) : null,
+      }
+    })
+  }
+
   async consumeInvite(
     ctx: TenantContext,
     invite: MemberInvite,

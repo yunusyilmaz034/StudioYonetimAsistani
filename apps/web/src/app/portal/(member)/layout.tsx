@@ -1,6 +1,8 @@
+import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 
 import { AnalyticsSetup } from '@/components/analytics-setup'
+import { MemberInstallHint } from '@/components/member-install-hint'
 import { ThemeStyle } from '@/components/theme-style'
 import { Toaster } from '@/components/ui/sonner'
 import { requireMemberContext } from '@/server/auth'
@@ -18,6 +20,13 @@ import { MemberPortalShell } from '../portal-shell'
 //
 // And note what is NOT here: the staff `AppShell`. It lives in `(staff)/layout.tsx`, a different
 // branch of the tree, so an admin sidebar cannot reach a member's HTML at all.
+// Her home-screen icon must open HER portal, not the staff panel the root manifest describes — so
+// this subtree points at the member manifest, carrying the studio in `start_url`.
+export async function generateMetadata(): Promise<Metadata> {
+  const claims = await getMemberClaims()
+  return { manifest: `/portal/manifest.webmanifest?s=${encodeURIComponent(claims?.studioId ?? '')}` }
+}
+
 export default async function MemberLayout({ children }: { children: React.ReactNode }) {
   const claims = await getMemberClaims()
   if (!claims) redirect('/portal/login')
@@ -34,6 +43,8 @@ export default async function MemberLayout({ children }: { children: React.React
       {/* Non-PII analytics context (studio + member role) + the global error sink. No name/phone. */}
       <AnalyticsSetup studioId={ctx.studioId} role="member" />
       {children}
+      {/* Shown on her phone, by the code that can tell which phone it is (see the component). */}
+      <MemberInstallHint />
     </MemberPortalShell>
   )
 }
