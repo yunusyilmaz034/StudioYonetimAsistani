@@ -129,7 +129,12 @@ async function liveFacts(database: Firestore, ctx: TenantContext): Promise<strin
   return parts.join('\n')
 }
 
-function buildSystem(ai: AiSettingsDoc, facts: string): string {
+// The STABLE half of the system prompt — the studio's knowledge card and the conversational rules.
+// It is built WITHOUT the live facts on purpose: this text is what gets prompt-cached (see aiReply),
+// and a cache only pays off if the bytes are identical from one call to the next. The live facts —
+// which class has a free spot, right now — change between messages and are sent as a separate block
+// after it, so they can never invalidate the cached prefix.
+function buildSystem(ai: AiSettingsDoc): string {
   const kb: string[] = []
   if (ai.identity) kb.push(`KİMLİK: ${ai.identity}`)
   if (ai.basics) kb.push(`TEMEL BİLGİLER:\n${ai.basics}`)
@@ -143,18 +148,17 @@ function buildSystem(ai: AiSettingsDoc, facts: string): string {
 ${ai.tone ? `ÜSLUP: ${ai.tone}\n` : ''}
 ${kb.join('\n\n')}
 
-${facts ? `— CANLI VERİ —\n${facts}\n` : ''}
 NASIL KONUŞ (akış):
-0) SOHBETİN İLK mesajındaysan (senden önce assistant mesajı yoksa): sıcak karşıla, hoş geldin de, kısaca STÜDYO olarak tanıt ve — MÜŞTERİNİN ADINI BİLMİYORSAN — çağrı merkezi gibi kibarca ismini sor. Ör: "Merhaba, hoş geldiniz 🌸 Pilates Fitness by Işıl'ım. Size nasıl hitap edeyim, isminizi öğrenebilir miyim? 🌸". İsmini öğrenince sonraki mesajlarda ismiyle + "hanım/hanımcım" diye hitap et. Müşteri ismini vermek istemezse ISRAR ETME, bir daha sorma; "hanım" ya da "hanımefendi" diye hitap et. Sonraki mesajlarda tekrar tanıtma. "Ben botum/yapay zekayım" DEME; doğal, insan gibi ol. Yalnızca doğrudan "bot musun / gerçek misin" diye sorulursa dürüst ol ve [[DEVRET]] ekle. Bu İLK mesajda SADECE karşıla + kısa tanıt + isim sor; "Başka bir sorunuz var mı / yetkilimize aktarayım mı" gibi bir KAPANIŞ/AKTARMA cümlesi EKLEME — daha ortada bir soru yok, aktarılacak bir şey yok, ekleyince saçma duruyor. Müşteri ismini verince (ör. "Melike ismim") ISIMLE DEVAM ET: kısa bir "Memnun oldum Melike hanım 🌸" + hemen 1. adıma geç (hedefini/niyetini sor). İsim aldın diye ASLA susma, sohbeti bitirme veya devretme.
+0) SOHBETİN İLK mesajındaysan (senden önce assistant mesajı yoksa): sıcak karşıla, hoş geldin de, kısaca STÜDYO olarak tanıt ve — MÜŞTERİNİN ADINI BİLMİYORSAN — çağrı merkezi gibi kibarca ismini sor. Kendini STÜDYONUN KENDİSİ gibi tanıtma ("… by Işıl'ım" DEME) — stüdyo adına yazan bir resepsiyon görevlisisin. Ör: "Merhaba, hoş geldiniz 🌸 <stüdyo adı> resepsiyonundan yazıyorum. Size nasıl hitap edeyim, isminizi öğrenebilir miyim? 🌸". İsmini öğrenince sonraki mesajlarda ismiyle + "hanım/hanımcım" diye hitap et. Müşteri ismini vermek istemezse ISRAR ETME, bir daha sorma; "hanım" ya da "hanımefendi" diye hitap et. Sonraki mesajlarda tekrar tanıtma. "Ben botum/yapay zekayım" DEME; doğal, insan gibi ol. Yalnızca doğrudan "bot musun / gerçek misin" diye sorulursa dürüst ol ve [[DEVRET]] ekle. Bu İLK mesajda SADECE karşıla + kısa tanıt + isim sor; "Başka bir sorunuz var mı / yetkilimize aktarayım mı" gibi bir KAPANIŞ/AKTARMA cümlesi EKLEME — daha ortada bir soru yok, aktarılacak bir şey yok, ekleyince saçma duruyor. Müşteri ismini verince (ör. "Melike ismim") ISIMLE DEVAM ET: kısa bir "Memnun oldum Melike hanım 🌸" + hemen 1. adıma geç (hedefini/niyetini sor). İsim aldın diye ASLA susma, sohbeti bitirme veya devretme.
 1) Sıcak karşıla, tek bir kısa soruyla NİYETİNİ/HEDEFİNİ öğren (ör. "kilo verme mi, sıkılaşma mı, pilates mi fitness mi düşünüyorsunuz? 🌸"). Baştan uzun fiyat listesi yağdırma.
 2) Hedefine göre YÖNLENDİR: uygun hizmeti (pilates / fitness) öner, faydalarını 1-2 cümle anlat. Müşteri HEM pilates HEM fitness istiyorsa (ör. "ikisini birden", "hem pilates hem fitness", "haftada 2 gün şu 1 gün bu") KENDİN kombinasyon/indirim UYDURMA — GÜNCEL PAKETLER listesindeki HİBRİT (demet) paketlerini öner ve fiyatını o listeden ver (ör. "Hibrit Aylık — 2 Pilates + 1 Fitness").
-3) İlgi varsa FİYAT ver (yukarıdaki canlı veriden, ASLA uydurma). Birden fazla hizmet isteniyorsa önce HİBRİT paketi öner. DENEME DERSİMİZ YOK — bunun yerine "gelip stüdyoyu görmeye / tanışmaya" davet ederek kapat.
+3) İlgi varsa FİYAT ver (CANLI VERİ bölümündeki listeden, ASLA uydurma). Birden fazla hizmet isteniyorsa önce HİBRİT paketi öner. DENEME DERSİMİZ YOK — bunun yerine "gelip stüdyoyu görmeye / tanışmaya" davet ederek kapat.
 4) Bir konuyu YANITLADIKTAN sonra sohbeti doğal biçimde açık tut (ör. "Başka merak ettiğin bir şey var mı? 🌸"). "Yetkilimize aktarayım mı" cümlesini HER mesaja EKLEME; bunu SADECE müşteri bir insan/yetkili isterse ya da sen yardımcı olamıyorsan söyle. İlk selamda, isim sorarken veya müşteri aktif soru sorarken aktarma teklif etme.
 5) Müşteri TEŞEKKÜR eder ya da VEDALAŞIRSA ("teşekkür ederim", "sağ olun", "eyvallah", "görüşürüz") ASLA sessiz kalma; sıcak, kısa bir KAPANIŞ yaz. Ör: "Rica ederiz, asıl biz teşekkür ederiz 🌸 Görüşmek üzere, kendinize iyi bakın 💛" ya da "Ne demek, her zaman bekleriz 🌸". Ardından yine gelmeye/tanışmaya davetle kapatabilirsin.
 
 KURALLAR:
 - HER mesaja MUTLAKA müşteriye gidecek en az bir cümle yaz — görünür mesajı ASLA boş bırakma. Kısa bir mesaj bile ("Rica ederiz 🌸") boş kalmaktan iyidir.
-- SADECE yukarıdaki bilgi ve canlı veriden konuş. Fiyat/program/tarih UYDURMA. Bilmiyorsan escalate=true.
+- SADECE bu bilgi kartından ve CANLI VERİ bölümünden konuş. Fiyat/program/tarih UYDURMA. Bilmiyorsan escalate=true.
 - Kısa, samimi, Türkçe, ölçülü emoji. Tek mesajda çok soru sorma.
 - DOĞAL karşıla: gelen mesaja uygun cevap ver. Müşteri sana "merhaba/hoş geldin" demediyse "siz de hoş geldiniz" gibi karşılık verme; "Merhaba 🌸" yeter. Refleks nezaket kalıpları kullanma, robotik olma.
 - Kadınlara özel stüdyoyuz: "kız" DEME, her zaman "kadın" de.
@@ -172,7 +176,12 @@ KURALLAR:
 // Plain-text reply (robust — Haiku often ignores a JSON instruction and answers naturally). Escalation
 // rides as a trailing [[DEVRET]] marker we strip before sending; the customer never sees it.
 type Temp = 'sıcak' | 'ılık' | 'soğuk'
-async function aiReply(apiKey: string, system: string, history: Msg[]): Promise<{ reply: string; escalate: boolean; temp: Temp | null; reason: string } | null> {
+async function aiReply(
+  apiKey: string,
+  system: string,
+  facts: string,
+  history: Msg[],
+): Promise<{ reply: string; escalate: boolean; temp: Temp | null; reason: string } | null> {
   try {
     const res = await fetch(ANTHROPIC_URL, {
       method: 'POST',
@@ -187,7 +196,16 @@ async function aiReply(apiKey: string, system: string, history: Msg[]): Promise<
         // beats a slow better one when someone is waiting in a WhatsApp thread.
         thinking: { type: 'disabled' },
         output_config: { effort: 'low' },
-        system,
+        // TWO system blocks, and the order is the whole point. The studio's knowledge card is ~3.000
+        // tokens and identical on every call, so it is cached: after the first message of a
+        // conversation the follow-ups bill it at a tenth of the price. The live facts come AFTER the
+        // cache breakpoint because they change between messages (a class fills up, a slot passes) —
+        // in front of it, they would invalidate the cache on every single call and it would cost more
+        // than it saves.
+        system: [
+          { type: 'text', text: system, cache_control: { type: 'ephemeral' } },
+          ...(facts ? [{ type: 'text', text: `— CANLI VERİ —\n${facts}` }] : []),
+        ],
         messages: history.map((m) => ({ role: m.role, content: m.text })),
       }),
       // Was 15s. A reply that arrives after this is not just late — it is DISCARDED, and the customer
@@ -289,8 +307,8 @@ async function processMessage(sid: string, from: string, name: string, text: str
   }
 
   const facts = await liveFacts(database, ctx)
-  const system = buildSystem(aiDoc, facts)
-  const result = await aiReply(apiKey, system, conv.messages)
+  const system = buildSystem(aiDoc)
+  const result = await aiReply(apiKey, system, facts, conv.messages)
   if (!result) {
     conv.needsAttention = true
     await ref.set(conv, { merge: true })
@@ -327,7 +345,7 @@ async function resumeAll(sid: string): Promise<{ resumed: number; replied: numbe
   if (!aiDoc?.whatsappActive || !apiKey || !token || !phoneId) return { resumed: 0, replied: 0, total: 0 }
 
   const facts = await liveFacts(database, ctx)
-  const system = buildSystem(aiDoc, facts)
+  const system = buildSystem(aiDoc)
   const config: MetaWhatsAppConfig = { phoneNumberId: phoneId, accessToken: token, ...(process.env.WHATSAPP_API_VERSION ? { apiVersion: process.env.WHATSAPP_API_VERSION } : {}) }
 
   const convs = await database.collection(`studios/${sid}/conversations`).get()
@@ -343,7 +361,7 @@ async function resumeAll(sid: string): Promise<{ resumed: number; replied: numbe
     }
     const last = conv.messages[conv.messages.length - 1]
     if (last?.role === 'user') {
-      const result = await aiReply(apiKey, system, conv.messages)
+      const result = await aiReply(apiKey, system, facts, conv.messages)
       if (result) {
         await sendWhatsAppText(config, conv.phone, result.reply)
         conv.messages = [...conv.messages, { role: 'assistant' as Role, text: result.reply, at: Date.now() }].slice(-MAX_HISTORY)
