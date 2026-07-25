@@ -112,6 +112,12 @@ const schema = z.object({
     })
     .nullable()
     .optional(),
+  // Ders Hatırlatmaları — the automatic pilates reminder toggle + lead time. Optional: a save that does
+  // not touch it preserves whatever is stored.
+  classReminder: z
+    .object({ enabled: z.boolean(), offsetMinutes: z.number().int().min(5).max(1440) })
+    .nullable()
+    .optional(),
 })
 
 /** Read. Reception may READ them (the session form needs the default duration); only the owner writes. */
@@ -174,6 +180,8 @@ export async function updateStudioSettingsAction(input: unknown) {
                 ? { byCategory: p.paymentSurcharge.byCategory as NonNullable<NonNullable<StudioSettings['paymentSurcharge']>['byCategory']> }
                 : {}),
             },
+    // Preserve the stored reminder rule unless the caller explicitly sends one.
+    classReminder: p.classReminder === undefined ? current?.classReminder ?? null : p.classReminder,
   }
 
   const res = await observed('studio.settings_update', ctx, undefined, {}, () =>

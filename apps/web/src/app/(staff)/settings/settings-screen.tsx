@@ -118,6 +118,9 @@ export function SettingsScreen({
   const [whatsappEnabled, setWhatsappEnabled] = useState(
     settings?.notifications?.enabledChannels?.includes('whatsapp') ?? false,
   )
+  // Ders Hatırlatmaları — the automatic pilates reminder. Off by default; the lead time defaults to 60'.
+  const [reminderEnabled, setReminderEnabled] = useState(Boolean(settings?.classReminder?.enabled))
+  const [reminderOffset, setReminderOffset] = useState(settings?.classReminder?.offsetMinutes?.toString() ?? '60')
   const [checkInWindow, setCheckInWindow] = useState(
     settings?.qr?.checkInWindowMinutes?.toString() ?? '30',
   )
@@ -206,6 +209,10 @@ export function SettingsScreen({
           quietToHour: Number(quietTo),
           emailEnabled,
           whatsappEnabled,
+        },
+        classReminder: {
+          enabled: reminderEnabled,
+          offsetMinutes: Number(reminderOffset) > 0 ? Number(reminderOffset) : 60,
         },
         fitness:
           capacity.trim() === ''
@@ -683,6 +690,35 @@ export function SettingsScreen({
               onChange={(e) => setWhatsappEnabled(e.target.checked)}
             />
           </label>
+
+          {/* Ders Hatırlatmaları — pilates has a fixed class time, so its reminder is automatic. Fitness
+              is serbest-giriş (no time), so it has no toggle here; the desk sends it by hand from Toplu
+              Gönderim. Off by default; WhatsApp only leaves once the Meta template is approved. */}
+          <label className="flex cursor-pointer items-center justify-between rounded-md border border-border p-3">
+            <div>
+              <p className="text-sm font-medium">Pilates ders hatırlatması (otomatik)</p>
+              <p className="text-sm text-muted-foreground">
+                Derse belirlenen süre kala üyeye WhatsApp + uygulama-içi hatırlatma gider.
+              </p>
+            </div>
+            <input
+              type="checkbox"
+              className="size-5"
+              checked={reminderEnabled}
+              onChange={(e) => setReminderEnabled(e.target.checked)}
+            />
+          </label>
+          {reminderEnabled ? (
+            <Field label="Kaç dakika önce gönderilsin" hint="Ders başlangıcından bu kadar dakika önce hatırlatılır (varsayılan 60).">
+              <Input
+                type="number"
+                min={5}
+                max={1440}
+                value={reminderOffset}
+                onChange={(e) => setReminderOffset(e.target.value)}
+              />
+            </Field>
+          ) : null}
 
           <p className="text-sm text-muted-foreground">
             SMS henüz gönderim yapamıyor; hazır olduğunda burada görünecek.

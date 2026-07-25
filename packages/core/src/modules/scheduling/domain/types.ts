@@ -98,6 +98,18 @@ export interface StudioSettings {
    *  cancelled class is noise on the day's board. Only seeds the view's toggle — the desk may still
    *  reveal them for the current visit, and re-entering the screen falls back to this. `null` ⇒ off. */
   readonly showCancelledSessions: boolean | null
+  /** Ders Hatırlatmaları — the automatic pilates class reminder (~1 h before a class, WhatsApp + in-app).
+   *  DATA, never a literal: a studio turns it on/off and picks the lead time without a deploy. `null` ⇒
+   *  never configured (off). Fitness has no fixed time, so it is never automatic — sent by hand instead. */
+  readonly classReminder: ClassReminderSettings | null
+}
+
+// The automatic class-reminder rule. Read by the scheduled sweep (`class-reminders.ts`). Off by default;
+// the owner enables it from the settings screen once her Meta template is approved.
+export interface ClassReminderSettings {
+  readonly enabled: boolean
+  /** Minutes before the class start that the reminder is emitted (owner-set; default 60). */
+  readonly offsetMinutes: number
 }
 
 // Mirrors the fitness module's `FitnessOccupancyConfig` (see the note on `notifications`). Capacity

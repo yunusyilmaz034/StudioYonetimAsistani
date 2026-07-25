@@ -85,6 +85,7 @@ export class FirestoreSchedulingRepository implements SchedulingRepository {
       fitness: (d.fitness as StudioSettings['fitness'] | undefined) ?? null,
       paymentSurcharge: (d.paymentSurcharge as StudioSettings['paymentSurcharge'] | undefined) ?? null,
       showCancelledSessions: (d.showCancelledSessions as boolean | undefined) ?? null,
+      classReminder: (d.classReminder as StudioSettings['classReminder'] | undefined) ?? null,
     }
   }
   async saveStudioSettings(
@@ -108,6 +109,7 @@ export class FirestoreSchedulingRepository implements SchedulingRepository {
         fitness: settings.fitness,
         paymentSurcharge: settings.paymentSurcharge,
         showCancelledSessions: settings.showCancelledSessions,
+        classReminder: settings.classReminder,
       },
       events,
     )

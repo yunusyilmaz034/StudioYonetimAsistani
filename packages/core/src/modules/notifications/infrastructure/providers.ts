@@ -276,6 +276,11 @@ export const META_TEMPLATE: Readonly<Record<string, MetaTemplateRef>> = {
   instalment_due: { name: 'instalment_due_tr', params: ['memberName', 'amount', 'dueDate'] },
   portal_invite: { name: 'portal_invite_tr', params: ['memberName', 'inviteLink'] },
   wallet_topup: { name: 'wallet_topup_tr', params: ['memberName', 'amount', 'balance'] },
+  // Ders hatırlatmaları (Utility). The owner registered these Meta templates under these EXACT names
+  // (no `_tr` suffix). Pilates carries name + time only ("Reformer Pilates" is fixed copy in the Meta
+  // body); fitness carries only the name. The in-app/e-mail body may say more — WhatsApp is the Meta one.
+  pilates_hatirlatma: { name: 'pilates_hatirlatma', params: ['memberName', 'sessionTime'] },
+  fitness_hatirlatma: { name: 'fitness_hatirlatma', params: ['memberName'] },
   // MARKETING (not utility): the "Stüdyodan" campaign broadcast. Only reaches members who opted into
   // campaign/marketing (the notify pipeline already gates category:'marketing' on that consent). The
   // body carries the free campaign text as {{2}}, framed by fixed copy so Meta approves it. `subject`

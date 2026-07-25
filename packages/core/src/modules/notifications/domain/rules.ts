@@ -34,6 +34,12 @@ export const RULES: Readonly<Record<string, readonly IntentRule[]>> = {
   'waitlist.promoted': [
     { template: 'waitlist_promoted', to: 'member', category: 'operational', priority: 'high' },
   ],
+  // A pilates class starts in ~1 hour: remind the member (a scheduled sweep emits this, once). `high`
+  // so an early class is not held behind quiet hours until the reminder is useless. Fitness has no
+  // fixed time, so no rule here — it is sent by hand.
+  'class_reminder.due': [
+    { template: 'pilates_hatirlatma', to: 'member', category: 'operational', priority: 'high' },
+  ],
 
   // The studio cancelled a class: everyone on the roster is told, and it does not wait for 08:00.
   'class_session.cancelled': [

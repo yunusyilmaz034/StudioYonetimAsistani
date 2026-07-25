@@ -324,6 +324,20 @@ async function resolveParams(
       if (!session) return null
       return { ...base, sessionName: session.serviceName, sessionTime: dt(session.startsAt) }
     }
+    // Ders hatırlatması: the class is TODAY, ~1 hour out — the member wants the TIME ("19:00"), not a
+    // full date. So `sessionTime` here is time-only, unlike the booking confirmation's full datetime.
+    case 'class_reminder.due': {
+      const sessionId = event.related.classSessionId
+      if (!sessionId) return null
+      const session = await new FirestoreSchedulingRepository(database).getSession(ctx, sessionId as ClassSessionId)
+      if (!session) return null
+      const timeOnly = new Date(session.startsAt).toLocaleTimeString('tr-TR', {
+        timeZone: 'Europe/Istanbul',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+      return { ...base, sessionName: session.serviceName, sessionTime: timeOnly }
+    }
     case 'reservation.moved':
       return {
         ...base,

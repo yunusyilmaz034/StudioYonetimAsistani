@@ -13,6 +13,7 @@ import { onSchedule } from 'firebase-functions/v2/scheduler'
 
 import { runAutoCheckOutSweep } from './scheduled/auto-check-out'
 import { runAutoResolveSweep } from './scheduled/auto-resolve-attendance'
+import { runClassReminderSweep } from './scheduled/class-reminders'
 import { runExpirySweep } from './scheduled/expire-credits'
 import { runFastHealthChecks, runNightlyHealthChecks } from './scheduled/health'
 import { runNotificationRetrySweep } from './scheduled/notification-retry'
@@ -77,6 +78,14 @@ export const nightlySweep = onSchedule(
 // anywhere. Five minutes of stuck commands is an alarm (Doc 6 §9); an hour of projection lag is.
 export const healthCheck = onSchedule({ schedule: 'every 15 minutes' }, async () => {
   await runFastHealthChecks(Date.now())
+})
+
+// Ders Hatırlatmaları — a pilates class starts in ~1 hour: emit `class_reminder.due` so the notifier
+// tells the member (WhatsApp + in-app). Every 15 minutes, because "1 hour before" needs a fine grain
+// the nightly cron cannot give. It only WRITES events; the send (and its secrets) live downstream in
+// onEventCreated. OFF until the owner enables it per studio (settings.classReminder.enabled).
+export const classReminders = onSchedule({ schedule: 'every 15 minutes' }, async () => {
+  await runClassReminderSweep(Date.now())
 })
 
 // v1.25 — the retry sweep, and the quiet-hour queue (the same mechanism from another angle). Every

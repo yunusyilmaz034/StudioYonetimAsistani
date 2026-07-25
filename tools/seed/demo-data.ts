@@ -171,6 +171,7 @@ export async function seedDemoData(trainerUid: string | null): Promise<void> {
     fitness: { capacity: 30, moderateAt: 0.4, busyAt: 0.7, veryBusyAt: 0.9 },
     paymentSurcharge: { cardTransferSurchargeKurus: 100_000, maxInstallments: 3 },
     showCancelledSessions: null,
+    classReminder: null,
     qr: { tokenTtlSeconds: 60, checkInWindowMinutes: 30 },
     }),
     'updateStudioSettings',

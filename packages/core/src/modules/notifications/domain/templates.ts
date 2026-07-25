@@ -64,6 +64,30 @@ export const TEMPLATES: Readonly<Record<string, NotificationTemplate>> = {
     subject: 'Bekleme listesinden yer açıldı',
     body: 'Merhaba {{memberName}}, {{sessionTime}} tarihindeki {{sessionName}} dersinde yer açıldı ve rezervasyonunuz oluşturuldu.',
   },
+  // ── DERS HATIRLATMALARI. A pilates class has a fixed time, so its reminder is AUTOMATIC (a scheduled
+  //    sweep emits `class_reminder.due` ~1h before). `high` so a class early in the morning is not held
+  //    behind quiet hours until it is already too late. Fitness is serbest-giriş — no time, no automatic
+  //    reminder; its template is the same shape but sent MANUALLY from the bulk/manual send screen.
+  pilates_hatirlatma: {
+    id: 'pilates_hatirlatma',
+    version: 1,
+    name: 'Pilates ders hatırlatması',
+    category: 'operational',
+    priority: 'high',
+    requiredParams: ['memberName', 'sessionName', 'sessionTime'],
+    subject: 'Ders hatırlatması',
+    body: 'Merhaba {{memberName}} 🌸 Bugün saat {{sessionTime}} {{sessionName}} dersini hatırlatırız. Tam boy havlunu ve kaymaz çorabını yanına almayı unutma. Görüşmek üzere!',
+  },
+  fitness_hatirlatma: {
+    id: 'fitness_hatirlatma',
+    version: 1,
+    name: 'Fitness hatırlatması',
+    category: 'operational',
+    priority: 'normal',
+    requiredParams: ['memberName'],
+    subject: 'Fitness hatırlatması',
+    body: 'Merhaba {{memberName}} 🌸 Fitness antrenmanına gelirken tam boy havlunu ve spor ayakkabını yanına almayı unutma. Görüşmek üzere!',
+  },
   // ONE message per member per operation (Doc 28 §4) — a closure that cancels twelve of her classes
   // must not send twelve messages. The count is a parameter, not twelve deliveries.
   closure_applied: {
