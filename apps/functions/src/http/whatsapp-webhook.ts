@@ -36,7 +36,12 @@ import { AI_RECEPTIONIST_SECRETS, REGION } from '../shared/region'
 const OFFSET_MIN = 180 // TRT = UTC+3, no DST
 const MAX_HISTORY = 24 // messages kept per conversation for context + storage
 const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages'
-const MODEL = 'claude-haiku-4-5-20251001'
+// The WhatsApp receptionist is the ONE surface a prospective member actually talks to, so it runs a
+// stronger model than the internal AI features (the checklist and the owner assistant stay on Haiku —
+// nobody outside the studio reads those). Haiku produced Turkish that was fluent-but-wrong often
+// enough to matter: it answered a customer's "if I'm not tiring you" with "you will never ask",
+// which is nonsense. Roughly 2-3× the cost per conversation, on the order of tens of TL a month.
+const MODEL = 'claude-sonnet-5'
 
 type Role = 'user' | 'assistant'
 interface Msg {
