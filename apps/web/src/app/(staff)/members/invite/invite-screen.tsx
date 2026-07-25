@@ -1,14 +1,21 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { CheckCircle2Icon, Loader2Icon, SendIcon, XCircleIcon } from 'lucide-react'
+import { CheckCircle2Icon, Loader2Icon, MessageCircleIcon, SendIcon, XCircleIcon } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { PageHeader } from '@/components/ui/page-header'
-import { sendPortalInvitesAction, type InviteRow, type InviteSendResult, type InviteState } from '@/server/actions/portal-onboarding'
+import { openWhatsAppWhenReady } from '@/lib/whatsapp'
+import {
+  prepareInviteMessageAction,
+  sendPortalInvitesAction,
+  type InviteRow,
+  type InviteSendResult,
+  type InviteState,
+} from '@/server/actions/portal-onboarding'
 
 // One request per 25 members — matches the action's own cap. Progress is rendered between chunks,
 // so the operator sees the rollout advance instead of staring at a spinner.
@@ -30,8 +37,17 @@ const STATE_VARIANT: Record<InviteState, 'default' | 'secondary' | 'outline' | '
 
 type Filter = 'todo' | 'package' | 'all'
 
-export function InviteScreen({ rows }: { rows: readonly InviteRow[] }) {
+export function InviteScreen({
+  rows,
+  todayInvited,
+  todayActivated,
+}: {
+  rows: readonly InviteRow[]
+  todayInvited: number
+  todayActivated: number
+}) {
   const [filter, setFilter] = useState<Filter>('todo')
+  const [reminding, setReminding] = useState<string | null>(null)
   const [query, setQuery] = useState('')
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set())
   const [busy, setBusy] = useState(false)
@@ -107,6 +123,32 @@ export function InviteScreen({ rows }: { rows: readonly InviteRow[] }) {
           </Button>
         }
       />
+
+      {/* BUGÜN — the question you have while a rollout is running. A cumulative total can look healthy
+          on a day where nothing moved; these two numbers cannot. */}
+      <div className="flex flex-wrap items-center gap-x-8 gap-y-3 rounded-2xl border border-primary/30 bg-primary-soft/30 p-4">
+        <div>
+          <p className="text-xs font-medium text-muted-foreground">Bugün gönderilen davet</p>
+          <p className="text-3xl font-semibold tabular-nums text-foreground">{todayInvited}</p>
+        </div>
+        <div>
+          <p className="text-xs font-medium text-muted-foreground">Bugün açılan hesap</p>
+          <p className="text-3xl font-semibold tabular-nums text-foreground">
+            {todayActivated}
+            {todayInvited > 0 ? (
+              <span className="ml-2 align-middle text-sm font-normal text-muted-foreground">
+                %{Math.round((todayActivated / todayInvited) * 100)}
+              </span>
+            ) : null}
+          </p>
+        </div>
+        {counts.pending > 0 ? (
+          <p className="ml-auto max-w-xs text-xs text-muted-foreground">
+            <b className="text-foreground">{counts.pending} kişi</b> davetini açmadı. Aşağıdaki listeden <b className="text-foreground">Hatırlat</b> ile
+            güncel bağlantıyı yeniden gönderebilirsin.
+          </p>
+        ) : null}
+      </div>
 
       {/* The rollout at a glance — the number that matters is "hesabını açtı", not "davet gönderildi". */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -184,6 +226,36 @@ export function InviteScreen({ rows }: { rows: readonly InviteRow[] }) {
                   <span className="block truncate text-xs text-muted-foreground">{r.phone}</span>
                 </span>
                 {r.hasActivePackage ? <Badge variant="outline">Paketi var</Badge> : null}
+                {/* One tap → WhatsApp opens with a FRESH link and a reminder line. Only offered where
+                    it makes sense: she was asked and did not open it. */}
+                {(r.state === 'pending' || r.state === 'expired') && !result ? (
+                  <button
+                    type="button"
+                    disabled={reminding === r.memberId || busy}
+                    onClick={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      setReminding(r.memberId)
+                      openWhatsAppWhenReady(
+                        prepareInviteMessageAction({ memberId: r.memberId, reminder: true })
+                          .then((res) => {
+                            if (res.ok) return { phone: res.phone, text: res.text }
+                            toast.error(res.reason)
+                            return null
+                          })
+                          .catch(() => {
+                            toast.error('Hatırlatma hazırlanamadı.')
+                            return null
+                          })
+                          .finally(() => setReminding(null)),
+                      )
+                    }}
+                    className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-border px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:border-success/50 hover:text-success disabled:opacity-50"
+                  >
+                    {reminding === r.memberId ? <Loader2Icon className="size-3.5 animate-spin" /> : <MessageCircleIcon className="size-3.5" />}
+                    Hatırlat
+                  </button>
+                ) : null}
                 {result ? (
                   result.ok ? (
                     <span className="flex items-center gap-1 text-xs font-medium text-emerald-600">

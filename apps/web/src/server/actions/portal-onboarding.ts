@@ -49,11 +49,26 @@ export interface InviteRow {
   readonly hasActivePackage: boolean
 }
 
+// Today's movement, in the studio's own timezone. The cumulative totals answer "where are we";
+// these answer "did today go anywhere" — which is the question you actually have while a rollout is
+// running, and the one a total can hide.
+export interface InviteSummary {
+  readonly rows: readonly InviteRow[]
+  readonly todayInvited: number
+  readonly todayActivated: number
+}
+
+const TRT_OFFSET_MS = 3 * 60 * 60 * 1000
+const startOfTodayTRT = (now: number): number => {
+  const shifted = now + TRT_OFFSET_MS
+  return shifted - (shifted % 86_400_000) - TRT_OFFSET_MS
+}
+
 // The desk's picture of the rollout: who has an account, who was invited and has not opened it,
 // who was never asked. Derived from the INVITES, not from the member document — a member row says
 // nothing about her portal account, and inventing a denormalised flag for it would be a field that
 // can drift (Doc 3 §6). One studio-wide read of a tiny collection instead.
-export async function listInviteStatusAction(): Promise<readonly InviteRow[]> {
+export async function listInviteStatusAction(): Promise<InviteSummary> {
   const ctx = await requireTenantContext(OPS)
   const repo = new FirestoreMemberRepository(adminDb())
   const now = systemClock.now()
@@ -77,7 +92,13 @@ export async function listInviteStatusAction(): Promise<readonly InviteRow[]> {
     if (!prev || state === 'activated' || inv.issuedAt > prev.at) byMember.set(inv.memberId as string, { state, at: inv.issuedAt })
   }
 
-  return members
+  // Counted over the invites themselves, not the per-member roll-up: a member invited twice today is
+  // one member but two sends, and "how many did we send today" is the send count.
+  const todayStart = startOfTodayTRT(now)
+  const todayInvited = invites.filter((i) => i.issuedAt >= todayStart).length
+  const todayActivated = invites.filter((i) => i.status === 'consumed' && (i.consumedAt ?? 0) >= todayStart).length
+
+  const rows = members
     .filter((m) => m.status === 'active')
     .map((m) => {
       const found = byMember.get(m.id as string)
@@ -91,6 +112,8 @@ export async function listInviteStatusAction(): Promise<readonly InviteRow[]> {
       }
     })
     .sort((a, b) => a.fullName.localeCompare(b.fullName, 'tr'))
+
+  return { rows, todayInvited, todayActivated }
 }
 
 export interface InviteSendResult {
@@ -195,7 +218,7 @@ export async function sendPortalInvitesAction(input: unknown): Promise<readonly 
 export async function prepareInviteMessageAction(
   input: unknown,
 ): Promise<{ ok: true; phone: string; text: string } | { ok: false; reason: string }> {
-  const p = z.object({ memberId: z.string().min(1) }).parse(input)
+  const p = z.object({ memberId: z.string().min(1), reminder: z.boolean().optional() }).parse(input)
   const ctx = await requireTenantContext(OPS)
 
   const base = (process.env.PUBLIC_APP_URL ?? '').replace(/\/+$/, '')
@@ -229,7 +252,14 @@ export async function prepareInviteMessageAction(
   })
   if (!rendered.ok) return { ok: false as const, reason: 'Şablon alanları eksik.' }
 
-  return { ok: true as const, phone: member.phone as string, text: rendered.value.body }
+  // A reminder carries a FRESH link, not a "look at the message we sent you" nudge. She did not open
+  // the first one — most likely she cannot find it — and pointing her at a message she has lost is
+  // not a reminder. The new link supersedes the old one, which is fine: the old one was unused.
+  const text = p.reminder
+    ? `${member.fullName.split(' ')[0] ?? member.fullName}, üyelik bağlantını hatırlatmak istedik 🌸 Aşağıdaki güncel bağlantıdan devam edebilirsin:\n\n${rendered.value.body}`
+    : rendered.value.body
+
+  return { ok: true as const, phone: member.phone as string, text }
 }
 
 const TR_REASON: Record<string, string> = {

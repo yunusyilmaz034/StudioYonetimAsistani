@@ -8,6 +8,6 @@ import { InviteScreen } from './invite-screen'
 // the client screen.
 export default async function BulkInvitePage() {
   await requirePageAccess('/members')
-  const rows = await listInviteStatusAction()
-  return <InviteScreen rows={rows} />
+  const summary = await listInviteStatusAction()
+  return <InviteScreen rows={summary.rows} todayInvited={summary.todayInvited} todayActivated={summary.todayActivated} />
 }
