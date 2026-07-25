@@ -48,6 +48,12 @@ describe('middleware — the coarse gate', () => {
 
   // The online sales page and the price list the marketing site reads. `/pay` once shipped behind the
   // guard and showed strangers a STAFF LOGIN; every public route belongs in the allowlist and in a test.
+  // The browser fetches the manifest while rendering the LOGIN screen — she has no session yet.
+  // Behind the guard it 307s to /portal/login and the install prompt never appears.
+  it('lets the cookie-less member PWA manifest through', () => {
+    expect(locationOf(middleware(request('/portal/manifest.webmanifest?s=retro')))).toBeNull()
+  })
+
   it('lets the cookie-less online sales page and its public price list through', () => {
     expect(locationOf(middleware(request('/uyelik?s=retro')))).toBeNull()
     expect(locationOf(middleware(request('/api/public/products?s=retro')))).toBeNull()

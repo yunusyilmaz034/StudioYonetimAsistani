@@ -25,6 +25,9 @@ const PUBLIC_PREFIXES = [
   '/design-system',
   '/invite',
   '/portal/login',
+  // The member PWA manifest. The browser fetches it on the LOGIN screen — before she has a session —
+  // so a guarded manifest means the install prompt never appears at all.
+  '/portal/manifest.webmanifest',
   '/pay',
   // Online üyelik satışı — the public sales page. Anyone (web / WhatsApp / Instagram) opens it, no session.
   '/uyelik',
