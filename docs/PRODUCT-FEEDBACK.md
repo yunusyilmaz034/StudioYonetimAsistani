@@ -441,3 +441,25 @@ ekle yeter").
 
 **Yapılırken dikkat:** hücre yüksekliği sabit kalmalı; `truncate` + `title` (tooltip) yeterli olabilir.
 Katılımcı sayısı çoksa "+N" davranışı korunmalı. 375/430/768/1280 px'te kontrol (Doc 09 §9).
+
+---
+
+## PF-39 — AI devrettiğinde operatöre toast gelmiyor · 🐞 regresyon şüphesi
+
+**Taken:** 2026-07-26 · owner: *"ai admine bırakacağı zaman toast mesajı vermiyor, daha önce vermesini
+istemiştik"*. Owner: sonra ele alınacak.
+
+**Beklenen:** AI bir sohbeti insana devrettiğinde (`[[DEVRET]]` → `needsAttention: true`) panelde çalışan
+personele **yeşil "operatör devri" toast'u** düşer — Faz 2 Blok B'de bu istenmiş ve yapılmıştı
+(`whatsapp-dock.tsx`, staff layout'unda kalıcı, sağ-alt yüzen dock).
+
+**Gözlem:** toast görünmüyor. Devir bilgisi yalnız WP Hattı listesinde kalıyor, yani **kimse ekrana
+bakmıyorsa devir fark edilmiyor** — devretmenin bütün amacı buysa özellik sessizce çalışmıyor demektir.
+
+**Bakılacaklar (henüz araştırılmadı):** dock'un `conversations` dinleyicisi hâlâ bağlı mı; toast yalnız
+`status: 'human'` geçişinde mi tetikleniyor (oysa AI artık devrederken susmuyor — 2026-07 kararı: `escalate`
+yalnızca `needsAttention` işaretler, statüyü İNSAN devralınca değiştirir, dolayısıyla eski tetikleyici hiç
+çalışmıyor olabilir); tarayıcı sekmesi arka plandayken bastırılıyor mu.
+
+**Not:** bu kategori — "sistem doğru davranıyor ama kimse haberdar olmuyor" — 2026-07-26'da eklenen servis
+sağlığı sinyalleriyle aynı aile. Düzeltilirken `ai_not_replying` alarmıyla çakışmadığından emin olunmalı.
