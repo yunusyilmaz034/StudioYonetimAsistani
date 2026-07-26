@@ -463,3 +463,36 @@ yalnızca `needsAttention` işaretler, statüyü İNSAN devralınca değiştirir
 
 **Not:** bu kategori — "sistem doğru davranıyor ama kimse haberdar olmuyor" — 2026-07-26'da eklenen servis
 sağlığı sinyalleriyle aynı aile. Düzeltilirken `ai_not_replying` alarmıyla çakışmadığından emin olunmalı.
+
+---
+
+## PF-40 — Sidebar karışık; gerçek bir kategori ağacı gerekiyor · 💡 istek/bilgi mimarisi
+
+**Taken:** 2026-07-26 · owner: *"bu side bar çok karışık görünüyor, daha güzel kategorilendirerek daha düzgün
+bir ağaç yapısına sahip olmalı"*. Owner: şimdilik NOT.
+
+**Ölçüm (app-nav.tsx `GROUPS`, owner rolü):** 31 öğe · Genel Görünüm 1 · Derslerim/Hakedişim 2 · **Operasyon 5**
+· **Yönetim 12** · **Sahip 13**. Yönetim ve Sahip birer kategori değil, artık *geri kalan her şey* kutusu —
+yeni özellik geldikçe oraya eklendiği için büyümüş.
+
+**Somut karışıklıklar (isimden ayırt edilemiyor):**
+- **Üç takvim:** `Ders Ajandası` · `Rezervasyon Ajandası` · `Takvim`. Kullanıcı hangisinin ne olduğunu ancak
+  girip görerek öğreniyor.
+- **İki katılım:** `Katılım` (/fitness) · `Yoklama` (/attendance).
+- **Üç rapor:** `Raporlar` · `Analiz` · `AI Rapor`.
+- **Dört "Merkez":** Hareket · Bildirim · Bilgi · Medya — aynı adlandırma kalıbı, tamamen farklı işler; kalıp
+  benzerlik olmayan yerde benzerlik vaat ediyor.
+- **Tekrarlayan ikonlar:** `BanknoteIcon` (Hakedişim + Bordro), `ClipboardCheckIcon` (Derslerim + Yoklama),
+  `BarChart3Icon` (AI Rapor + Analiz). İkon ayırt edici olmaktan çıkmış.
+
+**Düşünülecek yön (KARAR DEĞİL — owner'a öneri olarak sunulacak):** grupları *işleve* göre değil **kullanıcının
+o an ne yapmaya çalıştığına** göre kur. Kaba taslak: `Bugün` (genel görünüm, ajanda, check-in) · `Üyeler`
+(üyeler, paketler, huni, sohbetler) · `Para` (kasa, ürün sat, bordro, raporlar) · `İçerik` (antrenman, bilgi,
+medya) · `Sistem` (ayarlar, personel, denetim, operasyonlar). Ayrıca üçüzleri tek ekran + sekme hâline
+getirmek (üç takvim → bir Ajanda; üç rapor → bir Raporlar) menüyü kısaltmanın en dürüst yolu — menüyü
+katlamak yerine ekranı birleştirmek.
+
+**Kısıtlar:** nav yetki matrisinden TÜRETİLİYOR (`canSee`), ikinci bir liste tutulmayacak — grup değişimi
+matrisi bozmamalı. Mobil nav ayrı (`MobileNav`: ≤4 birincil + "Menü" sheet); masaüstü ağacı değişirse mobil
+gruplama da gözden geçirilmeli. Takvim ekranlarının **düzeni** dondurulmuş ([[calendar-views-only-recolor]]) —
+üç takvimi birleştirme fikri o karara girer, önce owner onayı.
