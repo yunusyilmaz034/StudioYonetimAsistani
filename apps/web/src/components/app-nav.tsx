@@ -105,7 +105,7 @@ export const GROUPS: readonly NavGroup[] = [
       { href: '/retail', label: 'Ürün Sat', icon: ShoppingCartIcon },
       { href: '/crm', label: 'Satış Hunisi', icon: TargetIcon },
       { href: '/conversations', label: 'Sohbetler', icon: MessageCircleIcon },
-      { href: '/calendar', label: 'Takvim', icon: CalendarDaysIcon },
+      { href: '/calendar', label: 'Çalışma Takvimi', icon: CalendarDaysIcon },
       { href: '/activity', label: 'Hareket Merkezi', icon: ActivityIcon },
       { href: '/notifications', label: 'Bildirim Merkezi', icon: BellIcon },
       { href: '/knowledge', label: 'Bilgi Merkezi', icon: BookOpenIcon },

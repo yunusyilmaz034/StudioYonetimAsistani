@@ -492,6 +492,15 @@ medya) · `Sistem` (ayarlar, personel, denetim, operasyonlar). Ayrıca üçüzle
 getirmek (üç takvim → bir Ajanda; üç rapor → bir Raporlar) menüyü kısaltmanın en dürüst yolu — menüyü
 katlamak yerine ekranı birleştirmek.
 
+**OWNER KARARLARI (2026-07-26):**
+- ❌ **Ders Ajandası ve Rezervasyon Ajandası BİRLEŞTİRİLMEYECEK** — owner: *"onlar ayrı kalsın"*. Üç-takvim
+  sorununun çözümü bu ikisine dokunmaktan geçmiyor; asıl belirsizlik üçüncüsündeydi.
+- ✅ **`Takvim` → `Çalışma Takvimi` (YAPILDI).** Ekran zaten kapanış günleri + tatiller + özel günleri
+  gösteriyordu (sayfa başlığı "Stüdyo Takvimi" idi, nav'da yalnızca "Takvim" yazıyordu). Yeni ad ekranın ne
+  olduğunu adından anlatıyor; nav ve sayfa başlığı artık aynı.
+- ✅ Kalan öneriler (rapor ekranlarının birleşmesi, "Merkez" adlandırması, grupların kullanıcı niyetine göre
+  yeniden kurulması) owner tarafından **onaylandı**, uygulama sonraya bırakıldı.
+
 **Kısıtlar:** nav yetki matrisinden TÜRETİLİYOR (`canSee`), ikinci bir liste tutulmayacak — grup değişimi
 matrisi bozmamalı. Mobil nav ayrı (`MobileNav`: ≤4 birincil + "Menü" sheet); masaüstü ağacı değişirse mobil
 gruplama da gözden geçirilmeli. Takvim ekranlarının **düzeni** dondurulmuş ([[calendar-views-only-recolor]]) —

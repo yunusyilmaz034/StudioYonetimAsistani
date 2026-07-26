@@ -86,7 +86,7 @@ export function CalendarScreen({
   return (
     <main className="mx-auto max-w-4xl space-y-5 p-4 sm:p-6 lg:p-8">
       <PageHeader
-        title="Stüdyo Takvimi"
+        title="Çalışma Takvimi"
         description={`${year} · ${days.length} gün işaretli`}
         actions={
           canEdit ? (
