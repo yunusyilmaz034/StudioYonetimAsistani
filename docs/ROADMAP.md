@@ -81,3 +81,12 @@ CCTV'den: personel/müşteri, kasada kim ne kadar kaldı, dwell-time raporları.
    - **B) AI Patron Asistanı v2** — reklam metni/dönem önerisi, personel raporu, protokoller.
    - **C) Faz 2.4 NVR / Kamera** — KVKK hukuki çerçeve ÖNCE, sonra teknik.
    - **D) Faz 2.3 Home Assistant (IoT)** — komuta merkezi; kapsam kararı gerekiyor.
+
+---
+
+## Ürünleştirme (çok müşterili SaaS) — ayrı dokümanda
+
+Sistemi başka stüdyolara **yıllık lisansla** satma yolu: **[`PRODUCT-ROADMAP.md`](PRODUCT-ROADMAP.md)**.
+Karar: tek kod tabanı, müşteri = yeni `studioId`. Ölçüldü (2026-07-26): kodda sabit stüdyo izi yok,
+ödeme/tema/katalog/AI/şablonlar zaten stüdyo başına; eksik olan WhatsApp numarası ve e-posta göndericisi.
+Owner: **acele yok** — önce PF/bug işleri.
