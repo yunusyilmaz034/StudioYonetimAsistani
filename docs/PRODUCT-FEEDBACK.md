@@ -505,3 +505,40 @@ katlamak yerine ekranı birleştirmek.
 matrisi bozmamalı. Mobil nav ayrı (`MobileNav`: ≤4 birincil + "Menü" sheet); masaüstü ağacı değişirse mobil
 gruplama da gözden geçirilmeli. Takvim ekranlarının **düzeni** dondurulmuş ([[calendar-views-only-recolor]]) —
 üç takvimi birleştirme fikri o karara girer, önce owner onayı.
+
+---
+
+## PF-41 — Genel Görünüm sadeleştirmesi · 💡 onaylandı, sonraya bırakıldı
+
+**Taken:** 2026-07-26 · owner: *"anasayfa dashboardu çok karışık duruyor, üstteki AI raporu ve bugün yapman
+gereken bölümü üstte özet şeklinde kalsın, ama alt taraf çok karışık"*. Owner kararı: **şimdi yapılmayacak,
+not olarak dursun.**
+
+**Bulgu — aynı bilgi iki kez.** "Bugün İlgilenmen Gerekenler" maddeleri ile "İzlenecekler" kartları büyük
+ölçüde ÖRTÜŞÜYOR: *8 üyenin ders hakkı azaldı* ↔ **Kredisi azalan üyeler**, *2 boş seans* ↔ **Önümüzdeki 24
+saatte boş kalan dersler**, *17 paket doluyor* ↔ **Kredisi bitenler**. Checklist maddesi açıldığında detayı
+zaten veriyor; alt blok aynı şeyi ikinci kez, farklı bir dille söylüyor.
+
+**Ölçüm:** "Bugün" bölümünde 8 kart var, **6'sı sıfır** (check-in bu stüdyoda kullanılmıyor → o kart her gün
+sıfır). "İzlenecekler"de 6 karttan **3'ü boş** ("Bekleyen ödeme yok" gibi). Yani ekranın büyük kısmı bir şeyin
+YOKLUĞUNU gösteriyor.
+
+**İlke (dashboard için ölçüt):** bir şey Genel Görünüm'de ancak **bugünkü bir kararı değiştiriyorsa** durur.
+Geri kalanı Analiz ve Raporlar'ın işi. `Aktif üye 39` ve `Açık kasalar 244.151 ₺` bu ölçütü geçmiyor.
+
+**ONAYLANAN (owner, sonra yapılacak):**
+1. **Boş kart hiç görünmesin.** Tek başına ekranı yarı yarıya sadeleştirir, riski sıfır. *Bir şeyin yokluğu
+   kart hak etmez.*
+2. **"Bugün" 8 kart → tek satır özet:** `3 rezervasyon · %0 doluluk · 0 ₺ tahsilat · 0 ₺ açık bakiye`.
+   Aktif üye ve açık kasa buradan çıkar.
+3. **Checklist ANLIK maddelerle harmanlanacak.** Gerekçe: checklist'in AI sıralaması gün içinde 5 slotta
+   (10/13/15/18/19) üretiliyor, oysa bekleyen ödeme gibi maddeler anlık doğuyor — 14:00'te oluşan bir iş
+   15:00'e kadar görünmüyor. Deterministik maddeler (`deriveAdvisorItems`) zaten anlık; AI yalnız sıralıyor ve
+   anlatıyor. Harman: deterministik anlık maddeler her yüklemede taze hesaplanır, AI'ın cache'li sırası
+   üzerine uzlaştırılır (çözülen düşer, yeni eklenir — bu uzlaştırma `daily-checklist.tsx`'te zaten var).
+
+**REDDEDİLEN:** ~~"İzlenecekler" bölümünün kaldırılması~~ — **owner: "İzlenecekler kalsın".** Örtüşmeye rağmen
+duracak; sadeleşme boş kartların gizlenmesi ve "Bugün" satırının kısalmasıyla sağlanacak.
+
+**Ayrıca düzeltilecek (küçük):** `Aktif üye 39 · son 30 günde +119 yeni üye` ifadesi yanıltıcı — 119 KAYITLI
+üyeden 39'unun aktif paketi var; metin "39 aktif üyeye 119 yeni üye eklendi" gibi okunuyor.
