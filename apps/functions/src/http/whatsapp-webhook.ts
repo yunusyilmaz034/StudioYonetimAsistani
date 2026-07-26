@@ -54,6 +54,12 @@ interface Conversation {
   name: string
   status: 'ai' | 'human'
   needsAttention: boolean
+  // WHY the desk is being called. Two very different events used to share one flag and one alert:
+  //   'handoff'   — the assistant decided a human should answer (normal, expected, a good sign)
+  //   'ai_failed' — the assistant produced nothing (a fault: on 2026-07-25 three customers were left
+  //                 on read this way, and the desk had no way to tell it apart from a handoff)
+  // Same badge, different sentence — because the response to each is different.
+  attentionReason?: 'handoff' | 'ai_failed'
   lastAt: number
   seenIds: string[]
   messages: Msg[]
@@ -313,6 +319,7 @@ async function processMessage(sid: string, from: string, name: string, text: str
   const result = await aiReply(apiKey, system, facts, conv.messages)
   if (!result) {
     conv.needsAttention = true
+    conv.attentionReason = 'ai_failed'
     await ref.set(conv, { merge: true })
     return
   }
@@ -329,6 +336,7 @@ async function processMessage(sid: string, from: string, name: string, text: str
   // takes over — the operator clicking "Devral" or replying is what flips status to 'human' (owner).
   if (result.escalate) {
     conv.needsAttention = true
+    conv.attentionReason = 'handoff'
   }
   await ref.set(conv, { merge: true })
   logger.info('[wa-webhook] replied', { sid, escalate: result.escalate, sent: sent.ok })

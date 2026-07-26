@@ -48,10 +48,21 @@ export function WhatsAppDock() {
         for (const c of list) {
           if (c.needsAttention && !seen.current.has(c.phone)) {
             seen.current.add(c.phone)
-            toast.success(`🟢 Operatör devri geliyor · ${c.name || c.phone.slice(-4)}`, { duration: 5000 })
+            // Two reasons, two sentences. A handoff is the assistant working as designed; a failure
+            // means a customer is sitting unanswered and nobody would know — the second is an alarm,
+            // not a notification, so it does not auto-dismiss.
+            if (c.attentionReason === 'ai_failed') {
+              toast.error(`⚠️ Asistan cevap veremedi · ${c.name || c.phone.slice(-4)} bekliyor`, { duration: Infinity })
+            } else {
+              toast.success(`🟢 Operatör devri geliyor · ${c.name || c.phone.slice(-4)}`, { duration: 5000 })
+            }
             setOpen(true)
             setSelected(c.phone)
           }
+          // Cleared (a human took it, or the AI answered after all) → forget it, so the NEXT time
+          // this same person needs the desk the alert fires again. Without this, every conversation
+          // could raise exactly one alert for the lifetime of the tab.
+          if (!c.needsAttention) seen.current.delete(c.phone)
         }
       }
     } catch {

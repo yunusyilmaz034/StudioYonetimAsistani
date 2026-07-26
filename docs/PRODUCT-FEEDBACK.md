@@ -469,6 +469,26 @@ bakmıyorsa devir fark edilmiyor** — devretmenin bütün amacı buysa özellik
 yalnızca `needsAttention` işaretler, statüyü İNSAN devralınca değiştirir, dolayısıyla eski tetikleyici hiç
 çalışmıyor olabilir); tarayıcı sekmesi arka plandayken bastırılıyor mu.
 
+**✅ İNCELENDİ + DÜZELTİLDİ (2026-07-26) — ama teşhis beklenenden farklı çıktı.**
+
+**Toast mekanizması ÇALIŞIYOR.** Dock 4 saniyede bir yokluyor, kalıcı rozet de var. Sorun tetiklenmemesi:
+prod'da **38 konuşmanın hiçbirinde `needsAttention` yok** (0). AI gerçekten devretmiyor — devretme kuralları
+dar ve doğru (şikayet/iade/sağlık/pazarlık/insan isteme), 38 konuşmada bu durumlar oluşmamış. Yani owner'ın
+gördüğü "toast gelmiyor", çoğunlukla "devir olmuyor" demek.
+
+**Yine de iki GERÇEK kusur bulundu ve düzeltildi:**
+1. **`seen` seti hiç temizlenmiyordu.** Bir konuşma bir kez uyarı verdikten sonra sonsuza dek "görüldü"
+   kalıyordu → aynı kişi ikinci kez desteğe ihtiyaç duyduğunda **hiçbir uyarı çıkmıyordu** (sekme ömrü
+   boyunca konuşma başına tek uyarı). Artık `needsAttention` düşünce setten siliniyor.
+2. **İki farklı olay tek uyarıyı paylaşıyordu.** `needsAttention` hem "AI devretti" (normal) hem "AI cevap
+   ÜRETEMEDİ" (arıza) için işaretleniyordu — 25 Tem'de üç müşterinin cevapsız kalması tam da ikincisiydi ve
+   masadan bakınca devirden ayırt edilemiyordu. Yeni alan `attentionReason: 'handoff' | 'ai_failed'`;
+   arıza uyarısı **kırmızı ve kendiliğinden kapanmıyor** (`duration: Infinity`), devir uyarısı eskisi gibi.
+
+**Kalan gerçek risk (kod değil, kullanım):** toast yalnızca panel AÇIKKEN görünür. Gece oluşan bir arıza
+sabaha kadar kimseye ulaşmaz — bunun cevabı toast değil, 2026-07-26'da eklenen `ai_not_replying` sağlık
+sinyali + owner bildirimi.
+
 **Not:** bu kategori — "sistem doğru davranıyor ama kimse haberdar olmuyor" — 2026-07-26'da eklenen servis
 sağlığı sinyalleriyle aynı aile. Düzeltilirken `ai_not_replying` alarmıyla çakışmadığından emin olunmalı.
 
