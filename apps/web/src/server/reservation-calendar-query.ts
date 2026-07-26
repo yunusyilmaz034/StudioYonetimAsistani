@@ -1,4 +1,4 @@
-import { FirestoreReservationRepository, instant, type TenantContext } from '@studio/core'
+import { FirestoreMemberRepository, FirestoreReservationRepository, instant, type TenantContext } from '@studio/core'
 
 import { adminDb } from './firebase-admin'
 import { loadSchedule, scheduleWindow, type ScheduleData } from './schedule-query'
@@ -26,10 +26,20 @@ export async function loadReservationCalendar(
   dateStr: string,
 ): Promise<ReservationCalendarData> {
   const [from, to] = scheduleWindow(dateStr)
-  const [schedule, reservations] = await Promise.all([
+  const [schedule, reservations, members] = await Promise.all([
     loadSchedule(ctx, dateStr),
     new FirestoreReservationRepository(adminDb()).listBySessionStartRange(ctx, instant(from), instant(to)),
+    // The DESK's calendar shows full names. The reservation's own snapshot deliberately holds only
+    // "given name + surname initial" (AD-44) — that bound protects the TRAINER's roster, where a
+    // reduced identity is enough to tell two members apart. Reception is a different audience: she
+    // already reads full names on the member list, so reading them here reveals nothing new, and
+    // "İREM K." is genuinely ambiguous once two İrems book the same week.
+    //
+    // The snapshot itself is untouched: this is a display-time join, not a change to what a
+    // reservation stores. One extra read of a small collection.
+    new FirestoreMemberRepository(adminDb()).list(ctx),
   ])
+  const fullNameById = new Map(members.map((m) => [m.id as string, m.fullName]))
 
   const rosters: Record<string, SessionRosterEntry[]> = {}
   for (const r of reservations) {
@@ -37,7 +47,9 @@ export async function loadReservationCalendar(
     ;(rosters[r.classSessionId] ??= []).push({
       reservationId: r.id,
       memberId: r.memberId,
-      memberName: r.memberSnapshot.displayName,
+      // Falls back to the snapshot for a member who no longer exists (erased): her past reservation
+      // still renders, with the reduced name the snapshot was built to preserve.
+      memberName: fullNameById.get(r.memberId) ?? r.memberSnapshot.displayName,
       status: r.status,
     })
   }

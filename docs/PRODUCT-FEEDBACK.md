@@ -439,6 +439,14 @@ dondurulmuş, yalnız renk/tema değişir. Bu istek düzeni etkileyebilecek ilk 
 uygulanmadan önce owner'ın açık onayı gerekir; şimdilik NOT olarak duruyor (owner: "bişey yapma not olarak
 ekle yeter").
 
+**✅ YAPILDI (2026-07-26).** Kısaltmanın kaynağı UI değil, **rezervasyona kopyalanan üye kaydıydı**:
+`toMemberSnapshot` kasten "ad + soyad baş harfi" tutuyor (AD-44 / OQ-12 / Doc 3 §4.4 — *iki üyeyi ayırmaya
+yeter, bir kişiyi yeniden kurmaya yetmez*). **O karar BOZULMADI.** Snapshot aynı kaldı; rezervasyon takvimi
+tam adı görüntü anında üye listesinden birleştiriyor (`reservation-calendar-query.ts`). Gerekçe: bu ekranın
+izleyicisi RESEPSİYON ve o zaten üye listesinde tam adları okuyor — yeni bir bilgi sızmıyor. Snapshot'ın
+koruduğu izleyici EĞİTMENİN roster'ı; orası dokunulmadan kaldı. Silinmiş üyede snapshot'a düşülüyor.
+Hücrede `truncate` + `title` (hover'da tam ad): tek satır, hücre yüksekliği sabit, takvim düzeni bozulmuyor.
+
 **Yapılırken dikkat:** hücre yüksekliği sabit kalmalı; `truncate` + `title` (tooltip) yeterli olabilir.
 Katılımcı sayısı çoksa "+N" davranışı korunmalı. 375/430/768/1280 px'te kontrol (Doc 09 §9).
 

@@ -245,8 +245,11 @@ function SessionChip({ session, roster }: { session: CalendarSession; roster: re
       </p>
       {/* The names ARE the content of this calendar — they read a step darker than a caption,
           without competing with the session line above them. */}
+      {/* Full name, ONE line. A wrapped name would grow the cell, push the day's other classes down
+          and break the month grid's rhythm — so it truncates instead, and the title carries the rest
+          for the one time a name is genuinely ambiguous at a glance. */}
       {roster.slice(0, 6).map((m) => (
-        <p key={m.reservationId} className="truncate text-foreground/70">
+        <p key={m.reservationId} title={m.memberName} className="truncate text-foreground/70">
           {m.memberName}
         </p>
       ))}
