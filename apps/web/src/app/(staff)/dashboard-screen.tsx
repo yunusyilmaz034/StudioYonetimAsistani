@@ -47,7 +47,13 @@ export function DashboardScreen({
 
   const presented = WIDGETS.map((w) => ({ w, p: w.present(data) }))
   const metrics = presented.filter((x) => x.w.kind === 'metric')
-  const lists = presented.filter((x) => x.w.kind === 'list')
+  // PF-41 — a list with nothing in it does not earn a card. Six cards, three of them saying "there
+  // is no such thing", is a screen that reports the ABSENCE of work as if it were work. A widget
+  // whose exportable table has no rows is empty by its own definition, so nothing new is invented
+  // here; widgets without a table keep showing, since we cannot know.
+  const lists = presented.filter(
+    (x) => x.w.kind === 'list' && (x.w.table === null || x.w.table(data).rows.length > 0),
+  )
 
   return (
     <main className="mx-auto max-w-6xl space-y-7 p-4 pb-10 sm:p-6 lg:p-8">
@@ -95,8 +101,12 @@ export function DashboardScreen({
       {/* Phase 2 — the churn signal made visible: who has an active package but stopped coming. */}
       <ChurnPulse distribution={data.activityDistribution} dormant={data.dormant} />
 
+      {/* PF-41 — "Bugün" was eight tiles, six of them zero on a normal morning. A zero is not news,
+          and a tile is the loudest thing this screen can spend on one. Same widgets, same order,
+          same links: one dense row instead. A widget that WANTS attention still says so — it keeps
+          its outline and moves nothing else. */}
       <Section title="Bugün">
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div className="flex flex-wrap gap-2">
           {metrics.map(({ w, p }) => {
             const Icon = WIDGET_ICON[w.id]
             return (
@@ -104,15 +114,13 @@ export function DashboardScreen({
                 key={w.id}
                 href={w.href(data)}
                 title={p.headline}
-                className={`block space-y-2 rounded-xl border bg-card p-3 shadow-sm transition-colors hover:border-primary/40 hover:bg-primary-soft/20 ${
+                className={`flex min-w-[9.5rem] flex-1 items-center gap-2 rounded-lg border bg-card px-3 py-2 transition-colors hover:border-primary/40 hover:bg-primary-soft/20 ${
                   p.needsAttention ? 'border-warning/40' : 'border-border'
                 }`}
               >
-                <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                  {Icon ? <Icon className="size-3.5" /> : null}
-                  {w.title}
-                </p>
-                {w.render(data)}
+                {Icon ? <Icon className="size-3.5 shrink-0 text-muted-foreground" /> : null}
+                <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">{w.title}</span>
+                <span className="shrink-0 text-sm font-semibold tabular-nums text-foreground">{w.render(data)}</span>
               </Link>
             )
           })}

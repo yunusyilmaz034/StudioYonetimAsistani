@@ -579,5 +579,25 @@ Geri kalanı Analiz ve Raporlar'ın işi. `Aktif üye 39` ve `Açık kasalar 244
 **REDDEDİLEN:** ~~"İzlenecekler" bölümünün kaldırılması~~ — **owner: "İzlenecekler kalsın".** Örtüşmeye rağmen
 duracak; sadeleşme boş kartların gizlenmesi ve "Bugün" satırının kısalmasıyla sağlanacak.
 
+**✅ 1 ve 2 YAPILDI (2026-07-26).**
+- Boş liste kartları artık çizilmiyor (`table().rows.length === 0` → gizle; tablosu olmayan widget
+  gösterilmeye devam eder, çünkü boşluğunu bilemeyiz). *Bir şeyin yokluğu kart hak etmez.*
+- "Bugün" 8 kutu → **tek yoğun satır** (aynı widget'lar, aynı sıra, aynı linkler; dikkat isteyen widget
+  çerçevesini koruyor). Sıfır haber değildir ve kutu bu ekranın en pahalı ifade biçimidir.
+
+**⚠️ 3. MADDE — teşhis düzeltmesi.** "Checklist anlık maddelerle harmanlansın" derken varsayılan eksiklik
+YOK: `daily-checklist.tsx` (satır ~76-93) AI'ın slot-cache'li sırasını HER YÜKLEMEDE taze deterministik
+maddelerle zaten uzlaştırıyor — çözülen düşüyor, yeni eklenen görünüyor. Yani checklist bayat değil.
+
+**GERÇEK eksik: kapsam.** Checklist yalnızca beş içgörüden besleniyor — `outstanding_balance` ·
+`expiring_soon` · `low_credit` · `empty_session` · `dormant_member` (+ WhatsApp `hot_lead`). "İzlenecekler"de
+duran şu işler checklist'e HİÇ girmiyor:
+`members.exhausted` (kredisi bitenler) · `finance.pending` (bekleyen ödemeler) ·
+`finance.unreconciled_paytr` (eşleştirilecek PAYTR tahsilatı) · `finance.drawers` (açık kasa) ·
+`waitlist` · `operations.upcoming`.
+Bunlardan en az üçü gerçek "bugün yapılacak iş" (para bekliyor, tahsilat eşleşmemiş, kredi bitmiş).
+**Yapılacak iş:** `InsightKind`'a yeni türler + insights hesaplaması + AI anlatım metni. Core'a dokunur,
+ayrı bir kapsam — bu yüzden bugün YAPILMADI, owner'a bildirildi.
+
 **Ayrıca düzeltilecek (küçük):** `Aktif üye 39 · son 30 günde +119 yeni üye` ifadesi yanıltıcı — 119 KAYITLI
 üyeden 39'unun aktif paketi var; metin "39 aktif üyeye 119 yeni üye eklendi" gibi okunuyor.
