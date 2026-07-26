@@ -529,6 +529,17 @@ katlamak yerine ekranı birleştirmek.
 - ✅ Kalan öneriler (rapor ekranlarının birleşmesi, "Merkez" adlandırması, grupların kullanıcı niyetine göre
   yeniden kurulması) owner tarafından **onaylandı**, uygulama sonraya bırakıldı.
 
+**✅ GRUPLAR YENİDEN KURULDU (2026-07-26).** Eski: 4 grup (Operasyon 5 · **Yönetim 12** · **Sahip 13**).
+Yeni: **7 grup**, hepsi kullanıcının o an ne yapmaya çalıştığına göre —
+`Bugün` 5 (ajandalar, check-in, yoklama, katılım — vardiyanın kendisi) ·
+`Üyeler` 5 (üyeler, paketler, huni, **sohbetler**, **stüdyodan** — ikisi de "kişi"ye dokunuyor, eskiden ayrı
+gruplardaydı) · `Para` 3 · `Eğitim` 2 · `Analiz` 5 ("nasıl gidiyoruz?" sorusunun beş cevabı, eskiden Yönetim
+ve Sahip'e bölünmüştü) · `Sistem` 8 (seyrek açılan kurulum/geçmiş ekranları — uzun olması SORUN DEĞİL, orada
+"ayarlar" beklentisi var) · `Yardım` 2 (Bilgi Merkezi + Geri Bildirim, her zaman en altta).
+**Tekrarlayan ikonlar da ayrıldı:** Bordro `ReceiptIcon`, Yoklama `ListChecksIcon`, AI Rapor `TrendingUpIcon`.
+**Ekran BİRLEŞTİRME (üç rapor → tek ekran) yapılmadı** — menü düzeyinde çözülebilecek kısım çözüldü; ekran
+taşımak ayrı bir iş ve owner'a taslak sunulmadan yapılmamalı.
+
 **Kısıtlar:** nav yetki matrisinden TÜRETİLİYOR (`canSee`), ikinci bir liste tutulmayacak — grup değişimi
 matrisi bozmamalı. Mobil nav ayrı (`MobileNav`: ≤4 birincil + "Menü" sheet); masaüstü ağacı değişirse mobil
 gruplama da gözden geçirilmeli. Takvim ekranlarının **düzeni** dondurulmuş ([[calendar-views-only-recolor]]) —

@@ -7,6 +7,9 @@ import { signOut } from 'firebase/auth'
 import {
   ActivityIcon,
   BanknoteIcon,
+  ListChecksIcon,
+  ReceiptIcon,
+  TrendingUpIcon,
   BarChart3Icon,
   BellIcon,
   BookOpenIcon,
@@ -83,55 +86,81 @@ export const GROUPS: readonly NavGroup[] = [
     ],
   },
   {
-    label: 'Operasyon',
+    // Grouped by what the user is TRYING TO DO, not by which subsystem owns the screen (PF-40).
+    // "Bugün" is the shift itself: everything reception touches between opening and closing.
+    label: 'Bugün',
     items: [
       { href: '/schedule', label: 'Ders Ajandası', icon: CalendarIcon },
       { href: '/reservations', label: 'Rezervasyon Ajandası', icon: CalendarClockIcon },
       { href: '/checkin', label: 'Check-in', icon: DoorOpenIcon },
-      // Plus Phase 8 — occupancy & entry reports (owner + reception).
+      { href: '/attendance', label: 'Yoklama', icon: ListChecksIcon },
       { href: '/fitness', label: 'Katılım', icon: GaugeIcon },
-      { href: '/attendance', label: 'Yoklama', icon: ClipboardCheckIcon },
     ],
   },
   {
-    label: 'Yönetim',
+    // Everything that is about a PERSON — including reaching her. "Sohbetler" and "Stüdyodan" used
+    // to live under management and ownership respectively, which is a filing decision, not a usage one.
+    label: 'Üyeler',
     items: [
       { href: '/members', label: 'Üyeler', icon: UsersIcon },
       { href: '/packages', label: 'Paketler', icon: PackageIcon },
-      // Plus Phase 7 — the training workspace (owner + trainer; reception is filtered out). For the owner
-      // it is a management surface (exercise library + templates), so it lives here (PF-16 nav fix).
-      { href: '/training', label: 'Antrenman', icon: DumbbellIcon },
-      { href: '/finance', label: 'Kasa', icon: WalletIcon },
-      { href: '/retail', label: 'Ürün Sat', icon: ShoppingCartIcon },
       { href: '/crm', label: 'Satış Hunisi', icon: TargetIcon },
       { href: '/conversations', label: 'Sohbetler', icon: MessageCircleIcon },
-      { href: '/calendar', label: 'Çalışma Takvimi', icon: CalendarDaysIcon },
-      { href: '/activity', label: 'Hareket Merkezi', icon: ActivityIcon },
-      { href: '/notifications', label: 'Bildirim Merkezi', icon: BellIcon },
-      { href: '/knowledge', label: 'Bilgi Merkezi', icon: BookOpenIcon },
+      { href: '/engagement', label: 'Stüdyodan', icon: MegaphoneIcon },
+    ],
+  },
+  {
+    label: 'Para',
+    items: [
+      { href: '/finance', label: 'Kasa', icon: WalletIcon },
+      { href: '/retail', label: 'Ürün Sat', icon: ShoppingCartIcon },
+      // Plus Phase 9 — trainer payroll & commission. Owner-confidential.
+      { href: '/payroll', label: 'Bordro', icon: ReceiptIcon },
+    ],
+  },
+  {
+    label: 'Eğitim',
+    items: [
+      { href: '/training', label: 'Antrenman', icon: DumbbellIcon },
       { href: '/media', label: 'Medya Merkezi', icon: ImageIcon },
     ],
   },
   {
-    label: 'Sahip',
+    // The five screens that answer "how are we doing?" — they were spread across two groups, so the
+    // owner had to remember which of them counted as management and which as ownership.
+    label: 'Analiz',
     items: [
       { href: '/patron', label: 'Patron Asistanı', icon: SparklesIcon },
-      { href: '/engagement', label: 'Stüdyodan', icon: MegaphoneIcon },
       { href: '/advisor', label: 'Öneriler', icon: LightbulbIcon },
-      { href: '/ai-report', label: 'AI Rapor', icon: BarChart3Icon },
-      { href: '/operations', label: 'Operasyonlar', icon: LayersIcon },
-      // Plus Phase 9 — trainer payroll & commission. Owner-confidential.
-      { href: '/payroll', label: 'Bordro', icon: BanknoteIcon },
+      { href: '/ai-report', label: 'AI Rapor', icon: TrendingUpIcon },
       { href: '/reports', label: 'Raporlar', icon: FileTextIcon },
       { href: '/analytics', label: 'Analiz', icon: BarChart3Icon },
+    ],
+  },
+  {
+    // Set-up and look-back: opened rarely, on purpose. A long list is fine HERE — that is what
+    // "settings" means — as long as the daily work is not buried in it.
+    label: 'Sistem',
+    items: [
+      { href: '/operations', label: 'Operasyonlar', icon: LayersIcon },
+      { href: '/calendar', label: 'Çalışma Takvimi', icon: CalendarDaysIcon },
+      { href: '/activity', label: 'Hareket Merkezi', icon: ActivityIcon },
+      { href: '/notifications', label: 'Bildirim Merkezi', icon: BellIcon },
       { href: '/staff', label: 'Personel', icon: UserCogIcon },
       { href: '/settings', label: 'Ayarlar', icon: SettingsIcon },
       { href: '/audit', label: 'Denetim Kaydı', icon: ShieldIcon },
-      { href: '/feedback', label: 'Geri Bildirim', icon: MessageSquareWarningIcon },
       // The cutover tool. It stays in the nav after cutover rather than being hidden behind a flag:
       // it is idempotent (a phone is unique — I-21), it refuses a dirty file, and a tool the owner
       // cannot find is a tool she will ask us to run for her.
       { href: '/import', label: 'Üye İçe Aktar', icon: UploadIcon },
+    ],
+  },
+  {
+    // Help and the report-a-problem button: last, always, and never mixed into the working groups.
+    label: 'Yardım',
+    items: [
+      { href: '/knowledge', label: 'Bilgi Merkezi', icon: BookOpenIcon },
+      { href: '/feedback', label: 'Geri Bildirim', icon: MessageSquareWarningIcon },
     ],
   },
 ]
