@@ -419,3 +419,25 @@ bir PAKET mi tanımlanır (ör. Fitness 3 Aylık → üye + paket), yoksa (b) se
 sadece ödeme/bakiye)? Öneri: **(a) ürün-bağlı** — link bir ürün + fiyat override + taksit taşır; ödeyince
 telefon/ad'dan üye bulunur/oluşturulur + o paket tanımlanır (mevcut PAYTR grant + member upsert). Feature olarak
 geliştirilecek; deploy ayrı. PAYTR taksit hesapta aktif olmalı (owner PAYTR'a soracak).
+
+---
+
+## PF-38 — Ajandada üye adları kısaltılıyor ("İREM K.") · 💡 istek/UX
+
+**Taken:** 2026-07-26 · owner (takvim ekran görüntüsüyle): *"ajandalarda tam isim soyisim görüntülensin tek
+satırda tabi aşağıya inmesin"*.
+
+**Şu an:** ay görünümündeki ders kartlarında katılımcılar `İREM K.` biçiminde — ad + soyadın baş harfi.
+Owner tam adı istiyor (`İREM KILIÇ`), ama **satır yüksekliği artmasın**: uzun ad ikinci satıra taşarsa hücre
+büyür, gün kutusu bozulur, takvim kayar.
+
+**İstenen davranış:** tek satır, tam ad; sığmayan kısım kesilsin (ellipsis). Yani kısaltma kaynakta değil,
+GÖRÜNTÜDE olsun — hover/tıklamada tam ad zaten okunabilir.
+
+**Neden dokunulmadı:** [[calendar-views-only-recolor]] — takvim görünümlerinin DÜZENİ owner+Işıl kararıyla
+dondurulmuş, yalnız renk/tema değişir. Bu istek düzeni etkileyebilecek ilk değişiklik olduğu için
+uygulanmadan önce owner'ın açık onayı gerekir; şimdilik NOT olarak duruyor (owner: "bişey yapma not olarak
+ekle yeter").
+
+**Yapılırken dikkat:** hücre yüksekliği sabit kalmalı; `truncate` + `title` (tooltip) yeterli olabilir.
+Katılımcı sayısı çoksa "+N" davranışı korunmalı. 375/430/768/1280 px'te kontrol (Doc 09 §9).
