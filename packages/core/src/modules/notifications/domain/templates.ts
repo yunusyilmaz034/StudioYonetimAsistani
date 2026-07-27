@@ -240,6 +240,19 @@ export const TEMPLATES: Readonly<Record<string, NotificationTemplate>> = {
     subject: 'Sistem uyarısı: {{alertTitle}}',
     body: '⚠️ {{alertTitle}}\n{{alertDetail}}\n\nPanelde İşlemler → Sistem Uyarıları ekranından ne yapmanız gerektiğini görebilirsiniz.',
   },
+  // The weekly "still here" message. Its whole value is in ARRIVING: the owner is told, in the text
+  // itself, that a missing heartbeat means something is wrong — which is the only way to notice the
+  // one failure a self-hosted watchdog cannot report, its own suspension.
+  system_heartbeat: {
+    id: 'system_heartbeat',
+    version: 1,
+    name: 'Haftalık sistem kontrolü (sahip)',
+    category: 'operational',
+    priority: 'normal',
+    requiredParams: ['summary'],
+    subject: 'Sistem kontrolü: her şey yolunda',
+    body: '✅ Haftalık sistem kontrolü\n{{summary}}\n\nBu mesaj her Pazartesi gelir. GELMEZSE bir sorun var demektir — lütfen bize haber verin.',
+  },
   wallet_topup: {
     id: 'wallet_topup',
     version: 1,

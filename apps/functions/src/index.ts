@@ -15,6 +15,7 @@ import { runAutoCheckOutSweep } from './scheduled/auto-check-out'
 import { runAutoResolveSweep } from './scheduled/auto-resolve-attendance'
 import { runClassReminderSweep } from './scheduled/class-reminders'
 import { runExpirySweep } from './scheduled/expire-credits'
+import { runInfrastructureWatch } from './scheduled/infrastructure-alarm'
 import { runFastHealthChecks, runNightlyHealthChecks } from './scheduled/health'
 import { runNotificationRetrySweep } from './scheduled/notification-retry'
 import { runPaymentReconcileSweep } from './scheduled/reconcile-payments'
@@ -79,6 +80,22 @@ export const nightlySweep = onSchedule(
 export const healthCheck = onSchedule({ schedule: 'every 15 minutes' }, async () => {
   await runFastHealthChecks(Date.now())
 })
+
+// ── The watchdog for everything OUTSIDE the code (2026-07-27) ────────────────────────────────
+// The studio retired its old system today; from now on a day this panel cannot open is a day the
+// business cannot run. The likeliest cause of that is not a bug — it is a lapsed domain, a
+// certificate that stopped renewing, or a renewal nobody remembered. This studio already lost its
+// domain once to an unconfirmed registrar e-mail.
+//
+// Daily at 08:00 Istanbul: early enough that a problem is found before the studio opens, and once a
+// day because these are dates, not events. A CRITICAL finding reaches the owner through the same
+// notification pipeline the health checks use.
+export const infrastructureWatch = onSchedule(
+  { schedule: '0 8 * * *', timeZone: 'Europe/Istanbul', secrets: [...NOTIFICATION_SECRETS] },
+  async () => {
+    await runInfrastructureWatch(Date.now())
+  },
+)
 
 // Ders Hatırlatmaları — a pilates class starts in ~1 hour: emit `class_reminder.due` so the notifier
 // tells the member (WhatsApp + in-app). Every 15 minutes, because "1 hour before" needs a fine grain
