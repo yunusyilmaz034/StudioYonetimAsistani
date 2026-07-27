@@ -26,13 +26,18 @@ import { settleFlaggedIntent } from '@/server/payment-callback'
 //
 // Token-protected rather than session-protected because it is operated from a terminal during an
 // incident, the same shape as the WhatsApp resume endpoint. It writes nothing without `apply=1`.
+// The key is `QR_TOKEN_SECRET`, already provisioned and already rotatable — a second secret would be
+// a second thing to rotate and forget, and a stale break-glass token is worse than none at all.
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 export async function POST(req: NextRequest): Promise<Response> {
   const q = req.nextUrl.searchParams
   const token = q.get('token') ?? ''
-  const expected = process.env.WHATSAPP_VERIFY_TOKEN ?? ''
+  // The QR signing secret doubles as the break-glass key: it is already provisioned for this app,
+  // already rotatable, and already treated as a secret. A second secret would be a second thing to
+  // rotate and forget — and an unrotated break-glass token is worse than none.
+  const expected = process.env.QR_TOKEN_SECRET ?? ''
   if (!expected || token !== expected) return NextResponse.json({ ok: false, error: 'forbidden' }, { status: 403 })
 
   const studioId = q.get('studio') ?? ''
