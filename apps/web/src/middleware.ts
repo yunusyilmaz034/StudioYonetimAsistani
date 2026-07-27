@@ -34,9 +34,6 @@ const PUBLIC_PREFIXES = [
   // The online price list as JSON, read by the marketing site. Same data the sales page renders.
   '/api/public',
   '/api/member',
-  // Break-glass settlement, operated from a terminal during an incident. It carries no session — it
-  // carries a token the route itself verifies, the same shape as the WhatsApp resume endpoint.
-  '/api/admin',
   '/api/payments/paytr/callback',
   // Public privacy policy / KVKK notice — the URL the app stores and members link to. No session.
   '/gizlilik',

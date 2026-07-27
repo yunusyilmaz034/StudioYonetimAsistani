@@ -482,11 +482,92 @@ async function handle(sid: string, fields: Record<string, string>): Promise<{ bo
 
 // PAYTR is the caller (public, unauthenticated) — the notification HMAC is the authentication,
 // verified inside `handle`. sid rides in the path (…/paytrCallback/{sid}); default to the pilot studio.
+// ── BREAK-GLASS: settle a payment the provider took and the system refused ───────────────────
+//
+// An intent sits in `manual_review` — card charged, no package — and until now there was no way to
+// resolve one anywhere in the product. The instalment bug created two within minutes of self-service
+// checkout going live, and the honest answer to "how do we fix this member's order" was "edit
+// Firestore by hand", which this codebase forbids for a reason that shows up exactly here: an
+// entitlement with no event behind it is indistinguishable, forever, from one somebody granted
+// themselves.
+//
+// It lives HERE, in the function, and not in the web app — which is where it was first written, and
+// wrong. This is the callback PAYTR actually calls; `completePaidIntent` above is the code that
+// grants. Anywhere else and it is either a third copy of the grant rules or a status flip that
+// clears the flag without granting, which is worse than the flag: it removes the only sign that a
+// member paid for nothing.
+//
+// The operator states what the provider ACTUALLY took; the domain decides from there. Underpayment
+// is still refused — this completes what was paid, it does not forgive what was not. Nothing is
+// written without `apply=1`.
+//
+//   POST /paytrCallback/<sid>?admin=settle&intent=pin_…&paid=<kuruş>&reason=…&token=…[&apply=1]
+async function breakGlassSettle(
+  sid: string,
+  q: Record<string, string | undefined>,
+): Promise<{ body: string; status: number }> {
+  const intentId = q.intent ?? ''
+  const paid = Number(q.paid ?? '')
+  const reason = (q.reason ?? '').trim()
+  const apply = q.apply === '1'
+  if (!intentId || !Number.isInteger(paid) || paid <= 0 || reason.length < 8) {
+    return { body: JSON.stringify({ ok: false, error: 'usage: ?admin=settle&intent=&paid=<kuruş>&reason=&token=[&apply=1]' }), status: 400 }
+  }
+
+  const database = db()
+  const ctx: TenantContext = {
+    studioId: sid as TenantContext['studioId'],
+    branchIds: [],
+    role: 'owner',
+    // The truth about who did this. A hand-settled payment must never be indistinguishable from a
+    // provider callback in the log.
+    actor: { type: 'platform_admin', id: 'break_glass' } as TenantContext['actor'],
+  }
+
+  const intent = await new FirestorePaymentIntentRepository(database).getIntent(ctx, intentId)
+  if (!intent) return { body: JSON.stringify({ ok: false, error: 'intent_not_found' }), status: 404 }
+
+  const view = {
+    status: intent.status,
+    failureReason: intent.failureReason,
+    expectedKurus: intent.amount.amount,
+    providerTookKurus: paid,
+    memberId: intent.memberId,
+    productId: intent.context.productId,
+    validFrom: intent.context.validFrom,
+    validUntil: intent.context.validUntil,
+  }
+  if (!apply) return { body: JSON.stringify({ ok: true, dryRun: true, intent: view, reason }), status: 200 }
+
+  logger.warn('[paytr-callback] BREAK-GLASS settle', { intent: intentId, paid, reason, sid })
+  await completePaidIntent(database, ctx, intent, {
+    ok: true,
+    providerRef: intent.providerRef,
+    paidAmount: money(paid),
+  })
+  return { body: JSON.stringify({ ok: true, applied: true, intent: view, reason }), status: 200 }
+}
+
 export const paytrCallback = onRequest({ region: REGION, secrets: [...PAYTR_SECRETS] }, async (req, res) => {
   const sid = (req.path ?? '').replace(/^\/+/, '').split('/')[0] || 'retro'
   const params = new URLSearchParams(req.rawBody ? req.rawBody.toString('utf8') : '')
   const fields: Record<string, string> = {}
   for (const [k, v] of params) fields[k] = v
+
+  // Break-glass first: it is a POST like the callback, told apart by `admin=settle` and gated by the
+  // same token the WhatsApp resume endpoint uses. Deliberately NOT a separate function — it must sit
+  // next to the grant code it calls.
+  if (req.query.admin === 'settle') {
+    if (req.query.token !== process.env.WHATSAPP_VERIFY_TOKEN) {
+      res.status(403).send(JSON.stringify({ ok: false, error: 'forbidden' }))
+      return
+    }
+    const q: Record<string, string | undefined> = {}
+    for (const [k, v] of Object.entries(req.query)) q[k] = typeof v === 'string' ? v : undefined
+    const out = await breakGlassSettle(sid, q)
+    res.status(out.status).send(out.body)
+    return
+  }
 
   const { body, status } = await handle(sid, fields)
   res.status(status).send(body)

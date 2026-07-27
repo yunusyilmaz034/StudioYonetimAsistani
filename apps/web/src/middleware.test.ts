@@ -61,12 +61,6 @@ describe('middleware — the coarse gate', () => {
 
   // The printed daily sheet (2026-07-27). Bouncing this loses WHICH sheet was scanned, so the
   // member logs in and lands on a dashboard having checked in to nothing.
-  // Token-verified in the route, not session-gated: it is run from a terminal while something is
-  // already broken, which is precisely when nobody can log in comfortably.
-  it('lets the token-protected break-glass endpoint through the cookie gate', () => {
-    expect(locationOf(middleware(request('/api/admin/settle-intent?token=x')))).toBeNull()
-  })
-
   it('lets the scanned check-in sheet through so it can keep the token and hand it to login', () => {
     expect(locationOf(middleware(request('/g/poster%7Cbr_1%7C123%7Cjti.sig?s=retro')))).toBeNull()
   })
