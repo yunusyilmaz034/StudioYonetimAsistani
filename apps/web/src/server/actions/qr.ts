@@ -223,8 +223,10 @@ export async function mintKioskCheckInTokenAction(input: unknown) {
 const POSTER_SENTINEL = 'poster'
 const ISTANBUL_OFFSET_MIN = 180
 
-/** The signed sheet for one branch on one studio-local day. Deterministic: reprinting is free. */
-export function posterToken(studioId: string, branchId: string, at: number): { token: string; day: string; validUntil: number } {
+/** The signed sheet for one branch on one studio-local day. Deterministic: reprinting is free.
+ *  NOT exported: every export of a `'use server'` module must be an async Server Action, and this
+ *  is a pure codec. `posterTokenAction` below is the door. */
+function posterToken(studioId: string, branchId: string, at: number): { token: string; day: string; validUntil: number } {
   const day = localDateAt(instant(at), ISTANBUL_OFFSET_MIN) as string
   // Midnight at the end of that local day. Istanbul has no DST, so fixed-offset arithmetic is exact.
   const validUntil = (Math.floor((at + ISTANBUL_OFFSET_MIN * 60_000) / 86_400_000) + 1) * 86_400_000 - ISTANBUL_OFFSET_MIN * 60_000
