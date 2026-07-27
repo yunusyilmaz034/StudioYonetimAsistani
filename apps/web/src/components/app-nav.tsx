@@ -10,7 +10,6 @@ import {
   ListChecksIcon,
   ReceiptIcon,
   TrendingUpIcon,
-  BarChart3Icon,
   BellIcon,
   BookOpenIcon,
   CalendarClockIcon,
@@ -132,9 +131,13 @@ export const GROUPS: readonly NavGroup[] = [
     items: [
       { href: '/patron', label: 'Patron Asistanı', icon: SparklesIcon },
       { href: '/advisor', label: 'Öneriler', icon: LightbulbIcon },
-      { href: '/ai-report', label: 'AI Rapor', icon: TrendingUpIcon },
+      // PF-40 — "AI Rapor" named the SHAPE, not the subject; three entries here were reports and
+      // none of the names said which. This one is about a CHANNEL: is the WhatsApp receptionist
+      // bringing in work and earning its cost? So it is named after what it answers.
+      { href: '/ai-report', label: 'AI Resepsiyonist', icon: TrendingUpIcon },
+      // "Analiz" used to be a separate screen. It is now the "Genel eğilim" report on this one —
+      // same range, same events, drawn instead of listed.
       { href: '/reports', label: 'Raporlar', icon: FileTextIcon },
-      { href: '/analytics', label: 'Analiz', icon: BarChart3Icon },
     ],
   },
   {

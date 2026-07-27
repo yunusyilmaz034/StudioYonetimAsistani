@@ -1,6 +1,7 @@
 'use client'
 
 import { DownloadIcon, PrinterIcon } from 'lucide-react'
+import { useSearchParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
@@ -8,7 +9,9 @@ import { Input } from '@/components/ui/input'
 import { PageHeader } from '@/components/ui/page-header'
 import { downloadCsv } from '@/lib/export/csv'
 import { REPORTS, TIME_NOTE, type ReportId } from '@/lib/reports/catalog'
+import { TrendReport } from './trend-report'
 import { RANGES, resolveRange, type RangeId } from '@/lib/ranges'
+import type { ExportableTable } from '@/lib/widgets/contract'
 import { loadReportAction, type ReportResult } from '@/server/actions/reports'
 
 // THE REPORTS SCREEN (v1.27 S6) — one screen, seven reports, one range, one export.
@@ -22,18 +25,35 @@ import { loadReportAction, type ReportResult } from '@/server/actions/reports'
 // bought for nothing.
 
 export function ReportsScreen() {
-  const [id, setId] = useState<ReportId>('dayend')
+  // `?r=` picks the report on arrival — how `/analytics` sends its old visitors to the trend. An
+  // unknown value falls back to the day-end rather than rendering nothing.
+  const wanted = useSearchParams().get('r')
+  const [id, setId] = useState<ReportId>(
+    REPORTS.some((r) => r.id === wanted) ? (wanted as ReportId) : 'dayend',
+  )
   const [rangeId, setRangeId] = useState<RangeId>('today')
   const [custom, setCustom] = useState<{ from?: string; to?: string }>({})
   const [result, setResult] = useState<ReportResult | null>(null)
+  // PF-40 — the trend report draws charts and hands its rows up, so the page's single export button
+  // works for it exactly as it does for the seven tabular reports.
+  const [trendTable, setTrendTable] = useState<ExportableTable | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const spec = REPORTS.find((r) => r.id === id)!
 
+  const charts = spec.render === 'charts'
+
   useEffect(() => {
     let cancelled = false
     const run = async () => {
+      // The charts report fetches its own series (a different shape from `ReportResult`), so this
+      // one does not run for it — and must not, or it would ask the server for a table nobody draws.
+      if (charts) {
+        setResult(null)
+        setBusy(false)
+        return
+      }
       setBusy(true)
       setError(null)
       try {
@@ -50,9 +70,10 @@ export function ReportsScreen() {
     return () => {
       cancelled = true
     }
-  }, [id, rangeId, custom])
+  }, [id, rangeId, custom, charts])
 
-  const table = result?.table
+  const table = charts ? trendTable : result?.table
+  const range = resolveRange(rangeId, Date.now(), custom)
 
   return (
     <main className="mx-auto max-w-6xl space-y-5 p-4 sm:p-6 lg:p-8">
@@ -153,13 +174,15 @@ export function ReportsScreen() {
 
       {busy ? <p className="text-sm text-muted-foreground print:hidden">Yükleniyor…</p> : null}
 
-      {table && table.rows.length === 0 && !busy ? (
+      {table && table.rows.length === 0 && !busy && !charts ? (
         <div className="rounded-xl border border-border bg-card p-8 text-center text-sm text-muted-foreground">
           Bu aralıkta kayıt yok.
         </div>
       ) : null}
 
-      {table && table.rows.length > 0 ? (
+      {charts ? <TrendReport fromMs={range.fromMs} toMs={range.toMs} onTable={setTrendTable} /> : null}
+
+      {table && table.rows.length > 0 && !charts ? (
         <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-sm">
           <table className="w-full text-sm">
             <thead className="border-b border-border bg-muted/40">

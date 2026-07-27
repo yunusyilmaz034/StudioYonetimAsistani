@@ -537,8 +537,18 @@ gruplardaydı) · `Para` 3 · `Eğitim` 2 · `Analiz` 5 ("nasıl gidiyoruz?" sor
 ve Sahip'e bölünmüştü) · `Sistem` 8 (seyrek açılan kurulum/geçmiş ekranları — uzun olması SORUN DEĞİL, orada
 "ayarlar" beklentisi var) · `Yardım` 2 (Bilgi Merkezi + Geri Bildirim, her zaman en altta).
 **Tekrarlayan ikonlar da ayrıldı:** Bordro `ReceiptIcon`, Yoklama `ListChecksIcon`, AI Rapor `TrendingUpIcon`.
-**Ekran BİRLEŞTİRME (üç rapor → tek ekran) yapılmadı** — menü düzeyinde çözülebilecek kısım çözüldü; ekran
-taşımak ayrı bir iş ve owner'a taslak sunulmadan yapılmamalı.
+**✅ RAPOR EKRANLARI ELE ALINDI (2026-07-27, owner'a üç taslak sunuldu, A seçildi).**
+- **`Analiz` → `Raporlar` ekranında 8. rapor** ("Genel eğilim"). Analiz hiçbir zaman farklı bir *tür*
+  değildi: aynı tarih aralığı, aynı olaylar, tablo yerine grafik. Ayrı ekran olması bir soru için iki
+  tarih seçici ve iki dışa aktarma düğmesi demekti. `/analytics` rotası **silinmedi, yönlendirmeye
+  dönüştü** (`/reports?r=trend`) — owner'ın geçmişinde/yer imlerinde olabilir ve bir tık ötede duran
+  bir ekran için 404 vermek yönlendirmekten kötü bir cevap. Erişim kontrolü yönlendirmeden ÖNCE
+  çalışıyor: yönlendirme, sahip-özel bir ekranın varlığını öğrenme yolu olmamalı.
+- **`AI Rapor` → `AI Resepsiyonist`.** Bu ekran BİRLEŞTİRİLMEDİ ve bu bilinçli: farklı bir soru
+  soruyor ("WhatsApp resepsiyonisti iş getiriyor mu, parasını çıkarıyor mu?"), farklı veri kaynağı
+  (adaylar/sohbetler) ve farklı dönem seçicisi (7/30/tümü) var. Onu da katmak menüyü toplardı ama
+  bilgiyi düzeltmezdi; asıl sorunu adıydı — "AI Rapor" ne olduğunu değil neye benzediğini söylüyordu.
+- Analiz grubu **5 → 4 madde**. Yetki genişlemedi: üçü de zaten `OWNER_ONLY`.
 
 **Kısıtlar:** nav yetki matrisinden TÜRETİLİYOR (`canSee`), ikinci bir liste tutulmayacak — grup değişimi
 matrisi bozmamalı. Mobil nav ayrı (`MobileNav`: ≤4 birincil + "Menü" sheet); masaüstü ağacı değişirse mobil

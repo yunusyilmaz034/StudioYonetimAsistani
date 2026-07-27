@@ -1,4 +1,4 @@
-// THE SEVEN REPORTS (v1.27 S6) — the catalogue, and nothing else.
+// THE REPORTS (v1.27 S6; the trend joined them in PF-40) — the catalogue, and nothing else.
 //
 // This file is imported by the SCREEN, so it holds no domain types and no `@studio/core` import: one
 // value imported from the kernel drags `firebase-admin` into the browser bundle.
@@ -22,6 +22,11 @@ export type ReportId =
   | 'trainer'
   | 'dayend'
   | 'cash'
+  // PF-40 (2026-07-27) — what used to be the separate `/analytics` screen. It was never a different
+  // KIND of thing: the same date range over the same events, drawn instead of listed. Two screens
+  // meant two date pickers and two export buttons for one question, and a menu in which "Raporlar"
+  // and "Analiz" could not be told apart by name.
+  | 'trend'
 
 export interface ReportSpec {
   readonly id: ReportId
@@ -38,6 +43,12 @@ export interface ReportSpec {
    * when it is about today.
    */
   readonly time: 'range' | 'day' | 'state'
+  /**
+   * How the answer is drawn. `table` is the default and the shape of a report: columns and rows.
+   * `charts` exists for exactly one report — the trend — because a month of daily counts is a shape,
+   * and reading it as 30 rows is reading it wrong.
+   */
+  readonly render?: 'table' | 'charts'
 }
 
 export const REPORTS: readonly ReportSpec[] = [
@@ -76,6 +87,13 @@ export const REPORTS: readonly ReportSpec[] = [
     label: 'Gün sonu raporu',
     question: 'Bugün ne oldu — dersler, gelenler, para, kasa?',
     time: 'day',
+  },
+  {
+    id: 'trend',
+    label: 'Genel eğilim',
+    question: 'Bu dönemde işler nasıl gitti — rezervasyon, doluluk, saat yoğunluğu, satış?',
+    time: 'range',
+    render: 'charts',
   },
   {
     id: 'cash',
