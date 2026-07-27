@@ -955,3 +955,25 @@ bookings into an out-of-service room, or a report on room downtime. At that poin
 concept, not a whiteboard.
 **Repayment:** promote to a small event-sourced module (`room_note.opened` / `room_note.resolved`,
 golden fixtures), reading the current collection as the seed.
+
+---
+
+## DEBT-031 — `pnpm check` does not run the production build
+
+**Taken:** 2026-07-27 · check-in poster milestone · Claude (proposed to the owner in the summary)
+**What:** the gate runs typecheck + eslint + dependency-cruiser + unit tests, but never `next build`.
+Some rules exist ONLY inside that build. Today one of them bit: a `'use server'` module may export
+nothing but async Server Actions, so a pure codec exported from `server/actions/qr.ts` passed the
+gate green and then failed the App Hosting rollout — production was building broken code for two
+minutes before the failure surfaced.
+**Cost:** a class of error that reaches a rollout instead of a commit. Rare (three occurrences in a
+year, all in `'use server'` boundaries), but each one costs a failed deploy and a second push, and
+the failure appears far from the change that caused it.
+**Why it was NOT simply fixed:** `next build` takes ~90 s. The gate takes seconds *by design* —
+"a gate that takes two minutes is a gate that gets skipped" (Doc 6). Making every commit pay 90 s to
+catch a once-a-quarter error is the wrong trade, and a slow gate that gets bypassed catches nothing.
+**Trigger to repay:** the FOURTH occurrence, or the first time a failed rollout leaves production
+serving a stale build for more than an hour.
+**Repayment (cheapest first):** a lint rule asserting every export of a `'use server'` file is an
+async function — that is the actual rule, it costs milliseconds, and it catches this whole class at
+the gate. Only if that proves insufficient: `next build` in a pre-push hook (never pre-commit).
