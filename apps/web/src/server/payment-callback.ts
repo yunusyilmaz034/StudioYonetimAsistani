@@ -241,12 +241,6 @@ export async function completePaidIntent(ctx: TenantContext, intent: PaymentInte
         },
       })
       if (invitee) await issueInviteFor(ctx, invitee, intent.id)
-    await tellStudioAboutSale(ctx, {
-      memberId: intent.memberId,
-      productName: product.name,
-      amountKurus: intent.amount.amount,
-      startsAtMs: dayMs(intent.context.validFrom ?? ''),
-    })
       await tellStudioAboutSale(ctx, {
         memberId: intent.memberId,
         productName: product.name,
@@ -301,6 +295,12 @@ export async function completePaidIntent(ctx: TenantContext, intent: PaymentInte
       },
     })
     if (invitee) await issueInviteFor(ctx, invitee, intent.id)
+    await tellStudioAboutSale(ctx, {
+      memberId: intent.memberId,
+      productName: product.name,
+      amountKurus: intent.amount.amount,
+      startsAtMs: dayMs(intent.context.validFrom ?? ''),
+    })
     return
   }
 
