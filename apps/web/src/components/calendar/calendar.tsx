@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState, type ReactNode } from 'react'
-import { CalendarIcon } from 'lucide-react'
+import { CalendarIcon, PlusIcon } from 'lucide-react'
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -44,6 +44,12 @@ interface CalendarProps<T extends CalendarItem> {
   // D23 — an optional marker for a day (a holiday, a closure). The engine stays data-agnostic:
   // it renders whatever the screen hands back, and knows nothing about what a holiday IS.
   renderDayMark?: (dayKey: string) => ReactNode
+  // Add something ON a given day, from the day's own hover panel (owner, 2026-07-27). Optional: a
+  // calendar that cannot be added to (the reservations agenda, the working calendar) simply omits it
+  // and the button never renders. The engine stays data-agnostic — it hands back the day and knows
+  // nothing about what gets created.
+  onAddDay?: (dayKey: string) => void
+  addDayLabel?: string
 }
 
 export function Calendar<T extends CalendarItem>({
@@ -57,6 +63,8 @@ export function Calendar<T extends CalendarItem>({
   emptyLabel = 'Bu aralıkta kayıt yok.',
   groupDaysInCard = false,
   renderDayMark,
+  onAddDay,
+  addDayLabel = 'Ders ekle',
 }: CalendarProps<T>) {
   const byDay = useMemo(() => {
     const map = new Map<string, T[]>()
@@ -81,6 +89,8 @@ export function Calendar<T extends CalendarItem>({
         monthCellMax={monthCellMax}
         groupDaysInCard={groupDaysInCard}
         renderDayMark={renderDayMark}
+        onAddDay={onAddDay}
+        addDayLabel={addDayLabel}
       />
     )
   }
@@ -107,6 +117,8 @@ function MonthGrid<T extends CalendarItem>({
   monthCellMax,
   groupDaysInCard,
   renderDayMark,
+  onAddDay,
+  addDayLabel,
 }: {
   date: string
   byDay: Map<string, T[]>
@@ -116,6 +128,8 @@ function MonthGrid<T extends CalendarItem>({
   monthCellMax: number
   groupDaysInCard: boolean
   renderDayMark: ((dayKey: string) => ReactNode) | undefined
+  onAddDay: ((dayKey: string) => void) | undefined
+  addDayLabel: string
 }) {
   const { days, year, month } = monthGridDays(date)
   const today = studioToday()
@@ -196,11 +210,48 @@ function MonthGrid<T extends CalendarItem>({
                 {/* Hover magnifier: the whole day, bigger and readable — EVERY session, no "+N", no
                     truncation. It floats out of flow (no reflow of the grid) and, on desktop, out of the
                     card (md:overflow-visible), so a glance shows the day in full. */}
+                {/* An EMPTY day has no panel — and an empty day is precisely where a class is most
+                    likely to be added. It gets the action on its own, nothing else. */}
+                {list.length === 0 && onAddDay ? (
+                  <div className="absolute left-1/2 top-1 z-40 hidden -translate-x-1/2 group-hover:block">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onAddDay(d)
+                      }}
+                      className="inline-flex min-h-7 items-center gap-1 rounded-full bg-primary px-2.5 text-xs font-medium text-primary-foreground shadow-lg transition-opacity hover:opacity-90"
+                    >
+                      <PlusIcon className="size-3.5" />
+                      {addDayLabel}
+                    </button>
+                  </div>
+                ) : null}
+
                 {list.length > 0 ? (
                   <div className="absolute left-1/2 top-1 z-40 hidden w-80 max-w-[92vw] -translate-x-1/2 overflow-hidden rounded-xl border border-border bg-popover text-left shadow-2xl group-hover:block">
-                    <div className="flex items-center justify-between border-b border-border px-3 py-2">
+                    <div className="flex items-center gap-2 border-b border-border px-3 py-2">
                       <span className="text-base font-semibold text-foreground tabular-nums">{Number(d.slice(8, 10))}</span>
-                      <span className="text-xs font-medium text-muted-foreground">{list.length} etkinlik</span>
+                      {/* Centred between the date and the count — the owner asked for it exactly here,
+                          because this panel is already open under the cursor on the day she means. The
+                          alternative is the top-of-page "Yeni Seans" button plus re-picking the date
+                          she is currently pointing at. */}
+                      {onAddDay ? (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            // The day cell behind this opens the overflow dialog; the panel is inside
+                            // it, so without stopping here a click would do both.
+                            e.stopPropagation()
+                            onAddDay(d)
+                          }}
+                          className="mx-auto inline-flex min-h-7 items-center gap-1 rounded-full bg-primary px-2.5 text-xs font-medium text-primary-foreground transition-opacity hover:opacity-90"
+                        >
+                          <PlusIcon className="size-3.5" />
+                          {addDayLabel}
+                        </button>
+                      ) : null}
+                      <span className="ml-auto text-xs font-medium text-muted-foreground">{list.length} etkinlik</span>
                     </div>
                     <div className="max-h-[60vh] divide-y divide-border overflow-y-auto">
                       {list.map((it) => (

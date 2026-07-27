@@ -68,6 +68,9 @@ export function ScheduleScreen({
   const [filters, setFilters] = useState<Filters>(baseFilters)
   const [selected, setSelected] = useState<CalendarSession | null>(null)
   const [createOpen, setCreateOpen] = useState(false)
+  // Which day the create sheet opens on. Null ⇒ the calendar's focus date, which is what the
+  // top-of-page button has always meant.
+  const [createDate, setCreateDate] = useState<string | null>(null)
   const [templatesOpen, setTemplatesOpen] = useState(false)
   const [dupOpen, setDupOpen] = useState(false)
 
@@ -202,6 +205,12 @@ export function ScheduleScreen({
         renderRow={(s) => <SessionRow session={s} />}
         emptyLabel="Bu aralıkta planlı seans bulunmuyor."
         groupDaysInCard
+        // The day under the cursor becomes the form's date. Without this she opens "Yeni Seans" and
+        // re-picks the day she was already pointing at.
+        onAddDay={(day) => {
+          setCreateDate(day)
+          setCreateOpen(true)
+        }}
         renderDayMark={(d) => {
           const marks = marksOn(data.calendarDays, d)
           if (marks.length === 0) return null
@@ -229,7 +238,14 @@ export function ScheduleScreen({
         onMutated={onMutated}
       />
 
-      <Sheet open={createOpen} onOpenChange={setCreateOpen}>
+      <Sheet
+        open={createOpen}
+        onOpenChange={(o) => {
+          setCreateOpen(o)
+          // Forget the day on close, or the next press of the top button would silently reuse it.
+          if (!o) setCreateDate(null)
+        }}
+      >
         <SheetContent side="right" className="w-full gap-4 overflow-y-auto p-4 sm:max-w-md">
           <SheetHeader className="p-0">
             <SheetTitle>Yeni Seans</SheetTitle>
@@ -237,7 +253,7 @@ export function ScheduleScreen({
           <SessionForm
             data={data}
             defaultBranchId={defaultBranchId}
-            defaultDate={date}
+            defaultDate={createDate ?? date}
             onDone={() => {
               setCreateOpen(false)
               router.refresh()
