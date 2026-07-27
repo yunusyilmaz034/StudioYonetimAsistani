@@ -1,17 +1,24 @@
 import { type NextRequest } from 'next/server'
 
-import { listProducts } from '@/server/catalog-query'
+import { memberBuyableProducts } from '@/server/member-api'
 import { withMember } from '@/server/member-api'
 
-// The catalogue she can buy from the app — active products only, just what a purchase card shows.
+// What she may buy from inside the app.
+//
+// TWO corrections over the first version of this endpoint, both found while building the renewal
+// screen and both about money:
+//
+//   1. It returned every ACTIVE product. Active means "reception can sell it", not "a member may
+//      buy it unattended" — the studio decides the second with `onlineSellable`, and PT is off for
+//      exactly that reason. Selling a package the owner never opened for self-service is the studio
+//      losing control of its own price list.
+//   2. It returned the CASH price while checkout charges the card price. She would have seen 4.200
+//      and been billed 4.620 — the kind of surprise that costs a customer, not a complaint.
+//
+// Both now match the public sales page, which had them right from the start.
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 export async function GET(req: NextRequest) {
-  return withMember(req, async (ctx) => {
-    const products = await listProducts(ctx)
-    return products
-      .filter((p) => p.active)
-      .map((p) => ({ id: p.id, name: p.name, priceInKurus: p.priceInKurus, category: p.category, durationDays: p.durationDays }))
-  })
+  return withMember(req, (ctx) => memberBuyableProducts(ctx))
 }

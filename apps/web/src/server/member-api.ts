@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 
-import { available, DEFAULT_PREFS, FirestoreMemberRepository, requestMemberDeletion, entriesUsed, FirestoreEntitlementRepository, FirestoreFinanceRepository, FirestoreNotificationRepository, money, newOperationId, sell, systemClock, type BranchId, type Entitlement, type FinanceDeps, type MemberId, type NotificationPrefs, type TenantContext } from '@studio/core'
+import { available, cardSurchargeKurus, DEFAULT_PREFS, FirestoreCatalogRepository, FirestoreMemberRepository, FirestoreSchedulingRepository, requestMemberDeletion, entriesUsed, FirestoreEntitlementRepository, FirestoreFinanceRepository, FirestoreNotificationRepository, money, newOperationId, sell, systemClock, type BranchId, type Entitlement, type FinanceDeps, type MemberId, type NotificationPrefs, type TenantContext } from '@studio/core'
 import type { RetailItem, StoredWallet } from '@studio/core/client'
 
 import { loadOccupancyNow } from './fitness-query'
@@ -322,4 +322,42 @@ export async function deleteMemberAccount(
     { memberId, source },
   )
   return { ok: true, value: { deleted: true } }
+}
+
+
+// ── What a member may buy from inside the app (2026-07-27) ──────────────────────────────────
+//
+// The same projection the public sales page uses, and deliberately so: one answer to "what is for
+// sale online, and for how much" rather than two that drift. `onlineSellable` is the studio's own
+// switch — PT is off, so a member cannot book a trainer's hour without a conversation.
+//
+// `totalKurus` is what she will actually be charged: base + the studio's card surcharge, because
+// paying in the app IS paying by card. `cashKurus` rides along so the screen can be honest about
+// why the number differs from the one on the wall.
+export interface MemberBuyableProduct {
+  readonly id: string
+  readonly name: string
+  readonly category: string
+  readonly durationDays: number
+  readonly totalKurus: number
+  readonly cashKurus: number
+}
+
+export async function memberBuyableProducts(ctx: TenantContext): Promise<readonly MemberBuyableProduct[]> {
+  const db = adminDb()
+  const [products, settings] = await Promise.all([
+    new FirestoreCatalogRepository(db).listProducts(ctx),
+    new FirestoreSchedulingRepository(db).getStudioSettings(ctx),
+  ])
+  return products
+    .filter((p) => p.active && p.onlineSellable)
+    .map((p) => ({
+      id: p.id as string,
+      name: p.name,
+      category: p.category as string,
+      durationDays: p.durationDays,
+      totalKurus: p.priceInKurus + cardSurchargeKurus(p.priceInKurus, p.category, settings?.paymentSurcharge),
+      cashKurus: p.priceInKurus,
+    }))
+    .sort((a, b) => a.totalKurus - b.totalKurus)
 }

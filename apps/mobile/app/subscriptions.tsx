@@ -1,5 +1,6 @@
-import { RefreshControl, View } from 'react-native'
+import { Pressable, RefreshControl, View } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
+import { router } from 'expo-router'
 
 import type { MemberSubscription } from '@studio/core/client'
 import { api } from '@/lib/api'
@@ -31,6 +32,24 @@ export default function Subscriptions() {
       ) : (
         <Card><Empty icon={<Ionicons name="ticket-outline" size={30} color={p.textFaint} />} text="Aktif aboneliğin yok." /></Card>
       )}
+
+      {/* The renewal is offered HERE because this is the screen she opens when she wonders how many
+          classes are left — which is the same moment she finds out there are none. Putting it
+          anywhere else means she has to go looking for it at exactly the wrong time. */}
+      <FadeInUp index={(data?.active.length ?? 0) + 1}>
+        <Pressable onPress={() => router.push('/buy')} style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}>
+          <Card>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: space(3) }}>
+              <Ionicons name="add-circle-outline" size={22} color={p.accent} />
+              <View style={{ flex: 1 }}>
+                <Body strong>Paket al / yenile</Body>
+                <Body muted style={{ fontSize: 13.5 }}>Kartınla öde, paketin hemen tanımlansın.</Body>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={p.textFaint} />
+            </View>
+          </Card>
+        </Pressable>
+      </FadeInUp>
     </Screen>
   )
 }

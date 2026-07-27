@@ -122,9 +122,12 @@ export interface MemberContact {
 export interface MemberProduct {
   readonly id: string
   readonly name: string
-  readonly priceInKurus: number
   readonly category: string
   readonly durationDays: number
+  /** What she will actually be charged: base + the studio's card surcharge. Paying here IS by card. */
+  readonly totalKurus: number
+  /** The price on the studio wall. Shown so the difference is explained rather than discovered. */
+  readonly cashKurus: number
 }
 
 export interface HomeBanner {
