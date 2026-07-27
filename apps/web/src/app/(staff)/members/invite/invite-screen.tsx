@@ -39,11 +39,14 @@ const STATE_VARIANT: Record<InviteState, 'default' | 'secondary' | 'outline' | '
 // (never asked / asked and waiting) and what she bought (pilates first, then fitness, …). Both are
 // filters rather than a single list, because "who is left" and "who do I message next" are
 // different questions asked minutes apart.
-type Filter = 'todo' | 'never' | 'package' | 'pilates' | 'fitness' | 'pt' | 'hibrit' | 'all'
+type Filter = 'todo' | 'never' | 'pending' | 'package' | 'pilates' | 'fitness' | 'pt' | 'hibrit' | 'all'
 
 const FILTERS: readonly { readonly id: Filter; readonly label: string }[] = [
   { id: 'todo', label: 'Davet edilecekler' },
   { id: 'never', label: 'Hiç davet edilmedi' },
+  // The summary above already SAYS "9 kişi davetini açmadı"; this is how you find out who they are.
+  // A count nobody can act on is a count that ages into wallpaper (owner, 2026-07-28).
+  { id: 'pending', label: 'Davet bekliyor' },
   { id: 'package', label: 'Paketi olanlar' },
   { id: 'pilates', label: 'Pilates' },
   { id: 'fitness', label: 'Fitness' },
@@ -80,6 +83,8 @@ export function InviteScreen({
       // find who still needs one, and a done row is noise in every one of these lists.
       if (filter !== 'all' && r.state === 'activated') return false
       if (filter === 'never' && r.state !== 'never') return false
+      // Invited, link still unopened — the list the "Hatırlat" button was built for.
+      if (filter === 'pending' && r.state !== 'pending') return false
       if (filter === 'package' && !r.hasActivePackage) return false
       if ((filter === 'pilates' || filter === 'fitness' || filter === 'pt' || filter === 'hibrit') && !r.packageKinds.includes(filter))
         return false
@@ -199,6 +204,7 @@ export function InviteScreen({
             const n = rows.filter((r) => {
               if (f.id !== 'all' && r.state === 'activated') return false
               if (f.id === 'never' && r.state !== 'never') return false
+              if (f.id === 'pending' && r.state !== 'pending') return false
               if (f.id === 'package' && !r.hasActivePackage) return false
               if ((f.id === 'pilates' || f.id === 'fitness' || f.id === 'pt' || f.id === 'hibrit') && !r.packageKinds.includes(f.id)) return false
               return true
