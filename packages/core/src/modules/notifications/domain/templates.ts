@@ -230,6 +230,24 @@ export const TEMPLATES: Readonly<Record<string, NotificationTemplate>> = {
   // The alarm the OWNER receives, not the member. `urgent` on purpose: quiet hours must not hold it
   // until 08:00 — a receptionist arriving to a system that broke at 23:00 needs to know at 23:00,
   // and the whole point of a health check is that nobody is watching the screen when it fires.
+  // A person on WhatsApp who has just said she is ready to buy (2026-07-27, owner).
+  //
+  // `urgent` is not drama: this notification has a shelf life measured in minutes. She is holding her
+  // phone right now; tomorrow she is a cold call, which is exactly the complaint that produced this
+  // feature. Quiet hours are the wrong instinct here — 21:40 is when people message a gym.
+  //
+  // No package, no price, no promise in the body. Whoever picks it up opens the conversation and
+  // talks to her; the alert's only job is to get a human there while she is still in it.
+  lead_handoff: {
+    id: 'lead_handoff',
+    version: 1,
+    name: 'Satışa hazır kişi (resepsiyon/sahip)',
+    category: 'operational',
+    priority: 'urgent',
+    requiredParams: ['leadName', 'leadPhone', 'lastMessage'],
+    subject: '🔥 {{leadName}} kayıt olmak istiyor',
+    body: '🔥 SATIŞA HAZIR\n{{leadName}} · {{leadPhone}}\n\nSon yazdığı:\n"{{lastMessage}}"\n\nAI bilgiyi verdi ve kişiyi size bıraktı; hâlâ hatta. Panelden WhatsApp kutusunu açıp AYNI sohbete yazın — beklerse yarın soğuk bir arama olur.',
+  },
   system_alert: {
     id: 'system_alert',
     version: 1,

@@ -15,7 +15,9 @@ import {
   decideCaptureLead,
   FirestoreCatalogRepository,
   FirestoreCrmRepository,
+  FirestoreIdentityRepository,
   instant,
+  notify,
   newCorrelationId,
   sendWhatsAppText,
   type CardSurchargeConfig,
@@ -24,11 +26,13 @@ import {
   type Product,
   type TenantContext,
 } from '@studio/core'
+import { getAuth } from 'firebase-admin/auth'
 import type { Firestore } from 'firebase-admin/firestore'
 import * as logger from 'firebase-functions/logger'
 import { onRequest } from 'firebase-functions/v2/https'
 
 import { db } from '../shared/firebase'
+import { notificationDeps, studioNotificationSettings } from '../triggers/on-event-notify'
 import { AI_RECEPTIONIST_SECRETS, REGION } from '../shared/region'
 
 const MAX_HISTORY = 24 // messages kept per conversation for context + storage
@@ -56,7 +60,7 @@ interface Conversation {
   //   'ai_failed' — the assistant produced nothing (a fault: on 2026-07-25 three customers were left
   //                 on read this way, and the desk had no way to tell it apart from a handoff)
   // Same badge, different sentence — because the response to each is different.
-  attentionReason?: 'handoff' | 'ai_failed'
+  attentionReason?: 'handoff' | 'ai_failed' | 'hot_lead'
   lastAt: number
   seenIds: string[]
   messages: Msg[]
@@ -171,6 +175,7 @@ KURALLAR:
 ÇIKTI BİÇİMİ (ÇOK ÖNEMLİ — yanlış olursa müşteriye sızıyor):
 Önce SADECE müşteriye gidecek mesajı düz metin yaz. Ardından, SADECE gerekiyorsa, aşağıdaki gizli satırları TAM OLARAK bu formatta ekle. Bunları AYIRMAK için "---" veya başka ayraç KULLANMA; parantez içinde serbest not YAZMA:
 - Devretmek GERÇEKTEN gerekiyorsa (müşteri insan/yetkili ister, şikayet/iade/sağlık/pazarlık, ya da yanıtlayamıyorsan) ayrı satır: [[DEVRET]]. Selam, tanışma, isim sorma, normal bilgi/fiyat sorularında ASLA [[DEVRET]] yazma.
+- SICAK DEVİR (YENİ, ÇOK ÖNEMLİ): Müşteri ALMAYA HAZIR sinyali verdiğinde de [[DEVRET]] yaz. Sinyaller: "hangi paket bana uygun / nasıl kayıt olurum / kayıt yaptırmak istiyorum / ne zaman başlayabilirim / yarın gelebilir miyim / yer var mı / ödeme nasıl / taksit olur mu / linki gönderir misiniz / düşüneyim dönerim değil, tamam" gibi ilerleme isteyen her ifade. Bu durumda önce KISA bir cevap yaz ve şu şekilde kapat: "Size en uygun paketi birlikte seçelim hanımcım 🌸 Hemen yetkilimiz buradan yazacak, birkaç dakika içinde döneceğiz." Sonra ayrı satıra [[DEVRET:SATIS]] koy (sorun devrinde düz [[DEVRET]], satış devrinde [[DEVRET:SATIS]]). Sohbeti KESME, veda etme, "iyi günler" deme — kişi hatta kalsın, yetkili aynı sohbete yazacak. Bu devir bir sorun işareti DEĞİLDİR: satışa hazır bir kişiyi insana teslim etmektir ve geciktirilirse müşteri kaybedilir.
 - Skor için ayrı satır, TAM olarak şu formatta: ##SKOR: sıcak | tek satır gerekçe  (sıcak=çok ilgili/fiyat sordu/gelmek istiyor · ılık=ilgili ama kararsız · soğuk=ilgisiz/kısa). Bu satırı "##SKOR:" ile başlatMAZSAN sistem gizleyemez ve müşteri görür — bu yüzden ayracsız, tam bu formatta yaz.`
 }
 
@@ -182,7 +187,7 @@ async function aiReply(
   system: string,
   facts: string,
   history: Msg[],
-): Promise<{ reply: string; escalate: boolean; temp: Temp | null; reason: string } | null> {
+): Promise<{ reply: string; escalate: boolean; hot: boolean; temp: Temp | null; reason: string } | null> {
   try {
     const res = await fetch(ANTHROPIC_URL, {
       method: 'POST',
@@ -220,7 +225,12 @@ async function aiReply(
     const data = (await res.json()) as { content?: { text?: string }[] }
     const text = data.content?.[0]?.text
     if (!text) return null
-    const escalate = /\[\[?\s*DEVRET\s*\]?\]/i.test(text)
+    const escalate = /\[\[?\s*DEVRET/i.test(text)
+    // A handover because she is READY TO BUY is a different event from one because something went
+    // wrong, and the desk must be able to tell them apart at a glance: one is a sale waiting, the
+    // other is a problem waiting. Same marker, one suffix — the scrubber below already removes
+    // anything beginning `[[DEVRET`, so neither form can reach the customer.
+    const hot = /\[\[?\s*DEVRET\s*:\s*SATIS/i.test(text)
     // Parse the hidden ##SKOR: <sıcak|ılık|soğuk> | <reason> line.
     const scoreLine = text.match(/##\s*SKOR\s*:\s*(sıcak|ılık|soğuk)\s*(?:\|\s*(.*))?/i)
     const temp = (scoreLine?.[1]?.toLocaleLowerCase('tr') as Temp | undefined) ?? null
@@ -234,11 +244,11 @@ async function aiReply(
       .filter((i) => i >= 0)
     const reply = text
       .slice(0, cut.length ? Math.min(...cut) : text.length)
-      .replace(/\[\[?\s*DEVRET\s*\]?\]/gi, '')
+      .replace(/\[\[?\s*DEVRET[^\]]*\]?\]?/gi, '')
       .replace(/^\s*\([^)]*\)\s*$/gm, '')
       .trim()
     if (!reply) return null
-    return { reply, escalate, temp, reason }
+    return { reply, escalate, hot, temp, reason }
   } catch (e) {
     logger.warn('[wa-webhook] anthropic failed', (e as Error)?.message)
     return null
@@ -329,10 +339,68 @@ async function processMessage(sid: string, from: string, name: string, text: str
   // takes over — the operator clicking "Devral" or replying is what flips status to 'human' (owner).
   if (result.escalate) {
     conv.needsAttention = true
-    conv.attentionReason = 'handoff'
+    conv.attentionReason = result.hot ? 'hot_lead' : 'handoff'
+    // The desk alert only reaches a browser that is open. A person ready to buy at 21:40 is the
+    // exact case where nobody is looking at one, and she is also the case where waiting until
+    // tomorrow loses the sale — so this one leaves the building.
+    if (result.hot) await tellTheDesk(sid, conv, from)
   }
   await ref.set(conv, { merge: true })
   logger.info('[wa-webhook] replied', { sid, escalate: result.escalate, sent: sent.ok })
+}
+
+// ── Getting a hot lead to a human, off the screen ────────────────────────────────────────────
+//
+// The desk already has an alert for a handover — a green toast in the panel. It works, and it only
+// works while a browser is open on it. The person who says "kayıt olmak istiyorum" at 21:40 is
+// precisely the one nobody is looking at a browser for, and precisely the one who is gone by
+// morning: she was ready, the moment passed, and the call the next afternoon is a cold call.
+//
+// So a SALES handover leaves the building through the ordinary notification pipeline — the same one
+// the studio already uses for members. Channels are tried in order, so this reaches whatever is
+// actually configured today (in-app + e-mail) and starts reaching WhatsApp the day the studio's
+// template is approved, with no code change.
+//
+// Best-effort, always: failing to notify must never cost the customer her reply. The AI has already
+// answered her by this point.
+async function tellTheDesk(sid: string, conv: Conversation, phone: string): Promise<void> {
+  try {
+    const ctx = ctxOf(sid)
+    const staff = await new FirestoreIdentityRepository(db()).listStaff(ctx)
+    const desk = staff.filter((m) => m.active && (m.role === 'owner' || m.role === 'receptionist'))
+    if (desk.length === 0) return
+
+    const deps = notificationDeps(await studioNotificationSettings(ctx.studioId))
+    // The last thing SHE said. It is what tells whoever picks this up whether to quote a package or
+    // open the door — and it saves them opening the panel to find out.
+    const lastFromHer = [...conv.messages].reverse().find((m) => m.role === 'user')?.text ?? ''
+
+    for (const person of desk) {
+      let email: string | null = null
+      try {
+        email = (await getAuth().getUser(person.id as string)).email ?? null
+      } catch {
+        /* no auth account — in-app still reaches them */
+      }
+      await notify(deps, ctx, {
+        // One alert per conversation per hour: she may send three messages in a row, and three
+        // identical alarms are how an alarm stops being read.
+        intentId: `hotlead-${phone}-${Math.floor(Date.now() / 3_600_000)}-${person.id}`.slice(0, 180),
+        eventId: null,
+        eventType: 'crm.hot_lead',
+        operationId: newCorrelationId(),
+        templateId: 'lead_handoff',
+        recipient: { kind: 'staff', id: person.id as string, email, phone: null, displayName: person.displayName },
+        params: {
+          leadName: conv.name || `WhatsApp ${phone.slice(-4)}`,
+          leadPhone: phone,
+          lastMessage: lastFromHer.slice(0, 200),
+        },
+      })
+    }
+  } catch (e) {
+    logger.warn('[wa-webhook] hot lead alert failed', (e as Error)?.message)
+  }
 }
 
 // Admin one-shot (owner): hand EVERY conversation back to the AI and let it answer the ones that are

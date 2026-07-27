@@ -20,8 +20,15 @@ const POLL_MS = 4000
 // "WP Hattı" — the floating operator dock. It lives in the staff layout, so it SURVIVES page navigation
 // (never closes/freezes) and stays a small panel in the bottom-right: reception keeps working on the
 // left while chatting on the right. It polls the conversations every few seconds; when the AI hands one
-// off (needsAttention), a green "operatör devri geliyor" toast fires on whatever screen is open and the
-// dock pops to that conversation. Reception can take over, reply, and hand back to the AI.
+// off (needsAttention), a toast fires on whatever screen is open and the dock pops to that
+// conversation. Reception can take over, reply, and hand back to the AI.
+//
+// THREE kinds of handover, three different alerts, because they are three different jobs:
+//   🟢 devir     — the assistant working as designed; auto-dismisses
+//   🔥 satışa hazır — she said she wants to sign up; STAYS on screen until acted on, and is also sent
+//                    out of the building by e-mail, because the person who needs it is often not at
+//                    a desk (whatsapp-webhook.ts → tellTheDesk)
+//   ⚠️ hata      — a customer is sitting unanswered and nobody would know; an alarm, not a notice
 export function WhatsAppDock() {
   const [open, setOpen] = useState(false)
   const [convs, setConvs] = useState<readonly ConvSummary[]>([])
@@ -53,6 +60,14 @@ export function WhatsAppDock() {
             // not a notification, so it does not auto-dismiss.
             if (c.attentionReason === 'ai_failed') {
               toast.error(`⚠️ Asistan cevap veremedi · ${c.name || c.phone.slice(-4)} bekliyor`, { duration: Infinity })
+            } else if (c.attentionReason === 'hot_lead') {
+              // Someone who has just said she is ready to buy. It does NOT auto-dismiss: a sale that
+              // waits until tomorrow is the cold call the studio was already complaining about, and a
+              // toast that disappears after five seconds is a toast nobody saw.
+              toast(`🔥 SATIŞA HAZIR · ${c.name || c.phone.slice(-4)} · hemen yazın`, {
+                duration: Infinity,
+                className: 'border-2 border-warning bg-warning/10 font-semibold',
+              })
             } else {
               toast.success(`🟢 Operatör devri geliyor · ${c.name || c.phone.slice(-4)}`, { duration: 5000 })
             }

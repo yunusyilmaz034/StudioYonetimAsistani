@@ -26,7 +26,9 @@ export interface ConvSummary {
   readonly needsAttention: boolean
   // Why the desk is being called: the assistant handed over, or the assistant failed. Same badge,
   // different sentence — and a very different reaction.
-  readonly attentionReason: 'handoff' | 'ai_failed' | null
+  // `hot_lead` (2026-07-27) — she said she is ready to sign up. A different alert and a different
+  // urgency from a problem handover; see whatsapp-dock.tsx.
+  readonly attentionReason: 'handoff' | 'ai_failed' | 'hot_lead' | null
   readonly lastAt: number
   readonly lastText: string
   readonly temp: Temp | null // AI's read of conversion likelihood
@@ -45,7 +47,7 @@ function summarize(c: Record<string, unknown>): ConvSummary {
     name: String(c.name ?? ''),
     status: (c.status as 'ai' | 'human') ?? 'ai',
     needsAttention: Boolean(c.needsAttention),
-    attentionReason: (c.attentionReason as 'handoff' | 'ai_failed' | undefined) ?? null,
+    attentionReason: (c.attentionReason as 'handoff' | 'ai_failed' | 'hot_lead' | undefined) ?? null,
     lastAt: Number(c.lastAt ?? 0),
     lastText: (last?.text ?? '').slice(0, 140),
     temp,
