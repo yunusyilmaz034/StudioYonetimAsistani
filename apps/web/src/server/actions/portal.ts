@@ -24,8 +24,9 @@ import {
 import { z } from 'zod'
 
 import { getMemberClaims, requireMemberContext } from '../auth'
-import { deleteMemberAccount } from '../member-api'
+import { deleteMemberAccount, memberBuyableProducts } from '../member-api'
 import { destroySession } from './session'
+import { createMemberPackageCheckout } from './payments'
 import { adminAuth, adminDb } from '../firebase-admin'
 
 // The member portal's writes (v1.21, Batches 7–8).
@@ -207,4 +208,24 @@ export async function deleteOwnAccountAction() {
   // holding a session for a deleted account until something else happens to notice.
   await destroySession()
   return { ok: true as const }
+}
+
+
+// ── Paket al / yenile, from the web portal (2026-07-27) ─────────────────────────────────────
+//
+// Built for the app, needed MORE here: the iOS app went live today and Android is still in closed
+// testing, so the portal is where nearly every member of this studio actually is. A renewal button
+// that only exists on an iPhone is a renewal button most of them cannot press.
+//
+// Same projection and same checkout as the app — one answer to "what is for sale online and for how
+// much", never two that drift.
+export async function listBuyableProductsAction() {
+  const { ctx } = await requireMemberContext()
+  return memberBuyableProducts(ctx)
+}
+
+export async function startPackageCheckoutAction(input: unknown) {
+  const p = z.object({ productId: z.string().min(1) }).parse(input)
+  const { ctx, memberId } = await requireMemberContext()
+  return createMemberPackageCheckout(ctx, memberId, p.productId)
 }

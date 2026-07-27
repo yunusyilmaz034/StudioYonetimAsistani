@@ -327,9 +327,11 @@ export async function deleteMemberAccount(
 
 // ── What a member may buy from inside the app (2026-07-27) ──────────────────────────────────
 //
-// The same projection the public sales page uses, and deliberately so: one answer to "what is for
-// sale online, and for how much" rather than two that drift. `onlineSellable` is the studio's own
-// switch — PT is off, so a member cannot book a trainer's hour without a conversation.
+// Gated by `memberSellable`, which is NOT the public page's `onlineSellable` (owner, 2026-07-27).
+// They answer different questions and a studio will want them to differ: one shows a price to a
+// stranger, this one offers a renewal to somebody who is already a member. An intro offer belongs in
+// the first and not the second; a renewal-only package is the reverse. PT is in neither — booking a
+// trainer's hour is a conversation.
 //
 // `totalKurus` is what she will actually be charged: base + the studio's card surcharge, because
 // paying in the app IS paying by card. `cashKurus` rides along so the screen can be honest about
@@ -350,7 +352,7 @@ export async function memberBuyableProducts(ctx: TenantContext): Promise<readonl
     new FirestoreSchedulingRepository(db).getStudioSettings(ctx),
   ])
   return products
-    .filter((p) => p.active && p.onlineSellable)
+    .filter((p) => p.active && p.memberSellable)
     .map((p) => ({
       id: p.id as string,
       name: p.name,

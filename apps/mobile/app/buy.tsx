@@ -8,7 +8,7 @@ import { formatKurus } from '@/lib/format'
 import { track } from '@/lib/analytics'
 import { useFetch } from '@/lib/useFetch'
 import { FadeInUp } from '@/components/motion'
-import { Body, Card, Empty, Eyebrow, Loading, Pill, Screen } from '@/components/ui'
+import { Body, Card, Empty, Loading, Pill, Screen } from '@/components/ui'
 import { radius, space, usePalette } from '@/theme'
 
 // PAKET YENİLEME — she renews without anyone phoning her (owner, 2026-07-27).
@@ -62,8 +62,6 @@ export default function Buy() {
 
   return (
     <Screen header refreshControl={<RefreshControl refreshing={loading} onRefresh={reload} tintColor={p.accent} />}>
-      <Eyebrow>Paket Al / Yenile</Eyebrow>
-
       {items.length === 0 ? (
         <Card>
           <Empty

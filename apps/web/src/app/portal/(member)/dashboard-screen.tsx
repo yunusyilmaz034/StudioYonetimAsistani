@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { CalendarPlusIcon, ClipboardListIcon, QrCodeIcon } from 'lucide-react'
+import { CalendarPlusIcon, ClipboardListIcon, QrCodeIcon, ArrowRightIcon } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -86,8 +86,16 @@ export function PortalDashboardScreen({ data }: { data: PortalDashboard }) {
       <Section title="Paketlerim">
         {data.packages.length === 0 ? (
           <Card>
-            <CardContent className="py-1 text-sm text-muted-foreground">
-              Aktif paketiniz bulunmuyor. Paket almak için stüdyoyla iletişime geçin.
+            <CardContent className="space-y-3 py-1 text-sm text-muted-foreground">
+              <p>Aktif paketiniz bulunmuyor.</p>
+              {/* The old copy sent her to find a phone number. She is already holding the thing that
+                  can sell her a package. */}
+              <Link
+                href="/portal/paket"
+                className="inline-flex min-h-11 items-center rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground"
+              >
+                Paket al
+              </Link>
             </CardContent>
           </Card>
         ) : (
@@ -122,6 +130,28 @@ export function PortalDashboardScreen({ data }: { data: PortalDashboard }) {
             ))}
           </ul>
         )}
+        {/* Offered where she just read "3 hak" — the moment she learns she is running out is the
+            moment renewing should be one tap, not a phone call tomorrow.
+
+            Deliberately NOT a quiet link (owner: "çok basit kalmış, görülmüyor"). It is the only
+            action on this screen and the studio's renewal flow depends on it being seen; a muted
+            row under three package cards is a button nobody presses. */}
+        {data.packages.length > 0 ? (
+          <Link
+            href="/portal/paket"
+            className="mt-3 flex items-center gap-3 rounded-2xl bg-gradient-to-br from-primary to-primary/80 p-4 text-primary-foreground shadow-md transition-transform active:scale-[0.99]"
+          >
+            <div className="min-w-0 flex-1">
+              <p className="text-base font-semibold">Paket al / yenile</p>
+              <p className="text-sm opacity-85">
+                Kartınızla ödeyin, paketiniz ödeme onaylanır onaylanmaz tanımlansın.
+              </p>
+            </div>
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-white/20">
+              <ArrowRightIcon className="size-5" />
+            </span>
+          </Link>
+        ) : null}
       </Section>
 
       {data.balanceDue > 0 ? (

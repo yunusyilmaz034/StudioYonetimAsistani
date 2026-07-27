@@ -51,6 +51,7 @@ const fields = z.object({
     .default(null),
   description: z.string(),
   onlineSellable: z.boolean().default(false),
+  memberSellable: z.boolean().default(false),
 })
 
 function toFields(p: z.infer<typeof fields>) {
@@ -71,7 +72,10 @@ function toFields(p: z.infer<typeof fields>) {
     components: (p.components as ProductComponent[] | null) ?? null,
     description: p.description,
     // PT/private is never online (coordination-heavy); the form also hides the toggle for it.
+    // PT is forced off on BOTH channels server-side, not merely hidden in the form: a checkbox that
+    // only exists in the UI is a rule anyone can post around.
     onlineSellable: p.category === 'private' ? false : p.onlineSellable,
+    memberSellable: p.category === 'private' ? false : p.memberSellable,
   }
 }
 

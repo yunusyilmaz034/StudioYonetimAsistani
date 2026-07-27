@@ -52,6 +52,7 @@ export function decideCreateProduct(ctx: DecideContext, p: Product): NewEvent[] 
         ...(p.components && p.components.length > 0 ? { components: p.components } : {}),
         // Only stamped when opted in — an off product's payload stays byte-for-byte unchanged (golden).
         ...(p.onlineSellable ? { onlineSellable: true } : {}),
+        ...(p.memberSellable ? { memberSellable: true } : {}),
       },
     },
   ]
@@ -75,6 +76,7 @@ const PRODUCT_FIELDS = [
   'active',
   'serviceIds',
   'onlineSellable',
+  'memberSellable',
 ] as const
 
 export function decideUpdateProduct(ctx: DecideContext, current: Product, next: Product): NewEvent[] {

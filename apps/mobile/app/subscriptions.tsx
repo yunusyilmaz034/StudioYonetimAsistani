@@ -1,12 +1,12 @@
-import { Pressable, RefreshControl, View } from 'react-native'
+import { RefreshControl, View } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { router } from 'expo-router'
 
 import type { MemberSubscription } from '@studio/core/client'
 import { api } from '@/lib/api'
 import { useFetch } from '@/lib/useFetch'
-import { FadeInUp, ProgressBar } from '@/components/motion'
-import { Body, Card, Empty, Eyebrow, Loading, Pill, Screen } from '@/components/ui'
+import { FadeInUp, PressableScale, ProgressBar } from '@/components/motion'
+import { Body, Card, Empty, Eyebrow, Hero, Loading, Pill, Screen } from '@/components/ui'
 import { space, usePalette } from '@/theme'
 
 const STATUS_TR: Record<string, { label: string; tone: 'muted' | 'good' | 'warn' | 'danger' }> = {
@@ -33,22 +33,38 @@ export default function Subscriptions() {
         <Card><Empty icon={<Ionicons name="ticket-outline" size={30} color={p.textFaint} />} text="Aktif aboneliğin yok." /></Card>
       )}
 
-      {/* The renewal is offered HERE because this is the screen she opens when she wonders how many
-          classes are left — which is the same moment she finds out there are none. Putting it
-          anywhere else means she has to go looking for it at exactly the wrong time. */}
+      {/* Offered HERE because this is the screen she opens to see how many classes are left — the
+          same moment she finds out there are none. Anywhere else and she has to go looking for it at
+          exactly the wrong time.
+
+          Given the HERO treatment (owner: "çok basit kalmış, görülmüyor") rather than a plain row.
+          It is the one action on this screen and the studio's whole renewal flow depends on it being
+          noticed; a muted list item competing with the cards above it is a button nobody presses. */}
       <FadeInUp index={(data?.active.length ?? 0) + 1}>
-        <Pressable onPress={() => router.push('/buy')} style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}>
-          <Card>
+        <PressableScale onPress={() => router.push('/buy')}>
+          <Hero>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: space(3) }}>
-              <Ionicons name="add-circle-outline" size={22} color={p.accent} />
-              <View style={{ flex: 1 }}>
-                <Body strong>Paket al / yenile</Body>
-                <Body muted style={{ fontSize: 13.5 }}>Kartınla öde, paketin hemen tanımlansın.</Body>
+              <View style={{ flex: 1, gap: 4 }}>
+                <Body strong style={{ color: p.onGrad, fontSize: 19 }}>Paket al / yenile</Body>
+                <Body style={{ color: p.onGradMuted, fontSize: 13.5 }}>
+                  Kartınla öde, paketin ödeme onaylanır onaylanmaz tanımlansın.
+                </Body>
               </View>
-              <Ionicons name="chevron-forward" size={18} color={p.textFaint} />
+              <View
+                style={{
+                  width: 42,
+                  height: 42,
+                  borderRadius: 21,
+                  backgroundColor: '#FFFFFF22',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Ionicons name="arrow-forward" size={20} color={p.onGrad} />
+              </View>
             </View>
-          </Card>
-        </Pressable>
+          </Hero>
+        </PressableScale>
       </FadeInUp>
     </Screen>
   )

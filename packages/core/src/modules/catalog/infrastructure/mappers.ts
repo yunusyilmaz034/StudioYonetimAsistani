@@ -30,6 +30,7 @@ export function productToFirestore(p: Product): DocumentData {
     description: p.description,
     active: p.active,
     onlineSellable: p.onlineSellable,
+    memberSellable: p.memberSellable,
     updatedAt: FieldValue.serverTimestamp(),
   }
 }
@@ -56,6 +57,8 @@ export function productFromFirestore(id: ProductId, d: DocumentData): Product {
     // Legacy products (created before online sale existed) default to OFF — nothing becomes sellable
     // online just because it predates the flag.
     onlineSellable: d.onlineSellable === true,
+    // Absent ⇒ false: nothing becomes member-sellable because the field did not exist yet.
+    memberSellable: d.memberSellable === true,
   }
 }
 

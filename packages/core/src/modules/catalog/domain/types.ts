@@ -56,4 +56,13 @@ export interface Product {
   // herself (card, PAYTR). DATA, owner-controlled. Default FALSE — nothing is sellable online until the
   // owner opts it in (PT/private stays off; coordination-heavy). Absent on products created before this.
   readonly onlineSellable: boolean
+  // Üyelere satışa açık (2026-07-27): TRUE ⇒ a SIGNED-IN member may buy/renew this herself, from the
+  // app or the portal. A SEPARATE switch from `onlineSellable` on purpose — they answer different
+  // questions and a studio will want them to differ. `onlineSellable` shows a price to a STRANGER on
+  // the public page; this offers a renewal to someone who is already a member. An intro offer belongs
+  // in the first and not the second; a renewal-only package is the reverse.
+  //
+  // Owner (2026-07-27): "üyelere satışa açık olsun, çünkü sadece mobil yok portal da var" — which is
+  // why it is not named after a device. Both surfaces read this one flag.
+  readonly memberSellable: boolean
 }

@@ -81,6 +81,7 @@ export function ProductForm({
   // Online üyelik satışı — this package shows on the public sales page and members can buy it themselves.
   // Never available for PT/private (coordination-heavy); the toggle is hidden there.
   const [onlineSellable, setOnlineSellable] = useState(product?.onlineSellable ?? false)
+  const [memberSellable, setMemberSellable] = useState(product?.memberSellable ?? false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -124,6 +125,7 @@ export function ProductForm({
       components: comps,
       description: description.trim(),
       onlineSellable,
+      memberSellable,
     }
     try {
       const res = product
@@ -359,12 +361,40 @@ export function ProductForm({
         <Textarea id="p-desc" value={description} onChange={(e) => setDescription(e.target.value)} />
       </Field>
 
-      {/* Online satış — PT/private hariç. Bundle'ın online yüzü pilates_group olduğu için demetler de açılabilir. */}
+      {/* İKİ AYRI SATIŞ KANALI, iki ayrı karar — ve karıştırılmamaları için bir arada, açıklamalarıyla.
+          Biri fiyatı YABANCIYA gösterir, diğeri MEVCUT ÜYEYE yenileme sunar. Bir tanıtım paketi
+          birincisine girer ikincisine girmez; yalnızca-yenileme paketi tam tersi. PT hiçbirinde
+          görünmez: bir eğitmenin saatini ayırtmak konuşma ister. */}
       {(isBundle ? 'pilates_group' : category) !== 'private' ? (
-        <label className="flex items-center gap-2 text-sm">
-          <Checkbox checked={onlineSellable} onCheckedChange={(v) => setOnlineSellable(v === true)} />
-          Online satışa aç (üye kendisi satın alabilir)
-        </label>
+        <div className="space-y-2 rounded-lg border border-border p-3">
+          <p className="text-xs font-medium tracking-wide uppercase text-muted-foreground">Satış kanalları</p>
+          <label className="flex items-start gap-2 text-sm">
+            <Checkbox
+              className="mt-0.5"
+              checked={onlineSellable}
+              onCheckedChange={(v) => setOnlineSellable(v === true)}
+            />
+            <span>
+              Public satış sayfasında göster
+              <span className="block text-xs text-muted-foreground">
+                Üye olmayan biri /uyelik sayfasından kartıyla satın alabilir.
+              </span>
+            </span>
+          </label>
+          <label className="flex items-start gap-2 text-sm">
+            <Checkbox
+              className="mt-0.5"
+              checked={memberSellable}
+              onCheckedChange={(v) => setMemberSellable(v === true)}
+            />
+            <span>
+              Üyelere satışa aç
+              <span className="block text-xs text-muted-foreground">
+                Giriş yapmış üye uygulamadan veya portaldan kendisi alıp yenileyebilir.
+              </span>
+            </span>
+          </label>
+        </div>
       ) : null}
 
       {product ? (

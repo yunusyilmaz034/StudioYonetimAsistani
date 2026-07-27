@@ -28,6 +28,7 @@ export interface ProductFields {
   readonly components: readonly ProductComponent[] | null // v1.30 — hibrit demet bileşenleri; null ⇒ normal ürün
   readonly description: string
   readonly onlineSellable: boolean // online üyelik satışı — public satış sayfasında görünür mü
+  readonly memberSellable: boolean // üyelere satışa açık — giriş yapmış üye uygulamadan/portaldan alabilir mi
 }
 
 // D12 — a package must name the services it covers. Without this, "covers nothing" and
@@ -81,6 +82,7 @@ export async function updateProduct(
     description: input.description,
     active: input.active,
     onlineSellable: input.onlineSellable,
+    memberSellable: input.memberSellable,
   }
   const events = decideUpdateProduct(decideContext(deps, ctx), current, next)
   if (events.length === 0) return { ok: true, value: undefined }

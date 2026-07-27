@@ -158,7 +158,7 @@ async function main(): Promise<void> {
     entryAllowance: null,
       components: null,
       description: '',
-      onlineSellable: false,
+      onlineSellable: false, memberSellable: false,
     }
     const priceTL = (p.priceInKurus / 100).toLocaleString('tr-TR')
     const existingId = idByName.get(p.name)

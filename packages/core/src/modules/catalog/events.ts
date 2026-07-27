@@ -23,6 +23,9 @@ export type ProductCreatedPayload = {
   // Online üyelik satışı — additive. Stamped ONLY when the product is opted into online sale; absent
   // otherwise and on every product created before this existed (default off is not a written fact).
   readonly onlineSellable?: boolean
+  // Üyelere satışa açık — additive, stamped ONLY when opted in. Absent otherwise and on every product
+  // created before this existed: "default off" is not a fact anyone wrote down.
+  readonly memberSellable?: boolean
 }
 
 export type ProductUpdatedPayload = {

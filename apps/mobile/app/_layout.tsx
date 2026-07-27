@@ -49,6 +49,7 @@ export default function RootLayout() {
             <Stack.Screen name="(tabs)" />
             <Stack.Screen name="reservations" options={{ headerShown: true, title: 'Rezervasyonlarım', presentation: 'card' }} />
             <Stack.Screen name="subscriptions" options={{ headerShown: true, title: 'Aboneliklerim' }} />
+            <Stack.Screen name="buy" options={{ headerShown: true, title: 'Paket Al' }} />
             <Stack.Screen name="messages" options={{ headerShown: true, title: 'Bildirimler' }} />
             <Stack.Screen name="checkout" options={{ headerShown: true, title: 'Güvenli Ödeme', presentation: 'modal' }} />
             <Stack.Screen name="program/[id]" options={{ headerShown: true, title: 'Program' }} />

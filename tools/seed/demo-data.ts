@@ -351,7 +351,7 @@ async function product(
       name, category, serviceIds, type, durationDays, creditCount, priceInKurus,
       freezeAllowanceDays, dailyReservationLimit, cancellationAllowanceCount: null, activeReservationLimit: null, entryAllowance: null,
       components: null,
-      onlineSellable: false,
+      onlineSellable: false, memberSellable: false,
       description: `${name} — demo`,
     }),
     `createProduct ${name}`,

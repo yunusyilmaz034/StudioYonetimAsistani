@@ -39,6 +39,7 @@ export interface ProductView {
   readonly description: string
   readonly active: boolean
   readonly onlineSellable: boolean
+  readonly memberSellable: boolean
 }
 
 export async function listProducts(ctx: TenantContext): Promise<readonly ProductView[]> {
@@ -62,6 +63,7 @@ export async function listProducts(ctx: TenantContext): Promise<readonly Product
       description: p.description,
       active: p.active,
       onlineSellable: p.onlineSellable,
+      memberSellable: p.memberSellable,
     }))
     .sort((a, b) => a.name.localeCompare(b.name, 'tr'))
 }
