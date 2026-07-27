@@ -21,7 +21,12 @@ const DESK = ['owner', 'receptionist'] as const
 // A package that COUNTS right now — active, started, not expired, not frozen (same predicate the
 // dashboard uses, owner D-2/D-4).
 const isValidNow = (e: Entitlement, nowMs: number): boolean =>
-  e.status === 'active' && e.validFrom <= nowMs && e.validUntil >= nowMs && e.freeze === null
+// "Dondurulmuş mu?" — `freeze` NON-NULL means the package HAS a freeze allowance, not that it is
+// frozen right now. Currently frozen is `freeze.activeFrom !== null` (types.ts: "LocalDate ⇔
+// currently frozen"). Checking `freeze === null` therefore treated every package that MERELY ALLOWS
+// freezing as invalid — in this studio that is the Fitness 3-Aylık membership, so six paying members
+// were being counted as having no live package (2026-07-27).
+  e.status === 'active' && e.validFrom <= nowMs && e.validUntil >= nowMs && e.freeze?.activeFrom == null
 
 export interface CheckInStatus {
   readonly memberId: string
