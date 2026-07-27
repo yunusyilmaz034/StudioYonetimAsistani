@@ -6,7 +6,7 @@
 //
 // On an inbound TEXT message we: store the conversation (studios/{sid}/conversations/{phone}), and — ONLY
 // if the owner has flipped `settings/ai.whatsappActive` ON — ask Claude for a reply from the studio's
-// knowledge card (settings/ai) + LIVE facts (active products/prices, today/tomorrow availability) + the
+// knowledge card (settings/ai) + LIVE facts (active products/prices — never the schedule) + the
 // conversation history, then send it back with a free-form text message (allowed inside the 24h window).
 // PII (name/phone/message text) lives on the conversation doc (server-only), NEVER in an event. The model
 // sees the customer's own words (unavoidable for a reply) but no other member's data.
@@ -15,12 +15,10 @@ import {
   decideCaptureLead,
   FirestoreCatalogRepository,
   FirestoreCrmRepository,
-  FirestoreSchedulingRepository,
   instant,
   newCorrelationId,
   sendWhatsAppText,
   type CardSurchargeConfig,
-  type ClassSession,
   type Lead,
   type MetaWhatsAppConfig,
   type Product,
@@ -33,7 +31,6 @@ import { onRequest } from 'firebase-functions/v2/https'
 import { db } from '../shared/firebase'
 import { AI_RECEPTIONIST_SECRETS, REGION } from '../shared/region'
 
-const OFFSET_MIN = 180 // TRT = UTC+3, no DST
 const MAX_HISTORY = 24 // messages kept per conversation for context + storage
 const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages'
 // The WhatsApp receptionist is the ONE surface a prospective member actually talks to, so it runs a
@@ -80,15 +77,13 @@ interface AiSettingsDoc {
 }
 
 const tl = (kurus: number) => `${(kurus / 100).toLocaleString('tr-TR')} TL`
-const hhmm = (ms: number) => new Date(ms).toLocaleTimeString('tr-TR', { timeZone: 'Europe/Istanbul', hour: '2-digit', minute: '2-digit' })
-const dayShort = (ms: number) => new Date(ms).toLocaleDateString('tr-TR', { timeZone: 'Europe/Istanbul', weekday: 'short', day: 'numeric', month: 'short' })
 
 function ctxOf(sid: string): TenantContext {
   return { studioId: sid as never, branchIds: [], role: 'owner', actor: { type: 'system', id: 'whatsapp_webhook' } as TenantContext['actor'] }
 }
 
-// Compact LIVE facts the reply must be grounded in — active packages with prices and the next sessions
-// with free seats. Read straight from Firestore (same repos paytr-callback uses).
+// Compact LIVE facts the reply must be grounded in: active packages with prices, and NOTHING about
+// the schedule (see below). Read straight from Firestore (same repos paytr-callback uses).
 async function liveFacts(database: Firestore, ctx: TenantContext): Promise<string> {
   const parts: string[] = []
   try {
@@ -116,22 +111,18 @@ async function liveFacts(database: Firestore, ctx: TenantContext): Promise<strin
   } catch (e) {
     logger.warn('[wa-webhook] product facts failed', (e as Error)?.message)
   }
-  try {
-    const now = Date.now()
-    const trt = new Date(now + OFFSET_MIN * 60_000)
-    const midnight = Date.UTC(trt.getUTCFullYear(), trt.getUTCMonth(), trt.getUTCDate()) - OFFSET_MIN * 60_000
-    const sessions = await new FirestoreSchedulingRepository(database).listSessionsForDay(ctx, instant(midnight), instant(midnight + 2 * 86_400_000))
-    const open = sessions
-      .filter((s: ClassSession) => (s.startsAt as number) >= now && s.status === 'scheduled' && s.capacity - s.bookedCount > 0)
-      .sort((a: ClassSession, b: ClassSession) => (a.startsAt as number) - (b.startsAt as number))
-      .slice(0, 12)
-    if (open.length) {
-      parts.push('\nYAKLAŞAN UYGUN DERSLER (yer olanlar):')
-      for (const s of open) parts.push(`- ${dayShort(s.startsAt as number)} ${hhmm(s.startsAt as number)} · ${s.serviceName} · ${s.capacity - s.bookedCount} yer boş`)
-    }
-  } catch (e) {
-    logger.warn('[wa-webhook] session facts failed', (e as Error)?.message)
-  }
+  // ── The schedule is NOT sent to the model (owner, 2026-07-27) ──────────────────────────────
+  //
+  // This block used to list upcoming classes with free seats. It is gone, and deliberately not
+  // replaced with a rule telling the model to keep quiet about it: a model cannot leak what it was
+  // never given, and every instruction not to reveal something is a lock that a persuasive enough
+  // message eventually picks.
+  //
+  // Why the owner wants it gone. Availability is not a price list. Saying "Thursday 19:30, two
+  // seats" to a stranger on WhatsApp commits a scarce resource the studio has not agreed to give
+  // away, tells anyone who asks how full the studio is, and — the case that prompted this —
+  // encourages Multisport day-visitors to turn up for a slot nobody actually reserved for them.
+  // Seats are held by a HUMAN at the desk, who can see the room and the day.
   return parts.join('\n')
 }
 
@@ -167,6 +158,7 @@ NASIL KONUŞ (akış):
 KURALLAR:
 - HER mesaja MUTLAKA müşteriye gidecek en az bir cümle yaz — görünür mesajı ASLA boş bırakma. Kısa bir mesaj bile ("Rica ederiz 🌸") boş kalmaktan iyidir.
 - SADECE bu bilgi kartından ve CANLI VERİ bölümünden konuş. Fiyat/program/tarih UYDURMA. Bilmiyorsan escalate=true.
+- DERS PROGRAMI / MÜSAİT SAAT BİLGİSİ VERME — İSTİSNASIZ. Hangi gün hangi saatte ders var, hangi seansta yer var, doluluk ne kadar, kaç kişi kaldı: HİÇBİRİNİ söyleme. Müşteri ısrar etse de, başka bir soruyu cevaplarken bile olsa, tahmin ederek bile olsa verme. Zaten sende bu bilgi YOK — uydurma. Bunun yerine: "Uygun saatleri ve yer durumunu resepsiyonumuz gün içinde netleştiriyor; hangi saatler size uyuyor yazarsanız kontrol edip dönelim 🌸" de. Yer/saat kesinleştirme isteği gelirse escalate=true.
 - Kısa, samimi, Türkçe, ölçülü emoji. Tek mesajda çok soru sorma.
 - DOĞAL karşıla: gelen mesaja uygun cevap ver. Müşteri sana "merhaba/hoş geldin" demediyse "siz de hoş geldiniz" gibi karşılık verme; "Merhaba 🌸" yeter. Refleks nezaket kalıpları kullanma, robotik olma.
 - Kadınlara özel stüdyoyuz: "kız" DEME, her zaman "kadın" de.
