@@ -31,6 +31,35 @@ const money = (kurus: unknown): string =>
     ? `${(kurus / 100).toLocaleString('tr-TR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ₺`
     : '—'
 
+// "bugün 19:30" · "yarın 18:00" · "28 Temmuz Salı 19:30". The first two are what the desk actually
+// asks about; a full date for those is noise it has to decode every time.
+const TRT = 3 * 60 * 60 * 1000
+const dayKey = (ms: number): number => Math.floor((ms + TRT) / 86_400_000)
+const hhmm = (ms: number): string =>
+  new Date(ms).toLocaleTimeString('tr-TR', { timeZone: 'Europe/Istanbul', hour: '2-digit', minute: '2-digit' })
+
+export const relDayTime = (ms: unknown, now: number = Date.now()): string => {
+  if (typeof ms !== 'number') return '—'
+  const diff = dayKey(ms) - dayKey(now)
+  if (diff === 0) return `bugün ${hhmm(ms)}`
+  if (diff === 1) return `yarın ${hhmm(ms)}`
+  if (diff === -1) return `dün ${hhmm(ms)}`
+  return dayTime(ms)
+}
+
+// The class in one phrase: "Reformer Pilates · bugün 19:30". Service name first — it is the part
+// that tells two 19:30 classes apart.
+export const sessionLabel = (
+  session: { readonly startsAt: number; readonly serviceName: string } | null | undefined,
+  fallbackStartsAt?: unknown,
+): string | null => {
+  if (session) {
+    const when = relDayTime(session.startsAt)
+    return session.serviceName ? `${session.serviceName} · ${when}` : when
+  }
+  return typeof fallbackStartsAt === 'number' ? relDayTime(fallbackStartsAt) : null
+}
+
 const dayTime = (ms: unknown): string =>
   typeof ms === 'number'
     ? new Date(ms).toLocaleString('tr-TR', {
@@ -116,6 +145,14 @@ export function present(e: ActivityEvent): PresentedEntry {
   const member = e.memberName
   const kind = e.kind
   const reason = str(p.reason) ?? str(p.overrideReason) ?? null
+  // The class this row is about. Booked events carry the time in their payload; the rest only carry
+  // the session id, resolved at read time — so both paths end up in one phrase.
+  const cls = sessionLabel(e.session, p.sessionStartsAt)
+
+  // "Reformer Pilates · bugün 19:30 — kredi iade edildi", and gracefully "kredi iade edildi" when
+  // the class could not be resolved.
+  const join = (a: string | null, b: string): string =>
+    a ? `${a} — ${b}` : `${b.slice(0, 1).toLocaleUpperCase('tr')}${b.slice(1)}`
 
   const entry = (
     title: string,
@@ -126,21 +163,19 @@ export function present(e: ActivityEvent): PresentedEntry {
   switch (e.type) {
     // ── reservations ──────────────────────────────────────────────────────────────────────
     case 'reservation.booked':
-      return entry(
-        `${member ?? 'Üye'} için rezervasyon yapıldı.`,
-        dayTime(p.sessionStartsAt),
-        'success',
-      )
+      return entry(`${member ?? 'Üye'} için rezervasyon yapıldı.`, cls, 'success')
     case 'reservation.cancelled':
       return entry(
         `${of_(member)} rezervasyonu iptal edildi.`,
-        p.creditEffect === 'released' ? 'Kredi iade edildi.' : 'Kredi hareketi yok.',
+        // Which class freed up comes FIRST: that is the actionable half. What happened to the credit
+        // follows it.
+        join(cls, p.creditEffect === 'released' ? 'kredi iade edildi' : 'kredi hareketi yok'),
         'warning',
       )
     case 'reservation.late_cancelled':
       return entry(
         `${of_(member)} rezervasyonu geç iptal edildi.`,
-        p.creditEffect === 'consumed' ? 'Kredi yandı (geç iptal).' : 'Kredi iade edildi.',
+        join(cls, p.creditEffect === 'consumed' ? 'kredi yandı (geç iptal)' : 'kredi iade edildi'),
         'danger',
       )
     case 'reservation.moved':
@@ -152,9 +187,9 @@ export function present(e: ActivityEvent): PresentedEntry {
         'info',
       )
     case 'reservation.attended':
-      return entry(`${member ?? 'Üye'} derse katıldı.`, 'Eğitmen işaretledi.', 'success')
+      return entry(`${member ?? 'Üye'} derse katıldı.`, join(cls, 'eğitmen işaretledi'), 'success')
     case 'reservation.no_show':
-      return entry(`${member ?? 'Üye'} derse gelmedi.`, 'Eğitmen işaretledi.', 'warning')
+      return entry(`${member ?? 'Üye'} derse gelmedi.`, join(cls, 'eğitmen işaretledi'), 'warning')
     case 'reservation.auto_resolved':
       return entry(
         `${of_(member)} rezervasyonu otomatik sonuçlandı.`,

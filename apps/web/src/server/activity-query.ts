@@ -181,6 +181,9 @@ export interface ActivityEvent {
   readonly actorName: string
   readonly memberId: string | null
   readonly memberName: string | null
+  // The class this event is about — resolved at read time, absent when the event has no session or
+  // the session was deleted.
+  readonly session: { readonly startsAt: number; readonly serviceName: string } | null
   readonly operationId: string
   readonly undoPolicy: UndoPolicy
   readonly payload: Record<string, unknown>
@@ -229,6 +232,30 @@ export const FEED_KINDS: readonly ActivityKind[] = [
 // ── the name resolver ───────────────────────────────────────────────────────────────────────
 // One batched read per page, whatever the row count. A page of 50 rows touching 12 members costs
 // two round trips, not fifty-one.
+// WHICH CLASS. The feed said "rezervasyonu iptal edildi" and stopped — true, and useless at a
+// glance: the one thing you need to know is which class just freed up. The cancellation event
+// deliberately does NOT carry the session time (its payload holds `hoursBeforeStart`, not a clock),
+// and an event payload is permanent, so this is resolved at READ time from `related.classSessionId`
+// — the same way the member's name already is.
+async function resolveSessions(
+  ctx: TenantContext,
+  sessionIds: ReadonlySet<string>,
+): Promise<Map<string, { startsAt: number; serviceName: string }>> {
+  if (sessionIds.size === 0) return new Map()
+  const db = adminDb()
+  const refs = [...sessionIds].map((id) => db.doc(`studios/${ctx.studioId}/classSessions/${id}`))
+  const snaps = await db.getAll(...refs)
+  const out = new Map<string, { startsAt: number; serviceName: string }>()
+  for (const snap of snaps) {
+    if (!snap.exists) continue // a deleted session: the row still renders, just without the label
+    out.set(snap.id, {
+      startsAt: toMs(snap.get('startsAt')),
+      serviceName: (snap.get('serviceName') as string) ?? '',
+    })
+  }
+  return out
+}
+
 async function resolveNames(
   ctx: TenantContext,
   memberIds: ReadonlySet<string>,
@@ -260,11 +287,13 @@ async function hydrate(
   docs: readonly FirebaseFirestore.QueryDocumentSnapshot[],
 ): Promise<readonly ActivityEvent[]> {
   const memberIds = new Set<string>()
+  const sessionIds = new Set<string>()
   for (const d of docs) {
-    const related = (d.get('related') ?? {}) as { memberId?: string }
+    const related = (d.get('related') ?? {}) as { memberId?: string; classSessionId?: string }
     if (related.memberId) memberIds.add(related.memberId)
+    if (related.classSessionId) sessionIds.add(related.classSessionId)
   }
-  const names = await resolveNames(ctx, memberIds)
+  const [names, sessions] = await Promise.all([resolveNames(ctx, memberIds), resolveSessions(ctx, sessionIds)])
 
   return docs.map((d) => {
     const data = d.data()
@@ -290,6 +319,7 @@ async function hydrate(
       operationId: (data.correlationId as string) ?? '',
       undoPolicy: undoPolicyOf(type),
       payload: (data.payload ?? {}) as Record<string, unknown>,
+      session: related.classSessionId ? (sessions.get(related.classSessionId) ?? null) : null,
       related: {
         ...(related.reservationId ? { reservationId: related.reservationId } : {}),
         ...(related.entitlementId ? { entitlementId: related.entitlementId } : {}),
