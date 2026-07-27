@@ -46,7 +46,7 @@ export default function Buy() {
       const res = await api.purchase(item.id)
       if (res.ok) {
         track('payment_started', { method: 'package_purchase', amount_kurus: item.totalKurus })
-        router.push({ pathname: '/checkout', params: { url: res.value.redirectUrl } })
+        router.push({ pathname: '/checkout', params: { url: res.value.redirectUrl, to: 'subscriptions' } })
       } else {
         Alert.alert('Başlatılamadı', 'Ödeme başlatılamadı. Lütfen tekrar dene ya da stüdyoyla iletişime geç.')
       }

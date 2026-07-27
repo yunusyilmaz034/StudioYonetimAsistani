@@ -126,8 +126,25 @@ export function decideCallbackResult(
     })
   }
 
-  // A confirmed amount that does not match what we asked for is a discrepancy — never a silent grant.
-  if (compareMoney(verdict.paidAmount, intent.amount) !== 0) {
+  // ── Paid LESS than we asked: a discrepancy. Paid MORE: the customer chose instalments. ──
+  //
+  // This used to refuse any inequality, and it cost a real payment on 2026-07-27: a member paid in
+  // three instalments, PAYTR added the bank's commission to `total_amount` (11,00 → 12,10 ₺), the
+  // amounts differed, and the package was withheld from someone whose card had already been charged.
+  // Every member who picks instalments would have hit it — which in this studio's own price list is
+  // an advertised way to pay.
+  //
+  // So the rule is now about DIRECTION, because the two directions are not the same event:
+  //
+  //   · UNDERPAID — we are owed money. Still `manual_review`, still never a silent grant.
+  //   · OVERPAID  — the studio has been paid everything it asked for and the surplus is the bank's
+  //     instalment cost, borne by the customer under the studio's stated policy. Withholding the
+  //     package here punishes the one member who paid MORE, and there is no version of that which is
+  //     the safe choice.
+  //
+  // The Payment recorded downstream stays `intent.amount`: that is what the sale is worth and what
+  // the studio will be settled. The surplus never belonged to it, so it must not appear as revenue.
+  if (compareMoney(verdict.paidAmount, intent.amount) < 0) {
     const next: PaymentIntent = { ...intent, status: 'manual_review', failureReason: 'amount_mismatch', updatedAt: ctx.now }
     return ok({
       next,
