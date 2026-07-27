@@ -19,6 +19,9 @@ export const DEFAULT_INSIGHT_CONFIG: InsightConfig = {
   // serious risk of a quiet, unannounced churn — the exact thing the studio can still act on.
   dormantAttentionDays: 21,
   dormantUrgentDays: 35,
+  // PF-41 — an unmatched payment is somebody's money sitting unattributed. A day is a filing delay;
+  // three is a member who paid and, as far as the books know, did not.
+  unreconciledUrgentDays: 3,
 }
 
 const band = (value: number, urgentAt: number, attentionAt: number): InsightSeverity =>
@@ -99,6 +102,52 @@ export function deriveInsights(facts: InsightFacts, config: InsightConfig): read
       metrics: { capacity: s.capacity, booked: s.booked, hoursAway: s.hoursAway },
       suggestedAction: 'fill_session',
       urgency: -s.hoursAway,
+    })
+  }
+
+  // ── PF-41 — credits at ZERO while the package is still valid ────────────────────────────────
+  //
+  // This is `low_credit` one step later, and it is the more urgent of the two — which is exactly why
+  // it kept being missed: the watch list showed it, nothing turned it into a job anyone was given.
+  // She cannot book and her package has not expired, so she is holding a membership that does nothing
+  // for her. That is the moment before a quiet decision not to renew.
+  //
+  // Severity runs on the TIME left, not the credits: at zero the credits carry no more information,
+  // and a package with two days on it is a conversation that has to happen today.
+  for (const e of facts.exhausted ?? []) {
+    out.push({
+      id: `credits_exhausted__${e.memberId}__${e.entitlementId}`,
+      kind: 'credits_exhausted',
+      severity:
+        e.daysLeft <= config.expiringUrgentDays
+          ? 'urgent'
+          : e.daysLeft <= config.expiringAttentionDays
+            ? 'attention'
+            : 'info',
+      subject: { type: 'member', id: e.memberId },
+      refs: { memberId: e.memberId, entitlementId: e.entitlementId },
+      metrics: { daysLeft: e.daysLeft },
+      suggestedAction: 'offer_renewal',
+      urgency: -e.daysLeft,
+    })
+  }
+
+  // ── PF-41 — a payment that arrived and belongs to nobody ────────────────────────────────────
+  //
+  // Someone paid through a shared link and the money is attached to no member. Two people are hurt
+  // by every day it waits: she is not credited with a payment she made, and the books say a package
+  // is unpaid when it is not. It ages into `urgent` because — unlike every other insight here —
+  // nothing else will ever surface it. Nobody complains about a payment they believe they made.
+  for (const u of facts.unreconciled ?? []) {
+    out.push({
+      id: `unreconciled_payment__${u.collectionId}`,
+      kind: 'unreconciled_payment',
+      severity: u.daysOpen >= config.unreconciledUrgentDays ? 'urgent' : 'attention',
+      subject: { type: 'payment', id: u.collectionId },
+      refs: { collectionId: u.collectionId },
+      metrics: { amountKurus: u.amountKurus, daysOpen: u.daysOpen },
+      suggestedAction: 'reconcile_payment',
+      urgency: u.daysOpen,
     })
   }
 

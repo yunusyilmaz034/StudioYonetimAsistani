@@ -74,3 +74,70 @@ describe('mergeInsightSources — the L2 seam is ready', () => {
     expect(merged).toHaveLength(1)
   })
 })
+
+// ── PF-41 — the two jobs that sat on the watch list and never became work ────────────────────
+describe('credits_exhausted', () => {
+  it('raises the renewal conversation while the package is still valid', () => {
+    const r = deriveInsights(
+      facts({ exhausted: [{ memberId: 'm1', entitlementId: 'e1', daysLeft: 10 }] }),
+      DEFAULT_INSIGHT_CONFIG,
+    )
+    expect(r).toHaveLength(1)
+    expect(r[0]).toMatchObject({ kind: 'credits_exhausted', suggestedAction: 'offer_renewal' })
+  })
+
+  // Severity runs on TIME, not credits: at zero the credits carry no more information, and the
+  // package with two days on it is the one that has to be talked about today.
+  it('gets more urgent as the package runs out, not as credits run out', () => {
+    const soon = deriveInsights(facts({ exhausted: [{ memberId: 'm1', entitlementId: 'e1', daysLeft: 1 }] }), DEFAULT_INSIGHT_CONFIG)
+    const later = deriveInsights(facts({ exhausted: [{ memberId: 'm2', entitlementId: 'e2', daysLeft: 25 }] }), DEFAULT_INSIGHT_CONFIG)
+    expect(soon[0]?.severity).toBe('urgent')
+    expect(later[0]?.severity).toBe('info')
+  })
+
+  it('carries no PII (I-13)', () => {
+    const r = deriveInsights(facts({ exhausted: [{ memberId: 'm1', entitlementId: 'e1', daysLeft: 3 }] }), DEFAULT_INSIGHT_CONFIG)
+    expect(JSON.stringify(r)).not.toMatch(/name|phone/i)
+  })
+})
+
+describe('unreconciled_payment', () => {
+  it('surfaces money that belongs to nobody', () => {
+    const r = deriveInsights(
+      facts({ unreconciled: [{ collectionId: 'pcol_1', amountKurus: 420_000, daysOpen: 0 }] }),
+      DEFAULT_INSIGHT_CONFIG,
+    )
+    expect(r[0]).toMatchObject({
+      kind: 'unreconciled_payment',
+      severity: 'attention',
+      suggestedAction: 'reconcile_payment',
+      subject: { type: 'payment', id: 'pcol_1' },
+    })
+  })
+
+  // Nothing else will ever raise this — nobody complains about a payment they believe they made —
+  // so it must escalate on its own rather than wait to be noticed.
+  it('ages into urgent on its own', () => {
+    const r = deriveInsights(
+      facts({ unreconciled: [{ collectionId: 'pcol_1', amountKurus: 420_000, daysOpen: 3 }] }),
+      DEFAULT_INSIGHT_CONFIG,
+    )
+    expect(r[0]?.severity).toBe('urgent')
+  })
+
+  it('carries no buyer name', () => {
+    const r = deriveInsights(
+      facts({ unreconciled: [{ collectionId: 'pcol_1', amountKurus: 420_000, daysOpen: 5 }] }),
+      DEFAULT_INSIGHT_CONFIG,
+    )
+    expect(JSON.stringify(r)).not.toMatch(/name|buyer/i)
+  })
+})
+
+// Both fact sets are OPTIONAL, so every caller written before they existed keeps meaning what it
+// meant: absent is "not supplied", never "there are none".
+describe('the new facts are optional', () => {
+  it('produces nothing when they are absent', () => {
+    expect(deriveInsights(facts({}), DEFAULT_INSIGHT_CONFIG)).toHaveLength(0)
+  })
+})

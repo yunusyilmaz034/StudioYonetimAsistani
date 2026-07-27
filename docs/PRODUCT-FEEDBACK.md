@@ -609,5 +609,31 @@ Bunlardan en az üçü gerçek "bugün yapılacak iş" (para bekliyor, tahsilat 
 **Yapılacak iş:** `InsightKind`'a yeni türler + insights hesaplaması + AI anlatım metni. Core'a dokunur,
 ayrı bir kapsam — bu yüzden bugün YAPILMADI, owner'a bildirildi.
 
-**Ayrıca düzeltilecek (küçük):** `Aktif üye 39 · son 30 günde +119 yeni üye` ifadesi yanıltıcı — 119 KAYITLI
-üyeden 39'unun aktif paketi var; metin "39 aktif üyeye 119 yeni üye eklendi" gibi okunuyor.
+**✅ 3. MADDE YAPILDI (2026-07-27) — kapsam genişletildi.** Kontrol listesi artık iki yeni içgörüden
+daha besleniyor. İkisi de dashboard'da ZATEN hesaplanıyordu; hiçbiri kimseye verilmiş bir işe
+dönüşmüyordu — "İzlenecekler"de görünüp orada kalıyorlardı.
+
+- **`credits_exhausted`** — ders hakkı bitmiş ama paketi hâlâ geçerli olan üye. `low_credit`'in bir
+  adım sonrası ve ikisinden ACİL olanı: rezervasyon yapamıyor, üyeliği sürüyor, yani hiçbir işine
+  yaramayan bir paketi tutuyor. Sessizce yenilememeye karar vermeden önceki an. **Aciliyet kredilere
+  değil KALAN SÜREYE göre** hesaplanıyor: sıfır kredide kredi artık bilgi taşımaz, 2 günü kalan paket
+  bugün konuşulmalıdır. *(Bugün canlıda 5 üye bu durumda.)*
+- **`unreconciled_payment`** — gelen ama hiçbir üyeye bağlanmamış tahsilat. Her gün iki kişiyi
+  mağdur ediyor: üye yaptığı ödemenin karşılığını alamıyor, defterler ödenmiş bir paketi ödenmemiş
+  gösteriyor. Kendi kendine `urgent`'a yükseliyor, çünkü **başka hiçbir şey bunu gün yüzüne
+  çıkarmaz** — kimse yaptığına inandığı bir ödeme için şikâyet etmez. *(Bugün 0 kayıt var.)*
+
+İkisi de PII taşımıyor (I-13, testle kilitlendi) ve `InsightFacts` alanları OPSİYONEL — bunlardan
+önce yazılmış her çağıran aynı anlamı korudu: yokluk "verilmedi" demek, "yok" değil.
+
+**Teşhis düzeltmesi:** notta "bekleyen ödeme checklist'e girmiyor" yazıyordu — **yanlış**.
+`finance.pending` zaten `outstanding_balance` olarak besleniyordu (`advisor-query.ts` → `balances`).
+Gerçekten eksik olan yukarıdaki ikisiydi. `finance.drawers`, `waitlist` ve `operations.upcoming`
+kasten dışarıda bırakıldı: dashboard ölçütünü ("bugünkü bir kararı değiştiriyor mu?") geçmiyorlar,
+İzlenecekler'de kalmaları doğru.
+
+**✅ AYRICA DÜZELTİLDİ:** `Aktif üye 39 · son 30 günde +119 yeni üye` yanıltıcıydı — 119 KAYITLI
+üyeden 39'unun geçerli paketi var, oysa metin "39 aktif üyeye 119 yeni üye eklendi" gibi okunuyordu.
+Zararı `+` işareti veriyordu: iki farklı kümeyi, birine diğerinin eklendiği tek bir küme gibi
+gösteriyordu. Yeni metin: başlık **"Paketi olan üye"**, alt satır **"son 30 günde N kayıt"** — alt
+küme ile bütün, ikisi de adıyla anılıyor.

@@ -13,14 +13,26 @@ export type InsightKind =
   | 'outstanding_balance' // sold, not fully paid → collect
   | 'empty_session' // an upcoming class with no/low bookings → fill it
   | 'dormant_member' // has an active package but has stopped coming → the behavioural churn signal
+  // ── PF-41 (2026-07-27) — two jobs that sat on the watch list and never reached the checklist ──
+  // The dashboard already computed both; nothing turned them into work anyone was told to do.
+  | 'credits_exhausted' // package still valid, credits at ZERO → the renewal conversation, at its latest
+  | 'unreconciled_payment' // money arrived and belongs to nobody → until it is matched, someone paid and
 
 export type InsightSeverity = 'info' | 'attention' | 'urgent'
 
 // What the owner should DO — each maps to an existing tool the web deep-links to. The advisor suggests;
 // it never performs (never auto-acts).
-export type InsightAction = 'offer_renewal' | 'collect_balance' | 'fill_session' | 'contact_member'
+export type InsightAction =
+  | 'offer_renewal'
+  | 'collect_balance'
+  | 'fill_session'
+  | 'contact_member'
+  // PF-41 — matching a payment to the person who made it. Not "collect": the money is already in.
+  | 'reconcile_payment'
 
-export type InsightSubjectType = 'member' | 'session'
+// PF-41 — an unattributed payment has no member and no session; its subject IS the payment. Widening
+// this rather than forcing a fake member id keeps "we do not know whose this is" sayable.
+export type InsightSubjectType = 'member' | 'session' | 'payment'
 
 export interface InsightSubject {
   readonly type: InsightSubjectType
@@ -55,6 +67,9 @@ export interface InsightConfig {
   // Days since a member with an active package last came. Longer = more likely gone for good.
   readonly dormantAttentionDays: number
   readonly dormantUrgentDays: number
+  // PF-41 — an unmatched payment is somebody's money sitting unattributed. A day is a filing delay;
+  // a week is a member who paid and, as far as the system knows, did not.
+  readonly unreconciledUrgentDays: number
 }
 
 // The seam that makes this "AI Insights L1" and not just a report: a source produces insights from the
@@ -96,10 +111,27 @@ export interface DormantFact {
   readonly daysSinceActivity: number
 }
 
+export interface ExhaustedFact {
+  readonly memberId: string
+  readonly entitlementId: string
+  /** Days the package is still valid for. Credits are gone; the TIME left is what makes it urgent. */
+  readonly daysLeft: number
+}
+
+export interface UnreconciledPaymentFact {
+  readonly collectionId: string
+  readonly amountKurus: number
+  readonly daysOpen: number
+}
+
 export interface InsightFacts {
   readonly expiring: readonly ExpiringFact[]
   readonly lowCredit: readonly LowCreditFact[]
   readonly balances: readonly BalanceFact[]
   readonly emptySessions: readonly EmptySessionFact[]
   readonly dormant: readonly DormantFact[]
+  // PF-41 — OPTIONAL so every existing caller and test keeps compiling and keeps meaning what it
+  // meant: absent is "not supplied", which is exactly what it was before these existed.
+  readonly exhausted?: readonly ExhaustedFact[]
+  readonly unreconciled?: readonly UnreconciledPaymentFact[]
 }

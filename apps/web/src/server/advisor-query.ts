@@ -78,6 +78,37 @@ function present(insight: Insight, memberName: Map<string, string>, sessionName:
         href: '/reservations',
         actionLabel: 'Dersi doldur',
       }
+    // PF-41 — credits gone, package still running. The sentence says the two facts that make it
+    // urgent together: she cannot book, and the clock is still running.
+    case 'credits_exhausted': {
+      const days = Math.round(m.daysLeft ?? 0)
+      return {
+        id: insight.id,
+        kind: insight.kind,
+        severity: insight.severity,
+        subject,
+        title: `${name} — ders hakkı bitti, paketi ${days} gün daha geçerli`,
+        detail: 'Rezervasyon yapamıyor ama üyeliği sürüyor. Yenileme için en doğru an şimdi.',
+        href: memberHref,
+        actionLabel: 'Üyeyi aç',
+      }
+    }
+    // PF-41 — money in the account that belongs to nobody. Nothing else will ever raise this:
+    // nobody complains about a payment they believe they made.
+    case 'unreconciled_payment': {
+      const tl = ((m.amountKurus ?? 0) / 100).toLocaleString('tr-TR')
+      const days = Math.round(m.daysOpen ?? 0)
+      return {
+        id: insight.id,
+        kind: insight.kind,
+        severity: insight.severity,
+        subject,
+        title: `${tl} ₺ tahsilat eşleşmedi${days > 0 ? ` — ${days} gündür bekliyor` : ''}`,
+        detail: 'Ödeme geldi ama hangi üyeye ait olduğu belli değil. Eşleştirilene kadar o üye ödememiş görünüyor.',
+        href: '/finance/collections',
+        actionLabel: 'Eşleştir',
+      }
+    }
     case 'dormant_member': {
       const days = Math.round(m.daysSinceActivity ?? 0)
       return {
@@ -106,6 +137,7 @@ export function deriveAdvisorItems(dash: OwnerDashboard): readonly AdvisorItem[]
   for (const r of dash.lowCredit) memberName.set(r.id, r.name)
   for (const r of dash.pendingPayments) memberName.set(r.id, r.name)
   for (const r of dash.dormant) memberName.set(r.id, r.name)
+  for (const r of dash.exhausted) memberName.set(r.id, r.name)
   for (const s of dash.emptySessions) sessionName.set(s.sessionId, s.serviceName)
 
   const facts: InsightFacts = {
@@ -117,6 +149,18 @@ export function deriveAdvisorItems(dash: OwnerDashboard): readonly AdvisorItem[]
     emptySessions: dash.emptySessions.map((s) => ({ sessionId: s.sessionId, capacity: s.capacity, booked: 0, hoursAway: s.hoursAway })),
     // Already filtered to daysSinceActivity >= the attention threshold by the dashboard.
     dormant: dash.dormant.map((r) => ({ memberId: r.id, daysSinceActivity: r.daysSinceActivity })),
+    // PF-41 — both were already computed for the watch list and never became work anyone was told to
+    // do. `exhausted` is the dashboard's remaining === 0 list; the time left is what makes it urgent.
+    exhausted: dash.exhausted.map((r) => ({
+      memberId: r.id,
+      entitlementId: r.entitlementId,
+      daysLeft: Math.max(0, Math.ceil((r.validUntil - Date.now()) / 86_400_000)),
+    })),
+    unreconciled: dash.unreconciledCollections.map((c) => ({
+      collectionId: c.id,
+      amountKurus: c.amountKurus,
+      daysOpen: Math.max(0, Math.floor((Date.now() - c.paidAt) / 86_400_000)),
+    })),
   }
 
   // deriveInsights returns the ranked order (urgent → attention → info); preserve it.

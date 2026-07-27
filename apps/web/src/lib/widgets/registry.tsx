@@ -221,18 +221,22 @@ const openBalance: Widget<{ balanceKurus: number }> = {
 // Owner D-2 — an active record with no valid package is a contact, not a customer.
 const activeMembers: Widget<{ active: number; new30d: number }> = {
   id: 'members.active',
-  title: 'Aktif üye',
+  title: 'Paketi olan üye',
   kind: 'metric',
   href: () => '/members',
   select: (s) => ({ active: s.activeMembers, new30d: s.newMembers30d }),
+  // PF-41 — the old wording read as "39 active members, plus 119 new ones", which is the opposite of
+  // the truth: 119 are REGISTERED and 39 of them hold a valid package. The `+` was doing the damage —
+  // it made two different populations look like one being added to. They are a subset and a whole, so
+  // the text now says so with a slash and names both.
   present: (d) => ({
-    headline: `${d.active} aktif üye (geçerli paketi olan).`,
-    detail: `Son 30 günde ${d.new30d} yeni üye katıldı.`,
+    headline: `${d.active} üyenin geçerli paketi var.`,
+    detail: `Son 30 günde ${d.new30d} üye kaydedildi (paketi olsun olmasın).`,
     tone: 'default',
     needsAttention: false,
   }),
   render: (d) => (
-    <MetricFace value={String(d.active)} hint={`son 30 günde +${d.new30d} yeni üye`} icon={UsersIcon} />
+    <MetricFace value={String(d.active)} hint={`son 30 günde ${d.new30d} kayıt`} icon={UsersIcon} />
   ),
 }
 
