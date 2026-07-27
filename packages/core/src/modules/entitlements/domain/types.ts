@@ -118,11 +118,27 @@ export type FreezePeriod = {
   readonly from: string // LocalDate
   readonly to: string // LocalDate
 }
+// Why a member's membership was stopped. A CLOSED ENUM, and closed on purpose (owner, 2026-07-28):
+// the event log is permanent and free text is the last place personal data hides. "Ayşe hanımın
+// ameliyatı" typed into a permanent record is health data nobody can take back out when she asks.
+// The human's own words live on `note` below, which is STATE and can itself be erased — the same
+// split credit adjustments already use (AD-39).
+export type FreezeReason = 'tatil' | 'saglik' | 'is' | 'diger'
+export const FreezeReasons: readonly FreezeReason[] = ['tatil', 'saglik', 'is', 'diger']
+
 export type FreezeState = {
   readonly entitledDays: number
   readonly usedDays: number
   readonly periods: readonly FreezePeriod[]
   readonly activeFrom: string | null // LocalDate ⇔ currently frozen
+  // The day the sweep resumes her (owner, 2026-07-28). Before this a freeze ran until somebody
+  // lifted it or the budget ran out, so nobody — not the member, not the desk — could say when she
+  // was coming back. Absent on freezes started before this existed: not a plan of zero days, simply
+  // a plan nobody recorded.
+  readonly plannedUntil?: string | null // LocalDate
+  readonly reason?: FreezeReason
+  /** The human's explanation. STATE, never an event — free text is where PII hides. */
+  readonly note?: string | null
 }
 
 // D3 — the rules AS THEY WERE at purchase. Mirrors shared PolicyRef.

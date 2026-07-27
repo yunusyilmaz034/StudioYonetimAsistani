@@ -332,6 +332,7 @@ const freeze: Op = async () => {
     entitlementId: e.id as EntitlementId,
     from: localDateAt(instant(Date.now()), 180),
     hasUpcomingReservation: upcoming,
+      plan: { plannedDays: 1, reason: 'tatil', note: null },
   })
   return r.ok ? 'freeze' : `refused:${r.error.code}`
 }

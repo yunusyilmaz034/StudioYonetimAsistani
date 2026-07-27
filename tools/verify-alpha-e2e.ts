@@ -466,6 +466,7 @@ async function main(): Promise<void> {
     entitlementId: entId,
     from: today,
     hasUpcomingReservation: false,
+      plan: { plannedDays: 1, reason: 'tatil', note: null },
   })
   if (!frozen.ok) throw new Error(`freeze: ${frozen.error.code}`)
   const isFrozen = await ents.getEntitlement(ctx, entId)

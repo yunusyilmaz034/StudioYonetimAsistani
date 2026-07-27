@@ -189,6 +189,9 @@ function SubscriptionRow({ sub, siblings, onChanged }: { sub: SubscriptionView; 
   // — the owner pressed it to see what it did and it simply did it (2026-07-28). An act that moves a
   // member's dates deserves a sentence about what is about to happen.
   const [freezeOpen, setFreezeOpen] = useState(false)
+  const [freezeDays, setFreezeDays] = useState('')
+  const [freezeReason, setFreezeReason] = useState<'tatil' | 'saglik' | 'is' | 'diger'>('tatil')
+  const [freezeNote, setFreezeNote] = useState('')
   const [busy, setBusy] = useState(false)
 
   // Freeze and unfreeze are one click. The refusal — an upcoming booking, an exhausted budget — comes
@@ -309,61 +312,140 @@ function SubscriptionRow({ sub, siblings, onChanged }: { sub: SubscriptionView; 
 
             {/* FREEZE (v1.27 S3). Appears only where a part actually grants the right; freezing/unfreezing
                 fans out to every part that qualifies, so the whole membership stops and resumes together. */}
-        {/* ── Dondurma onayı (owner, 2026-07-28) ──────────────────────────────────────────────
-          "Basar basmaz dondurdu, ne kadar dondurulacak emin misin falan demeden." Freezing stops a
-          membership somebody paid for and moves its end date; it should not happen on one click.
+        {/* ── Dondurma (owner, 2026-07-28) ───────────────────────────────────────────────────
+          It fired on a single click: a paid membership stopped, with no confirmation and no way to
+          know for how long. Now it asks the three things that make it a decision instead of a
+          switch — how long, why, and (optionally) in whose words — and shows what will happen
+          before it happens.
 
-          What this SAYS is deliberately the truth and nothing more. The system does not take a
-          chosen duration today: a freeze runs until it is lifted or until her budget runs out, and
-          the nightly sweep resumes her on the day it does. Offering a "kaç gün" box would be
-          offering a promise nothing keeps — so the panel states the real end date instead, and says
-          plainly that it can be lifted any day before it. */}
-      <Dialog open={freezeOpen} onOpenChange={setFreezeOpen}>
+          THE DAYS ARE REAL. The nightly sweep resumes her on the planned day, so what this screen
+          says is what the system will do. A number that only decorated a dialog would be worse than
+          no number at all. */}
+      <Dialog
+        open={freezeOpen}
+        onOpenChange={(o) => {
+          setFreezeOpen(o)
+          if (!o) {
+            setFreezeDays('')
+            setFreezeReason('tatil')
+            setFreezeNote('')
+          }
+        }}
+      >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Üyeliği dondur</DialogTitle>
-            <DialogDescription>Onaylamadan önce ne olacağını kontrol edin.</DialogDescription>
+            <DialogDescription>
+              {freezeSub.productName} · kalan hak {freezeSub.freezeDaysRemaining} gün
+            </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-2 rounded-xl border border-border bg-muted/30 p-3 text-sm">
-            <Row label="Paket" value={freezeSub.productName} />
-            <Row label="Bugünkü bitiş" value={dateLabel(freezeSub.validUntil)} />
-            <Row label="Kalan dondurma hakkı" value={`${freezeSub.freezeDaysRemaining} gün`} />
-            {/* The date the sweep will resume her by, if nobody lifts it sooner. This is the number
-                the owner was missing: "ne kadar dondurulacak". */}
-            <Row label="En geç devam" value={addDays(studioToday(), freezeSub.freezeDaysRemaining ?? 0)} />
+          <div className="space-y-3">
+            <div>
+              <label className="mb-1 block text-sm font-medium" htmlFor="fz-days">
+                Kaç gün dondurulacak?
+              </label>
+              <Input
+                id="fz-days"
+                type="number"
+                min={1}
+                max={freezeSub.freezeDaysRemaining ?? 1}
+                value={freezeDays}
+                onChange={(e) => setFreezeDays(e.target.value)}
+                placeholder={`en fazla ${freezeSub.freezeDaysRemaining}`}
+                autoFocus
+              />
+            </div>
+
+            <div>
+              <label className="mb-1 block text-sm font-medium" htmlFor="fz-reason">
+                Sebep
+              </label>
+              {/* A closed list, not free text: the event log is permanent, and this is the field
+                  that gets counted later ("kaç dondurma sağlık sebepli?"). */}
+              <select
+                id="fz-reason"
+                value={freezeReason}
+                onChange={(e) => setFreezeReason(e.target.value as typeof freezeReason)}
+                className="min-h-11 w-full rounded-md border border-border bg-background px-3 text-sm"
+              >
+                <option value="tatil">Tatil</option>
+                <option value="saglik">Sağlık</option>
+                <option value="is">İş / okul</option>
+                <option value="diger">Diğer</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="mb-1 block text-sm font-medium" htmlFor="fz-note">
+                Not <span className="font-normal text-muted-foreground">(isteğe bağlı)</span>
+              </label>
+              <Input
+                id="fz-note"
+                value={freezeNote}
+                onChange={(e) => setFreezeNote(e.target.value)}
+                placeholder="Kendi notunuz — üye kaydında kalır"
+              />
+            </div>
           </div>
 
-          <p className="text-sm text-muted-foreground">
-            Üyelik bugünden itibaren durur ve <strong>durduğu gün sayısı kadar</strong> süresi uzar.
-            Hakkı dolduğunda sistem otomatik devam ettirir; daha erken devam ettirmek isterseniz
-            istediğiniz gün <strong>“Dondurmayı kaldır”</strong> diyebilirsiniz.
-          </p>
-          {siblings.filter((x) => x.status === 'active' && (x.freezeDaysRemaining ?? 0) > 0).length > 1 ? (
-            <p className="rounded-md bg-warning/10 p-2 text-sm text-warning">
-              Bu üyenin bu demetteki{' '}
-              {siblings.filter((x) => x.status === 'active' && (x.freezeDaysRemaining ?? 0) > 0).length} paketi
-              birlikte dondurulacak.
-            </p>
+          {/* The summary. Everything here is computed from what she just typed, so there is no
+              gap between what the screen promises and what the system does. */}
+          {Number(freezeDays) >= 1 && Number(freezeDays) <= (freezeSub.freezeDaysRemaining ?? 0) ? (
+            <div className="space-y-1 rounded-xl border border-border bg-muted/30 p-3 text-sm">
+              <Row label="Durma aralığı" value={`${studioToday()} → ${addDays(studioToday(), Number(freezeDays))}`} />
+              <Row
+                label="Bitiş tarihi"
+                value={`${dateLabel(freezeSub.validUntil)} → ${addDays(toDateInput(freezeSub.validUntil), Number(freezeDays))}`}
+              />
+              <Row
+                label="Sonra kalan hak"
+                value={`${(freezeSub.freezeDaysRemaining ?? 0) - Number(freezeDays)} gün`}
+              />
+              {siblings.filter((x) => x.status === 'active' && (x.freezeDaysRemaining ?? 0) > 0).length > 1 ? (
+                <p className="pt-1 text-warning">
+                  Bu demetteki{' '}
+                  {siblings.filter((x) => x.status === 'active' && (x.freezeDaysRemaining ?? 0) > 0).length} paket
+                  birlikte dondurulacak.
+                </p>
+              ) : null}
+            </div>
           ) : null}
+
+          <p className="text-xs text-muted-foreground">
+            Üyelik durur ve durduğu gün sayısı kadar süresi uzar. Belirtilen günde sistem otomatik
+            devam ettirir; daha erken açmak isterseniz “Dondurmayı kaldır” diyebilirsiniz.
+          </p>
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setFreezeOpen(false)} disabled={busy}>
               Vazgeç
             </Button>
             <Button
-              disabled={busy}
+              disabled={
+                busy ||
+                !(Number(freezeDays) >= 1 && Number(freezeDays) <= (freezeSub.freezeDaysRemaining ?? 0))
+              }
               onClick={async () => {
+                const days = Number(freezeDays)
                 setFreezeOpen(false)
                 await runAll(
                   siblings
                     .filter((x) => x.status === 'active' && (x.freezeDaysRemaining ?? 0) > 0)
-                    .map((x) => () => freezeSubscriptionAction({ entitlementId: x.id })),
+                    .map(
+                      (x) => () =>
+                        freezeSubscriptionAction({
+                          entitlementId: x.id,
+                          plannedDays: days,
+                          reason: freezeReason,
+                          note: freezeNote.trim() || null,
+                        }),
+                    ),
                   'Üyelik donduruldu.',
                 )
               }}
             >
-              Evet, dondur
+              Dondur
             </Button>
           </DialogFooter>
         </DialogContent>

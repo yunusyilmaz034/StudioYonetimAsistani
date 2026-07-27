@@ -565,7 +565,19 @@ export async function listMemberSubscriptionsAction(input: unknown): Promise<rea
  * *"Hiçbir kredi veya rezervasyon otomatik değiştirilmesin"*).
  */
 export async function freezeSubscriptionAction(input: unknown) {
-  const p = z.object({ entitlementId: nonEmpty }).parse(input)
+  // The plan is required (owner, 2026-07-28). A freeze whose end nobody can state is a freeze
+  // nobody — member or desk — can plan around, which is how it fired on a single click and stopped
+  // a paid membership for an unknown length of time.
+  const p = z
+    .object({
+      entitlementId: nonEmpty,
+      plannedDays: z.number().int().min(1).max(365),
+      reason: z.enum(['tatil', 'saglik', 'is', 'diger']),
+      // Free text stays OUT of the event and lives on the entitlement, where an erasure can reach
+      // it (#6). Bounded, because an unbounded note is an unbounded place to hide things.
+      note: z.string().trim().max(300).nullable().optional(),
+    })
+    .parse(input)
   const ctx = await requireTenantContext(OPS)
 
   const ent = await new FirestoreEntitlementRepository(adminDb()).getEntitlement(
@@ -595,6 +607,7 @@ export async function freezeSubscriptionAction(input: unknown) {
         entitlementId: p.entitlementId as EntitlementId,
         from: today,
         hasUpcomingReservation,
+        plan: { plannedDays: p.plannedDays, reason: p.reason, note: p.note ?? null },
       }),
   )
 }

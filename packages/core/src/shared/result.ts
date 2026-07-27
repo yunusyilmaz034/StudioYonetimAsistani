@@ -30,6 +30,11 @@ export type DomainError =
   // D21.4 — a frozen package is never extended: freeze arithmetic is unbuilt (DEBT-009), and
   // extending one would be doing it by the back door.
   | { readonly code: 'entitlement_frozen' }
+  // Freeze plans (owner, 2026-07-28). A duration is chosen up front now, so it can be wrong: zero
+  // days is not a freeze, and more days than she has left is REFUSED rather than clamped — quietly
+  // freezing for five when reception asked for ten is the studio not doing what it said.
+  | { readonly code: 'invalid_freeze_days' }
+  | { readonly code: 'freeze_days_exceed_budget'; readonly remaining: number }
   // I-28 (v1.22) — a bulk act is applied at most once. `status` is the guard; a second apply is
   // REFUSED, not repeated.
   | { readonly code: 'operation_already_applied' }

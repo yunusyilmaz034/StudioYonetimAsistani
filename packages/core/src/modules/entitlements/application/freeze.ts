@@ -7,7 +7,7 @@ import {
   type Result,
   type TenantContext,
 } from '../../../shared'
-import { decideFreeze, decideUnfreeze, freezeDaysRemaining } from '../domain/decide'
+import { decideFreeze, type FreezePlan, decideUnfreeze, freezeDaysRemaining } from '../domain/decide'
 import type { Entitlement } from '../domain/types'
 import { decideContext, loadEntitlement } from './context'
 import type { EntitlementsDeps } from './ports'
@@ -33,6 +33,9 @@ export async function freezeEntitlement(
      * to move, and she would learn about it from a ledger rather than from us.
      */
     readonly hasUpcomingReservation: boolean
+    /** How long, why, and (optionally) in whose words. Required since 2026-07-28 — a freeze whose
+     *  end nobody can state is a freeze nobody can plan around. */
+    readonly plan: FreezePlan
   },
 ): Promise<Result<void, DomainError>> {
   const ent = await loadEntitlement(deps, ctx, input.entitlementId)
@@ -41,6 +44,7 @@ export async function freezeEntitlement(
     ent,
     input.from,
     input.hasUpcomingReservation,
+    input.plan,
   )
   if (!outcome.ok) return outcome
 
@@ -96,9 +100,20 @@ export async function runFreezeBudgetSweep(
   return { unfrozen }
 }
 
-/** The LocalDate her budget runs out on, or null if she is not frozen. */
+/**
+ * The LocalDate this freeze ends on, or null if she is not frozen.
+ *
+ * TWO limits now, and the EARLIER one wins (owner, 2026-07-28):
+ *   · the plan she agreed to — "beş gün donduralım"
+ *   · her budget, which cannot be exceeded whatever anyone planned
+ *
+ * A freeze started before plans existed has no `plannedUntil`, and falls back to the budget exactly
+ * as it always did. Absent means "nobody recorded a plan", not "planned for zero days".
+ */
 function budgetEndsOn(ent: Entitlement): string | null {
   const f = ent.freeze
   if (!f?.activeFrom) return null
-  return addLocalDays(f.activeFrom, freezeDaysRemaining(f))
+  const budgetEnd = addLocalDays(f.activeFrom, freezeDaysRemaining(f))
+  const planned = f.plannedUntil ?? null
+  return planned && planned < budgetEnd ? planned : budgetEnd
 }

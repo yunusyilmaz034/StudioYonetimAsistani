@@ -36,6 +36,10 @@ export function domainErrorMessage(error: DomainError): string {
       return 'Bu işlem zaten uygulandı. Aynı işlem ikinci kez uygulanamaz.'
     case 'operation_not_applicable':
       return 'Bu işlem uygulanabilir durumda değil.'
+    case 'invalid_freeze_days':
+      return 'Geçerli bir gün sayısı girin (en az 1 gün).'
+    case 'freeze_days_exceed_budget':
+      return `Bu üyeliğin kalan dondurma hakkı ${error.remaining} gün. Daha fazlası dondurulamaz.`
     case 'entitlement_frozen':
       return 'Bu paket dondurulmuş. Dondurulmuş paketler toplu işlemlere dahil edilmez; ayrıca ele alınmalıdır.'
     case 'entitlement_not_active':

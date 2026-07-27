@@ -1,5 +1,5 @@
 import type { Instant, Money, PaymentId, ProductId, ReservationId } from '../../shared'
-import type { AdjustmentReason, Grant, PaymentMethod } from './domain/types'
+import type { AdjustmentReason, FreezeReason, Grant, PaymentMethod } from './domain/types'
 
 // The credit ledger's events (Doc 4 §"Entitlement"). No PII (I-13): identity lives
 // in /members, behaviour lives here. Every credit-affecting event carries the
@@ -166,6 +166,15 @@ export type EntitlementFrozenPayload = {
   readonly from: string // LocalDate — the day the clock stopped
   readonly entitledDays: number // her budget, as sold (product.freezeAllowanceDays)
   readonly usedDaysBefore: number // what she had already spent of it
+  // ── Added 2026-07-28, owner-approved ────────────────────────────────────────────────────────
+  // OPTIONAL rather than a version bump: a freeze recorded before today genuinely had no plan and
+  // no recorded reason, and absent says that truthfully. Writing a default in would be inventing a
+  // fact — and would need an upcaster to un-invent.
+  readonly plannedDays?: number
+  // The ENUM only. The free-text note stays on the entitlement, where an erasure can reach it:
+  // the log is permanent, and "ameliyat oldu" in a permanent record is health data we could never
+  // remove when she asks (#6). Same split as credit adjustments (AD-39).
+  readonly reason?: FreezeReason
 }
 
 export type EntitlementUnfrozenPayload = {

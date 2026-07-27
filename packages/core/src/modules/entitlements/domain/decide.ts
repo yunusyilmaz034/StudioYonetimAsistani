@@ -1,4 +1,5 @@
 import {
+  addLocalDays,
   daysBetween,
   err,
   instant,
@@ -52,6 +53,7 @@ import {
   type CreditLedger,
   type Entitlement,
   type EntryLedger,
+  type FreezeReason,
   type FreezeState,
   type ManualPayment,
   type PaymentMethod,
@@ -602,11 +604,20 @@ export function freezeDaysRemaining(f: FreezeState): number {
   return Math.max(0, f.entitledDays - f.usedDays)
 }
 
+export interface FreezePlan {
+  /** How many days she is stopping for. REQUIRED (owner, 2026-07-28) — see below. */
+  readonly plannedDays: number
+  readonly reason: FreezeReason
+  /** The human's words. Kept on STATE, never in the event: free text is where PII hides. */
+  readonly note: string | null
+}
+
 export function decideFreeze(
   ctx: DecideContext,
   ent: Entitlement,
   from: string, // LocalDate — today, in the studio's timezone
   hasUpcomingReservation: boolean,
+  plan: FreezePlan,
 ): Result<LedgerOutcome, DomainError> {
   if (ent.status === 'frozen') return err({ code: 'entitlement_already_frozen' })
   if (ent.status !== 'active') return err({ code: 'entitlement_not_active' })
@@ -621,10 +632,30 @@ export function decideFreeze(
   // credit she never asked us to move, and she would find out from a ledger rather than from us.
   if (hasUpcomingReservation) return err({ code: 'freeze_blocked_by_reservation' })
 
+  // ── The plan (owner, 2026-07-28) ──────────────────────────────────────────────────────────
+  //
+  // A freeze used to run until somebody lifted it or the budget ran out, which meant nobody — not
+  // the member, not the desk — could answer "when am I back?". Now the days are chosen up front and
+  // the sweep resumes her on that day.
+  //
+  // Refused, never clamped, if it exceeds what she has left: silently freezing for five days when
+  // reception asked for ten is the studio quietly not doing what it said. The remainder stays hers
+  // for a later freeze, which is the whole point of a budget.
+  const remaining = freezeDaysRemaining(f)
+  if (!Number.isInteger(plan.plannedDays) || plan.plannedDays < 1) return err({ code: 'invalid_freeze_days' })
+  if (plan.plannedDays > remaining) return err({ code: 'freeze_days_exceed_budget', remaining })
+
+  const plannedUntil = addLocalDays(from, plan.plannedDays)
   const next: Entitlement = {
     ...ent,
     status: 'frozen',
-    freeze: { ...f, activeFrom: from },
+    freeze: {
+      ...f,
+      activeFrom: from,
+      plannedUntil,
+      reason: plan.reason,
+      note: plan.note?.trim() || null,
+    },
   }
 
   return ok({
@@ -633,8 +664,15 @@ export function decideFreeze(
       {
         ...base(ctx, ent, { entitlementId: ent.id, memberId: ent.memberId }),
         type: ENTITLEMENT_FROZEN,
-        // It moves NO date. It records only that the clock stopped, and what she had left to spend.
-        payload: { from, entitledDays: f.entitledDays, usedDaysBefore: f.usedDays },
+        // It moves NO date. It records that the clock stopped, what she had left to spend, and — as
+        // of today — the plan she agreed to. The NOTE is deliberately absent: it lives on state.
+        payload: {
+          from,
+          entitledDays: f.entitledDays,
+          usedDaysBefore: f.usedDays,
+          plannedDays: plan.plannedDays,
+          reason: plan.reason,
+        },
       },
     ],
   })
