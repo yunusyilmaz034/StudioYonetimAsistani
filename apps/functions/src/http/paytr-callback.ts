@@ -5,6 +5,7 @@ import {
   decideCallbackResult,
   FirestoreCatalogRepository,
   FirestoreEntitlementRepository,
+  FirestoreIdentityRepository,
   FirestoreFinanceRepository,
   FirestoreMemberRepository,
   FirestorePaymentIntentRepository,
@@ -35,6 +36,7 @@ import {
   type TenantContext,
 } from '@studio/core'
 import type { Firestore } from 'firebase-admin/firestore'
+import { getAuth } from 'firebase-admin/auth'
 import * as logger from 'firebase-functions/logger'
 import { onRequest } from 'firebase-functions/v2/https'
 
@@ -110,6 +112,60 @@ async function resolveBuyer(database: Firestore, ctx: TenantContext, c: PaymentI
 // The send happens HERE, not off `member.invited`, because the raw token exists only in this scope: it
 // is never stored (only its SHA-256) and never entered the event. Whoever mints the token is the only
 // principal that can send a link which actually opens.
+// ── Telling the studio a sale just happened (owner, 2026-07-27) ─────────────────────────────
+//
+// "Admini bu durumu mutlaka haber vermelisin." Before this the callback told the MEMBER (her portal
+// invite) and the studio nothing: a renewal at 23:00 was discovered by opening the panel next
+// morning.
+//
+// It was first written into the WEB copy of this file — and the web copy is not the one PAYTR calls.
+// DEBT-PAYTR-CALLBACK says the two must stay in step; this is what that costs when they do not.
+//
+// Best-effort and last: the money is in and the package is granted by the time this runs. A failed
+// notification must never undo a paid sale.
+async function tellStudioAboutSale(
+  database: Firestore,
+  ctx: TenantContext,
+  args: { memberId: string; productName: string; amountKurus: number; startsAtMs: number },
+): Promise<void> {
+  try {
+    const [member, staff, settings] = await Promise.all([
+      new FirestoreMemberRepository(database).findById(ctx, args.memberId as MemberId),
+      new FirestoreIdentityRepository(database).listStaff(ctx),
+      studioNotificationSettings(ctx.studioId),
+    ])
+    const desk = staff.filter((m: { active: boolean; role: string }) => m.active && (m.role === 'owner' || m.role === 'receptionist'))
+    if (desk.length === 0) return
+
+    const deps = notificationDeps(settings)
+    for (const person of desk) {
+      let email: string | null = null
+      try {
+        email = (await getAuth().getUser(person.id as string)).email ?? null
+      } catch {
+        /* no auth account — in-app still reaches them */
+      }
+      await notify(deps, ctx, {
+        // Keyed on the member + start date: a replayed callback sends nothing twice.
+        intentId: intentIdFor(args.memberId, 'sale_self_service', String(args.startsAtMs)).slice(0, 180),
+        eventId: null,
+        eventType: 'payment_intent.succeeded',
+        operationId: newCorrelationId(),
+        templateId: 'sale_self_service',
+        recipient: { kind: 'staff', id: person.id as string, email, phone: null, displayName: person.displayName },
+        params: {
+          memberName: member?.fullName ?? 'Üye',
+          productName: args.productName,
+          amount: `${(args.amountKurus / 100).toLocaleString('tr-TR')} ₺`,
+          startsOn: new Date(args.startsAtMs).toLocaleDateString('tr-TR', { timeZone: 'Europe/Istanbul' }),
+        },
+      })
+    }
+  } catch (e) {
+    logger.warn('[paytr-callback] studio sale notification failed', (e as Error)?.message)
+  }
+}
+
 async function issueInviteFor(database: Firestore, ctx: TenantContext, memberId: string, intentId: string): Promise<void> {
   const token = randomBytes(32).toString('base64url')
   const tokenHash = createHash('sha256').update(token).digest('hex')
@@ -261,6 +317,12 @@ async function completePaidIntent(
         })
       }
       if (invitee) await issueInviteFor(database, ctx, invitee, intent.id)
+      await tellStudioAboutSale(database, ctx, {
+        memberId: intent.memberId,
+        productName: product.name,
+        amountKurus: intent.amount.amount,
+        startsAtMs: dayMs(intent.context.validFrom ?? ''),
+      })
       return
     }
 
@@ -307,6 +369,12 @@ async function completePaidIntent(
       },
     })
     if (invitee) await issueInviteFor(database, ctx, invitee, intent.id)
+    await tellStudioAboutSale(database, ctx, {
+      memberId: intent.memberId,
+      productName: product.name,
+      amountKurus: intent.amount.amount,
+      startsAtMs: dayMs(intent.context.validFrom ?? ''),
+    })
     return
   }
 
