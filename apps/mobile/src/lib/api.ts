@@ -89,6 +89,9 @@ export const api = {
   markRead: (intentId: string) => post<ApiResult<unknown>>('/inbox', { intentId }),
   prefs: () => get<NotificationPrefs>('/prefs'),
   setPrefs: (prefs: NotificationPrefs) => post<ApiResult<unknown>>('/prefs', prefs),
+  // App Store 5.1.1(v). Her login is destroyed server-side; the app signs out afterwards because
+  // there is no longer an account to hold a session for.
+  deleteAccount: () => post<ApiResult<{ deleted: true }>>('/delete-account', {}),
   qrContext: () => get<{ studioId: string; branchId: string | null }>('/qr'),
   mintQr: (branchId: string) => post<QrToken>('/qr', { branchId }),
   checkin: (token: string) => post<ApiResult<{ branchId: string }>>('/checkin', { token }),

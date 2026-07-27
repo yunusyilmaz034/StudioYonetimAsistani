@@ -57,6 +57,10 @@ export const DocumentKinds = ['membership_contract', 'kvkk_consent', 'explicit_c
 export type DocumentKind = (typeof DocumentKinds)[number]
 
 export const MEMBER_ERASED = 'member.erased'
+// She asked, from her own phone, to have her account deleted (App Store guideline 5.1.1(v),
+// 2026-07-27). Distinct from `member.erased`: this is the REQUEST and the moment her access ended,
+// not the erasure itself — see the payload note below.
+export const MEMBER_DELETION_REQUESTED = 'member.deletion_requested'
 export const ErasureReasons = [
   'kvkk_request',
   'duplicate',
@@ -121,4 +125,18 @@ export type MemberRestrictionSetPayload = {
 }
 export type MemberRestrictionClearedPayload = {
   readonly reason: string
+}
+
+// No PII (I-13) — the request records that she asked and from where, never who she is.
+//
+// ── Why this is not simply `member.erased` ────────────────────────────────────────────────────
+// Erasure is break-glass and platform-admin only (AD-67), for a reason that has not changed: her
+// payments and invoices are the STUDIO's business records, with a statutory retention period, and a
+// member must not be able to destroy them from a phone. What she can and must be able to do is end
+// her relationship with the app — so this event marks the moment her ACCESS was revoked, which is
+// immediate and irreversible, and opens the erasure for a human to complete under the retention
+// rules. Apple's guideline requires the deletion to be INITIATED in the app; it explicitly allows
+// keeping what law requires.
+export type MemberDeletionRequestedPayload = {
+  readonly source: 'member_app' | 'member_portal'
 }

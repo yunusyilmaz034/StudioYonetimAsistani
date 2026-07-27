@@ -66,6 +66,11 @@ export interface Member {
   //
   // `note` is where a human explains, and it lives HERE rather than in the event because free text
   // is the last place PII hides — and unlike the log, this can itself be erased.
+  // She asked to be deleted from her own phone (2026-07-27). Her access is already gone by the time
+  // this is set; the field is what tells the desk there is an erasure to complete, and what stops
+  // the request being raised twice. OPTIONAL: absent on every member who never asked.
+  readonly deletionRequestedAt?: Instant
+
   readonly erased?: {
     readonly at: Instant
     readonly reason: ErasureReason

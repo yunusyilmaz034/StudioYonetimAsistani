@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Image, Pressable, Switch, View } from 'react-native'
+import { Alert, Image, Pressable, Switch, View } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { router, useFocusEffect } from 'expo-router'
 
@@ -102,6 +102,46 @@ export default function Profile() {
 
       <FadeInUp index={4}>
         <Button label="Çıkış Yap" tone="muted" icon={<Ionicons name="log-out-outline" size={18} color={p.danger} />} onPress={() => void signOutMember()} />
+      </FadeInUp>
+
+      {/* App Store guideline 5.1.1(v) — an app with accounts must let her delete hers from inside it.
+          Placed LAST and styled quietly on purpose: it is a real, irreversible action and it should
+          not sit where a thumb lands by accident. Two taps, and the second one spells out what will
+          and will not be deleted — a confirmation that only says "emin misiniz?" tells her nothing. */}
+      <FadeInUp index={5}>
+        <Pressable
+          onPress={() =>
+            Alert.alert(
+              'Hesabını sil',
+              'Girişin kalıcı olarak silinir ve uygulamaya bir daha giremezsin.\n\n' +
+                'Ödeme ve fatura kayıtların, yasal saklama süresi boyunca stüdyoda kalır — bunu ' +
+                'silmek yasal olarak mümkün değil. Kişisel bilgilerinin silinmesi için stüdyoya ' +
+                'talebin iletilir.\n\nDevam etmek istiyor musun?',
+              [
+                { text: 'Vazgeç', style: 'cancel' },
+                {
+                  text: 'Hesabımı sil',
+                  style: 'destructive',
+                  onPress: () => {
+                    void (async () => {
+                      try {
+                        await api.deleteAccount()
+                      } catch {
+                        // Her login may already be gone (a second tap, a slow network). Signing out
+                        // is right either way — leaving her inside a deleted account is the one
+                        // outcome that would be wrong.
+                      }
+                      await signOutMember()
+                    })()
+                  },
+                },
+              ],
+            )
+          }
+          style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1, paddingVertical: space(3), alignItems: 'center' })}
+        >
+          <Body muted>Hesabımı sil</Body>
+        </Pressable>
       </FadeInUp>
     </Screen>
   )

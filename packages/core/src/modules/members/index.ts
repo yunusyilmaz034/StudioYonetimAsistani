@@ -52,6 +52,9 @@ export { registerMember, type RegisterMemberInput } from './application/register
 export { updateMember, type UpdateMemberInput } from './application/update-member'
 export { deactivateMember } from './application/deactivate-member'
 export { eraseMember } from './application/erase-member'
+// App Store 5.1.1(v) — she asks from her own phone; her ACCESS ends immediately (the caller destroys
+// her login), the erasure itself stays break-glass under the statutory retention rules.
+export { requestMemberDeletion } from './application/request-deletion'
 export { FirestorePiiPurger, type PurgePlan } from './infrastructure/purge'
 export { ErasureReasons, MEMBER_ERASED, type ErasureReason, type MemberErasedPayload } from './events'
 // v1.21 — the portal invite (D1/D2/D17).

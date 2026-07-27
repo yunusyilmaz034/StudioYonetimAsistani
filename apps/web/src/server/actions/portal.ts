@@ -23,7 +23,9 @@ import {
 } from '@studio/core'
 import { z } from 'zod'
 
-import { requireMemberContext } from '../auth'
+import { getMemberClaims, requireMemberContext } from '../auth'
+import { deleteMemberAccount } from '../member-api'
+import { destroySession } from './session'
 import { adminAuth, adminDb } from '../firebase-admin'
 
 // The member portal's writes (v1.21, Batches 7–8).
@@ -184,4 +186,25 @@ export async function changeOwnPassword(ctx: TenantContext, memberId: MemberId, 
   const uid = `mbr_${createHash('sha256').update(`${ctx.studioId}:${memberId}`).digest('hex').slice(0, 24)}`
   await adminAuth().updateUser(uid, { password: p.password })
   return { ok: true as const, value: undefined }
+}
+
+
+// ── "Hesabımı sil", from the web portal (2026-07-27) ─────────────────────────────────────────
+//
+// Built for the App Store (guideline 5.1.1(v) — an app with accounts must let her delete hers from
+// inside it), but the RIGHT is not platform-specific: most of this studio's members use the portal
+// in a browser, and a deletion available only on an iPhone is a deletion the majority cannot reach.
+// KVKK does not ask which device she was holding.
+//
+// Identical behaviour to the mobile route, and the same deliberate limit: her login is destroyed,
+// her business records are not. See `deleteMemberAccount`.
+export async function deleteOwnAccountAction() {
+  const { ctx, memberId } = await requireMemberContext()
+  const claims = await getMemberClaims()
+  if (!claims) return { ok: false as const, error: { code: 'unauthorized' as const } }
+  await deleteMemberAccount(ctx, memberId, claims.uid, 'member_portal')
+  // Her cookie now points at a login that no longer exists. Clearing it here means she is not left
+  // holding a session for a deleted account until something else happens to notice.
+  await destroySession()
+  return { ok: true as const }
 }

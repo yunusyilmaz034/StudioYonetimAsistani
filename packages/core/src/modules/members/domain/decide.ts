@@ -16,6 +16,7 @@ import {
   MEMBER_DEACTIVATED,
   MEMBER_DOCUMENT_ADDED,
   MEMBER_DOCUMENT_REMOVED,
+  MEMBER_DELETION_REQUESTED,
   MEMBER_ERASED,
   MEMBER_INVITED,
   MEMBER_PORTAL_ACTIVATED,
@@ -28,6 +29,7 @@ import {
   type MemberDeactivatedPayload,
   type MemberDocumentAddedPayload,
   type MemberDocumentRemovedPayload,
+  type MemberDeletionRequestedPayload,
   type MemberErasedPayload,
   type MemberProfileUpdatedPayload,
   type MemberRegisteredPayload,
@@ -339,5 +341,42 @@ export function decideErase(
         payload: { memberId: current.id as string, reason, erasedAt: ctx.now },
       },
     ],
+  })
+}
+
+// ── She asked, from her own phone, to have her account deleted (App Store 5.1.1(v), 2026-07-27) ──
+//
+// This is NOT `decideErase`, and the difference is the whole design:
+//
+//   • Erasure destroys her identity across the studio's records. It is break-glass, platform-admin
+//     only (AD-67), and it must stay that way — her payments and invoices are the STUDIO's business
+//     records with a statutory retention period, and a member tapping a button on a phone must not
+//     be able to put the studio in breach of tax law.
+//   • This ends her RELATIONSHIP with the app. Her access is revoked immediately and irreversibly by
+//     the caller (her login is destroyed), and this records the request so a human completes the
+//     erasure under the retention rules.
+//
+// Apple's guideline requires the deletion to be INITIATED in the app and explicitly permits keeping
+// what law requires. Both halves are satisfied, and neither is satisfied by pretending a member can
+// delete a payment record.
+//
+// Idempotent: asking twice is one request. A second tap — because the first screen was dismissed, or
+// because she is anxious — must not write a second event and must not look like two separate acts.
+export function decideRequestDeletion(
+  ctx: DecideContext,
+  current: Member,
+  source: MemberDeletionRequestedPayload['source'],
+): Result<
+  { next: Member; events: NewEvent<typeof MEMBER_DELETION_REQUESTED, MemberDeletionRequestedPayload>[] },
+  DomainError
+> {
+  // Already forgotten. There is no account left to ask about, and saying so is not an error: she may
+  // simply be looking at a screen that was rendered before the erasure completed.
+  if (current.erased || current.deletionRequestedAt) return ok({ next: current, events: [] })
+
+  const next: Member = { ...current, deletionRequestedAt: ctx.now }
+  return ok({
+    next,
+    events: [{ ...base(ctx, current), type: MEMBER_DELETION_REQUESTED, payload: { source } }],
   })
 }

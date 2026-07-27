@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input'
 import { Section } from '@/components/ui/section'
 import { clientAuth } from '@/lib/firebase-client'
 import { domainErrorMessage } from '@/lib/domain-error'
-import { changeOwnPasswordAction, updateOwnProfileAction } from '@/server/actions/portal'
+import { changeOwnPasswordAction, deleteOwnAccountAction, updateOwnProfileAction } from '@/server/actions/portal'
 
 // D9 — what she may change, and what she may not.
 //
@@ -37,6 +37,9 @@ export function PortalProfileScreen(props: {
   const [current, setCurrent] = useState('')
   const [next, setNext] = useState('')
   const [pwBusy, setPwBusy] = useState(false)
+  // Two-step deletion: the first tap only reveals what will happen, the second one does it.
+  const [confirming, setConfirming] = useState(false)
+  const [delBusy, setDelBusy] = useState(false)
 
   async function save() {
     setBusy(true)
@@ -130,6 +133,53 @@ export function PortalProfileScreen(props: {
             {pwBusy ? <Loader2Icon className="animate-spin" /> : <LockIcon />} Şifremi Değiştir
           </Button>
         </div>
+      </Section>
+
+      {/* App Store 5.1.1(v) — and KVKK, which does not ask which device she was holding. Last on the
+          page and deliberately quiet: it is irreversible, so it must not sit where a thumb lands by
+          accident. The confirmation SPELLS OUT what goes and what stays — "emin misiniz?" tells her
+          nothing, and this is exactly the decision where she deserves to know before she taps. */}
+      <Section title="Hesabım">
+        {confirming ? (
+          <div className="space-y-3 rounded-xl border-2 border-danger/40 bg-danger/5 p-4">
+            <p className="text-sm font-medium text-danger">Hesabını silmek üzeresin.</p>
+            <p className="text-sm text-muted-foreground">
+              Girişin kalıcı olarak silinir ve bir daha giriş yapamazsın. Ödeme ve fatura kayıtların,
+              yasal saklama süresi boyunca stüdyoda kalır — bunları silmek yasal olarak mümkün değil.
+              Kişisel bilgilerinin silinmesi için talebin stüdyoya iletilir.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" className="min-h-11" onClick={() => setConfirming(false)} disabled={delBusy}>
+                Vazgeç
+              </Button>
+              <Button
+                variant="destructive"
+                className="min-h-11"
+                disabled={delBusy}
+                onClick={async () => {
+                  setDelBusy(true)
+                  try {
+                    await deleteOwnAccountAction()
+                  } catch {
+                    // Her login may already be gone. Sending her to the door is right either way —
+                    // leaving her inside a deleted account is the one outcome that would be wrong.
+                  }
+                  router.replace('/portal/login')
+                }}
+              >
+                {delBusy ? <Loader2Icon className="animate-spin" /> : null} Hesabımı sil
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <button
+            type="button"
+            className="text-sm text-muted-foreground underline underline-offset-4 hover:text-danger"
+            onClick={() => setConfirming(true)}
+          >
+            Hesabımı sil
+          </button>
+        )}
       </Section>
     </main>
   )

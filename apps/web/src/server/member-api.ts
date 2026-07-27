@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 
-import { available, DEFAULT_PREFS, entriesUsed, FirestoreEntitlementRepository, FirestoreFinanceRepository, FirestoreNotificationRepository, money, newOperationId, sell, systemClock, type BranchId, type Entitlement, type FinanceDeps, type MemberId, type NotificationPrefs, type TenantContext } from '@studio/core'
+import { available, DEFAULT_PREFS, FirestoreMemberRepository, requestMemberDeletion, entriesUsed, FirestoreEntitlementRepository, FirestoreFinanceRepository, FirestoreNotificationRepository, money, newOperationId, sell, systemClock, type BranchId, type Entitlement, type FinanceDeps, type MemberId, type NotificationPrefs, type TenantContext } from '@studio/core'
 import type { RetailItem, StoredWallet } from '@studio/core/client'
 
 import { loadOccupancyNow } from './fitness-query'
@@ -17,6 +17,8 @@ import { readWalletView } from './wallet-query'
 export interface MemberApiContext {
   readonly ctx: TenantContext
   readonly memberId: MemberId
+  /** The Firebase Auth uid — NOT the memberId (member-claims.ts). Only account deletion needs it. */
+  readonly uid: string
 }
 
 export async function authenticateMember(req: NextRequest): Promise<MemberApiContext | null> {
@@ -27,7 +29,7 @@ export async function authenticateMember(req: NextRequest): Promise<MemberApiCon
     const decoded = await adminAuth().verifyIdToken(token, true)
     const claims = parseMemberClaims(decoded.uid, decoded as unknown as Record<string, unknown>)
     if (!claims) return null
-    return { ctx: memberClaimsToTenantContext(claims), memberId: claims.memberId }
+    return { ctx: memberClaimsToTenantContext(claims), memberId: claims.memberId, uid: claims.uid }
   } catch {
     return null
   }
@@ -276,4 +278,48 @@ export async function memberBuyFromWallet(ctx: TenantContext, memberId: MemberId
   }
   if (!result.ok) return { ok: false as const, error: result.error }
   return { ok: true as const, value: await readWalletView(ctx, memberId) }
+}
+
+
+// ── "Hesabımı sil" (App Store 5.1.1(v), 2026-07-27) ──────────────────────────────────────────
+//
+// Two things happen, and the ORDER is the design:
+//
+//   1. Her LOGIN IS DESTROYED. This is what makes it a deletion from where she stands — she is
+//      signed out of every device within the minute and cannot sign back in. It happens FIRST and
+//      unconditionally, including when she is asking a second time, because that is the part she can
+//      verify and the part that must never silently fail to happen.
+//   2. The request is RECORDED so the studio completes the erasure.
+//
+// What deliberately does NOT happen: her data is not destroyed here. Her payments and invoices are
+// the STUDIO's business records under a statutory retention period (AD-67 keeps erasure break-glass
+// for exactly this reason), and a member must not be able to put the studio in breach of tax law
+// from a phone. Apple's guideline requires the deletion to be INITIATED in the app and explicitly
+// permits keeping what law requires — both halves hold.
+export async function deleteMemberAccount(
+  ctx: TenantContext,
+  memberId: MemberId,
+  uid: string,
+  source: 'member_app' | 'member_portal',
+): Promise<{ ok: true; value: { deleted: true } }> {
+  const repo = new FirestoreMemberRepository(adminDb())
+
+  // 1 · End the session everywhere, then remove the login itself. Revoking FIRST means that even if
+  // the delete below fails, no existing token survives — the weaker outcome is still "logged out".
+  // The uid comes from the VERIFIED token, so this can only ever delete the caller's own login.
+  try {
+    await adminAuth().revokeRefreshTokens(uid)
+    await adminAuth().deleteUser(uid)
+  } catch {
+    // Already gone (she asked twice, or it was removed by hand). Nothing to undo, and it must not
+    // stop the request being recorded.
+  }
+
+  // 2 · Record it. Idempotent in the domain: asking twice is one request, not two acts.
+  await requestMemberDeletion(
+    { repo, clock: systemClock },
+    ctx,
+    { memberId, source },
+  )
+  return { ok: true, value: { deleted: true } }
 }

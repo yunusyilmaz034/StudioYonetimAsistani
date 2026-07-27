@@ -7,7 +7,7 @@ import {
   type StaffUserId,
   type StudioId,
 } from '../../../shared'
-import { decideDeactivate, decideRegisterMember, decideUpdateProfile } from './decide'
+import { decideDeactivate, decideRegisterMember, decideRequestDeletion, decideUpdateProfile } from './decide'
 import type { DecideContext } from './decide'
 import { emptyStats, type Member, type PhoneE164 } from './member'
 
@@ -82,5 +82,59 @@ describe('decideDeactivate', () => {
     const r = decideDeactivate(ctx, makeMember({ status: 'inactive' }), 'x')
     expect(r.ok).toBe(true)
     if (r.ok) expect(r.value).toHaveLength(0)
+  })
+})
+
+// ── "Hesabımı sil" (App Store 5.1.1(v), 2026-07-27) ──────────────────────────────────────────
+//
+// The line this test defends: a member may end her ACCESS, never the studio's records. Erasure stays
+// break-glass (AD-67) because her payments and invoices carry a statutory retention period.
+describe('decideRequestDeletion', () => {
+  const member = () => makeMember()
+
+  it('records the request and marks the member', () => {
+    const r = decideRequestDeletion(ctx, member(), 'member_app')
+    expect(r.ok).toBe(true)
+    if (r.ok) {
+      expect(r.value.events.map((e) => e.type)).toEqual(['member.deletion_requested'])
+      expect(r.value.next.deletionRequestedAt).toBe(ctx.now)
+    }
+  })
+
+  it('puts NO PII in the event — only where she asked from', () => {
+    const r = decideRequestDeletion(ctx, member(), 'member_app')
+    expect(r.ok).toBe(true)
+    if (r.ok) expect(r.value.events[0]?.payload).toEqual({ source: 'member_app' })
+  })
+
+  // She does NOT become erased, and nothing about her record is destroyed here. If this ever starts
+  // wiping fields, a member will have deleted the studio's accounting records from a phone.
+  it('does not erase anything', () => {
+    const before = member()
+    const r = decideRequestDeletion(ctx, before, 'member_portal')
+    expect(r.ok).toBe(true)
+    if (r.ok) {
+      expect(r.value.next.fullName).toBe(before.fullName)
+      expect(r.value.next.phone).toBe(before.phone)
+      expect(r.value.next.erased).toBeUndefined()
+    }
+  })
+
+  // A second tap — a dismissed screen, an anxious member, a retried request — is ONE request. Two
+  // events would make an audit read as two separate acts.
+  it('is idempotent: asking twice writes one event', () => {
+    const first = decideRequestDeletion(ctx, member(), 'member_app')
+    expect(first.ok).toBe(true)
+    if (!first.ok) return
+    const second = decideRequestDeletion(ctx, first.value.next, 'member_app')
+    expect(second.ok).toBe(true)
+    if (second.ok) expect(second.value.events).toHaveLength(0)
+  })
+
+  it('says nothing for a member who was already erased', () => {
+    const gone = makeMember({ erased: { at: ctx.now, reason: 'kvkk_request', note: null } })
+    const r = decideRequestDeletion(ctx, gone, 'member_app')
+    expect(r.ok).toBe(true)
+    if (r.ok) expect(r.value.events).toHaveLength(0)
   })
 })
