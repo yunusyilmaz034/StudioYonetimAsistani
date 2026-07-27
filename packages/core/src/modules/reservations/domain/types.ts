@@ -23,7 +23,11 @@ export type ReservationStatus =
   | 'no_show'
   | 'waitlisted' // enum seam only — nothing produces it in Phase 1 (Doc 2 §7.1)
 
-export type AttendanceSource = 'trainer' | 'system_default' | 'correction'
+// How this reservation came to be resolved — the field that separates an observation from a
+// presumption. `trainer` is someone looking at the room; `system_default` is the policy filling a
+// silence; `member_checkin` is the member's own scan at the door; `correction` is a human overruling
+// any of them afterwards.
+export type AttendanceSource = 'trainer' | 'system_default' | 'member_checkin' | 'correction'
 
 export type CreditEffect = 'held' | 'consumed' | 'released' | 'none'
 

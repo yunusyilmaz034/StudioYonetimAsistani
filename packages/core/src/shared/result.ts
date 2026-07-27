@@ -107,6 +107,12 @@ export type DomainError =
   | { readonly code: 'reservation_not_open' }
   // ── reservations / automation (Doc 2 §8, v1.10) ──
   | { readonly code: 'auto_resolve_too_early'; readonly resolvableAt: number }
+  // ── reservations / resolution from a door check-in (2026-07-27) ──
+  // Her scan speaks only for a class close to it in time, and never for one the studio cancelled.
+  // Both refusals are ordinary: the check-in itself still stands, and the nightly sweep resolves
+  // the reservation the way it always has.
+  | { readonly code: 'checkin_outside_class_window'; readonly opensAt: number; readonly closesAt: number }
+  | { readonly code: 'checkin_session_cancelled' }
   | { readonly code: 'reservation_not_resolved' }
   | { readonly code: 'correction_credit_unsupported' }
   // ── PF-37: PAYTR collections ──

@@ -1,0 +1,6 @@
+{
+  "outcome": "attended",
+  "source": "member_checkin",
+  "creditEffect": "consumed",
+  "creditsAvailableAfter": 7
+}

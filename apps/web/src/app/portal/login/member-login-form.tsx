@@ -21,6 +21,10 @@ export function MemberLoginForm() {
   const params = useSearchParams()
   const studioId = params.get('s') ?? ''
   const justActivated = params.get('welcome') === '1'
+  // Where to land after signing in. Only a path on THIS origin is accepted: a `next` that could
+  // carry a scheme or a host turns every login link the studio sends into an open redirect.
+  const nextRaw = params.get('next')
+  const next = nextRaw && nextRaw.startsWith('/') && !nextRaw.startsWith('//') ? nextRaw : '/portal'
 
   const [phone, setPhone] = useState('')
   const [password, setPassword] = useState('')
@@ -65,7 +69,7 @@ export function MemberLoginForm() {
       await createSession(await cred.user.getIdToken())
       await recordPortalLoginAction()
       track('login_success', { surface: 'member' })
-      router.replace('/portal')
+      router.replace(next)
     } catch {
       // One message for every failure: wrong phone, wrong password, no account. A prober learns
       // nothing about which members exist.

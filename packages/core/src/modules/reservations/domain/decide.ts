@@ -549,12 +549,74 @@ export function decideAutoResolution(
   })
 }
 
+// ── Resolution from the member's own check-in (owner ask, 2026-07-27). ──────────────────────
+//
+// The studio is one room. A member who walks through the door around her class time is at her
+// class — there is nowhere else in the building to be. So her scan at the door resolves the
+// reservation immediately, instead of the nightly sweep doing it hours later on no evidence at all.
+//
+// What this is NOT: an observation. Nobody watched her take the class, so this emits
+// `reservation.auto_resolved` like the sweep does — never `reservation.attended`, which belongs to
+// a trainer who was in the room (I-18, AD-38). It carries `source: 'member_checkin'` so the two
+// presumptions stay distinguishable forever: one rests on her recorded act, the other on silence.
+//
+// The outcome is `attended` and does NOT consult `attendanceDefaultOutcome`. That policy answers
+// "what do we assume when we know nothing?" — and here we know something. This is not policy
+// wearing an `if`; it is the meaning of the evidence.
+//
+// THE WINDOW is why this is safe. Resolving on any check-in would mean arriving at 09:00 marks the
+// 19:00 class attended — a presumption about a class that has not happened, which is the one thing
+// the ledger must never contain. So the scan only speaks for a class close to it in time:
+// `arrival` minutes before the start, through the policy's own grace window after the end. Outside
+// that, this refuses and the nightly sweep keeps its job.
+export function decideCheckInResolution(
+  ctx: DecideContext,
+  reservation: Reservation,
+  session: ClassSession,
+  entitlement: Entitlement,
+  arriveWithinMinutes: number,
+): Result<ReservationOutcome, DomainError> {
+  if (reservation.status !== 'booked') return err({ code: 'reservation_not_open' })
+  // A cancelled class is never resolved by a door scan. She may well have walked in — to be told
+  // the class is off. Leave it to `decideAutoResolution`, which releases the credit (I-27).
+  if (session.status === 'cancelled') return err({ code: 'checkin_session_cancelled' })
+
+  const opensAt = session.startsAt - arriveWithinMinutes * 60_000
+  const closesAt = session.endsAt + session.policySnapshot.autoResolveAfterMinutes * 60_000
+  if (ctx.now < opensAt || ctx.now > closesAt) {
+    return err({ code: 'checkin_outside_class_window', opensAt, closesAt })
+  }
+
+  const heldACredit = reservation.creditEffect !== 'none'
+  const effect: CreditEffect = heldACredit ? 'consumed' : 'none'
+  const next = resolveAttendance(ctx, reservation, 'attended', effect, 'member_checkin')
+
+  return ok({
+    reservation: next.reservation,
+    events: [
+      {
+        ...base(ctx, next.reservation),
+        type: RESERVATION_AUTO_RESOLVED,
+        payload: {
+          outcome: 'attended' as const,
+          source: 'member_checkin' as const,
+          creditEffect: effect,
+          // Consuming a HELD credit moves nothing: `available` already had the hold subtracted at
+          // booking. The number is stated anyway, because a reader of the log should not have to
+          // reconstruct the ledger to know where she stood.
+          creditsAvailableAfter: availableOf(entitlement),
+        },
+      },
+    ],
+  })
+}
+
 function resolveAttendance(
   ctx: DecideContext,
   reservation: Reservation,
   status: 'attended' | 'no_show',
   creditEffect: CreditEffect,
-  attendanceSource: 'trainer' | 'system_default',
+  attendanceSource: 'trainer' | 'system_default' | 'member_checkin',
 ): ReservationOutcome {
   const next: Reservation = {
     ...reservation,

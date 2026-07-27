@@ -58,6 +58,12 @@ describe('middleware — the coarse gate', () => {
     expect(locationOf(middleware(request('/uyelik?s=retro')))).toBeNull()
     expect(locationOf(middleware(request('/api/public/products?s=retro')))).toBeNull()
   })
+
+  // The printed daily sheet (2026-07-27). Bouncing this loses WHICH sheet was scanned, so the
+  // member logs in and lands on a dashboard having checked in to nothing.
+  it('lets the scanned check-in sheet through so it can keep the token and hand it to login', () => {
+    expect(locationOf(middleware(request('/g/poster%7Cbr_1%7C123%7Cjti.sig?s=retro')))).toBeNull()
+  })
 })
 
 describe('DEBT-012 — a stale cookie must never become a redirect loop', () => {

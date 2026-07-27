@@ -81,6 +81,7 @@ const SOURCE: Record<string, string> = {
   trainer: 'Eğitmen işaretledi',
   correction: 'Düzeltildi',
   system_default: 'Sistem varsaydı (kimse işaretlemedi)',
+  member_checkin: 'Üye girişte okuttu',
 }
 
 const nameOf = (members: readonly Member[]): Map<string, string> =>
@@ -317,7 +318,11 @@ export function buildReservations(
     })
 
   const n = (status: string) => reservations.filter((r) => r.status === status).length
-  const presumed = reservations.filter((r) => r.attendanceSource === 'system_default').length
+  // Same trap as the payroll classification: anything `attended` that a trainer did not mark is a
+  // presumption, and naming the sources one by one is how a new one quietly stops being counted.
+  const presumed = reservations.filter(
+    (r) => r.status === 'attended' && r.attendanceSource !== 'trainer' && r.attendanceSource !== null,
+  ).length
 
   return {
     table: {

@@ -100,6 +100,10 @@ export function domainErrorMessage(error: DomainError): string {
       return 'Bu rezervasyon artık açık değil.'
     case 'auto_resolve_too_early':
       return 'Seansın bekleme süresi henüz dolmadı; otomatik sonuçlandırılamaz.'
+    case 'checkin_outside_class_window':
+      return 'Girişiniz alındı. Ders saatinize yakın bir zaman değil, yoklamanız daha sonra işlenecek.'
+    case 'checkin_session_cancelled':
+      return 'Girişiniz alındı. Bu seans iptal edilmiş.'
     case 'reservation_not_resolved':
       return 'Yalnızca sonuçlanmış bir rezervasyon düzeltilebilir.'
     case 'outside_cancellation_window':

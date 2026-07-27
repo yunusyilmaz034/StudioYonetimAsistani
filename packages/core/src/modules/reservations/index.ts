@@ -58,6 +58,12 @@ export {
   type AutoResolveSummary,
 } from './application/auto-resolve'
 export { correctReservation, type CorrectReservationInput } from './application/correct'
+export {
+  resolveOnCheckIn,
+  nearestBookedReservation,
+  type CheckInResolution,
+  type ResolveOnCheckInInput,
+} from './application/resolve-on-checkin'
 export { setReservationNote, type SetReservationNoteInput } from './application/set-note'
 export type {
   BookDecision,

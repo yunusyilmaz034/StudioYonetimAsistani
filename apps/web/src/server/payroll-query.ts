@@ -92,14 +92,22 @@ export async function loadStatementDraft(
   ])
 
   // Attendance is joined to a session by classSessionId only (reservations carry no trainerId).
-  // Classify by status + attendanceSource: observed = trainer-marked; presumed = system_default; no-show.
+  // Classify by status + attendanceSource: OBSERVED means a trainer stood in the room and said so;
+  // everything else that ended up `attended` is PRESUMED, however good the presumption was.
+  //
+  // Written as observed-or-else rather than a list of the presumed sources ON PURPOSE. The previous
+  // version named `system_default` explicitly, so the day a third source appeared (`member_checkin`,
+  // 2026-07-27) every attendance resolved by a door scan silently counted as neither — vanishing
+  // from a TRAINER'S PAY REPORT with nothing failing. A classification that can lose rows is not a
+  // classification.
   const counts = new Map<string, { attendedObserved: number; attendedPresumed: number; noShow: number }>()
   for (const r of reservations) {
     const key = r.classSessionId as string
     const c = counts.get(key) ?? { attendedObserved: 0, attendedPresumed: 0, noShow: 0 }
-    if (r.status === 'attended' && r.attendanceSource === 'trainer') c.attendedObserved++
-    else if (r.status === 'attended' && r.attendanceSource === 'system_default') c.attendedPresumed++
-    else if (r.status === 'no_show') c.noShow++
+    if (r.status === 'attended') {
+      if (r.attendanceSource === 'trainer') c.attendedObserved++
+      else c.attendedPresumed++
+    } else if (r.status === 'no_show') c.noShow++
     counts.set(key, c)
   }
 

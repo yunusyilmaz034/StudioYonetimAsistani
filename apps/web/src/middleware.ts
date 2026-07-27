@@ -37,6 +37,11 @@ const PUBLIC_PREFIXES = [
   '/api/payments/paytr/callback',
   // Public privacy policy / KVKK notice — the URL the app stores and members link to. No session.
   '/gizlilik',
+  // The printed daily check-in sheet (2026-07-27). A member points her camera at the wall and lands
+  // here; if the coarse gate bounced her, the page would lose WHICH sheet she scanned and she would
+  // arrive at a login screen with no way back to the check-in. The page verifies the signed token
+  // and requires a member session itself — "public" is reachability, not trust.
+  '/g',
 ]
 
 function isPublic(pathname: string): boolean {

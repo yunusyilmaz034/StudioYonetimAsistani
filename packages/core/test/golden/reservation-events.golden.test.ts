@@ -7,6 +7,7 @@ import {
   decideAttendance,
   decideAutoResolution,
   decideBooking,
+  decideCheckInResolution,
   decideCancellation,
   decideCorrection,
   decideMove,
@@ -31,6 +32,7 @@ import {
 } from '../../src/shared'
 import attended from './reservation.attended.v1.json'
 import autoResolved from './reservation.auto_resolved.v1.json'
+import autoResolvedByCheckIn from './reservation.auto_resolved.member_checkin.v1.json'
 import booked from './reservation.booked.v1.json'
 import cancelled from './reservation.cancelled.v1.json'
 import corrected from './reservation.corrected.v1.json'
@@ -166,6 +168,14 @@ describe('reservation event payloads match golden fixtures (AD-33)', () => {
   it('reservation.auto_resolved', () => {
     // The session must have ended and passed its grace window for the sweep to fire.
     expect(payload(decideAutoResolution(ctx, res(), session(instant(NOW - 2 * H)), held(1)))).toEqual(autoResolved)
+  })
+  // Same event type, same version, different EVIDENCE. Frozen as its own fixture because the
+  // distinction is the point: if `source` ever silently collapses back to one value, the studio
+  // loses the ability to tell "she scanned at the door" from "nobody said anything" — for every
+  // reservation ever resolved, retroactively and unrecoverably.
+  it('reservation.auto_resolved (from her own check-in)', () => {
+    const running = session(instant(NOW - 10 * 60_000))
+    expect(payload(decideCheckInResolution(ctx, res(), running, held(1), 60))).toEqual(autoResolvedByCheckIn)
   })
   it('reservation.corrected', () => {
     expect(payload(decideCorrection(ctx, res({ status: 'no_show' }), 'attended', 'trainer marked wrong roster'))).toEqual(corrected)

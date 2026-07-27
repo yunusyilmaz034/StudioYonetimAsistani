@@ -30,7 +30,10 @@ const OUTCOME_LABEL: Record<AttendanceOutcome, string> = {
 }
 
 function resolvedBadge(status: RosterEntry['status'], source: RosterEntry['attendanceSource']) {
-  const auto = source === 'system_default' ? ' (oto)' : ''
+  // Three ways a row can be resolved without a trainer marking it, and the trainer should be able to
+  // tell them apart at a glance: a door scan is evidence, a default is a shrug.
+  const auto =
+    source === 'system_default' ? ' (oto)' : source === 'member_checkin' ? ' (girişte okuttu)' : ''
   if (status === 'attended') return { label: `Katıldı${auto}`, className: 'bg-success/10 text-success' }
   if (status === 'no_show') return { label: `Gelmedi${auto}`, className: 'bg-danger/10 text-danger' }
   return { label: status, className: 'bg-muted text-muted-foreground' }

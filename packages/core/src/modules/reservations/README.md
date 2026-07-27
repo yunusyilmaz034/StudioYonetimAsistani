@@ -52,6 +52,37 @@ destroys the churn signal, permanently and unrecoverably. The grace window
 (`policy.autoResolveAfterMinutes`) is enforced in the decider (AD-60), so a marker
 always owns the window before the default claims it.
 
+### Three ways to be resolved without being observed (2026-07-27)
+
+The studio has no tablet at reception, so a printed QR hangs on the wall and the **member** scans
+it. The owner's rule: *"a member who scans and has a class is at that class — this is a small
+studio, nobody wanders around inside."* Operationally true, so `resolveOnCheckIn` closes the
+yoklama at the door instead of leaving it to the nightly sweep.
+
+It is still **not an observation** — nobody watched her take the class — so it emits the same
+`reservation.auto_resolved`, distinguished by `source`:
+
+| `source` | The evidence | Emitted by |
+|---|---|---|
+| `system_default` | nothing happened; the policy filled a silence | the nightly sweep |
+| `member_checkin` | her own recorded, time-stamped scan at the door | `resolveOnCheckIn` |
+| `trainer` (on `.attended`) | somebody stood in the room and said so | manual marking |
+
+Two rules keep the door scan honest, both in `decideCheckInResolution`:
+
+- **a time window** — the scan speaks only for a class near it (`qr.checkInWindowMinutes` before
+  the start, through the session's own grace window after the end). Without it, arriving at 09:00
+  marks the 19:00 class attended and consumes its credit — a presumption about a class that has
+  not happened, which is the one thing the ledger must never contain.
+- **one reservation, the nearest** — one arrival is evidence of one class.
+
+The outcome is `attended` and does **not** consult `attendanceDefaultOutcome`: that policy answers
+*"what do we assume when we know nothing?"*, and here we know something.
+
+**Anything reading `attendanceSource` must classify as observed-or-else, never by listing the
+presumed values.** Naming them one by one is how a trainer's pay report silently stopped counting
+door-scanned attendances the day this source was added.
+
 ## Invariants this module owns
 
 - **I-9** booking preconditions (all seven, incl. the category wall I-9.7).

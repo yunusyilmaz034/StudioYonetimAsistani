@@ -6,9 +6,14 @@ import {
   FirestoreCheckinRepository,
   FirestoreEntitlementRepository,
   FirestoreMemberRepository,
+  FirestoreReservationRepository,
   FirestoreSchedulingRepository,
+  FirestoreStudioHours,
+  instant,
+  localDateAt,
   newCorrelationId,
   recordCheckIn,
+  resolveOnCheckIn,
   systemClock,
   type BranchId,
   type MemberId,
@@ -20,7 +25,15 @@ import { z } from 'zod'
 import { requireMemberContext, requireTenantContext } from '../auth'
 import { adminDb } from '../firebase-admin'
 import { newJti, signQrToken, verifyQrToken } from '../qr-token'
+import { reservationPolicyPort } from '../reservation-policy'
 import { qrSigningSecret, qrVerificationSecrets } from '../secrets'
+
+const reservationsDeps = () => ({
+  repo: new FirestoreReservationRepository(adminDb()),
+  clock: systemClock,
+  hours: new FirestoreStudioHours(adminDb()),
+  policy: reservationPolicyPort(),
+})
 
 // D10/D15/D16 — the check-in QR.
 //
@@ -148,7 +161,12 @@ export async function checkInByQrAction(input: unknown) {
   )
   if (!res.ok) return res
   const entry = await consumeFitnessEntry(ctx, claims.memberId as MemberId, res.value.checkInId, res.value.direction)
-  return { ok: true as const, value: { memberId: claims.memberId, memberName: member.fullName, direction: res.value.direction, entry } }
+  // Every ENTRY through this door is the same evidence, whoever held the scanner (see
+  // `resolveAttendanceForCheckIn`). Reception scanning her phone says no less about where she is
+  // than her scanning the wall.
+  const attendance =
+    res.value.direction === 'in' ? await resolveAttendanceForCheckIn(ctx, claims.memberId as MemberId) : null
+  return { ok: true as const, value: { memberId: claims.memberId, memberName: member.fullName, direction: res.value.direction, entry, attendance } }
 }
 
 // The branch her QR is minted for. A member has no branch claim, so it comes from her record.
@@ -179,6 +197,125 @@ export async function mintKioskCheckInTokenAction(input: unknown) {
   }
 }
 
+// ── The PRINTED daily QR (owner ask, 2026-07-27) ─────────────────────────────────────────────
+//
+// There is no tablet at the desk yet, and buying one to record attendance is the wrong order of
+// spending. So the QR moves off a screen and onto a sheet of A4 taped to the wall: reception prints
+// it each morning, the member scans it with her own phone camera, and the check-in lands.
+//
+// This token is unlike every other one in this file, and the differences are deliberate:
+//
+//   • it lives for a DAY, not sixty seconds — a printed page cannot rotate every minute
+//   • it is NOT single-use — it is meant to be scanned by everyone who walks in
+//
+// Both of those weaken it, and the owner accepted that trade with the reasoning that matters: the
+// thing being protected is an attendance record in a small studio, not a door lock. What remains:
+//
+//   • it is still SIGNED, so only this server can mint one
+//   • it expires at the end of the studio day, so yesterday's photograph is worthless — which is the
+//     whole reason the sheet is reprinted daily rather than laminated once
+//   • the SCANNER must be a signed-in member: the poster identifies the studio, never the person.
+//     A photo of it lets someone check THEMSELVES in from home; it never lets them check in anyone
+//     else, and it never reveals who else came.
+//
+// The studio and the day are inside the signature (via the jti), so a poster cannot be replayed at
+// another studio or on another date even by someone holding a valid signature.
+const POSTER_SENTINEL = 'poster'
+const ISTANBUL_OFFSET_MIN = 180
+
+/** The signed sheet for one branch on one studio-local day. Deterministic: reprinting is free. */
+export function posterToken(studioId: string, branchId: string, at: number): { token: string; day: string; validUntil: number } {
+  const day = localDateAt(instant(at), ISTANBUL_OFFSET_MIN) as string
+  // Midnight at the end of that local day. Istanbul has no DST, so fixed-offset arithmetic is exact.
+  const validUntil = (Math.floor((at + ISTANBUL_OFFSET_MIN * 60_000) / 86_400_000) + 1) * 86_400_000 - ISTANBUL_OFFSET_MIN * 60_000
+  return {
+    token: signQrToken(
+      { memberId: POSTER_SENTINEL, branchId, exp: validUntil, jti: `poster-${studioId}-${day}` },
+      qrSigningSecret(),
+    ),
+    day,
+    validUntil,
+  }
+}
+
+/** Reception's print screen asks for today's sheet. Read-only — minting a poster changes nothing.
+ *  The studio's own name rides along so the printed page can carry it without the page component
+ *  reaching for a database (repositories live behind the server layer, never in a route file). */
+export async function posterTokenAction() {
+  const ctx = await requireTenantContext(['owner', 'receptionist', 'kiosk', 'platform_admin'])
+  const branchId = ctx.branchIds[0]
+  if (!branchId) return { ok: false as const, error: { code: 'branch_required' as const } }
+  const settings = await new FirestoreSchedulingRepository(adminDb()).getStudioSettings(ctx).catch(() => null)
+  const { token, day, validUntil } = posterToken(ctx.studioId, branchId, Date.now())
+  return {
+    ok: true as const,
+    value: {
+      token,
+      day,
+      validUntil,
+      studioId: ctx.studioId as string,
+      studioName: settings?.company?.displayName || settings?.company?.legalName || 'Stüdyo',
+    },
+  }
+}
+
+// The member scanned the printed sheet. Verified, day-bounded, studio-bounded — and NOT jti-burned,
+// because a wall poster is shared by everyone who walks in. Her identity comes from her session, so
+// the poster only ever answers "which studio and which day", never "who".
+export async function checkInByPosterToken(ctx: TenantContext, memberId: MemberId, token: string) {
+  const claims = verifyQrToken(token, qrVerificationSecrets())
+  if (!claims || claims.memberId !== POSTER_SENTINEL) return { ok: false as const, error: { code: 'qr_invalid' as const } }
+  const day = localDateAt(instant(Date.now()), ISTANBUL_OFFSET_MIN) as string
+  // The jti carries the studio and the day. Checking it here is what stops yesterday's sheet and
+  // another studio's sheet, independently of the clock check below.
+  if (claims.jti !== `poster-${ctx.studioId}-${day}`) return { ok: false as const, error: { code: 'qr_expired' as const } }
+  if (Date.now() > claims.exp) return { ok: false as const, error: { code: 'qr_expired' as const } }
+
+  const res = await recordCheckIn(
+    { repo: new FirestoreCheckinRepository(adminDb()), clock: systemClock },
+    ctx,
+    { memberId, branchId: claims.branchId as BranchId, method: 'qr', occurredAt: systemClock.now(), commandId: null },
+  )
+  if (!res.ok) return res
+  const entry = await consumeFitnessEntry(ctx, memberId, res.value.checkInId, res.value.direction)
+  const attendance = res.value.direction === 'in' ? await resolveAttendanceForCheckIn(ctx, memberId) : null
+  return { ok: true as const, value: { direction: res.value.direction, entry, attendance } }
+}
+
+// ── Turning a door scan into an attendance mark (owner ask, 2026-07-27) ───────────────────────
+//
+// "A member who scanned and has a class is at that class — this is a small studio, nobody wanders
+// around inside." True operationally, so the studio should not wait for the nightly sweep to say it.
+//
+// What is NOT true is that this is an observation. Nobody watched her take the class, so the core
+// writes `reservation.auto_resolved` with `source: 'member_checkin'` — the same event the sweep
+// writes, distinguishable forever by the evidence behind it (AD-38, #11).
+//
+// BEST-EFFORT, always. She is through the door whatever happens here; a failure to resolve leaves
+// the reservation exactly where the sweep expects to find it tonight.
+export interface CheckInAttendance {
+  readonly sessionStartsAt: number
+  readonly creditConsumed: boolean
+}
+async function resolveAttendanceForCheckIn(ctx: TenantContext, memberId: MemberId): Promise<CheckInAttendance | null> {
+  try {
+    const settings = await new FirestoreSchedulingRepository(adminDb()).getStudioSettings(ctx)
+    const done = await resolveOnCheckIn(reservationsDeps(), ctx, {
+      memberId,
+      at: systemClock.now(),
+      // Studio data (v1.27 S2), never a literal here. The fallback is the arrival habit this studio
+      // already runs on — members turn up a few minutes before, not an hour.
+      arriveWithinMinutes: settings?.qr?.checkInWindowMinutes ?? DEFAULT_ARRIVE_WITHIN_MINUTES,
+    })
+    return done ? { sessionStartsAt: done.sessionStartsAt, creditConsumed: done.creditConsumed } : null
+  } catch {
+    // The door is not held open by the attendance ledger. The sweep is the safety net it always was.
+    return null
+  }
+}
+
+const DEFAULT_ARRIVE_WITHIN_MINUTES = 45
+
 // The member scanned the kiosk QR — check HER (from her token) in at the kiosk's branch. ctx-taking core
 // shared by the member API. Single-use (jti burn), online-only, verified — never trusts the client.
 export async function memberCheckInByToken(ctx: TenantContext, memberId: MemberId, token: string) {
@@ -203,5 +340,6 @@ export async function memberCheckInByToken(ctx: TenantContext, memberId: MemberI
   )
   if (!res.ok) return res
   const entry = await consumeFitnessEntry(ctx, memberId, res.value.checkInId, res.value.direction)
-  return { ok: true as const, value: { branchId: claims.branchId, direction: res.value.direction, entry } }
+  const attendance = res.value.direction === 'in' ? await resolveAttendanceForCheckIn(ctx, memberId) : null
+  return { ok: true as const, value: { branchId: claims.branchId, direction: res.value.direction, entry, attendance } }
 }

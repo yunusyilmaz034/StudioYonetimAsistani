@@ -23,6 +23,7 @@ import {
   decideAttendance,
   decideAutoResolution,
   decideBooking,
+  decideCheckInResolution,
   decideCancellation,
   decideCorrection,
   decideMove,
@@ -898,5 +899,143 @@ describe('isOverrideActiveAt — validity window (Phase 4, auto-return to packag
   })
   it('is active inside the window', () => {
     expect(isOverrideActiveAt({ effectiveFrom: 500, effectiveUntil: 1_500 }, 1_000)).toBe(true)
+  })
+})
+
+// ── Resolution from the member's own check-in (owner ask, 2026-07-27) ──────────────────────────
+//
+// The rule the studio asked for: "a member who scans at the door and has a class is at that class".
+// The rule the LOG needs: that is still a presumption, so it must never arrive as
+// `reservation.attended`, and it must never speak for a class that has not happened yet.
+describe('decideCheckInResolution (door scan ⇒ presumed attended)', () => {
+  const ARRIVE = 60 // minutes before the start that a scan may still count for the class
+  const held = () => creditEnt({ credits: { granted: 8, held: 1, consumed: 0, restored: 0, revoked: 0, expired: 0 } })
+  // A class that started 10 minutes ago — the ordinary case: she scanned on her way in.
+  const running = (pol: SessionPolicySnapshot = policy()) =>
+    session({ startsAt: instant(NOW - 10 * 60_000), endsAt: instant(NOW + 40 * 60_000) }, pol)
+  const booked = () => bookedReservation({ sessionStartsAt: instant(NOW - 10 * 60_000), sessionEndsAt: instant(NOW + 40 * 60_000) })
+
+  it('emits reservation.auto_resolved — NEVER reservation.attended (AD-38, I-18)', () => {
+    const r = decideCheckInResolution(ctx, booked(), running(), held(), ARRIVE)
+    expect(r.ok).toBe(true)
+    if (r.ok) {
+      expect(r.value.events.map((e) => e.type)).toEqual(['reservation.auto_resolved'])
+      expect(r.value.events[0]?.payload).toMatchObject({ outcome: 'attended', source: 'member_checkin' })
+    }
+  })
+
+  it('stamps attendanceSource so the evidence behind the presumption survives', () => {
+    const r = decideCheckInResolution(ctx, booked(), running(), held(), ARRIVE)
+    expect(r.ok).toBe(true)
+    if (r.ok) {
+      expect(r.value.reservation.attendanceSource).toBe('member_checkin')
+      expect(r.value.reservation.status).toBe('attended')
+      expect(r.value.reservation.creditEffect).toBe('consumed')
+    }
+  })
+
+  // The whole reason the window exists: without it, arriving at 09:00 marks the 19:00 class
+  // attended and consumes its credit — a presumption about a class that has not happened.
+  it('REFUSES a class that is still hours away', () => {
+    const evening = session({ startsAt: instant(NOW + 6 * H), endsAt: instant(NOW + 7 * H) })
+    const res = bookedReservation({ sessionStartsAt: instant(NOW + 6 * H), sessionEndsAt: instant(NOW + 7 * H) })
+    const r = decideCheckInResolution(ctx, res, evening, held(), ARRIVE)
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.error.code).toBe('checkin_outside_class_window')
+  })
+
+  it('REFUSES a class that ended long ago', () => {
+    const morning = session({ startsAt: instant(NOW - 5 * H), endsAt: instant(NOW - 4 * H) })
+    const res = bookedReservation({ sessionStartsAt: instant(NOW - 5 * H), sessionEndsAt: instant(NOW - 4 * H) })
+    const r = decideCheckInResolution(ctx, res, morning, held(), ARRIVE)
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.error.code).toBe('checkin_outside_class_window')
+  })
+
+  // Boundaries: exactly-at-the-edge is inside, one millisecond past is not.
+  it('accepts exactly `arriveWithinMinutes` before the start, and refuses one ms earlier', () => {
+    const startsAt = instant(NOW + ARRIVE * 60_000)
+    const endsAt = instant(startsAt + H)
+    const atEdge = decideCheckInResolution(
+      ctx,
+      bookedReservation({ sessionStartsAt: startsAt, sessionEndsAt: endsAt }),
+      session({ startsAt, endsAt }),
+      held(),
+      ARRIVE,
+    )
+    expect(atEdge.ok).toBe(true)
+
+    const oneMsEarly = decideCheckInResolution(
+      { ...ctx, now: instant(NOW - 1) },
+      bookedReservation({ sessionStartsAt: startsAt, sessionEndsAt: endsAt }),
+      session({ startsAt, endsAt }),
+      held(),
+      ARRIVE,
+    )
+    expect(oneMsEarly.ok).toBe(false)
+  })
+
+  it('accepts exactly at the end of the grace window, and refuses one ms past it', () => {
+    const grace = 15 * 60_000 // policy().autoResolveAfterMinutes
+    const endsAt = instant(NOW - grace)
+    const startsAt = instant(endsAt - H)
+    const atEdge = decideCheckInResolution(
+      ctx,
+      bookedReservation({ sessionStartsAt: startsAt, sessionEndsAt: endsAt }),
+      session({ startsAt, endsAt }),
+      held(),
+      ARRIVE,
+    )
+    expect(atEdge.ok).toBe(true)
+
+    const justPast = instant(endsAt - 1)
+    const r = decideCheckInResolution(
+      ctx,
+      bookedReservation({ sessionStartsAt: instant(justPast - H), sessionEndsAt: justPast }),
+      session({ startsAt: instant(justPast - H), endsAt: justPast }),
+      held(),
+      ARRIVE,
+    )
+    expect(r.ok).toBe(false)
+  })
+
+  // I-27 again, by a different door: she may well have walked in — to be told the class is off.
+  it('REFUSES a cancelled session, leaving the sweep to release the credit', () => {
+    const r = decideCheckInResolution(ctx, booked(), running({ ...policy() }), held(), ARRIVE)
+    expect(r.ok).toBe(true) // control: the same setup resolves when the session is live
+    const off = session(
+      { startsAt: instant(NOW - 10 * 60_000), endsAt: instant(NOW + 40 * 60_000), status: 'cancelled' },
+    )
+    const r2 = decideCheckInResolution(ctx, booked(), off, held(), ARRIVE)
+    expect(r2.ok).toBe(false)
+    if (!r2.ok) expect(r2.error.code).toBe('checkin_session_cancelled')
+  })
+
+  it('REFUSES a reservation that is no longer open', () => {
+    const r = decideCheckInResolution(ctx, { ...booked(), status: 'cancelled' }, running(), held(), ARRIVE)
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.error.code).toBe('reservation_not_open')
+  })
+
+  // A period (unlimited) membership held nothing, so resolving it moves nothing — and the event
+  // must say so rather than claim a consumption that never happened.
+  it('moves no credit for a period membership', () => {
+    const period = creditEnt({ credits: null })
+    const r = decideCheckInResolution(ctx, { ...booked(), creditEffect: 'none' }, running(), period, ARRIVE)
+    expect(r.ok).toBe(true)
+    if (r.ok) {
+      expect(r.value.reservation.creditEffect).toBe('none')
+      expect(r.value.events[0]?.payload).toMatchObject({ creditEffect: 'none' })
+    }
+  })
+
+  // `attendanceDefaultOutcome` answers "what do we assume when we know nothing?". Here we know
+  // something: she scanned. A studio that presumes no-show by default must not turn her own
+  // recorded arrival into an absence.
+  it('ignores attendanceDefaultOutcome — evidence beats the default', () => {
+    const s = running(policy({ attendanceDefaultOutcome: 'no_show', noShowConsumesCredit: true }))
+    const r = decideCheckInResolution(ctx, booked(), s, held(), ARRIVE)
+    expect(r.ok).toBe(true)
+    if (r.ok) expect(r.value.reservation.status).toBe('attended')
   })
 })

@@ -4,6 +4,7 @@ import {
   available,
   FirestoreEntitlementRepository,
   FirestoreMemberRepository,
+  FirestoreReservationRepository,
   type Entitlement,
   type MemberId,
 } from '@studio/core'
@@ -31,7 +32,15 @@ export interface CheckInStatus {
   readonly credits: number | null // total remaining credits across live credit-packages
   readonly hasPeriodPackage: boolean // an unlimited/period membership is live (credits not the story)
   readonly hasNotice: boolean // an active "Kısıtlı Üyelik" restriction
+  // The class this arrival belongs to, if any (2026-07-27). Reception's toast is the only place the
+  // desk finds out that a scan ALSO closed a yoklama — without it the attendance mark happens
+  // invisibly and nobody at the desk can tell whether it worked.
+  readonly attendance: { readonly startsAt: number; readonly resolved: boolean } | null
 }
+
+// The window either side of NOW in which a booking is plausibly "the class she just walked in for".
+// Read-side only — the write side's window is studio data and lives in the domain decision.
+const NEAR_MS = 90 * 60_000
 
 export async function checkInStatusAction(input: unknown): Promise<CheckInStatus | null> {
   const p = z.object({ memberId: z.string().min(1) }).parse(input)
@@ -39,11 +48,24 @@ export async function checkInStatusAction(input: unknown): Promise<CheckInStatus
   const db = adminDb()
   const nowMs = Date.now()
 
-  const [member, entitlements] = await Promise.all([
+  const [member, entitlements, reservations] = await Promise.all([
     new FirestoreMemberRepository(db).findById(ctx, p.memberId as MemberId),
     new FirestoreEntitlementRepository(db).listActiveByMember(ctx, p.memberId as MemberId),
+    new FirestoreReservationRepository(db)
+      .listByMember(ctx, p.memberId as MemberId)
+      .catch(() => []),
   ])
   if (!member) return null
+
+  // Nearest booking around now — `attended` included, because by the time this read runs the scan
+  // has usually already resolved it, and reporting "no class" then would be the opposite of the truth.
+  const near = reservations
+    .filter(
+      (r) =>
+        (r.status === 'booked' || r.status === 'attended') &&
+        Math.abs(r.sessionStartsAt - nowMs) <= NEAR_MS,
+    )
+    .sort((a, b) => Math.abs(a.sessionStartsAt - nowMs) - Math.abs(b.sessionStartsAt - nowMs))[0]
 
   const live = entitlements.filter((e) => isValidNow(e, nowMs)).sort((a, b) => a.validUntil - b.validUntil)
   const creditPkgs = live.filter((e) => e.credits !== null)
@@ -58,5 +80,6 @@ export async function checkInStatusAction(input: unknown): Promise<CheckInStatus
     credits,
     hasPeriodPackage: live.some((e) => e.credits === null),
     hasNotice: member.restriction !== null,
+    attendance: near ? { startsAt: near.sessionStartsAt, resolved: near.status === 'attended' } : null,
   }
 }

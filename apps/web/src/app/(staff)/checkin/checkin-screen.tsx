@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { CameraIcon, LogInIcon, LogOutIcon, SearchIcon, UsersIcon } from 'lucide-react'
+import { CameraIcon, LogInIcon, LogOutIcon, PrinterIcon, SearchIcon, UsersIcon } from 'lucide-react'
 import { toast } from 'sonner'
 
 import type { MemberId } from '@studio/core'
@@ -135,6 +135,14 @@ export function CheckinScreen({ state, members }: { state: CheckinState; members
             >
               <TabletSmartphoneIcon className="size-4" />
               Kiosk modu
+            </Link>
+            {/* No tablet yet (owner, 2026-07-27): the same QR, on A4, taped to the desk. */}
+            <Link
+              href="/checkin/poster"
+              className="inline-flex min-h-11 items-center gap-2 rounded-md border border-border px-4 text-sm font-medium hover:bg-muted"
+            >
+              <PrinterIcon className="size-4" />
+              Günlük kâğıt
             </Link>
             {state.branchId ? (
               <Button

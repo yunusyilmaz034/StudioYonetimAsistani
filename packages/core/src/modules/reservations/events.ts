@@ -45,9 +45,22 @@ export type ReservationNoShowPayload = {
   readonly creditEffect: CreditEffect
 }
 
+// Both values mean "nobody OBSERVED this member in class" — that is why they share one event type
+// and never borrow `reservation.attended` (I-18, AD-38). What separates them is the strength of the
+// evidence behind the presumption, and the log has to keep them apart because they are not equally
+// good:
+//
+//   `system_default`  — nothing happened. Nobody cancelled, the grace window passed, and the policy
+//                       said what to assume. The weakest inference the system makes.
+//   `member_checkin`  — she scanned the studio's QR at the door around her class time. Still an
+//                       inference (a door is not a studio floor), but one resting on a recorded,
+//                       time-stamped act by the member herself.
+//
+// Collapse them and the day someone asks "how do we actually know she came?" the answer is gone for
+// every reservation ever resolved. Additive: existing events keep `system_default`, no upcaster.
 export type ReservationAutoResolvedPayload = {
   readonly outcome: 'attended' | 'no_show'
-  readonly source: 'system_default'
+  readonly source: 'system_default' | 'member_checkin'
   readonly creditEffect: CreditEffect
   readonly creditsAvailableAfter: number | null
 }

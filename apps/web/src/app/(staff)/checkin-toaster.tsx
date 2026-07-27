@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react'
 import { collection, limit, onSnapshot, orderBy, query } from 'firebase/firestore'
-import { BellRingIcon, CheckCircle2Icon, XCircleIcon } from 'lucide-react'
+import { BellRingIcon, CheckCircle2Icon, ClipboardCheckIcon, XCircleIcon } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { clientDb } from '@/lib/firebase-client'
@@ -17,6 +17,8 @@ import { checkInStatusAction, type CheckInStatus } from '@/server/actions/checki
 // The check-in itself still flows through the command/QR paths untouched; this only READS and reacts.
 
 const d = (ms: number) => new Date(ms).toLocaleDateString('tr-TR', { timeZone: 'Europe/Istanbul' })
+const t = (ms: number) =>
+  new Date(ms).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Istanbul' })
 
 function StatusCard({ s }: { s: CheckInStatus }) {
   const creditText =
@@ -42,6 +44,16 @@ function StatusCard({ s }: { s: CheckInStatus }) {
           {s.validUntil ? ` · bitiş ${d(s.validUntil)}` : ''}
           {creditText ? ` · ${creditText}` : ''}
         </p>
+        {/* Whether the arrival ALSO closed a yoklama. Without this line the attendance mark is
+            invisible at the desk, and the one question reception would ask — "did it take her
+            yoklama?" — has no answer on screen. */}
+        {s.attendance ? (
+          <p className="mt-0.5 flex items-center gap-1 text-xs font-medium text-emerald-700">
+            <ClipboardCheckIcon className="size-3.5" />
+            {t(s.attendance.startsAt)} dersi —{' '}
+            {s.attendance.resolved ? 'yoklaması alındı' : 'yoklaması henüz işlenmedi'}
+          </p>
+        ) : null}
         {s.hasNotice ? (
           <p className="mt-0.5 flex items-center gap-1 text-xs font-medium text-amber-600">
             <BellRingIcon className="size-3.5" /> Aktif kısıtlı üyelik notu var
