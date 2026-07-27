@@ -104,6 +104,10 @@ export function domainErrorMessage(error: DomainError): string {
       return 'Girişiniz alındı. Ders saatinize yakın bir zaman değil, yoklamanız daha sonra işlenecek.'
     case 'checkin_session_cancelled':
       return 'Girişiniz alındı. Bu seans iptal edilmiş.'
+    case 'seat_hold_note_required':
+      return 'Yeri kimin için ayırdığınızı yazın.'
+    case 'seat_hold_not_open':
+      return 'Bu yer ayırma zaten kaldırılmış.'
     case 'reservation_not_resolved':
       return 'Yalnızca sonuçlanmış bir rezervasyon düzeltilebilir.'
     case 'outside_cancellation_window':

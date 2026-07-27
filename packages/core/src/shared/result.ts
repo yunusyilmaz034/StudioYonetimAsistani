@@ -105,6 +105,11 @@ export type DomainError =
   | { readonly code: 'entitlement_expires_before_session' }
   | { readonly code: 'no_bookable_entitlement' }
   | { readonly code: 'reservation_not_open' }
+  // ── seat holds for non-members (2026-07-27) ──
+  // A hold with no note is a seat that silently vanishes and nobody can explain; a hold that is
+  // already released cannot be released again.
+  | { readonly code: 'seat_hold_note_required' }
+  | { readonly code: 'seat_hold_not_open' }
   // ── reservations / automation (Doc 2 §8, v1.10) ──
   | { readonly code: 'auto_resolve_too_early'; readonly resolvableAt: number }
   // ── reservations / resolution from a door check-in (2026-07-27) ──

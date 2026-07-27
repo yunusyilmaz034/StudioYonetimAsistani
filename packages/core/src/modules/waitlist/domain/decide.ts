@@ -14,7 +14,7 @@ import {
   type StudioId,
 } from '../../../shared'
 import type { MemberSnapshot } from '../../members'
-import type { ClassSession } from '../../scheduling'
+import { occupiedSeats, type ClassSession } from '../../scheduling'
 import { WAITLIST_JOINED, WAITLIST_LEFT, WAITLIST_PROMOTED } from '../events'
 import type { WaitlistEntry } from './types'
 
@@ -65,7 +65,7 @@ export function decideJoin(
   if (session.status !== 'scheduled' || session.startsAt <= ctx.now) {
     return err({ code: 'waitlist_not_open' })
   }
-  if (session.bookedCount < session.capacity) return err({ code: 'waitlist_not_open' })
+  if (occupiedSeats(session) < session.capacity) return err({ code: 'waitlist_not_open' })
   if (alreadyBooked) return err({ code: 'already_booked' })
   if (alreadyWaiting) return err({ code: 'already_waitlisted' })
 

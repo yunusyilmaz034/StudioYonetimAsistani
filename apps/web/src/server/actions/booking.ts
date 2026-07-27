@@ -1,6 +1,7 @@
 'use server'
 
 import {
+  occupiedSeats,
   available,
   FirestoreEntitlementRepository,
   FirestoreMemberRepository,
@@ -105,7 +106,8 @@ export async function getBookingStatusAction(input: unknown): Promise<BookingSta
   if (!session || session.status !== 'scheduled' || session.startsAt <= now) {
     return { bookable: false, hint: 'past', entitlementId: null, productName: null, available: null }
   }
-  if (session.bookedCount >= session.capacity) {
+  // Held seats are taken seats — see the mapper below.
+  if (occupiedSeats(session) >= session.capacity) {
     return { bookable: false, hint: 'full', entitlementId: null, productName: null, available: null }
   }
 
@@ -172,7 +174,7 @@ export async function listUpcomingSessionsAction(input: unknown): Promise<readon
       startsAt: s.startsAt,
       category: s.category,
       capacity: s.capacity,
-      bookedCount: s.bookedCount,
+      bookedCount: occupiedSeats(s),
     }))
     .sort((a, b) => a.startsAt - b.startsAt)
 }

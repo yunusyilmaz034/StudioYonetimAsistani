@@ -31,6 +31,10 @@ export const CLASS_SESSION_CAPACITY_CHANGED = 'class_session.capacity_changed'
 export const CLASS_SESSION_RESCHEDULED = 'class_session.rescheduled'
 export const CLASS_SESSION_NOTE_SET = 'class_session.note_set'
 export const CLASS_SESSION_ASSIGNED = 'class_session.assigned'
+// A seat taken by someone who is not a member (owner, 2026-07-27). The producer never appears in the
+// type: reception holding a seat and a future partner API holding one both emit this.
+export const CLASS_SESSION_SEAT_HELD = 'class_session.seat_held'
+export const CLASS_SESSION_SEAT_RELEASED = 'class_session.seat_released'
 export const STUDIO_SETTINGS_UPDATED = 'studio.settings_updated'
 
 // `class_session.scheduled` is the only versioned-up event in scheduling:
@@ -142,4 +146,20 @@ export type ClassTemplateUpdatedPayload = {
 export type ClassSessionNoteSetPayload = {
   readonly text: string
   readonly visibility: NoteVisibility
+}
+
+// No PII (I-13). The guest's name and card number live on the `/seatHolds` document, exactly as a
+// member's name lives on the reservation and never in `reservation.booked` — the log records that a
+// seat left the room, never who was standing in it. `heldCountAfter` is the counter after the write,
+// so the denormalised field can be rebuilt from the log alone.
+export type ClassSessionSeatHeldPayload = {
+  readonly holdId: string
+  readonly heldCountAfter: number
+  readonly bookedCount: number
+  readonly capacity: number
+}
+
+export type ClassSessionSeatReleasedPayload = {
+  readonly holdId: string
+  readonly heldCountAfter: number
 }

@@ -68,6 +68,11 @@ service cloud.firestore {
           // v1.27 — member wallets (stored value). Read only through the Admin SDK: the member app via
           // the Bearer member-api, the staff app via Server Actions. Never written or read client-side.
           'wallets',
+          // 2026-07-27 — seats held for non-members (Multisport day guests). The document carries a
+          // guest's NAME and sometimes a card number, and she is not a member of this studio: it is
+          // the one place third-party PII lands. Server-only, read through a Server Action behind
+          // the desk role — never over the client SDK, where a member session could reach it.
+          'seatHolds',
           // v1.27 — internal counters (public-form rate limits, hashed IPs). Server-only; no client read.
           'rateLimits',
           // v1.28 — coarse, consented check-in locations (KVKK). Written ONLY via the Server Action,

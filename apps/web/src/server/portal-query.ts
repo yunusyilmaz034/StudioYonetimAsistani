@@ -1,4 +1,5 @@
 import {
+  occupiedSeats,
   available,
   FirestoreEntitlementRepository,
   FirestoreFinanceRepository,
@@ -186,7 +187,7 @@ export async function loadPortalAgenda(
       startsAt: s.startsAt,
       endsAt: s.endsAt,
       capacity: s.capacity,
-      bookedCount: s.bookedCount,
+      bookedCount: occupiedSeats(s),
       cancellationWindowHours: s.policySnapshot.cancellationWindowHours,
       isAssignedToMe: assigned === memberId,
       alreadyBooked: bookedSessionIds.has(s.id),

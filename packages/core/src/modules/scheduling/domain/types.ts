@@ -1,4 +1,5 @@
 import type {
+  ActorRef,
   BranchId,
   Category,
   CategorySurchargeRule,
@@ -277,6 +278,12 @@ export interface ClassSession {
   readonly policyRef: ServicePolicyRef
   readonly policySnapshot: SessionPolicySnapshot // I-24 + D14 (window resolved & stamped)
   readonly bookedCount: number // starts 0; reservations are v1.8
+  // Seats held for someone who is NOT a member (owner, 2026-07-27). A Multisport day-visitor writes
+  // to the studio's WhatsApp, reception holds her a place — no account, no package, no credit. The
+  // seat is gone from the room either way, so it is counted here and subtracted from capacity by
+  // `occupiedSeats`. OPTIONAL: sessions written before this have no field and read as zero, which is
+  // exactly what they were. Never backfilled. Rebuildable from `/seatHolds`.
+  readonly heldCount?: number
   readonly attendedCount: number
   readonly note?: SessionNote | null // the class note (Ders Notu); optional/additive
   // denormalised for the roster/calendar read (rebuildable):
@@ -284,4 +291,43 @@ export interface ClassSession {
   readonly roomName: string | null
   readonly trainerName: string | null
   readonly branchName: string
+}
+
+// ── A seat held for a non-member (owner, 2026-07-27) ──────────────────────────────────────────
+//
+// Multisport visitors are day guests: they are not members, must not be registered as members, and
+// buy nothing. They ask on WhatsApp whether there is room, and reception puts a name against a seat.
+// Until now the system had no way to say that, so the seat stayed "free" and could be sold twice.
+//
+// It is deliberately NOT a reservation. A reservation has a member and an entitlement, and every
+// piece of machinery downstream — the credit ledger, the roster, member stats, attendance — assumes
+// both. Inventing a fake member to satisfy that would put a person who does not exist into the
+// studio's numbers permanently.
+//
+// `note` is free text and holds whatever reception needs to recognise her ("Multisport - Zeynep",
+// "Ayşe'nin arkadaşı"). `cardNumber` is optional and exists because the studio is sometimes asked
+// for it. Both are STATE and never enter an event (I-13) — the log records that a seat moved, never
+// who was standing in it.
+export interface SeatHold {
+  readonly id: string
+  readonly studioId: StudioId
+  readonly branchId: BranchId
+  readonly classSessionId: ClassSessionId
+  readonly note: string
+  readonly cardNumber: string | null
+  readonly status: 'held' | 'released'
+  // Denormalised so "today's holds" is one indexed read rather than a join per session.
+  readonly sessionStartsAt: Instant
+  readonly heldAt: Instant
+  readonly heldBy: ActorRef
+  readonly releasedAt: Instant | null
+  readonly releasedBy: ActorRef | null
+}
+
+/**
+ * Seats that are NOT available, whichever way they were taken. Every capacity question must ask
+ * this and never `bookedCount` alone — a held seat that still reads as free is a seat sold twice.
+ */
+export function occupiedSeats(session: Pick<ClassSession, 'bookedCount' | 'heldCount'>): number {
+  return session.bookedCount + (session.heldCount ?? 0)
 }

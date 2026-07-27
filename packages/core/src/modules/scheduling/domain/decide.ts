@@ -22,6 +22,8 @@ import {
   CLASS_SESSION_CAPACITY_CHANGED,
   CLASS_SESSION_NOTE_SET,
   CLASS_SESSION_ROOM_CHANGED,
+  CLASS_SESSION_SEAT_HELD,
+  CLASS_SESSION_SEAT_RELEASED,
   CLASS_SESSION_SCHEDULED,
   CLASS_SESSION_SCHEDULED_VERSION,
   STUDIO_SETTINGS_UPDATED,
@@ -45,9 +47,11 @@ import type {
   ClassTemplate,
   NoteVisibility,
   Room,
+  SeatHold,
   Service,
   StudioSettings,
 } from './types'
+import { occupiedSeats } from './types'
 import { checkWorkingHours, type StudioHours } from './working-hours'
 
 export interface DecideContext {
@@ -595,4 +599,83 @@ export function decideSetSessionNote(
       payload: { text: input.text.trim(), visibility: input.visibility },
     },
   ])
+}
+
+// ── Holding a seat for a non-member (owner, 2026-07-27) ──────────────────────────────────────
+//
+// "Multisport üyeleri bize WhatsApp'tan yazıyor, biz onlara yer ayırıyoruz." Until now the system
+// had no way to say that, so the seat stayed free in every screen and could be given away twice.
+//
+// The rules are the ones a booking already obeys, minus everything about credit:
+//   • the class must still be open — a cancelled class has no seats to give
+//   • it must not be full, counting HELD seats as taken (`occupiedSeats`). Refused, never
+//     over-allocated: a seat promised twice is worse than a seat not promised
+//   • the note is mandatory and non-empty, because "kime ayırdın" is the entire point — an
+//     anonymous hold is a seat that silently disappears and nobody can explain
+export interface SeatHoldOutcome {
+  readonly hold: SeatHold
+  readonly session: ClassSession
+  readonly events: readonly NewEvent[]
+}
+
+export function decideHoldSeat(
+  ctx: DecideContext,
+  session: ClassSession,
+  input: { holdId: string; note: string; cardNumber: string | null },
+): Result<SeatHoldOutcome, DomainError> {
+  if (session.status === 'cancelled') return err({ code: 'session_not_editable' })
+  const note = input.note.trim()
+  if (note.length === 0) return err({ code: 'seat_hold_note_required' })
+  if (occupiedSeats(session) >= session.capacity) return err({ code: 'class_full', capacity: session.capacity })
+
+  const heldCountAfter = (session.heldCount ?? 0) + 1
+  const hold: SeatHold = {
+    id: input.holdId,
+    studioId: ctx.studioId,
+    branchId: session.branchId,
+    classSessionId: session.id,
+    note,
+    cardNumber: input.cardNumber?.trim() || null,
+    status: 'held',
+    sessionStartsAt: session.startsAt,
+    heldAt: ctx.now,
+    heldBy: ctx.actor,
+    releasedAt: null,
+    releasedBy: null,
+  }
+  return ok({
+    hold,
+    session: { ...session, heldCount: heldCountAfter },
+    events: [
+      {
+        ...base(ctx, 'classSession', session.id, session.branchId, { classSessionId: session.id }),
+        type: CLASS_SESSION_SEAT_HELD,
+        payload: { holdId: hold.id, heldCountAfter, bookedCount: session.bookedCount, capacity: session.capacity },
+      },
+    ],
+  })
+}
+
+// Releasing is idempotent-by-refusal rather than idempotent-by-silence: releasing an already
+// released hold is a mistake worth surfacing, not a no-op worth hiding. The counter is floored at
+// zero so a double-release can never make a session look emptier than it is.
+export function decideReleaseSeat(
+  ctx: DecideContext,
+  session: ClassSession,
+  hold: SeatHold,
+): Result<SeatHoldOutcome, DomainError> {
+  if (hold.status !== 'held') return err({ code: 'seat_hold_not_open' })
+
+  const heldCountAfter = Math.max(0, (session.heldCount ?? 0) - 1)
+  return ok({
+    hold: { ...hold, status: 'released', releasedAt: ctx.now, releasedBy: ctx.actor },
+    session: { ...session, heldCount: heldCountAfter },
+    events: [
+      {
+        ...base(ctx, 'classSession', session.id, session.branchId, { classSessionId: session.id }),
+        type: CLASS_SESSION_SEAT_RELEASED,
+        payload: { holdId: hold.id, heldCountAfter },
+      },
+    ],
+  })
 }

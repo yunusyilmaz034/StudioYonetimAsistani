@@ -45,6 +45,7 @@ import type { CalendarSession, PickOption, StaffOption } from '@/server/schedule
 
 import { BookingPanel } from './booking-panel'
 import { WaitlistPanel } from './waitlist-panel'
+import { SeatHoldsPanel } from './seat-holds-panel'
 import { STATUS_LABEL } from './types'
 
 const NONE = '__none__'
@@ -165,6 +166,13 @@ export function SessionWorkspace({
                     that opens and the person who takes it are one decision. */}
                 <div className="space-y-6">
                   <BookingPanel session={session} onMutated={onMutated} />
+                  {/* Non-members occupying the same room (2026-07-27). Beside the roster, never in
+                      it: a Multisport guest is not a member and must not be listed as one. */}
+                  <SeatHoldsPanel
+                    sessionId={session.sessionId}
+                    full={session.bookedCount >= session.capacity || session.status !== 'scheduled'}
+                    onMutated={onMutated}
+                  />
                   <WaitlistPanel
                     sessionId={session.sessionId}
                     full={session.bookedCount >= session.capacity && session.status === 'scheduled'}

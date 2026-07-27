@@ -5,6 +5,7 @@ import {
   type DocumentData,
   type DocumentReference,
   type Firestore,
+  type Transaction,
   type WriteBatch,
 } from 'firebase-admin/firestore'
 
@@ -12,27 +13,40 @@ import {
   instant,
   type ClassSessionId,
   type ClassTemplateId,
+  type DomainError,
   type Instant,
   type NewEvent,
+  type Result,
   type RoomId,
   type ServiceId,
   type StudioId,
   type TenantContext,
 } from '../../../shared'
 import { DEFAULT_TIME_ZONE } from '../../../shared'
-import type { ClassSession, ClassTemplate, Room, Service, StudioSettings } from '../domain/types'
-import type { SchedulingRepository } from '../application/ports'
+import type { ClassSession, ClassTemplate, Room, SeatHold, Service, StudioSettings } from '../domain/types'
+import type { HoldSeatTxInput, ReleaseSeatTxInput, SchedulingRepository } from '../application/ports'
 import {
   eventToFirestore,
   roomFromFirestore,
   roomToFirestore,
   serviceFromFirestore,
   serviceToFirestore,
+  seatHoldFromFirestore,
+  seatHoldToFirestore,
   sessionFromFirestore,
   sessionToFirestore,
   templateFromFirestore,
   templateToFirestore,
 } from './mappers'
+
+// A domain refusal has to escape a Firestore transaction without being mistaken for a crash: the
+// callback can only signal by throwing, so the refusal rides out inside a marker and is unwrapped
+// on the other side. (Same shape as the reservations repo.)
+class TxAbort extends Error {
+  constructor(readonly domainError: DomainError) {
+    super(domainError.code)
+  }
+}
 
 export class FirestoreSchedulingRepository implements SchedulingRepository {
   constructor(private readonly db: Firestore = getFirestore()) {}
@@ -228,5 +242,82 @@ export class FirestoreSchedulingRepository implements SchedulingRepository {
     }
     this.appendEvents(ctx.studioId, batch, events)
     await batch.commit()
+  }
+
+  // ── Seat holds for non-members (2026-07-27) ─────────────────────────────────────────────────
+  //
+  // The hold document and the session's `heldCount` are written in ONE transaction. Split, they
+  // drift, and a drifted counter tells reception a full class has room — which is the single
+  // failure this counter exists to prevent.
+
+  async holdSeat(
+    ctx: TenantContext,
+    input: HoldSeatTxInput,
+  ): Promise<Result<{ holdId: string }, DomainError>> {
+    const sid = ctx.studioId
+    const sessionRef = this.col(sid, 'classSessions').doc(input.classSessionId)
+    try {
+      const holdId = await this.db.runTransaction(async (tx) => {
+        const snap = await tx.get(sessionRef)
+        if (!snap.exists) throw new Error(`ClassSession not found: ${input.classSessionId}`)
+        const decided = input.decide(sessionFromFirestore(input.classSessionId, snap.data() ?? {}))
+        if (!decided.ok) throw new TxAbort(decided.error)
+
+        const { hold, session, events } = decided.value
+        tx.set(this.col(sid, 'seatHolds').doc(hold.id), seatHoldToFirestore(hold))
+        // A targeted update, not a whole-document write: a concurrent booking may have moved
+        // `bookedCount` in the same instant, and rewriting the session would silently undo it.
+        tx.update(sessionRef, { heldCount: session.heldCount ?? 0 })
+        this.writeTxEvents(sid, tx, events)
+        return hold.id
+      })
+      return { ok: true, value: { holdId } }
+    } catch (e) {
+      if (e instanceof TxAbort) return { ok: false, error: e.domainError }
+      throw e
+    }
+  }
+
+  async releaseSeat(ctx: TenantContext, input: ReleaseSeatTxInput): Promise<Result<void, DomainError>> {
+    const sid = ctx.studioId
+    const holdRef = this.col(sid, 'seatHolds').doc(input.holdId)
+    try {
+      await this.db.runTransaction(async (tx) => {
+        const holdSnap = await tx.get(holdRef)
+        if (!holdSnap.exists) throw new Error(`SeatHold not found: ${input.holdId}`)
+        const hold = seatHoldFromFirestore(input.holdId, holdSnap.data() ?? {})
+
+        const sessionRef = this.col(sid, 'classSessions').doc(hold.classSessionId)
+        const sessSnap = await tx.get(sessionRef)
+        if (!sessSnap.exists) throw new Error(`ClassSession not found: ${hold.classSessionId}`)
+
+        const decided = input.decide(sessionFromFirestore(hold.classSessionId, sessSnap.data() ?? {}), hold)
+        if (!decided.ok) throw new TxAbort(decided.error)
+
+        const { hold: next, session, events } = decided.value
+        tx.set(holdRef, seatHoldToFirestore(next))
+        tx.update(sessionRef, { heldCount: session.heldCount ?? 0 })
+        this.writeTxEvents(sid, tx, events)
+      })
+      return { ok: true, value: undefined }
+    } catch (e) {
+      if (e instanceof TxAbort) return { ok: false, error: e.domainError }
+      throw e
+    }
+  }
+
+  async listSeatHolds(ctx: TenantContext, classSessionId: ClassSessionId): Promise<readonly SeatHold[]> {
+    const snap = await this.col(ctx.studioId, 'seatHolds')
+      .where('classSessionId', '==', classSessionId)
+      .where('status', '==', 'held')
+      .get()
+    return snap.docs.map((d) => seatHoldFromFirestore(d.id, d.data()))
+  }
+
+  private writeTxEvents(sid: StudioId, tx: Transaction, events: readonly NewEvent[]): void {
+    for (const e of events) {
+      const { id, data } = eventToFirestore(e)
+      tx.set(this.col(sid, 'events').doc(id), data)
+    }
   }
 }

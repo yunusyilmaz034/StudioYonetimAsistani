@@ -63,6 +63,8 @@ const PREFIX = {
   paytrCollection: 'pcol',
   // ── Program Templates (Plus, pilot) ──
   programTemplate: 'ptpl',
+  // ── A seat held for a non-member (Multisport day guests, 2026-07-27) ──
+  seatHold: 'hold',
 } as const
 
 // ULID gives lexicographic time-ordering; the prefix disambiguates the id kind.
@@ -90,6 +92,7 @@ export const newEventId = (): EventId => mint(PREFIX.event) as EventId
 export const newCommandId = (): CommandId => mint(PREFIX.command) as CommandId
 export const newCorrelationId = (): CorrelationId => mint(PREFIX.correlation) as CorrelationId
 export const newWaitlistEntryId = (): string => mint(PREFIX.waitlistEntry)
+export const newSeatHoldId = (): string => mint(PREFIX.seatHold)
 export const newExerciseId = (): string => mint(PREFIX.exercise)
 export const newProgramId = (): string => mint(PREFIX.program)
 export const newMeasurementId = (): string => mint(PREFIX.measurement)

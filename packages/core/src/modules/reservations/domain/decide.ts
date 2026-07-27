@@ -24,6 +24,7 @@ import {
 import type { EffectiveReservationPolicy } from './policy'
 import {
   checkWorkingHours,
+  occupiedSeats,
   type ClassSession,
   type SessionPolicySnapshot,
   type StudioHours,
@@ -163,7 +164,9 @@ export function decideBooking(
     return err({ code: 'session_not_assigned_to_member' })
   }
   // I-9.2
-  if (session.bookedCount >= session.capacity) {
+  // Held seats count as taken: a Multisport guest reception promised a place to occupies the room
+  // just as much as a member does (2026-07-27).
+  if (occupiedSeats(session) >= session.capacity) {
     return err({ code: 'class_full', capacity: session.capacity })
   }
   // I-9.3
@@ -295,7 +298,7 @@ export function decideMove(
   if (assignedTo !== null && assignedTo !== reservation.memberId) {
     return err({ code: 'session_not_assigned_to_member' })
   }
-  if (to.bookedCount >= to.capacity) return err({ code: 'class_full', capacity: to.capacity })
+  if (occupiedSeats(to) >= to.capacity) return err({ code: 'class_full', capacity: to.capacity })
   if (memberHasBookedTarget) return err({ code: 'already_booked' })
   if (entitlement.productSnapshot.category !== to.category) {
     return err({

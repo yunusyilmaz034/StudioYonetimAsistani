@@ -24,6 +24,7 @@ import type {
   ClassTemplate,
   Room,
   SchedulingPolicy,
+  SeatHold,
   Service,
   SessionPolicySnapshot,
   Weekday,
@@ -145,6 +146,7 @@ export function sessionToFirestore(s: ClassSession): DocumentData {
     policyRef: s.policyRef,
     policySnapshot: s.policySnapshot,
     bookedCount: s.bookedCount,
+    heldCount: s.heldCount ?? 0,
     attendedCount: s.attendedCount,
     note: s.note ? { text: s.note.text, visibility: s.note.visibility, setAt: toTs(s.note.setAt) } : null,
     serviceName: s.serviceName,
@@ -192,6 +194,8 @@ export function sessionFromFirestore(id: ClassSessionId, d: DocumentData): Class
     // it means. Read-time interpretation; the document is never rewritten.
     policySnapshot: readSnapshot(d.policySnapshot as Record<string, unknown>),
     bookedCount: d.bookedCount as number,
+    // Absent on every session written before seat holds existed — which is exactly zero held seats.
+    heldCount: (d.heldCount as number | undefined) ?? 0,
     attendedCount: d.attendedCount as number,
     note: d.note
       ? {
@@ -210,4 +214,40 @@ export function sessionFromFirestore(id: ClassSessionId, d: DocumentData): Class
 export function eventToFirestore(e: NewEvent): { id: EventId; data: DocumentData } {
   const id = newEventId()
   return { id, data: { ...e, occurredAt: toTs(e.occurredAt), recordedAt: FieldValue.serverTimestamp() } }
+}
+
+// ── Seat holds ────────────────────────────────────────────────────────────────────────────────
+// The guest's name and card number live HERE and nowhere else. They are state, never an event
+// payload (I-13): the log records that a seat left the room, never who was standing in it.
+export function seatHoldToFirestore(h: SeatHold): DocumentData {
+  return {
+    studioId: h.studioId,
+    branchId: h.branchId,
+    classSessionId: h.classSessionId,
+    note: h.note,
+    cardNumber: h.cardNumber,
+    status: h.status,
+    sessionStartsAt: toTs(h.sessionStartsAt),
+    heldAt: toTs(h.heldAt),
+    heldBy: h.heldBy,
+    releasedAt: h.releasedAt === null ? null : toTs(h.releasedAt),
+    releasedBy: h.releasedBy,
+  }
+}
+
+export function seatHoldFromFirestore(id: string, d: DocumentData): SeatHold {
+  return {
+    id,
+    studioId: d.studioId as SeatHold['studioId'],
+    branchId: d.branchId as SeatHold['branchId'],
+    classSessionId: d.classSessionId as SeatHold['classSessionId'],
+    note: (d.note as string | undefined) ?? '',
+    cardNumber: (d.cardNumber as string | null | undefined) ?? null,
+    status: (d.status as SeatHold['status'] | undefined) ?? 'held',
+    sessionStartsAt: instant((d.sessionStartsAt as Timestamp).toMillis()),
+    heldAt: instant((d.heldAt as Timestamp).toMillis()),
+    heldBy: d.heldBy as SeatHold['heldBy'],
+    releasedAt: d.releasedAt ? instant((d.releasedAt as Timestamp).toMillis()) : null,
+    releasedBy: (d.releasedBy as SeatHold['releasedBy'] | undefined) ?? null,
+  }
 }

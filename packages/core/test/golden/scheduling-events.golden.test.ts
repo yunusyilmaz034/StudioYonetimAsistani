@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 
 import { upcastClassSessionScheduled } from '../../src/modules/scheduling/upcasters'
 import {
+  decideHoldSeat,
+  decideReleaseSeat,
   decideAssignSessionMember,
   decideCancelSession,
   decideChangeCapacity,
@@ -43,6 +45,8 @@ import roomChanged from './class_session.room_changed.v1.json'
 import rescheduled from './class_session.rescheduled.v1.json'
 import capacityChanged from './class_session.capacity_changed.v1.json'
 import noteSet from './class_session.note_set.v1.json'
+import seatHeld from './class_session.seat_held.v1.json'
+import seatReleased from './class_session.seat_released.v1.json'
 import templateUpdated from './class_template.updated.v1.json'
 
 const ctx: DecideContext = {
@@ -142,6 +146,36 @@ describe('scheduling event payloads match golden fixtures (AD-33)', () => {
     )
     expect(r.ok).toBe(true)
     if (r.ok) expect(r.value[0]?.payload).toEqual({ from: null, to: 'mem_1' })
+  })
+  // The guest's name and card number are NOT here, and the fixture is what makes that permanent:
+  // she is a third party who never agreed to be in this studio's log (#6, I-13).
+  it('class_session.seat_held', () => {
+    const r = decideHoldSeat(ctx, { ...session, bookedCount: 5 }, {
+      holdId: 'hold_1',
+      note: 'Multisport — Zeynep',
+      cardNumber: 'MS-9931',
+    })
+    expect(r.ok).toBe(true)
+    if (r.ok) expect(r.value.events[0]?.payload).toEqual(seatHeld)
+  })
+  it('class_session.seat_released', () => {
+    const hold = {
+      id: 'hold_1',
+      studioId: session.studioId,
+      branchId: session.branchId,
+      classSessionId: session.id,
+      note: 'Multisport — Zeynep',
+      cardNumber: null,
+      status: 'held' as const,
+      sessionStartsAt: session.startsAt,
+      heldAt: ctx.now,
+      heldBy: ctx.actor,
+      releasedAt: null,
+      releasedBy: null,
+    }
+    const r = decideReleaseSeat(ctx, { ...session, heldCount: 1 }, hold)
+    expect(r.ok).toBe(true)
+    if (r.ok) expect(r.value.events[0]?.payload).toEqual(seatReleased)
   })
   it('class_session.cancelled', () => {
     const r = decideCancelSession(ctx, session, 'Eğitmen hasta')

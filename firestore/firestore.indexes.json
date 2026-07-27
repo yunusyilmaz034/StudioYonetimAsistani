@@ -283,6 +283,20 @@
           "order": "ASCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "seatHolds",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "classSessionId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": []

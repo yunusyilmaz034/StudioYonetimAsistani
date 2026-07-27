@@ -9,8 +9,23 @@ import type {
   StudioConfig,
   TenantContext,
 } from '../../../shared'
-import type { ClassSession, ClassTemplate, Room, Service, StudioSettings } from '../domain/types'
+import type { ClassSession, ClassTemplate, Room, SeatHold, Service, StudioSettings } from '../domain/types'
 import type { StudioHours } from '../domain/working-hours'
+import type { DomainError, Result } from '../../../shared'
+import type { SeatHoldOutcome } from '../domain/decide'
+
+// Holding a seat writes the SESSION counter and the hold document together, in one transaction.
+// Split them and the counter drifts from the holds, and reception is eventually told a full class
+// has room — the exact failure the counter exists to prevent.
+export interface HoldSeatTxInput {
+  readonly classSessionId: ClassSessionId
+  readonly decide: (session: ClassSession) => Result<SeatHoldOutcome, DomainError>
+}
+
+export interface ReleaseSeatTxInput {
+  readonly holdId: string
+  readonly decide: (session: ClassSession, hold: SeatHold) => Result<SeatHoldOutcome, DomainError>
+}
 
 // One repository for the scheduling aggregates. Each save writes the entity + its
 // events in one transaction (non-negotiable #1). Ids are domain ids; the repo maps
@@ -35,6 +50,12 @@ export interface SchedulingRepository {
   getTemplate(ctx: TenantContext, id: ClassTemplateId): Promise<ClassTemplate | null>
   saveTemplate(ctx: TenantContext, template: ClassTemplate, events: readonly NewEvent[]): Promise<void>
   listTemplates(ctx: TenantContext): Promise<readonly ClassTemplate[]>
+
+  // ── Seat holds for non-members (2026-07-27) ──
+  holdSeat(ctx: TenantContext, input: HoldSeatTxInput): Promise<Result<{ holdId: string }, DomainError>>
+  releaseSeat(ctx: TenantContext, input: ReleaseSeatTxInput): Promise<Result<void, DomainError>>
+  /** Seats still held for one session — what the desk needs to see who a seat is for. */
+  listSeatHolds(ctx: TenantContext, classSessionId: ClassSessionId): Promise<readonly SeatHold[]>
 
   getSession(ctx: TenantContext, id: ClassSessionId): Promise<ClassSession | null>
   saveSession(ctx: TenantContext, session: ClassSession, events: readonly NewEvent[]): Promise<void>

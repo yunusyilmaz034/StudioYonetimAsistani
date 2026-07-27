@@ -1,4 +1,5 @@
 import {
+  occupiedSeats,
   FirestoreIdentityRepository,
   FirestoreSchedulingRepository,
   instant,
@@ -159,7 +160,11 @@ export async function loadSchedule(ctx: TenantContext, dateStr: string): Promise
       startsAt: s.startsAt,
       endsAt: s.endsAt,
       capacity: s.capacity,
-      bookedCount: s.bookedCount,
+      // Occupancy the screen renders. A seat HELD for a non-member (Multisport day guest) is gone from
+      // the room just like a booked one, so the number a reader sees must include it — a "7/8" that is
+      // really full is how a seat gets promised twice. Members see the NUMBER and nothing else: no
+      // "rezerve" label (owner, 2026-07-27) — why a seat is taken is not another member's business.
+      bookedCount: occupiedSeats(s),
       status: s.status,
       cancellationWindowHours: s.policySnapshot.cancellationWindowHours,
       cancellationWindowSource: s.policySnapshot.cancellationWindowSource,

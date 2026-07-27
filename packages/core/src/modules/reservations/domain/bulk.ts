@@ -100,6 +100,8 @@ export function planBulkMove(
 ): readonly BulkMoveRow[] {
   let taken = 0
   return candidates.map((c) => {
+    // The spread carries `heldCount` through, so `decideBooking`'s capacity check counts seats held
+    // for non-members as taken without this simulation having to know about them.
     const target: ClassSession = { ...to, bookedCount: to.bookedCount + taken }
     const decided = decideMove(
       ctx,

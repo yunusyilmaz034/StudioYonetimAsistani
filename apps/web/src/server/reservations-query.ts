@@ -1,4 +1,5 @@
 import {
+  occupiedSeats,
   FirestoreReservationRepository,
   FirestoreSchedulingRepository,
   instant,
@@ -91,7 +92,7 @@ export async function listAttendanceDay(
     startsAt: s.startsAt,
     endsAt: s.endsAt,
     capacity: s.capacity,
-    bookedCount: s.bookedCount,
+    bookedCount: occupiedSeats(s),
     status: s.status,
     category: s.category,
     roster: (rosterBySession.get(s.id) ?? []).sort((a, b) =>
