@@ -9,7 +9,10 @@ import {
   decideRequestRefund,
   decideSessionCreated,
   FirestoreCatalogRepository,
+  FirestoreEntitlementRepository,
   FirestoreMemberRepository,
+  blockedByFrozen,
+  nextPackageStart,
   FirestorePaymentIntentRepository,
   FirestorePaymentLinkRepository,
   FirestoreSchedulingRepository,
@@ -226,10 +229,48 @@ export async function createPackageCheckout(ctx: TenantContext, p: PackageChecko
 // M3 — a MEMBER buying her own package from the app. memberId comes from her verified token; she picks
 // a product and pays via a PAYTR link (opened in-app). Same money path as the staff sell, with sensible
 // defaults (list price, today → today+duration, no credit override, single tap of installments).
+// SHE BUYS IT HERSELF — from the app or the portal. Every guard here exists because there is no
+// receptionist in this path to notice anything (owner scenarios, 2026-07-27).
 export async function createMemberPackageCheckout(ctx: TenantContext, memberId: MemberId, productId: string) {
-  const product = await new FirestoreCatalogRepository(adminDb()).getProduct(ctx, productId as ProductId)
+  const db = adminDb()
+  const [product, member, existing] = await Promise.all([
+    new FirestoreCatalogRepository(db).getProduct(ctx, productId as ProductId),
+    new FirestoreMemberRepository(db).findById(ctx, memberId),
+    new FirestoreEntitlementRepository(db).listActiveByMember(ctx, memberId),
+  ])
   if (!product) return { ok: false as const, error: { code: 'no_bookable_entitlement' as const } }
-  const nowTr = new Date(systemClock.now() + 3 * 3_600_000)
+  // The studio decides what may be bought unattended. `active` means reception can sell it; this is
+  // the other switch, and checking it HERE (not only in the list) is what stops a stale screen or a
+  // hand-made request from buying something the owner closed.
+  if (!product.memberSellable) return { ok: false as const, error: { code: 'member_not_active' as const } }
+  if (!member || member.status !== 'active') return { ok: false as const, error: { code: 'member_not_active' as const } }
+
+  // ── When does it start? (owner: "sıraya alsın") ────────────────────────────────────────────
+  // Behind the package it renews, so none of the days she just paid for burn unused. Category-aware:
+  // a Pilates renewal never waits behind a Fitness membership, because neither can pay for the
+  // other's class.
+  //
+  // The one case with no honest answer is a FROZEN package: its `validUntil` has not been extended
+  // yet (that lands at unfreeze), so any queue date computed now is one we already know is wrong.
+  // Refused rather than guessed — reception sells it, with the real dates in front of her.
+  const category = product.category
+  if (blockedByFrozen(existing, category, systemClock.now())) {
+    return { ok: false as const, error: { code: 'entitlement_frozen' as const } }
+  }
+  // ── One payment at a time ───────────────────────────────────────────────────────────────────
+  // Two taps on "Satın al" produced two intents and two card charges — there is no receptionist in
+  // this path to spot the second one, and the member finds out from her statement. A checkout she
+  // started in the last quarter of an hour blocks a new one; older ones are abandoned baskets, not
+  // pending payments, so they must not lock her out for good.
+  const PENDING_WINDOW_MS = 15 * 60_000
+  const pending = (await new FirestorePaymentIntentRepository(db).listByMember(ctx, memberId as string)).filter(
+    (i: PaymentIntent) => i.status === 'awaiting_payment' && systemClock.now() - i.createdAt < PENDING_WINDOW_MS,
+  )
+  if (pending.length > 0) return { ok: false as const, error: { code: 'payment_already_pending' as const } }
+
+  const startMs = nextPackageStart(existing, category, systemClock.now())
+
+  const nowTr = new Date(startMs + 3 * 3_600_000)
   const validFrom = nowTr.toISOString().slice(0, 10)
   const validUntil = product.durationDays > 0 ? new Date(nowTr.getTime() + product.durationDays * 86_400_000).toISOString().slice(0, 10) : null
   return createPackageCheckout(ctx, {

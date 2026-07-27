@@ -25,6 +25,9 @@ export {
 // D12 — the single definition of "does this package cover this service?"; the decider and
 // the advisory selector both call it, so they cannot drift apart.
 export { coversService, isEligibleForService } from './domain/eligibility'
+// When a renewal starts (owner, 2026-07-27): behind the package it renews, so no paid day burns
+// unused. `blockedByFrozen` is the one case with no honest answer — the caller refuses instead.
+export { blockedByFrozen, nextPackageStart } from './domain/renewal'
 export * from './events'
 export {
   decideAdjust,

@@ -19,6 +19,7 @@ import {
   FirestorePaymentLinkRepository,
   FirestorePaytrCollectionRepository,
   instant,
+  FirestoreIdentityRepository,
   intentIdFor,
   issueMemberInvite,
   money,
@@ -44,6 +45,8 @@ import {
 import { adminDb } from './firebase-admin'
 import { notificationDeps } from './notification-deps'
 import { paymentProviderFor } from './payment-provider'
+import { getAuth } from 'firebase-admin/auth'
+
 import { grantBundleComponents } from './sell-bundle'
 
 const OFFSET_MIN = 180
@@ -91,6 +94,56 @@ async function resolveBuyer(ctx: TenantContext, c: PaymentIntentContext): Promis
 // The send happens HERE, not off `member.invited`, because the raw token exists only in this scope: it
 // is never stored (only its SHA-256) and never entered the event. Mirror of the Cloud Function branch
 // (DEBT-PAYTR-CALLBACK — the two copies must stay in step).
+// ── Telling the studio a sale just happened (owner, 2026-07-27) ─────────────────────────────
+//
+// "Admini bu durumu mutlaka haber vermelisin — önemli bir durum." He is right, and the gap was
+// total: the callback told the MEMBER (her portal invite) and told the studio nothing. A 14.000 ₺
+// renewal at 23:00 was discovered by opening the panel the next morning.
+//
+// Best-effort and last: the money is in and the package is granted by the time this runs. A failed
+// notification must never undo a paid sale.
+async function tellStudioAboutSale(
+  ctx: TenantContext,
+  args: { memberId: string; productName: string; amountKurus: number; startsAtMs: number },
+): Promise<void> {
+  try {
+    const db = adminDb()
+    const [member, staff] = await Promise.all([
+      new FirestoreMemberRepository(db).findById(ctx, args.memberId as MemberId),
+      new FirestoreIdentityRepository(db).listStaff(ctx),
+    ])
+    const desk = staff.filter((m) => m.active && (m.role === 'owner' || m.role === 'receptionist'))
+    if (desk.length === 0) return
+
+    const deps = notificationDeps()
+    for (const person of desk) {
+      let email: string | null = null
+      try {
+        email = (await getAuth().getUser(person.id as string)).email ?? null
+      } catch {
+        /* no auth account — in-app still reaches them */
+      }
+      await notify(deps, ctx, {
+        // Keyed on the INTENT: a replayed callback finds it already sent, so one sale is one message.
+        intentId: intentIdFor(args.memberId, 'sale_self_service', String(args.startsAtMs)).slice(0, 180),
+        eventId: null,
+        eventType: 'payment_intent.succeeded',
+        operationId: newCorrelationId(),
+        templateId: 'sale_self_service',
+        recipient: { kind: 'staff', id: person.id as string, email, phone: null, displayName: person.displayName },
+        params: {
+          memberName: member?.fullName ?? 'Üye',
+          productName: args.productName,
+          amount: `${(args.amountKurus / 100).toLocaleString('tr-TR')} ₺`,
+          startsOn: new Date(args.startsAtMs).toLocaleDateString('tr-TR', { timeZone: 'Europe/Istanbul' }),
+        },
+      })
+    }
+  } catch (e) {
+    console.warn('[paytr-callback] studio sale notification failed', (e as Error)?.message)
+  }
+}
+
 async function issueInviteFor(ctx: TenantContext, memberId: string, intentId: string): Promise<void> {
   const token = randomBytes(32).toString('base64url')
   const tokenHash = createHash('sha256').update(token).digest('hex')
@@ -188,6 +241,18 @@ export async function completePaidIntent(ctx: TenantContext, intent: PaymentInte
         },
       })
       if (invitee) await issueInviteFor(ctx, invitee, intent.id)
+    await tellStudioAboutSale(ctx, {
+      memberId: intent.memberId,
+      productName: product.name,
+      amountKurus: intent.amount.amount,
+      startsAtMs: dayMs(intent.context.validFrom ?? ''),
+    })
+      await tellStudioAboutSale(ctx, {
+        memberId: intent.memberId,
+        productName: product.name,
+        amountKurus: intent.amount.amount,
+        startsAtMs: dayMs(intent.context.validFrom ?? ''),
+      })
       return
     }
 

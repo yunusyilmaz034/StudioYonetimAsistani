@@ -43,6 +43,16 @@ export function isEligibleForService(
 ): boolean {
   if (e.status !== 'active') return false
   if (at > e.validUntil) return false // expired by the time the class runs
+  // ── Not started yet (2026-07-27) ────────────────────────────────────────────────────────────
+  // This was missing, and the file said so: "validFrom-in-future check arrives with waitlist/advance
+  // rules". Until today nothing created a future-dated package on purpose, so the gap was theoretical
+  // — except it was not: production held a Reformer package dated to start on 30 July and it was
+  // spendable on the 27th.
+  //
+  // It becomes load-bearing now that a renewal is QUEUED behind the package it renews. Without this
+  // the queue is decorative: she would buy the next package and immediately spend it alongside the
+  // one she already has, which is the exact overlap the queue exists to prevent.
+  if (at < e.validFrom) return false
   if (e.productSnapshot.category !== category) return false // I-9.7
   if (!coversService(e.productSnapshot, serviceId)) return false // I-9.8 (D12)
   if (e.credits !== null && available(e.credits) < 1) return false // no credit left to spend

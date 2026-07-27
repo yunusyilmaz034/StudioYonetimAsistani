@@ -248,6 +248,22 @@ export const TEMPLATES: Readonly<Record<string, NotificationTemplate>> = {
     subject: '🔥 {{leadName}} kayıt olmak istiyor',
     body: '🔥 SATIŞA HAZIR\n{{leadName}} · {{leadPhone}}\n\nSon yazdığı:\n"{{lastMessage}}"\n\nAI bilgiyi verdi ve kişiyi size bıraktı; hâlâ hatta. Panelden WhatsApp kutusunu açıp AYNI sohbete yazın — beklerse yarın soğuk bir arama olur.',
   },
+  // A member bought or renewed a package herself (2026-07-27, owner: "admini bu durumu mutlaka haber
+  // vermelisin"). Before this the studio learned about a 14.000 ₺ sale by opening the panel the next
+  // morning — the money had arrived, the package was live, and nobody knew.
+  //
+  // `high`, not `urgent`: nothing is on fire and nobody has to act tonight. But it is a real sale, at
+  // a real hour, and the owner should hear it happen rather than discover it.
+  sale_self_service: {
+    id: 'sale_self_service',
+    version: 1,
+    name: 'Üye kendi paketini aldı (resepsiyon/sahip)',
+    category: 'operational',
+    priority: 'high',
+    requiredParams: ['memberName', 'productName', 'amount', 'startsOn'],
+    subject: '💳 {{memberName}} paket aldı — {{productName}}',
+    body: '💳 ÜYE KENDİ ALDI\n{{memberName}} · {{productName}}\nTutar: {{amount}}\nBaşlangıç: {{startsOn}}\n\nÖdeme alındı ve paket tanımlandı; yapmanız gereken bir şey yok.',
+  },
   system_alert: {
     id: 'system_alert',
     version: 1,

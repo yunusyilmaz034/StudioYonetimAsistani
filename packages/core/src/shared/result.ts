@@ -108,6 +108,9 @@ export type DomainError =
   // ── seat holds for non-members (2026-07-27) ──
   // A hold with no note is a seat that silently vanishes and nobody can explain; a hold that is
   // already released cannot be released again.
+  // Self-service checkout (2026-07-27) — two taps must not become two card charges. There is no
+  // receptionist in that path to notice the second one.
+  | { readonly code: 'payment_already_pending' }
   | { readonly code: 'seat_hold_note_required' }
   | { readonly code: 'seat_hold_not_open' }
   // ── reservations / automation (Doc 2 §8, v1.10) ──

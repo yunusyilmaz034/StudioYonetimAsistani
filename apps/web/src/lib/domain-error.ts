@@ -104,6 +104,8 @@ export function domainErrorMessage(error: DomainError): string {
       return 'Girişiniz alındı. Ders saatinize yakın bir zaman değil, yoklamanız daha sonra işlenecek.'
     case 'checkin_session_cancelled':
       return 'Girişiniz alındı. Bu seans iptal edilmiş.'
+    case 'payment_already_pending':
+      return 'Bir ödemeniz zaten başlatıldı. Lütfen onu tamamlayın ya da birkaç dakika sonra tekrar deneyin.'
     case 'seat_hold_note_required':
       return 'Yeri kimin için ayırdığınızı yazın.'
     case 'seat_hold_not_open':
