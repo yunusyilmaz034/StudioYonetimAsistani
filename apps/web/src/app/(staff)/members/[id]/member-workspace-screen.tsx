@@ -589,16 +589,17 @@ const PKG_DOT: readonly string[] = [
 // de zeminini boya"). A four-pixel edge is a detail you have to look for; a filled row is something
 // you see without looking, which is the entire point of colouring these at all.
 //
-// Soft tints (/12) so text stays readable in both themes and six rows do not turn the tab into a
-// paint chart — the hue carries the meaning, the saturation must not carry attention it has not
-// earned.
+// /25, not the /12 this started at: on the dark theme a twelve-percent wash over an already dark
+// card is invisible, which made the first attempt look like nothing had changed. Strong enough to
+// read as "this row is coloured" at a glance, still light enough that the text on top of it stays
+// the thing you read first.
 const PKG_BG: readonly string[] = [
-  'bg-primary/12 hover:bg-primary/20',
-  'bg-info/12 hover:bg-info/20',
-  'bg-success/12 hover:bg-success/20',
-  'bg-warning/12 hover:bg-warning/20',
-  'bg-danger/12 hover:bg-danger/20',
-  'bg-muted-foreground/12 hover:bg-muted-foreground/20',
+  'bg-primary/25 hover:bg-primary/35',
+  'bg-info/25 hover:bg-info/35',
+  'bg-success/25 hover:bg-success/35',
+  'bg-warning/25 hover:bg-warning/35',
+  'bg-danger/25 hover:bg-danger/35',
+  'bg-muted-foreground/25 hover:bg-muted-foreground/35',
 ]
 
 // The outcome is the point of a past reservation — it carries the colour, not an outline.
