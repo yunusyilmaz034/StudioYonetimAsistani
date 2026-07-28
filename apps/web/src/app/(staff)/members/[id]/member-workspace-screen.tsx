@@ -493,37 +493,69 @@ function ReservationsPanel({
   upcoming: readonly MemberReservationRow[]
   past: readonly MemberReservationRow[]
 }) {
-  const router = useRouter()
+  // Cancellations are HIDDEN by default (owner, 2026-07-28). They are the majority of rows on an
+  // active member and the minority of what anyone came here to read — "hepsini görünce kafa
+  // karışıyor". Nothing is deleted; the switch is one click away and says how many it is holding
+  // back, so the list can never quietly lie about what she has.
+  const [showCancelled, setShowCancelled] = useState(false)
+  const isCancelled = (r: MemberReservationRow) => r.status === 'cancelled' || r.status === 'late_cancelled'
+  const hiddenCount = [...upcoming, ...past].filter(isCancelled).length
+  const visibleUpcoming = showCancelled ? upcoming : upcoming.filter((r) => !isCancelled(r))
+  const visiblePast = showCancelled ? past : past.filter((r) => !isCancelled(r))
+
+  // The colour legend: only the packages actually on screen, so it never explains a colour that is
+  // not there.
+  const legend = new Map<number, string>()
+  for (const r of [...visibleUpcoming, ...visiblePast]) {
+    if (r.packageName && !legend.has(r.packageIndex)) legend.set(r.packageIndex, r.packageName)
+  }
+
   return (
     <div className="space-y-5">
-      {/* "Hızlı Rezervasyon" is in the header actions and is not repeated here (Doc 20 §7);
-          "Rezervasyon Ekranı" stays — it goes somewhere else, so it is not a duplicate. */}
-      <Section
-        title="Yaklaşan"
-        hint={`${upcoming.length}`}
-        actions={
-          <Button size="sm" variant="outline" onClick={() => router.push('/reservations')}>
-            Rezervasyon Ekranı
-          </Button>
-        }
-      >
-        {upcoming.length === 0 ? (
+      {/* The header's "Rezervasyon" button already books, and books better. A second button that
+          only navigates elsewhere was a longer way round to the same thing (owner, 2026-07-28). */}
+      {hiddenCount > 0 || showCancelled ? (
+        <label className="flex items-center gap-2 text-sm text-muted-foreground">
+          <input
+            type="checkbox"
+            checked={showCancelled}
+            onChange={(e) => setShowCancelled(e.target.checked)}
+            className="size-4 accent-[var(--color-primary)]"
+          />
+          İptalleri göster
+          {!showCancelled && hiddenCount > 0 ? <span className="tabular-nums">({hiddenCount} gizli)</span> : null}
+        </label>
+      ) : null}
+
+      {legend.size > 1 ? (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
+          {[...legend.entries()].map(([i, name]) => (
+            <span key={i} className="flex items-center gap-1.5">
+              <span className={`inline-block h-3 w-1 rounded-full ${PKG_DOT[i % PKG_DOT.length]}`} />
+              <span className="truncate">{name}</span>
+            </span>
+          ))}
+        </div>
+      ) : null}
+
+      <Section title="Yaklaşan" hint={`${visibleUpcoming.length}`}>
+        {visibleUpcoming.length === 0 ? (
           <p className="text-sm text-muted-foreground">Yaklaşan rezervasyon yok.</p>
         ) : (
           <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card shadow-sm">
-            {upcoming.map((r) => (
+            {visibleUpcoming.map((r) => (
               <ReservationItem key={r.reservationId} r={r} cancelable />
             ))}
           </ul>
         )}
       </Section>
 
-      <Section title="Geçmiş" hint={`son ${past.length}`}>
-        {past.length === 0 ? (
+      <Section title="Geçmiş" hint={`son ${visiblePast.length}`}>
+        {visiblePast.length === 0 ? (
           <p className="text-sm text-muted-foreground">Geçmiş rezervasyon yok.</p>
         ) : (
           <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card shadow-sm">
-            {past.map((r) => (
+            {visiblePast.map((r) => (
               <ReservationItem key={r.reservationId} r={r} />
             ))}
           </ul>
@@ -532,6 +564,35 @@ function ReservationsPanel({
     </div>
   )
 }
+
+// WHICH PACKAGE PAID FOR THIS (owner, 2026-07-28) — a left edge in the package's colour, and the
+// package named under the date.
+//
+// Their previous system does the same thing and warns, in its own help text, that the grouping "may
+// be wrong for overlapping subscriptions" — because it INFERS the link from dates. We never have to:
+// a reservation has held a credit from a named entitlement since the moment it was booked. The
+// colour is a fact here, not a guess.
+//
+// Six hues, cycled by the package's position in her history, so her first package is always the
+// first colour whichever reservation you are looking at. Six is enough for any real member and
+// repeating is better than running out.
+const PKG_DOT: readonly string[] = [
+  'bg-primary',
+  'bg-info',
+  'bg-success',
+  'bg-warning',
+  'bg-danger',
+  'bg-muted-foreground',
+]
+
+const PKG_EDGE: readonly string[] = [
+  'border-l-primary',
+  'border-l-info',
+  'border-l-success',
+  'border-l-warning',
+  'border-l-danger',
+  'border-l-muted-foreground',
+]
 
 // The outcome is the point of a past reservation — it carries the colour, not an outline.
 const RES_TONE: Record<string, string> = {
@@ -567,10 +628,16 @@ function ReservationItem({ r, cancelable = false }: { r: MemberReservationRow; c
   }
 
   return (
-    <li className="flex items-center justify-between gap-3 px-3 py-2.5 transition-colors hover:bg-primary-soft/40">
+    <li
+      className={`flex items-center justify-between gap-3 border-l-4 px-3 py-2.5 transition-colors hover:bg-primary-soft/40 ${
+        PKG_EDGE[r.packageIndex % PKG_EDGE.length]
+      }`}
+    >
       <div className="min-w-0">
         <p className="truncate text-sm font-medium text-foreground">{dt(r.startsAt)}</p>
-        <p className="truncate text-xs text-muted-foreground">{r.category}</p>
+        {/* The package, not the raw category enum: "Hibrit Aylık" tells her which one this came out
+            of; "pilates_group" told her nothing she could not already see. */}
+        <p className="truncate text-xs text-muted-foreground">{r.packageName ?? r.category}</p>
       </div>
       <div className="flex shrink-0 items-center gap-2">
         <Badge className={RES_TONE[r.status] ?? 'bg-muted text-muted-foreground'}>

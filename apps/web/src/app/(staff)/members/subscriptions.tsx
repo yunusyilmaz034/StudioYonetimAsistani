@@ -91,13 +91,33 @@ function toCards(subs: readonly SubscriptionView[]): SubCard[] {
   return cards.sort((a, b) => b.primary.validFrom - a.primary.validFrom)
 }
 
+// What the CATALOGUE says this component normally carries — the number the product was defined with,
+// which is not always the number this member was given.
+//
+// Reception routinely and correctly grants fewer (owner, 2026-07-28): a member migrating from the
+// old system had already used one of her eight, so she was entered with seven. Nothing is wrong with
+// that — what was wrong is that afterwards nobody could tell "7/7" (a reduced package, complete) from
+// "7/7" (a full package of seven). The standard is shown only when it DIFFERS, so the common case
+// stays quiet and the exception explains itself.
+const standardCreditsFor = (s: SubscriptionView, products: readonly ProductView[]): number | null => {
+  const p = products.find((x) => x.id === s.productId)
+  if (!p) return null
+  if (!p.components?.length) return p.creditCount
+  // A bundle: match the component by category — that is what makes it this member's pilates half.
+  return p.components.find((c) => c.category === s.category)?.creditCount ?? null
+}
+
 // What ONE component holds — a credit count, a giriş allowance, or unlimited time.
-const componentLine = (s: SubscriptionView): string =>
-  s.type === 'credit'
-    ? `${s.creditsAvailable}/${s.creditsGranted} kredi`
-    : s.entryAllowance != null
+const componentLine = (s: SubscriptionView, products: readonly ProductView[] = []): string => {
+  if (s.type !== 'credit') {
+    return s.entryAllowance != null
       ? `${Math.max(0, s.entryAllowance - s.entriesUsed)}/${s.entryAllowance} giriş`
       : 'sınırsız'
+  }
+  const std = standardCreditsFor(s, products)
+  const note = std != null && s.creditsGranted != null && std !== s.creditsGranted ? ` (normalde ${std})` : ''
+  return `${s.creditsAvailable}/${s.creditsGranted} kredi${note}`
+}
 
 export function SubscriptionsPanel({ memberId, memberPhone = null, products, surchargeByProduct = {} }: { memberId: string; memberPhone?: string | null; products: readonly ProductView[]; surchargeByProduct?: Record<string, number> }) {
   const [subs, setSubs] = useState<readonly SubscriptionView[] | null>(null)
@@ -159,7 +179,7 @@ export function SubscriptionsPanel({ memberId, memberPhone = null, products, sur
       ) : (
         <div className="space-y-2">
           {toCards(active).map((c) => (
-            <SubscriptionRow key={c.primary.id} sub={c.primary} siblings={c.components} onChanged={load} />
+            <SubscriptionRow key={c.primary.id} sub={c.primary} siblings={c.components} products={products} onChanged={load} />
           ))}
           {past.length > 0 ? (
             <div className="space-y-2 pt-1">
@@ -171,7 +191,7 @@ export function SubscriptionsPanel({ memberId, memberPhone = null, products, sur
                 {showPast ? 'Pasif paketleri gizle' : `Pasif paketleri göster (${past.length})`}
               </button>
               {showPast
-                ? toCards(past).map((c) => <SubscriptionRow key={c.primary.id} sub={c.primary} siblings={c.components} onChanged={load} />)
+                ? toCards(past).map((c) => <SubscriptionRow key={c.primary.id} sub={c.primary} siblings={c.components} products={products} onChanged={load} />)
                 : null}
             </div>
           ) : null}
@@ -181,7 +201,7 @@ export function SubscriptionsPanel({ memberId, memberPhone = null, products, sur
   )
 }
 
-function SubscriptionRow({ sub, siblings, onChanged }: { sub: SubscriptionView; siblings: readonly SubscriptionView[]; onChanged: () => void }) {
+function SubscriptionRow({ sub, siblings, products, onChanged }: { sub: SubscriptionView; siblings: readonly SubscriptionView[]; products: readonly ProductView[]; onChanged: () => void }) {
   const [open, setOpen] = useState(false)
   const [historyOpen, setHistoryOpen] = useState(false)
   const [dialog, setDialog] = useState<'amend' | 'credit' | 'status' | null>(null)
@@ -226,8 +246,8 @@ function SubscriptionRow({ sub, siblings, onChanged }: { sub: SubscriptionView; 
   const groupFrozen = siblings.some((s) => s.status === 'frozen')
   const cardStatus = groupFrozen ? 'frozen' : siblings.every((s) => s.status === 'cancelled') ? 'cancelled' : 'active'
   const contentSummary = bundle
-    ? siblings.map((s) => `${BUNDLE_CAT[s.category] ?? s.category} ${componentLine(s)}`).join(' · ')
-    : componentLine(sub)
+    ? siblings.map((s) => `${BUNDLE_CAT[s.category] ?? s.category} ${componentLine(s, products)}`).join(' · ')
+    : componentLine(sub, products)
 
   return (
     <div className="rounded-xl border border-border">
@@ -257,7 +277,7 @@ function SubscriptionRow({ sub, siblings, onChanged }: { sub: SubscriptionView; 
               {siblings.map((s) => (
                 <div key={s.id} className="flex items-center justify-between gap-2">
                   <span className="text-muted-foreground">{BUNDLE_CAT[s.category] ?? s.category}</span>
-                  <span className="font-medium text-foreground">{componentLine(s)}</span>
+                  <span className="font-medium text-foreground">{componentLine(s, products)}</span>
                 </div>
               ))}
             </div>

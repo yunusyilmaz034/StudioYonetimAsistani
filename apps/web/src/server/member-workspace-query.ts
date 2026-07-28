@@ -39,6 +39,15 @@ export interface MemberReservationRow {
   readonly startsAt: number
   readonly endsAt: number
   readonly creditEffect: string
+  // WHICH PACKAGE PAID FOR THIS (owner, 2026-07-28). Their previous system colours a member's
+  // reservations by subscription so a glance tells you which package each one came out of — and its
+  // own help text admits the grouping "may be wrong for overlapping subscriptions", because it
+  // INFERS the link from dates. We do not have to infer it: the reservation has held a credit from a
+  // named entitlement since it was booked. Exact, not guessed.
+  readonly entitlementId: string
+  readonly packageName: string | null
+  /** Stable per package within this member's list — the UI turns it into a colour. */
+  readonly packageIndex: number
 }
 
 export interface MemberCheckInRow {
@@ -113,6 +122,20 @@ export async function loadMemberWorkspace(
   let balanceDueKurus = 0
   for (const m of money.values()) balanceDueKurus += m.due.amount
 
+  // Every package this member has EVER held, named — not only the active ones: a past reservation
+  // was paid for by a package that may have expired months ago, and colouring it "unknown" would
+  // lose exactly the history the owner wants to see.
+  const allEnts = await entitlements.listByMember(ctx, id).catch(() => activeEntitlements)
+  const packageNameById = new Map<string, string>()
+  for (const e of allEnts) packageNameById.set(e.id as string, e.productSnapshot.name)
+
+  // A stable index per entitlement, ordered by when the package started, so the colours read like a
+  // timeline: her first package is the first colour, whichever reservation you happen to look at.
+  const orderedEntIds = [...allEnts]
+    .sort((a, b) => a.validFrom - b.validFrom || (a.id < b.id ? -1 : 1))
+    .map((e) => e.id as string)
+  const packageIndexById = new Map(orderedEntIds.map((eid, i) => [eid, i]))
+
   const toRow = (r: (typeof memberReservations)[number]): MemberReservationRow => ({
     reservationId: r.id,
     status: r.status,
@@ -120,6 +143,9 @@ export async function loadMemberWorkspace(
     startsAt: r.sessionStartsAt,
     endsAt: r.sessionEndsAt,
     creditEffect: r.creditEffect,
+    entitlementId: r.entitlementId as string,
+    packageName: packageNameById.get(r.entitlementId as string) ?? null,
+    packageIndex: packageIndexById.get(r.entitlementId as string) ?? 0,
   })
 
   // listByMember is newest-session-first. Upcoming re-sorted ascending (soonest next);
