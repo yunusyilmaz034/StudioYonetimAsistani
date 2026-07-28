@@ -78,3 +78,38 @@ export function blockedByFrozen(
       e.freeze?.activeFrom != null,
   )
 }
+
+// ── A HYBRID is one window over several categories (2026-07-27) ─────────────────────────────
+//
+// A bundle grants one entitlement per component, but they share ONE `validFrom`/`validUntil` — it is
+// a single sale with a single window. So the queue has to be answered for every category it touches,
+// not just the product's "face" category, which for a hybrid is only the one it displays under.
+//
+// Without this, a member whose Fitness membership runs to October buys a hybrid, the queue looks at
+// Pilates alone, and the hybrid's fitness half lands on top of the months she has already paid for.
+// That is precisely the overlap the queue exists to prevent, arriving through the one door nobody
+// checked.
+//
+// When the categories AGREE, the answer is that date. When they DISAGREE there is no honest single
+// window — starting at the later one denies her the category that was free; starting at the earlier
+// one bills her twice for the other. Neither is a decision a checkout should make unattended, so it
+// says so and lets a human sell it with the real dates in view.
+export type BundleStart =
+  | { readonly ok: true; readonly startsAt: Instant }
+  | { readonly ok: false; readonly reason: 'categories_disagree'; readonly perCategory: readonly { category: Category; startsAt: Instant }[] }
+
+export function nextBundleStart(
+  existing: readonly Entitlement[],
+  categories: readonly Category[],
+  now: Instant,
+): BundleStart {
+  const perCategory = [...new Set(categories)].map((category) => ({
+    category,
+    startsAt: nextPackageStart(existing, category, now),
+  }))
+  const first = perCategory[0]
+  if (!first) return { ok: true, startsAt: now }
+  return perCategory.every((c) => c.startsAt === first.startsAt)
+    ? { ok: true, startsAt: first.startsAt }
+    : { ok: false, reason: 'categories_disagree', perCategory }
+}

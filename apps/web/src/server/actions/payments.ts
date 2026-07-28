@@ -12,7 +12,7 @@ import {
   FirestoreEntitlementRepository,
   FirestoreMemberRepository,
   blockedByFrozen,
-  nextPackageStart,
+  nextBundleStart,
   FirestorePaymentIntentRepository,
   FirestorePaymentLinkRepository,
   FirestoreSchedulingRepository,
@@ -253,8 +253,15 @@ export async function createMemberPackageCheckout(ctx: TenantContext, memberId: 
   // The one case with no honest answer is a FROZEN package: its `validUntil` has not been extended
   // yet (that lands at unfreeze), so any queue date computed now is one we already know is wrong.
   // Refused rather than guessed — reception sells it, with the real dates in front of her.
-  const category = product.category
-  if (blockedByFrozen(existing, category, systemClock.now())) {
+  // EVERY category this purchase grants — for a hybrid that is its components, not the single
+  // "face" category it displays under. Checking only the face let a hybrid's fitness half land on
+  // top of a fitness membership the member had already paid for.
+  const categories =
+    product.components && product.components.length > 0
+      ? product.components.map((c) => c.category)
+      : [product.category]
+
+  if (categories.some((c) => blockedByFrozen(existing, c, systemClock.now()))) {
     return { ok: false as const, error: { code: 'entitlement_frozen' as const } }
   }
   // ── One payment at a time ───────────────────────────────────────────────────────────────────
@@ -268,7 +275,9 @@ export async function createMemberPackageCheckout(ctx: TenantContext, memberId: 
   )
   if (pending.length > 0) return { ok: false as const, error: { code: 'payment_already_pending' as const } }
 
-  const startMs = nextPackageStart(existing, category, systemClock.now())
+  const start = nextBundleStart(existing, categories, systemClock.now())
+  if (!start.ok) return { ok: false as const, error: { code: 'bundle_start_conflict' as const } }
+  const startMs = start.startsAt
 
   const nowTr = new Date(startMs + 3 * 3_600_000)
   const validFrom = nowTr.toISOString().slice(0, 10)

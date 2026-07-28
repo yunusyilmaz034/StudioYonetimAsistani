@@ -36,6 +36,8 @@ export function domainErrorMessage(error: DomainError): string {
       return 'Bu işlem zaten uygulandı. Aynı işlem ikinci kez uygulanamaz.'
     case 'operation_not_applicable':
       return 'Bu işlem uygulanabilir durumda değil.'
+    case 'bundle_start_conflict':
+      return 'Bu paket, mevcut üyeliklerinizle çakışıyor. Doğru başlangıç tarihi için lütfen stüdyoyla iletişime geçin.'
     case 'invalid_freeze_days':
       return 'Geçerli bir gün sayısı girin (en az 1 gün).'
     case 'freeze_days_exceed_budget':

@@ -33,6 +33,10 @@ export type DomainError =
   // Freeze plans (owner, 2026-07-28). A duration is chosen up front now, so it can be wrong: zero
   // days is not a freeze, and more days than she has left is REFUSED rather than clamped — quietly
   // freezing for five when reception asked for ten is the studio not doing what it said.
+  // A hybrid is ONE window over several categories. When they queue to different dates there is no
+  // honest single window — later denies her the category that was free, earlier bills her twice for
+  // the other — so an unattended checkout refuses and a human sells it with the real dates in view.
+  | { readonly code: 'bundle_start_conflict' }
   | { readonly code: 'invalid_freeze_days' }
   | { readonly code: 'freeze_days_exceed_budget'; readonly remaining: number }
   // I-28 (v1.22) — a bulk act is applied at most once. `status` is the guard; a second apply is

@@ -27,7 +27,7 @@ export {
 export { coversService, isEligibleForService } from './domain/eligibility'
 // When a renewal starts (owner, 2026-07-27): behind the package it renews, so no paid day burns
 // unused. `blockedByFrozen` is the one case with no honest answer — the caller refuses instead.
-export { blockedByFrozen, nextPackageStart } from './domain/renewal'
+export { blockedByFrozen, nextBundleStart, nextPackageStart, type BundleStart } from './domain/renewal'
 export * from './events'
 export {
   decideAdjust,
