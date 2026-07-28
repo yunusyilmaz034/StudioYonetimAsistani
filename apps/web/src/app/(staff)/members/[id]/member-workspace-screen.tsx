@@ -531,7 +531,7 @@ function ReservationsPanel({
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
           {[...legend.entries()].map(([i, name]) => (
             <span key={i} className="flex items-center gap-1.5">
-              <span className={`inline-block h-3 w-1 rounded-full ${PKG_DOT[i % PKG_DOT.length]}`} />
+              <span className={`inline-block size-3 rounded ${PKG_DOT[i % PKG_DOT.length]}`} />
               <span className="truncate">{name}</span>
             </span>
           ))}
@@ -585,13 +585,20 @@ const PKG_DOT: readonly string[] = [
   'bg-muted-foreground',
 ]
 
-const PKG_EDGE: readonly string[] = [
-  'border-l-primary',
-  'border-l-info',
-  'border-l-success',
-  'border-l-warning',
-  'border-l-danger',
-  'border-l-muted-foreground',
+// The whole row is tinted, not a stripe down its side (owner, 2026-07-28: "solda küçük boyama değil
+// de zeminini boya"). A four-pixel edge is a detail you have to look for; a filled row is something
+// you see without looking, which is the entire point of colouring these at all.
+//
+// Soft tints (/12) so text stays readable in both themes and six rows do not turn the tab into a
+// paint chart — the hue carries the meaning, the saturation must not carry attention it has not
+// earned.
+const PKG_BG: readonly string[] = [
+  'bg-primary/12 hover:bg-primary/20',
+  'bg-info/12 hover:bg-info/20',
+  'bg-success/12 hover:bg-success/20',
+  'bg-warning/12 hover:bg-warning/20',
+  'bg-danger/12 hover:bg-danger/20',
+  'bg-muted-foreground/12 hover:bg-muted-foreground/20',
 ]
 
 // The outcome is the point of a past reservation — it carries the colour, not an outline.
@@ -629,8 +636,8 @@ function ReservationItem({ r, cancelable = false }: { r: MemberReservationRow; c
 
   return (
     <li
-      className={`flex items-center justify-between gap-3 border-l-4 px-3 py-2.5 transition-colors hover:bg-primary-soft/40 ${
-        PKG_EDGE[r.packageIndex % PKG_EDGE.length]
+      className={`flex items-center justify-between gap-3 px-3 py-2.5 transition-colors ${
+        PKG_BG[r.packageIndex % PKG_BG.length]
       }`}
     >
       <div className="min-w-0">
