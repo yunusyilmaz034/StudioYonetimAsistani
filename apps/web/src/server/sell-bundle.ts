@@ -30,8 +30,16 @@ export async function grantBundleComponents(
     const isPrimary = i === 0
     const override = args.componentOverrides?.[i] ?? null
     const isCredit = c.creditCount != null
+    // The package's OWN size, never the reduced one (owner, 2026-07-28): "8 kredilik ders satsam
+    // 5/8 göster". The denominator is what she bought and it does not shrink because she arrived
+    // mid-package; the reduction is a starting balance, not a smaller package.
+    //
+    // So the grant stays at the component's count and the override travels as `creditOverride`,
+    // which `assignSubscription` applies as an adjustment — the same path a plain product has always
+    // used. This was the ONE place the two disagreed, and it is why a hybrid read "7/7" where a
+    // plain package would have read "7/8".
     const grant: Grant = isCredit
-      ? { kind: 'credits', credits: override ?? c.creditCount ?? 0, validForDays: args.product.durationDays }
+      ? { kind: 'credits', credits: c.creditCount ?? 0, validForDays: args.product.durationDays }
       : { kind: 'period', durationDays: args.product.durationDays, access: 'unlimited' }
     const cEntry = isCredit ? c.entryAllowance : override ?? c.entryAllowance
     const subscription: AssignSubscriptionInput = {
@@ -54,7 +62,9 @@ export async function grantBundleComponents(
       validFrom: args.validFromMs,
       validUntil: args.validUntilMs,
       freezeDays: args.product.freezeAllowanceDays > 0 ? args.product.freezeAllowanceDays : null,
-      creditOverride: null,
+      // A credit component's override lands here; a giriş component carries its cap on the snapshot
+      // instead (`cEntry` above), so it stays null there.
+      creditOverride: isCredit ? (override ?? null) : null,
       collectedAmount: money(0),
       method: args.method,
       note: args.note,

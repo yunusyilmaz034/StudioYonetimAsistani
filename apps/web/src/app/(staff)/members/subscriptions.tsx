@@ -116,7 +116,13 @@ const componentLine = (s: SubscriptionView, products: readonly ProductView[] = [
   }
   const std = standardCreditsFor(s, products)
   const note = std != null && s.creditsGranted != null && std !== s.creditsGranted ? ` (normalde ${std})` : ''
-  return `${s.creditsAvailable}/${s.creditsGranted} kredi${note}`
+  // `X/Y` reads as "X left out of Y" — a ceiling. After a gift or a correction she can hold MORE
+  // than she was granted, and "9/8 kredi" is then a sentence nobody can parse: there is no eight to
+  // have nine of. In that case the denominator is not a ceiling and is dropped; the number that
+  // matters — what she can actually book with — stands on its own.
+  const av = s.creditsAvailable ?? 0
+  const granted = s.creditsGranted
+  return granted != null && av <= granted ? `${av}/${granted} kredi${note}` : `${av} kredi${note}`
 }
 
 export function SubscriptionsPanel({ memberId, memberPhone = null, products, surchargeByProduct = {} }: { memberId: string; memberPhone?: string | null; products: readonly ProductView[]; surchargeByProduct?: Record<string, number> }) {
