@@ -9,6 +9,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ---
 
+## Start here, every session
+
+Two documents carry what the code cannot tell you. Read them before doing anything else:
+
+- **[`docs/HANDOVER.md`](docs/HANDOVER.md)** — where the project actually is *right now*: what is
+  live, what is half-done, what someone is waiting on, and which traps have already cost something.
+  This is a live studio; the state matters more than the design.
+- **[`docs/OWNER-RULES.md`](docs/OWNER-RULES.md)** — standing decisions the owner has made that are
+  **not derivable from the code**. Binding until he says otherwise. Re-deciding one of these is not a
+  fresh perspective, it is undoing a decision that was already paid for.
+
+Keep both current in the same commit as the change they describe. A handover that lags is worse than
+none, because it is believed.
+
 ## What this is
 
 A **Studio Operating System** — a multi-tenant SaaS platform for boutique fitness studios. The first customer is a women-only Pilates & Fitness studio in Türkiye; it is **not** the only customer, and no code may assume it is.

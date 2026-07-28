@@ -1,3 +1,7 @@
+> **Before the architecture: [`../HANDOVER.md`](../HANDOVER.md)** tells you where the project
+> is right now, and [`../OWNER-RULES.md`](../OWNER-RULES.md) the standing decisions that are not
+> visible in the code. This directory explains the design; those two explain the moment.
+
 # Architecture
 
 The source of truth for **why** this system is shaped the way it is.
