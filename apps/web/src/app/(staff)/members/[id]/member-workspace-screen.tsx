@@ -381,7 +381,7 @@ function QuickActions({
   return (
     <div className="flex flex-wrap gap-2">
       <Button size="sm" className="min-h-11 sm:min-h-9" onClick={onBook}>
-        <CalendarPlusIcon /> Rezervasyon
+        <CalendarPlusIcon /> Rezervasyon Yap
       </Button>
       <Button size="sm" variant="outline" className="min-h-11 sm:min-h-9" onClick={checkin} disabled={busy}>
         {busy ? <Loader2Icon className="animate-spin" /> : <DoorOpenIcon />}
@@ -512,7 +512,7 @@ function ReservationsPanel({
 
   return (
     <div className="space-y-5">
-      {/* The header's "Rezervasyon" button already books, and books better. A second button that
+      {/* The header's "Rezervasyon Yap" already books, and books better. A second button that
           only navigates elsewhere was a longer way round to the same thing (owner, 2026-07-28). */}
       {hiddenCount > 0 || showCancelled ? (
         <label className="flex items-center gap-2 text-sm text-muted-foreground">
