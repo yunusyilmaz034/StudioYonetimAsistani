@@ -7,7 +7,7 @@ export function autoSaleNote(packageCredit: number | null | undefined, creditOve
   const typed = providedNote.trim()
   if (typed) return providedNote
   if (creditOverride != null && packageCredit != null && creditOverride !== packageCredit) {
-    return `Satışta kredi ${packageCredit} → ${creditOverride} olarak ayarlandı`
+    return `Eski sistemden devir — ${packageCredit} derslik pakette ${creditOverride} ders kaldı`
   }
   return providedNote
 }

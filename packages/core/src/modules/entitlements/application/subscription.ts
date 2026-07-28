@@ -90,10 +90,23 @@ export async function assignSubscription(
   }
   const events: NewEvent[] = [...decidePurchase(dctx, ent)]
 
-  // Credit override → adjust to the desired count (reuses decideAdjust — I-1/I-3).
+  // ── Credit override → the package's OPENING BALANCE (owner, 2026-07-28) ───────────────────
+  //
+  // The package keeps its real size — an eight-class package stays eight — and the override sets
+  // what she starts with. That is the whole shape of a migration: she bought eight under the old
+  // system, used three there, and arrives here with five of eight.
+  //
+  // `migration`, not `correction`. Nobody corrected anything: no mistake was made and none was
+  // fixed. The enum has carried a `migration` value since it was written and this is what it was
+  // for. It matters because the reason is the analysable half of the record — the free-text note is
+  // for people, the enum is for the question "how many of these came over from the old system, and
+  // with what balances?", which cannot be asked of the word "correction".
+  //
+  // Owner: "bu tamamen eski sistemden yeni sisteme geçişte doğal olan şeyler." A new member is sold
+  // her package whole and never reaches this branch at all.
   if (input.creditOverride !== null && ent.credits && input.creditOverride !== available(ent.credits)) {
     const delta = input.creditOverride - available(ent.credits)
-    const adj = decideAdjust(dctx, ent, delta, 'correction', input.note)
+    const adj = decideAdjust(dctx, ent, delta, 'migration', input.note)
     if (!adj.ok) return adj
     ent = adj.value.next
     events.push(...adj.value.events)
