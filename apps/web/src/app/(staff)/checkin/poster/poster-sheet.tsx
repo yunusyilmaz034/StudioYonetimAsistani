@@ -40,6 +40,28 @@ export function PosterSheet({
   validUntil: number
 }) {
   const [png, setPng] = useState<string | null>(null)
+  // ── Left on a screen, this page must not outlive its code (2026-07-29) ──────────────────────
+  //
+  // The sheet is printed daily, but reception may also leave it open on a second monitor so the
+  // code refreshes itself instead of being reprinted. A tab opened yesterday would happily keep
+  // showing yesterday's QR: still rendered, still scannable, and dead. Members would scan it, get
+  // "kod geçersiz", and nobody would connect the two — the screen looks fine.
+  //
+  // So the page reloads itself the moment the code expires. A one-minute cushion covers clock skew
+  // between this browser and the server that will verify the scan.
+  const [expired, setExpired] = useState(false)
+  useEffect(() => {
+    const msLeft = validUntil - Date.now()
+    if (msLeft <= 0) {
+      setExpired(true)
+      return
+    }
+    const t = setTimeout(() => {
+      setExpired(true)
+      window.location.reload()
+    }, msLeft + 60_000)
+    return () => clearTimeout(t)
+  }, [validUntil])
 
   // The scanned URL. It carries the studio so a member who is not signed in can be sent to HER
   // studio's login and back to this exact sheet.
@@ -87,9 +109,18 @@ export function PosterSheet({
           <PrinterIcon className="size-4" /> Yazdır
         </Button>
 
+        {expired ? (
+          <div className="mt-4 rounded-xl border-2 border-danger/50 bg-danger/10 p-4">
+            <p className="font-medium text-danger">Bu kodun günü doldu.</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Sayfa kendini yeniliyor. Yenilenmezse tarayıcıyı tazeleyin (⌘R) ve yeni kâğıdı yazdırın.
+            </p>
+          </div>
+        ) : null}
+
         <div className="mt-6 rounded-2xl border bg-card p-6">
           <p className="mb-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">Önizleme</p>
-          {png ? (
+          {png && !expired ? (
             /* A plain <img>: the source is a data: URI generated in this browser, so there is nothing
                for next/image to optimise and no remote host to allow. */
             <img src={png} alt="Giriş QR kodu" className="mx-auto w-56" />
@@ -106,7 +137,7 @@ export function PosterSheet({
             <p className="text-4xl font-semibold">{studioName}</p>
             <p className="mt-3 text-3xl">Girişinizi telefonunuzla okutun</p>
           </div>
-          {png ? (
+          {png && !expired ? (
             /* Same data: URI — see above. */
             <img src={png} alt="" className="w-[16cm]" />
           ) : null}
