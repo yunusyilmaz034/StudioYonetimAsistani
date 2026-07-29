@@ -7,7 +7,7 @@ explains the moment.
 Keep it current the way the code is kept current: when the state changes, this changes in the same
 commit. A handover document that lags is worse than none, because it is believed.
 
-_Last true as of: **2026-07-28**._
+_Last true as of: **2026-07-29**._
 
 ---
 
@@ -38,11 +38,17 @@ grants and refuses when they disagree. The studio is notified the moment a self-
 
 | | Version | Where |
 |---|---|---|
-| iOS | 1.0.1 (build 4) | **in App Store review** since 2026-07-28. 1.0 is live. Auto-releases on approval. |
-| Android | 1.0.1 (build 5) | **published to closed test.** |
+| iOS | 1.0.1 (build 4) | **LIVE on the App Store** — approved 2026-07-29 night, in members' hands. |
+| Android | 1.0.1 (build 5) | **in closed test**, running normally. |
 
-**Android's production clock is running: 12 testers, day 2 of 14.** If a tester leaves the test the
-counter RESETS. Do not remove testers. Publishing new builds does not reset it.
+**Android's production clock is running: 12 testers, day 3 of 14 (2026-07-29).** If a tester leaves
+the test the counter RESETS. Do not remove testers. Publishing new builds does not reset it —
+which is why the 1.1.0 pair below can be built when its turn comes without costing a day.
+
+**Next mobile release is 1.1.0**, holding two approved-and-deferred items: PF-42 (swap Cüzdan out of
+the tab bar for Üyeliğim) and PF-43 (collapse past reservations, mobile + web). Both are specified
+file-by-file in `docs/PRODUCT-FEEDBACK.md`. iOS is now clear of review, so the only remaining
+constraint is that they ship together in one build rather than one review turn each.
 
 Submissions are automated: `cd apps/mobile && npx eas-cli submit --platform android --profile
 production --latest`. The Play service account key is gitignored at
