@@ -93,6 +93,22 @@ never handed. Seats are held by a human who can see the room and the day.
 
 ---
 
+**OR-17 · Deploy at night; the panel is the business during the day.** (2026-07-29) Every deploy
+breaks whatever tab is already open — Next.js re-hashes its Server Action ids, and a page loaded
+before the build can no longer save. On 2026-07-29 three pushes in ninety minutes cost reception a
+member registration and a member her account activation; both were healthy, both tabs were stale.
+So: **batch fixes and ship them after hours.** Something genuinely urgent still ships immediately —
+that is the owner's call, not a reason to hesitate — but it is announced first so reception reloads
+once instead of discovering it in front of a customer.
+
+**OR-18 · Test accounts are excluded from the books, never deleted from the log.** (2026-07-29) The
+studio's own people (Işıl ×2, Reyhan, Yunus) tried the system on live accounts: 36.040 ₺ of sales on
+17 July and their reversal as −44.473 ₺ on 29 July, all arithmetically correct and operationally
+meaningless. The events STAY — an event is never deleted, and that rule is worth more than any
+single day's tidiness. What changed is what the read model counts:
+`/studios/{sid}/settings/projection.excludedMemberIds`, read by both the live projector and
+`pnpm projections:rebuild`. Adding an account to that list and rebuilding is the whole procedure.
+
 ## Traps that have already cost something
 
 **OR-14 · Firestore indexes are a production-only trap.** The emulator does NOT enforce them, so a

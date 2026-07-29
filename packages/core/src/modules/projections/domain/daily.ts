@@ -75,6 +75,8 @@ export interface ProjectableEvent {
   readonly type: string
   readonly occurredAt: Instant
   readonly payload: Record<string, unknown>
+  /** `related.memberId`, when the event has one. Used only to exclude test accounts — see below. */
+  readonly memberId?: string | null
 }
 
 export interface DailyIncrement {
@@ -112,11 +114,41 @@ const id = (v: unknown): string | null => (typeof v === 'string' && v.length > 0
 // dead. The watermark has to mean "the newest event I have SEEN" or it cannot detect the thing it
 // exists to detect. It costs one small write per uncounted event, and buys an alarm that can be
 // believed — and an alarm nobody believes is worse than no alarm, because it silences the real one.
-export function projectDaily(event: ProjectableEvent, utcOffsetMinutes: number): DailyIncrement {
+// ── EXCLUDING TEST ACCOUNTS (owner, 2026-07-29) ─────────────────────────────────────────────
+//
+// The studio's own people used live accounts to try the system out: packages sold, cancelled, paid
+// and voided against four accounts that were never customers. The books recorded all of it, because
+// the books are honest — 36.040 ₺ of sales on 17 July, and their reversal showing as −44.473 ₺ on
+// 29 July. Every one of those numbers was arithmetically right and operationally meaningless.
+//
+// The owner asked for them to be removed. The events are NOT deleted — an event is never deleted,
+// and that rule is worth more than any single day's tidiness. What changes is only what the READ
+// MODEL counts, which is precisely the freedom a disposable projection buys us.
+//
+// Excluded events fold as `seen()`: the watermark advances, no counter moves. This is the same
+// treatment a settings change gets, and for the same reason — a projector that SKIPS an event is
+// indistinguishable from a projector that has died, and `projection_lag` exists to tell those apart.
+//
+// The list is CONFIGURATION, read from the studio's own settings and passed in — not a constant in
+// this file. Two reasons: member ids belong to one tenant and have no business in shared source,
+// and a rebuild must be able to reach the same answer as the live projector. Both callers read the
+// same document; `pnpm projections:verify` fails loudly if they ever disagree.
+//
+// It is deliberately blunt: an excluded account contributes NOTHING — not money, not attendance,
+// not check-ins. The owner's instruction was "hepsi çıksın", and a half-excluded account would put
+// test classes in the attendance report while keeping test money out of the sales one.
+export function projectDaily(
+  event: ProjectableEvent,
+  utcOffsetMinutes: number,
+  excludedMemberIds: ReadonlySet<string> = new Set(),
+): DailyIncrement {
   const date = localDateAt(event.occurredAt, utcOffsetMinutes) as string
   const one = (counters: DailyIncrement['counters']): DailyIncrement => ({ date, counters })
   // Seen, not counted: the watermark moves, nothing else does.
   const seen = (): DailyIncrement => one({})
+
+  // Before anything else: a test account's event is seen and never counted.
+  if (event.memberId && excludedMemberIds.has(event.memberId)) return seen()
 
   switch (event.type) {
     case 'reservation.booked':

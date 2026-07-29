@@ -13,6 +13,7 @@ import {
   DEFAULT_STUDIO_CONFIG,
   FirestoreProjectionRepository,
   instant,
+  loadExcludedMemberIds,
   projectDaily,
   type StudioId,
   type TenantContext,
@@ -38,6 +39,8 @@ const ctx: TenantContext = {
 async function main(): Promise<void> {
   const repo = new FirestoreProjectionRepository(db)
 
+  // The same list the live projector uses — a rebuild that ignored it would undo the exclusion.
+  const excluded = await loadExcludedMemberIds(db, studioId as StudioId)
   console.log(`Rebuilding the daily read model for ${studioId}…`)
   await repo.clearAll(ctx)
 
@@ -60,8 +63,10 @@ async function main(): Promise<void> {
         type: d.type as string,
         occurredAt: instant(occurredAt),
         payload: (d.payload ?? {}) as Record<string, unknown>,
+        memberId: (d.related as { memberId?: string } | undefined)?.memberId ?? null,
       },
       DEFAULT_STUDIO_CONFIG.utcOffsetMinutes,
+      excluded,
     )
     await repo.applyOnce(ctx, doc.id, recordedAt, inc)
     folded++

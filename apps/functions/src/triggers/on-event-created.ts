@@ -8,6 +8,7 @@ import {
   FirestoreProjectionRepository,
   instant,
   memberActivityFromEvent,
+  loadExcludedMemberIds,
   projectDaily,
   type StudioId,
   type SystemJobId,
@@ -66,13 +67,19 @@ export const onEventCreated = onDocumentCreated(
       logger.error('notification dispatch failed', { eventId, err })
     }
 
+    // Test accounts are SEEN but never COUNTED (owner, 2026-07-29). The list is configuration read
+    // from the studio's own settings — the rebuild reads the same document, so replaying the log
+    // lands on the same numbers. One extra read per event, on a path that already does several.
+    const excluded = await loadExcludedMemberIds(db(), studioId as StudioId)
     const inc = projectDaily(
       {
         type: data.type as string,
         occurredAt: instant(occurredAt),
         payload: (data.payload ?? {}) as Record<string, unknown>,
+        memberId: (data.related as { memberId?: string } | undefined)?.memberId ?? null,
       },
       DEFAULT_STUDIO_CONFIG.utcOffsetMinutes,
+      excluded,
     )
     // Most of the catalogue contributes nothing to the dashboard's NUMBERS — and it is still folded,
     // with an empty increment, so the projector's watermark advances. A projector that skips an event

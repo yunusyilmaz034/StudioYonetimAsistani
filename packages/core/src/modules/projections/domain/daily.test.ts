@@ -152,3 +152,51 @@ describe('projectDaily (v1.23)', () => {
     expect(a.lastEventAt).toBe(at(13.0))
   })
 })
+
+// ── Excluding test accounts (owner, 2026-07-29) ──────────────────────────────────────────────
+describe('excluded members', () => {
+  const TEST_MEMBER = 'mem_test_1'
+  const REAL_MEMBER = 'mem_real_1'
+  const excluded = new Set([TEST_MEMBER])
+  const sale = (memberId: string) => ({
+    type: 'sale.created',
+    occurredAt: at(108),
+    payload: { total: { amount: 3_604_000, currency: 'TRY' }, productId: 'prd_x' },
+    memberId,
+  })
+
+  it('counts nothing for an excluded member — the 36.040 ₺ that was never a sale', () => {
+    const inc = projectDaily(sale(TEST_MEMBER), OFFSET, excluded)
+    expect(inc.counters).toEqual({})
+    expect(inc.productSales).toBeUndefined()
+  })
+
+  it('still SEES the event — the watermark must advance or the lag alarm lies', () => {
+    // A projector that skips an event cannot be told apart from one that has died. The date is what
+    // `applyOnce` writes the watermark against, so it has to be there.
+    expect(projectDaily(sale(TEST_MEMBER), OFFSET, excluded).date).toBe('2026-07-17')
+  })
+
+  it('leaves a real member untouched', () => {
+    expect(projectDaily(sale(REAL_MEMBER), OFFSET, excluded).counters).toEqual({ salesKurus: 3_604_000 })
+  })
+
+  it('excludes EVERYTHING, not just money — the owner said hepsi çıksın', () => {
+    const attended = {
+      type: 'reservation.attended',
+      occurredAt: at(108),
+      payload: {},
+      memberId: TEST_MEMBER,
+    }
+    expect(projectDaily(attended, OFFSET, excluded).counters).toEqual({})
+  })
+
+  it('counts normally when no exclusion list is supplied — the default changes nothing', () => {
+    expect(projectDaily(sale(TEST_MEMBER), OFFSET).counters).toEqual({ salesKurus: 3_604_000 })
+  })
+
+  it('ignores an event with no member at all', () => {
+    const settings = { type: 'studio.settings_changed', occurredAt: at(108), payload: {} }
+    expect(projectDaily(settings, OFFSET, excluded).counters).toEqual({})
+  })
+})
