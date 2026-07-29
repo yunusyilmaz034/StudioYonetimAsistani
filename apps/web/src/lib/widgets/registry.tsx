@@ -163,6 +163,20 @@ const todayCheckIns: Widget<{ checkIns: number }> = {
 
 // Owner D-1 — three separate numbers, because they answer three different questions: what did we
 // sell, what did we collect, and what are we owed.
+// ── A NET figure can go negative, and it must not stay green (2026-07-29) ───────────────────
+//
+// Cancelling a sale subtracts it on the day it is CANCELLED — the projection never rewrites a past
+// day's total, because a dashboard that edits history disagrees with a report someone already
+// printed. That is the right rule, and it means a day of corrections legitimately reads negative.
+//
+// What was wrong was the presentation. The studio cleared out test purchases and the tile showed
+// "-44.473 ₺" in success green under the words "kasaya giren" — money IN. Green and a minus sign
+// say opposite things, and the owner read it as a bug in the till rather than as the reversal it
+// was. The number was right; the colour was lying about it.
+//
+// So the tone follows the sign, and the wording stops claiming money arrived when it left.
+const signTone = (kurus: number) => (kurus < 0 ? 'danger' : 'success')
+
 const todaySales: Widget<{ salesKurus: number }> = {
   id: 'today.sales',
   title: 'Bugünkü satış',
@@ -170,12 +184,25 @@ const todaySales: Widget<{ salesKurus: number }> = {
   href: () => '/activity?kinds=membership&range=today',
   select: (s) => ({ salesKurus: s.today.salesKurus }),
   present: (d) => ({
-    headline: `Bugün ${tl(d.salesKurus)} satış yapıldı.`,
-    detail: 'Tahsil edilmemiş olsa da satış sayılır.',
-    tone: 'success',
+    headline:
+      d.salesKurus < 0
+        ? `Bugün net ${tl(d.salesKurus)} — iptaller satıştan fazla.`
+        : `Bugün ${tl(d.salesKurus)} satış yapıldı.`,
+    detail:
+      d.salesKurus < 0
+        ? 'İptal edilen satışlar, iptal edildikleri günden düşülür.'
+        : 'Tahsil edilmemiş olsa da satış sayılır.',
+    tone: signTone(d.salesKurus),
     needsAttention: false,
   }),
-  render: (d) => <MetricFace value={tl(d.salesKurus)} hint="anlaşılan tutar" icon={PackageIcon} tone="success" />,
+  render: (d) => (
+    <MetricFace
+      value={tl(d.salesKurus)}
+      hint={d.salesKurus < 0 ? 'net · iptaller düşülmüş' : 'anlaşılan tutar'}
+      icon={PackageIcon}
+      tone={signTone(d.salesKurus)}
+    />
+  ),
 }
 
 const todayCollected: Widget<{ collectedKurus: number }> = {
@@ -185,12 +212,20 @@ const todayCollected: Widget<{ collectedKurus: number }> = {
   href: () => '/activity?kinds=payment&range=today',
   select: (s) => ({ collectedKurus: s.today.collectedKurus }),
   present: (d) => ({
-    headline: `Bugün ${tl(d.collectedKurus)} tahsil edildi.`,
-    tone: 'success',
+    headline:
+      d.collectedKurus < 0
+        ? `Bugün net ${tl(d.collectedKurus)} — iade/iptal tahsilattan fazla.`
+        : `Bugün ${tl(d.collectedKurus)} tahsil edildi.`,
+    tone: signTone(d.collectedKurus),
     needsAttention: false,
   }),
   render: (d) => (
-    <MetricFace value={tl(d.collectedKurus)} hint="kasaya giren" icon={CreditCardIcon} tone="success" />
+    <MetricFace
+      value={tl(d.collectedKurus)}
+      hint={d.collectedKurus < 0 ? 'net · kasadan çıkan' : 'kasaya giren'}
+      icon={CreditCardIcon}
+      tone={signTone(d.collectedKurus)}
+    />
   ),
 }
 
