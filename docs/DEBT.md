@@ -977,3 +977,29 @@ serving a stale build for more than an hour.
 **Repayment (cheapest first):** a lint rule asserting every export of a `'use server'` file is an
 async function — that is the actual rule, it costs milliseconds, and it catches this whole class at
 the gate. Only if that proves insufficient: `next build` in a pre-push hook (never pre-commit).
+
+---
+
+## DEBT-032 — a bundle that fails halfway cannot be retried for a minute
+
+**Taken:** 2026-07-29, alongside the duplicate-sale guard.
+
+A hybrid bundle grants one entitlement per component in a loop. A component that fails stops the
+loop and returns the error, leaving the earlier components already granted; the documented recovery
+is "reception retries". That recovery was always unsound — retrying re-grants the components that
+DID land — and the new duplicate guard now blocks it outright for sixty seconds.
+
+**Cost:** a partially-sold bundle cannot be completed for a minute, and after that minute the retry
+duplicates the components that already succeeded. Rare: it needs a mid-loop failure, which we have
+not yet seen in production.
+
+**Why it was NOT fixed now:** the honest fix is to make the bundle sale atomic — all components in
+one transaction, or none — which touches the money path on a live evening. The guard makes the
+current behaviour *safer* than it was (the silent duplicate is now refused), so shipping it first
+and fixing the atomicity deliberately is the better order.
+
+**Trigger to repay:** the first partially-granted bundle in production, or the first time the
+duplicate guard refuses a sale reception genuinely needed to complete.
+
+**Repayment:** grant every component of a bundle in one Firestore transaction, so a failure leaves
+nothing behind and the retry is a first attempt.

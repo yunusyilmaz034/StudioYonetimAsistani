@@ -76,6 +76,16 @@ must still be created and sent for review by hand.
 
 Read `docs/OWNER-RULES.md` §"Traps" before touching the areas it names. In short:
 
+- **Every deploy breaks whatever tab is already open.** Next.js gives each Server Action a
+  content-hashed id baked into the page; a new build changes the ids, and a page loaded before it
+  gets `Failed to find Server Action … from an older or newer deployment` on the next save. It looks
+  like the feature is broken. It is not — that copy of the panel is stale.
+  **So: batch fixes into one push while the studio is open, and tell reception to reload once after.**
+  Three pushes in ninety minutes on 2026-07-29 cost reception a member registration she could not
+  save and a member an invite she could not activate; both were healthy, both tabs were not.
+  Staff forms now name the cause and offer a reload button; the invite page reloads itself
+  (`apps/web/src/lib/stale-deployment.ts`). Neither helps a page that was already open — only the
+  reload does.
 - **Core changes need TWO deploys.** Push updates App Hosting; the Cloud Functions need
   `firebase deploy --only functions`. The PAYTR callback that actually runs is the FUNCTION.
 - **The emulator does not enforce Firestore indexes.** Ordering changes must be verified in prod.
