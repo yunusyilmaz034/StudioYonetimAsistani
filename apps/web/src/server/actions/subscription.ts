@@ -1,6 +1,7 @@
 'use server'
 
 import {
+  isSuspectedDuplicate,
   DEFAULT_STUDIO_CONFIG,
   FirestoreReservationRepository,
   freezeDaysRemaining,
@@ -115,6 +116,26 @@ export async function assignSubscriptionAction(input: unknown) {
 
   const product = await new FirestoreCatalogRepository(adminDb()).getProduct(ctx, p.productId as ProductId)
   if (!product) return { ok: false as const, error: { code: 'no_bookable_entitlement' as const } }
+
+  // ── The second press is not a second sale (owner, 2026-07-29) ─────────────────────────────
+  //
+  // When the panel feels slow — or answers with an error reception cannot act on — she presses
+  // again, and every press that reaches here is a complete sale. The member ends up holding two
+  // identical packages and a balance nobody can explain without reading the log.
+  //
+  // Checked on the SERVER because that is the only place that sees every attempt: the client
+  // already disables the button while a sale is in flight, and it did not help — a failed call
+  // re-enables it, and pressing again is exactly what we ask her to do.
+  //
+  // Refused rather than swallowed: silently ignoring it would be idempotency, and idempotency needs
+  // a key the client repeats, not a guess based on timing. The reasoning is in the domain file.
+  //
+  // `listByMember` is a single-field query — no composite index, so nothing here can pass locally
+  // and then fail in production for want of one.
+  const existing = await entDeps().repo.listByMember(ctx, p.memberId as MemberId)
+  if (isSuspectedDuplicate(existing, product.id, systemClock.now())) {
+    return { ok: false as const, error: { code: 'duplicate_sale_suspected' as const } }
+  }
 
   const drawerId = await drawerFor(ctx, p.method as PaymentMethod)
 

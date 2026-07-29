@@ -49,6 +49,8 @@ export function ProductForm({
 }) {
   const [name, setName] = useState(product?.name ?? '')
   const [category, setCategory] = useState(product?.category ?? 'pilates_group')
+  // Fitness is free-entry; an unlimited cancellation right there is meaningless (owner, 2026-07-29).
+  const isFitness = category === 'fitness'
   const [type, setType] = useState<'credit' | 'period'>(product?.type ?? 'credit')
   // Hibrit demet: a bundle grants one entitlement per component (pilates credits + fitness entries),
   // each in its own category. When on, the single category/type/credit fields are replaced by the
@@ -120,7 +122,7 @@ export function ProductForm({
       priceInKurus: toKurus(priceTl),
       freezeAllowanceDays: freezeDays,
       dailyReservationLimit: dailyLimit,
-      cancellationAllowanceCount: unlimitedCancel ? null : cancelCount,
+      cancellationAllowanceCount: unlimitedCancel && !isFitness ? null : cancelCount,
       activeReservationLimit: activeLimit,
       entryAllowance: isBundle ? null : type === 'period' ? entryAllowance : null,
       components: comps,
@@ -303,11 +305,19 @@ export function ProductForm({
           </Field>
         ) : null}
         <div className="sm:col-span-2">
-          <label className="flex items-center gap-2 text-sm font-medium">
-            <Checkbox checked={unlimitedCancel} onCheckedChange={(v) => setUnlimitedCancel(v === true)} />
-            Sınırsız iptal hakkı
-          </label>
-          {unlimitedCancel ? (
+          {/* Fitness has no unlimited cancellation (owner, 2026-07-29). Fitness is free-entry: an
+              unlimited right to cancel would let a member hold and drop a seat as often as she
+              liked, which is exactly the behaviour the allowance exists to bound. The checkbox is
+              not offered there, so the count is always a real number. `unlimitedCancel` is forced
+              off for fitness on submit — a package switched to fitness must not keep an unlimited
+              right it can no longer be given. */}
+          {!isFitness ? (
+            <label className="flex items-center gap-2 text-sm font-medium">
+              <Checkbox checked={unlimitedCancel} onCheckedChange={(v) => setUnlimitedCancel(v === true)} />
+              Sınırsız iptal hakkı
+            </label>
+          ) : null}
+          {!isFitness && unlimitedCancel ? (
             <p className="mt-1 text-xs text-muted-foreground">Üye, iptal penceresi uygun oldukça sınırsız kez ücretsiz iptal edebilir.</p>
           ) : (
             <div className="mt-2">

@@ -100,6 +100,8 @@ export function domainErrorMessage(error: DomainError): string {
       return 'İptal süresi belirlenemedi. Stüdyo ayarlarından varsayılan iptal süresini tanımlayın.'
     case 'entitlement_expires_before_session':
       return 'Paketin süresi seans tarihinden önce doluyor.'
+    case 'duplicate_sale_suspected':
+      return 'Bu üyeye aynı paket az önce satıldı. Mükerrer kayıt olmasın diye durduruldu — üyenin paketlerini kontrol edin. Gerçekten ikinci bir paket satıyorsanız bir dakika sonra tekrar deneyin.'
     case 'no_bookable_entitlement':
       return 'Bu seans için kullanılabilir bir paket yok.'
     case 'reservation_not_open':

@@ -8,10 +8,27 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { domainErrorMessage } from '@/lib/domain-error'
+import { isStaleDeployment } from '@/lib/stale-deployment'
 import { activateMemberAction, openInviteAction } from '@/server/actions/portal-auth'
 
 // The member sets HER OWN password here. Reception never knows it — that is the whole point of
 // the invite (D1).
+// ── A member cannot be told to press Ctrl+R (2026-07-29) ────────────────────────────────────
+//
+// Staff get a "Sayfayı Yenile" button when their tab predates the running deployment. A member with
+// this page open on her phone gets no such instruction — she sees "İşlem tamamlanamadı, tekrar
+// deneyin", retries, fails again, and messages the studio. That happened tonight to a member whose
+// invite was perfectly valid; the only broken thing was her copy of the page.
+//
+// So here the page heals itself. She loses two typed password fields, which costs her five seconds,
+// and gets a working page instead of a dead end. The wait exists so the sentence is readable before
+// the screen changes — a reload with no explanation reads as a crash.
+//
+// The same guard covers the OPEN call: without it a stale tab reports "Bağlantı geçersiz" about a
+// link that is fine, and sends her to reception for a replacement she does not need.
+const RELOAD_AFTER_MS = 1200
+const REFRESHING = 'Panel güncellendi, sayfa yenileniyor…'
+
 export function InviteForm({ studioId, token }: { studioId: string; token: string }) {
   const router = useRouter()
   const [state, setState] = useState<'loading' | 'ready' | 'invalid'>('loading')
@@ -31,7 +48,14 @@ export function InviteForm({ studioId, token }: { studioId: string; token: strin
           setState('invalid')
         }
       })
-      .catch(() => setState('invalid'))
+      .catch((e) => {
+        if (isStaleDeployment(e)) {
+          setError(REFRESHING)
+          setTimeout(() => window.location.reload(), RELOAD_AFTER_MS)
+          return
+        }
+        setState('invalid')
+      })
   }, [studioId, token])
 
   async function submit() {
@@ -49,7 +73,12 @@ export function InviteForm({ studioId, token }: { studioId: string; token: strin
         setError(domainErrorMessage(res.error))
         setBusy(false)
       }
-    } catch {
+    } catch (e) {
+      if (isStaleDeployment(e)) {
+        setError(REFRESHING)
+        setTimeout(() => window.location.reload(), RELOAD_AFTER_MS)
+        return
+      }
       setError('İşlem tamamlanamadı. Lütfen tekrar deneyin.')
       setBusy(false)
     }

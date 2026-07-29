@@ -120,6 +120,10 @@ export type DomainError =
   // Self-service checkout (2026-07-27) — two taps must not become two card charges. There is no
   // receptionist in that path to notice the second one.
   | { readonly code: 'payment_already_pending' }
+  // The same package sold to the same member seconds apart (owner, 2026-07-29). Reception presses
+  // again when the panel feels slow; every press is a complete sale. Refused, not swallowed — see
+  // `entitlements/domain/duplicate.ts` for why this is not idempotency.
+  | { readonly code: 'duplicate_sale_suspected' }
   | { readonly code: 'seat_hold_note_required' }
   | { readonly code: 'seat_hold_not_open' }
   // ── reservations / automation (Doc 2 §8, v1.10) ──

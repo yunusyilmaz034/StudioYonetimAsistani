@@ -28,6 +28,8 @@ export { coversService, isEligibleForService } from './domain/eligibility'
 // When a renewal starts (owner, 2026-07-27): behind the package it renews, so no paid day burns
 // unused. `blockedByFrozen` is the one case with no honest answer — the caller refuses instead.
 export { blockedByFrozen, nextBundleStart, nextPackageStart, type BundleStart } from './domain/renewal'
+// A second press is not a second sale (owner, 2026-07-29).
+export { DUPLICATE_SALE_WINDOW_MS, isSuspectedDuplicate, type RecentSale } from './domain/duplicate'
 export * from './events'
 export {
   decideAdjust,
