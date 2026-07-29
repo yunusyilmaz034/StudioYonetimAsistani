@@ -95,6 +95,30 @@ describe('the catalogue standard never reaches a member', () => {
     }
   })
 
+  // ── A member never sees what a package COST (owner, 2026-07-29) ────────────────────────────
+  //
+  // Members compare the price of the package they hold against the one on the screen today, and the
+  // conversation that follows lands on reception. The owner's instruction: they should not see the
+  // historical price at all — and for a package paid in cash the studio issues no invoice, so there
+  // is nothing for the app to be a receipt of. Admin keeps full visibility; nothing about the desk
+  // changes.
+  //
+  // Today this already holds — `memberSubscriptions` sends name, category, credits and dates, and
+  // nothing else. This test exists so it KEEPS holding: the entitlement it maps from carries
+  // `priceAgreed` and `productSnapshot.listPrice` one property access away, and adding a field to a
+  // payload is the easiest change in the codebase to make without noticing what it exposes.
+  //
+  // The one price a member does see is the one she is about to PAY (`memberBuyableProducts`), which
+  // is a different question and has to stay — without it she cannot buy anything in the app.
+  it('the member subscriptions API never sends a price', () => {
+    const api = readFileSync(join(process.cwd(), 'apps/web/src/server/member-api.ts'), 'utf8')
+    const block = api.slice(api.indexOf('export async function memberSubscriptions'))
+    const body = block.slice(0, block.indexOf('\nexport '))
+    for (const leak of ['priceAgreed', 'listPrice', 'priceInKurus', 'collectedAmount', 'balanceDue', 'method']) {
+      expect(body, `memberSubscriptions üyeye ${leak} gönderiyor`).not.toContain(leak)
+    }
+  })
+
   it('the member subscriptions API returns her OWN granted credits, not the product\'s', () => {
     const api = readFileSync(join(process.cwd(), 'apps/web/src/server/member-api.ts'), 'utf8')
     const block = api.slice(api.indexOf('export async function memberSubscriptions'))
