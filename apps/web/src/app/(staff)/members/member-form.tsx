@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { domainErrorMessage } from '@/lib/domain-error'
+import { isStaleDeployment, saveErrorMessage } from '@/lib/stale-deployment'
 import { createMember, updateMember } from '@/server/actions/members'
 
 function Field({ id, label, children }: { id: string; label: string; children: ReactNode }) {
@@ -40,6 +41,8 @@ export function MemberForm({
   const [ecPhone, setEcPhone] = useState<string>(member?.emergencyContact?.phone ?? '')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // A stale tab cannot be fixed by retrying, only by reloading — so it gets a button, not advice.
+  const [stale, setStale] = useState(false)
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -66,8 +69,9 @@ export function MemberForm({
         setError(domainErrorMessage(res.error))
         setLoading(false)
       }
-    } catch {
-      setError('Kaydedilemedi. Lütfen tekrar deneyin.')
+    } catch (e) {
+      setStale(isStaleDeployment(e))
+      setError(saveErrorMessage(e))
       setLoading(false)
     }
   }
@@ -120,9 +124,19 @@ export function MemberForm({
       </Field>
 
       {error ? (
-        <p role="alert" className="text-sm text-danger">
-          {error}
-        </p>
+        <div role="alert" className="space-y-2">
+          <p className="text-sm text-danger">{error}</p>
+          {stale ? (
+            <Button
+              type="button"
+              variant="outline"
+              className="min-h-11 w-full"
+              onClick={() => window.location.reload()}
+            >
+              Sayfayı Yenile
+            </Button>
+          ) : null}
+        </div>
       ) : null}
 
       <Button type="submit" className="min-h-11 w-full" disabled={loading}>

@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { domainErrorMessage } from '@/lib/domain-error'
+import { saveErrorMessage } from '@/lib/stale-deployment'
 import { createProductAction, updateProductAction } from '@/server/actions/catalog'
 import type { ProductView, ServiceOption } from '@/server/catalog-query'
 
@@ -138,8 +139,8 @@ export function ProductForm({
         setError(domainErrorMessage(res.error))
         setLoading(false)
       }
-    } catch {
-      setError('Kaydedilemedi. Lütfen tekrar deneyin.')
+    } catch (e) {
+      setError(saveErrorMessage(e))
       setLoading(false)
     }
   }

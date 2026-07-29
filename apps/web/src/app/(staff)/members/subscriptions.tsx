@@ -24,6 +24,7 @@ import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { domainErrorMessage } from '@/lib/domain-error'
+import { saveErrorMessage } from '@/lib/stale-deployment'
 import type { ProductView } from '@/server/catalog-query'
 import { PaytrCheckoutDialog, type PaytrCheckout } from '@/components/paytr-checkout'
 import { createPackagePaymentAction } from '@/server/actions/payments'
@@ -675,8 +676,8 @@ function AssignForm({
           setError(domainErrorMessage(res.error))
         }
       }
-    } catch {
-      setError('Kaydedilemedi. Lütfen tekrar deneyin.')
+    } catch (e) {
+      setError(saveErrorMessage(e))
     }
     setBusy(false)
   }
