@@ -637,3 +637,55 @@ kasten dışarıda bırakıldı: dashboard ölçütünü ("bugünkü bir kararı
 Zararı `+` işareti veriyordu: iki farklı kümeyi, birine diğerinin eklendiği tek bir küme gibi
 gösteriyordu. Yeni metin: başlık **"Paketi olan üye"**, alt satır **"son 30 günde N kayıt"** — alt
 küme ile bütün, ikisi de adıyla anılıyor.
+
+---
+
+## Mobil 1.1.0 — onaylı, sıraya alındı (owner, 2026-07-29)
+
+Bu iki iş **onaylandı ama kasten bekletiliyor**: iOS 1.0.1 mağaza incelemesinde, Android kapalı
+testin 14 gününü doldurmadı. Sekme çubuğuna dokunmak yeni bir build ve yeni bir inceleme demek —
+acil olmayan bir düzenleme için ikisini birden sıfırlamaya değmez. Sırası gelince, tek inceleme
+turunda birlikte gider.
+
+### PF-42 — Cüzdan ile Abonelikler sekme çubuğunda yer değiştirsin · ✅ onaylı, 1.1.0
+
+**Karar:** `Cüzdan` sekmeden çıkar, `Üyeliğim` girer. Yedinci sekme EKLENMEZ — 375 px'te sekme başına
+~53 px kalır ve etiketler kırpılır (iOS 5 önerir, zaten 6'dayız).
+
+**Gerekçe, ölçüldü:** canlıda **sıfır cüzdan** var — tek bir üyenin bile yok. Altı üst düzey yerden
+biri hiç kimsenin açmadığı bir ekrana ayrılmışken, **her üyenin sahip olduğu** paket ve gelir getiren
+"yenile" akışı ana sayfada bir kartın arkasında iki dokunuş derinde duruyor. Kullanılmayan özellik
+vitrinde, satan özellik depoda.
+
+**Yapılacak (mekanik):**
+- `apps/mobile/app/(tabs)/wallet.tsx` → `apps/mobile/app/wallet.tsx` (sekme grubundan çıkar)
+- `apps/mobile/app/subscriptions.tsx` → `apps/mobile/app/(tabs)/subscriptions.tsx`
+- `(tabs)/_layout.tsx`: `wallet` sekmesi yerine `subscriptions`, başlık **"Üyeliğim"**,
+  ikon `ticket` / `ticket-outline`
+- `(tabs)/profile.tsx`: `LinkRow "Aboneliklerim"` satırı → `LinkRow "Cüzdanım"` (`wallet-outline`,
+  `/wallet`). Profil listesi ne uzar ne kısalır; iki satır yer değiştirir.
+
+**Cüzdan neden tamamen gizlenmiyor:** üye kendisi bakiye yükleyebiliyor. Gizlemek özelliği öldürür —
+hiç kullanılmıyor olması "kullanılmamalı" demek değil, henüz tanıtılmamış olabilir. Profil'de arayan
+bulur, aramayanı rahatsız etmez. Ön ödemeli bakiye gerçekten satılmaya başlanırsa sekmeye geri döner.
+
+### PF-43 — Geçmiş rezervasyonlar varsayılan olarak KAPALI bir açılır bölümde · ✅ onaylı, 1.1.0
+
+**Owner:** *"geçmiş rezervasyonları açılır bir menüde sun, default'ta kapalı olsun, üstüne basınca
+aşağıya doğru açılarak tablo şeklinde şimdiki gibi sunulsun. ilk bakışta kapalı kalsın, kafa
+karıştırıyor, aktif rezervasyonlarla karışıyor."*
+
+**Kapsam: MOBİL VE WEB, ikisi de.** Üyenin rezervasyon ekranı iki yerde var ve aynı karışıklığı
+ikisinde de üretiyor:
+- `apps/mobile/app/(tabs)/agenda.tsx` (ve `app/reservations.tsx`)
+- `apps/web/src/app/portal/(member)/reservations/`
+
+**Kural:** gelecekteki/aktif rezervasyonlar her zaman açık ve üstte. Geçmiş olanlar tek bir başlık
+satırının altında toplanır — **varsayılan kapalı**, sayıyı gösterir (ör. "Geçmiş rezervasyonlar (12)"),
+dokununca aşağı doğru açılır ve **bugünkü tablo düzeninin aynısını** gösterir. Tablo yeniden
+tasarlanmaz; sadece sarmalanır.
+
+**Neden bu doğru:** aktif rezervasyon bir KARARDIR (gelecek hafta oradayım), geçmiş rezervasyon bir
+KAYITTIR. İkisini aynı listede yan yana koymak, üyeyi her açılışta hangisinin hangisi olduğunu
+ayıklamaya zorluyor. Kapalı bir bölüm kaydı silmez — sorulduğunda orada durur, sorulmadığında yolu
+kapatmaz.
