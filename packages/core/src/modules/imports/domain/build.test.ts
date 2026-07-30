@@ -116,6 +116,22 @@ describe('buildPackages', () => {
     expect(bad.rejected[0]!.reason).toBe('Başlangıç tarihi bitişten sonra')
   })
 
+  it('flags a row that would need a new member but has no phone to create her with', () => {
+    // Reported in the PREVIEW. A screen that says "Yeni üye + paket" and then fails at apply time
+    // has told the operator something untrue at the only moment she was looking.
+    const noPhone = { ...MAP, phone: null }
+    const out = buildPackages(
+      [HEADER, ['ZEYNEP DEMİR', '', 'Reformer Pilates - 8 Ders', '5', '19.08.2026']],
+      noPhone, {}, [], PRODUCTS, normalize, TR, TODAY, 0,
+    )
+    expect(out.ready[0]!.needsPhoneToCreate).toBe(true)
+  })
+
+  it('does not flag a row whose member was found by phone', () => {
+    const out = build([HEADER, ['AYŞE YILMAZ', '05321111111', 'Reformer Pilates - 8 Ders', '5', '19.08.2026']], [AYSE])
+    expect(out.ready[0]!.needsPhoneToCreate).toBe(false)
+  })
+
   it('proposes when there is no phone, and never resolves it itself', () => {
     const noPhone = { ...MAP, phone: null }
     const out = buildPackages(
@@ -156,5 +172,12 @@ describe('missingRequired', () => {
 
   it('is empty when everything required is mapped', () => {
     expect(missingRequired('members', { fullName: 0, phone: 1 })).toEqual([])
+  })
+
+  it('counts a typed default as supplied — otherwise the gap step never clears', () => {
+    // The gap-filling step exists so she can type a value that applies to every row. A check that
+    // ignored what she typed would send her back to the same step for ever.
+    expect(missingRequired('members', { fullName: 0, phone: null }, { phone: '05320000000' })).toEqual([])
+    expect(missingRequired('members', { fullName: 0, phone: null }, { phone: '   ' })).toEqual(['phone'])
   })
 })

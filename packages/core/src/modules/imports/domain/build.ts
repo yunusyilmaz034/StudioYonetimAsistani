@@ -32,6 +32,13 @@ export interface MemberRow {
 export interface PackageRow {
   readonly line: number
   readonly status: 'ready'
+  /**
+   * True when this row could only proceed by CREATING a member, and has no phone to create her
+   * with. Surfaced in the preview rather than discovered at apply time: a screen that says "Yeni üye
+   * + paket" and then fails has told the operator something untrue at the only moment she was
+   * looking.
+   */
+  readonly needsPhoneToCreate: boolean
   readonly productId: ProductId
   readonly productName: string
   readonly memberName: string
@@ -218,6 +225,7 @@ export function buildPackages(
       validUntil,
       note: get('note') || null,
       match: matchMember(phone?.normalized ?? null, memberName, existing),
+      needsPhoneToCreate: phone === null,
     })
   }
 
@@ -246,8 +254,20 @@ export function toPackageDraft(row: PackageRow, memberId: MemberId | null): Pack
   }
 }
 
-/** Field keys the operator must supply when the file has no column for them. */
-export function missingRequired(kind: 'members' | 'member_packages', mapping: Mapping): readonly string[] {
+/**
+ * Required fields the operator has supplied NEITHER a column NOR a manual value for.
+ *
+ * `defaults` is part of the question, not an afterthought: the gap-filling step exists so she can
+ * type a value that applies to every row, and a check that ignored what she typed would send her
+ * back to the same step for ever. (Found in review before this shipped, 2026-07-30.)
+ */
+export function missingRequired(
+  kind: 'members' | 'member_packages',
+  mapping: Mapping,
+  defaults: Defaults = {},
+): readonly string[] {
   const fields = kind === 'members' ? MEMBER_FIELDS : PACKAGE_FIELDS
-  return fields.filter((f) => f.required && mapping[f.key] == null).map((f) => f.key)
+  return fields
+    .filter((f) => f.required && mapping[f.key] == null && !(defaults[f.key] ?? '').trim())
+    .map((f) => f.key)
 }

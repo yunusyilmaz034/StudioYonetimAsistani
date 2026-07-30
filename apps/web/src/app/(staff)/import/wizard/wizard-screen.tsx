@@ -405,9 +405,14 @@ function PreviewStep({
   const packages = preview.packages
 
   const skipped = Object.values(decisions).filter((d) => d.skip).length
+  const blockedRows = (packages?.ready ?? []).filter(
+    (r) => decisions[r.line]?.skip !== true && r.match.kind !== 'phone' && (decisions[r.line]?.memberId ?? null) === null && r.needsPhoneToCreate,
+  ).length
+  // The headline number counts only what will actually land. A count that includes rows the apply
+  // step will refuse is a promise the next screen breaks.
   const willCreate = members
     ? members.ready.filter((r) => !r.duplicateOf).length
-    : (packages?.ready.length ?? 0) - skipped
+    : (packages?.ready.length ?? 0) - skipped - blockedRows
   const rejected = (members?.rejected.length ?? 0) + (packages?.rejected.length ?? 0)
   const duplicates = members?.ready.filter((r) => r.duplicateOf).length ?? 0
 
@@ -422,6 +427,7 @@ function PreviewStep({
         <Metric label={members ? 'Eklenecek üye' : 'Eklenecek paket'} value={String(willCreate)} />
         {duplicates > 0 ? <Metric label="Zaten kayıtlı" value={String(duplicates)} /> : null}
         {skipped > 0 ? <Metric label="Atlanacak" value={String(skipped)} /> : null}
+        {blockedRows > 0 ? <Metric label="Telefonsuz" value={String(blockedRows)} tone="danger" /> : null}
         {rejected > 0 ? (
           <Metric label="Reddedilen satır" value={String(rejected)} tone="danger" />
         ) : (
@@ -472,6 +478,10 @@ function PreviewStep({
               const dec = decisions[r.line]
               const skip = dec?.skip === true
               const toExisting = r.match.kind === 'phone' || (dec?.memberId ?? null) !== null
+              // Would create a member and has no phone to create her with. The apply step refuses
+              // this row; saying so HERE is the difference between an informed choice and a
+              // surprise in the failure list.
+              const blocked = !skip && !toExisting && r.needsPhoneToCreate
               return (
                 <tr key={r.line} className="border-t">
                   <td className="px-3 py-2 tabular-nums text-muted-foreground">{r.line}</td>
@@ -484,6 +494,8 @@ function PreviewStep({
                       <span className="text-muted-foreground">Atlanacak</span>
                     ) : toExisting ? (
                       <span className="text-success">Mevcut üyeye eklenecek</span>
+                    ) : blocked ? (
+                      <span className="text-danger">Telefon yok — yeni üye açılamaz</span>
                     ) : (
                       <span className="text-accent">Yeni üye + paket</span>
                     )}

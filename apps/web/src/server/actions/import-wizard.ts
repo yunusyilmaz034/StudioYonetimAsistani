@@ -126,7 +126,7 @@ export async function previewWizardAction(input: unknown) {
     .parse(input)
   const ctx = await requireTenantContext(OWNER)
 
-  const missing = missingRequired(p.kind, p.mapping as Mapping)
+  const missing = missingRequired(p.kind, p.mapping as Mapping, p.defaults as Defaults)
   const existing = await loadMembers(ctx.studioId)
 
   if (p.kind === 'members') {
