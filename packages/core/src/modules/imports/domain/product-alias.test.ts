@@ -111,3 +111,27 @@ describe('foldAliases', () => {
     expect(foldAliases({ '2 AY': '' })).toEqual({})
   })
 })
+
+// ── The regression that stalled the wizard (2026-07-30) ─────────────────────────────────────
+//
+// The server passed the operator's answers to `unknownLabels` with RAW keys ("3 AY") while the
+// function looks them up FOLDED ("3ay"). Every answered label therefore read as unanswered, the
+// wizard bounced back to the alias step, and the screen simply stopped moving — the spinner
+// cleared, nothing advanced, and nothing on screen said why.
+describe('answered labels disappear — only when the keys are folded', () => {
+  const products = [{ productId: 'prd_f3' as ProductId, name: 'Fitness - 3 Aylık' }]
+
+  it('clears once the alias table is folded, which is what the caller must pass', () => {
+    expect(unknownLabels(['3 AY', '3 AY'], products, foldAliases({ '3 AY': 'prd_f3' }))).toEqual([])
+  })
+
+  it('does NOT clear when raw keys are passed — the exact stall, stated', () => {
+    expect(unknownLabels(['3 AY'], products, { '3 AY': 'prd_f3' })).toEqual([{ label: '3 AY', rows: 1 }])
+  })
+
+  it('one answer covers every spelling of the same label', () => {
+    // "3 AY" and "3AY" are two rows in the file and one decision for the operator.
+    const folded = foldAliases({ '3 AY': 'prd_f3' })
+    expect(unknownLabels(['3 AY', '3AY', '3 ay'], products, folded)).toEqual([])
+  })
+})

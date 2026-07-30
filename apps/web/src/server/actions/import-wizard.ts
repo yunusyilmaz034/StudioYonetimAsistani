@@ -171,7 +171,10 @@ export async function previewWizardAction(input: unknown) {
   const at = (p.mapping as Mapping).productName
   const labels =
     at == null ? [] : p.rows.slice(p.headerRowIndex + 1).map((r) => String(r[at] ?? '').trim())
-  const unknown = unknownLabels(labels, products, p.aliases ?? {}).map((u) => ({
+  // FOLDED keys, like the lookup the builder uses. Passing the raw ones made every answered label
+  // read as still-unanswered, and the wizard bounced the operator back to the alias step for ever
+  // (2026-07-30) — the loading spinner cleared and the screen simply did not move.
+  const unknown = unknownLabels(labels, products, aliases).map((u) => ({
     ...u,
     suggestions: suggestProducts(u.label, products),
   }))

@@ -134,7 +134,11 @@ export function ImportWizard({ branchId }: { branchId: string | null }) {
       }
       // Package labels the catalogue does not know. Asked ONCE per distinct label rather than
       // rejecting every row that uses it — the real export writes "6 AY", not a product name.
-      if (res.unknown.length > 0 && next !== 'alias') {
+      //
+      // The guard is "am I already there", not "where am I going". The first version compared
+      // against the DESTINATION, which from the alias step is always 'match' — so an answered file
+      // bounced straight back to the alias step, for ever, with nothing on screen to explain it.
+      if (res.unknown.length > 0 && step !== 'alias') {
         advance('alias', 'mapping')
         return
       }
