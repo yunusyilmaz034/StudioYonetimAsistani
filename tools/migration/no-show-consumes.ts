@@ -33,9 +33,12 @@ import { initializeApp } from 'firebase-admin/app'
 import { getFirestore } from 'firebase-admin/firestore'
 
 import {
+  DEFAULT_STUDIO_CONFIG,
   FirestoreSchedulingRepository,
+  FirestoreStudioHours,
   publishServicePolicy,
   systemClock,
+  type MigrationRunId,
   type SchedulingPolicy,
   type ServiceId,
   type StudioId,
@@ -57,13 +60,22 @@ const db = getFirestore()
 const ctx: TenantContext = {
   studioId,
   branchIds: [],
-  role: 'platform_admin',
-  actor: { type: 'platform_admin', id: 'break_glass_no_show_consumes' },
+  // `owner` is the ROLE this acts with; the ACTOR below is what the log records, and it is a
+  // migration run — not a person. A script never borrows a human's identity (#5).
+  role: 'owner',
+  actor: { type: 'migration', id: 'mig_no_show_consumes_20260730' as MigrationRunId },
 }
 
 async function main(): Promise<void> {
   const repo = new FirestoreSchedulingRepository(db)
-  const deps = { repo, clock: systemClock }
+  const deps = {
+    repo,
+    clock: systemClock,
+    studioConfig: DEFAULT_STUDIO_CONFIG,
+    // Opening hours have nothing to do with publishing a policy; the port is simply part of the
+    // deps shape, and the real one is cheaper than a fake that could drift from it.
+    hours: new FirestoreStudioHours(db),
+  }
   const snap = await db.collection(`studios/${studioId}/services`).get()
 
   console.log(`${apply ? 'UYGULANIYOR' : 'KURU PROVA — hiçbir şey yazılmıyor'} · ${snap.size} servis\n`)
