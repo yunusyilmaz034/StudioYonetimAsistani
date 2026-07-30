@@ -65,6 +65,9 @@ const PREFIX = {
   programTemplate: 'ptpl',
   // ── A seat held for a non-member (Multisport day guests, 2026-07-27) ──
   seatHold: 'hold',
+  // ── One import run: one file, one operator, one moment. Everything it created carries this id,
+  //    which is what makes the whole thing reversible (2026-07-30). ──
+  importBatch: 'imp',
 } as const
 
 // ULID gives lexicographic time-ordering; the prefix disambiguates the id kind.
@@ -93,6 +96,7 @@ export const newCommandId = (): CommandId => mint(PREFIX.command) as CommandId
 export const newCorrelationId = (): CorrelationId => mint(PREFIX.correlation) as CorrelationId
 export const newWaitlistEntryId = (): string => mint(PREFIX.waitlistEntry)
 export const newSeatHoldId = (): string => mint(PREFIX.seatHold)
+export const newImportBatchId = (): string => mint(PREFIX.importBatch)
 export const newExerciseId = (): string => mint(PREFIX.exercise)
 export const newProgramId = (): string => mint(PREFIX.program)
 export const newMeasurementId = (): string => mint(PREFIX.measurement)

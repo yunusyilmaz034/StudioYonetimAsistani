@@ -12,6 +12,8 @@ export type {
 } from './domain/types'
 export * from './events'
 export { fieldsFor, MEMBER_FIELDS, PACKAGE_FIELDS } from './domain/fields'
+// Cell → domain value. Every one of these returns null rather than guessing.
+export { parseBirthDate, parseCount, parseDate } from './domain/parse'
 export { cellFor, foldHeader, suggestMapping, type FieldSpec } from './domain/headers'
 // Matching: a phone is certain, a name is only ever a proposal.
 export {
@@ -22,6 +24,23 @@ export {
   type MatchOutcome,
   type NameProposal,
 } from './domain/match'
+// Rows → what would happen. What the preview screen renders; writes nothing.
+export {
+  buildMembers,
+  buildPackages,
+  missingRequired,
+  needsDecision,
+  toPackageDraft,
+  type BuildMembersResult,
+  type BuildPackagesResult,
+  type Defaults,
+  type Mapping,
+  type MemberRow,
+  type NormalizePhone,
+  type PackageRow,
+  type ProductCandidate,
+  type RejectedRow,
+} from './domain/build'
 // Undo, and the line that keeps it safe.
 export {
   decideRevert,

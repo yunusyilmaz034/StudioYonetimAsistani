@@ -85,6 +85,32 @@ const parseLocalDate = (d: string): number => {
   return daysFromCivil(y ?? 1970, m ?? 1, day ?? 1)
 }
 
+const isLeapYear = (y: number): boolean => (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0
+const DAYS_IN_MONTH = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31] as const
+
+/**
+ * Midnight studio-local on a calendar date → an `Instant`. The inverse of `localDateAt`.
+ *
+ * Returns null for a date the calendar does not have. That refusal is the point: 31.02.2026 parses
+ * arithmetically into 3 March, and a package quietly expiring three days late is a bug nobody can
+ * see by looking at the file it came from.
+ *
+ * Pure integer arithmetic, no `Date` — this is called from `domain/`, where a hidden clock read is a
+ * build failure (D2). Istanbul has no DST, so a fixed offset is exact.
+ */
+export function instantFromLocalParts(
+  y: number,
+  m: number,
+  d: number,
+  utcOffsetMinutes: number,
+): Instant | null {
+  if (!Number.isInteger(y) || !Number.isInteger(m) || !Number.isInteger(d)) return null
+  if (m < 1 || m > 12) return null
+  const maxDay = m === 2 && isLeapYear(y) ? 29 : DAYS_IN_MONTH[m - 1]!
+  if (d < 1 || d > maxDay) return null
+  return instant(daysFromCivil(y, m, d) * 86_400_000 - utcOffsetMinutes * 60_000)
+}
+
 /** Whole days between two `YYYY-MM-DD` dates. `daysBetween('2026-01-10', '2026-01-15')` is 5. */
 export function daysBetween(from: string, to: string): number {
   return parseLocalDate(to) - parseLocalDate(from)

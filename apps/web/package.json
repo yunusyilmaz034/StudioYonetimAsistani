@@ -13,6 +13,7 @@
     "@studio/core": "workspace:*",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "exceljs": "^4.4.0",
     "firebase": "^12.16.0",
     "firebase-admin": "^13.0.2",
     "html-to-image": "^1.11.13",
