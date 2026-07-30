@@ -71,6 +71,26 @@ describe('readXlsx', () => {
     expect(out.rows[1]![0]).toBe('5321111111')
   })
 
+  it('turns an EMPTY CELL into an empty string, not a hole', async () => {
+    // `row.values` is a sparse array when a cell is blank, and `Array.prototype.map` SKIPS holes —
+    // it preserves them. The row then serialises with `null` where the blank was, and the Server
+    // Action's `z.array(z.string())` rejects the whole file.
+    //
+    // Every test fixture here filled every cell, so this never showed up. The owner's real export
+    // has blanks in it, and it failed on the mapping step with a validation error that named
+    // nothing (2026-07-30).
+    const buf = await workbook((s) => {
+      s.addRow(['Ad', 'Telefon', 'Paket'])
+      const r = s.addRow([])
+      r.getCell(1).value = 'AYŞE'
+      r.getCell(3).value = 'Reformer'
+      r.commit()
+    })
+    const out = await readXlsx(buf)
+    expect(out.rows[1]).toEqual(['AYŞE', '', 'Reformer'])
+    for (const cell of out.rows[1]!) expect(typeof cell).toBe('string')
+  })
+
   it('skips fully empty rows and reports the sheet names', async () => {
     const buf = await workbook((s) => {
       s.addRow(['Ad'])

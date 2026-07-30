@@ -47,6 +47,12 @@ const OWNER = ['owner', 'platform_admin'] as const
 const STUDIO_UTC_OFFSET_MIN = 180
 
 const KIND = z.enum(['members', 'member_packages'])
+// A cell is coerced, not demanded. `z.array(z.string())` used to reject a whole file because one
+// blank cell arrived as null — a validation error that named no row, no column and no cause, on the
+// one screen where the operator has no way to investigate. Anything unreadable becomes an empty
+// cell, and an empty cell is something the preview can show and explain.
+const CELL = z.preprocess((v) => (v == null ? '' : typeof v === 'string' ? v : String(v)), z.string())
+const ROWS = z.array(z.array(CELL))
 const MAPPING = z.record(z.string(), z.number().int().min(0).nullable())
 const DEFAULTS = z.record(z.string(), z.string())
 
@@ -118,7 +124,7 @@ export async function previewWizardAction(input: unknown) {
   const p = z
     .object({
       kind: KIND,
-      rows: z.array(z.array(z.string())),
+      rows: ROWS,
       mapping: MAPPING,
       defaults: DEFAULTS,
       headerRowIndex: z.number().int().min(0),
@@ -174,7 +180,7 @@ export async function applyWizardAction(input: unknown) {
     .object({
       kind: KIND,
       fileName: z.string().min(1),
-      rows: z.array(z.array(z.string())),
+      rows: ROWS,
       mapping: MAPPING,
       defaults: DEFAULTS,
       headerRowIndex: z.number().int().min(0),

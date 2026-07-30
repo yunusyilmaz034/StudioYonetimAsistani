@@ -150,8 +150,14 @@ export async function readXlsx(buffer: Buffer): Promise<SheetData> {
     }
     // `row.values` is 1-indexed with a hole at 0 — a real trap, because slicing it wrong shifts
     // every column by one and the mapping screen then looks correct while reading the wrong cells.
+    //
+    // It is also SPARSE: a blank cell leaves a hole, and `Array.prototype.map` preserves holes
+    // rather than visiting them. The row then serialises with `null` where the blank was, and the
+    // Server Action's `z.array(z.string())` rejects the entire file with a validation error that
+    // names nothing. Every fixture here filled every cell, so it took the owner's real export to
+    // find it (2026-07-30). `Array.from` materialises the holes; `map` never will.
     const values = (row.values as unknown[]).slice(1)
-    const cells = values.map(cellText)
+    const cells = Array.from({ length: values.length }, (_, i) => cellText(values[i]))
     if (cells.some((c) => c !== '')) rows.push(cells)
   })
 
