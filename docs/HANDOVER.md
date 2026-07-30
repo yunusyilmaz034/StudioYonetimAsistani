@@ -7,7 +7,7 @@ explains the moment.
 Keep it current the way the code is kept current: when the state changes, this changes in the same
 commit. A handover document that lags is worse than none, because it is believed.
 
-_Last true as of: **2026-07-29**._
+_Last true as of: **2026-07-30**._
 
 ---
 
@@ -60,8 +60,11 @@ must still be created and sent for review by hand.
 
 ## Waiting on the owner
 
-- **Işıl's Excel** — package migration for the members still to be brought over. Agreed sequence:
-  dry-run validation report → owner approval → import → reconciliation.
+- **Işıl's Excel** — package migration for the members still to be brought over (74 active members
+  hold no package). The import wizard is BUILT and waiting for the file: `/import/wizard` reads
+  .xlsx or .csv, maps her columns to ours, proposes who each package belongs to, previews the whole
+  thing, and can be undone in one click while nothing has touched it. Its preview step IS the
+  dry-run, so the agreed sequence collapses to: upload → look → approve → reconcile.
 - Invite the remaining members to the portal (the screen has a "Davet bekliyor" filter and a
   one-tap WhatsApp reminder).
 

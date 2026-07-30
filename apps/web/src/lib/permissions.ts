@@ -49,7 +49,7 @@ export type Area =
   | '/payroll' // Plus Phase 9 — trainer payroll & commission (owner-confidential)
   | '/my-payroll' // Plus Phase 9 — the trainer's own earnings, read-only (owner + trainer)
   | '/receipt' // the printable slip reception hands a member
-  | '/import' // S5 — the BulutGym import
+  | '/import' // imports: the wizard, the batch history, and the frozen BulutGym screen
   | '/reports' // S6 — the seven reports
   | '/feedback' // Geri Bildirim — in-app bug reports from staff (owner reviews)
   | '/conversations' // Faz 2 — WhatsApp AI receptionist conversations (owner + reception)

@@ -155,7 +155,7 @@ export const GROUPS: readonly NavGroup[] = [
       // The cutover tool. It stays in the nav after cutover rather than being hidden behind a flag:
       // it is idempotent (a phone is unique — I-21), it refuses a dirty file, and a tool the owner
       // cannot find is a tool she will ask us to run for her.
-      { href: '/import', label: 'Üye İçe Aktar', icon: UploadIcon },
+      { href: '/import', label: 'Aktarımlar', icon: UploadIcon },
     ],
   },
   {

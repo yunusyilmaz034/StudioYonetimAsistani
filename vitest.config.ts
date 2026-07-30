@@ -8,7 +8,13 @@ import { defineConfig } from 'vitest/config'
 export default defineConfig({
   // The web app's `@/…` alias, so a unit test can import a presenter that imports a lib.
   resolve: {
-    alias: { '@': fileURLToPath(new URL('./apps/web/src', import.meta.url)) },
+    alias: {
+      '@': fileURLToPath(new URL('./apps/web/src', import.meta.url)),
+      // `server-only` is a Next.js build-time guard with no runtime module. It exists to make an
+      // accidental client import fail the BUILD, which is exactly what we want it to keep doing —
+      // so it is stubbed for the test runner rather than removed from the files that carry it.
+      'server-only': fileURLToPath(new URL('./test/stubs/server-only.ts', import.meta.url)),
+    },
   },
   test: {
     globals: true,

@@ -689,3 +689,59 @@ tasarlanmaz; sadece sarmalanır.
 KAYITTIR. İkisini aynı listede yan yana koymak, üyeyi her açılışta hangisinin hangisi olduğunu
 ayıklamaya zorluyor. Kapalı bir bölüm kaydı silmez — sorulduğunda orada durur, sorulmadığında yolu
 kapatmaz.
+
+
+---
+
+## Aktarım Sihirbazı — TAMAMLANDI (owner onaylı milestone, 2026-07-30)
+
+Owner: *"panelde bir import modülü olsun… bulmaca gibi eşleştirsem… sonraki adımda eksik varsa elle
+doldursun… önizleme yapsın… her zaman geri alınabilir olmalı… import işlemlerinde kasa hareketi
+oluşturma."*
+
+`/import` artık aktarım geçmişi, `/import/wizard` sihirbaz. Eski BulutGym ekranı silinmedi,
+`/import/legacy`'ye taşındı — bu stüdyonun 120 üyesini taşıyan araç o, göçün ertesi haftasında
+çalışan bir aracı silmek için sebep yok.
+
+### Akış
+
+`Ne aktarılıyor → Dosya → Başlık satırı → Eşleştirme → Eksikler → Kime gidiyor → Önizleme → Kaydet`
+
+Son düğmeye kadar **hiçbir şey yazılmaz.** Her adım bir sonrakinin ihtiyacını döndürür ve stüdyo
+verisine dokunmaz; operatör geri dönüp eşleştirmeyi değiştirip yeniden bakabilir. Bir tablonun canlı
+stüdyoya yaklaşmasına izin vermenin tek güvenli yolu bu.
+
+### Kırılmayacak kurallar
+
+1. **İsim asla paket bağlamaz.** Telefon eşleşmesi kesindir ve sorulmadan uygulanır. İsim eşleşmesi
+   *öneridir*; `matchMember` tipinde isimden bağlayan bir sonuç yoktur. Yanlış bağlama, bir kadının
+   dersini başkasına yazar ve haftalar sonra kapıda ortaya çıkar.
+2. **Öneriler üç kademeli.** Tam ad → aynı ad+soyad → aynı soyad+ilk harf. En zayıf kademe gerçekten
+   zayıf: 120 kişilik bir stüdyoda "AYŞE YILMAZ" ararken "ARZU YILMAZ"ı bulur. Göstermek doğru, üstte
+   göstermek yanlış — yetmiş satır tarayan biri ilk makul satıra tıklar.
+3. **Toplu onay, birden fazla adayı olan satırlara dokunmaz.** Toplu düğmenin yanlış yaptığı satırlar
+   tam olarak onlardır.
+4. **Aktarım para yazmaz.** Satış yok, tahsilat yok, kasa hareketi yok (owner kuralı). Paketler eski
+   sistemde aylar önce ödendi; o parayı taşımak iki sistemin cirosunu tek deftere karıştırır.
+   `assignSubscription` fiyat 0 / tahsilat 0 ile yapı gereği parasızdır — finans koduna hiç uğramaz.
+5. **Geri alma = telafi kayıtları, parti kapsamında.** Silme değil (bir olay asla silinmez) ve yedekten
+   dönme de değil (o, aradaki her gerçek işi siler). Parti dokunulmamışsa geri alınır; dokunulmuşsa
+   **reddeder ve kimin engellediğini söyler.**
+6. **Parti kaydı döngüden ÖNCE açılır**, her kimlik oluştukça eklenir. Sonda kaydetmek, 40. satırda
+   çöken bir aktarımın 39 üyeyi kimsenin bulamayacağı şekilde ortada bırakması demekti.
+7. **Masaüstü ekranıdır** (owner). Eşleştirme adımı iki sütun ok; telefon sürümü yapmak, gerçekten
+   kullanılacak tek cihazdaki deneyimi bozmak olurdu.
+
+### Yol boyunca çıkan üç gerçek hata
+
+- `parseCount` Türkçe binlik ayracını sıyırırken `8.5` → `85` yapıyordu. Kendi testi yakaladı.
+- İsim eşleştirmesi iki kademeliydi; testler "ARZU YILMAZ"ın "AYŞE YILMAZ"ın üstünde çıktığını
+  gösterdi, üçüncü kademe eklendi.
+- xlsx okuyucuda `row.values` 1-tabanlı ve 0'da boşluk var; yanlış dilimlemek tüm sütunları bir
+  kaydırır ve eşleştirme ekranı **doğru görünürken yanlış hücreleri okur**. Gerçek bir workbook
+  üretilerek test edildi.
+
+### Bekleyen
+
+Işıl'ın Excel'i. Sıra: kuru prova (sihirbazın önizlemesi zaten budur) → onay → aktar → mutabakat.
+Aktarılacak: paketi hiç olmayan **74 aktif üye**.
