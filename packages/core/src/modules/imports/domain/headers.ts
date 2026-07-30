@@ -92,3 +92,14 @@ export function cellFor(
   const raw = at != null ? (row[at] ?? '') : (defaults[key] ?? '')
   return raw.replace(/\u00a0/g, ' ').trim()
 }
+
+/**
+ * Fold a PACKAGE label. Same folding as a header, and it **keeps digits** — which is the whole
+ * reason it is not `foldName`.
+ *
+ * `foldName`, built for people, strips everything that is not a letter. Under it
+ * `Reformer Pilates - 8 Ders` and `… 16 Ders` become the same key, and so do `6 AY` and `3 AY`; the
+ * lookup would hold whichever was written last and hand out the wrong package. Caught by the alias
+ * tests before it reached anyone (2026-07-30).
+ */
+export const foldLabel = (label: string): string => foldHeader(label)

@@ -17,6 +17,7 @@ export const STEPS = [
   { key: 'file', label: 'Dosya' },
   { key: 'header', label: 'Başlık satırı' },
   { key: 'mapping', label: 'Eşleştirme' },
+  { key: 'alias', label: 'Paket adları' },
   { key: 'gaps', label: 'Eksikler' },
   { key: 'match', label: 'Kime gidiyor' },
   { key: 'preview', label: 'Önizleme' },

@@ -29,6 +29,12 @@ export interface ImportBatch {
   readonly revertReason: string | null
 }
 
+/** The catalogue, reduced to what matching a package LABEL needs. Nothing else is read. */
+export interface ProductCandidate {
+  readonly productId: ProductId
+  readonly name: string
+}
+
 // ── WHAT A ROW BECOMES ──────────────────────────────────────────────────────────────────────
 //
 // Deliberately separate from `MemberImportRow` (the BulutGym CSV shape): that one describes a

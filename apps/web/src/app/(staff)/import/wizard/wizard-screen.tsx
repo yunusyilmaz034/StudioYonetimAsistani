@@ -19,6 +19,7 @@ import {
   suggestMappingAction,
 } from '@/server/actions/import-wizard'
 
+import { AliasStep, ALIAS_SKIP, type UnknownLabel } from './alias-step'
 import { MappingStep, type FieldInfo } from './mapping-step'
 import { MatchStep, type Decision, type MatchRow } from './match-step'
 import { StepBar, StepNote, type StepKey } from './steps'
@@ -65,6 +66,16 @@ export function ImportWizard({ branchId }: { branchId: string | null }) {
   const [defaults, setDefaults] = useState<Record<string, string>>({})
   const [preview, setPreview] = useState<Preview | null>(null)
   const [decisions, setDecisions] = useState<Record<number, Decision>>({})
+  // File label → productId ('' or ALIAS_SKIP means: skip those rows).
+  const [aliases, setAliases] = useState<Record<string, string>>({})
+
+  // "Bu satırları atla" is a decision the SCREEN remembers, not a product. Sending it to the server
+  // would have it looked up as a product id and fail as "paket bulunamadı" — technically the right
+  // outcome, arrived at by the wrong route and reported with the wrong words. Stripped here, so
+  // those rows are simply rejected as an unmatched package, which is exactly what they are.
+  const sentAliases = Object.fromEntries(
+    Object.entries(aliases).filter(([, v]) => v && v !== ALIAS_SKIP),
+  )
   const [result, setResult] = useState<Awaited<ReturnType<typeof applyWizardAction>> | null>(null)
 
   const header = rows[headerRowIndex] ?? []
@@ -115,10 +126,16 @@ export function ImportWizard({ branchId }: { branchId: string | null }) {
     if (!kind) return
     setBusy(true)
     try {
-      const res = await previewWizardAction({ kind, rows, mapping, defaults, headerRowIndex })
+      const res = await previewWizardAction({ kind, rows, mapping, defaults, aliases: sentAliases, headerRowIndex })
       setPreview(res)
       if (res.missing.length > 0) {
         setStep('gaps')
+        return
+      }
+      // Package labels the catalogue does not know. Asked ONCE per distinct label rather than
+      // rejecting every row that uses it — the real export writes "6 AY", not a product name.
+      if (res.unknown.length > 0 && next !== 'alias') {
+        advance('alias', 'mapping')
         return
       }
       // Rows matched by phone are already resolved and never reach the matching step. If none is
@@ -146,6 +163,7 @@ export function ImportWizard({ branchId }: { branchId: string | null }) {
         rows,
         mapping,
         defaults,
+        aliases: sentAliases,
         headerRowIndex,
         branchId,
         resolutions: Object.values(decisions),
@@ -206,7 +224,7 @@ export function ImportWizard({ branchId }: { branchId: string | null }) {
     )
   }
 
-  const skipSteps: StepKey[] = kind === 'members' ? ['match'] : []
+  const skipSteps: StepKey[] = kind === 'members' ? ['match', 'alias'] : []
 
   return (
     <main className={PAGE}>
@@ -326,6 +344,28 @@ export function ImportWizard({ branchId }: { branchId: string | null }) {
           />
           <div className="mt-4 flex gap-2">
             <Button variant="outline" onClick={() => setStep('header')} className="min-h-11">Geri</Button>
+            <Button onClick={() => void runPreview(kind === 'members' ? 'preview' : 'match')} disabled={busy} className="min-h-11">
+              {busy ? <Loader2Icon className="animate-spin" /> : null} Devam
+            </Button>
+          </div>
+        </Section>
+      ) : null}
+
+      {/* 4b — PACKAGE LABELS */}
+      {step === 'alias' && preview ? (
+        <Section title="Paket adlarını eşleştirin">
+          <StepNote>
+            Dosyanızdaki paket adları katalogdakiyle birebir aynı olmak zorunda değil. Her adı bir kez
+            seçin — o ada sahip bütün satırlara uygulanır.
+          </StepNote>
+          <AliasStep
+            unknown={preview.unknown as unknown as UnknownLabel[]}
+            products={preview.catalogueOptions}
+            aliases={aliases}
+            onChange={setAliases}
+          />
+          <div className="mt-4 flex gap-2">
+            <Button variant="outline" onClick={() => setStep('mapping')} className="min-h-11">Geri</Button>
             <Button onClick={() => void runPreview(kind === 'members' ? 'preview' : 'match')} disabled={busy} className="min-h-11">
               {busy ? <Loader2Icon className="animate-spin" /> : null} Devam
             </Button>

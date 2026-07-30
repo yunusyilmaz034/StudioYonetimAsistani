@@ -11,9 +11,9 @@ import {
 } from '../../../shared'
 import { assignSubscription, cancelEntitlement, type EntitlementsDeps } from '../../entitlements'
 import { deactivateMember, registerMember, type MembersDeps } from '../../members'
-import { buildMembers, buildPackages, toPackageDraft, type Defaults, type Mapping, type NormalizePhone, type ProductCandidate } from '../domain/build'
+import { buildMembers, buildPackages, toPackageDraft, type Defaults, type Mapping, type NormalizePhone } from '../domain/build'
 import type { MatchCandidate } from '../domain/match'
-import type { ImportBatch, ImportKind } from '../domain/types'
+import type { ImportBatch, ImportKind, ProductCandidate } from '../domain/types'
 import type { ImportsDeps } from './ports'
 
 // APPLYING AND REVERTING A BATCH — the only part of this module that writes.
@@ -62,6 +62,8 @@ export interface ApplyImportInput {
   readonly normalize: NormalizePhone
   readonly utcOffsetMinutes: number
   readonly appliedBy: string
+  /** Folded file-label → productId, decided by the operator on the alias step. */
+  readonly aliases?: Readonly<Record<string, ProductId>>
 }
 
 export interface ImportFailure {
@@ -165,7 +167,7 @@ async function applyPackages(
 ): Promise<Partial> {
   const built = buildPackages(
     input.rows, input.mapping, input.defaults, input.existing, input.products,
-    input.normalize, input.utcOffsetMinutes, today, input.headerRowIndex,
+    input.normalize, input.utcOffsetMinutes, today, input.headerRowIndex, input.aliases ?? {},
   )
   const byLine = new Map(input.resolutions.map((r) => [r.line, r]))
   const catalogue = new Map(input.catalogue.map((p) => [p.productId, p]))

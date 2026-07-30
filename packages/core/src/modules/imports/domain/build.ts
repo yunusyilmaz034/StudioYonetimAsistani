@@ -1,9 +1,9 @@
 import type { Instant, MemberId, ProductId } from '../../../shared'
 import { MEMBER_FIELDS, PACKAGE_FIELDS } from './fields'
-import { cellFor } from './headers'
-import { foldName, matchMember, type MatchCandidate, type MatchOutcome } from './match'
+import { cellFor, foldLabel } from './headers'
+import { matchMember, type MatchCandidate, type MatchOutcome } from './match'
 import { parseBirthDate, parseCount, parseDate } from './parse'
-import type { MemberDraft, PackageDraft } from './types'
+import type { MemberDraft, PackageDraft, ProductCandidate } from './types'
 
 // ROWS → WHAT WOULD HAPPEN. Pure, and it is what the preview screen renders.
 //
@@ -138,12 +138,6 @@ export function buildMembers(
   return { ready, rejected }
 }
 
-/** The catalogue, reduced to what matching a package name needs. */
-export interface ProductCandidate {
-  readonly productId: ProductId
-  readonly name: string
-}
-
 export function buildPackages(
   rows: readonly (readonly string[])[],
   mapping: Mapping,
@@ -154,13 +148,23 @@ export function buildPackages(
   utcOffsetMinutes: number,
   today: Instant,
   headerRowIndex: number,
+  /**
+   * Folded file-label → productId, decided by the operator on the alias step.
+   *
+   * The studio's real export says `6 AY`, not `Fitness - 6 Aylık`; the old system stored a duration,
+   * not a product name. Demanding an exact match rejected all hundred rows. This is the answer she
+   * gave, applied — never a guess made here.
+   */
+  aliases: Readonly<Record<string, ProductId>> = {},
 ): BuildPackagesResult {
   const ready: PackageRow[] = []
   const rejected: RejectedRow[] = []
   const unknown = new Set<string>()
-  // Folded product name → id. Folding is the same one names use, so "Reformer Pilates - 8 Ders" and
-  // "reformer pilates 8 ders" are the same package — punctuation and case are not information here.
-  const byName = new Map(products.map((p) => [foldName(p.name), p.productId]))
+  // Folded product label → id, so "Reformer Pilates - 8 Ders" and "reformer pilates 8 ders" are the
+  // same package: punctuation and case are not information here. DIGITS are — `foldLabel` keeps
+  // them, and `foldName` does not, which would have folded the 8-class and 16-class packages onto
+  // one key and granted whichever happened to be written last.
+  const byName = new Map(products.map((p) => [foldLabel(p.name), p.productId]))
 
   for (let i = headerRowIndex + 1; i < rows.length; i++) {
     const row = rows[i]!
@@ -174,7 +178,8 @@ export function buildPackages(
     }
 
     const productName = get('productName')
-    const productId = byName.get(foldName(productName))
+    const folded = foldLabel(productName)
+    const productId = byName.get(folded) ?? aliases[folded]
     if (!productId) {
       // Reported, never guessed. A wrong package id is a right in the wrong CATEGORY — a pilates
       // credit that opens the gym — and the category wall is the one thing the UI cannot repair.

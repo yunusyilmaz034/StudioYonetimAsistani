@@ -3,6 +3,9 @@
 import {
   applyImport,
   buildMembers,
+  foldAliases,
+  suggestProducts,
+  unknownLabels,
   buildPackages,
   decideRevert,
   fieldsFor,
@@ -21,7 +24,6 @@ import {
   type MemberActivity,
   type MemberId,
   type NormalizePhone,
-  type ProductCandidate,
   type ProductId,
   type RevertVerdict,
 } from '@studio/core'
@@ -55,6 +57,8 @@ const CELL = z.preprocess((v) => (v == null ? '' : typeof v === 'string' ? v : S
 const ROWS = z.array(z.array(CELL))
 const MAPPING = z.record(z.string(), z.number().int().min(0).nullable())
 const DEFAULTS = z.record(z.string(), z.string())
+// File label → productId, decided by the operator. '' means 'skip these rows'.
+const ALIASES = z.record(z.string(), z.string())
 
 /** The phone normaliser, handed to the pure builder so it never reaches into the members module. */
 const normalize: NormalizePhone = (raw) => {
@@ -74,11 +78,17 @@ async function loadMembers(studioId: string): Promise<readonly MatchCandidate[]>
   })
 }
 
-async function loadProducts(studioId: string): Promise<readonly ProductCandidate[]> {
+async function loadProducts(studioId: string) {
   const snap = await adminDb().collection(`studios/${studioId}/products`).get()
   return snap.docs
     .filter((d) => d.data().active !== false)
-    .map((d) => ({ productId: d.id as ProductId, name: String(d.data().name ?? '') }))
+    .map((d) => ({
+      productId: d.id as ProductId,
+      name: String(d.data().name ?? ''),
+      // Shape, for suggesting a product from a label like "6 AY". Never used to DECIDE one.
+      durationDays: Number(d.data().durationDays ?? 0),
+      creditCount: d.data().creditCount == null ? null : Number(d.data().creditCount),
+    }))
 }
 
 // ── STEP 2: read the file ───────────────────────────────────────────────────────────────────
@@ -127,6 +137,7 @@ export async function previewWizardAction(input: unknown) {
       rows: ROWS,
       mapping: MAPPING,
       defaults: DEFAULTS,
+      aliases: ALIASES.optional(),
       headerRowIndex: z.number().int().min(0),
     })
     .parse(input)
@@ -137,10 +148,11 @@ export async function previewWizardAction(input: unknown) {
 
   if (p.kind === 'members') {
     const out = buildMembers(p.rows, p.mapping as Mapping, p.defaults as Defaults, existing, normalize, p.headerRowIndex)
-    return { kind: 'members' as const, missing, members: out, packages: null }
+    return { kind: 'members' as const, missing, members: out, packages: null, unknown: [], catalogueOptions: [] }
   }
 
   const products = await loadProducts(ctx.studioId)
+  const aliases = foldAliases(p.aliases ?? {})
   const out = buildPackages(
     p.rows,
     p.mapping as Mapping,
@@ -151,11 +163,24 @@ export async function previewWizardAction(input: unknown) {
     STUDIO_UTC_OFFSET_MIN,
     systemClock.now(),
     p.headerRowIndex,
+    aliases,
   )
+
+  // The distinct labels the catalogue does not know, each with the rows it covers and the products
+  // that plausibly mean it. The operator answers once per label; nothing here decides for her.
+  const at = (p.mapping as Mapping).productName
+  const labels =
+    at == null ? [] : p.rows.slice(p.headerRowIndex + 1).map((r) => String(r[at] ?? '').trim())
+  const unknown = unknownLabels(labels, products, p.aliases ?? {}).map((u) => ({
+    ...u,
+    suggestions: suggestProducts(u.label, products),
+  }))
   return {
     kind: 'member_packages' as const,
     missing,
     members: null,
+    unknown,
+    catalogueOptions: products.map((x) => ({ productId: x.productId, name: x.name })),
     packages: {
       ...out,
       // The roster the matching step needs to offer alternatives. Names only — the screen shows a
@@ -183,6 +208,7 @@ export async function applyWizardAction(input: unknown) {
       rows: ROWS,
       mapping: MAPPING,
       defaults: DEFAULTS,
+      aliases: ALIASES.optional(),
       headerRowIndex: z.number().int().min(0),
       branchId: z.string().nullable(),
       resolutions: z.array(RESOLUTION),
@@ -204,6 +230,7 @@ export async function applyWizardAction(input: unknown) {
     resolutions: p.resolutions.map((r) => ({ ...r, memberId: (r.memberId ?? null) as MemberId | null })),
     existing: await loadMembers(ctx.studioId),
     products,
+    aliases: foldAliases(p.aliases ?? {}),
     catalogue: await loadCatalogue(ctx, products.map((x) => x.productId)),
     normalize,
     utcOffsetMinutes: STUDIO_UTC_OFFSET_MIN,
