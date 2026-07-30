@@ -95,6 +95,11 @@ Read `docs/OWNER-RULES.md` §"Traps" before touching the areas it names. In shor
   Staff forms now name the cause and offer a reload button; the invite page reloads itself
   (`apps/web/src/lib/stale-deployment.ts`). Neither helps a page that was already open — only the
   reload does.
+- **"Deploy oldu mu?" sorusunun tek doğru cevabı Cloud Run'ın trafik dağılımıdır.** App Hosting'in
+  `builds`/`rollouts` listeleme uçları sıralamasız çağrıldığında eski bir sayfa döndürüyor ve
+  2026-07-30'da iki kez "deploy tetiklenmedi" diye yanlış teşhise yol açtı — dağıtım çalışıyordu.
+  Komut `docs/RUNBOOK.md`'de. Yanlış bir yeşil, kırmızıdan kötüdür: o gün stüdyo açıkken deploy
+  edilmediği sanıldığı için resepsiyona haber verilmedi (OR-17).
 - **Core changes need TWO deploys.** Push updates App Hosting; the Cloud Functions need
   `firebase deploy --only functions`. The PAYTR callback that actually runs is the FUNCTION.
 - **The emulator does not enforce Firestore indexes.** Ordering changes must be verified in prod.

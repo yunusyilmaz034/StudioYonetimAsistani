@@ -211,3 +211,40 @@ disaster-recovery tool, not an undo button. **Undo is a compensating event** (#9
 4. **A correction is a compensating event, never an overwrite** (#9), and it carries a `reason`.
 5. **Write the DEBT entry before you close the incident**, with a trigger to repay. The shortcut
    taken at 21:00 on a Tuesday is exactly the one that is never written down.
+
+
+---
+
+## Bir deploy gerçekten yayına girdi mi? (2026-07-30)
+
+**Cloud Run'ın trafik dağılımına bak. Başka hiçbir şeye değil.**
+
+```bash
+gcloud run services describe studio-yonetim --region europe-west4 --project studio-yonetim-prod \
+  --format=json | python3 -c "import json,sys; \
+  print([t for t in json.load(sys.stdin)['status']['traffic'] if t.get('percent')])"
+```
+
+Dönen revizyon adı `studio-yonetim-build-YYYY-MM-DD-NNN` biçiminde ve **%100 alan** tek satırdır.
+Bu, o an gerçekten servis edilen koddur.
+
+### Neden bu, App Hosting API'si değil
+
+App Hosting'in `builds` / `rollouts` listeleme uçları **sıralama vermeden çağrıldığında rastgele bir
+sayfa** döndürüyor. 2026-07-30'da bu yüzden iki kez yanlış teşhis kondu: son build dünkü sanıldı,
+"otomatik dağıtım bozulmuş" denildi, elle rollout tetiklendi — oysa dağıtım baştan beri çalışıyordu
+ve o gün dört ayrı build yayına girmişti.
+
+Zararı sadece kaybedilen zaman değildi: **stüdyo açıkken deploy edilmediği sanıldı**, dolayısıyla
+resepsiyona "sayfayı yenile" denmedi (OR-17). Yanlış bir yeşil, kırmızıdan kötüdür.
+
+Listeleme uçlarını yine de kullanacaksan `orderBy=createTime desc` ver ve **sonucu Cloud Run
+trafiğiyle doğrula.**
+
+### Otomatik dağıtım tetiklenmezse
+
+```bash
+firebase apphosting:rollouts:create studio-yonetim --git-branch main --force --project studio-yonetim-prod
+```
+
+Ama önce yukarıdaki kontrolü yap — büyük ihtimalle zaten tetiklenmiştir.
