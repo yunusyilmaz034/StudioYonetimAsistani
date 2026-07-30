@@ -15,6 +15,8 @@ const batch = (over: Partial<ImportBatch> = {}): ImportBatch => ({
   status: 'applied',
   appliedAt: 1_785_000_000_000 as Instant,
   revertedAt: null,
+  appliedBy: 'usr_owner',
+  revertReason: null,
   ...over,
 })
 

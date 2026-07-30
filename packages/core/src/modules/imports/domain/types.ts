@@ -23,6 +23,10 @@ export interface ImportBatch {
   readonly status: ImportBatchStatus
   readonly appliedAt: Instant
   readonly revertedAt: Instant | null
+  /** The actor id that ran it. Not a name — the log already knows who that id belongs to. */
+  readonly appliedBy: string
+  /** Mandatory when reverted: in three months it is the only thing that answers "why?". */
+  readonly revertReason: string | null
 }
 
 // ── WHAT A ROW BECOMES ──────────────────────────────────────────────────────────────────────

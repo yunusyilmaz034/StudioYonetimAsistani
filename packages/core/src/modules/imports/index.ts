@@ -49,3 +49,18 @@ export {
   type RevertBlocker,
   type RevertVerdict,
 } from './domain/revert'
+
+// Application: the only part that writes, and the reversal that undoes it.
+export {
+  applyImport,
+  revertImport,
+  type ApplyImportInput,
+  type ApplyImportResult,
+  type ImportFailure,
+  type ImportModuleDeps,
+  type ImportProduct,
+  type Resolution,
+  type RevertImportResult,
+} from './application/apply'
+export type { ImportBatchRepository, ImportsDeps } from './application/ports'
+export { FirestoreImportBatchRepository } from './infrastructure/repos'

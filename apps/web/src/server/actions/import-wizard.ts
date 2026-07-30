@@ -1,14 +1,15 @@
 'use server'
 
 import {
+  applyImport,
   buildMembers,
   buildPackages,
   decideRevert,
   fieldsFor,
   missingRequired,
-  newCorrelationId,
   newImportBatchId,
   normalizePhone,
+  revertImport,
   suggestMapping,
   systemClock,
   type BranchId,
@@ -28,10 +29,9 @@ import { z } from 'zod'
 
 import { requireTenantContext } from '../auth'
 import { adminDb } from '../firebase-admin'
-import { closeBatch, getBatch, listBatches, markReverted, openBatch, type BatchRow } from '../import/batches'
 import { FileTooLargeError, FileUnreadableError, readUpload } from '../import/read-file'
-import { applyImportBatch, revertImportBatch } from '../import/apply'
 import { collectRevertEvidence } from '../import/evidence'
+import { importDeps, loadCatalogue } from '../import/deps'
 
 // THE IMPORT WIZARD (owner, 2026-07-30).
 //
@@ -184,20 +184,12 @@ export async function applyWizardAction(input: unknown) {
     .parse(input)
   const ctx = await requireTenantContext(OWNER)
 
-  const batchId = newImportBatchId()
-  const correlationId = newCorrelationId()
-  const rowCount = Math.max(0, p.rows.length - p.headerRowIndex - 1)
-  const appliedAt = systemClock.now()
+  const products = p.kind === 'member_packages' ? await loadProducts(ctx.studioId) : []
 
-  // Opened BEFORE anything is written, so the very first member created already has a batch to be
-  // recorded against. See `apply.ts` — a crash mid-loop must leave a findable, revertible record.
-  await openBatch(ctx, batchId, p.kind as ImportKind, p.fileName, rowCount, appliedAt, ctx.actor.id ?? 'unknown')
-
-  const result = await applyImportBatch({
-    ctx,
-    batchId,
-    correlationId,
+  return applyImport(importDeps(), ctx, {
+    batchId: newImportBatchId(),
     kind: p.kind as ImportKind,
+    fileName: p.fileName,
     rows: p.rows,
     mapping: p.mapping as Mapping,
     defaults: p.defaults as Defaults,
@@ -205,20 +197,19 @@ export async function applyWizardAction(input: unknown) {
     branchId: (p.branchId ?? null) as BranchId | null,
     resolutions: p.resolutions.map((r) => ({ ...r, memberId: (r.memberId ?? null) as MemberId | null })),
     existing: await loadMembers(ctx.studioId),
-    products: p.kind === 'member_packages' ? await loadProducts(ctx.studioId) : [],
+    products,
+    catalogue: await loadCatalogue(ctx, products.map((x) => x.productId)),
     normalize,
     utcOffsetMinutes: STUDIO_UTC_OFFSET_MIN,
+    appliedBy: ctx.actor.id ?? 'unknown',
   })
-
-  await closeBatch(ctx, batchId, result.skipped)
-  return { batchId, ...result }
 }
 
 // ── UNDO ────────────────────────────────────────────────────────────────────────────────────
 
-export async function listImportBatchesAction(): Promise<readonly BatchRow[]> {
+export async function listImportBatchesAction() {
   const ctx = await requireTenantContext(OWNER)
-  return listBatches(ctx)
+  return importDeps().batches.list(ctx, 25)
 }
 
 export interface RevertCheck {
@@ -232,7 +223,7 @@ export async function checkRevertAction(input: unknown): Promise<RevertCheck | {
   const p = z.object({ batchId: z.string().min(1) }).parse(input)
   const ctx = await requireTenantContext(OWNER)
 
-  const batch = await getBatch(ctx, p.batchId)
+  const batch = await importDeps().batches.get(ctx, p.batchId)
   if (!batch) return { error: 'Aktarım bulunamadı.' }
 
   const evidence = await collectRevertEvidence(ctx, batch)
@@ -243,7 +234,7 @@ export async function revertImportAction(input: unknown) {
   const p = z.object({ batchId: z.string().min(1), reason: z.string().min(1) }).parse(input)
   const ctx = await requireTenantContext(OWNER)
 
-  const batch = await getBatch(ctx, p.batchId)
+  const batch = await importDeps().batches.get(ctx, p.batchId)
   if (!batch) return { ok: false as const, error: 'Aktarım bulunamadı.' }
 
   // Checked again HERE, not only on the screen. The screen already showed her the verdict; this is
@@ -261,7 +252,6 @@ export async function revertImportAction(input: unknown) {
     }
   }
 
-  const done = await revertImportBatch(ctx, batch, p.reason)
-  await markReverted(ctx, batch.id, systemClock.now(), p.reason)
+  const done = await revertImport(importDeps(), ctx, batch, p.reason)
   return { ok: true as const, ...done }
 }
