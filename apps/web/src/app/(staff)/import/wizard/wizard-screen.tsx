@@ -43,6 +43,12 @@ const KIND_LABEL: Record<Kind, string> = {
 
 const d = (ms: number) => new Date(ms).toLocaleDateString('tr-TR', { timeZone: 'Europe/Istanbul' })
 
+// The standard page shell. Without it the content sits flush against the sidebar and the header's
+// action button runs off the right edge — which is exactly how this shipped (owner, 2026-07-30).
+// Wider than the usual 4xl because the mapping step is two columns of arrows and the preview is a
+// six-column table; 6xl is already the app's width for table-heavy screens.
+const PAGE = 'mx-auto max-w-6xl space-y-6 p-4 sm:p-6 lg:p-8'
+
 export function ImportWizard({ branchId }: { branchId: string | null }) {
   const router = useRouter()
   const [step, setStep] = useState<StepKey>('kind')
@@ -157,7 +163,7 @@ export function ImportWizard({ branchId }: { branchId: string | null }) {
   // ── done ──────────────────────────────────────────────────────────────────────────────────
   if (result) {
     return (
-      <div className="space-y-6">
+      <main className={PAGE}>
         <PageHeader title="Aktarım tamamlandı" />
         <MetricStrip>
           <Metric label="Yeni üye" value={String(result.createdMemberIds.length)} />
@@ -196,14 +202,14 @@ export function ImportWizard({ branchId }: { branchId: string | null }) {
             Yeni Aktarım
           </Button>
         </div>
-      </div>
+      </main>
     )
   }
 
   const skipSteps: StepKey[] = kind === 'members' ? ['match'] : []
 
   return (
-    <div className="space-y-6">
+    <main className={PAGE}>
       <PageHeader title="Aktarım Sihirbazı" description={fileName || undefined} />
       <StepBar current={step} done={done} skip={skipSteps} />
 
@@ -257,6 +263,9 @@ export function ImportWizard({ branchId }: { branchId: string | null }) {
             className="max-w-md"
           />
           {busy ? <p className="mt-3 flex items-center gap-2 text-sm text-muted-foreground"><Loader2Icon className="size-4 animate-spin" /> Okunuyor…</p> : null}
+          <div className="mt-4">
+            <Button variant="outline" onClick={() => setStep('kind')} className="min-h-11">Geri</Button>
+          </div>
         </Section>
       ) : null}
 
@@ -292,9 +301,12 @@ export function ImportWizard({ branchId }: { branchId: string | null }) {
               </tbody>
             </table>
           </div>
-          <Button onClick={() => void toMapping()} disabled={busy} className="mt-4 min-h-11">
-            {busy ? <Loader2Icon className="animate-spin" /> : null} Devam
-          </Button>
+          <div className="mt-4 flex gap-2">
+            <Button variant="outline" onClick={() => setStep('file')} className="min-h-11">Geri</Button>
+            <Button onClick={() => void toMapping()} disabled={busy} className="min-h-11">
+              {busy ? <Loader2Icon className="animate-spin" /> : null} Devam
+            </Button>
+          </div>
         </Section>
       ) : null}
 
@@ -384,7 +396,7 @@ export function ImportWizard({ branchId }: { branchId: string | null }) {
           onApply={() => void apply()}
         />
       ) : null}
-    </div>
+    </main>
   )
 }
 

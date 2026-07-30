@@ -95,7 +95,7 @@ export function ImportHistory({ rows }: { rows: readonly HistoryRow[] }) {
     : []
 
   return (
-    <div className="space-y-6">
+    <main className="mx-auto max-w-6xl space-y-6 p-4 sm:p-6 lg:p-8">
       <PageHeader
         title="Aktarımlar"
         description="Dosyadan içeri alınan üye ve paketler"
@@ -235,6 +235,6 @@ export function ImportHistory({ rows }: { rows: readonly HistoryRow[] }) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </main>
   )
 }
