@@ -293,3 +293,54 @@ describe('aktarım sihirbazı — gerçek veritabanı', () => {
     expect((await db().collection(`studios/${SID}/members`).get()).size).toBe(2)
   })
 })
+
+// ── A phone typed at the desk is as good as one from the file (owner, 2026-07-30) ────────────
+//
+// The studio's real export has rows with no phone. "The file has no phone" and "there is no phone"
+// are different problems, and only the second one is ours to refuse — she knows the number, the
+// spreadsheet just did not carry it. Dropping those rows would leave a handful of members out of a
+// 74-row import for a reason she can fix in five seconds.
+describe('aktarım — elle girilen telefon', () => {
+  beforeEach(wipe)
+
+  it('creates the member from a phone typed on the matching step', async () => {
+    const res = await applyImport(deps(), ctx, {
+      ...base,
+      batchId: newImportBatchId(),
+      kind: 'member_packages',
+      fileName: 'fitness.xlsx',
+      mapping: { ...PACKAGE_MAP, phone: null },
+      rows: [
+        ['Ad', 'Tel', 'Paket', 'Kalan', 'Bitiş'],
+        ['GİZEM BATMAZ', '', 'Reformer Pilates - 8 Ders', '5', '19.08.2026'],
+      ],
+      resolutions: [{ line: 2, memberId: null, skip: false, phone: '0532 111 11 11' }],
+    })
+
+    expect(res.failed).toEqual([])
+    expect(res.createdMemberIds).toHaveLength(1)
+    expect(res.createdEntitlementIds).toHaveLength(1)
+
+    const member = (await db().doc(`studios/${SID}/members/${res.createdMemberIds[0]}`).get()).data()!
+    expect(member.fullName).toBe('GİZEM BATMAZ')
+    // Normalised exactly like an imported one — a typed number gets no special treatment.
+    expect(member.phone).toBe('+905321111111')
+  })
+
+  it('still refuses a typed phone that is not a phone', async () => {
+    const res = await applyImport(deps(), ctx, {
+      ...base,
+      batchId: newImportBatchId(),
+      kind: 'member_packages',
+      fileName: 'fitness.xlsx',
+      mapping: { ...PACKAGE_MAP, phone: null },
+      rows: [['Ad', 'Tel', 'Paket', 'Kalan', 'Bitiş'], ['GİZEM', '', 'Reformer Pilates - 8 Ders', '5', '19.08.2026']],
+      resolutions: [{ line: 2, memberId: null, skip: false, phone: '123' }],
+    })
+
+    expect(res.createdMemberIds).toEqual([])
+    expect(res.failed[0]).toMatchObject({ line: 2, reason: 'yeni üye için telefon gerekli' })
+    // Reported with its line, never guessed at. A phone we cannot read is how one woman's record
+    // ends up reachable only at another woman's number.
+  })
+})

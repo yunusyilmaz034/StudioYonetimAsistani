@@ -44,6 +44,13 @@ export interface Resolution {
   readonly memberId: MemberId | null
   /** Rows the operator chose to leave out. Counted as skipped, never silently dropped. */
   readonly skip: boolean
+  /**
+   * A phone the operator typed on the matching step, for a row that creates a member from a file
+   * that carried none. A member without a phone cannot exist — it is her unique key (AD-40) — but
+   * "the file has no phone" and "there is no phone" are different problems, and only the second is
+   * ours to refuse.
+   */
+  readonly phone?: string
 }
 
 export interface ApplyImportInput {
@@ -190,7 +197,9 @@ async function applyPackages(
 
     let memberId = owner
     if (memberId === null) {
-      const phone = input.normalize(row.phoneE164 ?? '')
+      // The file's phone, or the one she typed on the matching step. Normalised either way — a
+      // typed number gets exactly the same treatment as an imported one, including the refusal.
+      const phone = input.normalize(row.phoneE164 ?? decision?.phone ?? '')
       if (!phone) {
         failed.push({ line: row.line, subject: row.memberName, reason: 'yeni üye için telefon gerekli' })
         continue

@@ -421,6 +421,7 @@ export function ImportWizard({ branchId }: { branchId: string | null }) {
             rows={preview.packages.ready.filter((r) => r.match.kind !== 'phone') as unknown as MatchRow[]}
             roster={preview.packages.roster}
             decisions={decisions}
+            activePackages={preview.activePackages}
             onChange={setDecisions}
           />
           <div className="mt-4 flex gap-2">
@@ -461,15 +462,29 @@ function PreviewStep({
   const packages = preview.packages
 
   const skipped = Object.values(decisions).filter((d) => d.skip).length
-  const blockedRows = (packages?.ready ?? []).filter(
-    (r) => decisions[r.line]?.skip !== true && r.match.kind !== 'phone' && (decisions[r.line]?.memberId ?? null) === null && r.needsPhoneToCreate,
-  ).length
+  // Still blocked = would create a member, the file gave no phone, and none was typed either.
+  const blockedRows = (packages?.ready ?? []).filter((r) => {
+    const d = decisions[r.line]
+    if (d?.skip === true) return false
+    if (r.match.kind === 'phone' || (d?.memberId ?? null) !== null) return false
+    return r.needsPhoneToCreate && !(d?.phone ?? '').trim()
+  }).length
   // The headline number counts only what will actually land. A count that includes rows the apply
   // step will refuse is a promise the next screen breaks.
   const willCreate = members
     ? members.ready.filter((r) => !r.duplicateOf).length
     : (packages?.ready.length ?? 0) - skipped - blockedRows
   const rejected = (members?.rejected.length ?? 0) + (packages?.rejected.length ?? 0)
+
+  // Rows landing on a member who already holds a live package. Usually a duplicate — and also
+  // exactly what a renewal looks like — so it is counted and shown, never refused.
+  const ownerOf = (r: { line: number; match: { kind: string; memberId?: string } }): string | null =>
+    r.match.kind === 'phone' ? (r.match.memberId ?? null) : (decisions[r.line]?.memberId ?? null)
+  const alreadyHas = (packages?.ready ?? []).filter((r) => {
+    if (decisions[r.line]?.skip === true) return false
+    const id = ownerOf(r as never)
+    return id != null && Boolean(preview.activePackages[id])
+  }).length
   const duplicates = members?.ready.filter((r) => r.duplicateOf).length ?? 0
 
   return (
@@ -483,6 +498,7 @@ function PreviewStep({
         <Metric label={members ? 'Eklenecek üye' : 'Eklenecek paket'} value={String(willCreate)} />
         {duplicates > 0 ? <Metric label="Zaten kayıtlı" value={String(duplicates)} /> : null}
         {skipped > 0 ? <Metric label="Atlanacak" value={String(skipped)} /> : null}
+        {alreadyHas > 0 ? <Metric label="Zaten paketi var" value={String(alreadyHas)} tone="warning" /> : null}
         {blockedRows > 0 ? <Metric label="Telefonsuz" value={String(blockedRows)} tone="danger" /> : null}
         {rejected > 0 ? (
           <Metric label="Reddedilen satır" value={String(rejected)} tone="danger" />
@@ -537,11 +553,18 @@ function PreviewStep({
               // Would create a member and has no phone to create her with. The apply step refuses
               // this row; saying so HERE is the difference between an informed choice and a
               // surprise in the failure list.
-              const blocked = !skip && !toExisting && r.needsPhoneToCreate
+              const blocked = !skip && !toExisting && r.needsPhoneToCreate && !(dec?.phone ?? '').trim()
               return (
                 <tr key={r.line} className="border-t">
                   <td className="px-3 py-2 tabular-nums text-muted-foreground">{r.line}</td>
-                  <td className="px-3 py-2">{r.memberName}</td>
+                  <td className="px-3 py-2">
+                    {r.memberName}
+                    {(() => {
+                      const id = ownerOf(r as never)
+                      const has = id ? preview.activePackages[id] : null
+                      return has ? <div className="text-xs text-warning">zaten var: {has}</div> : null
+                    })()}
+                  </td>
                   <td className="px-3 py-2 text-muted-foreground">{r.productName}</td>
                   <td className="px-3 py-2 tabular-nums">{r.remainingCredits ?? '—'}</td>
                   <td className="px-3 py-2 tabular-nums text-muted-foreground">{d(r.validUntil)}</td>

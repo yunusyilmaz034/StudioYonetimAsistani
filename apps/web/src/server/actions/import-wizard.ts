@@ -78,6 +78,31 @@ async function loadMembers(studioId: string): Promise<readonly MatchCandidate[]>
   })
 }
 
+/**
+ * Members who already hold a live package, and what it is.
+ *
+ * Shown as a warning next to the row, never as a refusal (owner, 2026-07-30). A second package on
+ * top of a live one is USUALLY a duplicate — the same file imported twice, or a member already
+ * entered by hand — but it is legitimately how a renewal and a hybrid look, and refusing it would
+ * block real work to prevent a mistake the operator can see for herself. So it is said out loud and
+ * left to her.
+ */
+async function loadActivePackages(studioId: string): Promise<Record<string, string>> {
+  const snap = await adminDb().collection(`studios/${studioId}/entitlements`).where('status', '==', 'active').get()
+  const now = Date.now()
+  const out: Record<string, string> = {}
+  for (const doc of snap.docs) {
+    const x = doc.data()
+    const until = x.validUntil?.toMillis?.() ?? Number(x.validUntil ?? 0)
+    if (until <= now) continue // expired but not yet swept — not something to warn about
+    const memberId = String(x.memberId ?? '')
+    if (!memberId) continue
+    const line = `${String(x.productSnapshot?.name ?? 'paket')} · ${new Date(until).toLocaleDateString('tr-TR')}`
+    out[memberId] = out[memberId] ? `${out[memberId]}, ${line}` : line
+  }
+  return out
+}
+
 async function loadProducts(studioId: string) {
   const snap = await adminDb().collection(`studios/${studioId}/products`).get()
   return snap.docs
@@ -148,7 +173,15 @@ export async function previewWizardAction(input: unknown) {
 
   if (p.kind === 'members') {
     const out = buildMembers(p.rows, p.mapping as Mapping, p.defaults as Defaults, existing, normalize, p.headerRowIndex)
-    return { kind: 'members' as const, missing, members: out, packages: null, unknown: [], catalogueOptions: [] }
+    return {
+      kind: 'members' as const,
+      missing,
+      members: out,
+      packages: null,
+      unknown: [],
+      catalogueOptions: [],
+      activePackages: {} as Record<string, string>,
+    }
   }
 
   const products = await loadProducts(ctx.studioId)
@@ -183,6 +216,7 @@ export async function previewWizardAction(input: unknown) {
     missing,
     members: null,
     unknown,
+    activePackages: await loadActivePackages(ctx.studioId),
     catalogueOptions: products.map((x) => ({ productId: x.productId, name: x.name })),
     packages: {
       ...out,
@@ -201,6 +235,8 @@ const RESOLUTION = z.object({
   memberId: z.string().nullable(),
   /** Rows the operator chose to leave out. Counted as skipped, never silently dropped. */
   skip: z.boolean(),
+  /** Typed on the matching step when the row creates a member and the file carried no phone. */
+  phone: z.string().optional(),
 })
 
 export async function applyWizardAction(input: unknown) {
@@ -230,7 +266,14 @@ export async function applyWizardAction(input: unknown) {
     defaults: p.defaults as Defaults,
     headerRowIndex: p.headerRowIndex,
     branchId: (p.branchId ?? null) as BranchId | null,
-    resolutions: p.resolutions.map((r) => ({ ...r, memberId: (r.memberId ?? null) as MemberId | null })),
+    // `exactOptionalPropertyTypes` — an absent phone must be ABSENT, not `undefined`. Spreading a
+    // parsed object keeps the key with an undefined value, which the Resolution type refuses.
+    resolutions: p.resolutions.map((r) => ({
+      line: r.line,
+      memberId: (r.memberId ?? null) as MemberId | null,
+      skip: r.skip,
+      ...(r.phone ? { phone: r.phone } : {}),
+    })),
     existing: await loadMembers(ctx.studioId),
     products,
     aliases: foldAliases(p.aliases ?? {}),

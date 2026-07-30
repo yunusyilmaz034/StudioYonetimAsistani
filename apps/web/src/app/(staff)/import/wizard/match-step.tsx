@@ -26,6 +26,7 @@ export interface MatchRow {
   readonly memberName: string
   readonly productName: string
   readonly phoneE164: string | null
+  readonly needsPhoneToCreate: boolean
   readonly match:
     | { kind: 'phone'; memberId: string }
     | { kind: 'proposal'; candidates: readonly { memberId: string; fullName: string; reason: string }[] }
@@ -36,6 +37,21 @@ export interface Decision {
   readonly line: number
   readonly memberId: string | null
   readonly skip: boolean
+  /**
+   * Typed by the operator when the row becomes a NEW member and the file gave no phone.
+   *
+   * A member without a phone cannot exist — it is her unique key, the thing that stops the same
+   * woman being created twice (AD-40). But "the file has no phone" and "there is no phone" are
+   * different problems, and only the second one is ours to refuse. She knows the number; the
+   * spreadsheet just did not carry it.
+   */
+  readonly phone?: string
+}
+
+/** A loose shape check, only to colour the field. The server normalises and has the final say. */
+const phoneLooksOk = (raw: string | undefined): boolean => {
+  const digits = (raw ?? '').replace(/\D/g, '')
+  return digits.length === 0 || /^(0?5\d{9}|905\d{9})$/.test(digits)
 }
 
 const REASON_LABEL: Record<string, string> = {
@@ -48,11 +64,14 @@ export function MatchStep({
   rows,
   roster,
   decisions,
+  activePackages,
   onChange,
 }: {
   rows: readonly MatchRow[]
   roster: readonly { memberId: string; fullName: string }[]
   decisions: Record<number, Decision>
+  /** memberId → the live package(s) she already holds. A warning, never a refusal. */
+  activePackages: Readonly<Record<string, string>>
   onChange: (next: Record<number, Decision>) => void
 }) {
   const [filter, setFilter] = useState('')
@@ -65,14 +84,20 @@ export function MatchStep({
 
   function set(line: number, value: string) {
     if (!value) return
+    const kept = decisions[line]?.phone
     const next = { ...decisions }
     next[line] =
       value === SKIP
         ? { line, memberId: null, skip: true }
         : value === NEW
-          ? { line, memberId: null, skip: false }
+          ? { line, memberId: null, skip: false, ...(kept ? { phone: kept } : {}) }
           : { line, memberId: value, skip: false }
     onChange(next)
+  }
+
+  function setPhone(line: number, phone: string) {
+    const d = decisions[line] ?? { line, memberId: null, skip: false }
+    onChange({ ...decisions, [line]: { ...d, phone } })
   }
 
   function acceptUnambiguous() {
@@ -134,6 +159,7 @@ export function MatchStep({
               const d = decisions[r.line]
               const value: string = d === undefined ? '' : d.skip ? SKIP : (d.memberId ?? NEW)
               const isAmbiguous = r.match.kind === 'proposal' && r.match.candidates.length > 1
+              const isCreating = d !== undefined && !d.skip && d.memberId === null
               return (
                 <tr key={r.line} className={cn('border-t align-top', isAmbiguous && 'bg-warning/5')}>
                   <td className="px-3 py-2 tabular-nums text-muted-foreground">{r.line}</td>
@@ -175,7 +201,33 @@ export function MatchStep({
                         Eşleşen üye bulunamadı — yeni üye olarak eklenecek.
                       </p>
                     ) : null}
+                    {/* The file gave no phone and this row is about to create a member. She knows
+                        the number; the spreadsheet just did not carry it. Asking here beats
+                        dropping the row and beats making her edit the file and start over. */}
+                    {isCreating && r.needsPhoneToCreate ? (
+                      <div className="mt-2 max-w-xs">
+                        <Input
+                          inputMode="tel"
+                          placeholder="Telefon — 0532 123 45 67"
+                          value={d?.phone ?? ''}
+                          onChange={(e) => setPhone(r.line, e.target.value)}
+                          className={cn('min-h-10', !phoneLooksOk(d?.phone) && 'border-danger')}
+                        />
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Yeni üye açmak için telefon şart — üyenin tekil kimliği bu. Girmezseniz bu
+                          satır atlanır.
+                        </p>
+                      </div>
+                    ) : null}
                     {isAmbiguous ? <Badge variant="outline" className="mt-1">birden fazla aday</Badge> : null}
+                    {/* She already has something live. Usually this means the row is a duplicate —
+                        but it is also what a renewal and a hybrid look like, so it is said, not
+                        refused. */}
+                    {d?.memberId && activePackages[d.memberId] ? (
+                      <p className="mt-1 text-xs text-warning">
+                        Bu üyenin zaten paketi var: {activePackages[d.memberId]}
+                      </p>
+                    ) : null}
                   </td>
                 </tr>
               )
