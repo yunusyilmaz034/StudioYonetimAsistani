@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Alert, RefreshControl, View } from 'react-native'
+import { Alert, Pressable, RefreshControl, View } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 
 import type { MemberReservation } from '@studio/core/client'
@@ -24,6 +24,8 @@ export default function Reservations() {
   const p = usePalette()
   const { data, loading, reload } = useFetch(api.reservations)
   const [busyId, setBusyId] = useState<string | null>(null)
+  // Closed on open: the past is a record, not a decision (PF-43).
+  const [pastOpen, setPastOpen] = useState(false)
   if (loading && !data) return <Loading />
 
   function cancel(r: MemberReservation) {
@@ -69,8 +71,22 @@ export default function Reservations() {
         <Card><Empty icon={<Ionicons name="calendar-clear-outline" size={30} color={p.textFaint} />} text="Yaklaşan rezervasyonun yok." /></Card>
       )}
 
-      <Eyebrow>Geçmiş</Eyebrow>
+      {/* PF-43 (owner, 2026-07-29) — the past is COLLAPSED by default.
+          An active reservation is a decision (I am there on Tuesday); a past one is a record.
+          Listing them together made the member sort one from the other on every open, and she said
+          so. The table is unchanged — it is only wrapped, and the count is on the header so nothing
+          feels hidden. */}
       {data && data.past.length > 0 ? (
+        <Pressable onPress={() => setPastOpen((v) => !v)} hitSlop={8}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space(2), paddingVertical: space(2) }}>
+            <Eyebrow>Geçmiş ({data.past.length})</Eyebrow>
+            <Ionicons name={pastOpen ? 'chevron-up' : 'chevron-down'} size={16} color={p.textFaint} />
+          </View>
+        </Pressable>
+      ) : (
+        <Eyebrow>Geçmiş</Eyebrow>
+      )}
+      {data && data.past.length > 0 && pastOpen ? (
         data.past.slice(0, 20).map((r) => (
           <Card key={r.reservationId} inset style={{ opacity: 0.75 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -82,9 +98,9 @@ export default function Reservations() {
             </View>
           </Card>
         ))
-      ) : (
+      ) : data && data.past.length === 0 ? (
         <Card><Empty icon={<Ionicons name="time-outline" size={28} color={p.textFaint} />} text="Geçmiş kaydın yok." /></Card>
-      )}
+      ) : null}
     </Screen>
   )
 }

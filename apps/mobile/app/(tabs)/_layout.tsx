@@ -65,7 +65,14 @@ export default function TabsLayout() {
       <Tabs.Screen name="agenda" options={{ title: 'Ajanda', tabBarIcon: ({ focused }) => <TabIcon filled="calendar" outline="calendar-outline" focused={focused} /> }} />
       <Tabs.Screen name="training" options={{ title: showPrograms ? 'Antrenman' : 'Ölçümler', tabBarIcon: ({ focused }) => <TabIcon filled={showPrograms ? 'barbell' : 'body'} outline={showPrograms ? 'barbell-outline' : 'body-outline'} focused={focused} /> }} />
       <Tabs.Screen name="qr" options={{ title: 'QR', tabBarIcon: ({ focused }) => <TabIcon filled="qr-code" outline="qr-code-outline" focused={focused} /> }} />
-      <Tabs.Screen name="wallet" options={{ title: 'Cüzdan', tabBarIcon: ({ focused }) => <TabIcon filled="wallet" outline="wallet-outline" focused={focused} /> }} />
+      {/* PF-42 (owner, 2026-07-29) — Üyeliğim took the wallet's place, and the reason is measured:
+          production has ZERO wallets, not one member has ever had one, while every member holds a
+          package and the renewal flow that earns money sat two taps deep behind a card on the home
+          screen. The unused feature was in the window and the selling one in the stockroom.
+          The wallet is not gone — it moved to Profile, and comes back here the day stored value is
+          actually sold. A SEVENTH tab was refused: at 375 px that leaves ~53 px each and the labels
+          truncate. */}
+      <Tabs.Screen name="subscriptions" options={{ title: 'Üyeliğim', tabBarIcon: ({ focused }) => <TabIcon filled="ticket" outline="ticket-outline" focused={focused} /> }} />
       <Tabs.Screen name="profile" options={{ title: 'Profil', tabBarIcon: ({ focused }) => <TabIcon filled="person" outline="person-outline" focused={focused} /> }} />
     </Tabs>
   )

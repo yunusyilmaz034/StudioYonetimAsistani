@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Loader2Icon } from 'lucide-react'
+import { Loader2Icon, ChevronRightIcon } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Badge } from '@/components/ui/badge'
@@ -116,10 +116,20 @@ export function PortalReservationsScreen({
         )}
       </Section>
 
+      {/* PF-43 (owner, 2026-07-29) — the past is COLLAPSED by default.
+          An active reservation is a decision (I am there on Tuesday); a past one is a record.
+          Listing them together made the member sort one from the other on every open. The list is
+          unchanged, only wrapped, and the count sits on the summary so nothing feels hidden. */}
       <Section title="Geçmiş">
         {past.length === 0 ? (
           <p className="text-sm text-muted-foreground">Geçmiş rezervasyonunuz yok.</p>
         ) : (
+          <details className="group">
+            <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 text-sm font-medium text-foreground">
+              <ChevronRightIcon className="size-4 transition-transform group-open:rotate-90" />
+              Geçmiş rezervasyonlar ({past.length})
+            </summary>
+            <div className="mt-3">
           <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card shadow-sm">
             {past.map((r) => {
               const st = STATUS[r.status] ?? { label: r.status, className: 'bg-muted text-muted-foreground' }
@@ -133,7 +143,9 @@ export function PortalReservationsScreen({
                 </li>
               )
             })}
-          </ul>
+              </ul>
+            </div>
+          </details>
         )}
       </Section>
 

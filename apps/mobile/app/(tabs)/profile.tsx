@@ -76,7 +76,9 @@ export default function Profile() {
       <FadeInUp index={2}>
         <Eyebrow>Hesabım</Eyebrow>
         <Card inset>
-          <LinkRow icon="ticket-outline" label="Aboneliklerim" onPress={() => router.push('/subscriptions')} />
+          {/* PF-42 — the two swapped places. Üyeliğim is a tab now; the wallet lives here, where
+              somebody looking for it will find it and nobody else is bothered by it. */}
+          <LinkRow icon="wallet-outline" label="Cüzdanım" onPress={() => router.push('/wallet')} />
           <Divider />
           <LinkRow icon="call-outline" label="İletişim" onPress={() => router.push('/contact')} />
         </Card>
