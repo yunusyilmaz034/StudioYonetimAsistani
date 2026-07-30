@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { AlertTriangleIcon, CheckCircle2Icon, Loader2Icon, PackageIcon, UsersIcon } from 'lucide-react'
 import { toast } from 'sonner'
@@ -50,6 +50,32 @@ const d = (ms: number) => new Date(ms).toLocaleDateString('tr-TR', { timeZone: '
 // six-column table; 6xl is already the app's width for table-heavy screens.
 const PAGE = 'mx-auto max-w-6xl space-y-6 p-4 sm:p-6 lg:p-8'
 
+// ── THE WORK SURVIVES A RELOAD (2026-07-30) ─────────────────────────────────────────────────
+//
+// The matching step is the long one: seventy-odd rows, each confirmed by hand. The owner had done
+// most of it when a deploy landed underneath him, his tab went stale, and every answer went with it.
+// He had to start over — and starting over is the reason people abandon an import and go back to
+// typing members in one at a time.
+//
+// So the wizard keeps its state in sessionStorage and offers it back. Session, not local: this is a
+// half-finished job on one desk, not a preference, and it should not outlive the browser window.
+// The file's own rows are kept too, because re-picking the file is the one step that cannot be
+// restored from anything else.
+const DRAFT_KEY = 'import-wizard-draft-v1'
+
+interface Draft {
+  kind: Kind | null
+  fileName: string
+  rows: readonly (readonly string[])[]
+  headerRowIndex: number
+  mapping: Record<string, number | null>
+  defaults: Record<string, string>
+  aliases: Record<string, string>
+  decisions: Record<number, Decision>
+  step: StepKey
+  savedAt: number
+}
+
 export function ImportWizard({ branchId }: { branchId: string | null }) {
   const router = useRouter()
   const [step, setStep] = useState<StepKey>('kind')
@@ -77,6 +103,50 @@ export function ImportWizard({ branchId }: { branchId: string | null }) {
     Object.entries(aliases).filter(([, v]) => v && v !== ALIAS_SKIP),
   )
   const [result, setResult] = useState<Awaited<ReturnType<typeof applyWizardAction>> | null>(null)
+
+  const [restorable, setRestorable] = useState<Draft | null>(null)
+
+  // Offer, never impose. A draft silently reapplied is a wizard that seems to remember the wrong
+  // file, and the operator has no way to tell what she is looking at.
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(DRAFT_KEY)
+      if (!raw) return
+      const d = JSON.parse(raw) as Draft
+      if (d.rows?.length) setRestorable(d)
+    } catch {
+      // A draft we cannot read is a draft we do not have. Nothing here is worth an error for.
+    }
+  }, [])
+
+  // Saved on every change once a file is loaded. Cheap, and the alternative is what happened today.
+  useEffect(() => {
+    if (rows.length === 0) return
+    try {
+      const draft: Draft = {
+        kind, fileName, rows, headerRowIndex, mapping, defaults, aliases, decisions, step,
+        savedAt: Date.now(),
+      }
+      sessionStorage.setItem(DRAFT_KEY, JSON.stringify(draft))
+    } catch {
+      // Over quota on a very large file. The import still works; only the safety net is gone.
+    }
+  }, [kind, fileName, rows, headerRowIndex, mapping, defaults, aliases, decisions, step])
+
+  function restore(d: Draft) {
+    setKind(d.kind)
+    setFileName(d.fileName)
+    setRows(d.rows)
+    setHeaderRowIndex(d.headerRowIndex)
+    setMapping(d.mapping)
+    setDefaults(d.defaults)
+    setAliases(d.aliases)
+    setDecisions(d.decisions)
+    setRestorable(null)
+    // Back to mapping rather than where she left off: the preview must be recomputed on the server
+    // before it can be trusted, and showing a restored preview as if it were fresh would be a lie.
+    setStep('mapping')
+  }
 
   const header = rows[headerRowIndex] ?? []
   const sample = rows[headerRowIndex + 1] ?? []
@@ -173,6 +243,8 @@ export function ImportWizard({ branchId }: { branchId: string | null }) {
         resolutions: Object.values(decisions),
       })
       setResult(res)
+      // Done means done — a finished import must not be offered back on the next visit.
+      try { sessionStorage.removeItem(DRAFT_KEY) } catch { /* nothing to clean up */ }
       toast.success('Aktarım tamamlandı.')
       router.refresh()
     } catch (e) {
@@ -234,6 +306,29 @@ export function ImportWizard({ branchId }: { branchId: string | null }) {
     <main className={PAGE}>
       <PageHeader title="Aktarım Sihirbazı" description={fileName || undefined} />
       <StepBar current={step} done={done} skip={skipSteps} />
+
+      {restorable && rows.length === 0 ? (
+        <div className="rounded-xl border border-accent/40 bg-accent/5 p-4">
+          <p className="text-sm font-medium">Yarım kalmış bir aktarım var</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            <strong>{restorable.fileName}</strong> — {restorable.rows.length} satır,{' '}
+            {Object.keys(restorable.decisions).length} karar verilmiş.
+          </p>
+          <div className="mt-3 flex gap-2">
+            <Button onClick={() => restore(restorable)} className="min-h-11">Kaldığım yerden devam et</Button>
+            <Button
+              variant="outline"
+              className="min-h-11"
+              onClick={() => {
+                try { sessionStorage.removeItem(DRAFT_KEY) } catch { /* already gone */ }
+                setRestorable(null)
+              }}
+            >
+              Baştan başla
+            </Button>
+          </div>
+        </div>
+      ) : null}
 
       {/* 1 — WHAT */}
       {step === 'kind' ? (

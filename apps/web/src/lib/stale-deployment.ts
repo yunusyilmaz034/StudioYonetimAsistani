@@ -18,7 +18,18 @@
 // Error with no code. The check is deliberately loose (two independent fragments, either one is
 // enough) so a wording change upstream degrades to the generic message rather than to a lie.
 
-const MARKERS = ['Failed to find Server Action', 'older or newer deployment'] as const
+// The SERVER logs "Failed to find Server Action …". The BROWSER usually does not see that string —
+// it gets a generic failure, and on 2026-07-30 that meant an operator mid-import was told to "try
+// again", which is the one thing that cannot work. So the client-visible phrasings are here too.
+const MARKERS = [
+  'Failed to find Server Action',
+  'older or newer deployment',
+  'An unexpected response was received from the server',
+  'Connection closed',
+  'Failed to fetch',
+  'NetworkError',
+  'Load failed',
+] as const
 
 /** True when a call failed only because this tab predates the running deployment. */
 export function isStaleDeployment(e: unknown): boolean {
