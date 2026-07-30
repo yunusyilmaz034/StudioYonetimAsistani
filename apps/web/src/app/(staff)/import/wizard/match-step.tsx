@@ -58,6 +58,7 @@ const REASON_LABEL: Record<string, string> = {
   exact_name: 'ad birebir aynı',
   same_surname_and_first_name: 'ad ve soyad aynı',
   same_surname_and_initial: 'soyadı aynı, ilk harf aynı',
+  near_spelling: 'yazım çok yakın — harf hatası olabilir',
 }
 
 export function MatchStep({
@@ -75,6 +76,16 @@ export function MatchStep({
   onChange: (next: Record<number, Decision>) => void
 }) {
   const [filter, setFilter] = useState('')
+  // Per-row search inside the roster dropdown. A hundred and twenty names in source order is a list
+  // nobody can use — the owner had to scroll past thirty strangers to reach the one he wanted.
+  const [rosterQuery, setRosterQuery] = useState<Record<number, string>>({})
+
+  // Turkish collation, not ASCII: `Ç` belongs after `C` and `İ` after `I`, and a list that sorts
+  // them anywhere else is a list you cannot scan.
+  const sortedRoster = useMemo(
+    () => [...roster].sort((a, b) => a.fullName.localeCompare(b.fullName, 'tr')),
+    [roster],
+  )
 
   const undecided = rows.filter((r) => decisions[r.line] === undefined).length
   const ambiguous = useMemo(
@@ -188,12 +199,31 @@ export function MatchStep({
                         </SelectItem>
                         <SelectItem value={SKIP}>Bu satırı atla</SelectItem>
                         {/* The full roster, for the case the proposals missed her — a married name,
-                            a nickname, a typo in the old system. The operator knows; we do not. */}
-                        {roster.map((m) => (
-                          <SelectItem key={`all_${m.memberId}`} value={m.memberId}>
-                            {m.fullName}
-                          </SelectItem>
-                        ))}
+                            a nickname, a typo in the old system. The operator knows; we do not.
+                            Sorted A–Z in Turkish, and searchable: a hundred and twenty names is not
+                            something anyone should scroll. */}
+                        <div className="sticky top-0 z-10 bg-popover p-1">
+                          <Input
+                            autoFocus={false}
+                            placeholder="Üye ara…"
+                            value={rosterQuery[r.line] ?? ''}
+                            onChange={(e) => setRosterQuery((q) => ({ ...q, [r.line]: e.target.value }))}
+                            // Radix Select treats keystrokes as type-ahead and would swallow these.
+                            onKeyDown={(e) => e.stopPropagation()}
+                            className="min-h-9"
+                          />
+                        </div>
+                        {sortedRoster
+                          .filter((m) => {
+                            const q = (rosterQuery[r.line] ?? '').trim().toLocaleLowerCase('tr')
+                            return !q || m.fullName.toLocaleLowerCase('tr').includes(q)
+                          })
+                          .slice(0, 60)
+                          .map((m) => (
+                            <SelectItem key={`all_${m.memberId}`} value={m.memberId}>
+                              {m.fullName}
+                            </SelectItem>
+                          ))}
                       </SelectContent>
                     </Select>
                     {r.match.kind === 'none' ? (

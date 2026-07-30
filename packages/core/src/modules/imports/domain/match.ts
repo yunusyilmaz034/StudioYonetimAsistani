@@ -38,7 +38,11 @@ export interface NameProposal {
   readonly memberId: MemberId
   readonly fullName: string
   /** Why this was proposed — shown to the operator, because a proposal without a reason is noise. */
-  readonly reason: 'exact_name' | 'same_surname_and_first_name' | 'same_surname_and_initial'
+  readonly reason:
+    | 'exact_name'
+    | 'same_surname_and_first_name'
+    | 'same_surname_and_initial'
+    | 'near_spelling'
 }
 
 /**
@@ -67,6 +71,53 @@ export function foldName(name: string): string {
 }
 
 const parts = (name: string): readonly string[] => foldName(name).split(' ').filter(Boolean)
+
+/**
+ * Levenshtein distance, capped — we only ever ask "is this within two edits?".
+ *
+ * Two rows of integers rather than a full matrix: these are names, but the roster is compared
+ * against every row of the file and there is no reason to allocate a matrix per pair.
+ */
+function editDistance(a: string, b: string, cap: number): number {
+  if (Math.abs(a.length - b.length) > cap) return cap + 1
+  let prev = Array.from({ length: b.length + 1 }, (_, i) => i)
+  for (let i = 1; i <= a.length; i++) {
+    const row = [i]
+    let best = i
+    for (let j = 1; j <= b.length; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1
+      const v = Math.min(prev[j]! + 1, row[j - 1]! + 1, prev[j - 1]! + cost)
+      row.push(v)
+      if (v < best) best = v
+    }
+    if (best > cap) return cap + 1 // no later row can come back under the cap
+    prev = row
+  }
+  return prev[b.length]!
+}
+
+/**
+ * A near-miss spelling: the same name with a typo in it.
+ *
+ * `ZÜHRE HİLAL KAŞ` in the file is `ZÜHRE HİLAL KUŞ` in the studio — one letter, and every tier
+ * above this one misses it, because they all key on the SURNAME being right (owner, 2026-07-30).
+ *
+ * The allowance grows with the name, because that is how confident we are entitled to be:
+ *
+ *   under 8 letters  → nothing. At that length one edit is `KAR` and `KOR`, two different women.
+ *   8 to 11 letters  → one edit.
+ *   12 and above     → two, which is where a doubled letter and a swapped one both fit.
+ *
+ * It is the last tier and it only ever proposes, so being wrong costs a line in a list. Being
+ * absent costs a member who quietly does not get imported.
+ */
+function isNearSpelling(a: string, b: string): boolean {
+  const len = Math.max(a.length, b.length)
+  if (len < 8) return false
+  const cap = len >= 12 ? 2 : 1
+  const d = editDistance(a, b, cap)
+  return d > 0 && d <= cap
+}
 
 /**
  * Resolve one row against the existing members.
@@ -103,6 +154,7 @@ export function matchMember(
   const exact: NameProposal[] = []
   const sameFirstName: NameProposal[] = []
   const sameInitial: NameProposal[] = []
+  const nearSpelling: NameProposal[] = []
 
   for (const m of existing) {
     const have = parts(m.fullName)
@@ -111,7 +163,14 @@ export function matchMember(
       exact.push({ memberId: m.memberId, fullName: m.fullName, reason: 'exact_name' })
       continue
     }
-    if (have[have.length - 1] !== surname) continue
+    if (have[have.length - 1] !== surname) {
+      // Different surname — but a typo IS a different surname. `KAŞ` vs `KUŞ` reaches here and
+      // every tier above would drop it on the floor.
+      if (isNearSpelling(have.join(' '), wantJoined)) {
+        nearSpelling.push({ memberId: m.memberId, fullName: m.fullName, reason: 'near_spelling' })
+      }
+      continue
+    }
     // Same surname AND the same first name — a middle name only one of the two systems recorded.
     if (have[0] === firstName) {
       sameFirstName.push({ memberId: m.memberId, fullName: m.fullName, reason: 'same_surname_and_first_name' })
@@ -124,7 +183,7 @@ export function matchMember(
     }
   }
 
-  const candidates = [...exact, ...sameFirstName, ...sameInitial]
+  const candidates = [...exact, ...sameFirstName, ...sameInitial, ...nearSpelling]
   return candidates.length > 0 ? { kind: 'proposal', candidates } : { kind: 'none' }
 }
 
