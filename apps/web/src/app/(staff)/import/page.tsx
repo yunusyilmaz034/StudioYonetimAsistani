@@ -1,15 +1,16 @@
 import { requirePageAccess } from '@/server/auth'
+import { listImportBatchesAction } from '@/server/actions/import-wizard'
 
-import { ImportScreen } from './import-screen'
+import { ImportHistory } from './history-screen'
 
-// THE BULUTGYM IMPORT (v1.27 S5).
+// AKTARIMLAR — the list of every import this studio has run, and the undo for each.
 //
-// The owner's one-time move off the old system. It reads a CSV, tells her — row by row, with line
-// numbers — what it will not accept, and refuses the whole run until she has fixed the source file.
-//
-// It imports a NAME and a PHONE. Nothing else: BulutGym exports nothing else, and packages, credits
-// and balances are opened by hand against her own list rather than guessed from a file.
+// This replaced the frozen BulutGym one-shot screen as the landing page (2026-07-30). That importer
+// read one vendor's CSV in one fixed shape; the wizard at `/import/wizard` reads whatever the next
+// studio arrives with. The old screen is kept at `/import/legacy` — it is the tool that moved this
+// studio's 120 members and there is no reason to delete a thing that worked.
 export default async function ImportPage() {
-  const ctx = await requirePageAccess('/import')
-  return <ImportScreen branchId={ctx.branchIds[0] ?? null} />
+  await requirePageAccess('/import')
+  const rows = await listImportBatchesAction()
+  return <ImportHistory rows={rows.map((r) => ({ ...r, appliedAt: Number(r.appliedAt) }))} />
 }
