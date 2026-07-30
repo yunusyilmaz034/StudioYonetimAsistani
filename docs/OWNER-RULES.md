@@ -109,6 +109,17 @@ single day's tidiness. What changed is what the read model counts:
 `/studios/{sid}/settings/projection.excludedMemberIds`, read by both the live projector and
 `pnpm projections:rebuild`. Adding an account to that list and rebuilding is the whole procedure.
 
+**OR-19 · İptal etmediyse kredi düşer — istisnasız.** (2026-07-30) A reservation holds the credit at
+booking and consumes it at resolution, whether or not anyone marked attendance. Marking attendance
+CONFIRMS the record; it does not change the credit. The only thing that gives a credit back is a
+cancellation inside the window (or the studio cancelling the class, I-27).
+
+Until 2026-07-30 one path disagreed: `noShowConsumesCredit: false` refunded the credit when a trainer
+marked a member absent. The same absent member got a different answer depending on whether a human
+bothered to mark her — doing nothing was strict, being diligent was generous. It had never fired
+(zero no-shows in the studio's history) and is now `true` on all three services. The default for
+newly created services was fixed in the same change, so it cannot come back through the front door.
+
 ## Traps that have already cost something
 
 **OR-14 · Firestore indexes are a production-only trap.** The emulator does NOT enforce them, so a

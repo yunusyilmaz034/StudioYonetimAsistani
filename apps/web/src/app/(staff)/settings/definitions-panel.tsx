@@ -401,7 +401,12 @@ function ServiceDialog({ onClose, onDone }: { onClose: () => void; onDone: () =>
           // as the other would let members cancel a class as it starts.
           cancellationWindowHours: windowHours.trim() === '' ? null : Number(windowHours),
           lateCancellationConsumesCredit: true,
-          noShowConsumesCredit: false,
+          // A no-show CONSUMES the credit (owner, 2026-07-30). It used to refund it, which produced
+          // an asymmetry nobody could defend: a member who did not come lost her credit when nobody
+          // marked anything, and got it back when a trainer marked her absent. Doing nothing was the
+          // strict outcome and being diligent was the generous one, so the result depended on
+          // whether someone bothered. The owner's rule is one line: iptal etmediyse kredi düşer.
+          noShowConsumesCredit: true,
           attendanceDefaultOutcome: 'attended',
           autoResolveAfterMinutes: 15,
           allowMemberSelfBooking: selfBooking,
