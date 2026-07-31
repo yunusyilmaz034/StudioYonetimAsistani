@@ -21,6 +21,8 @@
 // Assignment publishes a version, which notifies the member. The owner's standing rule is that BULK
 // operations notify nobody, so every intent this run creates is cancelled immediately afterwards —
 // the same thing done by hand on 2026-07-31, made part of the operation this time.
+import { randomBytes } from 'node:crypto'
+
 import { initializeApp } from 'firebase-admin/app'
 import { FieldValue, getFirestore } from 'firebase-admin/firestore'
 
@@ -160,15 +162,32 @@ async function main(): Promise<void> {
   const tplSnap = await db.collection(`studios/${studioId}/programTemplates`).get()
   const old = tplSnap.docs.find((d) => String(d.data().name ?? '') === 'Program A')
   console.log(`\nmevcut şablon: ${tplSnap.size} · "Program A" → "İleri Program A": ${old ? 'evet' : 'bulunamadı'}`)
-  if (apply && old) await old.ref.set({ name: 'İleri Program A' }, { merge: true })
+  // The level moves with the name: a template called "İleri" that still says `beginner` shows a
+  // "Başlangıç" badge, which is the opposite of what it now is.
+  if (apply && old) await old.ref.set({ name: 'İleri Program A', level: 'advanced' }, { merge: true })
 
   // ── 3. the two new templates ──────────────────────────────────────────────────────────────
   for (const [name, days] of [['Program A', aDays], ['Program B', bDays]] as const) {
     const existing = tplSnap.docs.find((d) => String(d.data().name ?? '') === name && d.id !== old?.id)
     console.log(`  ${existing ? 'güncellenecek' : 'oluşturulacak'}: ${name}`)
     if (!apply) continue
-    const ref = existing ? existing.ref : db.collection(`studios/${studioId}/programTemplates`).doc()
-    await ref.set({ id: ref.id, studioId, name, days, updatedAt: FieldValue.serverTimestamp() }, { merge: true })
+    // THE WHOLE DECLARED SHAPE, not the four fields the screen happened to need. Writing a partial
+    // document left both templates reading "Pasif" (no `active`) and badge-less (no `level`), and
+    // the id skipped the `ptpl_` prefix every other id in this system carries (2026-07-31).
+    const ref = existing ? existing.ref : db.collection(`studios/${studioId}/programTemplates`).doc(`ptpl_${randomBytes(13).toString('hex').toUpperCase()}`)
+    await ref.set({
+      id: ref.id,
+      studioId,
+      name,
+      level: 'beginner',
+      description: name === 'Program A'
+        ? 'Stüdyo başlangıç programı — 3 gün, dönüşümlü.'
+        : 'Başlangıç programının ikinci haftası — aynı üç gün, bir gün kaydırılmış.',
+      days,
+      active: true,
+      updatedBy: 'mig_program_templates_20260731',
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true })
   }
 
   // ── 4. archive what the earlier run assigned ──────────────────────────────────────────────
