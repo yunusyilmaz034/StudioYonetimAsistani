@@ -9,8 +9,7 @@ import {
   metaWhatsAppTransport,
   ResendEmailProvider,
   standardNotificationProviders,
-  WhatsAppProvider,
-} from './providers'
+  WhatsAppProvider, META_TEMPLATE } from './providers'
 
 // The two providers that talk to the outside world (v1.26).
 //
@@ -187,5 +186,22 @@ describe('standardNotificationProviders — one registry for functions and web',
   it('uses the real e-mail transport when configured', () => {
     const ps = standardNotificationProviders(db, { email: { apiKey: 'k', from: 'f@s.test' } })
     expect(ps[1]).toBeInstanceOf(ResendEmailProvider)
+  })
+})
+
+// ── The invite must carry BOTH addresses (owner, 2026-07-31) ────────────────────────────────
+describe('portal_invite → uyelik_daveti', () => {
+  it('sends the combined link, not the bare invite', () => {
+    // Meta's approved body has one placeholder and the studio cannot add a sentence to it without
+    // another approval round. The CONTENT of that placeholder is ours, so it carries the invite AND
+    // the login address — seventy-six members had no way back once the message scrolled away.
+    expect(META_TEMPLATE.portal_invite?.params).toEqual(['memberName', 'inviteLinkWithLogin'])
+  })
+
+  it('keeps `inviteLink` out of the WhatsApp mapping, so the two paths cannot drift', () => {
+    // The in-app and manual paths render our own body, which has room for a proper second line and
+    // still uses `inviteLink`. Mapping WhatsApp to the same key is what made them look identical
+    // while sending different things.
+    expect(META_TEMPLATE.portal_invite?.params).not.toContain('inviteLink')
   })
 })

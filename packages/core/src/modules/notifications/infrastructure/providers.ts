@@ -277,7 +277,18 @@ export const META_TEMPLATE: Readonly<Record<string, MetaTemplateRef>> = {
   // The owner registered this one as `uyelik_daveti` (Utility). The earlier `portal_invite_tr` name
   // was never approved — Meta read a bare login link as Authentication/OTP — so the copy was reframed
   // as a welcome ("üyeliğin hazır") and re-submitted under this name.
-  portal_invite: { name: 'uyelik_daveti', params: ['memberName', 'inviteLink'] },
+  // The approved body reads "…üye portalına giriş yap: {{2}} görüşürüz." — one placeholder, and the
+  // studio cannot add a sentence to it without Meta approving the template again.
+  //
+  // But the CONTENT of that placeholder is ours. The member needs two addresses, not one: the invite
+  // (single-use, spent the moment she sets a password) and the login (where she goes every day
+  // after). Sending only the first meant seventy-six members had no way back once the message
+  // scrolled out of their WhatsApp (owner, 2026-07-31).
+  //
+  // So the second parameter carries both, on ONE line — Meta rejects a parameter containing a
+  // newline. `inviteLinkWithLogin` is built by the caller; `inviteLink` stays exactly as it was for
+  // the in-app and manual paths, which have room for a proper second line.
+  portal_invite: { name: 'uyelik_daveti', params: ['memberName', 'inviteLinkWithLogin'] },
   wallet_topup: { name: 'wallet_topup_tr', params: ['memberName', 'amount', 'balance'] },
   // Ders hatırlatmaları (Utility). The owner registered these Meta templates under these EXACT names
   // (no `_tr` suffix). Pilates carries name + time only ("Reformer Pilates" is fixed copy in the Meta
