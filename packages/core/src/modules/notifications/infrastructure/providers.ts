@@ -288,6 +288,13 @@ export const META_TEMPLATE: Readonly<Record<string, MetaTemplateRef>> = {
   // So the second parameter carries both, on ONE line — Meta rejects a parameter containing a
   // newline. `inviteLinkWithLogin` is built by the caller; `inviteLink` stays exactly as it was for
   // the in-app and manual paths, which have room for a proper second line.
+  //
+  // ── WHEN `uyelik_daveti_v2` IS APPROVED, THIS IS THE WHOLE CHANGE ──────────────────────────
+  //     portal_invite: { name: 'uyelik_daveti_v2', params: ['memberName', 'inviteLink'] },
+  // The v2 body carries the login address as STATIC text where it belongs, so the parameter goes
+  // back to being just the invite link and the combined value below stops being needed. Do not
+  // switch before Meta approves it: an unapproved name is refused at send time and every invitation
+  // silently fails.
   portal_invite: { name: 'uyelik_daveti', params: ['memberName', 'inviteLinkWithLogin'] },
   wallet_topup: { name: 'wallet_topup_tr', params: ['memberName', 'amount', 'balance'] },
   // Ders hatırlatmaları (Utility). The owner registered these Meta templates under these EXACT names

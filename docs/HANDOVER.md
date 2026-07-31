@@ -65,10 +65,12 @@ must still be created and sent for review by hand.
   field greys out "Add for Review", which cost a day last week) → pick build 5 → submit.
   Test credentials for the reviewer: `0500 000 00 01` / `Yu156211` — a member with a live package
   and a programme, excluded from every report.
-- **The Meta invite template.** The invite now carries the login address by packing both URLs into
-  the one placeholder Meta approved. It reads a little awkwardly ("…?s=retro görüşürüz"). The
-  proper fix is a NEW template with the sentence written into the body, submitted for approval in
-  WhatsApp Manager. Owner's account, owner's call.
+- **The Meta invite template `uyelik_daveti_v2`.** Text is drafted and ready to paste into WhatsApp
+  Manager (name, category Utility, Turkish, body and the two sample values) — see the section below.
+  Once Meta approves it, the code change is ONE line in
+  `packages/core/src/modules/notifications/infrastructure/providers.ts`, written out in a comment
+  right above the current mapping. Do not switch before approval: an unapproved template name is
+  refused at send time and every invitation fails silently.
 - **Eighteen active members still hold no package.** After the fitness import that is most likely
   the genuine number (lapsed, or leads entered as members) rather than migration debt — worth one
   look before assuming either way.
@@ -128,6 +130,36 @@ Read `docs/OWNER-RULES.md` §"Traps" before touching the areas it names. In shor
   break-glass endpoint on the callback function (`?admin=settle`, token = `WHATSAPP_VERIFY_TOKEN`),
   which runs the same domain path and writes the same events, with the actor recorded as
   `platform_admin/break_glass`.
+
+## The invite template waiting for Meta approval
+
+Paste into WhatsApp Manager → Message Templates → Create.
+
+- **Name** `uyelik_daveti_v2` · **Category** Utility · **Language** Turkish (tr)
+- No header, no footer, no buttons.
+- **Body:**
+
+```
+Merhaba {{1}} 🌸 Pilates Fitness by Işıl'da üyeliğin artık dijital! Derslerini buradan ayırtabilir, kalan ders hakkını ve antrenman programını görebilirsin.
+
+1) Önce şifreni oluştur:
+{{2}}
+
+2) Sonraki girişlerin için adres:
+https://panel.pilatesfitnessbyisil.com/portal/login?s=retro
+
+Cep telefonu numaran ve belirlediğin şifreyle giriş yaparsın. Takıldığın yerde bize yaz, yardımcı olalım 💛
+```
+
+- **Samples** (Meta refuses to review without them): `{{1}}` = `Ayşe`,
+  `{{2}}` = `https://panel.pilatesfitnessbyisil.com/invite/retro/ORNEK-BAGLANTI`
+
+Why v2 exists: the approved v1 has one placeholder and no room for a second sentence, so the login
+address currently travels *inside* that placeholder next to the invite link. It works and it reads
+awkwardly. In v2 the login address is static text where it belongs.
+
+If Meta rejects it for containing a URL in the body, the fallback is the same body with the second
+URL replaced by a "Giriş sayfası" URL button pointing at the same address.
 
 ## Where the rest lives
 
