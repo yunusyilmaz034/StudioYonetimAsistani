@@ -10,6 +10,7 @@ import {
 import { decideUpdateProfile } from '../domain/decide'
 import type { Email, EmergencyContact, Member } from '../domain/member'
 import { normalizePhone } from '../domain/phone'
+import { instant } from '../../../shared'
 import type { MembersDeps } from './ports'
 
 const SOURCE: EventSource = 'reception_web'
@@ -23,6 +24,15 @@ export interface UpdateMemberInput {
   readonly birthDate: string | null
   readonly notes: string | null
   readonly emergencyContact: { readonly name: string; readonly phone: string } | null
+  /**
+   * When she actually joined — editable because the truth often predates this system.
+   *
+   * A hundred and twenty members came over from another system, and for most of them the join date
+   * this system recorded is the day they were imported, not the day they walked in. Reception knows
+   * the real one; without a way to enter it the record stays quietly wrong for ever, and every
+   * "how long has she been with us" answer is wrong with it. Absent ⇒ unchanged.
+   */
+  readonly joinedAt?: number
 }
 
 export async function updateMember(
@@ -57,6 +67,7 @@ export async function updateMember(
     birthDate: input.birthDate as Member['birthDate'],
     notes: input.notes,
     emergencyContact,
+    ...(input.joinedAt !== undefined ? { joinedAt: instant(input.joinedAt) } : {}),
   }
 
   const now = deps.clock.now()

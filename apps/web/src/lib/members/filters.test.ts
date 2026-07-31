@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { badgesFor, type MemberFacts } from './filters'
+import { badgesFor, matches, type MemberBadges, type MemberFacts } from './filters'
 
 const NOW = 1_700_000_000_000
 const DAY = 86_400_000
@@ -82,5 +82,25 @@ describe('üye listesi filtreleri', () => {
     )
     expect(hybrid.hybrid).toBe(true)
     expect(plain.hybrid).toBe(false)
+  })
+})
+
+// ── "Tümü" is every member the studio still has (owner, 2026-07-31) ─────────────────────────
+describe('passive members are not in the default list', () => {
+  const badges = (over: Partial<MemberBadges> = {}): MemberBadges => ({
+    active: true, expiring: false, lowCredits: false, frozen: false, noPackage: false,
+    inactive: false, inDebt: false, hybrid: false, categories: [],
+    ...over,
+  })
+
+  it('excludes a passive member from "Tümü"', () => {
+    // Making a member passive exists to take her out of the day's work. Leaving her in the default
+    // list undoes the only thing that button does.
+    expect(matches('all', badges({ inactive: true }))).toBe(false)
+    expect(matches('all', badges())).toBe(true)
+  })
+
+  it('still shows her under "Pasif" — hidden from the default, not from the studio', () => {
+    expect(matches('inactive', badges({ inactive: true }))).toBe(true)
   })
 })

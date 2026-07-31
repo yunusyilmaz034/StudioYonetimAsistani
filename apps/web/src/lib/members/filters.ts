@@ -94,7 +94,11 @@ export function badgesFor(m: MemberFacts, nowMs: number): MemberBadges {
 export function matches(filter: MemberFilter, b: MemberBadges): boolean {
   switch (filter) {
     case 'all':
-      return true
+      // "Tümü" means every member the studio still HAS — passive ones are excluded (owner,
+      // 2026-07-31). A member is made passive precisely so she stops appearing in the day's work;
+      // leaving her in the default list undoes the only thing the button does. She is one tap away
+      // under "Pasif", and nothing is hidden — the count on that chip says how many there are.
+      return !b.inactive
     case 'active':
       return b.active
     case 'pilates':

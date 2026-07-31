@@ -42,7 +42,13 @@ const memberFields = {
 }
 
 const createSchema = z.object(memberFields)
-const updateSchema = z.object({ memberId: z.string().min(1), ...memberFields })
+// `joinedAt` is editable on UPDATE only: a new member joins the day she is entered, and offering the
+// field at registration is an invitation to mistype it. On update it fixes what the import guessed.
+const updateSchema = z.object({
+  memberId: z.string().min(1),
+  ...memberFields,
+  joinedAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+})
 const deactivateSchema = z.object({
   memberId: z.string().min(1),
   reason: z.string().min(1),
@@ -115,10 +121,21 @@ export async function createMember(
 export async function updateMember(input: unknown): Promise<Result<void, DomainError>> {
   const parsed = updateSchema.parse(input)
   const ctx = await requireTenantContext(WRITERS)
+  // Midnight studio-local, so a date typed at the desk means that calendar day and not the previous
+  // evening — the same offset arithmetic the rest of the system uses.
+  const joinedAt = parsed.joinedAt ? Date.parse(`${parsed.joinedAt}T00:00:00Z`) - 180 * 60_000 : undefined
+  // Built field by field rather than spread: with `exactOptionalPropertyTypes` an absent `joinedAt`
+  // must be an ABSENT KEY, and a spread carries the key with an `undefined` value.
   return updateMemberUseCase(deps(), ctx, {
-    ...parsed,
     memberId: parsed.memberId as MemberId,
+    fullName: parsed.fullName,
+    phone: parsed.phone,
     homeBranchId: parsed.homeBranchId as BranchId | null,
+    email: parsed.email,
+    birthDate: parsed.birthDate,
+    notes: parsed.notes,
+    emergencyContact: parsed.emergencyContact,
+    ...(joinedAt !== undefined ? { joinedAt } : {}),
   })
 }
 

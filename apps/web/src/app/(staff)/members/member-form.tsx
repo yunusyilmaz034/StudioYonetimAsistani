@@ -39,6 +39,10 @@ export function MemberForm({
   const [notes, setNotes] = useState(member?.notes ?? '')
   const [ecName, setEcName] = useState(member?.emergencyContact?.name ?? '')
   const [ecPhone, setEcPhone] = useState<string>(member?.emergencyContact?.phone ?? '')
+  // `YYYY-MM-DD` for the date input; empty when unknown.
+  const [joinedAt, setJoinedAt] = useState<string>(
+    member?.joinedAt ? new Date(Number(member.joinedAt)).toISOString().slice(0, 10) : '',
+  )
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   // A stale tab cannot be fixed by retrying, only by reloading — so it gets a button, not advice.
@@ -58,6 +62,7 @@ export function MemberForm({
       birthDate: birthDate.trim() || null,
       notes: notes.trim() || null,
       emergencyContact,
+      ...(member && joinedAt ? { joinedAt } : {}),
     }
     try {
       const res = member
@@ -102,6 +107,22 @@ export function MemberForm({
           onChange={(e) => setBirthDate(e.target.value)}
         />
       </Field>
+      {/* Editable only when EDITING. A new member joins the day she is entered; offering the field
+          at registration is an invitation to mistype it. On an existing record it corrects what the
+          import guessed — for most of this studio's members that date is the day they were imported,
+          not the day they walked in (owner, 2026-07-31). */}
+      {member ? (
+        <Field id="m-joined" label="Katılım tarihi">
+          <Input
+            id="m-joined"
+            type="date"
+            value={joinedAt}
+            onChange={(e) => setJoinedAt(e.target.value)}
+            className="min-h-11"
+          />
+        </Field>
+      ) : null}
+
       <Field id="m-notes" label="Not (opsiyonel)">
         <Textarea id="m-notes" value={notes} onChange={(e) => setNotes(e.target.value)} />
       </Field>
