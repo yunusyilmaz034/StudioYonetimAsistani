@@ -79,14 +79,16 @@ must still be created and sent for review by hand.
 
 ## Waiting on us
 
-- **The freeze initiative (OR-21) is built and NOT DEPLOYED.** The owner may freeze past a member's
+- **The freeze initiative (OR-21) is DEPLOYED and unexercised.** The owner may freeze past a member's
   allowance — fourteen days on a seven-day package — deliberately, behind a tick, recorded as
-  `overageDays`. Domain, Server Action and screen all landed on 2026-08-01; `pnpm check` and
-  `next build` are green. **It has no unit tests** (the owner's call, taken knowingly): the freeze
-  arithmetic is covered for the ordinary path only, and the override path has been reasoned through
-  rather than asserted. If it misbehaves, the two places to look are `decideFreeze`'s `grantedDays`
-  and `budgetEndsOn` in the sweep. Ships with the next night deploy — **App Hosting AND functions**,
-  because the sweep runs in a function.
+  `overageDays`. Shipped the night of 2026-08-01: App Hosting revision `build-2026-07-31-016` (the
+  name is UTC; see the RUNBOOK) and a functions deploy, because the nightly sweep reads the approved
+  duration now. **It has no unit tests** (the owner's call, taken knowingly): the ordinary freeze
+  arithmetic is covered as before, and the override path was reasoned through rather than asserted.
+  Nobody has used it on a real member yet — worth watching the first one: the membership must extend
+  by the approved days (not the budget), the allowance must read 0, and the sweep must resume her on
+  the approved day. If it misbehaves, the two places to look are `grantedDays` in `decideFreeze` and
+  `budgetEndsOn` in the sweep.
 - **Nothing from 2026-07-31 is unfinished.** The fitness migration (61 packages), the programme
   rollout (65 members on the real starter plan), the import wizard, the QR fix and the mobile 1.1.0
   build all landed. The evening added the check-out policy (OR-20) and a camera in the member's web

@@ -228,6 +228,15 @@ gcloud run services describe studio-yonetim --region europe-west4 --project stud
 Dönen revizyon adı `studio-yonetim-build-YYYY-MM-DD-NNN` biçiminde ve **%100 alan** tek satırdır.
 Bu, o an gerçekten servis edilen koddur.
 
+### Addaki tarih UTC'dir — gece yarısından sonra yanıltır
+
+Türkiye UTC+3. Saat 01:36'da deploy ettiğin build `...2026-08-01-001` değil, **hâlâ dünün tarihiyle**
+`...2026-07-31-016` olarak adlandırılır. 2026-08-01 gecesi tam bu oldu: bugünün tarihini arayan bir
+kontrol "deploy geçmedi" diye zaman aşımına uğradı, oysa yeni revizyon çoktan trafiğin tamamını
+almıştı. **Ada değil, `creationTimestamp`'e ve trafiğe bak** — push'undan birkaç dakika sonra oluşmuş
+ve %100 alan revizyon seninkidir. Yine yanlış bir yeşilin (bu sefer yanlış bir kırmızının) aynı yerden
+çıkması tesadüf değil: adlar insana göre, trafik gerçeğe göre.
+
 ### Neden bu, App Hosting API'si değil
 
 App Hosting'in `builds` / `rollouts` listeleme uçları **sıralama vermeden çağrıldığında rastgele bir
