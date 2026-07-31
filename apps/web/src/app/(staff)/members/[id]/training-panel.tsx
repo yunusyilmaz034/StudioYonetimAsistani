@@ -37,6 +37,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { ExerciseGuideDialog } from '@/components/exercise-guide-dialog'
 import { MeasurementChart } from '@/components/training/measurement-chart'
 import { domainErrorMessage } from '@/lib/domain-error'
+import { saveErrorMessage } from '@/lib/stale-deployment'
 import { PHOTO_ANGLE_LABEL, PROGRAM_STATUS_LABEL, PROGRAM_STATUS_TONE } from '@/lib/training-labels'
 import { focusLabel, PROGRAM_FOCUSES, type ProgramFocus } from '@/lib/training/program-builder'
 import { aiToPublishDays, PROGRAM_LEVELS, type ProgramLevel } from '@/lib/training/ai-program'
@@ -86,7 +87,9 @@ function BooleanTrainingView({ memberId }: { memberId: string }) {
   useEffect(() => {
     memberProgramStatusAction({ memberId })
       .then(setStatus)
-      .catch(() => setStatus(null))
+      // Same rule as above: a failure must not read as "still loading". Reception sees a boolean
+      // only, so the honest fallback is "durum okunamadı" rather than an eternal spinner.
+      .catch(() => setStatus({ hasProgram: false, hasActive: false, hasExpired: false }))
   }, [memberId])
 
   return (
@@ -130,12 +133,28 @@ function ProgramsSection({ memberId }: { memberId: string }) {
   const [creating, setCreating] = useState(false)
   const [assigning, setAssigning] = useState(false)
   const [openId, setOpenId] = useState<string | null>(null)
+  // A LOAD CAN FAIL, AND IT MUST SAY SO (2026-07-31).
+  //
+  // This had no catch: any rejection left `programs` at null for ever, so the section showed a
+  // spinner with nothing on screen to explain it — twice in one afternoon, for two entirely
+  // different reasons (a Firestore Timestamp reaching a Client Component, then a tab that predated
+  // a deploy). Both times the only way to find out was to read the server logs.
+  //
+  // A spinner that never resolves is the worst failure state a screen can have: it looks like
+  // patience is the answer, and it never is.
+  const [loadError, setLoadError] = useState<string | null>(null)
 
   const reload = useCallback(async () => {
-    const [ps, ex, tps] = await Promise.all([listMemberProgramsAction({ memberId }), listExercisesAction(), listProgramTemplatesAction()])
-    setPrograms(ps)
-    setExercises(ex)
-    setTemplates(tps)
+    setLoadError(null)
+    try {
+      const [ps, ex, tps] = await Promise.all([listMemberProgramsAction({ memberId }), listExercisesAction(), listProgramTemplatesAction()])
+      setPrograms(ps)
+      setExercises(ex)
+      setTemplates(tps)
+    } catch (e) {
+      setPrograms([])
+      setLoadError(saveErrorMessage(e))
+    }
   }, [memberId])
 
   useEffect(() => {
@@ -180,7 +199,15 @@ function ProgramsSection({ memberId }: { memberId: string }) {
         </div>
       }
     >
-      {programs === null ? (
+      {loadError ? (
+        <div className="rounded-xl border border-danger/40 bg-danger/10 p-4">
+          <p className="text-sm text-danger">{loadError}</p>
+          <div className="mt-3 flex gap-2">
+            <Button size="sm" variant="outline" onClick={() => void reload()}>Tekrar dene</Button>
+            <Button size="sm" variant="outline" onClick={() => window.location.reload()}>Sayfayı yenile</Button>
+          </div>
+        </div>
+      ) : programs === null ? (
         <Loading />
       ) : programs.length === 0 ? (
         <EmptyState
