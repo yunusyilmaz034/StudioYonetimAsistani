@@ -178,7 +178,11 @@ async function main(): Promise<void> {
     return String(x.title ?? '') === 'Program A' && x.status !== 'archived' && String(x.trainerId ?? '').startsWith('mig_')
   })
   console.log(`\narşivlenecek (dünkü hatalı atama): ${wrong.length}`)
-  if (apply) for (const d of wrong) await d.ref.set({ status: 'archived', archivedAt: FieldValue.serverTimestamp() }, { merge: true })
+  // `status` alone. An `archivedAt` written here rides through `programFrom` — which spreads the
+  // document and converts only createdAt/updatedAt — and reaches a Client Component as a raw
+  // Firestore Timestamp, which React refuses. The member workspace's programme list then span for
+  // ever with no error on screen (2026-07-31). The archive date is already in the event log.
+  if (apply) for (const d of wrong) await d.ref.set({ status: 'archived' }, { merge: true })
 
   // ── 5. assign the new Program A ───────────────────────────────────────────────────────────
   const now = Date.now()

@@ -189,3 +189,13 @@ export class FirestoreTrainingRepository {
     await this.col(ctx.studioId, 'programTemplates').doc(id).delete()
   }
 }
+
+// A note where the next person will look (2026-07-31).
+//
+// `programFrom` SPREADS the document and converts only the timestamps it knows about. Any other
+// Firestore `Timestamp` written onto a programme rides straight through to the client, where React
+// refuses it — "Only plain objects can be passed to Client Components" — and the screen shows a
+// spinner that never resolves, with nothing on it to say why.
+//
+// A migration added `archivedAt` and broke the member workspace exactly this way. If you add a date
+// to any of these documents, convert it here in the same commit.
