@@ -327,8 +327,21 @@ const DEFAULT_ARRIVE_WITHIN_MINUTES = 45
  */
 function tokenFromScan(raw: string): string {
   const s = raw.trim()
-  const m = /\/g\/([A-Za-z0-9._~-]+)/.exec(s)
-  return m?.[1] ?? s
+  // Everything up to a query, fragment or the next slash — then DECODED.
+  //
+  // A signed token is `memberId|branchId|exp|jti.signature`, so it contains PIPES, and the printed
+  // sheet builds its URL with `encodeURIComponent` — which turns each one into `%7C`. The first
+  // version of this matched `[A-Za-z0-9._~-]+`, stopped dead at the `%`, and handed the verifier the
+  // word `poster`. It failed as "geçersiz kod" (2026-07-31) — a bug introduced by the fix for the
+  // bug before it, and visible only against a real printed sheet.
+  const m = /\/g\/([^/?#\s]+)/.exec(s)
+  if (!m?.[1]) return s
+  try {
+    return decodeURIComponent(m[1])
+  } catch {
+    // A malformed escape is not a token. Hand it on and let the verifier refuse it by name.
+    return m[1]
+  }
 }
 
 // The member scanned one of the studio's QRs — check HER (from her session) in at that branch.

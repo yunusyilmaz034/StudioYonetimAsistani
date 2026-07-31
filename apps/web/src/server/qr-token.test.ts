@@ -101,10 +101,16 @@ describe('key rotation', () => {
 // sends a URL — and the server rejected it with "Geçersiz ya da kullanılmış kod", which from where
 // she is standing is not even true.
 describe('tokenFromScan', () => {
+  // Kept in step with `tokenFromScan` in server/actions/qr.ts.
   const extract = (raw: string): string => {
     const s = raw.trim()
-    const m = /\/g\/([A-Za-z0-9._~-]+)/.exec(s)
-    return m?.[1] ?? s
+    const m = /\/g\/([^/?#\s]+)/.exec(s)
+    if (!m?.[1]) return s
+    try {
+      return decodeURIComponent(m[1])
+    } catch {
+      return m[1]
+    }
   }
 
   it('pulls the token out of the printed sheet’s URL', () => {
@@ -117,6 +123,16 @@ describe('tokenFromScan', () => {
 
   it('survives the whitespace a camera sometimes appends', () => {
     expect(extract('  https://x/g/tok123  ')).toBe('tok123')
+  })
+
+  it('DECODES the escapes — a signed token is full of pipes', () => {
+    // `memberId|branchId|exp|jti.signature`, and the sheet builds its URL with encodeURIComponent,
+    // so every pipe arrives as %7C. Matching only unreserved characters stopped at the first escape
+    // and handed the verifier the word "poster" — the exact bug this replaced.
+    const token = 'poster|mutlukent|1785110400000|poster-retro-2026-07-31.SIGNATURE_x-y_z'
+    const url = `https://panel.pilatesfitnessbyisil.com/g/${encodeURIComponent(token)}`
+    expect(url).toContain('%7C')
+    expect(extract(url)).toBe(token)
   })
 
   it('does not mistake another path for the sheet', () => {
