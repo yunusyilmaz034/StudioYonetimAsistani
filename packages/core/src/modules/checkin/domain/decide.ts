@@ -22,7 +22,7 @@ import {
   MEMBER_CHECKED_IN,
   MEMBER_CHECKED_OUT,
 } from '../events'
-import type { BranchOccupancy, CheckIn, CheckInMethod, Presence } from './types'
+import type { BranchOccupancy, CheckIn, CheckInMethod, Presence, CheckInDirection } from './types'
 
 export interface DecideContext {
   readonly studioId: StudioId
@@ -92,7 +92,31 @@ export interface CheckInInput {
   readonly memberId: MemberId
   readonly branchId: BranchId
   readonly method: CheckInMethod
+  /**
+   * What reception ASKED FOR. Absent ⇒ the old toggle, which is right for a QR scan: the member
+   * points her phone at the same code going in and coming out, and the door decides which it is.
+   *
+   * It is wrong for a button labelled "Çıkış". A toggle behind a labelled button means pressing it
+   * twice silently puts her back inside, and that is exactly what happened: an exit recorded at
+   * 18:41:27 and an entry at 18:41:49, with the screen confirming the exit and never mentioning the
+   * reversal (owner, 2026-07-31).
+   */
+  readonly direction?: CheckInDirection
+  /**
+   * When this member last crossed the door, if she has. Used only to refuse a repeat within
+   * seconds — see `DEBOUNCE_MS`.
+   */
+  readonly lastCrossedAt?: Instant
 }
+
+/**
+ * A second scan this soon is the same arrival, not a departure.
+ *
+ * Nobody enters and leaves in half a minute. Two taps on a kiosk, a camera that fires twice, a
+ * receptionist pressing again because the first press "did not look like it worked" — all of them
+ * produce a pair of events seconds apart, and under a plain toggle the second one undoes the first.
+ */
+const DEBOUNCE_MS = 45_000
 
 export interface CheckInOutcome {
   readonly events: readonly NewEvent[]
@@ -108,6 +132,21 @@ export function decideCheckIn(
   branch: BranchOccupancy | null,
 ): Result<CheckInOutcome, DomainError> {
   if (!branch?.isOpen) return err({ code: 'branch_not_open' })
+
+  // ── What was asked for, when it was asked explicitly ──────────────────────────────────────
+  if (input.direction === 'out' && presence === null) return err({ code: 'already_outside' })
+  if (input.direction === 'in' && presence !== null) return err({ code: 'already_inside' })
+
+  // ── The same crossing, twice ──────────────────────────────────────────────────────────────
+  // Refused rather than silently ignored: the caller showed somebody a confirmation, and "it was
+  // already recorded" is a different sentence from "done" — one of them is true.
+  if (
+    input.lastCrossedAt !== undefined &&
+    ctx.now - input.lastCrossedAt < DEBOUNCE_MS &&
+    input.direction === undefined
+  ) {
+    return err({ code: 'checkin_too_soon' })
+  }
 
   const checkInBase = {
     id: input.checkInId,

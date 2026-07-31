@@ -124,6 +124,13 @@ export type DomainError =
   // again when the panel feels slow; every press is a complete sale. Refused, not swallowed — see
   // `entitlements/domain/duplicate.ts` for why this is not idempotency.
   | { readonly code: 'duplicate_sale_suspected' }
+  // ── The door, pressed twice (owner, 2026-07-31) ──
+  // A check-in/out used to be a pure toggle, so a second press reversed the first silently. Under a
+  // button labelled "Çıkış" that is not a toggle, it is a bug: an exit recorded, then an entry
+  // twenty-two seconds later, with reception told only about the exit.
+  | { readonly code: 'already_inside' }
+  | { readonly code: 'already_outside' }
+  | { readonly code: 'checkin_too_soon' }
   | { readonly code: 'seat_hold_note_required' }
   | { readonly code: 'seat_hold_not_open' }
   // ── reservations / automation (Doc 2 §8, v1.10) ──

@@ -8,9 +8,10 @@ import {
   type MemberId,
   type Result,
   type TenantContext,
+  instant,
 } from '../../../shared'
 import { decideCheckIn } from '../domain/decide'
-import type { CheckInMethod } from '../domain/types'
+import type { CheckInMethod, CheckInDirection } from '../domain/types'
 import { decideContext } from './context'
 import type { CheckinDeps } from './ports'
 
@@ -23,6 +24,12 @@ export interface RecordCheckInInput {
   // no command doc to point at. The envelope has always allowed a null causation; this type was
   // simply tighter than the truth.
   readonly commandId: CommandId | null
+  /**
+   * What the caller ASKED FOR. The QR paths leave it absent and keep the toggle — one code at the
+   * door, in and out. Reception's labelled buttons set it, so pressing "Çıkış" twice is refused
+   * instead of quietly putting her back inside.
+   */
+  readonly direction?: CheckInDirection
 }
 
 // Applied by `on-command-created` from a `checkIn.record` command (QR scan or manual
@@ -45,15 +52,27 @@ export async function recordCheckIn(
   const now = deps.clock.now()
   const dctx = decideContext(deps, ctx, { now: clampOccurredAt(input.occurredAt, now), commandId: input.commandId })
 
-  const [branch, presence, occupancy] = await Promise.all([
+  const [branch, presence, occupancy, recent] = await Promise.all([
     deps.repo.getBranch(ctx, input.branchId),
     deps.repo.getPresence(ctx, input.memberId),
     deps.repo.countPresence(ctx, input.branchId),
+    // Her last crossing, for the double-press guard. A minute of history is all the decision needs,
+    // and the query is bounded so it cannot grow into a scan of her whole year.
+    deps.repo.listCheckInsByMember(ctx, input.memberId, instant(now - 5 * 60_000)),
   ])
+  const lastCrossedAt = recent[0]?.occurredAt
 
   const decided = decideCheckIn(
     dctx,
-    { checkInId: newCheckInId(), memberId: input.memberId, branchId: input.branchId, method: input.method },
+    {
+      checkInId: newCheckInId(),
+      memberId: input.memberId,
+      branchId: input.branchId,
+      method: input.method,
+      // Absent keys, not `undefined` — `exactOptionalPropertyTypes`.
+      ...(input.direction !== undefined ? { direction: input.direction } : {}),
+      ...(lastCrossedAt !== undefined ? { lastCrossedAt } : {}),
+    },
     presence,
     occupancy,
     branch,

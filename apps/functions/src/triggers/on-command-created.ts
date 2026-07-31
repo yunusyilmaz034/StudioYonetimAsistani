@@ -110,7 +110,15 @@ export const onCommandCreated = onDocumentCreated(
         const res = await recordCheckIn(
           { repo: new FirestoreCheckinRepository(db()), clock: systemClock },
           ctx,
-          { memberId: payload.memberId, branchId: payload.branchId, method: payload.method, occurredAt, commandId },
+          {
+            memberId: payload.memberId,
+            branchId: payload.branchId,
+            method: payload.method,
+            occurredAt,
+            commandId,
+            // Absent for a QR scan, which keeps the toggle. Set by reception's labelled buttons.
+            ...(payload.direction ? { direction: payload.direction } : {}),
+          },
         )
         if (res.ok) {
           await settle('applied')

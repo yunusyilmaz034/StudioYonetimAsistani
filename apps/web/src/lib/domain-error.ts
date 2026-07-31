@@ -102,6 +102,12 @@ export function domainErrorMessage(error: DomainError): string {
       return 'Paketin süresi seans tarihinden önce doluyor.'
     case 'duplicate_sale_suspected':
       return 'Bu üyeye aynı paket az önce satıldı. Mükerrer kayıt olmasın diye durduruldu — üyenin paketlerini kontrol edin. Gerçekten ikinci bir paket satıyorsanız bir dakika sonra tekrar deneyin.'
+    case 'already_inside':
+      return 'Bu üye zaten içeride görünüyor.'
+    case 'already_outside':
+      return 'Bu üye zaten dışarıda görünüyor — çıkışı daha önce kaydedilmiş.'
+    case 'checkin_too_soon':
+      return 'Bu giriş az önce kaydedildi. Yanlışlıkla iki kez okutulmuş olabilir.'
     case 'no_bookable_entitlement':
       return 'Bu seans için kullanılabilir bir paket yok.'
     case 'reservation_not_open':

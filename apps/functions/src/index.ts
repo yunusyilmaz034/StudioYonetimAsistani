@@ -58,7 +58,6 @@ export const nightlySweep = onSchedule(
     await runUnfreezeSweep()
     await runAutoResolveSweep()
     await runExpirySweep()
-    await runAutoCheckOutSweep() // independent of I-19; occupancy hygiene (D4)
     // v1.25 — reminders are DOMAIN EVENTS ("your package expires in three days" has no event behind
     // it; time merely passed). They run last, so they see the night's expiries.
     await runReminderSweep()
@@ -70,6 +69,19 @@ export const nightlySweep = onSchedule(
     // would flag the very rows the sweeps are about to settle; running them at all is how we find
     // out that a write path bypassed a transaction, which is a bug and not a number to correct.
     await runNightlyHealthChecks(Date.now())
+  },
+)
+
+// v1.28 — occupancy hygiene (D4), on its own clock. It used to ride inside `nightlySweep`, which
+// meant an exit nobody recorded stayed on the board until 03:00 and reception spent every evening
+// looking at a wrong number. Hourly and 2.5 h — see `auto-check-out.ts` for the reasoning.
+//
+// Deliberately NOT part of `nightlySweep`: it has no ordering relationship with I-19 (a door event
+// touches no credit), so sequencing it with the credit sweeps only tied it to their schedule.
+export const occupancySweep = onSchedule(
+  { schedule: 'every 60 minutes', timeZone: 'Europe/Istanbul' },
+  async () => {
+    await runAutoCheckOutSweep()
   },
 )
 

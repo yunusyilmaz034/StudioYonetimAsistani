@@ -72,6 +72,8 @@ export async function markAttendanceCommand(input: MarkAttendanceCommandInput): 
 export async function checkInCommand(input: {
   memberId: MemberId
   method: 'qr' | 'reception'
+  /** Reception's labelled buttons say which; a QR scan leaves it out and keeps the toggle. */
+  direction?: 'in' | 'out'
 }): Promise<void> {
   const user = clientAuth().currentUser
   if (!user) throw new Error('Not authenticated')
@@ -91,6 +93,7 @@ export async function checkInCommand(input: {
     memberId: input.memberId,
     branchId: branchId as BranchId,
     method: input.method,
+    ...(input.direction ? { direction: input.direction } : {}),
   }
   await setDoc(doc(clientDb(), 'studios', studioId, 'commands', id), {
     id,

@@ -367,7 +367,12 @@ function QuickActions({
   async function checkin() {
     setBusy(true)
     try {
-      await checkInCommand({ memberId: memberId as MemberId, method: 'reception' })
+      // The button is labelled — so it states its direction instead of toggling whatever it finds.
+      await checkInCommand({
+        memberId: memberId as MemberId,
+        method: 'reception',
+        direction: insideNow ? 'out' : 'in',
+      })
       toast.success(insideNow ? 'Çıkış kaydı alındı.' : 'Giriş kaydı alındı.', {
         description: 'Birkaç saniye içinde işlenecek.',
       })

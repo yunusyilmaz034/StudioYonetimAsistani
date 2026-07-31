@@ -68,8 +68,12 @@ export function CheckinScreen({ state, members }: { state: CheckinState; members
     [state.branchId, router],
   )
 
+  // `direction` is what the BUTTON said. Reception's buttons are labelled Giriş/Çıkış, so pressing
+  // "Çıkış" twice must be refused rather than quietly checking her back in — which is exactly how a
+  // member ended up "inside" 22 seconds after leaving (2026-07-31). A QR scan stays a toggle: one
+  // code at the door, the door decides.
   const toggle = useCallback(
-    async (memberId: string, method: 'qr' | 'reception') => {
+    async (memberId: string, method: 'qr' | 'reception', direction?: 'in' | 'out') => {
       if (!state.isOpen) {
         toast.error('Önce şubeyi açın.')
         return
@@ -81,7 +85,11 @@ export function CheckinScreen({ state, members }: { state: CheckinState; members
 
       const wasInside = insideIds.has(memberId)
       try {
-        await checkInCommand({ memberId: memberId as MemberId, method })
+        await checkInCommand({
+          memberId: memberId as MemberId,
+          method,
+          ...(direction ? { direction } : {}),
+        })
         toast.success(`${nameOf.get(memberId) ?? 'Üye'} — ${wasInside ? 'çıkış' : 'giriş'} alındı.`)
         window.setTimeout(() => router.refresh(), 1800) // let the trigger apply
       } catch {
@@ -193,7 +201,7 @@ export function CheckinScreen({ state, members }: { state: CheckinState; members
                       variant={inside ? 'outline' : 'default'}
                       size="sm"
                       className="min-h-9 shrink-0"
-                      onClick={() => toggle(m.id, 'reception')}
+                      onClick={() => toggle(m.id, 'reception', inside ? 'out' : 'in')}
                     >
                       {inside ? <LogOutIcon /> : <LogInIcon />}
                       {inside ? 'Çıkış' : 'Giriş'}
@@ -220,7 +228,7 @@ export function CheckinScreen({ state, members }: { state: CheckinState; members
                           {timeLabel(i.checkedInAt)} · {durationLabel(i.checkedInAt)}
                         </p>
                       </div>
-                      <Button variant="outline" size="sm" className="shrink-0" onClick={() => toggle(i.memberId, 'reception')}>
+                      <Button variant="outline" size="sm" className="shrink-0" onClick={() => toggle(i.memberId, 'reception', 'out')}>
                         <LogOutIcon />
                         Çıkış
                       </Button>

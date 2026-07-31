@@ -120,6 +120,25 @@ bothered to mark her — doing nothing was strict, being diligent was generous. 
 (zero no-shows in the studio's history) and is now `true` on all three services. The default for
 newly created services was fixed in the same change, so it cannot come back through the front door.
 
+**OR-20 · Çıkışı kimse okutmaz — çıkışı sistem kapatır.** (2026-07-31) There is no turnstile, and
+there never will be one in this studio: nobody scans on the way out, and reception has a customer in
+front of her. So the exit is the one door event that will never be recorded reliably, and the
+occupancy board can only be kept honest by the sweep.
+
+Three things follow, and they are policy, not implementation detail:
+
+1. **A labelled button states a direction; only a QR toggles.** Reception's buttons say "Giriş" and
+   "Çıkış". Pressing "Çıkış" twice used to check the member back IN — which is how a member left at
+   18:41:27 and was inside again at 18:41:49. A stated direction that contradicts the state is now
+   REFUSED. A QR has no label (one code, both ways), so it stays a toggle.
+2. **Two crossings inside 45 seconds are one press.** A double-tap or a scanner repeat is not a
+   forty-second visit. Refused in the domain, not in the button — the button is not the only caller.
+3. **`system` closes a visit after 2.5 hours, hourly.** Long enough for a class, changing and a
+   coffee; short enough that the board is right within the hour. It emits `member.auto_checked_out`,
+   never `member.checked_out` — a presumption is not an observation (#11).
+
+Owner: *"süpürge çok sık çalışmasın o kadar, sadece bunun için."* Hourly, not every fifteen minutes.
+
 ## Traps that have already cost something
 
 **OR-14 · Firestore indexes are a production-only trap.** The emulator does NOT enforce them, so a

@@ -70,6 +70,50 @@ describe('decideCheckIn (D5, toggle)', () => {
       expect(r.value.presenceNext).toBeNull()
     }
   })
+  // 2026-07-31 — a member left at 18:41:27 and was "inside" again at 18:41:49, because a second
+  // press of a button labelled "Çıkış" toggled her back in. A labelled button STATES a direction;
+  // only a QR (which has no label, one code for both ways) may toggle.
+  it('refuses a check-OUT for somebody who is already outside', () => {
+    const r = decideCheckIn(ctx, { ...input, direction: 'out' }, null, 4, openBranch)
+    expect(r).toEqual({ ok: false, error: { code: 'already_outside' } })
+  })
+  it('refuses a check-IN for somebody who is already inside', () => {
+    const presence: Presence = { memberId: MEM, branchId: BR, checkedInAt: instant(NOW - 10 * 60_000) }
+    const r = decideCheckIn(ctx, { ...input, direction: 'in' }, presence, 5, openBranch)
+    expect(r).toEqual({ ok: false, error: { code: 'already_inside' } })
+  })
+  it('honours a stated direction that matches the state', () => {
+    const presence: Presence = { memberId: MEM, branchId: BR, checkedInAt: instant(NOW - 10 * 60_000) }
+    const r = decideCheckIn(ctx, { ...input, direction: 'out' }, presence, 5, openBranch)
+    expect(r.ok).toBe(true)
+  })
+
+  // The QR keeps toggling, so it gets the other guard: two scans inside 45 s are one person holding
+  // the phone still, not a visit that lasted forty seconds.
+  it('refuses a second toggle within the debounce window', () => {
+    const presence: Presence = { memberId: MEM, branchId: BR, checkedInAt: instant(NOW - 20_000) }
+    const r = decideCheckIn(ctx, { ...input, lastCrossedAt: instant(NOW - 20_000) }, presence, 5, openBranch)
+    expect(r).toEqual({ ok: false, error: { code: 'checkin_too_soon' } })
+  })
+  it('allows a toggle once the window has passed', () => {
+    const presence: Presence = { memberId: MEM, branchId: BR, checkedInAt: instant(NOW - 60_000) }
+    const r = decideCheckIn(ctx, { ...input, lastCrossedAt: instant(NOW - 46_000) }, presence, 5, openBranch)
+    expect(r.ok).toBe(true)
+  })
+  // A STATED direction is never debounced: reception pressing "Çıkış" 10 s after the QR let her in
+  // is a correction of a mistake, and refusing it would leave her stuck inside.
+  it('does not debounce a stated direction', () => {
+    const presence: Presence = { memberId: MEM, branchId: BR, checkedInAt: instant(NOW - 10_000) }
+    const r = decideCheckIn(
+      ctx,
+      { ...input, direction: 'out', lastCrossedAt: instant(NOW - 10_000) },
+      presence,
+      5,
+      openBranch,
+    )
+    expect(r.ok).toBe(true)
+  })
+
   it('refuses when the branch is not open', () => {
     expect(decideCheckIn(ctx, input, null, 0, null)).toEqual({ ok: false, error: { code: 'branch_not_open' } })
     expect(decideCheckIn(ctx, input, null, 0, { branchId: BR, isOpen: false, openedAt: null })).toEqual({
