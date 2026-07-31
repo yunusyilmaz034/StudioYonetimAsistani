@@ -50,6 +50,10 @@ import { grantBundleComponents } from '../sell-bundle'
 // owner + platform_admin. Reads are gated the same as selling.
 const OPS = ['owner', 'receptionist', 'platform_admin'] as const
 const CANCEL = ['owner', 'platform_admin'] as const
+// Going PAST the studio's own terms is the owner's call, not the desk's (owner, 2026-07-31). Same
+// set as CANCEL and deliberately its own name: these two are allowed to drift apart, and a shared
+// constant is how a permission table silently becomes a different table.
+const INITIATIVE = ['owner', 'platform_admin'] as const
 const STUDIO_UTC_OFFSET_MIN = 180
 const nonEmpty = z.string().min(1)
 const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
@@ -528,6 +532,13 @@ export interface SubscriptionView {
   readonly freezeDaysRemaining: number | null
   /** LocalDate the current freeze started, or null. */
   readonly frozenSince: string | null
+  /**
+   * LocalDate the running freeze ENDS on — what the sweep will actually do, not what the budget
+   * implies. They are the same in the ordinary case and differ after an initiative (2026-07-31):
+   * a fortnight approved on a seven-day package resumes on day fourteen, and a screen that read the
+   * budget instead would promise day seven to the one person who needs to know.
+   */
+  readonly freezeEndsOn: string | null
 }
 
 export async function listMemberSubscriptionsAction(input: unknown): Promise<readonly SubscriptionView[]> {
@@ -571,6 +582,7 @@ export async function listMemberSubscriptionsAction(input: unknown): Promise<rea
       freezeEntitledDays: e.freeze?.entitledDays ?? null,
       freezeDaysRemaining: e.freeze ? freezeDaysRemaining(e.freeze) : null,
       frozenSince: e.freeze?.activeFrom ?? null,
+      freezeEndsOn: e.freeze?.activeFrom ? e.freeze.plannedUntil ?? null : null,
     }))
     .sort((a, b) => b.validFrom - a.validFrom)
 }
@@ -597,9 +609,17 @@ export async function freezeSubscriptionAction(input: unknown) {
       // Free text stays OUT of the event and lives on the entitlement, where an erasure can reach
       // it (#6). Bounded, because an unbounded note is an unbounded place to hide things.
       note: z.string().trim().max(300).nullable().optional(),
+      // THE INITIATIVE (owner, 2026-07-31): *"admin yine de istediği kadar dondurabilsin, bazı
+      // üyelere inisiyatif kullanabiliyoruz."* Absent/false ⇒ the domain refuses anything past her
+      // allowance exactly as it always did. It is an opt-in flag rather than a looser rule so that
+      // a caller which does not know about initiative cannot use it by accident.
+      override: z.boolean().optional(),
     })
     .parse(input)
-  const ctx = await requireTenantContext(OPS)
+  // OWNER-ONLY, and the guard is chosen by what is being asked for. Reception may freeze within the
+  // terms the studio sells; only the owner may exceed them. The domain would still write the freeze
+  // for whoever asked — authorization is this door's job, not the decision function's (AD-35/AD-46).
+  const ctx = await requireTenantContext(p.override ? INITIATIVE : OPS)
 
   const ent = await new FirestoreEntitlementRepository(adminDb()).getEntitlement(
     ctx,
@@ -622,13 +642,18 @@ export async function freezeSubscriptionAction(input: unknown) {
     'entitlement.freeze',
     ctx,
     undefined,
-    { entitlementId: p.entitlementId },
+    { entitlementId: p.entitlementId, override: p.override === true },
     () =>
       freezeEntitlement(entDeps(), ctx, {
         entitlementId: p.entitlementId as EntitlementId,
         from: today,
         hasUpcomingReservation,
-        plan: { plannedDays: p.plannedDays, reason: p.reason, note: p.note ?? null },
+        plan: {
+          plannedDays: p.plannedDays,
+          reason: p.reason,
+          note: p.note ?? null,
+          override: p.override === true,
+        },
       }),
   )
 }

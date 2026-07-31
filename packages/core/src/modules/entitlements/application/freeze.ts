@@ -105,7 +105,11 @@ export async function runFreezeBudgetSweep(
  *
  * TWO limits now, and the EARLIER one wins (owner, 2026-07-28):
  *   · the plan she agreed to — "beş gün donduralım"
- *   · her budget, which cannot be exceeded whatever anyone planned
+ *   · what was APPROVED for this freeze, which cannot be exceeded whatever anyone planned
+ *
+ * The approval is her budget in every ordinary case, and more than her budget when the desk used
+ * its initiative (2026-07-31). Reading the budget here instead would have the sweep resume her on
+ * day seven of a fortnight everybody agreed to — the one place an override could be silently undone.
  *
  * A freeze started before plans existed has no `plannedUntil`, and falls back to the budget exactly
  * as it always did. Absent means "nobody recorded a plan", not "planned for zero days".
@@ -113,7 +117,7 @@ export async function runFreezeBudgetSweep(
 function budgetEndsOn(ent: Entitlement): string | null {
   const f = ent.freeze
   if (!f?.activeFrom) return null
-  const budgetEnd = addLocalDays(f.activeFrom, freezeDaysRemaining(f))
+  const budgetEnd = addLocalDays(f.activeFrom, f.grantedDays ?? freezeDaysRemaining(f))
   const planned = f.plannedUntil ?? null
   return planned && planned < budgetEnd ? planned : budgetEnd
 }

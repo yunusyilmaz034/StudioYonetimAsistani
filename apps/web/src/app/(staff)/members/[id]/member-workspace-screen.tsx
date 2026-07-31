@@ -256,7 +256,9 @@ export function MemberWorkspaceScreen({
           />
         </TabsContent>
         <TabsContent value="packages">
-          <SubscriptionsPanel memberId={member.id} memberPhone={member.phone} products={products} surchargeByProduct={surchargeByProduct} />
+          {/* `isOwner` draws ONE control: freezing past the allowance. The action refuses reception
+              regardless — this only decides whether she is offered a decision she cannot make. */}
+          <SubscriptionsPanel memberId={member.id} memberPhone={member.phone} products={products} surchargeByProduct={surchargeByProduct} isOwner={isOwner || isPlatformAdmin} />
         </TabsContent>
         <TabsContent value="training">
           {/* Plus Phase 7 — the member's programmes, measurements and progress photos. Content for

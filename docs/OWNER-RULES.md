@@ -139,6 +139,38 @@ Three things follow, and they are policy, not implementation detail:
 
 Owner: *"süpürge çok sık çalışmasın o kadar, sadece bunun için."* Hourly, not every fifteen minutes.
 
+**OR-21 · The dondurma allowance is the studio's standard, and the owner may exceed it — deliberately.**
+(2026-08-01) Owner: *"admin yine de istediği kadar dondurabilsin, bazı üyelere inisiyatif
+kullanabiliyoruz."* A seven-day package can be frozen for fourteen. This does not soften OR-12; it
+adds a named exception on top of it, and the shape of that exception is the rule:
+
+1. **The refusal stays the default.** Reception sees exactly what she saw before — more days than the
+   budget is refused, never clamped. The exception is an opt-in flag (`FreezePlan.override`) that a
+   caller who does not know about it cannot set by accident.
+2. **It belongs to the owner.** `override: true` is authorized against `['owner', 'platform_admin']`
+   in the Server Action; reception may spend the terms the studio sells, not exceed them.
+3. **It is an act, not a typo.** The screen refuses first and offers the initiative second, behind a
+   tick that says what it is about to do. A greyed-out button that will not say why is
+   indistinguishable from a broken one — that is how "dondur tuşu çalışmıyor" reached the owner on
+   2026-07-31.
+4. **What was approved is what is paid back.** The freeze carries `grantedDays`; the unfreeze and the
+   nightly sweep both read it, never the budget. Otherwise an approved fortnight would stop her for
+   fourteen days and return seven — the studio quietly not doing what it said.
+   The owner settled the edge case this creates (2026-08-01): if the sweep fails and a member stays
+   frozen SIX days on a THREE-day approval, she is extended by **three**. *"Doğrusu bu — ne söz
+   verildiyse o ödenir."* The alternative — paying for the days our own sweep forgot — was
+   considered and rejected: the approved duration is the promise, and a bug in our scheduler is not
+   a new agreement. It is also the safer failure: a sweep that silently stops running cannot inflate
+   memberships behind us.
+5. **The exception is countable.** `entitlement.frozen` carries `overageDays`, present only when the
+   allowance was exceeded, so *"how often, and for whom, do we go past our own terms?"* has an answer
+   that does not depend on anyone remembering. It shows in the activity feed as a warning.
+
+Her allowance afterwards reads **0 gün**, which is exactly true: she has spent fourteen of seven, and
+the counter floors at zero rather than going negative. A package with **no** freeze right at all
+(Pilates) is untouched by this — there is nothing to exceed, and giving it days is a catalogue
+change, made once, for everyone.
+
 ## Traps that have already cost something
 
 **OR-14 · Firestore indexes are a production-only trap.** The emulator does NOT enforce them, so a

@@ -610,6 +610,16 @@ export interface FreezePlan {
   readonly reason: FreezeReason
   /** The human's words. Kept on STATE, never in the event: free text is where PII hides. */
   readonly note: string | null
+  /**
+   * The desk is knowingly going past her allowance (owner, 2026-07-31).
+   *
+   * *"Admin yine de istediği kadar dondurabilsin, bazı üyelere inisiyatif kullanabiliyoruz."* The
+   * allowance is the studio's standard, not a wall — but the exception must be an ACT, never a
+   * side-effect of a typo. So the refusal stays the default and this flag is the only way past it:
+   * a caller that does not know about initiative cannot use it by accident, and the flag is set in
+   * exactly one place, by a button that says what it is about to do.
+   */
+  readonly override?: boolean
 }
 
 export function decideFreeze(
@@ -625,8 +635,11 @@ export function decideFreeze(
   // Pilates packages have no freeze allowance, so they carry no FreezeState at all. The refusal is
   // the product's terms, not a missing feature.
   const f = ent.freeze
+  // No allowance at all is the PRODUCT'S TERMS, not a budget that ran low — a one-month fitness
+  // package simply does not freeze. Initiative does not reach here: there is nothing to exceed, and
+  // giving days to a package sold without them is a catalogue change, made once, for everyone.
   if (!f || f.entitledDays <= 0) return err({ code: 'freeze_not_allowed' })
-  if (freezeDaysRemaining(f) <= 0) return err({ code: 'freeze_budget_exhausted' })
+  if (freezeDaysRemaining(f) <= 0 && !plan.override) return err({ code: 'freeze_budget_exhausted' })
 
   // Owner, 2026-07-13: refuse, and say why. We do not cancel her class for her — that would move a
   // credit she never asked us to move, and she would find out from a ledger rather than from us.
@@ -641,9 +654,13 @@ export function decideFreeze(
   // Refused, never clamped, if it exceeds what she has left: silently freezing for five days when
   // reception asked for ten is the studio quietly not doing what it said. The remainder stays hers
   // for a later freeze, which is the whole point of a budget.
+  //
+  // Since 2026-07-31 the desk may go past it ON PURPOSE (`override`). What it may not do is go past
+  // it by accident, so the refusal below is unchanged for every caller that does not ask.
   const remaining = freezeDaysRemaining(f)
   if (!Number.isInteger(plan.plannedDays) || plan.plannedDays < 1) return err({ code: 'invalid_freeze_days' })
-  if (plan.plannedDays > remaining) return err({ code: 'freeze_days_exceed_budget', remaining })
+  if (plan.plannedDays > remaining && !plan.override) return err({ code: 'freeze_days_exceed_budget', remaining })
+  const overageDays = Math.max(0, plan.plannedDays - remaining)
 
   const plannedUntil = addLocalDays(from, plan.plannedDays)
   const next: Entitlement = {
@@ -653,6 +670,9 @@ export function decideFreeze(
       ...f,
       activeFrom: from,
       plannedUntil,
+      // What was PROMISED for this period. The unfreeze pays back against this, not against the
+      // budget — otherwise an approved fortnight would return a week.
+      grantedDays: plan.plannedDays,
       reason: plan.reason,
       note: plan.note?.trim() || null,
     },
@@ -672,6 +692,10 @@ export function decideFreeze(
           usedDaysBefore: f.usedDays,
           plannedDays: plan.plannedDays,
           reason: plan.reason,
+          // Present ONLY when the desk used its initiative, and it is the whole point of recording
+          // this: "how often, and for whom, do we go past our own terms?" is a question the owner
+          // will ask, and it cannot be answered later from a number that was never written down.
+          ...(overageDays > 0 ? { overageDays } : {}),
         },
       },
     ],
@@ -693,12 +717,21 @@ export function decideUnfreeze(
   const f = ent.freeze
   if (!f?.activeFrom) return err({ code: 'entitlement_not_frozen' })
 
-  // What it actually cost — CAPPED at what she had left. A member who stayed frozen ten days on a
-  // seven-day budget is extended by seven, not ten. She bought a week; she gets a week. (The sweep
-  // normally ends it on day seven anyway; this cap is the second line of defence, for the case where
-  // the sweep did not run.)
+  // What it actually cost — CAPPED at what was APPROVED for this freeze. A member who stayed frozen
+  // ten days on a seven-day approval is extended by seven, not ten. (The sweep normally ends it on
+  // day seven anyway; this cap is the second line of defence, for the case where it did not run.)
+  //
+  // `grantedDays` is what the desk approved, which is the budget in every ordinary case and MORE
+  // than the budget when initiative was used (2026-07-31). Capping at the budget instead would stop
+  // her for a fortnight and pay back a week — the studio quietly not doing what it said.
+  // Freezes started before `grantedDays` existed fall back to the budget, exactly as before.
+  //
+  // It also caps BELOW the budget, and the owner settled that on purpose (2026-08-01): if the sweep
+  // fails and she stays frozen six days on a three-day approval, she is extended by three. *"Ne söz
+  // verildiyse o ödenir."* Paying for the days our own scheduler forgot would make a bug into a new
+  // agreement — and would let a silently dead sweep inflate memberships behind us (OR-21).
   const elapsed = Math.max(0, freezeDaysBetween(f.activeFrom, to))
-  const days = Math.min(elapsed, freezeDaysRemaining(f))
+  const days = Math.min(elapsed, f.grantedDays ?? freezeDaysRemaining(f))
 
   const validUntilBefore = ent.validUntil
   const validUntilAfter = instant((validUntilBefore as number) + days * DAY_MS)
@@ -709,9 +742,12 @@ export function decideUnfreeze(
     validUntil: validUntilAfter,
     freeze: {
       ...f,
+      // May exceed `entitledDays` after an override — deliberately. `freezeDaysRemaining` floors at
+      // zero, so her screen reads "kalan hak 0 gün", which is exactly true.
       usedDays: f.usedDays + days,
       periods: [...f.periods, { from: f.activeFrom, to }],
       activeFrom: null,
+      grantedDays: null, // the approval belonged to the period that just ended
     },
   }
 

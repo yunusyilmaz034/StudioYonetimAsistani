@@ -136,6 +136,18 @@ export type FreezeState = {
   // was coming back. Absent on freezes started before this existed: not a plan of zero days, simply
   // a plan nobody recorded.
   readonly plannedUntil?: string | null // LocalDate
+  /**
+   * How many days were APPROVED for the freeze currently running (owner, 2026-07-31).
+   *
+   * Normally identical to what her budget allows. It differs only when the desk deliberately
+   * exceeded the allowance — "bazı üyelere inisiyatif kullanabiliyoruz" — and it exists because the
+   * unfreeze has to know what was promised. Without it, a member frozen for fourteen days on a
+   * seven-day package would be extended by seven: stopped for a fortnight, paid back a week.
+   *
+   * Absent on freezes started before this existed, and on none that are running today; those fall
+   * back to the budget exactly as they did.
+   */
+  readonly grantedDays?: number | null
   readonly reason?: FreezeReason
   /** The human's explanation. STATE, never an event — free text is where PII hides. */
   readonly note?: string | null

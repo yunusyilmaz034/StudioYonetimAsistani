@@ -126,7 +126,11 @@ const componentLine = (s: SubscriptionView, products: readonly ProductView[] = [
   return granted != null && av <= granted ? `${av}/${granted} kredi${note}` : `${av} kredi${note}`
 }
 
-export function SubscriptionsPanel({ memberId, memberPhone = null, products, surchargeByProduct = {} }: { memberId: string; memberPhone?: string | null; products: readonly ProductView[]; surchargeByProduct?: Record<string, number> }) {
+// `isOwner` decides ONE thing here: whether the freeze dialog offers to go past the studio's own
+// allowance (owner, 2026-07-31). It is not the authorization — the Server Action refuses anyone
+// else regardless — it only decides whether the control is drawn, the same split the workspace
+// already uses for training and refunds.
+export function SubscriptionsPanel({ memberId, memberPhone = null, products, surchargeByProduct = {}, isOwner = false }: { memberId: string; memberPhone?: string | null; products: readonly ProductView[]; surchargeByProduct?: Record<string, number>; isOwner?: boolean }) {
   const [subs, setSubs] = useState<readonly SubscriptionView[] | null>(null)
   const [adding, setAdding] = useState(false)
   // Passive (expired/cancelled) packages are hidden by default — they clutter the card and confuse
@@ -186,7 +190,7 @@ export function SubscriptionsPanel({ memberId, memberPhone = null, products, sur
       ) : (
         <div className="space-y-2">
           {toCards(active).map((c) => (
-            <SubscriptionRow key={c.primary.id} sub={c.primary} siblings={c.components} products={products} onChanged={load} />
+            <SubscriptionRow key={c.primary.id} sub={c.primary} siblings={c.components} products={products} onChanged={load} isOwner={isOwner} />
           ))}
           {past.length > 0 ? (
             <div className="space-y-2 pt-1">
@@ -198,7 +202,7 @@ export function SubscriptionsPanel({ memberId, memberPhone = null, products, sur
                 {showPast ? 'Pasif paketleri gizle' : `Pasif paketleri göster (${past.length})`}
               </button>
               {showPast
-                ? toCards(past).map((c) => <SubscriptionRow key={c.primary.id} sub={c.primary} siblings={c.components} products={products} onChanged={load} />)
+                ? toCards(past).map((c) => <SubscriptionRow key={c.primary.id} sub={c.primary} siblings={c.components} products={products} onChanged={load} isOwner={isOwner} />)
                 : null}
             </div>
           ) : null}
@@ -208,7 +212,7 @@ export function SubscriptionsPanel({ memberId, memberPhone = null, products, sur
   )
 }
 
-function SubscriptionRow({ sub, siblings, products, onChanged }: { sub: SubscriptionView; siblings: readonly SubscriptionView[]; products: readonly ProductView[]; onChanged: () => void }) {
+function SubscriptionRow({ sub, siblings, products, onChanged, isOwner = false }: { sub: SubscriptionView; siblings: readonly SubscriptionView[]; products: readonly ProductView[]; onChanged: () => void; isOwner?: boolean }) {
   const [open, setOpen] = useState(false)
   const [historyOpen, setHistoryOpen] = useState(false)
   const [dialog, setDialog] = useState<'amend' | 'credit' | 'status' | null>(null)
@@ -219,6 +223,9 @@ function SubscriptionRow({ sub, siblings, products, onChanged }: { sub: Subscrip
   const [freezeDays, setFreezeDays] = useState('')
   const [freezeReason, setFreezeReason] = useState<'tatil' | 'saglik' | 'is' | 'diger'>('tatil')
   const [freezeNote, setFreezeNote] = useState('')
+  // The initiative, switched on for THIS dialog only (owner, 2026-07-31). It resets with the dialog,
+  // because "the last freeze exceeded her allowance" must never be the reason the next one does.
+  const [freezeOverride, setFreezeOverride] = useState(false)
   const [busy, setBusy] = useState(false)
 
   // Freeze and unfreeze are one click. The refusal — an upcoming booking, an exhausted budget — comes
@@ -250,6 +257,31 @@ function SubscriptionRow({ sub, siblings, products, onChanged }: { sub: Subscrip
   // Freeze lives on whichever part actually grants it (a Pilates part has none). Its state drives the
   // freeze UI; the action still fans out to every part that qualifies.
   const freezeSub = siblings.find((s) => (s.freezeEntitledDays ?? 0) > 0) ?? sub
+  // ONE derivation for "may this be submitted", so the button and the explanation can never disagree
+  // about it — the whole failure was a control that knew the answer and did not share it.
+  const freezeNum = Number(freezeDays)
+  const freezeMax = freezeSub.freezeDaysRemaining ?? 0
+  const freezeOver = freezeDays.trim() !== '' && freezeNum > freezeMax
+  // Only the owner is offered the initiative, and only where the product grants a freeze at all: a
+  // Pilates package has no allowance to exceed, and giving it one is a catalogue change made once,
+  // for everyone. The domain refuses it there too (`freeze_not_allowed`) whatever this says.
+  const canOverride = isOwner && (freezeSub.freezeEntitledDays ?? 0) > 0
+  // In force only when it is BOTH offered and ticked, and only while it is actually needed. So the
+  // ordinary path cannot be reached through the exception, and an act stays an act.
+  const overrideOn = canOverride && freezeOverride && freezeOver
+  const overageDays = overrideOn ? freezeNum - freezeMax : 0
+  // 365 is the Server Action's own ceiling. The screen names the same number so it can never offer
+  // what the action will reject.
+  const freezeCeiling = overrideOn ? 365 : freezeMax
+  const freezeValid = Number.isInteger(freezeNum) && freezeNum >= 1 && freezeNum <= freezeCeiling
+  // Which parts of a bundle stop. Normally those with budget left; under the initiative, every part
+  // that HAS a freeze right at all — otherwise an approved fortnight would skip the exhausted half
+  // of a hybrid and stop only one of two packages the member thinks of as one membership.
+  const freezeTargets = siblings.filter(
+    (x) =>
+      x.status === 'active' &&
+      (overrideOn ? (x.freezeEntitledDays ?? 0) > 0 : (x.freezeDaysRemaining ?? 0) > 0),
+  )
   const groupFrozen = siblings.some((s) => s.status === 'frozen')
   const cardStatus = groupFrozen ? 'frozen' : siblings.every((s) => s.status === 'cancelled') ? 'cancelled' : 'active'
   const contentSummary = bundle
@@ -356,6 +388,7 @@ function SubscriptionRow({ sub, siblings, products, onChanged }: { sub: Subscrip
             setFreezeDays('')
             setFreezeReason('tatil')
             setFreezeNote('')
+            setFreezeOverride(false)
           }
         }}
       >
@@ -363,7 +396,7 @@ function SubscriptionRow({ sub, siblings, products, onChanged }: { sub: Subscrip
           <DialogHeader>
             <DialogTitle>Üyeliği dondur</DialogTitle>
             <DialogDescription>
-              {freezeSub.productName} · kalan hak {freezeSub.freezeDaysRemaining} gün
+              {freezeSub.productName} · kalan dondurma hakkı {freezeSub.freezeDaysRemaining} gün
             </DialogDescription>
           </DialogHeader>
 
@@ -376,12 +409,68 @@ function SubscriptionRow({ sub, siblings, products, onChanged }: { sub: Subscrip
                 id="fz-days"
                 type="number"
                 min={1}
-                max={freezeSub.freezeDaysRemaining ?? 1}
+                max={canOverride ? 365 : freezeSub.freezeDaysRemaining ?? 1}
                 value={freezeDays}
                 onChange={(e) => setFreezeDays(e.target.value)}
                 placeholder={`en fazla ${freezeSub.freezeDaysRemaining}`}
                 autoFocus
               />
+              {/* A DISABLED button that will not say why is indistinguishable from a broken one.
+                  Reception typed 14 into a package that carries 7, the button greyed out in silence,
+                  and the message that reached the owner was "dondur tuşu çalışmıyor" (2026-07-31).
+                  The domain already refuses this — `freeze_days_exceed_budget`, never clamped — so
+                  the screen's only job is to say so before she presses anything. */}
+              {/* THE INITIATIVE (owner, 2026-07-31): *"admin yine de istediği kadar dondurabilsin,
+                  bazı üyelere inisiyatif kullanabiliyoruz."* The allowance is the studio's standard,
+                  not a wall — but exceeding it must be an ACT, so the refusal stays the default and
+                  the tick is the only way past it. Reception sees the refusal, unchanged. */}
+              {freezeOver && canOverride ? (
+                <div className="mt-1.5 space-y-2 rounded-lg border border-warning/40 bg-warning/5 p-2.5 text-sm">
+                  <p className="text-warning">
+                    Bu pakette {freezeMax} gün dondurma hakkı kaldı — {freezeDays} gün, hakkın{' '}
+                    <strong>{freezeNum - freezeMax} gün üzerinde</strong>.
+                  </p>
+                  <label className="flex items-start gap-2">
+                    <input
+                      type="checkbox"
+                      checked={freezeOverride}
+                      onChange={(e) => setFreezeOverride(e.target.checked)}
+                      className="mt-1 size-4 shrink-0 accent-warning"
+                    />
+                    <span className="text-foreground">
+                      <strong>Hakkı aşarak dondur.</strong> Üyelik {freezeDays} gün durur ve süresi{' '}
+                      {freezeDays} gün uzar. Kalan dondurma hakkı 0 güne iner ve bu istisna kayda
+                      geçer.
+                    </span>
+                  </label>
+                  {freezeMax >= 1 ? (
+                    <button
+                      type="button"
+                      className="font-medium text-muted-foreground underline underline-offset-2 hover:text-foreground"
+                      onClick={() => {
+                        setFreezeDays(String(freezeMax))
+                        setFreezeOverride(false)
+                      }}
+                    >
+                      Vazgeç, {freezeMax} gün yap
+                    </button>
+                  ) : null}
+                </div>
+              ) : freezeOver ? (
+                <p className="mt-1.5 text-sm text-danger">
+                  Bu pakette {freezeSub.freezeDaysRemaining} gün dondurma hakkı kaldı — daha fazlası
+                  girilemez.{' '}
+                  {freezeMax >= 1 ? (
+                    <button
+                      type="button"
+                      className="font-medium underline underline-offset-2"
+                      onClick={() => setFreezeDays(String(freezeMax))}
+                    >
+                      {freezeMax} gün yap
+                    </button>
+                  ) : null}
+                </p>
+              ) : null}
             </div>
 
             <div>
@@ -418,22 +507,22 @@ function SubscriptionRow({ sub, siblings, products, onChanged }: { sub: Subscrip
 
           {/* The summary. Everything here is computed from what she just typed, so there is no
               gap between what the screen promises and what the system does. */}
-          {Number(freezeDays) >= 1 && Number(freezeDays) <= (freezeSub.freezeDaysRemaining ?? 0) ? (
+          {freezeValid ? (
             <div className="space-y-1 rounded-xl border border-border bg-muted/30 p-3 text-sm">
               <Row label="Durma aralığı" value={`${studioToday()} → ${addDays(studioToday(), Number(freezeDays))}`} />
               <Row
                 label="Bitiş tarihi"
                 value={`${dateLabel(freezeSub.validUntil)} → ${addDays(toDateInput(freezeSub.validUntil), Number(freezeDays))}`}
               />
-              <Row
-                label="Sonra kalan hak"
-                value={`${(freezeSub.freezeDaysRemaining ?? 0) - Number(freezeDays)} gün`}
-              />
-              {siblings.filter((x) => x.status === 'active' && (x.freezeDaysRemaining ?? 0) > 0).length > 1 ? (
+              {/* Never a negative number: under the initiative the allowance goes to zero and stops
+                  there, which is exactly what her card will read afterwards. */}
+              <Row label="Sonra kalan hak" value={`${Math.max(0, freezeMax - Number(freezeDays))} gün`} />
+              {overageDays > 0 ? (
+                <Row label="Hak dışı verilen" value={`${overageDays} gün`} />
+              ) : null}
+              {freezeTargets.length > 1 ? (
                 <p className="pt-1 text-warning">
-                  Bu demetteki{' '}
-                  {siblings.filter((x) => x.status === 'active' && (x.freezeDaysRemaining ?? 0) > 0).length} paket
-                  birlikte dondurulacak.
+                  Bu demetteki {freezeTargets.length} paket birlikte dondurulacak.
                 </p>
               ) : null}
             </div>
@@ -449,30 +538,29 @@ function SubscriptionRow({ sub, siblings, products, onChanged }: { sub: Subscrip
               Vazgeç
             </Button>
             <Button
-              disabled={
-                busy ||
-                !(Number(freezeDays) >= 1 && Number(freezeDays) <= (freezeSub.freezeDaysRemaining ?? 0))
-              }
+              disabled={busy || !freezeValid || freezeTargets.length === 0}
               onClick={async () => {
                 const days = Number(freezeDays)
+                // Read ONCE, here: the dialog closes immediately, and a flag re-read after the reset
+                // would send the ordinary path under an approval the owner had already given.
+                const override = overrideOn
                 setFreezeOpen(false)
                 await runAll(
-                  siblings
-                    .filter((x) => x.status === 'active' && (x.freezeDaysRemaining ?? 0) > 0)
-                    .map(
-                      (x) => () =>
-                        freezeSubscriptionAction({
-                          entitlementId: x.id,
-                          plannedDays: days,
-                          reason: freezeReason,
-                          note: freezeNote.trim() || null,
-                        }),
-                    ),
-                  'Üyelik donduruldu.',
+                  freezeTargets.map(
+                    (x) => () =>
+                      freezeSubscriptionAction({
+                        entitlementId: x.id,
+                        plannedDays: days,
+                        reason: freezeReason,
+                        note: freezeNote.trim() || null,
+                        override,
+                      }),
+                  ),
+                  override ? 'Üyelik hak aşılarak donduruldu.' : 'Üyelik donduruldu.',
                 )
               }}
             >
-              Dondur
+              {overrideOn ? 'Hakkı aşarak dondur' : 'Dondur'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -492,18 +580,35 @@ function SubscriptionRow({ sub, siblings, products, onChanged }: { sub: Subscrip
               >
                 Dondurmayı kaldır
               </Button>
-            ) : freezeSub.status === 'active' && (freezeSub.freezeDaysRemaining ?? 0) > 0 ? (
+            ) : freezeSub.status === 'active' &&
+              // Reception sees the button while there is budget to spend. The owner sees it whenever
+              // the package HAS a freeze right at all — an exhausted allowance is precisely the case
+              // the initiative exists for, and a hidden button is a decision she cannot make.
+              ((freezeSub.freezeDaysRemaining ?? 0) > 0 || (isOwner && (freezeSub.freezeEntitledDays ?? 0) > 0)) ? (
               <Button variant="outline" size="sm" disabled={busy} onClick={() => setFreezeOpen(true)}>
                 Dondur
               </Button>
             ) : null}
           </div>
 
+          {/* What the SWEEP will actually do, in a date. It used to say "hakkı N gün kaldı,
+              dolduğunda sistem devam ettirir" — which stopped being true the day freezes got a
+              planned end (a three-day freeze on a seven-day budget resumes on day three), and became
+              actively misleading under an initiative, where the budget reads 7 and she returns on
+              day 14. The date is read from the freeze, so the sentence cannot drift from the act. */}
           {groupFrozen ? (
             <p className="rounded-md bg-info/5 p-2 text-sm text-info">
-              Üyelik durdu. Kaldırdığında, durduğu gün sayısı kadar süresi uzayacak — hakkı{' '}
-              <strong>{freezeSub.freezeDaysRemaining} gün</strong> kaldı, dolduğunda sistem otomatik olarak
-              devam ettirir.
+              Üyelik durdu. Kaldırdığında, durduğu gün sayısı kadar süresi uzayacak.{' '}
+              {freezeSub.freezeEndsOn ? (
+                <>
+                  Sistem <strong>{freezeSub.freezeEndsOn}</strong> tarihinde otomatik devam ettirir.
+                </>
+              ) : (
+                <>
+                  Dondurma hakkı <strong>{freezeSub.freezeDaysRemaining} gün</strong> kaldı,
+                  dolduğunda sistem otomatik devam ettirir.
+                </>
+              )}
             </p>
           ) : null}
 

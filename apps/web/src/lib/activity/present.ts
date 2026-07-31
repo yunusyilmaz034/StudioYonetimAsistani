@@ -281,12 +281,20 @@ export function present(e: ActivityEvent): PresentedEntry {
       return entry(`Üye kaydı ${erasureReasonText(str(p.reason))} anonimleştirildi.`, null, 'warning')
 
     // ── FREEZE (v1.27 S3) ───────────────────────────────────────────────────────────────────
-    case 'entitlement.frozen':
+    // `overageDays` is present ONLY when the desk went past the studio's own terms (2026-07-31), so
+    // the exception says so here — in the one screen someone opens to ask "how often do we do this,
+    // and for whom?". Silence in the feed is how a standard quietly stops being one.
+    case 'entitlement.frozen': {
+      const planned = num(p.plannedDays)
+      const overage = num(p.overageDays) ?? 0
+      const parts = [str(p.from) ?? '', planned != null ? `${planned} gün` : null, `hakkı ${num(p.entitledDays) ?? 0} gün`]
+      if (overage > 0) parts.push(`hak dışı ${overage} gün`)
       return entry(
         `${of_(member)} üyeliği donduruldu.`,
-        `${str(p.from) ?? ''} · hakkı ${num(p.entitledDays) ?? 0} gün`,
-        'info',
+        parts.filter(Boolean).join(' · '),
+        overage > 0 ? 'warning' : 'info',
       )
+    }
     case 'entitlement.unfrozen': {
       const days = num(p.days) ?? 0
       // "auto" must be visible: nobody asked for this one. The sweep ended it because her budget ran

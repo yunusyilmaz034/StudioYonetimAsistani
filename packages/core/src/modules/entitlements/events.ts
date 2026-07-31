@@ -175,6 +175,15 @@ export type EntitlementFrozenPayload = {
   // the log is permanent, and "ameliyat oldu" in a permanent record is health data we could never
   // remove when she asks (#6). Same split as credit adjustments (AD-39).
   readonly reason?: FreezeReason
+  /**
+   * Days granted BEYOND her remaining allowance, when the desk deliberately exceeded it
+   * (owner, 2026-07-31: *"admin yine de istediği kadar dondurabilsin"*).
+   *
+   * Absent — not zero — on every ordinary freeze, so its presence alone answers "was this an
+   * exception?" without a subtraction. Optional and additive: no version bump, no upcaster, and
+   * every payload written before today stays valid.
+   */
+  readonly overageDays?: number
 }
 
 export type EntitlementUnfrozenPayload = {

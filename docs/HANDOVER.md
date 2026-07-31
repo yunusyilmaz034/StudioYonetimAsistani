@@ -7,7 +7,7 @@ explains the moment.
 Keep it current the way the code is kept current: when the state changes, this changes in the same
 commit. A handover document that lags is worse than none, because it is believed.
 
-_Last true as of: **2026-07-31**._
+_Last true as of: **2026-08-01**._
 
 ---
 
@@ -79,6 +79,14 @@ must still be created and sent for review by hand.
 
 ## Waiting on us
 
+- **The freeze initiative (OR-21) is built and NOT DEPLOYED.** The owner may freeze past a member's
+  allowance — fourteen days on a seven-day package — deliberately, behind a tick, recorded as
+  `overageDays`. Domain, Server Action and screen all landed on 2026-08-01; `pnpm check` and
+  `next build` are green. **It has no unit tests** (the owner's call, taken knowingly): the freeze
+  arithmetic is covered for the ordinary path only, and the override path has been reasoned through
+  rather than asserted. If it misbehaves, the two places to look are `decideFreeze`'s `grantedDays`
+  and `budgetEndsOn` in the sweep. Ships with the next night deploy — **App Hosting AND functions**,
+  because the sweep runs in a function.
 - **Nothing from 2026-07-31 is unfinished.** The fitness migration (61 packages), the programme
   rollout (65 members on the real starter plan), the import wizard, the QR fix and the mobile 1.1.0
   build all landed. The evening added the check-out policy (OR-20) and a camera in the member's web
