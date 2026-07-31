@@ -318,11 +318,36 @@ async function resolveAttendanceForCheckIn(ctx: TenantContext, memberId: MemberI
 
 const DEFAULT_ARRIVE_WITHIN_MINUTES = 45
 
-// The member scanned the kiosk QR — check HER (from her token) in at the kiosk's branch. ctx-taking core
-// shared by the member API. Single-use (jti burn), online-only, verified — never trusts the client.
-export async function memberCheckInByToken(ctx: TenantContext, memberId: MemberId, token: string) {
+/**
+ * A scanned string → the token inside it.
+ *
+ * The kiosk shows a bare token; the printed daily sheet shows a URL — `…/g/<token>` — because a
+ * member without the app opens it in her phone's browser. Her camera hands the app whatever the code
+ * actually contains, so the app sends a URL and the server used to reject it.
+ */
+function tokenFromScan(raw: string): string {
+  const s = raw.trim()
+  const m = /\/g\/([A-Za-z0-9._~-]+)/.exec(s)
+  return m?.[1] ?? s
+}
+
+// The member scanned one of the studio's QRs — check HER (from her session) in at that branch.
+//
+// ── One scanner, both codes (owner, 2026-07-31) ──────────────────────────────────────────────
+//
+// This studio has two: the kiosk's rotating single-use token, and the daily sheet printed for
+// reception. They are different by design — one is burned after a single use, the other is valid all
+// day for everyone — but a member does not know that. She opens the app, points it at the QR in
+// front of her, and expects to be let in.
+//
+// Pointing it at the printed sheet answered "Geçersiz ya da kullanılmış kod", which is both useless
+// and, from where she is standing, untrue: the code is neither invalid nor used. So the kiosk token
+// is tried first and the poster second, and only if BOTH refuse does she see an error.
+export async function memberCheckInByToken(ctx: TenantContext, memberId: MemberId, scanned: string) {
+  const token = tokenFromScan(scanned)
   const claims = verifyQrToken(token, qrVerificationSecrets())
-  if (!claims || claims.memberId !== KIOSK_SENTINEL) return { ok: false as const, error: { code: 'qr_invalid' as const } }
+  // Not a kiosk code — try the printed sheet before giving up on her.
+  if (!claims || claims.memberId !== KIOSK_SENTINEL) return checkInByPosterToken(ctx, memberId, token)
   if (Date.now() > claims.exp) return { ok: false as const, error: { code: 'qr_expired' as const } }
   const db = adminDb()
   const jtiRef = db.collection('studios').doc(ctx.studioId).collection('qrTokens').doc(claims.jti)

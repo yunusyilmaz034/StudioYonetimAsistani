@@ -93,3 +93,35 @@ describe('key rotation', () => {
     expect(verifyQrToken(forged, [NEW, OLD])).toBeNull()
   })
 })
+
+// ── One scanner, both codes (owner, 2026-07-31) ──────────────────────────────────────────────
+//
+// The kiosk shows a bare token; the printed daily sheet shows a URL, because a member without the
+// app opens it in her browser. Her camera hands the app whatever the code contains, so the app
+// sends a URL — and the server rejected it with "Geçersiz ya da kullanılmış kod", which from where
+// she is standing is not even true.
+describe('tokenFromScan', () => {
+  const extract = (raw: string): string => {
+    const s = raw.trim()
+    const m = /\/g\/([A-Za-z0-9._~-]+)/.exec(s)
+    return m?.[1] ?? s
+  }
+
+  it('pulls the token out of the printed sheet’s URL', () => {
+    expect(extract('https://panel.pilatesfitnessbyisil.com/g/abc.def-ghi_jkl')).toBe('abc.def-ghi_jkl')
+  })
+
+  it('leaves a bare kiosk token alone', () => {
+    expect(extract('abc.def.ghi')).toBe('abc.def.ghi')
+  })
+
+  it('survives the whitespace a camera sometimes appends', () => {
+    expect(extract('  https://x/g/tok123  ')).toBe('tok123')
+  })
+
+  it('does not mistake another path for the sheet', () => {
+    // `/invite/…` is a different link entirely and must be handed on untouched, so it fails as an
+    // unknown token rather than being silently read as a door code.
+    expect(extract('https://x/invite/retro/tok')).toBe('https://x/invite/retro/tok')
+  })
+})
