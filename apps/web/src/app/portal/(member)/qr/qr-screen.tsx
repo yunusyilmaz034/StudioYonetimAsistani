@@ -1,12 +1,18 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import QRCode from 'qrcode'
-import { Loader2Icon, RefreshCwIcon } from 'lucide-react'
+import { CameraIcon, CheckCircle2Icon, Loader2Icon, RefreshCwIcon, XIcon } from 'lucide-react'
 
+import { QrScanner } from '@/components/qr-scanner'
 import { Button } from '@/components/ui/button'
 import { track } from '@/lib/analytics'
-import { mintCheckInTokenAction, qrStudioBranchAction } from '@/server/actions/qr'
+import { domainErrorMessage } from '@/lib/domain-error'
+import {
+  memberScanCheckInAction,
+  mintCheckInTokenAction,
+  qrStudioBranchAction,
+} from '@/server/actions/qr'
 import {
   getLocationConsentAction,
   recordCheckinLocationAction,
@@ -32,6 +38,12 @@ export function PortalQrScreen() {
   const [locConsent, setLocConsent] = useState<boolean | null>(null)
   const [locSaving, setLocSaving] = useState(false)
   const [captured, setCaptured] = useState(false)
+  // The OTHER direction: she scans the studio's printed sheet with her own camera (2026-07-31).
+  const [scanning, setScanning] = useState(false)
+  const [scanState, setScanState] = useState<{ ok: boolean; text: string } | null>(null)
+  // One scan is enough. jsQR decodes the same frame several times a second, and without this the
+  // second decode arrives while the first request is still open — two check-ins from one hold-up.
+  const busyRef = useRef(false)
 
   useEffect(() => {
     getLocationConsentAction()
@@ -81,6 +93,32 @@ export function PortalQrScreen() {
       track('qr_scanned', { surface: 'member' })
     } catch {
       setError(true)
+    }
+  }, [])
+
+  const onScan = useCallback(async (value: string) => {
+    if (busyRef.current) return
+    busyRef.current = true
+    try {
+      const res = await memberScanCheckInAction({ token: value })
+      if (res.ok) {
+        setScanning(false)
+        setScanState({
+          ok: true,
+          text: res.value.direction === 'in' ? 'Giriş kaydedildi. İyi antrenmanlar!' : 'Çıkış kaydedildi.',
+        })
+        track('qr_scanned', { surface: 'member_portal_scan' })
+      } else {
+        setScanState({ ok: false, text: domainErrorMessage(res.error) })
+      }
+    } catch {
+      setScanState({ ok: false, text: 'Kayıt alınamadı. İnternet bağlantınızı kontrol edin.' })
+    } finally {
+      // A refusal is worth re-reading the same code for (she may be pointing at yesterday's sheet
+      // and swap it); a success closed the camera already.
+      window.setTimeout(() => {
+        busyRef.current = false
+      }, 2500)
     }
   }, [])
 
@@ -147,6 +185,68 @@ export function PortalQrScreen() {
       <p className="text-center text-xs text-muted-foreground">
         Bu kod kısa ömürlüdür ve tek kullanımlıktır. Ekran görüntüsü paylaşmayın — çalışmaz.
       </p>
+
+      {/* The other direction — she scans the studio's code instead of showing hers. Reception prints
+          a sheet every morning and it hangs at the door; until today only the mobile app could read
+          it, and most of this studio's members were invited to the web portal (owner, 2026-07-31).
+          The camera opens on a PRESS, never on load: a page that asks for the camera by itself is a
+          page people close. */}
+      <section className="space-y-3 rounded-xl border border-border bg-card p-4 shadow-sm">
+        <div>
+          <h2 className="text-sm font-medium text-foreground">Stüdyodaki kodu okut</h2>
+          <p className="text-xs text-muted-foreground">
+            Girişteki QR kodunu telefonunuzun kamerasıyla okutarak kendiniz giriş yapabilirsiniz.
+          </p>
+        </div>
+
+        {scanState ? (
+          <div
+            role="status"
+            className={`flex items-start gap-2 rounded-lg p-3 text-sm ${
+              scanState.ok ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger'
+            }`}
+          >
+            {scanState.ok ? (
+              <CheckCircle2Icon className="mt-0.5 size-4 shrink-0" />
+            ) : (
+              <XIcon className="mt-0.5 size-4 shrink-0" />
+            )}
+            <span>{scanState.text}</span>
+          </div>
+        ) : null}
+
+        {scanning ? (
+          <>
+            <QrScanner
+              active
+              onScan={(v) => void onScan(v)}
+              className="aspect-square w-full rounded-lg bg-black object-cover"
+              fallbackHint="QR kodunuzu resepsiyona okutabilirsiniz."
+            />
+            <Button
+              variant="outline"
+              className="min-h-11 w-full"
+              onClick={() => {
+                setScanning(false)
+                busyRef.current = false
+              }}
+            >
+              Kamerayı Kapat
+            </Button>
+          </>
+        ) : (
+          <Button
+            variant="outline"
+            className="min-h-11 w-full"
+            onClick={() => {
+              setScanState(null)
+              setScanning(true)
+            }}
+          >
+            <CameraIcon /> Kamerayı Aç
+          </Button>
+        )}
+      </section>
 
       {/* KVKK location consent — opt-in, member's own phone only, coarse, never blocks check-in. */}
       {locConsent !== null ? (

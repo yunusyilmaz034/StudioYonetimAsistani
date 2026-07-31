@@ -344,6 +344,17 @@ function tokenFromScan(raw: string): string {
   }
 }
 
+// The member scanned one of the studio's QRs from HER OWN browser (the web portal). Same core as
+// the mobile app's `/api/member/checkin`; the only difference is where her identity comes from —
+// a session cookie here, a Bearer id-token there. Most of this studio's members were invited to the
+// web portal and never installed the app, so without this the printed sheet only worked for the few
+// who did (owner, 2026-07-31).
+export async function memberScanCheckInAction(input: unknown) {
+  const p = z.object({ token: z.string().min(1).max(2048) }).parse(input)
+  const { ctx, memberId } = await requireMemberContext()
+  return memberCheckInByToken(ctx, memberId, p.token)
+}
+
 // The member scanned one of the studio's QRs — check HER (from her session) in at that branch.
 //
 // ── One scanner, both codes (owner, 2026-07-31) ──────────────────────────────────────────────

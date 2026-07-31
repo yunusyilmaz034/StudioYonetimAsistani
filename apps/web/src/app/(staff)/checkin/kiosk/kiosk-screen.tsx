@@ -13,7 +13,7 @@ import { checkInByQrAction, mintKioskCheckInTokenAction } from '@/server/actions
 import type { BookingMember } from '@/server/actions/booking'
 import type { CheckinState } from '@/server/checkin-query'
 
-import { QrScanner } from '../qr-scanner'
+import { QrScanner } from '@/components/qr-scanner'
 
 // The kiosk. An iPad on a wall, operated by the member.
 //
@@ -231,7 +231,12 @@ export function KioskScreen({
         {online ? (
           mode === 'scan' ? (
             <div className="relative mt-6 overflow-hidden rounded-2xl">
-              <QrScanner active onScan={(token) => void scan(token)} className="aspect-square w-full bg-black object-cover" />
+              <QrScanner
+                active
+                onScan={(token) => void scan(token)}
+                className="aspect-square w-full bg-black object-cover"
+                fallbackHint="İsminizle giriş yapın."
+              />
               {/* A frame to aim at. A camera with no target is a camera people wave a phone at. */}
               <div className="pointer-events-none absolute inset-8 rounded-xl border-4 border-white/70" />
             </div>

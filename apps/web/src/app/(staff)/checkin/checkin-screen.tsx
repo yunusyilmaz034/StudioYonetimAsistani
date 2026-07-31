@@ -19,7 +19,7 @@ import { checkInByQrAction } from '@/server/actions/qr'
 import { closeBranchAction, openBranchAction } from '@/server/actions/checkin'
 import type { CheckinState } from '@/server/checkin-query'
 
-import { QrScanner } from './qr-scanner'
+import { QrScanner } from '@/components/qr-scanner'
 
 interface MemberLite {
   readonly id: string
@@ -181,7 +181,7 @@ export function CheckinScreen({ state, members }: { state: CheckinState; members
                 {scannerOn ? 'Kapat' : 'Kamerayı Aç'}
               </Button>
             </div>
-            {scannerOn ? <QrScanner active={scannerOn} onScan={(v) => scanQr(v)} /> : null}
+            {scannerOn ? <QrScanner active={scannerOn} onScan={(v) => scanQr(v)} fallbackHint="Üye arayın." /> : null}
 
             <h3 className="pt-1 text-sm font-medium">Üye Ara</h3>
             <div className="relative">
