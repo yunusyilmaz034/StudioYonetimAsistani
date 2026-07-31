@@ -469,7 +469,7 @@ export async function removeProgressPhotoAction(input: unknown) {
 // Everything the training screen shows, in one ctx-taking call — shared by the cookie portal and the
 // Bearer member API (the mobile app). Photos carry short-lived signed URLs; the raw path never leaves.
 export async function loadMyTraining(ctx: TenantContext, memberId: MemberId) {
-  const [programs, exercises, measurements, feedback, photos, entitlements] = await Promise.all([
+  const [allPrograms, exercises, measurements, feedback, photos, entitlements] = await Promise.all([
     repo().listProgramsByMember(ctx, memberId),
     repo().listExercises(ctx),
     repo().listMeasurementsByMember(ctx, memberId),
@@ -477,6 +477,17 @@ export async function loadMyTraining(ctx: TenantContext, memberId: MemberId) {
     repo().listPhotosByMember(ctx, memberId),
     new FirestoreEntitlementRepository(adminDb()).listActiveByMember(ctx, memberId),
   ])
+  // ── An ARCHIVED programme is not hers any more (owner, 2026-07-31) ──────────────────────────
+  //
+  // The repository returns every programme a member has ever had, and this screen used to show all
+  // of them. That was survivable while each member had one; it stopped being survivable the day
+  // sixty-five members were assigned the wrong programme and it had to be replaced. Two plans on one
+  // screen and no way to tell which is current — "kafası karışmasın", and she is right.
+  //
+  // Filtered on the SERVER, not the screen: what a member must not see should not travel to her
+  // phone. Archiving is reversible and nothing is deleted, so this hides without losing anything.
+  const programs = allPrograms.filter((p) => p.status !== 'archived')
+
   // Training PROGRAMMES are for members who actually train — fitness (gym) or PT. A pilates-only member
   // has no use for a workout plan; she sees only her measurements. Kept honest by a real membership
   // check, and a safety net: if a programme somehow exists, never hide it.
