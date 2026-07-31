@@ -1003,3 +1003,31 @@ duplicate guard refuses a sale reception genuinely needed to complete.
 
 **Repayment:** grant every component of a bundle in one Firestore transaction, so a failure leaves
 nothing behind and the retry is a first attempt.
+
+
+---
+
+## DEBT-033 — `@firebase/app` is a dependency we declare on someone else's behalf
+
+**Taken:** 2026-07-31, after every Cloud Function deploy failed for an hour.
+
+`@firebase/database-compat` — pulled in by `firebase-admin` — requires `@firebase/app` at runtime
+and **does not declare it**. Locally that is invisible: pnpm's tree has the package because the web
+app installs the Firebase client SDK. On GCP the Functions runtime installs only what
+`apps/functions/package.json` names, so the container failed to start with
+`Cannot find module '@firebase/app'` and Cloud Run refused every new revision.
+
+Nothing in this repository changed to cause it. The published package has been wrong for a while;
+what changed is that a deploy finally ran without a stale cache to hide it.
+
+**Cost:** an undeclared dependency sits in our manifest with no code of ours importing it, and the
+version has to be kept in step with whatever `firebase-admin` actually needs. A future reader will
+reasonably wonder why it is there — which is what this entry is for.
+
+**Trigger to repay:** the day `@firebase/database-compat` declares its own dependency (check on any
+`firebase-admin` major upgrade). Remove the line and deploy ONE function; if the container starts,
+it is fixed upstream.
+
+**Also pinned in the same change:** `firebase-admin` and `firebase-functions` to exact versions.
+A deploy artifact that resolves `^` at build time can change underneath a studio at 03:00 without
+anyone touching the repository, and the first symptom is a function that will not start.
