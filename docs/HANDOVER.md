@@ -135,31 +135,41 @@ Read `docs/OWNER-RULES.md` §"Traps" before touching the areas it names. In shor
 
 Paste into WhatsApp Manager → Message Templates → Create.
 
-- **Name** `uyelik_daveti_v2` · **Category** Utility · **Language** Turkish (tr)
+- **Name** `uyelik_daveti_v2` · **Category** Utility / "Bilgilendirme" · **Language** Turkish (tr)
 - No header, no footer, no buttons.
 - **Body:**
 
 ```
-Merhaba {{1}} 🌸 Pilates Fitness by Işıl'da üyeliğin artık dijital! Derslerini buradan ayırtabilir, kalan ders hakkını ve antrenman programını görebilirsin.
+Merhaba {{1}} 🌸 Pilates Fitness by Işıl'da üyeliğin artık dijital. Derslerini kendin ayırtabilir, kalan ders hakkını ve antrenman programını görebilirsin.
 
-1) Önce şifreni oluştur:
+Üyelik sayfan hazır, buradan açabilirsin:
 {{2}}
 
-2) Sonraki girişlerin için adres:
+Daha sonra dilediğin zaman şu adresten ulaşırsın:
 https://panel.pilatesfitnessbyisil.com/portal/login?s=retro
 
-Cep telefonu numaran ve belirlediğin şifreyle giriş yaparsın. Takıldığın yerde bize yaz, yardımcı olalım 💛
+Bir sorun olursa bize yazman yeterli, yardımcı olalım 💛
 ```
 
 - **Samples** (Meta refuses to review without them): `{{1}}` = `Ayşe`,
   `{{2}}` = `https://panel.pilatesfitnessbyisil.com/invite/retro/ORNEK-BAGLANTI`
 
-Why v2 exists: the approved v1 has one placeholder and no room for a second sentence, so the login
-address currently travels *inside* that placeholder next to the invite link. It works and it reads
-awkwardly. In v2 the login address is static text where it belongs.
+### Do NOT accept the "Kimlik Doğrulama" category Meta suggests
 
-If Meta rejects it for containing a URL in the body, the fallback is the same body with the second
-URL replaced by a "Giriş sayfası" URL button pointing at the same address.
+Meta's classifier reads "şifreni oluştur" and "giriş yaparsın" as authentication and offers that
+category as *Recommended*. It is a trap. Authentication templates are locked to a one-time-passcode
+shape — fixed body, copy-code button, no arbitrary links — so ours cannot exist there at all, and
+accepting it would break invitations entirely.
+
+The category is genuinely Utility: this is a message about an account the member already has. The
+wording above therefore says nothing about passwords or logging in; the invite page explains that
+step when she arrives, which is where the explanation belongs anyway.
+
+### If it is still rejected
+
+Replace the second URL with a button: name `Giriş sayfası`, static URL
+`https://panel.pilatesfitnessbyisil.com/portal/login?s=retro`. Meta prefers URLs in buttons, and a
+body with only one link classifies more cleanly.
 
 ## Where the rest lives
 
