@@ -243,6 +243,35 @@ export async function sendPortalInvitesAction(input: unknown): Promise<readonly 
   return results
 }
 
+/**
+ * The invite message EXACTLY as it will be sent, with the links standing in as examples.
+ *
+ * Mints nothing and sends nothing. It exists because the bulk screen let the owner send
+ * seventy-six invitations without ever showing him what they said — so he pressed send and then
+ * asked whether the message told members where to log in. It did; he simply had no way to know
+ * that, and "I think it is fine" is not something anyone should have to feel about a message going
+ * to seventy-six people.
+ *
+ * It resolves the studio's own edit over the code seed, the same way both send paths do, so what is
+ * shown here is what actually goes out — including a change made in Ayarlar five minutes ago.
+ */
+export async function previewInviteMessageAction(): Promise<{ ok: true; text: string } | { ok: false; reason: string }> {
+  const ctx = await requireTenantContext(OPS)
+  const base = (process.env.PUBLIC_APP_URL ?? '').replace(/\/+$/, '')
+
+  const override = await adminDb().doc(`studios/${ctx.studioId}/notificationTemplates/portal_invite`).get()
+  const template = (override.exists ? (override.data() as NotificationTemplate) : undefined) ?? TEMPLATES.portal_invite
+  if (!template) return { ok: false as const, reason: 'Davet şablonu bulunamadı.' }
+
+  const rendered = render(template, {
+    memberName: 'AYŞE',
+    // A stand-in token, clearly marked. A real one must never be minted just to look at a message.
+    inviteLink: `${base}/invite/${encodeURIComponent(ctx.studioId)}/ÖRNEK-BAĞLANTI`,
+    loginLink: `${base}/portal/login?s=${encodeURIComponent(ctx.studioId)}`,
+  })
+  return rendered.ok ? { ok: true as const, text: rendered.value.body } : { ok: false as const, reason: 'Şablon alanları eksik.' }
+}
+
 // ── The MANUAL path: mint the invite, hand back the finished message. ───────────────────────
 //
 // This is how the rollout actually starts. The automated send above needs a Meta-approved template;

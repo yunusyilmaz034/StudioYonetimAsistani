@@ -1,7 +1,7 @@
 'use client'
 
-import { useMemo, useState } from 'react'
-import { CheckCircle2Icon, Loader2Icon, MessageCircleIcon, SendIcon, XCircleIcon } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { CheckCircle2Icon, ChevronRightIcon, Loader2Icon, MessageCircleIcon, SendIcon, XCircleIcon } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Badge } from '@/components/ui/badge'
@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input'
 import { PageHeader } from '@/components/ui/page-header'
 import { openWhatsAppWhenReady } from '@/lib/whatsapp'
 import {
+  previewInviteMessageAction,
   prepareInviteMessageAction,
   sendPortalInvitesAction,
   type InviteRow,
@@ -73,6 +74,13 @@ export function InviteScreen({
   const [query, setQuery] = useState('')
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set())
   const [busy, setBusy] = useState(false)
+  // What actually goes out, fetched once. See the note next to where it renders.
+  const [previewText, setPreviewText] = useState<string | null>(null)
+  useEffect(() => {
+    previewInviteMessageAction()
+      .then((r) => setPreviewText(r.ok ? r.text : null))
+      .catch(() => setPreviewText(null))
+  }, [])
   const [sent, setSent] = useState(0)
   const [results, setResults] = useState<readonly InviteSendResult[]>([])
 
@@ -152,6 +160,43 @@ export function InviteScreen({
           </Button>
         }
       />
+
+      {/* WHICH MESSAGE, FROM WHICH PATH (2026-07-31).
+          Seventy-six invitations went out from this screen without it ever showing their text, and
+          the owner then found the message did not say where to log in afterwards.
+          The cause is that THIS SCREEN HAS TWO SENDERS and they do not send the same words:
+            · "Davet gönder" (bulk) goes through the WhatsApp Business API, and Meta delivers only
+              templates IT approved — our wording is not used, and the approved one carries the
+              invite link alone.
+            · "Hatırlat" (per row) opens the studio's own WhatsApp with our text, which does carry
+              the login address. Person to person, so Meta approves nothing.
+          Showing our template as "the message" would therefore have been a lie on the bulk path —
+          the exact lie that produced this. So it is labelled, both halves. */}
+      {previewText ? (
+        <details className="group rounded-2xl border bg-card p-4">
+          <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 text-sm font-medium text-foreground">
+            <ChevronRightIcon className="size-4 transition-transform group-open:rotate-90" />
+            Hangi mesaj gidiyor?
+          </summary>
+          <div className="mt-3 rounded-xl border border-warning/40 bg-warning/10 p-3 text-sm">
+            <p className="font-medium">Toplu “Davet gönder” bu metni KULLANMAZ.</p>
+            <p className="mt-1 text-muted-foreground">
+              WhatsApp, işletmenin başlattığı mesajlarda yalnızca <strong>Meta’nın onayladığı</strong>{' '}
+              şablonu iletir; bizim yazdığımız metin oraya geçmez. Aşağıdaki metin{' '}
+              <strong>“Hatırlat”</strong> ile tek tek gönderdiğinde ve stüdyonun kendi WhatsApp’ından
+              yazdığında gider — giriş adresi bunda var.
+            </p>
+          </div>
+          <pre className="mt-3 overflow-x-auto whitespace-pre-wrap rounded-xl bg-muted/40 p-3 text-sm leading-relaxed text-foreground">
+{previewText}
+          </pre>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Bu metni değiştirmek için: Ayarlar › Bildirimler › “Üyelik daveti”. Toplu gönderimdeki
+            metni değiştirmek için Meta WhatsApp Manager’daki şablonun düzenlenip yeniden onaya
+            gönderilmesi gerekir. Bağlantılar her üye için kişiye özel üretilir; burada örnek.
+          </p>
+        </details>
+      ) : null}
 
       {/* BUGÜN — the question you have while a rollout is running. A cumulative total can look healthy
           on a day where nothing moved; these two numbers cannot. */}
