@@ -79,9 +79,15 @@ must still be created and sent for review by hand.
 
 ## Waiting on us
 
-- **Nothing from 2026-07-31 is unfinished.** The fitness migration (61 packages), the programme
+- **Two commits are built, green and NOT deployed** (2026-07-31 evening — held for the night per
+  OR-17): the check-out fix (`af00ec8`) and the member-side web scanner (`c2718d8`). The first
+  touches `packages/core`, so it needs **both** deploys — a push for App Hosting **and**
+  `firebase deploy --only functions` for the trigger and the new hourly `occupancySweep`. Deploying
+  only one leaves reception's labelled buttons still toggling.
+- **Nothing else from 2026-07-31 is unfinished.** The fitness migration (61 packages), the programme
   rollout (65 members on the real starter plan), the import wizard, the QR fix and the mobile 1.1.0
-  build all landed. Five separate defects were introduced and fixed the same day, every one of them
+  build all landed. The evening added the check-out policy (OR-20) and a camera in the member's web
+  panel. Five separate defects were introduced and fixed the same day, every one of them
   a hand-written Firestore document that did not match its declared type — see the note under
   "Things that will bite you".
 - **Hybrid purchase, tested live.** One sale must produce N entitlements correctly through the real
