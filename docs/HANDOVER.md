@@ -7,7 +7,7 @@ explains the moment.
 Keep it current the way the code is kept current: when the state changes, this changes in the same
 commit. A handover document that lags is worse than none, because it is believed.
 
-_Last true as of: **2026-07-30**._
+_Last true as of: **2026-07-31**._
 
 ---
 
@@ -60,16 +60,28 @@ must still be created and sent for review by hand.
 
 ## Waiting on the owner
 
-- **Işıl's Excel** — package migration for the members still to be brought over (74 active members
-  hold no package). The import wizard is BUILT and waiting for the file: `/import/wizard` reads
-  .xlsx or .csv, maps her columns to ours, proposes who each package belongs to, previews the whole
-  thing, and can be undone in one click while nothing has touched it. Its preview step IS the
-  dry-run, so the agreed sequence collapses to: upload → look → approve → reconcile.
-- Invite the remaining members to the portal (the screen has a "Davet bekliyor" filter and a
-  one-tap WhatsApp reminder).
+- **iOS 1.1.0 is built and uploaded; the App Store version has to be created by hand.** App Store
+  Connect → + Version → 1.1.0 → fill "What's New" in BOTH Turkish and English (an empty Turkish
+  field greys out "Add for Review", which cost a day last week) → pick build 5 → submit.
+  Test credentials for the reviewer: `0500 000 00 01` / `Yu156211` — a member with a live package
+  and a programme, excluded from every report.
+- **The Meta invite template.** The invite now carries the login address by packing both URLs into
+  the one placeholder Meta approved. It reads a little awkwardly ("…?s=retro görüşürüz"). The
+  proper fix is a NEW template with the sentence written into the body, submitted for approval in
+  WhatsApp Manager. Owner's account, owner's call.
+- **Eighteen active members still hold no package.** After the fitness import that is most likely
+  the genuine number (lapsed, or leads entered as members) rather than migration debt — worth one
+  look before assuming either way.
+- **Sixty-six invitations are still unopened.** The invite screen has the filter and a one-tap
+  reminder that mints a fresh link.
 
 ## Waiting on us
 
+- **Nothing from 2026-07-31 is unfinished.** The fitness migration (61 packages), the programme
+  rollout (65 members on the real starter plan), the import wizard, the QR fix and the mobile 1.1.0
+  build all landed. Five separate defects were introduced and fixed the same day, every one of them
+  a hand-written Firestore document that did not match its declared type — see the note under
+  "Things that will bite you".
 - **Hybrid purchase, tested live.** One sale must produce N entitlements correctly through the real
   PAYTR path. The rules are written and unit-tested; the path has never run in production.
 - **External uptime monitoring.** The watchdog cannot report its own suspension — if the project is
@@ -100,6 +112,14 @@ Read `docs/OWNER-RULES.md` §"Traps" before touching the areas it names. In shor
   2026-07-30'da iki kez "deploy tetiklenmedi" diye yanlış teşhise yol açtı — dağıtım çalışıyordu.
   Komut `docs/RUNBOOK.md`'de. Yanlış bir yeşil, kırmızıdan kötüdür: o gün stüdyo açıkken deploy
   edilmediği sanıldığı için resepsiyona haber verilmedi (OR-17).
+- **Never hand-write a production document. Go through the use-case.** On 2026-07-31 five documents
+  were written directly, each missing or mistyping a field its type declares, and each broke
+  something: an `archivedAt` froze the member workspace; an entitlement with numeric dates where
+  Timestamps were expected TOOK THE WHOLE PANEL DOWN; a `createdAt` on five exercises broke the
+  training panel again; `photoUrl: ''` (the type says `string | null`) crashed the exercise detail;
+  and two programme templates written with four of their nine fields showed as passive and
+  unlabelled. The type is the contract — the screen you happen to be looking at is one reader of it.
+  If no use-case exists for what you need, write one.
 - **Core changes need TWO deploys.** Push updates App Hosting; the Cloud Functions need
   `firebase deploy --only functions`. The PAYTR callback that actually runs is the FUNCTION.
 - **The emulator does not enforce Firestore indexes.** Ordering changes must be verified in prod.
