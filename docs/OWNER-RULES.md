@@ -211,9 +211,15 @@ Two consequences the owner asked for by name:
 
 1. **Selling a package moves her to Aktif instantly.** Nothing runs, nothing syncs — the state is a
    question asked at render time, so the answer is already true the moment the sale lands.
-2. **"Aktif üyemiz kaç?" means members who really hold a package.** One number, everywhere. The owner
-   dashboard now counts frozen members too, which it did not before: 101 → 105 on the day this
-   shipped (128 records: 105 aktif · 21 duraklatılmış · 2 pasif).
+2. **"Aktif üyemiz kaç?" means members who really hold a package.** One number, everywhere — the
+   dashboard and the list had been answering it differently. It read 101 and now reads 105 (128
+   records: 105 aktif · 21 duraklatılmış · 2 pasif).
+
+   The four are members whose package **starts tomorrow** — three new sales and one renewal bought
+   after the old package lapsed. The dashboard's old test asked *"can she book right now?"*; the
+   right question for this number is *"is she a customer?"*, and a woman who has paid for a package
+   beginning on Sunday is not a win-back target. Frozen members would count too, for the same reason,
+   though on the day this shipped there were none.
 
 The state also checks the DATE, not just the stored status, so it never depends on whether the
 nightly expiry sweep fired. A frozen package is exempt from that check — freezing stops the clock and

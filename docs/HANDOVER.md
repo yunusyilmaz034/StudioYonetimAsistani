@@ -89,8 +89,10 @@ must still be created and sent for review by hand.
   three jobs — a member whose package ran out was called "pasif", the same word used for a member it
   wants deleted. All three are filters on the members page, with counts. Only *pasif* is stored; the
   other two are derived from the ledger at render time, so selling a package moves her to Aktif with
-  nothing to run. **The owner dashboard's "aktif üye" moved 101 → 105** — it now counts frozen members,
-  as the list does. Today: 128 records, 105 aktif · 21 duraklatılmış · 2 pasif.
+  nothing to run. **The owner dashboard's "aktif üye" moved 101 → 105**: it asked "can she book right
+  now?", which excluded four members whose package starts tomorrow (three new sales, one renewal
+  bought after the old one lapsed). Frozen members count too, though today there are none.
+  Today: 128 records, 105 aktif · 21 duraklatılmış · 2 pasif.
 - **The movement guide is in the mobile app, and videos play in place.** (2026-08-01) Tapping an
   exercise in the app opens the same guide the panel shows (body diagram, summary, correct/wrong
   movement), and a form video plays in a popup on both instead of throwing her out to YouTube. Web is
