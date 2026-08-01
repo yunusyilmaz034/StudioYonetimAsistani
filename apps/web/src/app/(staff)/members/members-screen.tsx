@@ -18,7 +18,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
-import { FILTERS, matches, type MemberBadges, type MemberFilter } from '@/lib/members/filters'
+import { FILTERS, matches, STATE_LABEL, type MemberBadges, type MemberFilter } from '@/lib/members/filters'
 import type { MemberRow } from '@/server/members-query'
 import {
   Table,
@@ -31,11 +31,9 @@ import {
 
 import { MemberForm } from './member-form'
 
-const STATUS_LABEL: Record<string, string> = {
-  active: 'Aktif',
-  inactive: 'Pasif',
-  deleted: 'Silindi',
-}
+// Only the tombstone needs its own word here — the three living states come from STATE_LABEL, which
+// is derived and shared, so this screen and the member's own card can never disagree about her.
+const DELETED_LABEL = 'Silindi'
 
 // Compact list formatters (PF — package glance columns).
 const dm = (ms: number) => new Date(ms).toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit' })
@@ -383,17 +381,18 @@ export function MembersScreen({
 // and gets a plain caption. ONE badge, never a row of them — a list where every row shouts is a list
 // where nothing does. The order below is the order of what reception should act on first.
 function MemberBadgeCell({ status, badges }: { status: string; badges: MemberBadges }) {
-  if (status !== 'active') {
-    return (
-      <Badge className={status === 'deleted' ? 'bg-danger/10 text-danger' : 'bg-muted text-muted-foreground'}>
-        {STATUS_LABEL[status] ?? status}
-      </Badge>
-    )
-  }
+  // An erased record is not a member state at all — it is a tombstone, and it outranks everything.
+  if (status === 'deleted') return <Badge className="bg-danger/10 text-danger">{DELETED_LABEL}</Badge>
+  // Money first, always: "sold and not collected" is the one thing this list may never hide, and a
+  // member can owe whatever her state is.
   if (badges.inDebt) return <Badge className="bg-danger/10 text-danger">Borçlu</Badge>
+  // Then the state. Duraklatılmış is not an alarm — she is not in trouble, she is un-sold — but it
+  // outranks the package badges below, because "kredisi az" means nothing without a package.
+  if (badges.state !== 'active') {
+    return <Badge className="bg-muted text-muted-foreground">{STATE_LABEL[badges.state]}</Badge>
+  }
   if (badges.frozen) return <Badge className="bg-muted text-muted-foreground">Donmuş</Badge>
   if (badges.expiring) return <Badge className="bg-warning/10 text-warning">Bitecek</Badge>
   if (badges.lowCredits) return <Badge className="bg-warning/10 text-warning">Kredi az</Badge>
-  if (badges.noPackage) return <Badge className="bg-muted text-muted-foreground">Paketsiz</Badge>
-  return <span className="text-xs text-muted-foreground">Aktif</span>
+  return <span className="text-xs text-muted-foreground">{STATE_LABEL.active}</span>
 }

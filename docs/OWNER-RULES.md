@@ -171,6 +171,54 @@ the counter floors at zero rather than going negative. A package with **no** fre
 (Pilates) is untouched by this — there is nothing to exceed, and giving it days is a catalogue
 change, made once, for everyone.
 
+**OR-22 · A mobile change that touches a NATIVE surface is run before it is shipped.** (2026-08-01)
+WebView, camera, files, notifications, payments — anything where the answer comes from iOS or from a
+third party rather than from our own code. 1.2.0 went to both stores with a video player that showed
+YouTube's *"Hata 153 · video oynatıcı yapılandırma hatası"* on every exercise. It compiled, it
+typechecked, `pnpm check` was green and `next build` was clean; none of those can tell you how a
+WebView looks to YouTube. It was found only because the owner asked to see it in a simulator.
+
+So: build it, open it, press the button. Once. The simulator is enough to catch this class of fault —
+though **not** to clear video playback, which the simulator's media stack fails at even when the code
+is right; that one needs a real device or a real browser.
+
+When a third party refuses, get the fact instead of guessing: a plain HTML page at a real origin
+settled in one minute what two rounds of speculation had not. And prefer the honest configuration —
+the fix was to stop claiming the page came from `youtube.com` and declare our own domain, which is
+what the web player already does.
+
+**OR-23 · A member is Aktif, Duraklatılmış or Pasif — and only one of the three is stored.**
+(2026-08-01) The studio had two words doing three jobs: a member whose package simply ran out was
+called "pasif", the same word used for a member the studio wants out of the system entirely. One of
+those is someone to call this week; the other is someone to delete.
+
+- **Aktif** — she has a live package. A FROZEN package counts: it is paused, not finished, and she
+  has already paid. "Donmuş" stays a separate filter, so nothing about her is lost.
+- **Duraklatılmış** — her package ended. She is the win-back list, and she stays in "Tümü".
+- **Pasif** — the studio wants her out and her data gone. She is hidden from "Tümü" (OR from
+  2026-07-31 stands) and one tap away under her own chip.
+
+**Two of these are derived and one is declared, and that is why there is no `state` field on the
+member document.** Aktif and duraklatılmış are facts about the credit ledger that change BY
+THEMSELVES — a package expires at midnight and nobody presses anything. Storing them would mean every
+expiry has to write to the member record: a nightly job that can fail and leave a member reading
+"Aktif" with nothing to book. Pasif is the opposite — nothing can compute a human's intention to
+remove someone — so it stays where it always was (`Member.status`, written by `member.deactivated`
+with a reason). The stored vocabulary is untouched; the three words the studio speaks are derived in
+one place (`lib/members/filters.ts`) and read by the list, the member's card, search and the reports.
+
+Two consequences the owner asked for by name:
+
+1. **Selling a package moves her to Aktif instantly.** Nothing runs, nothing syncs — the state is a
+   question asked at render time, so the answer is already true the moment the sale lands.
+2. **"Aktif üyemiz kaç?" means members who really hold a package.** One number, everywhere. The owner
+   dashboard now counts frozen members too, which it did not before: 101 → 105 on the day this
+   shipped (128 records: 105 aktif · 21 duraklatılmış · 2 pasif).
+
+The state also checks the DATE, not just the stored status, so it never depends on whether the
+nightly expiry sweep fired. A frozen package is exempt from that check — freezing stops the clock and
+`validUntil` is not extended until it is lifted.
+
 ## Traps that have already cost something
 
 **OR-14 · Firestore indexes are a production-only trap.** The emulator does NOT enforce them, so a

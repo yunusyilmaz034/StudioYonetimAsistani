@@ -9,7 +9,7 @@ import {
   systemClock,
 } from '@studio/core'
 
-import { badgesFor, type MemberFacts } from '@/lib/members/filters'
+import { badgesFor, STATE_LABEL, type MemberFacts } from '@/lib/members/filters'
 import { requireTenantContext } from '../auth'
 import { adminDb } from '../firebase-admin'
 
@@ -28,7 +28,7 @@ export interface MemberHit {
   readonly fullName: string
   readonly phone: string
   readonly hasPhone: boolean
-  /** "8 kredi · 12 gün" | "Sınırsız · 45 gün" | "Donmuş" | "Paketsiz" */
+  /** "8 kredi · 12 gün" | "Sınırsız · 45 gün" | "Donmuş" | "—" */
   readonly packageLabel: string
   /** The one status worth surfacing, or null when nothing needs attention. */
   readonly warn: string | null
@@ -38,7 +38,9 @@ const digits = (s: string): string => s.replace(/\D/g, '')
 
 function packageLabel(packages: MemberFacts['packages'], now: number): string {
   const live = packages.filter((p) => p.status === 'active' || p.status === 'frozen')
-  if (live.length === 0) return 'Paketsiz'
+  // No live package: say nothing here. `warn` already reads "Duraklatılmış" for exactly this member,
+  // and a row that says the same thing twice in two words is a row nobody finishes reading.
+  if (live.length === 0) return '—'
   const active = live.filter((p) => p.status === 'active')
   if (active.length === 0) return 'Donmuş'
   // The one she will use next: the earliest-expiring active package (I-17's shape).
@@ -85,19 +87,19 @@ export async function searchMembersAction(query: string): Promise<MemberHit[]> {
         { status: m.status, balanceDueKurus: debt.get(m.id as string)?.amount ?? 0, packages },
         now,
       )
+      // Same order of precedence as the members list, so a member does not carry one word in search
+      // and another in the list: money, then state, then what her package is doing.
       const warn = badges.inDebt
         ? 'Borçlu'
-        : badges.frozen
-          ? 'Donmuş'
-          : badges.expiring
-            ? 'Bitiyor'
-            : badges.lowCredits
-              ? 'Kredi az'
-              : badges.noPackage
-                ? 'Paketsiz'
-                : badges.inactive
-                  ? 'Pasif'
-                  : null
+        : badges.state !== 'active'
+          ? STATE_LABEL[badges.state]
+          : badges.frozen
+            ? 'Donmuş'
+            : badges.expiring
+              ? 'Bitiyor'
+              : badges.lowCredits
+                ? 'Kredi az'
+                : null
       return {
         id: m.id as string,
         fullName: m.fullName,

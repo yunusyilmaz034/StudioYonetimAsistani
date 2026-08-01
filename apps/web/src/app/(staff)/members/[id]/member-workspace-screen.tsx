@@ -61,6 +61,7 @@ import type {
   MemberWorkspaceData,
 } from '@/server/member-workspace-query'
 import { deactivateMember } from '@/server/actions/members'
+import { STATE_LABEL, type MemberState } from '@/lib/members/filters'
 
 import { RestrictionPanel } from './restriction-panel'
 import { WalletPanel } from './wallet-panel'
@@ -78,7 +79,8 @@ import { InvitePanel } from './invite-panel'
 import { SubscriptionsPanel } from '../subscriptions'
 
 // ── labels ────────────────────────────────────────────────────────────────────
-const MEMBER_STATUS: Record<string, string> = { active: 'Aktif', inactive: 'Pasif', deleted: 'Silindi' }
+// Aktif · Duraklatılmış · Pasif come from the shared STATE_LABEL, derived server-side — this screen
+// never re-decides who she is. 'Silindi' is not one of the three: it is a tombstone, and it wins.
 const RES_STATUS: Record<string, string> = {
   booked: 'Rezerve',
   cancelled: 'İptal',
@@ -192,8 +194,12 @@ export function MemberWorkspaceScreen({
                 <MessageSquareIcon className="size-3.5" />
                 Mesaj Gönder
               </Button>
-              {member.status !== 'active' ? (
-                <Badge className="bg-muted text-muted-foreground">{MEMBER_STATUS[member.status]}</Badge>
+              {/* Quiet by default (Doc 20 §1): "Aktif" is the norm and says nothing. Duraklatılmış
+                  and Pasif are what reception needs to see before she opens her mouth. */}
+              {member.status === 'deleted' ? (
+                <Badge className="bg-danger/10 text-danger">Silindi</Badge>
+              ) : data.state !== 'active' ? (
+                <Badge className="bg-muted text-muted-foreground">{STATE_LABEL[data.state]}</Badge>
               ) : null}
               {data.insideNow ? <Badge className="bg-success/10 text-success">İçeride</Badge> : null}
             </div>
@@ -238,7 +244,7 @@ export function MemberWorkspaceScreen({
 
         <TabsContent value="profile">
           <div className="space-y-5">
-            <ProfilePanel member={member} isPlatformAdmin={isPlatformAdmin} />
+            <ProfilePanel member={member} state={data.state} isPlatformAdmin={isPlatformAdmin} />
             {/* v1.21 — the portal invite (D1). Reception issues the link; the member sets her
                 own password. Reception never knows it. */}
             <InvitePanel memberId={member.id} studioId={member.studioId} />
@@ -402,7 +408,7 @@ function QuickActions({
 }
 
 // ── Profile ───────────────────────────────────────────────────────────────────
-function ProfilePanel({ member, isPlatformAdmin }: { member: Member; isPlatformAdmin: boolean }) {
+function ProfilePanel({ member, state, isPlatformAdmin }: { member: Member; state: MemberState; isPlatformAdmin: boolean }) {
   const router = useRouter()
   const [deact, setDeact] = useState(false)
   const [reason, setReason] = useState('')
@@ -433,7 +439,7 @@ function ProfilePanel({ member, isPlatformAdmin }: { member: Member; isPlatformA
         <Row label="E-posta" value={member.email ?? '—'} />
         <Row label="Doğum tarihi" value={member.birthDate ? member.birthDate.split('-').reverse().join('/') : '—'} />
         <Row label="Katılım" value={d(member.joinedAt)} />
-        <Row label="Durum" value={MEMBER_STATUS[member.status] ?? member.status} />
+        <Row label="Durum" value={member.status === 'deleted' ? 'Silindi' : STATE_LABEL[state]} />
         <Row
           label="Acil durum"
           value={member.emergencyContact ? `${member.emergencyContact.name} · ${member.emergencyContact.phone}` : '—'}

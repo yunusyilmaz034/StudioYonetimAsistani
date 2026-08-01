@@ -45,10 +45,12 @@ grants and refuses when they disagree. The studio is notified the moment a self-
 the test the counter RESETS. Do not remove testers. Publishing new builds does not reset it —
 which is why 1.2.0 could go out mid-count without costing a day.
 
-**1.2.0 is uploaded to both stores (2026-08-01)** — iOS build 6, Android versionCode 7. It carries
-PF-42 (Cüzdan out of the tab bar for Üyeliğim), PF-43 (past reservations collapsed) and the day's
-work: the movement guide and the in-app video player. Android went straight to the closed test track;
-iOS is processing and still needs its App Store version created by hand.
+**1.2.1 supersedes 1.2.0 — do not ship 1.2.0.** (2026-08-01) 1.2.0 reached both stores with a video
+player that failed on every exercise (YouTube "Hata 153"), caught in a simulator after upload; see
+OR-22. 1.2.1 fixes it and carries everything 1.2.0 did: PF-42 (Cüzdan out of the tab bar for
+Üyeliğim), PF-43 (past reservations collapsed), the movement guide and the in-app video player.
+Android replaces the closed-test build automatically; **on iOS pick the 1.2.1 build, not 1.2.0's
+build 6.**
 
 **1.1.0 was superseded, not shipped.** It was built and uploaded on 2026-07-29 and never sent for
 review; everything in it is inside 1.2.0, so submit 1.2.0 and let 1.1.0 lapse rather than spending a
@@ -64,10 +66,10 @@ must still be created and sent for review by hand.
 
 ## Waiting on the owner
 
-- **iOS 1.2.0 is uploaded; the App Store version has to be created by hand.** App Store Connect →
-  + Version → 1.2.0 → fill "What's New" in BOTH Turkish and English (an empty Turkish field greys out
-  "Add for Review", which cost a day last week) → pick **build 6** → submit. Skip 1.1.0; it is
-  contained in this one. Test credentials for the reviewer: `0500 000 00 01` / `Yu156211` — a member
+- **iOS 1.2.1 is uploaded; the App Store version has to be created by hand.** App Store Connect →
+  + Version → 1.2.1 → fill "What's New" in BOTH Turkish and English (an empty Turkish field greys out
+  "Add for Review", which cost a day last week) → pick the **1.2.1** build → submit. Skip 1.1.0 and
+  1.2.0; the first is contained in this one and the second has a broken video player. Test credentials for the reviewer: `0500 000 00 01` / `Yu156211` — a member
   with a live package and a programme, excluded from every report.
 - **The Meta invite template `uyelik_daveti_v2`.** Text is drafted and ready to paste into WhatsApp
   Manager (name, category Utility, Turkish, body and the two sample values) — see the section below.
@@ -83,6 +85,12 @@ must still be created and sent for review by hand.
 
 ## Waiting on us
 
+- **A member is Aktif, Duraklatılmış or Pasif (OR-23).** (2026-08-01) The studio had two words doing
+  three jobs — a member whose package ran out was called "pasif", the same word used for a member it
+  wants deleted. All three are filters on the members page, with counts. Only *pasif* is stored; the
+  other two are derived from the ledger at render time, so selling a package moves her to Aktif with
+  nothing to run. **The owner dashboard's "aktif üye" moved 101 → 105** — it now counts frozen members,
+  as the list does. Today: 128 records, 105 aktif · 21 duraklatılmış · 2 pasif.
 - **The movement guide is in the mobile app, and videos play in place.** (2026-08-01) Tapping an
   exercise in the app opens the same guide the panel shows (body diagram, summary, correct/wrong
   movement), and a form video plays in a popup on both instead of throwing her out to YouTube. Web is

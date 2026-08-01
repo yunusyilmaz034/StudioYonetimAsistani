@@ -14,6 +14,7 @@ import {
   type TenantContext,
 } from '@studio/core'
 
+import { memberStateOf, type MemberState } from '@/lib/members/filters'
 import { adminDb } from './firebase-admin'
 
 // The Member Workspace read (v1.18). Direct bounded parallel reads — no projection,
@@ -63,6 +64,15 @@ export interface MemberWorkspaceData {
   // NOT from `member.stats.activeEntitlementCount`, which no reactor maintains (it is permanently 0).
   // Matches the "Aktif paketi olan" members-list filter so the header and the list never disagree.
   readonly activePackageCount: number
+  /**
+   * Aktif · Duraklatılmış · Pasif (owner, 2026-08-01) — the same derivation the members list runs,
+   * from the same shared function, so her card and her row cannot disagree about who she is.
+   *
+   * Note this is NOT `activePackageCount > 0`: that count is of `status === 'active'` entitlements
+   * and a FROZEN package is deliberately excluded from it (the header says how many she can book
+   * with today). A frozen member is still active — she has bought and she is coming back.
+   */
+  readonly state: MemberState
   // The member's outstanding balance in kuruş, read LIVE from the LEDGER (moneyByEntitlement) — the same
   // source the Paketler/Cari Hesap tabs use — NOT from `member.stats.balanceDue`, which is also an
   // unmaintained (permanently 0) field. A debt must never read as 0 in the header while the tab shows it.
@@ -166,8 +176,17 @@ export async function loadMemberWorkspace(
     occurredAt: c.occurredAt,
   }))
 
+  // Her state, from every package she has ever held — `activeEntitlements` cannot answer it because
+  // the repository filters on `status === 'active'` and a frozen package is not that. The predicate
+  // is the list's: frozen counts, and an `active` row whose date has passed does not (the nightly
+  // sweep may not have flipped it yet).
+  const liveCount = allEnts.filter(
+    (e) => e.status === 'frozen' || (e.status === 'active' && (e.validUntil as number) >= nowMs),
+  ).length
+
   return {
     member,
+    state: memberStateOf(member.status, liveCount),
     activePackageCount,
     balanceDueKurus,
     upcomingReservations: upcoming,

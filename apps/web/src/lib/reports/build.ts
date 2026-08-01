@@ -14,6 +14,7 @@ import {
 } from '@studio/core'
 
 import { formatDateTime } from '@/lib/datetime'
+import { memberStateOf, STATE_LABEL } from '@/lib/members/filters'
 import type { ExportableTable } from '@/lib/widgets/contract'
 
 // THE REPORT BUILDERS (v1.27 S6) — pure. Data in, `ExportableTable` out.
@@ -48,11 +49,9 @@ const tl = (m: Money | number): string =>
 const date = (ms: number): string => formatDateTime(ms)
 const pct = (n: number, of: number): number => (of === 0 ? 0 : Math.round((n / of) * 100))
 
-const MEMBER_STATUS: Record<string, string> = {
-  active: 'Aktif',
-  inactive: 'Pasif',
-  deleted: 'Silindi',
-}
+// The member's state is DERIVED (Aktif · Duraklatılmış · Pasif) by the same shared function the
+// members list uses — a report that calls someone Aktif while the screen calls her Duraklatılmış is
+// the drift this taxonomy exists to end. Only the tombstone has its own word.
 const SALE_STATUS: Record<string, string> = {
   open: 'Açık (tahsilat bekliyor)',
   settled: 'Tahsil edildi',
@@ -132,6 +131,11 @@ export function buildMembership(
       // report names is the package the next class will actually take a credit from.
       .sort((a, b) => a.validUntil - b.validUntil)
     const e = own[0]
+    // Her state reads the DATE too: `status` is flipped to expired by the nightly sweep, and this
+    // column must not depend on whether that job fired (a frozen package outruns its date by design).
+    const liveCount = own.filter(
+      (x) => x.status === 'frozen' || (x.status === 'active' && (x.validUntil as number) >= nowMs),
+    ).length
     const credits = e?.credits ? available(e.credits) : null
     const kalanGun = e ? Math.max(0, Math.ceil((e.validUntil - nowMs) / DAY)) : null
     // Default sort key: when the member's MOST RECENT subscription was added (any status) — newest first.
@@ -146,7 +150,13 @@ export function buildMembership(
       credits === null ? (e ? 'Süresiz' : '—') : credits,
       lira(debtKurus.get(m.id as string) ?? 0),
       e ? date(e.validUntil) : '—',
-      e?.status === 'frozen' ? 'Dondurulmuş' : (MEMBER_STATUS[m.status] ?? m.status),
+      // "Dondurulmuş" is more specific than "Aktif" and the spreadsheet is where detail belongs —
+      // it is the same choice the list's badge makes for a frozen member.
+      e?.status === 'frozen'
+        ? 'Dondurulmuş'
+        : m.status === 'deleted'
+          ? 'Silindi'
+          : STATE_LABEL[memberStateOf(m.status, liveCount)],
       m.phone as string,
       date(m.joinedAt),
       m.stats.lastAttendanceAt ? date(m.stats.lastAttendanceAt) : 'Hiç gelmedi',

@@ -237,8 +237,17 @@ export async function loadOwnerDashboard(
     if (!isValidNow(e, nowMs)) continue
     withValidPackage.add(e.memberId as string)
   }
+  // "Aktif üye" is ONE number, and it must be the one the members list shows (owner, 2026-08-01:
+  // *"aktif üyemiz kaç dediğimizde gerçekten paketi olan üye sayısını görmek istiyoruz"*). That means
+  // a FROZEN package counts here even though `isValidNow` excludes it: she has bought and she is
+  // coming back, and the list calls her Aktif. `isValidNow` keeps its own meaning — *usable today* —
+  // which is the right question for the credit and occupancy figures below, and the wrong one here.
+  const withLivePackage = new Set(withValidPackage)
+  for (const e of entitlements) {
+    if (e.status === 'frozen') withLivePackage.add(e.memberId as string)
+  }
   const activeMembers = members.filter(
-    (m) => m.status === 'active' && withValidPackage.has(m.id as string),
+    (m) => m.status === 'active' && withLivePackage.has(m.id as string),
   ).length
   const newMembers30d = members.filter((m) => m.joinedAt >= nowMs - 30 * DAY_MS).length
 
