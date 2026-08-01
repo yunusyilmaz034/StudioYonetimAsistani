@@ -79,6 +79,13 @@ must still be created and sent for review by hand.
 
 ## Waiting on us
 
+- **The movement guide is in the mobile app, and videos play in place — WEB IS LIVE, MOBILE IS NOT.**
+  (2026-08-01) Tapping an exercise in the app now opens the same guide the panel shows (body diagram,
+  summary, correct/wrong movement), and a form video plays in a popup on both instead of throwing her
+  out to YouTube. The web half shipped with the day's deploy. **The mobile half needs an EAS build**,
+  and that decision is open: fold it into the pending 1.1.0 (rebuild PF-42/PF-43 together) or ship it
+  as 1.2.0 afterwards. Nothing about it is server-gated — the guide fields were already in the
+  training payload, so an older app simply keeps behaving as it did.
 - **The freeze initiative (OR-21) is DEPLOYED and unexercised.** The owner may freeze past a member's
   allowance — fourteen days on a seven-day package — deliberately, behind a tick, recorded as
   `overageDays`. Shipped the night of 2026-08-01: App Hosting revision `build-2026-07-31-016` (the

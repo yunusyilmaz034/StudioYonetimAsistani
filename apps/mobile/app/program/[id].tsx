@@ -1,13 +1,15 @@
 import { useState } from 'react'
-import { Alert, Linking, Modal, TextInput, View } from 'react-native'
+import { Alert, Modal, TextInput, View } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { useLocalSearchParams } from 'expo-router'
 
-import type { FeedbackReason, ProgramExercise } from '@studio/core/client'
+import type { ExerciseGuide, FeedbackReason, ProgramExercise } from '@studio/core/client'
 import { api, type TrainingBundle } from '@/lib/api'
 import { useFetch } from '@/lib/useFetch'
+import { ExerciseGuideSheet } from '@/components/exercise-guide-sheet'
 import { FadeInUp, PressableScale } from '@/components/motion'
 import { Body, Button, Card, Eyebrow, Hero, Loading, Pill, Screen } from '@/components/ui'
+import { VideoModal } from '@/components/video-modal'
 import { radius, shadow, space, typo as t, usePalette } from '@/theme'
 
 const REASONS: { key: FeedbackReason; label: string }[] = [
@@ -27,6 +29,11 @@ export default function ProgramDetail() {
   const { id } = useLocalSearchParams<{ id: string }>()
   const { data, loading, reload } = useFetch(api.training)
   const [target, setTarget] = useState<Target | null>(null)
+  // The guide and the video are opened from the exercise card and belong to the SCREEN, not to the
+  // card: a sheet mounted inside a row inherits the row's stacking, and on Android that is how a
+  // modal ends up behind the list it was opened from.
+  const [guide, setGuide] = useState<ExerciseGuide | null>(null)
+  const [video, setVideo] = useState<{ url: string; title: string } | null>(null)
 
   if (loading && !data) return <Loading />
   const t2 = data as TrainingBundle | null
@@ -61,6 +68,16 @@ export default function ProgramDetail() {
                 key={`${day.order}-${ex.order}`}
                 ex={ex}
                 muscle={guides[ex.exerciseId]?.muscleGroup ?? null}
+                // The card opens the guide only where one exists. A row that looks pressable and
+                // does nothing is worse than a row that does not look pressable.
+                onOpenGuide={guides[ex.exerciseId] ? () => setGuide(guides[ex.exerciseId]!) : undefined}
+                // The video prefers the exercise's own link and falls back to the library's — a
+                // trainer may override the clip for one programme without editing the library.
+                onPlay={() => {
+                  const url = ex.videoUrl ?? guides[ex.exerciseId]?.videoUrl ?? null
+                  if (url) setVideo({ url, title: ex.nameTr })
+                }}
+                hasVideo={Boolean(ex.videoUrl ?? guides[ex.exerciseId]?.videoUrl)}
                 onFeedback={() => setTarget({ programId: program.id, programVersion: program.currentVersion, dayOrder: day.order, exerciseId: ex.exerciseId, name: ex.nameTr })}
               />
             ))}
@@ -69,14 +86,33 @@ export default function ProgramDetail() {
       ))}
 
       {target ? <FeedbackModal target={target} onClose={() => setTarget(null)} onSent={() => { setTarget(null); void reload() }} /> : null}
+      {guide ? <ExerciseGuideSheet guide={guide} onClose={() => setGuide(null)} /> : null}
+      {video ? <VideoModal url={video.url} title={video.title} onClose={() => setVideo(null)} /> : null}
     </Screen>
   )
 }
 
-function ExerciseCard({ ex, muscle, onFeedback }: { ex: ProgramExercise; muscle: string | null; onFeedback: () => void }) {
+function ExerciseCard({
+  ex,
+  muscle,
+  hasVideo,
+  onOpenGuide,
+  onPlay,
+  onFeedback,
+}: {
+  ex: ProgramExercise
+  muscle: string | null
+  hasVideo: boolean
+  onOpenGuide?: () => void
+  onPlay: () => void
+  onFeedback: () => void
+}) {
   const p = usePalette()
   return (
-    <Card inset>
+    // Pressing the row opens the movement guide (owner, 2026-08-01) — the same guide the web panel
+    // shows. The two round buttons keep their own jobs, so a tap meant for "video" never opens a
+    // sheet she did not ask for.
+    <Card inset onPress={onOpenGuide}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space(3) }}>
         <View style={{ flex: 1, gap: 6 }}>
           <Body strong style={{ fontSize: 16 }}>{ex.nameTr}</Body>
@@ -87,10 +123,17 @@ function ExerciseCard({ ex, muscle, onFeedback }: { ex: ProgramExercise; muscle:
             {muscle ? <Pill label={muscle} tone="good" /> : null}
           </View>
           {ex.note ? <Body muted style={{ fontSize: 13.5 }}>{ex.note}</Body> : null}
+          {/* The row is pressable and nothing else says so — a phone has no hover to discover it with. */}
+          {onOpenGuide ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <Ionicons name="book-outline" size={13} color={p.accent} />
+              <Body style={{ fontSize: 12.5, fontWeight: '600', color: p.accent }}>Hareket rehberi</Body>
+            </View>
+          ) : null}
         </View>
         <View style={{ gap: space(2) }}>
-          {ex.videoUrl ? (
-            <PressableScale onPress={() => void Linking.openURL(ex.videoUrl!)}>
+          {hasVideo ? (
+            <PressableScale onPress={onPlay}>
               <View style={{ width: 46, height: 46, borderRadius: radius.md, backgroundColor: p.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
                 <Ionicons name="play" size={20} color={p.accent} />
               </View>

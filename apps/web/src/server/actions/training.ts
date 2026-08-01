@@ -28,6 +28,7 @@ import {
 import { z } from 'zod'
 
 import type { ExerciseGuide } from '@/components/exercise-guide-dialog'
+import { EXERCISE_MUSCLES } from '@/lib/exercise-muscles'
 import type { AiProgramDay, AiProgramResult } from '@/lib/training/ai-program'
 import { buildProgram, focusLabel, type ProgramFocus } from '@/lib/training/program-builder'
 import { ForbiddenError, requireMemberContext, requireTenantContext } from '../auth'
@@ -499,17 +500,7 @@ export async function loadMyTraining(ctx: TenantContext, memberId: MemberId) {
   const guides: Record<string, ExerciseGuide> = {}
   for (const ex of exercises) {
     if (!used.has(ex.id)) continue
-    guides[ex.id] = {
-      nameTr: ex.nameTr,
-      muscleGroup: ex.muscleGroup,
-      equipment: ex.equipment,
-      description: ex.description,
-      tips: ex.tips,
-      commonMistakes: ex.commonMistakes,
-      videoUrl: ex.videoUrl,
-      photoUrl: ex.photoUrl,
-      gifUrl: ex.gifUrl,
-    }
+    guides[ex.id] = guideOf(ex)
   }
   const visiblePhotos = await Promise.all(
     photos
@@ -544,6 +535,34 @@ export async function showMyProgramsAction(): Promise<boolean> {
   return ents.some((e) => e.productSnapshot.category === 'fitness' || e.productSnapshot.category === 'private') || programs.length > 0
 }
 
+/**
+ * One exercise → the guide both clients render. The ONE place the projection is built, because it is
+ * built twice (the portal's own fetch and the mobile bundle) and two copies drift.
+ *
+ * The muscle diagram's targets are resolved HERE rather than in the client (2026-08-01). The web
+ * panel used to look the exercise up in `EXERCISE_MUSCLES` at render time, which the mobile app
+ * cannot do without carrying its own copy of the table — and a copy is a table that goes stale the
+ * first time an exercise is added and the app is not rebuilt. Sending the answer instead means a new
+ * exercise lights up in both clients with no app release.
+ *
+ * Unknown to the table ⇒ the fields are absent and the client skips the diagram, not the guide.
+ */
+function guideOf(ex: Exercise): ExerciseGuide {
+  const m = EXERCISE_MUSCLES[ex.nameTr]
+  return {
+    nameTr: ex.nameTr,
+    muscleGroup: ex.muscleGroup,
+    equipment: ex.equipment,
+    description: ex.description,
+    tips: ex.tips,
+    commonMistakes: ex.commonMistakes,
+    videoUrl: ex.videoUrl,
+    photoUrl: ex.photoUrl,
+    gifUrl: ex.gifUrl,
+    ...(m ? { primaryMuscles: m.primary, secondaryMuscles: m.secondary } : {}),
+  }
+}
+
 // The guidance (Hareket Rehberi) for the exercises in HER programs — so the portal can show the guide
 // (PF-11) next to each program exercise. Scoped to her own programs' exercises, never the whole library.
 export async function listMyProgramGuidesAction(): Promise<Record<string, ExerciseGuide>> {
@@ -554,17 +573,7 @@ export async function listMyProgramGuidesAction(): Promise<Record<string, Exerci
   const guides: Record<string, ExerciseGuide> = {}
   for (const ex of exercises) {
     if (!used.has(ex.id)) continue
-    guides[ex.id] = {
-      nameTr: ex.nameTr,
-      muscleGroup: ex.muscleGroup,
-      equipment: ex.equipment,
-      description: ex.description,
-      tips: ex.tips,
-      commonMistakes: ex.commonMistakes,
-      videoUrl: ex.videoUrl,
-      photoUrl: ex.photoUrl,
-      gifUrl: ex.gifUrl,
-    }
+    guides[ex.id] = guideOf(ex)
   }
   return guides
 }

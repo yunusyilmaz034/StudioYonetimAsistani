@@ -126,6 +126,86 @@ export interface ExerciseGuide {
   readonly videoUrl: string | null
   readonly photoUrl: string | null
   readonly gifUrl: string | null
+  /**
+   * Which muscles the body diagram paints, RESOLVED SERVER-SIDE (2026-08-01).
+   *
+   * The exercise-name → muscle table is a single table on the server; sending the answer rather than
+   * the table is what lets the mobile app draw the same diagram as the panel without shipping — and
+   * then having to keep in sync — a copy of it. A new exercise added to the table lights up in both
+   * clients at once, with no app release.
+   *
+   * Absent for an exercise the table does not know: the diagram is skipped, the rest of the guide is
+   * not. The strings are the diagram's own muscle vocabulary (`chest`, `quadriceps`, …), which is
+   * why they are typed loosely here — `client.ts` is a wire contract, not the drawing.
+   */
+  readonly primaryMuscles?: readonly string[]
+  readonly secondaryMuscles?: readonly string[]
+}
+
+/**
+ * A YouTube watch/share/shorts link → the embeddable player URL, or null if it is not YouTube.
+ *
+ * Owner, 2026-08-01: *"video için youtube yönlendirmesin, sistem pratik olmuyor."* Leaving the app
+ * to watch a fifteen-second form clip loses her place in the programme — on mobile she comes back
+ * to a cold start, and on the web she comes back to a second tab. So both clients play it in a
+ * popup, and both need to turn the same stored link into the same embed URL: hence one function,
+ * here, tested once.
+ *
+ * `youtube-nocookie.com` is deliberate — it is the same player without the tracking cookie, which
+ * is the version we may show a member without asking her for anything.
+ */
+export function youtubeEmbedUrl(url: string | null | undefined): string | null {
+  if (!url) return null
+  const trimmed = url.trim()
+  // The four shapes a trainer actually pastes: watch?v=, youtu.be/, /shorts/, and an /embed/ link
+  // somebody already copied out of an embed dialog.
+  const m =
+    /[?&]v=([A-Za-z0-9_-]{11})/.exec(trimmed) ??
+    /youtu\.be\/([A-Za-z0-9_-]{11})/.exec(trimmed) ??
+    /\/shorts\/([A-Za-z0-9_-]{11})/.exec(trimmed) ??
+    /\/embed\/([A-Za-z0-9_-]{11})/.exec(trimmed)
+  if (!m?.[1]) return null
+  // `playsinline` matters on iOS: without it the player hijacks the screen into fullscreen, which is
+  // the very jump out of context this change exists to remove.
+  return `https://www.youtube-nocookie.com/embed/${m[1]}?rel=0&playsinline=1&autoplay=1`
+}
+
+/**
+ * The guide's description carries a convention, not just prose: an optional first line
+ * `🎯 Ana: … · İkincil: … · Zayıf: …`, then a blank line, then the movement summary. Both clients
+ * render it as a colour-coded target list plus a paragraph, so both must read it the same way —
+ * hence one parser (2026-08-01; it lived only in the web dialog before the app grew a guide).
+ *
+ * No 🎯 line ⇒ the whole description IS the summary. An exercise written before the convention
+ * existed still reads correctly; that is the point of parsing rather than requiring.
+ */
+export function parseGuideTargets(description: string): {
+  readonly ana: string | null
+  readonly ikincil: string | null
+  readonly zayif: string | null
+  readonly note: string | null
+  readonly summary: string
+} {
+  const [head, ...rest] = description.split('\n\n')
+  const summary = rest.join('\n\n').trim()
+  if (!head?.trim().startsWith('🎯')) return { ana: null, ikincil: null, zayif: null, note: null, summary: description.trim() }
+  const segs = head.replace('🎯', '').split('·').map((s) => s.trim()).filter(Boolean)
+  let ana: string | null = null
+  let ikincil: string | null = null
+  let zayif: string | null = null
+  let note: string | null = null
+  for (const s of segs) {
+    if (/^Ana\s*:/i.test(s)) ana = s.replace(/^Ana\s*:/i, '').trim()
+    else if (/^İkincil\s*:/i.test(s)) ikincil = s.replace(/^İkincil\s*:/i, '').trim()
+    else if (/^Zayıf\s*:/i.test(s)) zayif = s.replace(/^Zayıf\s*:/i, '').trim()
+    else note = s
+  }
+  return { ana, ikincil, zayif, note, summary }
+}
+
+/** Tips and common mistakes are stored one-per-line; blanks are formatting, not content. */
+export function guideLines(s: string): readonly string[] {
+  return s.split('\n').map((l) => l.trim()).filter(Boolean)
 }
 
 export interface ProgramExercise {

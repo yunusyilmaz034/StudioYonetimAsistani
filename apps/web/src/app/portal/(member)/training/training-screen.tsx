@@ -22,6 +22,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 import { ExerciseGuideDialog, type ExerciseGuide } from '@/components/exercise-guide-dialog'
+import { VideoDialog } from '@/components/video-dialog'
 import { MeasurementChart } from '@/components/training/measurement-chart'
 import { domainErrorMessage } from '@/lib/domain-error'
 import {
@@ -203,6 +204,7 @@ function ExerciseCard({
 }) {
   const [feedbackOpen, setFeedbackOpen] = useState(false)
   const [guideOpen, setGuideOpen] = useState(false)
+  const [videoOpen, setVideoOpen] = useState(false)
   return (
     <li className="space-y-2 rounded-xl border border-border bg-card p-3 shadow-xs">
       <div className="flex items-start justify-between gap-3">
@@ -215,15 +217,15 @@ function ExerciseCard({
           </p>
           {ex.note ? <p className="mt-1 text-xs text-muted-foreground">{ex.note}</p> : null}
         </div>
+        {/* Plays in a popup over the programme (owner, 2026-08-01). A new tab lost her place. */}
         {ex.videoUrl ? (
-          <a
-            href={ex.videoUrl}
-            target="_blank"
-            rel="noreferrer"
+          <button
+            type="button"
+            onClick={() => setVideoOpen(true)}
             className="flex shrink-0 items-center gap-1 text-xs text-primary hover:underline"
           >
             <PlayCircleIcon className="size-4" /> Video
-          </a>
+          </button>
         ) : null}
       </div>
       <div className="flex flex-wrap gap-2">
@@ -238,6 +240,10 @@ function ExerciseCard({
       </div>
 
       {guide && guideOpen ? <ExerciseGuideDialog exercise={guide} onClose={() => setGuideOpen(false)} /> : null}
+
+      {videoOpen && ex.videoUrl ? (
+        <VideoDialog url={ex.videoUrl} title={ex.nameTr} onClose={() => setVideoOpen(false)} />
+      ) : null}
 
       {feedbackOpen ? (
         <FeedbackDialog

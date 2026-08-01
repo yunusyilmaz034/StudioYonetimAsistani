@@ -1,11 +1,14 @@
 'use client'
 
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { AlertTriangleIcon, CheckCircle2Icon, ClipboardListIcon, PencilIcon, PlayCircleIcon, TargetIcon, XCircleIcon } from 'lucide-react'
 
-import { MuscleMap } from '@/components/muscle-map'
+import { guideLines, parseGuideTargets } from '@studio/core/client'
+
+import { MuscleMap, type Muscle } from '@/components/muscle-map'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogTitle } from '@/components/ui/dialog'
+import { VideoDialog } from '@/components/video-dialog'
 import { EXERCISE_MUSCLES } from '@/lib/exercise-muscles'
 
 // The guidance fields the dialog reads — a subset of the full Exercise, so the same component serves the
@@ -20,34 +23,15 @@ export interface ExerciseGuide {
   readonly videoUrl: string | null
   readonly photoUrl: string | null
   readonly gifUrl: string | null
+  // Resolved server-side for the member's clients (2026-08-01), so the mobile app can draw the same
+  // diagram without carrying the table. Absent when the caller IS the library — a staff Exercise has
+  // no such fields — and the local lookup below still answers there.
+  readonly primaryMuscles?: readonly string[]
+  readonly secondaryMuscles?: readonly string[]
 }
 
-// Parse the "🎯 Ana: … · İkincil: … · Zayıf: …" first line of the description into structured targets.
-function parseTargets(description: string): {
-  ana: string | null
-  ikincil: string | null
-  zayif: string | null
-  note: string | null
-  summary: string
-} {
-  const [head, ...rest] = description.split('\n\n')
-  const summary = rest.join('\n\n').trim()
-  if (!head?.trim().startsWith('🎯')) return { ana: null, ikincil: null, zayif: null, note: null, summary: description.trim() }
-  const segs = head.replace('🎯', '').split('·').map((s) => s.trim()).filter(Boolean)
-  let ana: string | null = null
-  let ikincil: string | null = null
-  let zayif: string | null = null
-  let note: string | null = null
-  for (const s of segs) {
-    if (/^Ana\s*:/i.test(s)) ana = s.replace(/^Ana\s*:/i, '').trim()
-    else if (/^İkincil\s*:/i.test(s)) ikincil = s.replace(/^İkincil\s*:/i, '').trim()
-    else if (/^Zayıf\s*:/i.test(s)) zayif = s.replace(/^Zayıf\s*:/i, '').trim()
-    else note = s
-  }
-  return { ana, ikincil, zayif, note, summary }
-}
-
-const lines = (s: string) => s.split('\n').map((l) => l.trim()).filter(Boolean)
+// The description convention and the line splitting moved to `@studio/core/client` when the mobile
+// app grew the same guide (2026-08-01): two renderers of one format need one parser, or they drift.
 
 // "Hareket Rehberi" as an INFOGRAPHIC (PF-11) — target muscles (ANA/İKİNCİL/ZAYIF, colour-coded), the
 // movement summary, the correct movement (photos + cues) and the wrong movement (common mistakes). One
@@ -62,12 +46,18 @@ export function ExerciseGuideDialog({
   onEdit?: () => void
 }) {
   const ex = exercise
-  const t = parseTargets(ex.description)
+  const [videoOpen, setVideoOpen] = useState(false)
+  const t = parseGuideTargets(ex.description)
   const images = [ex.photoUrl, ex.gifUrl].filter((u): u is string => Boolean(u))
-  const tips = lines(ex.tips)
-  const mistakes = lines(ex.commonMistakes)
+  const tips = guideLines(ex.tips)
+  const mistakes = guideLines(ex.commonMistakes)
   const hasTargets = Boolean(t.ana || t.ikincil || t.zayif || t.note)
-  const muscles = EXERCISE_MUSCLES[ex.nameTr]
+  // The payload's answer wins where it exists (the member's clients), and the table answers for the
+  // library, where the caller is a raw Exercise. One diagram, two sources, same picture.
+  const muscles =
+    ex.primaryMuscles || ex.secondaryMuscles
+      ? { primary: (ex.primaryMuscles ?? []) as Muscle[], secondary: (ex.secondaryMuscles ?? []) as Muscle[] }
+      : EXERCISE_MUSCLES[ex.nameTr]
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
@@ -148,15 +138,11 @@ export function ExerciseGuideDialog({
             </section>
           ) : null}
 
+          {/* Plays over the guide, not in another tab (owner, 2026-08-01) — she keeps her place. */}
           {ex.videoUrl ? (
-            <a
-              href={ex.videoUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-sm font-medium text-primary underline"
-            >
+            <Button variant="outline" onClick={() => setVideoOpen(true)}>
               <PlayCircleIcon className="size-4" /> Videoyu izle
-            </a>
+            </Button>
           ) : null}
 
           {!hasTargets && !t.summary && images.length === 0 && tips.length === 0 && mistakes.length === 0 && !ex.videoUrl ? (
@@ -175,6 +161,10 @@ export function ExerciseGuideDialog({
           ) : null}
         </DialogFooter>
       </DialogContent>
+
+      {videoOpen && ex.videoUrl ? (
+        <VideoDialog url={ex.videoUrl} title={ex.nameTr} onClose={() => setVideoOpen(false)} />
+      ) : null}
     </Dialog>
   )
 }
