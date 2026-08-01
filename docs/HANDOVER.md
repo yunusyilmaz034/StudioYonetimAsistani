@@ -53,8 +53,8 @@ Android replaces the closed-test build automatically; **on iOS pick the 1.2.1 bu
 build 6.**
 
 **1.1.0 was superseded, not shipped.** It was built and uploaded on 2026-07-29 and never sent for
-review; everything in it is inside 1.2.0, so submit 1.2.0 and let 1.1.0 lapse rather than spending a
-review turn on it. The owner chose this on 2026-08-01.
+review; everything in it is inside 1.2.1, so let both it and 1.2.0 lapse rather than spending a
+review turn on either. The owner chose this on 2026-08-01.
 
 Submissions are automated: `cd apps/mobile && npx eas-cli submit --platform android --profile
 production --latest`. The Play service account key is gitignored at
@@ -77,9 +77,9 @@ must still be created and sent for review by hand.
   `packages/core/src/modules/notifications/infrastructure/providers.ts`, written out in a comment
   right above the current mapping. Do not switch before approval: an unapproved template name is
   refused at send time and every invitation fails silently.
-- **Eighteen active members still hold no package.** After the fitness import that is most likely
-  the genuine number (lapsed, or leads entered as members) rather than migration debt — worth one
-  look before assuming either way.
+- **Twenty-one members are DURAKLATILMIŞ** — no live package (2026-08-01, measured). After the fitness
+  import that is most likely the genuine number (lapsed, or leads entered as members) rather than
+  migration debt. They now have their own filter with a count, which is the list to work through.
 - **Sixty-six invitations are still unopened.** The invite screen has the filter and a one-tap
   reminder that mints a fresh link.
 
@@ -94,7 +94,7 @@ must still be created and sent for review by hand.
 - **The movement guide is in the mobile app, and videos play in place.** (2026-08-01) Tapping an
   exercise in the app opens the same guide the panel shows (body diagram, summary, correct/wrong
   movement), and a form video plays in a popup on both instead of throwing her out to YouTube. Web is
-  live (`build-2026-08-01-001`); mobile is **1.2.0**, built and submitted to both stores. Nothing is
+  live (`build-2026-08-01-001`); mobile is **1.2.1**, built and submitted to both stores. Nothing is
   server-gated — the guide fields were already in the training payload, so an older app keeps
   behaving as it did.
 - **The freeze initiative (OR-21) is DEPLOYED and unexercised.** The owner may freeze past a member's
