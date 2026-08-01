@@ -43,12 +43,16 @@ grants and refuses when they disagree. The studio is notified the moment a self-
 
 **Android's production clock is running: 12 testers, day 3 of 14 (2026-07-29).** If a tester leaves
 the test the counter RESETS. Do not remove testers. Publishing new builds does not reset it —
-which is why the 1.1.0 pair below can be built when its turn comes without costing a day.
+which is why 1.2.0 could go out mid-count without costing a day.
 
-**Next mobile release is 1.1.0**, holding two approved-and-deferred items: PF-42 (swap Cüzdan out of
-the tab bar for Üyeliğim) and PF-43 (collapse past reservations, mobile + web). Both are specified
-file-by-file in `docs/PRODUCT-FEEDBACK.md`. iOS is now clear of review, so the only remaining
-constraint is that they ship together in one build rather than one review turn each.
+**1.2.0 is uploaded to both stores (2026-08-01)** — iOS build 6, Android versionCode 7. It carries
+PF-42 (Cüzdan out of the tab bar for Üyeliğim), PF-43 (past reservations collapsed) and the day's
+work: the movement guide and the in-app video player. Android went straight to the closed test track;
+iOS is processing and still needs its App Store version created by hand.
+
+**1.1.0 was superseded, not shipped.** It was built and uploaded on 2026-07-29 and never sent for
+review; everything in it is inside 1.2.0, so submit 1.2.0 and let 1.1.0 lapse rather than spending a
+review turn on it. The owner chose this on 2026-08-01.
 
 Submissions are automated: `cd apps/mobile && npx eas-cli submit --platform android --profile
 production --latest`. The Play service account key is gitignored at
@@ -60,11 +64,11 @@ must still be created and sent for review by hand.
 
 ## Waiting on the owner
 
-- **iOS 1.1.0 is built and uploaded; the App Store version has to be created by hand.** App Store
-  Connect → + Version → 1.1.0 → fill "What's New" in BOTH Turkish and English (an empty Turkish
-  field greys out "Add for Review", which cost a day last week) → pick build 5 → submit.
-  Test credentials for the reviewer: `0500 000 00 01` / `Yu156211` — a member with a live package
-  and a programme, excluded from every report.
+- **iOS 1.2.0 is uploaded; the App Store version has to be created by hand.** App Store Connect →
+  + Version → 1.2.0 → fill "What's New" in BOTH Turkish and English (an empty Turkish field greys out
+  "Add for Review", which cost a day last week) → pick **build 6** → submit. Skip 1.1.0; it is
+  contained in this one. Test credentials for the reviewer: `0500 000 00 01` / `Yu156211` — a member
+  with a live package and a programme, excluded from every report.
 - **The Meta invite template `uyelik_daveti_v2`.** Text is drafted and ready to paste into WhatsApp
   Manager (name, category Utility, Turkish, body and the two sample values) — see the section below.
   Once Meta approves it, the code change is ONE line in
@@ -79,13 +83,12 @@ must still be created and sent for review by hand.
 
 ## Waiting on us
 
-- **The movement guide is in the mobile app, and videos play in place — WEB IS LIVE, MOBILE IS NOT.**
-  (2026-08-01) Tapping an exercise in the app now opens the same guide the panel shows (body diagram,
-  summary, correct/wrong movement), and a form video plays in a popup on both instead of throwing her
-  out to YouTube. The web half shipped with the day's deploy. **The mobile half needs an EAS build**,
-  and that decision is open: fold it into the pending 1.1.0 (rebuild PF-42/PF-43 together) or ship it
-  as 1.2.0 afterwards. Nothing about it is server-gated — the guide fields were already in the
-  training payload, so an older app simply keeps behaving as it did.
+- **The movement guide is in the mobile app, and videos play in place.** (2026-08-01) Tapping an
+  exercise in the app opens the same guide the panel shows (body diagram, summary, correct/wrong
+  movement), and a form video plays in a popup on both instead of throwing her out to YouTube. Web is
+  live (`build-2026-08-01-001`); mobile is **1.2.0**, built and submitted to both stores. Nothing is
+  server-gated — the guide fields were already in the training payload, so an older app keeps
+  behaving as it did.
 - **The freeze initiative (OR-21) is DEPLOYED and unexercised.** The owner may freeze past a member's
   allowance — fourteen days on a seven-day package — deliberately, behind a tick, recorded as
   `overageDays`. Shipped the night of 2026-08-01: App Hosting revision `build-2026-07-31-016` (the
