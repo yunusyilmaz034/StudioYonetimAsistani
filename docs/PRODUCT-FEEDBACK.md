@@ -745,3 +745,40 @@ stüdyoya yaklaşmasına izin vermenin tek güvenli yolu bu.
 
 Işıl'ın Excel'i. Sıra: kuru prova (sihirbazın önizlemesi zaten budur) → onay → aktar → mutabakat.
 Aktarılacak: paketi hiç olmayan **74 aktif üye**.
+
+---
+
+## PF-44 — Parola alanında "göster" (göz) düğmesi · 💡 onaylı, bir sonraki build
+
+**Owner, 2026-08-01:** *"Tüm loginlerde şifreyi saklıyoruz ya, girerken field içinde göz işareti
+olsun — ne yazdığını görmek isterse o butona basınca göstersin."*
+
+Bir parolayı göremeden yazmak, telefonda ve otokorumalı klavyede tahmin oyunudur; üye üç kez yanlış
+girip vazgeçtiğinde bunu kimse görmez — kayıt "giriş yapılamadı" bile demez, sadece sessizce olmaz.
+Alanın içinde bir göz simgesi, standart ve beklenen çözüm.
+
+**Kapsam — parola alanı olan her yer:**
+
+| Ekran | Dosya |
+|---|---|
+| Personel girişi | `apps/web/src/app/login/login-form.tsx:88` |
+| Üye portalı girişi | `apps/web/src/app/portal/login/member-login-form.tsx:102` |
+| Davet / hesap açma (iki alan: parola + tekrar) | `apps/web/src/app/invite/[studioId]/[token]/invite-form.tsx:119,126` |
+| Üye profili → parola değiştir (mevcut + yeni) | `apps/web/src/app/portal/(member)/profile/profile-screen.tsx:122,125` |
+| Personel ekle/parola ver | `apps/web/src/app/(staff)/staff/staff-screen.tsx:249` |
+| Mobil giriş (`secureTextEntry`) | `apps/mobile/app/login.tsx:67` |
+
+**Nasıl yapılmalı**
+
+- **Tek bir bileşen**, altı ayrı `type` değişimi değil: `components/ui/password-input.tsx` (web) ve
+  mobilde `InputRow`'a bir `secure` + göz eklentisi. Altı yere kopyalanan bir davranış, beşinde
+  düzeltilen bir hata olur.
+- Varsayılan **gizli**. Göz sadece bu alanı, sadece o an açar; ekran değişince/kapanınca sıfırlanır.
+- `aria-label` durumu söylesin ("Parolayı göster" / "Parolayı gizle"), sadece ikon değişmesin —
+  ekran okuyucu için ikon bir şey ifade etmiyor.
+- Dokunma hedefi en az 44px (Doc 09 mobil kuralı); alanın metnini kısaltmasın, ikon içeride sağda.
+- **Otomatik gizleme yok.** Bir süre sonra kendiliğinden kapanan alan, kullanıcının okumaya çalıştığı
+  anda kaybolur.
+
+**Neden şimdi değil:** 1.2.1 mağazalara yüklendi ve iOS'ta incelemeye gidecek. Bu, mobil dahil altı
+yüzeye dokunuyor; bir sonraki build'e alınırsa tek turda çıkar (owner kararı, 2026-08-01).
