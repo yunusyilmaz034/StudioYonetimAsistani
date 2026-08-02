@@ -7,7 +7,7 @@ explains the moment.
 Keep it current the way the code is kept current: when the state changes, this changes in the same
 commit. A handover document that lags is worse than none, because it is believed.
 
-_Last true as of: **2026-08-01**._
+_Last true as of: **2026-08-02**._
 
 ---
 
@@ -30,27 +30,33 @@ packages incl. hybrids, payments through PAYTR (card, links, wallet), the member
 mobile app, WhatsApp AI reception, notifications, reports, payroll, and a nightly infrastructure
 watchdog (domain expiry, TLS, reachability, renewal dates + a Monday heartbeat).
 
+Members are **Aktif, Duraklatılmış or Pasif** (OR-23) — the first two derived from the ledger, so they
+are never stale. Memberships can be frozen, including past the allowance when the owner decides so
+(OR-21). The movement guide and an in-app video player are in both the portal and the app.
+
 **Members can buy and renew their own packages** from the app and the portal. A renewal is QUEUED
 behind the package it renews so no paid day burns unused; a hybrid queues behind every category it
 grants and refuses when they disagree. The studio is notified the moment a self-service sale lands.
 
 ## Store state
 
-| | Version | Where |
+| | In members' hands | Uploaded, not yet released |
 |---|---|---|
-| iOS | 1.0.1 (build 4) | **LIVE on the App Store** — approved 2026-07-29 night, in members' hands. |
-| Android | 1.0.1 (build 5) | **in closed test**, running normally. |
+| iOS | 1.0.1 (build 4) — live since 2026-07-29 | **1.2.1**, processed by Apple; the App Store version must be created by hand |
+| Android | 1.0.1 (build 5) — closed test | **1.2.1** (versionCode 8) on the closed test track |
 
-**Android's production clock is running: 12 testers, day 3 of 14 (2026-07-29).** If a tester leaves
-the test the counter RESETS. Do not remove testers. Publishing new builds does not reset it —
-which is why 1.2.0 could go out mid-count without costing a day.
+**Android's production clock: 12 testers, 14 days required, and on 2026-07-29 it stood at day 3** —
+so it completes around **2026-08-09**. (Written as a date on purpose: a countdown in a document is
+wrong the day after it is written.) If a tester leaves the test the counter RESETS — do not remove
+testers. Publishing new builds does NOT reset it, which is why 1.2.0 and 1.2.1 could both go out
+mid-count without costing a day.
 
 **1.2.1 supersedes 1.2.0 — do not ship 1.2.0.** (2026-08-01) 1.2.0 reached both stores with a video
 player that failed on every exercise (YouTube "Hata 153"), caught in a simulator after upload; see
 OR-22. 1.2.1 fixes it and carries everything 1.2.0 did: PF-42 (Cüzdan out of the tab bar for
 Üyeliğim), PF-43 (past reservations collapsed), the movement guide and the in-app video player.
-Android replaces the closed-test build automatically; **on iOS pick the 1.2.1 build, not 1.2.0's
-build 6.**
+Android replaced the closed-test build automatically (versionCode 8); **on iOS pick the 1.2.1 build,
+not 1.2.0's build 6.**
 
 **1.1.0 was superseded, not shipped.** It was built and uploaded on 2026-07-29 and never sent for
 review; everything in it is inside 1.2.1, so let both it and 1.2.0 lapse rather than spending a
@@ -85,37 +91,17 @@ must still be created and sent for review by hand.
 
 ## Waiting on us
 
-- **A member is Aktif, Duraklatılmış or Pasif (OR-23).** (2026-08-01) The studio had two words doing
-  three jobs — a member whose package ran out was called "pasif", the same word used for a member it
-  wants deleted. All three are filters on the members page, with counts. Only *pasif* is stored; the
-  other two are derived from the ledger at render time, so selling a package moves her to Aktif with
-  nothing to run. **The owner dashboard's "aktif üye" moved 101 → 105**: it asked "can she book right
-  now?", which excluded four members whose package starts tomorrow (three new sales, one renewal
-  bought after the old one lapsed). Frozen members count too, though today there are none.
-  Today: 128 records, 105 aktif · 21 duraklatılmış · 2 pasif.
-- **The movement guide is in the mobile app, and videos play in place.** (2026-08-01) Tapping an
-  exercise in the app opens the same guide the panel shows (body diagram, summary, correct/wrong
-  movement), and a form video plays in a popup on both instead of throwing her out to YouTube. Web is
-  live (`build-2026-08-01-001`); mobile is **1.2.1**, built and submitted to both stores. Nothing is
-  server-gated — the guide fields were already in the training payload, so an older app keeps
-  behaving as it did.
-- **The freeze initiative (OR-21) is DEPLOYED and unexercised.** The owner may freeze past a member's
-  allowance — fourteen days on a seven-day package — deliberately, behind a tick, recorded as
-  `overageDays`. Shipped the night of 2026-08-01: App Hosting revision `build-2026-07-31-016` (the
-  name is UTC; see the RUNBOOK) and a functions deploy, because the nightly sweep reads the approved
-  duration now. **It has no unit tests** (the owner's call, taken knowingly): the ordinary freeze
-  arithmetic is covered as before, and the override path was reasoned through rather than asserted.
-  Nobody has used it on a real member yet — worth watching the first one: the membership must extend
-  by the approved days (not the budget), the allowance must read 0, and the sweep must resume her on
-  the approved day. If it misbehaves, the two places to look are `grantedDays` in `decideFreeze` and
+- **Hybrid purchase, tested live.** One sale must produce N entitlements correctly through the real
+  PAYTR path. The rules are written and unit-tested; the path has never run in production.
+- **Sanal POS, a real charge.** Also never run for real. Together with the hybrid sale these are the
+  two money paths this system has never actually executed — close them before a second studio.
+- **The freeze initiative (OR-21) has never been used on a real member.** Watch the first one: the
+  membership must extend by the APPROVED days (not the budget), her allowance must then read 0, and
+  the nightly sweep must resume her on the approved day. It has no unit tests — the owner's call,
+  taken knowingly. If it misbehaves the two places to look are `grantedDays` in `decideFreeze` and
   `budgetEndsOn` in the sweep.
-- **Nothing from 2026-07-31 is unfinished.** The fitness migration (61 packages), the programme
-  rollout (65 members on the real starter plan), the import wizard, the QR fix and the mobile 1.1.0
-  build all landed. The evening added the check-out policy (OR-20) and a camera in the member's web
-  panel; both deployed the same night — App Hosting revision `build-2026-07-31-014` and a functions
-  deploy that created the hourly `occupancySweep`. Five separate defects were introduced and fixed the same day, every one of them
-  a hand-written Firestore document that did not match its declared type — see the note under
-  "Things that will bite you".
+- **Twenty-one duraklatılmış members are a work list nobody has worked.** They now have a filter with
+  a count; that is the win-back call list.
 - **Hybrid purchase, tested live.** One sale must produce N entitlements correctly through the real
   PAYTR path. The rules are written and unit-tested; the path has never run in production.
 - **External uptime monitoring.** The watchdog cannot report its own suspension — if the project is
@@ -124,6 +110,53 @@ must still be created and sent for review by hand.
 - **Product roadmap Faz A** (`docs/PRODUCT-ROADMAP.md`) — per-studio WhatsApp number, per-studio
   e-mail sender, one-command studio provisioning. Nothing blocks a second studio until these exist.
   No urgency; a second studio (Novozen) has asked but nothing is agreed.
+
+---
+
+## What shipped on 2026-08-01 — a long day, four pieces
+
+Panel live at **`build-2026-08-01-008`**. Mobile **1.2.1** uploaded to both stores. All of it is
+deployed; none of it needs another push. Read this before assuming something is half-done.
+
+**1 · The freeze initiative (OR-21).** The owner may now freeze a member PAST her allowance — fourteen
+days on a seven-day package — deliberately, behind a tick that says what it is about to do. Reception
+still sees the plain refusal; only owner/platform_admin may exceed. The freeze records `grantedDays`
+(what was approved) and the event carries `overageDays`, present only when the terms were exceeded, so
+*"how often, and for whom, do we go past our own terms?"* has an answer. The unfreeze and the nightly
+sweep both read the approval, never the budget. Shipped App Hosting + **functions** (the sweep lives
+in a function). `098c5f8`.
+
+**2 · The movement guide reached the app, and video plays in place.** Tapping an exercise in the
+mobile app opens the panel's guide — target-muscle body diagram, movement summary, correct movement
+with photos and cues, common mistakes. Everything it renders was already in the training payload; the
+app simply was not showing it. Which muscles to paint is now resolved SERVER-side into
+`ExerciseGuide.primaryMuscles/secondaryMuscles`, so a new exercise lights up in both clients with no
+app release. Form videos no longer throw her out to YouTube: they play in a popup (iframe on web,
+WebView in the app), both built from one shared `youtubeEmbedUrl`. `9a39ecc`.
+
+**3 · Three member states (OR-23).** Aktif · Duraklatılmış · Pasif, all three filters on the members
+page with counts. Only *pasif* is stored (it is a decision); the other two are derived from the ledger
+at render time, so selling a package moves her to Aktif with nothing to run. The derivation also
+checks the DATE, so it never depends on whether the nightly expiry sweep fired. `5b0b5a0`.
+
+**4 · The corrections, which matter more than the features.** Two things were said wrongly and then
+fixed — both are written down because a handover that explains a number wrongly is worse than one
+that does not explain it:
+
+- 1.2.0 went to both stores with a video player that failed on EVERY exercise. It compiled,
+  typechecked, `pnpm check` was green and `next build` was clean. It was found only because the owner
+  asked to see it in a simulator. → **OR-22**, and 1.2.1.
+- The dashboard's "aktif üye" moving 101 → 105 was attributed to frozen members. There are none. The
+  four are members whose package started the NEXT day (three new sales, one renewal bought after the
+  old one lapsed). The rule stands; the reason was wrong.
+
+Today's shape: **128 records — 105 aktif · 21 duraklatılmış · 2 pasif.**
+
+### Next mobile build carries
+
+**PF-44** — a show-password (eye) toggle in every password field. Six surfaces, listed file-by-file in
+`docs/PRODUCT-FEEDBACK.md`, to be built as ONE component rather than six copies. Owner-approved,
+deliberately deferred so it ships in one review turn with whatever comes next.
 
 ---
 
