@@ -42,8 +42,8 @@ grants and refuses when they disagree. The studio is notified the moment a self-
 
 | | In members' hands | Uploaded, not yet released |
 |---|---|---|
-| iOS | 1.0.1 (build 4) — live since 2026-07-29 | **1.2.1**, processed by Apple; the App Store version must be created by hand |
-| Android | 1.0.1 (build 5) — closed test | **1.2.1** (versionCode 8) on the closed test track |
+| iOS | 1.0.1 (build 4) — live since 2026-07-29 | **1.3.0** (build 8), processed by Apple; the App Store version must be created by hand |
+| Android | **1.3.0** (versionCode 9) — closed test | — |
 
 **Android's production clock: 12 testers, 14 days required, and on 2026-07-29 it stood at day 3** —
 so it completes around **2026-08-09**. (Written as a date on purpose: a countdown in a document is
@@ -51,7 +51,12 @@ wrong the day after it is written.) If a tester leaves the test the counter RESE
 testers. Publishing new builds does NOT reset it, which is why 1.2.0 and 1.2.1 could both go out
 mid-count without costing a day.
 
-**1.2.1 supersedes 1.2.0 — do not ship 1.2.0.** (2026-08-01) 1.2.0 reached both stores with a video
+**1.3.0 is the one to ship. 1.1.0, 1.2.0 and 1.2.1 are all superseded** — each is contained in it,
+and 1.2.0's video player is broken. On iOS pick the **1.3.0** build; on Android it is already on the
+closed test track. 1.3.0 adds the three navigation fixes (OR-25) and PF-44's show-password eye on top
+of everything below.
+
+**1.2.1 superseded 1.2.0 — never shipped.** (2026-08-01) 1.2.0 reached both stores with a video
 player that failed on every exercise (YouTube "Hata 153"), caught in a simulator after upload; see
 OR-22. 1.2.1 fixes it and carries everything 1.2.0 did: PF-42 (Cüzdan out of the tab bar for
 Üyeliğim), PF-43 (past reservations collapsed), the movement guide and the in-app video player.
@@ -72,10 +77,10 @@ must still be created and sent for review by hand.
 
 ## Waiting on the owner
 
-- **iOS 1.2.1 is uploaded; the App Store version has to be created by hand.** App Store Connect →
-  + Version → 1.2.1 → fill "What's New" in BOTH Turkish and English (an empty Turkish field greys out
-  "Add for Review", which cost a day last week) → pick the **1.2.1** build → submit. Skip 1.1.0 and
-  1.2.0; the first is contained in this one and the second has a broken video player. Test credentials for the reviewer: `0500 000 00 01` / `Yu156211` — a member
+- **iOS 1.3.0 is uploaded; the App Store version has to be created by hand.** App Store Connect →
+  + Version → 1.3.0 → fill "What's New" in BOTH Turkish and English (an empty Turkish field greys out
+  "Add for Review", which cost a day last week) → pick the **1.3.0** build → submit. Skip 1.1.0,
+  1.2.0 and 1.2.1 — all three are contained in it. Test credentials for the reviewer: `0500 000 00 01` / `Yu156211` — a member
   with a live package and a programme, excluded from every report.
 - **The Meta invite template `uyelik_daveti_v2`.** Text is drafted and ready to paste into WhatsApp
   Manager (name, category Utility, Turkish, body and the two sample values) — see the section below.
@@ -160,11 +165,18 @@ that does not explain it:
 
 Today's shape: **128 records — 105 aktif · 21 duraklatılmış · 2 pasif.**
 
-### Next mobile build carries
+### Shipped since, in 1.3.0 (2026-08-03)
 
-**PF-44** — a show-password (eye) toggle in every password field. Six surfaces, listed file-by-file in
-`docs/PRODUCT-FEEDBACK.md`, to be built as ONE component rather than six copies. Owner-approved,
-deliberately deferred so it ships in one review turn with whatever comes next.
+Three navigation faults and PF-44. Cüzdanım had no stack entry, so it had no header, no back button
+and no tab bar — the member opened her wallet and the app stopped. Üyeliğim was the mirror of it,
+passing `header` on a TAB and running under the notch. The training tab derived its own label from
+her subscriptions while the screen used the server's answer, so the two could disagree; both read the
+server now and it reads "Ölçümlerim". PF-44 put a show-password eye in all six password fields, one
+component per platform. **Both navigation fixes were seen in a simulator before upload** (OR-22);
+the "Ölçümlerim" label was not — it needs a pilates-only member, so check it on a real account.
+
+Also that day: **recording a class that already happened** (OR-24) — reception adds a walk-in to a
+finished class from the attendance panel and the credit is consumed. Web-only; no app change.
 
 ---
 
