@@ -225,6 +225,45 @@ The state also checks the DATE, not just the stored status, so it never depends 
 nightly expiry sweep fired. A frozen package is exempt from that check — freezing stops the clock and
 `validUntil` is not extended until it is lifted.
 
+**OR-24 · A class that already happened can be recorded, for thirty days, and it takes the credit.**
+(2026-08-02) Owner: *"Üye bugün kimseye sormadan çıkmış gelmiş, biz derste yer vardı aldık ama
+sistemin bundan haberi yok, dolayısıyla kadının kredisi düşmedi."* The studio gave away a class it
+was owed, and nothing in the system could put that right.
+
+Reception adds her from the session's attendance panel. One transaction writes what happened, in the
+order it happened: `reservation.booked` → credit **held** → `reservation.attended` → credit
+**consumed**. Both halves or neither — a booking without its attendance would leave a credit held
+against a class that is over and can never resolve.
+
+The attendance is an **observation** (#11): a human is stating she was in the room, so it is
+`reservation.attended` with a human source, never the `system` actor and never `auto_resolved`. Its
+`minutesAfterStart` therefore reads in days, which is the truth about when it was recorded.
+
+The owner's three decisions, and each is a refusal the code makes:
+
+1. **Full class → refused.** If the room really held one more, raise the class's capacity first.
+   Overfilling silently would make the occupancy report stop meaning anything.
+2. **Thirty days.** Beyond that the instrument is a credit adjustment with a reason, not a rewritten
+   past: a month that has been reported on should stay reported on.
+3. **Reception + owner.** It happens at the desk and reception is who must fix it; every write
+   records who did it.
+
+Everything else is decided by the SAME functions the live path uses, so capacity, the category wall,
+the service wall, credit availability and double-booking refuse exactly as they always do — a
+parallel "past booking" decision function would be a second place for the invariants to be got wrong.
+Backdating changes only what it must: the past opens (opt-in, so no caller reaches it by accident),
+the studio's opening hours are not re-litigated (the class is its own evidence the studio was open),
+and one NEW check appears because only backdating can trip it — **a package that started after the
+class cannot pay for it.** The per-member reservation limits are deliberately skipped: they ration
+what she may still book, and a class she has already attended cannot be rationed.
+
+**OR-25 · Every pushed screen needs a way back.** (2026-08-02) Cüzdanım had no entry in the mobile
+stack, so it fell through to `headerShown: false` — no header, no back button, and no tab bar
+underneath it. The member opened her wallet and the app stopped. The mirror of it on the same day:
+the Üyeliğim TAB passed `header`, which tells a screen a stack header is already above it, so it
+skipped the top inset and ran up under the notch. **A screen either has a header above it or draws
+its own; `Screen header` is a statement about what is above, not a style.**
+
 ## Traps that have already cost something
 
 **OR-14 · Firestore indexes are a production-only trap.** The emulator does NOT enforce them, so a

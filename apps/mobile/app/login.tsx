@@ -1,5 +1,5 @@
 import { useEffect, useState, type ComponentProps } from 'react'
-import { Image, KeyboardAvoidingView, Platform, ScrollView, TextInput, View } from 'react-native'
+import { Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, TextInput, View } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { Redirect } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -64,7 +64,7 @@ export default function Login() {
         {/* form */}
         <View style={{ flex: 1, padding: space(6), gap: space(3.5) }}>
           <InputRow icon="call-outline" value={phone} onChangeText={setPhone} placeholder="Telefon (05xx xxx xx xx)" keyboardType="phone-pad" autoComplete="tel" />
-          <InputRow icon="lock-closed-outline" value={password} onChangeText={setPassword} placeholder="Parola" secureTextEntry autoComplete="password" />
+          <InputRow icon="lock-closed-outline" reveal value={password} onChangeText={setPassword} placeholder="Parola" autoComplete="password" />
           {error ? (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
               <Ionicons name="alert-circle" size={16} color={p.danger} />
@@ -79,15 +79,40 @@ export default function Login() {
   )
 }
 
+// PF-44 (owner, 2026-08-02) — `reveal` puts an eye inside the field. Typing a password you cannot
+// see is a guessing game, and on a phone it is one people lose silently: three wrong tries and she
+// gives up, and nothing anywhere records that she tried.
+//
+// Default hidden, and NO auto-hide timer: a field that re-hides itself the moment she looks away is
+// worse than one that never showed her anything. The label says the state, because to a screen
+// reader the icon says nothing. 44px of touch target, the studio's mobile floor.
 function InputRow({
   icon,
+  reveal,
   ...props
-}: { icon: keyof typeof Ionicons.glyphMap } & ComponentProps<typeof TextInput>) {
+}: { icon: keyof typeof Ionicons.glyphMap; reveal?: boolean } & ComponentProps<typeof TextInput>) {
   const p = usePalette()
+  const [shown, setShown] = useState(false)
   return (
     <View style={[{ flexDirection: 'row', alignItems: 'center', gap: space(3), backgroundColor: p.surface, borderColor: p.hairline, borderWidth: 1, borderRadius: radius.md, paddingHorizontal: space(4) }, shadow(1)]}>
       <Ionicons name={icon} size={20} color={p.textMuted} />
-      <TextInput style={{ flex: 1, paddingVertical: space(4), fontSize: 16, color: p.text }} placeholderTextColor={p.textFaint} {...props} />
+      <TextInput
+        style={{ flex: 1, paddingVertical: space(4), fontSize: 16, color: p.text }}
+        placeholderTextColor={p.textFaint}
+        {...props}
+        secureTextEntry={reveal ? !shown : props.secureTextEntry}
+      />
+      {reveal ? (
+        <Pressable
+          onPress={() => setShown((v) => !v)}
+          hitSlop={10}
+          accessibilityRole="button"
+          accessibilityLabel={shown ? 'Parolayı gizle' : 'Parolayı göster'}
+          style={{ minWidth: 44, minHeight: 44, alignItems: 'flex-end', justifyContent: 'center' }}
+        >
+          <Ionicons name={shown ? 'eye-off-outline' : 'eye-outline'} size={20} color={p.textMuted} />
+        </Pressable>
+      ) : null}
     </View>
   )
 }

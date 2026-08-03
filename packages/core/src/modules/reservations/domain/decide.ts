@@ -128,6 +128,21 @@ export interface BookInput {
   readonly reservationId: ReservationId // minted in the application (domain stays pure)
   readonly memberId: MemberId
   readonly memberSnapshot: MemberSnapshot
+  /**
+   * BACKDATING (owner, 2026-08-02): *"üye bugün kimseye sormadan çıkmış gelmiş, biz derste yer vardı
+   * aldık ama sistemin bundan haberi yok ve kadının kredisi düşmedi."*
+   *
+   * Reception is recording a class that ALREADY HAPPENED, so the ordinary "not in the past" refusal
+   * has to be stepped past. Like the freeze initiative, it is an opt-in flag rather than a looser
+   * rule: a caller that does not know about backdating cannot book a past class by accident, and
+   * every other guard — capacity, the category wall, the service wall, credits — still applies
+   * exactly as it does to a live booking. That reuse is the point: a parallel "past booking"
+   * decision function would be a second place for the invariants to be got wrong.
+   *
+   * `earliest` bounds how far back it reaches. It is passed in rather than known here, because a
+   * window is policy and the domain knows no numbers.
+   */
+  readonly backdate?: { readonly earliest: Instant }
 }
 
 export function decideBooking(
@@ -142,12 +157,32 @@ export function decideBooking(
   // Plus Phase 3 — the resolved package/member limits + the member's counts. Absent ⇒ unrestricted.
   limits?: BookingLimits,
 ): Result<ReservationOutcome, DomainError> {
-  // I-9.1
-  if (session.status !== 'scheduled' || session.startsAt <= ctx.now) {
+  // I-9.1 — a cancelled session is never bookable, backdated or not: nobody attended a class that
+  // did not happen (the same reasoning that guards the nightly sweep).
+  if (session.status !== 'scheduled') return err({ code: 'session_not_bookable' })
+  if (input.backdate) {
+    // Backdating a class that has NOT happened is just booking it — use the ordinary path, which
+    // applies the limits and the opening hours this branch deliberately skips.
+    if (session.startsAt > ctx.now) return err({ code: 'session_not_bookable' })
+    if (session.startsAt < input.backdate.earliest) {
+      return err({ code: 'session_too_old', earliest: input.backdate.earliest as number })
+    }
+    // The package must have been RUNNING when the class ran. Nothing else in the system needed this
+    // check — a future class is always after every package's start — but a package bought today
+    // cannot have paid for Tuesday's class, and it would otherwise take a credit for one.
+    if (session.startsAt < entitlement.validFrom) {
+      return err({ code: 'entitlement_started_after_session' })
+    }
+  } else if (session.startsAt <= ctx.now) {
     return err({ code: 'session_not_bookable' })
   }
-  const open = closedRefusal(session, hours)
-  if (open) return open
+  // Opening hours are a rule about SCHEDULING, and they are checked here because the hours may have
+  // changed since the class was created. A class that already happened is its own evidence that the
+  // studio was open: refusing it because today's hours disagree would deny a fact.
+  if (!input.backdate) {
+    const open = closedRefusal(session, hours)
+    if (open) return open
+  }
   // I-9.9 — PT ownership (D13, v1.21). A RESERVED private session belongs to one member: it is
   // HER slot. Nobody else's booking may take it — not another member's, and not reception
   // booking a different member into it. (Reception may still book *her*: this refuses by

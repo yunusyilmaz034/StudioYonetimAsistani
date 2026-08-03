@@ -23,8 +23,11 @@ export default function Subscriptions() {
   const { data, loading, reload } = useFetch(api.subscriptions)
   if (loading && !data) return <Loading />
 
+  // NO `header` prop: this is a TAB, and there is no stack header above it. Passing `header` told the
+  // screen to skip the top safe-area inset, so the title ran up under the notch and read as "the
+  // header disappeared" (owner, 2026-08-02).
   return (
-    <Screen header refreshControl={<RefreshControl refreshing={loading} onRefresh={reload} tintColor={p.accent} />}>
+    <Screen refreshControl={<RefreshControl refreshing={loading} onRefresh={reload} tintColor={p.accent} />}>
       {/* Owner: only ACTIVE subscriptions — the member has no reason to see expired/cancelled ones. */}
       <Eyebrow>Aktif Aboneliklerin</Eyebrow>
       {data && data.active.length > 0 ? (

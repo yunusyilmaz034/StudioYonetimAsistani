@@ -2,6 +2,7 @@
 
 import {
   applyRecurring,
+  bookPastAttended,
   bookReservation,
   cancelReservation,
   correctReservation,
@@ -30,6 +31,7 @@ import { z } from 'zod'
 
 import { requireTenantContext } from '../auth'
 import { adminDb } from '../firebase-admin'
+import { observed } from '../log'
 import { reservationPolicyPort } from '../reservation-policy'
 
 // Booking and cancellation are synchronous, trusted writes (AD-35): they allocate a
@@ -76,6 +78,68 @@ export async function bookReservationAction(input: unknown) {
       memberId: p.memberId as MemberId,
       memberSnapshot,
     },
+  )
+}
+
+// ── GEÇMİŞ DERSE ÜYE EKLEME (owner, 2026-08-02) ──────────────────────────────────────────────
+//
+// A member walked in, was given a place in a class that has already finished, and the ledger never
+// heard about it — so she trained on a credit the studio never collected. This records what
+// happened: the reservation and the attendance, in one transaction, and the credit is consumed.
+//
+// THIRTY DAYS. The owner's window (2026-08-02). It lives here, not in the domain, because it is a
+// policy about which sessions the operation is offered for — the same shape as the role check below.
+// Beyond it the answer is a credit adjustment with a reason, not a rewritten past: a month that has
+// been reported on should stay reported on.
+const BACKDATE_DAYS = 30
+
+export async function bookPastAttendedAction(input: unknown) {
+  const p = z
+    .object({
+      memberId: nonEmpty,
+      sessionId: nonEmpty,
+      entitlementId: nonEmpty.nullable().optional(),
+    })
+    .parse(input)
+  // Reception + owner (owner, 2026-08-02): the member is standing at the desk and reception is the
+  // one who has to put it right. Every write records who did it, which is what makes that safe.
+  const ctx = await requireTenantContext(OPS)
+  const db = adminDb()
+
+  const member = await new FirestoreMemberRepository(db).findById(ctx, p.memberId as MemberId)
+  if (!member) throw new Error(`Member not found: ${p.memberId}`)
+
+  let entitlementId = (p.entitlementId ?? null) as EntitlementId | null
+  if (!entitlementId) {
+    const [candidates, session] = await Promise.all([
+      new FirestoreEntitlementRepository(db).listActiveByMember(ctx, p.memberId as MemberId),
+      new FirestoreSchedulingRepository(db).getSession(ctx, p.sessionId as ClassSessionId),
+    ])
+    if (!session) return { ok: false as const, error: { code: 'session_not_bookable' as const } }
+    // Chosen as of the CLASS's own moment, not now: the package that should pay is the one that was
+    // running that day, and earliest-expiring-first (I-17) is judged from there.
+    const chosen = selectEntitlement(candidates, session, session.startsAt)
+    if (!chosen) return { ok: false as const, error: { code: 'no_bookable_entitlement' as const } }
+    entitlementId = chosen.id
+  }
+
+  return observed(
+    'reservation.book_past',
+    ctx,
+    undefined,
+    { memberId: p.memberId, sessionId: p.sessionId },
+    () =>
+      bookPastAttended(
+        { repo: new FirestoreReservationRepository(db), clock: systemClock, hours: new FirestoreStudioHours(db), policy: reservationPolicyPort() },
+        ctx,
+        {
+          sessionId: p.sessionId as ClassSessionId,
+          entitlementId: entitlementId as EntitlementId,
+          memberId: p.memberId as MemberId,
+          memberSnapshot: toMemberSnapshot(member),
+          earliest: instant(Date.now() - BACKDATE_DAYS * 86_400_000),
+        },
+      ),
   )
 }
 

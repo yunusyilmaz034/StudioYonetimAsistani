@@ -1039,3 +1039,83 @@ describe('decideCheckInResolution (door scan ⇒ presumed attended)', () => {
     if (r.ok) expect(r.value.reservation.status).toBe('attended')
   })
 })
+
+// ── GEÇMİŞ DERSE ÜYE EKLEME (owner, 2026-08-02) ──────────────────────────────────────────────
+//
+// A member walked in, was given a place, and the ledger never heard about it. Reception records the
+// class after the fact and the credit is taken. What matters here is the SHAPE of the exception:
+// the past opens only when it is asked for, and every other guard is untouched.
+describe('backdating a booking', () => {
+  // Twelve hours ago — inside the default package's window (it starts a day back), so these cases
+  // test the backdating rules and not, by accident, the package-start one below.
+  const PAST = instant(NOW - 12 * H)
+  const EARLIEST = instant(NOW - 30 * D) // the studio's 30-day window (owner)
+  const past = (over: Partial<ClassSession> = {}) =>
+    session({ startsAt: PAST, endsAt: instant((PAST as number) + H), ...over })
+  const backdated = { ...bookInput, backdate: { earliest: EARLIEST } }
+
+  it('books a class that already happened', () => {
+    const r = book(past(), creditEnt(), backdated, false)
+    expect(r.ok).toBe(true)
+    if (r.ok) expect(r.value.reservation.creditEffect).toBe('held')
+  })
+
+  // The default must not move. This is the whole reason backdating is a flag and not a looser rule:
+  // a caller that does not know about it cannot book the past by accident.
+  it('still REFUSES a past class on the ordinary path', () => {
+    const r = book(past(), creditEnt(), bookInput, false)
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.error.code).toBe('session_not_bookable')
+  })
+
+  // Backdating a class that has not happened is just booking it — and the ordinary path applies the
+  // limits and the opening hours this one deliberately skips.
+  it('REFUSES to backdate a FUTURE class', () => {
+    const r = book(session(), creditEnt(), backdated, false)
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.error.code).toBe('session_not_bookable')
+  })
+
+  // A day-to-day correction, not a rewrite of a month that has been reported on.
+  it('REFUSES a class older than the window', () => {
+    const old = session({ startsAt: instant(NOW - 31 * D), endsAt: instant(NOW - 31 * D + H) })
+    const r = book(old, creditEnt(), backdated, false)
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.error.code).toBe('session_too_old')
+  })
+
+  // Nobody attended a class that did not happen.
+  it('REFUSES a cancelled class', () => {
+    const r = book(past({ status: 'cancelled' }), creditEnt(), backdated, false)
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.error.code).toBe('session_not_bookable')
+  })
+
+  // The one check that exists ONLY for backdating: a package bought today cannot have paid for
+  // Tuesday's class. On the live path this can never happen, so nothing else would have caught it.
+  it('REFUSES a package that started AFTER the class', () => {
+    const boughtYesterday = creditEnt({ validFrom: instant(NOW - H) })
+    const r = book(past(), boughtYesterday, backdated, false)
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.error.code).toBe('entitlement_started_after_session')
+  })
+
+  // Owner, 2026-08-02: refuse rather than overfill. If the room really held one more, the class's
+  // capacity is raised first — otherwise the occupancy report stops meaning anything.
+  it('REFUSES when the class was full', () => {
+    const full = past({ capacity: 1, bookedCount: 1 })
+    const r = book(full, creditEnt(), backdated, false)
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.error.code).toBe('class_full')
+  })
+
+  // The walls are not doors, whichever direction time runs in.
+  it('still enforces the category wall', () => {
+    const fitness = creditEnt({
+      productSnapshot: { ...creditEnt().productSnapshot, category: 'fitness' },
+    })
+    const r = book(past(), fitness, backdated, false)
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.error.code).toBe('category_mismatch')
+  })
+})

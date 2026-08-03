@@ -48,7 +48,13 @@ export default function RootLayout() {
             <Stack.Screen name="login" />
             <Stack.Screen name="(tabs)" />
             <Stack.Screen name="reservations" options={{ headerShown: true, title: 'Rezervasyonlarım', presentation: 'card' }} />
-            <Stack.Screen name="subscriptions" options={{ headerShown: true, title: 'Aboneliklerim' }} />
+            {/* Cüzdanım is reached from Profile and is NOT a tab. Without an entry here it fell back to
+                the global `headerShown: false`, so it had no header, no back button and no tab bar
+                underneath it: the member opened her wallet and the app simply stopped (owner,
+                2026-08-02). Every pushed route needs a way back — that is what this list is for.
+                `subscriptions` used to be listed here and was removed: it became a TAB with PF-42, so
+                the entry named a route that no longer exists at this level. */}
+            <Stack.Screen name="wallet" options={{ headerShown: true, title: 'Cüzdanım' }} />
             <Stack.Screen name="buy" options={{ headerShown: true, title: 'Paket Al' }} />
             <Stack.Screen name="messages" options={{ headerShown: true, title: 'Bildirimler' }} />
             <Stack.Screen name="checkout" options={{ headerShown: true, title: 'Güvenli Ödeme', presentation: 'modal' }} />

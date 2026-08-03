@@ -9,6 +9,7 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Section } from '@/components/ui/section'
+import { PasswordInput } from '@/components/ui/password-input'
 import { clientAuth } from '@/lib/firebase-client'
 import { domainErrorMessage } from '@/lib/domain-error'
 import { changeOwnPasswordAction, deleteOwnAccountAction, updateOwnProfileAction } from '@/server/actions/portal'
@@ -119,10 +120,10 @@ export function PortalProfileScreen(props: {
       <Section title="Şifre">
         <div className="space-y-3 rounded-xl border border-border bg-card p-4 shadow-sm">
           <Field label="Mevcut şifre">
-            <Input type="password" value={current} onChange={(e) => setCurrent(e.target.value)} />
+            <PasswordInput value={current} onChange={(e) => setCurrent(e.target.value)} />
           </Field>
           <Field label="Yeni şifre (en az 8 karakter)">
-            <Input type="password" value={next} onChange={(e) => setNext(e.target.value)} />
+            <PasswordInput value={next} onChange={(e) => setNext(e.target.value)} />
           </Field>
           <Button
             variant="outline"
