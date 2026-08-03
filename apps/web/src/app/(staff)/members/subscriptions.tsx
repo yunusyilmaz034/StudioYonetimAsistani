@@ -693,6 +693,17 @@ function AssignForm({
   // and the collected default read from one place.
   const [priceTl] = useState('')
   const [collectedTl, setCollectedTl] = useState('')
+  // AN EMPTY FIELD IS AN ANSWER, NOT AN ABSENCE (owner, 2026-08-03).
+  //
+  // The amount used to fall back to the full price whenever its text was '' — so clearing it to type a
+  // fresh number instantly refilled it with the package price, and reception had to edit around the
+  // digits already there. On a 6.000 package she cleared it, and it fought her back to 6.000.
+  //
+  // `touched` separates "nobody has typed here yet" (show the default: most sales are paid in full)
+  // from "she deliberately emptied it" (respect it: that is a sale with nothing collected, which is
+  // legal and is exactly how a debt is recorded). The credit field next to it has had this since it
+  // was built; the money field did not, which is the one that matters.
+  const [collectedTouched, setCollectedTouched] = useState(false)
   const [method, setMethod] = useState('cash')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -702,6 +713,9 @@ function AssignForm({
   // (package, method, dates, amount, credit, bundle counts), the old "Geçerli bir tutar girin." is stale
   // — clear it in ONE place so no field can be forgotten (switching packages used to leave it lingering).
   useEffect(() => setError(null), [productId, method, validFrom, validUntil, collectedTl, creditInput, componentCounts])
+  // A different package (or method) means a different amount owed, so the default becomes the right
+  // answer again — and a number typed for the previous package is not.
+  useEffect(() => setCollectedTouched(false), [productId, method])
   const paidRef = useRef(false) // set when a Sanal POS payment confirms — decides whether closing keeps the form
 
   const isPaytr = method === 'sanal_pos' || method === 'link'
@@ -716,7 +730,7 @@ function AssignForm({
   // is what was COLLECTED (a lower value = real debt); for PAYTR it is what is CHARGED (and, for Link, the
   // debt the link collects).
   const owedKurus = (toKurus(effectivePrice) || 0) + (method !== 'cash' ? surchargeKurus : 0)
-  const effectiveCollected = collectedTl !== '' ? collectedTl : owedKurus ? (owedKurus / 100).toString() : ''
+  const effectiveCollected = collectedTouched ? collectedTl : owedKurus ? (owedKurus / 100).toString() : ''
   const effectiveCredit = creditInput !== '' ? creditInput : product?.creditCount != null ? String(product.creditCount) : ''
   const amountKurus = toKurus(effectiveCollected)
   // What she will still owe after this sale. Negative ⇒ more was collected than the package costs.
@@ -873,7 +887,10 @@ function AssignForm({
             min={0}
             step="0.01"
             value={effectiveCollected}
-            onChange={(e) => setCollectedTl(e.target.value)}
+            onChange={(e) => {
+              setCollectedTl(e.target.value)
+              setCollectedTouched(true)
+            }}
             placeholder="0"
           />
           {/* SAY WHAT THIS WILL DO (2026-08-03). The field DEFAULTS to the whole amount, because most
