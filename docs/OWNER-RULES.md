@@ -257,6 +257,13 @@ and one NEW check appears because only backdating can trip it — **a package th
 class cannot pay for it.** The per-member reservation limits are deliberately skipped: they ration
 what she may still book, and a class she has already attended cannot be rationed.
 
+**OR-25 · Every pushed screen needs a way back.** (2026-08-02) Cüzdanım had no entry in the mobile
+stack, so it fell through to `headerShown: false` — no header, no back button, and no tab bar
+underneath it. The member opened her wallet and the app stopped. The mirror of it on the same day:
+the Üyeliğim TAB passed `header`, which tells a screen a stack header is already above it, so it
+skipped the top inset and ran up under the notch. **A screen either has a header above it or draws
+its own; `Screen header` is a statement about what is above, not a style.**
+
 ## Traps that have already cost something
 
 **OR-14 · Firestore indexes are a production-only trap.** The emulator does NOT enforce them, so a
