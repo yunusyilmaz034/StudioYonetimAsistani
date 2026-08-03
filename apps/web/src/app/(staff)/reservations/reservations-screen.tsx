@@ -39,6 +39,7 @@ export function ReservationsScreen({
   today,
   initialSessionId = null,
   showCancelledDefault = false,
+  canBackdate = true,
 }: {
   data: ReservationCalendarData
   date: string
@@ -47,6 +48,8 @@ export function ReservationsScreen({
   initialSessionId?: string | null
   // Seeds the "İptalleri göster" toggle from the studio setting (default off); re-entering resets it.
   showCancelledDefault?: boolean
+  /** Desk-only act (OR-24): a trainer sees this screen but never this control. */
+  canBackdate?: boolean
 }) {
   const router = useRouter()
   const [view, setView] = useState<CalendarView>('month')
@@ -218,6 +221,7 @@ export function ReservationsScreen({
         staff={data.staff}
         onClose={() => setSelected(null)}
         onMutated={() => router.refresh()}
+        canBackdate={canBackdate}
       />
     </main>
   )

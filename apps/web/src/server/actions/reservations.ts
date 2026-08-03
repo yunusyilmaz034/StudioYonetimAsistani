@@ -37,7 +37,11 @@ import { reservationPolicyPort } from '../reservation-policy'
 // Booking and cancellation are synchronous, trusted writes (AD-35): they allocate a
 // scarce seat and move a credit, so they run here — never on the /commands path.
 // Authorized in the Server Action (AD-46): reception and the owner book and cancel.
-const OPS = ['owner', 'receptionist', 'platform_admin'] as const
+// DESK (owner, 2026-08-03) — trainers now cover reception in practice ("bizim hocalar biraz da
+// resepsiyona bakıyor"), so the reservation agenda and check-in are theirs too. They are not full
+// reception: the members list, the till, the funnel and the reports stay closed. Every write here
+// already records WHO did it, which is what makes widening it safe rather than merely convenient.
+const OPS = ['owner', 'receptionist', 'trainer', 'platform_admin'] as const
 
 const nonEmpty = z.string().min(1)
 
@@ -93,6 +97,12 @@ export async function bookReservationAction(input: unknown) {
 // been reported on should stay reported on.
 const BACKDATE_DAYS = 30
 
+// Backdating stays DESK-ONLY even though trainers now hold the rest of this screen (2026-08-03).
+// OR-24 settled who may do it — reception + owner — and it consumes a credit while rewriting a day
+// that has already been reported on. Widening the agenda is not a reason to quietly widen this too;
+// if the owner wants it, that is a decision he makes, not one that arrives as a side effect.
+const BACKDATE = ['owner', 'receptionist', 'platform_admin'] as const
+
 export async function bookPastAttendedAction(input: unknown) {
   const p = z
     .object({
@@ -103,7 +113,7 @@ export async function bookPastAttendedAction(input: unknown) {
     .parse(input)
   // Reception + owner (owner, 2026-08-02): the member is standing at the desk and reception is the
   // one who has to put it right. Every write records who did it, which is what makes that safe.
-  const ctx = await requireTenantContext(OPS)
+  const ctx = await requireTenantContext(BACKDATE)
   const db = adminDb()
 
   const member = await new FirestoreMemberRepository(db).findById(ctx, p.memberId as MemberId)

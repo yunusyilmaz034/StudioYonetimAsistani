@@ -47,7 +47,11 @@ import { observed } from '../log'
 // opinion, shown first. And the apply re-decides inside each transaction, so a plan drawn a minute
 // ago can never oversell a room.
 
-const OPS = ['owner', 'receptionist', 'platform_admin'] as const
+// DESK (owner, 2026-08-03) — trainers now cover reception in practice ("bizim hocalar biraz da
+// resepsiyona bakıyor"), so the reservation agenda and check-in are theirs too. They are not full
+// reception: the members list, the till, the funnel and the reports stay closed. Every write here
+// already records WHO did it, which is what makes widening it safe rather than merely convenient.
+const OPS = ['owner', 'receptionist', 'trainer', 'platform_admin'] as const
 const nonEmpty = z.string().min(1)
 
 /**

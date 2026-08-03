@@ -57,7 +57,7 @@ const HINT_LABEL: Record<BookingStatus['hint'], string> = {
   past: 'Bu seansa rezervasyon yapılamaz',
 }
 
-export function BookingPanel({ session, onMutated }: { session: CalendarSession; onMutated: () => void }) {
+export function BookingPanel({ session, onMutated, canBackdate = true }: { session: CalendarSession; onMutated: () => void; canBackdate?: boolean }) {
   const [roster, setRoster] = useState<readonly RosterMember[] | null>(null)
   const [adding, setAdding] = useState(false)
   const [members, setMembers] = useState<readonly BookingMember[] | null>(null)
@@ -375,7 +375,7 @@ export function BookingPanel({ session, onMutated }: { session: CalendarSession;
         // the walk-in who was given a place (owner, 2026-08-03: "burada üye ekleyemiyorum"). It was
         // built on the Yoklama tab only, and this is the tab she opens to ask "who is in this class?".
         // Same component, same refusals, same 30-day window; it draws nothing when out of range.
-        <AddPastMember session={session} onAdded={onMutated} />
+        canBackdate ? <AddPastMember session={session} onAdded={onMutated} /> : null
       )}
 
       {/* Cancel confirm — with the late-cancellation warning */}

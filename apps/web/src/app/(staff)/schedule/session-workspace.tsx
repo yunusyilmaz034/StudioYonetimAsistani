@@ -75,12 +75,15 @@ async function adapt(p: Promise<Result<void, DomainError>>): Promise<{ ok: boole
 type Tab = 'info' | 'reservations' | 'attendance' | 'notes'
 
 export function SessionWorkspace({
+  canBackdate = true,
   session,
   rooms,
   staff,
   onClose,
   onMutated,
 }: {
+  /** OR-24: backdating is desk-only, so a trainer never sees the control. */
+  canBackdate?: boolean
   session: CalendarSession | null
   rooms: readonly PickOption[]
   staff: readonly StaffOption[]
@@ -166,7 +169,7 @@ export function SessionWorkspace({
                 {/* D20 — the queue lives with the roster, in the same workspace (UX-1): the seat
                     that opens and the person who takes it are one decision. */}
                 <div className="space-y-6">
-                  <BookingPanel session={session} onMutated={onMutated} />
+                  <BookingPanel session={session} onMutated={onMutated} canBackdate={canBackdate} />
                   {/* Non-members occupying the same room (2026-07-27). Beside the roster, never in
                       it: a Multisport guest is not a member and must not be listed as one. */}
                   <SeatHoldsPanel
@@ -182,7 +185,7 @@ export function SessionWorkspace({
                 </div>
               </TabsContent>
               <TabsContent value="attendance">
-                <AttendanceTab session={session} onMutated={onMutated} />
+                <AttendanceTab session={session} onMutated={onMutated} canBackdate={canBackdate} />
               </TabsContent>
               <TabsContent value="notes">
                 <NotesTab session={session} onMutated={onMutated} />
@@ -636,7 +639,7 @@ const OUTCOME_BADGE: Record<string, { label: string; className: string }> = {
   booked: { label: 'Bekliyor', className: 'bg-muted text-muted-foreground' },
 }
 
-function AttendanceTab({ session, onMutated }: { session: CalendarSession; onMutated: () => void }) {
+function AttendanceTab({ session, onMutated, canBackdate = true }: { session: CalendarSession; onMutated: () => void; canBackdate?: boolean }) {
   const [entries, setEntries] = useState<readonly AttendanceEntry[] | null>(null)
   // Optimistic marks (offline command applies in 1–3 s via the trigger).
   const [marks, setMarks] = useState<Record<string, AttendanceOutcome>>({})
@@ -701,7 +704,7 @@ function AttendanceTab({ session, onMutated }: { session: CalendarSession; onMut
         <p className="text-sm text-muted-foreground">Bu seansta rezervasyon yok.</p>
         {/* An empty past class is exactly where a walk-in goes unrecorded, so the control belongs
             here too — this used to return early and there was no way to add anyone. */}
-        <AddPastMember session={session} onAdded={() => { void load(); onMutated() }} />
+        {canBackdate ? <AddPastMember session={session} onAdded={() => { void load(); onMutated() }} /> : null}
       </div>
     )
   }
@@ -734,7 +737,7 @@ function AttendanceTab({ session, onMutated }: { session: CalendarSession; onMut
               Kalanları katıldı işaretle
             </Button>
           ) : null}
-          <AddPastMember session={session} onAdded={() => { void load(); onMutated() }} />
+          {canBackdate ? <AddPastMember session={session} onAdded={() => { void load(); onMutated() }} /> : null}
         </div>
       </div>
 

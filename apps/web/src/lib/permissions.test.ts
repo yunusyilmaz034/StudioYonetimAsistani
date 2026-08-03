@@ -10,13 +10,16 @@ import { canSee, homeFor, PERMISSIONS, type Area } from './permissions'
 const AREAS = Object.keys(PERMISSIONS) as Area[]
 
 describe('the trainer — staff, and the person least entitled to the studio’s data', () => {
-  it('sees only her own screens — her classes, the training workspace (Plus Phase 7) and her own pay (Plus Phase 9)', () => {
-    // Her classes, the training workspace (the exercise library and her feedback center), and — since
-    // Plus Phase 9 — her OWN earnings (read-only, never another trainer's). Still not the members
-    // list, the till, the funnel, or the payroll cost side.
+  it('sees her own screens, plus the two the desk shares with her', () => {
+    // Her classes, the training workspace (the exercise library and her feedback center), her OWN
+    // earnings (read-only, never another trainer's), and the Bilgi Merkezi every staff role reads.
+    //
+    // Since 2026-08-03 also the RESERVATION AGENDA and CHECK-IN: the studio's trainers cover the desk
+    // in practice ("bizim hocalar biraz da resepsiyona bakıyor"). Two screens, not a promotion —
+    // everything that reveals the business or the studio's PII at large stays shut, which is what
+    // the next four cases hold in place.
     const visible = AREAS.filter((a) => canSee('trainer', a))
-    // + the Bilgi Merkezi, which every staff role can read (owner edits it).
-    expect(visible).toEqual(['/knowledge', '/my-classes', '/training', '/my-payroll'])
+    expect(visible).toEqual(['/reservations', '/checkin', '/knowledge', '/my-classes', '/training', '/my-payroll'])
   })
 
   it('cannot see the studio-wide payroll — it is owner-confidential (Plus Phase 9)', () => {

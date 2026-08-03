@@ -61,13 +61,18 @@ const DESK: readonly PrincipalRole[] = ['owner', 'receptionist']
 // The kiosk tablet, plus the desk (reception mounts the same screen on a spare iPad). The kiosk role
 // gets THIS area and nothing else — its one screen, and no way to reach a second.
 const KIOSK: readonly PrincipalRole[] = ['owner', 'receptionist', 'kiosk']
+// DESK + the trainer (owner, 2026-08-03): *"bizim hocalar biraz da resepsiyona bakıyor, o yüzden tam
+// resepsiyon olmasa da rezervasyon ajandasını falan görsün."* Two screens, not a promotion — the
+// members list, the till, the funnel and the reports stay closed, which is the whole point of the
+// trainer having her own row rather than reception's minus a few things.
+const DESK_PLUS_TRAINER: readonly PrincipalRole[] = ['owner', 'receptionist', 'trainer']
 
 export const PERMISSIONS: Readonly<Record<Area, readonly PrincipalRole[]>> = {
   // Reception runs the day.
   '/': DESK,
   '/schedule': DESK,
-  '/reservations': DESK,
-  '/checkin': DESK,
+  '/reservations': DESK_PLUS_TRAINER,
+  '/checkin': DESK_PLUS_TRAINER,
   // The desk screen stays reception's (it shows who is inside and the expected-soon list, by name).
   // The kiosk is a DIFFERENT area: the QR scanner alone, and the only screen the kiosk role may see.
   '/checkin/kiosk': KIOSK,

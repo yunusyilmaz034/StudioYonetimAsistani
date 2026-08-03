@@ -264,6 +264,24 @@ the Üyeliğim TAB passed `header`, which tells a screen a stack header is alrea
 skipped the top inset and ran up under the notch. **A screen either has a header above it or draws
 its own; `Screen header` is a statement about what is above, not a style.**
 
+**OR-26 · The trainer keeps her own row, and it now holds two of reception's screens.** (2026-08-03)
+Owner: *"Bizim hocalar biraz da resepsiyona bakıyor, o yüzden tam resepsiyon olmasa da rezervasyon
+ajandasını falan görsün."* Buse and Reyhan cover the desk in practice, so **Rezervasyon Ajandası and
+Check-in** are theirs — with real rights, not a read-only view: they book, cancel, hold seats and take
+entries. A screen whose buttons are all refused is worse than no screen, and that is a fault this
+studio has already paid for twice.
+
+What did NOT move, and why the trainer still has her own row rather than "reception minus a few
+things": the members list (the studio's PII at large — she sees the names in HER classes, which is
+what her craft needs), the till, the sales funnel, the reports, the analytics, the studio-wide
+payroll, and the AI advisor. Each of those either reveals the business or hands her data she has no
+work to do with.
+
+One act inside a screen she now holds stays at the desk: **recording a class that already happened**
+(OR-24). It consumes a credit and rewrites a day that has been reported on, and OR-24 named who may
+do it. Widening the agenda is not a reason to widen that too — so it is not merely refused for a
+trainer, it is not drawn for her.
+
 ## Traps that have already cost something
 
 **OR-14 · Firestore indexes are a production-only trap.** The emulator does NOT enforce them, so a

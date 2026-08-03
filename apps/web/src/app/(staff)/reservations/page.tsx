@@ -28,6 +28,9 @@ export default async function ReservationsPage({
       today={today}
       defaultBranchId={ctx.branchIds[0] ?? null}
       initialSessionId={session ?? null}
+      // OR-24 keeps backdating at the desk; trainers hold the rest of this screen (2026-08-03). Drawing
+      // a button that the server will refuse is the fault we spent today removing, so it is not drawn.
+      canBackdate={ctx.role !== 'trainer'}
       showCancelledDefault={Boolean(settings?.showCancelledSessions)}
     />
   )

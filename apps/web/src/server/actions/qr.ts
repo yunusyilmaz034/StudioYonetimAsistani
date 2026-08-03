@@ -121,7 +121,7 @@ export async function checkInByQrAction(input: unknown) {
   const p = z.object({ token: z.string().min(1), branchId: z.string().min(1) }).parse(input)
   // `kiosk` is the wall tablet: this — verifying a signed QR and recording a check-in — is the ONE
   // write it may make. The check-in it records is stamped with a `device` actor, not a human's.
-  const ctx = await requireTenantContext(['owner', 'receptionist', 'kiosk', 'platform_admin'])
+  const ctx = await requireTenantContext(['owner', 'receptionist', 'trainer', 'kiosk', 'platform_admin'])
 
   const claims = verifyQrToken(p.token, qrVerificationSecrets())
   if (!claims) return { ok: false as const, error: { code: 'qr_invalid' as const } }
@@ -187,7 +187,7 @@ const KIOSK_SENTINEL = 'kiosk'
 
 export async function mintKioskCheckInTokenAction(input: unknown) {
   const p = z.object({ branchId: z.string().min(1) }).parse(input)
-  const ctx = await requireTenantContext(['owner', 'receptionist', 'kiosk', 'platform_admin'])
+  const ctx = await requireTenantContext(['owner', 'receptionist', 'trainer', 'kiosk', 'platform_admin'])
   const ttlSeconds = await qrTtlSeconds(ctx)
   const exp = Date.now() + ttlSeconds * 1000
   return {
@@ -244,7 +244,7 @@ function posterToken(studioId: string, branchId: string, at: number): { token: s
  *  The studio's own name rides along so the printed page can carry it without the page component
  *  reaching for a database (repositories live behind the server layer, never in a route file). */
 export async function posterTokenAction() {
-  const ctx = await requireTenantContext(['owner', 'receptionist', 'kiosk', 'platform_admin'])
+  const ctx = await requireTenantContext(['owner', 'receptionist', 'trainer', 'kiosk', 'platform_admin'])
   const branchId = ctx.branchIds[0]
   if (!branchId) return { ok: false as const, error: { code: 'branch_required' as const } }
   const settings = await new FirestoreSchedulingRepository(adminDb()).getStudioSettings(ctx).catch(() => null)

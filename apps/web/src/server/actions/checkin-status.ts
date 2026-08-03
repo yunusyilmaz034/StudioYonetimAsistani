@@ -16,7 +16,11 @@ import { adminDb } from '../firebase-admin'
 // PF-36 — the check-in status a receptionist needs the instant a member walks in: is her membership
 // live, what is she on, and does she have a note. Read on demand (reception's client sees a new
 // check-in land and asks for this). PII (her name) is fine — this is a desk-only action.
-const DESK = ['owner', 'receptionist'] as const
+// DESK (owner, 2026-08-03) — trainers now cover reception in practice ("bizim hocalar biraz da
+// resepsiyona bakıyor"), so the reservation agenda and check-in are theirs too. They are not full
+// reception: the members list, the till, the funnel and the reports stay closed. Every write here
+// already records WHO did it, which is what makes widening it safe rather than merely convenient.
+const DESK = ['owner', 'receptionist', 'trainer'] as const
 
 // A package that COUNTS right now — active, started, not expired, not frozen (same predicate the
 // dashboard uses, owner D-2/D-4).
