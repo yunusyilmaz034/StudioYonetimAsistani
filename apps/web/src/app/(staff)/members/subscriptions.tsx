@@ -28,6 +28,7 @@ import { saveErrorMessage } from '@/lib/stale-deployment'
 import type { ProductView } from '@/server/catalog-query'
 import { PaytrCheckoutDialog, type PaytrCheckout } from '@/components/paytr-checkout'
 import { createPackagePaymentAction } from '@/server/actions/payments'
+import { collectAction, listDrawersAction } from '@/server/actions/finance'
 import {
   adjustSubscriptionCreditsAction,
   amendSubscriptionAction,
@@ -130,7 +131,7 @@ const componentLine = (s: SubscriptionView, products: readonly ProductView[] = [
 // allowance (owner, 2026-07-31). It is not the authorization — the Server Action refuses anyone
 // else regardless — it only decides whether the control is drawn, the same split the workspace
 // already uses for training and refunds.
-export function SubscriptionsPanel({ memberId, memberPhone = null, products, surchargeByProduct = {}, isOwner = false }: { memberId: string; memberPhone?: string | null; products: readonly ProductView[]; surchargeByProduct?: Record<string, number>; isOwner?: boolean }) {
+export function SubscriptionsPanel({ memberId, memberPhone = null, products, surchargeByProduct = {}, isOwner = false, branchId = '' }: { memberId: string; memberPhone?: string | null; products: readonly ProductView[]; surchargeByProduct?: Record<string, number>; isOwner?: boolean; branchId?: string }) {
   const [subs, setSubs] = useState<readonly SubscriptionView[] | null>(null)
   const [adding, setAdding] = useState(false)
   // Passive (expired/cancelled) packages are hidden by default — they clutter the card and confuse
@@ -190,7 +191,7 @@ export function SubscriptionsPanel({ memberId, memberPhone = null, products, sur
       ) : (
         <div className="space-y-2">
           {toCards(active).map((c) => (
-            <SubscriptionRow key={c.primary.id} sub={c.primary} siblings={c.components} products={products} onChanged={load} isOwner={isOwner} />
+            <SubscriptionRow key={c.primary.id} sub={c.primary} siblings={c.components} products={products} onChanged={load} isOwner={isOwner} memberId={memberId} branchId={branchId} />
           ))}
           {past.length > 0 ? (
             <div className="space-y-2 pt-1">
@@ -202,7 +203,7 @@ export function SubscriptionsPanel({ memberId, memberPhone = null, products, sur
                 {showPast ? 'Pasif paketleri gizle' : `Pasif paketleri göster (${past.length})`}
               </button>
               {showPast
-                ? toCards(past).map((c) => <SubscriptionRow key={c.primary.id} sub={c.primary} siblings={c.components} products={products} onChanged={load} isOwner={isOwner} />)
+                ? toCards(past).map((c) => <SubscriptionRow key={c.primary.id} sub={c.primary} siblings={c.components} products={products} onChanged={load} isOwner={isOwner} memberId={memberId} branchId={branchId} />)
                 : null}
             </div>
           ) : null}
@@ -212,7 +213,7 @@ export function SubscriptionsPanel({ memberId, memberPhone = null, products, sur
   )
 }
 
-function SubscriptionRow({ sub, siblings, products, onChanged, isOwner = false }: { sub: SubscriptionView; siblings: readonly SubscriptionView[]; products: readonly ProductView[]; onChanged: () => void; isOwner?: boolean }) {
+function SubscriptionRow({ sub, siblings, products, onChanged, isOwner = false, memberId, branchId }: { sub: SubscriptionView; siblings: readonly SubscriptionView[]; products: readonly ProductView[]; onChanged: () => void; isOwner?: boolean; memberId: string; branchId: string }) {
   const [open, setOpen] = useState(false)
   const [historyOpen, setHistoryOpen] = useState(false)
   const [dialog, setDialog] = useState<'amend' | 'credit' | 'status' | null>(null)
@@ -638,7 +639,7 @@ function SubscriptionRow({ sub, siblings, products, onChanged, isOwner = false }
         </div>
       ) : null}
 
-      {dialog === 'amend' ? <AmendDialog sub={sub} siblings={siblings} onClose={() => setDialog(null)} onDone={() => { setDialog(null); onChanged() }} /> : null}
+      {dialog === 'amend' ? <AmendDialog sub={sub} siblings={siblings} memberId={memberId} branchId={branchId} onClose={() => setDialog(null)} onDone={() => { setDialog(null); onChanged() }} /> : null}
       {dialog === 'credit' ? <ContentDialog items={siblings} onClose={() => setDialog(null)} onDone={() => { setDialog(null); onChanged() }} /> : null}
       {dialog === 'status' ? <StatusDialog sub={sub} siblings={siblings} onClose={() => setDialog(null)} onDone={() => { setDialog(null); onChanged() }} /> : null}
     </div>
@@ -1015,11 +1016,100 @@ function ReasonDialogShell({
 
 // Editing a package changes DATES and PRICE. It does not take money.
 //
+function MoneyBlock({ sub, memberId, branchId, onDone }: { sub: SubscriptionView; memberId: string; branchId: string; onDone: () => void }) {
+  const due = sub.balanceDueKurus
+  const [open, setOpen] = useState(false)
+  const [amount, setAmount] = useState((due / 100).toString())
+  const [method, setMethod] = useState<'cash' | 'credit_card' | 'bank_transfer'>('cash')
+  const [drawers, setDrawers] = useState<readonly { id: string; status: string; kind: string }[]>([])
+  const [busy, setBusy] = useState(false)
+
+  useEffect(() => {
+    if (!open) return
+    void listDrawersAction().then((d) => setDrawers(d as never)).catch(() => setDrawers([]))
+  }, [open])
+
+  async function collect() {
+    const kurus = toKurus(amount)
+    if (kurus <= 0) return
+    setBusy(true)
+    try {
+      // The same drawer rule Cari Hesap uses: cash and physical POS bind to an OPEN cash drawer when
+      // there is one, so the money lands in today's kasa rather than beside it.
+      const openCash = drawers.find((d) => d.status === 'open' && d.kind === 'cash') ?? null
+      const res = await collectAction({
+        memberId,
+        branchId,
+        amountKurus: kurus,
+        method,
+        drawerId: method === 'bank_transfer' ? null : openCash?.id ?? null,
+        note: null,
+      })
+      if (res.ok) {
+        toast.success(
+          res.value.unallocated > 0
+            ? `Tahsilat alındı. ${tl(res.value.unallocated)} üyenin alacağı olarak duruyor.`
+            : 'Tahsilat alındı ve borca mahsup edildi.',
+        )
+        onDone()
+      } else {
+        toast.error(domainErrorMessage(res.error))
+      }
+    } catch {
+      toast.error('Tahsilat kaydedilemedi.')
+    }
+    setBusy(false)
+  }
+
+  return (
+    <div className="space-y-2 rounded-xl border border-border bg-muted/30 p-3 text-sm">
+      <Row label="Paket tutarı" value={tl(sub.priceAgreedKurus)} />
+      <Row label="Tahsil edilen" value={tl(sub.paidKurus)} />
+      <Row label="Kalan borç" value={due > 0 ? tl(due) : '—'} />
+      {due > 0 ? (
+        open ? (
+          <div className="space-y-2 pt-1">
+            <div className="grid grid-cols-2 gap-2">
+              <Labeled label="Tahsilat (TL)">
+                <Input type="number" min={0} step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} />
+              </Labeled>
+              <Labeled label="Yöntem">
+                <Select value={method} onValueChange={(v) => setMethod((v ?? 'cash') as typeof method)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(METHOD_LABEL).map(([id, label]) => (
+                      <SelectItem key={id} value={id}>{label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Labeled>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" className="flex-1" onClick={() => setOpen(false)} disabled={busy}>
+                Vazgeç
+              </Button>
+              <Button size="sm" className="flex-1" onClick={collect} disabled={busy || toKurus(amount) <= 0}>
+                {busy ? <Loader2Icon className="animate-spin" /> : null} Tahsilatı Kaydet
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <Button variant="outline" size="sm" className="w-full" onClick={() => setOpen(true)}>
+            Tahsilat Al
+          </Button>
+        )
+      ) : null}
+    </div>
+  )
+}
+
 // It used to (Alpha Review): a "Tahsilat" box here wrote a payment onto the entitlement — the second
 // money model, invisible to the till, the reports and the cari hesap. Money is taken in ONE place now,
 // the Cari Hesap tab, where it lands in the ledger and in the kasa. Two ways to record a payment are
 // two answers to "has she paid?", and reception would have had no way to know which one was believed.
-function AmendDialog({ sub, siblings, onClose, onDone }: { sub: SubscriptionView; siblings: readonly SubscriptionView[]; onClose: () => void; onDone: () => void }) {
+function AmendDialog({ sub, siblings, memberId, branchId, onClose, onDone }: { sub: SubscriptionView; siblings: readonly SubscriptionView[]; memberId: string; branchId: string; onClose: () => void; onDone: () => void }) {
   const [validFrom, setValidFrom] = useState(toDateInput(sub.validFrom))
   const [validUntil, setValidUntil] = useState(toDateInput(sub.validUntil))
   // The package's original length in days, taken from what it was sold as. While reception hasn't
@@ -1095,14 +1185,22 @@ function AmendDialog({ sub, siblings, onClose, onDone }: { sub: SubscriptionView
           what changing the price DOES. */}
       <p className="rounded-lg bg-warning/10 px-3 py-2 text-xs text-warning">
         Bu alan üyenin <strong>borcunu</strong> değiştirir — tahsil edilmiş parayı değiştirmez.
-        Yanlış tutar tahsil edildiyse <strong>Cari Hesap</strong> sekmesinden o ödemeyi
-        <strong> iptal edin</strong> ve doğru tutarı yeniden girin. Buradaki tutarı düşürmek, alınmayan
-        parayı alınmış saymaz — borcu siler.
+        Buradaki tutarı düşürmek, alınmayan parayı alınmış saymaz; borcu siler. Yanlış tutar tahsil
+        edildiyse <strong>Cari Hesap</strong> sekmesinden o ödemeyi <strong>iptal edin</strong> ve
+        doğrusunu girin.
       </p>
-      <p className="text-xs text-muted-foreground">
-        Tahsilat burada yapılmaz. Ödeme almak için <strong>Cari Hesap</strong> sekmesini kullanın —
-        para orada kasaya ve raporlara işler.
-      </p>
+
+      {/* ── PARANIN DURUMU + PARÇALI TAHSİLAT (owner, 2026-08-03) ────────────────────────────
+          "Düzenle'de sadece paket fiyatı var, halbuki tahsilat tutarı olmalı — sonuçta biz parçalı
+          tahsilat da yapabiliriz." Reception's instinct is to fix money where she can see it, and
+          the only money field here was the one that must NOT be used for it. Now the three numbers
+          that matter are stated, and the collection she actually wanted is one press away.
+
+          It is a SEPARATE act with its own button, never folded into Kaydet: an amendment changes
+          what is owed and a collection records money that arrived. One button doing both is how they
+          get confused again. Same action, same drawer rules and same allocation as Cari Hesap — this
+          is a second door to one room, not a second room. */}
+      <MoneyBlock sub={sub} memberId={memberId} branchId={branchId} onDone={onDone} />
     </ReasonDialogShell>
   )
 }

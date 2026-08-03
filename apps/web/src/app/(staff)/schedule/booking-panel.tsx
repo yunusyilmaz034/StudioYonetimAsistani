@@ -48,6 +48,7 @@ import { MoveReservationDialog } from './move-reservation-dialog'
 import { ReservationTimelineDialog } from './reservation-timeline-dialog'
 import { RecurringDialog } from './recurring-dialog'
 import { occupancy } from './types'
+import { AddPastMember } from './add-past-member'
 
 const HINT_LABEL: Record<BookingStatus['hint'], string> = {
   ok: 'Uygun',
@@ -369,7 +370,13 @@ export function BookingPanel({ session, onMutated }: { session: CalendarSession;
             Üye Ekle
           </Button>
         )
-      ) : null}
+      ) : (
+        // The class has STARTED, so ordinary booking is closed — but reception still needs to record
+        // the walk-in who was given a place (owner, 2026-08-03: "burada üye ekleyemiyorum"). It was
+        // built on the Yoklama tab only, and this is the tab she opens to ask "who is in this class?".
+        // Same component, same refusals, same 30-day window; it draws nothing when out of range.
+        <AddPastMember session={session} onAdded={onMutated} />
+      )}
 
       {/* Cancel confirm — with the late-cancellation warning */}
       <Dialog open={cancelling !== null} onOpenChange={(o) => (o ? null : setCancelling(null))}>
