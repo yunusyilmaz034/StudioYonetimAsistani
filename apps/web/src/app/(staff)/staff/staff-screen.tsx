@@ -25,6 +25,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
+import { PasswordInput } from '@/components/ui/password-input'
 import { domainErrorMessage } from '@/lib/domain-error'
 import {
   changeStaffRoleAction,
@@ -245,8 +246,8 @@ function AddStaffDialog({ open, onClose }: { open: boolean; onClose: () => void 
             value={email}
             onChange={(e) => setEmail(e.target.value)}
           />
-          <Input
-            type="password"
+          <PasswordInput
+            
             placeholder="Geçici şifre (en az 8 karakter)"
             value={password}
             onChange={(e) => setPassword(e.target.value)}

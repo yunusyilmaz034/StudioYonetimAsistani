@@ -6,7 +6,7 @@ import { Loader2Icon } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
+import { PasswordInput } from '@/components/ui/password-input'
 import { domainErrorMessage } from '@/lib/domain-error'
 import { isStaleDeployment } from '@/lib/stale-deployment'
 import { activateMemberAction, openInviteAction } from '@/server/actions/portal-auth'
@@ -115,15 +115,15 @@ export function InviteForm({ studioId, token }: { studioId: string; token: strin
           Hesabınızı aktifleştirmek için bir şifre belirleyin. Girişte telefon numaranızı ve bu
           şifreyi kullanacaksınız.
         </p>
-        <Input
-          type="password"
+        <PasswordInput
+          
           placeholder="Şifre (en az 8 karakter)"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           autoFocus
         />
-        <Input
-          type="password"
+        <PasswordInput
+          
           placeholder="Şifre (tekrar)"
           value={confirm}
           onChange={(e) => setConfirm(e.target.value)}

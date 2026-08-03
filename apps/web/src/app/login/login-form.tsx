@@ -8,6 +8,7 @@ import { Loader2Icon } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { PasswordInput } from '@/components/ui/password-input'
 import { useMathCaptcha } from '@/components/math-captcha'
 import { track } from '@/lib/analytics'
 import { clientAuth } from '@/lib/firebase-client'
@@ -83,9 +84,8 @@ export function LoginForm() {
         <label htmlFor="password" className="text-sm font-medium text-foreground">
           Parola
         </label>
-        <Input
+        <PasswordInput
           id="password"
-          type="password"
           autoComplete="current-password"
           required
           value={password}

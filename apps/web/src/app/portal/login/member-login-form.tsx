@@ -8,6 +8,7 @@ import { Loader2Icon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { PasswordInput } from '@/components/ui/password-input'
 import { useMathCaptcha } from '@/components/math-captcha'
 import { track } from '@/lib/analytics'
 import { clientAuth } from '@/lib/firebase-client'
@@ -98,8 +99,8 @@ export function MemberLoginForm() {
           onChange={(e) => setPhone(e.target.value)}
           autoFocus
         />
-        <Input
-          type="password"
+        <PasswordInput
+          
           placeholder="Şifre"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
