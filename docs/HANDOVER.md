@@ -7,7 +7,7 @@ explains the moment.
 Keep it current the way the code is kept current: when the state changes, this changes in the same
 commit. A handover document that lags is worse than none, because it is believed.
 
-_Last true as of: **2026-08-02**._
+_Last true as of: **2026-08-03**._
 
 ---
 
@@ -90,6 +90,14 @@ must still be created and sent for review by hand.
   reminder that mints a fresh link.
 
 ## Waiting on us
+
+- **`main` was rewritten once, on 2026-08-03, and the original is kept.** Three unrelated changes went
+  out under one commit whose message described only the first of them; the tree was identical but the
+  log was misleading, and in this repository the log IS the history. It was re-split into three
+  commits (`67054b7` reservations · `fdd9ffb` mobile navigation · `c13cf26` PF-44) and force-pushed
+  with `--force-with-lease`. **The pre-split commit is preserved as `backup/pre-split-2026-08-03`,
+  both a branch and a tag**, and `git diff` between it and `main` is empty — nothing shipped changed.
+  If you pulled between roughly 12:30 and 13:00 that day, reset to `origin/main`.
 
 - **Hybrid purchase, tested live.** One sale must produce N entitlements correctly through the real
   PAYTR path. The rules are written and unit-tested; the path has never run in production.
