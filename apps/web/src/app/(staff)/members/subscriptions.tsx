@@ -718,6 +718,8 @@ function AssignForm({
   const effectiveCollected = collectedTl !== '' ? collectedTl : owedKurus ? (owedKurus / 100).toString() : ''
   const effectiveCredit = creditInput !== '' ? creditInput : product?.creditCount != null ? String(product.creditCount) : ''
   const amountKurus = toKurus(effectiveCollected)
+  // What she will still owe after this sale. Negative ⇒ more was collected than the package costs.
+  const debtAfterKurus = owedKurus - amountKurus
   const creditOverride =
     product?.type === 'credit'
       ? Math.min(product.creditCount ?? Infinity, Math.max(0, Math.trunc(Number(effectiveCredit) || 0)))
@@ -873,6 +875,26 @@ function AssignForm({
             onChange={(e) => setCollectedTl(e.target.value)}
             placeholder="0"
           />
+          {/* SAY WHAT THIS WILL DO (2026-08-03). The field DEFAULTS to the whole amount, because most
+              sales are paid in full — but that default is silent, so a part payment left untouched
+              records money the studio never took. It happened: a 13.000 package with 8.000 in hand
+              was written down as 13.000 collected, and the attempt to fix it afterwards moved the
+              PRICE instead, leaving the member owing nothing on a package she had half paid for.
+              One line, computed from what she just typed, and there is no gap left to misread. */}
+          {!isPaytr && owedKurus > 0 ? (
+            debtAfterKurus > 0 ? (
+              <p className="mt-1.5 text-sm text-warning">
+                <strong>{tl(debtAfterKurus)} borç kalacak.</strong> Üye derslerini normal alır; borç
+                Cari Hesap’ta görünür ve sonra tahsil edilir.
+              </p>
+            ) : debtAfterKurus < 0 ? (
+              <p className="mt-1.5 text-sm text-warning">
+                Paket tutarından <strong>{tl(-debtAfterKurus)} fazla</strong> tahsilat girildi.
+              </p>
+            ) : (
+              <p className="mt-1.5 text-sm text-muted-foreground">Tamamı tahsil edildi, bakiye kalmayacak.</p>
+            )
+          ) : null}
         </Labeled>
         <Labeled label="Ödeme yöntemi">
           <Select
@@ -1065,6 +1087,18 @@ function AmendDialog({ sub, siblings, onClose, onDone }: { sub: SubscriptionView
           değiştirebilirsiniz.
         </p>
       ) : null}
+      {/* THE SENTENCE THAT WOULD HAVE PREVENTED IT (2026-08-03). A 13.000 package was sold with the
+          collection field left at its full default, so 13.000 was recorded as taken when 8.000 was.
+          The correction reached for was this field — and lowering the PRICE to 8.000 did not give
+          back the 5.000: it cancelled the debt instead, leaving her owing nothing on a package she
+          had half paid for. The field's own help text said where collections happen; it never said
+          what changing the price DOES. */}
+      <p className="rounded-lg bg-warning/10 px-3 py-2 text-xs text-warning">
+        Bu alan üyenin <strong>borcunu</strong> değiştirir — tahsil edilmiş parayı değiştirmez.
+        Yanlış tutar tahsil edildiyse <strong>Cari Hesap</strong> sekmesinden o ödemeyi
+        <strong> iptal edin</strong> ve doğru tutarı yeniden girin. Buradaki tutarı düşürmek, alınmayan
+        parayı alınmış saymaz — borcu siler.
+      </p>
       <p className="text-xs text-muted-foreground">
         Tahsilat burada yapılmaz. Ödeme almak için <strong>Cari Hesap</strong> sekmesini kullanın —
         para orada kasaya ve raporlara işler.
