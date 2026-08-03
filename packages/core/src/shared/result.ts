@@ -74,6 +74,12 @@ export type DomainError =
   | { readonly code: 'branch_not_open' }
   // ── reservations / booking (Doc 2 §7) ──
   | { readonly code: 'session_not_bookable' }
+  // Backdating (owner, 2026-08-02): reception recording a class that already happened. Bounded, so
+  // an operational correction cannot quietly become a rewrite of a closed month.
+  | { readonly code: 'session_too_old'; readonly earliest: number }
+  // The package began AFTER the class. It matters only when backdating — a package bought today
+  // cannot have paid for Tuesday's class, and nothing else in the system would have caught it.
+  | { readonly code: 'entitlement_started_after_session' }
   | { readonly code: 'outside_cancellation_window' } // D19 — a member may not move a class late
   | { readonly code: 'waitlist_not_open' } // D20
   | { readonly code: 'already_waitlisted' }

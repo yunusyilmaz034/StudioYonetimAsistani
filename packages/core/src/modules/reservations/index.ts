@@ -33,6 +33,7 @@ export {
   type PackageRule,
 } from './domain/policy'
 export type { BookingLimits, CancellationInputs } from './domain/decide'
+export { bookPastAttended, type BookPastAttendedInput } from './application/book-past'
 export { bookReservation, type BookReservationInput } from './application/book'
 export { cancelReservation, type CancelReservationInput } from './application/cancel'
 export { moveReservation, type MoveReservationInput } from './application/move'

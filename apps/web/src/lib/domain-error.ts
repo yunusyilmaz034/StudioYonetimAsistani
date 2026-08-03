@@ -62,6 +62,10 @@ export function domainErrorMessage(error: DomainError): string {
       return 'Şube kapalı. Önce şubeyi açın.'
     case 'session_not_bookable':
       return 'Bu seansa rezervasyon yapılamaz (iptal edilmiş veya başlamış).'
+    case 'session_too_old':
+      return `Bu ders geçmişe dönük eklenemeyecek kadar eski (en fazla ${new Date(error.earliest).toLocaleDateString('tr-TR')} tarihine kadar geri gidilebilir). Kredi düzeltmesi kullanın.`
+    case 'entitlement_started_after_session':
+      return 'Seçilen paket bu dersten SONRA başlamış — o dersi bu paket ödeyemez.'
     case 'class_full':
       return `Seans dolu (kapasite: ${error.capacity}).`
     case 'already_booked':
