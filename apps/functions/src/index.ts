@@ -62,9 +62,6 @@ export const nightlySweep = onSchedule(
     // it; time merely passed). They run last, so they see the night's expiries.
     await runReminderSweep()
 
-    // Plus Phase 6 — time out abandoned checkouts, flag stuck payments for a human (§22).
-    await runPaymentReconcileSweep()
-
     // v1.26 — the drift checks run AFTER the sweeps, and they only ever REPORT. Running them first
     // would flag the very rows the sweeps are about to settle; running them at all is how we find
     // out that a write path bypassed a transaction, which is a bug and not a number to correct.
@@ -82,6 +79,25 @@ export const occupancySweep = onSchedule(
   { schedule: 'every 60 minutes', timeZone: 'Europe/Istanbul' },
   async () => {
     await runAutoCheckOutSweep()
+  },
+)
+
+// Payment reconciliation, HOURLY (2026-08-04). It used to ride inside `nightlySweep`, and that made
+// its own one-hour timeout a fiction: a checkout abandoned at 10:30 stayed `awaiting_payment` until
+// 03:00 the next morning. Meanwhile `payments_stuck` — which fires every fifteen minutes at three
+// stale intents — alarmed for SEVEN AND A HALF HOURS on three abandoned baskets from the public
+// sale page. Nothing was wrong; the alarm was structurally guaranteed to fire on an ordinary day.
+//
+// An alarm that cries wolf is worse than no alarm, and we are about to sell an SLA on these.
+// Running the sweep on the clock its own window claims makes `payments_stuck` mean what it says:
+// an intent still awaiting after the sweep has had two chances at it is genuinely abnormal.
+//
+// Deliberately NOT part of `nightlySweep` — the same reasoning as `occupancySweep` above: it has no
+// ordering relationship with I-19, so sequencing it with the credit sweeps only tied it to 03:00.
+export const paymentReconcileSweep = onSchedule(
+  { schedule: 'every 60 minutes', timeZone: 'Europe/Istanbul' },
+  async () => {
+    await runPaymentReconcileSweep()
   },
 )
 

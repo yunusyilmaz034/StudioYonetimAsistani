@@ -333,18 +333,26 @@ async function notificationsFailing(db: Firestore, studioId: StudioId, now: numb
  */
 async function paymentsStuck(db: Firestore, studioId: StudioId, now: number): Promise<HealthFinding | null> {
   const open = await col(db, studioId, 'paymentIntents').where('status', '==', 'awaiting_payment').limit(100).get()
+  // THREE hours, not two (2026-08-04). The reconcile sweep expires an abandoned checkout after one
+  // hour and now runs hourly, so anything still awaiting at three hours has survived two passes of
+  // the job whose whole purpose is to clear it. That is the abnormal thing worth waking someone for.
+  //
+  // At two hours — with the sweep running only at 03:00 — this alarmed for seven and a half hours on
+  // three baskets abandoned on the public sale page, which is what an ordinary morning looks like.
+  // The signal was real; the threshold made it unusable.
   const stale = open.docs.filter((d) => {
     const at = d.get('createdAt') as Timestamp | undefined
-    return at ? at.toMillis() < now - 2 * 60 * MS_PER_MIN : false
+    return at ? at.toMillis() < now - 3 * 60 * MS_PER_MIN : false
   })
-  // Two hours abandoned is normal for one shopper. Three of them at once is a pattern.
+  // One abandoned basket is a shopper who changed her mind. Three that outlived the sweep is a
+  // pattern — most likely the callback not reaching us.
   if (stale.length < 3) return null
   return {
     alert: 'payments_stuck',
     severity: 'warning',
     count: stale.length,
     ids: stale.slice(0, 10).map((d) => d.id),
-    detail: `${stale.length} ödeme 2 saatten uzun süredir yanıt bekliyor`,
+    detail: `${stale.length} ödeme 3 saatten uzun süredir yanıt bekliyor`,
   }
 }
 
