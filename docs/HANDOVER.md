@@ -7,7 +7,7 @@ explains the moment.
 Keep it current the way the code is kept current: when the state changes, this changes in the same
 commit. A handover document that lags is worse than none, because it is believed.
 
-_Last true as of: **2026-08-03**._
+_Last true as of: **2026-08-05**._
 
 ---
 
@@ -95,6 +95,13 @@ must still be created and sent for review by hand.
   reminder that mints a fresh link.
 
 ## Waiting on us
+
+- **The AI receptionist is healthy; demand is what fell.** (2026-08-05) The owner saw a quiet day and
+  asked if something was broken. Nothing is: every incoming WhatsApp message got an AI reply, 100% on
+  every day of the week, and the webhook logged zero errors. What dropped is INBOUND — 67 messages on
+  1 Aug, 21, 15, then 9 on 4 Aug. That is an advertising/seasonality question (early August empties
+  İstanbul), not a software one. Worth checking the ad budget and the number's quality rating in
+  WhatsApp Manager before assuming either way.
 
 - **`main` was rewritten once, on 2026-08-03, and the original is kept.** Three unrelated changes went
   out under one commit whose message described only the first of them; the tree was identical but the
