@@ -1,5 +1,7 @@
 'use server'
 
+import { FieldValue } from 'firebase-admin/firestore'
+
 import { requireTenantContext } from '../auth'
 import { adminDb } from '../firebase-admin'
 import { narrateChecklist, type DailyChecklist } from '../ai/anthropic'
@@ -50,4 +52,64 @@ export async function narrateChecklistAction(items: readonly AdvisorItem[]): Pro
     }
   }
   return result
+}
+
+// ── KİM HANGİ İŞİ KAPATTI (owner, 2026-08-05) ───────────────────────────────────────────────
+//
+// The ticks used to live in `localStorage`, which made them a private note on one machine:
+// reception ticked at the desk and the owner's phone showed nothing done. *"Kim ne iş kapattı,
+// bunların bilgisi tutulsun."* So they move to the studio, with a name and a time on each one.
+//
+// ONE DOCUMENT PER DAY (`checklistDone/{yyyy-mm-dd}`), a map of itemId → who/when. One read to
+// open the dashboard, one write per tick, no index, and un-ticking simply removes the key.
+//
+// **This is NOT an event.** Ticking a checklist line is a working note, not something that happened
+// to the business — no credit moves, no state changes, nothing downstream reads it. Putting it in
+// the append-only log would dilute the one place that is supposed to mean "this occurred". It is
+// kept deliberately outside, and it is disposable: losing it costs a day's tick marks, nothing more.
+export interface ChecklistDoneEntry {
+  readonly itemId: string
+  readonly byName: string
+  readonly at: number
+}
+
+const doneDoc = (studioId: string, dayKey: string) =>
+  adminDb().collection('studios').doc(studioId).collection('checklistDone').doc(dayKey)
+
+export async function getChecklistDoneAction(dayKey: string): Promise<readonly ChecklistDoneEntry[]> {
+  const ctx = await requireTenantContext(OPS)
+  const snap = await doneDoc(ctx.studioId as string, dayKey).get()
+  const map = (snap.data()?.items ?? {}) as Record<string, { byName?: string; at?: number }>
+  return Object.entries(map).map(([itemId, v]) => ({
+    itemId,
+    byName: v.byName ?? '—',
+    at: Number(v.at ?? 0),
+  }))
+}
+
+export async function setChecklistDoneAction(input: {
+  dayKey: string
+  itemIds: readonly string[]
+  done: boolean
+}): Promise<readonly ChecklistDoneEntry[]> {
+  const ctx = await requireTenantContext(OPS)
+  const ref = doneDoc(ctx.studioId as string, input.dayKey)
+  // The desk's own name, so the row can say WHO closed it. The session claims carry no name, so the
+  // staff record is read — one extra read on an action that fires a handful of times a day. A tick
+  // with no name is still better than a tick with a wrong one, hence the id fallback.
+  const uid = ctx.actor.id as string
+  const staff = await adminDb().collection('studios').doc(ctx.studioId as string).collection('staff').doc(uid).get()
+  const byName = (staff.data()?.displayName as string | undefined)?.trim() || uid
+  const now = Date.now()
+
+  // A merge write: two people ticking different lines at the same moment must not overwrite each
+  // other, which a whole-document set would do.
+  const patch: Record<string, unknown> = {}
+  for (const id of input.itemIds) {
+    patch[`items.${id}`] = input.done ? { byName, at: now } : FieldValue.delete()
+  }
+  await ref.set({}, { merge: true })
+  await ref.update(patch)
+
+  return getChecklistDoneAction(input.dayKey)
 }

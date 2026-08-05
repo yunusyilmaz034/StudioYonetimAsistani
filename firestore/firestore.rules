@@ -73,6 +73,10 @@ service cloud.firestore {
           // the one place third-party PII lands. Server-only, read through a Server Action behind
           // the desk role — never over the client SDK, where a member session could reach it.
           'seatHolds',
+          // 2026-08-05 — who ticked which line on today's checklist. Not sensitive, but the client
+          // never touches it: the dashboard reads and writes it through Server Actions, so leaving
+          // it open would be exposure bought for nothing.
+          'checklistDone',
           // v1.27 — internal counters (public-form rate limits, hashed IPs). Server-only; no client read.
           'rateLimits',
           // 2026-07-30 — import batches. Each one lists the members and packages one file created,

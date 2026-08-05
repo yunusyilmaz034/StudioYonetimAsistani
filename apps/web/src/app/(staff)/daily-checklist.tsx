@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { toast } from 'sonner'
 import { CheckIcon, ChevronDownIcon, ChevronRightIcon, SparklesIcon } from 'lucide-react'
 
 import { Section } from '@/components/ui/section'
 import type { InsightSeverity } from '@studio/core'
 import type { AdvisorItem } from '@/server/advisor-query'
-import { narrateChecklistAction } from '@/server/actions/checklist'
+import { getChecklistDoneAction, narrateChecklistAction, setChecklistDoneAction } from '@/server/actions/checklist'
 
 interface Row {
   id: string
@@ -50,20 +51,21 @@ export function DailyChecklist({ items }: { items: readonly AdvisorItem[] }) {
   const [rows, setRows] = useState<Row[]>(() =>
     items.map((it) => ({ id: it.id, kind: it.kind, headline: it.title, note: it.detail, severity: it.severity, href: it.href })),
   )
-  const [done, setDone] = useState<Set<string>>(new Set())
+  // itemId → who closed it. Server-held (owner, 2026-08-05): the desk ticks and everyone sees it,
+  // including the owner on his phone. It used to be `localStorage`, which made it a private note on
+  // one machine.
+  const [done, setDone] = useState<Map<string, string>>(new Map())
   const [openGroups, setOpenGroups] = useState<Set<string>>(new Set())
 
   const dayKey = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Istanbul' })
-  const storeKey = `checklist-done:${dayKey}`
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(storeKey)
-      if (raw) setDone(new Set(JSON.parse(raw) as string[]))
-    } catch {
-      /* localStorage unavailable — dismissals just won't persist */
-    }
-  }, [storeKey])
+    void getChecklistDoneAction(dayKey)
+      .then((rows) => setDone(new Map(rows.map((r) => [r.itemId, r.byName]))))
+      .catch(() => {
+        /* the list still works; it just shows nothing ticked */
+      })
+  }, [dayKey])
 
   useEffect(() => {
     if (items.length === 0) return
@@ -94,20 +96,22 @@ export function DailyChecklist({ items }: { items: readonly AdvisorItem[] }) {
   }, [items])
 
   function markDone(ids: readonly string[], undo = false) {
+    // Optimistic: the tick lands under her finger and the server catches up. A checklist mark is the
+    // cheapest thing in the product to be wrong about for half a second.
+    const willUndo = undo || ids.every((id) => done.has(id))
     setDone((prev) => {
-      const next = new Set(prev)
+      const next = new Map(prev)
       for (const id of ids) {
-        if (undo) next.delete(id)
-        else if (next.has(id)) next.delete(id)
-        else next.add(id)
-      }
-      try {
-        localStorage.setItem(storeKey, JSON.stringify([...next]))
-      } catch {
-        /* ignore */
+        if (willUndo) next.delete(id)
+        else next.set(id, '…')
       }
       return next
     })
+    void setChecklistDoneAction({ dayKey, itemIds: ids, done: !willUndo })
+      .then((rows) => setDone(new Map(rows.map((r) => [r.itemId, r.byName]))))
+      .catch(() => {
+        toast.error('İşaret kaydedilemedi.')
+      })
   }
   const toggle = (id: string) => markDone([id])
   const toggleGroup = (kind: string) =>
@@ -163,7 +167,7 @@ export function DailyChecklist({ items }: { items: readonly AdvisorItem[] }) {
           {order.map((kind) => {
             const children = groups.get(kind) ?? []
             // A single task of its kind → a plain, directly-actionable row.
-            if (children.length === 1) return <TaskRow key={kind} r={children[0]!} onCheck={toggle} done={done.has(children[0]!.id)} />
+            if (children.length === 1) return <TaskRow key={kind} r={children[0]!} onCheck={toggle} doneBy={done.get(children[0]!.id) ?? null} />
 
             // Several of a kind → one titled, collapsible line.
             const isOpen = openGroups.has(kind)
@@ -201,7 +205,7 @@ export function DailyChecklist({ items }: { items: readonly AdvisorItem[] }) {
                 {isOpen ? (
                   <ul className="divide-y divide-border/50 border-t border-border/50 bg-background/40">
                     {children.map((r) => (
-                      <TaskRow key={r.id} r={r} onCheck={toggle} nested done={done.has(r.id)} />
+                      <TaskRow key={r.id} r={r} onCheck={toggle} nested doneBy={done.get(r.id) ?? null} />
                     ))}
                   </ul>
                 ) : null}
@@ -215,7 +219,7 @@ export function DailyChecklist({ items }: { items: readonly AdvisorItem[] }) {
         <p className="mt-2 text-xs text-muted-foreground">
           {allDone ? 'Hepsini hallettin 👏 · ' : ''}
           {doneCount}/{rows.length} iş tamamlandı ·{' '}
-          <button type="button" className="underline" onClick={() => setDone(new Set())}>
+          <button type="button" className="underline" onClick={() => markDone(rows.map((r) => r.id), true)}>
             sıfırla
           </button>
         </p>
@@ -226,7 +230,8 @@ export function DailyChecklist({ items }: { items: readonly AdvisorItem[] }) {
 
 // One task line — a checkbox to tick it off and a deep link to the tool that resolves it. `nested` drops
 // its own border/rounding so it reads as a child inside an expanded group.
-function TaskRow({ r, onCheck, nested, done = false }: { r: Row; onCheck: (id: string) => void; nested?: boolean; done?: boolean }) {
+function TaskRow({ r, onCheck, nested, doneBy = null }: { r: Row; onCheck: (id: string) => void; nested?: boolean; doneBy?: string | null }) {
+  const done = doneBy !== null
   return (
     <li
       className={
@@ -252,6 +257,8 @@ function TaskRow({ r, onCheck, nested, done = false }: { r: Row; onCheck: (id: s
         <span className="min-w-0 flex-1">
           <span className={`font-medium ${done ? 'text-muted-foreground line-through' : 'text-foreground'}`}>{r.headline}</span>
           {r.note ? <span className="text-muted-foreground"> {r.note}</span> : null}
+          {/* Who closed it — the point of moving these off one machine (owner, 2026-08-05). */}
+          {done && doneBy ? <span className="ml-1 text-xs text-success">· {doneBy}</span> : null}
         </span>
         <ChevronRightIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
       </Link>
