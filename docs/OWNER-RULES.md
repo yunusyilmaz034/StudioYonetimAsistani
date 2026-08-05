@@ -322,3 +322,21 @@ DEBT-031 with the reasoning for not simply adding it to the gate.
 is a mirror (DEBT-PAYTR-CALLBACK). A core change reaches App Hosting on push but reaches the callback
 only on `firebase deploy --only functions`. This has cost two withheld customer payments; when
 touching either copy, check the other.
+
+**OR-28 · The PAYTR token signs what it sends, and `debug_on` stays on.** (2026-08-05) Sanal POS
+refused every attempt with "PAYTR: paytr_token_failed". PAYTR was fine — live mode, valid credentials.
+The token is an HMAC over fields we also post, and for a member with **no e-mail address** the hash
+signed `''` while the body carried a placeholder. A token PAYTR cannot verify, so **no member without
+an e-mail could ever pay by card at the desk.**
+
+The reason it took an evening rather than a minute: `debug_on` was tied to test mode, so in live mode
+PAYTR answered a rejected token with a **zero-byte body** — no status, no reason — and our code turned
+that into one generic sentence. `debug_on` is now always `'1'`. PAYTR advises `'0'` in production; the
+advice is about error text returned TO THE MERCHANT, we consume that server-side and never render it,
+and the alternative is an empty reply that makes every failure look identical. **If you ever see a
+PAYTR failure with no reason again, that flag has been turned back off.**
+
+The rule this leaves behind: **any field inside a provider hash must be computed once and used in both
+places.** The Link flow already carried this lesson in a comment; POS did not, and now there is a test
+that recomputes PAYTR's hash from the body actually posted — so a mismatch in *any* field fails, not
+just the one we thought of.

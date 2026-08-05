@@ -66,13 +66,19 @@ export class PaytrProvider implements PaymentProviderPort {
     // A single-line basket: [[name, unitPriceTL, count]]. base64(JSON).
     const basket = Buffer.from(JSON.stringify([[input.itemName, lira(input.amount), 1]]), 'utf8').toString('base64')
 
+    // ONE email, used in both the hash and the body. This line is load-bearing: the token signs the
+    // e-mail, so a hash computed over '' while the body carries a placeholder is a token PAYTR cannot
+    // verify — and a member with no e-mail address could then never pay by card at the desk. It cost a
+    // live evening on 2026-08-05, and PAYTR's own answer was an EMPTY response body (see debug_on).
+    const email = input.memberEmail ?? 'noreply@example.com'
+
     // paytr_token = base64( HMAC_SHA256( merchant_id + user_ip + merchant_oid + email + payment_amount
     //   + user_basket + no_installment + max_installment + currency + test_mode + merchant_salt, key ) )
     const hashStr =
       merchantId +
       input.userIp +
       input.providerRef +
-      (input.memberEmail ?? '') +
+      email +
       paymentAmount +
       basket +
       noInstallment +
@@ -86,11 +92,16 @@ export class PaytrProvider implements PaymentProviderPort {
       merchant_id: merchantId,
       user_ip: input.userIp,
       merchant_oid: input.providerRef,
-      email: input.memberEmail ?? 'noreply@example.com',
+      email,
       payment_amount: paymentAmount,
       paytr_token: paytrToken,
       user_basket: basket,
-      debug_on: testMode ? '1' : '0',
+      // Always on, deliberately against PAYTR's "use 0 in production" advice. With debug_on='0' a
+      // rejected token comes back as a ZERO-BYTE body — no status, no reason — so every possible
+      // failure looks identical in our logs and the desk gets one useless sentence. It changes the
+      // error text PAYTR returns TO US and nothing the cardholder sees; the response is consumed
+      // server-side and never rendered.
+      debug_on: '1',
       no_installment: noInstallment,
       max_installment: maxInstallment,
       user_name: input.memberName,
@@ -105,7 +116,16 @@ export class PaytrProvider implements PaymentProviderPort {
 
     try {
       const res = await this.fetchImpl(TOKEN_URL, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body })
-      const json = (await res.json().catch(() => ({}))) as { status?: string; token?: string; reason?: string }
+      // Read the body as TEXT first. `res.json()` on an empty or non-JSON body throws, and catching
+      // that into `{}` erases the only evidence there was — which is how a zero-byte reply became the
+      // generic "paytr_token_failed" that told nobody anything.
+      const text = await res.text().catch(() => '')
+      let json: { status?: string; token?: string; reason?: string } = {}
+      try {
+        json = JSON.parse(text) as typeof json
+      } catch {
+        return { ok: false, configured: true, errorCode: `paytr_bad_response_http_${res.status}_${text.length}b` }
+      }
       if (json.status === 'success' && json.token) {
         return { ok: true, configured: true, redirectUrl: IFRAME_BASE + json.token, token: json.token }
       }
