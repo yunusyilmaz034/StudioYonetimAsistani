@@ -35,6 +35,7 @@ import { requireTenantContext } from '../auth'
 import { adminDb } from '../firebase-admin'
 import { allowRate } from '../rate-limit'
 import { getPaymentProviderConfig, paymentProviderFor, paymentSecretsPresent, DEFAULT_PAYMENT_CONFIG } from '../payment-provider'
+import { fulfilOnlineSale, listPendingOnlineSales } from '../online-sale'
 
 const OPS = ['owner', 'receptionist', 'platform_admin'] as const
 const OWNER = ['owner', 'platform_admin'] as const
@@ -579,7 +580,10 @@ export async function getPublicProductsAction(input: unknown) {
       totalKurus: pr.priceInKurus + cardSurchargeKurus(pr.priceInKurus, pr.category, settings?.paymentSurcharge),
     }))
     .sort((a, b) => a.totalKurus - b.totalKurus)
-  return { ok: true as const, studioName, items }
+  // The number the buyer is told to call when she has a question. From settings, never a literal:
+  // this page is the product's, not one studio's (AD-41's discipline, applied to a phone number).
+  const contactPhone = settings?.company?.phone?.trim() || null
+  return { ok: true as const, studioName, contactPhone, items }
 }
 
 export async function createPublicMembershipCheckoutAction(input: unknown) {
@@ -751,4 +755,20 @@ export async function refundPaymentIntentAction(input: unknown) {
   const confirmed = decideRefundConfirmed(dctx(ctx), requested.value.next, money(p.amountKurus), p.reason)
   await intentRepo().saveIntent(ctx, confirmed.next, confirmed.events)
   return { ok: true as const }
+}
+
+// ── ONLINE SATIŞ: the desk's side of a public purchase (owner, 2026-08-05) ───────────────────
+//
+// Thin by design: the guard is here, the work is in `../online-sale` (a plain module — grants must
+// never be reachable as a Server Action endpoint). Reception and the owner only; a trainer has no
+// business creating memberships or moving money.
+export async function listPendingOnlineSalesAction() {
+  const ctx = await requireTenantContext(OPS)
+  return listPendingOnlineSales(ctx)
+}
+
+export async function fulfilOnlineSaleAction(input: unknown) {
+  const p = z.object({ intentId: nonEmpty, memberId: z.string().trim().min(1).nullable().optional() }).parse(input)
+  const ctx = await requireTenantContext(OPS)
+  return fulfilOnlineSale(ctx, { intentId: p.intentId, memberId: p.memberId ?? null })
 }

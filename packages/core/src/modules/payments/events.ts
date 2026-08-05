@@ -53,3 +53,19 @@ export type PaymentIntentFlaggedPayload = {
   readonly reason: string // why reconciliation could not resolve it
   readonly at: Instant
 }
+
+// ── ONLINE SATIŞ: the human step between money and membership (owner, 2026-08-05). ───────────
+//
+// A public purchase is paid by someone the studio has not met. Reception decides WHO she is — a new
+// member, or one already on the books under that phone — and only then is the package granted. This
+// event records that the decision was taken and by whom: it is what stops a second grant, and what
+// makes "paid but nobody acted" a countable state rather than a suspicion.
+export const PAYMENT_INTENT_FULFILLED = 'payment_intent.fulfilled'
+
+export type PaymentIntentFulfilledPayload = {
+  readonly providerRef: string
+  readonly purpose: PaymentPurpose
+  // Whether reception attached the money to a member who already existed, or created one. The name,
+  // phone and e-mail of the buyer stay on state and never appear here (#6).
+  readonly memberExisted: boolean
+}

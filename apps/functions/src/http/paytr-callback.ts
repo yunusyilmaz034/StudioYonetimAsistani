@@ -19,7 +19,6 @@ import {
   notify,
   paytrProvider,
   receiveCollection,
-  registerMember,
   sellPackage,
   systemClock,
   topUpWallet,
@@ -29,7 +28,6 @@ import {
   type MemberId,
   type MembersDeps,
   type PaymentIntent,
-  type PaymentIntentContext,
   type PaymentProviderPort,
   type ProductId,
   type SellPackageDeps,
@@ -89,23 +87,6 @@ function dayMs(localDate: string): number {
 
 const membersDeps = (database: Firestore): MembersDeps => ({ repo: new FirestoreMemberRepository(database), clock: systemClock, source: 'system_payment' })
 
-// Online purchase: find-or-create the buyer. registerMember reports the EXISTING member's id on a phone
-// collision (AD-40 — never merged), so a new customer is created and an existing one (renewal) reused.
-async function resolveBuyer(database: Firestore, ctx: TenantContext, c: PaymentIntentContext): Promise<{ memberId: string; created: boolean } | null> {
-  const reg = await registerMember(membersDeps(database), ctx, {
-    fullName: (c.buyerName ?? '').trim() || 'Üye',
-    phone: c.buyerPhone ?? '',
-    homeBranchId: (ctx.branchIds[0] ?? null) as BranchId | null,
-    email: c.buyerEmail ?? null,
-    birthDate: null,
-    notes: 'Online üyelik satışı',
-    emergencyContact: null,
-  })
-  if (reg.ok) return { memberId: reg.value.memberId as string, created: true }
-  if (reg.error.code === 'phone_already_registered') return { memberId: (reg.error as { memberId: string }).memberId, created: false }
-  return null
-}
-
 // A newly-created online buyer has no account yet — mint her portal invite so /invite/{studioId}/{token}
 // works and she can set a password, then WhatsApp her the link (blok 2c).
 //
@@ -123,6 +104,49 @@ async function resolveBuyer(database: Firestore, ctx: TenantContext, c: PaymentI
 //
 // Best-effort and last: the money is in and the package is granted by the time this runs. A failed
 // notification must never undo a paid sale.
+// ── ONLINE SATIŞ: somebody just paid and is now waiting on a human ───────────────────────────
+//
+// Sent instead of the sale notice, because there is no member to name yet — the buyer's name comes
+// off the intent's own context, which is state, not an event (#6). Worded as a task, not good news:
+// money has been taken and nothing is delivered until reception acts.
+async function tellStudioAboutPendingOnlineSale(database: Firestore, ctx: TenantContext, intent: PaymentIntent): Promise<void> {
+  try {
+    const [staff, settings] = await Promise.all([
+      new FirestoreIdentityRepository(database).listStaff(ctx),
+      studioNotificationSettings(ctx.studioId),
+    ])
+    const desk = staff.filter((m: { active: boolean; role: string }) => m.active && (m.role === 'owner' || m.role === 'receptionist'))
+    if (desk.length === 0) return
+
+    const deps = notificationDeps(settings)
+    for (const person of desk) {
+      let email: string | null = null
+      try {
+        email = (await getAuth().getUser(person.id as string)).email ?? null
+      } catch {
+        /* no auth account — in-app still reaches them */
+      }
+      await notify(deps, ctx, {
+        // Keyed on the INTENT, so a replayed callback re-sends nothing: one purchase, one task.
+        intentId: intentIdFor(intent.id, 'sale_self_service', 'pending').slice(0, 180),
+        eventId: null,
+        eventType: 'payment_intent.succeeded',
+        operationId: newCorrelationId(),
+        templateId: 'sale_self_service',
+        recipient: { kind: 'staff', id: person.id as string, email, phone: null, displayName: person.displayName },
+        params: {
+          memberName: intent.context.buyerName ?? 'Yeni alıcı',
+          productName: intent.context.note ?? 'Online üyelik',
+          amount: `${(intent.amount.amount / 100).toLocaleString('tr-TR')} ₺`,
+          startsOn: 'üyelik oluşturulmayı bekliyor',
+        },
+      })
+    }
+  } catch (e) {
+    logger.warn('[paytr-callback] pending online sale notification failed', (e as Error)?.message)
+  }
+}
+
 async function tellStudioAboutSale(
   database: Firestore,
   ctx: TenantContext,
@@ -245,20 +269,26 @@ async function completePaidIntent(
   await new FirestorePaymentIntentRepository(database).saveIntent(ctx, decided.value.next, decided.value.events)
   if (!decided.value.completed) return
 
-  if (intent.purpose === 'package' || intent.purpose === 'renewal' || intent.purpose === 'public_membership') {
+  // ── ONLINE SATIŞ stops here (owner, 2026-08-05). ──
+  //
+  // The money is in and recorded; the MEMBERSHIP is not. Who the buyer is — someone new, or someone
+  // already on the books under that phone — is reception's judgement, made on the dashboard. Until
+  // then the intent stands as paid-and-unfulfilled, which the panel shouts about rather than hides.
+  //
+  // Mirror of apps/web/src/server/payment-callback.ts (DEBT-PAYTR-CALLBACK: two copies, and PAYTR
+  // calls THIS one — OR-16). Changing one without the other is how a live purchase silently keeps
+  // the old behaviour.
+  if (intent.purpose === 'public_membership') {
+    await tellStudioAboutPendingOnlineSale(database, ctx, intent)
+    return
+  }
+
+  if (intent.purpose === 'package' || intent.purpose === 'renewal') {
     const product = await new FirestoreCatalogRepository(database).getProduct(ctx, intent.context.productId as ProductId)
     if (!product) return // reconciliation will flag: paid but no product
 
-    // A public purchase may come from someone who is not a member yet — find-or-create her from the
-    // buyer context. The staff/member flows already carry a real memberId.
-    let memberId = intent.memberId
-    let invitee: string | null = null
-    if (intent.purpose === 'public_membership') {
-      const resolved = await resolveBuyer(database, ctx, intent.context)
-      if (!resolved) return // couldn't create — reconciliation flags (paid, no grant)
-      memberId = resolved.memberId
-      if (resolved.created) invitee = resolved.memberId
-    }
+    const memberId = intent.memberId
+    const invitee: string | null = null
 
     // Hibrit demet: grant one entitlement PER COMPONENT (primary carries the price + the online
     // payment, rest 0). Inline mirror of apps/web/src/server/sell-bundle.ts (DEBT-PAYTR-CALLBACK: two

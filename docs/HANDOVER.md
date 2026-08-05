@@ -242,6 +242,29 @@ history from them is possible and was deliberately NOT built — nobody asked, t
 of the fields, and inventing dated measurements nobody entered is the sort of thing that is hard to
 unpick later. It is an option, not a plan.
 
+### Shipped late on 2026-08-05 — Sanal POS, and online sales get a human step
+
+**Sanal POS was broken for every member without an e-mail address, and had been.** The PAYTR token is
+an HMAC over fields we also post; the hash signed `''` while the body carried a placeholder, so PAYTR
+could not verify it. Confirmed against the live endpoint, fixed, and covered by a test that recomputes
+PAYTR's hash from the body actually posted — so a mismatch in *any* field fails, not just this one.
+`debug_on` is now always on: with it off, a rejected token comes back as a **zero-byte body**, which is
+why the error read `paytr_token_failed` and told nobody anything. See OR-28.
+
+**Online membership sales already existed** — `/uyelik?s=retro`, a public page with the price list, a
+KVKK-consented buyer form, rate limiting and PAYTR. What changed is the ending. The callback used to
+find-or-create the buyer and grant the package unattended; now it stops at paid and **reception creates
+the membership** from a card on the dashboard (OR-29). One press attaches the money, grants the package
+and sends the invite. A phone already on the books is shown as a named suggestion, never merged.
+
+The marketing site needs one link to finish this: **`https://panel.pilatesfitnessbyisil.com/uyelik?s=retro`**
+behind a "Satın Al" button (add `&p=<productId>` to open on a specific package). That site is a
+separate codebase — nothing in this repo can add the button.
+
+⚠️ **This one needs BOTH deploys.** PAYTR calls the Cloud Function (OR-16), so `firebase deploy --only
+functions` is what actually changes what happens after a payment; App Hosting alone only changes the
+panel.
+
 ---
 
 ## Things that will bite you

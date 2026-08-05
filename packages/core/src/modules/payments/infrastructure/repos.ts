@@ -24,6 +24,10 @@ function toDoc(p: PaymentIntent): DocumentData {
     expiresAt: p.expiresAt === null ? null : toTs(p.expiresAt),
     failureReason: p.failureReason,
     refundedAmount: p.refundedAmount,
+    // ONLINE SATIŞ: null until reception turns a paid public purchase into a membership. Written
+    // as an explicit null (not omitted) so the "paid but nobody acted" query can find it.
+    fulfilledAt: p.fulfilledAt === null || p.fulfilledAt === undefined ? null : toTs(p.fulfilledAt),
+    fulfilledMemberId: p.fulfilledMemberId ?? null,
     createdBy: p.createdBy,
     createdAt: toTs(p.createdAt),
     updatedAt: FieldValue.serverTimestamp(),
@@ -50,6 +54,11 @@ function fromDoc(id: string, d: DocumentData): PaymentIntent {
       return ms === null ? null : instant(ms)
     })(),
     failureReason: (d.failureReason as string | null) ?? null,
+    fulfilledAt: (() => {
+      const ms = fromTs((d.fulfilledAt as Timestamp | null) ?? null)
+      return ms === null ? null : instant(ms)
+    })(),
+    fulfilledMemberId: (d.fulfilledMemberId as string | null) ?? null,
     refundedAmount: d.refundedAmount,
     createdBy: d.createdBy,
     createdAt: instant(fromTs(d.createdAt as Timestamp) ?? 0),
@@ -97,6 +106,18 @@ export class FirestorePaymentIntentRepository implements PaymentIntentRepository
       .where('status', 'in', ['awaiting_payment', 'processing', 'refund_pending'])
       .get()
     return snap.docs.map((d) => fromDoc(d.id, d.data())).filter((p) => p.createdAt < olderThanMs)
+  }
+
+  // ONLINE SATIŞ: paid, and nobody has turned it into a membership yet. This is the "money in,
+  // nothing delivered" list — it is meant to be empty, and every row on it is a person waiting.
+  // Filtered in memory on `fulfilledAt` so no composite index is needed for a list that is short by
+  // construction (OR-14: an index that only exists in production is a trap worth avoiding).
+  async listUnfulfilled(ctx: TenantContext, purpose: string): Promise<readonly PaymentIntent[]> {
+    const snap = await this.col(ctx.studioId).where('purpose', '==', purpose).where('status', '==', 'paid').get()
+    return snap.docs
+      .map((d) => fromDoc(d.id, d.data()))
+      .filter((p) => !p.fulfilledAt)
+      .sort((a, b) => a.createdAt - b.createdAt) // oldest first: whoever has waited longest
   }
 
   async listByMember(ctx: TenantContext, memberId: string): Promise<readonly PaymentIntent[]> {

@@ -57,6 +57,16 @@ export class FirestoreMemberRepository implements MemberRepository {
     return this.members(sid).doc(memberId).collection('documents')
   }
 
+  // Who owns this phone? Reads the SAME uniqueness index `registerMember` writes, so the answer is
+  // exactly the one a registration would have collided with — no scan, no second source of truth.
+  // Used to suggest a match on an online purchase; suggesting is all it does (AD-40 — never merged).
+  async findByPhone(ctx: TenantContext, phoneNormalized: string): Promise<Member | null> {
+    if (!phoneNormalized) return null
+    const uniq = await this.byPhone(ctx.studioId).doc(phoneNormalized).get()
+    const memberId = uniq.exists ? (uniq.data()?.memberId as MemberId | undefined) : undefined
+    return memberId ? this.findById(ctx, memberId) : null
+  }
+
   async findById(ctx: TenantContext, id: MemberId): Promise<Member | null> {
     const snap = await this.members(ctx.studioId).doc(id).get()
     const data = snap.data()

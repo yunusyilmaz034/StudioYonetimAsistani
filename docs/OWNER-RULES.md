@@ -307,6 +307,34 @@ from the PDF, and carries **no verdict** — owner: *"yorumlayacağımız bir ş
 who traded two kilos of fat for one of muscle must not be told she gained weight and therefore did
 worse. Numbers and a direction; the trainer interprets, in person.
 
+**OR-29 · Online satış: para gelir, üyeliği bir insan kurar.** (2026-08-05) The public sales page
+(`/uyelik?s=<studio>`) already took card payments and granted the package unattended. It no longer
+does. Owner: *"panelde admine dashboarda düşsün, buradan üyelik oluşturma ve paket ataması yapılır ve
+üye ile ödeme eşleştirilir."*
+
+So the PAYTR callback now stops at **paid**: the money is recorded, the membership is not. Reception
+sees the purchase on the dashboard, says who the buyer is, and one press grants the package, attaches
+the payment and sends the invite. What was given up is speed — the buyer used to have her package
+seconds after paying. What was bought is that the studio meets a new member by name, and that a phone
+already on the books is looked at by a person instead of matched by a machine (AD-40).
+
+Three things that follow, and must survive any later change:
+
+- **The pending list is meant to be EMPTY.** Every row is someone who has paid and has nothing. It
+  sits above the day's checklist, turns amber after three hours, and vanishes when there is nothing
+  waiting. If it is ever quietly hidden, the failure mode this whole design introduced goes unwatched.
+- **One grant, two triggers.** A staff sale is granted by the callback, an online sale by reception,
+  through the SAME function — so the two can never drift into granting different things.
+- **The grant happens BEFORE the purchase is marked fulfilled.** A crash in between leaves the row on
+  the list: visible and repeatable. The other order would hide a purchase that never got a package.
+
+**The buyer is told what actually happens**, not "üyeliğin hazır": payment received, reception will
+create the membership and send the invite, and the studio's own number to call — read from settings,
+never typed into the code, because this page belongs to the product and not to one studio.
+
+**Not built, on purpose: a basket.** A studio sells one package at a time; a cart means lines,
+quantities and a second model of everything for a case nobody has had. Adding it later is easy.
+
 ## Traps that have already cost something
 
 **OR-14 · Firestore indexes are a production-only trap.** The emulator does NOT enforce them, so a

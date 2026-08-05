@@ -19,6 +19,7 @@ export {
   decideExpire as decideExpirePaymentIntent,
   decideFlag as decideFlagPaymentIntent,
   decideRefundConfirmed,
+  decideFulfilIntent,
   decideRequestRefund,
   decideSessionCreated,
   type DecideContext as PaymentsDecideContext,

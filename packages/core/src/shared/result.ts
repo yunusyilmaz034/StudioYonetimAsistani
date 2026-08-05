@@ -196,6 +196,11 @@ export type DomainError =
   // The provider IS configured, but the PAYTR API rejected the checkout/link call. The real reason
   // rides alongside as `providerError` — NOT a configuration problem, so it must not read as one.
   | { readonly code: 'payment_checkout_failed' }
+  // ── ONLINE SATIŞ: the human step between a paid public purchase and a membership ──
+  | { readonly code: 'payment_not_paid' }
+  | { readonly code: 'payment_already_fulfilled' }
+  | { readonly code: 'member_required' }
+  | { readonly code: 'online_sale_not_found' }
   | { readonly code: 'retail_out_of_stock'; readonly available: number }
   // ── Plus Phase 7 (Training & Progress) ──
   | { readonly code: 'program_archived' }

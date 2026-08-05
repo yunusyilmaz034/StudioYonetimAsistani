@@ -17,6 +17,7 @@ import type { TodayOps } from '@/server/today-ops'
 
 import { ChurnPulse } from './churn-pulse'
 import { DailyChecklist } from './daily-checklist'
+import { PendingOnlineSales } from './pending-online-sales'
 import { LogoutButton } from './logout-button'
 
 // The dashboard renders the REGISTRY. It does not know what a widget contains — which is what makes
@@ -92,6 +93,11 @@ export function DashboardScreen({
           Günün sayıları gecikiyor — hareket akışı güncel, sayaçlar henüz değil.
         </p>
       ) : null}
+
+      {/* Somebody paid on the public page and has nothing yet. Above the checklist deliberately: it
+          is the only item here where the studio already holds the money. Renders nothing when the
+          list is empty, which is almost always. */}
+      <PendingOnlineSales />
 
       {/* What needs a decision TODAY — the dashboard's focal point. An AI-prioritised, checkable list
           built from the same signals the widgets below expose (advisor items); it declutters the "where

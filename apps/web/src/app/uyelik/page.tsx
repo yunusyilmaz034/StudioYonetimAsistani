@@ -49,9 +49,22 @@ export default async function UyelikPage({
         <div className="flex flex-col items-center gap-3 rounded-2xl border border-emerald-500/40 bg-emerald-500/10 p-6 text-center">
           <CheckCircle2Icon className="size-10 text-emerald-600" />
           <p className="text-lg font-semibold text-foreground">Ödemen alındı, teşekkürler! 🌸</p>
+          {/* Deliberately NOT "üyeliğin hazır". Reception creates it by hand now (owner, 2026-08-05),
+              so the message promises what actually happens next and says who to call meanwhile. */}
           <p className="text-sm text-muted-foreground">
-            Üyeliğin hazırlanıyor. Uygulamaya giriş bağlantısını birazdan WhatsApp&apos;tan sana göndereceğiz.
+            Ödemeniz alınmıştır. {res.studioName} resepsiyonu en kısa sürede üyeliğinizi oluşturup davetiyenizi
+            gönderecektir.
           </p>
+          {'contactPhone' in res && res.contactPhone ? (
+            <p className="text-sm text-muted-foreground">
+              Sorularınız için{' '}
+              <a href={`tel:${res.contactPhone.replace(/\s/g, '')}`} className="font-medium text-foreground underline">
+                {res.contactPhone}
+              </a>{' '}
+              numaralı telefondan bize ulaşabilirsiniz.
+            </p>
+          ) : null}
+          <p className="text-xs text-muted-foreground">Bu mesaj otomatik olarak oluşturulmuştur.</p>
         </div>
       ) : sp.fail ? (
         <div className="flex flex-col items-center gap-3 rounded-2xl border border-danger/40 bg-danger/10 p-6 text-center">

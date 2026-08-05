@@ -75,6 +75,8 @@ export interface PaymentIntentRepository {
   getIntentByProviderRef(ctx: TenantContext, providerRef: string): Promise<PaymentIntent | null>
   saveIntent(ctx: TenantContext, intent: PaymentIntent, events: readonly NewEvent[]): Promise<void>
   listPendingOlderThan(ctx: TenantContext, olderThanMs: number): Promise<readonly PaymentIntent[]>
+  // ONLINE SATIŞ: paid public purchases nobody has turned into a membership yet.
+  listUnfulfilled(ctx: TenantContext, purpose: string): Promise<readonly PaymentIntent[]>
   listByMember(ctx: TenantContext, memberId: string): Promise<readonly PaymentIntent[]>
 }
 

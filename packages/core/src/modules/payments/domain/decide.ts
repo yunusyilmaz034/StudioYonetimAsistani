@@ -22,6 +22,7 @@ import {
   PAYMENT_INTENT_EXPIRED,
   PAYMENT_INTENT_FAILED,
   PAYMENT_INTENT_FLAGGED,
+  PAYMENT_INTENT_FULFILLED,
   PAYMENT_INTENT_REFUND_REQUESTED,
   PAYMENT_INTENT_REFUNDED,
   PAYMENT_INTENT_SESSION_CREATED,
@@ -215,4 +216,37 @@ export function decideRefundConfirmed(ctx: DecideContext, intent: PaymentIntent,
     next,
     events: [{ ...base(ctx, next), type: PAYMENT_INTENT_REFUNDED, payload: { providerRef: intent.providerRef, amount, reason, full } }],
   }
+}
+
+// ── ONLINE SATIŞ: reception turns a paid public purchase into a membership. ───────────────────
+//
+// The callback deliberately stops at "paid" for a public purchase (owner, 2026-08-05): the money
+// arrived from someone the studio has not met, and WHO she is — a new member, or one already on the
+// books under that phone — is a human judgement, not a lookup the system should make silently.
+//
+// This decision is the gate. It refuses money that has not actually arrived, and it refuses a second
+// grant for the same payment, which is the whole reason the marker lives on the intent rather than in
+// the caller's head. `memberId` is the member reception CHOSE; the buyer's name and phone stay on
+// state and never enter the event (#6).
+export function decideFulfilIntent(
+  ctx: DecideContext,
+  intent: PaymentIntent,
+  memberId: string,
+  memberExisted: boolean,
+): Result<IntentOutcome, DomainError> {
+  if (intent.status !== 'paid') return err({ code: 'payment_not_paid' })
+  if (intent.fulfilledAt) return err({ code: 'payment_already_fulfilled' })
+  if (memberId.trim().length === 0) return err({ code: 'member_required' })
+
+  const next: PaymentIntent = { ...intent, fulfilledAt: ctx.now, fulfilledMemberId: memberId, updatedAt: ctx.now }
+  return ok({
+    next,
+    events: [
+      {
+        ...base(ctx, next),
+        type: PAYMENT_INTENT_FULFILLED,
+        payload: { providerRef: intent.providerRef, purpose: intent.purpose, memberExisted },
+      },
+    ],
+  })
 }

@@ -229,6 +229,14 @@ export function domainErrorMessage(error: DomainError): string {
       return 'Ödeme sağlayıcısı yapılandırılmamış. Ayarlar › Entegrasyonlar’dan PAYTR’ı bağlayın.'
     case 'payment_checkout_failed':
       return 'PAYTR ödeme başlatılamadı (sağlayıcı reddetti).'
+    case 'payment_not_paid':
+      return 'Bu satışın ödemesi henüz alınmamış.'
+    case 'payment_already_fulfilled':
+      return 'Bu ödeme için üyelik zaten oluşturulmuş.'
+    case 'member_required':
+      return 'Önce üyeyi seçin veya yeni üye oluşturun.'
+    case 'online_sale_not_found':
+      return 'Bu online satış bulunamadı. Listeyi yenileyin.'
     case 'retail_out_of_stock':
       return `Yeterli stok yok (mevcut: ${error.available}).`
     // ── Plus Phase 7 (Training & Progress) ──

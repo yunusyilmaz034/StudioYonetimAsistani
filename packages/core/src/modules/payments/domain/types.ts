@@ -102,6 +102,16 @@ export type PaymentIntent = {
   readonly expiresAt: Instant | null
   readonly failureReason: string | null
   readonly refundedAmount: Money // net refunded so far (ledger-derived companion on the intent)
+  // ── ONLINE SATIŞ (owner, 2026-08-05) ──
+  // A public purchase is money from someone the studio has not met, so the package is NOT granted by
+  // the callback: reception decides who she is first. These two record that the decision was taken.
+  // `fulfilledAt === null` on a PAID public purchase is precisely the "money in, nothing delivered"
+  // state the dashboard has to shout about — and the guard that stops a second grant.
+  //
+  // Absent (undefined) on every intent written before this existed and on every purpose that
+  // completes in the callback; they are read as "not applicable", never as "unfulfilled".
+  readonly fulfilledAt?: Instant | null
+  readonly fulfilledMemberId?: string | null
   readonly createdBy: ActorRef
   readonly createdAt: Instant
   readonly updatedAt: Instant
