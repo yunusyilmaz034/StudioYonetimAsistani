@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { ChevronDownIcon, ChevronRightIcon, SparklesIcon } from 'lucide-react'
+import { CheckIcon, ChevronDownIcon, ChevronRightIcon, SparklesIcon } from 'lucide-react'
 
 import { Section } from '@/components/ui/section'
 import type { InsightSeverity } from '@studio/core'
@@ -118,13 +118,23 @@ export function DailyChecklist({ items }: { items: readonly AdvisorItem[] }) {
       return next
     })
 
-  const visible = rows.filter((r) => !done.has(r.id))
-  const doneCount = rows.length - visible.length
+  // A TICKED TASK STAYS ON THE LIST (owner, 2026-08-05).
+  //
+  // It used to vanish the moment it was checked, which made the list unreadable as work: reception
+  // ticked two things and they were simply gone, so she could not tell what she had closed from what
+  // had never been there. *"Resepsiyon to-do list gibi yaptım desin, tiklesin, gün sonunda görsün ne
+  // kadar iş kapatmış."* A tick means "I did this", not "this never existed".
+  //
+  // It still resets overnight, and that was already true: `done` is keyed by the studio's date, so a
+  // new day starts with an empty set and the day's work is not carried into it.
+  const doneCount = rows.filter((r) => done.has(r.id)).length
+  const allDone = rows.length > 0 && doneCount === rows.length
 
-  // Group the remaining tasks by kind, preserving the (AI-)ranked order of first appearance.
+  // Group by kind, preserving the (AI-)ranked order of first appearance. Done rows keep their PLACE —
+  // sinking them to the bottom would move the list under her hand while she is working down it.
   const order: string[] = []
   const groups = new Map<string, Row[]>()
-  for (const r of visible) {
+  for (const r of rows) {
     const g = groups.get(r.kind)
     if (g) g.push(r)
     else {
@@ -148,42 +158,50 @@ export function DailyChecklist({ items }: { items: readonly AdvisorItem[] }) {
         <p className="rounded-xl border border-border bg-card px-3 py-3 text-sm text-muted-foreground">
           Bugün acil bir şey yok — her şey yolunda. 🎉
         </p>
-      ) : visible.length === 0 ? (
-        <p className="rounded-xl border border-border bg-card px-3 py-3 text-sm text-muted-foreground">
-          Hepsini hallettin. 👏{' '}
-          <button type="button" className="underline" onClick={() => setDone(new Set())}>
-            Listeyi geri getir
-          </button>
-        </p>
       ) : (
         <ul className="space-y-1.5">
           {order.map((kind) => {
             const children = groups.get(kind) ?? []
             // A single task of its kind → a plain, directly-actionable row.
-            if (children.length === 1) return <TaskRow key={kind} r={children[0]!} onCheck={toggle} />
+            if (children.length === 1) return <TaskRow key={kind} r={children[0]!} onCheck={toggle} done={done.has(children[0]!.id)} />
 
             // Several of a kind → one titled, collapsible line.
             const isOpen = openGroups.has(kind)
             const gsev = maxSeverity(children)
+            const groupDone = children.filter((c) => done.has(c.id)).length
+            const allChildrenDone = groupDone === children.length
             return (
               <li key={kind} className={`overflow-hidden rounded-xl border transition-colors ${ring(gsev)}`}>
                 <div className="flex items-center gap-2.5 px-3 py-2 text-sm">
                   <button
                     type="button"
-                    onClick={() => markDone(children.map((c) => c.id))}
-                    aria-label="Tümünü tamamlandı olarak işaretle"
-                    title="Tümünü tamamlandı olarak işaretle"
-                    className="size-4 shrink-0 rounded-[5px] border-2 border-muted-foreground/50 transition-colors hover:border-primary hover:bg-primary/10"
-                  />
+                    onClick={() => markDone(children.map((c) => c.id), allChildrenDone)}
+                    aria-label={allChildrenDone ? 'Tümünü geri al' : 'Tümünü tamamlandı olarak işaretle'}
+                    title={allChildrenDone ? 'Tümünü geri al' : 'Tümünü tamamlandı olarak işaretle'}
+                    className={`flex size-4 shrink-0 items-center justify-center rounded-[5px] border-2 transition-colors ${
+                      allChildrenDone
+                        ? 'border-success bg-success text-white'
+                        : 'border-muted-foreground/50 hover:border-primary hover:bg-primary/10'
+                    }`}
+                  >
+                    {allChildrenDone ? <CheckIcon className="size-3" strokeWidth={3} /> : null}
+                  </button>
                   <button type="button" onClick={() => toggleGroup(kind)} className="flex min-w-0 flex-1 items-center gap-2 text-left">
-                    <span className="min-w-0 flex-1 font-medium text-foreground">{groupTitle(kind, children.length)}</span>
+                    <span className={`min-w-0 flex-1 font-medium ${allChildrenDone ? 'text-muted-foreground line-through' : 'text-foreground'}`}>
+                      {groupTitle(kind, children.length)}
+                    </span>
+                    {/* How much of this group she has closed — the number she looks for at the end of
+                        the day, without having to expand it. */}
+                    {groupDone > 0 && !allChildrenDone ? (
+                      <span className="shrink-0 text-xs text-muted-foreground">{groupDone}/{children.length} tamam</span>
+                    ) : null}
                     <ChevronDownIcon className={`size-4 shrink-0 text-muted-foreground transition-transform ${isOpen ? 'rotate-180' : ''}`} />
                   </button>
                 </div>
                 {isOpen ? (
                   <ul className="divide-y divide-border/50 border-t border-border/50 bg-background/40">
                     {children.map((r) => (
-                      <TaskRow key={r.id} r={r} onCheck={toggle} nested />
+                      <TaskRow key={r.id} r={r} onCheck={toggle} nested done={done.has(r.id)} />
                     ))}
                   </ul>
                 ) : null}
@@ -193,9 +211,10 @@ export function DailyChecklist({ items }: { items: readonly AdvisorItem[] }) {
         </ul>
       )}
 
-      {doneCount > 0 && visible.length > 0 ? (
+      {doneCount > 0 ? (
         <p className="mt-2 text-xs text-muted-foreground">
-          {doneCount} iş tamamlandı ·{' '}
+          {allDone ? 'Hepsini hallettin 👏 · ' : ''}
+          {doneCount}/{rows.length} iş tamamlandı ·{' '}
           <button type="button" className="underline" onClick={() => setDone(new Set())}>
             sıfırla
           </button>
@@ -207,19 +226,31 @@ export function DailyChecklist({ items }: { items: readonly AdvisorItem[] }) {
 
 // One task line — a checkbox to tick it off and a deep link to the tool that resolves it. `nested` drops
 // its own border/rounding so it reads as a child inside an expanded group.
-function TaskRow({ r, onCheck, nested }: { r: Row; onCheck: (id: string) => void; nested?: boolean }) {
+function TaskRow({ r, onCheck, nested, done = false }: { r: Row; onCheck: (id: string) => void; nested?: boolean; done?: boolean }) {
   return (
-    <li className={nested ? 'flex items-start gap-2.5 px-3 py-2 text-sm' : `flex items-start gap-2.5 rounded-xl border px-3 py-2 text-sm transition-colors ${ring(r.severity)}`}>
+    <li
+      className={
+        nested
+          ? `flex items-start gap-2.5 px-3 py-2 text-sm ${done ? 'opacity-55' : ''}`
+          : `flex items-start gap-2.5 rounded-xl border px-3 py-2 text-sm transition-colors ${done ? 'border-border opacity-55' : ring(r.severity)}`
+      }
+    >
+      {/* Done keeps its colour tone but loses its alarm: the border drops back to plain and the row
+          dims. It is still there, still tappable to undo — a tick is reversible, a disappearance is not. */}
       <button
         type="button"
         onClick={() => onCheck(r.id)}
-        aria-label="Tamamlandı olarak işaretle"
-        title="Tamamlandı olarak işaretle"
-        className="mt-0.5 size-4 shrink-0 rounded-[5px] border-2 border-muted-foreground/50 transition-colors hover:border-primary hover:bg-primary/10"
-      />
+        aria-label={done ? 'Geri al' : 'Tamamlandı olarak işaretle'}
+        title={done ? 'Geri al' : 'Tamamlandı olarak işaretle'}
+        className={`mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-[5px] border-2 transition-colors ${
+          done ? 'border-success bg-success text-white' : 'border-muted-foreground/50 hover:border-primary hover:bg-primary/10'
+        }`}
+      >
+        {done ? <CheckIcon className="size-3" strokeWidth={3} /> : null}
+      </button>
       <Link href={r.href} className="flex min-w-0 flex-1 items-start gap-2">
         <span className="min-w-0 flex-1">
-          <span className="font-medium text-foreground">{r.headline}</span>
+          <span className={`font-medium ${done ? 'text-muted-foreground line-through' : 'text-foreground'}`}>{r.headline}</span>
           {r.note ? <span className="text-muted-foreground"> {r.note}</span> : null}
         </span>
         <ChevronRightIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
