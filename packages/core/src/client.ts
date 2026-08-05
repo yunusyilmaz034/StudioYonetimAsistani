@@ -257,6 +257,12 @@ export interface MemberMeasurement {
   readonly bmi: number | null
   readonly bmr: number | null
   readonly visceralFat: number | null
+  readonly idealWeightKg?: number | null
+  readonly leanMassKg?: number | null
+  readonly leanMassPercent?: number | null
+  readonly muscleKg?: number | null
+  readonly waterKg?: number | null
+  readonly fatKg?: number | null
   readonly circumferences: Readonly<Record<string, number>>
   readonly note: string
   readonly recordedAt: number

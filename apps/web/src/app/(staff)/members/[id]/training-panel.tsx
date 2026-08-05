@@ -1036,10 +1036,14 @@ function MeasurementsSection({ memberId }: { memberId: string }) {
                     {m.correctedFrom ? <Badge className="ml-2 bg-warning/10 text-warning">Düzeltme</Badge> : null}
                   </p>
                   <p className="truncate text-xs text-muted-foreground">
+                    {/* The three the trainer looks for first — kilograms, because that is what the
+                        member can act on. BMI stays as a fallback for the older readings that have it
+                        and none of the new fields. */}
                     {[
                       m.weightKg != null ? `${m.weightKg} kg` : null,
-                      m.fatPercent != null ? `Yağ %${m.fatPercent}` : null,
-                      m.bmi != null ? `BMI ${m.bmi}` : null,
+                      m.fatKg != null ? `Yağ ${m.fatKg} kg` : m.fatPercent != null ? `Yağ %${m.fatPercent}` : null,
+                      m.muscleKg != null ? `Kas ${m.muscleKg} kg` : m.musclePercent != null ? `Kas %${m.musclePercent}` : null,
+                      m.fatKg == null && m.muscleKg == null && m.bmi != null ? `BMI ${m.bmi}` : null,
                     ]
                       .filter(Boolean)
                       .join(' · ') || 'Detay yok'}
@@ -1080,15 +1084,35 @@ function MeasurementsSection({ memberId }: { memberId: string }) {
   )
 }
 
-const METRIC_FIELDS: readonly { key: 'weightKg' | 'fatPercent' | 'musclePercent' | 'waterPercent' | 'bmi' | 'bmr' | 'visceralFat'; label: string }[] = [
-  { key: 'weightKg', label: 'Kilo (kg)' },
-  { key: 'fatPercent', label: 'Yağ %' },
-  { key: 'musclePercent', label: 'Kas %' },
-  { key: 'waterPercent', label: 'Su %' },
-  { key: 'bmi', label: 'BMI' },
-  { key: 'bmr', label: 'BMR' },
-  { key: 'visceralFat', label: 'Viseral yağ' },
+// WHAT THE STUDIO'S SCALE ACTUALLY PRINTS (owner, 2026-08-05).
+//
+// The form used to ask for a set nobody had in front of them — Su %, BMI, BMR, Viseral yağ — while
+// the Tanita printout on the desk reports each component in BOTH kilograms and percent. Reception was
+// translating a report into a different vocabulary at the moment of data entry, which is where numbers
+// get put in the wrong box.
+//
+// The order below is the printout's order, so she copies straight down the page.
+//
+// Weight is kept although the owner's list did not name it: "ideal kilo" means nothing without the
+// actual kilo beside it, and every existing reading has one. The fields he dropped — BMI, BMR,
+// visceral — are gone from the FORM but not from the record: 56 of the 57 readings taken so far carry
+// them, and deleting the fields would orphan that history.
+type MetricKey =
+  | 'weightKg' | 'idealWeightKg'
+  | 'leanMassKg' | 'leanMassPercent'
+  | 'muscleKg' | 'musclePercent'
+  | 'waterKg' | 'waterPercent'
+  | 'fatKg' | 'fatPercent'
+
+const METRIC_ROWS: readonly { label: string; kg: MetricKey; pct?: MetricKey }[] = [
+  { label: 'Kilo', kg: 'weightKg' },
+  { label: 'İdeal kilo', kg: 'idealWeightKg' },
+  { label: 'Yağsız kütle', kg: 'leanMassKg', pct: 'leanMassPercent' },
+  { label: 'Kas', kg: 'muscleKg', pct: 'musclePercent' },
+  { label: 'Sıvı', kg: 'waterKg', pct: 'waterPercent' },
+  { label: 'Yağ', kg: 'fatKg', pct: 'fatPercent' },
 ]
+const METRIC_KEYS: readonly MetricKey[] = METRIC_ROWS.flatMap((r) => (r.pct ? [r.kg, r.pct] : [r.kg]))
 
 interface CircRow {
   key: string
@@ -1109,7 +1133,7 @@ function MeasurementDialog({
   const [takenOn, setTakenOn] = useState(correct?.takenOn ?? today())
   const [metrics, setMetrics] = useState<Record<string, string>>(() => {
     const seed: Record<string, string> = {}
-    if (correct) for (const f of METRIC_FIELDS) if (correct[f.key] != null) seed[f.key] = String(correct[f.key])
+    if (correct) for (const k of METRIC_KEYS) if (correct[k] != null) seed[k] = String(correct[k])
     return seed
   })
   const [circ, setCirc] = useState<CircRow[]>(() =>
@@ -1138,12 +1162,20 @@ function MeasurementDialog({
       memberId,
       takenOn,
       weightKg: num(metrics.weightKg),
-      fatPercent: num(metrics.fatPercent),
+      idealWeightKg: num(metrics.idealWeightKg),
+      leanMassKg: num(metrics.leanMassKg),
+      leanMassPercent: num(metrics.leanMassPercent),
+      muscleKg: num(metrics.muscleKg),
       musclePercent: num(metrics.musclePercent),
+      waterKg: num(metrics.waterKg),
       waterPercent: num(metrics.waterPercent),
-      bmi: num(metrics.bmi),
-      bmr: num(metrics.bmr),
-      visceralFat: num(metrics.visceralFat),
+      fatKg: num(metrics.fatKg),
+      fatPercent: num(metrics.fatPercent),
+      // Not on the form any more, but a CORRECTION must not silently erase what the original reading
+      // carried — the old set is preserved as-is when this dialog is editing one.
+      bmi: correct?.bmi ?? null,
+      bmr: correct?.bmr ?? null,
+      visceralFat: correct?.visceralFat ?? null,
       circumferences,
       note: note.trim(),
     }
@@ -1182,17 +1214,32 @@ function MeasurementDialog({
             <Input type="date" value={takenOn} onChange={(e) => setTakenOn(e.target.value)} />
           </label>
 
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-            {METRIC_FIELDS.map((f) => (
-              <label key={f.key} className="flex flex-col gap-1 text-sm">
-                <span className="text-xs text-muted-foreground">{f.label}</span>
+          {/* kg and % side by side, one row per component — the shape of the printout she is holding. */}
+          <div className="space-y-2">
+            {METRIC_ROWS.map((r) => (
+              <div key={r.kg} className="grid grid-cols-[7rem_1fr_1fr] items-center gap-2">
+                <span className="text-sm text-foreground">{r.label}</span>
                 <Input
                   type="number"
                   inputMode="decimal"
-                  value={metrics[f.key] ?? ''}
-                  onChange={(e) => setMetrics((m) => ({ ...m, [f.key]: e.target.value }))}
+                  placeholder="kg"
+                  aria-label={`${r.label} kg`}
+                  value={metrics[r.kg] ?? ''}
+                  onChange={(e) => setMetrics((m) => ({ ...m, [r.kg]: e.target.value }))}
                 />
-              </label>
+                {r.pct ? (
+                  <Input
+                    type="number"
+                    inputMode="decimal"
+                    placeholder="%"
+                    aria-label={`${r.label} yüzde`}
+                    value={metrics[r.pct] ?? ''}
+                    onChange={(e) => setMetrics((m) => ({ ...m, [r.pct!]: e.target.value }))}
+                  />
+                ) : (
+                  <span />
+                )}
+              </div>
             ))}
           </div>
 

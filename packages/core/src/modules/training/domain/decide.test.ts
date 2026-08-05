@@ -75,6 +75,7 @@ describe('decideRecordMeasurement — the event carries WHICH metrics, never the
     const m: Measurement = {
       id: 'mea_1', studioId: 'std_1' as StudioId, memberId: 'mem_1', takenOn: '2026-08-01',
       weightKg: 62.4, fatPercent: 22, musclePercent: null, waterPercent: null, bmi: 21.5, bmr: null, visceralFat: null,
+      idealWeightKg: null, leanMassKg: null, leanMassPercent: null, muscleKg: null, waterKg: null, fatKg: null,
       circumferences: { bel: 70 }, note: '', correctedFrom: null, recordedBy: ctx.actor, recordedAt: ctx.now,
     }
     const r = decideRecordMeasurement(ctx, m)

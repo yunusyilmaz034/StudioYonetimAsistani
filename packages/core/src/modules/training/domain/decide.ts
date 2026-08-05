@@ -112,6 +112,8 @@ export function decideRecordMeasurement(ctx: DecideContext, m: Measurement): { n
   const metrics = Object.entries({
     weightKg: m.weightKg, fatPercent: m.fatPercent, musclePercent: m.musclePercent, waterPercent: m.waterPercent,
     bmi: m.bmi, bmr: m.bmr, visceralFat: m.visceralFat,
+    idealWeightKg: m.idealWeightKg, leanMassKg: m.leanMassKg, leanMassPercent: m.leanMassPercent,
+    muscleKg: m.muscleKg, waterKg: m.waterKg, fatKg: m.fatKg,
   }).filter(([, v]) => v !== null).map(([k]) => k)
   const type = m.correctedFrom ? MEASUREMENT_CORRECTED : MEASUREMENT_RECORDED
   const payload = m.correctedFrom

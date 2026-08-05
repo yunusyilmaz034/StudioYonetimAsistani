@@ -88,9 +88,20 @@ export interface Measurement {
   readonly memberId: string
   readonly takenOn: string // LocalDate
   readonly weightKg: number | null
+  // What the studio's Tanita actually prints (owner, 2026-08-05). The scale reports each component
+  // in BOTH kilograms and percent, and the trainer reads the kilograms — "kas 40.75 kg" is a number
+  // a member can act on, where "kas %60" moves when she gains fat without losing any muscle.
+  readonly idealWeightKg: number | null
+  readonly leanMassKg: number | null
+  readonly leanMassPercent: number | null
+  readonly muscleKg: number | null
+  readonly waterKg: number | null
+  readonly fatKg: number | null
   readonly fatPercent: number | null
   readonly musclePercent: number | null
   readonly waterPercent: number | null
+  // Kept, not dropped: 56 of the 57 readings taken so far carry these, and the same printout still
+  // reports them. They moved BELOW the fields above on the form, they did not leave the record.
   readonly bmi: number | null
   readonly bmr: number | null
   readonly visceralFat: number | null

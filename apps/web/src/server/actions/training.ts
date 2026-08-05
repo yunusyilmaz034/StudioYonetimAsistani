@@ -317,6 +317,12 @@ const measurementFields = {
   bmi: z.number().nullable().optional(),
   bmr: z.number().nullable().optional(),
   visceralFat: z.number().nullable().optional(),
+  idealWeightKg: z.number().nullable().optional(),
+  leanMassKg: z.number().nullable().optional(),
+  leanMassPercent: z.number().nullable().optional(),
+  muscleKg: z.number().nullable().optional(),
+  waterKg: z.number().nullable().optional(),
+  fatKg: z.number().nullable().optional(),
   circumferences: z.record(z.string(), z.number()).optional(),
   note: z.string().optional(),
 }

@@ -209,6 +209,12 @@ export interface MeasurementInput {
   readonly bmi?: number | null | undefined
   readonly bmr?: number | null | undefined
   readonly visceralFat?: number | null | undefined
+  readonly idealWeightKg?: number | null | undefined
+  readonly leanMassKg?: number | null | undefined
+  readonly leanMassPercent?: number | null | undefined
+  readonly muscleKg?: number | null | undefined
+  readonly waterKg?: number | null | undefined
+  readonly fatKg?: number | null | undefined
   readonly circumferences?: Readonly<Record<string, number>> | undefined
   readonly note?: string | undefined
   readonly correctedFrom?: string | null | undefined
@@ -227,6 +233,12 @@ function buildMeasurement(ctx: TenantContext, dc: DecideContext, input: Measurem
     bmi: input.bmi ?? null,
     bmr: input.bmr ?? null,
     visceralFat: input.visceralFat ?? null,
+    idealWeightKg: input.idealWeightKg ?? null,
+    leanMassKg: input.leanMassKg ?? null,
+    leanMassPercent: input.leanMassPercent ?? null,
+    muscleKg: input.muscleKg ?? null,
+    waterKg: input.waterKg ?? null,
+    fatKg: input.fatKg ?? null,
     circumferences: input.circumferences ?? {},
     note: input.note ?? '',
     correctedFrom: input.correctedFrom ?? null,
