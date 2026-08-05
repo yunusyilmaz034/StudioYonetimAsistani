@@ -18,7 +18,10 @@ Işıl**, 120 members — and it is the only system they have: they retired the 
 A day this panel cannot open is a day the business cannot run.
 
 - Panel · `panel.pilatesfitnessbyisil.com` (Firebase App Hosting, `studio-yonetim-prod`, europe-west4)
-- Public site · `pilatesfitnessbyisil.com` — separate static site, reads prices from `/api/public/products`
+- Public site · `pilatesfitnessbyisil.com` — static HTML at **`~/pilates-site`** (NOT in this repo, NOT
+  under `~/Projects`, and NOT in git — back a file up before editing it). Two pages, `index.html` and
+  `uyelik.html`; both read live prices from `/api/public/products`. Deploy: `cd ~/pilates-site &&
+  firebase deploy --only hosting` (Hosting site `pilatesfitnessbyisil-web`, same Firebase project).
 - Studio id · `retro`. Nothing in the code may assume it is the only one.
 
 ---
@@ -257,9 +260,17 @@ find-or-create the buyer and grant the package unattended; now it stops at paid 
 the membership** from a card on the dashboard (OR-29). One press attaches the money, grants the package
 and sends the invite. A phone already on the books is shown as a named suggestion, never merged.
 
-The marketing site needs one link to finish this: **`https://panel.pilatesfitnessbyisil.com/uyelik?s=retro`**
-behind a "Satın Al" button (add `&p=<productId>` to open on a specific package). That site is a
-separate codebase — nothing in this repo can add the button.
+The marketing site is done too, and it was never out of reach — it lives at `~/pilates-site` (see the
+address list at the top). `uyelik.html` already listed every online package with a Satın Al button;
+what was missing was the homepage, where the four package cards offered only "Bilgi al" on WhatsApp.
+Each card now offers both, and the buy button carries the **card-inclusive** total read live from
+`/api/public/products` — the price printed on the card is the studio's CASH list and is deliberately
+lower, so sending someone from a ₺8.000 card to a ₺9.000 checkout would have been a nasty little
+surprise. A package that stops being sold online loses its button by itself, with nothing to deploy.
+
+**The site also had to stop promising "üyeliğin anında aktif".** It is not, any more — reception
+creates it (OR-29). Every instance on both pages now says the payment is taken and reception creates
+the membership. If that human step is ever removed, these lines have to move back with it.
 
 ⚠️ **This one needs BOTH deploys.** PAYTR calls the Cloud Function (OR-16), so `firebase deploy --only
 functions` is what actually changes what happens after a payment; App Hosting alone only changes the
