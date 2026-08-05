@@ -221,6 +221,27 @@ purpose: see OR-27.
 Model note: this call uses `claude-opus-5`, not the Haiku the daily briefing uses. A misread digit
 lands in a member's record, and the volume is a handful of readings a week.
 
+**Verified against a real RD-545 printout the same evening.** Three findings worth keeping:
+
+- **The sheet has no usable text layer.** Three pages, 146 embedded images, subset fonts — plain text
+  extraction returns nothing readable. A regex parser would have scored zero on this file; the model
+  reads it visually. That is the reason there is no PDF library in `apps/web`, and the reason to be
+  sceptical of any future "just parse the text" simplification.
+- **The multi-row trap is real and it is handled.** Page 3 is a full history table (three dated
+  readings) and page 2 prints score pairs as `E | S`. The parser took the newest row and the `S` side
+  every time. Both rules are now written into the prompt explicitly rather than being got right by
+  luck.
+- **`Bel (cm)` was on the sheet while Çevre ölçüleri sat empty**, so the waist is now filled in too —
+  an existing `Bel` row is updated, never duplicated, and the ratios beside it (`Bel/Kalça 0.78`,
+  `Bel/Boy 0.45`) are refused by a 30–250 cm band so `Bel 0.78 cm` can never reach a record.
+
+Three consecutive runs over the same file returned byte-identical output.
+
+**The sheet also carries the member's PREVIOUS readings** (`Fark Analizi`, dated rows). Backfilling
+history from them is possible and was deliberately NOT built — nobody asked, the rows carry only four
+of the fields, and inventing dated measurements nobody entered is the sort of thing that is hard to
+unpick later. It is an option, not a plan.
+
 ---
 
 ## Things that will bite you

@@ -1207,8 +1207,19 @@ function MeasurementDialog({
         bmr: m.bmr ?? correct?.bmr ?? null,
         visceralFat: m.visceralFat ?? correct?.visceralFat ?? null,
       })
+      // The sheet prints a waist measurement, and Çevre ölçüleri was sitting empty next to it. An
+      // existing "Bel" row is updated rather than duplicated; a region she typed herself is left alone.
+      if (res.value.waistCm != null) {
+        const cm = String(res.value.waistCm)
+        setCirc((c) =>
+          c.some((r) => r.key.trim().toLocaleLowerCase('tr') === 'bel')
+            ? c.map((r) => (r.key.trim().toLocaleLowerCase('tr') === 'bel' ? { ...r, value: cm } : r))
+            : [...c, { key: 'Bel', value: cm }],
+        )
+      }
       if (res.value.takenOn) setTakenOn(res.value.takenOn)
-      toast.success(`${filledKeys.length} alan PDF'ten dolduruldu. Kaydetmeden önce kontrol edin.`)
+      const total = filledKeys.length + (res.value.waistCm != null ? 1 : 0)
+      toast.success(`${total} alan PDF'ten dolduruldu. Kaydetmeden önce kontrol edin.`)
     } catch {
       if (readToken.current === token) toast.error('PDF okunamadı. Değerleri elle girebilirsiniz.')
     } finally {

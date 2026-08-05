@@ -41,6 +41,10 @@ export type PdfMetricKey = (typeof PDF_METRIC_KEYS)[number]
 export interface ParsedMeasurement {
   readonly takenOn: string | null // LocalDate (YYYY-MM-DD) if the sheet prints one
   readonly metrics: Readonly<Partial<Record<PdfMetricKey, number>>>
+  // The one circumference the RD-545 prints itself ("Antropometrik İnceleme → Bel (cm) 75"). Not a
+  // new field — the form has always had Çevre ölçüleri, and the sheet was answering it while we left
+  // it blank. Everything else in that box is a RATIO (Bel/Kalça 0.78, Bel/Boy 0.45) and is refused.
+  readonly waistCm: number | null
 }
 export type ParseResult =
   | { readonly ok: true; readonly value: ParsedMeasurement }
@@ -50,10 +54,11 @@ const nullableNumber = { anyOf: [{ type: 'number' }, { type: 'null' }] }
 const SCHEMA = {
   type: 'object',
   additionalProperties: false,
-  required: ['readable', 'takenOn', ...PDF_METRIC_KEYS],
+  required: ['readable', 'takenOn', 'waistCm', ...PDF_METRIC_KEYS],
   properties: {
     readable: { type: 'boolean' },
     takenOn: { anyOf: [{ type: 'string' }, { type: 'null' }] },
+    waistCm: nullableNumber,
     ...Object.fromEntries(PDF_METRIC_KEYS.map((k) => [k, nullableNumber])),
   },
 }
@@ -66,7 +71,9 @@ const PROMPT = `Bu bir vücut analiz tartısının (Tanita) çıktısıdır. Gö
 Okuma kuralları:
 - Her etiketin YANINDAKİ İLK değeri al. Parantez içindeki aralıklar (ör. "59.41kg (53.09~65.73kg)") NORMAL ARALIKTIR, ölçüm değildir — ASLA alma.
 - "42.93kg / 63.7%" biçiminde ikili değer varsa: ilki kilogram, ikincisi yüzdedir.
-- Belgede birden fazla tarihli ölçüm sütunu varsa, YALNIZCA EN GÜNCEL tarihli sütunu oku.
+- Belgede birden fazla tarihli ölçüm satırı/sütunu varsa (ör. "Fark Analizi" tablosu), YALNIZCA EN
+  GÜNCEL tarihli olanı oku. Grafiklerdeki eski noktaları ve "Fark" sütunlarını ASLA alma.
+- "E | S" biçiminde ikili skor varsa (ör. "BMI  20.8 / 21.7") İKİNCİ değer güncel olandır.
 - Ondalık ayırıcı virgülse noktaya çevir (62,4 → 62.4).
 - Bir alan belgede yoksa null bırak. ASLA tahmin etme, hesaplama, türetme.
 - Üyenin adını, doğum tarihini veya kimlik bilgisini ASLA döndürme. Yanıtta yalnızca sayılar olacak.
@@ -82,6 +89,8 @@ Alan eşlemesi:
 - BMI / VKİ / Vücut Kitle İndeksi → bmi
 - BMR / Bazal Metabolizma → bmr
 - Visseral / İç Yağlanma → visceralFat
+- Bel (cm) → waistCm. SADECE santimetre cinsinden mutlak değeri al. "Bel / Kalça 0.78", "Bel / Boy
+  0.45" gibi ORAN değerlerini ASLA waistCm sanma; oran varsa ve cm yoksa null bırak.
 - takenOn: çıktının ölçüm tarihi, YYYY-MM-DD biçiminde. Yoksa null.`
 
 export function measurementPdfConfigured(): boolean {
@@ -137,7 +146,11 @@ export async function parseMeasurementPdf(base64Pdf: string): Promise<ParseResul
     if (Object.keys(metrics).length === 0) return { ok: false, reason: 'unreadable' }
 
     const d = typeof raw.takenOn === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(raw.takenOn) ? raw.takenOn : null
-    return { ok: true, value: { takenOn: d, metrics } }
+    // A waist ratio (0.78) slipping through as a circumference would put "Bel 0.78 cm" on the record.
+    // No human waist is under 30 cm or over 250, so the band refuses one without pretending to judge.
+    const w = raw.waistCm
+    const waistCm = typeof w === 'number' && Number.isFinite(w) && w >= 30 && w <= 250 ? w : null
+    return { ok: true, value: { takenOn: d, metrics, waistCm } }
   } catch {
     return { ok: false, reason: 'failed' }
   }
