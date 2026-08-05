@@ -6,6 +6,7 @@ import { ActivityIcon, BookOpenIcon, DumbbellIcon, Loader2Icon, MessageCircleIco
 import { toast } from 'sonner'
 
 import type { FeedbackReason, Measurement, Program, ProgramExercise, TrainingFeedback } from '@studio/core'
+import { compareMeasurements } from '@studio/core/client'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -339,6 +340,38 @@ function FeedbackDialog({
 }
 
 // ── Gelişimim ────────────────────────────────────────────────────────────────────────────────────
+// What moved between her last two readings — the same summary the phone shows, from the same
+// function. Deliberately without a verdict: a member who traded fat for muscle would otherwise be
+// told she gained weight and therefore did worse.
+function ChangeSummary({ measurements }: { measurements: readonly Measurement[] }) {
+  const c = compareMeasurements(measurements)
+  if (!c) return null
+  const fmt = (n: number, unit: string) => (unit === '%' ? `${n}%` : `${n} ${unit}`)
+  return (
+    <section className="space-y-2">
+      <div className="flex items-baseline justify-between gap-3">
+        <h3 className="text-h3 font-semibold text-foreground">Son iki ölçüm arası</h3>
+        <span className="text-xs text-muted-foreground">
+          {c.fromDate} → {c.toDate} · {c.days} gün
+        </span>
+      </div>
+      <ul className="divide-y divide-border rounded-xl border border-border bg-card shadow-xs">
+        {c.rows.map((r) => (
+          <li key={r.key} className="flex items-center justify-between gap-3 px-4 py-2.5">
+            <span className="min-w-0 flex-1 truncate text-sm text-foreground">{r.label}</span>
+            <span className="text-xs text-muted-foreground">
+              {fmt(r.from, r.unit)} → {fmt(r.to, r.unit)}
+            </span>
+            <span className="w-24 text-right text-sm font-semibold tabular-nums text-foreground">
+              {r.diff > 0 ? '↑' : '↓'} {fmt(Math.abs(r.diff), r.unit)}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+}
+
 function ProgressTab({ measurements, photos }: { measurements: readonly Measurement[]; photos: readonly PortalPhoto[] }) {
   if (measurements.length === 0 && photos.length === 0) {
     return (
@@ -359,6 +392,8 @@ function ProgressTab({ measurements, photos }: { measurements: readonly Measurem
           </div>
         </section>
       ) : null}
+
+      <ChangeSummary measurements={measurements} />
 
       {photos.length > 0 ? (
         <section className="space-y-2">

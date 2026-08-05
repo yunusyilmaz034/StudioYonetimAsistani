@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ActivityIcon,
   CameraIcon,
@@ -57,6 +57,7 @@ import {
   listProgramTemplatesAction,
   memberProgramStatusAction,
   publishProgramVersionAction,
+  parseMeasurementPdfAction,
   recordMeasurementAction,
   removeProgressPhotoAction,
 } from '@/server/actions/training'
@@ -1141,6 +1142,57 @@ function MeasurementDialog({
   )
   const [note, setNote] = useState(correct?.note ?? '')
   const [busy, setBusy] = useState(false)
+  // Not asked for on the form, but if the printout prints them they are kept — dropping a number the
+  // scale already measured buys nothing.
+  const [hidden, setHidden] = useState<{ bmi: number | null; bmr: number | null; visceralFat: number | null }>({
+    bmi: correct?.bmi ?? null,
+    bmr: correct?.bmr ?? null,
+    visceralFat: correct?.visceralFat ?? null,
+  })
+  const [reading, setReading] = useState(false)
+  const fileRef = useRef<HTMLInputElement>(null)
+
+  // The scale's PDF as the data source: read it, fill the fields, and let the person holding the sheet
+  // check them. Nothing is saved here and the PDF is not stored anywhere.
+  async function readPdf(file: File) {
+    setReading(true)
+    try {
+      const buf = await file.arrayBuffer()
+      let bin = ''
+      const bytes = new Uint8Array(buf)
+      for (let i = 0; i < bytes.length; i += 8192) bin += String.fromCharCode(...bytes.subarray(i, i + 8192))
+      const res = await parseMeasurementPdfAction({ memberId, base64: btoa(bin) })
+      if (!res.ok) {
+        toast.error(
+          res.reason === 'too_large'
+            ? 'PDF çok büyük (en fazla 6 MB).'
+            : res.reason === 'not_configured'
+              ? 'PDF okuma şu an kapalı; değerleri elle girebilirsiniz.'
+              : 'PDF okunamadı. Değerleri elle girebilirsiniz.',
+        )
+        return
+      }
+      const m = res.value.metrics
+      setMetrics((prev) => {
+        const next = { ...prev }
+        for (const k of METRIC_KEYS) if (m[k] != null) next[k] = String(m[k])
+        return next
+      })
+      setHidden((h) => ({
+        bmi: m.bmi ?? h.bmi,
+        bmr: m.bmr ?? h.bmr,
+        visceralFat: m.visceralFat ?? h.visceralFat,
+      }))
+      if (res.value.takenOn) setTakenOn(res.value.takenOn)
+      const filled = METRIC_KEYS.filter((k) => m[k] != null).length
+      toast.success(`${filled} alan PDF'ten dolduruldu. Kaydetmeden önce kontrol edin.`)
+    } catch {
+      toast.error('PDF okunamadı. Değerleri elle girebilirsiniz.')
+    } finally {
+      setReading(false)
+      if (fileRef.current) fileRef.current.value = ''
+    }
+  }
 
   const num = (s: string | undefined): number | null => {
     if (s == null || s.trim() === '') return null
@@ -1172,10 +1224,10 @@ function MeasurementDialog({
       fatKg: num(metrics.fatKg),
       fatPercent: num(metrics.fatPercent),
       // Not on the form any more, but a CORRECTION must not silently erase what the original reading
-      // carried — the old set is preserved as-is when this dialog is editing one.
-      bmi: correct?.bmi ?? null,
-      bmr: correct?.bmr ?? null,
-      visceralFat: correct?.visceralFat ?? null,
+      // carried, and a PDF that prints them should not have them thrown away.
+      bmi: hidden.bmi,
+      bmr: hidden.bmr,
+      visceralFat: hidden.visceralFat,
       circumferences,
       note: note.trim(),
     }
@@ -1209,6 +1261,33 @@ function MeasurementDialog({
         </DialogHeader>
 
         <div className="space-y-3">
+          {/* The printout is the data source: read it, then check what it filled in. Typing stays
+              available for the day the scale's printer is out of paper. */}
+          <div className="rounded-lg border border-dashed border-border bg-muted/30 p-3">
+            <input
+              ref={fileRef}
+              type="file"
+              accept="application/pdf"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0]
+                if (f) void readPdf(f)
+              }}
+            />
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-medium">Tartı çıktısından oku</p>
+                <p className="text-xs text-muted-foreground">
+                  PDF&apos;i yükleyin, alanlar dolsun. Kaydetmeden önce kontrol edin — PDF saklanmaz.
+                </p>
+              </div>
+              <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()} disabled={reading || busy}>
+                {reading ? <Loader2Icon className="animate-spin" /> : <UploadIcon className="size-3.5" />}
+                {reading ? 'Okunuyor…' : 'PDF seç'}
+              </Button>
+            </div>
+          </div>
+
           <label className="flex flex-col gap-1 text-sm">
             <span className="text-xs uppercase tracking-wide text-muted-foreground">Tarih</span>
             <Input type="date" value={takenOn} onChange={(e) => setTakenOn(e.target.value)} />

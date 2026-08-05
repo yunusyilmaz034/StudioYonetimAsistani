@@ -185,6 +185,42 @@ the "Ölçümlerim" label was not — it needs a pilates-only member, so check i
 Also that day: **recording a class that already happened** (OR-24) — reception adds a walk-in to a
 finished class from the attendance panel and the credit is consumed. Web-only; no app change.
 
+### Shipped 2026-08-05 — the desk's day, and measurements that read themselves
+
+Three pieces, in the order they were asked for.
+
+**The dashboard checklist is a to-do list again.** A ticked item used to vanish, so at six o'clock
+reception had no idea what she had closed. Done items now stay on the list, struck through, and each
+one records **who** closed it (`studios/{sid}/checklistDone/{dayKey}`, `items.{id} = {byName, at}` —
+server-only in the rules). Işıl ticking something no longer makes it disappear for whoever opens the
+panel next.
+
+**The measurement form asks for what the scale prints.** Kilo · İdeal kilo · Yağsız kütle · Kas ·
+Sıvı · Yağ, each in kg AND %, laid out as the printout lays them out. BMI, BMR and visceral left the
+FORM but not the RECORD — 56 of the 57 readings taken so far carry them, and a correction still
+preserves them.
+
+**And now the form fills itself from the scale's PDF** (OR-27). Reception uploads the Tanita printout,
+the model reads the numbers off it, the fields are pre-filled, and **a human still presses Kaydet**.
+Unreadable, or not a scale printout at all → "PDF okunamadı", manual fields underneath, nothing saved.
+Verified against the live API before shipping (OR-22): a synthetic RD-545 sheet returned all thirteen
+fields correctly, ignoring the parenthesised normal ranges — the trap that would otherwise record
+`53.09` as an ideal weight of `59.41` — and an invoice PDF was refused rather than mined for numbers.
+Round trip ≈ 9 s, so the button says "Okunuyor…" and gives up at 45.
+
+Two things to know about it. **The PDF is never stored** — read once, discarded; it is a data source,
+not an attachment. And this is the **only** AI call in the product that carries a member's name: a
+printout cannot be tokenised before it is read. OR-27 states the trade and what to do if it stops
+being acceptable.
+
+The member sees a **"Son iki ölçüm arası"** summary — in the app and in the portal, from one shared
+function (`compareMeasurements` in `@studio/core/client`), computed from the stored readings rather
+than the PDF, so it works for every reading taken before PDFs existed. It carries **no verdict**, on
+purpose: see OR-27.
+
+Model note: this call uses `claude-opus-5`, not the Haiku the daily briefing uses. A misread digit
+lands in a member's record, and the volume is a handful of readings a week.
+
 ---
 
 ## Things that will bite you

@@ -33,6 +33,7 @@ import type { AiProgramDay, AiProgramResult } from '@/lib/training/ai-program'
 import { buildProgram, focusLabel, type ProgramFocus } from '@/lib/training/program-builder'
 import { ForbiddenError, requireMemberContext, requireTenantContext } from '../auth'
 import { aiBuildProgram } from '../ai/program-ai'
+import { parseMeasurementPdf } from '../ai/measurement-pdf'
 import { adminDb, adminStorage, storageBucketName } from '../firebase-admin'
 
 // ── TRAINING & PROGRESS web actions (Plus Phase 7). Roles (§13): Owner all; Trainer her own members;
@@ -339,6 +340,20 @@ export async function correctMeasurementAction(input: unknown) {
   const ctx = await requireTenantContext(TRAINER)
   await assertMayReadMemberContent(ctx, p.memberId)
   return correctMeasurement(trainingDeps(), ctx, p, STAFF_SOURCE)
+}
+
+// Read the scale's printout and hand the numbers BACK TO THE FORM — this writes nothing. No
+// measurement is recorded until a human presses Kaydet on values she can see, which is why an
+// unreadable sheet is a plain refusal here rather than a half-filled record.
+const MAX_PDF_BYTES = 6 * 1024 * 1024
+
+export async function parseMeasurementPdfAction(input: unknown) {
+  const p = z.object({ memberId: z.string().min(1), base64: z.string().min(1) }).parse(input)
+  const ctx = await requireTenantContext(TRAINER)
+  await assertMayReadMemberContent(ctx, p.memberId)
+  // base64 carries 3 bytes in every 4 characters.
+  if ((p.base64.length * 3) / 4 > MAX_PDF_BYTES) return { ok: false as const, reason: 'too_large' as const }
+  return parseMeasurementPdf(p.base64)
 }
 
 export async function listMemberMeasurementsAction(input: unknown) {

@@ -2,7 +2,7 @@ import { RefreshControl, View } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { router } from 'expo-router'
 
-import type { MemberMeasurement, MemberProgram } from '@studio/core/client'
+import { compareMeasurements, type MemberMeasurement, type MemberProgram } from '@studio/core/client'
 import { api, type TrainingBundle } from '@/lib/api'
 import { shortDate } from '@/lib/format'
 import { useFetch } from '@/lib/useFetch'
@@ -83,6 +83,8 @@ export default function Training() {
           <Card><Empty icon={<Ionicons name="pulse-outline" size={28} color={p.textFaint} />} text="Henüz ölçüm kaydın yok." /></Card>
         )}
       </FadeInUp>
+
+      <ChangeCard list={t?.measurements ?? []} index={programs.length + 2} />
     </Screen>
   )
 }
@@ -108,6 +110,37 @@ function ProgramCard({ program, index }: { program: MemberProgram; index: number
             </View>
           </View>
           <Ionicons name="chevron-forward" size={20} color={p.textFaint} />
+        </View>
+      </Card>
+    </FadeInUp>
+  )
+}
+
+// What moved between her last two readings. No verdict, no green-good / red-bad: a member who traded
+// two kilos of fat for a kilo of muscle would be told she got heavier and therefore worse. She reads
+// the numbers; the trainer does the interpreting, in person.
+function ChangeCard({ list, index }: { list: readonly MemberMeasurement[]; index: number }) {
+  const p = usePalette()
+  const c = compareMeasurements(list)
+  if (!c) return null
+  return (
+    <FadeInUp index={index}>
+      <Card>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Body strong>Son iki ölçüm arası</Body>
+          <Body muted>{c.days} gün</Body>
+        </View>
+        <Body faint style={{ fontSize: 12.5 }}>{shortDate(c.fromDate)} → {shortDate(c.toDate)}</Body>
+        <View style={{ gap: space(1.5) }}>
+          {c.rows.map((r) => (
+            <View key={r.key} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space(2) }}>
+              <Body style={{ flex: 1 }} numberOfLines={1}>{r.label}</Body>
+              <Body faint style={{ fontSize: 12.5 }}>{r.from} → {r.to}{r.unit === '%' ? '%' : ` ${r.unit}`}</Body>
+              <Body strong style={{ color: p.accent, minWidth: 72, textAlign: 'right' }}>
+                {r.diff > 0 ? '↑' : '↓'} {Math.abs(r.diff)}{r.unit === '%' ? '%' : ` ${r.unit}`}
+              </Body>
+            </View>
+          ))}
         </View>
       </Card>
     </FadeInUp>

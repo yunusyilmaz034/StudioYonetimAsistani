@@ -282,6 +282,31 @@ One act inside a screen she now holds stays at the desk: **recording a class tha
 do it. Widening the agenda is not a reason to widen that too — so it is not merely refused for a
 trainer, it is not drawn for her.
 
+**OR-27 · The scale's printout is a data source, and reading it is the one AI call that carries a
+name.** (2026-08-05) Owner: *"pdf den alanları okuyalım, ölçümdeki o alanları biz otomatik dolduralım
+ve isterse admin veya resepsiyonist kaydetsin, böylece data girişi pdf üzerinden olur daha güvenilir;
+okunamazsa okunmadı deriz."* So: reception uploads the Tanita PDF, the model reads the numbers, **the
+form is filled in and a human still presses Kaydet.** The model never writes a measurement — a misread
+digit is caught by the person holding the paper, because what she is looking at is what is on her
+screen. Manual entry stays, unchanged, for the day the printer has no paper.
+
+Two consequences worth writing down:
+
+- **The PDF is never stored.** It is read once and discarded. No bucket, no retention window, nothing
+  to erase when a member asks to be forgotten. It is a data source, not an attachment — which is what
+  the owner asked for after first considering an attachment field.
+- **This is the exception to "PII never leaves for the model".** Every other AI call in this product
+  tokenises the member's name before it goes out (⟦m1⟧). A printout cannot be tokenised before it is
+  read: her name is on the sheet and the sheet is what we send. The prompt forbids returning it and
+  nothing but numbers is ever kept, but the document itself does leave. The alternative is typing
+  every reading by hand. **If that trade stops being acceptable, the feature comes out — the manual
+  fields underneath it are the whole fallback.**
+
+The comparison a member sees between her last two readings is computed from the STORED readings, not
+from the PDF, and carries **no verdict** — owner: *"yorumlayacağımız bir şey yok aslında."* A member
+who traded two kilos of fat for one of muscle must not be told she gained weight and therefore did
+worse. Numbers and a direction; the trainer interprets, in person.
+
 ## Traps that have already cost something
 
 **OR-14 · Firestore indexes are a production-only trap.** The emulator does NOT enforce them, so a

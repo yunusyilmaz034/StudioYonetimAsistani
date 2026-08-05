@@ -268,6 +268,94 @@ export interface MemberMeasurement {
   readonly recordedAt: number
 }
 
+// ── Two readings, side by side ────────────────────────────────────────────────────────────────
+//
+// What changed between a member's last two measurements. Deliberately WITHOUT a verdict (owner,
+// 2026-08-05: "yorumlayacağımız bişey yok"): it reports that muscle went up 1.2 kg, it does not
+// congratulate her, and it does not colour weight gain red — a member who put on muscle would be
+// told she got worse. The numbers are hers to read.
+//
+// Computed from the stored readings, not re-read from the PDF: the records are already the truth and
+// this way the comparison costs nothing and works for the 57 readings taken before PDFs existed.
+export interface MeasurementDeltaRow {
+  readonly key: string
+  readonly label: string
+  readonly unit: 'kg' | '%' | 'cm'
+  readonly from: number
+  readonly to: number
+  readonly diff: number // to − from; sign is the direction, never a judgement
+}
+export interface MeasurementComparison {
+  readonly fromDate: string // LocalDate
+  readonly toDate: string
+  readonly days: number
+  readonly rows: readonly MeasurementDeltaRow[]
+}
+
+// Only what a comparison actually needs. Stated structurally so the SAME function serves the phone
+// (`MemberMeasurement`, wire shape) and the member web portal (the domain `Measurement`, branded
+// timestamps and all) — one implementation, so the two surfaces can never disagree about a number.
+export interface MeasurementLike {
+  readonly takenOn: string // LocalDate
+  readonly weightKg: number | null
+  readonly musclePercent: number | null
+  readonly waterPercent: number | null
+  readonly fatPercent: number | null
+  readonly leanMassKg?: number | null
+  readonly muscleKg?: number | null
+  readonly waterKg?: number | null
+  readonly fatKg?: number | null
+  readonly circumferences: Readonly<Record<string, number>>
+}
+
+const DELTA_METRICS: readonly { key: keyof MeasurementLike; label: string; unit: 'kg' | '%' }[] = [
+  { key: 'weightKg', label: 'Kilo', unit: 'kg' },
+  { key: 'leanMassKg', label: 'Yağsız kütle', unit: 'kg' },
+  { key: 'muscleKg', label: 'Kas', unit: 'kg' },
+  { key: 'musclePercent', label: 'Kas oranı', unit: '%' },
+  { key: 'waterKg', label: 'Sıvı', unit: 'kg' },
+  { key: 'waterPercent', label: 'Sıvı oranı', unit: '%' },
+  { key: 'fatKg', label: 'Yağ', unit: 'kg' },
+  { key: 'fatPercent', label: 'Yağ oranı', unit: '%' },
+]
+
+// Only the DIFFERENCE is rounded — 42 − 40.75 is 1.25, and 0.30000000000000004 kg of muscle is not a
+// thing anyone measured. The readings themselves are passed through untouched: the scale printed
+// 40.75 kg, so 40.75 kg is what she is shown.
+const round1 = (n: number): number => Math.round(n * 10) / 10
+
+export function compareMeasurements(list: readonly MeasurementLike[]): MeasurementComparison | null {
+  // Newest first is how the API returns them, but sorting here makes the function safe to call with
+  // any order — a comparison that silently ran backwards would invert every sign.
+  const sorted = [...list].sort((a, b) => b.takenOn.localeCompare(a.takenOn))
+  const to = sorted[0]
+  const from = sorted[1]
+  if (!to || !from) return null
+
+  const rows: MeasurementDeltaRow[] = []
+  for (const m of DELTA_METRICS) {
+    const a = from[m.key]
+    const b = to[m.key]
+    // A field only compares if BOTH readings carry it. A metric that appeared for the first time in
+    // the newer reading has no "change" — reporting one against an implied zero would be a lie.
+    if (typeof a !== 'number' || typeof b !== 'number') continue
+    const diff = round1(b - a)
+    if (diff === 0) continue
+    rows.push({ key: String(m.key), label: m.label, unit: m.unit, from: a, to: b, diff })
+  }
+  for (const [key, b] of Object.entries(to.circumferences)) {
+    const a = from.circumferences[key]
+    if (typeof a !== 'number') continue
+    const diff = round1(b - a)
+    if (diff === 0) continue
+    rows.push({ key: `circ:${key}`, label: key, unit: 'cm', from: a, to: b, diff })
+  }
+  if (rows.length === 0) return null
+
+  const days = Math.max(0, Math.round((Date.parse(`${to.takenOn}T00:00:00Z`) - Date.parse(`${from.takenOn}T00:00:00Z`)) / 86_400_000))
+  return { fromDate: from.takenOn, toDate: to.takenOn, days, rows }
+}
+
 // ── Per-exercise feedback ─────────────────────────────────────────────────────────────────────
 export interface MemberFeedback {
   readonly id: string
