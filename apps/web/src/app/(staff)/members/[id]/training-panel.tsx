@@ -1151,10 +1151,28 @@ function MeasurementDialog({
   })
   const [reading, setReading] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
+  // Which fields the LAST read put there. A second PDF is almost always the first one picked by
+  // mistake, so its values replace that read outright rather than layering over its leftovers — but
+  // anything typed by hand is not in this set and survives (owner, 2026-08-05: "yeni ölçümlerde eski
+  // pdfi tutmaya gerek yok").
+  const [pdfKeys, setPdfKeys] = useState<readonly MetricKey[]>([])
+  // Bumped on every read and on cancel. A read only applies its answer if the token it started with
+  // is still current, which is what makes İptal instant: the request may still be in flight, but its
+  // result is ignored and the form is left exactly as she left it.
+  const readToken = useRef(0)
+
+  function cancelRead() {
+    readToken.current += 1
+    setReading(false)
+    if (fileRef.current) fileRef.current.value = ''
+    toast('PDF okuma iptal edildi. Alanlar olduğu gibi kaldı.')
+  }
 
   // The scale's PDF as the data source: read it, fill the fields, and let the person holding the sheet
   // check them. Nothing is saved here and the PDF is not stored anywhere.
   async function readPdf(file: File) {
+    const token = readToken.current + 1
+    readToken.current = token
     setReading(true)
     try {
       const buf = await file.arrayBuffer()
@@ -1162,6 +1180,7 @@ function MeasurementDialog({
       const bytes = new Uint8Array(buf)
       for (let i = 0; i < bytes.length; i += 8192) bin += String.fromCharCode(...bytes.subarray(i, i + 8192))
       const res = await parseMeasurementPdfAction({ memberId, base64: btoa(bin) })
+      if (readToken.current !== token) return // cancelled, or a newer read started — apply nothing
       if (!res.ok) {
         toast.error(
           res.reason === 'too_large'
@@ -1173,23 +1192,27 @@ function MeasurementDialog({
         return
       }
       const m = res.value.metrics
+      const filledKeys = METRIC_KEYS.filter((k) => m[k] != null)
       setMetrics((prev) => {
         const next = { ...prev }
-        for (const k of METRIC_KEYS) if (m[k] != null) next[k] = String(m[k])
+        for (const k of pdfKeys) delete next[k] // the previous PDF's values go, hand-typed ones stay
+        for (const k of filledKeys) next[k] = String(m[k])
         return next
       })
-      setHidden((h) => ({
-        bmi: m.bmi ?? h.bmi,
-        bmr: m.bmr ?? h.bmr,
-        visceralFat: m.visceralFat ?? h.visceralFat,
-      }))
+      setPdfKeys(filledKeys)
+      // Same rule for the three the form does not draw: this PDF's values, or the reading being
+      // corrected — never a leftover from a PDF that turned out to be the wrong file.
+      setHidden({
+        bmi: m.bmi ?? correct?.bmi ?? null,
+        bmr: m.bmr ?? correct?.bmr ?? null,
+        visceralFat: m.visceralFat ?? correct?.visceralFat ?? null,
+      })
       if (res.value.takenOn) setTakenOn(res.value.takenOn)
-      const filled = METRIC_KEYS.filter((k) => m[k] != null).length
-      toast.success(`${filled} alan PDF'ten dolduruldu. Kaydetmeden önce kontrol edin.`)
+      toast.success(`${filledKeys.length} alan PDF'ten dolduruldu. Kaydetmeden önce kontrol edin.`)
     } catch {
-      toast.error('PDF okunamadı. Değerleri elle girebilirsiniz.')
+      if (readToken.current === token) toast.error('PDF okunamadı. Değerleri elle girebilirsiniz.')
     } finally {
-      setReading(false)
+      if (readToken.current === token) setReading(false)
       if (fileRef.current) fileRef.current.value = ''
     }
   }
@@ -1281,10 +1304,22 @@ function MeasurementDialog({
                   PDF&apos;i yükleyin, alanlar dolsun. Kaydetmeden önce kontrol edin — PDF saklanmaz.
                 </p>
               </div>
-              <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()} disabled={reading || busy}>
-                {reading ? <Loader2Icon className="animate-spin" /> : <UploadIcon className="size-3.5" />}
-                {reading ? 'Okunuyor…' : 'PDF seç'}
-              </Button>
+              {reading ? (
+                // Reading takes the better part of ten seconds and she may have picked the wrong
+                // file. İptal stops the wait immediately and touches nothing on the form.
+                <div className="flex shrink-0 items-center gap-2">
+                  <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <Loader2Icon className="size-3.5 animate-spin" /> Okunuyor…
+                  </span>
+                  <Button variant="ghost" size="sm" onClick={cancelRead}>
+                    İptal
+                  </Button>
+                </div>
+              ) : (
+                <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()} disabled={busy}>
+                  <UploadIcon className="size-3.5" /> {pdfKeys.length > 0 ? 'Başka PDF' : 'PDF seç'}
+                </Button>
+              )}
             </div>
           </div>
 
