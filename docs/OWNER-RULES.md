@@ -433,6 +433,39 @@ History was checked before shipping it: five open balances, none of them a disgu
 **zero discounts recorded in the system's entire history** — the rule was born with the price rise
 rather than papering over anything.
 
+**OR-33 · The door observes; the member declares. They are never added together.** (2026-08-06) The
+member app now lets her tick off each exercise in her programme day and finish the day, with sets,
+reps, weight and a note. That is a SECOND "I trained" signal beside the one the studio already has —
+`member.checked_in`, written at the door — and the two will disagree constantly: she trains and
+forgets to tick; she ticks at home.
+
+So they are separate events, separate counters, and never summed (#11 — a presumption is never
+written down as an observation):
+
+- **check-in = the studio's observation.** Attendance, occupancy, continuity, the churn signal, and
+  every renewal decision read from this and nothing else.
+- **`workout.day_completed` = the member's declaration.** Programme progress only.
+
+They meet in exactly ONE place: the desk's adherence view, side by side and labelled, because the
+GAP is the signal. "Six workouts ticked, nine days since she was last in the building" is a phone
+call; summing them would destroy the only thing worth knowing.
+
+Three decisions the owner made with it:
+
+- **The cycle is walked in order** — 1 → 2 → 3 → 1, no skipping and no repeating the day she just
+  did (*"sıralama atlamaya izin yok"*). Refused in the DOMAIN, not by hiding buttons: `nextDayOrder`
+  is derived from her completed logs rather than stored, so it cannot drift and a replayed request
+  cannot jump ahead.
+- **The programme's numbers are placeholders, not values.** An untouched field stores `null`, meaning
+  "done as prescribed" — the common case costs zero taps, and only a DIFFERENCE is recorded.
+- **The note is read by the trainer, and she is told so** under the field. A note she believes is
+  private and a note she knows Işıl reads are different notes.
+
+**What the member is never shown is what she MISSED.** No "bu hafta sadece 2 gün geldin" — it reads
+as an accusation to someone who had a reason the app cannot know, and the app she feels judged by is
+the one she stops opening. Only what has accumulated ("3. turdasın · toplam 11 antrenman"). The gap
+belongs on the staff screen, where a human can pick up a phone. Same rule as the motivation line.
+
 ## Traps that have already cost something
 
 **OR-14 · Firestore indexes are a production-only trap.** The emulator does NOT enforce them, so a

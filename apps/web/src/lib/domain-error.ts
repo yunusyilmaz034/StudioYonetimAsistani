@@ -176,6 +176,8 @@ export function domainErrorMessage(error: DomainError): string {
       return 'Bu düzeltme bir kredinin yeniden düşülmesini gerektiriyor; şu an desteklenmiyor.'
     case 'erasure_requires_platform_admin':
       return 'Üye kaydını anonimleştirme yetkisi yalnızca platform yöneticisindedir.'
+    case 'workout_day_out_of_order':
+      return 'Bu antrenman günü sırada değil. Programındaki sıradaki günü tamamla.'
     case 'staff_admin_required':
       return 'Personel yetkilerini yalnızca stüdyo sahibi düzenleyebilir.'
     case 'name_required':

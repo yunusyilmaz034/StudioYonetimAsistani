@@ -24,6 +24,12 @@ import {
   type TrainingDeps,
   type MemberId,
   type TenantContext,
+  completeWorkoutDay,
+  workoutProgress,
+  FirestoreCheckinRepository,
+  type WorkoutLog,
+  instant,
+  type CheckIn
 } from '@studio/core'
 import { z } from 'zod'
 
@@ -385,6 +391,103 @@ export async function leaveOwnFeedback(ctx: TenantContext, memberId: MemberId, i
   const program = await repo().getProgram(ctx, p.programId)
   if (!program || program.memberId !== memberId) return { ok: false as const, error: { code: 'note_required' as const } }
   return leaveFeedback(trainingDeps(), ctx, { ...p, memberId }, MEMBER_SOURCE)
+}
+
+// ── WORKOUT LOG (v1.31) ─────────────────────────────────────────────────────────────────────
+//
+// The member marks a programme day done. Ownership is checked HERE — she may only log against her
+// own programme — and the cycle order is checked in the DOMAIN, so a replayed or hand-made request
+// cannot skip a day the screen was hiding.
+//
+// This is not a check-in and never contributes to attendance. See events.ts.
+/** Today in the studio's own timezone, `YYYY-MM-DD` — the calendar the member and the desk share. */
+function studioDayString(): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Istanbul' }).format(new Date())
+}
+
+export async function completeOwnWorkoutDay(ctx: TenantContext, memberId: MemberId, input: unknown) {
+  const p = z
+    .object({
+      programId: z.string().min(1),
+      dayOrder: z.number().int().min(1),
+      // Studio-local date, sent by the client. Clamped to a sane window so a wrong device clock
+      // cannot write a workout into next year — domain time may be client-supplied, never trusted.
+      performedOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      entries: z
+        .array(
+          z.object({
+            exerciseId: z.string().min(1),
+            sets: z.number().int().min(0).max(50).nullable(),
+            reps: z.string().max(20).nullable(),
+            // Integer grams — a float in a data path is how 12.5 kg becomes 12.499999.
+            weightGrams: z.number().int().min(0).max(1_000_000).nullable(),
+            skipped: z.boolean(),
+          }),
+        )
+        .max(60),
+      note: z.string().trim().max(1000).default(''),
+    })
+    .parse(input)
+
+  const program = await repo().getProgram(ctx, p.programId)
+  if (!program || program.memberId !== memberId) return { ok: false as const, error: { code: 'note_required' as const } }
+
+  const today = studioDayString()
+  if (p.performedOn > today) return { ok: false as const, error: { code: 'invalid_time_range' as const } }
+
+  return completeWorkoutDay(trainingDeps(), ctx, { ...p, memberId }, MEMBER_SOURCE)
+}
+
+/** Her progress on one programme — the cycle position and the logs behind it. */
+export async function myWorkoutProgress(ctx: TenantContext, memberId: MemberId, programId: string) {
+  const program = await repo().getProgram(ctx, programId)
+  if (!program || program.memberId !== memberId) return { cycle: { completed: 0, nextDayOrder: 1, rounds: 0 }, logs: [], dayCount: 0 }
+  return workoutProgress(trainingDeps(), ctx, memberId, programId)
+}
+
+/**
+ * What the DESK sees about a member's programme adherence.
+ *
+ * The two numbers are deliberately side by side and deliberately NOT added (#11). `logged` is what
+ * she says she did; `checkIns` is what the studio observed at the door. The GAP between them is the
+ * signal worth having — six workouts ticked and nine days since she was last in the building is a
+ * member training at home, or a member drifting away, and either way it is a phone call. Summing
+ * them would destroy exactly the information that makes the screen worth opening.
+ *
+ * Unlike the member's own screen, this one DOES report the gap: Işıl can ring her and ask, an app
+ * cannot (owner: "üyeye hayır, panelde evet").
+ */
+export async function memberWorkoutAdherenceAction(input: unknown) {
+  const p = z.object({ memberId: z.string().min(1), programId: z.string().min(1) }).parse(input)
+  const ctx = await requireTenantContext(TRAINER)
+  const memberId = p.memberId as MemberId
+
+  const [progress, checkIns] = await Promise.all([
+    workoutProgress(trainingDeps(), ctx, memberId, p.programId),
+    new FirestoreCheckinRepository(adminDb()).listCheckInsByMember(ctx, memberId, instant(Date.now() - 90 * 86_400_000)),
+  ])
+
+  const lastLog = progress.logs.at(-1) ?? null
+  const lastCheckIn = checkIns[0] ?? null
+  const days = (at: number | null) => (at === null ? null : Math.floor((Date.now() - at) / 86_400_000))
+  const since = Date.now() - 28 * 86_400_000
+
+  return {
+    cycle: progress.cycle,
+    dayCount: progress.dayCount,
+    logged: progress.logs.length,
+    loggedLast28: progress.logs.filter((l: WorkoutLog) => Number(l.completedAt) >= since).length,
+    daysSinceLastLog: days(lastLog ? Number(lastLog.completedAt) : null),
+    // The studio's own observation, never merged with the above.
+    checkInsLast28: checkIns.filter((c: CheckIn) => Number(c.occurredAt) >= since).length,
+    daysSinceLastCheckIn: days(lastCheckIn ? Number(lastCheckIn.occurredAt) : null),
+    // Her notes, newest first — the reason the note field says the trainer can read it.
+    notes: progress.logs
+      .filter((l: WorkoutLog) => l.note.trim() !== '')
+      .slice(-10)
+      .reverse()
+      .map((l: WorkoutLog) => ({ at: Number(l.completedAt), dayOrder: l.dayOrder, note: l.note })),
+  }
 }
 
 export async function answerFeedbackAction(input: unknown) {

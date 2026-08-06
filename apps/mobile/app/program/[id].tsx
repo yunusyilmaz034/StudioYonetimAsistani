@@ -1,11 +1,12 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Alert, Modal, TextInput, View } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { useLocalSearchParams } from 'expo-router'
 
 import type { ExerciseGuide, FeedbackReason, ProgramExercise } from '@studio/core/client'
-import { api, type TrainingBundle } from '@/lib/api'
+import { api, type TrainingBundle, type WorkoutSetEntryDto } from '@/lib/api'
 import { useFetch } from '@/lib/useFetch'
+import { WorkoutDay } from '@/components/workout-day'
 import { ExerciseGuideSheet } from '@/components/exercise-guide-sheet'
 import { FadeInUp, PressableScale } from '@/components/motion'
 import { Body, Button, Card, Eyebrow, Hero, Loading, Pill, Screen } from '@/components/ui'
@@ -34,6 +35,9 @@ export default function ProgramDetail() {
   // modal ends up behind the list it was opened from.
   const [guide, setGuide] = useState<ExerciseGuide | null>(null)
   const [video, setVideo] = useState<{ url: string; title: string } | null>(null)
+  // Where she is in the cycle. Fetched separately from the programme because it changes on every
+  // completed day while the programme itself does not.
+  const progress = useFetch(useMemo(() => () => api.workout(String(id)), [id]))
 
   if (loading && !data) return <Loading />
   const t2 = data as TrainingBundle | null
@@ -41,6 +45,8 @@ export default function ProgramDetail() {
   if (!program) return <Screen header><Body muted>Program bulunamadı.</Body></Screen>
   const version = program.versions.find((v) => v.version === program.currentVersion) ?? program.versions[program.versions.length - 1]
   const guides = t2?.guides ?? {}
+  const cycle = progress.data?.cycle ?? { completed: 0, nextDayOrder: 1, rounds: 0 }
+  const logs = progress.data?.logs ?? []
 
   return (
     <Screen header>
@@ -59,9 +65,42 @@ export default function ProgramDetail() {
         </Hero>
       </FadeInUp>
 
+      {/* WHAT SHE HAS DONE, never what she missed (owner, 2026-08-06: "üyeye hayır, panelde evet").
+          "Bu hafta sadece 2 gün geldin" reads as an accusation to a member who had a reason the app
+          cannot know, and the app she feels judged by is the one she stops opening. Only what has
+          accumulated is said here; the gap is Işıl's to see, and Işıl can pick up a phone. */}
+      {cycle.completed > 0 ? (
+        <FadeInUp index={1}>
+          <View style={{ gap: 5 }}>
+            <Body strong style={{ fontSize: 15 }}>
+              {cycle.rounds > 0 ? `${cycle.rounds}. turdasın` : 'İlk turundasın'}
+            </Body>
+            <Body muted style={{ fontSize: 13.5 }}>
+              Toplam {cycle.completed} antrenman · sırada {version?.days.find((d) => d.order === cycle.nextDayOrder)?.name ?? `Gün ${cycle.nextDayOrder}`}
+            </Body>
+          </View>
+        </FadeInUp>
+      ) : null}
+
       {version?.days.map((day, di) => (
-        <FadeInUp key={day.order} index={di + 1}>
-          <Eyebrow>{day.name}</Eyebrow>
+        <FadeInUp key={day.order} index={di + 2}>
+          <WorkoutDay
+            day={day}
+            isNext={day.order === cycle.nextDayOrder}
+            doneCount={logs.filter((l) => l.dayOrder === day.order).length}
+            nextDayName={version?.days.find((d) => d.order === cycle.nextDayOrder)?.name ?? `Gün ${cycle.nextDayOrder}`}
+            onComplete={async (entries: readonly WorkoutSetEntryDto[], note: string) => {
+              const res = await api.completeWorkout({
+                programId: program.id,
+                dayOrder: day.order,
+                performedOn: new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Istanbul' }).format(new Date()),
+                entries,
+                note,
+              })
+              if (res.ok) void progress.reload()
+              return res.ok
+            }}
+          >
           <View style={{ gap: space(2.5) }}>
             {day.exercises.map((ex) => (
               <ExerciseCard
@@ -82,6 +121,7 @@ export default function ProgramDetail() {
               />
             ))}
           </View>
+          </WorkoutDay>
         </FadeInUp>
       ))}
 

@@ -206,6 +206,9 @@ export type DomainError =
   | { readonly code: 'program_archived' }
   | { readonly code: 'program_empty' }
   | { readonly code: 'program_version_conflict' }
+  // v1.31 — the workout cycle is walked in order, 1 → 2 → 3 → 1 (owner: "sıralama atlamaya izin
+  // yok"). `expected` is the day she may do, so the screen can say which one rather than just "no".
+  | { readonly code: 'workout_day_out_of_order'; readonly expected: number }
   // ── Program templates (Plus, pilot) ──
   | { readonly code: 'template_name_required' }
   | { readonly code: 'template_empty' }

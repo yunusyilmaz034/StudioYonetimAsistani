@@ -2,6 +2,9 @@
 // edited (every change is a new VERSION); a version snapshots what it referenced; measurements and
 // photos are member PII that never enter an event.
 export type {
+  CycleState,
+  WorkoutLog,
+  WorkoutSetEntry,
   Exercise,
   FeedbackReason,
   FeedbackStatus,
@@ -46,6 +49,9 @@ export {
   getProgramTemplate,
   instantiateTemplate,
   leaveFeedback,
+  completeWorkoutDay,
+  undoWorkoutDay,
+  workoutProgress,
   listProgramTemplates,
   publishProgramVersion,
   recordMeasurement,

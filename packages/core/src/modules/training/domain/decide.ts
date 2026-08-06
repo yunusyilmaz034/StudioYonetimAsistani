@@ -24,6 +24,8 @@ import {
   TRAINING_FEEDBACK_ANSWERED,
   TRAINING_FEEDBACK_LEFT,
   TRAINING_FEEDBACK_RESOLVED,
+  WORKOUT_DAY_COMPLETED,
+  WORKOUT_DAY_UNDONE,
 } from '../events'
 import type {
   Exercise,
@@ -34,6 +36,8 @@ import type {
   ProgramVersion,
   ProgressPhoto,
   TrainingFeedback,
+  CycleState,
+  WorkoutLog,
 } from './types'
 
 export interface DecideContext {
@@ -149,4 +153,97 @@ export function decideAddPhoto(ctx: DecideContext, photo: ProgressPhoto): { next
 export function decideRemovePhoto(ctx: DecideContext, photo: ProgressPhoto, reason: string): Result<NewEvent[], DomainError> {
   if (reason.trim().length === 0) return err({ code: 'reason_required' })
   return ok([{ ...base(ctx, 'member', photo.memberId, photo.memberId), type: PROGRESS_PHOTO_REMOVED, payload: { photoId: photo.id, reason, at: ctx.now } }])
+}
+
+// ── WORKOUT LOG (v1.31) ─────────────────────────────────────────────────────────────────────
+//
+// This is the member DECLARING that she trained. It is not a check-in and nothing here may ever be
+// counted as attendance — see the note above `WORKOUT_DAY_COMPLETED` in events.ts (#11).
+
+/**
+ * Where she stands in the cycle, from her own completed logs.
+ *
+ * Derived, never stored. A counter on the programme would be a second truth that drifts the first
+ * time a log is undone or a version is republished; counting the logs cannot.
+ *
+ * The order is fixed 1 → 2 → 3 → 1: `completed` logs mean the next day is `completed % dayCount`.
+ * `undone` logs are excluded by the caller — an undo moves her back a day, which is exactly what a
+ * compensating event should do (#9).
+ */
+export function cycleState(completedCount: number, dayCount: number): CycleState {
+  if (dayCount <= 0) return { completed: completedCount, nextDayOrder: 1, rounds: 0 }
+  return {
+    completed: completedCount,
+    nextDayOrder: (completedCount % dayCount) + 1,
+    rounds: Math.floor(completedCount / dayCount),
+  }
+}
+
+export interface CompleteWorkoutDayInput {
+  readonly log: WorkoutLog
+  /** Days in the version she is training against — the cycle length. */
+  readonly dayCount: number
+  /** Completed (not undone) logs she already has on this programme. */
+  readonly completedCount: number
+}
+
+/**
+ * She finished a day. Refused unless it is the day the cycle says is next.
+ *
+ * The rule lives HERE rather than in the app's day list, because a screen that only hides the other
+ * days is a rule that a second screen — or a replayed request — does not have.
+ */
+export function decideCompleteWorkoutDay(
+  ctx: DecideContext,
+  input: CompleteWorkoutDayInput,
+): Result<{ next: WorkoutLog; events: NewEvent[] }, DomainError> {
+  const { log, dayCount, completedCount } = input
+  if (dayCount <= 0) return err({ code: 'program_empty' })
+  const expected = cycleState(completedCount, dayCount).nextDayOrder
+  if (log.dayOrder !== expected) return err({ code: 'workout_day_out_of_order', expected })
+  if (log.entries.length === 0 && log.note.trim() === '') return err({ code: 'document_empty' })
+
+  const loggedCount = log.entries.filter(
+    (e) => e.skipped || e.sets !== null || e.reps !== null || e.weightGrams !== null,
+  ).length
+  return ok({
+    next: log,
+    events: [
+      {
+        ...base(ctx, 'member', log.memberId, log.memberId, { programId: log.programId }),
+        type: WORKOUT_DAY_COMPLETED,
+        payload: {
+          logId: log.id,
+          programId: log.programId,
+          programVersion: log.programVersion,
+          dayOrder: log.dayOrder,
+          performedOn: log.performedOn,
+          exerciseCount: log.entries.length,
+          loggedCount,
+          hasNote: log.note.trim() !== '',
+        },
+      },
+    ],
+  })
+}
+
+/** She ticked the wrong day. A compensating event (#9) — the log is marked undone, never deleted. */
+export function decideUndoWorkoutDay(
+  ctx: DecideContext,
+  log: WorkoutLog,
+  reason: string,
+  at: Instant,
+): Result<{ next: WorkoutLog; events: NewEvent[] }, DomainError> {
+  if (log.undoneAt !== null) return err({ code: 'operation_not_applicable' })
+  if (reason.trim() === '') return err({ code: 'reason_required' })
+  return ok({
+    next: { ...log, undoneAt: at },
+    events: [
+      {
+        ...base(ctx, 'member', log.memberId, log.memberId, { programId: log.programId }),
+        type: WORKOUT_DAY_UNDONE,
+        payload: { logId: log.id, programId: log.programId, dayOrder: log.dayOrder, reason },
+      },
+    ],
+  })
 }

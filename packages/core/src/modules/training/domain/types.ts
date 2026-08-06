@@ -184,3 +184,52 @@ export interface ProgramTemplate {
   readonly updatedBy: string
   readonly updatedAt: Instant
 }
+
+// ── WORKOUT LOG (v1.31) — the member's own record of a training day ─────────────────────────
+//
+// What she ACTUALLY did, against what the programme asked for. A slot she never touched is not
+// missing data: it means she did it as prescribed, which is the common case and must cost her no
+// taps. Only a DIFFERENCE is stored (owner: the programme's numbers sit in the field as faded
+// placeholders; typing over one is what records it).
+export interface WorkoutSetEntry {
+  readonly exerciseId: string
+  /** What she did. `null` ⇒ as prescribed. */
+  readonly sets: number | null
+  readonly reps: string | null
+  /** Integer grams, so a half-kilo plate is not a float in a data path. `null` ⇒ bodyweight/as-is. */
+  readonly weightGrams: number | null
+  readonly skipped: boolean
+}
+
+export interface WorkoutLog {
+  readonly id: string
+  readonly studioId: StudioId
+  readonly memberId: string
+  readonly programId: string
+  readonly programVersion: number
+  readonly dayOrder: number
+  /** Studio-local `YYYY-MM-DD`. Domain time — the day she says she trained. */
+  readonly performedOn: string
+  readonly entries: readonly WorkoutSetEntry[]
+  /** Her own note. The member is told the trainer can read it (owner, 2026-08-06). */
+  readonly note: string
+  readonly completedAt: Instant
+  readonly undoneAt: Instant | null
+}
+
+/**
+ * Where she is in the cycle: how many days she has completed, and which day comes next.
+ *
+ * The order is FIXED — 1 → 2 → 3 → 1 (owner: "sıralama atlamaya izin yok"). She cannot jump ahead to
+ * the day she likes, and she cannot repeat the day she just did. That makes "which day is next" a
+ * single number derived from her history rather than a choice, which is why it lives here as a pure
+ * function and not as a stored counter that could drift.
+ */
+export interface CycleState {
+  /** Completed days, ever, on this programme. */
+  readonly completed: number
+  /** 1-based `order` of the day she may do next. */
+  readonly nextDayOrder: number
+  /** Full passes through the programme. 3 days done on a 3-day programme ⇒ 1. */
+  readonly rounds: number
+}

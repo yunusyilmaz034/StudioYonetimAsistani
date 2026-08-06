@@ -8,7 +8,7 @@ import {
 } from 'firebase-admin/firestore'
 
 import { instant, newEventId, type NewEvent, type StudioId, type TenantContext } from '../../../shared'
-import type { Exercise, Measurement, Program, ProgramTemplate, ProgramVersion, ProgressPhoto, TrainingFeedback } from '../domain/types'
+import type { Exercise, Measurement, Program, ProgramTemplate, ProgramVersion, ProgressPhoto, TrainingFeedback, WorkoutLog } from '../domain/types'
 
 // The training module's ONLY firebase-admin importer. State document(s) + their events commit together
 // (#1): a programme version published without its event, or a photo removed without its audit event,
@@ -40,6 +40,18 @@ const exerciseFrom = (id: string, d: DocumentData): Exercise => ({ ...(d as Exer
 
 const measurementTo = (m: Measurement): DocumentData => ({ ...m, recordedAt: ts(m.recordedAt) })
 const measurementFrom = (id: string, d: DocumentData): Measurement => ({ ...(d as Measurement), id, recordedAt: instant(ms(d.recordedAt)) })
+
+const workoutLogTo = (l: WorkoutLog): DocumentData => ({
+  ...l,
+  completedAt: ts(l.completedAt),
+  undoneAt: l.undoneAt ? ts(l.undoneAt) : null,
+})
+const workoutLogFrom = (id: string, d: DocumentData): WorkoutLog => ({
+  ...(d as WorkoutLog),
+  id,
+  completedAt: instant(ms(d.completedAt)),
+  undoneAt: d.undoneAt ? instant(ms(d.undoneAt)) : null,
+})
 
 const feedbackTo = (f: TrainingFeedback): DocumentData => ({
   ...f,
@@ -121,6 +133,34 @@ export class FirestoreTrainingRepository {
     const sid = ctx.studioId
     await this.db.runTransaction(async (tx) => {
       tx.set(this.col(sid, 'measurements').doc(measurement.id), measurementTo(measurement))
+      this.writeEvents(sid, tx, events)
+    })
+  }
+
+  // ── Workout logs (v1.31) ──
+  //
+  // Two equality filters and no ordering, so no composite index is needed and nothing here can pass
+  // locally and then fail in production for the want of one (OR-14). Sorting happens in memory: a
+  // member's logs on one programme are tens of rows, not thousands.
+  async listWorkoutLogs(ctx: TenantContext, memberId: string, programId: string): Promise<readonly WorkoutLog[]> {
+    const snap = await this.col(ctx.studioId, 'workoutLogs')
+      .where('memberId', '==', memberId)
+      .where('programId', '==', programId)
+      .get()
+    return snap.docs
+      .map((d) => workoutLogFrom(d.id, d.data()))
+      .sort((a, b) => Number(a.completedAt) - Number(b.completedAt))
+  }
+  async getWorkoutLog(ctx: TenantContext, id: string): Promise<WorkoutLog | null> {
+    const s = await this.col(ctx.studioId, 'workoutLogs').doc(id).get()
+    const d = s.data()
+    return d ? workoutLogFrom(id, d) : null
+  }
+  async saveWorkoutLog(ctx: TenantContext, log: WorkoutLog, events: readonly NewEvent[]): Promise<void> {
+    const sid = ctx.studioId
+    await this.db.runTransaction(async (tx) => {
+      // The state and its event commit together (#1). If they could drift, the log is decorative.
+      tx.set(this.col(sid, 'workoutLogs').doc(log.id), workoutLogTo(log))
       this.writeEvents(sid, tx, events)
     })
   }

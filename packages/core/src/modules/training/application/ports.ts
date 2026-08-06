@@ -1,5 +1,5 @@
 import type { Clock, NewEvent, TenantContext } from '../../../shared'
-import type { Exercise, Measurement, Program, ProgramTemplate, ProgressPhoto, TrainingFeedback } from '../domain/types'
+import type { Exercise, Measurement, Program, ProgramTemplate, ProgressPhoto, TrainingFeedback, WorkoutLog } from '../domain/types'
 
 // The training repository port. Infrastructure (FirestoreTrainingRepository) implements it; the
 // application composes the pure deciders against it. State + events always commit together (#1).
@@ -12,6 +12,13 @@ export interface TrainingRepository {
   listProgramsByMember(ctx: TenantContext, memberId: string): Promise<readonly Program[]>
   listProgramsByTrainer(ctx: TenantContext, trainerId: string): Promise<readonly Program[]>
   saveProgram(ctx: TenantContext, program: Program, events: readonly NewEvent[]): Promise<void>
+
+  // Workout logs (v1.31). `listWorkoutLogs` returns EVERY log including undone ones — the caller
+  // filters, because "how many did she undo" is itself worth knowing and a repository that hides
+  // rows makes that unanswerable.
+  listWorkoutLogs(ctx: TenantContext, memberId: string, programId: string): Promise<readonly WorkoutLog[]>
+  getWorkoutLog(ctx: TenantContext, id: string): Promise<WorkoutLog | null>
+  saveWorkoutLog(ctx: TenantContext, log: WorkoutLog, events: readonly NewEvent[]): Promise<void>
 
   listMeasurementsByMember(ctx: TenantContext, memberId: string): Promise<readonly Measurement[]>
   saveMeasurement(ctx: TenantContext, measurement: Measurement, events: readonly NewEvent[]): Promise<void>

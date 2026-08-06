@@ -85,6 +85,10 @@ export const api = {
   leaveFeedback: (body: LeaveFeedbackInput) => post<ApiResult<unknown>>('/feedback', body),
   fitness: () => get<MemberFitness>('/fitness'),
   home: () => get<HomeExtras>('/home'),
+  // Workout log (v1.31). Her position in the programme cycle, and marking a day done. NOT a
+  // check-in — nothing here counts towards attendance.
+  workout: (programId: string) => get<WorkoutProgress>(`/workout?programId=${encodeURIComponent(programId)}`),
+  completeWorkout: (body: CompleteWorkoutBody) => post<ApiResult<unknown>>('/workout', body),
   inbox: () => get<readonly InboxItem[]>('/inbox'),
   markRead: (intentId: string) => post<ApiResult<unknown>>('/inbox', { intentId }),
   prefs: () => get<NotificationPrefs>('/prefs'),
@@ -163,4 +167,38 @@ export interface TrainingBundle {
   readonly feedback: readonly import('@studio/core/client').MemberFeedback[]
   readonly photos: readonly import('@studio/core/client').MemberPhoto[]
   readonly showPrograms: boolean // pilates-only members see only measurements, no training programmes
+}
+
+
+// ── Workout log (v1.31) ─────────────────────────────────────────────────────────────────────
+export interface WorkoutSetEntryDto {
+  readonly exerciseId: string
+  /** `null` ⇒ she did it as prescribed. An untouched field must cost no taps. */
+  readonly sets: number | null
+  readonly reps: string | null
+  /** Integer grams — money and weights are never floats in a data path. */
+  readonly weightGrams: number | null
+  readonly skipped: boolean
+}
+export interface WorkoutLogDto {
+  readonly id: string
+  readonly programId: string
+  readonly dayOrder: number
+  readonly performedOn: string
+  readonly entries: readonly WorkoutSetEntryDto[]
+  readonly note: string
+  readonly undoneAt: number | null
+}
+export interface WorkoutProgress {
+  /** Derived from her logs, never a stored counter that could drift. */
+  readonly cycle: { readonly completed: number; readonly nextDayOrder: number; readonly rounds: number }
+  readonly logs: readonly WorkoutLogDto[]
+  readonly dayCount: number
+}
+export interface CompleteWorkoutBody {
+  readonly programId: string
+  readonly dayOrder: number
+  readonly performedOn: string
+  readonly entries: readonly WorkoutSetEntryDto[]
+  readonly note: string
 }

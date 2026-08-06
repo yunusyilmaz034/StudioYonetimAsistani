@@ -61,6 +61,11 @@ service cloud.firestore {
           'events', 'commands',
           'payrollStatements', 'compensationPlans', 'payrollAdjustments',
           'measurements', 'progressPhotos', 'programs', 'trainingFeedback',
+          // v1.31 — the member's own workout log: sets, weights and a note she writes for her
+          // trainer. Written by the member app through the Bearer member-api and read by the desk
+          // through a Server Action; the client SDK never touches it. Same posture as measurements,
+          // and for the same reason — it is her body, described.
+          'workoutLogs',
           'paymentIntents',
           // PF-37 — payment links + unattributed PAYTR collections (buyer PII). Server-only; the
           // staff app reads them through Server Actions on the Admin SDK, never the client SDK.

@@ -5,8 +5,10 @@ import {
   newProgramId,
   newProgramTemplateId,
   newProgressPhotoId,
+  newOperationId,
   newTrainingFeedbackId,
   ok,
+  err,
   type ActorRef,
   type DomainError,
   type EventSource,
@@ -17,13 +19,16 @@ import {
   decideAddPhoto,
   decideAnswerFeedback,
   decideChangeProgramStatus,
+  decideCompleteWorkoutDay,
   decideCreateProgram,
   decideLeaveFeedback,
   decidePublishVersion,
   decideRecordMeasurement,
   decideRemovePhoto,
   decideResolveFeedback,
+  decideUndoWorkoutDay,
   decideUpsertExercise,
+  cycleState,
   type DecideContext,
 } from '../domain/decide'
 import type {
@@ -40,6 +45,9 @@ import type {
   ProgressPhoto,
   TemplateLevel,
   TrainingFeedback,
+  CycleState,
+  WorkoutLog,
+  WorkoutSetEntry,
 } from '../domain/types'
 import type { TrainingDeps } from './ports'
 
@@ -470,4 +478,88 @@ export async function instantiateTemplate(deps: TrainingDeps, ctx: TenantContext
 function actorId(actor: ActorRef): string {
   const a = actor as unknown as { id?: string }
   return typeof a.id === 'string' ? a.id : 'system'
+}
+
+
+// ── WORKOUT LOG (v1.31) ─────────────────────────────────────────────────────────────────────
+//
+// The member records that she trained a programme day. NOT a check-in: nothing here contributes to
+// attendance, occupancy or continuity — see the note above `WORKOUT_DAY_COMPLETED` in events.ts.
+
+export interface CompleteWorkoutDayInputDto {
+  readonly memberId: string
+  readonly programId: string
+  readonly dayOrder: number
+  /** Studio-local `YYYY-MM-DD` — domain time, supplied by the caller, never read from a clock here. */
+  readonly performedOn: string
+  readonly entries: readonly WorkoutSetEntry[]
+  readonly note: string
+}
+
+/** Her progress on a programme, derived from the logs. Undone logs do not count. */
+export async function workoutProgress(
+  deps: TrainingDeps,
+  ctx: TenantContext,
+  memberId: string,
+  programId: string,
+): Promise<{ cycle: CycleState; logs: readonly WorkoutLog[]; dayCount: number }> {
+  const program = await deps.repo.getProgram(ctx, programId)
+  const version = program?.versions.find((v) => v.version === program.currentVersion) ?? program?.versions.at(-1) ?? null
+  const dayCount = version?.days.length ?? 0
+  const all = await deps.repo.listWorkoutLogs(ctx, memberId, programId)
+  const done = all.filter((l) => l.undoneAt === null)
+  return { cycle: cycleState(done.length, dayCount), logs: done, dayCount }
+}
+
+export async function completeWorkoutDay(
+  deps: TrainingDeps,
+  ctx: TenantContext,
+  input: CompleteWorkoutDayInputDto,
+  source: EventSource,
+): Promise<Result<WorkoutLog, DomainError>> {
+  const dc = dctx(deps, ctx, source)
+  const program = await deps.repo.getProgram(ctx, input.programId)
+  if (!program) return err({ code: 'template_not_found' })
+  // She trains against the CURRENT version. The log records which one, so a programme revised
+  // mid-cycle leaves an honest history rather than re-labelling what she already did.
+  const version = program.versions.find((v) => v.version === program.currentVersion) ?? program.versions.at(-1) ?? null
+  if (!version) return err({ code: 'program_empty' })
+  if (program.status === 'archived') return err({ code: 'program_archived' })
+
+  const all = await deps.repo.listWorkoutLogs(ctx, input.memberId, input.programId)
+  const completedCount = all.filter((l) => l.undoneAt === null).length
+
+  const log: WorkoutLog = {
+    id: `wkl_${newOperationId().slice(4)}`,
+    studioId: ctx.studioId,
+    memberId: input.memberId,
+    programId: input.programId,
+    programVersion: version.version,
+    dayOrder: input.dayOrder,
+    performedOn: input.performedOn,
+    entries: input.entries,
+    note: input.note,
+    completedAt: deps.clock.now(),
+    undoneAt: null,
+  }
+  const r = decideCompleteWorkoutDay(dc, { log, dayCount: version.days.length, completedCount })
+  if (!r.ok) return r
+  await deps.repo.saveWorkoutLog(ctx, r.value.next, r.value.events)
+  return ok(r.value.next)
+}
+
+export async function undoWorkoutDay(
+  deps: TrainingDeps,
+  ctx: TenantContext,
+  logId: string,
+  reason: string,
+  source: EventSource,
+): Promise<Result<WorkoutLog, DomainError>> {
+  const dc = dctx(deps, ctx, source)
+  const log = await deps.repo.getWorkoutLog(ctx, logId)
+  if (!log) return err({ code: 'notification_not_found' })
+  const r = decideUndoWorkoutDay(dc, log, reason, deps.clock.now())
+  if (!r.ok) return r
+  await deps.repo.saveWorkoutLog(ctx, r.value.next, r.value.events)
+  return ok(r.value.next)
 }
