@@ -128,7 +128,12 @@ export const typo = {
   h1: { fontFamily: serif, fontSize: 27, lineHeight: 34, letterSpacing: -0.3 } as TextStyle,
   h2: { fontSize: 18, fontWeight: '700', letterSpacing: -0.2 } as TextStyle,
   // Section labels: small, spaced, quiet. They organise without competing.
-  eyebrow: { fontSize: 10.5, fontWeight: '700', letterSpacing: 1.4, textTransform: 'uppercase' } as TextStyle,
+  // NO `textTransform: 'uppercase'` here, and that is the whole point. The platform's uppercase is
+  // locale-blind: it maps Turkish "i" to "I" instead of "İ", so "Üyeliğin" became "ÜYELIĞIN" and
+  // "Sıradaki dersin" became "SIRADAKI DERSIN" — visible on every label in the app. Turkish is the
+  // only language the app speaks, so the transform belongs in `trUpper` below, applied to the STRING
+  // where the alphabet is known, never to the box.
+  eyebrow: { fontSize: 10.5, fontWeight: '700', letterSpacing: 1.4 } as TextStyle,
   body: { fontSize: 15, fontWeight: '500' } as TextStyle,
   bodyStrong: { fontSize: 15, fontWeight: '600' } as TextStyle,
   caption: { fontSize: 12.5, fontWeight: '500' } as TextStyle,
@@ -137,4 +142,14 @@ export const typo = {
   numSm: { fontFamily: serif, fontSize: 20, lineHeight: 25, letterSpacing: -0.3, fontVariant: ['tabular-nums'] } as TextStyle,
   // A sentence in the studio's voice — the motivation line, a quiet aside. Serif at body size.
   voice: { fontFamily: serif, fontSize: 16.5, lineHeight: 25 } as TextStyle,
+}
+
+/**
+ * Uppercase, in Turkish.
+ *
+ * The two letters the platform gets wrong, both ways round: dotted i uppercases to İ (not I), and
+ * dotless ı uppercases to I (not İ). Everything else defers to the runtime.
+ */
+export function trUpper(text: string): string {
+  return text.replace(/i/g, '\u0130').replace(/\u0131/g, 'I').toUpperCase()
 }

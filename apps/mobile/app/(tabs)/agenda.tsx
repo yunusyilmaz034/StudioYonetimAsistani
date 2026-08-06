@@ -8,7 +8,7 @@ import { api } from '@/lib/api'
 import { useFetch } from '@/lib/useFetch'
 import { FadeInUp, PressableScale } from '@/components/motion'
 import { Body, Rule, ScreenSkeleton, TopStrip } from '@/components/ui'
-import { radius, space, typo as t, usePalette } from '@/theme'
+import { radius, space, typo as t, usePalette, trUpper } from '@/theme'
 
 // ── AJANDA — a day is a timetable, not two lists (owner-approved, 2026-08-06) ────────────────
 //
@@ -140,7 +140,7 @@ export default function Ajanda() {
               <PressableScale key={d.key} onPress={() => setSel(d.key)}>
                 <View style={{ width: 40, alignItems: 'center', paddingBottom: space(2) }}>
                   <Body style={[t.eyebrow, { fontSize: 9.5, color: d.any ? p.textFaint : p.hairline }]}>
-                    {WD[new Date(d.ms).getDay()]}
+                    {trUpper(WD[new Date(d.ms).getDay()])}
                   </Body>
                   <Body style={[t.numSm, { marginTop: 3, color: on ? p.accent : d.any ? p.text : p.textFaint }]}>
                     {new Date(d.ms).getDate()}
@@ -200,7 +200,7 @@ export default function Ajanda() {
 
                   {mine ? (
                     <>
-                      <Body style={[t.eyebrow, { fontSize: 9.5, color: p.accent, marginTop: 3 }]}>Rezervasyonun</Body>
+                      <Body style={[t.eyebrow, { fontSize: 9.5, color: p.accent, marginTop: 3 }]}>{trUpper('Rezervasyonun')}</Body>
                       {locked ? (
                         <Body faint style={{ fontSize: 11.5, fontStyle: 'italic' }}>
                           İptal süresi doldu — gelemezsen bizi ara.

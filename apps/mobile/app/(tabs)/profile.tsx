@@ -10,7 +10,7 @@ import { useFetch } from '@/lib/useFetch'
 import { useAuth } from '@/lib/auth'
 import { FadeInUp } from '@/components/motion'
 import { Body, Figure, Rule, Screen, ScreenSkeleton, SectionLabel, TopStrip } from '@/components/ui'
-import { radius, space, typo as t, usePalette } from '@/theme'
+import { radius, space, typo as t, usePalette, trUpper } from '@/theme'
 
 // ── BEN — her page, not a settings page (owner-approved, 2026-08-06) ─────────────────────────
 //
@@ -123,7 +123,7 @@ export default function Ben() {
               </View>
               <View style={{ alignItems: 'flex-end' }}>
                 <Body style={[t.num, { color: p.text }]}>{pack.remaining === null ? '∞' : pack.remaining}</Body>
-                <Body faint style={[t.eyebrow, { fontSize: 9.5 }]}>{pack.remaining === null ? 'sınırsız' : 'ders kaldı'}</Body>
+                <Body faint style={[t.eyebrow, { fontSize: 9.5 }]}>{trUpper(pack.remaining === null ? 'sınırsız' : 'ders kaldı')}</Body>
               </View>
             </View>
             {/* How much of the package is left, as a line rather than a number repeated. */}

@@ -6,7 +6,7 @@ import { Ionicons } from '@expo/vector-icons'
 import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated'
 import Svg, { Circle, Defs, G, LinearGradient, Path, Rect, Stop } from 'react-native-svg'
 
-import { radius, shadow, space, typo as t, usePalette } from '@/theme'
+import { radius, shadow, space, typo as t, usePalette, trUpper } from '@/theme'
 import { PressableScale } from './motion'
 
 // A real gradient fill (react-native-svg — already in the app for the QR code), the backbone of the
@@ -127,7 +127,7 @@ export function Eyebrow({ children, right }: { children: ReactNode; right?: Reac
   const p = usePalette()
   return (
     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: space(1.5), marginBottom: space(2.5) }}>
-      <Text style={[t.eyebrow, { color: p.textMuted }]}>{children}</Text>
+      <Text style={[t.eyebrow, { color: p.textMuted }]}>{upper(children)}</Text>
       {right}
     </View>
   )
@@ -197,12 +197,16 @@ export function Rule({ inset = 0, style }: { inset?: number; style?: StyleProp<V
 }
 
 /** A quiet section label with its rule beneath — the shape every section on every screen opens with. */
+// The eyebrow labels are written in sentence case and uppercased HERE, where the language is known
+// — see `trUpper`. Only strings are transformed; a caller who passes an element gets it untouched.
+const upper = (node: ReactNode): ReactNode => (typeof node === 'string' ? trUpper(node) : node)
+
 export function SectionLabel({ children, right }: { children: ReactNode; right?: ReactNode }) {
   const p = usePalette()
   return (
     <View style={{ gap: space(2.5) }}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' }}>
-        <Text style={[t.eyebrow, { color: p.textFaint }]}>{children}</Text>
+        <Text style={[t.eyebrow, { color: p.textFaint }]}>{upper(children)}</Text>
         {right}
       </View>
       <Rule />
@@ -280,7 +284,7 @@ export function TopStrip({ label, onQr }: { label: string; onQr: () => void }) {
   const p = usePalette()
   return (
     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-      <Text style={[t.eyebrow, { color: p.textFaint }]}>{label}</Text>
+      <Text style={[t.eyebrow, { color: p.textFaint }]}>{trUpper(label)}</Text>
       <QrButton onPress={onQr} />
     </View>
   )
@@ -324,7 +328,7 @@ export function H1({ children }: { children: ReactNode }) {
 }
 export function H2({ children }: { children: ReactNode }) {
   const p = usePalette()
-  return <Text style={[t.eyebrow, { color: p.textMuted, marginTop: space(2) }]}>{children}</Text>
+  return <Text style={[t.eyebrow, { color: p.textMuted, marginTop: space(2) }]}>{upper(children)}</Text>
 }
 
 export function Loading() {
