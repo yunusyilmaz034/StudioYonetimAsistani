@@ -158,7 +158,15 @@ export async function memberUploadPhoto(ctx: TenantContext, memberId: MemberId, 
   return { ok: true as const, value: { avatarUrl: await signedUrl(path) } }
 }
 
-// All of her subscriptions — active and past — for the subscriptions detail screen.
+// Her ACTIVE subscriptions. Past ones are deliberately not returned (owner, 2026-08-06:
+// "aboneliklerimde geçmiş abonelikler gösterilmesin") — an expired package is the studio's
+// accounting, not something the member came to read, and a list of what she used to have reads as a
+// debt collector's ledger on the screen she opens to check what she has left.
+//
+// `past` stays in the RESPONSE as an empty array rather than disappearing from the type: an older
+// app build that maps over it must keep working, and this ships to phones long before every member
+// updates. Filtering here rather than in the client is what makes the rule true on every surface at
+// once — data that nothing renders is data that something renders by accident later.
 export async function memberSubscriptions(ctx: TenantContext, memberId: MemberId) {
   const all = await new FirestoreEntitlementRepository(adminDb()).listByMember(ctx, memberId)
   const map = (e: Entitlement) => ({
@@ -176,8 +184,7 @@ export async function memberSubscriptions(ctx: TenantContext, memberId: MemberId
         : null,
   })
   const active = all.filter((e) => e.status === 'active').map(map).sort((a, b) => a.validUntil - b.validUntil)
-  const past = all.filter((e) => e.status !== 'active').map(map).sort((a, b) => b.purchasedAt - a.purchasedAt)
-  return { active, past }
+  return { active, past: [] }
 }
 
 export async function memberRegisterDevice(ctx: TenantContext, memberId: MemberId, token: string, platform: string) {

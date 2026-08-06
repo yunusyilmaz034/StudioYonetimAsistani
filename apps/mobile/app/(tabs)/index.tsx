@@ -65,7 +65,6 @@ export default function Home() {
   if (dash.loading && !dash.data) return <ScreenSkeleton />
   const d = dash.data
   const next = d?.upcoming[0] ?? null
-  const pkg = d?.packages[0] ?? null
   const announcement = (inbox.data ?? []).find((m) => !m.read) ?? (inbox.data ?? [])[0] ?? null
   const banners = home.data?.banners ?? (home.data?.banner ? [home.data.banner] : [])
   const occ = home.data?.occupancyLevel ? OCC[home.data.occupancyLevel] : null
@@ -94,12 +93,6 @@ export default function Home() {
   // her a session, she is someone who books. A hybrid member gets the booking screen, correctly —
   // she has both.
   const booksClasses = next !== null || upcomingSessions.length > 0
-
-  // What is left, said the way each kind of package actually counts: a credit package counts
-  // lessons, a period membership counts days. `null` remaining ⇒ unlimited ⇒ days are the story.
-  const daysLeft = pkg ? Math.ceil((pkg.validUntil - Date.now()) / 86_400_000) : null
-  const pkgRunningOut =
-    pkg !== null && ((pkg.remaining !== null && pkg.remaining <= 2) || (daysLeft !== null && daysLeft <= 7))
 
   // Her last reading and the change since the one before it. `compareMeasurements` is the SAME
   // function the Ölçümlerim table uses — one arithmetic, so the two screens can never disagree.
@@ -163,7 +156,7 @@ export default function Home() {
           <View style={{ gap: space(3) }}>
             <Rule />
             <SectionLabel>Salon şu an</SectionLabel>
-            <View style={{ gap: 6 }}>
+            <View style={{ gap: 7 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: space(3) }}>
                 <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: occ.tone === 'good' ? p.good : occ.tone === 'warn' ? p.warn : p.danger }} />
                 <Body style={[t.h1, { color: p.text }]}>{occ.label}</Body>
@@ -179,29 +172,6 @@ export default function Home() {
               </Body>
             </View>
           </View>
-        </FadeInUp>
-      ) : null}
-
-      {/* ÜYELİĞİN. What she has left, counted the way her package counts: a credit package counts
-          lessons, a period membership counts days. It sat three taps away on Ben, which meant the
-          member most likely to renew — the one about to run out — was the least likely to know. */}
-      {pkg ? (
-        <FadeInUp index={2}>
-          <Pressable onPress={() => router.push('/subscriptions')}>
-            <View style={{ gap: space(2.5) }}>
-              <SectionLabel right={<Body style={{ color: p.accent, fontWeight: '700', fontSize: 12.5 }}>Tümü</Body>}>Üyeliğin</SectionLabel>
-              <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: space(3) }}>
-                <View style={{ flex: 1, gap: 3 }}>
-                  <Body strong style={{ fontSize: 15 }} numberOfLines={1}>{pkg.productName}</Body>
-                  <Body style={{ fontSize: 13, color: pkgRunningOut ? p.warn : p.textMuted, fontWeight: pkgRunningOut ? '700' : '400' }}>
-                    {pkg.remaining !== null ? `${pkg.remaining} ders hakkın kaldı` : 'Sınırsız kullanım'}
-                    {daysLeft !== null && daysLeft > 0 ? ` · ${daysLeft} gün geçerli` : ''}
-                  </Body>
-                </View>
-                {pkg.remaining !== null ? <Figure value={String(pkg.remaining)} unit="ders" /> : null}
-              </View>
-            </View>
-          </Pressable>
         </FadeInUp>
       ) : null}
 
@@ -308,6 +278,31 @@ export default function Home() {
           </Pressable>
         </FadeInUp>
       ) : null}
+
+      {/* ÜYELİĞİN — a door, not a summary (owner, 2026-08-06). It stood second on the page with the
+          package name, the days left and a figure; that is the Aboneliklerim screen's whole job, said
+          twice, and the second telling was the one with less room to say it properly. So it drops to
+          the foot of the page and carries one thing: the way in. What is left is genuinely useful,
+          but "84 gün geçerli" is not why she opened the app at 18:00 on a Thursday. */}
+      <FadeInUp index={7}>
+        <PressableScale onPress={() => router.push('/subscriptions')}>
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: space(3),
+              paddingVertical: space(4),
+              borderTopWidth: StyleSheet.hairlineWidth * 2,
+              borderBottomWidth: StyleSheet.hairlineWidth * 2,
+              borderColor: p.hairline,
+            }}
+          >
+            <Ionicons name="ticket-outline" size={19} color={p.textMuted} />
+            <Body strong style={{ flex: 1, fontSize: 14.5 }}>Aboneliklerim</Body>
+            <Ionicons name="chevron-forward" size={16} color={p.textFaint} />
+          </View>
+        </PressableScale>
+      </FadeInUp>
 
       {/* For a member who books, occupancy stays a footnote — her day is decided by her reservation,
           not by the room. For everyone else it is already the headline above, and printing it twice

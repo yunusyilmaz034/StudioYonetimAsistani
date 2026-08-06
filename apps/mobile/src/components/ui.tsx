@@ -96,14 +96,14 @@ export function Screen({ children, scroll = true, refreshControl, header }: { ch
   if (!scroll) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: p.bg }} edges={edges}>
-        <View style={{ flex: 1, paddingHorizontal: space(5), paddingTop: topPad, gap: space(3) }}>{children}</View>
+        <View style={{ flex: 1, paddingHorizontal: space(5), paddingTop: topPad, gap: space(7) }}>{children}</View>
       </SafeAreaView>
     )
   }
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: p.bg }} edges={edges}>
       <ScrollView
-        contentContainerStyle={{ paddingHorizontal: space(5), paddingTop: topPad, paddingBottom: space(10), gap: space(3.5) }}
+        contentContainerStyle={{ paddingHorizontal: space(5), paddingTop: topPad, paddingBottom: space(12), gap: space(7) }}
         showsVerticalScrollIndicator={false}
         refreshControl={refreshControl as never}
       >
