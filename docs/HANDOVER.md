@@ -7,7 +7,7 @@ explains the moment.
 Keep it current the way the code is kept current: when the state changes, this changes in the same
 commit. A handover document that lags is worse than none, because it is believed.
 
-_Last true as of: **2026-08-05**._
+_Last true as of: **2026-08-06**._
 
 ---
 
@@ -288,6 +288,37 @@ been charged this way. Her two credits were restored through the panel's own adj
 The rule changed with it — see OR-30. A member can no longer cancel inside the window at all, the
 refusal lives in the domain rather than in a hidden button, and no member surface says "geç iptal"
 any more.
+
+### 2026-08-06 — the member app's new design language, and one price
+
+**Mobile.** The app moved to "Stüdyo Editoryal" — the marketing site's own bone paper, mahogany ink
+and Georgia, so the app and the website stop looking like two businesses. Screens kept their layouts
+(OR-6's discipline applied to mobile); what changed is material. Four tabs: **Bugün · Ajanda ·
+Antrenman|Ölçümlerim · Ben**. The third tab's NAME comes from the server (`TrainingBundle.
+showPrograms`) — a pilates-only member never meets the word "Antrenman", not as a label and not as an
+empty state. Üyeliğim, Cüzdan, Mesajlar and Profil merged into **Ben**; QR moved to each screen's
+top-right.
+
+Two things learned the hard way and worth not repeating: a word-only tab bar (no icons) reads as a
+caption strip and was rejected twice; and a fixed `height` on `tabBarStyle` overrides the safe-area
+inset, which pushes labels onto the home indicator. Bugün now drops any module with nothing to report
+— the empty attendance card and the "∞ kalan hakkın" figure are gone — and shows the studio's next
+open day as four lines of timetable instead.
+
+**These mobile changes are NOT in members' hands.** They need a store release (1.4.0), which also
+carries OR-30's cancel block.
+
+**One price (OR-31).** The cash/card split is over: every package is one number in cash, by transfer
+and on the card, and PAYTR is sent that number. The KK/havale farkı mechanism stays, zeroed to `0` in
+every category — visible in Ayarlar › Ödeme and one number away from returning. Written to production
+by `pnpm setup:single-price` (each change a `product.updated` event): Pilates 8 Ders ₺5.000 · Fitness
+3/6/12 Aylık ₺9.000/₺14.000/₺22.000, with 12 Aylık newly created; **Pilates 16 and 24 Ders are
+deactivated** — not sold, no price shown.
+
+Live already: prices (data, so every surface that reads the catalogue is correct now), the marketing
+site, and the WhatsApp AI (functions deployed — it now prints one figure and refuses to invent an
+instalment rate). **Waiting on the night deploy: the panel/portal copy** (App Hosting). The mobile
+buy screen's new footnote rides with 1.4.0.
 
 ---
 

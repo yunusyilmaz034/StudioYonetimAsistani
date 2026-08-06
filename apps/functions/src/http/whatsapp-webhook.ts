@@ -98,9 +98,11 @@ async function liveFacts(database: Firestore, ctx: TenantContext): Promise<strin
     if (products.length) {
       parts.push('GÜNCEL PAKETLER (fiyatlar buradan, ASLA uydurma):')
       for (const p of products) {
-        // KK farkı kategoriye göre (pilates %10, fitness sabit, PT %10) — checkout ile birebir aynı hesap.
+        // KK farkı kategoriye göre — checkout ile birebir aynı hesap. Fark SIFIRSA (tek fiyat dönemi,
+        // owner 2026-08-06) tek bir rakam yazılır: "Nakit 5.000 ₺" demek, olmayan ikinci bir fiyatın
+        // varlığını ima eder ve müşteri kartla ödemeye geçtiğinde ne çıkacağını merak eder.
         const sc = cardSurchargeKurus(p.priceInKurus, p.category, surchargeCfg)
-        const kk = sc > 0 ? ` / Kredi Kartı: ${tl(p.priceInKurus + sc)}` : ''
+        const price = sc > 0 ? `Nakit ${tl(p.priceInKurus)} / Kredi Kartı: ${tl(p.priceInKurus + sc)}` : tl(p.priceInKurus)
         // Hibrit demet: bileşenleri anlat (ör. "8 Pilates dersi + 4 Fitness girişi / 30 gün").
         const CAT_TR: Record<string, string> = { pilates_group: 'Pilates', fitness: 'Fitness', private: 'PT' }
         const detail =
@@ -109,7 +111,16 @@ async function liveFacts(database: Firestore, ctx: TenantContext): Promise<strin
             : p.type === 'credit'
               ? `${p.creditCount ?? 0} ders / ${p.durationDays} gün`
               : `${p.durationDays} gün sınırsız`
-        parts.push(`- ${p.name} (${detail}): Nakit ${tl(p.priceInKurus)}${kk}`)
+        parts.push(`- ${p.name} (${detail}): ${price}`)
+      }
+      // The instalment sentence, generated from the SAME data as the prices so the two can never
+      // disagree. The studio quotes no instalment rate because it sets none — the card offers the
+      // plan and PAYTR applies the bank's vade farkı (owner: "biz karışmıyoruz").
+      const anySurcharge = products.some((p) => cardSurchargeKurus(p.priceInKurus, p.category, surchargeCfg) > 0)
+      if (!anySurcharge) {
+        parts.push(
+          'ÖDEME: Yukarıdaki fiyatlar TEK FİYATTIR — nakit, havale ve kredi kartında aynı tutar geçerlidir; nakde özel ayrı bir fiyat YOKTUR. Kredi kartına taksit imkânı vardır; taksit seçeneğine göre vade farkı oluşabilir, bunu banka/ödeme altyapısı belirler, stüdyo belirlemez. Taksit oranı veya taksitli tutar SORULURSA rakam UYDURMA: "taksit seçeneklerine göre vade farkı oluşuyor, ödeme ekranında net tutarı görebilirsiniz" de.',
+        )
       }
     }
   } catch (e) {

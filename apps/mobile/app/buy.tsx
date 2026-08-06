@@ -115,8 +115,12 @@ export default function Buy() {
         ))
       )}
 
-      <Body faint style={{ fontSize: 12.5, textAlign: 'center', paddingHorizontal: space(4) }}>
-        Ödeme, lisanslı ödeme kuruluşu üzerinden alınır. Paketin ödeme onaylanır onaylanmaz tanımlanır.
+      {/* Tek fiyat (owner, 2026-08-06): nakit, havale ve kart aynı tutar. Taksitin vade farkını
+          banka/ödeme altyapısı belirler — stüdyo bir oran söylemez, çünkü bir oran koymuyor. */}
+      <Body faint style={{ fontSize: 12.5, textAlign: 'center', paddingHorizontal: space(4), lineHeight: 18 }}>
+        Fiyatlar nakit, havale ve kredi kartında aynıdır. Kredi kartına taksit yapabilirsin; taksit
+        seçeneğine göre vade farkı oluşabilir, net tutarı ödeme ekranında görürsün. Ödeme, lisanslı
+        ödeme kuruluşu üzerinden alınır; paketin ödeme onaylanır onaylanmaz tanımlanır.
       </Body>
     </Screen>
   )

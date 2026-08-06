@@ -47,6 +47,7 @@
     "setup:exercise-guidance": "tsx tools/setup/exercise-guidance.ts",
     "setup:exercise-images": "tsx tools/setup/exercise-images.ts",
     "setup:payment-surcharge": "tsx tools/setup/payment-surcharge.ts",
+    "setup:single-price": "tsx tools/setup/single-price-2026-08.ts",
     "setup:payment-provider": "tsx tools/setup/payment-provider.ts",
     "setup:program-a": "tsx tools/setup/program-a.ts",
     "gen:muscle-map": "tsx tools/setup/gen-muscle-map.ts"

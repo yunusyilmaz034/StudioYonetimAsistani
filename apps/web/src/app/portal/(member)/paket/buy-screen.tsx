@@ -93,8 +93,12 @@ export function BuyScreen({ items }: { items: readonly MemberBuyableProduct[] })
         </ul>
       )}
 
+      {/* Tek fiyat (owner, 2026-08-06): nakit, havale ve kart aynı tutar. Taksitin vade farkını
+          banka/ödeme altyapısı belirler — stüdyo bir oran söylemez, çünkü bir oran koymuyor. */}
       <p className="px-2 text-center text-xs text-muted-foreground">
-        Ödeme, lisanslı ödeme kuruluşu üzerinden alınır.
+        Fiyatlar nakit, havale ve kredi kartında aynıdır. Kredi kartına taksit yapabilirsiniz; taksit
+        seçeneğine göre vade farkı oluşabilir, net tutarı ödeme ekranında görürsünüz. Ödeme, lisanslı
+        ödeme kuruluşu üzerinden alınır.
       </p>
     </main>
   )

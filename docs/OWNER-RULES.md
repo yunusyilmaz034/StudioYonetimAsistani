@@ -362,6 +362,33 @@ showed five names above a "5/8" that meant three bookings plus two seats held fo
 now lists `booked` / `attended` / `no_show` only — someone who cancelled is not on the class — and
 the counter says its own split out loud when seats are held.
 
+**OR-31 · One price. Cash, transfer and card are the same number.** (2026-08-06) The studio used to
+quote a cash list and add a KK/havale farkı on top — 10% on pilates and PT, a flat ₺1.000 on fitness.
+Every surface then had to explain which number it was showing, and the member met whichever one she
+happened to land on: the website printed the cash price, the checkout charged the card price, and the
+gap between them was discovered at the payment step.
+
+From today there is one number per package and it is the same in cash, by bank transfer, and on the
+card. PAYTR is sent exactly that number.
+
+**The surcharge MECHANISM stays and is zeroed as DATA, not deleted as code** (owner: *"kk farkı
+sistemi kalsın ama hepsi şuanda 0 olacak"*). Every category carries an explicit `0` in Ayarlar ›
+Ödeme, so the rule is visible and one number away from coming back — no deploy, no migration. Ripping
+it out would be a one-way door for a pricing decision that may not be permanent. Everywhere that
+compares the two prices already guards on `total !== cash`, so at zero the second number simply stops
+being rendered.
+
+**Instalments are the bank's business, and we say so.** The card offers a plan, PAYTR applies the
+bank's vade farkı, and the studio quotes no rate because it sets none. Every buying surface carries
+the same sentence, and the AI receptionist is told in the same breath never to invent an instalment
+figure: *"taksit seçeneklerine göre vade farkı oluşuyor, ödeme ekranında net tutarı görebilirsiniz."*
+
+The opening list (prices are DATA — this is the record of the decision, not the source of the
+numbers): Pilates 8 Ders ₺5.000 · Fitness 3 Aylık ₺9.000 · 6 Aylık ₺14.000 · 12 Aylık ₺22.000 (new).
+**Pilates 16 and 24 Ders are no longer sold and carry no price** — deactivated rather than left on a
+shelf at a number nobody honours. Written by `pnpm setup:single-price`, through the product's own
+domain path, so each change is a `product.updated` event.
+
 ## Traps that have already cost something
 
 **OR-14 · Firestore indexes are a production-only trap.** The emulator does NOT enforce them, so a

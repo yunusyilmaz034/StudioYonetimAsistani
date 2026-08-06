@@ -129,7 +129,12 @@ export function UyelikForm({
         {busy ? <Loader2Icon className="animate-spin" /> : null}
         {selected ? `${tl(selected.totalKurus)} Öde` : 'Öde'}
       </Button>
-      <p className="text-center text-xs text-muted-foreground">
+      {/* Tek fiyat (owner, 2026-08-06): nakit, havale ve kart aynı tutar. Taksitin vade farkını
+          banka/ödeme altyapısı belirler — stüdyo bir oran söylemez, çünkü bir oran koymuyor. */}
+      <p className="text-center text-xs leading-relaxed text-muted-foreground">
+        Fiyatlar nakit, havale ve kredi kartında aynıdır. Kredi kartına taksit yapabilirsiniz; taksit
+        seçeneğine göre vade farkı oluşabilir, net tutarı ödeme ekranında görürsünüz.
+        <br />
         Ödeme sonrası üyeliğin hemen aktif olur; giriş bağlantısını WhatsApp&apos;tan göndeririz.
       </p>
     </div>
