@@ -108,17 +108,17 @@ export default function Home() {
       </FadeInUp>
 
       {/* Two figures she reads as facts about herself: what is left, and what she did. */}
-      {pkg || (fitness.data?.last30Count ?? 0) > 0 ? (
+      {(pkg && pkg.remaining !== null) || (fitness.data?.last30Count ?? 0) > 0 ? (
         <FadeInUp index={2}>
           <View style={{ flexDirection: 'row', borderTopWidth: StyleSheet.hairlineWidth * 2, borderBottomWidth: StyleSheet.hairlineWidth * 2, borderColor: p.hairline, paddingVertical: space(4) }}>
-            {pkg ? (
+            {pkg && pkg.remaining !== null ? (
               <View style={{ flex: 1, gap: 3 }}>
-                <Figure value={pkg.remaining === null ? '∞' : String(pkg.remaining)} unit={pkg.remaining === null ? 'sınırsız' : 'ders'} />
+                <Figure value={String(pkg.remaining)} unit="ders" />
                 <Body faint style={{ fontSize: 11.5 }}>Kalan hakkın</Body>
               </View>
             ) : null}
             {(fitness.data?.last30Count ?? 0) > 0 ? (
-              <View style={{ flex: 1, gap: 3, borderLeftWidth: pkg ? StyleSheet.hairlineWidth * 2 : 0, borderColor: p.hairline, paddingLeft: pkg ? space(4) : 0 }}>
+              <View style={{ flex: 1, gap: 3, borderLeftWidth: pkg && pkg.remaining !== null ? StyleSheet.hairlineWidth * 2 : 0, borderColor: p.hairline, paddingLeft: pkg && pkg.remaining !== null ? space(4) : 0 }}>
                 <Figure value={String(fitness.data?.last30Count ?? 0)} unit="ders" />
                 <Body faint style={{ fontSize: 11.5 }}>Son 30 gün</Body>
               </View>
@@ -156,29 +156,6 @@ export default function Home() {
         </FadeInUp>
       ) : null}
 
-      <FadeInUp index={4}>
-        <Eyebrow>Katılımın</Eyebrow>
-        <AttendanceCard visits={fitness.data?.visits ?? []} streak={fitness.data?.currentStreak ?? 0} last30={fitness.data?.last30Count ?? 0} />
-      </FadeInUp>
-
-      {d && d.packages.length > 0 ? (
-        <FadeInUp index={5}>
-          {/* A single clickable row (owner): the detail lives on the Aboneliklerim screen — home just
-              opens it. */}
-          <Card onPress={() => router.push('/subscriptions')}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: space(3) }}>
-              <View style={{ width: 42, height: 42, borderRadius: 12, backgroundColor: p.surfaceMuted, alignItems: 'center', justifyContent: 'center' }}>
-                <Ionicons name="card-outline" size={20} color={p.accent} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Body strong>Aboneliklerim</Body>
-                <Body muted style={{ fontSize: 13 }}>{d.packages.length} aktif paket · detayları gör</Body>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color={p.textFaint} />
-            </View>
-          </Card>
-        </FadeInUp>
-      ) : null}
     </Screen>
   )
 }
@@ -262,43 +239,6 @@ function BannerCard({ banner, onPress }: { banner: HomeBanner; onPress?: () => v
 }
 
 // A small weekly attendance bar chart — the last 6 weeks, animated on mount.
-function AttendanceCard({ visits, streak, last30 }: { visits: readonly { at: number }[]; streak: number; last30: number }) {
-  const p = usePalette()
-  const weeks = 6
-  const now = Date.now()
-  const buckets = Array.from({ length: weeks }, (_, i) => {
-    const from = now - (weeks - i) * 7 * 86_400_000
-    const to = now - (weeks - 1 - i) * 7 * 86_400_000
-    return visits.filter((v) => v.at >= from && v.at < to).length
-  })
-  const max = Math.max(1, ...buckets)
-  const hasData = visits.length > 0
-
-  return (
-    <Card>
-      <View style={{ flexDirection: 'row', gap: space(4) }}>
-        <View style={{ minWidth: 70 }}>
-          <Body style={[t.num, { color: p.accent }]}>{streak}</Body>
-          <Body faint style={{ fontSize: 12 }}>hafta seri</Body>
-          <Body strong style={{ marginTop: space(2), fontSize: 20 }}>{last30}</Body>
-          <Body faint style={{ fontSize: 12 }}>son 30 gün</Body>
-        </View>
-        <View style={{ flex: 1, justifyContent: 'flex-end' }}>
-          {hasData ? (
-            <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: space(2), height: 90 }}>
-              {buckets.map((c, i) => <Bar key={i} ratio={c / max} index={i} color={p.accent} track={p.surfaceMuted} />)}
-            </View>
-          ) : (
-            <View style={{ height: 90, alignItems: 'center', justifyContent: 'center' }}>
-              <Body faint style={{ textAlign: 'center', fontSize: 13 }}>Katılımların burada grafiğe dönüşecek. İlk dersini işaretlet!</Body>
-            </View>
-          )}
-        </View>
-      </View>
-    </Card>
-  )
-}
-
 function Bar({ ratio, index, color, track }: { ratio: number; index: number; color: string; track: string }) {
   const h = useSharedValue(0)
   useEffect(() => { h.value = withDelay(300 + index * 90, withTiming(Math.max(0.06, ratio), { duration: 650, easing: Easing.out(Easing.cubic) })) }, [h, ratio, index])

@@ -3,6 +3,7 @@ import { StyleSheet, Text, View } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import * as Notifications from 'expo-notifications'
 import { Redirect, router, Tabs } from 'expo-router'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { useAuth } from '@/lib/auth'
 import { api } from '@/lib/api'
@@ -17,7 +18,7 @@ import { radius, usePalette } from '@/theme'
 function TabLabel({ label, focused }: { label: string; focused: boolean }) {
   const p = usePalette()
   return (
-    <View style={{ alignItems: 'center', gap: 4, width: 90 }}>
+    <View style={{ alignItems: 'center', gap: 3, width: 90 }}>
       <Text numberOfLines={1} style={{ fontSize: 11.5, fontWeight: focused ? '700' : '600', color: focused ? p.accent : p.textFaint }}>
         {label}
       </Text>
@@ -28,6 +29,7 @@ function TabLabel({ label, focused }: { label: string; focused: boolean }) {
 
 export default function TabsLayout() {
   const p = usePalette()
+  const insets = useSafeAreaInsets()
   const { user, loading } = useAuth()
   // A pilates-only member has no workout programme — her tab is really just her measurements, so it
   // reads "Ölçümlerim" (owner, 2026-08-02).
@@ -62,12 +64,16 @@ export default function TabsLayout() {
         tabBarActiveTintColor: p.accent,
         tabBarInactiveTintColor: p.textFaint,
         tabBarLabelStyle: { fontSize: 11, fontWeight: '700' },
+        // A fixed `height` overrides the safe-area inset, which is what pushed the labels down onto
+        // the home indicator and made the bar look both too tall and too low (owner, 2026-08-06).
+        // Height is the label plus the inset, and nothing else.
         tabBarStyle: {
           backgroundColor: p.bgElevated,
           borderTopColor: p.hairline,
           borderTopWidth: StyleSheet.hairlineWidth * 2,
-          height: 76,
-          paddingTop: 10,
+          height: 44 + insets.bottom,
+          paddingTop: 6,
+          paddingBottom: insets.bottom,
         },
         tabBarItemStyle: { paddingTop: 0 },
       }}
