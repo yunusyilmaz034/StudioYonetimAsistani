@@ -1,4 +1,4 @@
-import { RefreshControl, View } from 'react-native'
+import { RefreshControl, StyleSheet, View } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { router } from 'expo-router'
 
@@ -6,153 +6,232 @@ import { compareMeasurements, type MemberMeasurement, type MemberProgram } from 
 import { api, type TrainingBundle } from '@/lib/api'
 import { shortDate } from '@/lib/format'
 import { useFetch } from '@/lib/useFetch'
-import { FadeInUp } from '@/components/motion'
-import { Body, Card, Empty, Eyebrow, Loading, Pill, Screen, Title } from '@/components/ui'
-import { radius, space, usePalette } from '@/theme'
+import { FadeInUp, PressableScale } from '@/components/motion'
+import { Body, Empty, Rule, Screen, ScreenSkeleton, SectionLabel, TopStrip } from '@/components/ui'
+import { space, typo as t, usePalette } from '@/theme'
 
-// A measurement can be saved with only some fields; the card shows whatever is there, and says so
-// plainly when the record is genuinely empty (so an empty card never reads as a bug).
-const measurementHasData = (m: MemberMeasurement): boolean =>
-  m.weightKg != null || m.fatPercent != null || m.musclePercent != null || m.waterPercent != null ||
-  m.bmi != null || m.bmr != null || m.visceralFat != null || Object.keys(m.circumferences).length > 0 || Boolean(m.note)
+// ── ANTRENMAN / ÖLÇÜMLERİM — one tab, two members (owner, 2026-08-06) ───────────────────────
+//
+// "sadece pilates olan üyenin antrenmanı olmaz sadece ölçüm olur ama fitness üyeliği varsa antrenman
+// gözükecek yoksa hiç adı bile olmayacak."
+//
+// So a pilates-only member never meets the word: no "Programlarım" heading, no "sana atanmış program
+// yok" empty state. Showing someone the absence of a service she did not buy sells nothing and reads
+// as a fault. Measurements are on both — they belong to everyone — as the WHOLE screen for her, and
+// under the programme for a gym member.
+//
+// `showPrograms` is the server's answer, never guessed from her packages here; the tab label reads
+// from the same field.
 
-const STATUS: Record<string, { label: string; tone: 'good' | 'muted' | 'gold' }> = {
-  active: { label: 'Aktif', tone: 'good' },
-  draft: { label: 'Taslak', tone: 'muted' },
-  completed: { label: 'Tamamlandı', tone: 'gold' },
-  archived: { label: 'Arşiv', tone: 'muted' },
-}
+// The order the scale prints them in, so the screen matches the sheet in her hand.
+const ROWS: readonly { key: keyof MemberMeasurement; label: string; pct?: keyof MemberMeasurement }[] = [
+  { key: 'weightKg', label: 'Kilo' },
+  { key: 'idealWeightKg', label: 'İdeal kilo' },
+  { key: 'leanMassKg', label: 'Yağsız kütle', pct: 'leanMassPercent' },
+  { key: 'muscleKg', label: 'Kas', pct: 'musclePercent' },
+  { key: 'waterKg', label: 'Sıvı', pct: 'waterPercent' },
+  { key: 'fatKg', label: 'Yağ', pct: 'fatPercent' },
+]
+
+const num = (v: unknown): number | null => (typeof v === 'number' ? v : null)
+const tr = (n: number) => String(n).replace('.', ',')
 
 export default function Training() {
   const p = usePalette()
   const { data, loading, reload } = useFetch(api.training)
-  if (loading && !data) return <Loading />
-  const t = data as TrainingBundle | null
-  const programs = [...(t?.programs ?? [])].sort((a, b) => (a.status === 'active' ? -1 : b.status === 'active' ? 1 : 0))
-  const lastM = t?.measurements[0] ?? null
+  if (loading && !data) return <ScreenSkeleton />
+  const t2 = data as TrainingBundle | null
+  const showPrograms = t2?.showPrograms ?? true
+  const programs = [...(t2?.programs ?? [])].sort((a, b) => (a.status === 'active' ? -1 : b.status === 'active' ? 1 : 0))
+  const measurements = t2?.measurements ?? []
+  const last = measurements[0] ?? null
+  const change = compareMeasurements(measurements)
 
   return (
     <Screen refreshControl={<RefreshControl refreshing={loading} onRefresh={reload} tintColor={p.accent} />}>
-      <Title sub={t?.showPrograms ? 'Programların ve gelişimin' : 'Gelişimini takip et'}>{t?.showPrograms ? 'Antrenman' : 'Ölçümlerim'}</Title>
-
-      {t?.showPrograms ? (
-        <>
-          <Eyebrow>Programlarım</Eyebrow>
-          {programs.length > 0 ? (
-            programs.map((prog, i) => <ProgramCard key={prog.id} program={prog} index={i} />)
-          ) : (
-            <Card><Empty icon={<Ionicons name="clipboard-outline" size={30} color={p.textFaint} />} text="Sana atanmış bir program yok." /></Card>
-          )}
-        </>
-      ) : null}
-
-      <FadeInUp index={programs.length + 1}>
-        <Eyebrow>Ölçümlerim</Eyebrow>
-        {lastM ? (
-          <Card>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Body strong>Son ölçüm</Body>
-              <Body muted>{shortDate(lastM.takenOn)}</Body>
-            </View>
-            {measurementHasData(lastM) ? (
-              <>
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space(2) }}>
-                  {lastM.weightKg != null ? <Metric label="Kilo" value={`${lastM.weightKg} kg`} /> : null}
-                  {lastM.fatPercent != null ? <Metric label="Yağ" value={`%${lastM.fatPercent}`} /> : null}
-                  {lastM.musclePercent != null ? <Metric label="Kas" value={`%${lastM.musclePercent}`} /> : null}
-                  {lastM.waterPercent != null ? <Metric label="Su" value={`%${lastM.waterPercent}`} /> : null}
-                  {lastM.bmi != null ? <Metric label="BMI" value={`${lastM.bmi}`} /> : null}
-                  {lastM.bmr != null ? <Metric label="BMR" value={`${lastM.bmr}`} /> : null}
-                  {lastM.visceralFat != null ? <Metric label="Visseral" value={`${lastM.visceralFat}`} /> : null}
-                </View>
-                {Object.keys(lastM.circumferences).length > 0 ? (
-                  <View style={{ gap: space(1.5) }}>
-                    <Body faint style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.4 }}>Çevre ölçüleri</Body>
-                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space(2) }}>
-                      {Object.entries(lastM.circumferences).map(([k, v]) => <Metric key={k} label={k} value={`${v} cm`} />)}
-                    </View>
-                  </View>
-                ) : null}
-                {lastM.note ? <Body muted style={{ fontStyle: 'italic' }}>{lastM.note}</Body> : null}
-              </>
-            ) : (
-              <Body muted>Bu ölçümde değer girilmemiş. (Kayıt {shortDate(lastM.takenOn)} tarihinde açılmış ama alanlar boş.)</Body>
-            )}
-          </Card>
-        ) : (
-          <Card><Empty icon={<Ionicons name="pulse-outline" size={28} color={p.textFaint} />} text="Henüz ölçüm kaydın yok." /></Card>
-        )}
+      <FadeInUp index={0}>
+        <View style={{ gap: space(4) }}>
+          <TopStrip label="Gelişimin" onQr={() => router.push('/qr')} />
+          <View style={{ gap: 5 }}>
+            <Body style={[t.h1, { color: p.text }]}>{showPrograms ? 'Antrenman' : 'Ölçümlerim'}</Body>
+            <Body faint style={{ fontSize: 12.5 }}>
+              {showPrograms
+                ? 'Programın ve ölçümlerin'
+                : last
+                  ? `Son ölçüm · ${shortDate(last.takenOn)}`
+                  : 'Gelişimini takip et'}
+            </Body>
+          </View>
+        </View>
       </FadeInUp>
 
-      <ChangeCard list={t?.measurements ?? []} index={programs.length + 2} />
+      {showPrograms ? (
+        <FadeInUp index={1}>
+          <View style={{ gap: space(3) }}>
+            <SectionLabel>Programlarım</SectionLabel>
+            {programs.length > 0 ? (
+              <View>
+                {programs.map((prog, i) => (
+                  <ProgramRow key={prog.id} program={prog} last={i === programs.length - 1} />
+                ))}
+              </View>
+            ) : (
+              <Body muted>Sana atanmış bir program yok.</Body>
+            )}
+          </View>
+        </FadeInUp>
+      ) : null}
+
+      {last ? (
+        <FadeInUp index={2}>
+          <View style={{ gap: space(3) }}>
+            <SectionLabel>{showPrograms ? `Son ölçüm · ${shortDate(last.takenOn)}` : 'Son ölçüm'}</SectionLabel>
+            <View>
+              {ROWS.map((r, i) => {
+                const kg = num(last[r.key])
+                if (kg === null) return null
+                const pct = r.pct ? num(last[r.pct]) : null
+                const delta = change?.rows.find((x) => x.key === r.key)?.diff ?? null
+                return (
+                  <View
+                    key={String(r.key)}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'baseline',
+                      gap: space(2.5),
+                      paddingVertical: space(2.5),
+                      borderBottomWidth: i === ROWS.length - 1 ? 0 : StyleSheet.hairlineWidth * 2,
+                      borderColor: p.hairline,
+                    }}
+                  >
+                    <Body muted style={{ flex: 1, fontSize: 13.5 }}>{r.label}</Body>
+                    <Body style={[t.numSm, { color: p.text, minWidth: 62, textAlign: 'right' }]}>{tr(kg)}</Body>
+                    <Body faint style={{ fontSize: 12, minWidth: 48, textAlign: 'right' }}>{pct !== null ? `%${tr(pct)}` : ''}</Body>
+                    {/* The change since her previous reading. Sage up, mahogany down — a DIRECTION,
+                        never a verdict: a member who traded fat for muscle must not be told she got
+                        worse. */}
+                    <Body style={{ fontSize: 12, fontWeight: '700', minWidth: 46, textAlign: 'right', color: delta === null ? p.textFaint : delta > 0 ? p.good : p.accent }}>
+                      {delta === null ? '—' : `${delta > 0 ? '↑' : '↓'} ${tr(Math.abs(delta))}`}
+                    </Body>
+                  </View>
+                )
+              })}
+            </View>
+            {change ? (
+              <Body faint style={{ fontSize: 11.5, fontStyle: 'italic' }}>
+                Bir önceki ölçüme göre · {change.days} gün arayla
+              </Body>
+            ) : null}
+            {Object.keys(last.circumferences).length > 0 ? (
+              <View style={{ gap: space(2), marginTop: space(2) }}>
+                <Rule />
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space(4), paddingTop: space(1) }}>
+                  {Object.entries(last.circumferences).map(([k, v]) => (
+                    <View key={k} style={{ gap: 2 }}>
+                      <Body style={[t.numSm, { color: p.text, fontSize: 17 }]}>{tr(v)}</Body>
+                      <Body faint style={{ fontSize: 11 }}>{k} · cm</Body>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            ) : null}
+            {last.note ? <Body muted style={{ fontStyle: 'italic', fontSize: 13 }}>{last.note}</Body> : null}
+          </View>
+        </FadeInUp>
+      ) : (
+        <FadeInUp index={2}>
+          <View style={{ gap: space(3) }}>
+            <SectionLabel>Son ölçüm</SectionLabel>
+            <Empty icon={<Ionicons name="pulse-outline" size={26} color={p.textFaint} />} text="Henüz ölçüm kaydın yok." />
+          </View>
+        </FadeInUp>
+      )}
+
+      {/* Her weight over time, as three plain figures — enough to see a direction without a chart. */}
+      {measurements.length > 1 ? (
+        <FadeInUp index={3}>
+          <View style={{ gap: space(3) }}>
+            <SectionLabel>Geçmiş</SectionLabel>
+            <View style={{ flexDirection: 'row' }}>
+              {[...measurements].slice(0, 3).reverse().map((m, i) => (
+                <View
+                  key={m.id}
+                  style={{
+                    flex: 1,
+                    gap: 3,
+                    borderLeftWidth: i === 0 ? 0 : StyleSheet.hairlineWidth * 2,
+                    borderColor: p.hairline,
+                    paddingLeft: i === 0 ? 0 : space(3),
+                  }}
+                >
+                  <Body faint style={{ fontSize: 11 }}>{shortDate(m.takenOn)}</Body>
+                  <Body style={[t.numSm, { color: p.text }]}>{m.weightKg !== null ? tr(m.weightKg) : '—'}</Body>
+                </View>
+              ))}
+            </View>
+            <Body faint style={{ fontSize: 11.5 }}>Kilo · kg</Body>
+          </View>
+        </FadeInUp>
+      ) : null}
+
+      <FadeInUp index={4}>
+        <View style={{ gap: space(2), marginTop: space(2) }}>
+          <Rule />
+          <Body faint style={{ fontSize: 12, lineHeight: 18, paddingTop: space(2) }}>
+            Ölçümlerin stüdyodaki tartıdan alınır. Bir sonraki ölçümünü resepsiyondan isteyebilirsin.
+          </Body>
+        </View>
+      </FadeInUp>
     </Screen>
   )
 }
 
-function ProgramCard({ program, index }: { program: MemberProgram; index: number }) {
+const STATUS: Record<string, string> = { active: 'Aktif', draft: 'Taslak', completed: 'Tamamlandı', archived: 'Arşiv' }
+
+function ProgramRow({ program, last }: { program: MemberProgram; last: boolean }) {
   const p = usePalette()
-  const s = STATUS[program.status] ?? STATUS.draft!
   const version = program.versions.find((v) => v.version === program.currentVersion) ?? program.versions[program.versions.length - 1]
   const days = version?.days.length ?? 0
   const exercises = version?.days.reduce((n, d) => n + d.exercises.length, 0) ?? 0
   return (
-    <FadeInUp index={index}>
-      <Card onPress={() => router.push(`/program/${program.id}`)} level={program.status === 'active' ? 2 : 1}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space(3) }}>
-          <View style={{ width: 52, height: 52, borderRadius: radius.md, backgroundColor: program.status === 'active' ? p.accent : p.surfaceMuted, alignItems: 'center', justifyContent: 'center' }}>
-            <Ionicons name="barbell" size={24} color={program.status === 'active' ? p.accentText : p.textMuted} />
-          </View>
-          <View style={{ flex: 1, gap: 4 }}>
-            <Body strong numberOfLines={1}>{program.title}</Body>
-            <View style={{ flexDirection: 'row', gap: space(2), alignItems: 'center' }}>
-              <Pill label={s.label} tone={s.tone} />
-              <Body faint style={{ fontSize: 12.5 }}>{days} gün · {exercises} hareket</Body>
-            </View>
-          </View>
-          <Ionicons name="chevron-forward" size={20} color={p.textFaint} />
+    <PressableScale onPress={() => router.push(`/program/${program.id}`)}>
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: space(3),
+          paddingVertical: space(3.5),
+          borderBottomWidth: last ? 0 : StyleSheet.hairlineWidth * 2,
+          borderColor: p.hairline,
+        }}
+      >
+        <View
+          style={{
+            width: 38,
+            height: 38,
+            borderRadius: 19,
+            borderWidth: StyleSheet.hairlineWidth * 2,
+            borderColor: p.hairline,
+            backgroundColor: p.surface,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Ionicons name="barbell-outline" size={17} color={program.status === 'active' ? p.accent : p.textFaint} />
         </View>
-      </Card>
-    </FadeInUp>
-  )
-}
-
-// What moved between her last two readings. No verdict, no green-good / red-bad: a member who traded
-// two kilos of fat for a kilo of muscle would be told she got heavier and therefore worse. She reads
-// the numbers; the trainer does the interpreting, in person.
-function ChangeCard({ list, index }: { list: readonly MemberMeasurement[]; index: number }) {
-  const p = usePalette()
-  const c = compareMeasurements(list)
-  if (!c) return null
-  return (
-    <FadeInUp index={index}>
-      <Card>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Body strong>Son iki ölçüm arası</Body>
-          <Body muted>{c.days} gün</Body>
+        <View style={{ flex: 1, gap: 3 }}>
+          <Body strong style={{ fontSize: 14.5 }} numberOfLines={1}>{program.title}</Body>
+          <Body faint style={{ fontSize: 12.5 }}>
+            {days} gün · {exercises} hareket{version ? ` · v${version.version}` : ''}
+          </Body>
         </View>
-        <Body faint style={{ fontSize: 12.5 }}>{shortDate(c.fromDate)} → {shortDate(c.toDate)}</Body>
-        <View style={{ gap: space(1.5) }}>
-          {c.rows.map((r) => (
-            <View key={r.key} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space(2) }}>
-              <Body style={{ flex: 1 }} numberOfLines={1}>{r.label}</Body>
-              <Body faint style={{ fontSize: 12.5 }}>{r.from} → {r.to}{r.unit === '%' ? '%' : ` ${r.unit}`}</Body>
-              <Body strong style={{ color: p.accent, minWidth: 72, textAlign: 'right' }}>
-                {r.diff > 0 ? '↑' : '↓'} {Math.abs(r.diff)}{r.unit === '%' ? '%' : ` ${r.unit}`}
-              </Body>
-            </View>
-          ))}
-        </View>
-      </Card>
-    </FadeInUp>
-  )
-}
-
-function Metric({ label, value }: { label: string; value: string }) {
-  const p = usePalette()
-  return (
-    <View style={{ backgroundColor: p.surfaceMuted, borderRadius: radius.sm, paddingHorizontal: space(3), paddingVertical: space(2), minWidth: 74 }}>
-      <Body faint style={{ fontSize: 11.5, textTransform: 'uppercase', letterSpacing: 0.5 }}>{label}</Body>
-      <Body strong style={{ fontSize: 17 }}>{value}</Body>
-    </View>
+        {program.status === 'active' ? (
+          <Body style={{ fontSize: 11, fontWeight: '700', color: p.good }}>{STATUS.active}</Body>
+        ) : (
+          <Body faint style={{ fontSize: 11 }}>{STATUS[program.status] ?? program.status}</Body>
+        )}
+        <Ionicons name="chevron-forward" size={16} color={p.textFaint} />
+      </View>
+    </PressableScale>
   )
 }

@@ -1,110 +1,103 @@
 import { useMemo, useState } from 'react'
-import { Alert, Pressable, RefreshControl, ScrollView, View } from 'react-native'
-import { Ionicons } from '@expo/vector-icons'
+import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { router } from 'expo-router'
 
 import type { MemberReservation, MemberSession } from '@studio/core/client'
 import { api } from '@/lib/api'
 import { useFetch } from '@/lib/useFetch'
 import { FadeInUp, PressableScale } from '@/components/motion'
-import { Body, Card, Empty, Pill, ScreenSkeleton, Title } from '@/components/ui'
-import { radius, shadow, space, usePalette } from '@/theme'
+import { Body, Rule, ScreenSkeleton, TopStrip } from '@/components/ui'
+import { radius, space, typo as t, usePalette } from '@/theme'
 
-function ActionPill({ label, tone, busy, onPress }: { label: string; tone: 'accent' | 'danger'; busy: boolean; onPress: () => void }) {
-  const p = usePalette()
-  const c = tone === 'danger' ? p.danger : p.accent
-  const bg = tone === 'danger' ? p.dangerSoft : p.accent
-  const fg = tone === 'danger' ? p.danger : p.accentText
-  return (
-    <PressableScale onPress={onPress}>
-      <View style={{ paddingHorizontal: space(3.5), paddingVertical: space(2), borderRadius: radius.pill, backgroundColor: bg, borderWidth: tone === 'danger' ? 1 : 0, borderColor: c + '30', minWidth: 72, alignItems: 'center' }}>
-        <Body style={{ color: fg, fontWeight: '700', fontSize: 13.5 }}>{busy ? '…' : label}</Body>
-      </View>
-    </PressableScale>
-  )
-}
+// ── AJANDA — a day is a timetable, not two lists (owner-approved, 2026-08-06) ────────────────
+//
+// The screen used to open with a choice: "Rezervasyon Yap" or "Rezervasyonlarım". A day does not
+// divide that way. Her own class now sits in the same list as every other class that day, marked
+// with a rail down its left — she answers "what is on today" and "what is mine" in one look, having
+// chosen nothing.
+//
+// Past reservations left this screen for Ben › Geçmiş rezervasyonlarım. Ajanda looks forward; "what
+// did I do" is a different question and belongs somewhere else.
+//
+// What did NOT change: booking, cancelling, the blocked reasons, and the rule that a member cannot
+// cancel inside the window (OR-30) — which this layout finally makes legible, because the row simply
+// has no button and says why.
 
-const BLOCKED_TR: Record<string, string> = { full: 'Kontenjan dolu', no_credit: 'Uygun paket/kredi yok', self_booking_off: 'Online rezervasyona kapalı', past: 'Geçmiş' }
-// Past-reservation outcomes → a Turkish label + a tone. Falls back to the raw status if a new one appears.
-const STATUS_TR: Record<string, { label: string; tone: 'good' | 'danger' | 'warn' | 'muted' }> = {
-  attended: { label: 'Katıldın', tone: 'good' },
-  auto_resolved: { label: 'Katıldın', tone: 'good' },
-  presumed_attended: { label: 'Katıldın', tone: 'good' },
-  no_show: { label: 'Gelmedin', tone: 'danger' },
-  late_cancelled: { label: 'İptal edildi', tone: 'muted' }, // OR-30
-  cancelled: { label: 'İptal edildi', tone: 'muted' },
-}
-
-const dayKey = (ms: number) => new Date(ms).toLocaleDateString('tr-TR', { timeZone: 'Europe/Istanbul', year: 'numeric', month: '2-digit', day: '2-digit' })
 const WD = ['Paz', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt']
+const dayKey = (ms: number) => new Date(ms).toLocaleDateString('tr-TR', { timeZone: 'Europe/Istanbul', year: 'numeric', month: '2-digit', day: '2-digit' })
 const hhmm = (ms: number) => new Date(ms).toLocaleTimeString('tr-TR', { timeZone: 'Europe/Istanbul', hour: '2-digit', minute: '2-digit' })
-const longDay = (ms: number) => new Date(ms).toLocaleDateString('tr-TR', { timeZone: 'Europe/Istanbul', weekday: 'short', day: 'numeric', month: 'short' })
+const longDay = (ms: number) => new Date(ms).toLocaleDateString('tr-TR', { timeZone: 'Europe/Istanbul', weekday: 'long', day: 'numeric', month: 'long' })
+const monthTr = (ms: number) => new Date(ms).toLocaleDateString('tr-TR', { timeZone: 'Europe/Istanbul', month: 'long', year: 'numeric' })
 
-// "Bugün" / "Yarın" / "Sal 22 Tem" — a warm relative label for the reservations list.
-function relDay(ms: number): string {
-  const today = dayKey(Date.now())
-  const tomorrow = dayKey(Date.now() + 86_400_000)
-  const k = dayKey(ms)
-  if (k === today) return 'Bugün'
-  if (k === tomorrow) return 'Yarın'
-  return longDay(ms)
+// A reason she cannot book, and — where one exists — the way out. A refused row that offers nothing
+// is a dead end; every one of these has somewhere to go.
+const BLOCKED: Record<string, { label: string; cta?: string; go?: () => void }> = {
+  full: { label: 'Dolu' },
+  no_credit: { label: 'Paketin bu dersi kapsamıyor', cta: 'Paket al', go: () => router.push('/buy') },
+  self_booking_off: { label: 'Online rezervasyona kapalı' },
+  past: { label: 'Geçti' },
 }
 
-type Tab = 'book' | 'mine'
-
-export default function Agenda() {
+export default function Ajanda() {
   const p = usePalette()
   const agenda = useFetch(api.agenda)
   const reservations = useFetch(api.reservations)
-  const [tab, setTab] = useState<Tab>('book')
   const [sel, setSel] = useState<string | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
 
-  // sessionId → her upcoming reservation (so a booked class in the browse view can be cancelled there).
-  const resBySession = useMemo(() => {
-    const m = new Map<string, MemberReservation>()
-    for (const r of reservations.data?.upcoming ?? []) m.set(r.sessionId, r)
-    return m
-  }, [reservations.data])
+  const sessions = agenda.data?.sessions ?? []
+  const upcoming = reservations.data?.upcoming ?? []
+  const resBySession = useMemo(() => new Map(upcoming.map((r) => [r.sessionId, r])), [upcoming])
 
-  const days = useMemo(() => {
-    const map = new Map<string, { key: string; ms: number }>()
-    for (const s of agenda.data?.sessions ?? []) {
-      const k = dayKey(s.startsAt)
-      if (!map.has(k)) map.set(k, { key: k, ms: s.startsAt })
+  // The next seven days, always — a week reads as a week even when the studio has nothing on a day.
+  const week = useMemo(() => {
+    const out: { key: string; ms: number; mine: boolean; any: boolean }[] = []
+    for (let i = 0; i < 7; i++) {
+      const d = new Date()
+      d.setDate(d.getDate() + i)
+      const k = dayKey(d.getTime())
+      out.push({
+        key: k,
+        ms: d.getTime(),
+        mine: upcoming.some((r) => dayKey(r.startsAt) === k),
+        any: sessions.some((s) => dayKey(s.startsAt) === k),
+      })
     }
-    return [...map.values()].sort((a, b) => a.ms - b.ms)
-  }, [agenda.data])
+    return out
+  }, [sessions, upcoming])
 
-  const active = sel ?? days[0]?.key ?? null
-  const daySessions = (agenda.data?.sessions ?? []).filter((s) => dayKey(s.startsAt) === active).sort((a, b) => a.startsAt - b.startsAt)
-  const upcoming = [...(reservations.data?.upcoming ?? [])].sort((a, b) => a.startsAt - b.startsAt)
-  const past = [...(reservations.data?.past ?? [])].sort((a, b) => b.startsAt - a.startsAt)
+  const active = sel ?? week[0]?.key ?? ''
+  const daySessions = useMemo(
+    () => sessions.filter((s) => dayKey(s.startsAt) === active).sort((a, b) => a.startsAt - b.startsAt),
+    [sessions, active],
+  )
+  const activeMs = week.find((d) => d.key === active)?.ms ?? Date.now()
+  const mineToday = daySessions.filter((s) => s.alreadyBooked).length
 
-  if (agenda.loading && !agenda.data) return <ScreenSkeleton hero={false} />
-
-  const refreshing = (agenda.loading || reservations.loading) && !!agenda.data
-  const reload = () => { void agenda.reload(); void reservations.reload() }
+  const reload = () => {
+    void agenda.reload()
+    void reservations.reload()
+  }
 
   async function book(s: MemberSession) {
     setBusyId(s.sessionId)
     try {
       const res = await api.book(s.sessionId)
-      if (res.ok) { Alert.alert('Rezervasyon alındı ✓', `${s.serviceName} — ${hhmm(s.startsAt)}`); reload() }
-      else Alert.alert('Rezervasyon yapılamadı', BLOCKED_TR[res.error.code] ?? res.error.code)
-    } catch { Alert.alert('Hata', 'Rezervasyon yapılamadı, tekrar dene.') } finally { setBusyId(null) }
+      if (res.ok) reload()
+      else Alert.alert('Rezervasyon yapılamadı', 'Tekrar dene.')
+    } catch {
+      Alert.alert('Hata', 'Rezervasyon yapılamadı, tekrar dene.')
+    } finally {
+      setBusyId(null)
+    }
   }
 
-  // Cancel works off the reservation alone — everything the warning needs (start time, window, whether a
-  // late cancel burns a credit) rides on MemberReservation, so both tabs call the same path.
+  // Inside the window the app explains and stops (OR-30). The server refuses it too, so this dialog
+  // is the courtesy, not the guard.
   function askCancel(r: MemberReservation) {
     const hoursUntil = (r.startsAt - Date.now()) / 3_600_000
-    const late = hoursUntil <= r.cancellationWindowHours
-    // Inside the window the app does not offer to cancel — it explains and stops. The old dialog
-    // warned that a credit would burn and then went ahead anyway; a member pressed it twice on the
-    // same class inside fifty-one seconds and lost two credits (owner, 2026-08-06). The server
-    // refuses this too, so the dialog is the courtesy, not the guard.
-    if (late) {
+    if (hoursUntil <= r.cancellationWindowHours) {
       Alert.alert(
         'İptal süresi doldu',
         `Ders başlamasına ${r.cancellationWindowHours} saatten az kaldığı için bu rezervasyon uygulamadan iptal edilemez. Gelemeyecekseniz lütfen stüdyoyu arayın.`,
@@ -115,181 +108,149 @@ export default function Agenda() {
     Alert.alert(`${r.serviceName} · ${hhmm(r.startsAt)}`, 'Rezervasyonun iptal edilsin mi?', [
       { text: 'Vazgeç', style: 'cancel' },
       {
-        text: 'İptal Et', style: 'destructive', onPress: async () => {
+        text: 'İptal Et',
+        style: 'destructive',
+        onPress: async () => {
           setBusyId(r.sessionId)
           try {
             const res = await api.cancel(r.reservationId)
-            if (res.ok) { Alert.alert('İptal edildi'); reload() } else Alert.alert('İptal edilemedi', 'Tekrar dene.')
-          } catch { Alert.alert('Hata', 'İptal edilemedi.') } finally { setBusyId(null) }
+            if (res.ok) reload()
+            else Alert.alert('İptal edilemedi', 'Tekrar dene.')
+          } finally {
+            setBusyId(null)
+          }
         },
       },
     ])
   }
 
+  if (agenda.loading && !agenda.data) return <ScreenSkeleton />
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: p.bg }} edges={['top']}>
-      <View style={{ paddingHorizontal: space(5), paddingTop: space(2), paddingBottom: space(3) }}>
-        <Title sub={tab === 'book' ? 'Uygun dersleri gör ve yerini ayırt' : 'Yaklaşan ve geçmiş rezervasyonların'}>Ajanda</Title>
+      <View style={{ paddingHorizontal: space(5), paddingTop: space(2), gap: space(4) }}>
+        <TopStrip label={monthTr(activeMs)} onQr={() => router.push('/qr')} />
 
-        {/* The two sections, as a segmented control — booking vs. my reservations. */}
-        <View style={{ flexDirection: 'row', backgroundColor: p.surfaceMuted, borderRadius: radius.pill, padding: 4, marginTop: space(3) }}>
-          <Segment label="Rezervasyon Yap" on={tab === 'book'} onPress={() => setTab('book')} />
-          <Segment label="Rezervasyonlarım" on={tab === 'mine'} onPress={() => setTab('mine')} badge={upcoming.length || undefined} />
+        {/* Seven days. Selection is an underline, not a filled tile — the same mark the tab bar uses.
+            A sage dot means she has a class that day; a faded date means the studio has nothing on. */}
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+          {week.map((d) => {
+            const on = d.key === active
+            return (
+              <PressableScale key={d.key} onPress={() => setSel(d.key)}>
+                <View style={{ width: 40, alignItems: 'center', paddingBottom: space(2) }}>
+                  <Body style={[t.eyebrow, { fontSize: 9.5, color: d.any ? p.textFaint : p.hairline }]}>
+                    {WD[new Date(d.ms).getDay()]}
+                  </Body>
+                  <Body style={[t.numSm, { marginTop: 3, color: on ? p.accent : d.any ? p.text : p.textFaint }]}>
+                    {new Date(d.ms).getDate()}
+                  </Body>
+                  <View style={{ width: 4, height: 4, borderRadius: 2, marginTop: 4, backgroundColor: d.mine ? p.good : 'transparent' }} />
+                  <View style={{ height: 2, width: 20, marginTop: 4, borderRadius: 2, backgroundColor: on ? p.accent : 'transparent' }} />
+                </View>
+              </PressableScale>
+            )
+          })}
         </View>
+        <Rule />
       </View>
 
-      {tab === 'book' ? (
-        <>
-          {days.length > 0 ? (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: space(5), gap: space(2.5), paddingTop: space(1), paddingBottom: space(4) }} style={{ flexGrow: 0, marginBottom: space(1) }}>
-              {days.map((d) => {
-                const on = d.key === active
-                const dt = new Date(d.ms)
-                return (
-                  <PressableScale key={d.key} onPress={() => setSel(d.key)}>
-                    <View style={[{ width: 60, paddingVertical: space(2.5), borderRadius: radius.lg, alignItems: 'center', gap: 3, backgroundColor: on ? p.accent : p.surface, borderWidth: 1, borderColor: on ? p.accent : p.hairline }, on ? shadow(1) : null]}>
-                      <Body style={{ fontSize: 12, fontWeight: '700', color: on ? p.onGradMuted : p.textMuted }}>{WD[dt.getDay()]}</Body>
-                      <Body style={{ fontSize: 22, fontWeight: '800', color: on ? p.onGrad : p.text }}>{dt.getDate()}</Body>
-                      <View style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: on ? p.onGrad : p.accent }} />
-                    </View>
-                  </PressableScale>
-                )
-              })}
-            </ScrollView>
-          ) : null}
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingHorizontal: space(5), paddingTop: space(5), paddingBottom: space(10) }}
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={agenda.loading} onRefresh={reload} tintColor={p.accent} />}
+      >
+        <View style={{ gap: 5, marginBottom: space(5) }}>
+          <Body style={[t.h1, { color: p.text }]}>{longDay(activeMs)}</Body>
+          <Body faint style={{ fontSize: 12.5 }}>
+            {daySessions.length === 0
+              ? 'Bugün için sana uygun ders yok'
+              : `${daySessions.length} ders${mineToday > 0 ? ` · ${mineToday === 1 ? 'biri' : `${mineToday}’i`} senin` : ''}`}
+          </Body>
+        </View>
 
-          <ScrollView
-            style={{ flex: 1 }}
-            contentContainerStyle={{ paddingHorizontal: space(5), paddingTop: space(1), paddingBottom: space(10), gap: space(3) }}
-            showsVerticalScrollIndicator={false}
-            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={reload} tintColor={p.accent} />}
-          >
-            {daySessions.length === 0 ? (
-              <Card><Empty icon={<Ionicons name="calendar-clear-outline" size={30} color={p.textFaint} />} text="Bu gün için sana uygun ders yok." /></Card>
-            ) : (
-              daySessions.map((s, i) => {
-                const res = resBySession.get(s.sessionId)
-                return (
-                  <FadeInUp key={s.sessionId} index={i}>
-                    <Card inset>
-                      <View style={{ flexDirection: 'row', gap: space(3.5), alignItems: 'center' }}>
-                        <View style={{ alignItems: 'center', minWidth: 54 }}>
-                          <Body style={{ fontSize: 19, fontWeight: '800', color: p.accent }}>{hhmm(s.startsAt)}</Body>
-                          <Body faint style={{ fontSize: 11 }}>{s.bookedCount}/{s.capacity}</Body>
-                        </View>
-                        <View style={{ width: 1, alignSelf: 'stretch', backgroundColor: p.hairline }} />
-                        <View style={{ flex: 1, gap: 5 }}>
-                          <Body strong numberOfLines={1}>{s.serviceName}</Body>
-                          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space(1.5) }}>
-                            {s.trainerName ? <Pill label={s.trainerName} /> : null}
-                            {s.roomName ? <Pill label={s.roomName} /> : null}
-                          </View>
-                          {s.alreadyBooked ? <Pill label="Rezervasyonun var ✓" tone="good" /> : s.blockedReason ? <Pill label={BLOCKED_TR[s.blockedReason] ?? 'Kapalı'} tone="warn" /> : null}
-                        </View>
-                        {s.alreadyBooked && res ? (
-                          <ActionPill label="İptal" tone="danger" busy={busyId === s.sessionId} onPress={() => askCancel(res)} />
-                        ) : !s.alreadyBooked && !s.blockedReason ? (
-                          <ActionPill label="Rezerve" tone="accent" busy={busyId === s.sessionId} onPress={() => void book(s)} />
-                        ) : null}
-                      </View>
-                    </Card>
-                  </FadeInUp>
-                )
-              })
-            )}
-          </ScrollView>
-        </>
-      ) : (
-        <ScrollView
-          style={{ flex: 1 }}
-          contentContainerStyle={{ paddingHorizontal: space(5), paddingTop: space(1), paddingBottom: space(10), gap: space(3) }}
-          showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={reload} tintColor={p.accent} />}
-        >
-          {upcoming.length === 0 && past.length === 0 ? (
-            <Card><Empty icon={<Ionicons name="bookmark-outline" size={30} color={p.textFaint} />} text="Henüz rezervasyonun yok. “Rezervasyon Yap” sekmesinden yerini ayırt." /></Card>
-          ) : null}
+        {daySessions.map((s, i) => {
+          const res = resBySession.get(s.sessionId)
+          const mine = s.alreadyBooked
+          const seatsLeft = Math.max(0, s.capacity - s.bookedCount)
+          const blocked = s.blockedReason ? BLOCKED[s.blockedReason] : null
+          const locked = res ? (res.startsAt - Date.now()) / 3_600_000 <= res.cancellationWindowHours : false
+          return (
+            <FadeInUp key={s.sessionId} index={i}>
+              <View
+                style={{
+                  flexDirection: 'row',
+                  gap: space(3.5),
+                  paddingVertical: space(3.5),
+                  borderTopWidth: StyleSheet.hairlineWidth * 2,
+                  borderColor: p.hairline,
+                  borderLeftWidth: mine ? 2 : 0,
+                  borderLeftColor: p.accent,
+                  paddingLeft: mine ? space(3) : 0,
+                }}
+              >
+                <Body style={[t.numSm, { width: 54, color: mine ? p.accent : p.text }]}>{hhmm(s.startsAt)}</Body>
 
-          {upcoming.length > 0 ? (
-            <>
-              <SectionLabel>Yaklaşan</SectionLabel>
-              {upcoming.map((r, i) => (
-                <FadeInUp key={r.reservationId} index={i}>
-                  <Card inset>
-                    <View style={{ flexDirection: 'row', gap: space(3.5), alignItems: 'center' }}>
-                      <View style={{ alignItems: 'center', minWidth: 62 }}>
-                        <Body style={{ fontSize: 12, fontWeight: '700', color: p.textMuted }}>{relDay(r.startsAt)}</Body>
-                        <Body style={{ fontSize: 19, fontWeight: '800', color: p.accent }}>{hhmm(r.startsAt)}</Body>
-                      </View>
-                      <View style={{ width: 1, alignSelf: 'stretch', backgroundColor: p.hairline }} />
-                      <View style={{ flex: 1, gap: 5 }}>
-                        <Body strong numberOfLines={1}>{r.serviceName}</Body>
-                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space(1.5) }}>
-                          {r.trainerName ? <Pill label={r.trainerName} /> : null}
-                          {r.roomName ? <Pill label={r.roomName} /> : null}
-                        </View>
-                      </View>
-                      <ActionPill label="İptal" tone="danger" busy={busyId === r.sessionId} onPress={() => askCancel(r)} />
-                    </View>
-                  </Card>
-                </FadeInUp>
-              ))}
-            </>
-          ) : null}
+                <View style={{ flex: 1, gap: 3 }}>
+                  <Body strong style={{ fontSize: 14.5 }} numberOfLines={1}>{s.serviceName}</Body>
+                  {s.trainerName || s.roomName ? (
+                    <Body muted style={{ fontSize: 12.5 }}>{[s.trainerName, s.roomName].filter(Boolean).join(' · ')}</Body>
+                  ) : null}
 
-          {past.length > 0 ? (
-            <>
-              <SectionLabel>Geçmiş</SectionLabel>
-              {past.map((r, i) => {
-                const st = STATUS_TR[r.status]
-                return (
-                  <FadeInUp key={r.reservationId} index={i}>
-                    <Card inset style={{ opacity: 0.9 }}>
-                      <View style={{ flexDirection: 'row', gap: space(3.5), alignItems: 'center' }}>
-                        <View style={{ alignItems: 'center', minWidth: 62 }}>
-                          <Body faint style={{ fontSize: 12, fontWeight: '700' }}>{longDay(r.startsAt)}</Body>
-                          <Body muted style={{ fontSize: 17, fontWeight: '800' }}>{hhmm(r.startsAt)}</Body>
-                        </View>
-                        <View style={{ width: 1, alignSelf: 'stretch', backgroundColor: p.hairline }} />
-                        <View style={{ flex: 1, gap: 5 }}>
-                          <Body strong numberOfLines={1}>{r.serviceName}</Body>
-                          {r.trainerName ? <Body faint style={{ fontSize: 12.5 }}>{r.trainerName}</Body> : null}
-                        </View>
-                        <Pill label={st?.label ?? r.status} tone={st?.tone ?? 'muted'} />
-                      </View>
-                    </Card>
-                  </FadeInUp>
-                )
-              })}
-            </>
-          ) : null}
-        </ScrollView>
-      )}
+                  {mine ? (
+                    <>
+                      <Body style={[t.eyebrow, { fontSize: 9.5, color: p.accent, marginTop: 3 }]}>Rezervasyonun</Body>
+                      {locked ? (
+                        <Body faint style={{ fontSize: 11.5, fontStyle: 'italic' }}>
+                          İptal süresi doldu — gelemezsen bizi ara.
+                        </Body>
+                      ) : null}
+                    </>
+                  ) : blocked ? (
+                    <Body style={{ fontSize: 12, marginTop: 3, color: s.blockedReason === 'full' ? p.textFaint : p.warn }}>{blocked.label}</Body>
+                  ) : (
+                    <Body style={{ fontSize: 12, marginTop: 3, color: seatsLeft <= 2 ? p.warn : p.textFaint, fontWeight: seatsLeft <= 2 ? '600' : '400' }}>
+                      {seatsLeft <= 2 ? `Son ${seatsLeft} yer` : `${seatsLeft} yer kaldı`}
+                    </Body>
+                  )}
+                </View>
+
+                {/* One action per row, and only when there is one to offer. */}
+                {mine && res && !locked ? (
+                  <Action label="İptal" ghost busy={busyId === s.sessionId} onPress={() => askCancel(res)} />
+                ) : !mine && !blocked ? (
+                  <Action label="Rezerve" busy={busyId === s.sessionId} onPress={() => void book(s)} />
+                ) : blocked?.cta && blocked.go ? (
+                  <Action label={blocked.cta} ghost busy={false} onPress={blocked.go} />
+                ) : null}
+              </View>
+            </FadeInUp>
+          )
+        })}
+
+        {daySessions.length > 0 ? <Rule /> : null}
+      </ScrollView>
     </SafeAreaView>
   )
 }
 
-function Segment({ label, on, onPress, badge }: { label: string; on: boolean; onPress: () => void; badge?: number }) {
+function Action({ label, onPress, busy, ghost }: { label: string; onPress: () => void; busy: boolean; ghost?: boolean }) {
   const p = usePalette()
-  // A PLAIN Pressable carries the flex:1 directly. PressableScale wraps its child in an intermediate
-  // Animated.View with no flex, which collapsed the label's width to zero here (the fixed-width day
-  // chips were unaffected) — so the segment showed as an empty pill. Segments don't need a press-scale.
   return (
-    <Pressable
-      onPress={onPress}
-      style={[{ flex: 1, flexDirection: 'row', gap: 6, alignItems: 'center', justifyContent: 'center', paddingVertical: space(2.25), borderRadius: radius.pill, backgroundColor: on ? p.surface : 'transparent' }, on ? shadow(1) : null]}
-    >
-      <Body style={{ fontSize: 13.5, fontWeight: '700', color: on ? p.text : p.textMuted }}>{label}</Body>
-      {badge ? (
-        <View style={{ minWidth: 18, height: 18, paddingHorizontal: 5, borderRadius: 9, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? p.accent : p.hairline }}>
-          <Body style={{ fontSize: 11, fontWeight: '800', color: on ? p.accentText : p.textMuted }}>{badge}</Body>
-        </View>
-      ) : null}
+    <Pressable onPress={onPress} disabled={busy} style={({ pressed }) => ({ opacity: pressed || busy ? 0.6 : 1, alignSelf: 'center' })}>
+      <View
+        style={{
+          paddingHorizontal: space(3.5),
+          paddingVertical: space(2),
+          borderRadius: radius.pill,
+          backgroundColor: ghost ? 'transparent' : p.accent,
+          borderWidth: ghost ? StyleSheet.hairlineWidth * 2 : 0,
+          borderColor: p.hairline,
+        }}
+      >
+        <Body style={{ fontSize: 12.5, fontWeight: '700', color: ghost ? p.textMuted : p.accentText }}>{busy ? '…' : label}</Body>
+      </View>
     </Pressable>
   )
-}
-
-function SectionLabel({ children }: { children: string }) {
-  const p = usePalette()
-  return <Body style={{ fontSize: 12.5, fontWeight: '800', letterSpacing: 0.6, color: p.textMuted, textTransform: 'uppercase', marginTop: space(1), marginBottom: space(0.5) }}>{children}</Body>
 }

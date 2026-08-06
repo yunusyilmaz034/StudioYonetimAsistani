@@ -1,182 +1,310 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Alert, Image, Pressable, Switch, View } from 'react-native'
+import { Alert, Pressable, StyleSheet, Switch, View } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { router, useFocusEffect } from 'expo-router'
 
-import type { MemberProfile, NotificationPrefs } from '@studio/core/client'
+import type { MemberProfile, MemberSubscriptions, NotificationPrefs } from '@studio/core/client'
 import { api } from '@/lib/api'
 import { localDate } from '@/lib/format'
 import { useFetch } from '@/lib/useFetch'
 import { useAuth } from '@/lib/auth'
 import { FadeInUp } from '@/components/motion'
-import { Body, Button, Card, Eyebrow, Hero, Screen, ScreenSkeleton } from '@/components/ui'
+import { Body, Figure, Rule, Screen, ScreenSkeleton, SectionLabel, TopStrip } from '@/components/ui'
 import { radius, space, typo as t, usePalette } from '@/theme'
 
-const CHANNELS: { key: keyof NotificationPrefs; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
-  { key: 'push', label: 'Uygulama bildirimleri', icon: 'notifications-outline' },
-  { key: 'email', label: 'E-posta', icon: 'mail-outline' },
-  { key: 'sms', label: 'SMS', icon: 'chatbubble-outline' },
-  { key: 'whatsapp', label: 'WhatsApp', icon: 'logo-whatsapp' },
-  { key: 'campaign', label: 'Kampanya / duyuru', icon: 'megaphone-outline' },
+// ── BEN — her page, not a settings page (owner-approved, 2026-08-06) ─────────────────────────
+//
+// Üyeliğim, Cüzdanım and Profil were three tabs answering one question: what am I, where do I
+// stand. They are one screen now, and the order encodes the answer — what is HERS at the top
+// (membership, attendance), the administration underneath.
+//
+// The old screen opened with e-mail and date of birth: three fields nobody checks, all of them empty
+// for most members, occupying the most valuable space on the page. It now opens with what she has
+// left of her package.
+//
+// Nothing was removed. Wallet, contact, notification switches, edit, sign out and account deletion
+// are all still here, further down and in one column of hairline rows instead of four stacked cards.
+
+const CHANNELS: { key: keyof NotificationPrefs; label: string }[] = [
+  { key: 'push', label: 'Uygulama bildirimleri' },
+  { key: 'email', label: 'E-posta' },
+  { key: 'sms', label: 'SMS' },
+  { key: 'whatsapp', label: 'WhatsApp' },
+  { key: 'campaign', label: 'Kampanya / duyuru' },
 ]
 
-export default function Profile() {
+const ATTENDED = new Set(['attended', 'auto_resolved', 'presumed_attended'])
+
+export default function Ben() {
   const p = usePalette()
   const { signOutMember } = useAuth()
   const { data: profile, loading, reload } = useFetch(api.profile)
   const { data: loadedPrefs } = useFetch(api.prefs)
+  const subs = useFetch(api.subscriptions)
+  const fitness = useFetch(api.fitness)
+  const reservations = useFetch(api.reservations)
   const [prefs, setPrefs] = useState<NotificationPrefs | null>(null)
-  useEffect(() => { if (loadedPrefs) setPrefs(loadedPrefs) }, [loadedPrefs])
+  useEffect(() => {
+    if (loadedPrefs) setPrefs(loadedPrefs)
+  }, [loadedPrefs])
   // Re-fetch when the tab regains focus — so a photo (or info) changed on the edit screen shows here.
   useFocusEffect(useCallback(() => { void reload() }, [reload]))
 
   if (loading && !profile) return <ScreenSkeleton />
   const pr = profile as MemberProfile | null
+  const active = (subs.data as MemberSubscriptions | null)?.active ?? []
+  const pack = active[0] ?? null
 
   async function toggle(key: keyof NotificationPrefs, value: boolean) {
     if (!prefs) return
     const next = { ...prefs, [key]: value }
     setPrefs(next)
-    try { await api.setPrefs(next) } catch { setPrefs(prefs) }
+    try {
+      await api.setPrefs(next)
+    } catch {
+      setPrefs(prefs)
+    }
   }
 
   const initials = (pr?.fullName ?? '').split(' ').map((s) => s[0]).slice(0, 2).join('').toLocaleUpperCase('tr')
 
+  // Her attendance, from her own record. The 21 squares are the last three weeks: a day she came is
+  // filled. No new data is collected — all of this was already in the system and simply never shown
+  // to her, which is the whole reason it is here.
+  const past = reservations.data?.past ?? []
+  const attendedDays = new Set(
+    past.filter((r) => ATTENDED.has(r.status)).map((r) => new Date(r.startsAt).toDateString()),
+  )
+  const days = Array.from({ length: 21 }, (_, i) => {
+    const d = new Date()
+    d.setDate(d.getDate() - (20 - i))
+    return attendedDays.has(d.toDateString())
+  })
+  const thisYear = past.filter((r) => ATTENDED.has(r.status) && new Date(r.startsAt).getFullYear() === new Date().getFullYear()).length
+
   return (
     <Screen>
       <FadeInUp index={0}>
-        <Hero>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space(4) }}>
-            {pr?.avatarUrl ? (
-              <Image source={{ uri: pr.avatarUrl }} style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: '#FFFFFF25' }} />
-            ) : (
-              <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: '#FFFFFF25', alignItems: 'center', justifyContent: 'center' }}>
-                <Body style={{ color: p.onGrad, fontSize: 24, fontWeight: '800' }}>{initials}</Body>
-              </View>
-            )}
-            <View style={{ flex: 1, gap: 2 }}>
-              <Body style={[t.h1, { color: p.onGrad }]} numberOfLines={1}>{pr?.fullName}</Body>
-              <Body style={{ color: p.onGradMuted }}>{pr?.phone}</Body>
+        <View style={{ gap: space(5) }}>
+          <TopStrip label="Üyelik" onQr={() => router.push('/qr')} />
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space(3.5) }}>
+            <View
+              style={{
+                width: 54,
+                height: 54,
+                borderRadius: 27,
+                borderWidth: StyleSheet.hairlineWidth * 2,
+                borderColor: p.hairline,
+                backgroundColor: p.surface,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Body style={[t.h1, { color: p.accent, fontSize: 19 }]}>{initials}</Body>
+            </View>
+            <View style={{ flex: 1, gap: 3 }}>
+              <Body style={[t.h1, { color: p.text }]} numberOfLines={1}>{pr?.fullName}</Body>
+              <Body faint style={{ fontSize: 12.5 }}>{pr?.phone}</Body>
             </View>
           </View>
-        </Hero>
+        </View>
       </FadeInUp>
 
-      <FadeInUp index={1}>
-        <Card>
-          <Row icon="mail-outline" label="E-posta" value={pr?.email ?? '—'} />
-          <Divider />
-          <Row icon="calendar-outline" label="Doğum tarihi" value={pr?.birthDate ? localDate(pr.birthDate) : '—'} />
-          <Divider />
-          <Row icon="medkit-outline" label="Acil durum" value={pr?.emergencyName ? `${pr.emergencyName} · ${pr.emergencyPhone}` : '—'} />
-        </Card>
-        <Button label="Bilgilerimi Düzenle" tone="muted" icon={<Ionicons name="create-outline" size={18} color={p.text} />} onPress={() => router.push('/profile-edit')} />
-      </FadeInUp>
+      {pack ? (
+        <FadeInUp index={1}>
+          <View style={{ gap: space(3) }}>
+            <SectionLabel>Üyeliğim</SectionLabel>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: space(3) }}>
+              <View style={{ flex: 1, gap: 4 }}>
+                <Body strong style={{ fontSize: 15 }} numberOfLines={2}>{pack.productName}</Body>
+                <Body faint style={{ fontSize: 12.5 }}>
+                  {new Date(pack.validUntil).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' })}&apos;e kadar geçerli
+                </Body>
+              </View>
+              <View style={{ alignItems: 'flex-end' }}>
+                <Body style={[t.num, { color: p.text }]}>{pack.remaining === null ? '∞' : pack.remaining}</Body>
+                <Body faint style={[t.eyebrow, { fontSize: 9.5 }]}>{pack.remaining === null ? 'sınırsız' : 'ders kaldı'}</Body>
+              </View>
+            </View>
+            {/* How much of the package is left, as a line rather than a number repeated. */}
+            {pack.remaining !== null && pack.total ? (
+              <View style={{ height: 3, borderRadius: 2, backgroundColor: p.surfaceMuted, overflow: 'hidden' }}>
+                <View style={{ height: 3, borderRadius: 2, backgroundColor: p.accent, width: `${Math.round((pack.remaining / pack.total) * 100)}%` }} />
+              </View>
+            ) : null}
+            {active.length > 1 ? (
+              <Body onPress={() => router.push('/subscriptions')} style={{ color: p.accent, fontWeight: '700', fontSize: 12.5 }}>
+                {active.length} aktif paketin var — tümünü gör ›
+              </Body>
+            ) : null}
+          </View>
+        </FadeInUp>
+      ) : null}
 
-      <FadeInUp index={2}>
-        <Eyebrow>Hesabım</Eyebrow>
-        <Card inset>
-          {/* PF-42 — the two swapped places. Üyeliğim is a tab now; the wallet lives here, where
-              somebody looking for it will find it and nobody else is bothered by it. */}
-          <LinkRow icon="wallet-outline" label="Cüzdanım" onPress={() => router.push('/wallet')} />
-          <Divider />
-          <LinkRow icon="call-outline" label="İletişim" onPress={() => router.push('/contact')} />
-        </Card>
-      </FadeInUp>
+      {thisYear > 0 ? (
+        <FadeInUp index={2}>
+          <View style={{ gap: space(3) }}>
+            <SectionLabel>Bu yıl</SectionLabel>
+            <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: space(2.5) }}>
+              <Body style={[t.num, { color: p.text }]}>{thisYear}</Body>
+              <Body muted style={{ flex: 1 }}>
+                derse geldin{(fitness.data?.currentStreak ?? 0) > 1 ? ` · şu an ${fitness.data?.currentStreak} haftalık serin var` : ''}
+              </Body>
+            </View>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 5, maxWidth: 7 * 15 }}>
+              {days.map((came, i) => (
+                <View key={i} style={{ width: 10, height: 10, borderRadius: 2, backgroundColor: came ? p.accent : p.surfaceMuted }} />
+              ))}
+            </View>
+            <Body faint style={{ fontSize: 11.5 }}>Son üç hafta</Body>
+          </View>
+        </FadeInUp>
+      ) : null}
 
       <FadeInUp index={3}>
-        <Eyebrow>Bildirim Tercihleri</Eyebrow>
-        <Card inset>
-          {prefs
-            ? CHANNELS.map((c, i) => (
-                <View key={c.key}>
-                  {i > 0 ? <Divider /> : null}
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: space(3), paddingVertical: space(2.5) }}>
-                    <Ionicons name={c.icon} size={19} color={p.textMuted} />
-                    <Body style={{ flex: 1 }}>{c.label}</Body>
-                    <Switch value={Boolean(prefs[c.key])} onValueChange={(v) => void toggle(c.key, v)} trackColor={{ true: p.accent, false: p.surfaceMuted }} />
-                  </View>
-                </View>
-              ))
-            : <Body muted>Yükleniyor…</Body>}
-        </Card>
+        <View style={{ gap: space(3) }}>
+          <SectionLabel right={<Body onPress={() => router.push('/profile-edit')} style={{ color: p.accent, fontWeight: '700', fontSize: 12.5 }}>Düzenle</Body>}>
+            Bilgilerim
+          </SectionLabel>
+          <View>
+            <InfoRow label="E-posta" value={pr?.email ?? '—'} />
+            <InfoRow label="Doğum tarihi" value={pr?.birthDate ? localDate(pr.birthDate) : '—'} />
+            <InfoRow label="Acil durum" value={pr?.emergencyName ? `${pr.emergencyName} · ${pr.emergencyPhone}` : '—'} last />
+          </View>
+        </View>
       </FadeInUp>
 
       <FadeInUp index={4}>
-        <Button label="Çıkış Yap" tone="muted" icon={<Ionicons name="log-out-outline" size={18} color={p.danger} />} onPress={() => void signOutMember()} />
+        <View style={{ gap: space(3) }}>
+          <SectionLabel>Hesap</SectionLabel>
+          <View>
+            <LinkRow icon="mail-outline" label="Mesajlarım" onPress={() => router.push('/messages')} />
+            <LinkRow icon="time-outline" label="Geçmiş rezervasyonlarım" onPress={() => router.push('/reservations')} />
+            <LinkRow icon="wallet-outline" label="Cüzdanım" onPress={() => router.push('/wallet')} />
+            <LinkRow icon="call-outline" label="İletişim" onPress={() => router.push('/contact')} last />
+          </View>
+        </View>
       </FadeInUp>
 
-      {/* App Store guideline 5.1.1(v) — an app with accounts must let her delete hers from inside it.
-          Placed LAST and styled quietly on purpose: it is a real, irreversible action and it should
-          not sit where a thumb lands by accident. Two taps, and the second one spells out what will
-          and will not be deleted — a confirmation that only says "emin misiniz?" tells her nothing. */}
       <FadeInUp index={5}>
-        <Pressable
-          onPress={() =>
-            Alert.alert(
-              'Hesabını sil',
-              'Girişin kalıcı olarak silinir ve uygulamaya bir daha giremezsin.\n\n' +
-                'Ödeme ve fatura kayıtların, yasal saklama süresi boyunca stüdyoda kalır — bunu ' +
-                'silmek yasal olarak mümkün değil. Kişisel bilgilerinin silinmesi için stüdyoya ' +
-                'talebin iletilir.\n\nDevam etmek istiyor musun?',
-              [
-                { text: 'Vazgeç', style: 'cancel' },
-                {
-                  text: 'Hesabımı sil',
-                  style: 'destructive',
-                  onPress: () => {
-                    void (async () => {
-                      try {
-                        await api.deleteAccount()
-                      } catch {
-                        // Her login may already be gone (a second tap, a slow network). Signing out
-                        // is right either way — leaving her inside a deleted account is the one
-                        // outcome that would be wrong.
-                      }
-                      await signOutMember()
-                    })()
+        <View style={{ gap: space(3) }}>
+          <SectionLabel>Bildirimler</SectionLabel>
+          <View>
+            {prefs ? (
+              CHANNELS.map((c, i) => (
+                <View
+                  key={c.key}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: space(3),
+                    paddingVertical: space(2.5),
+                    borderBottomWidth: i === CHANNELS.length - 1 ? 0 : StyleSheet.hairlineWidth * 2,
+                    borderColor: p.hairline,
+                  }}
+                >
+                  <Body style={{ flex: 1, fontSize: 14 }}>{c.label}</Body>
+                  <Switch
+                    value={Boolean(prefs[c.key])}
+                    onValueChange={(v) => void toggle(c.key, v)}
+                    trackColor={{ true: p.accent, false: p.surfaceMuted }}
+                  />
+                </View>
+              ))
+            ) : (
+              <Body muted>Yükleniyor…</Body>
+            )}
+          </View>
+        </View>
+      </FadeInUp>
+
+      <FadeInUp index={6}>
+        <View style={{ gap: space(2), marginTop: space(2) }}>
+          <Rule />
+          <Pressable onPress={() => void signOutMember()} style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1, paddingVertical: space(3.5) })}>
+            <Body strong style={{ color: p.accent }}>Çıkış yap</Body>
+          </Pressable>
+          {/* App Store guideline 5.1.1(v) — an app with accounts must let her delete hers from inside
+              it. Placed LAST and styled quietly on purpose: it is a real, irreversible action and it
+              should not sit where a thumb lands by accident. Two taps, and the second one spells out
+              what will and will not be deleted — a confirmation that only says "emin misiniz?" tells
+              her nothing. */}
+          <Pressable
+            onPress={() =>
+              Alert.alert(
+                'Hesabını sil',
+                'Girişin kalıcı olarak silinir ve uygulamaya bir daha giremezsin.\n\n' +
+                  'Ödeme ve fatura kayıtların, yasal saklama süresi boyunca stüdyoda kalır — bunu ' +
+                  'silmek yasal olarak mümkün değil. Kişisel bilgilerinin silinmesi için stüdyoya ' +
+                  'talebin iletilir.\n\nDevam etmek istiyor musun?',
+                [
+                  { text: 'Vazgeç', style: 'cancel' },
+                  {
+                    text: 'Hesabımı sil',
+                    style: 'destructive',
+                    onPress: () => {
+                      void (async () => {
+                        try {
+                          await api.deleteAccount()
+                        } catch {
+                          // Her login may already be gone (a second tap, a slow network). Signing out
+                          // is right either way — leaving her inside a deleted account is the one
+                          // outcome that would be wrong.
+                        }
+                        await signOutMember()
+                      })()
+                    },
                   },
-                },
-              ],
-            )
-          }
-          style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1, paddingVertical: space(3), alignItems: 'center' })}
-        >
-          <Body muted>Hesabımı sil</Body>
-        </Pressable>
+                ],
+              )
+            }
+            style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1, paddingBottom: space(4) })}
+          >
+            <Body faint style={{ fontSize: 13 }}>Hesabımı sil</Body>
+          </Pressable>
+        </View>
       </FadeInUp>
     </Screen>
   )
 }
 
-function LinkRow({ icon, label, onPress }: { icon: keyof typeof Ionicons.glyphMap; label: string; onPress: () => void }) {
+function InfoRow({ label, value, last }: { label: string; value: string; last?: boolean }) {
   const p = usePalette()
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space(3), paddingVertical: space(2.5) }}>
-        <Ionicons name={icon} size={19} color={p.textMuted} />
-        <View style={{ flex: 1 }}><Body strong>{label}</Body></View>
-        <Ionicons name="chevron-forward" size={18} color={p.textFaint} />
-      </View>
-    </Pressable>
-  )
-}
-
-function Row({ icon, label, value }: { icon: keyof typeof Ionicons.glyphMap; label: string; value: string }) {
-  const p = usePalette()
-  return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: space(3), paddingVertical: space(1.5) }}>
-      <View style={{ width: 38, height: 38, borderRadius: radius.sm, backgroundColor: p.surfaceMuted, alignItems: 'center', justifyContent: 'center' }}>
-        <Ionicons name={icon} size={18} color={p.textMuted} />
-      </View>
-      <View style={{ flex: 1 }}>
-        <Body faint style={{ fontSize: 12 }}>{label}</Body>
-        <Body strong numberOfLines={1}>{value}</Body>
-      </View>
+    <View
+      style={{
+        flexDirection: 'row',
+        alignItems: 'baseline',
+        gap: space(3),
+        paddingVertical: space(2.5),
+        borderBottomWidth: last ? 0 : StyleSheet.hairlineWidth * 2,
+        borderColor: p.hairline,
+      }}
+    >
+      <Body muted style={{ flex: 1, fontSize: 13.5 }}>{label}</Body>
+      <Body strong numberOfLines={1} style={{ fontSize: 13.5 }}>{value}</Body>
     </View>
   )
 }
-function Divider() {
+
+function LinkRow({ icon, label, onPress, last }: { icon: keyof typeof Ionicons.glyphMap; label: string; onPress: () => void; last?: boolean }) {
   const p = usePalette()
-  return <View style={{ height: 1, backgroundColor: p.hairline }} />
+  return (
+    <Pressable onPress={onPress} style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}>
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: space(3),
+          paddingVertical: space(3),
+          borderBottomWidth: last ? 0 : StyleSheet.hairlineWidth * 2,
+          borderColor: p.hairline,
+        }}
+      >
+        <Ionicons name={icon} size={17} color={p.textFaint} />
+        <View style={{ flex: 1 }}><Body style={{ fontSize: 14 }}>{label}</Body></View>
+        <Ionicons name="chevron-forward" size={16} color={p.textFaint} />
+      </View>
+    </Pressable>
+  )
 }
