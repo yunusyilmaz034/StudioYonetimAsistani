@@ -404,6 +404,12 @@ export function decideMove(
 export interface CancellationInputs {
   readonly allowance: number | null // resolved (studio→package→member); null ⇒ unlimited
   readonly usedNet: number // charged − refunded so far on this entitlement
+  // Did the MEMBER press the button herself (app / portal), rather than reception at the desk?
+  // Owner, 2026-08-06: *"bizde geç iptal falan diye bişey olmasın… üyeler bunu normal kredi iptali
+  // olarak görüyor sonra kredim niye eksildi derler."* Inside the window her cancel is REFUSED, not
+  // charged — see decideCancellation. Reception is unaffected: a person at the desk can see the case
+  // in front of her and explain it, which is exactly what a member alone with a phone cannot.
+  readonly selfService?: boolean
 }
 
 export function decideCancellation(
@@ -437,7 +443,19 @@ export function decideCancellation(
     const effect: CreditEffect = heldACredit ? 'released' : 'none'
     return ok(resolveCancel(ctx, reservation, hoursBeforeStart, true, effect, 'cancelled', finite))
   }
-  // Inside the window: late cancel. Burns per policy; otherwise the hold is released
+  // Inside the window, a MEMBER cancelling for herself is REFUSED — the reservation stays and no
+  // credit moves (owner, 2026-08-06). It is not a rule she was breaking: it is a rule she could not
+  // read. The button said "İptal", she pressed it believing it freed her class, and a credit burned.
+  // One member did it twice in fifty-one seconds on the same class and lost two credits.
+  //
+  // Refusing costs her nothing she had: if she does not come, the class resolves under the studio's
+  // attendance default and takes the same one credit — but under an honest name, and after a phone
+  // call in which somebody could have offered her the seat back.
+  if (cancellation?.selfService) {
+    return err({ code: 'outside_cancellation_window' })
+  }
+
+  // Reception, inside the window: late cancel. Burns per policy; otherwise the hold is released
   // (a resolved reservation can never keep a hold — I-2). A late cancel does NOT spend the
   // free-cancellation allowance (only in-window cancels count, owner).
   const effect: CreditEffect = !heldACredit

@@ -335,6 +335,33 @@ never typed into the code, because this page belongs to the product and not to o
 **Not built, on purpose: a basket.** A studio sells one package at a time; a cart means lines,
 quantities and a second model of everything for a case nobody has had. Adding it later is easy.
 
+**OR-30 · A member cannot cancel late, and never meets the words "geç iptal".** (2026-08-06) A member
+cancelled the same 12:00 class twice within fifty-one seconds from her own phone, lost two credits,
+then rang the studio to ask why. The system had applied the policy exactly as written. The policy was
+the problem: her screen offered an "İptal" button with a warning underneath, and she read it as an
+ordinary cancellation — which, from where she stands, is what it was.
+
+Owner: *"bizde geç iptal falan diye bişey olmasın… üyeler bunu normal kredi iptali olarak görüyor
+sonra kredim niye eksildi derler."* So the rule has two halves, and both are enforced, not hoped for:
+
+- **Inside the cancellation window a member's own cancellation is REFUSED** — in the DOMAIN
+  (`decideCancellation`, `selfService`), not by hiding a button. The reservation stays, no credit
+  moves, and the app tells her to call the studio. It costs her nothing she had: if she does not
+  come, the class resolves under the attendance default and takes the same single credit — but under
+  an honest name, and after a phone call in which somebody could have offered her the seat back.
+- **RECEPTION can still late-cancel.** A person at the desk can see the case in front of her and
+  explain it; a member alone with a phone cannot. That asymmetry is the whole point.
+
+**"Geç iptal" is the studio's accounting word.** On any member surface the label is "İptal edildi".
+Asserted structurally in `apps/web/src/app/member-vocabulary.test.ts`, which also checks the desk
+still has the distinction — so nobody can satisfy the test by deleting the concept.
+
+The same incident exposed a second confusion, fixed with it: the reservation roster listed
+`late_cancelled` members as participants while the session counter did not count them, so a panel
+showed five names above a "5/8" that meant three bookings plus two seats held for guests. The roster
+now lists `booked` / `attended` / `no_show` only — someone who cancelled is not on the class — and
+the counter says its own split out loud when seats are held.
+
 ## Traps that have already cost something
 
 **OR-14 · Firestore indexes are a production-only trap.** The emulator does NOT enforce them, so a

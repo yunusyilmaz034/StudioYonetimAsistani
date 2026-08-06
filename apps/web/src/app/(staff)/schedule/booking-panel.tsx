@@ -208,6 +208,13 @@ export function BookingPanel({ session, onMutated, canBackdate = true }: { sessi
         <h3 className="text-h2 font-semibold tabular-nums text-foreground">
           {session.bookedCount}
           <span className="text-sm font-normal text-muted-foreground">/{session.capacity} katılımcı</span>
+          {/* A held seat is gone from the room but has no name in the list below, so the counter and
+              the roster look like they disagree. They never did — this says so out loud. */}
+          {session.heldCount > 0 ? (
+            <span className="ml-2 text-xs font-normal text-muted-foreground">
+              ({session.bookedCount - session.heldCount} rezervasyon + {session.heldCount} ayrılan yer)
+            </span>
+          ) : null}
         </h3>
         <Badge className={occ.className}>{occ.label}</Badge>
       </div>

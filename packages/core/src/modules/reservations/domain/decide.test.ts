@@ -381,6 +381,50 @@ describe('decideCancellation (§7.2 — nothing knows the number six)', () => {
     expect(r.ok).toBe(true)
     if (r.ok) expect((r.value.events[0]?.payload as { creditEffect: CreditEffect }).creditEffect).toBe('released')
   })
+  // Owner, 2026-08-06, after a member rang the studio asking why her credit vanished: *"bizde geç
+  // iptal falan diye bişey olmasın… üyeler bunu normal kredi iptali olarak görüyor sonra kredim niye
+  // eksildi derler."* She had pressed "İptal" twice on the same class inside fifty-one seconds and
+  // lost two credits, and nothing on her screen could have told her that would happen.
+  it('REFUSES a member cancelling for herself inside the window — no credit moves', () => {
+    const r = decideCancellation(ctx, bookedReservation({ sessionStartsAt: instant(NOW + 3 * H) }), session({ startsAt: instant(NOW + 3 * H) }), {
+      allowance: null,
+      usedNet: 0,
+      selfService: true,
+    })
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.error.code).toBe('outside_cancellation_window')
+  })
+
+  it('still lets RECEPTION late-cancel — the desk can see the case in front of it', () => {
+    const r = decideCancellation(ctx, bookedReservation({ sessionStartsAt: instant(NOW + 3 * H) }), session({ startsAt: instant(NOW + 3 * H) }), {
+      allowance: null,
+      usedNet: 0,
+      selfService: false,
+    })
+    expect(r.ok).toBe(true)
+    if (r.ok) expect(r.value.reservation.status).toBe('late_cancelled')
+  })
+
+  it('a member cancelling OUTSIDE the window is untouched by the rule', () => {
+    const r = decideCancellation(ctx, bookedReservation(), session(), { allowance: null, usedNet: 0, selfService: true })
+    expect(r.ok).toBe(true)
+    if (r.ok) {
+      expect(r.value.reservation.status).toBe('cancelled')
+      expect((r.value.events[0]?.payload as { creditEffect: CreditEffect }).creditEffect).toBe('released')
+    }
+  })
+
+  it('a member may still cancel a class the STUDIO cancelled, however late (I-14)', () => {
+    const r = decideCancellation(
+      ctx,
+      bookedReservation({ sessionStartsAt: instant(NOW + 1 * H) }),
+      session({ startsAt: instant(NOW + 1 * H), status: 'cancelled' }),
+      { allowance: null, usedNet: 0, selfService: true },
+    )
+    expect(r.ok).toBe(true)
+    if (r.ok) expect((r.value.events[0]?.payload as { creditEffect: CreditEffect }).creditEffect).toBe('released')
+  })
+
   it('a studio-cancelled class always releases (I-14)', () => {
     const r = decideCancellation(ctx, bookedReservation({ sessionStartsAt: instant(NOW + 3 * H) }), session({ startsAt: instant(NOW + 3 * H), status: 'cancelled' }))
     expect(r.ok).toBe(true)

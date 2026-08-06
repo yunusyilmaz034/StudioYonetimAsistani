@@ -31,7 +31,7 @@ const STATUS_TR: Record<string, { label: string; tone: 'good' | 'danger' | 'warn
   auto_resolved: { label: 'Katıldın', tone: 'good' },
   presumed_attended: { label: 'Katıldın', tone: 'good' },
   no_show: { label: 'Gelmedin', tone: 'danger' },
-  late_cancelled: { label: 'Geç iptal', tone: 'warn' },
+  late_cancelled: { label: 'İptal edildi', tone: 'muted' }, // OR-30
   cancelled: { label: 'İptal edildi', tone: 'muted' },
 }
 
@@ -100,10 +100,19 @@ export default function Agenda() {
   function askCancel(r: MemberReservation) {
     const hoursUntil = (r.startsAt - Date.now()) / 3_600_000
     const late = hoursUntil <= r.cancellationWindowHours
-    const warn = late && r.lateCancellationConsumesCredit
-      ? `Bu ders ${r.cancellationWindowHours} saatlik iptal penceresi içinde — geç iptal bir ders hakkını kullanır. Yine de iptal edilsin mi?`
-      : 'Rezervasyonun iptal edilsin mi?'
-    Alert.alert(`${r.serviceName} · ${hhmm(r.startsAt)}`, warn, [
+    // Inside the window the app does not offer to cancel — it explains and stops. The old dialog
+    // warned that a credit would burn and then went ahead anyway; a member pressed it twice on the
+    // same class inside fifty-one seconds and lost two credits (owner, 2026-08-06). The server
+    // refuses this too, so the dialog is the courtesy, not the guard.
+    if (late) {
+      Alert.alert(
+        'İptal süresi doldu',
+        `Ders başlamasına ${r.cancellationWindowHours} saatten az kaldığı için bu rezervasyon uygulamadan iptal edilemez. Gelemeyecekseniz lütfen stüdyoyu arayın.`,
+        [{ text: 'Tamam' }],
+      )
+      return
+    }
+    Alert.alert(`${r.serviceName} · ${hhmm(r.startsAt)}`, 'Rezervasyonun iptal edilsin mi?', [
       { text: 'Vazgeç', style: 'cancel' },
       {
         text: 'İptal Et', style: 'destructive', onPress: async () => {

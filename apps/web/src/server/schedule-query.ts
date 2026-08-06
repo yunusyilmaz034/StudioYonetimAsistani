@@ -34,7 +34,10 @@ export interface CalendarSession {
   readonly startsAt: number
   readonly endsAt: number
   readonly capacity: number
-  readonly bookedCount: number
+  readonly bookedCount: number // seats gone from the room: booked + held
+  // Of those, held for a non-member (a Multisport day guest). Carried so the panel can explain a
+  // counter that reads higher than the list of names below it.
+  readonly heldCount: number
   readonly status: ClassSessionStatus
   // For the booking panel's late-cancellation warning (from the session's policy snapshot).
   readonly cancellationWindowHours: number
@@ -165,6 +168,9 @@ export async function loadSchedule(ctx: TenantContext, dateStr: string): Promise
       // really full is how a seat gets promised twice. Members see the NUMBER and nothing else: no
       // "rezerve" label (owner, 2026-07-27) — why a seat is taken is not another member's business.
       bookedCount: occupiedSeats(s),
+      // …and the split, so the panel can say "3 rezervasyon + 2 ayrılan yer" instead of leaving a
+      // reader to reconcile a list of three names with a counter that says five.
+      heldCount: s.heldCount ?? 0,
       status: s.status,
       cancellationWindowHours: s.policySnapshot.cancellationWindowHours,
       cancellationWindowSource: s.policySnapshot.cancellationWindowSource,

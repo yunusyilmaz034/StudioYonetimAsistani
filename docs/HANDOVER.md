@@ -276,6 +276,19 @@ the membership. If that human step is ever removed, these lines have to move bac
 functions` is what actually changes what happens after a payment; App Hosting alone only changes the
 panel.
 
+### 2026-08-06 — the late-cancel incident
+
+A member late-cancelled the same class twice in fifty-one seconds from her phone and lost two credits.
+She rang the studio. **The audit is closed and it is small: those two are the ONLY late cancellations
+in the system's entire history**, both hers, both today, both self-service — no other member has ever
+been charged this way. Her two credits were restored through the panel's own adjustment path
+(`reason: correction`, note recorded, landing in `restored`, never `granted`); her ledger now reads
+8 granted − 1 attended − 1 held for her 7 Aug booking = **6 available**, which is correct.
+
+The rule changed with it — see OR-30. A member can no longer cancel inside the window at all, the
+refusal lives in the domain rather than in a hidden button, and no member surface says "geç iptal"
+any more.
+
 ---
 
 ## Things that will bite you

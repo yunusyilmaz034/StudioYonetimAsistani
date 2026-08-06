@@ -26,6 +26,7 @@ const base = (
   assignedMemberName: null,
   endsAt: over.startsAt + 50 * 60_000,
   bookedCount: 0,
+  heldCount: 0,
   status: 'scheduled',
   cancellationWindowHours: 6,
   cancellationWindowSource: 'studio',

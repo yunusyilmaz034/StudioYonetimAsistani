@@ -16,7 +16,7 @@ const STATUS_TR: Record<string, string> = {
   auto_resolved: 'Katıldı',
   no_show: 'Gelmedi',
   cancelled: 'İptal edildi',
-  late_cancelled: 'Geç iptal',
+  late_cancelled: 'İptal edildi', // OR-30 — the member never meets the studio's accounting word
   booked: 'Rezerve',
 }
 
@@ -30,8 +30,17 @@ export default function Reservations() {
 
   function cancel(r: MemberReservation) {
     const hoursUntil = (r.startsAt - Date.now()) / 3_600_000
-    const late = hoursUntil <= r.cancellationWindowHours && r.lateCancellationConsumesCredit
-    Alert.alert(`${r.serviceName} · ${dateTime(r.startsAt)}`, late ? 'İptal penceresi içinde — geç iptal bir ders hakkını kullanır. İptal edilsin mi?' : 'Rezervasyonun iptal edilsin mi?', [
+    // Inside the window the app explains and stops — it does not offer to spend her credit (OR-30).
+    // The server refuses this too; the dialog is the courtesy, not the guard.
+    if (hoursUntil <= r.cancellationWindowHours) {
+      Alert.alert(
+        'İptal süresi doldu',
+        `Ders başlamasına ${r.cancellationWindowHours} saatten az kaldığı için bu rezervasyon uygulamadan iptal edilemez. Gelemeyecekseniz lütfen stüdyoyu arayın.`,
+        [{ text: 'Tamam' }],
+      )
+      return
+    }
+    Alert.alert(`${r.serviceName} · ${dateTime(r.startsAt)}`, 'Rezervasyonun iptal edilsin mi?', [
       { text: 'Vazgeç', style: 'cancel' },
       {
         text: 'İptal Et', style: 'destructive', onPress: async () => {

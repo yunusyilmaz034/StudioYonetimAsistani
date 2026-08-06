@@ -110,9 +110,11 @@ export async function cancelOwnReservation(ctx: TenantContext, memberId: MemberI
     return { ok: false as const, error: { code: 'reservation_not_open' as const } }
   }
 
-  // The credit effect (released vs. consumed on a late cancel) is the domain's call, judged
-  // against the window STAMPED on the session (D14). Nothing here re-derives it.
-  return cancelReservation(resDeps(), ctx, { reservationId: reservation.id })
+  // `selfService` is what makes this the MEMBER's cancel rather than reception's: inside the window
+  // the domain refuses it outright instead of burning a credit (owner, 2026-08-06). The credit effect
+  // outside the window is unchanged and still the domain's call, judged against the window STAMPED on
+  // the session (D14). Nothing here re-derives it.
+  return cancelReservation(resDeps(), ctx, { reservationId: reservation.id, selfService: true })
 }
 
 // ── Profile (D9) ──────────────────────────────────────────────────────────────────────────

@@ -19,6 +19,9 @@ export interface CancelReservationInput {
   // OP-2 — the operation this cancellation belongs to (a closure, a bulk act). Omitted when a
   // human cancelled one reservation: that is its own operation.
   readonly operationId?: OperationId
+  // The member pressed the button herself. Inside the cancellation window this is REFUSED rather
+  // than charged (owner, 2026-08-06) — see decideCancellation. Reception passes nothing.
+  readonly selfService?: boolean
 }
 
 // Cancellation moves a credit (release inside no counter; late-cancel may consume),
@@ -46,6 +49,7 @@ export async function cancelReservation(
       const cancelled = decideCancellation(dctx, reservation, session, {
         allowance: eff.cancellationAllowance,
         usedNet: cancellationsUsed(entitlement.cancellationLedger),
+        selfService: input.selfService === true,
       })
       if (!cancelled.ok) return cancelled
 

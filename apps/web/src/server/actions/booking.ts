@@ -44,10 +44,18 @@ export async function getSessionRosterAction(input: unknown): Promise<readonly R
   const p = z.object({ sessionId: nonEmpty }).parse(input)
   const ctx = await requireTenantContext(OPS)
   const rows = await new FirestoreReservationRepository(adminDb()).listBySession(ctx, p.sessionId as ClassSessionId)
-  // Everyone who OCCUPIED the slot — matches the session's bookedCount. An in-window `cancelled` freed
-  // the slot (and is excluded); a past `attended`/`no_show`/`late_cancelled` did not, so the roster of a
-  // finished class still shows who was there instead of "Henüz rezervasyon yok" while the count says 2.
-  const OCCUPIES = new Set(['booked', 'attended', 'no_show', 'late_cancelled'])
+
+  // WHO IS ON THIS CLASS — and a member who cancelled is not, however late she did it.
+  //
+  // `late_cancelled` used to be listed here, on the reasoning that a late cancel does not free the
+  // seat. It does: the session's own `bookedCount` stops counting her the moment she cancels. So the
+  // list said five and the counter said three, and with two seats HELD for guests the panel appeared
+  // to contradict itself twice over (owner, 2026-08-06: *"orada geç iptal diye Elif D.'yi görmeyelim,
+  // kafa karışıyor"*).
+  //
+  // `attended` and `no_show` stay: after the class has run this is the record of who was expected,
+  // and "came" and "did not come" are both answers to that. "Cancelled" is not — she withdrew.
+  const OCCUPIES = new Set(['booked', 'attended', 'no_show'])
   return rows
     .filter((r) => OCCUPIES.has(r.status))
     .map((r) => ({

@@ -38,7 +38,9 @@ const STATUS: Record<string, { label: string; className: string }> = {
   attended: { label: 'Katıldınız', className: 'bg-success/10 text-success' },
   no_show: { label: 'Gelmediniz', className: 'bg-danger/10 text-danger' },
   cancelled: { label: 'İptal', className: 'bg-muted text-muted-foreground' },
-  late_cancelled: { label: 'Geç iptal', className: 'bg-warning/10 text-warning' },
+  // OR-30 — never "Geç iptal" on a member surface. To her it was a cancellation; the late/normal
+  // split is the studio's accounting, and showing it invites the question it cannot answer.
+  late_cancelled: { label: 'İptal edildi', className: 'bg-muted text-muted-foreground' },
 }
 
 export function PortalReservationsScreen({
@@ -99,15 +101,19 @@ export function PortalReservationsScreen({
                     </p>
                     <p className="capitalize text-xs text-muted-foreground">{dayTime(r.startsAt)}</p>
                   </div>
-                  <Button size="sm" variant="outline" className="shrink-0" onClick={() => setConfirming(r)}>
-                    İptal Et
-                  </Button>
+                  {/* Inside the window there is no button at all. It used to be offered with a
+                      warning underneath, and a member pressed it twice in fifty-one seconds believing
+                      it freed her class — two credits gone (owner, 2026-08-06). A warning under a
+                      live button is not a rule; the absence of the button is. */}
+                  {isLate(r) ? null : (
+                    <Button size="sm" variant="outline" className="shrink-0" onClick={() => setConfirming(r)}>
+                      İptal Et
+                    </Button>
+                  )}
                 </div>
                 <p className={`mt-2 text-xs ${isLate(r) ? 'text-warning' : 'text-muted-foreground'}`}>
                   {isLate(r)
-                    ? r.lateCancellationConsumesCredit
-                      ? `İptal süresi doldu — şimdi iptal ederseniz hakkınız düşer.`
-                      : `İptal süresi doldu, ancak hakkınız düşmez.`
+                    ? `İptal süresi doldu — bu ders artık uygulamadan iptal edilemez. Gelemeyecekseniz lütfen stüdyoyu arayın.`
                     : `Ders başlamasına ${r.cancellationWindowHours} saat kalana kadar ücretsiz iptal.`}
                 </p>
               </li>
@@ -157,11 +163,6 @@ export function PortalReservationsScreen({
               {confirming ? `${confirming.serviceName} · ${dayTime(confirming.startsAt)}` : ''}
             </DialogDescription>
           </DialogHeader>
-          {confirming && isLate(confirming) && confirming.lateCancellationConsumesCredit ? (
-            <p className="rounded-lg bg-warning/10 p-3 text-sm text-warning" role="alert">
-              İptal süresi doldu. Şimdi iptal ederseniz bu ders hakkınızdan düşecek.
-            </p>
-          ) : null}
           <DialogFooter>
             <Button variant="outline" onClick={() => setConfirming(null)} disabled={busy}>
               Vazgeç
