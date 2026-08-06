@@ -405,6 +405,34 @@ and a payment records what was actually agreed. Editing the catalogue tomorrow c
 someone already paid for, which is why repricing needs no migration and no member communication about
 the past (owner: *"geçmişte bu paketleri alanları dokunma"*).
 
+**OR-32 · A price we came down on is a DISCOUNT, never a debt.** (2026-08-06) The single-price move
+(OR-31) raised every package, and the studio still comes down for individual members — a ₺5.000
+pilates package sold to a regular for ₺4.200. Recording that as ₺4.200 collected against a ₺5.000
+sale left ₺800 open: a balance the member does not owe, sitting in her cari hesap and on the owner's
+"to collect" list forever. Owner: *"800 tl borç yazamamalı, 800 tl indirim yapıldı borçsuz tahsilat
+yapılacak."*
+
+The ledger was already built for this and nothing had ever used it: `Sale.discounts`, with
+`total = gross − Σ discounts`. What was missing was a field at the desk. Three decisions the owner
+made with it:
+
+- **Only the owner may discount.** Enforced in the Server Action — the same place the catalogue's
+  write rule lives (AD-46) — because it is an authorisation question, not a domain one: the ledger's
+  job is to make the arithmetic true, not to know the studio's staffing. A discount from anyone else
+  is **refused, not dropped**; dropping it would record the sale at full price with less money
+  against it, which is the exact bug this exists to prevent. Reception sells at the list price.
+- **The reason is optional**, defaulting to `gift`. The one exception is not ours: `manual` requires
+  a note in the DOMAIN (I-36 — "a discount without a reason is a hole"), so the form offers that
+  reason only together with the note.
+- **The line keeps the LIST price.** Collapsing the discount into a lower `unitPrice` would settle
+  the sale just as well and lose the fact that a discount was ever given. Gross stays ₺5.000, the
+  discount stays its own ₺800, and "we came down on the price" never becomes indistinguishable from
+  "we sold a cheaper package". A discount is an AMOUNT, never a percentage re-evaluated later (I-34).
+
+History was checked before shipping it: five open balances, none of them a disguised discount, and
+**zero discounts recorded in the system's entire history** — the rule was born with the price rise
+rather than papering over anything.
+
 ## Traps that have already cost something
 
 **OR-14 · Firestore indexes are a production-only trap.** The emulator does NOT enforce them, so a

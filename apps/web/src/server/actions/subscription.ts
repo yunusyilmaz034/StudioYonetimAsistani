@@ -107,6 +107,14 @@ export async function assignSubscriptionAction(input: unknown) {
       validFrom: date,
       validUntil: date.nullable(),
       priceAgreedKurus: z.number().int().min(0).nullable(),
+      // İNDİRİM (owner, 2026-08-06). An amount in kuruş, never a percentage — the same 15% is a
+      // different number the day a rounding rule moves; the kuruş it was worth on the day of sale is
+      // not (I-34). `reason` is optional at the DESK by the owner's decision, so it defaults to
+      // `gift`; `manual` is the one reason the domain requires a note for (I-36), and the form only
+      // offers it together with that note.
+      discountKurus: z.number().int().min(0).nullable().optional(),
+      discountReason: z.enum(['campaign', 'coupon', 'referral', 'gift', 'manual']).optional(),
+      discountNote: z.string().optional(),
       creditOverride: z.number().int().min(0).nullable(),
       // Hibrit demet: per-component credit/entry counts the admin edited at the desk. Index-aligned to
       // the product's components; a null entry keeps that component's catalogue default.
@@ -140,6 +148,34 @@ export async function assignSubscriptionAction(input: unknown) {
   if (isSuspectedDuplicate(existing, product.id, systemClock.now())) {
     return { ok: false as const, error: { code: 'duplicate_sale_suspected' as const } }
   }
+
+  // ── WHO MAY DISCOUNT (owner, 2026-08-06: "indirimi sadece owner ve Işıl verebilsin") ──────
+  //
+  // Enforced in the Server Action, the same place the catalogue's write rule lives (AD-46), because
+  // this is an AUTHORISATION question rather than a domain one: the ledger's job is to make the
+  // arithmetic true, not to know the studio's staffing. Reception sells at the list price; changing
+  // what a package costs is the owner's decision, and there is exactly one owner account.
+  //
+  // REFUSED, never silently dropped. Ignoring the field would record the sale at full price with less
+  // money against it — a debt the member does not owe, which is precisely the bug this feature exists
+  // to prevent.
+  const discountKurus = p.discountKurus ?? 0
+  if (discountKurus > 0 && ctx.role !== 'owner' && ctx.actor.type !== 'platform_admin') {
+    return { ok: false as const, error: { code: 'staff_admin_required' as const } }
+  }
+  const discounts =
+    discountKurus > 0
+      ? [
+          {
+            reason: p.discountReason ?? 'gift',
+            amount: money(discountKurus),
+            note: p.discountNote?.trim() ?? '',
+            couponCode: null,
+            referredByMemberId: null,
+            grantedBy: ctx.actor,
+          },
+        ]
+      : []
 
   const drawerId = await drawerFor(ctx, p.method as PaymentMethod)
 
@@ -269,6 +305,7 @@ export async function assignSubscriptionAction(input: unknown) {
                       allowNoDrawer: true,
                     }
                   : null,
+              discounts,
               discountCeilingPercent: null,
             }),
         )
@@ -291,6 +328,7 @@ export async function assignSubscriptionAction(input: unknown) {
       sellPackage(sellDeps(), ctx, {
         branchId,
         subscription,
+        discounts,
         // Selling without collecting is legal here (`balanceDue > 0`), and the dashboard is built to
         // surface it. Zero collected ⇒ no payment, not a payment of zero.
         payment:

@@ -72,6 +72,66 @@ const saleInput = (over: Partial<Parameters<typeof decideCreateSale>[1]> = {}) =
   ...over,
 })
 
+// ── İNDİRİM: the case the studio actually has (owner, 2026-08-06) ──────────────────────────
+//
+// A ₺5.000 package sold for ₺4.200. Collecting ₺4.200 must SETTLE it: the ₺800 is revenue the studio
+// chose not to take, not money the member owes. Recorded as a discount the gross stays ₺5.000, so
+// "we came down on the price" never becomes indistinguishable from "we sold a cheaper package".
+describe('sale · indirim', () => {
+  const DISCOUNT = {
+    reason: 'gift' as const,
+    amount: money(80_000),
+    note: '',
+    couponCode: null,
+    referredByMemberId: null,
+    grantedBy: RECEPTION,
+  }
+
+  it('lowers the total but not the gross, and leaves nothing owed once the agreed price is paid', () => {
+    const r = decideCreateSale(ctx(), saleInput({ discounts: [DISCOUNT] }))
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.value.next.gross.amount).toBe(500_000)
+    expect(r.value.next.total.amount).toBe(420_000)
+    // What the member owes is the TOTAL, so ₺4.200 in hand closes it.
+    expect(r.value.next.total.amount - 420_000).toBe(0)
+  })
+
+  it('keeps the discount on the sale, so the amount forgone stays reportable', () => {
+    const r = decideCreateSale(ctx(), saleInput({ discounts: [DISCOUNT] }))
+    if (!r.ok) throw new Error('unreachable')
+    expect(r.value.next.discounts).toHaveLength(1)
+    expect(r.value.next.discounts[0]!.amount.amount).toBe(80_000)
+    expect(r.value.next.lines[0]!.unitPrice.amount).toBe(500_000)
+  })
+
+  // I-33 — a discount larger than the sale is a refusal, never a negative sale.
+  it('refuses a discount bigger than the package', () => {
+    const r = decideCreateSale(ctx(), saleInput({ discounts: [{ ...DISCOUNT, amount: money(500_001) }] }))
+    expect(r.ok).toBe(false)
+  })
+
+  // The boundary: exactly the whole price is legal — that is a comped package, not an over-discount.
+  it('allows a discount of exactly the whole price', () => {
+    const r = decideCreateSale(ctx(), saleInput({ discounts: [{ ...DISCOUNT, amount: money(500_000) }] }))
+    expect(r.ok).toBe(true)
+    if (r.ok) expect(r.value.next.total.amount).toBe(0)
+  })
+
+  // I-36 — the one reason that must be explained. The desk form only offers `manual` together with
+  // its note, but the domain is what makes that true rather than the form.
+  it('refuses a manual discount with no note, and accepts it with one', () => {
+    const bare = decideCreateSale(ctx(), saleInput({ discounts: [{ ...DISCOUNT, reason: 'manual' }] }))
+    expect(bare.ok).toBe(false)
+    if (!bare.ok) expect(bare.error.code).toBe('reason_required')
+    const explained = decideCreateSale(
+      ctx(),
+      saleInput({ discounts: [{ ...DISCOUNT, reason: 'manual', note: 'eski üye, jest' }] }),
+    )
+    expect(explained.ok).toBe(true)
+  })
+})
+
 const sale = (over: Partial<Sale> = {}): Sale => {
   const r = decideCreateSale(ctx(), saleInput())
   if (!r.ok) throw new Error('fixture')

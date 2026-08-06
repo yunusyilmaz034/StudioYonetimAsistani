@@ -174,6 +174,7 @@ export function SubscriptionsPanel({ memberId, memberPhone = null, products, sur
           memberPhone={memberPhone}
           products={activeProducts}
           surchargeByProduct={surchargeByProduct}
+          isOwner={isOwner}
           onCancel={() => setAdding(false)}
           onDone={() => {
             setAdding(false)
@@ -661,6 +662,7 @@ function AssignForm({
   memberPhone = null,
   products,
   surchargeByProduct = {},
+  isOwner = false,
   onCancel,
   onDone,
 }: {
@@ -668,6 +670,7 @@ function AssignForm({
   memberPhone?: string | null
   products: readonly ProductView[]
   surchargeByProduct?: Record<string, number>
+  isOwner?: boolean
   onCancel: () => void
   onDone: () => void
 }) {
@@ -704,6 +707,11 @@ function AssignForm({
   // legal and is exactly how a debt is recorded). The credit field next to it has had this since it
   // was built; the money field did not, which is the one that matters.
   const [collectedTouched, setCollectedTouched] = useState(false)
+  // İNDİRİM (owner, 2026-08-06). Only the owner sees this field at all — reception sells at the list
+  // price, and the server refuses a discount from anyone else rather than quietly dropping it.
+  const [discountTl, setDiscountTl] = useState('')
+  const [discountReason, setDiscountReason] = useState('gift')
+  const [discountNote, setDiscountNote] = useState('')
   const [method, setMethod] = useState('cash')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -712,7 +720,7 @@ function AssignForm({
   // A submit error is only meaningful for the inputs that produced it. The instant ANY field changes
   // (package, method, dates, amount, credit, bundle counts), the old "Geçerli bir tutar girin." is stale
   // — clear it in ONE place so no field can be forgotten (switching packages used to leave it lingering).
-  useEffect(() => setError(null), [productId, method, validFrom, validUntil, collectedTl, creditInput, componentCounts])
+  useEffect(() => setError(null), [productId, method, validFrom, validUntil, collectedTl, creditInput, componentCounts, discountTl, discountReason])
   // A different package (or method) means a different amount owed, so the default becomes the right
   // answer again — and a number typed for the previous package is not.
   useEffect(() => setCollectedTouched(false), [productId, method])
@@ -729,7 +737,11 @@ function AssignForm({
   // the ONE editable amount the admin always controls (kontrol her zaman admin'de): for manual methods it
   // is what was COLLECTED (a lower value = real debt); for PAYTR it is what is CHARGED (and, for Link, the
   // debt the link collects).
-  const owedKurus = (toKurus(effectivePrice) || 0) + (method !== 'cash' ? surchargeKurus : 0)
+  // The discount comes off what is OWED. The package still costs what it costs — the line keeps the
+  // list price and the discount stays its own number in the sale, so "we sold it for less" and "we
+  // sold a cheaper package" never become the same record.
+  const discountKurus = isOwner ? Math.max(0, Math.min(toKurus(discountTl) || 0, toKurus(effectivePrice) || 0)) : 0
+  const owedKurus = (toKurus(effectivePrice) || 0) - discountKurus + (method !== 'cash' ? surchargeKurus : 0)
   const effectiveCollected = collectedTouched ? collectedTl : owedKurus ? (owedKurus / 100).toString() : ''
   const effectiveCredit = creditInput !== '' ? creditInput : product?.creditCount != null ? String(product.creditCount) : ''
   const amountKurus = toKurus(effectiveCollected)
@@ -785,6 +797,9 @@ function AssignForm({
           validFrom,
           validUntil: effectiveUntil || null,
           priceAgreedKurus: toKurus(effectivePrice),
+          discountKurus,
+          discountReason,
+          discountNote,
           creditOverride,
           componentOverrides: isBundle ? componentCounts : null,
           collectedKurus: amountKurus,
@@ -881,6 +896,52 @@ function AssignForm({
               what the package costs. A different agreed price is a discount decision, not a data-entry one. */}
           <Input type="number" value={effectivePrice} disabled readOnly />
         </Labeled>
+        {/* İNDİRİM — owner only (owner, 2026-08-06: "indirimi sadece owner ve Işıl verebilsin").
+            Recorded as a DISCOUNT on the sale, not as a lower price and not as a debt: collecting
+            4.200 on a 5.000 package now settles it, and the 800 stays visible as revenue the studio
+            chose not to take. Before this the only way to express it was a balance that never closed
+            and followed the member around the panel. */}
+        {isOwner ? (
+          <Labeled label="İndirim (TL)">
+            <Input
+              type="number"
+              min={0}
+              step="0.01"
+              value={discountTl}
+              onChange={(e) => setDiscountTl(e.target.value)}
+              placeholder="0"
+            />
+            {discountKurus > 0 ? (
+              <div className="mt-2 space-y-2">
+                <div className="flex gap-2">
+                  <Select value={discountReason} onValueChange={(v) => setDiscountReason(v ?? 'gift')}>
+                    <SelectTrigger className="h-9 flex-1"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="gift">Jest / anlaşma</SelectItem>
+                      <SelectItem value="campaign">Kampanya</SelectItem>
+                      <SelectItem value="referral">Tavsiye</SelectItem>
+                      <SelectItem value="coupon">Kupon</SelectItem>
+                      <SelectItem value="manual">Diğer (açıklama zorunlu)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {/* Optional by the owner's decision — EXCEPT for "Diğer", where the domain requires it
+                    (I-36: a discount with no reason is a hole in the revenue). The other reasons are
+                    each an explanation in themselves, which is why they need no note. */}
+                <Input
+                  value={discountNote}
+                  onChange={(e) => setDiscountNote(e.target.value)}
+                  placeholder={discountReason === 'manual' ? 'Açıklama (zorunlu)' : 'Açıklama (isteğe bağlı)'}
+                />
+                <p className="text-sm text-muted-foreground">
+                  Paket <strong>{tl(toKurus(effectivePrice) || 0)}</strong> · indirim{' '}
+                  <strong>{tl(discountKurus)}</strong> → tahsil edilecek{' '}
+                  <strong>{tl(owedKurus)}</strong>, borç kalmaz.
+                </p>
+              </div>
+            ) : null}
+          </Labeled>
+        ) : null}
         <Labeled label={isPaytr ? 'Tahsil edilecek tutar (TL)' : 'Tahsilat (TL)'}>
           <Input
             type="number"

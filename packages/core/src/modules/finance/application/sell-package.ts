@@ -16,7 +16,7 @@ import {
   type EntitlementsDeps,
 } from '../../entitlements'
 import { decideCreateSale, decideReceivePayment } from '../domain/decide'
-import type { PaymentMethod } from '../domain/types'
+import type { PaymentMethod, Discount } from '../domain/types'
 import { dctx, sell } from './finance'
 import type { FinanceDeps } from './ports'
 
@@ -78,6 +78,17 @@ export interface SellPackageInput {
   readonly subscription: AssignSubscriptionInput
   /** `null` ⇒ sold on account. Legal, and the dashboard is built to surface the debt. */
   readonly payment: SellPackagePayment | null
+  /**
+   * A price the studio agreed to come down to, recorded as a DISCOUNT rather than left as a debt
+   * (owner, 2026-08-06). Selling a ₺5.000 package for ₺4.200 and collecting ₺4.200 must settle: the
+   * ₺800 is revenue the studio chose not to take, not money the member owes. Before this, the only
+   * way to express it was a balance that stayed open forever and followed her around the panel.
+   *
+   * Empty ⇒ full price. The line still carries the LIST price, so `gross` remains what the package
+   * costs and the discount stays visible as its own number — collapsing the two into a lower
+   * unitPrice would settle the sale just as well and lose the fact that a discount was ever given.
+   */
+  readonly discounts?: readonly Discount[]
   readonly discountCeilingPercent: number | null
 }
 
@@ -110,7 +121,7 @@ export async function sellPackage(
     memberId: input.subscription.memberId,
     branchId: input.branchId,
     lines: [line],
-    discounts: [],
+    discounts: input.discounts ?? [],
     discountCeilingPercent: input.discountCeilingPercent,
   })
   if (!draft.ok) return draft
