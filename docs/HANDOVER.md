@@ -45,8 +45,12 @@ grants and refuses when they disagree. The studio is notified the moment a self-
 
 | | In members' hands | Uploaded, not yet released |
 |---|---|---|
-| iOS | 1.0.1 (build 4) — live since 2026-07-29 | **1.3.0** (build 8), processed by Apple; the App Store version must be created by hand |
-| Android | **1.3.0** (versionCode 9) — closed test | — |
+| iOS | 1.0.1 (build 4) — live since 2026-07-29 | **1.5.0** (build 11) submitted 2026-08-06; the App Store version must be created by hand |
+| Android | **1.3.0** (versionCode 9) — closed test | **1.5.0** building/submitting 2026-08-06 |
+
+**1.5.0 supersedes 1.3.0 AND 1.4.0 — ship only 1.5.0.** 1.4.0 was built and its iOS half submitted
+earlier the same evening; everything in it is contained in 1.5.0, so let it lapse rather than spend a
+review turn on it.
 
 **Android's production clock: 12 testers, 14 days required, and on 2026-07-29 it stood at day 3** —
 so it completes around **2026-08-09**. (Written as a date on purpose: a countdown in a document is
@@ -326,6 +330,36 @@ Live already: prices (data, so every surface that reads the catalogue is correct
 site, and the WhatsApp AI (functions deployed — it now prints one figure and refuses to invent an
 instalment rate). **Waiting on the night deploy: the panel/portal copy** (App Hosting). The mobile
 buy screen's new footnote rides with 1.4.0.
+
+### 2026-08-06 (evening) — one price, discounts, and the workout log
+
+**Tek fiyat (OR-31) shipped in full.** Catalogue, marketing site, panel/portal copy and the WhatsApp
+AI are all live. The AI's `policies` field had been TEACHING the old model in prose ("nakit fiyata
+1.000 TL eklenir", "3 taksitte banka %10 alır") — a correct live price plus an instruction to add a
+surcharge to it. Rewritten. The four hybrid bundles were re-derived from two anchors rather than
+raised: a pilates lesson ₺625, a fitness entry ₺400 (so ten entries = one unlimited month, which
+makes the boundary explain itself).
+
+**İndirim (OR-32).** A price the studio comes down to is now a discount, not a debt. Owner-only,
+enforced in the Server Action; reason optional (`manual` still needs a note — I-36); the line keeps
+the LIST price so "we came down" never collapses into "we sold something cheaper". History was
+audited first: five open balances, none a disguised discount, zero discounts in the system ever.
+
+**Antrenman takibi (OR-33).** The member ticks each exercise, records sets/reps/weight and a note,
+and finishes the day; the cycle is walked in order with the refusal in the DOMAIN. Her declaration
+is never added to the door's observation — they meet only on the staff adherence view, where the GAP
+is the signal.
+
+**Two bugs found by fixing a type.** `/fitness` had been typed as core's `MemberFitness` while the
+endpoint returns `{ stats, recent }`: every read was `undefined`, so "Son 30 gün" on Bugün and the
+streak line on Ben had never rendered and nothing said so. And the home progress line picked "the
+first active programme" when a member can hold several — it now follows the one she trained most
+recently. **When a member-facing number never appears, suspect the type before the data.**
+
+**Data corrected in production:** Program B's template had day names that disagreed with their order
+(`order:1` was called "2. Gün"), which made a correct cycle look broken. 149 programmes audited, 1
+affected, fixed at the template and the programme. Names were moved onto their order, never the
+reverse — renumbering would have re-labelled work already done.
 
 ---
 
