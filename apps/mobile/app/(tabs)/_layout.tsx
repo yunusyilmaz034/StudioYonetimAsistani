@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { View } from 'react-native'
+import { StyleSheet, Text, View } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import * as Notifications from 'expo-notifications'
 import { Redirect, router, Tabs } from 'expo-router'
@@ -11,13 +11,17 @@ import { registerForPush } from '@/lib/push'
 import { Loading } from '@/components/ui'
 import { radius, usePalette } from '@/theme'
 
-// The active tab reads as a filled icon sitting in a soft accent pill — the small, premium signature
-// that separates a designed tab bar from the platform default.
-function TabIcon({ filled, outline, focused }: { filled: keyof typeof Ionicons.glyphMap; outline: keyof typeof Ionicons.glyphMap; focused: boolean }) {
+// Selection is a word with a rule under it — the same underline the agenda's day picker uses, so
+// "this is the one you are on" reads identically everywhere in the app. The icon pill is gone with
+// the rest of the filled-shape language.
+function TabLabel({ label, focused }: { label: string; focused: boolean }) {
   const p = usePalette()
   return (
-    <View style={{ width: 52, height: 32, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: focused ? p.accentSoft : 'transparent' }}>
-      <Ionicons name={focused ? filled : outline} size={21} color={focused ? p.accent : p.textFaint} />
+    <View style={{ alignItems: 'center', gap: 4, width: 90 }}>
+      <Text numberOfLines={1} style={{ fontSize: 11.5, fontWeight: focused ? '700' : '600', color: focused ? p.accent : p.textFaint }}>
+        {label}
+      </Text>
+      <View style={{ width: 16, height: 2, borderRadius: 2, backgroundColor: focused ? p.accent : 'transparent' }} />
     </View>
   )
 }
@@ -61,26 +65,35 @@ export default function TabsLayout() {
         tabBarStyle: {
           backgroundColor: p.bgElevated,
           borderTopColor: p.hairline,
-          borderTopWidth: 1,
-          height: 88,
-          paddingTop: 8,
+          borderTopWidth: StyleSheet.hairlineWidth * 2,
+          height: 76,
+          paddingTop: 10,
         },
-        tabBarItemStyle: { paddingTop: 2 },
+        tabBarItemStyle: { paddingTop: 0 },
       }}
     >
-      <Tabs.Screen name="index" options={{ title: 'Ana Sayfa', tabBarIcon: ({ focused }) => <TabIcon filled="home" outline="home-outline" focused={focused} /> }} />
-      <Tabs.Screen name="agenda" options={{ title: 'Ajanda', tabBarIcon: ({ focused }) => <TabIcon filled="calendar" outline="calendar-outline" focused={focused} /> }} />
-      <Tabs.Screen name="training" options={{ title: showPrograms ? 'Antrenman' : 'Ölçümlerim', tabBarIcon: ({ focused }) => <TabIcon filled={showPrograms ? 'barbell' : 'body'} outline={showPrograms ? 'barbell-outline' : 'body-outline'} focused={focused} /> }} />
-      <Tabs.Screen name="qr" options={{ title: 'QR', tabBarIcon: ({ focused }) => <TabIcon filled="qr-code" outline="qr-code-outline" focused={focused} /> }} />
-      {/* PF-42 (owner, 2026-07-29) — Üyeliğim took the wallet's place, and the reason is measured:
-          production has ZERO wallets, not one member has ever had one, while every member holds a
-          package and the renewal flow that earns money sat two taps deep behind a card on the home
-          screen. The unused feature was in the window and the selling one in the stockroom.
-          The wallet is not gone — it moved to Profile, and comes back here the day stored value is
-          actually sold. A SEVENTH tab was refused: at 375 px that leaves ~53 px each and the labels
-          truncate. */}
-      <Tabs.Screen name="subscriptions" options={{ title: 'Üyeliğim', tabBarIcon: ({ focused }) => <TabIcon filled="ticket" outline="ticket-outline" focused={focused} /> }} />
-      <Tabs.Screen name="profile" options={{ title: 'Profil', tabBarIcon: ({ focused }) => <TabIcon filled="person" outline="person-outline" focused={focused} /> }} />
+      <Tabs.Screen name="index" options={{ title: 'Bugün', tabBarIcon: () => null, tabBarLabel: ({ focused }) => <TabLabel label="Bugün" focused={focused} /> }} />
+      <Tabs.Screen name="agenda" options={{ title: 'Ajanda', tabBarIcon: () => null, tabBarLabel: ({ focused }) => <TabLabel label="Ajanda" focused={focused} /> }} />
+      {/* The third tab is the member's own body and training, and its NAME depends on what she bought:
+          a pilates-only member has no programme, so she must not meet the word "Antrenman" — not as a
+          label, not as an empty state (owner, 2026-08-06). The answer comes from the server, never
+          guessed here from her packages: a label guessed one way while the screen decides another is a
+          tab that says "Antrenman" and opens on measurements. */}
+      <Tabs.Screen
+        name="training"
+        options={{
+          title: showPrograms ? 'Antrenman' : 'Ölçümlerim',
+          tabBarIcon: () => null,
+          tabBarLabel: ({ focused }) => <TabLabel label={showPrograms ? 'Antrenman' : 'Ölçümlerim'} focused={focused} />,
+        }}
+      />
+      {/* Üyeliğim, Cüzdan, Mesajlar and Profil are one question — "ben neyim, nerede duruyorum" — so
+          they are one screen. Nothing was removed; see app/(tabs)/profile.tsx. */}
+      <Tabs.Screen name="profile" options={{ title: 'Ben', tabBarIcon: () => null, tabBarLabel: ({ focused }) => <TabLabel label="Ben" focused={focused} /> }} />
+      {/* Kept as a route so every existing link still resolves, but off the bar: QR is reached from
+          each screen's top-right, and Üyeliğim now lives inside Ben. */}
+      <Tabs.Screen name="qr" options={{ href: null }} />
+      <Tabs.Screen name="subscriptions" options={{ href: null }} />
     </Tabs>
   )
 }

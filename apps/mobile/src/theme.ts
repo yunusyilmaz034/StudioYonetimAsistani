@@ -1,30 +1,41 @@
-// The member app's design language — a warm, premium studio identity (mahogany + bone) with real depth
-// (layered surfaces, soft shadows) and a considered type scale. Semantic tokens only; every screen reads
-// from here so the whole app moves as one system.
-import { useColorScheme, type TextStyle, type ViewStyle } from 'react-native'
+// The member app's design language — "Stüdyo Editoryal" (owner-approved, 2026-08-06).
+//
+// The identity is the STUDIO'S OWN, not a new one: bone paper and mahogany ink are the marketing
+// site's palette, and the display face is the site's Georgia. Until today the app and the website
+// looked like two different businesses; a brand the studio already paid for was sitting unused.
+//
+// What changed from the previous language is MATERIAL, not structure: white cards floating on soft
+// shadows became bone ground with hairline rules, and headings and figures moved to a serif. Screens
+// keep their layouts (OR-6's discipline, applied to mobile) — see each screen for what stayed.
+//
+// The token NAMES are unchanged on purpose, so every screen picks up the new material without being
+// rewritten and the app can never be half-migrated.
+import { Platform, useColorScheme, type TextStyle, type ViewStyle } from 'react-native'
 
 const light = {
-  bg: '#F1ECE6',
-  bgElevated: '#F7F3EE',
-  surface: '#FFFFFF',
-  surfaceMuted: '#EBE4DB',
-  border: '#E6DDD2',
-  hairline: '#00000010',
-  text: '#211A16',
-  textMuted: '#8A7C70',
-  textFaint: '#B3A79B',
+  bg: '#F7F2EA', // bone — the paper everything sits on
+  bgElevated: '#FFFDF9',
+  surface: '#FFFDF9', // barely lifted off the page, not a floating white card
+  surfaceMuted: '#EFE7DA',
+  border: '#E4DACB',
+  hairline: '#E4DACB', // a real 1px rule now, not a shadow substitute
+  text: '#1A1614', // warm near-black; a cool grey would fight the paper
+  textMuted: '#5B4F49',
+  textFaint: '#9A8B80',
   accent: '#7A1F3D',
-  accentSoft: '#7A1F3D18',
+  accentSoft: '#7A1F3D14',
   accentDeep: '#5C1730',
   accentText: '#FFFFFF',
   gold: '#B98A4B',
-  good: '#2E7D5B',
-  goodSoft: '#2E7D5B18',
+  // Progress and "good" borrow the site's SECOND colour — a sage green nobody expects next to
+  // mahogany, and the thing that keeps this palette off the shelf.
+  good: '#77854E',
+  goodSoft: '#77854E14',
   warn: '#B4690E',
-  warnSoft: '#B4690E1A',
-  danger: '#B23A3A',
-  dangerSoft: '#B23A3A18',
-  // gradient stops for the premium header
+  warnSoft: '#B4690E14',
+  danger: '#9C2B2B',
+  dangerSoft: '#9C2B2B14',
+  // Kept for the few surfaces that still want a filled band (the QR moment, campaign artwork).
   gradFrom: '#7A1F3D',
   gradTo: '#4E1226',
   onGrad: '#FFFFFF',
@@ -32,33 +43,37 @@ const light = {
 } as const
 
 const dark = {
-  bg: '#131011',
-  bgElevated: '#1B1618',
-  surface: '#221B1E',
-  surfaceMuted: '#2C2327',
-  border: '#3A2E33',
-  hairline: '#FFFFFF12',
-  text: '#F4EDEB',
-  textMuted: '#A99B96',
-  textFaint: '#6F625E',
-  accent: '#D07A94',
-  accentSoft: '#D07A9422',
+  bg: '#17120F', // warm near-black — the same paper at night, not a blue-grey
+  bgElevated: '#1F1917',
+  surface: '#221B18',
+  surfaceMuted: '#2B2320',
+  border: '#3A2F29',
+  hairline: '#3A2F29',
+  text: '#F4EDE6',
+  textMuted: '#B0A197',
+  textFaint: '#7A6C63',
+  accent: '#D8879C',
+  accentSoft: '#D8879C1F',
   accentDeep: '#B65E79',
   accentText: '#1A1113',
   gold: '#D6A661',
-  good: '#5FBE93',
-  goodSoft: '#5FBE9322',
+  good: '#A3B173',
+  goodSoft: '#A3B1731F',
   warn: '#E0A45B',
-  warnSoft: '#E0A45B22',
+  warnSoft: '#E0A45B1F',
   danger: '#E08585',
-  dangerSoft: '#E0858522',
+  dangerSoft: '#E085851F',
   gradFrom: '#7A1F3D',
   gradTo: '#2A0A16',
   onGrad: '#FFFFFF',
   onGradMuted: '#E9C7D2',
 } as const
 
-export type Palette = typeof light
+// `as const` makes every value a literal type, so the dark palette would not satisfy `typeof light`
+// ("#17120F" is not "#F7F2EA"). The contract is the SET OF NAMES — a palette must define every token
+// and each one is a colour string. This has been failing typecheck since the dark theme landed; the
+// mobile app is not in `pnpm check`, so nothing said so.
+export type Palette = { readonly [K in keyof typeof light]: string }
 
 export function usePalette(): Palette {
   return useColorScheme() === 'dark' ? dark : light
@@ -67,12 +82,29 @@ export function usePalette(): Palette {
 export const radius = { sm: 12, md: 18, lg: 24, xl: 30, pill: 999 }
 export const space = (n: number) => n * 4
 
-// A soft, premium elevation. iOS reads shadow*, Android reads elevation.
+/**
+ * The display face — the studio's own, from `pilatesfitnessbyisil.com`.
+ *
+ * Georgia ships with iOS. Android has no Georgia, and naming a missing family there silently falls
+ * back to the sans — which is exactly the "looks fine in the simulator, wrong on half the phones"
+ * failure OR-22 exists for. `'serif'` is Android's guaranteed alias (Noto Serif), close enough in
+ * colour and weight to carry the same voice.
+ */
+export const serif = Platform.select({ ios: 'Georgia', android: 'serif', default: 'Georgia' }) as string
+
+/**
+ * Elevation, now almost silent.
+ *
+ * The old scale (opacity .06/.10/.16 at 12–34 px) was the visual signature of the previous language:
+ * every card floated. Here separation comes from rules and space, so shadow is reserved for things
+ * that genuinely sit ABOVE the page — a sheet, a modal, the QR panel. Level 1 is nearly invisible by
+ * design; if a surface needs level 3 to read, it probably wants a rule instead.
+ */
 export const shadow = (level: 1 | 2 | 3 = 1): ViewStyle => {
   const map = {
-    1: { radius: 12, y: 4, opacity: 0.06, elevation: 2 },
-    2: { radius: 22, y: 10, opacity: 0.1, elevation: 6 },
-    3: { radius: 34, y: 18, opacity: 0.16, elevation: 12 },
+    1: { radius: 8, y: 2, opacity: 0.03, elevation: 1 },
+    2: { radius: 16, y: 6, opacity: 0.06, elevation: 3 },
+    3: { radius: 30, y: 14, opacity: 0.12, elevation: 10 },
   } as const
   const s = map[level]
   return {
@@ -84,15 +116,25 @@ export const shadow = (level: 1 | 2 | 3 = 1): ViewStyle => {
   }
 }
 
-// The type scale — one place, used everywhere. (Named `typo`, not `type`, to avoid the `import { type … }`
-// TypeScript keyword ambiguity.)
+// The type scale — one place, used everywhere. (Named `typo`, not `type`, to avoid the
+// `import { type … }` TypeScript keyword ambiguity.)
+//
+// The serif roles carry the human voice: greetings, screen titles, and every FIGURE a member reads
+// as a fact about herself — a class time, a remaining count, a kilogram. The sans roles carry the
+// interface: labels, buttons, metadata. Reading a number in a serif is the single change that does
+// most of the work here.
 export const typo = {
-  display: { fontSize: 30, fontWeight: '800', letterSpacing: -0.5 } as TextStyle,
-  h1: { fontSize: 24, fontWeight: '800', letterSpacing: -0.3 } as TextStyle,
+  display: { fontFamily: serif, fontSize: 34, lineHeight: 42, letterSpacing: -0.4 } as TextStyle,
+  h1: { fontFamily: serif, fontSize: 27, lineHeight: 34, letterSpacing: -0.3 } as TextStyle,
   h2: { fontSize: 18, fontWeight: '700', letterSpacing: -0.2 } as TextStyle,
-  eyebrow: { fontSize: 12, fontWeight: '700', letterSpacing: 1.2, textTransform: 'uppercase' } as TextStyle,
+  // Section labels: small, spaced, quiet. They organise without competing.
+  eyebrow: { fontSize: 10.5, fontWeight: '700', letterSpacing: 1.4, textTransform: 'uppercase' } as TextStyle,
   body: { fontSize: 15, fontWeight: '500' } as TextStyle,
-  bodyStrong: { fontSize: 15, fontWeight: '700' } as TextStyle,
-  caption: { fontSize: 13, fontWeight: '500' } as TextStyle,
-  num: { fontSize: 34, fontWeight: '800', letterSpacing: -1, fontVariant: ['tabular-nums'] } as TextStyle,
+  bodyStrong: { fontSize: 15, fontWeight: '600' } as TextStyle,
+  caption: { fontSize: 12.5, fontWeight: '500' } as TextStyle,
+  // A figure the member reads. Tabular so a column of them lines up.
+  num: { fontFamily: serif, fontSize: 34, lineHeight: 40, letterSpacing: -1, fontVariant: ['tabular-nums'] } as TextStyle,
+  numSm: { fontFamily: serif, fontSize: 20, lineHeight: 25, letterSpacing: -0.3, fontVariant: ['tabular-nums'] } as TextStyle,
+  // A sentence in the studio's voice — the motivation line, a quiet aside. Serif at body size.
+  voice: { fontFamily: serif, fontSize: 16.5, lineHeight: 25 } as TextStyle,
 }

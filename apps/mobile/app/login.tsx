@@ -41,24 +41,25 @@ export default function Login() {
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, backgroundColor: p.bg }}>
       <ScrollView contentContainerStyle={{ flexGrow: 1 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-        {/* premium mahogany hero — the app's face on first open */}
-        <View style={{ overflow: 'hidden', paddingTop: insets.top + space(10), paddingBottom: space(9), paddingHorizontal: space(6), borderBottomLeftRadius: radius.xl, borderBottomRightRadius: radius.xl }}>
-          <GradientFill from={p.gradFrom} to={p.gradTo} vertical />
-          <View style={{ position: 'absolute', top: -70, right: -40, width: 200, height: 200, borderRadius: 100, backgroundColor: '#FFFFFF', opacity: 0.08 }} />
-          <View style={{ position: 'absolute', right: -10, bottom: -14 }} pointerEvents="none"><HeroFigure gold={p.gold} /></View>
-          <View style={{ gap: space(3) }}>
-            {brand?.logoUrl ? (
-              <Image source={{ uri: brand.logoUrl }} style={{ width: 72, height: 72, borderRadius: radius.lg, backgroundColor: '#FFFFFF20' }} resizeMode="contain" />
-            ) : (
-              <View style={{ width: 72, height: 72, borderRadius: radius.lg, backgroundColor: '#FFFFFF20', alignItems: 'center', justifyContent: 'center' }}>
-                <Body style={{ color: p.onGrad, fontSize: 30, fontWeight: '800' }}>{(brand?.appName ?? 'P')[0]}</Body>
-              </View>
-            )}
-            <View style={{ gap: 4 }}>
-              <Body style={[t.display, { color: p.onGrad }]} numberOfLines={2}>{brand?.appName ?? 'Pilates Fitness By Işıl'}</Body>
-              <Body style={{ color: p.onGradMuted }}>Üye girişi</Body>
-            </View>
-          </View>
+        {/* The app's face on first open — bone paper, the studio's mark, the name in the studio's
+            own serif. The mahogany band that used to be here belonged to the old language, and it
+            had a real bug with it: the gradient is an SVG sized in percentages, so when the title
+            grew to two lines the band did not grow with it and white text spilled onto the cream.
+            Caught in the simulator, which is why we open one (OR-22). */}
+        {/* THE MARK IS NOT DRAWN HERE, and that is a decision about the asset, not a shortcut.
+            The studio's logo is a 300×100 PNG with an opaque BLACK plate baked in and "PİLATES" set
+            in WHITE. On bone paper it can only be one of two things: a harsh black rectangle (owner:
+            "logonun siyahı hoş durmuyor"), or — if the black were keyed out — white text on cream,
+            which is nothing at all. The mark is built for dark grounds.
+            So the light screens wear the studio's NAME, set in the studio's own serif. Nothing is
+            lost: the name is what the logo says. If a version with dark ink on a transparent ground
+            is ever uploaded, this is the one place to put it back. */}
+        <View style={{ paddingTop: insets.top + space(12), paddingBottom: space(9), paddingHorizontal: space(6), gap: space(2), alignItems: 'center' }}>
+          <Body style={[t.display, { color: p.text, textAlign: 'center' }]}>{brand?.appName ?? 'Pilates Fitness By Işıl'}</Body>
+          {/* A hairline the width of the word — the smallest possible mark, and it belongs to the
+              same language as the rest of the app. */}
+          <View style={{ width: 44, height: 2, borderRadius: 2, backgroundColor: p.accent, marginTop: space(2) }} />
+          <Body muted style={{ marginTop: space(2) }}>Üye girişi</Body>
         </View>
 
         {/* form */}

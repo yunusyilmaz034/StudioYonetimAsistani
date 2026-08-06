@@ -2,6 +2,7 @@
 import { useEffect, type ReactNode } from 'react'
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View, type DimensionValue, type StyleProp, type TextStyle, type ViewStyle } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { Ionicons } from '@expo/vector-icons'
 import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated'
 import Svg, { Circle, Defs, G, LinearGradient, Path, Rect, Stop } from 'react-native-svg'
 
@@ -180,6 +181,107 @@ export function Hero({ children, style, gradient }: { children: ReactNode; style
         <HeroFigure gold={p.gold} />
       </View>
       <View style={{ padding: space(5.5), gap: space(2) }}>{children}</View>
+    </View>
+  )
+}
+
+// ── Stüdyo Editoryal primitives (2026-08-06) ─────────────────────────────────────────────────
+//
+// Separation now comes from a RULE and from SPACE, not from a floating card. These three carry most
+// of the new language between them.
+
+/** A 1px rule. The workhorse: what used to be a card edge is now this. */
+export function Rule({ inset = 0, style }: { inset?: number; style?: StyleProp<ViewStyle> }) {
+  const p = usePalette()
+  return <View style={[{ height: StyleSheet.hairlineWidth * 2, backgroundColor: p.hairline, marginHorizontal: inset }, style]} />
+}
+
+/** A quiet section label with its rule beneath — the shape every section on every screen opens with. */
+export function SectionLabel({ children, right }: { children: ReactNode; right?: ReactNode }) {
+  const p = usePalette()
+  return (
+    <View style={{ gap: space(2.5) }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' }}>
+        <Text style={[t.eyebrow, { color: p.textFaint }]}>{children}</Text>
+        {right}
+      </View>
+      <Rule />
+    </View>
+  )
+}
+
+/**
+ * A figure the member reads as a fact about herself — a time, a count, a kilogram.
+ *
+ * Serif and tabular. `delta` is the change since last time: sage for up, mahogany for down, and NO
+ * verdict either way (OR: a member who traded fat for muscle must not be told she got worse).
+ */
+export function Figure({
+  value,
+  unit,
+  delta,
+  size = 'md',
+  style,
+}: {
+  value: string
+  unit?: string
+  delta?: number | null
+  size?: 'sm' | 'md' | 'lg'
+  style?: StyleProp<TextStyle>
+}) {
+  const p = usePalette()
+  const base = size === 'lg' ? t.num : size === 'sm' ? { ...t.numSm, fontSize: 17 } : t.numSm
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 5 }}>
+      <Text style={[base, { color: p.text }, style]}>{value}</Text>
+      {unit ? <Text style={{ fontSize: 12, fontWeight: '600', color: p.textFaint }}>{unit}</Text> : null}
+      {delta != null && delta !== 0 ? (
+        <Text style={{ fontSize: 12.5, fontWeight: '700', color: delta > 0 ? p.good : p.accent }}>
+          {delta > 0 ? '↑' : '↓'} {String(Math.abs(delta)).replace('.', ',')}
+        </Text>
+      ) : null}
+    </View>
+  )
+}
+
+/**
+ * Her check-in code, reachable from every screen's top-right.
+ *
+ * It used to be a TAB, which made a four-second act at the door cost a permanent sixth of the tab
+ * bar (owner, 2026-08-06). It is an action, and it lives where actions live.
+ */
+export function QrButton({ onPress }: { onPress: () => void }) {
+  const p = usePalette()
+  return (
+    <PressableScale onPress={onPress}>
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 6,
+          borderWidth: 1,
+          borderColor: p.hairline,
+          backgroundColor: p.surface,
+          borderRadius: radius.pill,
+          paddingLeft: space(2.5),
+          paddingRight: space(3),
+          paddingVertical: space(1.5),
+        }}
+      >
+        <Ionicons name="qr-code-outline" size={14} color={p.accent} />
+        <Text style={{ fontSize: 12, fontWeight: '700', color: p.accent }}>QR Kodum</Text>
+      </View>
+    </PressableScale>
+  )
+}
+
+/** The top strip every main screen opens with: a quiet label on the left, her QR on the right. */
+export function TopStrip({ label, onQr }: { label: string; onQr: () => void }) {
+  const p = usePalette()
+  return (
+    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+      <Text style={[t.eyebrow, { color: p.textFaint }]}>{label}</Text>
+      <QrButton onPress={onQr} />
     </View>
   )
 }

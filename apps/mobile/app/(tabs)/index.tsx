@@ -1,4 +1,4 @@
-import { Image, RefreshControl, useWindowDimensions, View } from 'react-native'
+import { Image, Pressable, RefreshControl, StyleSheet, useWindowDimensions, View } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { router } from 'expo-router'
 import Animated, { useAnimatedStyle, useSharedValue, withDelay, withTiming, Easing } from 'react-native-reanimated'
@@ -7,11 +7,21 @@ import { useEffect, useState } from 'react'
 import type { HomeBanner } from '@/lib/api'
 import { api } from '@/lib/api'
 import { dateTime, formatKurus } from '@/lib/format'
+import { motivationLine } from '@/lib/motivation'
 import { useFetch } from '@/lib/useFetch'
 import { FadeInUp, PressableScale, ProgressBar } from '@/components/motion'
-import { Body, Card, Eyebrow, Empty, GradientFill, Hero, Pill, Screen, ScreenSkeleton } from '@/components/ui'
+import { Body, Card, Empty, Eyebrow, Figure, GradientFill, Pill, Rule, Screen, ScreenSkeleton, SectionLabel, TopStrip } from '@/components/ui'
 import { CampaignPopup } from '@/components/campaign-popup'
 import { radius, shadow, space, typo as t, usePalette } from '@/theme'
+
+const hhmm = (ms: number) => new Date(ms).toLocaleTimeString('tr-TR', { timeZone: 'Europe/Istanbul', hour: '2-digit', minute: '2-digit' })
+const dayKeyTr = (ms: number) => new Date(ms).toLocaleDateString('tr-TR', { timeZone: 'Europe/Istanbul', year: 'numeric', month: '2-digit', day: '2-digit' })
+// "Bugün" / "Yarın" / "Cuma, 7 Ağustos" — the class time means more with a human day beside it.
+const relDayTr = (ms: number): string => {
+  if (dayKeyTr(ms) === dayKeyTr(Date.now())) return 'Bugün'
+  if (dayKeyTr(ms) === dayKeyTr(Date.now() + 86_400_000)) return 'Yarın'
+  return new Date(ms).toLocaleDateString('tr-TR', { timeZone: 'Europe/Istanbul', weekday: 'long', day: 'numeric', month: 'long' })
+}
 
 const todayTr = () => new Date().toLocaleDateString('tr-TR', { weekday: 'long', day: 'numeric', month: 'long' })
 
@@ -37,6 +47,8 @@ export default function Home() {
   const inbox = useFetch(api.inbox)
   const home = useFetch(api.home)
   const fitness = useFetch(api.fitness)
+  // Her own past classes — the only thing the line under her name is allowed to speak from.
+  const reservations = useFetch(api.reservations)
 
   if (dash.loading && !dash.data) return <ScreenSkeleton />
   const d = dash.data
@@ -47,75 +59,102 @@ export default function Home() {
   const occ = home.data?.occupancyLevel ? OCC[home.data.occupancyLevel] : null
   const tod = timeOfDay()
   const brand = home.data?.branding ?? null
+  const motivation = motivationLine(reservations.data?.past ?? [], Date.now())
 
   return (
     <Screen refreshControl={<RefreshControl refreshing={dash.loading} onRefresh={() => { void dash.reload(); void inbox.reload(); void home.reload(); void fitness.reload() }} tintColor={p.accent} />}>
       <CampaignPopup campaign={home.data?.campaign ?? null} />
+      {/* The opening. A gradient band with her name in it became bone paper with her name ON it —
+          and one true sentence underneath, which is the whole point of this screen (owner: "üyeye
+          motivasyon bildirimi gönderebileceğimiz bir alan vardı, o güzel"). The line speaks only
+          from her own attendance and says NOTHING when it cannot stand behind what it would say;
+          see lib/motivation.ts. */}
       <FadeInUp index={0}>
-        <Hero gradient={{ from: tod.from, to: tod.to }}>
-          {/* brand header — date on the left, the studio name + logo on the right (from admin) */}
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: space(2) }}>
-            <Body style={[t.caption, { color: p.onGradMuted }]}>{todayTr()}</Body>
-            {brand?.appName || brand?.logoUrl ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space(2), flexShrink: 1 }}>
-                {brand?.appName ? <Body numberOfLines={1} style={{ color: p.onGrad, fontSize: 13, fontWeight: '800', letterSpacing: 0.2 }}>{brand.appName}</Body> : null}
-                {brand?.logoUrl ? <Image source={{ uri: brand.logoUrl }} style={{ width: 34, height: 34, borderRadius: 10 }} resizeMode="contain" /> : null}
+        <View style={{ gap: space(4) }}>
+          <TopStrip label={todayTr()} onQr={() => router.push('/qr')} />
+          <View style={{ gap: space(2) }}>
+            <Body style={[t.display, { color: p.text }]}>
+              {tod.hi}, {d ? d.memberName.split(' ')[0] : ''}
+            </Body>
+            {motivation ? <Body style={[t.voice, { color: p.textMuted }]}>{motivation}</Body> : null}
+          </View>
+        </View>
+      </FadeInUp>
+
+      {/* Her next class — the largest thing on the page, because it is why she opened the app. */}
+      <FadeInUp index={1}>
+        <View style={{ gap: space(3) }}>
+          <Rule />
+          <SectionLabel right={next ? <Body style={{ color: p.accent, fontWeight: '700', fontSize: 12.5 }} onPress={() => router.push('/reservations')}>Tümü</Body> : undefined}>
+            Sıradaki dersin
+          </SectionLabel>
+          {next ? (
+            <Pressable onPress={() => router.push('/reservations')}>
+              <View style={{ gap: 5 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: space(2.5) }}>
+                  <Body style={[t.num, { color: p.text }]}>{hhmm(next.startsAt)}</Body>
+                  <Body strong muted>{relDayTr(next.startsAt)}</Body>
+                </View>
+                <Body strong style={{ fontSize: 16 }}>{next.serviceName}</Body>
+                <Body muted style={{ fontSize: 13 }}>
+                  {[next.trainerName, next.roomName].filter(Boolean).join(' · ') || 'Detaylar rezervasyonlarında'}
+                </Body>
+              </View>
+            </Pressable>
+          ) : (
+            <Body muted>Yaklaşan dersin yok. Ajanda&apos;dan bir ders ayırt.</Body>
+          )}
+        </View>
+      </FadeInUp>
+
+      {/* Two figures she reads as facts about herself: what is left, and what she did. */}
+      {pkg || (fitness.data?.last30Count ?? 0) > 0 ? (
+        <FadeInUp index={2}>
+          <View style={{ flexDirection: 'row', borderTopWidth: StyleSheet.hairlineWidth * 2, borderBottomWidth: StyleSheet.hairlineWidth * 2, borderColor: p.hairline, paddingVertical: space(4) }}>
+            {pkg ? (
+              <View style={{ flex: 1, gap: 3 }}>
+                <Figure value={pkg.remaining === null ? '∞' : String(pkg.remaining)} unit={pkg.remaining === null ? 'sınırsız' : 'ders'} />
+                <Body faint style={{ fontSize: 11.5 }}>Kalan hakkın</Body>
+              </View>
+            ) : null}
+            {(fitness.data?.last30Count ?? 0) > 0 ? (
+              <View style={{ flex: 1, gap: 3, borderLeftWidth: pkg ? StyleSheet.hairlineWidth * 2 : 0, borderColor: p.hairline, paddingLeft: pkg ? space(4) : 0 }}>
+                <Figure value={String(fitness.data?.last30Count ?? 0)} unit="ders" />
+                <Body faint style={{ fontSize: 11.5 }}>Son 30 gün</Body>
               </View>
             ) : null}
           </View>
-          <Body style={[t.display, { color: p.onGrad }]}>{tod.hi}, {d ? d.memberName.split(' ')[0] : ''}</Body>
-          <View style={{ flexDirection: 'row', gap: space(2), marginTop: space(1) }}>
-            <Chip icon="calendar-outline" text={`${d?.upcoming.length ?? 0} yaklaşan ders`} />
-            {pkg ? <Chip icon="ticket-outline" text={pkg.remaining === null ? 'Sınırsız' : `${pkg.remaining} ders`} /> : null}
-          </View>
-        </Hero>
-      </FadeInUp>
+        </FadeInUp>
+      ) : null}
 
       {banners.length > 0 ? <FadeInUp index={1}><BannerCarousel banners={banners} /></FadeInUp> : null}
 
-      <FadeInUp index={2}>
-        <Eyebrow>Stüdyodan</Eyebrow>
-        {announcement ? (
-          <Card level={1} onPress={() => router.push('/messages')} style={{ borderLeftWidth: 3, borderLeftColor: p.accent }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <Ionicons name="megaphone-outline" size={18} color={p.accent} />
-              <Body strong style={{ flex: 1 }} numberOfLines={1}>{announcement.subject}</Body>
-              {!announcement.read ? <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: p.accent }} /> : null}
+      {announcement ? (
+        <FadeInUp index={3}>
+          <Pressable onPress={() => router.push('/messages')}>
+            <View style={{ flexDirection: 'row', gap: space(3) }}>
+              <View style={{ width: 2, borderRadius: 2, backgroundColor: p.accent }} />
+              <View style={{ flex: 1, gap: 3 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: space(2) }}>
+                  <Body strong style={{ flex: 1 }} numberOfLines={1}>{announcement.subject}</Body>
+                  {!announcement.read ? <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: p.accent }} /> : null}
+                </View>
+                <Body muted numberOfLines={2} style={{ fontSize: 13.5 }}>{announcement.body}</Body>
+              </View>
             </View>
-            <Body muted numberOfLines={2}>{announcement.body}</Body>
-          </Card>
-        ) : (
-          <Card inset><Body muted>Şu an yeni bir duyuru yok.</Body></Card>
-        )}
-        {occ ? (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: space(2), paddingHorizontal: space(1) }}>
-            <Ionicons name="people-outline" size={16} color={p.textMuted} />
-            <Body muted style={{ fontSize: 13.5 }}>Salon yoğunluğu:</Body>
-            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: occ.tone === 'good' ? p.good : occ.tone === 'warn' ? p.warn : p.danger }} />
-            <Body strong style={{ fontSize: 13.5 }}>{occ.label}</Body>
-          </View>
-        ) : null}
-      </FadeInUp>
+          </Pressable>
+        </FadeInUp>
+      ) : null}
 
-      <FadeInUp index={3}>
-        <Eyebrow right={<Body style={{ color: p.accent, fontWeight: '700', fontSize: 13 }} onPress={() => router.push('/reservations')}>Tümü</Body>}>Sıradaki Dersin</Eyebrow>
-        {next ? (
-          <Card onPress={() => router.push('/reservations')}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: space(3) }}>
-              <View style={{ width: 48, height: 48, borderRadius: 16, backgroundColor: p.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
-                <Ionicons name="barbell" size={22} color={p.accent} />
-              </View>
-              <View style={{ flex: 1, gap: 2 }}>
-                <Body strong numberOfLines={1}>{next.serviceName}</Body>
-                <Body muted>{dateTime(next.startsAt)}</Body>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color={p.textFaint} />
-            </View>
-          </Card>
-        ) : (
-          <Card><Empty icon={<Ionicons name="calendar-clear-outline" size={30} color={p.textFaint} />} text="Yaklaşan dersin yok. Ajanda'dan bir ders ayırt." /></Card>
-        )}
-      </FadeInUp>
+      {occ ? (
+        <FadeInUp index={4}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Body faint style={{ fontSize: 13 }}>Salon yoğunluğu</Body>
+            <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: occ.tone === 'good' ? p.good : occ.tone === 'warn' ? p.warn : p.danger }} />
+            <Body strong style={{ fontSize: 13 }}>{occ.label}</Body>
+          </View>
+        </FadeInUp>
+      ) : null}
 
       <FadeInUp index={4}>
         <Eyebrow>Katılımın</Eyebrow>
