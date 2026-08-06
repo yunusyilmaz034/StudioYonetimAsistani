@@ -631,9 +631,16 @@ export async function loadMyTraining(ctx: TenantContext, memberId: MemberId) {
       .filter((photo) => photo.memberVisible)
       .map(async (photo) => ({ id: photo.id, takenOn: photo.takenOn, angle: photo.angle, note: photo.note, url: await signedReadUrl(photo.storagePath) })),
   )
+  // WHICH programme she is actually on, when more than one is active. "The first active one" is a
+  // guess; the one she trained most recently is her own answer, and it is the only thing that keeps
+  // the home screen's progress line pointing at the programme she is really following.
+  const myLogs = await repo().listWorkoutLogsByMember(ctx, memberId)
+  const lastLog = myLogs.filter((l) => l.undoneAt === null).at(-1) ?? null
+
   return {
     programs,
     activeProgram: programs.find((p) => p.status === 'active') ?? null,
+    lastWorkoutProgramId: lastLog?.programId ?? null,
     guides,
     measurements,
     feedback,

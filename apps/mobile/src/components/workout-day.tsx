@@ -38,6 +38,7 @@ export function WorkoutDay({
   isNext,
   doneCount,
   nextDayName,
+  sayWhy = false,
   onComplete,
   children,
 }: {
@@ -45,6 +46,8 @@ export function WorkoutDay({
   isNext: boolean
   doneCount: number
   nextDayName: string
+  /** Only the first locked day explains the rule; the others just show the lock. */
+  sayWhy?: boolean
   onComplete: (entries: readonly WorkoutSetEntryDto[], note: string) => Promise<boolean>
   children: ReactNode
 }) {
@@ -104,9 +107,13 @@ export function WorkoutDay({
           {doneCount > 0 ? <Body faint style={{ fontSize: 11.5 }}>{doneCount}× tamamlandı</Body> : null}
           <Ionicons name="lock-closed" size={13} color={p.textFaint} />
         </View>
-        <Body faint style={{ fontSize: 12.5, fontStyle: 'italic' }}>
-          Sırada {nextDayName} var — programı sırayla uyguluyorsun.
-        </Body>
+        {/* The reason is stated ONCE, on the first locked day. Three days each repeating the same
+            sentence turns an explanation into noise, and noise is what people learn to skip. */}
+        {sayWhy ? (
+          <Body faint style={{ fontSize: 12.5, fontStyle: 'italic' }}>
+            Programı sırayla uyguluyorsun — sırada {nextDayName} var.
+          </Body>
+        ) : null}
       </View>
     )
   }
@@ -120,7 +127,11 @@ export function WorkoutDay({
 
       {!open ? (
         <>
-          {children}
+          {/* THE BUTTON GOES FIRST, and this was a real mistake worth recording: it sat under the
+              exercise list, which on a day with eight moves is two screens down. The member does not
+              open her programme to READ it — she opens it to DO it, and the one action the screen
+              exists for must be where her thumb already is. The list stays underneath for anyone who
+              wants to look ahead. */}
           <Pressable
             onPress={() => setOpen(true)}
             style={({ pressed }) => ({
@@ -129,10 +140,15 @@ export function WorkoutDay({
               borderRadius: radius.pill,
               paddingVertical: space(3.5),
               alignItems: 'center',
+              flexDirection: 'row',
+              justifyContent: 'center',
+              gap: space(2),
             })}
           >
+            <Ionicons name="checkmark-circle-outline" size={19} color={p.accentText} />
             <Body style={{ color: p.accentText, fontWeight: '700', fontSize: 15 }}>Bu antrenmanı yap</Body>
           </Pressable>
+          {children}
         </>
       ) : (
         <View style={{ gap: space(3) }}>

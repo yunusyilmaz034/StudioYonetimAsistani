@@ -483,3 +483,40 @@ export interface LoginIdentifier {
 export function formatKurus(kurus: number): string {
   return `${(kurus / 100).toLocaleString('tr-TR', { maximumFractionDigits: 2 })} ₺`
 }
+
+// ── DEVAMLILIK ŞERİDİ (v1.31) ───────────────────────────────────────────────────────────────
+//
+// Her last eight weeks of DOOR check-ins, bucketed per week for the member app's home screen. Pure,
+// so the rule that decides whether the strip appears at all is testable — and it is a rule, not a
+// styling detail.
+//
+// A chart of mostly-empty weeks is not neutral. To a member who had a reason the app cannot know —
+// illness, a child, a shift pattern — it reads as an accusation, and the app she feels judged by is
+// the one she stops opening. So it stays silent until there is a real pattern to show, and it says
+// only what she DID. What she missed belongs on the staff screen, where a human can ring her.
+//
+// This counts CHECK-INS ONLY. Workout ticks are the member's own declaration and are never added to
+// an observation (#11) — see `workout.day_completed` in the training module.
+export const CONSISTENCY_WEEKS = 8
+export const CONSISTENCY_MIN_VISITS = 3
+const WEEK_MS = 7 * 86_400_000
+
+/**
+ * Visits per week for the last {@link CONSISTENCY_WEEKS} weeks, oldest first — the current week is
+ * always the last bar.
+ *
+ * `null` means "say nothing": fewer than {@link CONSISTENCY_MIN_VISITS} visits in total, or none of
+ * them inside the window.
+ */
+export function weeklyVisitCounts(visitInstants: readonly number[], nowMs: number): readonly number[] | null {
+  if (visitInstants.length < CONSISTENCY_MIN_VISITS) return null
+  const thisWeek = nowMs - (nowMs % WEEK_MS)
+  const buckets = new Array<number>(CONSISTENCY_WEEKS).fill(0)
+  for (const at of visitInstants) {
+    const weeksAgo = Math.floor((thisWeek - (at - (at % WEEK_MS))) / WEEK_MS)
+    if (weeksAgo < 0 || weeksAgo >= CONSISTENCY_WEEKS) continue
+    const i = CONSISTENCY_WEEKS - 1 - weeksAgo
+    buckets[i] = (buckets[i] ?? 0) + 1
+  }
+  return buckets.some((n) => n > 0) ? buckets : null
+}

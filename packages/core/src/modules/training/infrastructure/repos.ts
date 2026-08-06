@@ -151,6 +151,12 @@ export class FirestoreTrainingRepository {
       .map((d) => workoutLogFrom(d.id, d.data()))
       .sort((a, b) => Number(a.completedAt) - Number(b.completedAt))
   }
+  async listWorkoutLogsByMember(ctx: TenantContext, memberId: string): Promise<readonly WorkoutLog[]> {
+    const snap = await this.col(ctx.studioId, 'workoutLogs').where('memberId', '==', memberId).get()
+    return snap.docs
+      .map((d) => workoutLogFrom(d.id, d.data()))
+      .sort((a, b) => Number(a.completedAt) - Number(b.completedAt))
+  }
   async getWorkoutLog(ctx: TenantContext, id: string): Promise<WorkoutLog | null> {
     const s = await this.col(ctx.studioId, 'workoutLogs').doc(id).get()
     const d = s.data()

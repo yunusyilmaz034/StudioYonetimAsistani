@@ -148,7 +148,7 @@ export default function Ben() {
             <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: space(2.5) }}>
               <Body style={[t.num, { color: p.text }]}>{thisYear}</Body>
               <Body muted style={{ flex: 1 }}>
-                derse geldin{(fitness.data?.currentStreak ?? 0) > 1 ? ` · şu an ${fitness.data?.currentStreak} haftalık serin var` : ''}
+                derse geldin{(fitness.data?.stats?.currentStreakWeeks ?? 0) > 1 ? ` · şu an ${fitness.data?.stats?.currentStreakWeeks} haftalık serin var` : ''}
               </Body>
             </View>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 5, maxWidth: 7 * 15 }}>

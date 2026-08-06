@@ -2,7 +2,7 @@ import { Image, Pressable, RefreshControl, StyleSheet, useWindowDimensions, View
 import { Ionicons } from '@expo/vector-icons'
 import { router } from 'expo-router'
 import Animated, { useAnimatedStyle, useSharedValue, withDelay, withTiming, Easing } from 'react-native-reanimated'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 import { compareMeasurements } from '@studio/core/client'
 import type { HomeBanner } from '@/lib/api'
@@ -13,6 +13,7 @@ import { useFetch } from '@/lib/useFetch'
 import { FadeInUp, PressableScale, ProgressBar } from '@/components/motion'
 import { Body, Card, Empty, Eyebrow, Figure, GradientFill, Pill, Rule, Screen, ScreenSkeleton, SectionLabel, TopStrip } from '@/components/ui'
 import { CampaignPopup } from '@/components/campaign-popup'
+import { ConsistencyStrip } from '@/components/consistency-strip'
 import { radius, shadow, space, typo as t, usePalette, trUpper } from '@/theme'
 
 const hhmm = (ms: number) => new Date(ms).toLocaleTimeString('tr-TR', { timeZone: 'Europe/Istanbul', hour: '2-digit', minute: '2-digit' })
@@ -61,6 +62,27 @@ export default function Home() {
   // Her body, and what she is working on. Both live on other tabs in full; Bugün shows one line of
   // each, because a member who never opens a tab never learns the tab exists.
   const training = useFetch(api.training)
+  // WHICH programme this line speaks for. A member can hold more than one active programme — the
+  // test account has two — and "the first active one" silently picked the wrong one, which would
+  // have told a member who trains three times a week that she has never trained at all.
+  //
+  // The one she is actually ON is the one she has trained most recently. `lastWorkoutProgramId` is
+  // her own answer to that; the server's `activeProgram` is only the fallback for someone who has
+  // not started yet.
+  const activeProgramId =
+    training.data?.lastWorkoutProgramId ?? training.data?.activeProgram?.id ?? training.data?.programs?.[0]?.id ?? null
+  // No programme ⇒ an empty cycle rather than a null loader: `useFetch` always runs, and a hook
+  // that sometimes exists is how a render order bug gets in.
+  const workout = useFetch(
+    useMemo(
+      () =>
+        activeProgramId
+          ? () => api.workout(activeProgramId)
+          : async () => ({ cycle: { completed: 0, nextDayOrder: 1, rounds: 0 }, logs: [], dayCount: 0 }),
+      [activeProgramId],
+    ),
+    [activeProgramId],
+  )
 
   if (dash.loading && !dash.data) return <ScreenSkeleton />
   const d = dash.data
@@ -101,8 +123,16 @@ export default function Home() {
   const mChange = compareMeasurements(measurements)
   const weightDelta = mChange?.rows.find((r) => r.key === 'weightKg')?.diff ?? null
 
+  // What she has ACCUMULATED on her programme — never what she missed (OR-33). Silent until she has
+  // actually done one, because "0 antrenman" is a scoreboard, not an encouragement.
+  const wc = workout.data?.cycle ?? null
+  const workoutLine =
+    wc && wc.completed > 0
+      ? `${wc.rounds > 0 ? `${wc.rounds}. turdasın` : 'İlk turundasın'} · toplam ${wc.completed} antrenman`
+      : null
+
   return (
-    <Screen refreshControl={<RefreshControl refreshing={dash.loading} onRefresh={() => { void dash.reload(); void inbox.reload(); void home.reload(); void fitness.reload(); void agenda.reload(); void training.reload() }} tintColor={p.accent} />}>
+    <Screen refreshControl={<RefreshControl refreshing={dash.loading} onRefresh={() => { void dash.reload(); void inbox.reload(); void home.reload(); void fitness.reload(); void agenda.reload(); void training.reload(); void workout.reload() }} tintColor={p.accent} />}>
       <CampaignPopup campaign={home.data?.campaign ?? null} />
       {/* The opening. A gradient band with her name in it became bone paper with her name ON it —
           and one true sentence underneath, which is the whole point of this screen (owner: "üyeye
@@ -241,14 +271,30 @@ export default function Home() {
       ) : null}
 
       {/* Two figures she reads as facts about herself: what is left, and what she did. */}
-      {(fitness.data?.last30Count ?? 0) > 0 ? (
+      {/* DEVAMLILIK — the door, and only the door. Renders only once there is a pattern worth
+          showing; see components/consistency-strip.tsx for why an empty chart is worse than none. */}
+      {(fitness.data?.recent?.length ?? 0) >= 3 ? (
         <FadeInUp index={4}>
-          <View style={{ flexDirection: 'row', borderTopWidth: StyleSheet.hairlineWidth * 2, borderBottomWidth: StyleSheet.hairlineWidth * 2, borderColor: p.hairline, paddingVertical: space(4) }}>
-            <View style={{ flex: 1, gap: 3 }}>
-              <Figure value={String(fitness.data?.last30Count ?? 0)} unit="ders" />
-              <Body faint style={{ fontSize: 11.5 }}>Son 30 gün</Body>
-            </View>
+          <View style={{ gap: space(3) }}>
+            <SectionLabel>Devamlılığın</SectionLabel>
+            <ConsistencyStrip recent={fitness.data?.recent ?? []} now={Date.now()} />
           </View>
+        </FadeInUp>
+      ) : null}
+
+      {/* ANTRENMAN — her own declaration, deliberately a separate block with its own label. One
+          line rather than a chart: two logged workouts do not make a graph, they make decoration.
+          The history lives on the Antrenman tab, which this row opens. */}
+      {workoutLine ? (
+        <FadeInUp index={4}>
+          <Pressable onPress={() => router.push('/(tabs)/training')}>
+            <View style={{ gap: space(2.5) }}>
+              <SectionLabel right={<Body style={{ color: p.accent, fontWeight: '700', fontSize: 12.5 }}>Programım</Body>}>
+                Antrenmanın
+              </SectionLabel>
+              <Body strong style={{ fontSize: 15 }}>{workoutLine}</Body>
+            </View>
+          </Pressable>
         </FadeInUp>
       ) : null}
 

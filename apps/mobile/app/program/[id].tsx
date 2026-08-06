@@ -82,13 +82,20 @@ export default function ProgramDetail() {
         </FadeInUp>
       ) : null}
 
-      {version?.days.map((day, di) => (
+      {/* The day she is ON comes first, whatever its position in the programme. Rendering in
+          programme order put two locked days above the one she can actually do the moment the cycle
+          wrapped past the last day — the screen's most important row, buried under the ones it had
+          just told her she may not open. The rest keep their own order underneath. */}
+      {[...(version?.days ?? [])]
+        .sort((a, b) => Number(b.order === cycle.nextDayOrder) - Number(a.order === cycle.nextDayOrder))
+        .map((day, di) => (
         <FadeInUp key={day.order} index={di + 2}>
           <WorkoutDay
             day={day}
             isNext={day.order === cycle.nextDayOrder}
             doneCount={logs.filter((l) => l.dayOrder === day.order).length}
             nextDayName={version?.days.find((d) => d.order === cycle.nextDayOrder)?.name ?? `Gün ${cycle.nextDayOrder}`}
+            sayWhy={di === 1}
             onComplete={async (entries: readonly WorkoutSetEntryDto[], note: string) => {
               const res = await api.completeWorkout({
                 programId: program.id,

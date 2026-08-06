@@ -7,7 +7,6 @@ import type {
   LeaveFeedbackInput,
   MemberAgenda,
   MemberDashboard,
-  MemberFitness,
   MemberProfile,
   MemberReservations,
   NotificationPrefs,
@@ -83,7 +82,7 @@ export const api = {
     post<ApiResult<unknown>>('/profile', body),
   training: () => get<TrainingBundle>('/training'),
   leaveFeedback: (body: LeaveFeedbackInput) => post<ApiResult<unknown>>('/feedback', body),
-  fitness: () => get<MemberFitness>('/fitness'),
+  fitness: () => get<MemberFitnessView>('/fitness'),
   home: () => get<HomeExtras>('/home'),
   // Workout log (v1.31). Her position in the programme cycle, and marking a day done. NOT a
   // check-in — nothing here counts towards attendance.
@@ -162,6 +161,12 @@ export interface HomeExtras {
 export interface TrainingBundle {
   readonly programs: readonly import('@studio/core/client').MemberProgram[]
   readonly activeProgram: import('@studio/core/client').MemberProgram | null
+  /**
+   * The programme she trained most recently — the one the home screen's progress line speaks for.
+   * A member may hold several active programmes, and picking "the first active one" told a member
+   * who trains three times a week that she had never trained at all. `null` ⇒ she has not started.
+   */
+  readonly lastWorkoutProgramId: string | null
   readonly guides: Record<string, import('@studio/core/client').ExerciseGuide>
   readonly measurements: readonly import('@studio/core/client').MemberMeasurement[]
   readonly feedback: readonly import('@studio/core/client').MemberFeedback[]
@@ -201,4 +206,26 @@ export interface CompleteWorkoutBody {
   readonly performedOn: string
   readonly entries: readonly WorkoutSetEntryDto[]
   readonly note: string
+}
+
+
+// ── Fitness / consistency (v1.31 — corrected) ───────────────────────────────────────────────
+//
+// The app used to type this endpoint as core's `MemberFitness` ({ currentStreak, last30Count,
+// visits }) while `/api/member/fitness` has always returned { stats, recent }. Nothing failed
+// loudly: every field read came back `undefined`, so the "Son 30 gün" figure on Bugün and the
+// streak line on Ben simply never rendered and no one could tell they were meant to.
+//
+// A wrong type is worse than no type — it is a lie the compiler enforces. This one matches the
+// wire, so the compiler can start being useful about it again.
+export interface MemberFitnessView {
+  readonly stats: {
+    readonly totalVisitDays: number
+    readonly currentWeekVisits: number
+    readonly currentStreakWeeks: number
+    readonly longestStreakWeeks: number
+    readonly lastVisitEpochDay: number | null
+  }
+  /** Recent check-in instants, newest first — what the consistency strip is drawn from. */
+  readonly recent: readonly number[]
 }

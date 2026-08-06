@@ -17,6 +17,8 @@ export interface TrainingRepository {
   // filters, because "how many did she undo" is itself worth knowing and a repository that hides
   // rows makes that unanswerable.
   listWorkoutLogs(ctx: TenantContext, memberId: string, programId: string): Promise<readonly WorkoutLog[]>
+  /** Every log she has, across programmes — used to answer "which programme is she actually on". */
+  listWorkoutLogsByMember(ctx: TenantContext, memberId: string): Promise<readonly WorkoutLog[]>
   getWorkoutLog(ctx: TenantContext, id: string): Promise<WorkoutLog | null>
   saveWorkoutLog(ctx: TenantContext, log: WorkoutLog, events: readonly NewEvent[]): Promise<void>
 
