@@ -313,7 +313,14 @@ and on the card, and PAYTR is sent that number. The KK/havale farkı mechanism s
 every category — visible in Ayarlar › Ödeme and one number away from returning. Written to production
 by `pnpm setup:single-price` (each change a `product.updated` event): Pilates 8 Ders ₺5.000 · Fitness
 3/6/12 Aylık ₺9.000/₺14.000/₺22.000, with 12 Aylık newly created; **Pilates 16 and 24 Ders are
-deactivated** — not sold, no price shown.
+deactivated** — not sold, no price shown. The four hybrid bundles were re-derived from the same two
+anchors (a pilates lesson ₺625, a fitness entry ₺400) rather than simply raised: ₺4.500 · ₺5.500 ·
+₺6.500 · ₺18.000. Untouched, and therefore still on the OLD arithmetic: Fitness 1/2 Aylık, Reformer
+4 Ders, PT 8 Ders.
+
+**Nothing reached an existing member.** An entitlement freezes its `productSnapshot` at purchase, so
+repricing the catalogue cannot rewrite a right already sold — no migration, no reconciliation, and
+nothing to tell members about their current packages.
 
 Live already: prices (data, so every surface that reads the catalogue is correct now), the marketing
 site, and the WhatsApp AI (functions deployed — it now prints one figure and refuses to invent an

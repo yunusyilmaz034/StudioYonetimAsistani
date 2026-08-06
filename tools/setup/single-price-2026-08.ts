@@ -54,11 +54,36 @@ const TRY = (lira: number) => lira * 100
 
 // The new list, by product NAME — the same key `setup:catalog` upserts on. A package the owner did
 // not name is not touched: its price is whatever the panel says today, and this script has no
-// opinion about it.
-const REPRICE: readonly { name: string; priceInKurus: number; onlineSellable: boolean }[] = [
+// opinion about it. `onlineSellable` omitted ⇒ whatever the panel says today is kept.
+const REPRICE: readonly { name: string; priceInKurus: number; onlineSellable?: boolean }[] = [
   { name: 'Reformer Pilates - 8 Ders', priceInKurus: TRY(5_000), onlineSellable: true },
   { name: 'Fitness - 3 Aylık', priceInKurus: TRY(9_000), onlineSellable: true },
   { name: 'Fitness - 6 Aylık', priceInKurus: TRY(14_000), onlineSellable: true },
+
+  // ── Hibrit demetler (owner approved 2026-08-06) ────────────────────────────────────────────
+  //
+  // The old hybrid prices had no formula in them: pilates was always charged at list, but a fitness
+  // entry cost anywhere between 325 ₺ and 525 ₺ depending on which bundle it sat in. Four bundles,
+  // four different arithmetics. Repricing without fixing that would have raised the inconsistency
+  // along with the prices.
+  //
+  // Two anchors now, both taken from the single-price list rather than invented:
+  //   · a pilates lesson = 625 ₺  — 5.000 ÷ 8, and the 4-Ders package independently says 625 too
+  //   · a fitness entry  = 400 ₺  — chosen so 10 entries (4.000 ₺) equal one UNLIMITED month. The
+  //     boundary then explains itself: fewer than ten visits a month ⇒ the bundle, more ⇒ unlimited.
+  //     The two products stop competing and reception can answer "which one?" in one sentence.
+  //
+  // The three-month bundle takes a further −10% for the commitment: bought separately its contents
+  // are 24.000 ₺, so the member keeps ~25% (the old bundle kept ~20%).
+  //
+  // "1 Fitness + 1 Pilates" is the ONE number that is not the formula's: 4×625 + 4×400 = 4.100 ⇒
+  // 4.000 ₺, which would have been a price CUT in the middle of a general increase. The owner set it
+  // at 4.500 instead. Recorded here because a number that does not follow the rule beside it will
+  // otherwise read as an arithmetic slip to whoever reads this next.
+  { name: 'Hibrit Aylık — 1 Fitness + 1 Pilates', priceInKurus: TRY(4_500) }, // owner override
+  { name: 'Hibrit Aylık — 2 Fitness + 1 Pilates', priceInKurus: TRY(5_500) }, // 4×625 + 8×400 = 5.700
+  { name: 'Hibrit Aylık — 2 Pilates + 1 Fitness', priceInKurus: TRY(6_500) }, // 8×625 + 4×400 = 6.600
+  { name: 'Hibrit 3 Aylık — 1Fitness + 2Pilates', priceInKurus: TRY(18_000) }, // 19.800 − %10 taahhüt
 ]
 
 // "16 ve 24 ders fiyat gösterme satışı yok" — a package with no price is not a package, so these are
@@ -141,11 +166,15 @@ async function main(): Promise<void> {
       ...cur,
       productId: doc.id as ProductId,
       priceInKurus: row.priceInKurus,
-      onlineSellable: row.onlineSellable,
+      onlineSellable: row.onlineSellable ?? cur.onlineSellable,
       active: true,
     })
     if (!r.ok) throw new Error(`${row.name} güncellenemedi: ${r.error.code}`)
-    console.log(`  ~ ${row.name}: ${tl(cur.priceInKurus)} → ${tl(row.priceInKurus)}`)
+    console.log(
+      cur.priceInKurus === row.priceInKurus
+        ? `  = ${row.name}: ${tl(row.priceInKurus)} (değişmedi)`
+        : `  ~ ${row.name}: ${tl(cur.priceInKurus)} → ${tl(row.priceInKurus)}`,
+    )
   }
 
   for (const name of RETIRE) {

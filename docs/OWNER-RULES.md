@@ -389,6 +389,22 @@ numbers): Pilates 8 Ders ₺5.000 · Fitness 3 Aylık ₺9.000 · 6 Aylık ₺14
 shelf at a number nobody honours. Written by `pnpm setup:single-price`, through the product's own
 domain path, so each change is a `product.updated` event.
 
+**The hybrids were re-derived rather than raised.** (approved 2026-08-06) Their old prices had no
+formula in them: pilates was always charged at list, but a fitness entry cost between ₺325 and ₺525
+depending on which bundle it sat in — four bundles, four arithmetics. Raising them would have raised
+the inconsistency too. Two anchors now, both read off the single-price list: **a pilates lesson =
+₺625** (5.000 ÷ 8, and the 4-Ders package independently agrees) and **a fitness entry = ₺400**, chosen
+so ten entries equal one unlimited month — which makes the boundary explain itself and stops the two
+products competing. The three-month bundle takes a further −10% for the commitment. Result: ₺4.500 ·
+₺5.500 · ₺6.500 · ₺18.000. The first is the owner's own number, not the formula's (₺4.100 would have
+been a price CUT inside a general increase) and is marked as such in the script.
+
+**A price change never reaches a sale already made.** An entitlement carries its own
+`productSnapshot` — name, category, grant, listPrice, serviceIds, package rules — frozen at purchase,
+and a payment records what was actually agreed. Editing the catalogue tomorrow cannot rewrite a right
+someone already paid for, which is why repricing needs no migration and no member communication about
+the past (owner: *"geçmişte bu paketleri alanları dokunma"*).
+
 ## Traps that have already cost something
 
 **OR-14 · Firestore indexes are a production-only trap.** The emulator does NOT enforce them, so a
