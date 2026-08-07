@@ -433,6 +433,20 @@ History was checked before shipping it: five open balances, none of them a disgu
 **zero discounts recorded in the system's entire history** — the rule was born with the price rise
 rather than papering over anything.
 
+**It also applies AFTER the sale.** (2026-08-07) The sale-time field could not reach the commonest
+case at the desk: reception sells at list, takes what the member brought, and the rest is agreed away
+afterwards. Within a day of shipping, a ₺5.000 package with ₺4.200 collected was sitting at ₺800
+"debt" for exactly this reason.
+
+Üye › Paket › Düzenle now offers **İndirim Uygula** beside Tahsilat Al, owner-only, and it does the
+same thing the sale-time one does: the sale keeps its `gross`, gains a discount, and settles. Two
+refusals matter — a discount **larger than what is still owed** (forgiving money already in the till
+is a REFUND, a different act with cash going back), and `manual` with no note.
+
+Editing the agreed price down still works and still closes the balance — but it destroys two facts
+while doing it: what the package costs, and that anything was given away. **A studio that cannot
+count what it discounted cannot decide whether to keep doing it.**
+
 **OR-33 · The door observes; the member declares. They are never added together.** (2026-08-06) The
 member app now lets her tick off each exercise in her programme day and finish the day, with sets,
 reps, weight and a note. That is a SECOND "I trained" signal beside the one the studio already has —

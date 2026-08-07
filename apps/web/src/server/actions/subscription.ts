@@ -35,6 +35,7 @@ import {
   type MemberId,
   type PaymentMethod,
   type ProductId,
+  discountSale
 } from '@studio/core'
 import { z } from 'zod'
 
@@ -463,6 +464,44 @@ export async function createPackageLinkSaleAction(input: unknown) {
 }
 
 // ── Edit an existing subscription (dates / price / payment), reason mandatory. ──
+/**
+ * Forgive what is still owed on a sale, as a DISCOUNT (owner, 2026-08-07).
+ *
+ * The sale-time discount could not reach the commonest case: reception sells at list, takes what the
+ * member brought, and the rest is agreed away afterwards. The only lever until now was to edit the
+ * agreed price down, which closes the balance and loses both facts — what the package costs, and
+ * that ₺800 was given away.
+ *
+ * Owner-only, like the sale-time one and for the same reason (OR-32): it is an authorisation
+ * question, not a domain one, and refusing it is safer than dropping it — a dropped discount leaves
+ * the debt exactly where it was.
+ */
+export async function discountSaleAction(input: unknown) {
+  const p = z
+    .object({
+      saleId: nonEmpty,
+      amountKurus: z.number().int().min(1),
+      reason: z.enum(['campaign', 'coupon', 'referral', 'gift', 'manual']).default('gift'),
+      note: z.string().trim().max(500).optional(),
+    })
+    .parse(input)
+  const ctx = await requireTenantContext(OPS)
+  if (ctx.role !== 'owner' && ctx.actor.type !== 'platform_admin') {
+    return { ok: false as const, error: { code: 'staff_admin_required' as const } }
+  }
+  return discountSale(sellDeps().finance, ctx, {
+    saleId: p.saleId,
+    discount: {
+      reason: p.reason,
+      amount: money(p.amountKurus),
+      note: p.note ?? '',
+      couponCode: null,
+      referredByMemberId: null,
+      grantedBy: ctx.actor,
+    },
+  })
+}
+
 export async function amendSubscriptionAction(input: unknown) {
   const p = z
     .object({
@@ -561,6 +600,8 @@ export interface SubscriptionView {
   readonly priceAgreedKurus: number
   readonly paidKurus: number
   readonly balanceDueKurus: number
+  /** The sale that granted this package — what a post-sale discount is applied to. */
+  readonly saleId: string | null
   readonly method: string | null
   readonly note: string | null
   // ── Freeze (v1.27 S3) ──
@@ -613,6 +654,7 @@ export async function listMemberSubscriptionsAction(input: unknown): Promise<rea
       entryAllowance: e.productSnapshot.entryAllowance ?? null,
       entriesUsed: entriesUsed(e.entryLedger),
       priceAgreedKurus: e.priceAgreed.amount,
+      saleId: ledger.get(e.id as string)?.saleId ?? null,
       paidKurus: ledger.get(e.id as string)?.paid.amount ?? 0,
       balanceDueKurus: ledger.get(e.id as string)?.due.amount ?? 0,
       method: ledger.get(e.id as string)?.method ?? null,

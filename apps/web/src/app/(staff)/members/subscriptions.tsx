@@ -32,6 +32,7 @@ import { collectAction, listDrawersAction } from '@/server/actions/finance'
 import {
   adjustSubscriptionCreditsAction,
   amendSubscriptionAction,
+  discountSaleAction,
   assignSubscriptionAction,
   cancelSubscriptionAction,
   createPackageLinkSaleAction,
@@ -640,7 +641,7 @@ function SubscriptionRow({ sub, siblings, products, onChanged, isOwner = false, 
         </div>
       ) : null}
 
-      {dialog === 'amend' ? <AmendDialog sub={sub} siblings={siblings} memberId={memberId} branchId={branchId} onClose={() => setDialog(null)} onDone={() => { setDialog(null); onChanged() }} /> : null}
+      {dialog === 'amend' ? <AmendDialog sub={sub} siblings={siblings} memberId={memberId} branchId={branchId} isOwner={isOwner} onClose={() => setDialog(null)} onDone={() => { setDialog(null); onChanged() }} /> : null}
       {dialog === 'credit' ? <ContentDialog items={siblings} onClose={() => setDialog(null)} onDone={() => { setDialog(null); onChanged() }} /> : null}
       {dialog === 'status' ? <StatusDialog sub={sub} siblings={siblings} onClose={() => setDialog(null)} onDone={() => { setDialog(null); onChanged() }} /> : null}
     </div>
@@ -1094,9 +1095,16 @@ function ReasonDialogShell({
 
 // Editing a package changes DATES and PRICE. It does not take money.
 //
-function MoneyBlock({ sub, memberId, branchId, onDone }: { sub: SubscriptionView; memberId: string; branchId: string; onDone: () => void }) {
+function MoneyBlock({ sub, memberId, branchId, isOwner = false, onDone }: { sub: SubscriptionView; memberId: string; branchId: string; isOwner?: boolean; onDone: () => void }) {
   const due = sub.balanceDueKurus
   const [open, setOpen] = useState(false)
+  // İNDİRİM, satıştan sonra (owner, 2026-08-07). The other half of OR-32: the sale-time field could
+  // not reach a package already sold, and reception's only lever was to edit the price down — which
+  // closes the balance and loses both what the package costs and that anything was given away.
+  const [discOpen, setDiscOpen] = useState(false)
+  const [discTl, setDiscTl] = useState((due / 100).toString())
+  const [discReason, setDiscReason] = useState('gift')
+  const [discNote, setDiscNote] = useState('')
   const [amount, setAmount] = useState((due / 100).toString())
   const [method, setMethod] = useState<'cash' | 'credit_card' | 'bank_transfer'>('cash')
   const [drawers, setDrawers] = useState<readonly { id: string; status: string; kind: string }[]>([])
@@ -1139,6 +1147,24 @@ function MoneyBlock({ sub, memberId, branchId, onDone }: { sub: SubscriptionView
     setBusy(false)
   }
 
+  async function applyDiscount() {
+    const kurus = toKurus(discTl)
+    if (kurus <= 0 || !sub.saleId) return
+    setBusy(true)
+    try {
+      const res = await discountSaleAction({ saleId: sub.saleId, amountKurus: kurus, reason: discReason, note: discNote.trim() || undefined })
+      if (res.ok) {
+        toast.success('İndirim uygulandı, borç kapandı.')
+        onDone()
+      } else {
+        toast.error(domainErrorMessage(res.error))
+      }
+    } catch {
+      toast.error('İndirim uygulanamadı.')
+    }
+    setBusy(false)
+  }
+
   return (
     <div className="space-y-2 rounded-xl border border-border bg-muted/30 p-3 text-sm">
       <Row label="Paket tutarı" value={tl(sub.priceAgreedKurus)} />
@@ -1173,10 +1199,64 @@ function MoneyBlock({ sub, memberId, branchId, onDone }: { sub: SubscriptionView
               </Button>
             </div>
           </div>
+        ) : discOpen ? (
+          <div className="space-y-2 pt-1">
+            <div className="grid grid-cols-2 gap-2">
+              <Labeled label="İndirim (TL)">
+                <Input type="number" min={0} step="0.01" value={discTl} onChange={(e) => setDiscTl(e.target.value)} />
+              </Labeled>
+              <Labeled label="Sebep">
+                <Select value={discReason} onValueChange={(v) => setDiscReason(v ?? 'gift')}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="gift">Jest / anlaşma</SelectItem>
+                    <SelectItem value="campaign">Kampanya</SelectItem>
+                    <SelectItem value="referral">Tavsiye</SelectItem>
+                    <SelectItem value="coupon">Kupon</SelectItem>
+                    <SelectItem value="manual">Diğer (açıklama zorunlu)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </Labeled>
+            </div>
+            <Input
+              value={discNote}
+              onChange={(e) => setDiscNote(e.target.value)}
+              placeholder={discReason === 'manual' ? 'Açıklama (zorunlu)' : 'Açıklama (isteğe bağlı)'}
+            />
+            {/* Said out loud, because this is the distinction the whole feature exists for: the
+                package still costs what it costs. */}
+            <p className="text-xs text-muted-foreground">
+              Paket tutarı <strong>{tl(sub.priceAgreedKurus)}</strong> olarak kalır;{' '}
+              <strong>{tl(toKurus(discTl) || 0)}</strong> indirim olarak kaydedilir ve borç{' '}
+              <strong>{tl(Math.max(0, due - (toKurus(discTl) || 0)))}</strong> olur.
+            </p>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" className="flex-1" onClick={() => setDiscOpen(false)} disabled={busy}>
+                Vazgeç
+              </Button>
+              <Button
+                size="sm"
+                className="flex-1"
+                onClick={applyDiscount}
+                disabled={busy || toKurus(discTl) <= 0 || toKurus(discTl) > due || (discReason === 'manual' && discNote.trim() === '')}
+              >
+                {busy ? <Loader2Icon className="animate-spin" /> : null} İndirimi Uygula
+              </Button>
+            </div>
+          </div>
         ) : (
-          <Button variant="outline" size="sm" className="w-full" onClick={() => setOpen(true)}>
-            Tahsilat Al
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" className="flex-1" onClick={() => setOpen(true)}>
+              Tahsilat Al
+            </Button>
+            {/* Owner only, same rule as the sale-time discount (OR-32) — reception collects, the
+                owner decides what the studio gives away. */}
+            {isOwner && sub.saleId ? (
+              <Button variant="outline" size="sm" className="flex-1" onClick={() => setDiscOpen(true)}>
+                İndirim Uygula
+              </Button>
+            ) : null}
+          </div>
         )
       ) : null}
     </div>
@@ -1187,7 +1267,7 @@ function MoneyBlock({ sub, memberId, branchId, onDone }: { sub: SubscriptionView
 // money model, invisible to the till, the reports and the cari hesap. Money is taken in ONE place now,
 // the Cari Hesap tab, where it lands in the ledger and in the kasa. Two ways to record a payment are
 // two answers to "has she paid?", and reception would have had no way to know which one was believed.
-function AmendDialog({ sub, siblings, memberId, branchId, onClose, onDone }: { sub: SubscriptionView; siblings: readonly SubscriptionView[]; memberId: string; branchId: string; onClose: () => void; onDone: () => void }) {
+function AmendDialog({ sub, siblings, memberId, branchId, isOwner = false, onClose, onDone }: { sub: SubscriptionView; siblings: readonly SubscriptionView[]; memberId: string; branchId: string; isOwner?: boolean; onClose: () => void; onDone: () => void }) {
   const [validFrom, setValidFrom] = useState(toDateInput(sub.validFrom))
   const [validUntil, setValidUntil] = useState(toDateInput(sub.validUntil))
   // The package's original length in days, taken from what it was sold as. While reception hasn't
@@ -1278,7 +1358,7 @@ function AmendDialog({ sub, siblings, memberId, branchId, onClose, onDone }: { s
           what is owed and a collection records money that arrived. One button doing both is how they
           get confused again. Same action, same drawer rules and same allocation as Cari Hesap — this
           is a second door to one room, not a second room. */}
-      <MoneyBlock sub={sub} memberId={memberId} branchId={branchId} onDone={onDone} />
+      <MoneyBlock sub={sub} memberId={memberId} branchId={branchId} isOwner={isOwner} onDone={onDone} />
     </ReasonDialogShell>
   )
 }

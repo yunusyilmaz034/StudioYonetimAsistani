@@ -40,6 +40,7 @@ import {
   PAYTR_COLLECTION_RECONCILED,
   PLAN_CREATED,
   SALE_CANCELLED,
+  SALE_DISCOUNTED,
   SALE_CREATED,
   SALE_SETTLED,
   WALLET_ADJUSTMENT,
@@ -197,6 +198,62 @@ export function decideCancelSale(
         // The amount travels in the event so revenue can go NET without a projector ever reading a
         // state document (the lesson of v1.23).
         payload: { reason, total: sale.total, paidBack: sale.paid },
+      },
+    ],
+  })
+}
+
+/**
+ * A discount granted AFTER the sale was written (owner, 2026-08-07).
+ *
+ * The desk's commonest case, and the one `decideCreateSale`'s discount could not reach: a package
+ * sold at list, part of it collected, and the rest forgiven. Before this the only lever was to EDIT
+ * the agreed price down — which closes the balance but destroys two facts at once: that the package
+ * costs ₺5.000, and that ₺800 of it was given away. A studio that cannot count what it discounted
+ * cannot decide whether to keep doing it.
+ *
+ * So the sale keeps its `gross` and gains a discount, exactly as if it had been sold that way. The
+ * lines are untouched.
+ *
+ * Refused rather than clamped:
+ *   · more than what is still OWED — forgiving money already collected is a refund, not a discount,
+ *     and the two have different names for a reason (a refund gives cash back).
+ *   · a `manual` discount with no note (I-36) — the same rule the sale-time path enforces.
+ */
+export function decideDiscountSale(
+  ctx: DecideContext,
+  sale: Sale,
+  discount: Discount,
+): Result<Outcome<Sale>, DomainError> {
+  if (sale.status === 'cancelled') return err({ code: 'operation_not_applicable' })
+  if (discount.amount.amount <= 0) return err({ code: 'invalid_amount' })
+  if (discount.reason === 'manual' && discount.note.trim() === '') return err({ code: 'reason_required' })
+
+  const owed = subtractMoney(sale.total, sale.paid)
+  if (discount.amount.amount > owed.amount) return err({ code: 'invalid_adjustment' })
+
+  const total = subtractMoney(sale.total, discount.amount)
+  const next: Sale = {
+    ...sale,
+    discounts: [...sale.discounts, discount],
+    total,
+    // Forgiving the whole remainder settles the sale — the member owes nothing and the screen must
+    // stop asking for it.
+    status: total.amount <= sale.paid.amount ? 'settled' : sale.status,
+  }
+  return ok({
+    next,
+    events: [
+      {
+        ...base(ctx, 'payment', sale.id, sale.branchId, { memberId: sale.memberId }),
+        type: SALE_DISCOUNTED,
+        payload: {
+          reason: discount.reason,
+          amount: discount.amount,
+          totalBefore: sale.total,
+          totalAfter: total,
+          hasNote: discount.note.trim() !== '',
+        },
       },
     ],
   })

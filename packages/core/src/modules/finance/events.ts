@@ -9,6 +9,8 @@ import type { DiscountReason, PaymentMethod } from './domain/types'
 export const SALE_CREATED = 'sale.created'
 export const SALE_CANCELLED = 'sale.cancelled'
 export const SALE_SETTLED = 'sale.settled'
+// v1.32 — a discount granted AFTER the sale was written. See `decideDiscountSale`.
+export const SALE_DISCOUNTED = 'sale.discounted'
 export const PAYMENT_RECEIVED = 'payment.received'
 export const PAYMENT_VOIDED = 'payment.voided'
 export const PAYMENT_REFUNDED = 'payment.refunded'
@@ -61,6 +63,20 @@ export type SaleCancelledPayload = {
   readonly reason: string
   readonly total: Money // so revenue can go NET without a projector ever reading state
   readonly paidBack: Money
+}
+
+// v1.32 — the studio came down on a price AFTER the sale was recorded. The commonest case at the
+// desk: a package sold at list, part of it collected, and the rest forgiven as a discount rather
+// than left as a balance the member does not owe.
+//
+// `totalBefore`/`totalAfter` both travel so revenue can be corrected from the LOG alone, without a
+// projector ever reading a state document — the same reason `sale.cancelled` carries its amount.
+export type SaleDiscountedPayload = {
+  readonly reason: DiscountReason
+  readonly amount: Money
+  readonly totalBefore: Money
+  readonly totalAfter: Money
+  readonly hasNote: boolean
 }
 
 export type SaleSettledPayload = {

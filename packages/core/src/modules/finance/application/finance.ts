@@ -32,6 +32,7 @@ import {
   decideVoidPayment,
   decideWalletPurchase,
   type DecideContext,
+  decideDiscountSale,
 } from '../domain/decide'
 import {
   giftCardRemaining,
@@ -377,6 +378,28 @@ export async function cancelSale(
 
   const c = dctx(deps, ctx, newOperationId())
   const decided = decideCancelSale(c, sale, input.reason)
+  if (!decided.ok) return decided
+  await deps.repo.commit(ctx, { sales: [decided.value.next], events: decided.value.events })
+  return { ok: true, value: undefined }
+}
+
+/**
+ * Forgive part of what is still owed on a sale, as a DISCOUNT (owner, 2026-08-07).
+ *
+ * The alternative reception had was to edit the agreed price down. That closes the balance and loses
+ * two facts with it: what the package costs, and that the studio gave something away. See
+ * `decideDiscountSale`.
+ */
+export async function discountSale(
+  deps: FinanceDeps,
+  ctx: TenantContext,
+  input: { saleId: string; discount: Discount },
+): Promise<Result<void, DomainError>> {
+  const sale = await deps.repo.getSale(ctx, input.saleId)
+  if (!sale) return { ok: false, error: { code: 'operation_not_applicable' } }
+
+  const c = dctx(deps, ctx, newOperationId())
+  const decided = decideDiscountSale(c, sale, input.discount)
   if (!decided.ok) return decided
   await deps.repo.commit(ctx, { sales: [decided.value.next], events: decided.value.events })
   return { ok: true, value: undefined }

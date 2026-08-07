@@ -15,6 +15,7 @@ import {
   decideVoidPayment,
   couponDiscount,
   type DecideContext,
+  decideDiscountSale,
 } from './decide'
 import {
   giftCardRemaining,
@@ -578,5 +579,82 @@ describe('drawer rename / archive (PF-15)', () => {
     expect(r.value.next.active).toBe(true)
     expect(r.value.events[0]?.type).toBe('drawer.reactivated')
     expect(decideReactivateDrawer(ctx(), drawer({ active: true })).ok).toBe(false)
+  })
+})
+
+// ── İNDİRİM, SATIŞTAN SONRA (owner, 2026-08-07) ─────────────────────────────────────────────
+//
+// The desk's real case: a ₺5.000 package, ₺4.200 collected, and the studio decides the remaining
+// ₺800 is a discount rather than a debt. Editing the agreed price down would close the balance too —
+// and lose both that the package costs ₺5.000 and that ₺800 was given away.
+describe('decideDiscountSale', () => {
+  const DISCOUNT = {
+    reason: 'gift' as const,
+    amount: money(80_000),
+    note: '',
+    couponCode: null,
+    referredByMemberId: null,
+    grantedBy: RECEPTION,
+  }
+  // A ₺5.000 sale with ₺4.200 already collected.
+  const partlyPaid = () => sale({ paid: money(420_000) })
+
+  it('lowers the total, keeps the gross, and settles what is left', () => {
+    const r = decideDiscountSale(ctx(), partlyPaid(), DISCOUNT)
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.value.next.gross.amount).toBe(500_000)
+    expect(r.value.next.total.amount).toBe(420_000)
+    expect(r.value.next.total.amount - r.value.next.paid.amount).toBe(0)
+    expect(r.value.next.status).toBe('settled')
+  })
+
+  it('keeps the discount on the sale so the amount forgone stays countable', () => {
+    const r = decideDiscountSale(ctx(), partlyPaid(), DISCOUNT)
+    if (!r.ok) throw new Error('unreachable')
+    expect(r.value.next.discounts).toHaveLength(1)
+    expect(r.value.next.discounts[0]!.amount.amount).toBe(80_000)
+    expect(r.value.next.lines[0]!.unitPrice.amount).toBe(500_000)
+  })
+
+  it('carries both totals in the event, so revenue is correctable from the log alone', () => {
+    const r = decideDiscountSale(ctx(), partlyPaid(), DISCOUNT)
+    if (!r.ok) throw new Error('unreachable')
+    const p = r.value.events[0]!.payload as { totalBefore: { amount: number }; totalAfter: { amount: number } }
+    expect(r.value.events[0]!.type).toBe('sale.discounted')
+    expect(p.totalBefore.amount).toBe(500_000)
+    expect(p.totalAfter.amount).toBe(420_000)
+  })
+
+  // Forgiving money already in the till is a REFUND — a different act, with cash going back.
+  it('REFUSES a discount larger than what is still owed', () => {
+    const r = decideDiscountSale(ctx(), partlyPaid(), { ...DISCOUNT, amount: money(80_001) })
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.error.code).toBe('invalid_adjustment')
+  })
+
+  // The boundary: exactly the remaining balance is legal, and is the whole point of the feature.
+  it('allows a discount of exactly the outstanding balance', () => {
+    const r = decideDiscountSale(ctx(), partlyPaid(), { ...DISCOUNT, amount: money(80_000) })
+    expect(r.ok).toBe(true)
+  })
+
+  it('refuses zero, and refuses a manual discount with no note', () => {
+    expect(decideDiscountSale(ctx(), partlyPaid(), { ...DISCOUNT, amount: money(0) }).ok).toBe(false)
+    const bare = decideDiscountSale(ctx(), partlyPaid(), { ...DISCOUNT, reason: 'manual' })
+    expect(bare.ok).toBe(false)
+    if (!bare.ok) expect(bare.error.code).toBe('reason_required')
+  })
+
+  it('refuses to discount a cancelled sale', () => {
+    const r = decideDiscountSale(ctx(), sale({ status: 'cancelled', paid: money(420_000) }), DISCOUNT)
+    expect(r.ok).toBe(false)
+  })
+
+  // Nothing collected yet is still a legal case — a package given away before any money changed hands.
+  it('discounts a sale with nothing collected', () => {
+    const r = decideDiscountSale(ctx(), sale(), { ...DISCOUNT, amount: money(500_000) })
+    expect(r.ok).toBe(true)
+    if (r.ok) expect(r.value.next.total.amount).toBe(0)
   })
 })

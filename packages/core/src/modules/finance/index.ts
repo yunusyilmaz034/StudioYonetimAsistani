@@ -52,6 +52,7 @@ export {
 } from './domain/decide'
 export {
   cancelSale,
+  discountSale,
   closeDrawer,
   createDrawer,
   collect,
