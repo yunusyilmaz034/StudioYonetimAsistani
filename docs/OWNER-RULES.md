@@ -480,6 +480,48 @@ as an accusation to someone who had a reason the app cannot know, and the app sh
 the one she stops opening. Only what has accumulated ("3. turdasın · toplam 11 antrenman"). The gap
 belongs on the staff screen, where a human can pick up a phone. Same rule as the motivation line.
 
+**OR-34 · The turnstile is a door, not a decider.** (2026-08-07) The studio is fitting a Perkotek
+S150 — a dry-contact turnstile with no reader, no network and no opinion: it waits for "open" and
+turns once. Every decision stays here.
+
+**How it works.** A small screen beside the arm shows a six-digit code that the device asks us for
+every few seconds. The member scans it with her phone, the app asks whether she may cross, and we
+answer from her packages, her freeze and her balance. The owner chose this over a reader because it
+is what the gyms he uses do, and because the member already knows the gesture.
+
+The rules that make a screen in a public corridor safe, all of them in the DOMAIN rather than in a
+screen that happens to refresh:
+
+- **The code lives 45 seconds.** A photographed code must be worth nothing a minute later.
+- **It is single use**, spent in a TRANSACTION — two phones pointed at the same screen in the same
+  second produce one winner and one `qr_used`. Read-then-write would let both in.
+- **It is bound to its device.** A code minted at one door never opens another.
+- **The code is spent BEFORE the check-in is recorded.** If the two race, the failure we want is "the
+  door did not open" — one rescan — never "two people crossed on one code".
+
+**It emits `member.checked_in`, not a new event type.** The architecture wrote this rule down before
+the hardware existed: *"a reception tap, a QR scan, and a 2027 turnstile all emit
+`member.checked_in` — `method` is metadata"* (AD-18). `method: 'device'` had sat unused since the
+first commit; today it is used. The same `recordCheckIn` runs, so occupancy has one arithmetic and
+one debounce.
+
+**The device is a principal** (#5): its own id and secret, `actor: { type: 'device' }` on every
+crossing. When the log says the door opened at 07:14 it names the door, not whichever receptionist
+was signed in. Only the secret's SHA-256 is stored — a key readable from the database is a key
+everybody who reads the database has, and this one opens a physical door.
+
+**Direction: the arm wins.** Presence infers it (inside ⇒ leaving), but the S150's direction output
+is wired in, and what the arm DID beats what we assumed she meant. That wire is what repairs a
+drifted presence.
+
+**Reception can open it by hand** for a guest, a Multisport visitor or a dead phone. That records
+*who opened it* and *nothing about a member* — a guest is not a check-in, and pretending otherwise
+would put a stranger into occupancy and into somebody's attendance.
+
+**Known limit, accepted by the owner:** the code is on the door but the identity is on the phone, so
+a member can hand her phone to somebody. A reader would move identity through the turnstile and close
+that. The mitigation is the 45-second life; the decision was: the gyms do it this way, and it works.
+
 ## Traps that have already cost something
 
 **OR-14 · Firestore indexes are a production-only trap.** The emulator does NOT enforce them, so a

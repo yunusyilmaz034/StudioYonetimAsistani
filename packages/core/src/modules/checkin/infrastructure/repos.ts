@@ -1,8 +1,8 @@
 import { getFirestore, Timestamp, type CollectionReference, type Firestore } from 'firebase-admin/firestore'
 
-import type { BranchId, Instant, MemberId, NewEvent, StudioId, TenantContext } from '../../../shared'
+import { instant, type BranchId, type DeviceId, type Instant, type MemberId, type NewEvent, type StudioId, type TenantContext } from '../../../shared'
 import type { CheckinRepository } from '../application/ports'
-import type { BranchOccupancy, CheckIn, Presence } from '../domain/types'
+import type { BranchOccupancy, CheckIn, Presence, TurnstileCode, TurnstileDevice } from '../domain/types'
 import type { CheckInId } from '../../../shared'
 import {
   branchOccupancyFromFirestore,
@@ -35,6 +35,89 @@ export class FirestoreCheckinRepository implements CheckinRepository {
       batch.set(this.col(ctx.studioId, 'events').doc(id), data)
     }
     await batch.commit()
+  }
+
+  // ── Turnstile (v1.33) ──
+  async getDevice(ctx: TenantContext, deviceId: DeviceId): Promise<TurnstileDevice | null> {
+    const s = await this.col(ctx.studioId, 'devices').doc(deviceId).get()
+    const d = s.data()
+    return d ? ({ ...(d as TurnstileDevice), id: deviceId, lastSeenAt: d.lastSeenAt ? instant(d.lastSeenAt.toMillis()) : null, createdAt: instant(d.createdAt.toMillis()) }) : null
+  }
+
+  async listDevices(ctx: TenantContext): Promise<readonly TurnstileDevice[]> {
+    const snap = await this.col(ctx.studioId, 'devices').get()
+    return snap.docs.map((doc) => {
+      const d = doc.data()
+      return { ...(d as TurnstileDevice), id: doc.id as DeviceId, lastSeenAt: d.lastSeenAt ? instant(d.lastSeenAt.toMillis()) : null, createdAt: instant(d.createdAt.toMillis()) }
+    })
+  }
+
+  async saveDevice(ctx: TenantContext, device: TurnstileDevice): Promise<void> {
+    await this.col(ctx.studioId, 'devices').doc(device.id).set(
+      {
+        ...device,
+        lastSeenAt: device.lastSeenAt === null ? null : Timestamp.fromMillis(device.lastSeenAt),
+        createdAt: Timestamp.fromMillis(device.createdAt),
+      },
+      { merge: true },
+    )
+  }
+
+  async saveDeviceWithEvents(ctx: TenantContext, device: TurnstileDevice, events: readonly NewEvent[]): Promise<void> {
+    const batch = this.db.batch()
+    batch.set(
+      this.col(ctx.studioId, 'devices').doc(device.id),
+      {
+        ...device,
+        lastSeenAt: device.lastSeenAt === null ? null : Timestamp.fromMillis(device.lastSeenAt),
+        createdAt: Timestamp.fromMillis(device.createdAt),
+      },
+      { merge: true },
+    )
+    for (const e of events) {
+      const { id, data } = eventToFirestore(e)
+      batch.set(this.col(ctx.studioId, 'events').doc(id), data)
+    }
+    await batch.commit()
+  }
+
+  async getTurnstileCode(ctx: TenantContext, code: string): Promise<TurnstileCode | null> {
+    const s = await this.col(ctx.studioId, 'turnstileCodes').doc(code).get()
+    const d = s.data()
+    if (!d) return null
+    return {
+      ...(d as TurnstileCode),
+      issuedAt: instant(d.issuedAt.toMillis()),
+      expiresAt: instant(d.expiresAt.toMillis()),
+      usedAt: d.usedAt ? instant(d.usedAt.toMillis()) : null,
+    }
+  }
+
+  async saveTurnstileCode(ctx: TenantContext, code: TurnstileCode): Promise<void> {
+    await this.col(ctx.studioId, 'turnstileCodes').doc(code.code).set({
+      ...code,
+      issuedAt: Timestamp.fromMillis(code.issuedAt),
+      expiresAt: Timestamp.fromMillis(code.expiresAt),
+      usedAt: code.usedAt === null ? null : Timestamp.fromMillis(code.usedAt),
+    })
+  }
+
+  /**
+   * Spend the code, atomically.
+   *
+   * A TRANSACTION rather than a read-then-write, because single use IS the race: two phones pointed
+   * at the same screen in the same second must produce one winner. Read-then-write would let both
+   * see `usedBy: null` and both open the door — the one failure mode this feature cannot have.
+   */
+  async consumeTurnstileCode(ctx: TenantContext, code: string, memberId: MemberId, at: Instant): Promise<boolean> {
+    const ref = this.col(ctx.studioId, 'turnstileCodes').doc(code)
+    return this.db.runTransaction(async (tx) => {
+      const snap = await tx.get(ref)
+      const d = snap.data()
+      if (!d || d.usedBy) return false
+      tx.update(ref, { usedBy: memberId, usedAt: Timestamp.fromMillis(at) })
+      return true
+    })
   }
 
   async getPresence(ctx: TenantContext, memberId: MemberId): Promise<Presence | null> {

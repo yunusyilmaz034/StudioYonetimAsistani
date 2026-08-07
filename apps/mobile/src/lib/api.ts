@@ -88,6 +88,9 @@ export const api = {
   // check-in — nothing here counts towards attendance.
   workout: (programId: string) => get<WorkoutProgress>(`/workout?programId=${encodeURIComponent(programId)}`),
   completeWorkout: (body: CompleteWorkoutBody) => post<ApiResult<unknown>>('/workout', body),
+  // Turnstile (v1.33). The code on the door's screen. Produces the same `member.checked_in` the
+  // desk and the kiosk produce — the producer never appears in the event type.
+  crossTurnstile: (code: string) => post<ApiResult<TurnstileCross>>('/turnstile', { code }),
   inbox: () => get<readonly InboxItem[]>('/inbox'),
   markRead: (intentId: string) => post<ApiResult<unknown>>('/inbox', { intentId }),
   prefs: () => get<NotificationPrefs>('/prefs'),
@@ -228,4 +231,12 @@ export interface MemberFitnessView {
   }
   /** Recent check-in instants, newest first — what the consistency strip is drawn from. */
   readonly recent: readonly number[]
+}
+
+
+// ── Turnstile (v1.33) ───────────────────────────────────────────────────────────────────────
+export interface TurnstileCross {
+  readonly direction: 'in' | 'out'
+  readonly deviceId: string
+  readonly branchId: string
 }

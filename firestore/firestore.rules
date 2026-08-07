@@ -82,6 +82,11 @@ service cloud.firestore {
           // never touches it: the dashboard reads and writes it through Server Actions, so leaving
           // it open would be exposure bought for nothing.
           'checklistDone',
+          // v1.33 — the turnstile. `devices` holds each door's secret HASH, and `turnstileCodes` is
+          // the live single-use code on the screen. Both server-only: a client that could read the
+          // codes collection could open the door without ever standing in front of it, and one that
+          // could WRITE it could mint its own.
+          'devices', 'turnstileCodes',
           // v1.27 — internal counters (public-form rate limits, hashed IPs). Server-only; no client read.
           'rateLimits',
           // 2026-07-30 — import batches. Each one lists the members and packages one file created,

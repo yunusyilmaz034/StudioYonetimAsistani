@@ -11,6 +11,10 @@ export const MEMBER_CHECKED_OUT = 'member.checked_out'
 export const MEMBER_AUTO_CHECKED_OUT = 'member.auto_checked_out'
 export const BRANCH_OPENED = 'branch.opened'
 export const BRANCH_CLOSED = 'branch.closed'
+// v1.33 — reception opened the arm by hand: a guest, a Multisport visitor, a dead phone. Deliberately
+// NOT a check-in (nobody is identified, so nobody enters occupancy), but never silent either — an
+// arm that opens with no record is an arm anybody can open.
+export const TURNSTILE_OPENED_MANUALLY = 'turnstile.opened_manually'
 
 export type MemberCheckedInPayload = {
   readonly branchId: BranchId
@@ -29,6 +33,10 @@ export type MemberAutoCheckedOutPayload = {
 }
 export type BranchOpenedPayload = {
   readonly scheduledOpenAt: number
+}
+export type TurnstileOpenedManuallyPayload = {
+  readonly deviceId: string
+  readonly reason: string
 }
 export type BranchClosedPayload = {
   readonly occupancyAtClose: number

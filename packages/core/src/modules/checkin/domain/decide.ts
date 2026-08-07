@@ -14,6 +14,7 @@ import {
   type NewEvent,
   type Result,
   type StudioId,
+  type DeviceId,
 } from '../../../shared'
 import {
   BRANCH_CLOSED,
@@ -21,8 +22,13 @@ import {
   MEMBER_AUTO_CHECKED_OUT,
   MEMBER_CHECKED_IN,
   MEMBER_CHECKED_OUT,
+  TURNSTILE_OPENED_MANUALLY,
 } from '../events'
-import type { BranchOccupancy, CheckIn, CheckInMethod, Presence, CheckInDirection } from './types'
+import type { BranchOccupancy, CheckIn, CheckInMethod, Presence, CheckInDirection,
+  TurnstileCode,
+  TurnstileDevice,
+  TurnstileDirection
+} from './types'
 
 export interface DecideContext {
   readonly studioId: StudioId
@@ -203,4 +209,67 @@ export function decideAutoCheckOut(
       payload: { branchId: presence.branchId, thresholdHours },
     },
   ]
+}
+
+// ── TURNSTILE (v1.33) ────────────────────────────────────────────────────────────────────────
+
+export interface RedeemTurnstileInput {
+  readonly code: TurnstileCode | null
+  readonly device: TurnstileDevice | null
+  /** What the arm reported, when the direction wire is connected. `null` ⇒ infer from presence. */
+  readonly reportedDirection: TurnstileDirection
+  readonly presence: Presence | null
+}
+
+/**
+ * May this member cross, and in which direction?
+ *
+ * PURE, and deliberately separate from `decideCheckIn`: this answers "is the code good and which way
+ * is she going", the other answers "what does crossing do to occupancy". Splitting them keeps every
+ * refusal below testable without a door.
+ *
+ * Each refusal has its OWN code because the phone shows the member a sentence and "kod geçersiz" is
+ * a different sentence from "bu koda zaten girildi" — one of them tells her to rescan, the other
+ * tells her the screen has moved on.
+ */
+export function decideRedeemTurnstileCode(
+  ctx: DecideContext,
+  input: RedeemTurnstileInput,
+): Result<{ direction: CheckInDirection; branchId: BranchId; deviceId: DeviceId }, DomainError> {
+  const { code, device } = input
+  if (!code || !device) return err({ code: 'qr_invalid' })
+  if (!device.active) return err({ code: 'qr_invalid' })
+  if (code.deviceId !== device.id) return err({ code: 'qr_invalid' })
+  // Expiry is judged HERE, from the clock passed in — never from the screen having refreshed. A
+  // photographed code is worthless a minute later only if something refuses it.
+  if (ctx.now >= code.expiresAt) return err({ code: 'qr_expired' })
+  // Single use: two people scanning the same photograph must not both get in.
+  if (code.usedBy !== null) return err({ code: 'qr_used' })
+
+  // The arm's own report wins over our inference — what the door DID beats what we assumed she
+  // meant. Without the wire we fall back to presence, which is right until somebody scans without
+  // crossing; the nightly auto-check-out sweep cleans that up.
+  const direction: CheckInDirection = input.reportedDirection ?? (input.presence === null ? 'in' : 'out')
+  return ok({ direction, branchId: code.branchId, deviceId: device.id })
+}
+
+/**
+ * Reception opened the arm by hand. Nobody is identified, so this is not a check-in — but it is
+ * never silent: an arm that opens with no record is an arm anybody can open, and "who let them in"
+ * is the first question asked after something goes wrong.
+ */
+export function decideOpenTurnstileManually(
+  ctx: DecideContext,
+  deviceId: DeviceId,
+  branchId: BranchId,
+  reason: string,
+): Result<NewEvent[], DomainError> {
+  if (reason.trim() === '') return err({ code: 'reason_required' })
+  return ok([
+    {
+      ...base(ctx, 'branch', deviceId as string, branchId, {}),
+      type: TURNSTILE_OPENED_MANUALLY,
+      payload: { deviceId: deviceId as string, reason },
+    },
+  ])
 }

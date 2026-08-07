@@ -14,9 +14,10 @@ import {
   decideCheckIn,
   decideCloseBranch,
   decideOpenBranch,
+  decideRedeemTurnstileCode,
 } from './decide'
 import type { DecideContext } from './decide'
-import type { BranchOccupancy, Presence } from './types'
+import type { BranchOccupancy, Presence, TurnstileCode, TurnstileDevice } from './types'
 
 const NOW = instant(1_700_000_000_000)
 const H = 3_600_000
@@ -129,5 +130,99 @@ describe('decideAutoCheckOut (D4, system)', () => {
     const events = decideAutoCheckOut(ctx, presence, 4)
     expect(events[0]?.type).toBe('member.auto_checked_out')
     expect(events[0]?.payload).toEqual({ branchId: BR, thresholdHours: 4 })
+  })
+})
+
+// ── TURNSTILE (v1.33) ────────────────────────────────────────────────────────────────────────
+//
+// The screen in the corridor shows a rotating code; the member scans it with her phone. Every rule
+// below exists because the screen is PUBLIC — a code that can be photographed must be worth nothing
+// a minute later, and worth nothing twice.
+
+describe('decideRedeemTurnstileCode', () => {
+  const device = (over: Partial<TurnstileDevice> = {}): TurnstileDevice => ({
+    id: 'dev_1' as never,
+    studioId: 'std_1' as StudioId,
+    branchId: 'brn_1' as BranchId,
+    name: 'Giriş turnikesi',
+    secretHash: 'x',
+    active: true,
+    lastSeenAt: null,
+    createdAt: NOW,
+    ...over,
+  })
+  const code = (over: Partial<TurnstileCode> = {}): TurnstileCode => ({
+    code: '482913',
+    deviceId: 'dev_1' as never,
+    studioId: 'std_1' as StudioId,
+    branchId: 'brn_1' as BranchId,
+    issuedAt: NOW,
+    expiresAt: instant(NOW + 60_000),
+    usedBy: null,
+    usedAt: null,
+    ...over,
+  })
+  const inside: Presence = { memberId: 'mem_1' as MemberId, branchId: 'brn_1' as BranchId, checkedInAt: NOW }
+
+  it('lets a member outside come IN', () => {
+    const r = decideRedeemTurnstileCode(ctx, { code: code(), device: device(), reportedDirection: null, presence: null })
+    expect(r.ok).toBe(true)
+    if (r.ok) expect(r.value.direction).toBe('in')
+  })
+
+  it('lets a member inside go OUT', () => {
+    const r = decideRedeemTurnstileCode(ctx, { code: code(), device: device(), reportedDirection: null, presence: inside })
+    expect(r.ok).toBe(true)
+    if (r.ok) expect(r.value.direction).toBe('out')
+  })
+
+  // The wire beats the inference: what the arm DID beats what we assumed she meant. This is the
+  // case that repairs a drifted presence — she is recorded inside but actually walks in.
+  it('obeys the arm when the direction wire reports one', () => {
+    const r = decideRedeemTurnstileCode(ctx, { code: code(), device: device(), reportedDirection: 'in', presence: inside })
+    expect(r.ok).toBe(true)
+    if (r.ok) expect(r.value.direction).toBe('in')
+  })
+
+  it('REFUSES an expired code — the whole point of a public screen', () => {
+    const late = { ...ctx, now: instant(NOW + 60_001) }
+    const r = decideRedeemTurnstileCode(late, { code: code(), device: device(), reportedDirection: null, presence: null })
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.error.code).toBe('qr_expired')
+  })
+
+  // The boundary: exactly at expiry is already too late.
+  it('refuses at the exact expiry instant', () => {
+    const edge = { ...ctx, now: instant(NOW + 60_000) }
+    expect(decideRedeemTurnstileCode(edge, { code: code(), device: device(), reportedDirection: null, presence: null }).ok).toBe(false)
+  })
+
+  it('REFUSES a code someone has already crossed on', () => {
+    const r = decideRedeemTurnstileCode(ctx, {
+      code: code({ usedBy: 'mem_9' as MemberId, usedAt: NOW }),
+      device: device(),
+      reportedDirection: null,
+      presence: null,
+    })
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.error.code).toBe('qr_used')
+  })
+
+  it('refuses an unknown code, an unknown device, and a deactivated one', () => {
+    expect(decideRedeemTurnstileCode(ctx, { code: null, device: device(), reportedDirection: null, presence: null }).ok).toBe(false)
+    expect(decideRedeemTurnstileCode(ctx, { code: code(), device: null, reportedDirection: null, presence: null }).ok).toBe(false)
+    expect(decideRedeemTurnstileCode(ctx, { code: code(), device: device({ active: false }), reportedDirection: null, presence: null }).ok).toBe(false)
+  })
+
+  // A code minted by the OTHER door must not open this one — two turnstiles, two screens, and a
+  // member walking between them with a photograph.
+  it('refuses a code belonging to a different device', () => {
+    const r = decideRedeemTurnstileCode(ctx, {
+      code: code({ deviceId: 'dev_2' as never }),
+      device: device(),
+      reportedDirection: null,
+      presence: null,
+    })
+    expect(r.ok).toBe(false)
   })
 })

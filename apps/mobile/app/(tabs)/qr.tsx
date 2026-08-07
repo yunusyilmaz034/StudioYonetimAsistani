@@ -77,12 +77,32 @@ function Scanner() {
     handled.current = true
     setBusy(true)
     try {
-      const res = await api.checkin(data)
+      // ONE scanner, two screens (v1.33). The daily printed kiosk QR is a long token; the
+      // turnstile's is six digits, because it is redrawn every few seconds on a small display.
+      // The SHAPE tells them apart, so the member never has to know which one she is pointing at —
+      // she opens the camera and it works at both doors.
+      const isTurnstile = /^\d{6}$/.test(data.trim())
+      const res = isTurnstile ? await api.crossTurnstile(data.trim()) : await api.checkin(data)
       if (res.ok) {
         track('checkin_recorded', { surface: 'mobile' })
-        Alert.alert('Giriş yapıldı ✓', 'Hoş geldin! Stüdyoya girişin kaydedildi.')
+        // The turnstile knows which way the arm turned, so it can say the true thing rather than
+        // assuming an arrival: "Hoş geldin" to somebody leaving is a small lie the member notices.
+        const dir = isTurnstile ? (res as { value?: { direction?: 'in' | 'out' } }).value?.direction : 'in'
+        Alert.alert(
+          dir === 'out' ? 'Çıkış yapıldı ✓' : 'Giriş yapıldı ✓',
+          dir === 'out' ? 'Görüşmek üzere!' : 'Hoş geldin! Stüdyoya girişin kaydedildi.',
+        )
       }
-      else Alert.alert('Giriş yapılamadı', res.error.code === 'qr_expired' ? 'Kodun süresi doldu, tekrar tara.' : 'Geçersiz ya da kullanılmış kod.')
+      else Alert.alert(
+        'Geçiş yapılamadı',
+        res.error.code === 'qr_expired'
+          ? 'Kodun süresi doldu — ekrandaki yeni kodu tara.'
+          : res.error.code === 'qr_used'
+            ? 'Bu kod kullanılmış. Ekranda yeni bir kod belirecek.'
+            : res.error.code === 'branch_not_open'
+              ? 'Stüdyo şu an kapalı.'
+              : 'Geçersiz kod. Sorun sürerse resepsiyona uğra.',
+      )
     } catch { Alert.alert('Hata', 'Giriş yapılamadı, tekrar dene.') }
     finally { setBusy(false); setTimeout(() => { handled.current = false }, 2500) }
   }
