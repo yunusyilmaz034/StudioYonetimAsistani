@@ -60,6 +60,7 @@ import {
   parseMeasurementPdfAction,
   recordMeasurementAction,
   removeProgressPhotoAction,
+  mayHaveProgramAction,
 } from '@/server/actions/training'
 
 const LEVEL_LABEL: Record<string, string> = { beginner: 'Başlangıç', intermediate: 'Orta', advanced: 'İleri' }
@@ -144,14 +145,24 @@ function ProgramsSection({ memberId }: { memberId: string }) {
   // A spinner that never resolves is the worst failure state a screen can have: it looks like
   // patience is the answer, and it never is.
   const [loadError, setLoadError] = useState<string | null>(null)
+  // Fitness (gym) or PT only — a pilates-only member trains in a class and what she wants tracked is
+  // her measurements. The server REFUSES either way (see `assertMayHaveProgram`); hiding the buttons
+  // is so reception never presses one and reads an error instead of an explanation.
+  const [mayProgram, setMayProgram] = useState(true)
 
   const reload = useCallback(async () => {
     setLoadError(null)
     try {
-      const [ps, ex, tps] = await Promise.all([listMemberProgramsAction({ memberId }), listExercisesAction(), listProgramTemplatesAction()])
+      const [ps, ex, tps, may] = await Promise.all([
+        listMemberProgramsAction({ memberId }),
+        listExercisesAction(),
+        listProgramTemplatesAction(),
+        mayHaveProgramAction({ memberId }),
+      ])
       setPrograms(ps)
       setExercises(ex)
       setTemplates(tps)
+      setMayProgram(may)
     } catch (e) {
       setPrograms([])
       setLoadError(saveErrorMessage(e))
@@ -188,18 +199,26 @@ function ProgramsSection({ memberId }: { memberId: string }) {
       title="Programlar"
       hint={programs ? `${programs.length}` : ''}
       actions={
-        <div className="flex gap-1.5">
-          {templates.length > 0 ? (
-            <Button size="sm" variant="secondary" onClick={() => setAssigning(true)}>
-              <LayersIcon /> Şablondan Ata
+        mayProgram ? (
+          <div className="flex gap-1.5">
+            {templates.length > 0 ? (
+              <Button size="sm" variant="secondary" onClick={() => setAssigning(true)}>
+                <LayersIcon /> Şablondan Ata
+              </Button>
+            ) : null}
+            <Button size="sm" onClick={() => setCreating(true)}>
+              <PlusIcon /> Program Oluştur
             </Button>
-          ) : null}
-          <Button size="sm" onClick={() => setCreating(true)}>
-            <PlusIcon /> Program Oluştur
-          </Button>
-        </div>
+          </div>
+        ) : null
       }
     >
+      {!mayProgram ? (
+        <p className="rounded-lg bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
+          Bu üyenin fitness ya da özel ders paketi yok — antrenman programı atanamaz. Pilates üyeleri
+          için <strong>ölçüm</strong> takibi yapılır.
+        </p>
+      ) : null}
       {loadError ? (
         <div className="rounded-xl border border-danger/40 bg-danger/10 p-4">
           <p className="text-sm text-danger">{loadError}</p>

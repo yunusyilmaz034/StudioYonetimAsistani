@@ -522,6 +522,28 @@ would put a stranger into occupancy and into somebody's attendance.
 a member can hand her phone to somebody. A reader would move identity through the turnstile and close
 that. The mitigation is the 45-second life; the decision was: the gyms do it this way, and it works.
 
+**OR-35 · A training programme belongs to fitness and PT members only — enforced on the WAY IN.**
+(2026-08-08) A pilates-only member trains in a class, led by a trainer; what she wants tracked is her
+MEASUREMENTS. The owner settled this on 2026-08-06 and it shaped the member app: she never meets the
+word "Antrenman", not as a tab and not as an empty state.
+
+But it was only ever enforced where the data is DISPLAYED. The app hid the tab while the panel
+happily assigned a programme anyway — and one was, to a member holding a single Reformer package.
+**A rule that lives only on the read side is not a rule; it is a preference the next screen ignores.**
+
+Now one function answers it, and both sides call it: `mayHaveProgram`. The two doors that create a
+programme (`createProgramAction`, `assignTemplateAction`) REFUSE, and the panel hides the buttons and
+says why. Hiding alone would not have been enough — a button that is merely absent is a button a
+second screen still presses.
+
+**The escape hatch is deliberate:** a member who already HAS a programme keeps it and may be given
+another. Nothing granted is taken away by a rule written afterwards.
+
+The audit that followed found six programmes without a fitness/PT package, and only **two** were the
+bug: four belonged to fitness members whose package had EXPIRED, and their programme must be waiting
+when they renew. The two real ones were **archived, never deleted** — deleting would erase the
+evidence of the bug being fixed.
+
 ## Traps that have already cost something
 
 **OR-14 · Firestore indexes are a production-only trap.** The emulator does NOT enforce them, so a

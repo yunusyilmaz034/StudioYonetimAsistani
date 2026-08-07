@@ -76,6 +76,43 @@ async function assertMayReadMemberContent(ctx: TenantContext, memberId: string):
   if (!programs.some((p) => p.trainerId === a.id)) throw new ForbiddenError([...TRAINER])
 }
 
+// ── WHO MAY HOLD A TRAINING PROGRAMME ────────────────────────────────────────────────────────
+//
+// Fitness (gym) or PT. A pilates-only member has no use for a workout plan — she trains in a class,
+// led by a trainer, and what she wants tracked is her MEASUREMENTS. This is the owner's rule and it
+// already shaped the member app: a pilates-only member never meets the word "Antrenman", not as a
+// tab and not as an empty state.
+//
+// It was only ever enforced on the READ side, though — the app hid the tab while the panel happily
+// assigned a programme anyway, and one did get assigned (owner, 2026-08-08). A rule that lives only
+// where the data is DISPLAYED is not a rule; it is a preference the next screen ignores.
+//
+// So one function, used by both sides. `programs.length > 0` is the deliberate escape hatch: a
+// member who somehow already HAS a programme keeps it, and can be given another. Nothing that was
+// granted gets taken away by a rule written afterwards.
+export async function mayHaveProgram(ctx: TenantContext, memberId: string): Promise<boolean> {
+  const [programs, ents] = await Promise.all([
+    repo().listProgramsByMember(ctx, memberId),
+    new FirestoreEntitlementRepository(adminDb()).listActiveByMember(ctx, memberId as MemberId),
+  ])
+  return (
+    ents.some((e) => e.productSnapshot.category === 'fitness' || e.productSnapshot.category === 'private') ||
+    programs.length > 0
+  )
+}
+
+/** The panel asks this to decide whether to OFFER the buttons; the refusal below is what enforces it. */
+export async function mayHaveProgramAction(input: unknown): Promise<boolean> {
+  const p = z.object({ memberId: z.string().min(1) }).parse(input)
+  const ctx = await requireTenantContext(TRAINER)
+  return mayHaveProgram(ctx, p.memberId)
+}
+
+/** Refused, not hidden: a button that is merely absent is a button a second screen still presses. */
+async function assertMayHaveProgram(ctx: TenantContext, memberId: string): Promise<void> {
+  if (!(await mayHaveProgram(ctx, memberId))) throw new ForbiddenError([...TRAINER])
+}
+
 // ── Exercise library ─────────────────────────────────────────────────────────────────────────
 export async function listExercisesAction() {
   const ctx = await requireTenantContext(TRAINER)
@@ -122,6 +159,7 @@ export async function createProgramAction(input: unknown) {
     })
     .parse(input)
   const ctx = await requireTenantContext(TRAINER)
+  await assertMayHaveProgram(ctx, p.memberId)
   const a = actorRef(ctx)
   // A trainer always authors as herself; only the owner may assign another trainer.
   const trainerId = a.type === 'trainer' ? a.id : p.trainerId ?? a.id
@@ -234,6 +272,7 @@ export async function assignTemplateAction(input: unknown) {
   const a = actorRef(ctx)
   const trainerId = a.type === 'trainer' ? a.id : p.trainerId ?? a.id
   await assertMayReadMemberContent(ctx, p.memberId)
+  await assertMayHaveProgram(ctx, p.memberId)
   return instantiateTemplate(trainingDeps(), ctx, { templateId: p.templateId, memberId: p.memberId, trainerId }, STAFF_SOURCE)
 }
 
@@ -616,6 +655,8 @@ export async function loadMyTraining(ctx: TenantContext, memberId: MemberId) {
   // Training PROGRAMMES are for members who actually train — fitness (gym) or PT. A pilates-only member
   // has no use for a workout plan; she sees only her measurements. Kept honest by a real membership
   // check, and a safety net: if a programme somehow exists, never hide it.
+  // The SAME rule the panel enforces on the way in — see `mayHaveProgram`. Computed from what is
+  // already loaded rather than re-reading it.
   const showPrograms =
     entitlements.some((e) => e.productSnapshot.category === 'fitness' || e.productSnapshot.category === 'private') ||
     programs.length > 0
