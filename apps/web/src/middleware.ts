@@ -35,6 +35,11 @@ const PUBLIC_PREFIXES = [
   '/api/public',
   '/api/member',
   '/api/payments/paytr/callback',
+  // v1.33 — the turnstile's own endpoint. A box bolted to a wall has no `__session` cookie and no
+  // human to log in as; it carries its own device secret and the handler verifies it (see
+  // `deviceHeartbeatAuth`). Without this the door was 307'd to the staff login screen — a redirect
+  // it cannot follow and would never report, so the arm would simply stop opening.
+  '/api/turnstile',
   // Public privacy policy / KVKK notice — the URL the app stores and members link to. No session.
   '/gizlilik',
   // The printed daily check-in sheet (2026-07-27). A member points her camera at the wall and lands

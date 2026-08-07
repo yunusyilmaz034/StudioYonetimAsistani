@@ -42,6 +42,13 @@ describe('middleware — the coarse gate', () => {
     expect(locationOf(middleware(request('/api/payments/paytr/callback')))).toBeNull()
   })
 
+  // v1.33 — caught by probing the live endpoint after deploying: the door was 307'd to the staff
+  // login. A box on a wall cannot follow a redirect and would never report one; the arm would simply
+  // have stopped opening, with nothing in any log to say why.
+  it('lets the cookie-less turnstile through — a door carries a device secret, not a session', () => {
+    expect(locationOf(middleware(request('/api/turnstile')))).toBeNull()
+  })
+
   it('lets the cookie-less shareable payment page through — a customer pays without an account (PF-37)', () => {
     expect(locationOf(middleware(request('/pay/plink_abc?s=retro')))).toBeNull()
   })
