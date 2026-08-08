@@ -1,3 +1,5 @@
+import { isDemoMode } from './demo-mode'
+import { maskName, maskPhone } from '@/lib/demo-mask'
 import {
   available,
   debtByMember,
@@ -100,13 +102,18 @@ export async function listMemberRows(ctx: TenantContext, nowMs: number): Promise
     }
   }
 
+  // Demo modu: kimliğe dair alanlar SUNUCUDA maskelenir, ekranda değil — tarayıcıya giden veride
+  // gerçek ad hiç bulunmaz. Rakamlar, tarihler ve durum dokunulmadan geçer.
+  const demo = await isDemoMode()
+
   return members.map((m) => {
     const pk = primary.get(m.id as string) ?? null
+    const id = m.id as string
     return {
-      id: m.id as string,
-      fullName: m.fullName,
-      phone: m.phone as string,
-      phoneNormalized: m.phoneNormalized,
+      id,
+      fullName: demo ? maskName(m.fullName, id) : m.fullName,
+      phone: demo ? maskPhone(m.phone as string) : (m.phone as string),
+      phoneNormalized: demo ? '' : m.phoneNormalized,
       status: m.status,
       joinedAt: m.joinedAt as number,
       badges: badgesFor(

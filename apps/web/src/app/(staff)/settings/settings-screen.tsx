@@ -1,9 +1,9 @@
 'use client'
 
 import type { DayHours, StudioSettings, WorkingHours } from '@studio/core'
-import { CalendarDaysIcon, CreditCardIcon, ShieldAlertIcon } from 'lucide-react'
+import { CalendarDaysIcon, CreditCardIcon, ShieldAlertIcon, Loader2Icon} from 'lucide-react'
 import Link from 'next/link'
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useEffect} from 'react'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
@@ -21,6 +21,7 @@ import { ThemeScreen } from './theme/theme-screen'
 import { domainErrorMessage } from '@/lib/domain-error'
 import type { StudioTheme } from '@/lib/theme/presets'
 import { updateStudioSettingsAction } from '@/server/actions/settings'
+import { getDemoModeAction, setDemoModeAction } from '@/server/actions/demo'
 
 // The settings screen. Plain on purpose: it is opened when a studio is set up, and then perhaps
 // twice a year. What it owes the owner is not elegance — it is **being impossible to misread**.
@@ -73,6 +74,51 @@ function Field({
       {children}
       {hint ? <span className="block text-sm text-muted-foreground">{hint}</span> : null}
     </label>
+  )
+}
+
+// Kapalıyken sessiz, açıkken ısrarla görünür: maskelenmiş bir panelde çalışan resepsiyon aradığı
+// üyeyi bulamaz, ve modun açık kaldığını fark etmesi gerekir. Çerez zaten 8 saatte kendiliğinden
+// düşer — ama bir uyarı, sekiz saat beklemekten iyidir.
+function DemoModeToggle() {
+  const [on, setOn] = useState(false)
+  const [busy, setBusy] = useState(false)
+
+  useEffect(() => {
+    void getDemoModeAction().then(setOn).catch(() => {})
+  }, [])
+
+  async function toggle(next: boolean) {
+    setBusy(true)
+    try {
+      const res = await setDemoModeAction({ on: next })
+      if (res.ok) {
+        setOn(next)
+        // Sunucu bileşenlerinin maskelenmiş veriyi yeniden çekmesi için sayfa yenilenir; maskeleme
+        // ekranda değil SUNUCUDA yapıldığı için yeni bir istek şart.
+        window.location.reload()
+      }
+    } catch {
+      toast.error('Demo modu değiştirilemedi.')
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-3">
+        <Button variant={on ? 'default' : 'outline'} disabled={busy} onClick={() => void toggle(!on)}>
+          {busy ? <Loader2Icon className="animate-spin" /> : null}
+          {on ? 'Demo modu açık — kapat' : 'Demo modunu aç'}
+        </Button>
+        {on ? <span className="text-sm font-semibold text-warning">Üye adları gizleniyor</span> : null}
+      </div>
+      <p className="text-sm text-muted-foreground">
+        Üye adı <strong>Ayşe K.</strong>, telefon <strong>+90 5•• ••• •• 47</strong> olarak görünür.
+        Rakamlar, tarihler, doluluk ve para <strong>gerçek kalır</strong>. Hiçbir veri değişmez —
+        yalnızca bu tarayıcıda, 8 saat boyunca geçerlidir; resepsiyonun ekranı etkilenmez.
+      </p>
+    </div>
   )
 }
 
@@ -433,6 +479,13 @@ export function SettingsScreen({
           <ShieldAlertIcon />
           Üye Kaydını Anonimleştir
         </Button>
+      </Section>
+
+      {/* DEMO MODU (owner, 2026-08-08). Ekran görüntüsü alırken ya da yeni bir müşteriye canlı demo
+          gösterirken üyelerin adı ve telefonu görünmesin diye. Yalnızca GÖRÜNÜM değişir — hiçbir şey
+          yazılmaz, hiçbir veri değişmez; kapatınca her şey aynen geri gelir. */}
+      <Section title="Demo modu" hint="Ekran görüntüsü ve müşteri demosu için üye adlarını gizler. Veriye dokunmaz.">
+        <DemoModeToggle />
       </Section>
 
         </TabsContent>

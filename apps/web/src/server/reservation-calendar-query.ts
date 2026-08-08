@@ -1,3 +1,5 @@
+import { isDemoMode } from './demo-mode'
+import { maskName } from '@/lib/demo-mask'
 import { FirestoreMemberRepository, FirestoreReservationRepository, instant, type TenantContext } from '@studio/core'
 
 import { adminDb } from './firebase-admin'
@@ -39,7 +41,12 @@ export async function loadReservationCalendar(
     // reservation stores. One extra read of a small collection.
     new FirestoreMemberRepository(adminDb()).list(ctx),
   ])
-  const fullNameById = new Map(members.map((m) => [m.id as string, m.fullName]))
+  // Demo modu — takvim, üye adının en yoğun göründüğü ekran: bir ay boyunca kimin hangi gün ve saat
+  // spora geldiği. Maskeleme burada sunucuda yapılır, ekranda değil.
+  const demo = await isDemoMode()
+  const fullNameById = new Map(
+    members.map((m) => [m.id as string, demo ? maskName(m.fullName, m.id as string) : m.fullName]),
+  )
 
   const rosters: Record<string, SessionRosterEntry[]> = {}
   for (const r of reservations) {
@@ -49,7 +56,9 @@ export async function loadReservationCalendar(
       memberId: r.memberId,
       // Falls back to the snapshot for a member who no longer exists (erased): her past reservation
       // still renders, with the reduced name the snapshot was built to preserve.
-      memberName: fullNameById.get(r.memberId) ?? r.memberSnapshot.displayName,
+      memberName:
+        fullNameById.get(r.memberId) ??
+        (demo ? maskName(r.memberSnapshot.displayName, r.memberId) : r.memberSnapshot.displayName),
       status: r.status,
     })
   }
