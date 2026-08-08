@@ -1,5 +1,7 @@
 'use server'
 
+import { isDemoMode } from '../demo-mode'
+import { maskName } from '@/lib/demo-mask'
 import { FirestoreEntitlementRepository, FirestoreMemberRepository, FirestoreReservationRepository, instant, lastActivityAt } from '@studio/core'
 import { z } from 'zod'
 
@@ -246,9 +248,13 @@ export async function engagementSuggestionsAction(): Promise<readonly Engagement
   const year = new Date().getFullYear()
   const mmdd = `${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`
   const out: EngagementSuggestion[] = []
+  // Demo modu — bu ekran, üye adını "23 gündür gelmiyor" bilgisiyle YAN YANA gösterir; maskesiz
+  // haliyle bir ekran görüntüsünde kimin uzaklaştığı da açığa çıkar. İlk turda atlanmıştı ve bir
+  // ekran görüntüsünde yakalandı: demo modu "bazı ekranlarda çalışır" olamaz.
+  const demo = await isDemoMode()
   const make = (t: SugType, m: { id: unknown; fullName: string }, reason: string, logKey: string) => {
     const d = draft(t)
-    out.push({ id: `${t}:${m.id as string}`, type: t, typeLabel: SUG_LABEL[t]!, memberId: m.id as string, memberName: m.fullName, reason, subject: d.subject, body: d.body, logKey })
+    out.push({ id: `${t}:${m.id as string}`, type: t, typeLabel: SUG_LABEL[t]!, memberId: m.id as string, memberName: demo ? maskName(m.fullName, m.id as string) : m.fullName, reason, subject: d.subject, body: d.body, logKey })
   }
 
   // At most ONE suggestion per member per view — priority order avoids over-messaging.
