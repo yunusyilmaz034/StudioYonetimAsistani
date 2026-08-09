@@ -33,14 +33,24 @@ A day this panel cannot open is a day the business cannot run.
   app, references, the correction trail, contact. No prices — enquiries go to WhatsApp
   `0507 966 67 82`. Deploy: `cd ~/retroasistan-site && firebase deploy --only hosting`.
   - Hosting site **`retroasistan`** → `retroasistan.web.app`. This is where the branded site lives.
-  - **`retroasistan.com` is NOT connected yet.** Connect it on the `retroasistan` site — the console
-    caches its site list, so refresh if the site is missing from the dropdown. Attaching it to the
-    OLD `studyoasistan` site was tried first and is wrong: that site still serves the pre-rename
-    page.
-  - The old `studyoasistan` Hosting site and `studyoasistan.com` still exist and still serve the OLD
-    page. Keep them: the domain becomes a 301 to `retroasistan.com`. They must stay on a SEPARATE
-    hosting site for that — Firebase redirects are path-based, not host-based, so two domains on one
-    site means duplicate content with no way to redirect between them.
+  - **`retroasistan.com` is live** (2026-08-09), certificate issued by Google Trust Services. The
+    domain was registered at Natro and its nameservers moved to Cloudflare — until that move the
+    Cloudflare records were a draft nobody was asked for, and Firebase's Verify would have failed
+    while the panel looked correct.
+  - **`studyoasistan.com` 301s to it**, and the redirect is a DEPLOY, not a Cloudflare rule: the old
+    `studyoasistan` Hosting site now serves nothing but a catch-all 301
+    (`~/retroasistan-site/legacy-studyoasistan/`, deployed from that folder). The rule lives in
+    version control beside what it redirects, instead of as a setting in a panel nobody remembers
+    six months later. **This is why the two domains had to stay on SEPARATE hosting sites** —
+    Firebase redirects are path-based, not host-based, so one site serving both would mean duplicate
+    content with no way to redirect between them.
+  - ⚠️ **`www.retroasistan.com` still points at Natro's redirect service** and does not work. Either
+    delete that CNAME and add `www` as a second custom domain, or redirect it at Cloudflare.
+  - ⚠️ **The domain's ICANN e-mail verification was still pending** at Natro on the day it was
+    registered. Unverified for 15 days and the domain is SUSPENDED — the site and its mail stop.
+    It is registered to `Işıl Yılmaz / pilatesbyisil@gmail.com`, i.e. the platform's own address sits
+    in a customer's registrar account; fine while they are the same person, worth untangling before
+    the trademark is filed.
   - `preview/` is excluded from deploy (`firebase.json`): it holds a references mock-up with invented
     studios, for judging the layout. It must never ship.
   - Its screenshots were taken with the panel's **demo mode** on, which is what that feature exists
