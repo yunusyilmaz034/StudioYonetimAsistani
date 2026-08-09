@@ -167,14 +167,23 @@ sözleşmede **veri işleyen** sıfatıyla düzenlenmeli. Şimdi karara bağlama
 Rakibin güçlü olduğu alan operasyon; oraya hazırlıksız girilmez.
 
 1. **Faz A** — A1 WhatsApp numarası · A2 e-posta göndericisi · A3 `pnpm studio:new` (aşağıda)
-2. **Dış uptime izleme** — bugün YOK, ve yokluğu sessiz: watchdog kendi susuşunu haber veremez.
-   Proje askıya alınırsa bütün alarmlar susar ve bu, her şey yolundaymış gibi görünür.
-3. **Bakım penceresi** — deploy'un açık sekmeleri kırması tek stüdyoda haber vererek çözülüyor; beş
-   stüdyoda beş resepsiyona haber verilemez.
-4. **Hibrit satış + Sanal POS canlı testi** — ikisi de bugüne kadar gerçek bir işlemle hiç çalışmadı.
-   Kendi stüdyonda patlarsa öğrenirsin; müşteride patlarsa itibar.
-5. **Yedekten dönüş provası** — yedek almak yeterli değil, geri dönebildiğini bir kez denemek gerekir.
-6. **Sözleşme + SLA metni** — ne söz veriliyor, neyi kapsamıyor.
+2. **Dış uptime izleme** — 🔧 **kod tarafı bitti (2026-08-09), hesap owner'da.** Gecelik tarama artık
+   dışarıdaki bir adrese ping atıyor (`pingDeadMansSwitch`); o ping gelmediğinde dışarıdaki servis
+   bağırır, yani **sessizlik sinyale dönüşüyor** — bekçinin kendi susuşunu haber verememesi böyle
+   kapanıyor. Owner'ın yapacağı iki kayıt (~10 dk) `docs/RUNBOOK.md` → "Dış izleme"de:
+   healthchecks.io (ölü adam düğmesi) **ve** panelin kendisine HTTP kontrolü. İkincisi ayrı, çünkü
+   düğme yalnız *fonksiyonların çalıştığını* kanıtlar; panel App Hosting'de ve fonksiyonlar mutluyken
+   çökebilir. Tek başına düğmeye güvenmek, yanlış bir yeşildir (OR-17).
+3. **Bakım penceresi** — kararı verildi (§4: 23:00–07:00); kalan iş sözleşme metnine yazılması, yani
+   madde 6'nın parçası.
+4. **Hibrit satış + Sanal POS canlı testi** — ⬜ **AÇIK ve owner'da.** İkisi de bugüne kadar gerçek
+   bir işlemle hiç çalışmadı. Kendi stüdyonda patlarsa öğrenirsin; müşteride patlarsa itibar.
+   Kod tarafında yapılacak bir şey yok — eksik olan gerçek bir çekim.
+5. **Yedekten dönüş provası** — ✅ **YAPILDI (2026-07-26).** 2026-07-25 yedeği ayrı bir veritabanına
+   geri yüklendi: 119 üye, 56 paket, canlıyla birebir. Sonucu ve komutları `docs/RUNBOOK.md`'de.
+   Not: Firestore yedekleri veritabanını kapsar, **Storage'ı değil** — sözleşmeler ve fotoğraflar için
+   sürümleme + yaşam döngüsü kuralı var, ama kovanın kendisinin kaybına karşı korumuyor.
+6. **Sözleşme + SLA metni** — ⬜ ne söz veriliyor, neyi kapsamıyor. Bakım penceresi burada yazılı olmalı.
 
 **Faz A tamamlanmadan ikinci müşteri kurulmamalı.** Kurulursa mesajları ilk stüdyonun numarasından
 gider ve geri dönüşü olmayan bir karışıklık doğar.
@@ -405,7 +414,8 @@ Faz A'nın dört maddesi artık aynı sırada DEĞİL: ikisi müşteriye bağlı
    ŞİMDİ YAPILABİLİR ┤
                      └─ A4 mobil derleme parametreleri ── ✅ BİTTİ (2026-08-09)
                             ↓
-   Operasyon   dış izleme · bakım penceresi · yedekten dönüş provası · hibrit+POS canlı test
+   Operasyon   dış izleme 🔧kod bitti/hesap owner'da · yedekten dönüş ✅ · bakım penceresi ✅karar
+               ⬜ KALAN: hibrit + Sanal POS ile GERÇEK bir çekim
                             ↓                    ⚠️ §1: satışın ÖNKOŞULU, konforu değil
    Ticari      marka tescili (RETROASISTAN) · alan adı ✅ · wildcard SSL · sözleşme + SLA
                             ↓

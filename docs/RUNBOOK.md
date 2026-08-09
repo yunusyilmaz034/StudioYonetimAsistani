@@ -104,6 +104,54 @@ bypassed a transaction.
 
 ---
 
+## Dış izleme — çünkü bekçi kendi susuşunu haber veremez
+
+Bu dosyadaki her alarm **izlediği projenin içinden** kalkıyor. Yapısal olarak haber veremeyeceği tek
+şey de bu: proje ödenmemiş bir fatura yüzünden askıya alınırsa, fonksiyonlar deploy olmazsa ya da
+zamanlama silinirse **bütün alarmlar susar** — ve sessizlik tam olarak "hiçbir şey yok"a benziyor.
+
+Çözüm sessizliği sinyale çevirmek. Gecelik altyapı taraması bitince dışarıdaki bir adrese POST atar;
+o servis ping gelmediğinde bağırır. Kodu hazır (`infrastructure-alarm.ts` → `pingDeadMansSwitch`),
+eksik olan hesap.
+
+### Kurulum (owner, ~10 dakika)
+
+**1 · Ölü adam düğmesi — fonksiyonlarımız çalışıyor mu?**
+
+[healthchecks.io](https://healthchecks.io) (ücretsiz) → yeni check:
+- **Period** 1 gün · **Grace** 6 saat (tarama gecelik; tolerans deploy ve gecikme payı)
+- Verdiği ping URL'ini `apps/functions/.env.studio-yonetim-prod` → `HEARTBEAT_URL=` satırına yaz
+- `firebase deploy --only functions`
+- Doğrulama: bir sonraki gece taramasından sonra check yeşile dönmeli. Beklemek istemiyorsan
+  fonksiyonu elle tetikle ve healthchecks sayfasında "last ping" değerine bak.
+
+**2 · Panelin kendisi ayakta mı?** ⚠️ Bunu ölü adam düğmesi KANITLAMAZ.
+
+Düğme yalnızca *zamanlanmış fonksiyonun çalıştığını* söyler. Panel App Hosting'de ve fonksiyonlar
+mutluyken çökebilir. Yani ikinci bir kontrol şart:
+
+[UptimeRobot](https://uptimerobot.com) ya da Better Stack (ücretsiz) → HTTP(S) monitor:
+- `https://panel.pilatesfitnessbyisil.com/login` — 5 dakikada bir, 200 bekleniyor
+- `https://retroasistan.com` — 5 dakikada bir (satış sayfası; kapalıysa gelen müşteri kaybolur)
+- Bildirim: e-posta **ve** telefona push. Yalnız e-posta, gece 03:00'te okunmayan bir alarmdır.
+
+**Neden `/login`, kök adres değil:** kök adres oturum durumuna göre yönlendirme yapar; `/login` her
+zaman 200 döner ve bir cevap verebilmesi için uygulamanın gerçekten ayağa kalkmış olması gerekir.
+
+### Kontrol
+
+```bash
+# Düğme yapılandırılmış mı? Yapılandırılmamışsa tarama bunu HER GECE bağırır:
+gcloud functions logs read infrastructureWatch --project <prod> --limit 50 \
+  | grep -E "heartbeat_not_configured|heartbeat_ping_failed|infra_watch_total_failure"
+```
+
+**Tarama her stüdyoda başarısız olursa ping ATILMAZ** — çalışmış ama hiçbir şey öğrenmemiş bir
+taramanın "yolunda" demesi yalan olurdu, ve o durumda sessizlik zaten dışarıdaki servisin beklediği
+sinyaldir.
+
+---
+
 ## Procedures
 
 ### Rebuilding the projection
