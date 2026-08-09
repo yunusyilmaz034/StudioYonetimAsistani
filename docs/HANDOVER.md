@@ -28,14 +28,23 @@ A day this panel cannot open is a day the business cannot run.
   under `~/Projects`, and NOT in git — back a file up before editing it). Two pages, `index.html` and
   `uyelik.html`; both read live prices from `/api/public/products`. Deploy: `cd ~/pilates-site &&
   firebase deploy --only hosting` (Hosting site `pilatesfitnessbyisil-web`, same Firebase project).
-- **The platform's own site · `studyoasistan.com`** — live since 2026-08-08, static HTML at
-  **`~/studyoasistan-site`** (its own git repo since 2026-08-09; NOT under `~/Projects`, NOT part of
-  this repository). One page: AI reception, panel, member app, the correction trail, contact. No
-  prices — enquiries go to WhatsApp `0507 966 67 82`. Firebase Hosting site `studyoasistan`, same
-  project, Cloudflare DNS. Deploy: `cd ~/studyoasistan-site && firebase deploy --only hosting`.
-  Its eleven screenshots were taken with the panel's **demo mode** on, which is what that feature
-  exists for — masked names, real numbers. Retaking one means turning demo mode back on first.
-  **`studyoasistan.com.tr` is owned but NOT connected** — it still answers on the registrar's IP.
+- **The platform's own site · RetroAsistan** — static HTML at **`~/retroasistan-site`** (its own git
+  repo; NOT under `~/Projects`, NOT part of this repository). One page: AI reception, panel, member
+  app, references, the correction trail, contact. No prices — enquiries go to WhatsApp
+  `0507 966 67 82`. Deploy: `cd ~/retroasistan-site && firebase deploy --only hosting`.
+  - Hosting site **`retroasistan`** → `retroasistan.web.app`. This is where the branded site lives.
+  - **`retroasistan.com` is NOT connected yet.** Connect it on the `retroasistan` site — the console
+    caches its site list, so refresh if the site is missing from the dropdown. Attaching it to the
+    OLD `studyoasistan` site was tried first and is wrong: that site still serves the pre-rename
+    page.
+  - The old `studyoasistan` Hosting site and `studyoasistan.com` still exist and still serve the OLD
+    page. Keep them: the domain becomes a 301 to `retroasistan.com`. They must stay on a SEPARATE
+    hosting site for that — Firebase redirects are path-based, not host-based, so two domains on one
+    site means duplicate content with no way to redirect between them.
+  - `preview/` is excluded from deploy (`firebase.json`): it holds a references mock-up with invented
+    studios, for judging the layout. It must never ship.
+  - Its screenshots were taken with the panel's **demo mode** on, which is what that feature exists
+    for — masked names, real numbers. Retaking one means turning demo mode back on first.
 - Studio id · `retro`. Nothing in the code may assume it is the only one.
 
 ---
@@ -103,7 +112,9 @@ test was real:
   show-password eye (PF-44), empty modules on the home screen, workout tracking (OR-33).
 - *Audience and scale* — a closed audience (≈120 members of one studio, invite-only), and therefore
   **0–10k installs in the first year**. Claiming a bigger number would have contradicted the
-  audience answer one box above it.
+  audience answer one box above it. ⚠️ That answer says the studio is in **İstanbul**; it is in
+  **KOCAELİ**. Submitted and not editable, and Google does not reject over a city — but if the
+  application comes back and is refiled, correct it.
 - *Readiness* — daily real use, every reported item closed, no blocking fault in the last fortnight.
   A crash-free claim was deliberately NOT made: nobody had checked Android vitals, and Google can
   see that data whether or not we cite it.
@@ -148,8 +159,9 @@ must still be created and sent for review by hand.
 - **The AI receptionist is healthy; demand is what fell.** (2026-08-05) The owner saw a quiet day and
   asked if something was broken. Nothing is: every incoming WhatsApp message got an AI reply, 100% on
   every day of the week, and the webhook logged zero errors. What dropped is INBOUND — 67 messages on
-  1 Aug, 21, 15, then 9 on 4 Aug. That is an advertising/seasonality question (early August empties
-  İstanbul), not a software one. Worth checking the ad budget and the number's quality rating in
+  1 Aug, 21, 15, then 9 on 4 Aug. That is an advertising/seasonality question, not a
+  software one. **The reason first written here — "early August empties İstanbul" — was wrong: the
+  studio is in KOCAELİ, not İstanbul.** The drop is real; that explanation was not. Worth checking the ad budget and the number's quality rating in
   WhatsApp Manager before assuming either way.
 
 - **`main` was rewritten once, on 2026-08-03, and the original is kept.** Three unrelated changes went
