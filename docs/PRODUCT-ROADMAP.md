@@ -373,21 +373,32 @@ ayrıca sunulur ve **ücretlendirilir**.
 
 ## 10. Sıra
 
+Faz A'nın dört maddesi artık aynı sırada DEĞİL: ikisi müşteriye bağlı, ikisi bugün yapılabilir.
+Şema bunu gösteriyor, çünkü "sıradaki iş" sorusunun cevabı buna bağlı.
+
 ```
-[şimdi]  PF/bug işleri
-   ↓
-Faz A   A1 WhatsApp · A2 e-posta · A3 studio:new · A4 mobil derleme parametreleri
-   ↓
-Operasyon  dış izleme · bakım penceresi · yedekten dönüş provası · hibrit+POS canlı test
-   ↓
-Ticari   marka tescili (RETROASISTAN) · alan adı + wildcard SSL · sözleşme + SLA metni
-   ↓
-[Novozen — tasarım ortağı, indirimli]
-   ↓
-Faz B   platform_admin ekranı + destek merkezi · lisans takibi
-   ↓
-[3. müşteri]  →  Home Assistant ürünleştirme (§7)
+                     ┌─ A1 WhatsApp ────┐  müşterinin kendi Meta hesabı
+   MÜŞTERİYE BAĞLI ──┤                  ├─ müşteri gelince, onunla birlikte
+                     └─ A2 e-posta ─────┘  müşterinin alan adında SPF/DKIM
+
+                     ┌─ A3 studio:new ──── ✅ BİTTİ (2026-08-09)
+   ŞİMDİ YAPILABİLİR ┤
+                     └─ A4 mobil derleme parametreleri ── AÇIK
+                            ↓
+   Operasyon   dış izleme · bakım penceresi · yedekten dönüş provası · hibrit+POS canlı test
+                            ↓                    ⚠️ §1: satışın ÖNKOŞULU, konforu değil
+   Ticari      marka tescili (RETROASISTAN) · alan adı ✅ · wildcard SSL · sözleşme + SLA
+                            ↓
+   [Novozen — tasarım ortağı, indirimli]
+                            ↓
+   Faz B       platform_admin ekranı + destek merkezi · lisans takibi
+                            ↓
+   [3. müşteri]  →  Home Assistant ürünleştirme (§7)
 ```
+
+**Sıradaki iş A4 ya da Operasyon kapısıdır.** A1/A2'yi beklemek zaman kaybı değil, doğru sıra:
+ikisinin de yarısı müşterinin elinde ve müşterisiz yazılan kod, doğrulanamayan bir varsayımın
+üstüne oturur.
 
 ---
 
