@@ -808,6 +808,37 @@ matters, or when move is exposed to members (self-service) rather than staff-onl
 
 ---
 
+## DEBT-042 — The platform's own domain has no watchdog, because the only watchdog is studio-scoped
+
+**Taken:** 2026-08-09 · Productisation · Yunus (owner-approved)
+**What:** `studyoasistan.com` — the platform's own marketing site, live since 2026-08-08 — is
+monitored by nothing. The nightly infrastructure watchdog exists and does exactly this job (expiry,
+TLS, reachability), but it reads `studios/{studioId}/settings/infrastructure`, so **everything it
+watches belongs to a studio.** The platform's domain belongs to no studio.
+
+Adding it under `retro` was considered and REFUSED. It would have worked tonight and been wrong:
+the platform's own domain would then be a row inside a customer's settings, and the day that
+customer leaves, monitoring of our own address leaves with them. A category error that only bites
+once, at the worst moment.
+
+`pnpm setup:infrastructure` was written in the same session and is the correct way to edit that
+document when the time comes — the list had been hand-written, which is the one thing this
+repository refuses to do to production data (a `domains` field written as a string silently watches
+nothing, and a monitor with nothing to report looks identical to a monitor watching nothing).
+
+**Cost:** if the registrar lets `studyoasistan.com` lapse, or its certificate expires, or the site
+goes down, nobody is told. The blast radius is a marketing site rather than the studio's day —
+which is why this is debt and not a defect. The same gap will apply to every platform-level address
+(status page, docs, the wildcard) as they appear.
+**Trigger to repay:** the second studio (`novozen`) exists, OR anything the business depends on
+moves onto a platform-level address. Whichever comes first — after that, "which studio owns this
+domain?" stops having an answer at all.
+**Repayment:** a platform-scoped settings document outside `/studios`, read by the same
+`runInfrastructureChecks`, alerting the platform rather than a studio's owner. Roughly Faz A-sized
+and belongs with `studio:new` in `docs/PRODUCT-ROADMAP.md` §10.
+
+---
+
 ## DEBT-041 — Payroll report re-reads the whole studio's period once per trainer
 
 **Taken:** 2026-07-16 · Production-readiness audit (performance) · Yunus (owner-approved)

@@ -28,6 +28,14 @@ A day this panel cannot open is a day the business cannot run.
   under `~/Projects`, and NOT in git — back a file up before editing it). Two pages, `index.html` and
   `uyelik.html`; both read live prices from `/api/public/products`. Deploy: `cd ~/pilates-site &&
   firebase deploy --only hosting` (Hosting site `pilatesfitnessbyisil-web`, same Firebase project).
+- **The platform's own site · `studyoasistan.com`** — live since 2026-08-08, static HTML at
+  **`~/studyoasistan-site`** (its own git repo since 2026-08-09; NOT under `~/Projects`, NOT part of
+  this repository). One page: AI reception, panel, member app, the correction trail, contact. No
+  prices — enquiries go to WhatsApp `0507 966 67 82`. Firebase Hosting site `studyoasistan`, same
+  project, Cloudflare DNS. Deploy: `cd ~/studyoasistan-site && firebase deploy --only hosting`.
+  Its eleven screenshots were taken with the panel's **demo mode** on, which is what that feature
+  exists for — masked names, real numbers. Retaking one means turning demo mode back on first.
+  **`studyoasistan.com.tr` is owned but NOT connected** — it still answers on the registrar's IP.
 - Studio id · `retro`. Nothing in the code may assume it is the only one.
 
 ---
