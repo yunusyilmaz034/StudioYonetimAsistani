@@ -66,11 +66,23 @@ the turnstile's six-digit scanner. A build made today would reach the stores cal
 while behaving differently from the 1.5.0 under review. **Bump to 1.6.0 before the next build**; the
 turnstile cannot reach members until that release ships anyway.
 
-**Android's production clock: 12 testers, 14 days required, and on 2026-07-29 it stood at day 3** —
-so it completes around **2026-08-09**, which is now. Check Play Console for the actual state before
-assuming either way. If a tester leaves the test the counter RESETS — do not remove testers.
-Publishing new builds does NOT reset it, which is why 1.2.0 and 1.2.1 could both go out mid-count
-without costing a day.
+**Android's 14-day production clock is DONE** — confirmed in Play Console on 2026-08-09: all three
+prerequisites struck through (closed test published · 12 testers enrolled · 14 days served) and
+"Üretime başvur" is live. Production itself still reads *Etkin değil*: the requirement being met
+does not grant access, it only unlocks the application, which Google reviews by hand.
+
+**Apply now; do not wait for 1.6.0.** Production access is granted to the app, not to a build, and
+the review takes days — it runs in parallel with preparing the turnstile release. **Keep every
+tester enrolled until the application is approved**: a rejection puts the counter back in play, and
+a tester leaving RESETS it. Publishing new builds does not.
+
+The application asks, in prose, who the testers were, how feedback was gathered and what changed
+because of it. The honest answer is strong and it is already written down: testers are the studio's
+own members and reception staff, feedback came in person, over WhatsApp and through the desk, and
+the closed test produced **five releases in two weeks (1.1.0 → 1.5.0)**, each traceable to a
+reported fault — the wallet screen that trapped the member with no back button (OR-25), the video
+player that failed on every exercise (OR-22), past reservations burying the agenda (PF-43), the
+show-password eye (PF-44), empty modules on the home screen, and workout tracking (OR-33).
 
 Submissions are automated: `cd apps/mobile && npx eas-cli submit --platform android --profile
 production --latest`. The Play service account key is gitignored at
@@ -88,6 +100,10 @@ must still be created and sent for review by hand.
   earlier version — all of them are contained in it. Test credentials for the reviewer:
   `0500 000 00 01` / `Yu156211` — a member with a live package and a programme, excluded from every
   report.
+- **Android production access: the application has to be submitted by hand.** The 14-day requirement
+  was met on 2026-08-09 and "Üretime başvur" is open. See the store section for what it asks and the
+  answers the closed test actually earned. Until this is approved the app reaches nobody outside the
+  twelve testers.
 - **The turnstile's hardware.** The software is live and the device pairing tool exists
   (`pnpm setup:turnstile`), but the Perkotek S150 is not fitted and its firmware is deliberately
   unwritten — writing it blind against hardware nobody has held is how you debug two things at once.
