@@ -544,35 +544,36 @@ bug: four belonged to fitness members whose package had EXPIRED, and their progr
 when they renew. The two real ones were **archived, never deleted** — deleting would erase the
 evidence of the bug being fixed.
 
-**OR-36 · Pilates Fitness by Işıl is not touched. Disruption there is not acceptable.** (2026-08-09)
-Said in those words at the start of the productisation work, and it is the strongest rule in this
-document because it is the one with a business behind it. That studio retired its old system on
-2026-07-27; this panel is the only one it has. A day it cannot open is a day the business cannot run.
+**OR-36 · Nothing may happen to Pilates Fitness by Işıl's DATA or her WORKING CODE.** (2026-08-09)
+Said at the start of the productisation work. That studio retired its old system on 2026-07-27; this
+panel is the only one it has, and every member, package, credit and payment it has recorded since
+lives in one place. Productisation is for the *second* customer — the first customer's records and
+her working day cannot be its cost.
 
-What it forbids, without exception:
+The rule is about **harm, not motion.** Shipping is normal and expected; regression and data damage
+are not. Concretely:
 
-- **No write to `retro`'s data.** No setup script, no break-glass, no console, no migration, no
-  "small correction". Reading is fine and encouraged.
-- **Nothing attached to her settings.** This is why `studyoasistan.com` was NOT added to the nightly
-  watchdog: that document lives under her studio, so monitoring the platform's own domain would have
-  meant writing into a customer's configuration (DEBT-042).
-- **No change made for another customer's benefit reaches her as a behaviour change.**
+- **Her data is never written to for our convenience.** No setup script, no break-glass, no console,
+  no migration, no batch, no "small correction" to make a new feature fit. Reading is fine and
+  encouraged. Corrections to her records happen only when *she* needs them, through the domain, with
+  a `reason` — never as a side effect of platform work.
+- **Nothing of the platform's is attached to her settings.** This is why `studyoasistan.com` was NOT
+  added to the nightly watchdog: that document lives under her studio, so monitoring the platform's
+  own domain would have meant writing into a customer's configuration (DEBT-042).
+- **What works today still works tomorrow.** A change made for another customer must not alter her
+  panel's behaviour. New behaviour sits **behind a per-studio setting** whose value for `retro` is
+  empty, so her side keeps doing exactly what it did.
 
-**The honest complication, stated rather than discovered later.** One code base was chosen
-deliberately (`PRODUCT-ROADMAP.md` §2), and the price of that decision is that Faz A's code — the
-per-studio WhatsApp number, the e-mail sender, `studio:new` — runs on her panel the moment it
-deploys. Applied to the letter, this rule would forbid Faz A entirely. Applied to its purpose, it
-means:
+**Deploying is not the risk; breaking is.** One code base was chosen deliberately
+(`PRODUCT-ROADMAP.md` §2), so Faz A's code — the per-studio WhatsApp number, the e-mail sender,
+`studio:new` — runs on her panel the moment it ships. That is fine, and reading this rule as "never
+deploy" is reading it wrong. The existing deploy discipline still applies for its own reasons: at
+night when the studio is open, because every deploy breaks whatever tab is already loaded (see the
+Traps below), and "did it deploy?" is answered from Cloud Run's traffic split, never a guess
+(OR-17). On a day the studio is closed, that constraint simply is not in play.
 
-- New behaviour sits **behind a per-studio setting**, and `retro`'s stays empty, so her panel keeps
-  doing exactly what it did.
-- Her data and her configuration are never migrated, batched or rewritten to fit a new customer.
-- Deploys go out **at night** (every deploy breaks whatever tab is open — see the Traps below), and
-  reception is told to reload once.
-- "Did it deploy?" is answered from Cloud Run's traffic split, never from a guess (OR-17).
-
-If a piece of Faz A cannot be built this way, it stops and the owner decides — it does not proceed
-on the assumption that a small disruption is acceptable. It is not.
+If a piece of Faz A cannot be built without touching her data or changing her behaviour, it stops
+and the owner decides.
 
 ## Traps that have already cost something
 
