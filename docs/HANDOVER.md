@@ -93,11 +93,13 @@ uploaded and never sent for review; let them lapse rather than spend a review tu
 On iOS pick the **1.5.0** build. 1.5.0 carries the editorial redesign, the late-cancel block (OR-30),
 workout tracking (OR-33), the consistency strip, and one price (OR-31).
 
-⚠️ **`apps/mobile/app.json` still says 1.5.0, but the tree is no longer the 1.5.0 that was
-submitted.** Two mobile files changed after the 1.5.0 chore commit — `qr.tsx` and `src/lib/api.ts`,
-the turnstile's six-digit scanner. A build made today would reach the stores calling itself 1.5.0
-while behaving differently from the 1.5.0 under review. **Bump to 1.6.0 before the next build**; the
-turnstile cannot reach members until that release ships anyway.
+**The next mobile build is 1.6.0**, bumped on 2026-08-09 along with the white-label work (A4). It
+carries the turnstile's six-digit scanner, which had been sitting in the tree under a 1.5.0 label —
+a build made before the bump would have reached the stores calling itself 1.5.0 while behaving
+differently from the 1.5.0 under review.
+
+**`app.json` is gone**; the manifest is now `app.config.js` + `studios/retro.json`. `npx expo config`
+prints the resolved result. The version lives in `app.config.js` and is deliberately NOT per studio.
 
 **Android's 14-day production clock is DONE** — confirmed in Play Console on 2026-08-09: all three
 prerequisites struck through (closed test published · 12 testers enrolled · 14 days served) and
@@ -205,13 +207,16 @@ must still be created and sent for review by hand.
 - **External uptime monitoring.** The watchdog cannot report its own suspension — if the project is
   suspended over an unpaid bill, every alarm goes quiet, which looks exactly like all-clear. The
   Monday heartbeat covers this partially by making silence the signal.
-- **Product roadmap Faz A** (`docs/PRODUCT-ROADMAP.md`). **A3 — `pnpm studio:new` — is done**
-  (2026-08-09): one command provisions `settings/studio`, the branch and the owner, dry-run by
-  default, and refuses a studio that already has members. **A1** (per-studio WhatsApp) and **A2**
-  (per-studio e-mail sender) are decided but deliberately customer-triggered — half of each job is
-  the customer's own Meta account and DNS, so building them blind means guessing at the half we
-  cannot see. **A4** (white-label mobile build parameters) is open and needs no customer.
-  A second studio (Novozen) has asked; nothing is agreed.
+- **Product roadmap Faz A** (`docs/PRODUCT-ROADMAP.md`) — **nothing is left in it that does not
+  need a customer.** A3 (`pnpm studio:new`) and A4 (white-label mobile builds) were both done on
+  2026-08-09. A1 (per-studio WhatsApp) and A2 (per-studio e-mail sender) are decided and
+  deliberately customer-triggered: half of each job is the customer's own Meta account and DNS, so
+  building them blind means guessing at the half we cannot see.
+- **The next thing is the OPERATIONS gate, not a feature** — external monitoring, a maintenance
+  window, a restore rehearsal, and the two money paths that have never run for real. The product
+  roadmap's own §1 calls operational readiness a PRECONDITION of selling rather than a comfort, and
+  it is the ground the competitor has held for eight years. A second studio (Novozen) has asked;
+  nothing is agreed.
 
 ---
 

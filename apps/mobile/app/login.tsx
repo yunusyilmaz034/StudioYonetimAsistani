@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons'
 import { Redirect } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
+import { STUDIO_NAME } from '@/config'
 import { fetchBranding, type Branding } from '@/lib/api'
 import { track } from '@/lib/analytics'
 import { Body, Button, GradientFill, HeroFigure } from '@/components/ui'
@@ -55,7 +56,10 @@ export default function Login() {
             lost: the name is what the logo says. If a version with dark ink on a transparent ground
             is ever uploaded, this is the one place to put it back. */}
         <View style={{ paddingTop: insets.top + space(12), paddingBottom: space(9), paddingHorizontal: space(6), gap: space(2), alignItems: 'center' }}>
-          <Body style={[t.display, { color: p.text, textAlign: 'center' }]}>{brand?.appName ?? 'Pilates Fitness By Işıl'}</Body>
+          {/* The fallback is the BUILD's studio, not a name typed here (Faz A4). The server's
+              `brand.appName` still wins; this only covers the moment before it has answered — and a
+              white-label build must not flash the pilot studio's name while it waits. */}
+          <Body style={[t.display, { color: p.text, textAlign: 'center' }]}>{brand?.appName ?? STUDIO_NAME}</Body>
           {/* A hairline the width of the word — the smallest possible mark, and it belongs to the
               same language as the rest of the app. */}
           <View style={{ width: 44, height: 2, borderRadius: 2, backgroundColor: p.accent, marginTop: space(2) }} />

@@ -242,9 +242,29 @@ Emülatörde dört adım doğrulandı: ilk çalıştırma (3 doküman · 3 olay 
 aktörüyle) · ikinci çalıştırma (hiçbir şey bozulmadı) · yazılan durum · ve üye eklendikten sonra
 kilidin reddetmesi.
 
-**A4 · White-label mobil derleme parametreleri.** Stüdyo kimliği, uygulama adı ve ikonu derlemeye
-parametre olarak verilmeli. Bugün `config.ts`'te `STUDIO_ID = 'retro'` sabit; koddaki not zaten bu
-çatalı işaret ediyor. Bu yapılmazsa üçüncü müşteride tıkanılır (bkz. §8).
+**A4 · White-label mobil derleme parametreleri.** ✅ **BİTTİ** (2026-08-09).
+
+`app.json` yerine **`app.config.js`** + **`studios/<id>.json`**. Stüdyoya ait ne varsa profilde:
+ad, iki bundle kimliği, EAS proje kimliği, API adresi, ikon/splash, renk. `app.config.js` bunu
+`expo.extra`'ya koyuyor, `src/config.ts` çalışma anında geri okuyor — yani **stüdyo derlemenin
+içinde seyahat ediyor**, kimsenin geri almayı hatırlaması gereken bir kaynak dosyası düzenlemesi
+değil.
+
+**Değiştirilmeyecekler bilerek dışarıda:** `version` (sürümler toplu çıkar — §8; beş müşteri beş
+sürüm demek beş inceleme kuyruğu), Firebase projesi (platform TEK projede çok kiracılı; stüdyo bir
+`studioId`, asla ayrı proje), izinler, eklentiler.
+
+**İki kilit, ikisi de sessiz hatayı imkânsız kılmak için:**
+- Bilinmeyen `STUDIO` **hata fırlatır**, pilota düşmez. Aksi hâlde bir yazım hatası, doğru görünen
+  ama başka bir stüdyonun verisine bakan bir derleme üretirdi — ve mağaza bir bundle kimliğini geri
+  almana izin vermiyor.
+- `STUDIO` değişkeni **eas.json profilinde** tanımlı, kabukta değil. `eas build` uzakta derliyor ve
+  `app.config.js`'i orada yeniden çözümlüyor; yerelde yazdığın değişken oraya hiç ulaşmaz. Bu yüzden
+  `production` profili `STUDIO: retro`'yu açıkça sabitliyor, varsayılana güvenmiyor.
+
+**Doğrulama:** çözümlenmiş Expo yapılandırması değişiklik öncesiyle karşılaştırıldı — 36 alanın 32'si
+birebir aynı; fark yalnızca üç yeni `extra` alanı ve bilerek yapılan **1.5.0 → 1.6.0** sürüm
+yükseltmesi (ağaç zaten turnike tarayıcısını taşıyordu). Işıl'ın uygulamasının davranışı değişmedi.
 
 ---
 
@@ -383,7 +403,7 @@ Faz A'nın dört maddesi artık aynı sırada DEĞİL: ikisi müşteriye bağlı
 
                      ┌─ A3 studio:new ──── ✅ BİTTİ (2026-08-09)
    ŞİMDİ YAPILABİLİR ┤
-                     └─ A4 mobil derleme parametreleri ── AÇIK
+                     └─ A4 mobil derleme parametreleri ── ✅ BİTTİ (2026-08-09)
                             ↓
    Operasyon   dış izleme · bakım penceresi · yedekten dönüş provası · hibrit+POS canlı test
                             ↓                    ⚠️ §1: satışın ÖNKOŞULU, konforu değil
@@ -396,7 +416,7 @@ Faz A'nın dört maddesi artık aynı sırada DEĞİL: ikisi müşteriye bağlı
    [3. müşteri]  →  Home Assistant ürünleştirme (§7)
 ```
 
-**Sıradaki iş A4 ya da Operasyon kapısıdır.** A1/A2'yi beklemek zaman kaybı değil, doğru sıra:
+**Faz A'da müşteri beklemeyen iş kalmadı. Sıradaki Operasyon kapısıdır.** A1/A2'yi beklemek zaman kaybı değil, doğru sıra:
 ikisinin de yarısı müşterinin elinde ve müşterisiz yazılan kod, doğrulanamayan bir varsayımın
 üstüne oturur.
 

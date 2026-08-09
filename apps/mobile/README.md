@@ -36,6 +36,46 @@ eas submit
 
 OTA JS updates after launch: `eas update`.
 
+## White-label: opening the app for a second studio (Faz A4)
+
+Which studio a build is FOR is a build parameter, not a source edit. Everything studio-specific lives
+in `studios/<id>.json`; `app.config.js` reads it and puts the answer in `expo.extra`, where
+`src/config.ts` reads it back at runtime.
+
+```bash
+npx expo config --type public            # STUDIO defaults to 'retro'
+STUDIO=novozen npx expo config           # inspect another studio's resolved config
+```
+
+**To add a studio:**
+
+1. `cp studios/retro.json studios/<id>.json` and fill it in. The `studioId` must be the one the panel
+   uses — it is what the member API is asked for.
+2. Put that studio's `icon`, `adaptiveIcon` and `splashImage` under `assets/<id>/` and point the
+   profile at them.
+3. Create a **separate EAS project** for it and paste its `easProjectId` into the profile. Each
+   white-label app is its own store listing, its own bundle identifier, its own review queue.
+4. Add a build profile in `eas.json`:
+
+   ```json
+   "production-novozen": { "extends": "production", "env": { "STUDIO": "novozen" } }
+   ```
+
+   ⚠️ **The env var must be in the PROFILE, not on your shell.** `eas build` runs the build
+   remotely and re-evaluates `app.config.js` there; a `STUDIO=` you typed locally never reaches it,
+   so the remote build would quietly fall back to `retro` and ship one studio's app under another
+   studio's name. This is why `production` pins `STUDIO: retro` explicitly instead of relying on the
+   default.
+5. `eas.json`'s `submit` block (`ascAppId`, the Play service-account key) is per studio too.
+
+**Shared on purpose, do not parameterise:** `version` (releases go out in a batch — five customers on
+five versions is five review queues), the Firebase project (the platform is multi-tenant on ONE
+project; a studio is a `studioId`, never a project), permissions, plugins and the router.
+
+An unknown `STUDIO` **throws**. It does not fall back to the pilot: a typo would otherwise produce a
+build that looks correct and points at another studio's data, and the store does not let you take a
+bundle identifier back.
+
 ## Layout
 
 - `app/` — Expo Router screens. `(tabs)/` = Ana Sayfa · Ajanda · Antrenman · QR · Profil. Stack:

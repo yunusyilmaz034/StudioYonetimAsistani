@@ -1,0 +1,19 @@
+{
+  "_comment": "Pilates Fitness by Işıl — the pilot studio. Every value here is what shipped as 1.5.0; the parameterisation must not change a single one of them. Copy this file to open a white-label build for a new studio (see README).",
+
+  "studioId": "retro",
+  "displayName": "Pilates Fitness By Işıl",
+  "slug": "studio-member-app",
+  "scheme": "studiomember",
+
+  "bundleIdentifier": "com.pilatesfitnessbyisil.member",
+  "androidPackage": "com.pilatesfitnessbyisil.member",
+  "easProjectId": "a8b4df59-0a10-4dc2-9796-8304a997be51",
+
+  "apiBase": "https://panel.pilatesfitnessbyisil.com/api/member",
+
+  "icon": "./assets/icon.png",
+  "adaptiveIcon": "./assets/adaptive-icon.png",
+  "splashImage": "./assets/splash-icon.png",
+  "backgroundColor": "#0C0C0C"
+}
