@@ -71,18 +71,32 @@ prerequisites struck through (closed test published · 12 testers enrolled · 14
 "Üretime başvur" is live. Production itself still reads *Etkin değil*: the requirement being met
 does not grant access, it only unlocks the application, which Google reviews by hand.
 
-**Apply now; do not wait for 1.6.0.** Production access is granted to the app, not to a build, and
-the review takes days — it runs in parallel with preparing the turnstile release. **Keep every
-tester enrolled until the application is approved**: a rejection puts the counter back in play, and
-a tester leaving RESETS it. Publishing new builds does not.
+**Applied the same day, 17:46, without waiting for 1.6.0** — production access is granted to the
+app, not to a build, so the review runs in parallel with preparing the turnstile release rather
+than behind it. **Keep every tester enrolled until it is approved**: a rejection puts the counter
+back in play, and a tester leaving RESETS it. Publishing new builds does not.
 
-The application asks, in prose, who the testers were, how feedback was gathered and what changed
-because of it. The honest answer is strong and it is already written down: testers are the studio's
-own members and reception staff, feedback came in person, over WhatsApp and through the desk, and
-the closed test produced **five releases in two weeks (1.1.0 → 1.5.0)**, each traceable to a
-reported fault — the wallet screen that trapped the member with no back button (OR-25), the video
-player that failed on every exercise (OR-22), past reservations burying the agenda (PF-43), the
-show-password eye (PF-44), empty modules on the home screen, and workout tracking (OR-33).
+**What was answered, kept so a re-application cannot contradict the first.** The application asks in
+prose across three steps. The line taken was the honest one, and it was strong because the closed
+test was real:
+
+- *Who the testers were* — the studio's own members and reception staff, invited face to face, plus
+  a few friends. No paid testing provider.
+- *What they did* — used it daily for its actual purpose: booking, cancelling, QR entry, remaining
+  credits, workout tracking. **The one divergence from expectation was declared rather than hidden**:
+  in-app payment was barely used, because members still prefer to pay at the desk. That is true —
+  this system has never executed a single real card charge — and answering "everything went well"
+  to a question that asks for divergences is the answer an untested app also gives.
+- *What the feedback produced* — **five releases in two weeks (1.1.0 → 1.5.0)**, each traceable to a
+  reported fault: the wallet screen that trapped the member with no back button (OR-25), the video
+  player that failed on every exercise (OR-22), past reservations burying the agenda (PF-43), the
+  show-password eye (PF-44), empty modules on the home screen, workout tracking (OR-33).
+- *Audience and scale* — a closed audience (≈120 members of one studio, invite-only), and therefore
+  **0–10k installs in the first year**. Claiming a bigger number would have contradicted the
+  audience answer one box above it.
+- *Readiness* — daily real use, every reported item closed, no blocking fault in the last fortnight.
+  A crash-free claim was deliberately NOT made: nobody had checked Android vitals, and Google can
+  see that data whether or not we cite it.
 
 Submissions are automated: `cd apps/mobile && npx eas-cli submit --platform android --profile
 production --latest`. The Play service account key is gitignored at
@@ -100,10 +114,11 @@ must still be created and sent for review by hand.
   earlier version — all of them are contained in it. Test credentials for the reviewer:
   `0500 000 00 01` / `Yu156211` — a member with a live package and a programme, excluded from every
   report.
-- **Android production access: the application has to be submitted by hand.** The 14-day requirement
-  was met on 2026-08-09 and "Üretime başvur" is open. See the store section for what it asks and the
-  answers the closed test actually earned. Until this is approved the app reaches nobody outside the
-  twelve testers.
+- **Android production access: applied 2026-08-09 17:46, under review.** Google says usually seven
+  days or fewer, by e-mail to the account owner. Nothing to do but wait — and **keep all twelve
+  testers enrolled until it is approved**, because a rejection puts the fourteen-day counter back in
+  play and a tester leaving resets it. What was answered is in the store section; if it comes back
+  rejected, reapply from those answers rather than writing new ones that contradict them.
 - **The turnstile's hardware.** The software is live and the device pairing tool exists
   (`pnpm setup:turnstile`), but the Perkotek S150 is not fitted and its firmware is deliberately
   unwritten — writing it blind against hardware nobody has held is how you debug two things at once.
