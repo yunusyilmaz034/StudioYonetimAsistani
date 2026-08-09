@@ -28,8 +28,9 @@ A day this panel cannot open is a day the business cannot run.
   under `~/Projects`, and NOT in git — back a file up before editing it). Two pages, `index.html` and
   `uyelik.html`; both read live prices from `/api/public/products`. Deploy: `cd ~/pilates-site &&
   firebase deploy --only hosting` (Hosting site `pilatesfitnessbyisil-web`, same Firebase project).
-- **The platform's own site · RetroAsistan** — static HTML at **`~/retroasistan-site`** (its own git
-  repo; NOT under `~/Projects`, NOT part of this repository). One page: AI reception, panel, member
+- **The platform's own site · RetroAsistan** — static HTML at **`~/retroasistan-site`**, its own git
+  repo, pushed to the PRIVATE **`yunusyilmaz034/retroasistan-site`** (NOT under `~/Projects`, NOT
+  part of this repository). One page: AI reception, panel, member
   app, references, the correction trail, contact. No prices — enquiries go to WhatsApp
   `0507 966 67 82`. Deploy: `cd ~/retroasistan-site && firebase deploy --only hosting`.
   - Hosting site **`retroasistan`** → `retroasistan.web.app`. This is where the branded site lives.
