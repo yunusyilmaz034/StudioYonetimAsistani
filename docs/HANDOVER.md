@@ -24,10 +24,13 @@ Işıl**, 120 members — and it is the only system they have: they retired the 
 A day this panel cannot open is a day the business cannot run.
 
 - Panel · `panel.pilatesfitnessbyisil.com` (Firebase App Hosting, `studio-yonetim-prod`, europe-west4)
-- Public site · `pilatesfitnessbyisil.com` — static HTML at **`~/pilates-site`** (NOT in this repo, NOT
-  under `~/Projects`, and NOT in git — back a file up before editing it). Two pages, `index.html` and
-  `uyelik.html`; both read live prices from `/api/public/products`. Deploy: `cd ~/pilates-site &&
+- Public site · `pilatesfitnessbyisil.com` — static HTML at **`~/pilates-site`**, its own git repo
+  pushed to the PRIVATE **`yunusyilmaz034/pilatesfitnessbyisil-site`** (2026-08-09; NOT in this repo,
+  NOT under `~/Projects`). Two pages, `index.html` and `uyelik.html`; both read live prices from
+  `/api/public/products`, so a price change alters nothing in that repo. Deploy: `cd ~/pilates-site &&
   firebase deploy --only hosting` (Hosting site `pilatesfitnessbyisil-web`, same Firebase project).
+  The hand-made `.bak-` files in `~/pilates-site-backups` are what stood in for version control until
+  now; they are ignored by the repo and can be retired once git has been trusted for a while.
 - **The platform's own site · RetroAsistan** — static HTML at **`~/retroasistan-site`**, its own git
   repo, pushed to the PRIVATE **`yunusyilmaz034/retroasistan-site`** (NOT under `~/Projects`, NOT
   part of this repository). One page: AI reception, panel, member
