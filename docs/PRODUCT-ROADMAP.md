@@ -186,6 +186,20 @@ gider ve geri dönüşü olmayan bir karışıklık doğar.
 Webhook zaten `/{studioId}` yolunu okuyor. **Dikkat:** şablonlar Meta'da hesap başına onaylanıyor,
 her yeni stüdyo kendi onay sürecini yaşar (1-3 gün) — kurulum takvimine yazılmalı.
 
+**Karar (owner, 2026-08-09): her stüdyonun KENDİ WABA'sı.** Alternatifi — tüm müşterilerin
+numaralarını bizim tek Business hesabımıza almak — daha az iş çıkarırdı ve reddedildi.
+
+Bu karar, kod okunurken çıkan bir sorunu kendiliğinden çözüyor: **onaylı Meta şablonlarının sabit
+metninde stüdyonun adı geçiyor** (`uyelik_daveti`: *"…Pilates Fitness by Işıl'da üyeliğin artık
+dijital…"*). Ortak hesapta bu, ikinci stüdyonun üyesine birinci stüdyonun adıyla davet gitmesi
+demekti; şablonları stüdyo adını parametre alacak şekilde yeniden yazıp yeniden onaylatmak gerekirdi.
+Ayrı hesapta her stüdyo kendi metnini kendi onaylatır ve sabit metindeki isim **doğru** olur.
+Bedeli müşteri başına 1-3 günlük Meta onayı; karşılığı, kimsenin başkasının adıyla mesaj almaması.
+
+**Şimdi yapılmıyor.** Müşteri geldiğinde onun Meta süreçlerini biz yönetiriz; kod tarafı o zaman
+açılır. Bugün alınan şey karardır, iş değil — ve karar alındığı için A1'e başlandığında hangi
+modelin üzerine inşa edileceği tartışılmaz.
+
 **A2 · E-posta göndericisi stüdyo başına.** Gönderici adresi `settings/studio` altına; SPF/DKIM her
 müşterinin kendi alan adında. (Resend anahtarı platform genelinde kalabilir.)
 
