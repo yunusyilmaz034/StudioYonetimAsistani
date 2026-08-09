@@ -544,6 +544,36 @@ bug: four belonged to fitness members whose package had EXPIRED, and their progr
 when they renew. The two real ones were **archived, never deleted** — deleting would erase the
 evidence of the bug being fixed.
 
+**OR-36 · Pilates Fitness by Işıl is not touched. Disruption there is not acceptable.** (2026-08-09)
+Said in those words at the start of the productisation work, and it is the strongest rule in this
+document because it is the one with a business behind it. That studio retired its old system on
+2026-07-27; this panel is the only one it has. A day it cannot open is a day the business cannot run.
+
+What it forbids, without exception:
+
+- **No write to `retro`'s data.** No setup script, no break-glass, no console, no migration, no
+  "small correction". Reading is fine and encouraged.
+- **Nothing attached to her settings.** This is why `studyoasistan.com` was NOT added to the nightly
+  watchdog: that document lives under her studio, so monitoring the platform's own domain would have
+  meant writing into a customer's configuration (DEBT-042).
+- **No change made for another customer's benefit reaches her as a behaviour change.**
+
+**The honest complication, stated rather than discovered later.** One code base was chosen
+deliberately (`PRODUCT-ROADMAP.md` §2), and the price of that decision is that Faz A's code — the
+per-studio WhatsApp number, the e-mail sender, `studio:new` — runs on her panel the moment it
+deploys. Applied to the letter, this rule would forbid Faz A entirely. Applied to its purpose, it
+means:
+
+- New behaviour sits **behind a per-studio setting**, and `retro`'s stays empty, so her panel keeps
+  doing exactly what it did.
+- Her data and her configuration are never migrated, batched or rewritten to fit a new customer.
+- Deploys go out **at night** (every deploy breaks whatever tab is open — see the Traps below), and
+  reception is told to reload once.
+- "Did it deploy?" is answered from Cloud Run's traffic split, never from a guess (OR-17).
+
+If a piece of Faz A cannot be built this way, it stops and the owner decides — it does not proceed
+on the assumption that a small disruption is acceptable. It is not.
+
 ## Traps that have already cost something
 
 **OR-14 · Firestore indexes are a production-only trap.** The emulator does NOT enforce them, so a
