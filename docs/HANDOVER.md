@@ -9,11 +9,14 @@ commit. A handover document that lags is worse than none, because it is believed
 
 _Last true as of: **2026-08-09**._
 
-Panel live at **`build-2026-08-08-002`** — verified the only way that counts, Cloud Run's traffic
-split (100%, created 2026-08-08 15:13 UTC, six minutes after the last commit). Everything through
-`d0f9875` is serving. **Cloud Functions were last deployed 2026-08-06** and do not need another: the
-core change since then is purely additive (two new turnstile decision functions), so the functions
-running older core decide nothing differently.
+Panel live at **`build-2026-08-09-017`** (100% of traffic) and **Cloud Functions deployed 2026-08-09
+16:01 UTC** — both verified the only way that counts, Cloud Run's traffic split (OR-17), not the App
+Hosting listing.
+
+⚠️ **The dead man's switch shipped today but is NOT deployed yet.** `HEARTBEAT_URL` is empty in
+`apps/functions/.env.studio-yonetim-prod`; the nightly sweep will log `heartbeat_not_configured`
+every night until the owner creates the external check (`docs/RUNBOOK.md` → "Dış izleme") and the
+functions are redeployed. Loud on purpose: an unconfigured monitor must never read as a passing one.
 
 ---
 
@@ -202,8 +205,6 @@ must still be created and sent for review by hand.
 - **The turnstile's device firmware.** Deliberately unwritten until the S150 is in hand — writing it
   blind means debugging the firmware and the protocol at the same time, against hardware nobody has
   held. Everything on our side is built, tested and live; `pnpm setup:turnstile` mints the pairing.
-- **`apps/mobile` still calls itself 1.5.0 while carrying the turnstile scanner.** Bump to 1.6.0
-  before the next build, or the stores get a second, different 1.5.0.
 - **External uptime monitoring.** The watchdog cannot report its own suspension — if the project is
   suspended over an unpaid bill, every alarm goes quiet, which looks exactly like all-clear. The
   Monday heartbeat covers this partially by making silence the signal.
@@ -542,6 +543,29 @@ returning the live price list.
 **A near-identical competitor domain surfaced the same day: `studioasistan.com`** — same sector, one
 letter apart, and nobody had checked for it when the name was chosen. Neither name is registered at
 TÜRKPATENT. The whole picture, and what it means for the trademark, is in `PRODUCT-ROADMAP.md` §9.
+
+---
+
+## Where 2026-08-09 ended — the three things somebody else has to do
+
+Everything below is outside this repository. Nothing in the code is blocking any of them, and none
+of them can be done from a terminal.
+
+1. **The domain's ICANN verification e-mail, at Natro.** Unclicked for fifteen days and
+   `retroasistan.com` is SUSPENDED — the platform's site and its mail stop together. The whole of
+   today's rename rests on one confirmation link in `pilatesbyisil@gmail.com`.
+2. **The external monitoring accounts** (~10 minutes) — `docs/RUNBOOK.md` → "Dış izleme". Two
+   registrations: a healthchecks.io dead man's switch, AND an HTTP check on the panel itself. The
+   second is not optional: the switch only proves the scheduled FUNCTION ran, and the panel is App
+   Hosting — it can be down while the switch pings happily.
+3. **A trademark attorney, for RETROASISTAN.** Neither "stüdyo asistan" nor "studio asistan" is
+   registered at TÜRKPATENT, Turkey grants the right to whoever files first, and a competitor one
+   letter away (`studioasistan.com`) can file any day. This is the only item on the roadmap whose
+   clock somebody else is holding.
+
+Plus, in its own time: **one real card charge** through the hybrid-bundle sale and Sanal POS. Those
+are the two money paths this system has never executed for real, and they are the last thing left in
+the operations gate.
 
 ---
 
