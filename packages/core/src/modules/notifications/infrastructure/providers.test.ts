@@ -189,19 +189,21 @@ describe('standardNotificationProviders — one registry for functions and web',
   })
 })
 
-// ── The invite must carry BOTH addresses (owner, 2026-07-31) ────────────────────────────────
-describe('portal_invite → uyelik_daveti', () => {
-  it('sends the combined link, not the bare invite', () => {
-    // Meta's approved body has one placeholder and the studio cannot add a sentence to it without
-    // another approval round. The CONTENT of that placeholder is ours, so it carries the invite AND
-    // the login address — seventy-six members had no way back once the message scrolled away.
-    expect(META_TEMPLATE.portal_invite?.params).toEqual(['memberName', 'inviteLinkWithLogin'])
+// ── The invite must carry BOTH addresses (owner, 2026-07-31; v2 approved 2026-08-09) ────────
+describe('portal_invite → uyelik_daveti_v2', () => {
+  it('sends the bare invite link, because v2 carries the login address as static text', () => {
+    // v1 had ONE placeholder and no room for a second line, so both addresses had to travel inside
+    // it — seventy-six members had no way back once the message scrolled away. v2 prints the login
+    // address itself, so the parameter is the invite link again.
+    expect(META_TEMPLATE.portal_invite?.params).toEqual(['memberName', 'inviteLink'])
   })
 
-  it('keeps `inviteLink` out of the WhatsApp mapping, so the two paths cannot drift', () => {
-    // The in-app and manual paths render our own body, which has room for a proper second line and
-    // still uses `inviteLink`. Mapping WhatsApp to the same key is what made them look identical
-    // while sending different things.
-    expect(META_TEMPLATE.portal_invite?.params).not.toContain('inviteLink')
+  it('asks only for parameters every sender actually builds', () => {
+    // The rule this replaces a name-check with. `inviteLinkWithLogin` was built by the web tier and
+    // NOT by the PAYTR callback function, so that path sent Meta an empty parameter and was refused
+    // — a channel silently dead while the in-app copy arrived and made it look fine. A parameter
+    // only some senders populate is the defect; naming the specific key was never the point.
+    const senderBuilds = new Set(['memberName', 'inviteLink', 'loginLink'])
+    for (const key of META_TEMPLATE.portal_invite?.params ?? []) expect(senderBuilds).toContain(key)
   })
 })

@@ -197,11 +197,6 @@ export async function issueInviteFor(ctx: TenantContext, memberId: string, inten
     params: {
       memberName: member.fullName.split(' ')[0] ?? member.fullName,
       inviteLink: `${base}/invite/${encodeURIComponent(ctx.studioId)}/${token}`,
-      // WhatsApp's approved template has ONE placeholder and no room for a second
-      // line, so both addresses travel in it — on one line, because Meta rejects a
-      // parameter containing a newline. The invite is single-use; the login is where
-      // she goes every day after, and without it she has no way back.
-      inviteLinkWithLogin: `${base}/invite/${encodeURIComponent(ctx.studioId)}/${token} — sonraki girişlerin için: ${base}/portal/login?s=${encodeURIComponent(ctx.studioId)}`,
       // Where she goes on every visit AFTER the invite is spent — the invite link is single-use.
       loginLink: `${base}/portal/login?s=${encodeURIComponent(ctx.studioId)}`,
     },

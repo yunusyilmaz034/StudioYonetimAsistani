@@ -274,28 +274,27 @@ export const META_TEMPLATE: Readonly<Record<string, MetaTemplateRef>> = {
   payment_received: { name: 'payment_received_tr', params: ['memberName', 'amount'] },
   balance_reminder: { name: 'balance_reminder_tr', params: ['memberName', 'amount'] },
   instalment_due: { name: 'instalment_due_tr', params: ['memberName', 'amount', 'dueDate'] },
-  // The owner registered this one as `uyelik_daveti` (Utility). The earlier `portal_invite_tr` name
-  // was never approved — Meta read a bare login link as Authentication/OTP — so the copy was reframed
-  // as a welcome ("üyeliğin hazır") and re-submitted under this name.
-  // The approved body reads "…üye portalına giriş yap: {{2}} görüşürüz." — one placeholder, and the
-  // studio cannot add a sentence to it without Meta approving the template again.
+  // `uyelik_daveti_v2`, approved by Meta and switched to on 2026-08-09.
   //
-  // But the CONTENT of that placeholder is ours. The member needs two addresses, not one: the invite
-  // (single-use, spent the moment she sets a password) and the login (where she goes every day
-  // after). Sending only the first meant seventy-six members had no way back once the message
-  // scrolled out of their WhatsApp (owner, 2026-07-31).
+  // The history is worth keeping, because it is the reason this entry looks over-explained. The
+  // first name (`portal_invite_tr`) was refused: Meta read a bare login link as Authentication/OTP,
+  // a category whose templates are locked to a one-time-passcode shape and cannot carry an
+  // arbitrary link at all. The copy was reframed as a welcome and approved as `uyelik_daveti` —
+  // whose body had room for exactly ONE placeholder.
   //
-  // So the second parameter carries both, on ONE line — Meta rejects a parameter containing a
-  // newline. `inviteLinkWithLogin` is built by the caller; `inviteLink` stays exactly as it was for
-  // the in-app and manual paths, which have room for a proper second line.
+  // That was a problem, because the member needs TWO addresses: the invite (single-use, spent the
+  // moment she sets a password) and the login (where she goes every day afterwards). Sending only
+  // the first left seventy-six members with no way back once the message scrolled out of their
+  // WhatsApp (owner, 2026-07-31). The workaround crammed both into one parameter on a single line,
+  // since Meta rejects a parameter containing a newline.
   //
-  // ── WHEN `uyelik_daveti_v2` IS APPROVED, THIS IS THE WHOLE CHANGE ──────────────────────────
-  //     portal_invite: { name: 'uyelik_daveti_v2', params: ['memberName', 'inviteLink'] },
-  // The v2 body carries the login address as STATIC text where it belongs, so the parameter goes
-  // back to being just the invite link and the combined value below stops being needed. Do not
-  // switch before Meta approves it: an unapproved name is refused at send time and every invitation
-  // silently fails.
-  portal_invite: { name: 'uyelik_daveti', params: ['memberName', 'inviteLinkWithLogin'] },
+  // v2 carries the login address as STATIC text where it belongs, so the parameter is just the
+  // invite link again and the crammed value is gone. That also repairs a path that had been
+  // quietly broken: the PAYTR callback's `issueInviteFor` (a FUNCTION, not the web tier — OR-16)
+  // builds `inviteLink` and `loginLink` and never built the combined value, so its WhatsApp
+  // invitation went to Meta with an empty parameter and was refused. It now sends what it always
+  // had.
+  portal_invite: { name: 'uyelik_daveti_v2', params: ['memberName', 'inviteLink'] },
   wallet_topup: { name: 'wallet_topup_tr', params: ['memberName', 'amount', 'balance'] },
   // Ders hatırlatmaları (Utility). The owner registered these Meta templates under these EXACT names
   // (no `_tr` suffix). Pilates carries name + time only ("Reformer Pilates" is fixed copy in the Meta

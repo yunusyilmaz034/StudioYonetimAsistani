@@ -203,6 +203,14 @@ modelin üzerine inşa edileceği tartışılmaz.
 **A2 · E-posta göndericisi stüdyo başına.** Gönderici adresi `settings/studio` altına; SPF/DKIM her
 müşterinin kendi alan adında. (Resend anahtarı platform genelinde kalabilir.)
 
+**A1 gibi bu da müşteriye bağlı** (owner, 2026-08-09). Sebep aynı: işin yarısı bizde değil. SPF ve
+DKIM kayıtları müşterinin kendi alan adına yazılır, o alan adının DNS'ine erişimi olan da müşteridir.
+Müşteri yokken yazılacak kod, doğrulanamayan bir varsayımın üstüne oturur — gönderici adresi
+çalışıyor mu, ancak o alan adından ilk e-posta gidince belli olur.
+
+**Faz A'da müşteri beklemeden yapılabilecek olanlar A3 ve A4'tür.** İkisi de mevcut stüdyodan
+bağımsız ve emülatörde baştan sona doğrulanabilir.
+
 **A3 · Tek komutla stüdyo açma.** Bugün kurulum `tools/setup/*` ile elle yapılıyor. Bir müşteri için
 kabul edilebilir, üç müşteri için değil. → `pnpm studio:new`, **idempotent** (yarıda kalırsa tekrar
 çalıştırılabilsin).

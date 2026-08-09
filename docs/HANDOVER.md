@@ -134,12 +134,9 @@ must still be created and sent for review by hand.
   (`pnpm setup:turnstile`), but the Perkotek S150 is not fitted and its firmware is deliberately
   unwritten — writing it blind against hardware nobody has held is how you debug two things at once.
   Nothing runs until the box is on the wall.
-- **The Meta invite template `uyelik_daveti_v2`.** Text is drafted and ready to paste into WhatsApp
-  Manager (name, category Utility, Turkish, body and the two sample values) — see the section below.
-  Once Meta approves it, the code change is ONE line in
-  `packages/core/src/modules/notifications/infrastructure/providers.ts`, written out in a comment
-  right above the current mapping. Do not switch before approval: an unapproved template name is
-  refused at send time and every invitation fails silently.
+- ~~**The Meta invite template `uyelik_daveti_v2`.**~~ Approved, and the code switched to it on
+  2026-08-09. **Every template we have at Meta is now approved; nothing is pending.** The switch
+  also repaired a path that had been quietly broken — see the release note below.
 - **Twenty-one members are DURAKLATILMIŞ** — no live package (2026-08-01, measured). After the fitness
   import that is most likely the genuine number (lapsed, or leads entered as members) rather than
   migration debt. They now have their own filter with a count, which is the list to work through.
@@ -482,6 +479,28 @@ ends up in a screenshot, because nobody re-checks a feature they have already se
 
 **Demo mode is finished — nothing is outstanding on it.**
 
+### 2026-08-09 — the invite template, and a channel that had been dead without saying so
+
+**`uyelik_daveti_v2` is approved and the code now uses it.** v1 had one placeholder, so the invite
+link and the login address had to be crammed into it on a single line (Meta rejects a parameter
+containing a newline). v2 prints the login address as static text, so the parameter is the invite
+link again.
+
+**The switch repaired something nobody had reported.** Two places send that invitation, and only one
+of them built the crammed value: the web tier did, and the **PAYTR callback function** — the one
+that actually runs after an online purchase (OR-16) — built `inviteLink` and `loginLink` and never
+the combined key. So its WhatsApp invitation went to Meta with an empty parameter and was refused,
+while the in-app copy arrived and made the send look fine. The member who had just paid got a
+notification in an app she had not installed yet.
+
+The test that guarded this checked the parameter's NAME. It now checks the property that actually
+matters: **every key the WhatsApp mapping asks for must be one that every sender builds.** A
+parameter only some senders populate is the defect; which key it happened to be never was.
+
+⚠️ **This needs BOTH deploys** — the mapping lives in `packages/core`, and the sender that was broken
+is a Cloud Function. App Hosting alone changes the panel and leaves the online-purchase invitation
+exactly as broken as it was.
+
 ---
 
 ## Things that will bite you
@@ -520,45 +539,21 @@ Read `docs/OWNER-RULES.md` §"Traps" before touching the areas it names. In shor
   which runs the same domain path and writes the same events, with the actor recorded as
   `platform_admin/break_glass`.
 
-## The invite template waiting for Meta approval
+## The invite templates at Meta — all approved, nothing pending
 
-Paste into WhatsApp Manager → Message Templates → Create.
+`uyelik_daveti_v2` was approved and the code switched to it on 2026-08-09. **There is no template
+waiting at Meta.** The drafting instructions that lived here are gone with the wait; what is worth
+keeping is the trap that cost a submission, because the next template will meet it too:
 
-- **Name** `uyelik_daveti_v2` · **Category** Utility / "Bilgilendirme" · **Language** Turkish (tr)
-- No header, no footer, no buttons.
-- **Body:**
+**Do NOT accept the "Kimlik Doğrulama" category Meta suggests.** Its classifier reads "şifreni
+oluştur" and "giriş yaparsın" as authentication and offers that category as *Recommended*.
+Authentication templates are locked to a one-time-passcode shape — fixed body, copy-code button, no
+arbitrary links — so an invitation cannot exist there at all, and accepting it breaks invitations
+entirely. The right category is Utility: this is a message about an account the member already has.
+Word the body so it says nothing about passwords or logging in; the invite page explains that step
+when she arrives, which is where it belongs.
 
-```
-Merhaba {{1}} 🌸 Pilates Fitness by Işıl'da üyeliğin artık dijital. Derslerini kendin ayırtabilir, kalan ders hakkını ve antrenman programını görebilirsin.
-
-Üyelik sayfan hazır, buradan açabilirsin:
-{{2}}
-
-Daha sonra dilediğin zaman şu adresten ulaşırsın:
-https://panel.pilatesfitnessbyisil.com/portal/login?s=retro
-
-Bir sorun olursa bize yazman yeterli, yardımcı olalım 💛
-```
-
-- **Samples** (Meta refuses to review without them): `{{1}}` = `Ayşe`,
-  `{{2}}` = `https://panel.pilatesfitnessbyisil.com/invite/retro/ORNEK-BAGLANTI`
-
-### Do NOT accept the "Kimlik Doğrulama" category Meta suggests
-
-Meta's classifier reads "şifreni oluştur" and "giriş yaparsın" as authentication and offers that
-category as *Recommended*. It is a trap. Authentication templates are locked to a one-time-passcode
-shape — fixed body, copy-code button, no arbitrary links — so ours cannot exist there at all, and
-accepting it would break invitations entirely.
-
-The category is genuinely Utility: this is a message about an account the member already has. The
-wording above therefore says nothing about passwords or logging in; the invite page explains that
-step when she arrives, which is where the explanation belongs anyway.
-
-### If it is still rejected
-
-Replace the second URL with a button: name `Giriş sayfası`, static URL
-`https://panel.pilatesfitnessbyisil.com/portal/login?s=retro`. Meta prefers URLs in buttons, and a
-body with only one link classifies more cleanly.
+Meta also refuses to review a template without **sample values** for every placeholder.
 
 ## Where the rest lives
 
