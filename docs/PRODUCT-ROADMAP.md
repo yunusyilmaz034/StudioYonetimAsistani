@@ -299,46 +299,75 @@ iOS/Android kırılmaları her yıl geliyor. Kurulum ≈ bir yıllık lisans · 
 
 ---
 
-## 9. Alan adı (owner onayı, 2026-08-04)
+## 9. Marka, palet ve alan adı (owner onayı, 2026-08-09 — ismi DEĞİŞTİ)
 
-**`studyoasistan.com` + `studyoasistan.com.tr`** — ikisi de alınacak.
+**Ad: RetroAsistan. Alan adı `retroasistan.com`.** Logo: lacivert "RETRO" + teal "ASISTAN", hareket
+çizgili R işareti, alt satır *"HAREKETİNİ YÖNET"*.
 
-Ürünün zaten adı bu (*Studio Yönetim Asistanı*), Türkçe, telefonda tarif edilebilir, ve alt alan adı
-olarak düzgün okunuyor. "Panel" gibi jenerik değil: **asistan** kelimesi ürünün ne yapmaya çalıştığını
-söylüyor — sistemi yönetmek değil, sahibin yerine iş takip etmek. AI resepsiyonist, patron asistanı ve
-Home Assistant tarafı bu ismin altına doğal oturuyor.
+### Neden değişti — ve neden bu, 4 Ağustos'taki kararla çelişmiyor
 
-**Yapı:** ortak platform alan adı + müşteri başına alt alan adı — `novozen.studyoasistan.com`. Tek
-wildcard SSL, DNS işi yok, yeni müşteri dakikalar içinde açılır. Üye portalı ve public satış sayfası
-da aynı alt alan adından servis edilir (`?s=` parametresi alt alan adından türetilir). Kendi alan
-adını isteyene ayrıca sunulur ve **ücretlendirilir**.
+4 Ağustos'ta `studyoasistan.com` seçilmiş, `retrostudyo.com` ise şu gerekçeyle elenmişti: *"şirket
+adıyla bağlı ama müşteri bizim şirket adımızı değil kendi işini yapan şeyi satın alıyor."* Bu itiraz
+`retroasistan.com` için de kelimesi kelimesine geçerli ve hafifletilmiyor — **karar, itiraza rağmen
+alındı**, çünkü aradan bir olgu geçti:
 
-Değerlendirilip elenen: `retrostudyo.com` (şirket adıyla bağlı ama müşteri bizim şirket adımızı değil
-kendi işini yapan şeyi satın alıyor) · `studiopanel.com` (`.com` alınmış) · `seanspanel.com`.
+`studioasistan.com` (tek harf fark) aynı sektörde, aynı ürünü tarif ediyor. Bu, "Studyo Asistan"ı
+çekişmeli hâle getirdi. Dahası ismin kendisi zayıf ayırt edici: *spor stüdyosu asistanı* tarifin
+kendisidir, ve tanımlayıcı adlar zor tescil edilir. **RetroAsistan ayırt edici** — tescilin tam
+olarak aradığı özellik. Ticari isim benzerliği riski, marka tescil edilemezliği riskinden küçüktür.
 
-### ⚠️ `studioasistan.com` — bir harf farkıyla aynı sektörde bir rakip (2026-08-09'da fark edildi)
+**Marka başvurusu artık RETROASISTAN üzerine yapılır.** TÜRKPATENT'te (2026-08-09) ne "stüdyo
+asistan" ne "studio asistan" tescilli; RetroAsistan da taranmalı. İfade araması temizlik araştırması
+değildir — sınıfları ve kapsamı vekil belirler.
 
-İsim seçilirken bakılmamış. `studioasistan.com` canlı ve şunu diyor: *"Akıllı spor salonu yönetimi
-için geleceğin yazılım altyapısını geliştiriyoruz."* KVKK, yapay zeka, bulut. Yani aynı ürün, aynı
-pazar, tek harf fark — Türkçe yazım `stüdyo`, İngilizcesi `studio`; alan adında `ü` olamadığı için
-biz `studyo` aldık, onlar `studio`.
+**`studyoasistan.com`** elde kalır ve `retroasistan.com`'a 301 yönlendirilir: para harcandı, ve
+yönlendirme rakibin bir harflik yakınlığına karşı ucuz bir siper.
 
-**Durumları:** sayfa *"%72 tamamlandı · Yapım Aşamasında — 2025 Lansmanı"* diyor ve Ağustos 2026'da
-hâlâ öyle. Bir yıldan fazla bayat, yani proje durmuş görünüyor. `studioasistan.com.tr` ise
-`192.168.1.1`'e çözülüyor — kayıt onlarda, ayakta değil.
+### Kurumsal palet — RESMİ
 
-**Marka durumu (TÜRKPATENT, 2026-08-09):** ne "stüdyo asistan" ne "studio asistan" tescilli. Türkiye
-ilk-başvurana hak veriyor, yani alan açık **ve süreli**: onlar da her an başvurabilir, ve durmuş bir
-proje bir başvuru dilekçesini engellemez. Tersinden, onların tescilsiz önceki kullanımı bize karşı
-itiraz gerekçesi olabilir — bu, başvurmamak için değil **erken başvurmak** için sebep, çünkü geçen
-her ay onların kullanım süresini uzatıyor.
+| Rol | Renk |
+|---|---|
+| Ana — teal | `#0FA6A6` |
+| Koyu ana — lacivert | `#07182E` |
+| İkincil turkuaz | `#27C4BE` |
+| Açık vurgu | `#8ADDD8` |
+| Metin / koyu gri | `#374151` |
+| Arka plan | `#FFFFFF` |
+| Gradient | `#0FA6A6 → #27C4BE` |
 
-**Karar bekliyor:** marka vekiliyle başvuru (kullanılan hâl "Studyo Asistan"; sınıflar vekilin işi —
-yazılım/SaaS 42, ürün 9, işletme yönetimi 35 konuşulacak). İfade araması tam bir temizlik araştırması
-değildir: 42. sınıfta tek başına tescilli bir "ASİSTAN" da gerekçe gösterilebilir.
+İki kurumsal renk **lacivert + teal**: lacivert kurumsal/yazılım tarafını, teal spor ve hareket
+tarafını taşıyor.
 
-**İsim değişikliği bugün masada değil ama en ucuz olduğu gün bugün** — alan adı yeni, site yeni, hiçbir
-müşteriye söz verilmedi. Tescil tablosu netleşmeden konuşulmaz; netleştikten sonra ertelenmemeli.
+### ⚠️ Bu palet PLATFORMUN, panelin DEĞİL
+
+Karıştırmak, verilmiş bir kararı geri almak olur. İki ayrı şey var:
+
+- **RetroAsistan markası (bizim):** pazarlama sitesi · **personel giriş ekranı** (giriş öncesi hangi
+  stüdyo olduğu bilinmez — panelin meşru olarak bize ait tek ekranı) · platform admin ekranları ·
+  bizim müşteriye attığımız e-postalar · mağaza listelemesi. Burada palet mutlaktır.
+- **Stüdyonun teması (müşterinin):** panelin geri kalanı. Stüdyo kendi rengini `settings/theme`'den
+  seçer. **Pilates Fitness by Işıl "Gül" (`#c0396b`) kullanıyor ve bu onun kararıdır** (owner,
+  2026-08-09: *"Işıl'ın stüdyosuna hiç karışma, onun teması kendine özel"*).
+
+Kendi markamızı müşterinin panelinin içine koymak, §8'deki white-label kararının tam tersidir:
+resepsiyondaki kişi kendi stüdyosunu görmeli, tedarikçisini değil.
+
+**Uygulaması:** teal, `--primary` varsayılanı yapılmaz; `THEME_PRESETS`'e **"RetroAsistan"** preseti
+olarak eklenir. İsteyen stüdyo seçer, yeni stüdyolar onunla açılır, mevcut hiçbir stüdyo etkilenmez.
+Ölçüldü: `retro`'nun `settings/theme` dokümanı `presetId: "gul"` taşıyor, yani paneli kodun
+varsayılanından değil kendi seçiminden renk alıyor — koddaki varsayılana ne yapılırsa yapılsın
+etkilenmez.
+
+### Yapı
+
+Ortak platform alan adı + müşteri başına alt alan adı — `novozen.retroasistan.com`. Tek wildcard SSL,
+DNS işi yok, yeni müşteri dakikalar içinde açılır. Üye portalı ve public satış sayfası da aynı alt
+alan adından servis edilir (`?s=` parametresi alt alan adından türetilir). Kendi alan adını isteyene
+ayrıca sunulur ve **ücretlendirilir**.
+
+**Durum (2026-08-09):** `retroasistan.com` alındı ama Natro'nun IP'sinde duruyor, bağlanmadı.
+`retroasistan.com.tr` `192.168.1.1`'e çözülüyor — kayıt var, yayın yok. Site hâlâ eski adla
+`~/studyoasistan-site` klasöründe ve `studyoasistan.com`'da yayında.
 
 ---
 
@@ -351,7 +380,7 @@ Faz A   A1 WhatsApp · A2 e-posta · A3 studio:new · A4 mobil derleme parametre
    ↓
 Operasyon  dış izleme · bakım penceresi · yedekten dönüş provası · hibrit+POS canlı test
    ↓
-Ticari   alan adı + wildcard SSL · sözleşme + SLA metni
+Ticari   marka tescili (RETROASISTAN) · alan adı + wildcard SSL · sözleşme + SLA metni
    ↓
 [Novozen — tasarım ortağı, indirimli]
    ↓
