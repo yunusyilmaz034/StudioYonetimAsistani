@@ -7,7 +7,13 @@ explains the moment.
 Keep it current the way the code is kept current: when the state changes, this changes in the same
 commit. A handover document that lags is worse than none, because it is believed.
 
-_Last true as of: **2026-08-06**._
+_Last true as of: **2026-08-09**._
+
+Panel live at **`build-2026-08-08-002`** — verified the only way that counts, Cloud Run's traffic
+split (100%, created 2026-08-08 15:13 UTC, six minutes after the last commit). Everything through
+`d0f9875` is serving. **Cloud Functions were last deployed 2026-08-06** and do not need another: the
+core change since then is purely additive (two new turnstile decision functions), so the functions
+running older core decide nothing differently.
 
 ---
 
@@ -46,33 +52,25 @@ grants and refuses when they disagree. The studio is notified the moment a self-
 | | In members' hands | Uploaded, not yet released |
 |---|---|---|
 | iOS | 1.0.1 (build 4) — live since 2026-07-29 | **1.5.0** (build 11) submitted 2026-08-06; the App Store version must be created by hand |
-| Android | **1.3.0** (versionCode 9) — closed test | **1.5.0** building/submitting 2026-08-06 |
+| Android | **1.3.0** (versionCode 9) — closed test | **1.5.0** submitted 2026-08-06 |
 
-**1.5.0 supersedes 1.3.0 AND 1.4.0 — ship only 1.5.0.** 1.4.0 was built and its iOS half submitted
-earlier the same evening; everything in it is contained in 1.5.0, so let it lapse rather than spend a
-review turn on it.
+**Ship 1.5.0 and nothing else. 1.1.0, 1.2.0, 1.2.1, 1.3.0 and 1.4.0 are all superseded** — each is
+contained in the next, and 1.2.0's video player is broken (OR-22). Several of them were built and
+uploaded and never sent for review; let them lapse rather than spend a review turn on any of them.
+On iOS pick the **1.5.0** build. 1.5.0 carries the editorial redesign, the late-cancel block (OR-30),
+workout tracking (OR-33), the consistency strip, and one price (OR-31).
+
+⚠️ **`apps/mobile/app.json` still says 1.5.0, but the tree is no longer the 1.5.0 that was
+submitted.** Two mobile files changed after the 1.5.0 chore commit — `qr.tsx` and `src/lib/api.ts`,
+the turnstile's six-digit scanner. A build made today would reach the stores calling itself 1.5.0
+while behaving differently from the 1.5.0 under review. **Bump to 1.6.0 before the next build**; the
+turnstile cannot reach members until that release ships anyway.
 
 **Android's production clock: 12 testers, 14 days required, and on 2026-07-29 it stood at day 3** —
-so it completes around **2026-08-09**. (Written as a date on purpose: a countdown in a document is
-wrong the day after it is written.) If a tester leaves the test the counter RESETS — do not remove
-testers. Publishing new builds does NOT reset it, which is why 1.2.0 and 1.2.1 could both go out
-mid-count without costing a day.
-
-**1.3.0 is the one to ship. 1.1.0, 1.2.0 and 1.2.1 are all superseded** — each is contained in it,
-and 1.2.0's video player is broken. On iOS pick the **1.3.0** build; on Android it is already on the
-closed test track. 1.3.0 adds the three navigation fixes (OR-25) and PF-44's show-password eye on top
-of everything below.
-
-**1.2.1 superseded 1.2.0 — never shipped.** (2026-08-01) 1.2.0 reached both stores with a video
-player that failed on every exercise (YouTube "Hata 153"), caught in a simulator after upload; see
-OR-22. 1.2.1 fixes it and carries everything 1.2.0 did: PF-42 (Cüzdan out of the tab bar for
-Üyeliğim), PF-43 (past reservations collapsed), the movement guide and the in-app video player.
-Android replaced the closed-test build automatically (versionCode 8); **on iOS pick the 1.2.1 build,
-not 1.2.0's build 6.**
-
-**1.1.0 was superseded, not shipped.** It was built and uploaded on 2026-07-29 and never sent for
-review; everything in it is inside 1.2.1, so let both it and 1.2.0 lapse rather than spending a
-review turn on either. The owner chose this on 2026-08-01.
+so it completes around **2026-08-09**, which is now. Check Play Console for the actual state before
+assuming either way. If a tester leaves the test the counter RESETS — do not remove testers.
+Publishing new builds does NOT reset it, which is why 1.2.0 and 1.2.1 could both go out mid-count
+without costing a day.
 
 Submissions are automated: `cd apps/mobile && npx eas-cli submit --platform android --profile
 production --latest`. The Play service account key is gitignored at
@@ -84,11 +82,16 @@ must still be created and sent for review by hand.
 
 ## Waiting on the owner
 
-- **iOS 1.3.0 is uploaded; the App Store version has to be created by hand.** App Store Connect →
-  + Version → 1.3.0 → fill "What's New" in BOTH Turkish and English (an empty Turkish field greys out
-  "Add for Review", which cost a day last week) → pick the **1.3.0** build → submit. Skip 1.1.0,
-  1.2.0 and 1.2.1 — all three are contained in it. Test credentials for the reviewer: `0500 000 00 01` / `Yu156211` — a member
-  with a live package and a programme, excluded from every report.
+- **iOS 1.5.0 is uploaded; the App Store version has to be created by hand.** App Store Connect →
+  + Version → 1.5.0 → fill "What's New" in BOTH Turkish and English (an empty Turkish field greys out
+  "Add for Review", which cost a day last week) → pick the **1.5.0** build → submit. Skip every
+  earlier version — all of them are contained in it. Test credentials for the reviewer:
+  `0500 000 00 01` / `Yu156211` — a member with a live package and a programme, excluded from every
+  report.
+- **The turnstile's hardware.** The software is live and the device pairing tool exists
+  (`pnpm setup:turnstile`), but the Perkotek S150 is not fitted and its firmware is deliberately
+  unwritten — writing it blind against hardware nobody has held is how you debug two things at once.
+  Nothing runs until the box is on the wall.
 - **The Meta invite template `uyelik_daveti_v2`.** Text is drafted and ready to paste into WhatsApp
   Manager (name, category Utility, Turkish, body and the two sample values) — see the section below.
   Once Meta approves it, the code change is ONE line in
@@ -129,8 +132,11 @@ must still be created and sent for review by hand.
   `budgetEndsOn` in the sweep.
 - **Twenty-one duraklatılmış members are a work list nobody has worked.** They now have a filter with
   a count; that is the win-back call list.
-- **Hybrid purchase, tested live.** One sale must produce N entitlements correctly through the real
-  PAYTR path. The rules are written and unit-tested; the path has never run in production.
+- **The turnstile's device firmware.** Deliberately unwritten until the S150 is in hand — writing it
+  blind means debugging the firmware and the protocol at the same time, against hardware nobody has
+  held. Everything on our side is built, tested and live; `pnpm setup:turnstile` mints the pairing.
+- **`apps/mobile` still calls itself 1.5.0 while carrying the turnstile scanner.** Bump to 1.6.0
+  before the next build, or the stores get a second, different 1.5.0.
 - **External uptime monitoring.** The watchdog cannot report its own suspension — if the project is
   suspended over an unpaid bill, every alarm goes quiet, which looks exactly like all-clear. The
   Monday heartbeat covers this partially by making silence the signal.
@@ -360,6 +366,79 @@ recently. **When a member-facing number never appears, suspect the type before t
 (`order:1` was called "2. Gün"), which made a correct cycle look broken. 149 programmes audited, 1
 affected, fixed at the template and the programme. Names were moved onto their order, never the
 reverse — renumbering would have re-labelled work already done.
+
+### Shipped 2026-08-07 — the discount reaches the desk's real case, and a door gets built
+
+**İndirim after the sale, not only during it (OR-32 extended).** Yesterday's discount lived at the
+point of sale, and within a day the desk hit the case it could not reach: reception sells at list,
+takes what the member brought, and the rest is agreed away afterwards. A ₺5.000 package with ₺4.200
+collected sat at ₺800 *debt* — money the member does not owe, on the owner's collection list. Üye ›
+Paket › Düzenle now offers **İndirim Uygula** beside Tahsilat Al: the sale keeps its gross, gains a
+discount, and settles. Editing the agreed price down would close the balance too, but it destroys
+what the package costs and the fact that anything was given away — **a studio that cannot count what
+it discounted cannot decide whether to keep doing it.** A discount larger than what is still OWED is
+refused, never clamped: forgiving money already in the till is a *refund*, a different act with cash
+going back. Owner-only; `manual` still needs a note (I-36); the event carries `totalBefore`/
+`totalAfter` so revenue can be corrected from the log alone.
+
+**The turnstile (OR-34).** A Perkotek S150 — dry contact, no reader, no network, no opinion. A screen
+beside the arm shows a six-digit code; the member scans it with her phone; we answer from her
+packages, her freeze and her balance. The code lives 45 seconds, is bound to its device, and is
+single-use **spent in a transaction** — single use IS the race, and read-then-write would let two
+phones pointed at the same screen both in. The code is spent BEFORE the check-in is recorded, so a
+race fails as "the door did not open" rather than "two people crossed on one code".
+
+It emits `member.checked_in` with `method: 'device'` — the field has sat unused since the first
+commit waiting for exactly this (AD-18), so occupancy keeps one arithmetic and one debounce. The
+device is a principal with its own id and secret; only the secret's SHA-256 is stored. The full rule
+is OR-34. **`pnpm setup:turnstile` pairs a device and prints the secret ONCE** — there is
+deliberately no way to read it back; lose it and you mint a new one and deactivate the old device.
+
+One fault, caught by probing the live endpoint after deploying: `POST /api/turnstile` answered **307,
+not 401**. The coarse cookie gate treated it as a panel page and bounced it to `/login`. A box bolted
+to a wall has no `__session` cookie, cannot follow a redirect, and would never report one — so the
+arm would have stopped opening with nothing anywhere saying why. The exemption went in **as a test**,
+not as a line someone can quietly delete. *This is what "probe the live endpoint after deploying"
+buys, and it is the second time it has paid (OR-22).*
+
+### Shipped 2026-08-08 — a rule enforced on the way in, and a panel that can be photographed
+
+**A pilates-only member cannot be given a workout programme (OR-35).** The rule was settled on
+2026-08-06 and it shaped the member app — but it was only ever enforced where the data is
+**displayed**. The app hid the tab while the panel happily assigned a programme anyway, and one was,
+to a member holding a single Reformer package. **A rule that lives only on the read side is not a
+rule; it is a preference the next screen ignores.** One function (`mayHaveProgram`) now answers it
+and both sides call it; the two doors that create a programme refuse, and the panel hides the buttons
+*and says why* — a button that is merely absent is a button a second screen still presses. A member
+who already HAS a programme keeps it: nothing granted is taken away by a rule written afterwards.
+
+The audit matters more than the fix. Six programmes had no fitness/PT package behind them and only
+**two** were this bug — four belonged to fitness members whose package had EXPIRED, and their
+programme must be waiting for them when they renew. Archiving those would have looked like tidying
+and been a small act of vandalism. The two real ones were **archived, never deleted**: deleting
+erases the evidence of the bug being fixed.
+
+**Demo mode.** The platform's marketing screenshots and a second studio's live demo both need the
+panel open — with forty women's names, phone numbers and gym times on screen. Names become "Ayşe K.",
+phones `+90 5•• ••• •• 47`, and **every number, date, occupancy and amount stays real**: a demo
+convinces because it moves like a real business, not because the figures were invented.
+
+Three properties, each deliberate. It **writes nothing** — not to Firestore, not to the event log,
+not to studio settings, so turning it off is easier than turning it on. It lives in a **cookie, not
+settings**, so the owner enabling it does not mask reception's screen — how the panel looks belongs
+to a person, not a studio. And the masking happens on the **server**: sending the real name and
+blurring it in CSS is not masking, it is a screenshot that still carries every name in the page
+source. Pseudonyms are deterministic, so one member is the same "Ayşe K." on the calendar and in the
+member list; the surname is dropped rather than kept as an initial, because in a studio this size
+"S. G." is a short list.
+
+It missed one screen, caught in a screenshot the owner had already taken: the **Stüdyodan öneriler**
+list still carried real names, and beside each one "23 gündür gelmiyor" — that screen alone would
+have published both who the members are and which of them are drifting away. Fixed the same evening.
+**A demo mode that works on most screens is not a demo mode, and the screen it misses is the one that
+ends up in a screenshot, because nobody re-checks a feature they have already seen working.**
+
+**Demo mode is finished — nothing is outstanding on it.**
 
 ---
 
