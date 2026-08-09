@@ -497,9 +497,16 @@ The test that guarded this checked the parameter's NAME. It now checks the prope
 matters: **every key the WhatsApp mapping asks for must be one that every sender builds.** A
 parameter only some senders populate is the defect; which key it happened to be never was.
 
-⚠️ **This needs BOTH deploys** — the mapping lives in `packages/core`, and the sender that was broken
-is a Cloud Function. App Hosting alone changes the panel and leaves the online-purchase invitation
-exactly as broken as it was.
+⚠️ **This needed BOTH deploys** — the mapping lives in `packages/core`, and the sender that was broken
+is a Cloud Function. App Hosting alone would have changed the panel and left the online-purchase
+invitation exactly as broken as it was. **Both went out the same evening**: panel
+`build-2026-08-09-007` (100% traffic) and all eleven functions at 16:00–16:01 UTC. Verified after,
+not assumed — Cloud Run's traffic split (OR-17), the login page, and `/api/public/products?s=retro`
+returning the live price list.
+
+**A near-identical competitor domain surfaced the same day: `studioasistan.com`** — same sector, one
+letter apart, and nobody had checked for it when the name was chosen. Neither name is registered at
+TÜRKPATENT. The whole picture, and what it means for the trademark, is in `PRODUCT-ROADMAP.md` §9.
 
 ---
 

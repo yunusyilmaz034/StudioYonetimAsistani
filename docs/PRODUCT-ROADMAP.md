@@ -289,6 +289,30 @@ adını isteyene ayrıca sunulur ve **ücretlendirilir**.
 Değerlendirilip elenen: `retrostudyo.com` (şirket adıyla bağlı ama müşteri bizim şirket adımızı değil
 kendi işini yapan şeyi satın alıyor) · `studiopanel.com` (`.com` alınmış) · `seanspanel.com`.
 
+### ⚠️ `studioasistan.com` — bir harf farkıyla aynı sektörde bir rakip (2026-08-09'da fark edildi)
+
+İsim seçilirken bakılmamış. `studioasistan.com` canlı ve şunu diyor: *"Akıllı spor salonu yönetimi
+için geleceğin yazılım altyapısını geliştiriyoruz."* KVKK, yapay zeka, bulut. Yani aynı ürün, aynı
+pazar, tek harf fark — Türkçe yazım `stüdyo`, İngilizcesi `studio`; alan adında `ü` olamadığı için
+biz `studyo` aldık, onlar `studio`.
+
+**Durumları:** sayfa *"%72 tamamlandı · Yapım Aşamasında — 2025 Lansmanı"* diyor ve Ağustos 2026'da
+hâlâ öyle. Bir yıldan fazla bayat, yani proje durmuş görünüyor. `studioasistan.com.tr` ise
+`192.168.1.1`'e çözülüyor — kayıt onlarda, ayakta değil.
+
+**Marka durumu (TÜRKPATENT, 2026-08-09):** ne "stüdyo asistan" ne "studio asistan" tescilli. Türkiye
+ilk-başvurana hak veriyor, yani alan açık **ve süreli**: onlar da her an başvurabilir, ve durmuş bir
+proje bir başvuru dilekçesini engellemez. Tersinden, onların tescilsiz önceki kullanımı bize karşı
+itiraz gerekçesi olabilir — bu, başvurmamak için değil **erken başvurmak** için sebep, çünkü geçen
+her ay onların kullanım süresini uzatıyor.
+
+**Karar bekliyor:** marka vekiliyle başvuru (kullanılan hâl "Studyo Asistan"; sınıflar vekilin işi —
+yazılım/SaaS 42, ürün 9, işletme yönetimi 35 konuşulacak). İfade araması tam bir temizlik araştırması
+değildir: 42. sınıfta tek başına tescilli bir "ASİSTAN" da gerekçe gösterilebilir.
+
+**İsim değişikliği bugün masada değil ama en ucuz olduğu gün bugün** — alan adı yeni, site yeni, hiçbir
+müşteriye söz verilmedi. Tescil tablosu netleşmeden konuşulmaz; netleştikten sonra ertelenmemeli.
+
 ---
 
 ## 10. Sıra
