@@ -211,9 +211,36 @@ Müşteri yokken yazılacak kod, doğrulanamayan bir varsayımın üstüne oturu
 **Faz A'da müşteri beklemeden yapılabilecek olanlar A3 ve A4'tür.** İkisi de mevcut stüdyodan
 bağımsız ve emülatörde baştan sona doğrulanabilir.
 
-**A3 · Tek komutla stüdyo açma.** Bugün kurulum `tools/setup/*` ile elle yapılıyor. Bir müşteri için
-kabul edilebilir, üç müşteri için değil. → `pnpm studio:new`, **idempotent** (yarıda kalırsa tekrar
-çalıştırılabilsin).
+**A3 · Tek komutla stüdyo açma.** ✅ **BİTTİ** (2026-08-09) — `pnpm studio:new`.
+
+```
+pnpm studio:new -- --studio=<sid> --branch=<bid> --name="Stüdyo Adı" \
+                   --owner-email=… --owner-name="Ad Soyad" [--apply]
+```
+
+Üç şey yaratıyor, çünkü panelin açılması için gereken tam olarak bunlar: **`settings/studio`**
+(sağlama — altı sayısının yaşadığı yer, D14; yoksa domain seans reddeder), **şube** (check-in bundan
+önce imkânsız) ve **owner** (Auth hesabı → `/staff` + `staff.created` → claims, bu sırayla).
+
+**Yaratmadıkları kasıtlı:** ürün, servis, eğitmen, egzersiz, PAYTR, WhatsApp. Hepsi stüdyonun kendi
+içeriği ve bir kurulum scriptinin ürün adı ya da fiyat üretmesi AD-41'in yasakladığı şeyin script'e
+taşınmış hâli olurdu. Servisler de dışarıda: bir servis kategori + politika taşır, ikisini uydurmak
+"yapılandırılmış görünen ama yanlış davranan" bir stüdyo üretir. Script bunları üretmek yerine
+**sıradakileri komutlarıyla yazdırıyor** — asıl kaldırılan maliyet yazmak değil, ne çalıştıracağını
+bilmek.
+
+**Varsayılan dry-run**, `--apply` ile yazma. **Üyesi olan bir stüdyoyu reddediyor** — korunan hata
+`pnpm studio:new --studio=retro`, yeni bir kimlik yazdığını sanan biri tarafından, 120 kadının
+bağlı olduğu stüdyoya karşı (OR-36). Yarım kalmış yeni bir stüdyonun üyesi olmadığı için meşru
+tekrar çalıştırmaya bedeli yok.
+
+**İdempotent.** `settings/studio` yalnız YOKKEN yazılıyor, asla düzeltilmiyor: tekrar çalıştırma,
+owner'ın Ayarlar'dan düzelttiği çalışma saatlerini sessizce sıfırlamamalı. Şube merge-only,
+`createStaff` ikinci kez yazmıyor.
+
+Emülatörde dört adım doğrulandı: ilk çalıştırma (3 doküman · 3 olay · hepsi `platform_admin`
+aktörüyle) · ikinci çalıştırma (hiçbir şey bozulmadı) · yazılan durum · ve üye eklendikten sonra
+kilidin reddetmesi.
 
 **A4 · White-label mobil derleme parametreleri.** Stüdyo kimliği, uygulama adı ve ikonu derlemeye
 parametre olarak verilmeli. Bugün `config.ts`'te `STUDIO_ID = 'retro'` sabit; koddaki not zaten bu

@@ -179,9 +179,13 @@ must still be created and sent for review by hand.
 - **External uptime monitoring.** The watchdog cannot report its own suspension — if the project is
   suspended over an unpaid bill, every alarm goes quiet, which looks exactly like all-clear. The
   Monday heartbeat covers this partially by making silence the signal.
-- **Product roadmap Faz A** (`docs/PRODUCT-ROADMAP.md`) — per-studio WhatsApp number, per-studio
-  e-mail sender, one-command studio provisioning. Nothing blocks a second studio until these exist.
-  No urgency; a second studio (Novozen) has asked but nothing is agreed.
+- **Product roadmap Faz A** (`docs/PRODUCT-ROADMAP.md`). **A3 — `pnpm studio:new` — is done**
+  (2026-08-09): one command provisions `settings/studio`, the branch and the owner, dry-run by
+  default, and refuses a studio that already has members. **A1** (per-studio WhatsApp) and **A2**
+  (per-studio e-mail sender) are decided but deliberately customer-triggered — half of each job is
+  the customer's own Meta account and DNS, so building them blind means guessing at the half we
+  cannot see. **A4** (white-label mobile build parameters) is open and needs no customer.
+  A second studio (Novozen) has asked; nothing is agreed.
 
 ---
 
