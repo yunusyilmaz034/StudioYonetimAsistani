@@ -49,10 +49,12 @@ grants and refuses when they disagree. The studio is notified the moment a self-
 
 ## Store state
 
-| | In members' hands | Uploaded, not yet released |
+| | In members' hands | In review |
 |---|---|---|
-| iOS | 1.0.1 (build 4) — live since 2026-07-29 | **1.5.0** (build 11) submitted 2026-08-06; the App Store version must be created by hand |
-| Android | **1.3.0** (versionCode 9) — closed test | **1.5.0** submitted 2026-08-06 |
+| iOS | 1.0.1 (build 4) — live since 2026-07-29 | **1.5.0** (build 11) — *Waiting for Review*, seen 2026-08-09 |
+| Android | **1.3.0** (versionCode 9) — closed test | **1.5.0** on the closed track; production ACCESS applied for 2026-08-09 |
+
+**Both stores are waiting on somebody else now.** Nothing on our side is blocking either one.
 
 **Ship 1.5.0 and nothing else. 1.1.0, 1.2.0, 1.2.1, 1.3.0 and 1.4.0 are all superseded** — each is
 contained in the next, and 1.2.0's video player is broken (OR-22). Several of them were built and
@@ -108,12 +110,13 @@ must still be created and sent for review by hand.
 
 ## Waiting on the owner
 
-- **iOS 1.5.0 is uploaded; the App Store version has to be created by hand.** App Store Connect →
-  + Version → 1.5.0 → fill "What's New" in BOTH Turkish and English (an empty Turkish field greys out
-  "Add for Review", which cost a day last week) → pick the **1.5.0** build → submit. Skip every
-  earlier version — all of them are contained in it. Test credentials for the reviewer:
-  `0500 000 00 01` / `Yu156211` — a member with a live package and a programme, excluded from every
-  report.
+- ~~**iOS 1.5.0's App Store version.**~~ Done — it reads *Waiting for Review* as of 2026-08-09.
+  Keeping the recipe for next time: App Store Connect → + Version → fill "What's New" in BOTH
+  Turkish and English (an empty Turkish field greys out "Add for Review", which cost a day) → pick
+  the right build → submit. Reviewer credentials, on both stores: `0500 000 00 01` / `Yu156211` — a
+  member with a live package and a programme, excluded from every report. **Say in the notes that
+  login is by PHONE NUMBER, not e-mail**, or the reviewer hunts for an e-mail field, fails to sign
+  in, and rejects the build.
 - **Android production access: applied 2026-08-09 17:46, under review.** Google says usually seven
   days or fewer, by e-mail to the account owner. Nothing to do but wait — and **keep all twelve
   testers enrolled until it is approved**, because a rejection puts the fourteen-day counter back in
