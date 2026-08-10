@@ -572,6 +572,33 @@ numbers was lying.
 
 ---
 
+### 2026-08-10 (evening) — the panel wears the studio's name, the login wears ours
+
+The sidebar read "Studio · Yönetim Asistanı" — a name that by then belonged to nobody: not the
+customer, and not the platform after the rename. It now reads the studio's own name from
+`settings/studio` (`getStudioName`), with the avatar initial derived from that same string so the
+two can never disagree. Işıl's panel says **Pilates Fitness By Işıl · Yönetim Paneli**.
+
+This is the white-label decision applied where it actually shows (PRODUCT-ROADMAP §9): a product
+whose chrome advertises its supplier is not white-label. The theme already worked this way — her
+panel takes its colour from her own settings — and the name was the last thing that did not.
+
+**The login screen goes the other way, deliberately.** No session yet ⇒ no studio to name, which
+makes it the one panel screen legitimately ours. It says **RetroAsistan · Stüdyo Yönetim Sistemi**.
+The rule reads cleanly in both directions: before sign-in it is our product, after sign-in it is
+hers.
+
+**And a false green, walked into rather than avoided.** Four pushes went out in a row and the
+rollout was watched for "the revision id changed" — which fired on the PREVIOUS docs commit's
+build. The panel was reported live when it was not; only the page's `no-store` header and its
+still-old content gave it away. Cloud Run's traffic split answers *did a deploy land*, not *did MY
+deploy land*, and with pushes stacked those are different questions. Now in `docs/RUNBOOK.md`:
+with pushes stacked, wait for the CHANGE, not for a number to move.
+
+Live at `build-2026-08-10-004`, both changes verified on the page itself.
+
+---
+
 ## Where 2026-08-09 ended — the three things somebody else has to do
 
 Everything below is outside this repository. Nothing in the code is blocking any of them, and none
