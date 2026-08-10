@@ -327,6 +327,7 @@ function SubscriptionRow({ sub, siblings, products, onChanged, isOwner = false, 
 
           <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
             <Row label="Paket tutarı" value={tl(sub.priceAgreedKurus)} />
+            {sub.discountKurus > 0 ? <Row label="İndirim" value={`− ${tl(sub.discountKurus)}`} /> : null}
             <Row label="Tahsil edilen" value={tl(sub.paidKurus)} />
             <Row label="Kalan bakiye" value={tl(balance)} />
             <Row label="Ödeme yöntemi" value={sub.method ? (METHOD_LABEL[sub.method] ?? sub.method) : '—'} />
@@ -1168,6 +1169,12 @@ function MoneyBlock({ sub, memberId, branchId, isOwner = false, onDone }: { sub:
   return (
     <div className="space-y-2 rounded-xl border border-border bg-muted/30 p-3 text-sm">
       <Row label="Paket tutarı" value={tl(sub.priceAgreedKurus)} />
+      {/* Only when there IS one. Without this row the three numbers below do not add up — the price
+          is BEFORE the discount and the rest are after — and a closed debt reads as a missing one.
+          That is exactly how it was read on 2026-08-10: "5.000 agreed, 4.200 collected, no debt,
+          and where did my discount button go?" The button was correctly hidden; the number that
+          explains why was simply never shown. */}
+      {sub.discountKurus > 0 ? <Row label="İndirim" value={`− ${tl(sub.discountKurus)}`} /> : null}
       <Row label="Tahsil edilen" value={tl(sub.paidKurus)} />
       <Row label="Kalan borç" value={due > 0 ? tl(due) : '—'} />
       {due > 0 ? (

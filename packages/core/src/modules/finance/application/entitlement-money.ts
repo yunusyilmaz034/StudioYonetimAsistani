@@ -17,6 +17,17 @@ export interface EntitlementMoney {
   /** What was agreed — the sale's total, which is what the studio is owed for this package. */
   readonly agreed: Money
   readonly paid: Money
+  /**
+   * Σ of the sale's discounts. Zero for almost every sale, and the reason it is here at all: the
+   * package screen shows the entitlement's own price (BEFORE any discount) next to the sale's paid
+   * and due (AFTER it). Without this number those three lines do not add up, and the owner reads
+   * "5.000 agreed · 4.200 collected · no debt" as a fault in the software rather than as the
+   * discount she granted.
+   *
+   * It is also the point of recording discounts at all: a studio that cannot count what it gave
+   * away cannot decide whether to keep giving it (OR-32).
+   */
+  readonly discount: Money
   /** `agreed − paid`. Selling without collecting is legal here; the debt must never be invisible. */
   readonly due: Money
   /** How she paid, when she has. `null` ⇒ nothing collected yet. */
@@ -57,6 +68,10 @@ export async function moneyByEntitlement(
         saleId: sale.id,
         agreed: sale.total,
         paid: sale.paid,
+        // Sale-level, like `paid` and `due` beside it: a discount is granted on the sale, not on one
+        // of its lines. A hybrid's components therefore each report the bundle's discount, which is
+        // the same shape the screen already groups them under.
+        discount: money(sale.discounts.reduce((sum, d) => sum + d.amount.amount, 0)),
         due: money(saleBalanceDue(sale)),
         method: bySale.get(sale.id) ?? null,
         cancelled: sale.status === 'cancelled',

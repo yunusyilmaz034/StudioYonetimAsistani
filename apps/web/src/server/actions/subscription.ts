@@ -599,6 +599,12 @@ export interface SubscriptionView {
   readonly entriesUsed: number
   readonly priceAgreedKurus: number
   readonly paidKurus: number
+  /**
+   * What was given away on this package's sale. `priceAgreedKurus` is the price BEFORE it and
+   * `paidKurus`/`balanceDueKurus` are after — so without this the three numbers do not reconcile
+   * on screen, and a settled discount reads as a missing debt.
+   */
+  readonly discountKurus: number
   readonly balanceDueKurus: number
   /** The sale that granted this package — what a post-sale discount is applied to. */
   readonly saleId: string | null
@@ -656,6 +662,7 @@ export async function listMemberSubscriptionsAction(input: unknown): Promise<rea
       priceAgreedKurus: e.priceAgreed.amount,
       saleId: ledger.get(e.id as string)?.saleId ?? null,
       paidKurus: ledger.get(e.id as string)?.paid.amount ?? 0,
+      discountKurus: ledger.get(e.id as string)?.discount.amount ?? 0,
       balanceDueKurus: ledger.get(e.id as string)?.due.amount ?? 0,
       method: ledger.get(e.id as string)?.method ?? null,
       note: null,
