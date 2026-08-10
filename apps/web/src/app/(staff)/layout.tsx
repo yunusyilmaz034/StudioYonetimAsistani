@@ -11,7 +11,7 @@ import { CheckInToaster } from './checkin-toaster'
 import { PaymentToaster } from './payment-toaster'
 import { WhatsAppDock } from './whatsapp-dock'
 import { getTenantContext } from '@/server/auth'
-import { getStudioTheme } from '@/server/theme'
+import { getStudioName, getStudioTheme } from '@/server/theme'
 
 // The STAFF application shell — owner / reception / trainer only.
 //
@@ -28,8 +28,10 @@ export default async function StaffLayout({ children }: { children: ReactNode })
   // is sent away, and it shows her nothing.
   if (!ctx) return <>{children}</>
 
-  // The studio's chosen palette + type size (PF-12), injected once for the whole staff app.
-  const theme = await getStudioTheme(ctx.studioId)
+  // The studio's chosen palette + type size (PF-12), injected once for the whole staff app — and the
+  // name that goes in the masthead beside it. Both are the STUDIO's, not the platform's: the panel
+  // wears its customer's identity, never its vendor's (PRODUCT-ROADMAP §9).
+  const [theme, studioName] = await Promise.all([getStudioTheme(ctx.studioId), getStudioName(ctx.studioId)])
 
   // The KIOSK role gets NO shell — no sidebar, no nav, no way to reach a second screen. The wall
   // tablet is signed in once and shows exactly one thing (its own page renders full-screen). Drawing
@@ -57,7 +59,7 @@ export default async function StaffLayout({ children }: { children: ReactNode })
   // A screen that decides for itself whether the user can be told about a failure is a screen that
   // will one day decide no. So it is not the screen's decision any more.
   return (
-    <AppShell role={ctx.role}>
+    <AppShell role={ctx.role} studioName={studioName}>
       <ThemeStyle theme={theme} />
       <Toaster />
       {/* PF-36 — desk-only: a green/red toast when a member checks in (from the kiosk or the desk).

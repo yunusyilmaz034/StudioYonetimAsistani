@@ -181,13 +181,13 @@ const isActive = (pathname: string, href: string): boolean =>
 // No "bare route" escape hatch any more: this shell is mounted ONLY by `(staff)/layout.tsx`.
 // Login, the design-system showcase, the member portal and the invite link live in other
 // branches of the route tree, so they cannot render it even by accident.
-export function AppShell({ children, role }: { children: ReactNode; role: PrincipalRole }) {
+export function AppShell({ children, role, studioName }: { children: ReactNode; role: PrincipalRole; studioName: string }) {
   const pathname = usePathname()
   const groups = groupsFor(role)
   return (
     <div data-slot="app-shell" className="min-h-dvh pb-16 md:pb-0 md:pl-60">
-      <DesktopRail pathname={pathname} groups={groups} />
-      <MobileNav pathname={pathname} groups={groups} />
+      <DesktopRail pathname={pathname} groups={groups} studioName={studioName} />
+      <MobileNav pathname={pathname} groups={groups} studioName={studioName} />
       {/* ⌘K anywhere — the operations command palette (Phase 2 §1). */}
       <CommandPalette role={role} />
       {/* "N" or ⌘K → the quick-booking modal (Phase 2 §2). */}
@@ -209,16 +209,25 @@ function useLogout() {
   return { logout, loading }
 }
 
-function Brand() {
+// The masthead names the STUDIO, not us. It used to read "Studio · Yönetim Asistanı" — the
+// platform's own name printed inside the customer's product, which is the opposite of the
+// white-label decision (PRODUCT-ROADMAP §9): the person at the desk should see her studio, not her
+// vendor. The initial is derived from that same name, so it can never disagree with the word beside
+// it.
+function Brand({ studioName }: { studioName: string }) {
+  const initial = studioName.trim().charAt(0).toLocaleUpperCase('tr-TR') || 'S'
   return (
     <Link href="/" className="flex items-center gap-2.5 px-3 py-1">
       <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-primary font-heading text-base font-medium text-primary-foreground shadow-sm">
-        S
+        {initial}
       </span>
       <span className="leading-tight">
-        {/* Editorial serif wordmark (Doc 33) — the brand's premium signal, top-left of every screen. */}
-        <span className="block font-heading text-[0.95rem] font-medium text-foreground">Studio</span>
-        <span className="block text-xs text-muted-foreground">Yönetim Asistanı</span>
+        {/* Editorial serif wordmark (Doc 33) — the premium signal, top-left of every screen. It is
+            the STUDIO's wordmark; the studio's own theme colours it (PF-12). */}
+        <span className="block truncate font-heading text-[0.95rem] font-medium text-foreground" title={studioName}>
+          {studioName}
+        </span>
+        <span className="block text-xs text-muted-foreground">Yönetim Paneli</span>
       </span>
     </Link>
   )
@@ -243,7 +252,7 @@ function RailLink({ item, active, onClick }: { item: NavItem; active: boolean; o
   )
 }
 
-function DesktopRail({ pathname, groups }: { pathname: string; groups: readonly NavGroup[] }) {
+function DesktopRail({ pathname, groups, studioName }: { pathname: string; groups: readonly NavGroup[]; studioName: string }) {
   const { logout, loading } = useLogout()
   return (
     <aside
@@ -251,7 +260,7 @@ function DesktopRail({ pathname, groups }: { pathname: string; groups: readonly 
       className="fixed inset-y-0 left-0 hidden w-60 flex-col border-r border-border bg-sidebar md:flex"
     >
       <div className="flex items-center justify-between gap-1 px-3 pt-4 pb-2">
-        <Brand />
+        <Brand studioName={studioName} />
         <ThemeToggle className="shrink-0 text-muted-foreground" />
       </div>
       {/* The ⌘K palette's visible handle — reception's fastest path to a member or a screen. */}
@@ -304,7 +313,7 @@ function DesktopRail({ pathname, groups }: { pathname: string; groups: readonly 
 // like the desktop rail (one source of truth — `groups`).
 const MOBILE_PRIMARY: readonly Area[] = ['/', '/my-classes', '/schedule', '/reservations', '/checkin', '/members']
 
-function MobileNav({ pathname, groups }: { pathname: string; groups: readonly NavGroup[] }) {
+function MobileNav({ pathname, groups, studioName }: { pathname: string; groups: readonly NavGroup[]; studioName: string }) {
   const [open, setOpen] = useState(false)
   const items = groups.flatMap((g) => g.items)
   // Role-adaptive: keep only the primaries this role can actually see, in priority order, capped at 4.
@@ -349,7 +358,7 @@ function MobileNav({ pathname, groups }: { pathname: string; groups: readonly Na
         </button>
       </nav>
 
-      <MobileDrawer open={open} onOpenChange={setOpen} pathname={pathname} groups={groups} />
+      <MobileDrawer open={open} onOpenChange={setOpen} pathname={pathname} groups={groups} studioName={studioName} />
     </>
   )
 }
@@ -359,11 +368,13 @@ function MobileDrawer({
   onOpenChange,
   pathname,
   groups,
+  studioName,
 }: {
   open: boolean
   onOpenChange: (o: boolean) => void
   pathname: string
   groups: readonly NavGroup[]
+  studioName: string
 }) {
   const { logout, loading } = useLogout()
   return (
@@ -371,7 +382,7 @@ function MobileDrawer({
       <SheetContent side="left" className="w-[17rem] p-0">
         <SheetHeader className="flex-row items-center justify-between gap-1 border-b border-border px-3 py-3">
           <SheetTitle className="p-0">
-            <Brand />
+            <Brand studioName={studioName} />
           </SheetTitle>
           <ThemeToggle className="shrink-0 text-muted-foreground" />
         </SheetHeader>

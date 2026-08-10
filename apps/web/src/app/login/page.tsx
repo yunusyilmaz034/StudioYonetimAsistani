@@ -46,11 +46,14 @@ export default async function LoginPage() {
 
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
+          {/* THE one panel screen that is legitimately the platform's (PRODUCT-ROADMAP §9): there is
+              no session yet, so there is no studio to name. Every screen BEHIND this one wears the
+              studio's identity instead — the desk should see its studio, not its vendor. */}
           <span className="mx-auto mb-4 grid size-12 place-items-center rounded-xl bg-primary font-heading text-xl font-medium text-primary-foreground shadow-md">
-            S
+            R
           </span>
-          <h1 className="font-heading text-2xl font-medium text-foreground">Studio</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Yönetim Asistanı</p>
+          <h1 className="font-heading text-2xl font-medium text-foreground">RetroAsistan</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Stüdyo Yönetim Sistemi</p>
         </div>
         <Card className="w-full shadow-lg">
           <CardHeader>

@@ -16,3 +16,26 @@ export async function getStudioTheme(studioId: string): Promise<StudioTheme> {
     return DEFAULT_THEME
   }
 }
+
+/**
+ * The name the STUDIO is known by, for the panel's own masthead.
+ *
+ * The sidebar used to read "Studio · Yönetim Asistanı" — the platform's name, printed inside the
+ * customer's product. That is backwards, and it was decided so the day the platform got a brand of
+ * its own (`PRODUCT-ROADMAP.md` §9): the person at the desk should see her studio, not her vendor.
+ * A white-label product whose chrome advertises the supplier is not white-label.
+ *
+ * `displayName` before `legalName`, like the receipt does — the name a member knows, not the one on
+ * the tax certificate. The fallback stays generic on purpose: a studio that has not filled in its
+ * company card yet gets a neutral word, never some other studio's name.
+ */
+export async function getStudioName(studioId: string): Promise<string> {
+  try {
+    const snap = await adminDb().doc(`studios/${studioId}/settings/studio`).get()
+    const company = snap.get('company') as { displayName?: string; legalName?: string } | undefined
+    return company?.displayName?.trim() || company?.legalName?.trim() || 'Stüdyo'
+  } catch {
+    // Same rule as the theme: the masthead must never be why a page fails to render.
+    return 'Stüdyo'
+  }
+}
