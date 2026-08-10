@@ -276,6 +276,25 @@ gcloud run services describe studio-yonetim --region europe-west4 --project stud
 Dönen revizyon adı `studio-yonetim-build-YYYY-MM-DD-NNN` biçiminde ve **%100 alan** tek satırdır.
 Bu, o an gerçekten servis edilen koddur.
 
+### Peş peşe push varsa revizyon değişimi yetmez — İÇERİĞE bak (2026-08-10)
+
+Cloud Run trafiği "bir dağıtım geçti mi" sorusunu doğru cevaplıyor. Cevaplamadığı soru şu:
+**benim değişikliğim mi geçti?**
+
+O gece dört push yapıldı ve dağıtımı "revizyon numarası değişsin" diye beklendi. Numara değişti —
+ama bir önceki *doküman* commit'inin build'iyle. "Yayında" denildi, oysa değildi; yalnızca sayfanın
+`no-store` başlığı ve içeriğinin hâlâ eski olması yanlış yeşili ele verdi.
+
+**Tek push varsa revizyon karşılaştırması yeterli. Arka arkaya push varsa değişikliğin kendisini
+bekle:**
+
+```bash
+until curl -s "https://panel.pilatesfitnessbyisil.com/login?cb=$RANDOM" | grep -q "ARADIĞIN METİN";
+  do sleep 25; done
+```
+
+Aynı ders, farklı kılıkta: **ad insana göre, içerik gerçeğe göre.**
+
 ### Addaki tarih UTC'dir — gece yarısından sonra yanıltır
 
 Türkiye UTC+3. Saat 01:36'da deploy ettiğin build `...2026-08-01-001` değil, **hâlâ dünün tarihiyle**
