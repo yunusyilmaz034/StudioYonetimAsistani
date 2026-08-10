@@ -7,7 +7,7 @@ explains the moment.
 Keep it current the way the code is kept current: when the state changes, this changes in the same
 commit. A handover document that lags is worse than none, because it is believed.
 
-_Last true as of: **2026-08-09**._
+_Last true as of: **2026-08-10**._
 
 Panel live at **`build-2026-08-09-017`** (100% of traffic) and **Cloud Functions deployed 2026-08-09
 16:01 UTC** — both verified the only way that counts, Cloud Run's traffic split (OR-17), not the App
@@ -543,6 +543,30 @@ returning the live price list.
 **A near-identical competitor domain surfaced the same day: `studioasistan.com`** — same sector, one
 letter apart, and nobody had checked for it when the name was chosen. Neither name is registered at
 TÜRKPATENT. The whole picture, and what it means for the trademark, is in `PRODUCT-ROADMAP.md` §9.
+
+---
+
+### 2026-08-10 — the discount that was applied and never shown
+
+The owner opened a settled package and asked where the İndirim button had gone. It had not gone
+anywhere: the block is gated on `due > 0`, the debt was already closed by a discount, and a debt
+that does not exist cannot be discounted. **The button was right; the screen above it was not.**
+
+"Paket tutarı 5.000 · Tahsil edilen 4.200 · Kalan borç —" — every number correct, and together
+nonsense. The first comes from the ENTITLEMENT's own price, which is before any discount; the other
+two come from the SALE, which is after it. The 800 that bridges them lived in an event and on the
+sale and was printed nowhere, so a settled package read as one whose debt had gone missing.
+
+That is the feature failing on its own terms: it exists because a studio that cannot count what it
+discounted cannot decide whether to keep doing it (OR-32), and not one of them was visible on the
+screen where the money is. `EntitlementMoney` now carries the sale's discount and the row renders
+when there is one.
+
+**Two things worth keeping from the diagnosis.** The feature is in ACTIVE use — several
+`sale.discounted` events exist (5.000→4.200, 9.000→8.000, 5.500→5.000), so this was a reporting gap
+and never a broken write. And the question was answered from the event log and the code, not from
+the screenshot: the screenshot is what raised it, and it could not have said which of the three
+numbers was lying.
 
 ---
 
