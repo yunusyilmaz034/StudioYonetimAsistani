@@ -9,8 +9,10 @@ commit. A handover document that lags is worse than none, because it is believed
 
 _Last true as of: **2026-08-10**._
 
-Panel live at **`build-2026-08-09-017`** (100% of traffic) and **Cloud Functions deployed 2026-08-09
-16:01 UTC** — both verified the only way that counts, Cloud Run's traffic split (OR-17), not the App
+Panel live at **`build-2026-08-10-001`** (100% of traffic) and **Cloud Functions deployed 2026-08-09
+16:01 UTC** — the functions do NOT need another: today's change is in `packages/core` but only the
+web tier reads it (`moneyByEntitlement`), so functions running older core decide nothing differently.
+That question is asked every time core changes, and the answer is not always no — both verified the only way that counts, Cloud Run's traffic split (OR-17), not the App
 Hosting listing.
 
 ⚠️ **The dead man's switch shipped today but is NOT deployed yet.** `HEARTBEAT_URL` is empty in
