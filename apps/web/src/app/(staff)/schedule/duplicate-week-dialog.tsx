@@ -16,6 +16,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { mondayIndex, shiftDate } from '@/components/calendar'
 import { CLOSED_DAY_TYPES, DAY_TYPE_LABEL, isClosedType, type DayMark } from '@/lib/calendar-days'
 import { domainErrorMessage } from '@/lib/domain-error'
@@ -23,6 +24,9 @@ import { listCalendarDaysAction } from '@/server/actions/calendar'
 import { duplicateWeekAction } from '@/server/actions/scheduling'
 
 const WEEK_MS = 7 * 86_400_000
+// Up to a quarter, one week at a time, then the round numbers a studio actually plans in. The date
+// picker beside it covers anything longer — 52 entries in a dropdown is a list nobody reads.
+const WEEK_CHOICES = [1, 2, 3, 4, 5, 6, 8, 10, 12] as const
 const label = (dateStr: string) =>
   new Date(`${dateStr}T00:00:00Z`).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' })
 
@@ -169,11 +173,22 @@ export function DuplicateWeekDialog({
         <div className="space-y-2">
           <label className="text-sm font-medium text-foreground">Kaç hafta kopyalansın?</label>
           <div className="flex flex-wrap items-center gap-2">
-            {[4, 8, 12].map((w) => (
-              <Button key={w} variant={weeks === w && !until ? 'default' : 'outline'} size="sm" onClick={() => pickWeeks(w)}>
-                {w} hafta
-              </Button>
-            ))}
+            {/* A dropdown rather than chips (owner, 2026-08-11). Three fixed buttons (4·8·12) read as
+                the only answers, and the studio's real ones include "just next week" — a trial class
+                repeated once, a substitute covering a fortnight. The server has accepted 1–52 from
+                the first day; the limit was never in the domain, only in what the screen offered. */}
+            <Select value={String(weeks)} onValueChange={(v) => pickWeeks(Number(v))}>
+              <SelectTrigger className="w-36" aria-label="Kaç hafta kopyalansın">
+                <SelectValue>{weeks} hafta</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {WEEK_CHOICES.map((w) => (
+                  <SelectItem key={w} value={String(w)}>
+                    {w} hafta
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <span className="text-sm text-muted-foreground">veya tarihe kadar:</span>
             <Input type="date" className="w-40" value={until} min={targetStart} onChange={(e) => pickUntil(e.target.value)} />
           </div>
