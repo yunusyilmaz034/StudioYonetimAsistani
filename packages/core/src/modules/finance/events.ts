@@ -11,6 +11,11 @@ export const SALE_CANCELLED = 'sale.cancelled'
 export const SALE_SETTLED = 'sale.settled'
 // v1.32 — a discount granted AFTER the sale was written. See `decideDiscountSale`.
 export const SALE_DISCOUNTED = 'sale.discounted'
+// A discount entered wrongly is TAKEN BACK, never erased (#9). The grant stays on the sale and this
+// records what was reversed, so "what did reception give away, and what did we correct?" keeps an
+// answer — which is the whole reason discounts are recorded rather than folded into the price.
+// A NEW event type: nothing existing is touched, no version bump, no upcaster.
+export const SALE_DISCOUNT_CORRECTED = 'sale.discount_corrected'
 export const PAYMENT_RECEIVED = 'payment.received'
 export const PAYMENT_VOIDED = 'payment.voided'
 export const PAYMENT_REFUNDED = 'payment.refunded'

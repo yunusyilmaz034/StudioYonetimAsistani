@@ -9,11 +9,18 @@ const ctx = { studioId: 'std_1', actor: { type: 'owner', id: 'usr_1' } } as unkn
 const MEMBER = 'mbr_1' as MemberId
 
 /** A ₺5.000 package with ₺800 given away and ₺4.200 collected — the shape that produced this test. */
-function saleWith(discountKurus: number, paidKurus: number, entitlementIds: readonly string[]): Sale {
+function saleWith(
+  discountKurus: number,
+  paidKurus: number,
+  entitlementIds: readonly string[],
+  correctedKurus = 0,
+): Sale {
   return {
     id: 'sal_1',
     lines: entitlementIds.map((entitlementId) => ({ entitlementId, unitPrice: money(500000), quantity: 1 })),
     discounts: discountKurus > 0 ? [{ reason: 'gift', amount: money(discountKurus), note: '' }] : [],
+    discountCorrections:
+      correctedKurus > 0 ? [{ reason: 'wrong_amount', amount: money(correctedKurus), note: 'düzeltme' }] : [],
     gross: money(500000),
     total: money(500000 - discountKurus),
     paid: money(paidKurus),
@@ -62,5 +69,13 @@ describe('moneyByEntitlement — the discount is reported, not just applied', ()
     const out = await moneyByEntitlement(deps(saleWith(80000, 420000, ['ent_1', 'ent_2'])), ctx, MEMBER)
     expect(out.get('ent_1')!.discount.amount).toBe(80000)
     expect(out.get('ent_2')!.discount.amount).toBe(80000)
+  })
+
+  it('reports the discount NET of what was taken back', async () => {
+    // ₺1.000 granted by mistake, ₺200 reversed → the screen must say ₺800, not the figure reception
+    // mistyped. The grant stays on the sale (it is a compensating entry, not an edit); the netting
+    // happens here, where the screen reads.
+    const out = await moneyByEntitlement(deps(saleWith(100_000, 400_000, ['ent_1'], 20_000)), ctx, MEMBER)
+    expect(out.get('ent_1')!.discount.amount).toBe(80_000)
   })
 })

@@ -33,6 +33,7 @@ import {
   decideWalletPurchase,
   type DecideContext,
   decideDiscountSale,
+  decideCorrectDiscount,
 } from '../domain/decide'
 import {
   giftCardRemaining,
@@ -40,6 +41,7 @@ import {
   paymentUnallocated,
   saleBalanceDue,
   type Discount,
+  type DiscountCorrection,
   type GiftCard,
   type Instalment,
   type Payment,
@@ -400,6 +402,27 @@ export async function discountSale(
 
   const c = dctx(deps, ctx, newOperationId())
   const decided = decideDiscountSale(c, sale, input.discount)
+  if (!decided.ok) return decided
+  await deps.repo.commit(ctx, { sales: [decided.value.next], events: decided.value.events })
+  return { ok: true, value: undefined }
+}
+
+/**
+ * Take back part of a discount that was entered wrongly (owner, 2026-08-11).
+ *
+ * The counterpart of `discountSale`, and it exists because that one had none: reception could grant
+ * and nobody could correct. Same shape, same transaction, one compensating event.
+ */
+export async function correctDiscount(
+  deps: FinanceDeps,
+  ctx: TenantContext,
+  input: { saleId: string; correction: DiscountCorrection },
+): Promise<Result<void, DomainError>> {
+  const sale = await deps.repo.getSale(ctx, input.saleId)
+  if (!sale) return { ok: false, error: { code: 'operation_not_applicable' } }
+
+  const c = dctx(deps, ctx, newOperationId())
+  const decided = decideCorrectDiscount(c, sale, input.correction)
   if (!decided.ok) return decided
   await deps.repo.commit(ctx, { sales: [decided.value.next], events: decided.value.events })
   return { ok: true, value: undefined }

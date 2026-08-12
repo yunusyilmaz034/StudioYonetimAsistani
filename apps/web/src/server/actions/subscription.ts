@@ -1,6 +1,7 @@
 'use server'
 
 import {
+  correctDiscount,
   isSuspectedDuplicate,
   DEFAULT_STUDIO_CONFIG,
   FirestoreReservationRepository,
@@ -498,6 +499,37 @@ export async function discountSaleAction(input: unknown) {
       couponCode: null,
       referredByMemberId: null,
       grantedBy: ctx.actor,
+    },
+  })
+}
+
+/**
+ * Take back part of a discount entered wrongly (owner, 2026-08-11).
+ *
+ * Owner-only, exactly like granting one (OR-32): reception collects, the owner decides what the
+ * studio gives away — and what it takes back. A note is required whatever the reason, which is
+ * stricter than the grant path, because "why was this corrected" has no default answer.
+ */
+export async function correctDiscountAction(input: unknown) {
+  const p = z
+    .object({
+      saleId: nonEmpty,
+      amountKurus: z.number().int().min(1),
+      reason: z.enum(['wrong_amount', 'wrong_member', 'duplicate', 'other']),
+      note: z.string().trim().min(1).max(500),
+    })
+    .parse(input)
+  const ctx = await requireTenantContext(OPS)
+  if (ctx.role !== 'owner' && ctx.actor.type !== 'platform_admin') {
+    return { ok: false as const, error: { code: 'staff_admin_required' as const } }
+  }
+  return correctDiscount(sellDeps().finance, ctx, {
+    saleId: p.saleId,
+    correction: {
+      reason: p.reason,
+      amount: money(p.amountKurus),
+      note: p.note,
+      correctedBy: ctx.actor,
     },
   })
 }

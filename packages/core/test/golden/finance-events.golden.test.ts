@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { decideCreateDrawer } from '../../src/modules/finance/domain/decide'
+import { decideCorrectDiscount, decideCreateDrawer } from '../../src/modules/finance/domain/decide'
 import {
   instant,
   type BranchId,
@@ -8,7 +8,10 @@ import {
   type StaffUserId,
   type StudioId,
 } from '../../src/shared'
+import type { Sale } from '../../src/modules/finance/domain/types'
+import { money } from '../../src/shared'
 import drawerCreated from './drawer.created.v1.json'
+import discountCorrected from './sale.discount_corrected.v1.json'
 
 // `drawer.created` — the till (hotfix B-2, 2026-07-13).
 //
@@ -68,5 +71,52 @@ describe('drawer.created', () => {
     expect(
       decideCreateDrawer(ctx, null, { drawerId: 'drw_2', branchId: 'brn_1' as BranchId, name: '  ', kind: 'cash' }).ok,
     ).toBe(false)
+  })
+})
+
+// `sale.discount_corrected` — taking back a discount entered wrongly (owner, 2026-08-11).
+//
+// A NEW event type. Nothing existing is touched — no version bump, no upcaster. It mirrors
+// `sale.discounted` so the pair can be read together: what was given, what was taken back.
+//
+// The note is NOT in the payload. It is free text a human typed about a member's sale, and #6 keeps
+// that out of the log; `hasNote` records the auditable fact that one exists.
+describe('sale.discount_corrected', () => {
+  const sale = {
+    id: 'sal_1',
+    branchId: 'brn_1',
+    memberId: 'mbr_1',
+    lines: [],
+    discounts: [
+      { reason: 'gift', amount: money(100_000), note: '', couponCode: null, referredByMemberId: null, grantedBy: ctx.actor },
+    ],
+    gross: money(500_000),
+    total: money(400_000),
+    paid: money(400_000),
+    status: 'settled',
+  } as unknown as Sale
+
+  it('matches the golden payload', () => {
+    const r = decideCorrectDiscount(ctx, sale, {
+      reason: 'wrong_amount',
+      amount: money(20_000),
+      note: 'Resepsiyon 1.000 girdi, anlaşma 800 idi.',
+      correctedBy: ctx.actor,
+    })
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.value.events[0]?.type).toBe('sale.discount_corrected')
+    expect(r.value.events[0]?.payload).toEqual(discountCorrected)
+  })
+
+  it('carries no PII — the note stays on the sale, only its existence is logged', () => {
+    const r = decideCorrectDiscount(ctx, sale, {
+      reason: 'other',
+      amount: money(10_000),
+      note: 'Ayşe Yılmaz yanlışlıkla iki kez indirim aldı',
+      correctedBy: ctx.actor,
+    })
+    if (!r.ok) throw new Error('unreachable')
+    expect(JSON.stringify(r.value.events[0]?.payload)).not.toContain('Ayşe')
   })
 })

@@ -16,6 +16,7 @@ import {
   couponDiscount,
   type DecideContext,
   decideDiscountSale,
+  decideCorrectDiscount,
 } from './decide'
 import {
   giftCardRemaining,
@@ -656,5 +657,111 @@ describe('decideDiscountSale', () => {
     const r = decideDiscountSale(ctx(), sale(), { ...DISCOUNT, amount: money(500_000) })
     expect(r.ok).toBe(true)
     if (r.ok) expect(r.value.next.total.amount).toBe(0)
+  })
+})
+
+// ── İNDİRİMİ DÜZELTMEK (owner, 2026-08-11) ──────────────────────────────────────────────────
+//
+// Five days after discounts shipped, reception entered ₺1.000 where ₺800 was agreed — on two
+// members — and there was no way to fix it: `decideDiscountSale` only ADDS, and it refuses anything
+// larger than what is owed, which on a settled sale is nothing. The studio had to come to the
+// developer to correct its own books, which is the opposite of what recording a discount is for.
+describe('decideCorrectDiscount', () => {
+  const GRANTED = {
+    reason: 'gift' as const,
+    amount: money(100_000), // ₺1.000 — the wrong figure reception typed
+    note: '',
+    couponCode: null,
+    referredByMemberId: null,
+    grantedBy: RECEPTION,
+  }
+  const CORRECTION = {
+    reason: 'wrong_amount' as const,
+    amount: money(20_000), // take ₺200 back, leaving the ₺800 that was agreed
+    note: 'Resepsiyon 1.000 girdi, anlaşma 800 idi.',
+    correctedBy: RECEPTION,
+  }
+  // ₺5.000 sold, ₺1.000 discounted, ₺4.000 collected — settled, and wrong.
+  const discounted = () => sale({ discounts: [GRANTED], total: money(400_000), paid: money(400_000), status: 'settled' })
+
+  it('raises the total by what it takes back, and leaves the sale OWING again', () => {
+    const r = decideCorrectDiscount(ctx(), discounted(), CORRECTION)
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.value.next.total.amount).toBe(420_000)
+    expect(r.value.next.paid.amount).toBe(400_000)
+    expect(saleBalanceDue(r.value.next)).toBe(20_000)
+    // It must stop calling itself settled, or the debt exists and nobody is asked for it.
+    expect(r.value.next.status).toBe('open')
+  })
+
+  it('KEEPS the original grant — the correction is an entry beside it, not an edit', () => {
+    const r = decideCorrectDiscount(ctx(), discounted(), CORRECTION)
+    if (!r.ok) throw new Error('unreachable')
+    expect(r.value.next.discounts).toHaveLength(1)
+    expect(r.value.next.discounts[0]!.amount.amount).toBe(100_000) // untouched
+    expect(r.value.next.discountCorrections).toHaveLength(1)
+    expect(r.value.next.gross.amount).toBe(500_000)
+  })
+
+  it('carries both the discount and the total, before and after, in the event', () => {
+    const r = decideCorrectDiscount(ctx(), discounted(), CORRECTION)
+    if (!r.ok) throw new Error('unreachable')
+    const p = r.value.events[0]!.payload as Record<string, { amount: number } | string | boolean>
+    expect(r.value.events[0]!.type).toBe('sale.discount_corrected')
+    expect((p.discountBefore as { amount: number }).amount).toBe(100_000)
+    expect((p.discountAfter as { amount: number }).amount).toBe(80_000)
+    expect((p.totalBefore as { amount: number }).amount).toBe(400_000)
+    expect((p.totalAfter as { amount: number }).amount).toBe(420_000)
+    expect(p.hasNote).toBe(true)
+  })
+
+  // You cannot take back what you never gave. Clamping would turn a typo into a smaller correction
+  // that looks deliberate.
+  it('REFUSES to reverse more than was granted', () => {
+    const r = decideCorrectDiscount(ctx(), discounted(), { ...CORRECTION, amount: money(100_001) })
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.error.code).toBe('invalid_adjustment')
+  })
+
+  // The boundary: taking the WHOLE discount back is legal — reception may have discounted the wrong
+  // member entirely, and then nothing of it should remain.
+  it('allows reversing exactly the whole discount, and the sale owes the lot again', () => {
+    const r = decideCorrectDiscount(ctx(), discounted(), { ...CORRECTION, reason: 'wrong_member', amount: money(100_000) })
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.value.next.total.amount).toBe(500_000)
+    expect(saleBalanceDue(r.value.next)).toBe(100_000)
+  })
+
+  // A second correction may only reach what is LEFT — otherwise two half-corrections could reverse
+  // more than was ever granted.
+  it('counts what has already been corrected', () => {
+    const first = decideCorrectDiscount(ctx(), discounted(), CORRECTION)
+    if (!first.ok) throw new Error('unreachable')
+    const second = decideCorrectDiscount(ctx(), first.value.next, { ...CORRECTION, amount: money(80_001) })
+    expect(second.ok).toBe(false)
+    const ok2 = decideCorrectDiscount(ctx(), first.value.next, { ...CORRECTION, amount: money(80_000) })
+    expect(ok2.ok).toBe(true)
+    if (ok2.ok) expect(ok2.value.next.total.amount).toBe(500_000)
+  })
+
+  it('refuses zero, refuses an empty note whatever the reason, and refuses a cancelled sale', () => {
+    expect(decideCorrectDiscount(ctx(), discounted(), { ...CORRECTION, amount: money(0) }).ok).toBe(false)
+    // A discount only needs a note when it is `manual`; a correction ALWAYS does — "why was this
+    // corrected" has no default answer.
+    const bare = decideCorrectDiscount(ctx(), discounted(), { ...CORRECTION, note: '   ' })
+    expect(bare.ok).toBe(false)
+    if (!bare.ok) expect(bare.error.code).toBe('reason_required')
+    const cancelled = decideCorrectDiscount(ctx(), sale({ discounts: [GRANTED], status: 'cancelled' }), CORRECTION)
+    expect(cancelled.ok).toBe(false)
+  })
+
+  it('settles again when the correction still leaves the sale fully paid', () => {
+    // ₺1.000 discounted but ₺4.500 collected: taking ₺200 back still leaves nothing owing.
+    const overPaid = sale({ discounts: [GRANTED], total: money(400_000), paid: money(450_000), status: 'settled' })
+    const r = decideCorrectDiscount(ctx(), overPaid, CORRECTION)
+    if (!r.ok) throw new Error('unreachable')
+    expect(r.value.next.status).toBe('settled')
   })
 })

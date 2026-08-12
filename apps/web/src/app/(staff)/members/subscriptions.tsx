@@ -32,6 +32,7 @@ import { collectAction, listDrawersAction } from '@/server/actions/finance'
 import {
   adjustSubscriptionCreditsAction,
   amendSubscriptionAction,
+  correctDiscountAction,
   discountSaleAction,
   assignSubscriptionAction,
   cancelSubscriptionAction,
@@ -40,6 +41,8 @@ import {
   reactivateSubscriptionAction,
   type SubscriptionView,
 } from '@/server/actions/subscription'
+
+type CorrReason = 'wrong_amount' | 'wrong_member' | 'duplicate' | 'other'
 
 // "Fiziksel POS" = the studio's own card terminal, recorded by hand (no PAYTR). The two PAYTR options
 // (Sanal POS, Linkle Ödeme) are added directly in the dropdown below.
@@ -1106,6 +1109,12 @@ function MoneyBlock({ sub, memberId, branchId, isOwner = false, onDone }: { sub:
   const [discTl, setDiscTl] = useState((due / 100).toString())
   const [discReason, setDiscReason] = useState('gift')
   const [discNote, setDiscNote] = useState('')
+  // Correcting a discount someone entered wrongly (2026-08-11). Its own state, because it is a
+  // different act from granting one and the two must never share a half-filled form.
+  const [corrOpen, setCorrOpen] = useState(false)
+  const [corrTl, setCorrTl] = useState('')
+  const [corrReason, setCorrReason] = useState<CorrReason>('wrong_amount')
+  const [corrNote, setCorrNote] = useState('')
   const [amount, setAmount] = useState((due / 100).toString())
   const [method, setMethod] = useState<'cash' | 'credit_card' | 'bank_transfer'>('cash')
   const [drawers, setDrawers] = useState<readonly { id: string; status: string; kind: string }[]>([])
@@ -1148,6 +1157,24 @@ function MoneyBlock({ sub, memberId, branchId, isOwner = false, onDone }: { sub:
     setBusy(false)
   }
 
+  async function applyCorrection() {
+    const kurus = toKurus(corrTl)
+    if (kurus <= 0 || !sub.saleId || corrNote.trim() === '') return
+    setBusy(true)
+    try {
+      const res = await correctDiscountAction({ saleId: sub.saleId, amountKurus: kurus, reason: corrReason, note: corrNote.trim() })
+      if (res.ok) {
+        toast.success('İndirim düzeltildi.')
+        onDone()
+      } else {
+        toast.error(domainErrorMessage(res.error))
+      }
+    } catch {
+      toast.error('İndirim düzeltilemedi.')
+    }
+    setBusy(false)
+  }
+
   async function applyDiscount() {
     const kurus = toKurus(discTl)
     if (kurus <= 0 || !sub.saleId) return
@@ -1174,7 +1201,59 @@ function MoneyBlock({ sub, memberId, branchId, isOwner = false, onDone }: { sub:
           That is exactly how it was read on 2026-08-10: "5.000 agreed, 4.200 collected, no debt,
           and where did my discount button go?" The button was correctly hidden; the number that
           explains why was simply never shown. */}
-      {sub.discountKurus > 0 ? <Row label="İndirim" value={`− ${tl(sub.discountKurus)}`} /> : null}
+      {sub.discountKurus > 0 ? (
+        <div className="flex items-center justify-between gap-2">
+          <Row label="İndirim" value={`− ${tl(sub.discountKurus)}`} />
+          {/* Owner only, like granting one (OR-32). It exists because for five days reception could
+              GIVE a discount and nobody could correct one — the studio had to ask the developer to
+              fix its own books. */}
+          {isOwner && sub.saleId && !corrOpen ? (
+            <button type="button" className="shrink-0 text-xs font-medium text-primary hover:underline" onClick={() => setCorrOpen(true)}>
+              Düzelt
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+      {corrOpen ? (
+        <div className="space-y-2 rounded-lg border border-border bg-background p-2">
+          <div className="grid grid-cols-2 gap-2">
+            <Labeled label="Geri alınacak (TL)">
+              <Input type="number" min={0} step="0.01" value={corrTl} onChange={(e) => setCorrTl(e.target.value)} />
+            </Labeled>
+            <Labeled label="Sebep">
+              <Select value={corrReason} onValueChange={(v) => setCorrReason((v ?? 'wrong_amount') as CorrReason)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="wrong_amount">Yanlış tutar</SelectItem>
+                  <SelectItem value="wrong_member">Yanlış üye</SelectItem>
+                  <SelectItem value="duplicate">Mükerrer</SelectItem>
+                  <SelectItem value="other">Diğer</SelectItem>
+                </SelectContent>
+              </Select>
+            </Labeled>
+          </div>
+          {/* Mandatory whatever the reason — stricter than granting one, because "why was this
+              corrected" has no default answer. */}
+          <Input value={corrNote} onChange={(e) => setCorrNote(e.target.value)} placeholder="Açıklama (zorunlu)" />
+          <p className="text-xs text-muted-foreground">
+            İndirim <strong>{tl(Math.max(0, sub.discountKurus - (toKurus(corrTl) || 0)))}</strong> olur;
+            geri alınan tutar <strong>borca döner</strong>, para iadesi yapılmaz. Verilen indirim kaydı silinmez.
+          </p>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" className="flex-1" onClick={() => setCorrOpen(false)} disabled={busy}>
+              Vazgeç
+            </Button>
+            <Button
+              size="sm"
+              className="flex-1"
+              onClick={applyCorrection}
+              disabled={busy || toKurus(corrTl) <= 0 || toKurus(corrTl) > sub.discountKurus || corrNote.trim() === ''}
+            >
+              {busy ? <Loader2Icon className="animate-spin" /> : null} Düzelt
+            </Button>
+          </div>
+        </div>
+      ) : null}
       <Row label="Tahsil edilen" value={tl(sub.paidKurus)} />
       <Row label="Kalan borç" value={due > 0 ? tl(due) : '—'} />
       {due > 0 ? (

@@ -71,7 +71,14 @@ export async function moneyByEntitlement(
         // Sale-level, like `paid` and `due` beside it: a discount is granted on the sale, not on one
         // of its lines. A hybrid's components therefore each report the bundle's discount, which is
         // the same shape the screen already groups them under.
-        discount: money(sale.discounts.reduce((sum, d) => sum + d.amount.amount, 0)),
+        //
+        // NET of corrections. A discount taken back (2026-08-11) is a compensating entry rather than
+        // an edit, so the grant is still on the sale — reporting the gross here would show the ₺1.000
+        // reception mistyped for ever, which is the number the correction exists to stop showing.
+        discount: money(
+          sale.discounts.reduce((sum, d) => sum + d.amount.amount, 0) -
+            (sale.discountCorrections ?? []).reduce((sum, c) => sum + c.amount.amount, 0),
+        ),
         due: money(saleBalanceDue(sale)),
         method: bySale.get(sale.id) ?? null,
         cancelled: sale.status === 'cancelled',

@@ -51,7 +51,9 @@ export function domainErrorMessage(error: DomainError): string {
     case 'no_held_credit':
       return 'Bu rezervasyon için tutulmuş bir kredi yok.'
     case 'invalid_adjustment':
-      return 'Geçerli bir kredi değişimi girin (sıfır olamaz).'
+      // Serves two paths now: a credit adjustment, and taking back a discount (2026-08-11). Worded
+      // for both — the old copy said "kredi" and would have been simply wrong on the discount card.
+      return 'Geçerli bir değişim girin: sıfır olamaz ve mevcut tutarı aşamaz.'
     case 'held_credits_block_expiry':
       return 'Tutulan kredisi olan paket süre sonuna erdirilemez.'
     case 'invalid_amount':

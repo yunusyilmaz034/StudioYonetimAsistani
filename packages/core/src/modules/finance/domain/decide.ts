@@ -41,6 +41,7 @@ import {
   PLAN_CREATED,
   SALE_CANCELLED,
   SALE_DISCOUNTED,
+  SALE_DISCOUNT_CORRECTED,
   SALE_CREATED,
   SALE_SETTLED,
   WALLET_ADJUSTMENT,
@@ -59,6 +60,7 @@ import {
   type CashDrawer,
   type Coupon,
   type Discount,
+  type DiscountCorrection,
   type GiftCard,
   type Instalment,
   type Payment,
@@ -253,6 +255,76 @@ export function decideDiscountSale(
           totalBefore: sale.total,
           totalAfter: total,
           hasNote: discount.note.trim() !== '',
+        },
+      },
+    ],
+  })
+}
+
+/**
+ * TAKE BACK part of a discount that was entered wrongly (owner, 2026-08-11).
+ *
+ * Reception could grant a discount and nobody could correct one — not from the panel, not from the
+ * domain. Five days after the feature shipped, ₺1.000 was entered where ₺800 was agreed, on two
+ * members, and the studio had to come to the developer to fix its own books. A studio must be able
+ * to correct its own record; that is the whole point of recording it.
+ *
+ * It is a COMPENSATING entry (#9). The grant stays; this records what was reversed. Netting them
+ * silently would answer "how much did we give away this month?" with the corrected number and lose
+ * the fact that a correction ever happened — which is exactly what the discount feature exists to
+ * prevent for prices.
+ *
+ * Refused rather than clamped:
+ *   · more than what was actually granted — you cannot take back what you never gave, and a clamp
+ *     would silently turn a typo into a smaller correction that looks deliberate.
+ *   · a correction with no note. ALWAYS, not only for `other` (AD-39's rule): a discount has a
+ *     closed reason that can stand alone, but "why was this corrected" has no default answer.
+ *
+ * The sale can go back to `open`. Taking back a discount RAISES what is owed, so a settled sale may
+ * owe money again — and it must reappear on the dashboard's open-balance list rather than quietly
+ * carry a debt nobody is asking for. No money moves here: nothing is refunded and nothing is
+ * collected; a figure recorded as given away becomes a figure owed.
+ */
+export function decideCorrectDiscount(
+  ctx: DecideContext,
+  sale: Sale,
+  correction: DiscountCorrection,
+): Result<Outcome<Sale>, DomainError> {
+  if (sale.status === 'cancelled') return err({ code: 'operation_not_applicable' })
+  if (correction.amount.amount <= 0) return err({ code: 'invalid_amount' })
+  if (correction.note.trim() === '') return err({ code: 'reason_required' })
+
+  const granted = sale.discounts.reduce((sum, d) => sum + d.amount.amount, 0)
+  const alreadyCorrected = (sale.discountCorrections ?? []).reduce((sum, c) => sum + c.amount.amount, 0)
+  const reversible = granted - alreadyCorrected
+  if (correction.amount.amount > reversible) return err({ code: 'invalid_adjustment' })
+
+  const discountBefore = money(reversible, sale.total.currency)
+  const discountAfter = money(reversible - correction.amount.amount, sale.total.currency)
+  const total = addMoney(sale.total, correction.amount)
+  const next: Sale = {
+    ...sale,
+    discountCorrections: [...(sale.discountCorrections ?? []), correction],
+    total,
+    // Owing again is the normal outcome; the screen and the dashboard must both stop calling it settled.
+    status: total.amount <= sale.paid.amount ? 'settled' : 'open',
+  }
+  return ok({
+    next,
+    events: [
+      {
+        ...base(ctx, 'payment', sale.id, sale.branchId, { memberId: sale.memberId }),
+        type: SALE_DISCOUNT_CORRECTED,
+        payload: {
+          reason: correction.reason,
+          amount: correction.amount,
+          discountBefore,
+          discountAfter,
+          totalBefore: sale.total,
+          totalAfter: total,
+          // The note itself never enters the event — it is free text a human typed about a member's
+          // sale (#6). That it EXISTS is the auditable fact; what it says lives on the sale.
+          hasNote: correction.note.trim() !== '',
         },
       },
     ],

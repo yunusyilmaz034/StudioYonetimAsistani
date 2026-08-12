@@ -56,6 +56,31 @@ export interface Discount {
   readonly grantedBy: ActorRef
 }
 
+// ── Correcting a discount (owner, 2026-08-11) ───────────────────────────────────────────────
+//
+// Reception could GRANT a discount and nobody could correct one. It happened within five days of the
+// feature shipping — ₺1.000 entered where ₺800 was agreed, on two members — and there was no path in
+// the product, so the studio had to come to the developer to fix its own books.
+//
+// A correction is a COMPENSATING entry, never an edit (#9). The grant stays exactly where it was and
+// this records what was taken back, so "what did reception give away, and what did we correct?"
+// keeps an answer. Erasing the grant would answer the first question with the second one's number.
+//
+// It is deliberately NOT a negative `Discount`. A discount means money given away; a reversal is a
+// different act, and putting it in the same array as a minus sign is the kind of thing that reads
+// fine today and misleads whoever sums the array in a year.
+export type DiscountCorrectionReason = 'wrong_amount' | 'wrong_member' | 'duplicate' | 'other'
+
+export interface DiscountCorrection {
+  readonly reason: DiscountCorrectionReason
+  /** How much of the granted discount is taken back. Always positive; the direction is the type. */
+  readonly amount: Money
+  /** Mandatory, always — unlike a discount, where only `manual` needs one. A correction with no
+   *  explanation is a hole in the books that looks like a decision (AD-39's rule, same reasoning). */
+  readonly note: string
+  readonly correctedBy: ActorRef
+}
+
 export interface SaleLine {
   readonly productId: ProductId | null // null ⇒ a non-catalogue line (a gift card, a fee)
   readonly description: string
@@ -74,8 +99,10 @@ export interface Sale {
   readonly memberId: MemberId
   readonly lines: readonly SaleLine[]
   readonly discounts: readonly Discount[]
+  /** Reversals of the above. Absent on every sale written before 2026-08-11. */
+  readonly discountCorrections?: readonly DiscountCorrection[]
   readonly gross: Money // Σ lines
-  readonly total: Money // gross − Σ discounts  (never below zero — I-33)
+  readonly total: Money // gross − Σ discounts + Σ corrections  (never below zero — I-33)
   readonly paid: Money // denormalised Σ allocations; the allocations remain the truth
   readonly status: SaleStatus
   // ATTRIBUTION (Doc 26 §2). Captured from the first sale, even though commissions are not built

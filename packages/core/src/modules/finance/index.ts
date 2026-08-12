@@ -11,6 +11,8 @@ export type {
   CashDrawer,
   Coupon,
   Discount,
+  DiscountCorrection,
+  DiscountCorrectionReason,
   DiscountReason,
   GiftCard,
   Instalment,
@@ -53,6 +55,7 @@ export {
 export {
   cancelSale,
   discountSale,
+  correctDiscount,
   closeDrawer,
   createDrawer,
   collect,
