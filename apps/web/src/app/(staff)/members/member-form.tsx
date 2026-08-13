@@ -23,6 +23,9 @@ function Field({ id, label, children }: { id: string; label: string; children: R
   )
 }
 
+// The studio's offset, as `members.ts` uses it when writing `joinedAt`. One number, one meaning.
+const STUDIO_UTC_OFFSET_MIN = 180
+
 export function MemberForm({
   member,
   defaultBranchId,
@@ -40,8 +43,16 @@ export function MemberForm({
   const [ecName, setEcName] = useState(member?.emergencyContact?.name ?? '')
   const [ecPhone, setEcPhone] = useState<string>(member?.emergencyContact?.phone ?? '')
   // `YYYY-MM-DD` for the date input; empty when unknown.
+  //
+  // The stored value is STUDIO-local midnight (the action writes `<date>T00:00:00Z − 3h`), so it has
+  // to be read back in the studio's day. Formatting it as UTC lands three hours earlier — on the
+  // PREVIOUS day — and saving then wrote that back: the join date walked backwards one day per save.
+  // The same defect was found in the package dialog on 2026-08-13, where it cost a member three days
+  // of her package while the screen said "Güncellendi".
   const [joinedAt, setJoinedAt] = useState<string>(
-    member?.joinedAt ? new Date(Number(member.joinedAt)).toISOString().slice(0, 10) : '',
+    member?.joinedAt
+      ? new Date(Number(member.joinedAt) + STUDIO_UTC_OFFSET_MIN * 60_000).toISOString().slice(0, 10)
+      : '',
   )
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)

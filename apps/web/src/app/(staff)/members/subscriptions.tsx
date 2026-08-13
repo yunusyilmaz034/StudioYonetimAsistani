@@ -55,12 +55,20 @@ const dateLabel = (ms: number) => new Date(ms).toLocaleDateString('tr-TR', { tim
 const BUNDLE_CAT: Record<string, string> = { pilates_group: 'Pilates', fitness: 'Fitness', private: 'PT' }
 // ms → 'yyyy-mm-dd' for a date input, never throwing: an open-ended subscription has a null validUntil,
 // and `new Date(null/undefined).toISOString()` would crash the dialog on open.
+// A stored date is STUDIO-local midnight (the action writes `<date>T00:00:00Z − 3h`), so it must be
+// read back in the studio's day too. Reading it as UTC lands three hours earlier — on the previous
+// DAY — and the input then shows a date one behind the truth. Saving it wrote that date back, and
+// the package walked backwards a day per save: on 2026-08-13 a member's package lost three days
+// across three edits, silently, while the screen said "Güncellendi".
+//
+// The correct pattern was already one line below, in `studioToday`. This is that line.
+const STUDIO_UTC_OFFSET_MIN = 180 // the studio's offset, as the server action's `dayMs` uses it
 const toDateInput = (ms: number | null | undefined): string => {
   if (ms == null) return ''
-  const t = new Date(ms)
+  const t = new Date(ms + STUDIO_UTC_OFFSET_MIN * 60_000)
   return Number.isNaN(t.getTime()) ? '' : t.toISOString().slice(0, 10)
 }
-const studioToday = () => new Date(Date.now() + 180 * 60_000).toISOString().slice(0, 10)
+const studioToday = () => new Date(Date.now() + STUDIO_UTC_OFFSET_MIN * 60_000).toISOString().slice(0, 10)
 const addDays = (d: string, days: number) => {
   // A `type="date"` input reports an EMPTY value for every intermediate keystroke until the whole
   // date is valid — so while reception types the start date, `d` is '' on each keypress. Without this
