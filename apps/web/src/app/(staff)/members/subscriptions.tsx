@@ -1151,8 +1151,10 @@ function MoneyBlock({ sub, memberId, branchId, isOwner = false, onDone }: { sub:
       } else {
         toast.error(domainErrorMessage(res.error))
       }
-    } catch {
-      toast.error('Tahsilat kaydedilemedi.')
+    } catch (e) {
+      // A stale tab is the likeliest cause and the one the desk can act on; a generic
+      // "kaydedilemedi" sends reception looking for a fault that is not there (OR-17).
+      toast.error(saveErrorMessage(e))
     }
     setBusy(false)
   }
@@ -1169,8 +1171,8 @@ function MoneyBlock({ sub, memberId, branchId, isOwner = false, onDone }: { sub:
       } else {
         toast.error(domainErrorMessage(res.error))
       }
-    } catch {
-      toast.error('İndirim düzeltilemedi.')
+    } catch (e) {
+      toast.error(saveErrorMessage(e))
     }
     setBusy(false)
   }
@@ -1187,8 +1189,8 @@ function MoneyBlock({ sub, memberId, branchId, isOwner = false, onDone }: { sub:
       } else {
         toast.error(domainErrorMessage(res.error))
       }
-    } catch {
-      toast.error('İndirim uygulanamadı.')
+    } catch (e) {
+      toast.error(saveErrorMessage(e))
     }
     setBusy(false)
   }
@@ -1389,8 +1391,8 @@ function AmendDialog({ sub, siblings, memberId, branchId, isOwner = false, onClo
       }
       toast.success('Güncellendi.')
       onDone()
-    } catch {
-      toast.error('Kaydedilemedi.')
+    } catch (e) {
+      toast.error(saveErrorMessage(e))
       setBusy(false)
     }
   }
@@ -1497,8 +1499,8 @@ function ContentDialog({ items, onClose, onDone }: { items: readonly Subscriptio
       }
       toast.success('Güncellendi.')
       onDone()
-    } catch {
-      toast.error('Kaydedilemedi.')
+    } catch (e) {
+      toast.error(saveErrorMessage(e))
       setBusy(false)
     }
   }
