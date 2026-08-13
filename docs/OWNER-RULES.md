@@ -575,6 +575,32 @@ Traps below), and "did it deploy?" is answered from Cloud Run's traffic split, n
 If a piece of Faz A cannot be built without touching her data or changing her behaviour, it stops
 and the owner decides.
 
+**OR-37 · A payment is NEVER matched to a passive subscription.** (2026-08-13) Said in these words
+after it cost a morning: *"pasif aboneliğe hiçbir zaman link ve sanal pos ödeme eşleştirilmez."*
+
+**What happened.** A member was sold a hybrid at 10:10 and a payment link went out. At 10:14
+reception cancelled the packages — the member had changed her mind about something — and at 10:15
+sold the same hybrid again, with a fresh link. At 10:18 PAYTR reported the second link paid, and the
+money landed on the FIRST sale: the one whose packages no longer existed. Her live packages sat on
+an unpaid sale, so a member who had just paid ₺5.000 showed as owing ₺5.000.
+
+**Nothing was broken in the callback.** It did what it was written to do — `collect` clears the
+member's debt oldest-first, and both sales were open. The gap is that **cancelling a package does
+not cancel its sale**, so reception's entirely reasonable "cancel and redo" left an orphan: an open
+sale with no live packages, older than the real one, first in line for any money that arrived.
+
+**The rule.** Money never settles against a sale whose packages are all cancelled — not from a
+payment link, not from Sanal POS, not from any automatic matching. If the only open sale is such an
+orphan, the payment stays unallocated and says so, which reception can see and act on. An
+unallocated payment is a question; money attached to a dead sale is a wrong answer that looks
+right — and it looks right on the member's screen, which is where she reads it.
+
+**What this does not decide.** Whether cancelling the last live package should also cancel its sale
+is the deeper question and is deliberately left open: a sale can carry several packages (a hybrid is
+one sale, N entitlements) and non-package lines, so "the sale is dead now" is not always true when
+one component is cancelled. Until that is decided, the orphans remain — which is one more reason the
+suspicious-transaction screen the owner asked for on the same day has something real to show.
+
 ## Traps that have already cost something
 
 **OR-14 · Firestore indexes are a production-only trap.** The emulator does NOT enforce them, so a
