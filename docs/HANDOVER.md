@@ -228,6 +228,45 @@ must still be created and sent for review by hand.
 
 ## Waiting on the owner
 
+- ⏸️ **TAMI as a second payment provider — SUSPENDED, the merchant application is not approved yet
+  (2026-08-14).** Nothing is blocked on us; nothing has been built. Resume when the application
+  clears. The research is written down here so nobody repeats it:
+
+  **Use the hosted model, not the direct API.** `dev.tami.com.tr/api-katalog` lists only Tami's
+  **direct Sanal POS**, where the merchant posts `card: { number, cvv, expireMonth, expireYear }` to
+  `POST /payment/auth`, renders the returned `threeDSHtmlContent` itself, then calls
+  `/payment/complete-3ds`. Building that would put card data through our servers and pull the studio
+  into PCI DSS scope — a liability far larger than the problem it solves. Tami also sells **Ortak
+  Ödeme Sayfası** and **Linkli Ödeme**, which work like PAYTR: the customer enters the card on
+  Tami's page and we hold a redirect URL. The owner chose that model on 2026-08-14. Do not quietly
+  fall back to the direct API because its documentation is the easy one to find.
+
+  **What must be obtained before any code:** the Ortak Ödeme Sayfası / Linkli Ödeme integration
+  document (endpoint, request fields, how the page URL is obtained, callback fields, hash
+  verification) — it is NOT public: `/ortak-odeme-sayfasi` and the integration PDF both 404, so it
+  presumably arrives with the merchant account. Plus the terminal credentials `merchantNumber`,
+  `terminalNumber` and the JWK's `k` and `kid` (portal → işyeri ayarları → POS yönetimi), and
+  sandbox access with test cards.
+
+  **What is already known about Tami auth** (from the direct-API docs, and likely shared): request
+  bodies are signed as a **JWT, HS512**, using the JWK's `k` as the HMAC secret, sent in
+  `securityHash`; headers `PG-Api-Version: v3`, `PG-Auth-Token: merchantNumber:terminalNumber:hash`,
+  `correlationId` per transaction. Sandbox base `https://sandbox-paymentapi.tami.com.tr`.
+
+  **Our side is ready and small.** `PaymentProviderPort` is four methods — `createCheckout`,
+  `verifyCallback`, `refund`, `configured` — and PAYTR is its only implementation. Tami becomes the
+  second; the intent, event, callback and reconciliation paths do not change. **PAYTR stays**: the
+  owner wants both, selectable at the point of payment ("PAYTR link ile ödeme" / "TAMI ile").
+
+  **Two things to get right when it resumes.** `PaymentIntentCreatedPayload` carries
+  `provider: PaymentProviderId`, today the single literal `'paytr'` — widening it to
+  `'paytr' | 'tami'` touches an EVENT PAYLOAD. It is additive and backward-compatible (old events
+  stay valid, no version bump or upcaster), but event schemas are the owner's call. And do not put
+  the TAMI option in reception's dropdown until the provider can actually take money: a dead option
+  is worse than none, because the first person to find it is reception, standing in front of a
+  member.
+
+
 - ~~**iOS 1.5.0's App Store version.**~~ Done — it reads *Waiting for Review* as of 2026-08-09.
   Keeping the recipe for next time: App Store Connect → + Version → fill "What's New" in BOTH
   Turkish and English (an empty Turkish field greys out "Add for Review", which cost a day) → pick
