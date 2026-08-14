@@ -7,7 +7,7 @@ explains the moment.
 Keep it current the way the code is kept current: when the state changes, this changes in the same
 commit. A handover document that lags is worse than none, because it is believed.
 
-_Last true as of: **2026-08-10**._
+_Last true as of: **2026-08-14**._
 
 Panel live at **`build-2026-08-10-001`** (100% of traffic) and **Cloud Functions deployed 2026-08-09
 16:01 UTC** — the functions do NOT need another: today's change is in `packages/core` but only the
@@ -596,6 +596,41 @@ deploy land*, and with pushes stacked those are different questions. Now in `doc
 with pushes stacked, wait for the CHANGE, not for a number to move.
 
 Live at `build-2026-08-10-004`, both changes verified on the page itself.
+
+---
+
+### 2026-08-13 — a payment on a dead sale, and a date that walked backwards
+
+**The reported problem was the smaller one.** A member paid ₺5.000 by link and still showed as
+owing ₺5.000. Nothing had failed: reception had cancelled her packages at 10:14 and re-sold the same
+hybrid at 10:15, and **cancelling a package does not cancel its sale** — so an orphan open sale sat
+there, older than the real one, and `collect` clears debt oldest-first. Now OR-37: money never
+settles against a sale whose packages are all cancelled. The root cause runs deeper than the
+allocation order: a payment link never records WHICH sale it was created for (`saleId` on the intent
+is synthesised from the provider ref in five places), so the callback guesses. **The fix is not
+built yet — the owner is choosing between binding the link to its sale and skipping dead sales.**
+
+**What the diagnosis turned up is worse.** Editing a package moved its start date back one day, every
+save, silently. The write stores studio-local midnight (`<date>T00:00:00Z − 3h`) and the dialog read
+it back with `toISOString()` — three hours earlier, the PREVIOUS day. The input showed a date one
+behind the truth and saving wrote that back, so **the damage compounds with care**: the more often
+somebody opens a package to check it, the further its dates drift. The correct line was already in
+the same file, one line below, in `studioToday`.
+
+**Audit (2026-08-14): 8 entitlements, 15 days, 6 members.** Çağla Kökener −4 · Buse Ertaş −3 (both
+hybrid halves) · Gülcan Ayvaz, İrem Kılıç, Şule Gürses, Gamze Baykaldı −1 each. Corrected by hand
+from the panel after the fix deployed, using **current date + days lost** rather than the
+first-observed value — Şule's package had a later, deliberate date change that the naive restore
+would have undone. Gamze's expired in June and was left alone.
+
+`joinedAt` on the member form had the identical defect and was fixed with it, but the audit shows it
+never fired: 15 profile updates, none of them touching that field.
+
+**Two smaller faults, same morning.** The five money dialogs reported "Kaydedilemedi." for a thrown
+error, hiding the stale-tab cause the desk could actually act on (the helper existed and was used
+elsewhere in the same file). And the package-edit dialog holds a collection sub-form with its own
+button: typing an amount there and pressing the dialog's own **Kaydet** saves the amendment and
+silently discards the payment — which is what happened, twice.
 
 ---
 
