@@ -94,18 +94,23 @@ grants and refuses when they disagree. The studio is notified the moment a self-
 
 ## Store state
 
-| | In members' hands | In review |
+| | In members' hands | Submitted / in review |
 |---|---|---|
-| iOS | 1.0.1 (build 4) — live since 2026-07-29 | **1.5.0** (build 11) — *Waiting for Review*, seen 2026-08-09 |
-| Android | **1.3.0** (versionCode 9) — closed test | **1.5.0** on the closed track; production ACCESS applied for 2026-08-09 |
+| iOS | 1.0.1 (build 4) — live since 2026-07-29 | **1.6.0** (build 11) — uploaded 2026-08-14, on top of 1.5.0 |
+| Android | **1.3.0** (versionCode 9) — closed test | **1.6.0** (versionCode 12) — uploaded 2026-08-14 to the CLOSED TEST track; production ACCESS still under review |
 
-**Both stores are waiting on somebody else now.** Nothing on our side is blocking either one.
+⚠️ **`eas submit` puts Android on the closed test track, not production.** `eas.json` hardcodes
+`"track": "alpha"` in the production submit profile, so 1.6.0 landed beside the pending production
+submission rather than replacing it. That is currently the only workable track — production access is
+still under review, so `production` would be refused. **The day production access is granted, change
+that line to `"production"`, or every release will keep landing in the closed test while everyone
+believes it shipped.**
 
-**Ship 1.5.0 and nothing else. 1.1.0, 1.2.0, 1.2.1, 1.3.0 and 1.4.0 are all superseded** — each is
-contained in the next, and 1.2.0's video player is broken (OR-22). Several of them were built and
-uploaded and never sent for review; let them lapse rather than spend a review turn on any of them.
-On iOS pick the **1.5.0** build. 1.5.0 carries the editorial redesign, the late-cancel block (OR-30),
-workout tracking (OR-33), the consistency strip, and one price (OR-31).
+**Ship 1.6.0 and nothing else. 1.1.0 … 1.5.0 are all superseded** — each is contained in the next,
+and 1.2.0's video player is broken (OR-22). Several were built, uploaded and never sent for review;
+let them lapse rather than spend a review turn on any of them. 1.6.0 carries everything 1.5.0 did —
+the late-cancel block (OR-30), workout tracking (OR-33), the consistency strip, one price (OR-31) —
+plus the turnstile's six-digit scanner and the premium UI redesign below.
 
 **The next mobile build is 1.6.0**, bumped on 2026-08-09 along with the white-label work (A4). It
 carries the turnstile's six-digit scanner, which had been sitting in the tree under a 1.5.0 label —
@@ -145,7 +150,23 @@ prerequisites struck through (closed test published · 12 testers enrolled · 14
 "Üretime başvur" is live. Production itself still reads *Etkin değil*: the requirement being met
 does not grant access, it only unlocks the application, which Google reviews by hand.
 
-**Applied the same day, 17:46, without waiting for 1.6.0** — production access is granted to the
+⚠️ **Play rejected the Android update on 2026-08-14 — a POLICY rejection, not a build one.** "Sağlık
+İçerikleri ve Hizmetleri politikası: Sağlık uygulamaları beyanı yanlış": the app's health features do
+not match the Health apps declaration form, and Play named the category **Aktivite ve Fitness**. The
+previous version stayed available to members throughout, so nothing in anybody's hands broke.
+
+What the app actually does, health-wise — checked against the code, not assumed: it DISPLAYS body
+measurements taken on the studio's own scale (weight, ideal weight, lean mass, muscle, water, fat in
+kg and %, plus circumferences — entered by the studio, read by the member), shows trainer-assigned
+workout programmes, and records class attendance. Android permissions are `CAMERA` and
+`RECORD_AUDIO` only; there is no Health Connect, no sensor and no health-record integration. So the
+honest declaration is **Activity and fitness — workout tracking and body measurements — and every
+medical category left unchecked**. Anything medical ticked on that form is a false declaration.
+
+The owner corrected the form and resubmitted the same day. **If this rejection ever returns, the fix
+is the form, never the build** — a rebuild changes nothing about it.
+
+**Applied on 2026-08-09 at 17:46, without waiting for 1.6.0** — production access is granted to the
 app, not to a build, so the review runs in parallel with preparing the turnstile release rather
 than behind it. **Keep every tester enrolled until it is approved**: a rejection puts the counter
 back in play, and a tester leaving RESETS it. Publishing new builds does not.
