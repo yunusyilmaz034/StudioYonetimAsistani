@@ -257,6 +257,24 @@ must still be created and sent for review by hand.
   tamamlayabilirsin" — behind an **Entegrasyon Portalı** button on `portal.tami.com.tr/dashboard`.
   That button is the first place to look; the owner has access to it (merchant 77030412).
 
+  **The decisive unknown (2026-08-14, after reading every public page).** Tami's entire *API*
+  surface — the catalogue's 13 endpoints, the support centre's FAQ, the security-hash doc — is the
+  DIRECT Sanal POS. The `/tami-ortak-odeme-sayfasi` and `/tami-linkli-odeme` pages contain no
+  endpoint, no request schema, no callback fields and no hash rule; they are written in product/panel
+  language ("adres bilgileri talep et", "stok sınırlama"), and the merchant portal has a **Linkli
+  Ödeme** page in its own sidebar. So either the hosted products are PANEL-ONLY, or their API doc
+  lives behind the Entegrasyon Portalı login. Nobody should write code until that is answered.
+
+  Why it decides everything: our flow needs a link created PROGRAMMATICALLY for one specific sale,
+  and a callback we can verify and settle that sale with (OR-37). A link a human makes in Tami's own
+  panel cannot be tied to our sale, sends us no callback, and leaves the money to be reconciled by
+  hand — which is the work the product exists to remove. A question to `TeknikDestek@tami.com.tr`
+  settles it in one round trip; the draft the owner was given asks exactly that.
+
+  **Sandbox test cards are public** at `dev.tami.com.tr/test-kartlari` (Garanti, Ziraat, Vakıfbank,
+  QNB, Halkbank, İş, Akbank, TEB), sandbox portal `sandbox-portal.tami.com.tr`. Useless until there
+  is an endpoint to call.
+
   **What is already known about Tami auth** (from the direct-API docs, and likely shared): request
   bodies are signed as a **JWT, HS512**, using the JWK's `k` as the HMAC secret, sent in
   `securityHash`; headers `PG-Api-Version: v3`, `PG-Auth-Token: merchantNumber:terminalNumber:hash`,
