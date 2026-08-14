@@ -626,6 +626,20 @@ would have undone. Gamze's expired in June and was left alone.
 `joinedAt` on the member form had the identical defect and was fixed with it, but the audit shows it
 never fired: 15 profile updates, none of them touching that field.
 
+**A wider audit followed, and it came back clean.** Every package's span was compared against its
+product's duration: **147 of 163 match exactly.** Of the 16 that do not, eleven are migration records
+(imported 23–31 July with the old system's real dates — a member arriving mid-package is OR-9's
+normal case, not a fault), one is a freeze that extended the end by exactly the seven days used, and
+one is a package deliberately made passive with a new one opened in its place.
+
+Two remain unexplained and both are recent hand-entered sales: **Ebru Yıldız and Sezen Sarı, +7 days
+each.** Possibly goodwill; the same seven days twice is worth a look rather than an assumption.
+
+Two things to know before running this audit again. The convention is `validUntil = validFrom +
+durationDays` — counting both ends makes every one of the 163 look wrong, which is how the first run
+came back with 163 false positives. And **"Pasife Al" pulls `validUntil` back to today**, so a
+deliberately-ended package will always read as short. Neither is a defect.
+
 **Two smaller faults, same morning.** The five money dialogs reported "Kaydedilemedi." for a thrown
 error, hiding the stale-tab cause the desk could actually act on (the helper existed and was used
 elsewhere in the same file). And the package-edit dialog holds a collection sub-form with its own
