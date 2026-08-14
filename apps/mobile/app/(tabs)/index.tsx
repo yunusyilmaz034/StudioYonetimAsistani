@@ -1,4 +1,4 @@
-import { Image, Pressable, RefreshControl, StyleSheet, useWindowDimensions, View } from 'react-native'
+import { Image, RefreshControl, useWindowDimensions, View } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { router } from 'expo-router'
 import Animated, { useAnimatedStyle, useSharedValue, withDelay, withTiming, Easing } from 'react-native-reanimated'
@@ -11,10 +11,11 @@ import { dateTime, formatKurus, shortDate } from '@/lib/format'
 import { motivationLine } from '@/lib/motivation'
 import { useFetch } from '@/lib/useFetch'
 import { FadeInUp, PressableScale, ProgressBar } from '@/components/motion'
-import { Body, Card, Empty, Eyebrow, Figure, GradientFill, Pill, Rule, Screen, ScreenSkeleton, SectionLabel, TopStrip } from '@/components/ui'
+import { Body, Card, Empty, Eyebrow, Figure, GradientFill, Pill, Screen, ScreenSkeleton, TopStrip } from '@/components/ui'
+import { DynamicBanner, EmptyState, MetricCard, PremiumCard, SectionHeader, StatusChip, StudioMessageCard, Txt } from '@/components/kit'
 import { CampaignPopup } from '@/components/campaign-popup'
 import { ConsistencyStrip } from '@/components/consistency-strip'
-import { radius, shadow, space, typo as t, usePalette, trUpper } from '@/theme'
+import { radius, shadow, space, typo as t, usePalette } from '@/theme'
 
 const hhmm = (ms: number) => new Date(ms).toLocaleTimeString('tr-TR', { timeZone: 'Europe/Istanbul', hour: '2-digit', minute: '2-digit' })
 const dayKeyTr = (ms: number) => new Date(ms).toLocaleDateString('tr-TR', { timeZone: 'Europe/Istanbul', year: 'numeric', month: '2-digit', day: '2-digit' })
@@ -26,12 +27,6 @@ const relDayTr = (ms: number): string => {
 }
 
 const todayTr = () => new Date().toLocaleDateString('tr-TR', { weekday: 'long', day: 'numeric', month: 'long' })
-// "Bugün" / "Yarın" / "Cuma" — the heading over the timetable strip, one word wide.
-const dayWordTr = (ms: number): string => {
-  if (dayKeyTr(ms) === dayKeyTr(Date.now())) return 'Bugün'
-  if (dayKeyTr(ms) === dayKeyTr(Date.now() + 86_400_000)) return 'Yarın'
-  return new Date(ms).toLocaleDateString('tr-TR', { timeZone: 'Europe/Istanbul', weekday: 'long' })
-}
 
 // Greeting AND hero tint by the hour on the phone — dawn rosé, bright midday mahogany, sunset, then a
 // deep night. `hi` is the salutation; `from`/`to` retint the hero band to match the moment.
@@ -57,7 +52,7 @@ export default function Home() {
   const fitness = useFetch(api.fitness)
   // Her own past classes — the only thing the line under her name is allowed to speak from.
   const reservations = useFetch(api.reservations)
-  // What the studio is running next — see the timetable strip below.
+  // Still fetched: `booksClasses` is derived from it, and the hero needs to know she books at all.
   const agenda = useFetch(api.agenda)
   // Her body, and what she is working on. Both live on other tabs in full; Bugün shows one line of
   // each, because a member who never opens a tab never learns the tab exists.
@@ -94,11 +89,6 @@ export default function Home() {
   const brand = home.data?.branding ?? null
   const motivation = motivationLine(reservations.data?.past ?? [], Date.now())
 
-  // The next day the studio is actually open, and what runs on it. Four rows at most — this is a
-  // glance, and Ajanda is one tap away for the rest.
-  const upcomingSessions = (agenda.data?.sessions ?? []).filter((s) => s.startsAt > Date.now()).sort((a, b) => a.startsAt - b.startsAt)
-  const stripDayKey = upcomingSessions[0] ? dayKeyTr(upcomingSessions[0].startsAt) : null
-  const strip = stripDayKey ? upcomingSessions.filter((s) => dayKeyTr(s.startsAt) === stripDayKey).slice(0, 4) : []
 
   // ── TWO MEMBERS, TWO DAYS (owner, 2026-08-06) ─────────────────────────────────────────────
   //
@@ -114,7 +104,8 @@ export default function Home() {
   // her see rather than guessed from a category name: if she has a reservation or the agenda offers
   // her a session, she is someone who books. A hybrid member gets the booking screen, correctly —
   // she has both.
-  const booksClasses = next !== null || upcomingSessions.length > 0
+  const booksClasses =
+    next !== null || (agenda.data?.sessions ?? []).some((sn) => sn.startsAt > Date.now())
 
   // Her last reading and the change since the one before it. `compareMeasurements` is the SAME
   // function the Ölçümlerim table uses — one arithmetic, so the two screens can never disagree.
@@ -151,57 +142,78 @@ export default function Home() {
         </View>
       </FadeInUp>
 
-      {/* THE BLOCK THAT CHANGES. For a member who books, it is her next class — the largest thing on
-          the page, because it is why she opened the app. For a fitness member it is how busy the
-          room is right now, which is the same question in her world: "is now a good time to go".
-          Occupancy used to be a six-word line at the very bottom; for half the membership it was the
-          most useful fact on the screen, set in the smallest type. */}
-      {booksClasses ? (
-        <FadeInUp index={1}>
-          <View style={{ gap: space(3) }}>
-            <Rule />
-            <SectionLabel right={next ? <Body style={{ color: p.accent, fontWeight: '700', fontSize: 12.5 }} onPress={() => router.push('/reservations')}>Tümü</Body> : undefined}>
-              Sıradaki dersin
-            </SectionLabel>
-            {next ? (
-              <Pressable onPress={() => router.push('/reservations')}>
-                <View style={{ gap: 5 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: space(2.5) }}>
-                    <Body style={[t.num, { color: p.text }]}>{hhmm(next.startsAt)}</Body>
-                    <Body strong muted>{relDayTr(next.startsAt)}</Body>
-                  </View>
-                  <Body strong style={{ fontSize: 16 }}>{next.serviceName}</Body>
-                  <Body muted style={{ fontSize: 13 }}>
-                    {[next.trainerName, next.roomName].filter(Boolean).join(' · ') || 'Detaylar rezervasyonlarında'}
-                  </Body>
+      {/* THE ORDER IS THE OWNER'S (2026-08-14). Greeting, then the studio's own two cards — the
+          campaign and the note somebody at the desk wrote — then how busy the room is, and only
+          then her own things. What the STUDIO is saying comes before what the app has computed. */}
+      {banners.length > 0 ? <FadeInUp index={4}><BannerCarousel banners={banners} /></FadeInUp> : null}
+      {/* The note from the studio. This box already carried the Notification Centre's message — the
+          same one reception writes and sends — but it never said WHO it was from, so it read as a
+          system notice rather than someone at the desk writing to her. A named sender is the whole
+          difference between an alert and a note (owner: "Pilates Fitness by Işıl'dan sana not").
+          The name comes from branding, so a second studio signs its own messages. */}
+      {announcement ? (
+        <FadeInUp index={5}>
+          {/* The card writes "…'dan sana not" itself — pass the NAME only, or it says it twice. */}
+          <StudioMessageCard
+            sender={brand?.appName ?? 'Stüdyo'}
+            title={announcement.subject}
+            body={announcement.body}
+            unread={!announcement.read}
+            onPress={() => router.push('/messages')}
+          />
+        </FadeInUp>
+      ) : null}
+
+      {/* Occupancy sits directly under the studio's note, for everyone. It used to be a footnote for
+          members who book and a headline for those who do not; one place, one treatment. */}
+      {occ ? (
+        <FadeInUp index={2}>
+          <PremiumCard onPress={() => router.push('/(tabs)/agenda')}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: space(2.5) }}>
+              <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: occ.tone === 'good' ? p.success : occ.tone === 'warn' ? p.warning : p.error }} />
+              <Txt role="h3" style={{ flex: 1 }} numberOfLines={1}>{occ.label}</Txt>
+              <Txt role="caption" tone="muted">salon</Txt>
+            </View>
+          </PremiumCard>
+        </FadeInUp>
+      ) : null}
+
+      {/* HER NEXT CLASS — the first thing she came for. A card now, because the Board's language is
+          layered surfaces; the figure still leads and the block is still the link. */}
+      {booksClasses && next ? (
+        <FadeInUp index={3}>
+          <View>
+            <SectionHeader action="Tümü" onAction={() => router.push('/reservations')}>Sıradaki dersin</SectionHeader>
+            <PremiumCard onPress={() => router.push('/reservations')}>
+              <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space(4) }}>
+                <View>
+                  <Txt role="body" tone="brand" numberOfLines={1} style={[t.num, { fontSize: 30 }]}>{hhmm(next.startsAt)}</Txt>
+                  <Txt role="caption" tone="muted">{relDayTr(next.startsAt)}</Txt>
                 </View>
-              </Pressable>
-            ) : (
-              <Body muted>Yaklaşan dersin yok — aşağıdan bir ders seçebilirsin.</Body>
-            )}
+                <View style={{ flex: 1, gap: space(1) }}>
+                  <Txt role="h3" numberOfLines={1}>{next.serviceName}</Txt>
+                  {[next.trainerName, next.roomName].filter(Boolean).length > 0 ? (
+                    <Txt role="caption" tone="muted" numberOfLines={1}>
+                      {[next.trainerName, next.roomName].filter(Boolean).join(' · ')}
+                    </Txt>
+                  ) : null}
+                  <View style={{ flexDirection: 'row', marginTop: space(1.5) }}>
+                    <StatusChip label="Katılıyorum" tone="success" />
+                  </View>
+                </View>
+              </View>
+            </PremiumCard>
           </View>
         </FadeInUp>
-      ) : occ ? (
-        <FadeInUp index={1}>
-          <View style={{ gap: space(3) }}>
-            <Rule />
-            <SectionLabel>Salon şu an</SectionLabel>
-            <View style={{ gap: 7 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space(3) }}>
-                <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: occ.tone === 'good' ? p.good : occ.tone === 'warn' ? p.warn : p.danger }} />
-                <Body style={[t.h1, { color: p.text }]}>{occ.label}</Body>
-              </View>
-              {/* One sentence of judgement, not a second data point. She came for the answer, not
-                  the reading. */}
-              <Body muted style={{ fontSize: 13.5 }}>
-                {occ.tone === 'good'
-                  ? 'Gelmek için iyi bir zaman.'
-                  : occ.tone === 'warn'
-                    ? 'Biraz hareketli — aletlerde sıra olabilir.'
-                    : 'Şu an kalabalık. Biraz sonrası daha rahat olur.'}
-              </Body>
-            </View>
-          </View>
+      ) : booksClasses ? (
+        <FadeInUp index={3}>
+          <EmptyState
+            icon="calendar-outline"
+            title="Yaklaşan dersin yok"
+            body="Uygun dersleri görüp yerini ayırtabilirsin."
+            cta="Ders ara"
+            onCta={() => router.push('/(tabs)/agenda')}
+          />
         </FadeInUp>
       ) : null}
 
@@ -211,61 +223,20 @@ export default function Home() {
           worse, which is why sage means "moved" and not "improved". */}
       {lastM && lastM.weightKg !== null ? (
         <FadeInUp index={3}>
-          <Pressable onPress={() => router.push('/(tabs)/training')}>
-            <View style={{ gap: space(2.5) }}>
-              <SectionLabel right={<Body style={{ color: p.accent, fontWeight: '700', fontSize: 12.5 }}>Tümü</Body>}>Gelişimin</SectionLabel>
-              <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: space(3) }}>
-                <Body style={[t.numSm, { color: p.text, fontSize: 22 }]}>{String(lastM.weightKg).replace('.', ',')}</Body>
-                <Body faint style={{ fontSize: 12.5 }}>kg</Body>
-                {weightDelta !== null && weightDelta !== 0 ? (
-                  <Body style={{ fontSize: 13, fontWeight: '700', color: p.good }}>
-                    {weightDelta > 0 ? '↑' : '↓'} {String(Math.abs(weightDelta)).replace('.', ',')}
-                  </Body>
-                ) : null}
-                <Body faint style={{ flex: 1, fontSize: 12, textAlign: 'right' }}>
-                  {mChange ? `${mChange.days} gün önceye göre` : shortDate(lastM.takenOn)}
-                </Body>
-              </View>
-            </View>
-          </Pressable>
-        </FadeInUp>
-      ) : null}
-
-      {/* The studio's own day, in four lines. Her own class carries the mahogany rail, exactly as it
-          does in Ajanda — the same mark for the same fact, on both screens. */}
-      {strip.length > 0 && booksClasses ? (
-        <FadeInUp index={4}>
-          <View style={{ gap: space(3) }}>
-            <SectionLabel right={<Body style={{ color: p.accent, fontWeight: '700', fontSize: 12.5 }} onPress={() => router.push('/agenda')}>Ajanda</Body>}>
-              {dayWordTr(strip[0].startsAt)} stüdyoda
-            </SectionLabel>
-            <Pressable onPress={() => router.push('/agenda')}>
-              {strip.map((s, i) => {
-                const seatsLeft = Math.max(0, s.capacity - s.bookedCount)
-                return (
-                  <View
-                    key={s.sessionId}
-                    style={{
-                      flexDirection: 'row',
-                      alignItems: 'baseline',
-                      gap: space(3),
-                      paddingVertical: space(2.5),
-                      borderTopWidth: i === 0 ? 0 : StyleSheet.hairlineWidth * 2,
-                      borderColor: p.hairline,
-                      borderLeftWidth: s.alreadyBooked ? 2 : 0,
-                      borderLeftColor: p.accent,
-                      paddingLeft: s.alreadyBooked ? space(3) : 0,
-                    }}
-                  >
-                    <Body style={[t.numSm, { width: 54, color: s.alreadyBooked ? p.accent : p.text }]}>{hhmm(s.startsAt)}</Body>
-                    <Body strong style={{ flex: 1, fontSize: 14 }} numberOfLines={1}>{s.serviceName}</Body>
-                    <Body faint style={{ fontSize: 11.5 }}>
-                      {s.alreadyBooked ? 'Senin' : seatsLeft === 0 ? 'Dolu' : `${seatsLeft} yer`}
-                    </Body>
-                  </View>
-                )
-              })}
-            </Pressable>
+          <View>
+            <SectionHeader>Gelişimin</SectionHeader>
+            <MetricCard
+              label="Son ölçümün"
+              value={String(lastM.weightKg).replace('.', ',')}
+              unit="kg"
+              delta={
+                weightDelta !== null && weightDelta !== 0
+                  ? `${weightDelta > 0 ? '↑' : '↓'} ${String(Math.abs(weightDelta)).replace('.', ',')}`
+                  : null
+              }
+              note={mChange ? `${mChange.days} gün önceye göre` : shortDate(lastM.takenOn)}
+              onPress={() => router.push('/(tabs)/training')}
+            />
           </View>
         </FadeInUp>
       ) : null}
@@ -275,9 +246,11 @@ export default function Home() {
           showing; see components/consistency-strip.tsx for why an empty chart is worse than none. */}
       {(fitness.data?.recent?.length ?? 0) >= 3 ? (
         <FadeInUp index={4}>
-          <View style={{ gap: space(3) }}>
-            <SectionLabel>Devamlılığın</SectionLabel>
-            <ConsistencyStrip recent={fitness.data?.recent ?? []} now={Date.now()} />
+          <View>
+            <SectionHeader>Devamlılığın</SectionHeader>
+            <PremiumCard>
+              <ConsistencyStrip recent={fitness.data?.recent ?? []} now={Date.now()} />
+            </PremiumCard>
           </View>
         </FadeInUp>
       ) : null}
@@ -287,41 +260,16 @@ export default function Home() {
           The history lives on the Antrenman tab, which this row opens. */}
       {workoutLine ? (
         <FadeInUp index={4}>
-          <Pressable onPress={() => router.push('/(tabs)/training')}>
-            <View style={{ gap: space(2.5) }}>
-              <SectionLabel right={<Body style={{ color: p.accent, fontWeight: '700', fontSize: 12.5 }}>Programım</Body>}>
-                Antrenmanın
-              </SectionLabel>
-              <Body strong style={{ fontSize: 15 }}>{workoutLine}</Body>
-            </View>
-          </Pressable>
-        </FadeInUp>
-      ) : null}
-
-      {banners.length > 0 ? <FadeInUp index={4}><BannerCarousel banners={banners} /></FadeInUp> : null}
-
-      {/* The note from the studio. This box already carried the Notification Centre's message — the
-          same one reception writes and sends — but it never said WHO it was from, so it read as a
-          system notice rather than someone at the desk writing to her. A named sender is the whole
-          difference between an alert and a note (owner: "Pilates Fitness by Işıl'dan sana not").
-          The name comes from branding, so a second studio signs its own messages. */}
-      {announcement ? (
-        <FadeInUp index={5}>
-          <Pressable onPress={() => router.push('/messages')}>
-            <View style={{ flexDirection: 'row', gap: space(3) }}>
-              <View style={{ width: 2, borderRadius: 2, backgroundColor: p.accent }} />
-              <View style={{ flex: 1, gap: 4 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: space(2) }}>
-                  <Body style={[t.eyebrow, { flex: 1, fontSize: 9.5, color: p.accent }]} numberOfLines={1}>
-                    {trUpper(`${brand?.appName ?? 'Stüdyo'}'dan sana not`)}
-                  </Body>
-                  {!announcement.read ? <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: p.accent }} /> : null}
-                </View>
-                <Body strong style={{ fontSize: 14.5 }} numberOfLines={1}>{announcement.subject}</Body>
-                <Body muted numberOfLines={2} style={{ fontSize: 13.5 }}>{announcement.body}</Body>
+          <View>
+            <SectionHeader>Antrenmanın</SectionHeader>
+            <PremiumCard onPress={() => router.push('/(tabs)/training')}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space(3) }}>
+                <Ionicons name="barbell-outline" size={19} color={p.primary} />
+                <Txt role="h3" style={{ flex: 1 }}>{workoutLine}</Txt>
+                <Ionicons name="chevron-forward" size={16} color={p.textMuted} />
               </View>
-            </View>
-          </Pressable>
+            </PremiumCard>
+          </View>
         </FadeInUp>
       ) : null}
 
@@ -331,37 +279,15 @@ export default function Home() {
           the foot of the page and carries one thing: the way in. What is left is genuinely useful,
           but "84 gün geçerli" is not why she opened the app at 18:00 on a Thursday. */}
       <FadeInUp index={7}>
-        <PressableScale onPress={() => router.push('/subscriptions')}>
-          <View
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: space(3),
-              paddingVertical: space(4),
-              borderTopWidth: StyleSheet.hairlineWidth * 2,
-              borderBottomWidth: StyleSheet.hairlineWidth * 2,
-              borderColor: p.hairline,
-            }}
-          >
-            <Ionicons name="ticket-outline" size={19} color={p.textMuted} />
-            <Body strong style={{ flex: 1, fontSize: 14.5 }}>Aboneliklerim</Body>
-            <Ionicons name="chevron-forward" size={16} color={p.textFaint} />
+        <PremiumCard onPress={() => router.push('/subscriptions')}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space(3) }}>
+            <Ionicons name="ticket-outline" size={19} color={p.textSecondary} />
+            <Txt role="h3" style={{ flex: 1 }}>Aboneliklerim</Txt>
+            <Ionicons name="chevron-forward" size={16} color={p.textMuted} />
           </View>
-        </PressableScale>
+        </PremiumCard>
       </FadeInUp>
 
-      {/* For a member who books, occupancy stays a footnote — her day is decided by her reservation,
-          not by the room. For everyone else it is already the headline above, and printing it twice
-          would say it matters less, not more. */}
-      {occ && booksClasses ? (
-        <FadeInUp index={6}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <Body faint style={{ fontSize: 13 }}>Salon yoğunluğu</Body>
-            <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: occ.tone === 'good' ? p.good : occ.tone === 'warn' ? p.warn : p.danger }} />
-            <Body strong style={{ fontSize: 13 }}>{occ.label}</Body>
-          </View>
-        </FadeInUp>
-      ) : null}
 
     </Screen>
   )

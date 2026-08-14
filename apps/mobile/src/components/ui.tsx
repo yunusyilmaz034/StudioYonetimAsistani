@@ -6,7 +6,7 @@ import { Ionicons } from '@expo/vector-icons'
 import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated'
 import Svg, { Circle, Defs, G, LinearGradient, Path, Rect, Stop } from 'react-native-svg'
 
-import { radius, shadow, space, typo as t, usePalette, trUpper } from '@/theme'
+import { font, radius, shadow, space, typo as t, usePalette, trUpper } from '@/theme'
 import { PressableScale } from './motion'
 
 // A real gradient fill (react-native-svg — already in the app for the QR code), the backbone of the
@@ -127,7 +127,7 @@ export function Eyebrow({ children, right }: { children: ReactNode; right?: Reac
   const p = usePalette()
   return (
     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: space(1.5), marginBottom: space(2.5) }}>
-      <Text style={[t.eyebrow, { color: p.textMuted }]}>{upper(children)}</Text>
+      <Text style={[t.label, { color: p.textMuted }]}>{upper(children)}</Text>
       {right}
     </View>
   )
@@ -149,11 +149,12 @@ export function Card({ children, style, onPress, level = 1, inset }: { children:
       style={[
         {
           backgroundColor: p.surface,
-          borderColor: p.hairline,
-          borderWidth: 1,
+          borderColor: p.border,
+          borderWidth: StyleSheet.hairlineWidth * 2,
           borderRadius: radius.lg,
-          padding: inset ? space(3.5) : space(4.5),
+          padding: inset ? space(3.5) : space(4),
           gap: space(2.5),
+          overflow: 'hidden',
         },
         shadow(level),
         style,
@@ -204,12 +205,9 @@ const upper = (node: ReactNode): ReactNode => (typeof node === 'string' ? trUppe
 export function SectionLabel({ children, right }: { children: ReactNode; right?: ReactNode }) {
   const p = usePalette()
   return (
-    <View style={{ gap: space(2.5) }}>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' }}>
-        <Text style={[t.eyebrow, { color: p.textFaint }]}>{upper(children)}</Text>
-        {right}
-      </View>
-      <Rule />
+    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: space(3) }}>
+      <Text style={[t.label, { color: p.textMuted }]}>{upper(children)}</Text>
+      {right}
     </View>
   )
 }
@@ -295,9 +293,9 @@ export function Pill({ label, tone = 'muted', solid, icon }: { label: string; to
   const c = tone === 'good' ? p.good : tone === 'warn' ? p.warn : tone === 'danger' ? p.danger : tone === 'accent' ? p.accent : tone === 'gold' ? p.gold : p.textMuted
   const bg = tone === 'good' ? p.goodSoft : tone === 'warn' ? p.warnSoft : tone === 'danger' ? p.dangerSoft : tone === 'accent' ? p.accentSoft : p.surfaceMuted
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start', paddingHorizontal: space(2.5), paddingVertical: space(1.25), borderRadius: radius.pill, backgroundColor: solid ? c : bg }}>
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start', paddingHorizontal: space(3), paddingVertical: space(1.5), borderRadius: radius.pill, backgroundColor: solid ? c : bg }}>
       {icon}
-      <Text style={{ color: solid ? p.accentText : c, fontSize: 12.5, fontWeight: '700' }}>{label}</Text>
+      <Text style={[t.caption, { color: solid ? p.onPrimary : c, fontFamily: font.medium, fontSize: 12 }]}>{label}</Text>
     </View>
   )
 }
@@ -310,12 +308,11 @@ export function Button({ label, onPress, disabled, tone = 'accent', loading, ico
     <PressableScale onPress={disabled || loading ? undefined : onPress} disabled={disabled || loading}>
       <View
         style={[
-          { backgroundColor: bg, opacity: disabled ? 0.5 : 1, borderRadius: radius.md, paddingVertical: space(3.75), paddingHorizontal: space(7), alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8, minHeight: 52 },
-          tone === 'accent' ? shadow(1) : null,
+          { backgroundColor: bg, opacity: disabled ? 0.45 : 1, borderRadius: radius.md, paddingHorizontal: space(6), alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8, minHeight: 48 },
         ]}
       >
         {loading ? <ActivityIndicator color={fg} /> : icon}
-        <Text style={{ color: fg, fontSize: 16, fontWeight: '700' }}>{label}</Text>
+        <Text style={[t.button, { color: fg, fontSize: 15 }]}>{label}</Text>
       </View>
     </PressableScale>
   )
@@ -373,7 +370,7 @@ export function Empty({ text, icon }: { text: string; icon?: ReactNode }) {
   return (
     <View style={{ alignItems: 'center', gap: space(2), paddingVertical: space(6), paddingHorizontal: space(4) }}>
       {icon}
-      <Body muted style={{ textAlign: 'center' }}>{text}</Body>
+      <Text style={[t.bodyLarge, { color: p.textSecondary, textAlign: 'center' }]}>{text}</Text>
     </View>
   )
 }

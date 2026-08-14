@@ -9,11 +9,20 @@ commit. A handover document that lags is worse than none, because it is believed
 
 _Last true as of: **2026-08-14**._
 
-Panel live at **`build-2026-08-10-001`** (100% of traffic) and **Cloud Functions deployed 2026-08-09
+Panel live at **`build-2026-08-14-004`** (100% of traffic) and **Cloud Functions deployed 2026-08-09
 16:01 UTC** — the functions do NOT need another: today's change is in `packages/core` but only the
 web tier reads it (`moneyByEntitlement`), so functions running older core decide nothing differently.
 That question is asked every time core changes, and the answer is not always no — both verified the only way that counts, Cloud Run's traffic split (OR-17), not the App
 Hosting listing.
+
+**The panel's cold start is gone (2026-08-14, deployed during the day at the owner's call).**
+`apphosting.yaml` now sets `minInstances: 1`. The container used to scale to zero during every quiet
+stretch and reception paid **12.35 / 12.20 / 12.31 s** on the first request back — measured three
+times, hours apart, against 0.22 s warm. After the deploy, and after fifteen minutes of deliberate
+idling, the same request took **0.29 / 0.26 / 0.24 s**. Verified by waiting and measuring, not by
+reading the Cloud Run setting: the service-level annotation is `run.googleapis.com/minScale = 1`
+while the revision template still reads `autoscaling.knative.dev/minScale = 0`, so the annotation
+alone would have been an ambiguous answer.
 
 ⚠️ **The dead man's switch shipped today but is NOT deployed yet.** `HEARTBEAT_URL` is empty in
 `apps/functions/.env.studio-yonetim-prod`; the nightly sweep will log `heartbeat_not_configured`
@@ -102,6 +111,31 @@ workout tracking (OR-33), the consistency strip, and one price (OR-31).
 carries the turnstile's six-digit scanner, which had been sitting in the tree under a 1.5.0 label —
 a build made before the bump would have reached the stores calling itself 1.5.0 while behaving
 differently from the 1.5.0 under review.
+
+**1.6.0 also carries the premium UI redesign (2026-08-14, owner's UI Board).** It is a RE-SKIN, not a
+rewrite: no API contract, no business rule and no screen's information changed. What changed is the
+type (serif → Poppins, loaded in `app/_layout.tsx` behind the splash) and the surface (hairline rules
+→ layered cards). `src/theme.ts` is now semantic tokens with the old names kept as ALIASES, so a
+screen migrates on its own day and the app is never half-broken; `src/components/kit.tsx` is the new
+component set and `src/components/ui.tsx` is the old one, retuned to the same proportions so the
+not-yet-migrated screens do not look older than the migrated ones. `ui.tsx` shrinks as screens move;
+when it is empty it goes.
+
+Migrated onto the kit: Bugün · Ajanda (both views) · Antrenman · Ben · Abonelikler · Mesajlar ·
+Rezervasyonlar · Cüzdan · İletişim · Paket Al, plus the tab bar. Verified in the iPhone 17 simulator.
+Three real defects were found and fixed while doing it, none of them cosmetic:
+
+- **Ajanda offered "Rezerve" on a row reading "Son 0 yer".** The server refuses it, so the screen was
+  announcing a refusal it already knew was coming. A session with no seats is now `Dolu`.
+- **`reservations.tsx` printed raw statuses to the member** — `late_cancelled`, `auto_resolved` — for
+  anything other than attended/no_show. `STATUS_TR` existed for exactly this and was not being used.
+  OR-30 says the member never meets the studio's accounting word.
+- The studio-note card said "…'dan sana not" twice, because both the card and its caller added it.
+
+Two things deliberately NOT done, so nobody thinks they were missed: the sender suffix is always
+`'dan`, which is correct for "Işıl" and wrong for a second studio whose name needs `'den` — it needs
+vowel harmony before the platform has two customers. And `npx expo lint` does not run at all: the
+config ignores `src`, so this app has never been linted. `apps/mobile` is not in `pnpm check` either.
 
 **`app.json` is gone**; the manifest is now `app.config.js` + `studios/retro.json`. `npx expo config`
 prints the resolved result. The version lives in `app.config.js` and is deliberately NOT per studio.

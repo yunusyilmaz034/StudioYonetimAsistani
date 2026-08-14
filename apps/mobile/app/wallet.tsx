@@ -9,7 +9,8 @@ import { track } from '@/lib/analytics'
 import { formatKurus } from '@/lib/format'
 import { useFetch } from '@/lib/useFetch'
 import { FadeInUp } from '@/components/motion'
-import { Body, Card, Empty, Eyebrow, Hero, Loading, Pill, Screen } from '@/components/ui'
+import { Body, Hero, Loading, Screen } from '@/components/ui'
+import { EmptyState, PremiumCard, SectionHeader, StatusChip, Txt } from '@/components/kit'
 import { radius, space, typo as t, usePalette } from '@/theme'
 
 const TOPUPS = [10000, 25000, 50000] // 100 / 250 / 500 ₺
@@ -72,7 +73,7 @@ export default function Wallet() {
     <Screen header refreshControl={<RefreshControl refreshing={wallet.loading} onRefresh={() => { void wallet.reload(); void store.reload() }} tintColor={p.accent} />}>
       <FadeInUp index={0}>
         <Hero>
-          <Body style={[t.caption, { color: p.onGradMuted }]}>Cüzdan Bakiyen</Body>
+          <Body style={[t.label, { color: p.onGradMuted }]}>CÜZDAN BAKİYEN</Body>
           <Body style={[t.display, { color: p.onGrad, fontSize: 40, lineHeight: 46 }]}>{formatKurus(balance)}</Body>
           <View style={{ flexDirection: 'row', gap: space(2), marginTop: space(2) }}>
             {TOPUPS.map((a) => (
@@ -83,33 +84,35 @@ export default function Wallet() {
       </FadeInUp>
 
       <FadeInUp index={1}>
-        <Eyebrow>Mağaza</Eyebrow>
+        <SectionHeader>Mağaza</SectionHeader>
         {items.length > 0 ? (
-          items.map((item, i) => (
-            <Card key={item.id} style={{ marginBottom: space(2) }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space(3) }}>
-                <View style={{ width: 44, height: 44, borderRadius: 14, backgroundColor: p.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
-                  <Ionicons name="bag-handle-outline" size={20} color={p.accent} />
+          items.map((item) => (
+            <View key={item.id} style={{ marginBottom: space(3) }}>
+              <PremiumCard>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: space(3) }}>
+                  <View style={{ width: 44, height: 44, borderRadius: 14, backgroundColor: p.primarySoft, alignItems: 'center', justifyContent: 'center' }}>
+                    <Ionicons name="bag-handle-outline" size={20} color={p.primary} />
+                  </View>
+                  <View style={{ flex: 1, gap: space(1) }}>
+                    <Txt role="h3" numberOfLines={1}>{item.name}</Txt>
+                    <Txt role="caption" tone="muted">{formatKurus(item.priceInKurus)}{item.stock !== null && item.stock <= 5 ? ` · son ${item.stock}` : ''}</Txt>
+                  </View>
+                  <BuyButton disabled={balance < item.priceInKurus} loading={busy === `buy-${item.id}`} onPress={() => void buy(item)} />
                 </View>
-                <View style={{ flex: 1 }}>
-                  <Body strong numberOfLines={1}>{item.name}</Body>
-                  <Body muted style={{ fontSize: 13 }}>{formatKurus(item.priceInKurus)}{item.stock !== null && item.stock <= 5 ? ` · son ${item.stock}` : ''}</Body>
-                </View>
-                <BuyButton disabled={balance < item.priceInKurus} loading={busy === `buy-${item.id}`} onPress={() => void buy(item)} />
-              </View>
-            </Card>
+              </PremiumCard>
+            </View>
           ))
         ) : (
-          <Card><Empty icon={<Ionicons name="bag-outline" size={28} color={p.textFaint} />} text="Şu an satışta ürün yok." /></Card>
+          <EmptyState icon="bag-outline" title="Şu an satışta ürün yok" body="Stüdyo ürün eklediğinde burada görünür." />
         )}
       </FadeInUp>
 
       <FadeInUp index={2}>
-        <Eyebrow>Hareketler</Eyebrow>
+        <SectionHeader>Hareketler</SectionHeader>
         {history.length > 0 ? (
           history.map((h) => <TxnRow key={h.id} txn={h} />)
         ) : (
-          <Card inset><Body muted>Henüz hareket yok. Cüzdanına para yükleyerek başla.</Body></Card>
+          <EmptyState icon="swap-vertical-outline" title="Henüz hareket yok" body="Cüzdanına para yükleyerek başla." />
         )}
       </FadeInUp>
     </Screen>
@@ -130,11 +133,11 @@ function TopupChip({ amount, loading, onPress }: { amount: number; loading: bool
 
 function BuyButton({ disabled, loading, onPress }: { disabled: boolean; loading: boolean; onPress: () => void }) {
   const p = usePalette()
-  if (loading) return <ActivityIndicator color={p.accent} />
+  if (loading) return <ActivityIndicator color={p.primary} />
   return (
     <Body
       onPress={disabled ? undefined : onPress}
-      style={{ color: disabled ? p.textFaint : '#FFFFFF', backgroundColor: disabled ? p.surfaceMuted : p.accent, fontWeight: '700', fontSize: 13.5, paddingVertical: 8, paddingHorizontal: 18, borderRadius: radius.md, overflow: 'hidden' }}
+      style={[t.button, { color: disabled ? p.textMuted : p.onPrimary, backgroundColor: disabled ? p.surfaceMuted : p.primary, fontSize: 13.5, paddingVertical: 9, paddingHorizontal: 18, borderRadius: radius.md, overflow: 'hidden' }]}
     >
       Al
     </Body>
@@ -145,18 +148,20 @@ function TxnRow({ txn }: { txn: WalletTxn }) {
   const p = usePalette()
   const isIn = txn.direction === 'in'
   return (
-    <Card inset style={{ marginBottom: space(2) }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space(3) }}>
-        <Ionicons name={isIn ? 'arrow-down-circle' : 'arrow-up-circle'} size={26} color={isIn ? p.good : p.textMuted} />
-        <View style={{ flex: 1 }}>
-          <Body strong numberOfLines={1}>{txn.label}</Body>
-          <Body faint style={{ fontSize: 12.5 }}>{d(txn.at)}</Body>
+    <View style={{ marginBottom: space(2) }}>
+      <PremiumCard>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space(3) }}>
+          <Ionicons name={isIn ? 'arrow-down-circle' : 'arrow-up-circle'} size={26} color={isIn ? p.success : p.textMuted} />
+          <View style={{ flex: 1, gap: space(1) }}>
+            <Txt role="h3" numberOfLines={1}>{txn.label}</Txt>
+            <Txt role="caption" tone="muted">{d(txn.at)}</Txt>
+          </View>
+          <View style={{ alignItems: 'flex-end', gap: space(1) }}>
+            <Txt role="h3" tone={isIn ? 'success' : 'primary'}>{isIn ? '+' : '−'}{formatKurus(txn.amount)}</Txt>
+            <StatusChip label={formatKurus(txn.balanceAfter)} tone="neutral" />
+          </View>
         </View>
-        <View style={{ alignItems: 'flex-end' }}>
-          <Body strong style={{ color: isIn ? p.good : p.text }}>{isIn ? '+' : '−'}{formatKurus(txn.amount)}</Body>
-          <Pill label={formatKurus(txn.balanceAfter)} tone="muted" />
-        </View>
-      </View>
-    </Card>
+      </PremiumCard>
+    </View>
   )
 }

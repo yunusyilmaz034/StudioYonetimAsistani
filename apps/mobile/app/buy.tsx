@@ -8,8 +8,9 @@ import { formatKurus } from '@/lib/format'
 import { track } from '@/lib/analytics'
 import { useFetch } from '@/lib/useFetch'
 import { FadeInUp } from '@/components/motion'
-import { Body, Card, Empty, Loading, Pill, Screen } from '@/components/ui'
-import { radius, space, usePalette } from '@/theme'
+import { Loading, Screen } from '@/components/ui'
+import { EmptyState, PremiumCard, StatusChip, Txt } from '@/components/kit'
+import { radius, space, typo as t, usePalette } from '@/theme'
 
 // PAKET YENİLEME — she renews without anyone phoning her (owner, 2026-07-27).
 //
@@ -63,35 +64,35 @@ export default function Buy() {
   return (
     <Screen header refreshControl={<RefreshControl refreshing={loading} onRefresh={reload} tintColor={p.accent} />}>
       {items.length === 0 ? (
-        <Card>
-          <Empty
-            icon={<Ionicons name="pricetag-outline" size={30} color={p.textFaint} />}
-            text="Şu anda uygulamadan alınabilen bir paket yok. Stüdyoyla iletişime geçebilirsin."
-          />
-        </Card>
+        <EmptyState
+          icon="pricetag-outline"
+          title="Uygulamadan alınabilen paket yok"
+          body="Stüdyoyla iletişime geçerek paketini yenileyebilirsin."
+        />
       ) : (
         items.map((item, i) => (
           <FadeInUp key={item.id} index={i}>
-            <Card>
+            <View style={{ marginBottom: space(3) }}>
+            <PremiumCard>
               <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space(2) }}>
-                <View style={{ flex: 1, gap: 2 }}>
-                  <Body strong numberOfLines={2}>{item.name}</Body>
-                  <Body muted style={{ fontSize: 13.5 }}>
+                <View style={{ flex: 1, gap: space(1) }}>
+                  <Txt role="h3" numberOfLines={2}>{item.name}</Txt>
+                  <Txt role="caption" tone="muted">
                     {item.durationDays > 0 ? `${item.durationDays} gün geçerli` : 'Süresiz'}
-                  </Body>
+                  </Txt>
                 </View>
-                <Pill label={CATEGORY_TR[item.category] ?? item.category} tone="muted" />
+                <StatusChip label={CATEGORY_TR[item.category] ?? item.category} tone="neutral" />
               </View>
 
-              <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: space(2) }}>
-                <View>
-                  <Body strong style={{ fontSize: 21 }}>{formatKurus(item.totalKurus)}</Body>
+              <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: space(2), marginTop: space(4) }}>
+                <View style={{ flex: 1 }}>
+                  <Txt role="body" style={[t.numSm, { fontSize: 22 }]}>{formatKurus(item.totalKurus)}</Txt>
                   {/* Said out loud, not hidden: the number differs from the one on the wall because
                       this is a card payment. Discovering that at the bank is how trust goes. */}
                   {item.totalKurus !== item.cashKurus ? (
-                    <Body faint style={{ fontSize: 12.5 }}>
+                    <Txt role="caption" tone="muted">
                       kart ile · stüdyoda nakit {formatKurus(item.cashKurus)}
-                    </Body>
+                    </Txt>
                   ) : null}
                 </View>
                 <Pressable
@@ -99,29 +100,30 @@ export default function Buy() {
                   onPress={() => void buy(item)}
                   style={({ pressed }) => ({
                     opacity: pressed || busy === item.id ? 0.6 : busy ? 0.4 : 1,
-                    backgroundColor: p.accent,
+                    backgroundColor: p.primary,
                     paddingHorizontal: space(5),
                     paddingVertical: space(3),
                     borderRadius: radius.pill,
                   })}
                 >
-                  <Body strong style={{ color: p.onGrad }}>
+                  <Txt role="button" tone="onPrimary">
                     {busy === item.id ? 'Açılıyor…' : 'Satın al'}
-                  </Body>
+                  </Txt>
                 </Pressable>
               </View>
-            </Card>
+            </PremiumCard>
+            </View>
           </FadeInUp>
         ))
       )}
 
       {/* Tek fiyat (owner, 2026-08-06): nakit, havale ve kart aynı tutar. Taksitin vade farkını
           banka/ödeme altyapısı belirler — stüdyo bir oran söylemez, çünkü bir oran koymuyor. */}
-      <Body faint style={{ fontSize: 12.5, textAlign: 'center', paddingHorizontal: space(4), lineHeight: 18 }}>
+      <Txt role="caption" tone="muted" align="center" style={{ paddingHorizontal: space(4) }}>
         Fiyatlar nakit, havale ve kredi kartında aynıdır. Kredi kartına taksit yapabilirsin; taksit
         seçeneğine göre vade farkı oluşabilir, net tutarı ödeme ekranında görürsün. Ödeme, lisanslı
         ödeme kuruluşu üzerinden alınır; paketin ödeme onaylanır onaylanmaz tanımlanır.
-      </Body>
+      </Txt>
     </Screen>
   )
 }

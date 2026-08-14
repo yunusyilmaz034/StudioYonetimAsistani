@@ -10,7 +10,7 @@ import { api } from '@/lib/api'
 import { useFetch } from '@/lib/useFetch'
 import { registerForPush } from '@/lib/push'
 import { Loading } from '@/components/ui'
-import { radius, usePalette } from '@/theme'
+import { font, usePalette } from '@/theme'
 
 // ── The bar (owner, 2026-08-06, third attempt) ──────────────────────────────────────────────
 //
@@ -44,7 +44,7 @@ function tabIcon(name: keyof typeof ICONS) {
 function tabLabel(label: string) {
   return function Label({ color, focused }: { color: string; focused: boolean }) {
     return (
-      <Text numberOfLines={1} style={{ fontSize: 10.5, letterSpacing: 0.2, fontWeight: focused ? '700' : '500', color }}>
+      <Text numberOfLines={1} style={{ fontSize: 10.5, letterSpacing: 0.2, fontFamily: focused ? font.semibold : font.medium, color }}>
         {label}
       </Text>
     )
@@ -85,14 +85,14 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: p.accent,
-        tabBarInactiveTintColor: p.textFaint,
+        tabBarActiveTintColor: p.primary,
+        tabBarInactiveTintColor: p.textMuted,
         // A fixed `height` overrides the safe-area inset, which is what pushed the labels down onto
         // the home indicator (owner, 2026-08-06). Height is the icon-and-label block plus the inset,
         // and nothing else.
         tabBarStyle: {
-          backgroundColor: p.bg,
-          borderTopColor: p.hairline,
+          backgroundColor: p.background,
+          borderTopColor: p.border,
           borderTopWidth: StyleSheet.hairlineWidth * 2,
           height: 50 + insets.bottom,
           paddingTop: 7,

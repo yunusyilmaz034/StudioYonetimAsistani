@@ -7,8 +7,9 @@ import { api } from '@/lib/api'
 import { dateTime } from '@/lib/format'
 import { useFetch } from '@/lib/useFetch'
 import { FadeInUp, PressableScale } from '@/components/motion'
-import { Body, Card, Empty, Eyebrow, Loading, Pill, Screen } from '@/components/ui'
-import { radius, space, usePalette } from '@/theme'
+import { Loading, Screen } from '@/components/ui'
+import { EmptyState, PremiumCard, SectionHeader, StatusChip, Txt } from '@/components/kit'
+import { radius, space, typo as t, usePalette } from '@/theme'
 
 const STATUS_TR: Record<string, string> = {
   attended: 'Katıldı',
@@ -54,30 +55,32 @@ export default function Reservations() {
 
   return (
     <Screen header refreshControl={<RefreshControl refreshing={loading} onRefresh={reload} tintColor={p.accent} />}>
-      <Eyebrow>Yaklaşan</Eyebrow>
+      <SectionHeader>Yaklaşan</SectionHeader>
       {data && data.upcoming.length > 0 ? (
         data.upcoming.map((r, i) => (
           <FadeInUp key={r.reservationId} index={i}>
-            <Card inset>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space(3) }}>
-                <View style={{ width: 44, height: 44, borderRadius: 14, backgroundColor: p.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
-                  <Ionicons name="barbell" size={20} color={p.accent} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Body strong numberOfLines={1}>{r.serviceName}</Body>
-                  <Body muted style={{ fontSize: 13.5 }}>{dateTime(r.startsAt)}</Body>
-                </View>
-                <PressableScale onPress={() => cancel(r)}>
-                  <View style={{ paddingHorizontal: space(3.5), paddingVertical: space(2), borderRadius: radius.pill, backgroundColor: p.dangerSoft }}>
-                    <Body style={{ color: p.danger, fontWeight: '700', fontSize: 13.5 }}>{busyId === r.reservationId ? '…' : 'İptal'}</Body>
+            <View style={{ marginBottom: space(3) }}>
+              <PremiumCard>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: space(3) }}>
+                  <View style={{ width: 44, height: 44, borderRadius: 14, backgroundColor: p.primarySoft, alignItems: 'center', justifyContent: 'center' }}>
+                    <Ionicons name="barbell" size={20} color={p.primary} />
                   </View>
-                </PressableScale>
-              </View>
-            </Card>
+                  <View style={{ flex: 1, gap: space(1) }}>
+                    <Txt role="h3" numberOfLines={1}>{r.serviceName}</Txt>
+                    <Txt role="caption" tone="muted">{dateTime(r.startsAt)}</Txt>
+                  </View>
+                  <PressableScale onPress={() => cancel(r)}>
+                    <View style={{ paddingHorizontal: space(3.5), paddingVertical: space(2), borderRadius: radius.pill, backgroundColor: p.errorSoft }}>
+                      <Txt role="body" tone="error" style={t.button}>{busyId === r.reservationId ? '…' : 'İptal'}</Txt>
+                    </View>
+                  </PressableScale>
+                </View>
+              </PremiumCard>
+            </View>
           </FadeInUp>
         ))
       ) : (
-        <Card><Empty icon={<Ionicons name="calendar-clear-outline" size={30} color={p.textFaint} />} text="Yaklaşan rezervasyonun yok." /></Card>
+        <EmptyState icon="calendar-clear-outline" title="Yaklaşan rezervasyonun yok" body="Ajanda'dan uygun bir derse yer ayırtabilirsin." />
       )}
 
       {/* PF-43 (owner, 2026-07-29) — the past is COLLAPSED by default.
@@ -88,27 +91,32 @@ export default function Reservations() {
       {data && data.past.length > 0 ? (
         <Pressable onPress={() => setPastOpen((v) => !v)} hitSlop={8}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: space(2), paddingVertical: space(2) }}>
-            <Eyebrow>Geçmiş ({data.past.length})</Eyebrow>
-            <Ionicons name={pastOpen ? 'chevron-up' : 'chevron-down'} size={16} color={p.textFaint} />
+            <SectionHeader>{`Geçmiş (${data.past.length})`}</SectionHeader>
+            <Ionicons name={pastOpen ? 'chevron-up' : 'chevron-down'} size={16} color={p.textMuted} />
           </View>
         </Pressable>
       ) : (
-        <Eyebrow>Geçmiş</Eyebrow>
+        <SectionHeader>Geçmiş</SectionHeader>
       )}
       {data && data.past.length > 0 && pastOpen ? (
         data.past.slice(0, 20).map((r) => (
-          <Card key={r.reservationId} inset style={{ opacity: 0.75 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-              <View>
-                <Body strong numberOfLines={1}>{r.serviceName}</Body>
-                <Body muted style={{ fontSize: 13.5 }}>{dateTime(r.startsAt)}</Body>
+          <View key={r.reservationId} style={{ marginBottom: space(2), opacity: 0.8 }}>
+            <PremiumCard>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space(3) }}>
+                <View style={{ flex: 1, gap: space(1) }}>
+                  <Txt role="h3" numberOfLines={1}>{r.serviceName}</Txt>
+                  <Txt role="caption" tone="muted">{dateTime(r.startsAt)}</Txt>
+                </View>
+                <StatusChip
+                  label={STATUS_TR[r.status] ?? 'Kayıt'}
+                  tone={r.status === 'no_show' ? 'warning' : r.status.includes('cancel') ? 'neutral' : 'success'}
+                />
               </View>
-              <Pill label={r.status === 'attended' ? 'Katıldı' : r.status === 'no_show' ? 'Gelmedi' : r.status} />
-            </View>
-          </Card>
+            </PremiumCard>
+          </View>
         ))
       ) : data && data.past.length === 0 ? (
-        <Card><Empty icon={<Ionicons name="time-outline" size={28} color={p.textFaint} />} text="Geçmiş kaydın yok." /></Card>
+        <EmptyState icon="time-outline" title="Geçmiş kaydın yok" body="Katıldığın dersler burada birikir." />
       ) : null}
     </Screen>
   )

@@ -5,7 +5,8 @@ import { api } from '@/lib/api'
 import { dateTime } from '@/lib/format'
 import { useFetch } from '@/lib/useFetch'
 import { FadeInUp } from '@/components/motion'
-import { Body, Card, Empty, Loading, Screen } from '@/components/ui'
+import { Loading, Screen } from '@/components/ui'
+import { EmptyState, PremiumCard, Txt } from '@/components/kit'
 import { space, usePalette } from '@/theme'
 
 export default function Messages() {
@@ -22,19 +23,21 @@ export default function Messages() {
       {data && data.length > 0 ? (
         data.map((m, i) => (
           <FadeInUp key={m.intentId} index={i}>
-            <Card onPress={m.read ? undefined : () => void open(m.intentId)} style={{ opacity: m.read ? 0.62 : 1, borderLeftWidth: m.read ? 0 : 3, borderLeftColor: p.accent }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <Ionicons name={m.read ? 'mail-open-outline' : 'mail'} size={18} color={m.read ? p.textMuted : p.accent} />
-                <Body strong style={{ flex: 1 }} numberOfLines={1}>{m.subject}</Body>
-                {!m.read ? <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: p.accent }} /> : null}
-              </View>
-              <Body muted>{m.body}</Body>
-              <Body faint style={{ fontSize: 12 }}>{dateTime(m.at)}</Body>
-            </Card>
+            <View style={{ marginBottom: space(3), opacity: m.read ? 0.68 : 1 }}>
+              <PremiumCard onPress={m.read ? undefined : () => void open(m.intentId)}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: space(2), marginBottom: space(2) }}>
+                  <Ionicons name={m.read ? 'mail-open-outline' : 'mail'} size={18} color={m.read ? p.textMuted : p.primary} />
+                  <Txt role="h3" style={{ flex: 1 }} numberOfLines={1}>{m.subject}</Txt>
+                  {!m.read ? <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: p.primary }} /> : null}
+                </View>
+                <Txt role="bodyLarge" tone="secondary">{m.body}</Txt>
+                <Txt role="caption" tone="muted" style={{ marginTop: space(2) }}>{dateTime(m.at)}</Txt>
+              </PremiumCard>
+            </View>
           </FadeInUp>
         ))
       ) : (
-        <Card><Empty icon={<Ionicons name="notifications-off-outline" size={30} color={p.textFaint} />} text="Bildirimin yok." /></Card>
+        <EmptyState icon="notifications-off-outline" title="Bildirimin yok" body="Stüdyo sana yazdığında burada görünür." />
       )}
     </Screen>
   )

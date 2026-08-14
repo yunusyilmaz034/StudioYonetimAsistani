@@ -6,15 +6,16 @@ import type { MemberSubscription } from '@studio/core/client'
 import { api } from '@/lib/api'
 import { useFetch } from '@/lib/useFetch'
 import { FadeInUp, PressableScale, ProgressBar } from '@/components/motion'
-import { Body, Card, Empty, Eyebrow, Hero, Loading, Pill, Screen } from '@/components/ui'
-import { space, usePalette } from '@/theme'
+import { Body, Hero, Loading, Screen } from '@/components/ui'
+import { EmptyState, PremiumCard, SectionHeader, StatusChip, Txt, type ChipTone } from '@/components/kit'
+import { space, typo as t, usePalette } from '@/theme'
 
-const STATUS_TR: Record<string, { label: string; tone: 'muted' | 'good' | 'warn' | 'danger' }> = {
-  active: { label: 'Aktif', tone: 'good' },
-  expired: { label: 'Süresi doldu', tone: 'muted' },
-  exhausted: { label: 'Tükendi', tone: 'muted' },
-  cancelled: { label: 'İptal', tone: 'danger' },
-  frozen: { label: 'Donduruldu', tone: 'warn' },
+const STATUS_TR: Record<string, { label: string; tone: ChipTone }> = {
+  active: { label: 'Aktif', tone: 'success' },
+  expired: { label: 'Süresi doldu', tone: 'neutral' },
+  exhausted: { label: 'Tükendi', tone: 'neutral' },
+  cancelled: { label: 'İptal', tone: 'error' },
+  frozen: { label: 'Donduruldu', tone: 'warning' },
 }
 const d = (ms: number) => new Date(ms).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' })
 
@@ -29,11 +30,11 @@ export default function Subscriptions() {
   return (
     <Screen refreshControl={<RefreshControl refreshing={loading} onRefresh={reload} tintColor={p.accent} />}>
       {/* Owner: only ACTIVE subscriptions — the member has no reason to see expired/cancelled ones. */}
-      <Eyebrow>Aktif Aboneliklerin</Eyebrow>
+      <SectionHeader>Aktif aboneliklerin</SectionHeader>
       {data && data.active.length > 0 ? (
         data.active.map((s, i) => <SubCard key={s.entitlementId} sub={s} index={i} active />)
       ) : (
-        <Card><Empty icon={<Ionicons name="ticket-outline" size={30} color={p.textFaint} />} text="Aktif aboneliğin yok." /></Card>
+        <EmptyState icon="ticket-outline" title="Aktif aboneliğin yok" body="Paket alarak derslere yer ayırtabilirsin." />
       )}
 
       {/* Offered HERE because this is the screen she opens to see how many classes are left — the
@@ -78,33 +79,37 @@ function SubCard({ sub, index, active }: { sub: MemberSubscription; index: numbe
   const st = STATUS_TR[sub.status] ?? { label: sub.status, tone: 'muted' as const }
   return (
     <FadeInUp index={index}>
-      <Card style={active ? undefined : { opacity: 0.72 }}>
+      <View style={{ marginBottom: space(3), opacity: active ? 1 : 0.72 }}>
+      <PremiumCard>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: space(2) }}>
-          <View style={{ flex: 1 }}>
-            <Body strong numberOfLines={1}>{sub.productName}</Body>
-            <Body muted style={{ fontSize: 13.5 }}>Alındı: {d(sub.purchasedAt)}</Body>
-            <Body muted style={{ fontSize: 13.5 }}>Bitiş: {d(sub.validUntil)}</Body>
+          <View style={{ flex: 1, gap: space(1) }}>
+            <Txt role="h3" numberOfLines={2}>{sub.productName}</Txt>
+            <Txt role="caption" tone="muted">Alındı: {d(sub.purchasedAt)}</Txt>
+            <Txt role="caption" tone="muted">Bitiş: {d(sub.validUntil)}</Txt>
           </View>
-          <Pill label={st.label} tone={st.tone} />
+          <StatusChip label={st.label} tone={st.tone} />
         </View>
         {active && sub.remaining !== null && sub.total ? (
-          <View style={{ gap: 6 }}>
-            <ProgressBar value={sub.remaining / Math.max(sub.total, 1)} color={p.accent} track={p.surfaceMuted} />
-            <Body faint style={{ fontSize: 12.5 }}>{sub.remaining} / {sub.total} ders kaldı</Body>
+          <View style={{ gap: space(2), marginTop: space(3) }}>
+            <ProgressBar value={sub.remaining / Math.max(sub.total, 1)} color={p.primary} track={p.surfaceMuted} />
+            <Txt role="caption" tone="muted">{sub.remaining} / {sub.total} ders kaldı</Txt>
           </View>
         ) : active && sub.fitnessEntry ? (
-          <View style={{ gap: 6 }}>
-            <ProgressBar value={Math.max(0, sub.fitnessEntry.allowance - sub.fitnessEntry.used) / Math.max(sub.fitnessEntry.allowance, 1)} color={p.accent} track={p.surfaceMuted} />
-            <Body faint style={{ fontSize: 12.5 }}>
+          <View style={{ gap: space(2), marginTop: space(3) }}>
+            <ProgressBar value={Math.max(0, sub.fitnessEntry.allowance - sub.fitnessEntry.used) / Math.max(sub.fitnessEntry.allowance, 1)} color={p.primary} track={p.surfaceMuted} />
+            <Txt role="caption" tone="muted">
               {sub.fitnessEntry.used >= sub.fitnessEntry.allowance
                 ? `Giriş hakkı doldu (${sub.fitnessEntry.used}/${sub.fitnessEntry.allowance})`
                 : `${Math.max(0, sub.fitnessEntry.allowance - sub.fitnessEntry.used)} / ${sub.fitnessEntry.allowance} giriş kaldı`}
-            </Body>
+            </Txt>
           </View>
         ) : active && sub.remaining === null ? (
-          <Pill label="Sınırsız kullanım" tone="gold" />
+          <View style={{ flexDirection: 'row', marginTop: space(3) }}>
+            <StatusChip label="Sınırsız kullanım" tone="brand" />
+          </View>
         ) : null}
-      </Card>
+      </PremiumCard>
+      </View>
     </FadeInUp>
   )
 }

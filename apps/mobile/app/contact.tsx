@@ -4,7 +4,8 @@ import { Ionicons } from '@expo/vector-icons'
 import { api } from '@/lib/api'
 import { useFetch } from '@/lib/useFetch'
 import { FadeInUp } from '@/components/motion'
-import { Body, Card, Empty, Eyebrow, Hero, Loading, Screen } from '@/components/ui'
+import { Body, Hero, Loading, Screen } from '@/components/ui'
+import { EmptyState, PremiumCard, SectionHeader, Txt } from '@/components/kit'
 import { radius, space, typo as t, usePalette } from '@/theme'
 
 // Turn a stored phone (E.164 `+90…` or a local `0…`) into the digits wa.me / tel: want.
@@ -42,7 +43,7 @@ export default function Contact() {
     <Screen header>
       <FadeInUp index={0}>
         <Hero>
-          <Body style={[t.caption, { color: p.onGradMuted }]}>İletişim</Body>
+          <Body style={[t.label, { color: p.onGradMuted }]}>İLETİŞİM</Body>
           <Body style={[t.display, { color: p.onGrad }]} numberOfLines={2}>{c?.name || 'Stüdyo'}</Body>
           {c?.phone ? <Body style={{ color: p.onGradMuted }}>{c.phone}</Body> : null}
         </Hero>
@@ -50,25 +51,25 @@ export default function Contact() {
 
       {rows.length === 0 ? (
         <FadeInUp index={1}>
-          <Card><Empty icon={<Ionicons name="call-outline" size={30} color={p.textFaint} />} text="İletişim bilgileri henüz eklenmemiş." /></Card>
+          <EmptyState icon="call-outline" title="İletişim bilgileri henüz eklenmemiş" body="Stüdyo bilgilerini eklediğinde burada görünür." />
         </FadeInUp>
       ) : (
         <FadeInUp index={1}>
-          <Eyebrow>Bize ulaş</Eyebrow>
-          <View style={{ gap: space(2.5) }}>
+          <SectionHeader>Bize ulaş</SectionHeader>
+          <View style={{ gap: space(3) }}>
             {rows.map((r) => (
-              <Card key={r.label} inset onPress={r.onPress}>
+              <PremiumCard key={r.label} onPress={r.onPress}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: space(3.5) }}>
-                  <View style={{ width: 44, height: 44, borderRadius: radius.sm, backgroundColor: (r.tint ?? p.accent) + '18', alignItems: 'center', justifyContent: 'center' }}>
-                    <Ionicons name={r.icon} size={21} color={r.tint ?? p.accent} />
+                  <View style={{ width: 44, height: 44, borderRadius: radius.sm, backgroundColor: (r.tint ?? p.primary) + '18', alignItems: 'center', justifyContent: 'center' }}>
+                    <Ionicons name={r.icon} size={21} color={r.tint ?? p.primary} />
                   </View>
-                  <View style={{ flex: 1 }}>
-                    <Body faint style={{ fontSize: 12 }}>{r.label}</Body>
-                    <Body strong numberOfLines={2}>{r.value}</Body>
+                  <View style={{ flex: 1, gap: space(1) }}>
+                    <Txt role="caption" tone="muted">{r.label}</Txt>
+                    <Txt role="h3" numberOfLines={2}>{r.value}</Txt>
                   </View>
-                  <Ionicons name="chevron-forward" size={18} color={p.textFaint} />
+                  <Ionicons name="chevron-forward" size={18} color={p.textMuted} />
                 </View>
-              </Card>
+              </PremiumCard>
             ))}
           </View>
         </FadeInUp>

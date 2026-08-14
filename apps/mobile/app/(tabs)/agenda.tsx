@@ -7,7 +7,8 @@ import type { MemberReservation, MemberSession } from '@studio/core/client'
 import { api } from '@/lib/api'
 import { useFetch } from '@/lib/useFetch'
 import { FadeInUp, PressableScale } from '@/components/motion'
-import { Body, Rule, ScreenSkeleton, TopStrip } from '@/components/ui'
+import { Body, ScreenSkeleton, TopStrip } from '@/components/ui'
+import { EmptyState, PremiumCard, SegmentedControl, StatusChip, Txt } from '@/components/kit'
 import { radius, space, typo as t, usePalette, trUpper } from '@/theme'
 
 // ── AJANDA — a day is a timetable, not two lists (owner-approved, 2026-08-06) ────────────────
@@ -17,8 +18,16 @@ import { radius, space, typo as t, usePalette, trUpper } from '@/theme'
 // with a rail down its left — she answers "what is on today" and "what is mine" in one look, having
 // chosen nothing.
 //
-// Past reservations left this screen for Ben › Geçmiş rezervasyonlarım. Ajanda looks forward; "what
-// did I do" is a different question and belongs somewhere else.
+// ── AND WHY IT SPLIT AGAIN (owner, 2026-08-13) ──────────────────────────────────────────────
+//
+// The rail was not enough, and the reason is that the timetable shows ONE DAY. "Where am I booked?"
+// is a question about the week, not about today: a member who booked Tuesday could only find it by
+// tapping Tuesday. Marking her class inside a day answers "what is on today" and cannot answer
+// "what did I book" — the owner called the gap büyük eksiklik and he was right.
+//
+// So: two views, one screen. `Rezervasyonlarım` opens first because that is the question she comes
+// with; `Rezervasyon Yap` is the timetable exactly as it was, layout untouched. Past reservations
+// stay OUT of the way behind a disclosure — she is not browsing history, she is checking a plan.
 //
 // What did NOT change: booking, cancelling, the blocked reasons, and the rule that a member cannot
 // cancel inside the window (OR-30) — which this layout finally makes legible, because the row simply
@@ -27,6 +36,7 @@ import { radius, space, typo as t, usePalette, trUpper } from '@/theme'
 const WD = ['Paz', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt']
 const dayKey = (ms: number) => new Date(ms).toLocaleDateString('tr-TR', { timeZone: 'Europe/Istanbul', year: 'numeric', month: '2-digit', day: '2-digit' })
 const hhmm = (ms: number) => new Date(ms).toLocaleTimeString('tr-TR', { timeZone: 'Europe/Istanbul', hour: '2-digit', minute: '2-digit' })
+const shortDay = (ms: number) => new Date(ms).toLocaleDateString('tr-TR', { timeZone: 'Europe/Istanbul', day: 'numeric', month: 'short' })
 const longDay = (ms: number) => new Date(ms).toLocaleDateString('tr-TR', { timeZone: 'Europe/Istanbul', weekday: 'long', day: 'numeric', month: 'long' })
 const monthTr = (ms: number) => new Date(ms).toLocaleDateString('tr-TR', { timeZone: 'Europe/Istanbul', month: 'long', year: 'numeric' })
 
@@ -45,9 +55,12 @@ export default function Ajanda() {
   const reservations = useFetch(api.reservations)
   const [sel, setSel] = useState<string | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
+  const [view, setView] = useState<'mine' | 'book'>('mine')
+  const [pastOpen, setPastOpen] = useState(false)
 
   const sessions = agenda.data?.sessions ?? []
   const upcoming = reservations.data?.upcoming ?? []
+  const past = reservations.data?.past ?? []
   const resBySession = useMemo(() => new Map(upcoming.map((r) => [r.sessionId, r])), [upcoming])
 
   // The next seven days, always — a week reads as a week even when the studio has nothing on a day.
@@ -129,30 +142,42 @@ export default function Ajanda() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: p.bg }} edges={['top']}>
       <View style={{ paddingHorizontal: space(5), paddingTop: space(2), gap: space(4) }}>
-        <TopStrip label={monthTr(activeMs)} onQr={() => router.push('/qr')} />
+        <TopStrip label={view === 'mine' ? trUpper('Rezervasyonlarım') : monthTr(activeMs)} onQr={() => router.push('/qr')} />
+
+        {/* Two questions, one screen. A segmented control rather than two underlined words: the
+            same control the rest of the app now uses to switch between two peers. */}
+        <SegmentedControl
+          value={view}
+          onChange={setView}
+          options={[
+            { key: 'mine', label: upcoming.length > 0 ? `Rezervasyonlarım · ${upcoming.length}` : 'Rezervasyonlarım' },
+            { key: 'book', label: 'Rezervasyon Yap' },
+          ]}
+        />
 
         {/* Seven days. Selection is an underline, not a filled tile — the same mark the tab bar uses.
             A sage dot means she has a class that day; a faded date means the studio has nothing on. */}
+        {view === 'book' ? (
         <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
           {week.map((d) => {
             const on = d.key === active
             return (
               <PressableScale key={d.key} onPress={() => setSel(d.key)}>
                 <View style={{ width: 40, alignItems: 'center', paddingBottom: space(2) }}>
-                  <Body style={[t.eyebrow, { fontSize: 9.5, color: d.any ? p.textFaint : p.hairline }]}>
+                  <Body style={[t.eyebrow, { fontSize: 9.5, color: d.any ? p.textMuted : p.border }]}>
                     {trUpper(WD[new Date(d.ms).getDay()])}
                   </Body>
-                  <Body style={[t.numSm, { marginTop: 3, color: on ? p.accent : d.any ? p.text : p.textFaint }]}>
+                  <Body style={[t.numSm, { marginTop: 3, color: on ? p.primary : d.any ? p.textPrimary : p.textMuted }]}>
                     {new Date(d.ms).getDate()}
                   </Body>
-                  <View style={{ width: 4, height: 4, borderRadius: 2, marginTop: 4, backgroundColor: d.mine ? p.good : 'transparent' }} />
-                  <View style={{ height: 2, width: 20, marginTop: 4, borderRadius: 2, backgroundColor: on ? p.accent : 'transparent' }} />
+                  <View style={{ width: 4, height: 4, borderRadius: 2, marginTop: 4, backgroundColor: d.mine ? p.success : 'transparent' }} />
+                  <View style={{ height: 2, width: 20, marginTop: 4, borderRadius: 2, backgroundColor: on ? p.primary : 'transparent' }} />
                 </View>
               </PressableScale>
             )
           })}
         </View>
-        <Rule />
+        ) : null}
       </View>
 
       <ScrollView
@@ -161,6 +186,18 @@ export default function Ajanda() {
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={agenda.loading} onRefresh={reload} tintColor={p.accent} />}
       >
+        {view === 'mine' ? (
+          <MineView
+            upcoming={upcoming}
+            past={past}
+            pastOpen={pastOpen}
+            togglePast={() => setPastOpen((v) => !v)}
+            busyId={busyId}
+            onCancel={askCancel}
+            onBook={() => setView('book')}
+          />
+        ) : (
+        <>
         <View style={{ gap: 5, marginBottom: space(5) }}>
           <Body style={[t.h1, { color: p.text }]}>{longDay(activeMs)}</Body>
           <Body faint style={{ fontSize: 12.5 }}>
@@ -174,64 +211,167 @@ export default function Ajanda() {
           const res = resBySession.get(s.sessionId)
           const mine = s.alreadyBooked
           const seatsLeft = Math.max(0, s.capacity - s.bookedCount)
-          const blocked = s.blockedReason ? BLOCKED[s.blockedReason] : null
+          const blocked = s.blockedReason ? BLOCKED[s.blockedReason] : seatsLeft <= 0 ? BLOCKED.full : null
           const locked = res ? (res.startsAt - Date.now()) / 3_600_000 <= res.cancellationWindowHours : false
           return (
             <FadeInUp key={s.sessionId} index={i}>
-              <View
-                style={{
-                  flexDirection: 'row',
-                  gap: space(3.5),
-                  paddingVertical: space(3.5),
-                  borderTopWidth: StyleSheet.hairlineWidth * 2,
-                  borderColor: p.hairline,
-                  borderLeftWidth: mine ? 2 : 0,
-                  borderLeftColor: p.accent,
-                  paddingLeft: mine ? space(3) : 0,
-                }}
-              >
-                <Body style={[t.numSm, { width: 54, color: mine ? p.accent : p.text }]}>{hhmm(s.startsAt)}</Body>
+              <View style={{ marginBottom: space(3) }}>
+                <PremiumCard>
+                  <View style={{ flexDirection: 'row', gap: space(3.5), alignItems: 'flex-start' }}>
+                    {/* Her own class keeps its rail — now inside the card, where it reads as a mark on
+                        the row rather than a line cutting the page. */}
+                    {mine ? <View style={{ width: 3, alignSelf: 'stretch', borderRadius: 2, backgroundColor: p.primary }} /> : null}
 
-                <View style={{ flex: 1, gap: 3 }}>
-                  <Body strong style={{ fontSize: 14.5 }} numberOfLines={1}>{s.serviceName}</Body>
-                  {s.trainerName || s.roomName ? (
-                    <Body muted style={{ fontSize: 12.5 }}>{[s.trainerName, s.roomName].filter(Boolean).join(' · ')}</Body>
-                  ) : null}
+                    <Txt role="body" numberOfLines={1} tone={mine ? 'brand' : 'primary'} style={[t.numSm, { width: 56 }]}>
+                      {hhmm(s.startsAt)}
+                    </Txt>
 
-                  {mine ? (
-                    <>
-                      <Body style={[t.eyebrow, { fontSize: 9.5, color: p.accent, marginTop: 3 }]}>{trUpper('Rezervasyonun')}</Body>
-                      {locked ? (
-                        <Body faint style={{ fontSize: 11.5, fontStyle: 'italic' }}>
-                          İptal süresi doldu — gelemezsen bizi ara.
-                        </Body>
+                    <View style={{ flex: 1, gap: space(1) }}>
+                      <Txt role="h3" numberOfLines={1}>{s.serviceName}</Txt>
+                      {s.trainerName || s.roomName ? (
+                        <Txt role="caption" tone="muted" numberOfLines={1}>{[s.trainerName, s.roomName].filter(Boolean).join(' · ')}</Txt>
                       ) : null}
-                    </>
-                  ) : blocked ? (
-                    <Body style={{ fontSize: 12, marginTop: 3, color: s.blockedReason === 'full' ? p.textFaint : p.warn }}>{blocked.label}</Body>
-                  ) : (
-                    <Body style={{ fontSize: 12, marginTop: 3, color: seatsLeft <= 2 ? p.warn : p.textFaint, fontWeight: seatsLeft <= 2 ? '600' : '400' }}>
-                      {seatsLeft <= 2 ? `Son ${seatsLeft} yer` : `${seatsLeft} yer kaldı`}
-                    </Body>
-                  )}
-                </View>
 
-                {/* One action per row, and only when there is one to offer. */}
-                {mine && res && !locked ? (
-                  <Action label="İptal" ghost busy={busyId === s.sessionId} onPress={() => askCancel(res)} />
-                ) : !mine && !blocked ? (
-                  <Action label="Rezerve" busy={busyId === s.sessionId} onPress={() => void book(s)} />
-                ) : blocked?.cta && blocked.go ? (
-                  <Action label={blocked.cta} ghost busy={false} onPress={blocked.go} />
-                ) : null}
+                      {mine ? (
+                        <View style={{ flexDirection: 'row', marginTop: space(1) }}>
+                          <StatusChip label="Rezervasyonun" tone="brand" />
+                        </View>
+                      ) : blocked ? (
+                        <View style={{ flexDirection: 'row', marginTop: space(1) }}>
+                          <StatusChip label={blocked.label} tone={s.blockedReason === 'full' ? 'neutral' : 'warning'} />
+                        </View>
+                      ) : (
+                        <Txt role="caption" tone={seatsLeft <= 2 ? 'warning' : 'muted'} style={{ marginTop: space(0.5) }}>
+                          {seatsLeft <= 2 ? `Son ${seatsLeft} yer` : `${seatsLeft} yer kaldı`}
+                        </Txt>
+                      )}
+
+                      {mine && locked ? (
+                        <Txt role="caption" tone="muted">İptal süresi doldu — gelemezsen bizi ara.</Txt>
+                      ) : null}
+                    </View>
+
+                    {/* One action per row, and only when there is one to offer. */}
+                    {mine && res && !locked ? (
+                      <Action label="İptal" ghost busy={busyId === s.sessionId} onPress={() => askCancel(res)} />
+                    ) : !mine && !blocked ? (
+                      <Action label="Rezerve" busy={busyId === s.sessionId} onPress={() => void book(s)} />
+                    ) : blocked?.cta && blocked.go ? (
+                      <Action label={blocked.cta} ghost busy={false} onPress={blocked.go} />
+                    ) : null}
+                  </View>
+                </PremiumCard>
               </View>
             </FadeInUp>
           )
         })}
 
-        {daySessions.length > 0 ? <Rule /> : null}
+        </>
+        )}
       </ScrollView>
     </SafeAreaView>
+  )
+}
+
+// ── REZERVASYONLARIM ────────────────────────────────────────────────────────────────────────
+//
+// Upcoming across the WHOLE week, which is the thing the day-by-day timetable structurally could not
+// show. Past sits behind a disclosure and starts CLOSED: she opens this to check a plan, not to read
+// history, and a list that opens with last month's classes buries tomorrow's.
+function MineView({
+  upcoming,
+  past,
+  pastOpen,
+  togglePast,
+  busyId,
+  onCancel,
+  onBook,
+}: {
+  upcoming: readonly MemberReservation[]
+  past: readonly MemberReservation[]
+  pastOpen: boolean
+  togglePast: () => void
+  busyId: string | null
+  onCancel: (r: MemberReservation) => void
+  onBook: () => void
+}) {
+  const p = usePalette()
+  const sorted = [...upcoming].sort((a, b) => a.startsAt - b.startsAt)
+  const recent = [...past].sort((a, b) => b.startsAt - a.startsAt).slice(0, 20)
+
+  return (
+    <>
+      {sorted.length === 0 ? (
+        <EmptyState
+          icon="calendar-outline"
+          title="Henüz rezervasyonun yok"
+          body="Uygun dersleri görüp yerini ayırtabilirsin."
+          cta="Ders ara"
+          onCta={onBook}
+        />
+      ) : (
+        <View style={{ gap: space(1), marginBottom: space(4) }}>
+          <Txt role="h1">Yaklaşan</Txt>
+          <Txt role="caption" tone="muted">{sorted.length === 1 ? 'Bir dersin var' : `${sorted.length} dersin var`}</Txt>
+        </View>
+      )}
+
+      {sorted.map((r, i) => {
+        const locked = (r.startsAt - Date.now()) / 3_600_000 <= r.cancellationWindowHours
+        return (
+          <FadeInUp key={r.reservationId} index={i}>
+            <View style={{ marginBottom: space(3) }}>
+              <PremiumCard>
+                <View style={{ flexDirection: 'row', gap: space(3.5), alignItems: 'flex-start' }}>
+                  <View style={{ width: 3, alignSelf: 'stretch', borderRadius: 2, backgroundColor: p.primary }} />
+                  <View style={{ width: 54 }}>
+                    <Txt role="body" tone="brand" style={t.numSm}>{hhmm(r.startsAt)}</Txt>
+                    <Txt role="caption" tone="muted">{shortDay(r.startsAt)}</Txt>
+                  </View>
+                  <View style={{ flex: 1, gap: space(1) }}>
+                    <Txt role="h3" numberOfLines={1}>{r.serviceName}</Txt>
+                    {r.trainerName || r.roomName ? (
+                      <Txt role="caption" tone="muted" numberOfLines={1}>{[r.trainerName, r.roomName].filter(Boolean).join(' · ')}</Txt>
+                    ) : null}
+                    {locked ? <Txt role="caption" tone="muted">İptal süresi doldu — gelemezsen bizi ara.</Txt> : null}
+                  </View>
+                  {!locked ? <Action label="İptal" ghost busy={busyId === r.sessionId} onPress={() => onCancel(r)} /> : null}
+                </View>
+              </PremiumCard>
+            </View>
+          </FadeInUp>
+        )
+      })}
+
+      {/* Past stays behind a disclosure and starts CLOSED — she opens this to check a plan, not to
+          read history, and a list that opens with last month's classes buries tomorrow's. */}
+      {recent.length > 0 ? (
+        <View style={{ marginTop: space(4) }}>
+          <PressableScale onPress={togglePast}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: space(3.5) }}>
+              <Txt role="body" tone="secondary">Geçmiş rezervasyonlarım · {recent.length}</Txt>
+              <Txt role="body" tone="muted">{pastOpen ? '−' : '+'}</Txt>
+            </View>
+          </PressableScale>
+
+          {pastOpen
+            ? recent.map((r) => (
+                <View key={r.reservationId} style={{ marginBottom: space(2) }}>
+                  <PremiumCard>
+                    <View style={{ flexDirection: 'row', gap: space(3.5), alignItems: 'center' }}>
+                      <View style={{ width: 54 }}>
+                        <Txt role="body" tone="muted" style={t.numSm}>{hhmm(r.startsAt)}</Txt>
+                        <Txt role="caption" tone="muted">{shortDay(r.startsAt)}</Txt>
+                      </View>
+                      <Txt role="body" tone="secondary" numberOfLines={1} style={{ flex: 1 }}>{r.serviceName}</Txt>
+                    </View>
+                  </PremiumCard>
+                </View>
+              ))
+            : null}
+        </View>
+      ) : null}
+    </>
   )
 }
 
@@ -244,12 +384,12 @@ function Action({ label, onPress, busy, ghost }: { label: string; onPress: () =>
           paddingHorizontal: space(3.5),
           paddingVertical: space(2),
           borderRadius: radius.pill,
-          backgroundColor: ghost ? 'transparent' : p.accent,
+          backgroundColor: ghost ? 'transparent' : p.primary,
           borderWidth: ghost ? StyleSheet.hairlineWidth * 2 : 0,
-          borderColor: p.hairline,
+          borderColor: p.border,
         }}
       >
-        <Body style={{ fontSize: 12.5, fontWeight: '700', color: ghost ? p.textMuted : p.accentText }}>{busy ? '…' : label}</Body>
+        <Body style={[t.button, { fontSize: 12.5, color: ghost ? p.textSecondary : p.onPrimary }]}>{busy ? '…' : label}</Body>
       </View>
     </Pressable>
   )

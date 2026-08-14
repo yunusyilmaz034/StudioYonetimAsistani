@@ -1,5 +1,13 @@
 import { useEffect } from 'react'
 import { Stack } from 'expo-router'
+import * as SplashScreen from 'expo-splash-screen'
+import {
+  useFonts,
+  Poppins_400Regular,
+  Poppins_500Medium,
+  Poppins_600SemiBold,
+  Poppins_700Bold,
+} from '@expo-google-fonts/poppins'
 import { StatusBar } from 'expo-status-bar'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
@@ -8,7 +16,23 @@ import { AuthProvider } from '@/lib/auth'
 import { trackError } from '@/lib/analytics'
 import { usePalette } from '@/theme'
 
+// Hold the splash until the type is ready. A first paint in the system font followed by a reflow
+// into Poppins is the cheapest possible way to look unfinished, and it happens on every cold start.
+void SplashScreen.preventAutoHideAsync()
+
 export default function RootLayout() {
+  const [fontsReady, fontError] = useFonts({
+    Poppins_400Regular,
+    Poppins_500Medium,
+    Poppins_600SemiBold,
+    Poppins_700Bold,
+  })
+  useEffect(() => {
+    // Hidden on failure too: a font that will not load must not leave the member staring at a splash
+    // for ever. She gets the system face and a working app, which beats a beautiful hang.
+    if (fontsReady || fontError) void SplashScreen.hideAsync()
+  }, [fontsReady, fontError])
+
   // The stack header is themed to the app's own palette — a white system bar on top of a dark screen
   // was the "beyaz nav bar" reported everywhere (Bildirimler / İletişim / Program / Bilgi düzenle …).
   const p = usePalette()

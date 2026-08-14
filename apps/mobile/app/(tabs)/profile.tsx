@@ -9,8 +9,9 @@ import { localDate } from '@/lib/format'
 import { useFetch } from '@/lib/useFetch'
 import { useAuth } from '@/lib/auth'
 import { FadeInUp } from '@/components/motion'
-import { Body, Figure, Rule, Screen, ScreenSkeleton, SectionLabel, TopStrip } from '@/components/ui'
-import { radius, space, typo as t, usePalette, trUpper } from '@/theme'
+import { Body, Screen, ScreenSkeleton, TopStrip } from '@/components/ui'
+import { PremiumCard, SectionHeader, TextButton, Txt } from '@/components/kit'
+import { space, typo as t, usePalette, trUpper } from '@/theme'
 
 // ── BEN — her page, not a settings page (owner-approved, 2026-08-06) ─────────────────────────
 //
@@ -93,18 +94,16 @@ export default function Ben() {
                 width: 54,
                 height: 54,
                 borderRadius: 27,
-                borderWidth: StyleSheet.hairlineWidth * 2,
-                borderColor: p.hairline,
-                backgroundColor: p.surface,
+                backgroundColor: p.primarySoft,
                 alignItems: 'center',
                 justifyContent: 'center',
               }}
             >
-              <Body style={[t.h1, { color: p.accent, fontSize: 19 }]}>{initials}</Body>
+              <Body style={[t.h1, { color: p.primary, fontSize: 19 }]}>{initials}</Body>
             </View>
-            <View style={{ flex: 1, gap: 3 }}>
-              <Body style={[t.h1, { color: p.text }]} numberOfLines={1}>{pr?.fullName}</Body>
-              <Body faint style={{ fontSize: 12.5 }}>{pr?.phone}</Body>
+            <View style={{ flex: 1, gap: space(1) }}>
+              <Txt role="h1" numberOfLines={1}>{pr?.fullName}</Txt>
+              <Txt role="caption" tone="muted">{pr?.phone}</Txt>
             </View>
           </View>
         </View>
@@ -112,84 +111,86 @@ export default function Ben() {
 
       {pack ? (
         <FadeInUp index={1}>
-          <View style={{ gap: space(3) }}>
-            <SectionLabel>Üyeliğim</SectionLabel>
+          <View>
+            <SectionHeader>Üyeliğim</SectionHeader>
+            <PremiumCard onPress={() => router.push('/subscriptions')}>
             <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: space(3) }}>
-              <View style={{ flex: 1, gap: 4 }}>
-                <Body strong style={{ fontSize: 15 }} numberOfLines={2}>{pack.productName}</Body>
-                <Body faint style={{ fontSize: 12.5 }}>
+              <View style={{ flex: 1, gap: space(1) }}>
+                <Txt role="h3" numberOfLines={2}>{pack.productName}</Txt>
+                <Txt role="caption" tone="muted">
                   {new Date(pack.validUntil).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' })}&apos;e kadar geçerli
-                </Body>
+                </Txt>
               </View>
               <View style={{ alignItems: 'flex-end' }}>
-                <Body style={[t.num, { color: p.text }]}>{pack.remaining === null ? '∞' : pack.remaining}</Body>
-                <Body faint style={[t.eyebrow, { fontSize: 9.5 }]}>{trUpper(pack.remaining === null ? 'sınırsız' : 'ders kaldı')}</Body>
+                <Body style={[t.num, { color: p.textPrimary }]}>{pack.remaining === null ? '∞' : pack.remaining}</Body>
+                <Body style={[t.label, { color: p.textMuted }]}>{trUpper(pack.remaining === null ? 'sınırsız' : 'ders kaldı')}</Body>
               </View>
             </View>
             {/* How much of the package is left, as a line rather than a number repeated. */}
             {pack.remaining !== null && pack.total ? (
-              <View style={{ height: 3, borderRadius: 2, backgroundColor: p.surfaceMuted, overflow: 'hidden' }}>
-                <View style={{ height: 3, borderRadius: 2, backgroundColor: p.accent, width: `${Math.round((pack.remaining / pack.total) * 100)}%` }} />
+              <View style={{ height: 4, borderRadius: 2, backgroundColor: p.surfaceMuted, overflow: 'hidden', marginTop: space(3) }}>
+                <View style={{ height: 4, borderRadius: 2, backgroundColor: p.primary, width: `${Math.round((pack.remaining / pack.total) * 100)}%` }} />
               </View>
             ) : null}
             {active.length > 1 ? (
-              <Body onPress={() => router.push('/subscriptions')} style={{ color: p.accent, fontWeight: '700', fontSize: 12.5 }}>
-                {active.length} aktif paketin var — tümünü gör ›
-              </Body>
+              <View style={{ marginTop: space(3) }}>
+                <TextButton label={`${active.length} aktif paketin var — tümünü gör`} onPress={() => router.push('/subscriptions')} />
+              </View>
             ) : null}
+            </PremiumCard>
           </View>
         </FadeInUp>
       ) : null}
 
       {thisYear > 0 ? (
         <FadeInUp index={2}>
-          <View style={{ gap: space(3) }}>
-            <SectionLabel>Bu yıl</SectionLabel>
+          <View>
+            <SectionHeader>Bu yıl</SectionHeader>
+            <PremiumCard>
             <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: space(2.5) }}>
-              <Body style={[t.num, { color: p.text }]}>{thisYear}</Body>
-              <Body muted style={{ flex: 1 }}>
+              <Body style={[t.num, { color: p.textPrimary }]}>{thisYear}</Body>
+              <Body style={[t.body, { flex: 1, color: p.textSecondary }]}>
                 derse geldin{(fitness.data?.stats?.currentStreakWeeks ?? 0) > 1 ? ` · şu an ${fitness.data?.stats?.currentStreakWeeks} haftalık serin var` : ''}
               </Body>
             </View>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 5, maxWidth: 7 * 15 }}>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 5, maxWidth: 7 * 15, marginTop: space(3) }}>
               {days.map((came, i) => (
-                <View key={i} style={{ width: 10, height: 10, borderRadius: 2, backgroundColor: came ? p.accent : p.surfaceMuted }} />
+                <View key={i} style={{ width: 10, height: 10, borderRadius: 2, backgroundColor: came ? p.primary : p.surfaceMuted }} />
               ))}
             </View>
-            <Body faint style={{ fontSize: 11.5 }}>Son üç hafta</Body>
+            <Txt role="caption" tone="muted" style={{ marginTop: space(2) }}>Son üç hafta</Txt>
+            </PremiumCard>
           </View>
         </FadeInUp>
       ) : null}
 
       <FadeInUp index={3}>
-        <View style={{ gap: space(3) }}>
-          <SectionLabel right={<Body onPress={() => router.push('/profile-edit')} style={{ color: p.accent, fontWeight: '700', fontSize: 12.5 }}>Düzenle</Body>}>
-            Bilgilerim
-          </SectionLabel>
-          <View>
+        <View>
+          <SectionHeader action="Düzenle" onAction={() => router.push('/profile-edit')}>Bilgilerim</SectionHeader>
+          <PremiumCard>
             <InfoRow label="E-posta" value={pr?.email ?? '—'} />
             <InfoRow label="Doğum tarihi" value={pr?.birthDate ? localDate(pr.birthDate) : '—'} />
             <InfoRow label="Acil durum" value={pr?.emergencyName ? `${pr.emergencyName} · ${pr.emergencyPhone}` : '—'} last />
-          </View>
+          </PremiumCard>
         </View>
       </FadeInUp>
 
       <FadeInUp index={4}>
-        <View style={{ gap: space(3) }}>
-          <SectionLabel>Hesap</SectionLabel>
-          <View>
+        <View>
+          <SectionHeader>Hesap</SectionHeader>
+          <PremiumCard>
             <LinkRow icon="mail-outline" label="Mesajlarım" onPress={() => router.push('/messages')} />
             <LinkRow icon="time-outline" label="Geçmiş rezervasyonlarım" onPress={() => router.push('/reservations')} />
             <LinkRow icon="wallet-outline" label="Cüzdanım" onPress={() => router.push('/wallet')} />
             <LinkRow icon="call-outline" label="İletişim" onPress={() => router.push('/contact')} last />
-          </View>
+          </PremiumCard>
         </View>
       </FadeInUp>
 
       <FadeInUp index={5}>
-        <View style={{ gap: space(3) }}>
-          <SectionLabel>Bildirimler</SectionLabel>
-          <View>
+        <View>
+          <SectionHeader>Bildirimler</SectionHeader>
+          <PremiumCard>
             {prefs ? (
               CHANNELS.map((c, i) => (
                 <View
@@ -200,29 +201,28 @@ export default function Ben() {
                     gap: space(3),
                     paddingVertical: space(2.5),
                     borderBottomWidth: i === CHANNELS.length - 1 ? 0 : StyleSheet.hairlineWidth * 2,
-                    borderColor: p.hairline,
+                    borderColor: p.border,
                   }}
                 >
-                  <Body style={{ flex: 1, fontSize: 14 }}>{c.label}</Body>
+                  <Txt role="body" style={{ flex: 1 }}>{c.label}</Txt>
                   <Switch
                     value={Boolean(prefs[c.key])}
                     onValueChange={(v) => void toggle(c.key, v)}
-                    trackColor={{ true: p.accent, false: p.surfaceMuted }}
+                    trackColor={{ true: p.primary, false: p.surfaceMuted }}
                   />
                 </View>
               ))
             ) : (
-              <Body muted>Yükleniyor…</Body>
+              <Txt role="body" tone="muted">Yükleniyor…</Txt>
             )}
-          </View>
+          </PremiumCard>
         </View>
       </FadeInUp>
 
       <FadeInUp index={6}>
-        <View style={{ gap: space(2), marginTop: space(2) }}>
-          <Rule />
+        <View style={{ marginTop: space(2) }}>
           <Pressable onPress={() => void signOutMember()} style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1, paddingVertical: space(3.5) })}>
-            <Body strong style={{ color: p.accent }}>Çıkış yap</Body>
+            <Txt role="h3" tone="brand">Çıkış yap</Txt>
           </Pressable>
           {/* App Store guideline 5.1.1(v) — an app with accounts must let her delete hers from inside
               it. Placed LAST and styled quietly on purpose: it is a real, irreversible action and it
@@ -260,7 +260,7 @@ export default function Ben() {
             }
             style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1, paddingBottom: space(4) })}
           >
-            <Body faint style={{ fontSize: 13 }}>Hesabımı sil</Body>
+            <Txt role="caption" tone="muted">Hesabımı sil</Txt>
           </Pressable>
         </View>
       </FadeInUp>
@@ -278,11 +278,11 @@ function InfoRow({ label, value, last }: { label: string; value: string; last?: 
         gap: space(3),
         paddingVertical: space(2.5),
         borderBottomWidth: last ? 0 : StyleSheet.hairlineWidth * 2,
-        borderColor: p.hairline,
+        borderColor: p.border,
       }}
     >
-      <Body muted style={{ flex: 1, fontSize: 13.5 }}>{label}</Body>
-      <Body strong numberOfLines={1} style={{ fontSize: 13.5 }}>{value}</Body>
+      <Txt role="body" tone="secondary" style={{ flex: 1 }}>{label}</Txt>
+      <Txt role="h3" numberOfLines={1}>{value}</Txt>
     </View>
   )
 }
@@ -298,12 +298,12 @@ function LinkRow({ icon, label, onPress, last }: { icon: keyof typeof Ionicons.g
           gap: space(3),
           paddingVertical: space(3),
           borderBottomWidth: last ? 0 : StyleSheet.hairlineWidth * 2,
-          borderColor: p.hairline,
+          borderColor: p.border,
         }}
       >
-        <Ionicons name={icon} size={17} color={p.textFaint} />
-        <View style={{ flex: 1 }}><Body style={{ fontSize: 14 }}>{label}</Body></View>
-        <Ionicons name="chevron-forward" size={16} color={p.textFaint} />
+        <Ionicons name={icon} size={17} color={p.textMuted} />
+        <View style={{ flex: 1 }}><Txt role="body">{label}</Txt></View>
+        <Ionicons name="chevron-forward" size={16} color={p.textMuted} />
       </View>
     </Pressable>
   )
