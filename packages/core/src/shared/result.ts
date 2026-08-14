@@ -60,6 +60,10 @@ export type DomainError =
   // ── member wallet (v1.27, Doc 27) — a debit that would go below zero is REFUSED, never clamped (I-37) ──
   | { readonly code: 'wallet_insufficient'; readonly balance: number; readonly requested: number }
   | { readonly code: 'allocation_exceeds_payment' }
+  // A payment that names the sale it settles, naming one that cannot take it: not the member's, or
+  // already cancelled. Refused rather than quietly falling back to oldest-debt-first, because that
+  // fallback is exactly how a link for one package paid off a different one (OR-37).
+  | { readonly code: 'allocation_target_invalid' }
   | { readonly code: 'allocation_exceeds_sale' }
   | { readonly code: 'plan_total_mismatch' }
   | { readonly code: 'coupon_invalid' }

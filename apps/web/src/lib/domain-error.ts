@@ -157,6 +157,8 @@ export function domainErrorMessage(error: DomainError): string {
       return `Hediye kartında yeterli bakiye yok (kalan: ${(error.remaining / 100).toLocaleString('tr-TR')} ₺).`
     case 'allocation_exceeds_payment':
       return 'Bu ödemeden kalan tutardan fazlası mahsup edilemez.'
+    case 'allocation_target_invalid':
+      return 'Bu ödeme, bağlı olduğu satışa işlenemedi (satış bulunamadı ya da iptal edilmiş). Ödeme kaydedildi, tahsilatı elle eşleştirin.'
     case 'allocation_exceeds_sale':
       return 'Satışın kalan borcundan fazlası mahsup edilemez. Fazla tutar üyenin alacağı olarak kalır.'
     case 'plan_total_mismatch':

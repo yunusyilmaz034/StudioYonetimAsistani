@@ -260,17 +260,47 @@ export async function collect(
   const sales: Sale[] = []
   const allocations = []
 
-  // Oldest debt first — deterministic, and the only order that does not surprise a member reading
-  // her own statement.
-  const open = (await deps.repo.listSalesByMember(ctx, input.memberId))
-    .filter((s) => s.status !== 'cancelled' && saleBalanceDue(s) > 0)
-    .sort((a, b) => a.soldAt - b.soldAt)
+  const memberSales = await deps.repo.listSalesByMember(ctx, input.memberId)
 
-  let i = 0
-  for (const sale of open) {
+  // WHICH SALE DOES THIS MONEY PAY? (OR-37)
+  //
+  // Two answers, and they are not interchangeable.
+  //
+  //   • `allocateTo` given — the payment KNOWS its sale, because something created the two together:
+  //     reception's "Linkle Ödeme" is a link for one specific package. It settles THAT sale and
+  //     nothing else. If the named sale cannot take it we REFUSE; we do not quietly fall back to
+  //     oldest-first, because that fallback is the bug: a member's link for a new package paid off
+  //     an orphan open sale left behind by a cancelled one, and the new package still read as owed.
+  //
+  //   • omitted — reception said "bakiyesine yaz" and meant her balance. Oldest debt first:
+  //     deterministic, and the only order that does not surprise a member reading her own statement.
+  //
+  // Targets are resolved from the MEMBER'S OWN sales, never from the id alone, so a stale or wrong
+  // id can never reach another member's ledger.
+  const targets: { readonly sale: Sale; readonly cap: number; readonly allocationId: string }[] = []
+  if (input.allocateTo && input.allocateTo.length > 0) {
+    let n = 0
+    for (const t of input.allocateTo) {
+      const sale = memberSales.find((x) => x.id === t.saleId)
+      if (!sale || sale.status === 'cancelled') return { ok: false, error: { code: 'allocation_target_invalid' } }
+      targets.push({ sale, cap: t.amount.amount, allocationId: t.allocationId || `${input.paymentId}_a${n++}` })
+    }
+  } else {
+    let n = 0
+    for (const sale of memberSales
+      .filter((x) => x.status !== 'cancelled' && saleBalanceDue(x) > 0)
+      .sort((a, b) => a.soldAt - b.soldAt)) {
+      targets.push({ sale, cap: Number.POSITIVE_INFINITY, allocationId: `${input.paymentId}_a${n++}` })
+    }
+  }
+
+  for (const t of targets) {
     if (paymentUnallocated(payment) === 0) break
-    const amount = money(Math.min(paymentUnallocated(payment), saleBalanceDue(sale)))
-    const allocated = decideAllocate(c, payment, sale, amount, `${input.paymentId}_a${i++}`)
+    const amount = money(Math.min(paymentUnallocated(payment), saleBalanceDue(t.sale), t.cap))
+    // A named sale already settled leaves nothing to allocate. That is not a failure — the money
+    // stays unallocated and shows as member credit (I-33), which is the truth.
+    if (amount.amount <= 0) continue
+    const allocated = decideAllocate(c, payment, t.sale, amount, t.allocationId)
     if (!allocated.ok) return allocated
     payment = allocated.value.next.payment
     sales.push(allocated.value.next.sale)

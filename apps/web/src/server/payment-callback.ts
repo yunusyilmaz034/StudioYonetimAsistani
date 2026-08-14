@@ -346,6 +346,9 @@ export async function completePaidIntent(ctx: TenantContext, intent: PaymentInte
     //     reconciles it to a member later.
     // Idempotent via the intent status above. Mirror of the Cloud Function branch (DEBT-PAYTR-CALLBACK).
     const attributed = !intent.context.linkId && !!intent.memberId && intent.memberId !== 'unattributed'
+    // Present only when something created the payment and its sale together (reception's package
+    // link). A plain balance collection has none, and still means "oldest debt first".
+    const saleId = (intent.context as { saleId?: string }).saleId ?? null
     if (attributed) {
       await collect(
         { repo: new FirestoreFinanceRepository(adminDb()), clock: systemClock },
@@ -361,6 +364,10 @@ export async function completePaidIntent(ctx: TenantContext, intent: PaymentInte
           giftCardCode: null,
           note: 'PAYTR link',
           allowNoDrawer: true,
+          // OR-37 — when the link was created FOR a sale, it settles that sale and no other. Without
+          // this the money went to whatever debt was oldest, which is how a member paid for a new
+          // package and watched an orphan sale from a cancelled one absorb it.
+          ...(saleId ? { allocateTo: [{ saleId, amount: intent.amount, allocationId: `pay_${intent.providerRef.slice(0, 20)}_a0` }] } : {}),
         },
       )
     } else {

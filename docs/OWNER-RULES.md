@@ -595,6 +595,25 @@ orphan, the payment stays unallocated and says so, which reception can see and a
 unallocated payment is a question; money attached to a dead sale is a wrong answer that looks
 right — and it looks right on the member's screen, which is where she reads it.
 
+**How it is enforced, since 2026-08-14.** A payment link created for a package now CARRIES that
+sale. `createPackageLinkSaleAction` passes the real `saleId` from `sellPackage` into the payment
+intent — it used to fabricate a `sal_<random>` that matched nothing, which is why the callback had
+nothing to go on and could only guess. Both callback copies read it and pass `allocateTo` to
+`collect`, which settles that sale and stops. `allocateTo` had been declared on `CollectInput` for
+some time and was never implemented: a caller could pass it and silently get oldest-first anyway.
+
+A named sale that is cancelled, or is not this member's, is **refused** (`allocation_target_invalid`)
+rather than falling back to oldest-first — the fallback is the bug. A surplus stays unallocated as
+member credit (I-33) instead of spilling onto another sale.
+
+Unchanged on purpose: a collection with NO named sale still pays oldest debt first, because that is
+what reception means by "bakiyesine yaz". Covered by
+`packages/core/src/modules/finance/application/collect-allocation.test.ts`, refusals included.
+
+⚠️ **The residual hazard is manual collection.** A link now cannot land on an orphan, but reception
+collecting from Cari Hesap by hand still pays oldest-first and an orphan sale is still first in line.
+Closing that needs the decision below.
+
 **What this does not decide.** Whether cancelling the last live package should also cancel its sale
 is the deeper question and is deliberately left open: a sale can carry several packages (a hybrid is
 one sale, N entitlements) and non-package lines, so "the sale is dead now" is not always true when

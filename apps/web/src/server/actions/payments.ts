@@ -374,7 +374,9 @@ export async function createWalletTopupPaymentAction(input: unknown) {
 // reconciliation. ctx-taking core (called by the staff action below), same exposure as the wallet core.
 export async function createMemberCollectionCheckout(
   ctx: TenantContext,
-  args: { memberId: MemberId; amountKurus: number; flow: 'pos' | 'link'; branchId: string | null; note: string; itemName: string },
+  // `saleId` is the sale this money settles, when the caller made the two together (reception's
+  // "Linkle Ödeme" for one package). Omitted ⇒ a plain balance collection, oldest debt first.
+  args: { memberId: MemberId; amountKurus: number; flow: 'pos' | 'link'; branchId: string | null; note: string; itemName: string; saleId?: string },
 ) {
   const { provider, config } = await paymentProviderFor(ctx)
   if (!provider.configured) return { ok: false as const, error: { code: 'payment_provider_not_configured' as const } }
@@ -391,7 +393,9 @@ export async function createMemberCollectionCheckout(
     id,
     studioId: ctx.studioId,
     memberId: args.memberId as string,
-    saleId: `sal_${providerRef.slice(0, 20)}`,
+    // The REAL sale when the caller made the two together. It used to be a fabricated `sal_<random>`
+    // matching nothing, which is why the callback could only guess which debt to clear (OR-37).
+    saleId: args.saleId ?? `sal_${providerRef.slice(0, 20)}`,
     purpose: 'collection',
     amount,
     provider: 'paytr',
@@ -400,7 +404,13 @@ export async function createMemberCollectionCheckout(
     redirectUrl: null,
     idempotencyKey: providerRef,
     status: 'draft',
-    context: { note: args.note, ...(args.branchId ? { branchId: args.branchId } : {}) }, // NO linkId ⇒ attributed member payment
+    // NO linkId ⇒ attributed member payment. `saleId` here is what the callback reads to settle the
+    // sale this link was created for, instead of whatever debt happens to be oldest.
+    context: {
+      note: args.note,
+      ...(args.branchId ? { branchId: args.branchId } : {}),
+      ...(args.saleId ? { saleId: args.saleId } : {}),
+    },
     expiresAt: null,
     failureReason: null,
     refundedAmount: money(0),

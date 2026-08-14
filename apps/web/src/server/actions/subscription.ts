@@ -403,6 +403,8 @@ export async function createPackageLinkSaleAction(input: unknown) {
       branchId: branchId as string | null,
       note: `Paket: ${product.name}`,
       itemName: product.name,
+      // The primary component carries the whole bundle's debt, so it is the sale this link settles.
+      saleId: bundle.value.saleId,
     })
   }
 
@@ -461,6 +463,7 @@ export async function createPackageLinkSaleAction(input: unknown) {
     branchId: branchId as string | null,
     note: `Paket: ${product.name}`,
     itemName: product.name,
+    saleId: sold.value.saleId,
   })
 }
 
