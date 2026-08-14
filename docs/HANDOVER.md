@@ -150,6 +150,29 @@ prerequisites struck through (closed test published · 12 testers enrolled · 14
 "Üretime başvur" is live. Production itself still reads *Etkin değil*: the requirement being met
 does not grant access, it only unlocks the application, which Google reviews by hand.
 
+**The drifted package dates are repaired (2026-08-14).** Seven entitlements across five members —
+Çağla Kökener, İrem Kılıç, Gülcan Ayvaz, Buse Ertaş and Şule Gürses; the bundles are two rows each.
+The owner supplied the true START dates from his own records and the END dates were recomputed as
+start + the product's own duration, the same arithmetic the sale used.
+
+Buse's row proves the method independently: her cancelled first attempt still stands at
+`13.08 → 12.09`, which is exactly what the recomputation produced for her live pair.
+
+**İrem's row is the one exception, and deliberately so.** Her window was recorded as 31 days against
+a 30-day product, so the drift had added a day at the front without moving the end. Only her
+`validFrom` was corrected; her end date was left alone. Moving it too would have handed her a second
+day she was never sold, and correcting the start alone takes nothing from her.
+
+The script is `tools/migration/fix-drifted-dates.ts` — dry-run by default, `--apply` to write, and a
+second run is a no-op because `amendEntitlement` emits nothing when a patch changes nothing. It
+writes as a **`migration` principal** (`mig_2026_08_14_date_drift`), never as reception: she did not
+make this change and the log must never say she did. All seven `entitlement.amended` events were
+verified in `/studios/retro/events` after the run, each carrying its reason.
+
+The input bug that caused this is already fixed (`STUDIO_UTC_OFFSET_MIN` in
+`members/subscriptions.tsx` and `members/member-form.tsx`); this was the repair of the rows it had
+already damaged.
+
 ⚠️ **Play rejected the Android update on 2026-08-14 — a POLICY rejection, not a build one.** "Sağlık
 İçerikleri ve Hizmetleri politikası: Sağlık uygulamaları beyanı yanlış": the app's health features do
 not match the Health apps declaration form, and Play named the category **Aktivite ve Fitness**. The
