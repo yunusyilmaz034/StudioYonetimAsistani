@@ -241,12 +241,21 @@ must still be created and sent for review by hand.
   Tami's page and we hold a redirect URL. The owner chose that model on 2026-08-14. Do not quietly
   fall back to the direct API because its documentation is the easy one to find.
 
+  **Where the documentation actually is** (corrected 2026-08-14 — the first note here was wrong).
+  `dev.tami.com.tr/api-katalog` has a SOLUTION FILTER on the left: *Tami Sanal POS · Linkli Ödeme ·
+  Ortak Ödeme Sayfası · Açık Kaynak Eklentileri*. The default view shows only Sanal POS's 13 APIs,
+  which is how "Tami is a direct-card API" becomes the obvious and wrong conclusion. The filter is
+  client-side, so fetching the URL with a query parameter returns the same default list.
+  `/tami-ortak-odeme-sayfasi` does exist, but it is a product description — no endpoint, no fields,
+  no callback, no hash — and it points at `TeknikDestek@tami.com.tr` for the real thing.
+
   **What must be obtained before any code:** the Ortak Ödeme Sayfası / Linkli Ödeme integration
   document (endpoint, request fields, how the page URL is obtained, callback fields, hash
-  verification) — it is NOT public: `/ortak-odeme-sayfasi` and the integration PDF both 404, so it
-  presumably arrives with the merchant account. Plus the terminal credentials `merchantNumber`,
-  `terminalNumber` and the JWK's `k` and `kid` (portal → işyeri ayarları → POS yönetimi), and
-  sandbox access with test cards.
+  verification); the terminal credentials `merchantNumber`, `terminalNumber` and the JWK's `k` and
+  `kid`; and sandbox access with test cards. The merchant portal's own banner says integration can
+  be completed WHILE the application is under evaluation — "Bu süre zarfında entegrasyon işlemlerini
+  tamamlayabilirsin" — behind an **Entegrasyon Portalı** button on `portal.tami.com.tr/dashboard`.
+  That button is the first place to look; the owner has access to it (merchant 77030412).
 
   **What is already known about Tami auth** (from the direct-API docs, and likely shared): request
   bodies are signed as a **JWT, HS512**, using the JWK's `k` as the HMAC secret, sent in
