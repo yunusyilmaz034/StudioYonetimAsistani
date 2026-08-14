@@ -32,10 +32,15 @@ scripts:
   runCommand: pnpm --filter web start
 
 runConfig:
-  # A single studio, 07:00–22:00 TRT. `minInstances: 0` means a cold start on the first request of
-  # the morning; `maxInstances` is a cost ceiling, not a capacity plan. Revisit when there is a
-  # second studio — not before, and not on a guess.
-  minInstances: 0
+  # `minInstances: 1` since 2026-08-14, and the note this replaces asked to revisit it "not on a
+  # guess". This is the measurement: on one ordinary day the panel's first request took 12.35s,
+  # 12.20s and 12.31s — three times, hours apart. That is not "the first request of the morning";
+  # the container scales to zero during every quiet stretch, and reception pays twelve seconds each
+  # time she comes back to it. Warm requests were 0.22s, so nothing here is slow except being born.
+  #
+  # One always-on instance costs a few dollars a month. Twelve seconds, several times a day, in
+  # front of a member standing at the desk, costs more than that.
+  minInstances: 1
   maxInstances: 2
   concurrency: 80
   cpu: 1
