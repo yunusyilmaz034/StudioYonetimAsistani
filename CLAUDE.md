@@ -218,6 +218,10 @@ pnpm typecheck
 pnpm dev                # web + functions
 pnpm emulators          # firebase emulators, seeded
 
+pnpm android:tracks     # WHICH version is on the market — production/alpha/internal side by side.
+                        # Read-only. The store listing hides the version and Console splits the
+                        # tracks across pages; this is the one honest answer.
+
 pnpm migrate:validate   # tools/migration — never runs in CI, never deploys
 pnpm migrate:dry-run    # against staging, always, before production
 pnpm migrate:reconcile  # assert every entitlement's remaining credits vs. source
