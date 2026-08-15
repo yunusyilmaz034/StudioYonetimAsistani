@@ -99,12 +99,26 @@ grants and refuses when they disagree. The studio is notified the moment a self-
 | iOS | 1.0.1 (build 4) — live since 2026-07-29 | **1.6.0** (build 11) — uploaded 2026-08-14, on top of 1.5.0 |
 | Android | **1.3.0** (versionCode 9) — closed test | **1.6.0** (versionCode 12) — uploaded 2026-08-14 to the CLOSED TEST track; production ACCESS still under review |
 
-⚠️ **`eas submit` puts Android on the closed test track, not production.** `eas.json` hardcodes
-`"track": "alpha"` in the production submit profile, so 1.6.0 landed beside the pending production
-submission rather than replacing it. That is currently the only workable track — production access is
-still under review, so `production` would be refused. **The day production access is granted, change
-that line to `"production"`, or every release will keep landing in the closed test while everyone
-believes it shipped.**
+✅ **Android production access was granted, and the alpha-track trap fired exactly as written
+(2026-08-15).** `eas.json` hardcoded `"track": "alpha"`, so 1.6.0 sat in the closed test while the
+store served 1.5.0 — the owner noticed because the market showed the old version. `eas.json` now
+says `"track": "production"`; future submissions go straight there.
+
+1.6.0 (versionCode 12) was promoted to production at **100%** on the owner's explicit instruction —
+a staged 20% rollout was offered for a release that changes every screen, and declined. No rebuild
+was needed: the same artefact was already uploaded, so the promotion was a track change, not an
+upload.
+
+**It went up with release notes that did not exist.** The build had been uploaded to the closed
+track with none, and promoting as-is would have left "Yenilikler" empty on the largest visual change
+the app has had. Turkish notes were written and attached with the promotion. The store is
+single-language (`tr-TR`).
+
+**"Which version is actually on the market?"** has one honest answer, and it is not the Play Store
+listing — Google hides the version there. It is the Play Developer API's track list, read with the
+submission service account (`apps/mobile/google-play-service-account.json`, scope
+`androidpublisher`): production / alpha / internal with their versionCodes side by side. The Console
+route is *Test edin ve yayınlayın → Üretim → Kanal özeti*.
 
 **Ship 1.6.0 and nothing else. 1.1.0 … 1.5.0 are all superseded** — each is contained in the next,
 and 1.2.0's video player is broken (OR-22). Several were built, uploaded and never sent for review;
