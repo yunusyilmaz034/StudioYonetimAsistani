@@ -40,6 +40,9 @@ const PUBLIC_PREFIXES = [
   // `deviceHeartbeatAuth`). Without this the door was 307'd to the staff login screen — a redirect
   // it cannot follow and would never report, so the arm would simply stop opening.
   '/api/turnstile',
+  // The door SCREEN itself. Same reasoning as its endpoint: the machine has no human session, and a
+  // redirect to the staff login is a redirect it cannot follow and would never report.
+  '/kapi',
   // Public privacy policy / KVKK notice — the URL the app stores and members link to. No session.
   '/gizlilik',
   // The printed daily check-in sheet (2026-07-27). A member points her camera at the wall and lands

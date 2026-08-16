@@ -7,6 +7,7 @@ import { z } from 'zod'
 import {
   crossTurnstile,
   FirestoreCheckinRepository,
+  FirestoreMemberRepository,
   issueTurnstileCode,
   openTurnstileManually,
   systemClock,
@@ -82,6 +83,35 @@ export async function deviceCodeAction(ctx: TenantContext, deviceId: DeviceId) {
  * wrong way round, which the nightly sweep and the next real crossing both correct. It can never
  * open a door that the code itself did not already open.
  */
+/**
+ * "Did the code I am showing get used, and by whom?"
+ *
+ * The screen asks this every couple of seconds so it can say hello. It needs no new query and no new
+ * index: `consumeTurnstileCode` already stamps `usedBy` / `usedAt` onto the code document, because
+ * single use had to be a transaction anyway. The screen knows which code it is showing, so the code
+ * IS the handle.
+ *
+ * ── WHY A FIRST NAME AND NOTHING ELSE ───────────────────────────────────────────────────────
+ *
+ * The screen hangs in a corridor and strangers walk past it. A first name is what a receptionist
+ * would say out loud anyway; a surname, a package, a debt or a photograph are not. Events carry no
+ * PII (I-13) and this does not change that — the name is read from `/members` at the moment of
+ * display and never written anywhere.
+ */
+export async function deviceCrossingAction(ctx: TenantContext, deviceId: DeviceId, code: string) {
+  const record = await deps().repo.getTurnstileCode(ctx, code)
+  // Not this device's code ⇒ say nothing. A screen must never be able to watch another door.
+  if (!record || record.deviceId !== deviceId) return { ok: true as const, value: { crossed: null } }
+  if (!record.usedBy || !record.usedAt) return { ok: true as const, value: { crossed: null } }
+
+  const member = await new FirestoreMemberRepository(adminDb()).findById(ctx, record.usedBy)
+  const firstName = (member?.fullName ?? '').trim().split(/\s+/)[0] ?? ''
+  return {
+    ok: true as const,
+    value: { crossed: { firstName, at: record.usedAt as number } },
+  }
+}
+
 export async function crossOwnTurnstile(ctx: TenantContext, memberId: MemberId, input: unknown) {
   const p = z
     .object({
