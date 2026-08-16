@@ -242,6 +242,32 @@ must still be created and sent for review by hand.
 
 ## Waiting on the owner
 
+- ⏳ **The studio's Google Business Profile cannot publish edits — waiting on Google (2026-08-16).**
+  Nothing is broken and nothing is lost: the profile is live on Maps with **4.9 / 124 reviews**, the
+  owner manages it, and members find it. What does not work is *changing* it — the profile sits in
+  "doğrulama gerekiyor", so every edit queues instead of publishing.
+
+  **How it got here, so nobody re-derives it.** There are TWO entries in the owner's Business Profile
+  Manager for one studio — "pilates by ışıl" (No:28/T, 41420, marked *Kopya*) and "Pilates Fitness By
+  Işıl" (Alyans Sitesi No:28T, 41000, *Doğrulama gerekiyor*) — and **both open the same profile**.
+  Video verification was submitted and rejected; the panel then says "başka doğrulama yöntemi
+  kalmadı". Deleting the spare entry does nothing: Google refuses, which is a safety net, not a bug.
+
+  **Do not delete either entry.** Both lead to the same profile, so no one can tell from the list
+  which deletion destroys what, and the downside is 124 reviews that took years to earn.
+
+  **There is no support form.** Google removed direct contact for Business Profile; "Geri bildirim
+  gönder" is an anonymous suggestion box, not a ticket. The only working channel is the **Help
+  Community** (`support.google.com/business/community`), where Product Experts escalate. A thread was
+  posted on 2026-08-16 under the *"İşletmenizi doğrulama ve başlama"* category, asking for the two
+  entries to be merged **with the reviews preserved** and the profile verified. No documents were
+  posted — the forum is public.
+
+  **While it waits**, three things still work and still matter: replying to reviews, uploading
+  photos, and the Google review link for the notification template (blocked only because the link
+  comes from the profile dashboard). Retry verification weekly — "no methods left" is not permanent,
+  and **postcard** often reappears and is what usually succeeds after a video rejection.
+
 - ⏸️ **TAMI as a second payment provider — SUSPENDED, the merchant application is not approved yet
   (2026-08-14).** Nothing is blocked on us; nothing has been built. Resume when the application
   clears. The research is written down here so nobody repeats it:
