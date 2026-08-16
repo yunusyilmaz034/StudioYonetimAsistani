@@ -242,6 +242,31 @@ must still be created and sent for review by hand.
 
 ## Waiting on the owner
 
+- ✅ **The public site was given the search equipment it never had (2026-08-16).** Repo is
+  `~/pilates-site` (separate, private). What was found and fixed, because the finding matters more
+  than the fix: **two domains served byte-identical content** — `pilatesbyisil.com` and
+  `pilatesfitnessbyisil.com`, both 200, neither redirecting, no canonical anywhere — so Google was
+  treating them as two sites and had picked the *other* one. Both point at the same Hosting site, so
+  a `canonical` consolidates them without touching DNS.
+
+  Added: canonical, robots meta, Open Graph, `robots.txt`, `sitemap.xml` (6 URLs), and a
+  `HealthClub` JSON-LD carrying the real address, the coordinates read off the studio's own Maps pin,
+  opening hours, services and the districts served. Four service pages written to be read rather than
+  to rank — `/reformer-pilates`, `/hamile-pilates`, `/kadinlara-ozel-fitness`, `/ozel-ders` — linked
+  from the home page's own service headings so its layout and animations were left untouched.
+  Photographs converted to WebP (3 MB → 1 MB) and everything below the fold lazy-loaded; the hero
+  deliberately is not, because deferring the largest paint would look like an optimisation while
+  being the opposite. Search Console is verified as a Domain property and the sitemap is accepted.
+
+  **Two things deliberately NOT done.** No district pages — "Gebze pilates" / "Darıca pilates" clones
+  are doorway pages and Google penalises them; the districts live in `areaServed` and in honest
+  sentences. And the 4.9/124 rating is **not** in the markup: self-serving review markup on your own
+  site is prohibited and penalised. It stays on the page as text.
+
+  The two videos are untouched — `tour.mp4` alone is 3.7 MB and autoplays, still the heaviest thing
+  on the page. Compressing needs ffmpeg (absent here) and changing autoplay changes how the page
+  feels, which is the owner's call.
+
 - ⏳ **The studio's Google Business Profile cannot publish edits — waiting on Google (2026-08-16).**
   Nothing is broken and nothing is lost: the profile is live on Maps with **4.9 / 124 reviews**, the
   owner manages it, and members find it. What does not work is *changing* it — the profile sits in
