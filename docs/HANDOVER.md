@@ -263,6 +263,19 @@ must still be created and sent for review by hand.
   entries to be merged **with the reviews preserved** and the profile verified. No documents were
   posted — the forum is public.
 
+  **A Product Expert answered the same day** and confirmed the diagnosis: the block is the two
+  conflicting entries, not the video. Their instruction — name, address and postcode in ONE correct
+  form, matching the signage and official records — was half ours to do, and it is done: the site's
+  structured data now reads **"Pilates by Işıl"** (matching the signage and Maps; the SITE was the
+  outlier, with "Pilates Fitness by Işıl" kept as `alternateName`), address **Akse Mah. Karasu Cad.
+  Alyans Sitesi No:28/T**, postcode **41420**, across the home page and all four service pages. No
+  visible copy changed.
+
+  **The postcode was checked, not assumed, and the live profile has it wrong.** Akse Mah., Çayırova
+  is **41420**; the profile carries **41000**, which is Kocaeli's generic code and belongs to no
+  neighbourhood. Fix it the day editing unlocks — and it may itself be part of why Google sees two
+  conflicting records.
+
   **While it waits**, three things still work and still matter: replying to reviews, uploading
   photos, and the Google review link for the notification template (blocked only because the link
   comes from the profile dashboard). Retry verification weekly — "no methods left" is not permanent,
