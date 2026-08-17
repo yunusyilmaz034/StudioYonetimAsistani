@@ -263,6 +263,23 @@ must still be created and sent for review by hand.
 
 ---
 
+**DNS can be changed from this machine (2026-08-17).** A scoped Cloudflare API token lives at
+`~/.config/cf-dns-token` — outside the repo, `chmod 600`, never committed. Its scope is deliberately
+one line, `Zone → DNS → Edit`, on the studio's zone only; it cannot see billing, other accounts or
+anything else, and it **expires** (a TTL was set at creation, so one day it will simply stop working
+rather than outliving its purpose). A broad "Cloudflare Agent Token" with 174 permissions across all
+zones also exists in that account and was deliberately NOT used — worth deleting if nothing needs it.
+
+First use: the DMARC report address moved off a personal Gmail. `_dmarc.pilatesfitnessbyisil.com`
+now reads `v=DMARC1; p=none; rua=mailto:info@pilatesfitnessbyisil.com`, verified through both
+Cloudflare's and Google's resolvers.
+
+**The domain's mail is correctly set up**, which the DMARC reports exist to confirm: SPF covers
+Natro (the `info@` mailbox), and `resend._domainkey` covers what the panel sends as
+`noreply@pilatesfitnessbyisil.com`. DMARC is `p=none` — monitoring only. Tightening it to
+`quarantine` would protect the brand from spoofing but must wait until every sender is known to
+pass, or it puts the studio's own mail in spam.
+
 ## Waiting on the owner
 
 - ✅ **The public site was given the search equipment it never had (2026-08-16).** Repo is
