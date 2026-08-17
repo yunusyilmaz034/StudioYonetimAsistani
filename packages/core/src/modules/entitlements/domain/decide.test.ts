@@ -314,6 +314,37 @@ describe('decideAmend (v1.14, generic)', () => {
       expect(r.value.next.productSnapshot.entryAllowance).toBe(20)
     }
   })
+  // WHEN THE WRONG PRODUCT WAS SOLD (2026-08-17).
+  //
+  // Two members were entered as "Fitness - 6 Aylık" when they had bought three months. The snapshot
+  // is frozen so a catalogue edit cannot rewrite a purchase — but this is not a catalogue edit, it is
+  // a mis-entry, and the record described a sale that never happened.
+  it('swaps the product, recording the old and the new by id and name', () => {
+    const e = periodEnt()
+    const to = { ...snapshot(PERIOD_GRANT), productId: 'prd_3ay' as never, name: 'Fitness - 3 Aylık' }
+    const r = decideAmend(ctx, e, { productSnapshot: to }, 'Yanlış ürün girilmişti')
+    expect(r.ok).toBe(true)
+    if (r.ok) {
+      expect(r.value.events[0]?.payload).toMatchObject({
+        changedFields: ['product'],
+        changes: { product: { to: { productId: 'prd_3ay', name: 'Fitness - 3 Aylık' } } },
+      })
+      expect(r.value.next.productSnapshot.name).toBe('Fitness - 3 Aylık')
+    }
+  })
+
+  it('is a no-op when the product is the one already recorded', () => {
+    const e = periodEnt()
+    const r = decideAmend(ctx, e, { productSnapshot: e.productSnapshot }, 'x')
+    expect(r.ok && r.value.events).toHaveLength(0)
+  })
+
+  it('still refuses a product swap with no reason — a correction nobody explained is not a correction', () => {
+    const e = periodEnt()
+    const to = { ...snapshot(PERIOD_GRANT), productId: 'prd_3ay' as never, name: 'Fitness - 3 Aylık' }
+    expect(decideAmend(ctx, e, { productSnapshot: to }, '   ')).toEqual({ ok: false, error: { code: 'reason_required' } })
+  })
+
   it('is a no-op when the giriş allowance is unchanged', () => {
     const e = periodEnt({ productSnapshot: { ...snapshot(PERIOD_GRANT), entryAllowance: 12 } })
     const r = decideAmend(ctx, e, { entryAllowance: 12 }, 'x')

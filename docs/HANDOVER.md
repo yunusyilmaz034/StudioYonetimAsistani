@@ -164,6 +164,29 @@ prerequisites struck through (closed test published · 12 testers enrolled · 14
 "Üretime başvur" is live. Production itself still reads *Etkin değil*: the requirement being met
 does not grant access, it only unlocks the application, which Google reviews by hand.
 
+**Two members were sold the wrong product, and it was repaired (2026-08-17).** Gülcan Ayvaz and
+Hava Kolu bought a THREE-month fitness package on 2026-08-03; reception picked "Fitness - 6 Aylık"
+at 13.000 ₺. Agreed, per the owner: 9.000 ₺ list, 1.000 ₺ discount, 8.000 ₺ cash, no debt either
+side. Both now read Fitness - 3 Aylık, 03.08 → 01.11.2026, sale settled at 8.000 ₺.
+
+**Reading the records first is what made this safe** — the two members were NOT in the same state.
+Gülcan's first 13.000 ₺ cash payment had already been voided at the desk and a real 8.000 ₺ one
+stood: her money was right. Hava's 13.000 ₺ was live and fully allocated, so the books held 5.000 ₺
+of cash nobody ever took. Only hers was voided and re-recorded at 8.000 ₺; the till moved −5.000 ₺,
+which is the correction, not a loss.
+
+**`AmendPatch` gained `productSnapshot`** (`packages/core/.../entitlements/domain/decide.ts`). The
+snapshot is frozen so a catalogue edit cannot rewrite a purchase — but a mis-entry is not a
+catalogue edit, and the record described a sale that never happened. The amend event carries the old
+product and the new one by id and name, with a mandatory reason. **It is deliberately not exposed in
+the panel**: changing what somebody bought is break-glass, not a button reception meets on an
+ordinary Tuesday, and the money it implies must be settled in the same breath.
+
+**The sales' GROSS stays 13.000 ₺.** Rewriting it would be the silent edit the ledger exists to
+prevent. Two discounts carry the truth instead — 4.000 ₺ "wrong product" and 1.000 ₺ "agreed" — so a
+reader sees both facts. Script: `tools/migration/fix-wrong-product-2026-08.ts`, dry-run by default,
+written by a `migration` principal.
+
 **The drifted package dates are repaired (2026-08-14).** Seven entitlements across five members —
 Çağla Kökener, İrem Kılıç, Gülcan Ayvaz, Buse Ertaş and Şule Gürses; the bundles are two rows each.
 The owner supplied the true START dates from his own records and the END dates were recomputed as

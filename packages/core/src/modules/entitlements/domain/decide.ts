@@ -52,6 +52,7 @@ import {
   type CancellationLedger,
   type CreditLedger,
   type Entitlement,
+  type ProductSnapshot,
   type EntryLedger,
   type FreezeReason,
   type FreezeState,
@@ -500,6 +501,20 @@ export interface AmendPatch {
   // credits. `null` ⇒ unlimited. Remaining is derived (allowance − used), so this moves what she is
   // owed without touching the entry ledger the door writes.
   readonly entryAllowance?: number | null
+  /**
+   * The product itself, when the WRONG ONE was sold.
+   *
+   * The snapshot is frozen on purpose: a catalogue edit must never rewrite what a member bought. This
+   * is the one case that is not a catalogue edit — reception picked the wrong product from the list,
+   * so the snapshot records a sale that never happened. Correcting a mis-entry is not rewriting
+   * history, and it is still append-only: the amend event carries the old product and the new one
+   * with a mandatory reason.
+   *
+   * Deliberately NOT exposed by the panel. Changing what somebody bought is a break-glass correction,
+   * not a button reception should meet on an ordinary Tuesday — and the money it implies (price,
+   * duration, what the sale says) has to be settled in the same breath, by a human who knows.
+   */
+  readonly productSnapshot?: ProductSnapshot
 }
 
 const sameManualPayment = (a: ManualPayment | null, b: ManualPayment | null): boolean => {
@@ -537,6 +552,17 @@ export function decideAmend(
       paidTotal: patch.manualPayment?.collectedAmount ?? zeroMoney(ent.priceAgreed.currency),
     }
   }
+  // The product, first — so an entryAllowance in the same patch lands on the NEW snapshot rather than
+  // being overwritten by it. The event records the two products by id and name; carrying both whole
+  // snapshots would bury the one fact a human reads the log for.
+  if (patch.productSnapshot !== undefined && patch.productSnapshot.productId !== ent.productSnapshot.productId) {
+    changes.product = {
+      from: { productId: ent.productSnapshot.productId, name: ent.productSnapshot.name },
+      to: { productId: patch.productSnapshot.productId, name: patch.productSnapshot.name },
+    }
+    next = { ...next, productSnapshot: patch.productSnapshot }
+  }
+
   // The fitness giriş grant lives in the (otherwise frozen) snapshot; an amend re-grants it, recording
   // the before/after like any other field. Compared against null so a legacy undefined reads as change-free.
   const currentEntry = ent.productSnapshot.entryAllowance ?? null
