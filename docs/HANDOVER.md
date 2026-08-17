@@ -306,7 +306,7 @@ must still be created and sent for review by hand.
   comes from the profile dashboard). Retry verification weekly — "no methods left" is not permanent,
   and **postcard** often reappears and is what usually succeeds after a video rejection.
 
-- 🟡 **TAMI as a second payment provider — UNBLOCKED on thequestion, still waiting on the merchant
+- 🟡 **TAMI as a second payment provider — UNBLOCKED on the technical question, still waiting on the merchant
   application (answered 2026-08-17).** Tami's technical support replied with a v3 Postman collection,
   and it settles the thing that mattered: **the hosted page HAS an API.**
 
