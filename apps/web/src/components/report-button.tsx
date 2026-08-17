@@ -76,12 +76,19 @@ export function ReportButton() {
 
   return (
     <>
+      {/* z-40, deliberately BELOW the overlay layer (z-50).
+          It sat at z-[60] and therefore floated on top of every sheet, dialog and dropdown in the
+          panel — including the one it overlapped in the bottom-right corner. A trainer adding an
+          exercise to the LAST day of a programme found the list simply did not respond: the option
+          she was aiming at was underneath this button, which swallowed the click. It looked like
+          "day 4 is broken", and it would have moved to day 5 the moment a fifth day existed.
+          A button for reporting problems must never be the one causing them. */}
       <button
         type="button"
         data-report-ignore
         onClick={() => void start()}
         title="Bir sorun bildir"
-        className="fixed right-3 bottom-20 z-[60] flex h-11 items-center gap-1.5 rounded-full border border-border bg-card px-3.5 text-sm font-medium text-foreground shadow-lg transition-colors hover:border-primary/50 hover:text-primary md:bottom-4"
+        className="fixed right-3 bottom-20 z-40 flex h-11 items-center gap-1.5 rounded-full border border-border bg-card px-3.5 text-sm font-medium text-foreground shadow-lg transition-colors hover:border-primary/50 hover:text-primary md:bottom-4"
       >
         <MessageSquareWarningIcon className="size-4" />
         Bildir
