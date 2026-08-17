@@ -408,6 +408,25 @@ pass, or it puts the studio's own mail in spam.
   Token lifetime: 15 min in test, **6 min in production**. Phone must be `905xxxxxxxxx` — Masterpass
   needs it and it is mandatory.
 
+  **THE ADAPTER IS BUILT (2026-08-17, `packages/core/.../infrastructure/tami-provider.ts`).** It is
+  the second implementation of `PaymentProviderPort` — the reason that port exists. 20 tests.
+
+  What works today: minting a checkout and producing the hosted-page URL. What refuses today, on
+  purpose: `verifyCallback` (always no — the redirect is not evidence), `confirm` (needs the JWK) and
+  `refund` (needs the JWK). So a TAMI payment can be STARTED and cannot be COMPLETED, which is the
+  correct half to be missing while credentials are absent — nothing can credit a member who has not
+  paid.
+
+  `confirm` was added to the port as an OPTIONAL method: providers that prove themselves with a
+  signed callback (PAYTR) do not implement it; providers that can only be asked (TAMI) must. The
+  signing is written and tested — `securityHash` is a JWT, HS512, `kid` in the header, payload = the
+  body with `securityHash: ""`, HMAC key = the base64url-DECODED `k`. Decoding that key is the step
+  that will silently produce valid-looking, always-rejected tokens if skipped.
+
+  **Deliberately NOT done: TAMI is not offered to reception anywhere.** Config selects one provider
+  per studio (`settings/paymentProvider.provider`), and the env vars are commented out in
+  `apphosting.yaml`. Exposing it now would let somebody take a real payment we cannot credit.
+
   **The one thing still missing** is the JWK (`k` / `kid`) that signs `securityHash` on the Query
   call. It is per-merchant, from the portal (işyeri ayarları → POS yönetimi), and arrives with the
   real account.

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { money } from '../../../shared'
 import type { CreateCheckoutInput } from '../application/ports'
-import { tamiAuthToken, tamiPhone, tamiProvider, type TamiConfig } from './tami-provider'
+import { tamiAuthToken, tamiPhone, tamiProvider, tamiSecurityHash, type TamiConfig } from './tami-provider'
 
 const CONFIG: TamiConfig = {
   merchantNumber: '77006950',
@@ -110,5 +110,56 @@ describe('refund', () => {
   it('refuses while the signing key is missing, instead of reporting money returned', async () => {
     const r = await tamiProvider(CONFIG).refund({ providerRef: 'ref_1', amount: money(800_000) })
     expect(r).toMatchObject({ ok: false, errorCode: 'tami_refund_requires_jwk' })
+  })
+})
+
+describe('tamiSecurityHash — the JWT that signs a query', () => {
+  const jwk = { kid: 'kid-1', k: 'c2VjcmV0LWtleS1mb3ItdGVzdA' }
+
+  it('is a three-part HS512 JWT carrying the kid', () => {
+    const t = tamiSecurityHash(jwk, { orderId: 'ref_1' })
+    const [h, p] = t.split('.')
+    expect(t.split('.')).toHaveLength(3)
+    expect(JSON.parse(Buffer.from(h!, 'base64url').toString())).toEqual({ kid: 'kid-1', typ: 'JWT', alg: 'HS512' })
+    // The signed payload is the request body with an EMPTY securityHash — the slot the finished
+    // token goes into. Signing it with the token already inside would be circular.
+    expect(JSON.parse(Buffer.from(p!, 'base64url').toString())).toEqual({ orderId: 'ref_1', securityHash: '' })
+  })
+
+  it('changes when the order changes — a token is not reusable for another payment', () => {
+    expect(tamiSecurityHash(jwk, { orderId: 'a' })).not.toBe(tamiSecurityHash(jwk, { orderId: 'b' }))
+  })
+})
+
+describe('confirm — the only thing that may credit a TAMI payment', () => {
+  const withJwk: TamiConfig = { ...CONFIG, jwk: { kid: 'kid-1', k: 'c2VjcmV0LWtleS1mb3ItdGVzdA' } }
+
+  it('credits only an unambiguous success, and converts back to kuruş', async () => {
+    const p = tamiProvider(withJwk, jsonOnce({ status: 'SUCCESS', orderId: 'ref_1', amount: 8000 }))
+    const r = await p.confirm!('ref_1')
+    expect(r).toMatchObject({ valid: true, status: 'success', providerRef: 'ref_1' })
+    expect(r.paidAmount?.amount).toBe(800_000)
+  })
+
+  it('rounds rather than truncates — a kuruş lost per payment is still money', async () => {
+    const p = tamiProvider(withJwk, jsonOnce({ status: 'SUCCESS', amount: 79.99 }))
+    const r = await p.confirm!('ref_1')
+    expect(r.paidAmount?.amount).toBe(7999)
+  })
+
+  it('refuses anything that is not clearly paid', async () => {
+    const p = tamiProvider(withJwk, jsonOnce({ status: 'PENDING' }))
+    expect((await p.confirm!('ref_1')).valid).toBe(false)
+  })
+
+  it('refuses when Tami answers with an error status', async () => {
+    const p = tamiProvider(withJwk, jsonOnce({}, 500))
+    expect(await p.confirm!('ref_1')).toMatchObject({ valid: false, failureCode: 'tami_query_http_500' })
+  })
+
+  // The state we are actually in tonight: a payment can be STARTED but never finished.
+  it('refuses while the signing key is missing, instead of guessing', async () => {
+    const p = tamiProvider(CONFIG, jsonOnce({ status: 'SUCCESS' }))
+    expect(await p.confirm!('ref_1')).toMatchObject({ valid: false, failureCode: 'tami_jwk_missing' })
   })
 })

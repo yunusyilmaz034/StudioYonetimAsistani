@@ -67,6 +67,18 @@ export interface PaymentProviderPort {
   // over the provider's documented field order with the merchant salt/key and compares. No I/O.
   verifyCallback(fields: Readonly<Record<string, string>>): CallbackVerification
   refund(input: RefundInput): Promise<RefundResult>
+  /**
+   * ASK the provider what happened, for the ones that never tell us.
+   *
+   * PAYTR posts a signed callback server-to-server, so `verifyCallback` is the whole answer and this
+   * is absent. Tami redirects the CUSTOMER back with nothing signed — a URL anyone can type — so its
+   * outcome can only be established by asking. Optional on purpose: a provider that already proves
+   * itself must not be made to do a second round trip, and a provider that cannot prove itself must
+   * not be allowed to skip one.
+   *
+   * `providerRef` is our own order id, echoed back by the provider.
+   */
+  confirm?(providerRef: string): Promise<CallbackVerification>
 }
 
 // The intent repository — one transactional seam, like finance's `commit`.

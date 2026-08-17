@@ -1,5 +1,6 @@
-import { createHash } from 'node:crypto'
+import { createHash, createHmac } from 'node:crypto'
 
+import { money } from '../../../shared'
 import type {
   CallbackVerification,
   CheckoutResult,
@@ -49,6 +50,13 @@ export interface TamiConfig {
   /** Tami calls it "Secret Key" / apiKey. Signs the auth header; never leaves this file. */
   readonly secretKey: string
   readonly testMode: boolean
+  /**
+   * The JWK that signs `securityHash` on the query/refund calls. Per-merchant, from the portal
+   * (işyeri ayarları → POS yönetimi), and it arrives with the real account — so it is OPTIONAL here
+   * and everything that needs it refuses cleanly while it is absent. Minting a checkout does not
+   * need it, which is why a payment can be STARTED before it exists and not finished.
+   */
+  readonly jwk?: { readonly kid: string; readonly k: string } | null
 }
 
 const API = {
@@ -82,6 +90,25 @@ export const tamiPhone = (phone: string | null): string => {
   if (digits.startsWith('90')) return digits
   if (digits.startsWith('0')) return `90${digits.slice(1)}`
   return digits ? `90${digits}` : ''
+}
+
+const b64url = (b: Buffer): string => b.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+
+/**
+ * Tami's `securityHash`: a JWT, HS512, with the merchant's `kid` in the header and the request body
+ * itself as the payload — the body carrying `securityHash: ""` where the finished token will sit.
+ *
+ * The signing key is the JWK's `k`, which is base64url-encoded octets: it must be DECODED before it
+ * is used as the HMAC secret. Using the string as-is produces a token that looks perfectly valid and
+ * is rejected by the server with no useful message, which is the sort of afternoon this comment is
+ * meant to prevent.
+ */
+export const tamiSecurityHash = (jwk: { kid: string; k: string }, payload: Record<string, unknown>): string => {
+  const header = b64url(Buffer.from(JSON.stringify({ kid: jwk.kid, typ: 'JWT', alg: 'HS512' })))
+  const body = b64url(Buffer.from(JSON.stringify({ ...payload, securityHash: '' })))
+  const key = Buffer.from(jwk.k.replace(/-/g, '+').replace(/_/g, '/'), 'base64')
+  const sig = b64url(createHmac('sha512', key).update(`${header}.${body}`, 'utf8').digest())
+  return `${header}.${body}.${sig}`
 }
 
 class TamiProvider implements PaymentProviderPort {
@@ -160,6 +187,59 @@ class TamiProvider implements PaymentProviderPort {
    */
   verifyCallback(): CallbackVerification {
     return { valid: false, failureCode: 'tami_callback_unsigned' }
+  }
+
+  /**
+   * The only thing that may credit a TAMI payment.
+   *
+   * Called after she comes back from the hosted page, INSTEAD of trusting that arrival. A `success`
+   * here is Tami's own word about its own record; the redirect is merely what prompted us to ask.
+   *
+   * Anything that is not an unambiguous success is treated as not-yet-paid. That is the safe way
+   * round: a member who paid and is not credited phones the studio within the hour, and a member
+   * credited without paying is a loss nobody ever notices.
+   */
+  async confirm(providerRef: string): Promise<CallbackVerification> {
+    if (!this.config.jwk) return { valid: false, failureCode: 'tami_jwk_missing' }
+    try {
+      const res = await this.fetchImpl(`${this.base()}/payment/query`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept-Language': 'tr',
+          'PG-Api-Version': 'v3',
+          correlationId: `q-${providerRef}`,
+          'PG-Auth-Token': tamiAuthToken(this.config),
+        },
+        body: JSON.stringify({ securityHash: tamiSecurityHash(this.config.jwk, { orderId: providerRef }) }),
+      })
+      if (!res.ok) return { valid: false, failureCode: `tami_query_http_${res.status}` }
+
+      const b = (await res.json().catch(() => ({}))) as {
+        status?: string
+        transactionStatus?: string
+        amount?: number | string
+        orderId?: string
+      }
+      // Tami's exact response shape for a paid order is NOT yet confirmed against a real sandbox
+      // transaction — nobody has paid one. Read defensively and refuse anything ambiguous; when the
+      // first real test payment lands, tighten this to the field it actually returns.
+      const raw = String(b.transactionStatus ?? b.status ?? '').toUpperCase()
+      const paid = raw === 'SUCCESS' || raw === 'APPROVED' || raw === 'SETTLED'
+      if (!paid) return { valid: false, failureCode: `tami_not_paid_${raw || 'unknown'}` }
+
+      const major = typeof b.amount === 'string' ? Number(b.amount) : (b.amount ?? 0)
+      return {
+        valid: true,
+        status: 'success',
+        providerRef: b.orderId ?? providerRef,
+        // Back to kuruş, rounded rather than truncated: 79.99 * 100 is 7998.999… in binary floating
+        // point, and truncating it loses a kuruş on money.
+        paidAmount: money(Math.round(major * 100)),
+      }
+    } catch {
+      return { valid: false, failureCode: 'tami_unreachable' }
+    }
   }
 
   async refund(): Promise<RefundResult> {

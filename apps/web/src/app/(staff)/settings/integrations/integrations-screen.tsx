@@ -17,7 +17,7 @@ import {
 } from '@/server/actions/payments'
 
 interface Config {
-  provider: 'paytr'
+  provider: 'paytr' | 'tami'
   merchantId: string
   testMode: boolean
   callbackUrl: string
