@@ -36,5 +36,6 @@ export type {
   RefundResult,
 } from './application/ports'
 export { paytrProvider, PaytrProvider, UnconfiguredPaymentProvider, type PaytrConfig } from './infrastructure/paytr-provider'
+export { tamiProvider, tamiAuthToken, tamiPhone, type TamiConfig } from './infrastructure/tami-provider'
 export { FirestorePaymentIntentRepository } from './infrastructure/repos'
 export { reconcilePayments } from './application/reconcile'

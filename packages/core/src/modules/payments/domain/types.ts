@@ -35,7 +35,9 @@ export type PaymentPurpose = 'package' | 'renewal' | 'product' | 'collection' | 
 // Sanal POS (an iframe/redirect) vs a shareable payment link.
 export type PaymentFlow = 'pos' | 'link'
 
-export type PaymentProviderId = 'paytr'
+// Widened for TAMI (2026-08-17). Additive: it appears in `payment_intent.created`, so every event
+// already written stays valid and needs no upcaster — a reader that knows 'paytr' still reads them.
+export type PaymentProviderId = 'paytr' | 'tami'
 
 // The context the callback needs to COMPLETE the sale, frozen at intent creation so completion never
 // re-derives a price or a product from a catalogue that may have changed since (spec §16). No card
