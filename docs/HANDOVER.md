@@ -381,10 +381,36 @@ pass, or it puts the studio's own mail in spam.
   →        { "oneTimeToken": "...", "tokenCreateTime": "..." }
   ```
 
-  **What is still missing is the second half, and it is not guessable.** Where the customer is sent
-  WITH that token (no such host answers on any obvious name — `sandbox-hosted`, `hosted`,
-  `sandbox-odeme` all fail to resolve), what Tami posts back to the callback, and how that post is
-  verified. Asked on 2026-08-17 in the same mail thread.
+  **The whole contract is known (2026-08-17). It was on Tami's own page all along** — the doc is
+  rendered by JavaScript, so every reader that fetches the page sees an empty shell; the text is in
+  the raw HTML. Three days of "the documentation is not public" was a fetching problem, not a Tami
+  problem. When a vendor page looks empty, read the source before believing it.
+
+  ```
+  1. mint    POST {base}/hosted/create-one-time-hosted-token   → { oneTimeToken, tokenCreateTime }
+  2. send her to  https://portal.tami.com.tr/hostedPaymentPage?token=<oneTimeToken>
+                  (sandbox: sandbox-portal.tami.com.tr, same path)
+  3. she pays on Tami's page (Masterpass or a new card), then Tami REDIRECTS her to
+     successCallbackUrl. `failCallbackUrl` is currently unused — failures stay on Tami's page.
+  4. confirm by ASKING Tami: /payment/query on the orderId.
+  ```
+
+  **`PG-Auth-Token` is derivable locally — no admin endpoint needed:**
+  `merchant:terminal:Base64(SHA256(merchant + terminal + secretKey))`. Verified by reproducing the
+  exact token Tami shipped in their own Postman collection.
+
+  **Step 4 is not optional.** Nothing signed comes back — the customer simply arrives at our URL, and
+  a browser redirect is forgeable by anyone who knows the address. Tami's own doc says the same:
+  *"İşyerinin cevap alamadığı durumda, tami/Query servisi ile işlem durumunu sorgulaması beklenir."*
+  PAYTR is verified by signature; TAMI is verified by query. A `payment.received` written on the
+  strength of a redirect would be money invented by whoever typed the URL.
+
+  Token lifetime: 15 min in test, **6 min in production**. Phone must be `905xxxxxxxxx` — Masterpass
+  needs it and it is mandatory.
+
+  **The one thing still missing** is the JWK (`k` / `kid`) that signs `securityHash` on the Query
+  call. It is per-merchant, from the portal (işyeri ayarları → POS yönetimi), and arrives with the
+  real account.
 
   **Do not trust the callback when it arrives.** A browser redirect is forgeable by anyone; "payment
   succeeded" must be confirmed by asking Tami ourselves, via `/payment/query` on the orderId. That
