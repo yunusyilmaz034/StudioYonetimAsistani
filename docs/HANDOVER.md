@@ -371,6 +371,26 @@ pass, or it puts the studio's own mail in spam.
   (`teknikdestek@tami.com.tr`, thread `ST1708013TFFY`, 2026-08-17). The studio's OWN `k` / `kid` are
   per-merchant and arrive with the real account.
 
+  **PROVEN against sandbox on 2026-08-17**, not assumed: the call below returned a real
+  `oneTimeToken`, so the hosted flow is genuinely available to us with the credentials we hold.
+
+  ```
+  POST https://sandbox-paymentapi.tami.com.tr/hosted/create-one-time-hosted-token
+  headers: PG-Auth-Token · PG-Api-Version: v3 · correlationId · Accept-Language
+  body:    { amount, orderId, successCallbackUrl, failCallbackUrl, mobilePhoneNumber }
+  →        { "oneTimeToken": "...", "tokenCreateTime": "..." }
+  ```
+
+  **What is still missing is the second half, and it is not guessable.** Where the customer is sent
+  WITH that token (no such host answers on any obvious name — `sandbox-hosted`, `hosted`,
+  `sandbox-odeme` all fail to resolve), what Tami posts back to the callback, and how that post is
+  verified. Asked on 2026-08-17 in the same mail thread.
+
+  **Do not trust the callback when it arrives.** A browser redirect is forgeable by anyone; "payment
+  succeeded" must be confirmed by asking Tami ourselves, via `/payment/query` on the orderId. That
+  needs `securityHash`, hence the JWK (`k`/`kid`) — the third question in that mail. PAYTR is
+  verified by signature; Tami will be verified by query.
+
   **Still blocked for production:** Tami says the membership is under evaluation, and the hosted page
   can only be requested for the live environment *after* it is approved. Sandbox can be built against
   today; going live is a separate request to them.
