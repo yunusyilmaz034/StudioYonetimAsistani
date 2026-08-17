@@ -306,8 +306,36 @@ must still be created and sent for review by hand.
   comes from the profile dashboard). Retry verification weekly — "no methods left" is not permanent,
   and **postcard** often reappears and is what usually succeeds after a video rejection.
 
-- ⏸️ **TAMI as a second payment provider — SUSPENDED, the merchant application is not approved yet
-  (2026-08-14).** Nothing is blocked on us; nothing has been built. Resume when the application
+- 🟡 **TAMI as a second payment provider — UNBLOCKED on thequestion, still waiting on the merchant
+  application (answered 2026-08-17).** Tami's technical support replied with a v3 Postman collection,
+  and it settles the thing that mattered: **the hosted page HAS an API.**
+
+  ```
+  POST {base}/hosted/create-one-time-hosted-token
+  headers: PG-Auth-Token: <merchant>:<terminal>:<hash> · PG-Api-Version: v3 · correlationId: <per txn>
+  body:    { amount, orderId, successCallbackUrl, failCallbackUrl, mobilePhoneNumber }
+  ```
+
+  No card fields and **no `securityHash`** in that request — so the hosted flow needs none of the JWK
+  request-body signing the direct card API demands. We mint a token, the customer enters her card on
+  Tami's page, the result returns to our callback. Card data never touches us, which was the whole
+  point of choosing this model over `/payment/auth` + `/payment/complete-3ds`.
+
+  The `PG-Auth-Token` hash is derived from merchant + terminal + apiKey via `/admin/generate-hash`
+  (basic auth), not computed locally. Sandbox base is `sandbox-paymentapi.tami.com.tr`; the sandbox
+  portal is `sandbox-portal.tami.com.tr`, and Tami's advice is to log in with "şifremi unuttum" using
+  the phone number belonging to whichever test merchant you are exercising.
+
+  **Credentials are deliberately NOT in this file** — this repo is on GitHub. The shared sandbox
+  merchant/terminal/secret sets and the Postman collection are in the mailbox
+  (`teknikdestek@tami.com.tr`, thread `ST1708013TFFY`, 2026-08-17). The studio's OWN `k` / `kid` are
+  per-merchant and arrive with the real account.
+
+  **Still blocked for production:** Tami says the membership is under evaluation, and the hosted page
+  can only be requested for the live environment *after* it is approved. Sandbox can be built against
+  today; going live is a separate request to them.
+
+- ⏸️ **(superseded) TAMI — the earlier note, kept for the reasoning.** SUSPENDED as of 2026-08-14. Nothing is blocked on us; nothing has been built. Resume when the application
   clears. The research is written down here so nobody repeats it:
 
   **Use the hosted model, not the direct API.** `dev.tami.com.tr/api-katalog` lists only Tami's
