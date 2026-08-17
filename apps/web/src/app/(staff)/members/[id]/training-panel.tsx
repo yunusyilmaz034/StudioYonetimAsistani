@@ -812,18 +812,30 @@ interface DraftDay {
   exercises: DraftExercise[]
 }
 
+/**
+ * Load a published version into the editor.
+ *
+ * `?? ''` on every text field, and it is not defensive noise. A stored programme may hold `null`
+ * where the editor's type says `string` — older rows, and anything the AI builder wrote without a
+ * tempo or a note. The editor then handed that null to `.trim()` on publish and the click died
+ * silently: the crash happened while BUILDING the payload, outside the try, so no toast, no error,
+ * nothing. A trainer pressed "Yayınla" and the panel simply did not answer.
+ *
+ * Coerced here, at the boundary where stored data becomes editor state, rather than at each of the
+ * eight places that later read it.
+ */
 function seedDays(seed: readonly ProgramDay[] | null): DraftDay[] {
   if (!seed || seed.length === 0) return [{ name: 'Gün 1', exercises: [] }]
   return seed.map((d) => ({
-    name: d.name,
+    name: d.name ?? '',
     exercises: d.exercises.map((e) => ({
       exerciseId: e.exerciseId,
-      sets: e.sets,
-      reps: e.reps,
-      restSeconds: e.restSeconds,
-      tempo: e.tempo,
-      note: e.note,
-      alternativeExerciseId: e.alternativeExerciseId,
+      sets: e.sets ?? 0,
+      reps: e.reps ?? '',
+      restSeconds: e.restSeconds ?? 0,
+      tempo: e.tempo ?? '',
+      note: e.note ?? '',
+      alternativeExerciseId: e.alternativeExerciseId ?? null,
     })),
   }))
 }
@@ -860,6 +872,19 @@ function ProgramBuilderSheet({
   }
 
   async function publish() {
+    // Inside the try, deliberately. This block used to sit outside it, so a bad field killed the
+    // click with no toast and no clue — the worst possible failure for a button somebody is
+    // pressing for the third time.
+    setBusy(true)
+    try {
+      await publishInner()
+    } catch {
+      toast.error('Yayınlanamadı.')
+    }
+    setBusy(false)
+  }
+
+  async function publishInner() {
     const payloadDays = days
       .map((d, i) => ({
         order: i + 1,
@@ -881,19 +906,13 @@ function ProgramBuilderSheet({
       toast.error('En az bir güne en az bir egzersiz ekleyin.')
       return
     }
-    setBusy(true)
-    try {
-      const res = await publishProgramVersionAction({ programId, days: payloadDays, note: note.trim() })
-      if (res.ok) {
-        toast.success(`v${nextVersion} yayınlandı.`)
-        await onPublished()
-      } else {
-        toast.error(domainErrorMessage(res.error))
-      }
-    } catch {
-      toast.error('Yayınlanamadı.')
+    const res = await publishProgramVersionAction({ programId, days: payloadDays, note: note.trim() })
+    if (res.ok) {
+      toast.success(`v${nextVersion} yayınlandı.`)
+      await onPublished()
+    } else {
+      toast.error(domainErrorMessage(res.error))
     }
-    setBusy(false)
   }
 
   return (
