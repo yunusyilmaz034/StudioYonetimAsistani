@@ -428,8 +428,14 @@ package by the campaign gap on the day the prices changed.
 12 Aylık is sold as *peşin fiyatına 3 taksit* — the member pays no vade farkı and the price does not
 change. 3 and 6 Aylık go to six instalments with the vade farkı applied by the payment institution.
 The interest-free arrangement lives in the PAYTR merchant panel (Peşin Fiyatına Taksit + Alt Limit),
-not in this repository; the studio's own `maxInstallments` was raised 3 → 6 so the six can be offered
-at all.
+not in this repository — **owner confirmed it configured and live on 2026-08-18**. The studio's own
+`maxInstallments` was raised 3 → 6 so the six can be offered at all.
+
+**Nothing in this repository can verify that setting, and nothing will warn you when it changes.** It
+is the one part of the advert's promise that lives outside the system: if somebody switches it off in
+the PAYTR panel, the checkout quietly starts quoting a vade farkı on a package advertised without
+one, and the first sign will be a member arguing at the desk. Whoever ends the campaign should turn
+it off deliberately, in the same hour they empty the AI's campaign note.
 
 **What the assistant is told, and where it comes from.** Prices are read live from the catalogue, as
 always. What to *do* with them — push 12 Aylık, name the interest-free instalments, mention limited

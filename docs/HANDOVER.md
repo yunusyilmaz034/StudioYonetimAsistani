@@ -1088,10 +1088,13 @@ cannot mint one, and it is told not to promise and leave someone waiting.
 instalment cap 3 → 6 had gone in the day before. Rule recorded as OR-38; OR-31's "one price" still
 holds for pilates, hybrid and PT.
 
-**Still open.** The website is edited but **not deployed** (`~/pilates-site`), and the panel/functions
-deploy is pending — both wait for the night, per OR-24. The 12-month interest-free arrangement itself
-lives in the PAYTR merchant panel (Peşin Fiyatına Taksit + Alt Limit), not in this repository: if it
-is not configured there, the checkout will quote a vade farkı the advert says does not exist.
+**All three deployed the same afternoon** — the owner chose to ship rather than wait for the night
+(OR-24), because reception could otherwise have taken a cash sale at the card price. The marketing
+site went first, then the WhatsApp function, then the panel; reception was told to reload.
+
+**The 12-month interest-free instalments are configured in the PAYTR merchant panel and confirmed
+live by the owner (2026-08-18).** That setting is outside this repository and nothing here can check
+it — see OR-38 for why that matters when the campaign ends.
 
 ## Where 2026-08-09 ended — the three things somebody else has to do
 
