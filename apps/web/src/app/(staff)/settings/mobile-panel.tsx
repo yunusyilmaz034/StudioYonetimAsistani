@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { ChevronDownIcon, ChevronUpIcon, ImageIcon, Loader2Icon, PlusIcon, Trash2Icon } from 'lucide-react'
+import { ChevronDownIcon, ChevronUpIcon, CropIcon, ImageIcon, Loader2Icon, PlusIcon, Trash2Icon } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
@@ -10,10 +10,29 @@ import { Input } from '@/components/ui/input'
 import { Section } from '@/components/ui/section'
 import { Textarea } from '@/components/ui/textarea'
 import { MediaPicker } from '@/components/media-picker'
-import { getMobileSettingsAction, setMobileBannersAction, setMobileBrandingAction, setMobileCampaignAction } from '@/server/actions/mobile-settings'
+import { ImageCropDialog, type CropTransform } from '@/components/image-crop-dialog'
+import { getMobileSettingsAction, setMobileBannersAction, setMobileBrandingAction, setMobileCampaignAction, uploadMobileImageAction } from '@/server/actions/mobile-settings'
+
+// The frames the phone actually renders, measured from the app rather than guessed. The home banner
+// card is `screen − 40pt` wide with a 148pt floor, which on the widest device is 400×160pt — 2.5:1,
+// 1200px at @3x. The popup's aspect ratio is hard-coded to 1 in campaign-popup.tsx, so anything else
+// is cropped there no matter what is uploaded.
+const BANNER_FRAME = { aspect: 2.5, width: 1200 }
+const POPUP_FRAME = { aspect: 1, width: 1080 }
 
 // A small "Medya" button that opens the Media Center picker (upload or choose existing) and drops the
 // chosen URL into a field.
+// Uploads the cropped canvas and returns its permanent URL. The ORIGINAL is left exactly where it
+// was — the crop is an additional file, so re-editing never has to reconstruct anything.
+async function uploadCropped(dataUrl: string, kind: 'banner' | 'campaign'): Promise<string | null> {
+  const r = await uploadMobileImageAction({ dataUrl, kind })
+  if (!r.ok) {
+    toast.error(r.error.code === 'image_too_large' ? 'Görsel çok büyük.' : 'Görsel yüklenemedi.')
+    return null
+  }
+  return r.value.url
+}
+
 function MediaButton({ onPick, disabled }: { onPick: () => void; disabled?: boolean }) {
   return (
     <Button type="button" variant="outline" size="sm" onClick={onPick} disabled={disabled}>
@@ -38,6 +57,8 @@ interface EditBanner {
   detail: string
   tone: Tone
   imageUrl: string
+  imageSourceUrl: string
+  imageCrop?: CropTransform | undefined
 }
 
 // Curated, freely-usable (Pexels) fitness/pilates photos for a women-only studio — one tap to preview
@@ -60,6 +81,11 @@ export function MobilePanel({ canEdit }: { canEdit: boolean }) {
   const [logoUrl, setLogoUrl] = useState('')
   const [campActive, setCampActive] = useState(false)
   const [campImage, setCampImage] = useState('')
+  const [campSource, setCampSource] = useState('')
+  const [campCrop, setCampCrop] = useState<CropTransform | undefined>(undefined)
+  const [cropping, setCropping] = useState<
+    null | { src: string; aspect: number; width: number; title: string; hint?: string; initial?: CropTransform; kind: 'banner' | 'campaign'; apply: (url: string, c: CropTransform) => void }
+  >(null)
   const [campTitle, setCampTitle] = useState('')
   const [campCta, setCampCta] = useState('')
   const [campUrl, setCampUrl] = useState('')
@@ -81,10 +107,12 @@ export function MobilePanel({ canEdit }: { canEdit: boolean }) {
             detail: b.detail ?? '',
             tone: b.tone,
             imageUrl: b.imageUrl ?? '',
+            imageSourceUrl: b.imageSourceUrl ?? '',
+            ...(b.imageCrop ? { imageCrop: b.imageCrop } : {}),
           })),
         )
         if (s.branding) { setAppName(s.branding.appName); setLogoUrl(s.branding.logoUrl) }
-        if (s.campaign) { setCampActive(s.campaign.active); setCampImage(s.campaign.imageUrl); setCampTitle(s.campaign.title); setCampCta(s.campaign.ctaLabel); setCampUrl(s.campaign.ctaUrl) }
+        if (s.campaign) { setCampActive(s.campaign.active); setCampImage(s.campaign.imageUrl); setCampSource(s.campaign.imageSourceUrl ?? ''); setCampCrop(s.campaign.imageCrop); setCampTitle(s.campaign.title); setCampCta(s.campaign.ctaLabel); setCampUrl(s.campaign.ctaUrl) }
       })
       .catch(() => {})
       .finally(() => setLoading(false))
@@ -94,7 +122,7 @@ export function MobilePanel({ canEdit }: { canEdit: boolean }) {
     setBanners((list) => list.map((b) => (b.id === id ? { ...b, ...patch } : b)))
   }
   function addBanner() {
-    setBanners((list) => [...list, { id: newId(), active: true, title: '', body: '', detail: '', tone: 'accent', imageUrl: '' }])
+    setBanners((list) => [...list, { id: newId(), active: true, title: '', body: '', detail: '', tone: 'accent', imageUrl: '', imageSourceUrl: '' }])
   }
   function removeBanner(id: string) {
     setBanners((list) => list.filter((b) => b.id !== id))
@@ -113,7 +141,15 @@ export function MobilePanel({ canEdit }: { canEdit: boolean }) {
   async function saveCampaign() {
     setSavingCamp(true)
     try {
-      const r = await setMobileCampaignAction({ active: campActive, imageUrl: campImage.trim(), title: campTitle.trim(), ctaLabel: campCta.trim(), ctaUrl: campUrl.trim() })
+      const r = await setMobileCampaignAction({
+        active: campActive,
+        imageUrl: campImage.trim(),
+        imageSourceUrl: campSource.trim(),
+        ...(campCrop ? { imageCrop: campCrop } : {}),
+        title: campTitle.trim(),
+        ctaLabel: campCta.trim(),
+        ctaUrl: campUrl.trim(),
+      })
       if (r.ok) toast.success('Kampanya popup kaydedildi.')
     } catch {
       toast.error('Kaydedilemedi.')
@@ -147,6 +183,8 @@ export function MobilePanel({ canEdit }: { canEdit: boolean }) {
         body: b.body.trim(),
         tone: b.tone,
         imageUrl: b.imageUrl.trim(),
+        imageSourceUrl: b.imageSourceUrl.trim(),
+        ...(b.imageCrop ? { imageCrop: b.imageCrop } : {}),
         detail: b.detail.trim(),
       }))
       const r = await setMobileBannersAction({ banners: payload })
@@ -206,7 +244,18 @@ export function MobilePanel({ canEdit }: { canEdit: boolean }) {
                 onChange={(patch) => patchBanner(b.id, patch)}
                 onRemove={() => removeBanner(b.id)}
                 onMove={(dir) => move(b.id, dir)}
-                onPickImage={() => setPicker(() => (url: string) => patchBanner(b.id, { imageUrl: url }))}
+                onPickImage={() => setPicker(() => (url: string) => patchBanner(b.id, { imageUrl: url, imageSourceUrl: url, imageCrop: undefined }))}
+                onCrop={() =>
+                  setCropping({
+                    src: b.imageSourceUrl || b.imageUrl,
+                    aspect: BANNER_FRAME.aspect,
+                    width: BANNER_FRAME.width,
+                    title: 'Banner görselini hizala',
+                    kind: 'banner' as const,
+                    ...(b.imageCrop ? { initial: b.imageCrop } : {}),
+                    apply: (url: string, crop: CropTransform) => patchBanner(b.id, { imageUrl: url, imageSourceUrl: b.imageSourceUrl || b.imageUrl, imageCrop: crop }),
+                  })
+                }
               />
             ))
           )}
@@ -237,11 +286,39 @@ export function MobilePanel({ canEdit }: { canEdit: boolean }) {
             <span className="text-sm font-medium">Popup'ı üyelere göster</span>
           </label>
           <div className="space-y-1.5">
-            <label className="text-sm font-medium">Görsel <span className="font-normal text-muted-foreground">(kare/dikey — yükle ya da URL)</span></label>
+            <label className="text-sm font-medium">Görsel <span className="font-normal text-muted-foreground">(kare — yükle ya da URL)</span></label>
             <div className="flex gap-2">
-              <Input value={campImage} onChange={(e) => setCampImage(e.target.value)} placeholder="https://.../kampanya.jpg ya da yükle →" disabled={!canEdit} />
-              <MediaButton onPick={() => setPicker(() => setCampImage)} disabled={!canEdit} />
+              <Input
+                value={campImage}
+                onChange={(e) => { setCampImage(e.target.value); setCampSource(e.target.value); setCampCrop(undefined) }}
+                placeholder="https://.../kampanya.jpg ya da yükle →"
+                disabled={!canEdit}
+              />
+              <MediaButton onPick={() => setPicker(() => (url: string) => { setCampImage(url); setCampSource(url); setCampCrop(undefined) })} disabled={!canEdit} />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={!canEdit || !campImage}
+                onClick={() =>
+                  setCropping({
+                    src: campSource || campImage,
+                    aspect: POPUP_FRAME.aspect,
+                    width: POPUP_FRAME.width,
+                    title: 'Popup görselini hizala',
+                    hint: 'Popup her zaman KARE gösterilir. Kare olmayan bir görselin üstü ve altı kesilir — burada hangi kısmın kalacağını seç.',
+                    kind: 'campaign' as const,
+                    ...(campCrop ? { initial: campCrop } : {}),
+                    apply: (url: string, crop: CropTransform) => { setCampSource(campSource || campImage); setCampImage(url); setCampCrop(crop) },
+                  })
+                }
+              >
+                <CropIcon className="size-4" /> Hizala
+              </Button>
             </div>
+            <p className="text-xs text-muted-foreground">
+              Uygulamada <strong>1:1 kare</strong> gösterilir (1080×1080 px). Dikey bir görsel yüklersen üstü ve altı kırpılır.
+            </p>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
@@ -280,6 +357,25 @@ export function MobilePanel({ canEdit }: { canEdit: boolean }) {
       </Section>
 
       <MediaPicker open={!!picker} onOpenChange={(o) => !o && setPicker(null)} onSelect={(url) => { picker?.(url); setPicker(null) }} />
+
+      {cropping ? (
+        <ImageCropDialog
+          open
+          onOpenChange={(o) => !o && setCropping(null)}
+          src={cropping.src}
+          aspect={cropping.aspect}
+          targetWidth={cropping.width}
+          title={cropping.title}
+          {...(cropping.hint ? { hint: cropping.hint } : {})}
+          {...(cropping.initial ? { initial: cropping.initial } : {})}
+          onApply={async (dataUrl, crop) => {
+            const url = await uploadCropped(dataUrl, cropping.kind)
+            if (!url) return
+            cropping.apply(url, crop)
+            toast.success('Hizalandı. Kaydetmeyi unutma.')
+          }}
+        />
+      ) : null}
     </div>
   )
 }
@@ -294,6 +390,7 @@ function BannerEditor({
   onRemove,
   onMove,
   onPickImage,
+  onCrop,
 }: {
   banner: EditBanner
   index: number
@@ -303,6 +400,7 @@ function BannerEditor({
   onRemove: () => void
   onMove: (dir: -1 | 1) => void
   onPickImage: () => void
+  onCrop: () => void
 }) {
   return (
     <div className="space-y-4 rounded-2xl border border-border bg-muted/20 p-4">
@@ -344,9 +442,21 @@ function BannerEditor({
       <div className="space-y-1.5">
         <label className="text-sm font-medium">Görsel <span className="font-normal text-muted-foreground">(opsiyonel — yükle ya da URL yapıştır)</span></label>
         <div className="flex gap-2">
-          <Input value={banner.imageUrl} onChange={(e) => onChange({ imageUrl: e.target.value })} placeholder="https://.../kampanya.jpg ya da yükle →" disabled={!canEdit} />
+          <Input
+            value={banner.imageUrl}
+            onChange={(e) => onChange({ imageUrl: e.target.value, imageSourceUrl: e.target.value })}
+            placeholder="https://.../kampanya.jpg ya da yükle →"
+            disabled={!canEdit}
+          />
           <MediaButton onPick={onPickImage} disabled={!canEdit} />
+          <Button type="button" variant="outline" size="sm" onClick={onCrop} disabled={!canEdit || !banner.imageUrl}>
+            <CropIcon className="size-4" /> Hizala
+          </Button>
         </div>
+        <p className="text-xs text-muted-foreground">
+          Telefonda <strong>2,5:1</strong> orana kırpılır (1200×480 px). “Hizala” ile görselin hangi kısmının
+          görüneceğini kendin seçebilirsin.
+        </p>
         {canEdit ? (
           <div className="flex flex-wrap items-center gap-2 pt-1">
             <span className="text-xs text-muted-foreground">Örnek görsel:</span>

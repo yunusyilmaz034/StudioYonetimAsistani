@@ -16,7 +16,9 @@ export interface MobileBanner {
   readonly title: string
   readonly body: string // short line shown on the card
   readonly tone: 'accent' | 'gold' | 'good'
-  readonly imageUrl?: string // optional background image (any public URL)
+  readonly imageUrl?: string // optional background image (any public URL) — already cropped to the card
+  readonly imageSourceUrl?: string // the uncropped original, so the crop can be re-edited
+  readonly imageCrop?: { readonly cx: number; readonly cy: number; readonly zoom: number }
   readonly detail?: string // long text shown on the tap-through detail page
 }
 
@@ -29,7 +31,9 @@ export interface MobileBranding {
 // from the inline banner. Frequency is capped on the device (once/day, silenced once dismissed).
 export interface MobileCampaign {
   readonly active: boolean
-  readonly imageUrl: string // the creative (square/portrait); the popup is image-first
+  readonly imageUrl: string // the creative (square); the popup is image-first
+  readonly imageSourceUrl?: string
+  readonly imageCrop?: { readonly cx: number; readonly cy: number; readonly zoom: number }
   readonly title: string // optional overline shown under the image
   readonly ctaLabel: string // '' ⇒ no button
   readonly ctaUrl: string // link or wa.me/... opened on tap
@@ -61,6 +65,11 @@ const bannerSchema = z.object({
   body: z.string().trim().max(240),
   tone: z.enum(['accent', 'gold', 'good']).default('accent'),
   imageUrl: z.string().trim().url().or(z.literal('')).optional(),
+  // The ORIGINAL, before the panel cropped it, plus how it was framed. The app only ever reads
+  // `imageUrl`; these two exist so "biraz daha yukarı alalım" reopens the crop dialog where it was
+  // left instead of demanding the file again. Cropping a crop would lose a little more each time.
+  imageSourceUrl: z.string().trim().url().or(z.literal('')).optional(),
+  imageCrop: z.object({ cx: z.number(), cy: z.number(), zoom: z.number() }).optional(),
   detail: z.string().trim().max(2000).optional(),
 })
 
@@ -78,6 +87,8 @@ export async function setMobileCampaignAction(input: unknown) {
     .object({
       active: z.boolean(),
       imageUrl: z.string().trim().url().or(z.literal('')),
+      imageSourceUrl: z.string().trim().url().or(z.literal('')).optional(),
+      imageCrop: z.object({ cx: z.number(), cy: z.number(), zoom: z.number() }).optional(),
       title: z.string().trim().max(80).default(''),
       ctaLabel: z.string().trim().max(30).default(''),
       ctaUrl: z.string().trim().max(500).default(''),
