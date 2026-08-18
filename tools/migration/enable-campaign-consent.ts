@@ -24,11 +24,16 @@ import { getFirestore } from 'firebase-admin/firestore'
 // He chose all of them, knowingly. It is recorded here rather than in a commit message because the
 // question will be asked again the first time somebody replies "beni bu listeden çıkarın".
 //
-// ── WHAT THIS DOES NOT TOUCH ────────────────────────────────────────────────────────────────
+// ── WHAT THIS TOUCHES ───────────────────────────────────────────────────────────────────────
 //
-// Only `campaign`. Not push, not e-mail, not SMS, not WhatsApp. A member who turned WhatsApp off
-// keeps it off, and the marketing message simply reaches her by another channel or not at all.
-// Widening the change beyond what was asked for is how a consent fix becomes a consent problem.
+// `campaign` (2026-08-18) and, on the owner's further instruction the same day, `whatsapp`.
+//
+// The second was added once the first announcement showed why: it reached 158 members over in-app
+// and push — both of which need the app — to tell people about the app. The members it was written
+// for got nothing. WhatsApp is the only channel that reaches somebody who has not installed it.
+//
+// Still NOT touched: push, e-mail, SMS. A member who turned those off keeps them off. Widening
+// beyond what was asked is how a consent fix becomes a consent problem.
 
 const STUDIO = 'retro'
 
@@ -36,6 +41,7 @@ interface Row {
   readonly id: string
   readonly name: string
   readonly state: 'no-prefs' | 'off' | 'already-on'
+  readonly waOff: boolean
 }
 
 async function main(): Promise<void> {
@@ -50,17 +56,22 @@ async function main(): Promise<void> {
       id: d.id,
       name: String(d.get('fullName') ?? ''),
       state: !prefs ? 'no-prefs' : prefs.campaign === true ? 'already-on' : 'off',
+      waOff: prefs?.whatsapp !== true,
     }
   })
 
-  const toChange = rows.filter((r) => r.state !== 'already-on')
+  // A member needs writing if EITHER switch is still off. After the first run everyone had
+  // `campaign`, so a campaign-only test would have reported nothing to do while 155 members still
+  // could not be reached on the one channel that matters.
+  const toChange = rows.filter((r) => r.state !== 'already-on' || r.waOff)
   const count = (s: Row['state']) => rows.filter((r) => r.state === s).length
 
   console.log(apply ? '── UYGULANIYOR ──\n' : '── KURU ÇALIŞMA (hiçbir şey yazılmaz) ──\n')
   console.log(`toplam üye          : ${rows.length}`)
   console.log(`tercihi hiç yok     : ${count('no-prefs')}   → açılacak`)
   console.log(`kampanya kapalı     : ${count('off')}   → açılacak (owner kararı)`)
-  console.log(`zaten açık          : ${count('already-on')}   → dokunulmayacak`)
+  console.log(`zaten açık          : ${count('already-on')}`)
+  console.log(`WhatsApp kapalı     : ${rows.filter((r) => r.waOff).length}   → açılacak`)
   console.log(`\ndeğişecek kayıt     : ${toChange.length}`)
 
   if (!apply) {
@@ -76,7 +87,7 @@ async function main(): Promise<void> {
     for (const r of toChange.slice(i, i + 400)) {
       batch.set(
         db.doc(`studios/${STUDIO}/members/${r.id}`),
-        { notificationPrefs: { campaign: true } },
+        { notificationPrefs: { campaign: true, whatsapp: true } },
         { merge: true },
       )
       written++
@@ -85,8 +96,12 @@ async function main(): Promise<void> {
   }
 
   const after = await db.collection(`studios/${STUDIO}/members`).get()
-  const on = after.docs.filter((d) => (d.get('notificationPrefs') as { campaign?: boolean } | undefined)?.campaign === true).length
-  console.log(`\n✓ ${written} kayıt güncellendi · kampanya izni açık olan: ${on}/${after.size}`)
+  const p = (d: FirebaseFirestore.QueryDocumentSnapshot) => d.get('notificationPrefs') as { campaign?: boolean; whatsapp?: boolean } | undefined
+  const camp = after.docs.filter((d) => p(d)?.campaign === true).length
+  const wa = after.docs.filter((d) => p(d)?.whatsapp === true).length
+  console.log(`\n✓ ${written} kayıt güncellendi`)
+  console.log(`   kampanya izni : ${camp}/${after.size}`)
+  console.log(`   WhatsApp izni : ${wa}/${after.size}`)
   process.exit(0)
 }
 

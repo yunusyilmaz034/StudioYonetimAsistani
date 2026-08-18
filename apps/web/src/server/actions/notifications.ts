@@ -258,13 +258,24 @@ export async function sendEngagementAction(input: unknown) {
       body: z.string().trim().min(1).max(600),
       segment: z.enum(['all', 'fitness', 'pilates', 'dormant', 'regular', 'new', 'birthday']).optional(),
       memberIds: z.array(z.string().min(1)).max(2000).optional(),
+      // Which channels THIS send may use. Omitted ⇒ the studio's own configuration.
+      //
+      // A per-send override rather than editing the studio settings: switching the studio to
+      // "WhatsApp only" for one announcement and forgetting to switch it back would silently change
+      // every notification after it, and nobody would connect the two.
+      channels: z.array(z.enum(['in_app', 'email', 'sms', 'whatsapp', 'push'])).optional(),
     })
     .parse(input)
   const ctx = await requireTenantContext(OWNER)
   // Loaded ONCE, not per member: it is the same studio for all 158 of them, and a document read in
   // the loop is 158 reads to answer one question. This is also the line that makes the settings
   // screen mean something — WhatsApp on, push off, as the owner actually configured it.
-  const sendDeps = await notificationDepsFor(ctx.studioId)
+  const studioDeps = await notificationDepsFor(ctx.studioId)
+  // `in_app` is added back whatever was chosen: it is the member's record of her own account, not a
+  // message somebody may decide she should not have.
+  const sendDeps = p.channels?.length
+    ? { ...studioDeps, settings: { ...studioDeps.settings, enabledChannels: [...new Set(['in_app', ...p.channels])] as typeof studioDeps.settings.enabledChannels } }
+    : studioDeps
   const ids = p.segment ? await resolveSegment(ctx.studioId, p.segment) : (p.memberIds ?? [])
   if (ids.length === 0) return { ok: false as const, error: { code: 'no_recipients' as const } }
 

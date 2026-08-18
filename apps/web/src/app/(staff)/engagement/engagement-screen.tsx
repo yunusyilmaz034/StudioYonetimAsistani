@@ -149,6 +149,8 @@ function Suggestions({ initial }: { initial: EngagementSuggestion[] }) {
 function Composer({ content, segments }: { content: EngagementContent[]; segments: SegmentInfo[] }) {
   const [segment, setSegment] = useState<SegmentKey>('all')
   const [result, setResult] = useState<{ sent: number; failed: number; total: number } | null>(null)
+  // Empty ⇒ the studio's own channels. A one-off announcement often wants exactly one of them.
+  const [channels, setChannels] = useState<string[]>([])
   const [subject, setSubject] = useState('')
   const [body, setBody] = useState('')
   const [sending, setSending] = useState(false)
@@ -171,7 +173,12 @@ function Composer({ content, segments }: { content: EngagementContent[]; segment
     if (!confirm(`"${seg.label}" (${seg.count} üye) grubuna göndermeyi onaylıyor musun?`)) return
     setSending(true)
     try {
-      const res = await sendEngagementAction({ subject: subject.trim(), body: body.trim(), segment })
+      const res = await sendEngagementAction({
+        subject: subject.trim(),
+        body: body.trim(),
+        segment,
+        ...(channels.length ? { channels } : {}),
+      })
       if (res.ok) {
         toast.success(`${res.value.sent} üyeye gönderildi${res.value.failed ? `, ${res.value.failed} başarısız` : ''}.`)
         // Kept on screen, not only in a toast. A toast for a 158-person send is gone in four seconds
@@ -239,6 +246,32 @@ function Composer({ content, segments }: { content: EngagementContent[]; segment
           </div>
         </section>
       ) : null}
+
+      {/* Channel choice for THIS send only. The studio's configuration is untouched — an
+          announcement that needs WhatsApp alone must not quietly redefine what every later
+          notification does. */}
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-xs uppercase tracking-wide text-muted-foreground">Kanal</span>
+        {([
+          ['', 'Ayardaki kanallar'],
+          ['whatsapp', 'Sadece WhatsApp'],
+          ['email', 'Sadece e-posta'],
+        ] as const).map(([key, label]) => (
+          <button
+            key={key || 'default'}
+            type="button"
+            onClick={() => setChannels(key ? [key] : [])}
+            className={`rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
+              (channels[0] ?? '') === key ? 'bg-accent text-accent-foreground' : 'bg-muted text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      <p className="text-xs text-muted-foreground">
+        Uygulama içi kayıt her seçimde düşer — üyenin kendi hesap geçmişidir, kapatılamaz.
+      </p>
 
       {/* The label CHANGES while it works. A bare spinner on a 158-person send says only "something
           is happening", and the honest question underneath it — to how many, and is it stuck? — has
