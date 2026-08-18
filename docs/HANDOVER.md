@@ -1151,6 +1151,25 @@ outright.
 5. **Reception's own sales take none of these consents** — only the online checkout does.
 6. **Kamera bilgilendirme levhası** at the physical entrance — the owner's task, not code.
 
+## 📱 Mobil 1.7.0 — biriken işler
+
+**Bu liste bir sonraki mobil sürüme kadar büyür.** Bir mağaza sürümü ucuz değil: build, Apple'ın
+incelemesi, Google'ın yayılması, ve güncellemeyen üyelerde bir süre eski davranış. O yüzden mobil
+tarafta bulunan her şey tek tek çıkılmaz — burada birikir, sonra bir arada çıkar.
+
+**Kural: bulan buraya yazar.** Aciliyeti olan bir şey çıkarsa (para, veri kaybı, güvenlik) bu liste
+beklemez — o ayrı değerlendirilir.
+
+| # | İş | Neden | Durum |
+|---|---|---|---|
+| 1 | **Android FCM push** — Firebase'de Android app, `google-services.json`, FCM anahtarı EAS'e, `googleServicesFile` config'e | Android üyeler HİÇBİR bildirim almıyor ve sistem bunu hiç raporlamıyor. Ayrıntı aşağıda. | ⏸ owner erteledi (2026-08-18) |
+| 2 | **Push kaydı sessizce yutulmasın** — `src/lib/push.ts`'teki boş `catch`, hatayı sunucuya bildirsin | 1 numaralı arıza iki aydır sürüyor olabilir ve kimse fark etmedi. Asıl kusur push'un çalışmaması değil, **çalışmadığını söyleyememesi**. | ⏸ 1 ile birlikte |
+
+### Buraya yazarken
+
+Her satır şunu taşısın: **ne**, **neden** (hangi gerçek durum bunu gerektirdi), ve **doğrulandı mı**.
+Doğrulanmamış bir teşhis için build çıkılmaz — 1 numaranın doğrulama adımı aşağıda yazılı.
+
 ### 2026-08-18 (gece) — card money on the checklist, a crop tool, and an Android silence
 
 **Three things shipped in `build-2026-08-18-014`:** the legal set (above), the banner crop dialog,
