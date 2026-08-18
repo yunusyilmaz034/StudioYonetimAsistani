@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 
-import { available, cardSurchargeKurus, DEFAULT_PREFS, FirestoreCatalogRepository, FirestoreMemberRepository, FirestoreSchedulingRepository, requestMemberDeletion, entriesUsed, FirestoreEntitlementRepository, FirestoreFinanceRepository, FirestoreNotificationRepository, money, newOperationId, sell, systemClock, type BranchId, type Entitlement, type FinanceDeps, type MemberId, type NotificationPrefs, type TenantContext } from '@studio/core'
+import { available, productPrices, DEFAULT_PREFS, FirestoreCatalogRepository, FirestoreMemberRepository, FirestoreSchedulingRepository, requestMemberDeletion, entriesUsed, FirestoreEntitlementRepository, FirestoreFinanceRepository, FirestoreNotificationRepository, money, newOperationId, sell, systemClock, type BranchId, type Entitlement, type FinanceDeps, type MemberId, type NotificationPrefs, type TenantContext } from '@studio/core'
 import type { RetailItem, StoredWallet } from '@studio/core/client'
 
 import { loadOccupancyNow } from './fitness-query'
@@ -365,8 +365,13 @@ export async function memberBuyableProducts(ctx: TenantContext): Promise<readonl
       name: p.name,
       category: p.category as string,
       durationDays: p.durationDays,
-      totalKurus: p.priceInKurus + cardSurchargeKurus(p.priceInKurus, p.category, settings?.paymentSurcharge),
-      cashKurus: p.priceInKurus,
+      // `priceInKurus` is the CARD price — buying in the app IS buying by card. The per-category
+      // surcharge still applies for studios that price that way; it is 0 where a product carries its
+      // own cash price, because then the two numbers are set independently and adding a rule on top
+      // would invent a third.
+      totalKurus: productPrices(p, settings?.paymentSurcharge).cardKurus,
+      // Equal ⇒ one price, and the screen shows a single number as it always has.
+      cashKurus: productPrices(p, settings?.paymentSurcharge).cashKurus,
     }))
     .sort((a, b) => a.totalKurus - b.totalKurus)
 }

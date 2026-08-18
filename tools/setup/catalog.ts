@@ -112,6 +112,7 @@ async function main(): Promise<void> {
       creditCount: 8,
       durationDays: 30,
       priceInKurus: TRY(4_200),
+      cashPriceInKurus: null,
       freezeAllowanceDays: 0,
     },
     {
@@ -122,6 +123,7 @@ async function main(): Promise<void> {
       creditCount: 16,
       durationDays: 60,
       priceInKurus: TRY(7_800),
+      cashPriceInKurus: null,
       freezeAllowanceDays: 0,
     },
     {
@@ -132,6 +134,7 @@ async function main(): Promise<void> {
       creditCount: null, // unlimited
       durationDays: 90,
       priceInKurus: TRY(8_000),
+      cashPriceInKurus: null,
       freezeAllowanceDays: 7,
     },
     {
@@ -142,6 +145,7 @@ async function main(): Promise<void> {
       creditCount: null,
       durationDays: 180,
       priceInKurus: TRY(13_000),
+      cashPriceInKurus: null,
       freezeAllowanceDays: 14,
     },
   ]

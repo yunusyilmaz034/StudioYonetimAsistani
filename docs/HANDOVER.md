@@ -1049,6 +1049,50 @@ silently discards the payment — which is what happened, twice.
 
 ---
 
+### 2026-08-18 — the Fitness campaign, and a second price the model could not express
+
+**The advert went live before the software could describe it.** The poster prices the three fitness
+packages twice — 8.500 / 12.750 / 19.500 in cash, 9.500 / 14.000 / 22.000 on the card — and the gaps
+are ₺1.000, ₺1.250 and ₺2.500. As a percentage they are 11,8 / 9,8 / 12,8. The KK farkı mechanism
+carries **one rule per category**, either a percent or a fixed amount, so it can express neither.
+
+So a product may now carry its own cash price. `product.cashPriceInKurus` is null by default and the
+old behaviour is exactly the null case; when it is set, `priceInKurus` is the **card** price and the
+new field is the cash one. `productPrices(product, cfg)` in `packages/core/src/shared/pricing.ts` is
+the only function that knows which arrangement applies, and it returns `{ cashKurus, cardExtraKurus,
+cardKurus }` with `cash + extra = card` in both — asserted in `pricing.test.ts`. Every surface was
+moved onto it in the same commit: the desk sale form, the mobile app's buy screen, `/api/public/
+products` (which now sends `cashKurus` too), the marketing site, and the WhatsApp assistant.
+
+**The trap this avoided.** The desk sale form pre-filled `product.priceInKurus`. The card prices had
+already been written to production the day before, so on the morning the campaign started every cash
+sale of a fitness package would have been recorded at the card price — ₺1.000 too much on the
+smallest one, and nobody would have noticed until a member argued about it. The form now pre-fills
+the cash figure and adds the difference back for a non-cash method. A reception override still takes
+the category rule, not the campaign gap: a hand-typed number is a negotiated cash amount, not a new
+campaign.
+
+**The assistant sells now, and what it says is data.** Ayarlar › AI Ayarları grew a **Güncel
+kampanya** box: free text, owner-editable, injected into the cached half of the system prompt. It
+carries no prices — the assistant already reads the live catalogue, and a number repeated there would
+go stale the day the owner edits the first. It carries the *instructions*: lead with 12 Aylık, name
+the peşin fiyatına 3 taksit (the studio absorbs that vade farkı; 3 and 6 Aylık go to six instalments
+with the payment institution's), say capacity is limited **once** without pressure, and offer remote
+registration. The prompt gained a step 3.5 — give the price, then ask for the decision — and the live
+facts gained a two-price paragraph and a remote-registration line that only appears while a payment
+provider is actually active and links are enabled. The assistant offers the link and hands over; it
+cannot mint one, and it is told not to promise and leave someone waiting.
+
+**Also written to production:** cash prices on the three products, and the campaign note
+(`tools/migration/campaign-2026-08-cash-prices.ts`, dry-run first). The card prices and the
+instalment cap 3 → 6 had gone in the day before. Rule recorded as OR-38; OR-31's "one price" still
+holds for pilates, hybrid and PT.
+
+**Still open.** The website is edited but **not deployed** (`~/pilates-site`), and the panel/functions
+deploy is pending — both wait for the night, per OR-24. The 12-month interest-free arrangement itself
+lives in the PAYTR merchant panel (Peşin Fiyatına Taksit + Alt Limit), not in this repository: if it
+is not configured there, the checkout will quote a vade farkı the advert says does not exist.
+
 ## Where 2026-08-09 ended — the three things somebody else has to do
 
 Everything below is outside this repository. Nothing in the code is blocking any of them, and none

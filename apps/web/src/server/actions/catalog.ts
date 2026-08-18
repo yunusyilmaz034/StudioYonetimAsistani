@@ -32,6 +32,9 @@ const fields = z.object({
   durationDays: z.number().int().min(1),
   creditCount: z.number().int().min(1).nullable(),
   priceInKurus: z.number().int().min(0),
+  // Desk cash price. Optional and nullable: a studio that charges one price simply never sets it,
+  // and every product written before this existed keeps behaving as it did.
+  cashPriceInKurus: z.number().int().min(0).nullable().default(null),
   freezeAllowanceDays: z.number().int().min(0),
   dailyReservationLimit: z.number().int().min(1).nullable(),
   cancellationAllowanceCount: z.number().int().min(0).nullable(),
@@ -63,6 +66,7 @@ function toFields(p: z.infer<typeof fields>) {
     durationDays: p.durationDays,
     creditCount: p.type === 'credit' ? p.creditCount : null,
     priceInKurus: p.priceInKurus,
+    cashPriceInKurus: p.cashPriceInKurus,
     freezeAllowanceDays: p.freezeAllowanceDays,
     dailyReservationLimit: p.dailyReservationLimit,
     cancellationAllowanceCount: p.cancellationAllowanceCount,

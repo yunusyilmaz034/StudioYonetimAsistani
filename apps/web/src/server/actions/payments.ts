@@ -3,7 +3,7 @@
 import { randomUUID } from 'node:crypto'
 
 import {
-  cardSurchargeKurus,
+  productPrices,
   decideCreatePaymentIntent,
   decideRefundConfirmed,
   decideRequestRefund,
@@ -155,12 +155,11 @@ export async function createPackageCheckout(ctx: TenantContext, p: PackageChecko
   // member never sees a breakdown. (TODO(surcharge): the manual cash/havale sell + wallet-membership
   // paths are separate and NOT surcharged here.)
   const studioSettings = await new FirestoreSchedulingRepository(adminDb()).getStudioSettings(ctx)
-  const surchargeKurus = cardSurchargeKurus(product.priceInKurus, product.category, studioSettings?.paymentSurcharge)
   const maxInstallments = studioSettings?.paymentSurcharge?.maxInstallments ?? 3
   // Kontrol her zaman admin'de: an explicit priceAgreedKurus is the FINAL charged amount, used verbatim
   // (the reception form pre-fills it with price + surcharge and lets the admin override). Only the
   // default (member self-purchase → null) auto-adds the studio surcharge.
-  const amount = p.priceAgreedKurus != null ? money(p.priceAgreedKurus) : money(product.priceInKurus + surchargeKurus)
+  const amount = p.priceAgreedKurus != null ? money(p.priceAgreedKurus) : money(productPrices(product, studioSettings?.paymentSurcharge).cardKurus)
   const installmentCap = Math.min(Math.max(p.installments ?? maxInstallments, 1), maxInstallments)
 
   const providerRef = randomUUID().replace(/-/g, '') // alphanumeric merchant_oid
@@ -600,7 +599,12 @@ export async function getPublicProductsAction(input: unknown) {
       name: pr.name,
       description: pr.description,
       durationDays: pr.durationDays,
-      totalKurus: pr.priceInKurus + cardSurchargeKurus(pr.priceInKurus, pr.category, settings?.paymentSurcharge),
+      // Online = by card, so `totalKurus` is always the card figure. A product carrying its own cash
+      // price sets the card figure directly (the campaign case, where the gap fits no rule); without
+      // one, the category surcharge derives it as before. `cashKurus` equals it when there is one
+      // price — the page compares the two and says nothing when they match.
+      totalKurus: productPrices(pr, settings?.paymentSurcharge).cardKurus,
+      cashKurus: productPrices(pr, settings?.paymentSurcharge).cashKurus,
     }))
     .sort((a, b) => a.totalKurus - b.totalKurus)
   // The number the buyer is told to call when she has a question. From settings, never a literal:
@@ -639,8 +643,7 @@ export async function createPublicMembershipCheckoutAction(input: unknown) {
   if (!provider.configured) return { ok: false as const, reason: 'not_configured' as const }
 
   const settings = await new FirestoreSchedulingRepository(adminDb()).getStudioSettings(ctx)
-  const surcharge = cardSurchargeKurus(product.priceInKurus, product.category, settings?.paymentSurcharge)
-  const amount = money(product.priceInKurus + surcharge)
+  const amount = money(productPrices(product, settings?.paymentSurcharge).cardKurus)
   const maxInstallments = settings?.paymentSurcharge?.maxInstallments ?? 3
 
   const nowMs = systemClock.now()

@@ -31,7 +31,19 @@ export interface Product {
   readonly type: ProductType
   readonly durationDays: number // validity length (credit: validForDays; period: durationDays)
   readonly creditCount: number | null // credit ⇒ N; period ⇒ null (unlimited)
-  readonly priceInKurus: number // integer kuruş (non-negotiable #10)
+  readonly priceInKurus: number // integer kuruş (non-negotiable #10) — the CARD price, what we charge
+  /**
+   * The studio-desk cash price, when it differs (Ağustos 2026 kampanyası).
+   *
+   * `null` ⇒ the same as `priceInKurus`, which is how every product behaved before this existed, so
+   * nothing needs migrating.
+   *
+   * It is a FIELD rather than a rule because the campaign's differences fit no rule: 8.500/9.500,
+   * 12.750/14.000, 19.500/22.000 is neither a constant amount nor a constant percentage. The
+   * per-category surcharge stays for studios that do work that way; this is for the ones that price
+   * each package on its own.
+   */
+  readonly cashPriceInKurus: number | null
   readonly freezeAllowanceDays: number
   // ── Package rules (Plus Phase 3). null ⇒ UNLIMITED / no limit — the safe default that preserves
   //    pre-Phase-3 behaviour (a package with no rule cancels and books without limit). A number is a

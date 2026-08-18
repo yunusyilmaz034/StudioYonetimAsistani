@@ -11,7 +11,7 @@
 // PII (name/phone/message text) lives on the conversation doc (server-only), NEVER in an event. The model
 // sees the customer's own words (unavoidable for a reply) but no other member's data.
 import {
-  cardSurchargeKurus,
+  productPrices,
   decideCaptureLead,
   FirestoreCatalogRepository,
   FirestoreCrmRepository,
@@ -73,6 +73,7 @@ interface AiSettingsDoc {
   identity?: string
   basics?: string
   policies?: string
+  campaign?: string
   faq?: { q: string; a: string }[]
   escalation?: string
   neverDo?: string
@@ -97,12 +98,18 @@ async function liveFacts(database: Firestore, ctx: TenantContext): Promise<strin
       | undefined
     if (products.length) {
       parts.push('GÜNCEL PAKETLER (fiyatlar buradan, ASLA uydurma):')
+      let twoPrices = false
       for (const p of products) {
-        // KK farkı kategoriye göre — checkout ile birebir aynı hesap. Fark SIFIRSA (tek fiyat dönemi,
-        // owner 2026-08-06) tek bir rakam yazılır: "Nakit 5.000 ₺" demek, olmayan ikinci bir fiyatın
-        // varlığını ima eder ve müşteri kartla ödemeye geçtiğinde ne çıkacağını merak eder.
-        const sc = cardSurchargeKurus(p.priceInKurus, p.category, surchargeCfg)
-        const price = sc > 0 ? `Nakit ${tl(p.priceInKurus)} / Kredi Kartı: ${tl(p.priceInKurus + sc)}` : tl(p.priceInKurus)
+        // `priceInKurus` is the CARD price. A second price exists in exactly two ways, and they are
+        // mutually exclusive by construction (member-api.ts makes the same choice): the product carries
+        // its OWN cash price — the campaign case, where the gap is neither a fixed amount nor a
+        // percentage — or the category rule derives the card price from it. Neither ⇒ ONE number is
+        // written: "Nakit 5.000 ₺" implies a second price that does not exist, and the customer then
+        // wonders what the card screen will say.
+        const { cashKurus, cardKurus } = productPrices(p, surchargeCfg)
+        const split = cardKurus !== cashKurus
+        if (split) twoPrices = true
+        const price = split ? `Nakit ${tl(cashKurus)} / Kredi Kartı: ${tl(cardKurus)}` : tl(cashKurus)
         // Hibrit demet: bileşenleri anlat (ör. "8 Pilates dersi + 4 Fitness girişi / 30 gün").
         const CAT_TR: Record<string, string> = { pilates_group: 'Pilates', fitness: 'Fitness', private: 'PT' }
         const detail =
@@ -116,12 +123,31 @@ async function liveFacts(database: Firestore, ctx: TenantContext): Promise<strin
       // The instalment sentence, generated from the SAME data as the prices so the two can never
       // disagree. The studio quotes no instalment rate because it sets none — the card offers the
       // plan and PAYTR applies the bank's vade farkı (owner: "biz karışmıyoruz").
-      const anySurcharge = products.some((p) => cardSurchargeKurus(p.priceInKurus, p.category, surchargeCfg) > 0)
-      if (!anySurcharge) {
-        parts.push(
-          'ÖDEME: Yukarıdaki fiyatlar TEK FİYATTIR — nakit, havale ve kredi kartında aynı tutar geçerlidir; nakde özel ayrı bir fiyat YOKTUR. Kredi kartına taksit imkânı vardır; taksit seçeneğine göre vade farkı oluşabilir, bunu banka/ödeme altyapısı belirler, stüdyo belirlemez. Taksit oranı veya taksitli tutar SORULURSA rakam UYDURMA: "taksit seçeneklerine göre vade farkı oluşuyor, ödeme ekranında net tutarı görebilirsiniz" de.',
-        )
-      }
+      const maxTaksit = Number((surchargeCfg as { maxInstallments?: number } | undefined)?.maxInstallments ?? 0)
+      const taksit =
+        maxTaksit > 1
+          ? `Kredi kartına ${maxTaksit} taksite kadar imkân vardır; taksit seçeneğine göre vade farkı oluşabilir ve bunu ödeme kuruluşu/banka belirler, stüdyo belirlemez.`
+          : 'Kredi kartına taksit imkânı vardır; taksit seçeneğine göre vade farkı oluşabilir, bunu banka/ödeme altyapısı belirler, stüdyo belirlemez.'
+      const kural =
+        'Taksit oranı veya taksitli tutar SORULURSA rakam UYDURMA: "taksit seçeneklerine göre vade farkı oluşuyor, ödeme ekranında net tutarı görebilirsiniz" de.'
+      parts.push(
+        twoPrices
+          ? `ÖDEME: Yukarıda İKİ FİYAT vardır ve ikisi de gerçektir — nakit/havale tutarı ile kredi kartı tutarı. Kartla ödeyen KART fiyatını öder. ${taksit} ${kural}`
+          : `ÖDEME: Yukarıdaki fiyatlar TEK FİYATTIR — nakit, havale ve kredi kartında aynı tutar geçerlidir; nakde özel ayrı bir fiyat YOKTUR. ${taksit} ${kural}`,
+      )
+    }
+    // Remote registration is a CAPABILITY, not a claim — it is true only while a payment provider is
+    // live AND links are enabled. Read from the same document the checkout reads, so the assistant can
+    // never offer a link the studio cannot actually send. The link itself is minted by a human at the
+    // desk against a real sale (a link never attaches itself to a package nobody sold), which is why
+    // this ends in a handover rather than a promise.
+    const pp = (await database.doc(`studios/${ctx.studioId}/settings/paymentProvider`).get()).data() as
+      | { active?: boolean; linkEnabled?: boolean }
+      | undefined
+    if (pp?.active === true && pp.linkEnabled !== false) {
+      parts.push(
+        'UZAKTAN KAYIT: Stüdyoya gelmeden de kayıt yapılabilir — yetkilimiz WhatsApp üzerinden güvenli bir ödeme linki gönderir, müşteri kartıyla öder ve üyeliği başlar. Müşteri "linki gönderir misiniz / uzaktan olur mu / kartla ödeyebilir miyim" derse bunu SÖYLE ve hemen [[DEVRET:SATIS]] ile yetkiliye devret; linki SEN oluşturamazsın, söz verip bekletme.',
+      )
     }
   } catch (e) {
     logger.warn('[wa-webhook] product facts failed', (e as Error)?.message)
@@ -151,6 +177,12 @@ function buildSystem(ai: AiSettingsDoc): string {
   if (ai.identity) kb.push(`KİMLİK: ${ai.identity}`)
   if (ai.basics) kb.push(`TEMEL BİLGİLER:\n${ai.basics}`)
   if (ai.policies) kb.push(`POLİTİKALAR:\n${ai.policies}`)
+  // The campaign goes in the CACHED half deliberately: it changes when the owner edits it, not
+  // between messages, so it costs one cache miss per change instead of a full-price block per call.
+  if (ai.campaign)
+    kb.push(
+      `GÜNCEL KAMPANYA (BU DÖNEMİN SATIŞ ÖNCELİĞİ — fiyat konuşulan her sohbette kullan):\n${ai.campaign}\nBuradaki koşulları AYNEN aktar; kendin kampanya, indirim, süre veya kontenjan UYDURMA.`,
+    )
   if (ai.faq?.length) kb.push('SIK SORULANLAR:\n' + ai.faq.map((f) => `S: ${f.q}\nC: ${f.a}`).join('\n'))
   if (ai.escalation) kb.push(`İNSANA DEVRET (bu durumlarda escalate=true yap):\n${ai.escalation}`)
   if (ai.neverDo) kb.push(`ASLA YAPMA:\n${ai.neverDo}`)
@@ -168,6 +200,7 @@ NASIL KONUŞ (akış):
    (b) İKİSİNİ BİRLİKTE YAPMAK istiyorsa ("ikisini birden yapmak istiyorum", "haftada 2 gün şu 1 gün bu") → HİBRİT (demet) paketini öner. KENDİN kombinasyon/indirim UYDURMA, fiyatı GÜNCEL PAKETLER listesinden ver (ör. "Hibrit Aylık — 2 Pilates + 1 Fitness").
 2.5) HİZMET SORULDUĞUNDA ÖNCE İÇERİĞİ ANLAT, SONRA FİYAT. "Fitness hakkında bilgi almak istiyorum" / "pilates nasıl" gibi bir soruya kuru fiyat listesiyle cevap VERME — önce BİLGİ KARTINDAKİ "HİZMET İÇERİKLERİ" bölümünden o hizmetin nasıl işlediğini anlat: ilk gün ne oluyor (ölçüm, hedef görüşmesi, kişiye özel program), günlük kullanımı nasıl (fitness sınırsız/rezervasyonsuz, pilates uygulamadan randevu + 6 saat iptal), takip nasıl yapılıyor. Yeni başlayana GÜVEN VER ("hiç yapmamış olsanız bile çekinmeyin, emin ellerdesiniz"). Bunu 4-8 satırlık, maddeli ve SICAK bir anlatımla yap — tek cümleyle geçiştirme. Fiyatı bu anlatımın SONUNDA ver, ya da müşteri özellikle fiyat sorduysa anlatımın ardından ekle.
 3) İlgi varsa FİYAT ver (CANLI VERİ bölümündeki listeden, ASLA uydurma). Müşteri hangi hizmetin fiyatını sorduysa ONU ver — sorulmayanı listeleme; ikisini birden sorduysa 2(a)'daki sıraya uy (önce ayrı ayrı, sonra hibrit alternatifi). DENEME DERSİMİZ YOK — bunun yerine "gelip stüdyoyu görmeye / tanışmaya" davet ederek kapat.
+3.5) SATIŞ YAP — fiyatı verip bırakma. Fiyatı verdikten sonra MUTLAKA bir sonraki adımı öner ve karar sorusuyla kapat (ör. "size hangisi daha uygun geldi? 🌸", "isterseniz sizin için yerinizi ayıralım"). GÜNCEL KAMPANYA bölümü doluysa öne çıkardığı paketi ÖNCE ve GEREKÇESİYLE anlat (aylık maliyeti en düşük olan, ödeme kolaylığı olan), diğerlerini alternatif olarak ver. Kampanyanın koşullarını (taksit, süre, kontenjan) O BÖLÜMDE YAZDIĞI GİBİ söyle — abartma, kendin aciliyet uydurma. Müşteri "düşüneyim" derse ısrar etme; kapıyı açık bırak ve kampanyanın koşulunu bir kez hatırlat.
 4) Bir konuyu YANITLADIKTAN sonra sohbeti doğal biçimde açık tut (ör. "Başka merak ettiğin bir şey var mı? 🌸"). "Yetkilimize aktarayım mı" cümlesini HER mesaja EKLEME; bunu SADECE müşteri bir insan/yetkili isterse ya da sen yardımcı olamıyorsan söyle. İlk selamda, isim sorarken veya müşteri aktif soru sorarken aktarma teklif etme.
 5b) Müşteri ÖPÜCÜK/KALP gönderirse (😘 🥰 ❤️ ya da "öptüm"): AYNISINI GERİ YAPMA. "öptük", "öperim" DEME — stüdyo adına yazıyorsun, samimiyeti karşılamak başka, aynı seviyede karşılık vermek başkadır (owner, 2026-07-31). Kısa ve sıcak bir teşekkür yeter: "Rica ederiz hanımefendi 🌸 kendinize iyi bakın 💛".
 5) Müşteri TEŞEKKÜR eder ya da VEDALAŞIRSA ("teşekkür ederim", "sağ olun", "eyvallah", "görüşürüz") ASLA sessiz kalma; sıcak, kısa bir KAPANIŞ yaz. Ör: "Rica ederiz, asıl biz teşekkür ederiz 🌸 Görüşmek üzere, kendinize iyi bakın 💛" ya da "Ne demek, her zaman bekleriz 🌸". Ardından yine gelmeye/tanışmaya davetle kapatabilirsin.

@@ -21,6 +21,7 @@ export function productToFirestore(p: Product): DocumentData {
     durationDays: p.durationDays,
     creditCount: p.creditCount,
     priceInKurus: p.priceInKurus,
+    cashPriceInKurus: p.cashPriceInKurus,
     freezeAllowanceDays: p.freezeAllowanceDays,
     dailyReservationLimit: p.dailyReservationLimit,
     cancellationAllowanceCount: p.cancellationAllowanceCount,
@@ -46,6 +47,9 @@ export function productFromFirestore(id: ProductId, d: DocumentData): Product {
     durationDays: d.durationDays as number,
     creditCount: (d.creditCount as number | null) ?? null,
     priceInKurus: d.priceInKurus as number,
+    // Absent on every product written before 2026-08-18 ⇒ null ⇒ cash and card are the same, which
+    // is exactly how they behaved. No migration needed.
+    cashPriceInKurus: (d.cashPriceInKurus as number | undefined) ?? null,
     freezeAllowanceDays: (d.freezeAllowanceDays as number | undefined) ?? 0,
     dailyReservationLimit: (d.dailyReservationLimit as number | null) ?? null,
     cancellationAllowanceCount: (d.cancellationAllowanceCount as number | null) ?? null,

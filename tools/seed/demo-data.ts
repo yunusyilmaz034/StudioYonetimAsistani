@@ -349,6 +349,7 @@ async function product(
   const res = ok(
     await createProduct(catalogDeps, ctx, {
       name, category, serviceIds, type, durationDays, creditCount, priceInKurus,
+      cashPriceInKurus: null,
       freezeAllowanceDays, dailyReservationLimit, cancellationAllowanceCount: null, activeReservationLimit: null, entryAllowance: null,
       components: null,
       onlineSellable: false, memberSellable: false,

@@ -30,6 +30,7 @@ export interface ProductView {
   readonly durationDays: number
   readonly creditCount: number | null
   readonly priceInKurus: number
+  readonly cashPriceInKurus: number | null
   readonly freezeAllowanceDays: number
   readonly dailyReservationLimit: number | null
   readonly cancellationAllowanceCount: number | null
@@ -54,6 +55,7 @@ export async function listProducts(ctx: TenantContext): Promise<readonly Product
       durationDays: p.durationDays,
       creditCount: p.creditCount,
       priceInKurus: p.priceInKurus,
+      cashPriceInKurus: p.cashPriceInKurus,
       freezeAllowanceDays: p.freezeAllowanceDays,
       dailyReservationLimit: p.dailyReservationLimit,
       cancellationAllowanceCount: p.cancellationAllowanceCount,

@@ -23,6 +23,11 @@ export interface AiSettings {
   readonly identity: string // who it is + any persona notes
   readonly basics: string // hours, address, parking, transport, women-only — free text
   readonly policies: string // trial class, cancellation, freeze, first-visit — free text (catalogue-independent)
+  // The CURRENT campaign, in the owner's own words: what is being pushed, what the poster promises,
+  // what to say about instalments. Deliberately free text and deliberately separate from `policies` —
+  // a campaign ends, and the owner must be able to empty one field without re-reading the rest. Prices
+  // themselves still come from the live catalogue; this says what to DO with them.
+  readonly campaign: string
   readonly faq: readonly AiFaq[]
   readonly escalation: string // when to hand to a human (Işıl)
   readonly neverDo: string // hard "never" rules (no price haggling, no medical advice, no promises)
@@ -32,7 +37,7 @@ export interface AiSettings {
   readonly whatsappActive: boolean
 }
 
-const DEFAULT: AiSettings = { tone: '', identity: '', basics: '', policies: '', faq: [], escalation: '', neverDo: '', examples: '', whatsappActive: false }
+const DEFAULT: AiSettings = { tone: '', identity: '', basics: '', policies: '', campaign: '', faq: [], escalation: '', neverDo: '', examples: '', whatsappActive: false }
 
 export async function getAiSettingsAction(): Promise<AiSettings> {
   const ctx = await requireTenantContext(OPS)
@@ -45,6 +50,7 @@ const schema = z.object({
   identity: z.string().trim().max(2000),
   basics: z.string().trim().max(4000),
   policies: z.string().trim().max(4000),
+  campaign: z.string().trim().max(4000).default(''),
   faq: z.array(z.object({ q: z.string().trim().max(300), a: z.string().trim().max(1500) })).max(60),
   escalation: z.string().trim().max(2000),
   neverDo: z.string().trim().max(2000),

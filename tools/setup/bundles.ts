@@ -87,6 +87,7 @@ async function main(): Promise<void> {
 
   for (const b of BUNDLES) {
     const fields = {
+      cashPriceInKurus: null,
       name: b.name,
       category: b.category,
       serviceIds: [reformerId, fitnessId] as ServiceId[],

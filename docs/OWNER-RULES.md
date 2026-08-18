@@ -362,7 +362,8 @@ showed five names above a "5/8" that meant three bookings plus two seats held fo
 now lists `booked` / `attended` / `no_show` only — someone who cancelled is not on the class — and
 the counter says its own split out loud when seats are held.
 
-**OR-31 · One price. Cash, transfer and card are the same number.** (2026-08-06) The studio used to
+**OR-31 · One price. Cash, transfer and card are the same number.** (2026-08-06) — **superseded for
+Fitness by [OR-38](#or-38); still in force for Pilates, hybrid and PT.** The studio used to
 quote a cash list and add a KK/havale farkı on top — 10% on pilates and PT, a flat ₺1.000 on fitness.
 Every surface then had to explain which number it was showing, and the member met whichever one she
 happened to land on: the website printed the cash price, the checkout charged the card price, and the
@@ -405,6 +406,37 @@ and a payment records what was actually agreed. Editing the catalogue tomorrow c
 someone already paid for, which is why repricing needs no migration and no member communication about
 the past (owner: *"geçmişte bu paketleri alanları dokunma"*).
 
+
+<a id="or-38"></a>
+**OR-38 · Fitness has two prices again, and the gap is a number, not a rule.** (2026-08-18) The
+August campaign prices the three fitness packages differently in cash and on the card: the gaps are
+₺1.000, ₺1.250 and ₺2.500 — 11,8 %, 9,8 % and 12,8 %. Neither a fixed amount nor a percentage fits,
+so no category rule can express it, and OR-31's zeroed mechanism cannot carry it.
+
+So a product may now carry **its own cash price** (`product.cashPriceInKurus`, editable in Paketler ›
+ürün formu, empty by default). When it is set, `priceInKurus` is the **card** price and the field is
+the cash one; when it is empty the product is unchanged and the category rule still derives the card
+price from the base. `productPrices()` is the single place that knows which arrangement applies, and
+every surface reads it — desk sale, mobile app, marketing site, public price API, WhatsApp assistant.
+A product with one price returns both figures equal, so those surfaces keep showing one number.
+
+**The desk sale form pre-fills the CASH price** and adds the difference back for a non-cash method.
+The alternative — pre-filling `priceInKurus` — would have overcharged every cash sale of a fitness
+package by the campaign gap on the day the prices changed.
+
+**Instalments are still the bank's business (OR-31), with one exception the studio pays for itself:**
+12 Aylık is sold as *peşin fiyatına 3 taksit* — the member pays no vade farkı and the price does not
+change. 3 and 6 Aylık go to six instalments with the vade farkı applied by the payment institution.
+The interest-free arrangement lives in the PAYTR merchant panel (Peşin Fiyatına Taksit + Alt Limit),
+not in this repository; the studio's own `maxInstallments` was raised 3 → 6 so the six can be offered
+at all.
+
+**What the assistant is told, and where it comes from.** Prices are read live from the catalogue, as
+always. What to *do* with them — push 12 Aylık, name the interest-free instalments, mention limited
+capacity once without pressure, offer remote registration — is owner-editable text in Ayarlar › AI
+Ayarları › **Güncel kampanya**, and it deliberately contains **no numbers**: a price repeated there
+would be a second source of truth that goes stale the day the owner edits the first. When the
+campaign ends the owner empties that one field; nothing is deployed.
 **OR-32 · A price we came down on is a DISCOUNT, never a debt.** (2026-08-06) The single-price move
 (OR-31) raised every package, and the studio still comes down for individual members — a ₺5.000
 pilates package sold to a regular for ₺4.200. Recording that as ₺4.200 collected against a ₺5.000

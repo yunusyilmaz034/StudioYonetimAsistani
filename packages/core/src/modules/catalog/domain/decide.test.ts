@@ -29,6 +29,7 @@ const product = (over: Partial<Product> = {}): Product => ({
   durationDays: 60,
   creditCount: 8,
   priceInKurus: 800000,
+  cashPriceInKurus: null,
   freezeAllowanceDays: 14,
   dailyReservationLimit: null,
   cancellationAllowanceCount: null,
@@ -54,7 +55,8 @@ describe('decideUpdateProduct', () => {
   // changed FROM and TO. This is the Audit Log's "eski değer → yeni değer", and it is why a price
   // edit can be explained six months later.
   it('records the changed fields with their before and after values', () => {
-    const events = decideUpdateProduct(ctx, product(), product({ priceInKurus: 900000, active: false }))
+    const events = decideUpdateProduct(ctx, product(), product({ priceInKurus: 900000,
+  cashPriceInKurus: null, active: false }))
     expect(events[0]?.payload).toEqual({
       changedFields: ['priceInKurus', 'active'],
       changes: [

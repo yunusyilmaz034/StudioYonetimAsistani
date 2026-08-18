@@ -20,6 +20,8 @@ export interface ProductFields {
   readonly durationDays: number
   readonly creditCount: number | null
   readonly priceInKurus: number
+  /** Desk cash price when it differs; null ⇒ same as the card price. */
+  readonly cashPriceInKurus: number | null
   readonly freezeAllowanceDays: number
   readonly dailyReservationLimit: number | null
   readonly cancellationAllowanceCount: number | null
@@ -73,6 +75,7 @@ export async function updateProduct(
     durationDays: input.durationDays,
     creditCount: input.creditCount,
     priceInKurus: input.priceInKurus,
+    cashPriceInKurus: input.cashPriceInKurus,
     freezeAllowanceDays: input.freezeAllowanceDays,
     dailyReservationLimit: input.dailyReservationLimit,
     cancellationAllowanceCount: input.cancellationAllowanceCount,

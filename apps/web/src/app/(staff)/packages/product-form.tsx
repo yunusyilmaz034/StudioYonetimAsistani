@@ -69,6 +69,8 @@ export function ProductForm({
   const [durationDays, setDurationDays] = useState(product?.durationDays ?? 30)
   const [creditCount, setCreditCount] = useState(product?.creditCount ?? 8)
   const [priceTl, setPriceTl] = useState(product ? tl(product.priceInKurus) : '')
+  // Boş bırakılırsa nakit = kart. Kampanya dışındaki her ürün böyle çalışır ve öyle kalır.
+  const [cashTl, setCashTl] = useState(product?.cashPriceInKurus != null ? tl(product.cashPriceInKurus) : '')
   const [freezeDays, setFreezeDays] = useState(product?.freezeAllowanceDays ?? 0)
   const [dailyLimit, setDailyLimit] = useState<number | null>(product?.dailyReservationLimit ?? null)
   const [activeLimit, setActiveLimit] = useState<number | null>(product?.activeReservationLimit ?? null)
@@ -120,6 +122,7 @@ export function ProductForm({
       durationDays,
       creditCount: isBundle ? null : type === 'credit' ? creditCount : null,
       priceInKurus: toKurus(priceTl),
+      cashPriceInKurus: cashTl.trim() ? toKurus(cashTl) : null,
       freezeAllowanceDays: freezeDays,
       dailyReservationLimit: dailyLimit,
       cancellationAllowanceCount: unlimitedCancel && !isFitness ? null : cancelCount,
@@ -263,8 +266,21 @@ export function ProductForm({
             <Input id="p-unlim" value="Sınırsız" disabled />
           </Field>
         )}
-        <Field id="p-price" label="Fiyat (TL)">
+        <Field id="p-price" label="Kart fiyatı (TL)">
           <Input id="p-price" type="number" min={0} step="0.01" required value={priceTl} onChange={(e) => setPriceTl(e.target.value)} />
+        </Field>
+        {/* Deliberately optional. A studio with one price never fills it in and nothing changes;
+            filling it in is what makes the member app say "kart ile X · stüdyoda nakit Y". */}
+        <Field id="p-cash" label="Nakit fiyatı (TL) — boşsa kart fiyatıyla aynı">
+          <Input
+            id="p-cash"
+            type="number"
+            min={0}
+            step="0.01"
+            placeholder="—"
+            value={cashTl}
+            onChange={(e) => setCashTl(e.target.value)}
+          />
         </Field>
         <Field id="p-freeze" label="Dondurma hakkı (gün)">
           <Input id="p-freeze" type="number" min={0} value={freezeDays} onChange={(e) => setFreezeDays(Math.max(0, Number(e.target.value) || 0))} />

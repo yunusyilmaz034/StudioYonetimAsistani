@@ -744,7 +744,11 @@ function AssignForm({
   // Defaults follow the chosen product + start date.
   const autoUntil = useMemo(() => (product ? addDays(validFrom, product.durationDays) : ''), [product, validFrom])
   const effectiveUntil = validUntil || autoUntil
-  const effectivePrice = priceTl !== '' ? priceTl : product ? (product.priceInKurus / 100).toString() : ''
+  // The form's base is the CASH price. `priceInKurus` is the card figure on a product that carries its
+  // own cash price (the campaign case), and pre-filling that would quietly overcharge every cash sale —
+  // the surcharge below is then added back for a non-cash method, landing on the same total either way.
+  const basePriceKurus = product ? product.cashPriceInKurus ?? product.priceInKurus : 0
+  const effectivePrice = priceTl !== '' ? priceTl : product ? (basePriceKurus / 100).toString() : ''
   // The amount field defaults to the FULL amount owed — a normal sale is fully paid, so no phantom debt,
   // for ANY method. Non-cash (incl. Sanal POS / Link) adds the studio surcharge to what is owed. This is
   // the ONE editable amount the admin always controls (kontrol her zaman admin'de): for manual methods it
@@ -854,7 +858,7 @@ function AssignForm({
           <SelectContent className="max-h-[60vh] min-w-[min(28rem,88vw)]">
             {products.map((p) => (
               <SelectItem key={p.id} value={p.id} className="whitespace-nowrap py-2.5">
-                {p.name} · {tl(p.priceInKurus)}
+                {p.name} · {tl(p.cashPriceInKurus ?? p.priceInKurus)}
               </SelectItem>
             ))}
           </SelectContent>

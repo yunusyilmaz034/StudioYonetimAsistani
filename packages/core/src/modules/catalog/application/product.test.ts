@@ -23,6 +23,7 @@ const FIELDS = {
   durationDays: 30,
   creditCount: 8,
   priceInKurus: 420_000,
+  cashPriceInKurus: null,
   freezeAllowanceDays: 0,
   dailyReservationLimit: null,
   cancellationAllowanceCount: null,

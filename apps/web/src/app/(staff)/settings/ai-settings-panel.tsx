@@ -22,6 +22,7 @@ export function AiSettingsPanel({ canEdit }: { canEdit: boolean }) {
   const [policies, setPolicies] = useState('')
   const [faq, setFaq] = useState<AiFaq[]>([])
   const [escalation, setEscalation] = useState('')
+  const [campaign, setCampaign] = useState('')
   const [neverDo, setNeverDo] = useState('')
   const [examples, setExamples] = useState('')
   const [whatsappActive, setWhatsappActive] = useState(false)
@@ -37,6 +38,7 @@ export function AiSettingsPanel({ canEdit }: { canEdit: boolean }) {
         setPolicies(s.policies)
         setFaq(s.faq.length > 0 ? [...s.faq] : [])
         setEscalation(s.escalation)
+        setCampaign(s.campaign)
         setNeverDo(s.neverDo)
         setExamples(s.examples)
         setWhatsappActive(s.whatsappActive)
@@ -59,6 +61,7 @@ export function AiSettingsPanel({ canEdit }: { canEdit: boolean }) {
         policies: policies.trim(),
         faq: faq.map((f) => ({ q: f.q.trim(), a: f.a.trim() })).filter((f) => f.q || f.a),
         escalation: escalation.trim(),
+        campaign: campaign.trim(),
         neverDo: neverDo.trim(),
         examples: examples.trim(),
         whatsappActive,
@@ -117,6 +120,17 @@ export function AiSettingsPanel({ canEdit }: { canEdit: boolean }) {
 
       <Section title="Politikalar" hint="Deneme dersi, iptal, dondurma, ilk gelişte ne getirmeli — katalogda olmayan kurallar.">
         {field('Politikalar', 'Serbestçe yaz.', policies, setPolicies, 5, 'Örn.\nDeneme dersi: İlk ders ücretsiz, randevuyla.\nİlk gelişte: Rahat kıyafet + çorap yeterli.\nDondurma: Aylık paketlerde 1 hafta hakkı.')}
+      </Section>
+
+      <Section title="Güncel kampanya" hint="Şu an yürüyen kampanya, taksit imkânı, öne çıkarılacak paket. Kampanya bitince burayı BOŞALT.">
+        {field(
+          'Kampanya notu',
+          'Fiyatları buraya YAZMA — AI onları katalogdan okuyor. Buraya ne satılmak istendiğini ve ödeme koşullarını yaz.',
+          campaign,
+          setCampaign,
+          5,
+          'Örn.\n12 aylık paketi öne çıkar.\nTaksit: kredi kartına 6 taksite kadar, vade farkını ödeme kuruluşu belirler.\nKontenjan sınırlı, kayıtlar sıralı ilerliyor.',
+        )}
       </Section>
 
       <Section title="Sık Sorulan Sorular" hint="Sık gelen sorular ve verdiğiniz gerçek cevaplar. (WhatsApp geçmişinizden birlikte doldurabiliriz.)">

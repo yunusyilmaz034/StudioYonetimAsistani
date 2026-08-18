@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation'
 
-import { cardSurchargeKurus } from '@studio/core'
+import { productPrices } from '@studio/core'
 import { requirePageAccess } from '@/server/auth'
 import { listTrainersAction } from '@/server/actions/bulk-reservations'
 import { getStudioSettingsAction } from '@/server/actions/settings'
@@ -36,7 +36,7 @@ export default async function MemberWorkspacePage({
   // KK/havale farkı per product (category rule → kuruş), computed server-side so the client never
   // repeats the formula. Reception may still override the charged amount per sale.
   const surchargeByProduct: Record<string, number> = Object.fromEntries(
-    products.map((p) => [p.id, cardSurchargeKurus(p.priceInKurus, p.category, settings?.paymentSurcharge)]),
+    products.map((p) => [p.id, productPrices(p, settings?.paymentSurcharge).cardExtraKurus]),
   )
 
   return (

@@ -15,6 +15,7 @@ import {
   available,
   cancelEntitlement,
   cardSurchargeKurus,
+  productPrices,
   entriesUsed,
   FirestoreCatalogRepository,
   FirestoreEntitlementRepository,
@@ -186,8 +187,19 @@ export async function assignSubscriptionAction(input: unknown) {
   // is OWED (priceAgreed). Added once, server-side — the client sends the base price. #4/#12: the amount
   // is a setting, never a literal; 0 when unset.
   const settings = await new FirestoreSchedulingRepository(adminDb()).getStudioSettings(ctx)
-  const baseKurus = p.priceAgreedKurus ?? product.priceInKurus
-  const surchargeKurus = p.method !== 'cash' ? cardSurchargeKurus(baseKurus, product.category, settings?.paymentSurcharge) : 0
+  // The base is the CASH price — what a product costs before any card difference — and the difference
+  // comes from the same helper the app, the site and the assistant use, so the four can never disagree.
+  // Reception overriding the price keeps the surcharge derived from the CATEGORY, not from the override:
+  // an explicit cash price belongs to the product's own two figures, and a hand-typed base is a
+  // negotiated cash amount, not a new campaign.
+  const prices = productPrices(product, settings?.paymentSurcharge)
+  const baseKurus = p.priceAgreedKurus ?? prices.cashKurus
+  const surchargeKurus =
+    p.method === 'cash'
+      ? 0
+      : p.priceAgreedKurus == null
+        ? prices.cardExtraKurus
+        : cardSurchargeKurus(baseKurus, product.category, settings?.paymentSurcharge)
   const priceAgreedKurus = baseKurus + surchargeKurus
 
   const grant: Grant =
