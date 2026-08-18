@@ -1096,6 +1096,61 @@ site went first, then the WhatsApp function, then the panel; reception was told 
 live by the owner (2026-08-18).** That setting is outside this repository and nothing here can check
 it — see OR-38 for why that matters when the campaign ends.
 
+### 2026-08-18 (akşam) — the contract set, and a build that had been failing silently
+
+**TAMI would not advance the merchant application** until the site carried four things: a domestic
+address with a telephone, a privacy policy, cancellation terms and a distance-sales contract. Those
+were the day's critical path. What they require underneath turned out to be larger, and most of it
+was built: `/iletisim`, `/kvkk`, `/iptal-iade`, `/mesafeli-satis`, `/on-bilgilendirme`,
+`/acik-riza-saglik`, all public, all on one shell, all linked from every page of the marketing site's
+footer along with the seller's identity. `/gizlilik` stopped carrying a personal Gmail address as the
+data controller's contact.
+
+**The contract is generated for the package.** `?s=&p=` reads the same public catalogue action the
+sales page and the marketing site read, so the figure printed in the Mesafeli Satış Sözleşmesi is the
+figure PayTR will charge. Verified live against two products before the reply went to TAMI.
+
+**Checkout now refuses without consent, server-side.** Three mandatory boxes (KVKK · ÖBF+MSS · the
+14-day early-start acknowledgement), none pre-ticked, each link opening in a new tab so reading a
+contract does not empty the form. Marketing consent is separate, optional, labelled *İsteğe bağlı*,
+and flips `notificationPrefs.campaign` — the flag the notification domain actually consults.
+
+**Consents name their version.** `LEGAL_DOCS[…].version` in `apps/web/src/lib/legal.ts`, stamped onto
+the payment intent at acceptance and copied to the member as `legalConsents` at fulfilment. The audit
+that preceded this found the existing `kvkkConsentAt` died on the intent and was unqueryable from the
+member it belonged to. **Bumping a version is a legal act** — change the text and the version in one
+commit, and never edit a version's text after somebody has accepted it.
+
+**Every claim was checked against the code before it was written down.** There is no TC kimlik field,
+no address field and no accounting integration, so the KVKK notice claims none of them; the
+cancellation window is stated as the 6 hours the software enforces, not the 12/6 split the brief
+asked for, which would need a domain change (owner chose the text match — OR-38's neighbour).
+
+**The build had been failing since 11:25 UTC and nobody knew.** `SEGMENT_LABEL`/`SEGMENT_KEYS` were
+exported from a `'use server'` file, which may export async functions and nothing else. `pnpm check`
+does not run `next build` (OR-15), so the gate stayed green while App Hosting rejected every push —
+including the notification-segment fix those constants had been added for. Moved to
+`apps/web/src/lib/segments.ts`. **Run `pnpm --filter web build` before pushing anything that touches a
+`'use server'` file**; it is the only thing that catches this class.
+
+**The app announcement went out**: 124 members, WhatsApp + in-app, 248 delivery attempts, zero errors
+(`cor_01M0AK8EP7FQ2N3BQEZVCT6AK7`). The earlier failures were the broken build plus a stale tab —
+"Kaydedilemedi" is what a dead Server Action id looks like from the UI, and the logs said so
+outright.
+
+**Not built, and each one is a real gap rather than a nicety:**
+
+1. **No purchase e-mail with the details.** `package_created` and `payment_received` fire, but the
+   template carries no amount, date, duration or contract copy — §19 of the brief.
+2. **The contract TEXT is not snapshotted**, only its version. Proof holds exactly as long as nobody
+   edits a version in place.
+3. **Health data is still collected with no consent gate.** `/acik-riza-saglik` exists and
+   `gizlilik` has always promised açık rıza, but `server/actions/training.ts` checks role only. This
+   is the one gap where the published policy and the code disagree.
+4. **İYS** — no integration, no entegrasyon noktası yet.
+5. **Reception's own sales take none of these consents** — only the online checkout does.
+6. **Kamera bilgilendirme levhası** at the physical entrance — the owner's task, not code.
+
 ## Where 2026-08-09 ended — the three things somebody else has to do
 
 Everything below is outside this repository. Nothing in the code is blocking any of them, and none

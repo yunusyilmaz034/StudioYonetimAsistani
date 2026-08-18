@@ -443,6 +443,46 @@ capacity once without pressure, offer remote registration — is owner-editable 
 Ayarları › **Güncel kampanya**, and it deliberately contains **no numbers**: a price repeated there
 would be a second source of truth that goes stale the day the owner edits the first. When the
 campaign ends the owner empties that one field; nothing is deployed.
+
+<a id="or-39"></a>
+**OR-39 · A legal text is versioned, and a version is never edited in place.** (2026-08-18) Every
+contract, notice and consent text carries a version string in `apps/web/src/lib/legal.ts`. When a
+customer accepts one, the version is what gets stored — on the payment intent at acceptance, on the
+member as `legalConsents` at fulfilment.
+
+**Why it is a rule and not a convention.** A consent that does not name a version proves nothing.
+"She accepted the terms" stops meaning anything the moment the terms are edited: the text she agreed
+to no longer exists anywhere, and the record points at whatever is current. So changing the wording
+of a legal page means bumping its version **in the same commit**, and a version that somebody has
+already accepted is frozen — you add a new one, you do not correct the old one.
+
+**What the texts may say.** Only what the software actually does. Before these pages were written the
+codebase was audited against the brief, and three things in the brief were not true of the system:
+there is no TC kimlik field, no address field, and no accounting or e-fatura integration. None of
+them appear in the KVKK notice. The cancellation window is stated as the **6 hours the code
+enforces**, not the 12/6 time-of-day split the brief asked for — the owner chose to match the text to
+the system rather than promise a behaviour that does not exist yet (*"metne 6 saat yaz, kodu
+değiştirme"*). If that rule ever changes, the code changes first.
+
+**Reformer 16 and 24 Ders are named in the contracts** at the owner's instruction, though both are
+currently deactivated and carry no price. They cannot be sold until he sets prices; the Ön
+Bilgilendirme Formu is generated per package, so it will be correct the moment they are.
+
+<a id="or-40"></a>
+**OR-40 · `pnpm check` cannot see a `'use server'` violation. Run the real build.** (2026-08-18)
+App Hosting rejected every push for two hours and nine minutes while the gate stayed green:
+`SEGMENT_LABEL` and `SEGMENT_KEYS` had been exported from a `'use server'` file, which may export
+**async functions and nothing else**. TypeScript accepts it, eslint accepts it, dependency-cruiser
+accepts it, and `next build` fails with *"A 'use server' file can only export async functions, found
+object"*.
+
+The cost was not the outage — the panel kept serving the old revision — it was the **silence**. A
+notification fix shipped that morning never went live, the owner tried to use it, and the failure
+looked like a bug in the feature rather than a deploy that had never happened. OR-15 already said the
+gate does not run `next build`; this is what that costs in practice.
+
+**So: touch a `'use server'` file, run `pnpm --filter web build` before pushing.** Values belong in
+`lib/`, actions belong in `server/actions/`, and the two do not mix.
 **OR-32 · A price we came down on is a DISCOUNT, never a debt.** (2026-08-06) The single-price move
 (OR-31) raised every package, and the studio still comes down for individual members — a ₺5.000
 pilates package sold to a regular for ₺4.200. Recording that as ₺4.200 collected against a ₺5.000
