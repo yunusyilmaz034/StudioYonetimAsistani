@@ -36,7 +36,7 @@ export default async function PreInfoPage({
 
       <LegalSection title="2. Sözleşme konusu hizmet">
         {product ? (
-          <dl className="rounded-xl border border-neutral-200 bg-neutral-50/60 px-4 py-2">
+          <dl className="rounded-xl border border-border bg-muted/40 px-4 py-2">
             <LegalRow label="Paket adı">{product.name}</LegalRow>
             <LegalRow label="Hizmet">Stüdyoda yüz yüze sunulan spor hizmeti (kadınlara özel)</LegalRow>
             {product.description ? <LegalRow label="Paket içeriği">{product.description}</LegalRow> : null}
@@ -62,7 +62,7 @@ export default async function PreInfoPage({
             </LegalRow>
           </dl>
         ) : (
-          <p className="rounded-lg border border-neutral-200 bg-neutral-50 p-3">
+          <p className="rounded-lg border border-border bg-muted/40 p-3">
             Bu form, satın alacağınız pakete göre doldurulur. Paketinize ait ad, içerik, süre ve
             toplam bedel bilgileri <strong>ödeme adımından önce</strong> bu formda size gösterilir.
             Aşağıdaki genel koşullar tüm paketler için geçerlidir.
@@ -82,11 +82,11 @@ export default async function PreInfoPage({
         </p>
         <p>
           <strong>Cayma hakkının kullanılması.</strong> {RULES.withdrawalDays} günlük süre içinde{' '}
-          <a className="text-[#7A1F3D] underline" href={`mailto:${SELLER.email}`}>
+          <a className="text-primary underline" href={`mailto:${SELLER.email}`}>
             {SELLER.email}
           </a>{' '}
           adresine e-posta göndermeniz ya da{' '}
-          <a className="text-[#7A1F3D] underline" href={`tel:${SELLER.phoneE164}`}>
+          <a className="text-primary underline" href={`tel:${SELLER.phoneE164}`}>
             {SELLER.phone}
           </a>{' '}
           numarasından yazılı olarak bildirmeniz yeterlidir. Bildiriminizin bize ulaşmasından
@@ -107,7 +107,7 @@ export default async function PreInfoPage({
         <p>
           Rezervasyon iptali, dondurma, sağlık nedeniyle iade ve kredi kullanımına ilişkin koşulların
           tamamı{' '}
-          <a className="text-[#7A1F3D] underline" href="/iptal-iade">
+          <a className="text-primary underline" href="/iptal-iade">
             İptal ve İade Koşulları
           </a>{' '}
           metninde yer alır ve bu formun ayrılmaz parçasıdır. Özetle: Reformer ve grup derslerinde
@@ -132,7 +132,7 @@ export default async function PreInfoPage({
         <p>
           Bu Ön Bilgilendirme Formu, ödeme adımından önce tarafınıza sunulur. Ödeme sayfasındaki
           onay kutusunu işaretleyerek bu formu ve{' '}
-          <a className="text-[#7A1F3D] underline" href="/mesafeli-satis">
+          <a className="text-primary underline" href="/mesafeli-satis">
             Mesafeli Satış Sözleşmesi
           </a>
           'ni okuduğunuzu ve kabul ettiğinizi beyan etmiş olursunuz.

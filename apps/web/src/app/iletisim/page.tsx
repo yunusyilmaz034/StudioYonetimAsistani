@@ -29,13 +29,13 @@ export default function ContactPage() {
         <ul className="list-disc space-y-1 pl-5">
           <li>
             <strong>Telefon / WhatsApp:</strong>{' '}
-            <a className="text-[#7A1F3D] underline" href={`tel:${SELLER.phoneE164}`}>
+            <a className="text-primary underline" href={`tel:${SELLER.phoneE164}`}>
               {SELLER.phone}
             </a>
           </li>
           <li>
             <strong>E-posta:</strong>{' '}
-            <a className="text-[#7A1F3D] underline" href={`mailto:${SELLER.email}`}>
+            <a className="text-primary underline" href={`mailto:${SELLER.email}`}>
               {SELLER.email}
             </a>
           </li>

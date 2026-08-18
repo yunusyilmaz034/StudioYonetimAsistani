@@ -86,7 +86,7 @@ export default function KvkkPage() {
           verilere ihtiyaç duyan eğitmen ve yönetici rolleriyle sınırlı biçimde erişilebilir ve açık
           rızanızı geri almanız hâlinde işlenmesine son verilir. Sağlık verilerinize ilişkin açık rıza
           metnine{' '}
-          <a className="text-[#7A1F3D] underline" href="/acik-riza-saglik">
+          <a className="text-primary underline" href="/acik-riza-saglik">
             buradan
           </a>{' '}
           ulaşabilirsiniz.
@@ -200,7 +200,7 @@ export default function KvkkPage() {
         </ul>
         <p>
           haklarına sahipsiniz. Başvurularınızı{' '}
-          <a className="text-[#7A1F3D] underline" href={`mailto:${SELLER.email}`}>
+          <a className="text-primary underline" href={`mailto:${SELLER.email}`}>
             {SELLER.email}
           </a>{' '}
           adresine e-posta ile veya {SELLER.address} adresine yazılı olarak iletebilirsiniz.

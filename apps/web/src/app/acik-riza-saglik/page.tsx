@@ -70,7 +70,7 @@ export default function HealthConsentPage() {
         <p>
           Rızanızı dilediğiniz zaman, herhangi bir gerekçe göstermeden geri alabilirsiniz.
           Resepsiyona sözlü olarak bildirmeniz ya da{' '}
-          <a className="text-[#7A1F3D] underline" href={`mailto:${SELLER.email}`}>
+          <a className="text-primary underline" href={`mailto:${SELLER.email}`}>
             {SELLER.email}
           </a>{' '}
           adresine e-posta göndermeniz yeterlidir. Geri alma, o ana kadar hukuka uygun şekilde
@@ -79,7 +79,7 @@ export default function HealthConsentPage() {
       </LegalSection>
 
       <LegalSection title="Rıza beyanı">
-        <p className="rounded-lg border border-neutral-300 bg-neutral-50 p-4">
+        <p className="rounded-lg border border-border bg-muted/40 p-4">
           “Sağlık bilgilerimin, sunulacak spor hizmetinin güvenli ve kişisel durumuma uygun şekilde
           yürütülmesi amacıyla yukarıda açıklanan kapsamda işlenmesine ilişkin bu metni okudum ve{' '}
           <strong>açık rıza veriyorum</strong>.”

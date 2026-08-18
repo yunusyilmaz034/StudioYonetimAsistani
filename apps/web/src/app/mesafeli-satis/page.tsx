@@ -57,7 +57,7 @@ export default async function DistanceSalesPage({
 
       <LegalSection title="Madde 3 — Sözleşme konusu hizmet ve bedeli">
         {product ? (
-          <dl className="rounded-xl border border-neutral-200 bg-neutral-50/60 px-4 py-2">
+          <dl className="rounded-xl border border-border bg-muted/40 px-4 py-2">
             <LegalRow label="Paket">{product.name}</LegalRow>
             {product.description ? <LegalRow label="İçerik">{product.description}</LegalRow> : null}
             <LegalRow label="Paket süresi">{product.durationDays} gün</LegalRow>
@@ -74,7 +74,7 @@ export default async function DistanceSalesPage({
             <LegalRow label="Ödeme şekli">Kredi kartı ile online ödeme (tek çekim veya taksitli)</LegalRow>
           </dl>
         ) : (
-          <p className="rounded-lg border border-neutral-200 bg-neutral-50 p-3">
+          <p className="rounded-lg border border-border bg-muted/40 p-3">
             Satın aldığınız paketin adı, içeriği, süresi ve KDV dâhil bedeli, ödeme adımından önce bu
             sözleşmede ve Ön Bilgilendirme Formu'nda size gösterilir.
           </p>
@@ -160,11 +160,11 @@ export default async function DistanceSalesPage({
       <LegalSection title="Madde 9 — Kişisel verilerin korunması">
         <p>
           ALICI'nın kişisel verileri, 6698 sayılı KVKK ve{' '}
-          <a className="text-[#7A1F3D] underline" href="/kvkk">
+          <a className="text-primary underline" href="/kvkk">
             KVKK Aydınlatma Metni
           </a>{' '}
           ile{' '}
-          <a className="text-[#7A1F3D] underline" href="/gizlilik">
+          <a className="text-primary underline" href="/gizlilik">
             Gizlilik ve Güvenlik Politikası
           </a>{' '}
           çerçevesinde işlenir. <strong>Kart bilgileri SATICI tarafından saklanmaz</strong>; ödeme,

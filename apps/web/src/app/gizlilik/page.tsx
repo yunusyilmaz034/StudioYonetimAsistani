@@ -1,7 +1,8 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 
-import { LEGAL_UPDATED, SELLER } from '@/lib/legal'
+import { LegalSection, LegalShell } from '@/components/legal-shell'
+import { LEGAL_DOCS, SELLER } from '@/lib/legal'
 
 // PUBLIC privacy policy — the URL the App Store / Play Store listings point to, and the KVKK
 // aydınlatma metni for members. It lives OUTSIDE the (staff) route group, so it carries no admin
@@ -17,50 +18,34 @@ const CONTROLLER = {
   phone: SELLER.phone,
   brand: SELLER.brand,
 }
-const UPDATED = LEGAL_UPDATED
 
 export const metadata: Metadata = {
   title: 'Gizlilik Politikası ve KVKK Aydınlatma Metni · Pilates Fitness by Işıl',
   description: 'Kişisel verilerinizi nasıl işlediğimize dair aydınlatma metni ve gizlilik politikası.',
 }
 
-function Section({ id, title, children }: { id: string; title: string; children: React.ReactNode }) {
-  return (
-    <section id={id} className="space-y-3">
-      <h2 className="text-xl font-semibold text-neutral-900">{title}</h2>
-      <div className="space-y-3 text-[15px] leading-relaxed text-neutral-700">{children}</div>
-    </section>
-  )
-}
+const Section = LegalSection
 
 export default function PrivacyPage() {
   return (
-    <main className="mx-auto max-w-3xl px-5 py-10 sm:py-14">
-      <header className="space-y-2 border-b border-neutral-200 pb-6">
-        <p className="text-sm font-medium tracking-wide text-[#7A1F3D] uppercase">{CONTROLLER.brand}</p>
-        <h1 className="text-2xl font-bold text-neutral-900 sm:text-3xl">
-          Gizlilik Politikası ve KVKK Aydınlatma Metni
-        </h1>
-        <p className="text-sm text-neutral-500">Son güncelleme: {UPDATED}</p>
-      </header>
-
-      <nav className="mt-6 rounded-xl border border-neutral-200 bg-neutral-50 p-4 text-[15px]">
-        <p className="text-neutral-700">
+    <LegalShell title="Gizlilik ve Güvenlik Politikası" version={LEGAL_DOCS.privacy.version}>
+      <nav className="mt-6 rounded-xl border border-border bg-muted/40 p-4 text-[15px]">
+        <p className="text-muted-foreground">
           Aydınlatma ile açık rıza ayrı hukuki işlemlerdir. Kişisel verilerinizin hangi hukuki sebeple
           işlendiğine dair ayrıntılı metin için{' '}
-          <Link href="/kvkk" className="text-[#7A1F3D] underline">
+          <Link href="/kvkk" className="text-primary underline">
             KVKK Aydınlatma Metni
           </Link>
           , sağlık verileriniz için{' '}
-          <Link href="/acik-riza-saglik" className="text-[#7A1F3D] underline">
+          <Link href="/acik-riza-saglik" className="text-primary underline">
             Açık Rıza Metni
           </Link>
           , satın alma koşulları için{' '}
-          <Link href="/mesafeli-satis" className="text-[#7A1F3D] underline">
+          <Link href="/mesafeli-satis" className="text-primary underline">
             Mesafeli Satış Sözleşmesi
           </Link>{' '}
           ve{' '}
-          <Link href="/iptal-iade" className="text-[#7A1F3D] underline">
+          <Link href="/iptal-iade" className="text-primary underline">
             İptal ve İade Koşulları
           </Link>{' '}
           sayfalarına bakabilirsiniz.
@@ -252,7 +237,7 @@ export default function PrivacyPage() {
         <Section id="basvuru" title="12. Başvuru">
           <p>
             Haklarınızı kullanmak için taleplerinizi{' '}
-            <a href={`mailto:${CONTROLLER.email}`} className="font-medium text-[#7A1F3D] underline">
+            <a href={`mailto:${CONTROLLER.email}`} className="font-medium text-primary underline">
               {CONTROLLER.email}
             </a>{' '}
             adresine iletebilirsiniz. Başvurunuz en geç 30 gün içinde sonuçlandırılır.
@@ -272,10 +257,6 @@ export default function PrivacyPage() {
           </p>
         </Section>
       </div>
-
-      <footer className="mt-12 border-t border-neutral-200 pt-6 text-sm text-neutral-500">
-        © 2026 {CONTROLLER.brand}. Tüm hakları saklıdır.
-      </footer>
-    </main>
+    </LegalShell>
   )
 }

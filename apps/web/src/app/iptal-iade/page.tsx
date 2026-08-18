@@ -54,7 +54,7 @@ export default function RefundPage() {
             iade edilip edilmeyeceği stüdyo yönetiminin değerlendirmesine bağlıdır.
           </li>
         </ul>
-        <p className="rounded-lg border border-neutral-200 bg-neutral-50 p-3 text-sm">
+        <p className="rounded-lg border border-border bg-muted/40 p-3 text-sm">
           Paketinize özel farklı bir iptal süresi veya iptal hakkı sayısı tanımlanmışsa, satın alma
           sırasında size gösterilen Ön Bilgilendirme Formu'ndaki süre geçerlidir.
         </p>
@@ -76,11 +76,11 @@ export default function RefundPage() {
         </p>
         <p>
           Cayma hakkınızı kullanmak için {RULES.withdrawalDays} günlük süre dolmadan{' '}
-          <a className="text-[#7A1F3D] underline" href={`mailto:${SELLER.email}`}>
+          <a className="text-primary underline" href={`mailto:${SELLER.email}`}>
             {SELLER.email}
           </a>{' '}
           adresine e-posta göndermeniz veya{' '}
-          <a className="text-[#7A1F3D] underline" href={`tel:${SELLER.phoneE164}`}>
+          <a className="text-primary underline" href={`tel:${SELLER.phoneE164}`}>
             {SELLER.phone}
           </a>{' '}
           numarasından bize yazılı olarak bildirmeniz yeterlidir. Bildiriminizin bize ulaştığı
