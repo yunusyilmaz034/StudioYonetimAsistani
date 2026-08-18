@@ -34,7 +34,7 @@ export const TEMPLATES: Readonly<Record<string, NotificationTemplate>> = {
       'girişte QR kodunu okutuyorsun.\n\n' +
       'iPhone: https://apps.apple.com/tr/app/id6792723951\n' +
       'Android: https://play.google.com/store/apps/details?id=com.pilatesfitnessbyisil.member\n\n' +
-      'Girişte telefon numaranı kullanıyorsun; şifreni ilk girişte kendin belirliyorsun.',
+      'Girişte telefon numaranı kullanıyorsun. Daha önce şifre oluşturduysan onu kullan; oluşturmadıysan ilk girişte kendin belirliyorsun.',
   },
   booking_confirmed: {
     id: 'booking_confirmed',
