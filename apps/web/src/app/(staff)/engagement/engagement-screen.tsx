@@ -148,6 +148,7 @@ function Suggestions({ initial }: { initial: EngagementSuggestion[] }) {
 // ── Composer ──────────────────────────────────────────────────────────────────────────────────
 function Composer({ content, segments }: { content: EngagementContent[]; segments: SegmentInfo[] }) {
   const [segment, setSegment] = useState<SegmentKey>('all')
+  const [result, setResult] = useState<{ sent: number; failed: number; total: number } | null>(null)
   const [subject, setSubject] = useState('')
   const [body, setBody] = useState('')
   const [sending, setSending] = useState(false)
@@ -173,6 +174,9 @@ function Composer({ content, segments }: { content: EngagementContent[]; segment
       const res = await sendEngagementAction({ subject: subject.trim(), body: body.trim(), segment })
       if (res.ok) {
         toast.success(`${res.value.sent} üyeye gönderildi${res.value.failed ? `, ${res.value.failed} başarısız` : ''}.`)
+        // Kept on screen, not only in a toast. A toast for a 158-person send is gone in four seconds
+        // and the one number worth remembering — how many failed — goes with it.
+        setResult({ sent: res.value.sent, failed: res.value.failed, total: res.value.total })
         setSubject('')
         setBody('')
       } else toast.error('Gönderilemedi.')
@@ -236,9 +240,32 @@ function Composer({ content, segments }: { content: EngagementContent[]; segment
         </section>
       ) : null}
 
+      {/* The label CHANGES while it works. A bare spinner on a 158-person send says only "something
+          is happening", and the honest question underneath it — to how many, and is it stuck? — has
+          no answer on screen. The count is what makes the wait legible. */}
       <Button onClick={() => void send()} disabled={sending}>
-        {sending ? <Loader2Icon className="animate-spin" /> : <SendIcon className="size-4" />} {seg ? `${seg.count} üyeye gönder` : 'Gönder'}
+        {sending ? <Loader2Icon className="animate-spin" /> : <SendIcon className="size-4" />}
+        {sending ? `${seg?.count ?? 0} üyeye gönderiliyor…` : seg ? `${seg.count} üyeye gönder` : 'Gönder'}
       </Button>
+
+      {sending ? (
+        <p className="text-xs text-muted-foreground">
+          Üyeler tek tek işleniyor; kitle büyükse bir dakikayı bulabilir. Sayfayı kapatma.
+        </p>
+      ) : null}
+
+      {result ? (
+        <div className="rounded-lg border border-border p-3 text-sm">
+          <b>{result.sent} üyeye gönderildi.</b>
+          {result.failed > 0 ? (
+            <span className="text-muted-foreground">
+              {' '}
+              {result.failed} gönderim başarısız — bildirim kayıtlarından sebebine bakılabilir.
+            </span>
+          ) : null}
+        </div>
+      ) : null}
+
       <p className="text-xs text-muted-foreground">Uygulama içi "Stüdyodan" akışına her zaman düşer; bildirimi açık üyelere ayrıca telefon bildirimi gider.</p>
     </div>
   )

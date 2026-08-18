@@ -20,7 +20,7 @@ import { z } from 'zod'
 
 import { requireMemberContext, requireTenantContext } from '../auth'
 import { adminDb } from '../firebase-admin'
-import { notificationDeps } from '../notification-deps'
+import { notificationDeps, notificationDepsFor } from '../notification-deps'
 import { resolveSegment } from './engagement'
 
 // The Notification Center is never a "send an SMS" screen (owner). It is the centre of Intent ·
@@ -261,6 +261,10 @@ export async function sendEngagementAction(input: unknown) {
     })
     .parse(input)
   const ctx = await requireTenantContext(OWNER)
+  // Loaded ONCE, not per member: it is the same studio for all 158 of them, and a document read in
+  // the loop is 158 reads to answer one question. This is also the line that makes the settings
+  // screen mean something — WhatsApp on, push off, as the owner actually configured it.
+  const sendDeps = await notificationDepsFor(ctx.studioId)
   const ids = p.segment ? await resolveSegment(ctx.studioId, p.segment) : (p.memberIds ?? [])
   if (ids.length === 0) return { ok: false as const, error: { code: 'no_recipients' as const } }
 
@@ -281,7 +285,7 @@ export async function sendEngagementAction(input: unknown) {
       phone: (member.phone as string | null) ?? null,
       displayName: member.fullName,
     }
-    const res = await notify(deps(), ctx, {
+    const res = await notify(sendDeps, ctx, {
       intentId: `engagement:${opId}:${member.id}`,
       eventId: null,
       eventType: 'engagement_broadcast',
@@ -315,6 +319,8 @@ export async function sendSuggestionsAction(input: unknown) {
     })
     .parse(input)
   const ctx = await requireTenantContext(OWNER)
+  // Same reason as the broadcast above: the studio's own channels, read once.
+  const sendDeps = await notificationDepsFor(ctx.studioId)
   const memberRepo = new FirestoreMemberRepository(adminDb())
   const opId = newOperationId()
   let sent = 0
@@ -332,7 +338,7 @@ export async function sendSuggestionsAction(input: unknown) {
       phone: (member.phone as string | null) ?? null,
       displayName: member.fullName,
     }
-    const res = await notify(deps(), ctx, {
+    const res = await notify(sendDeps, ctx, {
       intentId: `suggestion:${opId}:${member.id}:${it.logKey}`,
       eventId: null,
       eventType: 'engagement_suggestion',
