@@ -21,7 +21,7 @@ import { z } from 'zod'
 import { requireMemberContext, requireTenantContext } from '../auth'
 import { adminDb } from '../firebase-admin'
 import { notificationDeps, notificationDepsFor } from '../notification-deps'
-import { resolveSegment } from './engagement'
+import { resolveSegment , SEGMENT_KEYS } from './engagement'
 
 // The Notification Center is never a "send an SMS" screen (owner). It is the centre of Intent ·
 // Queue · Attempt · Delivery · Retry · Audit — the record of who we tried to reach, how it went, and
@@ -256,7 +256,7 @@ export async function sendEngagementAction(input: unknown) {
     .object({
       subject: z.string().trim().min(1).max(120),
       body: z.string().trim().min(1).max(600),
-      segment: z.enum(['all', 'fitness', 'pilates', 'dormant', 'regular', 'new', 'birthday']).optional(),
+      segment: z.enum(SEGMENT_KEYS).optional(),
       memberIds: z.array(z.string().min(1)).max(2000).optional(),
       // Which channels THIS send may use. Omitted ⇒ the studio's own configuration.
       //
