@@ -13,6 +13,29 @@ import type { NotificationTemplate } from './types'
 // deploy. Nothing in the code knows what a message says.
 
 export const TEMPLATES: Readonly<Record<string, NotificationTemplate>> = {
+  // Duyuru: uygulamanın mağazalarda olduğunu bilmeyen üyeye (2026-08-18). `marketing` — bir dersin
+  // saatini bildirmiyor, bir şey öneriyor; kampanya izni olmayana gitmez ve gitmemeli.
+  //
+  // Mağaza bağlantıları METİNDE, "bizi mağazada arayın" değil: BulutGym döneminden kalan eski
+  // "Pilates by Işıl" uygulaması hâlâ yayında ve arayan üyenin bulacağı ilk şey o olabilir. Yanlış
+  // uygulamayı indiren üye, giriş yapamadığında bunu bize değil kendine sorun eder.
+  app_available: {
+    id: 'app_available',
+    version: 1,
+    name: 'Uygulama duyurusu',
+    category: 'marketing',
+    priority: 'low',
+    requiredParams: ['memberName'],
+    subject: 'Pilates Fitness by Işıl uygulaması yayında',
+    body:
+      'Merhaba {{memberName}}, uygulamamız yayında 🤍\n\n' +
+      'Uygun dersleri görüp yerini ayırtabilir, hangi güne yazıldığını "Rezervasyonlarım"dan tek bakışta görebilir, ' +
+      'kalan ders ve paket süreni takip edebilirsin. Eğitmeninin yazdığı antrenman programın ve ölçümlerin de burada; ' +
+      'girişte QR kodunu okutuyorsun.\n\n' +
+      'iPhone: https://apps.apple.com/tr/app/id6792723951\n' +
+      'Android: https://play.google.com/store/apps/details?id=com.pilatesfitnessbyisil.member\n\n' +
+      'Girişte telefon numaranı kullanıyorsun; şifreni ilk girişte kendin belirliyorsun.',
+  },
   booking_confirmed: {
     id: 'booking_confirmed',
     version: 1,

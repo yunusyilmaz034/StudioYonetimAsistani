@@ -164,6 +164,31 @@ prerequisites struck through (closed test published · 12 testers enrolled · 14
 "Üretime başvur" is live. Production itself still reads *Etkin değil*: the requirement being met
 does not grant access, it only unlocks the application, which Google reviews by hand.
 
+**The campaign permission was switched on for every member (2026-08-18), by the owner's explicit
+decision.** 160/160 now carry `notificationPrefs.campaign = true`. He states KVKK notice and written
+explicit consent were collected on paper; he is the data controller and that basis is his to assert.
+
+**The distinction was put to him first, because it is the part a script cannot judge.** The app
+writes preferences in exactly ONE place — a member flipping a switch in Profil — so the stored state
+means something: 111 members had no preference object at all (never opened that screen), 46 had
+`campaign: false` in an object they themselves caused to be written (they saw that screen and left
+the switch alone), and 3 had already turned it on. He chose all of them, knowingly. Recorded here
+rather than only in a commit message, because the question returns the first time someone replies
+"beni bu listeden çıkarın".
+
+**Only `campaign` was touched**, with a merge write: push, e-mail, SMS and WhatsApp survived exactly
+as they were (48 push, 8 SMS, 5 WhatsApp, unchanged after the run). Missing fields still resolve to
+`DEFAULT_PREFS` because both tiers read `{ ...DEFAULT_PREFS, ...stored }` — checked in
+`notification-deps.ts` AND `on-event-notify.ts` before running, since a whole-object write there
+would silently have muted operational e-mail and SMS for 111 people.
+
+Script: `tools/migration/enable-campaign-consent.ts`, dry-run by default.
+
+**A template exists for the announcement**: `app_available`, category `marketing` (so the permission
+above is what gates it), with the STORE LINKS in the body rather than "search for us" — the old
+BulutGym "Pilates by Işıl" app is still listed, and a member who installs that one cannot log in and
+blames herself. Editable per studio from Ayarlar → Bildirimler without a deploy.
+
 **Two members were sold the wrong product, and it was repaired (2026-08-17).** Gülcan Ayvaz and
 Hava Kolu bought a THREE-month fitness package on 2026-08-03; reception picked "Fitness - 6 Aylık"
 at 13.000 ₺. Agreed, per the owner: 9.000 ₺ list, 1.000 ₺ discount, 8.000 ₺ cash, no debt either
