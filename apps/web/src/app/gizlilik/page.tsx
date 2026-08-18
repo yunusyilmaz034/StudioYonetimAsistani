@@ -1,20 +1,23 @@
 import type { Metadata } from 'next'
+import Link from 'next/link'
+
+import { LEGAL_UPDATED, SELLER } from '@/lib/legal'
 
 // PUBLIC privacy policy — the URL the App Store / Play Store listings point to, and the KVKK
 // aydınlatma metni for members. It lives OUTSIDE the (staff) route group, so it carries no admin
 // shell and needs no session; `/gizlilik` is on the middleware public allowlist.
 //
-// ── OWNER: fill the legal identity below (veri sorumlusu) ─────────────────────────────────────
-// These are the only blanks. Everything else is written to match what the app actually does. Replace
-// the placeholders with the studio's registered details, then it is ready to submit to the stores.
+// The identity now comes from `lib/legal.ts`, shared with every other legal page. It used to be a
+// local literal here, and the e-mail in it was a personal Gmail address — the one blank nobody had
+// gone back to fill after the stores accepted the page.
 const CONTROLLER = {
-  legalName: 'Retro Spor Hizmetleri Tic. Ltd. Şti.',
-  address: 'Akse Mah. Karasu Cad. No: 28/T, Çayırova / Kocaeli',
-  email: 'yunusyilmaz034@gmail.com',
-  phone: '0533 199 41 23',
-  brand: 'Pilates Fitness by Işıl',
+  legalName: SELLER.legalName,
+  address: SELLER.address,
+  email: SELLER.email,
+  phone: SELLER.phone,
+  brand: SELLER.brand,
 }
-const UPDATED = '20 Temmuz 2026'
+const UPDATED = LEGAL_UPDATED
 
 export const metadata: Metadata = {
   title: 'Gizlilik Politikası ve KVKK Aydınlatma Metni · Pilates Fitness by Işıl',
@@ -40,6 +43,29 @@ export default function PrivacyPage() {
         </h1>
         <p className="text-sm text-neutral-500">Son güncelleme: {UPDATED}</p>
       </header>
+
+      <nav className="mt-6 rounded-xl border border-neutral-200 bg-neutral-50 p-4 text-[15px]">
+        <p className="text-neutral-700">
+          Aydınlatma ile açık rıza ayrı hukuki işlemlerdir. Kişisel verilerinizin hangi hukuki sebeple
+          işlendiğine dair ayrıntılı metin için{' '}
+          <Link href="/kvkk" className="text-[#7A1F3D] underline">
+            KVKK Aydınlatma Metni
+          </Link>
+          , sağlık verileriniz için{' '}
+          <Link href="/acik-riza-saglik" className="text-[#7A1F3D] underline">
+            Açık Rıza Metni
+          </Link>
+          , satın alma koşulları için{' '}
+          <Link href="/mesafeli-satis" className="text-[#7A1F3D] underline">
+            Mesafeli Satış Sözleşmesi
+          </Link>{' '}
+          ve{' '}
+          <Link href="/iptal-iade" className="text-[#7A1F3D] underline">
+            İptal ve İade Koşulları
+          </Link>{' '}
+          sayfalarına bakabilirsiniz.
+        </p>
+      </nav>
 
       <div className="mt-8 space-y-9">
         <Section id="giris" title="1. Giriş">

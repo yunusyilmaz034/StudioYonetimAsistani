@@ -76,6 +76,16 @@ export type PaymentIntentContext = {
   // buyerName/buyerPhone. State only; never part of an event payload (#6).
   readonly buyerEmail?: string | null
   readonly kvkkConsentAt?: string // ISO instant the consent checkbox was ticked
+  // Every legal acceptance made at this checkout, each naming the DOCUMENT and its VERSION. A consent
+  // that does not name a version proves nothing: the text changes, and "she accepted the terms" stops
+  // meaning anything the moment the terms are edited. Stored on the intent because that is the record
+  // of the transaction the consent belongs to, and copied onto the member when the sale is fulfilled
+  // so it can be answered from the member's own file years later. State only — never in an event (#6).
+  readonly consents?: readonly {
+    readonly key: string // LegalDocKey — 'distance_sales' | 'preinfo' | 'marketing' | 'early_start' | …
+    readonly version: string
+    readonly acceptedAt: string // ISO instant
+  }[]
   // For an ATTRIBUTED member collection (reception's "Linkle Ödeme" package sale) — the branch the
   // verified money is posted to. Its ABSENCE of a linkId (with a real memberId) is what tells the
   // callback to settle it as the member's own payment (kasa + clear her debt) rather than an

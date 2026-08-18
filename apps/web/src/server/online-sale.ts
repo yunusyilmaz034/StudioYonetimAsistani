@@ -121,6 +121,13 @@ export async function fulfilOnlineSale(
 
   await grantIntentPackage(ctx, intent, resolved.value.memberId, product)
 
+  // The consents follow the member, not the transaction. They were recorded on the intent at the
+  // moment she ticked them (with the version of each text she saw); the intent is the proof, but
+  // nobody looking at a member's file two years from now will think to go looking for a payment
+  // intent. Copied here, best-effort and after the package is safely granted — a consent write that
+  // failed must never be the reason a paid-for membership does not exist.
+  await recordConsents(ctx, resolved.value.memberId, intent).catch(() => {})
+
   const decided = decideFulfilIntent(dctx(ctx), intent, resolved.value.memberId, !resolved.value.created)
   if (!decided.ok) return decided
   await intentRepo().saveIntent(ctx, decided.value.next, decided.value.events)
@@ -160,4 +167,37 @@ async function resolveMember(
     return { ok: true, value: { memberId: (reg.error as { memberId: string }).memberId, created: false } }
   }
   return { ok: false, error: reg.error }
+}
+
+// ── HUKUKİ ONAY KAYDI ────────────────────────────────────────────────────────────────────────
+//
+// Written onto the member document as `legalConsents`, keyed by document. Keyed rather than appended
+// so the CURRENT state of a consent is one read and cannot be ambiguous; the append-only history of
+// how it got there is the intent chain and the event log, which is where history belongs.
+//
+// The marketing consent is different in kind from the others: it is not a record of something she
+// read, it is a switch that decides whether a message may be sent. So it also flips
+// `notificationPrefs.campaign`, which is the flag the notification domain actually consults — a
+// consent stored where nothing reads it is a consent that does nothing.
+async function recordConsents(ctx: TenantContext, memberId: string, intent: PaymentIntent): Promise<void> {
+  const consents = intent.context.consents ?? []
+  if (consents.length === 0) return
+
+  const legalConsents: Record<string, { version: string; acceptedAt: string; source: string; intentId: string }> = {}
+  for (const c of consents) {
+    legalConsents[c.key] = { version: c.version, acceptedAt: c.acceptedAt, source: 'online_checkout', intentId: intent.id }
+  }
+  const marketing = consents.some((c) => c.key === 'marketing')
+
+  await adminDb()
+    .doc(`studios/${ctx.studioId}/members/${memberId}`)
+    .set(
+      {
+        legalConsents,
+        // Merge, never replace: she may already have preferences, and a whole-object write here would
+        // silently reset the channels she chose.
+        ...(marketing ? { notificationPrefs: { campaign: true } } : {}),
+      },
+      { merge: true },
+    )
 }

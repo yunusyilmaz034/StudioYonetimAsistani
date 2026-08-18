@@ -30,6 +30,7 @@ import {
 import { z } from 'zod'
 
 import { autoSaleNote } from '@/lib/sale-credit-note'
+import { LEGAL_DOCS } from '@/lib/legal'
 
 import { requireTenantContext } from '../auth'
 import { adminDb } from '../firebase-admin'
@@ -622,12 +623,24 @@ export async function createPublicMembershipCheckoutAction(input: unknown) {
       buyerPhone: z.string().trim().min(7),
       buyerEmail: z.string().trim().email().or(z.literal('')).optional(),
       kvkkConsent: z.boolean(),
+      // Mesafeli Satış Sözleşmesi + Ön Bilgilendirme Formu. Mandatory, and refused server-side rather
+      // than only disabled in the UI — a checkout can be driven by anything that can POST.
+      salesContractConsent: z.boolean().default(false),
+      // The member asked to start using the package before the 14-day withdrawal period ends. On THIS
+      // page the package always starts on payment day, so it is required here; a future-dated start
+      // would not need it (Mesafeli Sözleşmeler Yönetmeliği m.15).
+      earlyStartConsent: z.boolean().default(false),
+      // İsteğe bağlı. Never a condition of purchase — a marketing consent that gates a sale is not
+      // freely given and therefore is not a consent at all.
+      marketingConsent: z.boolean().default(false),
     })
     .parse(input)
   const ctx = publicCtx(p.studioId)
 
   // KVKK onayı zorunlu — üye oluşturuyoruz, açık rıza olmadan ilerlemez.
   if (!p.kvkkConsent) return { ok: false as const, reason: 'kvkk_required' as const }
+  if (!p.salesContractConsent) return { ok: false as const, reason: 'sales_contract_required' as const }
+  if (!p.earlyStartConsent) return { ok: false as const, reason: 'early_start_required' as const }
 
   // The unauthenticated write — throttle per studio so the public form can't be spammed into bogus
   // PaymentIntents / members (12/hour is far above any real buyer).
@@ -676,6 +689,18 @@ export async function createPublicMembershipCheckoutAction(input: unknown) {
       buyerPhone: phone.value.e164,
       buyerEmail: email,
       kvkkConsentAt: new Date(nowMs).toISOString(),
+      consents: [
+        { key: 'kvkk', version: LEGAL_DOCS.kvkk.version, acceptedAt: new Date(nowMs).toISOString() },
+        { key: 'distance_sales', version: LEGAL_DOCS.distance_sales.version, acceptedAt: new Date(nowMs).toISOString() },
+        { key: 'preinfo', version: LEGAL_DOCS.preinfo.version, acceptedAt: new Date(nowMs).toISOString() },
+        { key: 'early_start', version: LEGAL_DOCS.early_start.version, acceptedAt: new Date(nowMs).toISOString() },
+        // The optional one is recorded ONLY when actually given. An unticked box is not a consent
+        // with `accepted: false`; it is the absence of a consent, and writing a row for it invites
+        // somebody to later read the row and not the value.
+        ...(p.marketingConsent
+          ? [{ key: 'marketing', version: LEGAL_DOCS.marketing.version, acceptedAt: new Date(nowMs).toISOString() }]
+          : []),
+      ],
       note: 'Online üyelik satışı',
     },
     expiresAt: null,

@@ -45,6 +45,16 @@ const PUBLIC_PREFIXES = [
   '/kapi',
   // Public privacy policy / KVKK notice — the URL the app stores and members link to. No session.
   '/gizlilik',
+  // The rest of the legal set. They are linked from the marketing site's footer and from the checkout
+  // itself, and a customer reading a contract has by definition not signed in — a redirect to the
+  // staff login here would look, to a payment institution auditing the site, like the page not
+  // existing at all.
+  '/kvkk',
+  '/iletisim',
+  '/iptal-iade',
+  '/mesafeli-satis',
+  '/on-bilgilendirme',
+  '/acik-riza-saglik',
   // The printed daily check-in sheet (2026-07-27). A member points her camera at the wall and lands
   // here; if the coarse gate bounced her, the page would lose WHICH sheet she scanned and she would
   // arrive at a login screen with no way back to the check-in. The page verifies the signed token
