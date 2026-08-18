@@ -34,7 +34,7 @@ import { autoSaleNote } from '@/lib/sale-credit-note'
 import { requireTenantContext } from '../auth'
 import { adminDb } from '../firebase-admin'
 import { allowRate } from '../rate-limit'
-import { getPaymentProviderConfig, paymentProviderFor, paymentSecretsPresent, DEFAULT_PAYMENT_CONFIG } from '../payment-provider'
+import { getPaymentProviderConfig, paymentProviderFor, paymentSecretsPresent, tamiReadiness, DEFAULT_PAYMENT_CONFIG } from '../payment-provider'
 import { fulfilOnlineSale, listPendingOnlineSales } from '../online-sale'
 
 const OPS = ['owner', 'receptionist', 'platform_admin'] as const
@@ -54,7 +54,7 @@ export async function getPaymentProviderSettingsAction() {
   const ctx = await requireTenantContext(OPS)
   const config = await getPaymentProviderConfig(ctx)
   // Never reveal a secret — only whether it is provisioned.
-  return { config, secretsPresent: paymentSecretsPresent() }
+  return { config, secretsPresent: paymentSecretsPresent(), tami: tamiReadiness() }
 }
 
 export async function updatePaymentProviderSettingsAction(input: unknown) {
@@ -68,9 +68,22 @@ export async function updatePaymentProviderSettingsAction(input: unknown) {
       posEnabled: z.boolean(),
       linkEnabled: z.boolean(),
       active: z.boolean(),
+      // Multi-provider (2026-08-17). Absent ⇒ PAYTR, so every studio saved before today keeps
+      // working without a migration.
+      provider: z.enum(['paytr', 'tami']).default('paytr'),
+      tamiMerchantNumber: z.string().default(''),
+      tamiTerminalNumber: z.string().default(''),
     })
     .parse(input)
   const ctx = await requireTenantContext(OWNER)
+
+  // THE ONE REFUSAL THAT MATTERS. Going live on TAMI without the JWK means a member can pay and
+  // never be credited: the checkout mints, she is charged, and nothing can establish that she was.
+  // Refused here rather than warned about in the UI, because a warning is something a tired person
+  // clicks past at 19:00 on a Friday.
+  if (p.provider === 'tami' && p.active && !tamiReadiness().canConfirm) {
+    return { ok: false as const, error: { code: 'payment_provider_not_configured' as const } }
+  }
   await adminDb()
     .doc(`studios/${ctx.studioId}/settings/paymentProvider`)
     .set({ ...DEFAULT_PAYMENT_CONFIG, ...p, provider: 'paytr' }, { merge: true })

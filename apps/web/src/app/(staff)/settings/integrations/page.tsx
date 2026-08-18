@@ -7,6 +7,6 @@ import { IntegrationsScreen } from './integrations-screen'
 // Business logic is provider-based; PAYTR is the first provider behind the port, never wired directly.
 export default async function IntegrationsPage() {
   await requirePageAccess('/settings')
-  const { config, secretsPresent } = await getPaymentProviderSettingsAction()
-  return <IntegrationsScreen config={config} secretsPresent={secretsPresent} />
+  const { config, secretsPresent, tami } = await getPaymentProviderSettingsAction()
+  return <IntegrationsScreen config={config} secretsPresent={secretsPresent} tami={tami} />
 }

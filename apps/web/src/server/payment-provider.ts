@@ -96,3 +96,17 @@ export async function paymentProviderFor(ctx: TenantContext): Promise<{ provider
 export function paymentSecretsPresent(): boolean {
   return paytrSecrets() !== null
 }
+
+/**
+ * What TAMI is capable of right now, as three facts the settings screen may show without ever
+ * touching a secret's value.
+ *
+ * `canConfirm` is the one that matters. Without the JWK a checkout still mints and a member still
+ * pays — we simply cannot establish that she did, so nothing credits her. Letting a studio switch to
+ * TAMI in that state would take real money and leave the package ungranted, which is the single
+ * worst outcome this whole integration can produce. The action below refuses it.
+ */
+export function tamiReadiness(): { hasSecret: boolean; canConfirm: boolean } {
+  const s = tamiSecrets()
+  return { hasSecret: s !== null, canConfirm: s?.jwk != null }
+}

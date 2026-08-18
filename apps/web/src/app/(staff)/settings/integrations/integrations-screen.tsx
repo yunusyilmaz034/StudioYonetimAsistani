@@ -26,10 +26,22 @@ interface Config {
   posEnabled: boolean
   linkEnabled: boolean
   active: boolean
+  tamiMerchantNumber?: string
+  tamiTerminalNumber?: string
 }
 
 // Ödeme sağlayıcıları — provider-based (ileride başka sağlayıcılar eklenebilir; PAYTR ilk giriş).
-export function IntegrationsScreen({ config, secretsPresent }: { config: Config; secretsPresent: boolean }) {
+export function IntegrationsScreen({
+  config,
+  secretsPresent,
+  tami,
+}: {
+  config: Config
+  secretsPresent: boolean
+  // What TAMI can do right now. `canConfirm` false means a member could pay and never be credited,
+  // so the screen refuses to let it be switched on — see the note beside the selector.
+  tami?: { hasSecret: boolean; canConfirm: boolean }
+}) {
   const [c, setC] = useState<Config>(config)
   const [busy, setBusy] = useState(false)
   const set = <K extends keyof Config>(k: K, v: Config[K]) => setC((p) => ({ ...p, [k]: v }))
@@ -46,6 +58,9 @@ export function IntegrationsScreen({ config, secretsPresent }: { config: Config;
         posEnabled: c.posEnabled,
         linkEnabled: c.linkEnabled,
         active: c.active,
+        provider: c.provider,
+        tamiMerchantNumber: c.tamiMerchantNumber ?? '',
+        tamiTerminalNumber: c.tamiTerminalNumber ?? '',
       })
       toast[res.ok ? 'success' : 'error'](res.ok ? 'Kaydedildi.' : 'Kaydedilemedi.')
     } catch {
@@ -96,7 +111,45 @@ export function IntegrationsScreen({ config, secretsPresent }: { config: Config;
         <div className="space-y-4">
           <label className="flex flex-col gap-1 text-sm">
             Merchant ID
+            <label className="flex flex-col gap-1 text-sm">
+            <span className="text-xs uppercase tracking-wide text-muted-foreground">Sağlayıcı</span>
+            <select
+              value={c.provider}
+              onChange={(e) => set('provider', e.target.value as Config['provider'])}
+              className="h-9 rounded-md border border-border bg-background px-2 text-sm"
+            >
+              <option value="paytr">PAYTR</option>
+              <option value="tami">TAMI — Ortak Ödeme Sayfası</option>
+            </select>
+          </label>
+
+          {c.provider === 'tami' ? (
+            <div className="grid gap-2 rounded-lg border border-border p-3">
+              <div className="text-sm font-medium">TAMI işyeri bilgileri</div>
+              <Input
+                value={c.tamiMerchantNumber ?? ''}
+                onChange={(e) => set('tamiMerchantNumber', e.target.value)}
+                placeholder="İşyeri numarası"
+              />
+              <Input
+                value={c.tamiTerminalNumber ?? ''}
+                onChange={(e) => set('tamiTerminalNumber', e.target.value)}
+                placeholder="Terminal numarası"
+              />
+              {/* The two halves are told apart on purpose. Having the secret key is enough to CHARGE
+                  a member; only the JWK lets us establish that the charge happened. A studio that
+                  went live on the first without the second would take money and grant nothing. */}
+              <p className="text-xs text-muted-foreground">
+                {!tami?.hasSecret
+                  ? 'Gizli anahtar sunucuda tanımlı değil — ödeme başlatılamaz.'
+                  : !tami.canConfirm
+                    ? 'JWK (k / kid) tanımlı değil. Ödeme başlatılabilir ama sonucu doğrulanamaz, bu yüzden TAMI aktif edilemez.'
+                    : 'Hazır: ödeme başlatılabiliyor ve sonucu doğrulanabiliyor.'}
+              </p>
+            </div>
+          ) : (
             <Input value={c.merchantId} onChange={(e) => set('merchantId', e.target.value)} placeholder="PAYTR mağaza no" />
+          )}
           </label>
 
           {/* Secrets live in Secret Manager — never entered or shown here. */}
