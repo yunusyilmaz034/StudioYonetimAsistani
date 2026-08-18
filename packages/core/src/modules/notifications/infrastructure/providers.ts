@@ -368,7 +368,12 @@ export class WhatsAppProvider implements NotificationProvider {
 
     // Meta templates are POSITIONAL — build the ordered value list from the template's declared param
     // order and the intent's params. A missing param becomes '' rather than crashing the send.
-    const orderedParams = tmpl.params.map((k) => message.params[k] ?? '')
+    // Meta REFUSES a parameter containing a newline — the whole send fails, per recipient, silently
+    // enough that it reads as "WhatsApp doesn't work". It bit the invite flow once already (see the
+    // note above). Collapsed HERE rather than at the call sites because it is Meta's rule, not a
+    // business one: the in-app copy and the e-mail keep their paragraphs, and only the value handed
+    // to Meta is flattened.
+    const orderedParams = tmpl.params.map((k) => (message.params[k] ?? '').replace(/\s*\n+\s*/g, ' ').trim())
     const res = await this.send_({ to: message.to.phone, templateName: tmpl.name, params: orderedParams })
     if (res.ok) {
       return { ok: true, providerRef: res.ref ?? `wa:${message.intentId}`, delivered: false }

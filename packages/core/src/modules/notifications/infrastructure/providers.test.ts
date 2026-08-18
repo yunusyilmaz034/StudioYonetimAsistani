@@ -127,6 +127,22 @@ describe('WhatsApp — the 24-hour window, and the template it forces', () => {
     expect(sent!.params[0]).toBe('Elif') // memberName is the first body param for session_cancelled
   })
 
+  // Meta REFUSES a parameter containing a newline, and the refusal is per-recipient and quiet —
+  // it reads as "WhatsApp doesn't work". It cost the invite flow once. A multi-line studio
+  // announcement is exactly the shape that walks into it.
+  it('flattens newlines before handing a parameter to Meta', async () => {
+    let sent: { params: readonly string[] } | null = null
+    const provider = new WhatsAppProvider(async (payload) => {
+      sent = payload
+      return { ok: true, ref: 'wamid.1' }
+    })
+
+    await provider.send(ctx, message({ channel: 'whatsapp', params: { memberName: 'Elif\n\nikinci satır', sessionName: 'x', sessionTime: 'y' } }))
+
+    expect(sent!.params[0]).toBe('Elif ikinci satır')
+    expect(sent!.params[0]).not.toContain('\n')
+  })
+
   it('with NO transport reports provider_not_configured — never a fake send (Plus Phase 5)', async () => {
     const res = await new WhatsAppProvider().send(ctx, message({ channel: 'whatsapp' }))
     expect(res.ok).toBe(false)
