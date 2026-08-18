@@ -36,6 +36,7 @@ const GROUP_TITLE: Record<string, (n: number) => string> = {
   low_credit: (n) => `${n} üyenin ders hakkı azaldı`,
   dormant_member: (n) => `${n} üye uzaklaşıyor · bir arayın`,
   hot_lead: (n) => `${n} sıcak WhatsApp lead'i · dönüş yapın`,
+  online_payment: (n) => `${n} sanal POS tahsilatı · bugün karttan geldi`,
 }
 const groupTitle = (kind: string, n: number) => (GROUP_TITLE[kind] ?? ((x: number) => `${x} iş`))(n)
 const SEV_RANK: Record<InsightSeverity, number> = { urgent: 3, attention: 2, info: 1 }
