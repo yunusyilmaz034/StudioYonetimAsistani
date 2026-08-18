@@ -1151,6 +1151,71 @@ outright.
 5. **Reception's own sales take none of these consents** — only the online checkout does.
 6. **Kamera bilgilendirme levhası** at the physical entrance — the owner's task, not code.
 
+### 2026-08-18 (gece) — card money on the checklist, a crop tool, and an Android silence
+
+**Three things shipped in `build-2026-08-18-014`:** the legal set (above), the banner crop dialog,
+and today's card takings at the top of the dashboard checklist.
+
+**Why the card takings needed a home.** A ₺14.000 package was paid by payment link at 17:24 and the
+owner could not find it, and assumed the callback had missed it. It had not: intent `paid`, payment
+`pay_a6b8…` written, sale fully settled, entitlement active — the whole chain was correct. The money
+simply had **nowhere to be seen**. An online payment carries no `drawerId` (it goes to the bank, not
+the drawer, and putting it in the till would leave the evening count short by exactly that amount),
+so it appeared in no till view, and the only place to check was PayTR's own panel.
+
+It now sits FIRST on "Bugün İlgilenmen Gerekenler" — above the hot leads, because it is the only
+line there describing something that has already happened. Severity `info`, deliberately: money
+arriving is good news, and painting it the colour that means trouble teaches the eye to skim that
+colour.
+
+**Each line names where the payment came from** — member app · website · a link reception sent ·
+Sanal POS at the desk. That was never stored on the payment; it is a property of the intent
+(`purpose` + `flow` + who created it), joined by the id the two already share (`pay_<ref>` ↔
+`pin_<ref>`). No new field, and it works retroactively for every payment ever taken.
+
+**The banner crop dialog** exists because React Native's `Image` has no focal point — `cover` always
+crops from the centre, and a designed campaign poster came out as a slice of itself. Cropping in the
+PANEL rather than teaching the app an anchor was the whole point: a mobile change is a store release
+plus a week of un-updated members seeing the old behaviour, whereas a cropped file renders correctly
+on every phone that already has the app. Frames are measured from the app: 2.5:1 / 1200px for the
+home banner, 1:1 / 1080px for the popup (that one is hard-coded to `aspectRatio: 1`). The original
+and the transform are kept so re-editing never crops a crop.
+
+### ⚠️ Android members receive no push notifications, and nothing says so
+
+Found while answering "why does Play say 0 downloads?" (that part was a non-issue — Play buckets the
+public figure and lags a day or two). Our own numbers, read from the device tokens the app registers
+on launch:
+
+```
+toplam üye            161
+uygulamayı açan üye    52   (%32)
+son 24 saatte açan     31    ← the WhatsApp announcement worked
+cihaz platformları     { ios: 59 }
+```
+
+**Fifty-nine registered devices, every one of them iOS.** Android is roughly two thirds of the
+Turkish market; zero is not a coincidence. `apps/mobile/app.config.js` has no `googleServicesFile`
+and there is no `google-services.json` in the repo, so `getExpoPushTokenAsync()` throws on Android —
+and `src/lib/push.ts` swallows it:
+
+```ts
+} catch {
+  // Push is a nice-to-have; never block the app on it.
+}
+```
+
+The app opens and works; the device is simply never registered. So every Android member misses every
+class reminder, payment notice and reservation confirmation, **silently**, and the install figure
+above undercounts Android entirely.
+
+**Owner's decision (2026-08-18): not now — write it down and pick it up on a free day.** The fix is
+a Firebase Android app + `google-services.json` + the FCM key uploaded to EAS + `googleServicesFile`
+in the config, then an Android build (1.7.0). Half an hour of work behind a store release.
+
+**Verify before building**: install on one Android handset, sign in, and check whether that member's
+`devices` subcollection gains a document. Confirmed diagnosis beats a confident one.
+
 ## Where 2026-08-09 ended — the three things somebody else has to do
 
 Everything below is outside this repository. Nothing in the code is blocking any of them, and none
