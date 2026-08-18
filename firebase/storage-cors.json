@@ -1,0 +1,12 @@
+[
+  {
+    "origin": [
+      "https://panel.pilatesfitnessbyisil.com",
+      "https://pilatesfitnessbyisil.com",
+      "http://localhost:3000"
+    ],
+    "method": ["GET", "HEAD"],
+    "responseHeader": ["Content-Type", "Content-Length", "Cache-Control"],
+    "maxAgeSeconds": 3600
+  }
+]
