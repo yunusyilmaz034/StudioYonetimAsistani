@@ -1,5 +1,6 @@
 'use client'
 
+import type { SegmentKey } from '@/lib/segments'
 import { useMemo, useState } from 'react'
 import { BellRingIcon, Loader2Icon, PencilIcon, PlusIcon, SendIcon, SparklesIcon, Trash2Icon, UsersIcon } from 'lucide-react'
 import { toast } from 'sonner'
@@ -20,7 +21,6 @@ import {
   type EngagementContent,
   type EngagementSuggestion,
   type SegmentInfo,
-  type SegmentKey,
 } from '@/server/actions/engagement'
 import { sendEngagementAction, sendSuggestionsAction } from '@/server/actions/notifications'
 

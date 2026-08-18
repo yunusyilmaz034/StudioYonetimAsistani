@@ -21,7 +21,9 @@ import { z } from 'zod'
 import { requireMemberContext, requireTenantContext } from '../auth'
 import { adminDb } from '../firebase-admin'
 import { notificationDeps, notificationDepsFor } from '../notification-deps'
-import { resolveSegment , SEGMENT_KEYS } from './engagement'
+import { SEGMENT_KEYS } from '@/lib/segments'
+
+import { resolveSegment } from './engagement'
 
 // The Notification Center is never a "send an SMS" screen (owner). It is the centre of Intent ·
 // Queue · Attempt · Delivery · Retry · Audit — the record of who we tried to reach, how it went, and

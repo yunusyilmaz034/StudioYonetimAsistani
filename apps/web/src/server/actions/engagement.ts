@@ -5,6 +5,8 @@ import { maskName } from '@/lib/demo-mask'
 import { FirestoreEntitlementRepository, FirestoreMemberRepository, FirestoreReservationRepository, instant, lastActivityAt } from '@studio/core'
 import { z } from 'zod'
 
+import { SEGMENT_LABEL, type SegmentKey } from '@/lib/segments'
+
 import { requireTenantContext } from '../auth'
 import { adminDb } from '../firebase-admin'
 
@@ -17,7 +19,6 @@ const OWNER = ['owner', 'platform_admin'] as const
 const OPS = ['owner', 'receptionist', 'platform_admin'] as const
 
 export type EngagementCategory = 'motivation' | 'birthday' | 'missed' | 'welcome' | 'cancellation' | 'milestone' | 'campaign' | 'custom'
-export type SegmentKey = 'all' | 'active' | 'fitness' | 'pilates' | 'pt' | 'dormant' | 'regular' | 'cancellers' | 'new' | 'birthday'
 
 export interface EngagementContent {
   readonly id: string
@@ -179,30 +180,6 @@ export async function resolveSegment(studioId: string, segment: SegmentKey): Pro
   return membersInSegment(segment, await loadAudience(studioId))
 }
 
-/**
- * The labels ARE the list. Everything that needs to know which segments exist reads this — including
- * the zod enum that validates a send.
- *
- * It used to be retyped by hand in `notifications.ts`, and it had already drifted before anyone
- * noticed: `pt` and `cancellers` were missing there, so those two segments had been unsendable for
- * as long as they had existed. Adding `active` made the drift visible only because it was the one
- * somebody tried to use the same afternoon.
- */
-export const SEGMENT_LABEL: Record<SegmentKey, string> = {
-  all: 'Tüm üyeler',
-  active: 'Tüm aktif üyeler',
-  fitness: 'Fitness paketi olanlar',
-  pilates: 'Pilates paketi olanlar',
-  pt: 'PT paketi olanlar',
-  dormant: 'Uzun süredir gelmeyenler',
-  regular: 'Disiplinli gelenler',
-  cancellers: 'Sürekli iptal edenler',
-  new: 'Yeni üyeler (30 gün)',
-  birthday: 'Bugün doğum günü',
-}
-
-/** Every segment key, for validation. Derived, so a new segment cannot be forgotten in one place. */
-export const SEGMENT_KEYS = Object.keys(SEGMENT_LABEL) as [SegmentKey, ...SegmentKey[]]
 
 // Live counts for the composer — so the owner sees "Fitness paketi olanlar (23)" before sending.
 export async function segmentCountsAction(): Promise<readonly SegmentInfo[]> {
