@@ -1151,6 +1151,15 @@ outright.
 5. **Reception's own sales take none of these consents** — only the online checkout does.
 6. **Kamera bilgilendirme levhası** at the physical entrance — the owner's task, not code.
 
+## 🌐 Tanıtım sitesi — biriken işler
+
+`~/pilates-site` ayrı bir repo; ayrıntılı notlar orada `TODO.md` içinde. Buradaki liste sadece
+"unutulmasın" içindir.
+
+| # | İş | Not |
+|---|---|---|
+| 1 | **Google yorum sayısını siteye koy** — 2026-08-18 itibarıyla **124 yorum** | Sitede şu an hiçbir yerde geçmiyor. ⚠️ `aggregateRating` JSON-LD'si **eklenmeyecek**: Google kendi sitesinde kendi puanını işaretlemeyi (self-serving review) yasaklıyor ve bu manuel işlem sebebi. Görünür metin + Google profiline link doğrusu. |
+
 ## 📱 Mobil 1.7.0 — biriken işler
 
 **Bu liste bir sonraki mobil sürüme kadar büyür.** Bir mağaza sürümü ucuz değil: build, Apple'ın
