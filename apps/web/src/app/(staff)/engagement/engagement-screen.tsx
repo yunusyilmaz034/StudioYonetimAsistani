@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react'
 import { BellRingIcon, Loader2Icon, PencilIcon, PlusIcon, SendIcon, SparklesIcon, Trash2Icon, UsersIcon } from 'lucide-react'
 import { toast } from 'sonner'
+import { saveErrorMessage } from '@/lib/stale-deployment'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -101,8 +102,8 @@ function Suggestions({ initial }: { initial: EngagementSuggestion[] }) {
         toast.success(`${res.value.sent} mesaj gönderildi.`)
         setItems([...(await engagementSuggestionsAction())])
       } else toast.error('Gönderilemedi.')
-    } catch {
-      toast.error('Gönderilemedi.')
+    } catch (e) {
+      toast.error(saveErrorMessage(e))
     } finally {
       setBusy(null)
     }
@@ -187,8 +188,11 @@ function Composer({ content, segments }: { content: EngagementContent[]; segment
         setSubject('')
         setBody('')
       } else toast.error('Gönderilemedi.')
-    } catch {
-      toast.error('Gönderilemedi.')
+    } catch (e) {
+      // A tab left open across a deployment cannot send, and "Gönderilemedi" invites the one thing
+      // that cannot work — pressing it again. The logs showed exactly that: eight attempts, four
+      // seconds apart, none of which ever reached the server.
+      toast.error(saveErrorMessage(e))
     } finally {
       setSending(false)
     }
