@@ -452,6 +452,27 @@ pass, or it puts the studio's own mail in spam.
   per studio (`settings/paymentProvider.provider`), and the env vars are commented out in
   `apphosting.yaml`. Exposing it now would let somebody take a real payment we cannot credit.
 
+  **Tested against sandbox on 2026-08-18, not simulated.** Minting a token works. `/payment/query`
+  works and refuses correctly: an order that was never paid answers HTTP 400 with
+  `{ success: false, errorCode: 2013, errorMessage: "Bu sipariş üye işyerine ait değildir." }`, and
+  that exact answer is now a test. Tami SIGNS its own responses (`securityHash` comes back), which
+  we do not currently need — we call them over TLS — but it is there if it is ever wanted.
+
+  **The paid shape is still unobserved.** Nobody has completed a sandbox payment, so `confirm` gates
+  on Tami's own `success` flag (which we HAVE seen) and keeps a second, guessed status check behind
+  it. Both must agree. The first real sandbox payment should replace the guessed field names with
+  the ones Tami returns — until then it refuses rather than assumes, which is the right way round
+  for something that grants a package.
+
+  **Tami answered on 2026-08-18** and confirmed by omission what the adapter already assumed: asked
+  how the callback is signed, they simply said the result comes back on `successCallbackUrl`. There
+  is no signature. Confirming by query is not belt-and-braces, it is the only mechanism.
+
+  **The signing endpoint is usable in sandbox without holding the JWK:**
+  `POST /api/v0/admin/generate-jwk-signature` with Basic auth (credential is in Tami's own Postman
+  collection) returns the `securityHash` for a given body, and the token it returns carries the test
+  merchant's `kid`. Production `k`/`kid` come with the real account.
+
   **The one thing still missing** is the JWK (`k` / `kid`) that signs `securityHash` on the Query
   call. It is per-merchant, from the portal (işyeri ayarları → POS yönetimi), and arrives with the
   real account.

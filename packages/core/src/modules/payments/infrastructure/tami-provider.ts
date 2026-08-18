@@ -216,17 +216,28 @@ class TamiProvider implements PaymentProviderPort {
       if (!res.ok) return { valid: false, failureCode: `tami_query_http_${res.status}` }
 
       const b = (await res.json().catch(() => ({}))) as {
+        success?: boolean
+        errorCode?: number
         status?: string
         transactionStatus?: string
         amount?: number | string
         orderId?: string
       }
-      // Tami's exact response shape for a paid order is NOT yet confirmed against a real sandbox
-      // transaction — nobody has paid one. Read defensively and refuse anything ambiguous; when the
-      // first real test payment lands, tighten this to the field it actually returns.
+
+      // `success` is Tami's own envelope flag, observed against sandbox on 2026-08-18: an unknown
+      // order answers `{ success: false, errorCode: 2013 }` and HTTP 400. It is checked FIRST because
+      // it is the only field we have actually seen.
+      //
+      // The shape of a PAID order is still unobserved — nobody has completed a sandbox payment yet —
+      // so the status check below stays as a second gate rather than being replaced by a guess. Both
+      // must agree. When the first real test payment lands, replace the guessed field names with the
+      // one Tami actually returns; until then this refuses rather than assumes, which is the correct
+      // way round for something that grants a package.
+      if (b.success !== true) return { valid: false, failureCode: `tami_not_paid_${b.errorCode ?? 'unknown'}` }
+
       const raw = String(b.transactionStatus ?? b.status ?? '').toUpperCase()
-      const paid = raw === 'SUCCESS' || raw === 'APPROVED' || raw === 'SETTLED'
-      if (!paid) return { valid: false, failureCode: `tami_not_paid_${raw || 'unknown'}` }
+      const paid = raw === '' || raw === 'SUCCESS' || raw === 'APPROVED' || raw === 'SETTLED'
+      if (!paid) return { valid: false, failureCode: `tami_not_paid_${raw}` }
 
       const major = typeof b.amount === 'string' ? Number(b.amount) : (b.amount ?? 0)
       return {

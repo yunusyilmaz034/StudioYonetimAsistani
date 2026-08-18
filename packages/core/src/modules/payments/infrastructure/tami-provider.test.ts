@@ -135,21 +135,29 @@ describe('confirm — the only thing that may credit a TAMI payment', () => {
   const withJwk: TamiConfig = { ...CONFIG, jwk: { kid: 'kid-1', k: 'c2VjcmV0LWtleS1mb3ItdGVzdA' } }
 
   it('credits only an unambiguous success, and converts back to kuruş', async () => {
-    const p = tamiProvider(withJwk, jsonOnce({ status: 'SUCCESS', orderId: 'ref_1', amount: 8000 }))
+    const p = tamiProvider(withJwk, jsonOnce({ success: true, status: 'SUCCESS', orderId: 'ref_1', amount: 8000 }))
     const r = await p.confirm!('ref_1')
     expect(r).toMatchObject({ valid: true, status: 'success', providerRef: 'ref_1' })
     expect(r.paidAmount?.amount).toBe(800_000)
   })
 
   it('rounds rather than truncates — a kuruş lost per payment is still money', async () => {
-    const p = tamiProvider(withJwk, jsonOnce({ status: 'SUCCESS', amount: 79.99 }))
+    const p = tamiProvider(withJwk, jsonOnce({ success: true, status: 'SUCCESS', amount: 79.99 }))
     const r = await p.confirm!('ref_1')
     expect(r.paidAmount?.amount).toBe(7999)
   })
 
   it('refuses anything that is not clearly paid', async () => {
-    const p = tamiProvider(withJwk, jsonOnce({ status: 'PENDING' }))
+    const p = tamiProvider(withJwk, jsonOnce({ success: true, status: 'PENDING' }))
     expect((await p.confirm!('ref_1')).valid).toBe(false)
+  })
+
+  // The exact answer sandbox gave for an order that was never paid, on 2026-08-18. Kept as a test
+  // rather than a note, because "an unknown order looks like this" is the case that decides whether
+  // a member gets a package she did not buy.
+  it('refuses Tami\'s real "not this merchant\'s order" answer', async () => {
+    const p = tamiProvider(withJwk, jsonOnce({ success: false, errorCode: 2013, errorMessage: 'Bu sipariş üye işyerine ait değildir.' }))
+    expect(await p.confirm!('ref_1')).toMatchObject({ valid: false, failureCode: 'tami_not_paid_2013' })
   })
 
   it('refuses when Tami answers with an error status', async () => {
@@ -159,7 +167,7 @@ describe('confirm — the only thing that may credit a TAMI payment', () => {
 
   // The state we are actually in tonight: a payment can be STARTED but never finished.
   it('refuses while the signing key is missing, instead of guessing', async () => {
-    const p = tamiProvider(CONFIG, jsonOnce({ status: 'SUCCESS' }))
+    const p = tamiProvider(CONFIG, jsonOnce({ success: true, status: 'SUCCESS' }))
     expect(await p.confirm!('ref_1')).toMatchObject({ valid: false, failureCode: 'tami_jwk_missing' })
   })
 })
