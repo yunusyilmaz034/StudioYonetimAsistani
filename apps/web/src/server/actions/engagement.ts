@@ -17,7 +17,7 @@ const OWNER = ['owner', 'platform_admin'] as const
 const OPS = ['owner', 'receptionist', 'platform_admin'] as const
 
 export type EngagementCategory = 'motivation' | 'birthday' | 'missed' | 'welcome' | 'cancellation' | 'milestone' | 'campaign' | 'custom'
-export type SegmentKey = 'all' | 'fitness' | 'pilates' | 'pt' | 'dormant' | 'regular' | 'cancellers' | 'new' | 'birthday'
+export type SegmentKey = 'all' | 'active' | 'fitness' | 'pilates' | 'pt' | 'dormant' | 'regular' | 'cancellers' | 'new' | 'birthday'
 
 export interface EngagementContent {
   readonly id: string
@@ -145,6 +145,13 @@ function membersInSegment(
       switch (segment) {
         case 'all':
           return true
+        // "Aktif üye" = en az bir CANLI paketi olan. `catByMember` yalnızca aktif entitlement'lardan
+        // kurulduğu için ölçüt bu: paketi bitmiş ya da iptal olmuş üye burada yer almaz.
+        //
+        // Duyuru gönderirken istenen kitle çoğunlukla budur: parası hâlâ stüdyoda olan kişi. "Tüm
+        // üyeler" ise yıllar içinde birikmiş herkesi kapsar ve içinde bir daha gelmeyecekler de vardır.
+        case 'active':
+          return (cats?.size ?? 0) > 0
         case 'fitness':
           return cats?.has('fitness') ?? false
         case 'pilates':
@@ -174,6 +181,7 @@ export async function resolveSegment(studioId: string, segment: SegmentKey): Pro
 
 const SEGMENT_LABEL: Record<SegmentKey, string> = {
   all: 'Tüm üyeler',
+  active: 'Tüm aktif üyeler',
   fitness: 'Fitness paketi olanlar',
   pilates: 'Pilates paketi olanlar',
   pt: 'PT paketi olanlar',
