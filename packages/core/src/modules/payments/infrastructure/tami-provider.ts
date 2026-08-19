@@ -154,9 +154,18 @@ class TamiProvider implements PaymentProviderPort {
         }),
       })
 
-      const body = (await res.json().catch(() => ({}))) as { oneTimeToken?: string; tokenCreateTime?: string }
+      const body = (await res.json().catch(() => ({}))) as {
+        oneTimeToken?: string
+        tokenCreateTime?: string
+        errorCode?: number
+        errorMessage?: string
+      }
       if (!res.ok || !body.oneTimeToken) {
-        return { ok: false, configured: true, errorCode: `tami_http_${res.status}` }
+        // Tami answers a refusal with its OWN code and a Turkish sentence, and both are worth more
+        // than the HTTP status: 4003 is "these credentials are not valid HERE", which is what
+        // production keys hitting the sandbox look like.
+        const detail = body.errorCode != null ? `_${body.errorCode}` : ''
+        return { ok: false, configured: true, errorCode: `tami_http_${res.status}${detail}` }
       }
 
       return {

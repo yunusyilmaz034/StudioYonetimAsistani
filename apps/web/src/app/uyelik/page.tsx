@@ -4,6 +4,7 @@ import { CheckCircle2Icon, ShieldCheckIcon, XCircleIcon } from 'lucide-react'
 import { getPublicProductsAction } from '@/server/actions/payments'
 
 import { UyelikForm } from './uyelik-form'
+import { Toaster } from '@/components/ui/sonner'
 
 // The WhatsApp / Instagram link preview: the studio's real name + a reassuring line. Server-side, reads
 // the same public action the page renders from.
@@ -89,6 +90,11 @@ export default async function UyelikPage({
       <p className="text-center text-xs text-muted-foreground">
         Ödemeler lisanslı ödeme kuruluşunun güvenli altyapısı ile alınır. Kart bilgilerin bizde saklanmaz.
       </p>
+      {/* The customer-facing payment pages live OUTSIDE the (staff) layout, where the app
+          mounts its only Toaster. Without this, every `toast.error` on this page — a refused
+          checkout, an invalid phone — was called and rendered nowhere, and the screen simply
+          did nothing. */}
+      <Toaster />
     </main>
   )
 }

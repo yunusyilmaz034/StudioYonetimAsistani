@@ -593,7 +593,12 @@ export async function createCollectionCheckoutAction(input: unknown) {
     expiresInSeconds: 30 * 60,
     maxInstallment: link.maxInstallments,
   })
-  if (!checkout.ok || !checkout.redirectUrl) return { ok: false as const, reason: 'checkout_failed' as const }
+  if (!checkout.ok || !checkout.redirectUrl) {
+    // The provider's own error code, in the log. Without it a failed checkout is indistinguishable
+    // from a broken button — which is exactly how the first TAMI attempt looked from the outside.
+    console.warn('[checkout] refused', { provider: config.provider, testMode: config.testMode, code: checkout.ok ? 'no_redirect_url' : checkout.errorCode })
+    return { ok: false as const, reason: 'checkout_failed' as const }
+  }
 
   const session = decideSessionCreated(dctx(ctx), created.next, checkout.redirectUrl, checkout.expiresAt ? instant(checkout.expiresAt) : null)
   await intentRepo().saveIntent(ctx, session.next, session.events)
@@ -753,7 +758,12 @@ export async function createPublicMembershipCheckoutAction(input: unknown) {
     expiresInSeconds: 30 * 60,
     maxInstallment: maxInstallments,
   })
-  if (!checkout.ok || !checkout.redirectUrl) return { ok: false as const, reason: 'checkout_failed' as const }
+  if (!checkout.ok || !checkout.redirectUrl) {
+    // The provider's own error code, in the log. Without it a failed checkout is indistinguishable
+    // from a broken button — which is exactly how the first TAMI attempt looked from the outside.
+    console.warn('[checkout] refused', { provider: config.provider, testMode: config.testMode, code: checkout.ok ? 'no_redirect_url' : checkout.errorCode })
+    return { ok: false as const, reason: 'checkout_failed' as const }
+  }
 
   const session = decideSessionCreated(dctx(ctx), created.next, checkout.redirectUrl, checkout.expiresAt ? instant(checkout.expiresAt) : null)
   await intentRepo().saveIntent(ctx, session.next, session.events)

@@ -4,6 +4,7 @@ import { CheckCircle2Icon, ShieldCheckIcon, XCircleIcon } from 'lucide-react'
 import { getPaymentLinkPublicAction } from '@/server/actions/payments'
 
 import { PayForm } from './pay-form'
+import { Toaster } from '@/components/ui/sonner'
 
 // The WhatsApp/social link preview: the studio's real name + a reassuring line, not the app's internal
 // title. `generateMetadata` runs server-side and reads the same public action the page renders from.
@@ -83,6 +84,11 @@ export default async function PayPage({
           />
         </>
       )}
+      {/* The customer-facing payment pages live OUTSIDE the (staff) layout, where the app
+          mounts its only Toaster. Without this, every `toast.error` on this page — a refused
+          checkout, an invalid phone — was called and rendered nowhere, and the screen simply
+          did nothing. */}
+      <Toaster />
     </main>
   )
 }
