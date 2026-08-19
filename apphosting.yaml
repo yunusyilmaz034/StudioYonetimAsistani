@@ -147,15 +147,17 @@ env:
   # adapter is Unconfigured and every flow says configuration_required rather than pretending.
   # Without the JWK a checkout can still be minted but nothing can be confirmed — so a payment can be
   # started and never completed, which is the correct half to be missing.
-  # - variable: TAMI_SECRET_KEY
-  #   secret: TAMI_SECRET_KEY
-  #   availability: [RUNTIME]
-  # - variable: TAMI_JWK_KID
-  #   secret: TAMI_JWK_KID
-  #   availability: [RUNTIME]
-  # - variable: TAMI_JWK_K
-  #   secret: TAMI_JWK_K
-  #   availability: [RUNTIME]
+  # Provisioned 2026-08-19, the day the merchant account was approved. All three are present, so
+  # `tamiReadiness().canConfirm` is true and the settings screen will let TAMI be selected.
+  - variable: TAMI_SECRET_KEY
+    secret: TAMI_SECRET_KEY
+    availability: [RUNTIME]
+  - variable: TAMI_JWK_KID
+    secret: TAMI_JWK_KID
+    availability: [RUNTIME]
+  - variable: TAMI_JWK_K
+    secret: TAMI_JWK_K
+    availability: [RUNTIME]
 
   - variable: RESEND_API_KEY
     secret: RESEND_API_KEY

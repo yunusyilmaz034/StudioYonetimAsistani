@@ -35,6 +35,10 @@ const PUBLIC_PREFIXES = [
   '/api/public',
   '/api/member',
   '/api/payments/paytr/callback',
+  // TAMI'nin dönüş adresi. A member coming back from the hosted payment page carries no session —
+  // and unlike PayTR this is the ONLY signal that a payment happened, so a redirect to the staff
+  // login here would silently strand paid members with no package.
+  '/api/payments/tami/return',
   // v1.33 — the turnstile's own endpoint. A box bolted to a wall has no `__session` cookie and no
   // human to log in as; it carries its own device secret and the handler verifies it (see
   // `deviceHeartbeatAuth`). Without this the door was 307'd to the staff login screen — a redirect

@@ -23,6 +23,7 @@ import {
   systemClock,
   type MemberId,
   type PaymentIntent,
+  type PaymentProviderId,
   type ProductId,
   type StudioId,
   type TenantContext,
@@ -85,9 +86,10 @@ export async function updatePaymentProviderSettingsAction(input: unknown) {
   if (p.provider === 'tami' && p.active && !tamiReadiness().canConfirm) {
     return { ok: false as const, error: { code: 'payment_provider_not_configured' as const } }
   }
-  await adminDb()
-    .doc(`studios/${ctx.studioId}/settings/paymentProvider`)
-    .set({ ...DEFAULT_PAYMENT_CONFIG, ...p, provider: 'paytr' }, { merge: true })
+  // The provider is the owner's choice again (2026-08-19). It was pinned to 'paytr' while the TAMI
+  // merchant account was under review — a lock, not a design — and the refusal above is what actually
+  // keeps the studio safe: TAMI cannot go active until it can CONFIRM a payment.
+  await adminDb().doc(`studios/${ctx.studioId}/settings/paymentProvider`).set({ ...DEFAULT_PAYMENT_CONFIG, ...p }, { merge: true })
   return { ok: true as const }
 }
 
@@ -181,7 +183,7 @@ export async function createPackageCheckout(ctx: TenantContext, p: PackageChecko
     saleId: `sal_${providerRef.slice(0, 20)}`,
     purpose: 'package',
     amount,
-    provider: 'paytr',
+    provider: config.provider,
     flow: p.flow,
     providerRef,
     redirectUrl: null,
@@ -216,8 +218,10 @@ export async function createPackageCheckout(ctx: TenantContext, p: PackageChecko
     memberEmail: (member?.email as string | null) ?? null,
     memberPhone: (member?.phone as string | null) ?? null,
     userIp: '85.34.78.112', // server-side placeholder; PAYTR requires a value, refined at the edge
-    okUrl: config.successUrl || `${baseUrl(config)}/portal`,
-    failUrl: config.failUrl || `${baseUrl(config)}/portal`,
+    ...returnUrls(config, ctx.studioId as string, providerRef, {
+      ok: config.successUrl || `${baseUrl(config)}/portal`,
+      fail: config.failUrl || `${baseUrl(config)}/portal`,
+    }),
     callbackUrl: callbackUrl(ctx, config),
     testMode: config.testMode,
     expiresInSeconds: 30 * 60,
@@ -328,7 +332,7 @@ export async function createWalletTopupCheckout(ctx: TenantContext, memberId: Me
     saleId: `wtop_${providerRef.slice(0, 20)}`, // reserved id; a wallet top-up creates no Sale
     purpose: 'wallet_topup',
     amount,
-    provider: 'paytr',
+    provider: config.provider,
     flow,
     providerRef,
     redirectUrl: null,
@@ -355,8 +359,10 @@ export async function createWalletTopupCheckout(ctx: TenantContext, memberId: Me
     memberEmail: (member?.email as string | null) ?? null,
     memberPhone: (member?.phone as string | null) ?? null,
     userIp: '85.34.78.112',
-    okUrl: config.successUrl || `${baseUrl(config)}/portal`,
-    failUrl: config.failUrl || `${baseUrl(config)}/portal`,
+    ...returnUrls(config, ctx.studioId as string, providerRef, {
+      ok: config.successUrl || `${baseUrl(config)}/portal`,
+      fail: config.failUrl || `${baseUrl(config)}/portal`,
+    }),
     callbackUrl: callbackUrl(ctx, config),
     testMode: config.testMode,
     expiresInSeconds: 30 * 60,
@@ -411,7 +417,7 @@ export async function createMemberCollectionCheckout(
     saleId: args.saleId ?? `sal_${providerRef.slice(0, 20)}`,
     purpose: 'collection',
     amount,
-    provider: 'paytr',
+    provider: config.provider,
     flow: args.flow,
     providerRef,
     redirectUrl: null,
@@ -443,8 +449,10 @@ export async function createMemberCollectionCheckout(
     memberEmail: (member?.email as string | null) ?? null,
     memberPhone: (member?.phone as string | null) ?? null,
     userIp: '85.34.78.112',
-    okUrl: config.successUrl || `${baseUrl(config)}/portal`,
-    failUrl: config.failUrl || `${baseUrl(config)}/portal`,
+    ...returnUrls(config, ctx.studioId as string, providerRef, {
+      ok: config.successUrl || `${baseUrl(config)}/portal`,
+      fail: config.failUrl || `${baseUrl(config)}/portal`,
+    }),
     callbackUrl: callbackUrl(ctx, config),
     testMode: config.testMode,
     expiresInSeconds: 30 * 60,
@@ -538,7 +546,7 @@ export async function createCollectionCheckoutAction(input: unknown) {
     saleId: `sal_${providerRef.slice(0, 20)}`,
     purpose: 'collection',
     amount: link.amount,
-    provider: 'paytr',
+    provider: config.provider,
     flow: 'link',
     providerRef,
     redirectUrl: null,
@@ -564,8 +572,10 @@ export async function createCollectionCheckoutAction(input: unknown) {
     memberEmail: null,
     memberPhone: phone.value.e164,
     userIp: '85.34.78.112',
-    okUrl: `${baseUrl(config)}/pay/${link.id}?ok=1`,
-    failUrl: `${baseUrl(config)}/pay/${link.id}?fail=1`,
+    ...returnUrls(config, ctx.studioId as string, providerRef, {
+      ok: `${baseUrl(config)}/pay/${link.id}`,
+      fail: `${baseUrl(config)}/pay/${link.id}`,
+    }),
     callbackUrl: callbackUrl(ctx, config),
     testMode: config.testMode,
     expiresInSeconds: 30 * 60,
@@ -674,7 +684,7 @@ export async function createPublicMembershipCheckoutAction(input: unknown) {
     saleId: `sal_${providerRef.slice(0, 20)}`,
     purpose: 'public_membership',
     amount,
-    provider: 'paytr',
+    provider: config.provider,
     flow: 'link',
     providerRef,
     redirectUrl: null,
@@ -722,8 +732,10 @@ export async function createPublicMembershipCheckoutAction(input: unknown) {
     memberEmail: email,
     memberPhone: phone.value.e164,
     userIp: '85.34.78.112',
-    okUrl: `${baseUrl(config)}/uyelik?s=${ctx.studioId}&ok=1`,
-    failUrl: `${baseUrl(config)}/uyelik?s=${ctx.studioId}&fail=1`,
+    ...returnUrls(config, ctx.studioId as string, providerRef, {
+      ok: `${baseUrl(config)}/uyelik?s=${ctx.studioId}`,
+      fail: `${baseUrl(config)}/uyelik?s=${ctx.studioId}`,
+    }),
     callbackUrl: callbackUrl(ctx, config),
     testMode: config.testMode,
     expiresInSeconds: 30 * 60,
@@ -734,6 +746,32 @@ export async function createPublicMembershipCheckoutAction(input: unknown) {
   const session = decideSessionCreated(dctx(ctx), created.next, checkout.redirectUrl, checkout.expiresAt ? instant(checkout.expiresAt) : null)
   await intentRepo().saveIntent(ctx, session.next, session.events)
   return { ok: true as const, redirectUrl: checkout.redirectUrl }
+}
+
+/**
+ * Where the provider sends her when the hosted page is done.
+ *
+ * For PAYTR these are cosmetic: the grant happens on a signed server-to-server callback and the
+ * redirect is just where she lands. For TAMI they are load-bearing — TAMI never calls us, so this
+ * return is the ONLY moment we learn to go and ask whether the order was paid. Sending her straight
+ * to `/portal` under TAMI would take her money and never credit her.
+ *
+ * `back` is where she should end up AFTER we have asked. The endpoint redirects her there with
+ * `?ok=1` or `?fail=1`, so every screen keeps the arrival it already handles.
+ */
+function returnUrls(
+  config: { callbackUrl: string; provider: PaymentProviderId },
+  studioId: string,
+  providerRef: string,
+  back: { ok: string; fail: string },
+): { okUrl: string; failUrl: string } {
+  if (config.provider !== 'tami') return { okUrl: back.ok, failUrl: back.fail }
+  const wrap = (dest: string) =>
+    `${baseUrl(config)}/api/payments/tami/return?s=${encodeURIComponent(studioId)}` +
+    `&orderId=${encodeURIComponent(providerRef)}&back=${encodeURIComponent(dest)}`
+  // Both sides go through the query. Tami does not currently redirect on failure, but if it ever
+  // does, a "failed" arrival is still only a claim — the query is what decides either way.
+  return { okUrl: wrap(back.ok), failUrl: wrap(back.fail) }
 }
 
 function baseUrl(config: { callbackUrl: string }): string {
