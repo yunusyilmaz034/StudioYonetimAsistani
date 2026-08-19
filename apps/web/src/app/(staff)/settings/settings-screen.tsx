@@ -613,9 +613,9 @@ export function SettingsScreen({
         </TabsContent>
 
         <TabsContent value="odeme" className="space-y-6">
-          {/* ── Ödeme (PAYTR) ─────────────────────────────────────────────────────────────────── */}
+          {/* ── Ödeme — sağlayıcıdan bağımsız: fark ve taksit her iki sağlayıcıda da geçerli ── */}
           <Section
-            title="Ödeme (PAYTR)"
+            title="Ödeme"
         hint="Kredi kartı / havale ile ödemede paket fiyatına eklenecek fark ve izin verilen en fazla taksit. Üyeye kırılım gösterilmez — yalnızca son tutar."
       >
         <div className="space-y-4">
@@ -662,10 +662,13 @@ export function SettingsScreen({
           PAYTR bağlantısının kendisi (merchant bilgileri, test modu, bildirim URL'i) — bir ÖDEME
           entegrasyonu, o yüzden parayla birlikte burada yaşar, "Görünüm"ün altında değil (owner,
           2026-07-17). Kendi ekranında saklandığı için form Kaydet'ine bağlı değildir. */}
-      <Section title="Ödeme sağlayıcısı (PAYTR)" hint="Bağlantı, merchant bilgileri, test modu ve bildirim URL'i.">
+      <Section
+        title="Ödeme sağlayıcısı"
+        hint="Hangi sağlayıcı kullanılacak (PAYTR / TAMI), bağlantı bilgileri, test modu ve bildirim URL'i."
+      >
         <Button variant="outline" render={<Link href="/settings/integrations" />}>
           <CreditCardIcon />
-          PAYTR Bağlantısı
+          Ödeme Sağlayıcısı Ayarları
         </Button>
       </Section>
 
