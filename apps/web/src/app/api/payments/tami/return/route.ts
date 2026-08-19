@@ -17,8 +17,28 @@ import { handleTamiReturn } from '@/server/tami-return'
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
+/**
+ * The PUBLIC origin, which is not `req.url`'s.
+ *
+ * Behind Cloud Run the request arrives on `localhost:8080`, so `new URL(back, url.origin)` sends the
+ * member to an address that exists only inside the container. Caught by probing the deployed endpoint
+ * rather than by reading the code — it redirected to `https://localhost:8080/portal?fail=1`, which a
+ * paying member would have hit as a dead page immediately after paying.
+ *
+ * The forwarded headers are what the proxy actually saw; `PUBLIC_APP_URL` is the fallback for any
+ * environment that does not set them.
+ */
+function publicOrigin(req: NextRequest, fallback: URL): string {
+  const host = req.headers.get('x-forwarded-host') ?? req.headers.get('host')
+  const proto = req.headers.get('x-forwarded-proto') ?? 'https'
+  if (host && !host.startsWith('localhost')) return `${proto}://${host}`
+  const configured = (process.env.PUBLIC_APP_URL ?? '').replace(/\/+$/, '')
+  return configured || fallback.origin
+}
+
 export async function GET(req: NextRequest): Promise<Response> {
   const url = new URL(req.url)
+  const origin = publicOrigin(req, url)
   const sid = url.searchParams.get('s')?.trim() ?? ''
   // Tami echoes the order id; the parameter name has varied across its docs, so all three are read.
   const orderId = (url.searchParams.get('orderId') ?? url.searchParams.get('order_id') ?? url.searchParams.get('oid') ?? '').trim()
@@ -26,7 +46,7 @@ export async function GET(req: NextRequest): Promise<Response> {
 
   if (!sid || !orderId) {
     console.warn('[tami-return] missing params', { sid: Boolean(sid), orderId: Boolean(orderId) })
-    return NextResponse.redirect(new URL(`${back}${back.includes('?') ? '&' : '?'}fail=1`, url.origin))
+    return NextResponse.redirect(new URL(`${back}${back.includes('?') ? '&' : '?'}fail=1`, origin))
   }
 
   let ok = false
@@ -40,5 +60,5 @@ export async function GET(req: NextRequest): Promise<Response> {
   }
 
   const sep = back.includes('?') ? '&' : '?'
-  return NextResponse.redirect(new URL(`${back}${sep}${ok ? 'ok=1' : 'fail=1'}`, url.origin))
+  return NextResponse.redirect(new URL(`${back}${sep}${ok ? 'ok=1' : 'fail=1'}`, origin))
 }
