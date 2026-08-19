@@ -87,7 +87,7 @@ export default async function UyelikPage({
       )}
 
       <p className="text-center text-xs text-muted-foreground">
-        Ödemeler PAYTR güvenli altyapısı ile alınır. Kart bilgilerin bizde saklanmaz.
+        Ödemeler lisanslı ödeme kuruluşunun güvenli altyapısı ile alınır. Kart bilgilerin bizde saklanmaz.
       </p>
     </main>
   )

@@ -98,12 +98,24 @@ export async function updatePaymentProviderSettingsAction(input: unknown) {
 export async function testPaymentProviderAction() {
   const ctx = await requireTenantContext(OWNER)
   const { provider, config } = await paymentProviderFor(ctx)
-  if (provider.configured) return { ok: true as const, message: 'PAYTR bağlantısı yapılandırılmış (canlı gönderime hazır).' }
+  const name = config.provider === 'tami' ? 'TAMI' : 'PAYTR'
+  const mode = config.testMode ? 'TEST modu' : 'canlı'
+  if (provider.configured) return { ok: true as const, message: `${name} bağlantısı yapılandırılmış (${mode}).` }
+
   const missing: string[] = []
   if (!config.active) missing.push('Aktif değil')
-  if (!config.merchantId) missing.push('Merchant ID')
-  if (!paymentSecretsPresent()) missing.push('Merchant Key/Salt (Secret Manager)')
-  return { ok: false as const, message: `Eksik yapılandırma: ${missing.join(', ')}` }
+  if (config.provider === 'tami') {
+    if (!config.tamiMerchantNumber) missing.push('Üye İşyeri No')
+    if (!config.tamiTerminalNumber) missing.push('Terminal No')
+    if (!tamiReadiness().hasSecret) missing.push('Güvenlik Anahtarı (Secret Manager)')
+    // Named separately because it is the one whose absence still MINTS a checkout: she would pay and
+    // never be credited. The settings action refuses to activate in that state.
+    if (!tamiReadiness().canConfirm) missing.push('K / Kid değeri — ödeme doğrulanamaz')
+  } else {
+    if (!config.merchantId) missing.push('Merchant ID')
+    if (!paymentSecretsPresent()) missing.push('Merchant Key/Salt (Secret Manager)')
+  }
+  return { ok: false as const, message: `${name}: eksik yapılandırma — ${missing.join(', ')}` }
 }
 
 // ── Start a PAYTR payment for a PACKAGE (Sanal POS or Link). The entitlement is NOT granted here —

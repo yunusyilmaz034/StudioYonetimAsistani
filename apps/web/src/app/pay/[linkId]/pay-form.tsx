@@ -84,7 +84,7 @@ export function PayForm({
         {tl(amountKurus)} Öde
       </Button>
       <p className="text-center text-xs text-muted-foreground">
-        Ödeme PAYTR güvenli altyapısı üzerinden alınır. Kart bilgileriniz bizde saklanmaz.
+        Ödeme, lisanslı ödeme kuruluşunun güvenli altyapısı üzerinden alınır. Kart bilgileriniz bizde saklanmaz.
       </p>
     </div>
   )
