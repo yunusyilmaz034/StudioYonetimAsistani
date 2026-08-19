@@ -37,7 +37,11 @@ export function coversService(snapshot: ProductSnapshot, serviceId: ServiceId): 
 // reasons that have nothing to do with the member, which is why those checks live elsewhere.
 export function isEligibleForService(
   e: Entitlement,
-  category: Category,
+  // ONE category, or the several a session declares it admits (Fit Paket, 2026-08-20). A single
+  // value is still the overwhelming case and still means exactly what it always did; the list form
+  // exists so a session can open itself to more than one kind of package without every caller
+  // having to know that is possible.
+  category: Category | readonly Category[],
   serviceId: ServiceId,
   at: Instant,
 ): boolean {
@@ -53,7 +57,10 @@ export function isEligibleForService(
   // the queue is decorative: she would buy the next package and immediately spend it alongside the
   // one she already has, which is the exact overlap the queue exists to prevent.
   if (at < e.validFrom) return false
-  if (e.productSnapshot.category !== category) return false // I-9.7
+  // I-9.7 — the category wall. Widened, not removed: the session names who it admits, and a package
+  // outside that list is refused exactly as before.
+  const admits = Array.isArray(category) ? category : [category as Category]
+  if (!admits.includes(e.productSnapshot.category)) return false
   if (!coversService(e.productSnapshot, serviceId)) return false // I-9.8 (D12)
   if (e.credits !== null && available(e.credits) < 1) return false // no credit left to spend
   return true

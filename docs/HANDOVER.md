@@ -1236,6 +1236,49 @@ build's status alone will happily report a stale failure forever.
 |---|---|---|
 | 1 | **Google yorum sayısını siteye koy** — 2026-08-18 itibarıyla **124 yorum** | Sitede şu an hiçbir yerde geçmiyor. ⚠️ `aggregateRating` JSON-LD'si **eklenmeyecek**: Google kendi sitesinde kendi puanını işaretlemeyi (self-serving review) yasaklıyor ve bu manuel işlem sebebi. Görünür metin + Google profiline link doğrusu. |
 
+### 2026-08-20 — Fit Paket: bir ders, iki üye grubu, farklı şartlar
+
+Stüdyo, hem fitness hem pilates üyelerinin katılabildiği tek bir ders istedi: fitness üyeliği
+**haftada bir kez ücretsiz**, pilates paketi **1 kredi**. Bu, sistemin en korunaklı kuralına —
+kategori duvarı, I-9.7 — dokunuyordu, o yüzden owner onayıyla yapıldı.
+
+**Sandığımızdan küçük çıktı, çünkü ücretlendirme farkı zaten modelde vardı.** Kredili paket
+rezervasyonda kredi tutar, süreli üyelik hiçbir şey tutmaz; `selectEntitlement` de krediyi süreliye
+tercih ediyor. Yani hibrit üyenin pilates kredisini ödemesi (owner'ın kararı) **sıfır kod** ile
+karşılandı. Ayrı bir "ücret" kavramı yazılmadı.
+
+**Duvar kalkmadı, yer değiştirdi.** Eskiden `paket.kategori === seans.kategori` idi; artık seans
+`admission.categories` ile kimi kabul ettiğini söylüyor ve hiçbir şey söylemeyen seans kendi
+kategorisini kabul ediyor. Mevcut her ders bire bir aynı davranıyor.
+
+**Tek gerçek yeni kural haftalık hak.** Onsuz sınırsız bir üyelik, başkalarının kredi ödediği
+dersten sınırsız yer alırdı. Hafta stüdyo saatiyle **pazartesi–pazar**; zamanında iptal hakkı geri
+verir (sayıma girmez), gelmemek yakar (girer) — kredinin davranışıyla aynı, aynı gerekçeyle.
+
+**Olay şeması:** `class_session.scheduled` **v3 → v4** + upcaster. Bu upcast "iyi" cinsten: bir v3
+seansı **kendi kategorisini kabul ediyordu**, bu bir tahmin değil o sürümün anlamı — v2→v3'teki
+iptal penceresinin aksine (o `null` kalır, çünkü bilinemez).
+
+**Denormalize alan:** `reservations.sessionServiceId`. Doc 3 §6 defterine yeniden kurma yoluyla
+birlikte yazıldı. Eski satırlarda yok ve geri doldurulmuyor; kotayı yalnızca kota beyan eden
+seanslar tetikliyor ve öyle bir seans bu alandan önce yoktu.
+
+**İki şey beni yakaladı, ikisi de mevcut testler sayesinde:**
+
+1. `decideBooking` kategori duvarının **ikinci bir kopyasını** taşıyor — `isEligibleForService`ten
+   bağımsız, ve asıl karar veren o. Yalnızca birini genişletseydim panel bir rezervasyonu teklif
+   eder, domain reddederdi. Dosyanın kendi yorumu bu riski zaten yazmış.
+2. `sessionServiceId`'yi rezervasyona ekleyeceğime **hata nesnesine** eklemişim (aynı satır iki
+   yerde geçiyor, ilk eşleşme hataydı). İki eski test yakaladı.
+
+**Yapılmadı, bilerek:** üye mobil uygulamada rezervasyon yaparken bunun ona neye mal olacağını
+göremiyor. Fit Paket dersinde pilates üyesinden kredi düşecek, fitness üyesi bedava girecek, ekranda
+hiçbir şey yazmıyor. Owner "A" dedi: ders bugünden açılabilsin, uyarı metni 1.7.0'a. **Aradaki
+sürede Işıl'ın üyelere sözlü anlatması gerekiyor** — kredisi azalmış bir üye bedava sandığı derse
+girip kredisini kaybederse resepsiyona gelir.
+
+**Sırada:** "Fit Paket" ders türünün katalogda açılması (veri, kod değil).
+
 ## 📱 Mobil 1.7.0 — biriken işler
 
 **Bu liste bir sonraki mobil sürüme kadar büyür.** Bir mağaza sürümü ucuz değil: build, Apple'ın
@@ -1248,6 +1291,7 @@ beklemez — o ayrı değerlendirilir.
 | # | İş | Neden | Durum |
 |---|---|---|---|
 | 1 | **Android FCM push** — Firebase'de Android app, `google-services.json`, FCM anahtarı EAS'e, `googleServicesFile` config'e | Android üyeler HİÇBİR bildirim almıyor ve sistem bunu hiç raporlamıyor. Ayrıntı aşağıda. | ⏸ owner erteledi (2026-08-18) |
+| 3 | **Fit Paket: rezervasyon ekranında ne ödeyeceğini göster** — "1 kredi" / "haftalık hakkın" | Üye bedava sandığı derste kredi kaybedebilir. Domain 2026-08-20'de çıktı, ekran metni çıkmadı. | ⏸ owner onayıyla ertelendi |
 | 2 | **Push kaydı sessizce yutulmasın** — `src/lib/push.ts`'teki boş `catch`, hatayı sunucuya bildirsin | 1 numaralı arıza iki aydır sürüyor olabilir ve kimse fark etmedi. Asıl kusur push'un çalışmaması değil, **çalışmadığını söyleyememesi**. | ⏸ 1 ile birlikte |
 
 ### Buraya yazarken

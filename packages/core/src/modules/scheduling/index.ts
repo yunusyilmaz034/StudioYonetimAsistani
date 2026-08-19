@@ -11,6 +11,7 @@ export type {
   Service,
   SessionCancellation,
   SessionNote,
+  SessionAdmission,
   SessionPolicySnapshot,
   CompanyInfo,
   DayHours,
@@ -58,6 +59,7 @@ export {
 } from './application/session'
 // D13 — reading yesterday's event shape with today's types. The log is never rewritten.
 export { upcastClassSessionScheduled } from './upcasters'
+export { defaultAdmission } from './domain/types'
 export {
   computeDuplicationPlan,
   planWeekDuplication,

@@ -12,7 +12,10 @@ export function isBookable(e: Entitlement, session: ClassSession, now: Instant):
   // agenda filter use. If this were re-implemented anywhere else, the UI would eventually offer
   // a booking the domain refuses — or hide one it would have allowed.
   void now // reserved: validFrom-in-future check arrives with waitlist/advance rules
-  return isEligibleForService(e, session.category, session.serviceId, session.startsAt)
+  // A session that declares nothing admits its own category — the default that describes every
+  // class created before Fit Paket existed.
+  const admits = session.admission?.categories ?? [session.category]
+  return isEligibleForService(e, admits, session.serviceId, session.startsAt)
 }
 
 // Credit entitlements are spent before period ones (unlimited access has no scarcity

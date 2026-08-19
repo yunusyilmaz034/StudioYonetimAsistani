@@ -233,6 +233,10 @@ export type DomainError =
   | { readonly code: 'trainer_not_allowed' }
   | { readonly code: 'daily_reservation_limit_reached'; readonly limit: number }
   | { readonly code: 'active_reservation_limit_reached'; readonly limit: number }
+  // Fit Paket (2026-08-20) — the session admits this package's category but caps how many times a
+  // week it may be used. Distinct from the two above on purpose: those are limits the PACKAGE carries
+  // with it everywhere, this one belongs to the CLASS and applies only there.
+  | { readonly code: 'weekly_quota_reached'; readonly limit: number }
 
 export type DomainErrorCode = DomainError['code']
 

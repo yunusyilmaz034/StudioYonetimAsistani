@@ -27,6 +27,7 @@ import {
   decideUpdateStudioSettings,
 } from '../domain/decide'
 import { resolveCancellationWindow } from '../domain/cancellation-window'
+import type { SessionAdmission } from '../domain/types'
 import type {
   ClassSession,
   NoteVisibility,
@@ -61,6 +62,7 @@ function buildSession(params: {
   capacity: number
   assignedMemberId: MemberId | null
   policySnapshot: SessionPolicySnapshot
+  admission?: SessionAdmission
 }): ClassSession {
   const { service, room } = params
   return {
@@ -130,6 +132,9 @@ export interface ScheduleSessionInput {
   readonly assignedMemberId?: MemberId | null
   // D14 — level 1 of the chain: this session's own override. Omitted/null ⇒ inherit.
   readonly cancellationWindowHours?: number | null
+  // Fit Paket — who this session admits. Omitted ⇒ `defaultAdmission(service.category)`, which is
+  // the equality the category wall has always been.
+  readonly admission?: SessionAdmission
 }
 
 export async function scheduleSession(
@@ -160,6 +165,7 @@ export async function scheduleSession(
     startsAt,
     endsAt,
     capacity: input.capacity,
+    ...(input.admission ? { admission: input.admission } : {}),
     assignedMemberId: input.assignedMemberId ?? null,
     policySnapshot: snapshot.value,
   })

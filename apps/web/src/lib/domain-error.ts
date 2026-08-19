@@ -283,6 +283,10 @@ export function domainErrorMessage(error: DomainError): string {
       return `Günlük rezervasyon limitine ulaşıldı (en fazla ${error.limit}).`
     case 'active_reservation_limit_reached':
       return `Aktif rezervasyon limitine ulaşıldı (en fazla ${error.limit}).`
+    case 'weekly_quota_reached':
+      return error.limit === 1
+        ? 'Bu derse üyeliğinle haftada bir kez katılabilirsin; bu haftaki hakkını kullandın.'
+        : `Bu derse üyeliğinle haftada en fazla ${error.limit} kez katılabilirsin; bu haftaki hakkını kullandın.`
     case 'wallet_insufficient':
       return `Cüzdan bakiyesi yetersiz (bakiye ${(error.balance / 100).toLocaleString('tr-TR')} ₺, istenen ${(error.requested / 100).toLocaleString('tr-TR')} ₺).`
     default: {

@@ -554,6 +554,16 @@ Note what is *not* in that function: no `Date.now()`, no Firestore, no `if (stud
 
 Invariant 4 deserves a note: it is the one people forget, and it produces the ugliest possible customer conversation — a member whose package expires Friday holds a booking for Saturday, arrives, and is turned away by a system that sold her the seat.
 
+> **2026-08-20 — I-9.7 genişledi (owner onayı).** Duvar kalktı değil, **eşitlik olmaktan çıkıp
+> seansın beyanı oldu.** Bir seans artık `admission.categories` ile kimi kabul ettiğini söyler;
+> hiçbir şey söylemeyen seans kendi kategorisini kabul eder — yani bugüne kadarki davranışın
+> birebir aynısı, ve bu varsayılan `class_session.scheduled` **v4**'te açıkça yazılır.
+> Gerekçe: stüdyo, iki üye grubunun farklı şartlarla katıldığı tek bir ders (Fit Paket) istedi.
+> **Ücretlendirme farkı ayrıca modellenmedi** — kredili paket kredi harcar, süreli üyelik harcamaz;
+> `selectEntitlement` zaten krediyi tercih ettiği için hibrit üye pilates kredisini öder.
+> Tek gerçek yeni kural `weeklyQuotaByCategory`: onsuz sınırsız bir üyelik, başkalarının kredi
+> ödediği bir dersten sınırsız yer alırdı. Hafta = stüdyo saatiyle pazartesi–pazar.
+
 Invariant 7 is the **category wall** *(OQ-8, resolved: separate products)*. An unlimited fitness membership grants unlimited **fitness**. It does not open the reformer room. This is enforced in the domain, not in the UI — a member portal, an imported reservation, and a future AI receptionist must all hit the same wall.
 
 ### 7.4 Which entitlement pays? (OQ-7 — resolved)

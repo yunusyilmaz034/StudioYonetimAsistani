@@ -414,6 +414,8 @@ Everything on the ❌ list goes through a Server Action and fails loudly, and vi
 
 ## 6. Denormalisation Register
 
+
+| `reservations.sessionServiceId` | `ClassSession.serviceId` | Fit Paket haftalık hak sayımı: üyenin bir DERS TÜRÜNDEKİ haftalık rezervasyonları. Rezervasyon başına seans okumak, sınırlı bir sayımı fan-out'a çevirirdi. | **Yeniden kurulabilir:** `classSessionId` → seans → `serviceId`. 2026-08-20 öncesi satırlarda yok ve geri doldurulmaz; kotayı yalnızca kota BEYAN EDEN seanslar tetikler ve öyle bir seans bu alandan önce yoktu. |
 Every copy of data is a liability. Each one is listed here, with its owner and its rebuild path. **An undocumented denormalisation is a bug.**
 
 | Field | Lives on | Source of truth | Updated by | Rebuildable? |

@@ -244,6 +244,37 @@ export interface ServicePolicyRef {
   readonly version: number
 }
 
+// ── KABUL KOŞULU (Fit Paket, owner 2026-08-20) ──────────────────────────────────────────────
+//
+// Until today a session admitted exactly one category and the rule was an equality: the category
+// wall, I-9.7. That is still the shape of almost every class, and it stays the DEFAULT — a session
+// with no admission of its own admits `[category]` and behaves exactly as it always has.
+//
+// What changed is that the studio wanted ONE class both member groups could attend on different
+// terms: a fitness membership gets in free, a pilates package pays a credit. So the wall stops being
+// a property of the session's own category and becomes a property the session DECLARES.
+//
+// The two terms are not modelled separately, because they already fall out of what a package IS: a
+// pilates package holds credits and booking spends one; a fitness membership is unlimited period
+// access and spends nothing. `selectEntitlement` already prefers credits over period access, so a
+// hybrid member — who holds both — spends her pilates credit, which is what the owner chose.
+//
+// `weeklyQuota` is the one genuinely new rule, and it exists because without it an unlimited
+// membership would take an unlimited number of seats in a class other members pay credits for.
+// The week is the studio-local Monday–Sunday calendar week (owner). Cancelled reservations do not
+// count — the right comes back; a no-show does — it burns, exactly as a credit does.
+export interface SessionAdmission {
+  /** Which package categories may book this session at all. Replaces the one-category equality. */
+  readonly categories: readonly Category[]
+  /** Per-category cap within the session's Mon–Sun week. Absent/0 ⇒ uncapped. */
+  readonly weeklyQuotaByCategory?: Partial<Record<Category, number>>
+}
+
+/** What a session admits when it declares nothing: its own category, uncapped. Today's behaviour. */
+export function defaultAdmission(category: Category): SessionAdmission {
+  return { categories: [category] }
+}
+
 export interface ClassSession {
   readonly id: ClassSessionId
   readonly studioId: StudioId
@@ -253,6 +284,9 @@ export interface ClassSession {
   readonly trainerId: StaffUserId | null
   readonly templateId: ClassTemplateId | null
   readonly category: Category // snapshot of the service's category (I-22)
+  // Who may book, stamped at creation like the cancellation window. Absent on every session
+  // created before 2026-08-20 ⇒ read as `defaultAdmission(category)`, which is what they were.
+  readonly admission?: SessionAdmission
   // D13 (v1.21, final — owner 2026-07-12) — PT ownership is MODELLED, never inferred from
   // whether a reservation happens to exist. Only meaningful when category === 'private':
   //

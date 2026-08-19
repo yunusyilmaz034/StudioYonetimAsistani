@@ -1,5 +1,6 @@
 'use server'
 
+import type { SessionAdmission } from '@studio/core'
 import {
   assignSessionMember,
   FirestoreEntitlementRepository,
@@ -232,6 +233,14 @@ export async function scheduleSessionAction(input: unknown) {
       assignedMemberId: z.string().nullable().optional(),
       // D14 — level 1 of the chain. Omitted ⇒ inherit the service, then the studio.
       cancellationWindowHours: z.number().int().min(0).max(720).nullable().optional(),
+      // Fit Paket (2026-08-20) — who this session admits, and any per-category weekly cap.
+      // Omitted ⇒ the session's own category, uncapped: exactly what every class was before.
+      admission: z
+        .object({
+          categories: z.array(z.enum(['pilates_group', 'fitness', 'private'])).min(1),
+          weeklyQuotaByCategory: z.record(z.string(), z.number().int().min(0)).optional(),
+        })
+        .optional(),
     })
     .parse(input)
   const ctx = await requireTenantContext(OPS)
@@ -245,8 +254,12 @@ export async function scheduleSessionAction(input: unknown) {
     )
     if (bad) return { ok: false as const, error: bad }
   }
+  const { admission, ...rest } = p
   return scheduleSession(deps(), ctx, {
-    ...p,
+    ...rest,
+    // `exactOptionalPropertyTypes`: the key is passed only when it exists, so "omitted" and
+    // "explicitly undefined" stay different things — which is the whole point of the default.
+    ...(admission ? { admission: admission as SessionAdmission } : {}),
     assignedMemberId: (p.assignedMemberId ?? null) as MemberId | null,
     cancellationWindowHours: p.cancellationWindowHours ?? null,
     serviceId: p.serviceId as ServiceId,

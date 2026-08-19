@@ -1,3 +1,4 @@
+import type { SessionAdmission } from './domain/types'
 import type { BranchId, Category, Instant, MemberId, RoomId, ServiceId, StaffUserId } from '../../shared'
 import type { CancellationWindowSource, NoteVisibility } from './domain/types'
 
@@ -40,8 +41,12 @@ export const STUDIO_SETTINGS_UPDATED = 'studio.settings_updated'
 // `class_session.scheduled` is the only versioned-up event in scheduling:
 //   v2 (D13) adds `assignedMemberId`
 //   v3 (D14) adds the EFFECTIVE cancellation window and where it came from
+//   v4 (Fit Paket, 2026-08-20) adds the ADMISSION rule — which package categories this session
+//      admits, and any per-category weekly cap. Unlike v3's window, this one IS recoverable from
+//      an older payload: a v3 session admitted exactly its own category, uncapped. That is a fact
+//      about v3, not a guess, so the upcaster states it.
 // Every other type is still v1.
-export const CLASS_SESSION_SCHEDULED_VERSION = 3
+export const CLASS_SESSION_SCHEDULED_VERSION = 4
 
 export type ServiceCreatedPayload = {
   readonly name: string
@@ -93,6 +98,8 @@ export type ClassSessionScheduledPayload = {
   // upcaster may not invent what it cannot know. The session document still holds the number.
   readonly cancellationWindowHours: number | null
   readonly cancellationWindowSource: CancellationWindowSource | null
+  // v4 — who this session admits. Never null: a pre-v4 event is upcast to its own category.
+  readonly admission: SessionAdmission
 }
 
 // D14 — the studio-level defaults changed. Only affects sessions created AFTER it.

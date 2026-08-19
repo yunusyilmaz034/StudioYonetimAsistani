@@ -42,6 +42,7 @@ import {
   SERVICE_REACTIVATED,
   SERVICE_UPDATED,
 } from '../events'
+import { defaultAdmission } from './types'
 import type {
   ClassSession,
   ClassTemplate,
@@ -319,6 +320,9 @@ export function decideScheduleSession(
         // answered. Recorded on the event so the log can explain itself later.
         cancellationWindowHours: session.policySnapshot.cancellationWindowHours,
         cancellationWindowSource: session.policySnapshot.cancellationWindowSource,
+        // v4 — stated even when the session declares nothing, so a reader never has to know which
+        // rule was in force the day the row was written. `defaultAdmission` is what "nothing" means.
+        admission: session.admission ?? defaultAdmission(session.category),
       },
     },
   ])

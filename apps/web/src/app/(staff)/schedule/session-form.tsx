@@ -56,6 +56,11 @@ export function SessionForm({
   const [memberQuery, setMemberQuery] = useState('')
   // D14 — level 1 of the cancellation chain. Empty ⇒ inherit the service, then the studio.
   const [cancelWindow, setCancelWindow] = useState<number | null>(null)
+  // Fit Paket (2026-08-20) — bir seansı ikinci bir paket türüne açmak. Kapalıyken hiçbir şey
+  // gönderilmiyor, yani ders bugüne kadarki davranışın birebir aynısını alıyor.
+  const [openToOthers, setOpenToOthers] = useState(false)
+  const [guestCategory, setGuestCategory] = useState<'fitness' | 'pilates_group'>('fitness')
+  const [guestWeekly, setGuestWeekly] = useState<number>(1)
   const [roomId, setRoomId] = useState<string>(NONE)
   const [trainerId, setTrainerId] = useState<string>(NONE)
   const [loading, setLoading] = useState(false)
@@ -79,7 +84,8 @@ export function SessionForm({
   )
   const rooms = useMemo(() => data.rooms.filter((r) => r.branchId === branchId), [data.rooms, branchId])
 
-  const isPt = data.services.find((s) => s.id === serviceId)?.category === 'private'
+  const selectedService = data.services.find((s) => s.id === serviceId) ?? null
+  const isPt = selectedService?.category === 'private'
 
   // Switching to a PT service pulls capacity into the 1–2 band (default 1: one-on-one);
   // switching away restores a group-sized default. The domain enforces the band regardless —
@@ -207,6 +213,14 @@ export function SessionForm({
         capacity,
         assignedMemberId: isPt && ptMode === 'member' ? ptMemberId : null,
         cancellationWindowHours: cancelWindow,
+        ...(openToOthers && selectedService && guestCategory !== selectedService.category
+          ? {
+              admission: {
+                categories: [selectedService.category, guestCategory],
+                ...(guestWeekly > 0 ? { weeklyQuotaByCategory: { [guestCategory]: guestWeekly } } : {}),
+              },
+            }
+          : {}),
       })
       if (res.ok) {
         toast.success('Seans oluşturuldu.')
@@ -410,6 +424,62 @@ export function SessionForm({
                   )}
                 </>
               )}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
+      {/* KATILIM ŞARTLARI — bir seansı ikinci bir paket türüne açmak (Fit Paket).
+          Varsayılan kapalı: dokunulmayan her ders bugüne kadarki kuralla, yani yalnızca kendi
+          kategorisine açık kalır. Kategori duvarı kaldırılmadı, seansın beyan ettiği şey oldu. */}
+      {selectedService && !isPt ? (
+        <div className="space-y-2 rounded-xl border border-border p-3">
+          <label className="flex cursor-pointer items-start gap-2.5 text-sm">
+            <input
+              type="checkbox"
+              className="mt-0.5 size-4 shrink-0 accent-primary"
+              checked={openToOthers}
+              onChange={(e) => setOpenToOthers(e.target.checked)}
+            />
+            <span>
+              <span className="font-medium text-foreground">Başka bir paket türüne de aç</span>
+              <span className="mt-0.5 block text-xs text-muted-foreground">
+                Ör. Fit Paket: fitness üyeleri de katılsın. Kredili paket sahiplerinden normal
+                şekilde kredi düşer; süreli (sınırsız) üyelikten bir şey düşmez — bu yüzden onlara
+                haftalık sınır koyabilirsin.
+              </span>
+            </span>
+          </label>
+
+          {openToOthers ? (
+            <div className="grid gap-2 sm:grid-cols-2">
+              <Field id="s-guest-cat" label="Ek paket türü">
+                <Select value={guestCategory} onValueChange={(v) => setGuestCategory(v as 'fitness' | 'pilates_group')}>
+                  <SelectTrigger id="s-guest-cat">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {selectedService.category !== 'fitness' ? <SelectItem value="fitness">Fitness</SelectItem> : null}
+                    {selectedService.category !== 'pilates_group' ? (
+                      <SelectItem value="pilates_group">Pilates</SelectItem>
+                    ) : null}
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field id="s-guest-week" label="Haftalık hak (0 = sınırsız)">
+                <Input
+                  id="s-guest-week"
+                  type="number"
+                  min={0}
+                  max={7}
+                  value={guestWeekly}
+                  onChange={(e) => setGuestWeekly(Math.max(0, Math.min(7, Number(e.target.value) || 0)))}
+                />
+              </Field>
+              <p className="text-xs text-muted-foreground sm:col-span-2">
+                Hafta pazartesi–pazar sayılır. Zamanında iptal edilen ders hakkı geri verir; gelinmeyen
+                ders hakkı yakar.
+              </p>
             </div>
           ) : null}
         </div>

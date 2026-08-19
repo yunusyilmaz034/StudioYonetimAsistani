@@ -14,6 +14,8 @@ import {
 } from '../../../shared'
 import { decideHold } from '../../entitlements'
 import type { MemberSnapshot } from '../../members'
+import type { ServiceId } from '../../../shared'
+import type { Reservation } from '../domain/types'
 import { decideBooking } from '../domain/decide'
 import { localMinuteOfDay, localWeekday, packageRuleFromSnapshot, resolveReservationPolicy } from '../domain/policy'
 import { decideContext } from './context'
@@ -22,6 +24,33 @@ import type { BookDecision, ReservationsDeps } from './ports'
 const DAY_MS = 86_400_000
 const localDayNumber = (ms: number, offsetMinutes: number): number =>
   Math.floor((ms + offsetMinutes * 60_000) / DAY_MS)
+
+
+// Fit Paket — the member's non-cancelled reservations for THIS service, inside the session's
+// studio-local Monday–Sunday week. Counted here because a pure decider cannot query, and counted
+// from reservations already in memory so it costs no extra read.
+//
+// Why Monday: the owner chose the calendar week, so the right resets at Monday 00:00 studio time and
+// a member cannot take Sunday's slot and Monday's as "two in seven days".
+//
+// Cancelled is the ONLY status excluded — a timely cancellation gives the week's right back. A
+// no-show is counted, so it burns, exactly as a held credit does: the seat was taken and nobody
+// else could have it.
+function weekServiceCount(
+  reservations: readonly Reservation[],
+  serviceId: ServiceId,
+  sessionStartsAt: number,
+  offset: number,
+): number {
+  const mondayOf = (at: number) => localDayNumber(at, offset) - ((localWeekday(at, offset) + 6) % 7)
+  const week = mondayOf(sessionStartsAt)
+  return reservations.filter(
+    (r) =>
+      r.status !== 'cancelled' &&
+      r.sessionServiceId === serviceId &&
+      mondayOf(r.sessionStartsAt as number) === week,
+  ).length
+}
 
 export interface BookReservationInput {
   readonly sessionId: ClassSessionId
@@ -59,9 +88,11 @@ export async function bookReservation(
   // package rules automatically, no sweep required.
   const raw = deps.policy ? await deps.policy.getMemberOverride(ctx, input.memberId) : null
   const override: ReservationOverride | null = raw && isOverrideActiveAt(raw, dctx.now) ? raw : null
-  const openStarts = (await deps.repo.listByMember(ctx, input.memberId))
-    .filter((r) => r.status === 'booked')
-    .map((r) => r.sessionStartsAt as number)
+  // The whole list is kept, not just the open starts: the weekly Fit Paket count needs the
+  // cancelled/attended ones too (cancelled excluded, no-show counted), and re-reading would be a
+  // second query for data already in hand.
+  const memberReservations = await deps.repo.listByMember(ctx, input.memberId)
+  const openStarts = memberReservations.filter((r) => r.status === 'booked').map((r) => r.sessionStartsAt as number)
 
   return deps.repo.book(ctx, {
     sessionId: input.sessionId,
@@ -83,6 +114,7 @@ export async function bookReservation(
           sessionStartMinutes: localMinuteOfDay(session.startsAt, offset),
           memberDayReservationCount: openStarts.filter((s) => localDayNumber(s, offset) === sessionDay).length,
           memberActiveReservationCount: openStarts.length,
+          memberWeekServiceCount: weekServiceCount(memberReservations, session.serviceId, session.startsAt as number, offset),
         },
       )
       if (!booked.ok) return booked

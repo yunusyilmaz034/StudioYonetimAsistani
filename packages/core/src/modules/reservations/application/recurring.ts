@@ -12,6 +12,7 @@ import {
   type TenantContext,
 } from '../../../shared'
 import { decideHold, type Entitlement } from '../../entitlements'
+import type { ServiceId } from '../../../shared'
 import type { MemberSnapshot } from '../../members'
 import type { ClassSession } from '../../scheduling'
 import { decideBooking } from '../domain/decide'
@@ -25,6 +26,36 @@ import type { Reservation } from '../domain/types'
 // `applyRecurring` re-derives from a fresh read and books each week as its own ordinary
 // reservation — one transaction each, all under ONE operation id (OP-2), so eight bookings read
 // as one act in the Activity Center and can be undone as one later (OP-4).
+
+
+// Fit Paket — the member's non-cancelled reservations for THIS service, inside the session's
+// studio-local Monday–Sunday week. Counted here because a pure decider cannot query, and counted
+// from reservations already in memory so it costs no extra read.
+//
+// Why Monday: the owner chose the calendar week, so the right resets at Monday 00:00 studio time and
+// a member cannot take Sunday's slot and Monday's as "two in seven days".
+//
+// Cancelled is the ONLY status excluded — a timely cancellation gives the week's right back. A
+// no-show is counted, so it burns, exactly as a held credit does: the seat was taken and nobody
+// else could have it.
+const localDayNumber = (ms: number, offsetMinutes: number): number =>
+  Math.floor((ms + offsetMinutes * 60_000) / 86_400_000)
+
+function weekServiceCount(
+  reservations: readonly Reservation[],
+  serviceId: ServiceId,
+  sessionStartsAt: number,
+  offset: number,
+): number {
+  const mondayOf = (at: number) => localDayNumber(at, offset) - ((localWeekday(at, offset) + 6) % 7)
+  const week = mondayOf(sessionStartsAt)
+  return reservations.filter(
+    (r) =>
+      r.status !== 'cancelled' &&
+      r.sessionServiceId === serviceId &&
+      mondayOf(r.sessionStartsAt as number) === week,
+  ).length
+}
 
 export interface RecurringWorld {
   readonly seed: ClassSession
@@ -142,6 +173,7 @@ export async function applyRecurring(
             sessionStartMinutes: localMinuteOfDay(session.startsAt, offset),
             memberDayReservationCount: openStarts.filter((s) => dayNum(s) === sDay).length,
             memberActiveReservationCount: openStarts.length,
+            memberWeekServiceCount: weekServiceCount(planned.world.memberReservations, session.serviceId, session.startsAt as number, offset),
           },
         )
         if (!decided.ok) return decided

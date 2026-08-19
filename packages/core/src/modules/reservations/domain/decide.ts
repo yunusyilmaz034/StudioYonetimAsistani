@@ -91,6 +91,15 @@ export interface BookingLimits {
   readonly sessionStartMinutes: number // minutes from midnight, studio-local
   readonly memberDayReservationCount: number // member's active reservations on the session's day
   readonly memberActiveReservationCount: number // member's total active/future reservations
+  // Fit Paket (2026-08-20) — the member's NON-CANCELLED reservations for THIS session's service,
+  // inside the session's studio-local Mon–Sun week, excluding this booking. Counted by the caller
+  // because a pure function cannot query; counted per SERVICE because the quota is about the class
+  // type, not one occurrence of it.
+  //
+  // Cancelled ones are excluded, so a timely cancellation gives the week's right back. A no-show is
+  // NOT excluded, so it burns — the same way a credit does, and for the same reason: the seat was
+  // held and nobody else could take it.
+  readonly memberWeekServiceCount?: number
 }
 
 function policyRefOf(r: Reservation): PolicyRef {
@@ -215,8 +224,12 @@ export function decideBooking(
   if (avail !== null && avail < 1) return err({ code: 'insufficient_credits', available: avail })
   // I-9.6
   if (memberHasBookedThisSession) return err({ code: 'already_booked' })
-  // I-9.7 — the category wall
-  if (entitlement.productSnapshot.category !== session.category) {
+  // I-9.7 — the category wall. THE authoritative copy: `isEligibleForService` answers the same
+  // question for the UI, and the two must widen together or the screen offers a booking this
+  // function then refuses. Widened, not removed — a session names who it admits, and the default
+  // (nothing declared) is its own category, which is the equality this used to be.
+  const admits = session.admission?.categories ?? [session.category]
+  if (!admits.includes(entitlement.productSnapshot.category)) {
     return err({
       code: 'category_mismatch',
       sessionCategory: session.category,
@@ -246,6 +259,20 @@ export function decideBooking(
     }
   }
 
+  // ── Fit Paket: haftalık hak ─────────────────────────────────────────────────────────────────
+  //
+  // Only bites on a session that declares a quota for the paying package's category. Without it an
+  // unlimited membership would take every seat in a class that credit-holders pay for; the studio
+  // chose one per week for fitness.
+  //
+  // Read from the SESSION, not from settings: the session was created under this rule and must keep
+  // being judged by it, exactly as the cancellation window is (D14). Changing the rule later must not
+  // retroactively refuse a booking that was legal when it was made.
+  const quota = session.admission?.weeklyQuotaByCategory?.[entitlement.productSnapshot.category]
+  if (quota != null && quota > 0 && (limits?.memberWeekServiceCount ?? 0) >= quota) {
+    return err({ code: 'weekly_quota_reached', limit: quota })
+  }
+
   const isCredit = entitlement.credits !== null
   const creditEffect: CreditEffect = isCredit ? 'held' : 'none'
   const creditsAvailableAfter = avail === null ? null : avail - 1
@@ -262,6 +289,7 @@ export function decideBooking(
     sessionStartsAt: session.startsAt,
     sessionEndsAt: session.endsAt,
     sessionCategory: session.category,
+    sessionServiceId: session.serviceId,
     memberSnapshot: input.memberSnapshot,
     bookedAt: ctx.now,
     bookedBy: ctx.actor,

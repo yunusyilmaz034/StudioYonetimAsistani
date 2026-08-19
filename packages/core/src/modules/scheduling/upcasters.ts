@@ -1,3 +1,4 @@
+import { defaultAdmission } from './domain/types'
 import type { ClassSessionScheduledPayload } from './events'
 
 // Upcasters (Doc 4 §versioning). An event is NEVER rewritten — the log is append-only and
@@ -20,20 +21,30 @@ import type { ClassSessionScheduledPayload } from './events'
 //     recorded"**, not as "no window". The session DOCUMENT still carries the real number
 //     (it always did), and that is what the cancel decider has always used.
 
+//   v3 → v4 (Fit Paket): the OTHER kind of upcast. A v3 session admitted exactly one category —
+//     its own — and capped nothing. That is not a guess about missing data; it is what the shape
+//     MEANT, the same way `assignedMemberId: null` was what v1 meant. So the upcaster states it.
+
 type ClassSessionScheduledV1 = Omit<
   ClassSessionScheduledPayload,
-  'assignedMemberId' | 'cancellationWindowHours' | 'cancellationWindowSource'
+  'assignedMemberId' | 'cancellationWindowHours' | 'cancellationWindowSource' | 'admission'
 >
 type ClassSessionScheduledV2 = Omit<
   ClassSessionScheduledPayload,
-  'cancellationWindowHours' | 'cancellationWindowSource'
+  'cancellationWindowHours' | 'cancellationWindowSource' | 'admission'
 >
+type ClassSessionScheduledV3 = Omit<ClassSessionScheduledPayload, 'admission'>
 
 export function upcastClassSessionScheduled(
   payload: Record<string, unknown>,
   version: number,
 ): ClassSessionScheduledPayload {
-  if (version >= 3) return payload as unknown as ClassSessionScheduledPayload
+  if (version >= 4) return payload as unknown as ClassSessionScheduledPayload
+
+  if (version === 3) {
+    const v3 = payload as unknown as ClassSessionScheduledV3
+    return { ...v3, admission: defaultAdmission(v3.category) }
+  }
 
   const withAssignment: ClassSessionScheduledV2 =
     version >= 2
@@ -44,5 +55,6 @@ export function upcastClassSessionScheduled(
     ...withAssignment,
     cancellationWindowHours: null, // not recorded by v1/v2 — and not inventable
     cancellationWindowSource: null,
+    admission: defaultAdmission(withAssignment.category),
   }
 }

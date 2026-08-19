@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
+import type { Category } from '../../../shared'
+
 import type { Entitlement } from '../../entitlements'
 import type { ClassSession, SessionPolicySnapshot } from '../../scheduling'
 import {
@@ -1161,5 +1163,79 @@ describe('backdating a booking', () => {
     const r = book(past(), fitness, backdated, false)
     expect(r.ok).toBe(false)
     if (!r.ok) expect(r.error.code).toBe('category_mismatch')
+  })
+})
+
+// ── FİT PAKET: kabul koşulu ve haftalık hak (owner 2026-08-20) ──────────────────────────────
+//
+// One class, two kinds of member, different terms. What makes this worth testing is not the happy
+// path but the two things that decide whether it is FAIR: the weekly cap has to bite on the second
+// booking and not the first, and it has to bite on the category the session named — not on everyone.
+describe('decideBooking — Fit Paket admission (I-9.7 widened)', () => {
+  const FIT = {
+    categories: ['fitness', 'pilates_group'] as const,
+    weeklyQuotaByCategory: { fitness: 1 },
+  }
+  const fitSession = (over: Partial<ClassSession> = {}): ClassSession =>
+    session({ category: 'fitness', admission: FIT, ...over })
+
+  // `creditEnt()` carries no service list — a pre-D12 purchase, which keeps its category-wide right.
+  // That is what we want here: these cases are about the CATEGORY wall, not the service wall.
+  const asCategory = (c: Category, over: Partial<Entitlement> = {}) =>
+    creditEnt({ ...over, productSnapshot: { ...creditEnt().productSnapshot, category: c } })
+
+  // An unlimited membership: no credits, so booking it holds nothing.
+  const fitnessEnt = () => asCategory('fitness', { credits: null })
+  const pilatesEnt = () => asCategory('pilates_group')
+
+  const limits = (weekCount: number) => withLimits({ memberWeekServiceCount: weekCount })
+
+  it('admits a FITNESS membership free — nothing is held, because there is nothing to hold', () => {
+    const r = decideBooking(ctx, fitSession(), fitnessEnt(), bookInput, false, OPEN_ALWAYS, limits(0))
+    expect(r.ok).toBe(true)
+    if (r.ok) expect(r.value.reservation.creditEffect).toBe('none')
+  })
+
+  it('admits a PILATES package to the same session and holds a credit', () => {
+    const r = decideBooking(ctx, fitSession(), pilatesEnt(), bookInput, false, OPEN_ALWAYS, limits(0))
+    expect(r.ok).toBe(true)
+    if (r.ok) expect(r.value.reservation.creditEffect).toBe('held')
+  })
+
+  it('refuses the SECOND fitness booking in the same week', () => {
+    const r = decideBooking(ctx, fitSession(), fitnessEnt(), bookInput, false, OPEN_ALWAYS, limits(1))
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.error).toEqual({ code: 'weekly_quota_reached', limit: 1 })
+  })
+
+  it('the cap is per CATEGORY — a pilates package is not capped by the fitness quota', () => {
+    // The quota named `fitness`. A credit-holder pays her way in and is limited by her credits,
+    // which is the whole reason the cap exists for the other side only.
+    const r = decideBooking(ctx, fitSession(), pilatesEnt(), bookInput, false, OPEN_ALWAYS, limits(5))
+    expect(r.ok).toBe(true)
+  })
+
+  it('a package outside the admitted list is still refused — the wall widened, it did not fall', () => {
+    const pt = asCategory('private')
+    const r = decideBooking(ctx, fitSession(), pt, bookInput, false, OPEN_ALWAYS, limits(0))
+    expect(r.ok).toBe(false)
+  })
+
+  it('an ordinary session is untouched: no admission ⇒ its own category, no cap', () => {
+    // The regression that matters. Every class the studio already runs must behave exactly as it did
+    // before this feature existed, including when the caller reports a high week count.
+    const r = decideBooking(ctx, session(), creditEnt(), bookInput, false, OPEN_ALWAYS, limits(99))
+    expect(r.ok).toBe(true)
+  })
+
+  it('a quota of 0 or absent means uncapped, not "nobody"', () => {
+    const noCap = fitSession({ admission: { categories: ['fitness', 'pilates_group'] } })
+    const r = decideBooking(ctx, noCap, fitnessEnt(), bookInput, false, OPEN_ALWAYS, limits(9))
+    expect(r.ok).toBe(true)
+  })
+
+  it('without limits at all the quota cannot bite — an unmeasured week is not a full one', () => {
+    const r = decideBooking(ctx, fitSession(), fitnessEnt(), bookInput, false, OPEN_ALWAYS)
+    expect(r.ok).toBe(true)
   })
 })

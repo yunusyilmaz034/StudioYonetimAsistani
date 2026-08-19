@@ -1,3 +1,4 @@
+import type { ServiceId } from '../../../shared'
 import type {
   ActorRef,
   BranchId,
@@ -51,6 +52,14 @@ export type Reservation = {
   readonly sessionStartsAt: Instant
   readonly sessionEndsAt: Instant
   readonly sessionCategory: Category
+  // Fit Paket (2026-08-20) — the session's SERVICE, denormalised for the same reason the two above
+  // are: the weekly quota counts a member's bookings for one class TYPE, and reading a session per
+  // reservation to learn its type would turn a bounded count into a fan-out.
+  //
+  // Optional because rows written before today do not have it, and they are never backfilled. That
+  // is safe here rather than merely tolerated: the quota only counts reservations for a session that
+  // DECLARES a quota, and no such session existed before this field did.
+  readonly sessionServiceId?: ServiceId
 
   // Bounded member snapshot for the roster (OQ-12, AD-44). Never in an event (I-13).
   readonly memberSnapshot: MemberSnapshot
