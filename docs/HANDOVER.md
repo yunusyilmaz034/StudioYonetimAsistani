@@ -1151,6 +1151,82 @@ outright.
 5. **Reception's own sales take none of these consents** — only the online checkout does.
 6. **Kamera bilgilendirme levhası** at the physical entrance — the owner's task, not code.
 
+### 2026-08-19 — TAMI: everything works except the one thing TAMI has to turn on
+
+The merchant account was approved this morning. By the end of the day both providers are wired, the
+owner picks one in Ayarlar, and every payment path reads that choice. TAMI is **not** live: its
+hosted payment page is not provisioned for this merchant, which is a switch on their side.
+
+**What was built.** Three secrets into Secret Manager (`TAMI_SECRET_KEY`, `TAMI_JWK_K`,
+`TAMI_JWK_KID`); the settings action stopped forcing `provider: 'paytr'`; five intent-creation sites
+stopped hard-coding it too; and `/api/payments/tami/return` was written, because TAMI has no
+callback. It redirects the buyer's browser back and tells us nothing — so the return endpoint grants
+nothing on arrival and instead asks TAMI, over a JWK-signed query, whether the order was paid.
+Everything after the verdict is the same `completePaidIntent` PayTR completes through.
+
+**Where it stands.** `POST /hosted/create-one-time-hosted-token` answers **200 with a valid
+oneTimeToken** in production. Opening `portal.tami.com.tr/hostedPaymentPage?token=…` renders
+**"Sayfa Bulunamadı"**. The POS Yönetimi screen offers only an **API** terminal — "Ortak Ödeme
+Sayfası" is not in the list. So the API mints a token and nothing is provisioned to display it.
+Mailed to Aybars Bey with the evidence, plus two standing questions: a sample SUCCESSFUL
+`/payment/query` response (the field names are still unobserved, so `confirm()` refuses rather than
+guesses), and how interest-free instalments are defined on their side.
+
+**Test mode cannot be used at all.** Production credentials against `sandbox-paymentapi.tami.com.tr`
+answer `errorCode 4003`. The merchant panel issues production keys only; sandbox needs its own. So
+TAMI testing happens in production, with small amounts.
+
+**Provider is back on PAYTR** and verified end to end afterwards — a real ₺10 link payment: intent
+`paid`, collection `pcol_01M0D672…` written `unreconciled`. That test existed because five payment
+code paths were edited today and compiling is not the same as working. TAMI's merchant/terminal
+numbers survive in settings, so switching back is one dropdown.
+
+### The four silences that cost the afternoon
+
+None of the day's real delays were the integration. They were places where something failed and
+**nothing said so** — worth reading as a group, because the pattern repeats.
+
+1. **`<Toaster />` is mounted only in the (staff) layout.** `/pay` and `/uyelik` live outside it, so
+   every `toast.error` on the two CUSTOMER-facing payment pages had been called and rendered nowhere
+   for as long as those pages existed. A buyer whose checkout was refused saw a page that did
+   nothing. Fixed; it is what finally showed the real error.
+2. **A refused checkout logged nothing server-side**, and the TAMI adapter reduced the answer to
+   `tami_http_400`, discarding a body that said `errorCode 4003`. Both now carry the provider's own
+   words.
+3. **`settings.successUrl` pointed at `/payments/return`, a page that has never existed.** Every
+   member who paid for a package by card was redirected there and got a 307 to the STAFF LOGIN.
+   Live on PayTR the whole time; surfaced only because TAMI reuses the same field. Cleared — the
+   code already falls back to `/portal`.
+4. **The way in was a button labelled "PAYTR Bağlantısı"**, so the owner could not find the TAMI
+   settings: the door named one of the two things behind it.
+
+**And one I caused.** Three "it still does nothing" reports were stale Server Action ids — because I
+kept deploying while he was testing. Each reload was invalidated by my next rollout. Freeze
+deployments during a live test; the fix for the general case is item 1 of the list below.
+
+### ⚠️ App Hosting: a failed rollout stops auto-deploying pushes
+
+Two pushes after the first failed rollout produced **no build at all**, and the most-recent-build
+query kept returning the old failure — so it looked like the same error repeating. It was not:
+nothing was running. `firebase apphosting:rollouts:create studio-yonetim --git-branch main` starts
+one explicitly.
+
+The first failure itself was `fah/misconfigured-secret`: a new secret needs the App Hosting backend
+granted access **before** the rollout, which is a separate step from creating it
+(`firebase apphosting:secrets:grantaccess <NAME> --backend studio-yonetim`).
+
+**So OR-17 needs a step in front of it.** "Did it deploy?" is answered by the traffic split — but
+before that, "did a build even start?" is answered by a NEW build appearing. Checking the latest
+build's status alone will happily report a stale failure forever.
+
+### Sırada (TAMI)
+
+1. Aybars Bey'in cevabı — Ortak Ödeme Sayfası tanımı
+2. Cevap gelince: Ayarlar → sağlayıcı TAMI → küçük tutarlı gerçek ödeme
+3. İlk başarılı ödemede `/payment/query` yanıtını logdan oku ve `tami-provider.ts`'teki alan
+   adlarını kesinleştir — şu an tahmin edilen kısım orası, ve "emin değilsem ödenmemiş say" diyor
+4. "Bağlantıyı Test Et" kaydedilmemiş değişiklik varken uyarsın (bugün kafa karıştırdı)
+
 ## 🌐 Tanıtım sitesi — biriken işler
 
 `~/pilates-site` ayrı bir repo; ayrıntılı notlar orada `TODO.md` içinde. Buradaki liste sadece

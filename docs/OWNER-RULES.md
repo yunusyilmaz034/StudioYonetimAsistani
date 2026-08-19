@@ -483,6 +483,41 @@ gate does not run `next build`; this is what that costs in practice.
 
 **So: touch a `'use server'` file, run `pnpm --filter web build` before pushing.** Values belong in
 `lib/`, actions belong in `server/actions/`, and the two do not mix.
+
+<a id="or-41"></a>
+**OR-41 · Both payment providers stay. The owner picks one, and everything reads that pick.**
+(2026-08-19) TAMI was approved and PAYTR is not being retired. Ayarlar → Ödeme Sağlayıcısı Ayarları
+carries the choice; `paymentProviderFor` resolves it and every write path goes through that one
+function. A payment intent records the provider it was **minted under**, so switching providers never
+strands a payment already in flight — the link a member is holding still completes on the provider
+that issued it.
+
+**One refusal is load-bearing and stays:** TAMI cannot be activated without the JWK (`K`/`Kid`).
+Without it a checkout still mints and she still pays — we simply cannot establish that she did, so
+nothing credits her. The settings action refuses that state rather than warning about it, because a
+warning is something a tired person clicks past at 19:00 on a Friday.
+
+**TAMI has no sandbox for us.** Production credentials answer `errorCode 4003` against the sandbox
+host; the merchant panel issues production keys only. TAMI testing therefore happens in production
+with small amounts, and that is a deliberate accepted cost, not an oversight.
+
+<a id="or-42"></a>
+**OR-42 · A failure the user cannot see is worse than the failure.** (2026-08-19) Four separate
+silences cost an afternoon, and none of them were the feature that was being built:
+
+- `<Toaster />` was mounted only in the `(staff)` layout, so every error on the two **customer-facing
+  payment pages** was raised and rendered nowhere. A buyer whose checkout was refused saw a page that
+  simply did nothing.
+- A refused checkout logged nothing server-side, and the payment adapter reduced the provider's
+  answer to an HTTP status while discarding a body that named the actual cause.
+- `successUrl` pointed at a page that had never existed, so members who paid by card were redirected
+  to the staff login — live on PayTR for weeks, noticed only by accident.
+- The way into the payment settings was a button named after one of the two providers behind it.
+
+**So: any surface a CUSTOMER can reach must be able to show an error.** A public page that calls
+`toast.error` without a `<Toaster />` is not a small bug — it is a payment failure with no symptom.
+And an adapter that hides the provider's own error code makes every future failure a research
+project. When something "does nothing", suspect the reporting before the logic.
 **OR-32 · A price we came down on is a DISCOUNT, never a debt.** (2026-08-06) The single-price move
 (OR-31) raised every package, and the studio still comes down for individual members — a ₺5.000
 pilates package sold to a regular for ₺4.200. Recording that as ₺4.200 collected against a ₺5.000
