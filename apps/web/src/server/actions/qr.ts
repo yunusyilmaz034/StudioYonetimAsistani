@@ -70,11 +70,38 @@ async function qrTtlSeconds(ctx: TenantContext): Promise<number> {
 export async function mintCheckInTokenAction(input: unknown) {
   const p = z.object({ branchId: z.string().min(1) }).parse(input)
   const { ctx, memberId } = await requireMemberContext()
-  return mintCheckInToken(ctx, memberId, p.branchId)
+  void p.branchId // accepted for compatibility, resolved server-side
+  return mintCheckInToken(ctx, memberId)
+}
+
+/**
+ * WHICH BRANCH IS THIS TOKEN FOR — decided here, never by the caller.
+ *
+ * It used to be whatever the client sent, and on 2026-08-20 that broke check-in for everyone: a
+ * member with no `homeBranchId` made the app fall back to the invented string `'main'`, the token
+ * was signed for a branch that does not exist, reception's scanner sent the real one, and the
+ * equality check below refused every scan as "QR kod geçersiz".
+ *
+ * The client had no business deciding this. It cannot know better than the server, and when it is
+ * wrong the failure is silent — a perfectly valid signature over a meaningless claim.
+ *
+ * Resolution order: the member's own branch; else the studio's branch when it has exactly one. With
+ * several branches and no home branch there is no honest answer, so it refuses rather than picking
+ * one — a token minted for the wrong branch is the bug we are fixing.
+ */
+async function resolveMemberBranch(ctx: TenantContext, memberId: MemberId): Promise<string | null> {
+  const member = await new FirestoreMemberRepository(adminDb()).findById(ctx, memberId)
+  if (member?.homeBranchId) return member.homeBranchId as string
+  const snap = await adminDb().collection('studios').doc(ctx.studioId as string).collection('branches').get()
+  const ids = snap.docs.map((d) => d.id)
+  return ids.length === 1 ? (ids[0] as string) : null
 }
 
 // ctx-taking core, shared by the cookie Server Action and the Bearer member API (mobile app).
-export async function mintCheckInToken(ctx: TenantContext, memberId: MemberId, branchId: string) {
+// It takes NO branch: the caller used to supply one and that is precisely what broke the door.
+export async function mintCheckInToken(ctx: TenantContext, memberId: MemberId) {
+  const branchId = await resolveMemberBranch(ctx, memberId)
+  if (!branchId) return { ok: false as const, error: { code: 'branch_required' as const } }
   const ttlSeconds = await qrTtlSeconds(ctx)
   const exp = Date.now() + ttlSeconds * 1000
   return {
@@ -176,8 +203,9 @@ export async function qrStudioBranchAction(): Promise<{ studioId: StudioId; bran
 }
 
 export async function qrStudioBranch(ctx: TenantContext, memberId: MemberId): Promise<{ studioId: StudioId; branchId: string | null }> {
-  const member = await new FirestoreMemberRepository(adminDb()).findById(ctx, memberId)
-  return { studioId: ctx.studioId, branchId: member?.homeBranchId ?? null }
+  // The SAME resolution the token uses, so the screen can never show one branch while the code is
+  // signed for another.
+  return { studioId: ctx.studioId, branchId: await resolveMemberBranch(ctx, memberId) }
 }
 
 // ── Inverted flow (owner ask): the KIOSK displays a rotating QR, the MEMBER scans it to check in. ──

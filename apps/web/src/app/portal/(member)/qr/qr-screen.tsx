@@ -87,8 +87,15 @@ export function PortalQrScreen() {
   const mint = useCallback(async (branch: string) => {
     try {
       const t = await mintCheckInTokenAction({ branchId: branch })
-      setImage(await QRCode.toDataURL(t.token, { width: 280, margin: 1 }))
-      setExpiresAt(t.expiresAt)
+      // The server now resolves the branch itself and refuses when it cannot — a token signed for a
+      // branch nobody scans at is worse than no token, because it looks valid and is not.
+      if ('ok' in t && t.ok === false) {
+        setError(true)
+        return
+      }
+      const minted = t as { token: string; expiresAt: number }
+      setImage(await QRCode.toDataURL(minted.token, { width: 280, margin: 1 }))
+      setExpiresAt(minted.expiresAt)
       setError(false)
       track('qr_scanned', { surface: 'member' })
     } catch {

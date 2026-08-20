@@ -141,3 +141,35 @@ describe('tokenFromScan', () => {
     expect(extract('https://x/invite/retro/tok')).toBe('https://x/invite/retro/tok')
   })
 })
+
+// ── 2026-08-20: the branch the client sent broke every scan ─────────────────────────────────
+//
+// A member with no `homeBranchId` made the mobile app fall back to the invented string 'main'. The
+// token was signed for a branch that does not exist, reception's scanner sent the real one, and the
+// equality check refused every scan as "QR kod geçersiz" — for everyone, all day.
+//
+// The signature was never the problem, which is what made it hard to see: a perfectly valid HMAC
+// over a meaningless claim. These cases pin the shape of that failure so it cannot come back.
+describe('the branch claim is part of what a scan is checked against', () => {
+  const SECRET = 'test-secret'
+  const mk = (branchId: string) =>
+    signQrToken({ memberId: 'mem_1', branchId, exp: Date.now() + 60_000, jti: newJti() }, SECRET)
+
+  it('a token signed for another branch verifies — the signature says nothing about correctness', () => {
+    const claims = verifyQrToken(mk('main'), [SECRET])
+    expect(claims).not.toBeNull()
+    expect(claims?.branchId).toBe('main')
+  })
+
+  it('and that is exactly why the scanner must compare branches itself', () => {
+    // The reception check is `claims.branchId !== scannerBranchId`. With 'main' against 'mutlukent'
+    // it refuses — correctly. The bug was never here; it was in who chose 'main'.
+    const claims = verifyQrToken(mk('main'), [SECRET])
+    expect(claims?.branchId === 'mutlukent').toBe(false)
+  })
+
+  it('a token minted for the real branch passes the same comparison', () => {
+    const claims = verifyQrToken(mk('mutlukent'), [SECRET])
+    expect(claims?.branchId === 'mutlukent').toBe(true)
+  })
+})

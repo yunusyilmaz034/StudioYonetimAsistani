@@ -13,9 +13,12 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const body = (await req.json().catch(() => ({}))) as { branchId?: string }
+  // The body is not read at all any more — older app builds still send `branchId`, and ignoring it
+  // is the fix (2026-08-20): the server resolves the branch, so every installed version is corrected
+  // without a store release.
   return withMember(req, async (ctx, memberId) => {
-    if (!body.branchId) return { ok: false as const, error: { code: 'branch_required' } }
-    return mintCheckInToken(ctx, memberId, body.branchId)
+    // The body's branchId is no longer read: the server resolves the branch (2026-08-20). Older
+    // app builds keep sending it and are now fixed by that, without a store release.
+    return mintCheckInToken(ctx, memberId)
   })
 }
