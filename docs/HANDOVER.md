@@ -1227,6 +1227,45 @@ build's status alone will happily report a stale failure forever.
    adlarını kesinleştir — şu an tahmin edilen kısım orası, ve "emin değilsem ödenmemiş say" diyor
 4. "Bağlantıyı Test Et" kaydedilmemiş değişiklik varken uyarsın (bugün kafa karıştırdı)
 
+### 2026-08-20 — dört iş, ve bir tanesi veriye bakmasak yanlış yapacaktık
+
+**QR check-in herkeste bozuktu.** Üye kodunu gösteriyor, resepsiyon okutuyor, "QR kod geçersiz".
+İmza hep geçerliydi — bu yüzden görmesi zordu: anlamsız bir iddianın üzerine atılmış kusursuz bir
+HMAC. `homeBranchId`'si olmayan bir üyede mobil uygulama `ctx.branchId ?? 'main'` ile **var olmayan
+bir şube uyduruyordu**; jeton `'main'` için imzalanıyor, resepsiyon `mutlukent` gönderiyor, eşitlik
+kontrolü reddediyordu.
+
+Asıl kusur şubeye **istemcinin** karar vermesiydi. `mintCheckInToken` artık hiç şube almıyor:
+üyeninkini, yoksa stüdyonun tek şubesini kullanıyor, çözemezse reddediyor. **Sunucuda düzeltildi**,
+yani telefonlarda yüklü olan her sürüm mağaza güncellemesi olmadan düzeldi. Uygulamadaki
+`?? 'main'` satırı 1.7.0'da temizlenecek; artık hiçbir etkisi yok.
+
+**Ders türü ve salon düzenlenebilir oldu.** Sunucu üçünü de baştan beri yapabiliyordu
+(`updateService`, `publishServicePolicy`, `updateRoom`); eksik olan kapıydı. Kategori bilerek
+kilitli kaldı ve diyalog artık sebebini yazıyor. İki sonucu ekranda söylüyoruz: iptal penceresi
+**bundan sonraki** derslere işler (D14), ve salon kapasitesini düşürmek açılmış dersleri küçültmez.
+
+**"Paketin doluyor" ikiye ayrıldı.** Owner "süresi bitmiş ama 2 dersi kalmış üyeye rezervasyon
+yapamıyoruz" diye başladı; ben uzatma düğmesi yapmaya hazırdım. **Önce veriye baktık:** stüdyonun
+tüm geçmişinde 29 kredili paket dolmuş, bunların **6'sında kredi kalmış**, ve o altısındaki
+kredilerin yarısı yanmış. Altı vaka bir iş akışı değil, istisna — düğme yapmak alışkanlık yapmak
+olurdu. Asıl sorun uzatmak değil, **zamanında görmemekti.**
+
+`expiring_with_credits` artık kendi satırı: ders sayısını başa alıyor, yenileme değil **derse
+çağırma** öneriyor, aynı gün sayısındaki düz "doluyor" satırının üstüne çıkıyor. Para zaten
+alınmıştı; yanan şey üyeydi — 16 dersin 10'unu kullanamayan kimse yenilemiyor.
+
+**Fit Paket'e ders içeriği eklendi.** "Fit Paket" bir kap: bir hafta CrossFit, bir hafta Pilates
+Mat. Üye ders adını görüp rezervasyon yaptığı için, içerik olmadan bir kelime rezerve ediyordu.
+`class_session.scheduled` **v4 → v5** + upcaster (v4'te kavram yoktu, `null` bunu söyler — tahmin
+değil). İçerik üyenin gördüğü ada **sunum katmanında** ekleniyor (`Fit Paket · CrossFit`), seansın
+`serviceName` alanına yazılmıyor: raporlar ders türüne göre grupluyor, oraya yazsak bir tür haftada
+bir bölünürdü. `serviceName` seçildi çünkü **mobil uygulamanın zaten bastığı tek alan o** — yüklü
+her sürüm mağaza güncellemesi olmadan görüyor.
+
+**İki günde iki olay sürümü (v4, v5) çirkin ama ikisi de dürüst.** Alternatif, seansın durumunda
+olup olayında olmayan bir alan bırakmaktı; o, günlüğün var olma sebebini deler.
+
 ## 🌐 Tanıtım sitesi — biriken işler
 
 `~/pilates-site` ayrı bir repo; ayrıntılı notlar orada `TODO.md` içinde. Buradaki liste sadece

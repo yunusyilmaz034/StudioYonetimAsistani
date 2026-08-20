@@ -45,8 +45,11 @@ export const STUDIO_SETTINGS_UPDATED = 'studio.settings_updated'
 //      admits, and any per-category weekly cap. Unlike v3's window, this one IS recoverable from
 //      an older payload: a v3 session admitted exactly its own category, uncapped. That is a fact
 //      about v3, not a guess, so the upcaster states it.
+//   v5 (Fit Paket, 2026-08-20) adds `contentLabel` — what this occurrence actually is when the
+//      service is a container ("Fit Paket" → CrossFit / Pilates Mat). `null` on anything older,
+//      and that is a fact too: the concept did not exist, so the service name WAS the answer.
 // Every other type is still v1.
-export const CLASS_SESSION_SCHEDULED_VERSION = 4
+export const CLASS_SESSION_SCHEDULED_VERSION = 5
 
 export type ServiceCreatedPayload = {
   readonly name: string
@@ -100,6 +103,8 @@ export type ClassSessionScheduledPayload = {
   readonly cancellationWindowSource: CancellationWindowSource | null
   // v4 — who this session admits. Never null: a pre-v4 event is upcast to its own category.
   readonly admission: SessionAdmission
+  // v5 — the occurrence's own content. `null` ⇒ the service name says it all.
+  readonly contentLabel: string | null
 }
 
 // D14 — the studio-level defaults changed. Only affects sessions created AFTER it.

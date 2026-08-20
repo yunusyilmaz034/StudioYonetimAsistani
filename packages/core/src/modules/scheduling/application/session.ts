@@ -63,6 +63,7 @@ function buildSession(params: {
   assignedMemberId: MemberId | null
   policySnapshot: SessionPolicySnapshot
   admission?: SessionAdmission
+  contentLabel?: string
 }): ClassSession {
   const { service, room } = params
   return {
@@ -135,6 +136,8 @@ export interface ScheduleSessionInput {
   // Fit Paket — who this session admits. Omitted ⇒ `defaultAdmission(service.category)`, which is
   // the equality the category wall has always been.
   readonly admission?: SessionAdmission
+  /** What this occurrence actually is, when the service is a container. Empty ⇒ the service says it. */
+  readonly contentLabel?: string
 }
 
 export async function scheduleSession(
@@ -166,6 +169,7 @@ export async function scheduleSession(
     endsAt,
     capacity: input.capacity,
     ...(input.admission ? { admission: input.admission } : {}),
+    ...(input.contentLabel?.trim() ? { contentLabel: input.contentLabel.trim() } : {}),
     assignedMemberId: input.assignedMemberId ?? null,
     policySnapshot: snapshot.value,
   })

@@ -33,17 +33,24 @@ type ClassSessionScheduledV2 = Omit<
   ClassSessionScheduledPayload,
   'cancellationWindowHours' | 'cancellationWindowSource' | 'admission'
 >
-type ClassSessionScheduledV3 = Omit<ClassSessionScheduledPayload, 'admission'>
+type ClassSessionScheduledV3 = Omit<ClassSessionScheduledPayload, 'admission' | 'contentLabel'>
+type ClassSessionScheduledV4 = Omit<ClassSessionScheduledPayload, 'contentLabel'>
 
 export function upcastClassSessionScheduled(
   payload: Record<string, unknown>,
   version: number,
 ): ClassSessionScheduledPayload {
-  if (version >= 4) return payload as unknown as ClassSessionScheduledPayload
+  if (version >= 5) return payload as unknown as ClassSessionScheduledPayload
+
+  //   v4 → v5: the third kind again — a v4 session had no content label because the idea did not
+  //     exist, so its service name was the whole answer. `null` states that; it does not guess.
+  if (version === 4) {
+    return { ...(payload as unknown as ClassSessionScheduledV4), contentLabel: null }
+  }
 
   if (version === 3) {
     const v3 = payload as unknown as ClassSessionScheduledV3
-    return { ...v3, admission: defaultAdmission(v3.category) }
+    return { ...v3, admission: defaultAdmission(v3.category), contentLabel: null }
   }
 
   const withAssignment: ClassSessionScheduledV2 =
@@ -56,5 +63,6 @@ export function upcastClassSessionScheduled(
     cancellationWindowHours: null, // not recorded by v1/v2 — and not inventable
     cancellationWindowSource: null,
     admission: defaultAdmission(withAssignment.category),
+    contentLabel: null,
   }
 }

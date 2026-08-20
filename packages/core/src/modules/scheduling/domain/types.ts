@@ -287,6 +287,17 @@ export interface ClassSession {
   // Who may book, stamped at creation like the cancellation window. Absent on every session
   // created before 2026-08-20 ⇒ read as `defaultAdmission(category)`, which is what they were.
   readonly admission?: SessionAdmission
+  // What this OCCURRENCE actually is, when the service alone does not say it (owner 2026-08-20).
+  // "Fit Paket" is a container: one week it is CrossFit, the next Pilates Mat. The member books
+  // from a list that shows the service name, so without this she is booking a word.
+  //
+  // It is part of the session's IDENTITY, not a note about it — which is why it rides in the
+  // scheduled event (v5) rather than in `note`. "What was this class?" must be answerable from the
+  // log alone, years later, without hoping a note was written.
+  //
+  // Absent on every session created before 2026-08-20, and that absence is a fact rather than
+  // missing data: the concept did not exist, so those sessions were exactly what their service said.
+  readonly contentLabel?: string
   // D13 (v1.21, final — owner 2026-07-12) — PT ownership is MODELLED, never inferred from
   // whether a reservation happens to exist. Only meaningful when category === 'private':
   //

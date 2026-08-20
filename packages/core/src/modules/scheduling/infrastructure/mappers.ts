@@ -150,6 +150,7 @@ export function sessionToFirestore(s: ClassSession): DocumentData {
     attendedCount: s.attendedCount,
     note: s.note ? { text: s.note.text, visibility: s.note.visibility, setAt: toTs(s.note.setAt) } : null,
     serviceName: s.serviceName,
+    ...(s.contentLabel ? { contentLabel: s.contentLabel } : {}),
     roomName: s.roomName,
     trainerName: s.trainerName,
     branchName: s.branchName,
@@ -205,6 +206,7 @@ export function sessionFromFirestore(id: ClassSessionId, d: DocumentData): Class
         }
       : null,
     serviceName: d.serviceName as string,
+    ...(d.contentLabel ? { contentLabel: d.contentLabel as string } : {}),
     roomName: (d.roomName as string | null) ?? null,
     trainerName: (d.trainerName as string | null) ?? null,
     branchName: d.branchName as string,

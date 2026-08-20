@@ -58,6 +58,7 @@ export function SessionForm({
   const [cancelWindow, setCancelWindow] = useState<number | null>(null)
   // Fit Paket (2026-08-20) — bir seansı ikinci bir paket türüne açmak. Kapalıyken hiçbir şey
   // gönderilmiyor, yani ders bugüne kadarki davranışın birebir aynısını alıyor.
+  const [contentLabel, setContentLabel] = useState('')
   const [openToOthers, setOpenToOthers] = useState(false)
   const [guestCategory, setGuestCategory] = useState<'fitness' | 'pilates_group'>('fitness')
   const [guestWeekly, setGuestWeekly] = useState<number>(1)
@@ -213,6 +214,7 @@ export function SessionForm({
         capacity,
         assignedMemberId: isPt && ptMode === 'member' ? ptMemberId : null,
         cancellationWindowHours: cancelWindow,
+        ...(contentLabel.trim() ? { contentLabel: contentLabel.trim() } : {}),
         ...(openToOthers && selectedService && guestCategory !== selectedService.category
           ? {
               admission: {
@@ -428,6 +430,22 @@ export function SessionForm({
           ) : null}
         </div>
       ) : null}
+
+      {/* DERS İÇERİĞİ — "Fit Paket" gibi kapsayıcı bir ders türünde, bu seansın gerçekte ne olduğu.
+          Üyenin ajandasında ders adının yanında görünür ("Fit Paket · CrossFit"), yani üye ne
+          rezerve ettiğini biliyor. Boş bırakılırsa ders adı tek başına görünür — bugüne kadarki hâl. */}
+      <Field id="s-content" label="Ders içeriği (opsiyonel)">
+        <Input
+          id="s-content"
+          maxLength={40}
+          placeholder="Ör. CrossFit · Pilates Mat · HIIT Step"
+          value={contentLabel}
+          onChange={(e) => setContentLabel(e.target.value)}
+        />
+        <p className="mt-1.5 text-xs text-muted-foreground">
+          Üye ajandasında ders adının yanına eklenir: <strong>{(data.services.find((x) => x.id === serviceId)?.name ?? 'Ders')}{contentLabel.trim() ? ` · ${contentLabel.trim()}` : ''}</strong>
+        </p>
+      </Field>
 
       {/* KATILIM ŞARTLARI — bir seansı ikinci bir paket türüne açmak (Fit Paket).
           Varsayılan kapalı: dokunulmayan her ders bugüne kadarki kuralla, yani yalnızca kendi

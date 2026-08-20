@@ -42,6 +42,7 @@ import sessionScheduledV1 from './class_session.scheduled.v1.json'
 import sessionScheduledV2 from './class_session.scheduled.v2.json'
 import sessionScheduledV3 from './class_session.scheduled.v3.json'
 import sessionScheduledV4 from './class_session.scheduled.v4.json'
+import sessionScheduledV5 from './class_session.scheduled.v5.json'
 import roomChanged from './class_session.room_changed.v1.json'
 import rescheduled from './class_session.rescheduled.v1.json'
 import capacityChanged from './class_session.capacity_changed.v1.json'
@@ -110,17 +111,21 @@ describe('scheduling event payloads match golden fixtures (AD-33)', () => {
   it('service.created', () => {
     expect(decideCreateService(ctx, service)[0]?.payload).toEqual(serviceCreated)
   })
-  it('class_session.scheduled (v4 — + the admission rule this session was created under)', () => {
+  it('class_session.scheduled (v5 — + what this occurrence actually is)', () => {
     const r = decideScheduleSession(
       ctx,
-      { ...session, admission: { categories: ['fitness', 'pilates_group'], weeklyQuotaByCategory: { fitness: 1 } } },
+      {
+        ...session,
+        admission: { categories: ['fitness', 'pilates_group'], weeklyQuotaByCategory: { fitness: 1 } },
+        contentLabel: 'CrossFit',
+      },
       null,
       NO_HOURS,
     )
     expect(r.ok).toBe(true)
     if (r.ok) {
-      expect(r.value[0]?.payload).toEqual(sessionScheduledV4)
-      expect(r.value[0]?.version).toBe(4)
+      expect(r.value[0]?.payload).toEqual(sessionScheduledV5)
+      expect(r.value[0]?.version).toBe(5)
     }
   })
   it('a session that declares no admission is written as admitting its own category', () => {
@@ -128,7 +133,7 @@ describe('scheduling event payloads match golden fixtures (AD-33)', () => {
     // know which rule was in force when the row was written.
     const r = decideScheduleSession(ctx, session, null, NO_HOURS)
     expect(r.ok).toBe(true)
-    if (r.ok) expect(r.value[0]?.payload).toMatchObject({ admission: { categories: ['pilates_group'] } })
+    if (r.ok) expect(r.value[0]?.payload).toMatchObject({ admission: { categories: ['pilates_group'] }, contentLabel: null })
   })
   it('v1 upcasts to v4 — "unassigned" is a FACT about v1; the window is "not recorded"', () => {
     // An upcaster may only supply what the old shape MEANT. v1 had no assignment (it was studio
@@ -140,6 +145,7 @@ describe('scheduling event payloads match golden fixtures (AD-33)', () => {
       cancellationWindowHours: null,
       cancellationWindowSource: null,
       admission: { categories: [sessionScheduledV3.category] },
+      contentLabel: null,
     })
   })
   it('v2 upcasts to v4 — the assignment survives, the window stays "not recorded"', () => {
@@ -148,6 +154,7 @@ describe('scheduling event payloads match golden fixtures (AD-33)', () => {
       cancellationWindowHours: null,
       cancellationWindowSource: null,
       admission: { categories: [sessionScheduledV3.category] },
+      contentLabel: null,
     })
   })
   it('v3 upcasts to v4 — admitting its OWN category is what v3 meant, not a guess', () => {
@@ -156,10 +163,14 @@ describe('scheduling event payloads match golden fixtures (AD-33)', () => {
     expect(upcastClassSessionScheduled(sessionScheduledV3, 3)).toEqual({
       ...sessionScheduledV3,
       admission: { categories: [sessionScheduledV3.category] },
+      contentLabel: null,
     })
   })
-  it('upcasting a v4 event is the identity', () => {
-    expect(upcastClassSessionScheduled(sessionScheduledV4, 4)).toEqual(sessionScheduledV4)
+  it('v4 upcasts to v5 — no label because the idea did not exist, not because it was lost', () => {
+    expect(upcastClassSessionScheduled(sessionScheduledV4, 4)).toEqual({ ...sessionScheduledV4, contentLabel: null })
+  })
+  it('upcasting a v5 event is the identity', () => {
+    expect(upcastClassSessionScheduled(sessionScheduledV5, 5)).toEqual(sessionScheduledV5)
   })
   it('class_session.assigned', () => {
     const r = decideAssignSessionMember(

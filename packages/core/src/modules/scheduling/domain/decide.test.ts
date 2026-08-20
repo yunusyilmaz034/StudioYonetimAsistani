@@ -480,3 +480,24 @@ describe('AG-1 — çalışma saatleri, seans oluştururken', () => {
     ).toBe(true)
   })
 })
+
+// ── Ders içeriği (Fit Paket, 2026-08-20) ────────────────────────────────────────────────────
+//
+// "Fit Paket" is a container: one week CrossFit, the next Pilates Mat. The member books from a list
+// that shows the service name, so without this she is booking a word. It rides in the scheduled
+// event because it is part of what the session IS — "what was this class?" must be answerable from
+// the log alone, years later, without hoping somebody wrote a note.
+describe('decideScheduleSession — contentLabel', () => {
+  it('is written into the event when the session carries one', () => {
+    const r = schedule({ ...makeSession(), contentLabel: 'CrossFit' }, room)
+    expect(r.ok).toBe(true)
+    if (r.ok) expect(r.value[0]?.payload).toMatchObject({ contentLabel: 'CrossFit' })
+  })
+
+  it('is written as null when there is none — stated, not omitted', () => {
+    // A reader years from now must not have to know which version introduced the field.
+    const r = schedule(makeSession(), room)
+    expect(r.ok).toBe(true)
+    if (r.ok) expect(r.value[0]?.payload).toMatchObject({ contentLabel: null })
+  })
+})

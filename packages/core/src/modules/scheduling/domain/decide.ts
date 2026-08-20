@@ -323,6 +323,7 @@ export function decideScheduleSession(
         // v4 — stated even when the session declares nothing, so a reader never has to know which
         // rule was in force the day the row was written. `defaultAdmission` is what "nothing" means.
         admission: session.admission ?? defaultAdmission(session.category),
+        contentLabel: session.contentLabel ?? null,
       },
     },
   ])

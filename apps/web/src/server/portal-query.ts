@@ -29,6 +29,19 @@ import { adminDb } from './firebase-admin'
 // one it would have allowed.
 
 const DAY_MS = 86_400_000
+
+// "Fit Paket" gibi kapsayıcı bir ders türünde, bu seansın gerçekte ne olduğunu ADIN İÇİNE koyar.
+//
+// Composed here rather than stored: `serviceName` is denormalised onto the session and reports group
+// by it, so writing "Fit Paket · CrossFit" into the row would split one class type into as many as
+// there are weeks. The member needs the words; the ledger needs the type.
+//
+// It rides in `serviceName` because that is the only field the member app already renders — so
+// every installed build shows it, with no store release.
+function displayName(s: { serviceName: string; contentLabel?: string }): string {
+  return s.contentLabel?.trim() ? `${s.serviceName} · ${s.contentLabel.trim()}` : s.serviceName
+}
+
 export const PORTAL_LIMITS = {
   agendaDays: 30, // how far ahead she may look/book (bounded by policy.maxDaysInAdvance too)
   pastReservations: 20,
@@ -180,7 +193,7 @@ export async function loadPortalAgenda(
 
     visible.push({
       sessionId: s.id,
-      serviceName: s.serviceName,
+      serviceName: displayName(s),
       category: s.category,
       trainerName: s.trainerName,
       roomName: s.roomName,
@@ -291,7 +304,7 @@ function toPortalReservation(reservationId: string, status: string, s: ClassSess
   return {
     reservationId,
     sessionId: s.id,
-    serviceName: s.serviceName,
+    serviceName: displayName(s),
     trainerName: s.trainerName,
     roomName: s.roomName,
     category: s.category,

@@ -235,6 +235,9 @@ export async function scheduleSessionAction(input: unknown) {
       cancellationWindowHours: z.number().int().min(0).max(720).nullable().optional(),
       // Fit Paket (2026-08-20) — who this session admits, and any per-category weekly cap.
       // Omitted ⇒ the session's own category, uncapped: exactly what every class was before.
+      // Fit Paket — bu seansın gerçekte ne olduğu. Kısa tutuluyor: ders adının yanına yazılıyor,
+      // paragraf değil etiket.
+      contentLabel: z.string().trim().max(40).optional(),
       admission: z
         .object({
           categories: z.array(z.enum(['pilates_group', 'fitness', 'private'])).min(1),
@@ -254,12 +257,13 @@ export async function scheduleSessionAction(input: unknown) {
     )
     if (bad) return { ok: false as const, error: bad }
   }
-  const { admission, ...rest } = p
+  const { admission, contentLabel, ...rest } = p
   return scheduleSession(deps(), ctx, {
     ...rest,
     // `exactOptionalPropertyTypes`: the key is passed only when it exists, so "omitted" and
     // "explicitly undefined" stay different things — which is the whole point of the default.
     ...(admission ? { admission: admission as SessionAdmission } : {}),
+    ...(contentLabel ? { contentLabel } : {}),
     assignedMemberId: (p.assignedMemberId ?? null) as MemberId | null,
     cancellationWindowHours: p.cancellationWindowHours ?? null,
     serviceId: p.serviceId as ServiceId,

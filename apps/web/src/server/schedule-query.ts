@@ -150,7 +150,8 @@ export async function loadSchedule(ctx: TenantContext, dateStr: string): Promise
     sessions: sessions.map((s) => ({
       sessionId: s.id,
       serviceId: s.serviceId,
-      serviceName: s.serviceName,
+      // Reception sees the same words the member does, so a phone call about "CrossFit" lands.
+      serviceName: s.contentLabel?.trim() ? `${s.serviceName} · ${s.contentLabel.trim()}` : s.serviceName,
       roomId: s.roomId,
       roomName: s.roomName,
       trainerId: s.trainerId,
