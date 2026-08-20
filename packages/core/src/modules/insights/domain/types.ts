@@ -9,6 +9,12 @@
 
 export type InsightKind =
   | 'expiring_soon' // an active package's time is running out → renewal / churn signal
+  // The same clock, but with lessons still on it. Split from `expiring_soon` on 2026-08-20 because
+  // the two are different conversations: one is "shall we renew?", the other is "you have four
+  // lessons left and five days to use them". Only the second one can still be saved, and merging
+  // them buried it — the studio lost 25 credits that way, and the members who lost them did not
+  // renew. The money was already collected; what expires is the relationship.
+  | 'expiring_with_credits'
   | 'low_credit' // few credits left → renewal opportunity
   | 'outstanding_balance' // sold, not fully paid → collect
   | 'empty_session' // an upcoming class with no/low bookings → fill it
@@ -29,6 +35,9 @@ export type InsightAction =
   | 'contact_member'
   // PF-41 — matching a payment to the person who made it. Not "collect": the money is already in.
   | 'reconcile_payment'
+  // 2026-08-20 — get her INTO a class before the credits she has already paid for expire. Not a
+  // renewal: there is nothing to sell yet, and selling here would be answering the wrong question.
+  | 'invite_to_book'
 
 // PF-41 — an unattributed payment has no member and no session; its subject IS the payment. Widening
 // this rather than forcing a fake member id keeps "we do not know whose this is" sayable.
@@ -86,6 +95,8 @@ export interface ExpiringFact {
   readonly memberId: string
   readonly entitlementId: string
   readonly daysLeft: number
+  /** Credits still unused. `null` ⇒ a period package; `0` ⇒ a credit package already spent. */
+  readonly remainingCredits?: number | null
 }
 export interface LowCreditFact {
   readonly memberId: string

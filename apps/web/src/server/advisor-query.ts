@@ -46,6 +46,24 @@ function present(insight: Insight, memberName: Map<string, string>, sessionName:
         href: memberHref,
         actionLabel: 'Tahsilat / üyeyi aç',
       }
+    case 'expiring_with_credits': {
+      // The line says the number of lessons FIRST, because that is the part with a deadline. A
+      // renewal can happen next week; these credits cannot.
+      const d = m.daysLeft ?? 0
+      const left = m.remaining ?? 0
+      return {
+        id: insight.id,
+        kind: insight.kind,
+        severity: insight.severity,
+        subject,
+        title: `${name} — ${left} ders hakkı var, paketi ${d <= 0 ? 'bugün doluyor' : `${d} gün sonra doluyor`}`,
+        detail:
+          'Kullanılmayan haklar paket dolunca yanar. Bu hafta gelebileceği bir ders ayarlayın — ' +
+          'süre gerçekten yetmiyorsa paketin bitiş tarihini uzatabilirsiniz.',
+        href: memberHref,
+        actionLabel: 'Üyeyi aç',
+      }
+    }
     case 'expiring_soon': {
       const d = m.daysLeft ?? 0
       return {
@@ -144,7 +162,7 @@ export function deriveAdvisorItems(dash: OwnerDashboard): readonly AdvisorItem[]
   for (const s of dash.emptySessions) sessionName.set(s.sessionId, s.serviceName)
 
   const facts: InsightFacts = {
-    expiring: dash.expiringSoon.map((r) => ({ memberId: r.id, entitlementId: r.entitlementId, daysLeft: r.daysLeft })),
+    expiring: dash.expiringSoon.map((r) => ({ memberId: r.id, entitlementId: r.entitlementId, daysLeft: r.daysLeft, remainingCredits: r.remainingCredits })),
     lowCredit: dash.lowCredit.map((r) => ({ memberId: r.id, entitlementId: r.entitlementId, remaining: r.remaining })),
     balances: dash.pendingPayments.map((r) => ({ memberId: r.id, saleId: r.saleId, dueKurus: r.dueKurus, daysOpen: r.daysOpen })),
     // The dashboard's emptySessions list is already filtered to bookedCount === 0 (owner-dashboard),

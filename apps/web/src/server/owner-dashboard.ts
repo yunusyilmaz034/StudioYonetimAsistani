@@ -62,6 +62,13 @@ export interface ExpiringRow extends MemberRef {
   readonly productName: string
   readonly validUntil: number
   readonly daysLeft: number
+  // Credits still on the package as it runs out. `null` ⇒ a period package, which has none.
+  //
+  // It is here because "your package is ending" and "your package is ending AND four lessons are
+  // about to disappear" are different conversations, and only the second one is urgent. Measured on
+  // 2026-08-20: six packages in the studio's whole history expired with credits left, and half the
+  // credits in them were lost. The money was already collected — what is lost is the member.
+  readonly remainingCredits: number | null
 }
 
 export interface LowCreditRow extends MemberRef {
@@ -295,6 +302,7 @@ export async function loadOwnerDashboard(
       productName: e.productSnapshot.name,
       validUntil: e.validUntil as number,
       daysLeft: Math.max(0, Math.ceil((e.validUntil - nowMs) / DAY_MS)),
+      remainingCredits: e.credits ? available(e.credits) : null,
     }))
     .sort((a, b) => a.validUntil - b.validUntil)
 

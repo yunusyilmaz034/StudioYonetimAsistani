@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { DEFAULT_INSIGHT_CONFIG, deriveInsights, mergeInsightSources, ruleInsightSource } from './rules'
-import type { InsightFacts } from './types'
+import type { ExpiringFact, InsightFacts } from './types'
 
 const facts = (over: Partial<InsightFacts> = {}): InsightFacts => ({
   expiring: [],
@@ -139,5 +139,57 @@ describe('unreconciled_payment', () => {
 describe('the new facts are optional', () => {
   it('produces nothing when they are absent', () => {
     expect(deriveInsights(facts({}), DEFAULT_INSIGHT_CONFIG)).toHaveLength(0)
+  })
+})
+
+// ── 2026-08-20: "paketin doluyor" ile "hakkın yanacak" ayrıldı ──────────────────────────────
+//
+// Measured before building: six packages in the studio's whole history expired with credits left,
+// and about half the credits in them were lost. The studio keeps the money — what it loses is the
+// member, because somebody who paid for sixteen lessons and took six does not renew.
+//
+// Both lines come from the same clock, so the split has to hold on the ONE thing that separates
+// them: whether there is anything left to use.
+describe('expiring: with credits vs without', () => {
+  const one = (over: Partial<ExpiringFact>) =>
+    facts({ expiring: [{ memberId: 'mem_1', entitlementId: 'ent_1', daysLeft: 5, ...over }] })
+
+  it('credits left ⇒ its own kind, and it says how many', () => {
+    const [i] = deriveInsights(one({ remainingCredits: 4 }), DEFAULT_INSIGHT_CONFIG)
+    expect(i?.kind).toBe('expiring_with_credits')
+    expect(i?.metrics.remaining).toBe(4)
+    // Not a renewal: there is nothing to sell while she still holds what she paid for.
+    expect(i?.suggestedAction).toBe('invite_to_book')
+  })
+
+  it('no credits left ⇒ the ordinary renewal line, unchanged', () => {
+    const [i] = deriveInsights(one({ remainingCredits: 0 }), DEFAULT_INSIGHT_CONFIG)
+    expect(i?.kind).toBe('expiring_soon')
+    expect(i?.suggestedAction).toBe('offer_renewal')
+  })
+
+  it('a period package has no credits and is never the urgent kind', () => {
+    // `null` is not "zero we forgot to read" — an unlimited membership has nothing to burn.
+    const [i] = deriveInsights(one({ remainingCredits: null }), DEFAULT_INSIGHT_CONFIG)
+    expect(i?.kind).toBe('expiring_soon')
+  })
+
+  it('it outranks a plain expiry at the same number of days', () => {
+    const both = deriveInsights(
+      facts({
+        expiring: [
+          { memberId: 'mem_a', entitlementId: 'ent_a', daysLeft: 5, remainingCredits: 0 },
+          { memberId: 'mem_b', entitlementId: 'ent_b', daysLeft: 5, remainingCredits: 3 },
+        ],
+      }),
+      DEFAULT_INSIGHT_CONFIG,
+    )
+    // The deadline on the credits cannot be recovered afterwards; the renewal can happen next week.
+    expect(both[0]?.kind).toBe('expiring_with_credits')
+  })
+
+  it('credits raise a merely-informational expiry to attention', () => {
+    const [i] = deriveInsights(one({ daysLeft: 99, remainingCredits: 2 }), DEFAULT_INSIGHT_CONFIG)
+    expect(i?.severity).toBe('attention')
   })
 })

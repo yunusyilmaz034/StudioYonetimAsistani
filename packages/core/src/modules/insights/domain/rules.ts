@@ -51,15 +51,24 @@ export function deriveInsights(facts: InsightFacts, config: InsightConfig): read
     // Fewer days left is MORE pressing → invert for both the band and the rank.
     const severity: InsightSeverity =
       e.daysLeft <= config.expiringUrgentDays ? 'urgent' : e.daysLeft <= config.expiringAttentionDays ? 'attention' : 'info'
+
+    // Lessons still on a package that is running out. A DIFFERENT job from a renewal: the member can
+    // still use them, and every one she does not is both a credit burned and a reason not to come
+    // back. Ranked ahead of a plain expiry at the same number of days, because this one has a
+    // deadline that cannot be recovered afterwards.
+    const withCredits = (e.remainingCredits ?? 0) > 0
     out.push({
-      id: `expiring_soon__${e.memberId}__${e.entitlementId}`,
-      kind: 'expiring_soon',
-      severity,
+      id: `${withCredits ? 'expiring_with_credits' : 'expiring_soon'}__${e.memberId}__${e.entitlementId}`,
+      kind: withCredits ? 'expiring_with_credits' : 'expiring_soon',
+      severity: withCredits && severity === 'info' ? 'attention' : severity,
       subject: { type: 'member', id: e.memberId },
       refs: { memberId: e.memberId, entitlementId: e.entitlementId },
-      metrics: { daysLeft: e.daysLeft },
-      suggestedAction: 'offer_renewal',
-      urgency: -e.daysLeft,
+      metrics: withCredits ? { daysLeft: e.daysLeft, remaining: e.remainingCredits ?? 0 } : { daysLeft: e.daysLeft },
+      suggestedAction: withCredits ? 'invite_to_book' : 'offer_renewal',
+      // Higher urgency sorts first, so the offset ADDS. Within the same severity band a package
+      // with lessons left beats a plain expiry at the same number of days: the renewal can happen
+      // next week, the credits cannot.
+      urgency: withCredits ? -e.daysLeft + 100 : -e.daysLeft,
     })
   }
 
