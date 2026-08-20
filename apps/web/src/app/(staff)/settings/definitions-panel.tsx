@@ -38,8 +38,11 @@ import {
   deactivateRoomAction,
   deactivateServiceAction,
   listDefinitionsAction,
+  publishServicePolicyAction,
   reactivateRoomAction,
   reactivateServiceAction,
+  updateRoomAction,
+  updateServiceAction,
   type RoomRow,
   type ServiceRow,
 } from '@/server/actions/scheduling'
@@ -77,6 +80,11 @@ export function DefinitionsPanel({ branchId, canManage = false }: { branchId: st
   const [notes, setNotes] = useState<readonly RoomNote[]>([])
   const [newService, setNewService] = useState(false)
   const [newRoom, setNewRoom] = useState(false)
+  // Düzenleme (2026-08-20). Sunucu tarafı baştan beri vardı (`updateService`, `publishServicePolicy`,
+  // `updateRoom`); eksik olan yalnızca kapıydı. Bir dersin adını ya da iptal penceresini düzeltmek
+  // için türü kapatıp yenisini açmak, o türe bağlı bütün geçmişi ikiye bölerdi.
+  const [editService, setEditService] = useState<ServiceRow | null>(null)
+  const [editRoom, setEditRoom] = useState<RoomRow | null>(null)
   const [newDrawer, setNewDrawer] = useState(false)
   const [newNote, setNewNote] = useState(false)
   const [renamingId, setRenamingId] = useState<string | null>(null)
@@ -186,9 +194,14 @@ export function DefinitionsPanel({ branchId, canManage = false }: { branchId: st
                     · en fazla {s.maxDaysInAdvance} gün önceden
                   </p>
                 </div>
-                <Button variant="ghost" size="sm" onClick={() => void toggleService(s)}>
-                  {s.active ? 'Kapat' : 'Aç'}
-                </Button>
+                <div className="flex shrink-0 items-center gap-1">
+                  <Button variant="ghost" size="sm" onClick={() => setEditService(s)}>
+                    Düzenle
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => void toggleService(s)}>
+                    {s.active ? 'Kapat' : 'Aç'}
+                  </Button>
+                </div>
               </li>
             ))}
           </ul>
@@ -218,9 +231,14 @@ export function DefinitionsPanel({ branchId, canManage = false }: { branchId: st
                   </p>
                   <p className="text-xs text-muted-foreground">{r.capacity} kişilik</p>
                 </div>
-                <Button variant="ghost" size="sm" onClick={() => void toggleRoom(r)}>
-                  {r.active ? 'Kapat' : 'Aç'}
-                </Button>
+                <div className="flex shrink-0 items-center gap-1">
+                  <Button variant="ghost" size="sm" onClick={() => setEditRoom(r)}>
+                    Düzenle
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => void toggleRoom(r)}>
+                    {r.active ? 'Kapat' : 'Aç'}
+                  </Button>
+                </div>
               </li>
             ))}
           </ul>
@@ -372,6 +390,28 @@ export function DefinitionsPanel({ branchId, canManage = false }: { branchId: st
           onClose={() => setNewRoom(false)}
           onDone={() => {
             setNewRoom(false)
+            void load()
+          }}
+        />
+      ) : null}
+
+      {editService ? (
+        <ServiceEditDialog
+          service={editService}
+          onClose={() => setEditService(null)}
+          onDone={() => {
+            setEditService(null)
+            void load()
+          }}
+        />
+      ) : null}
+
+      {editRoom ? (
+        <RoomEditDialog
+          room={editRoom}
+          onClose={() => setEditRoom(null)}
+          onDone={() => {
+            setEditRoom(null)
             void load()
           }}
         />
@@ -716,6 +756,180 @@ function DrawerDialog({
             Ekle
           </Button>
         </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+
+// ── DÜZENLEME ───────────────────────────────────────────────────────────────────────────────
+//
+// The server has always been able to do this (`updateService`, `publishServicePolicy`,
+// `updateRoom`); only the door was missing, so a typo in a class name could be fixed only by
+// closing the type and opening a new one — which splits every session and reservation that ever
+// pointed at it.
+//
+// The CATEGORY is deliberately absent. It decides which package opens which class, and changing it
+// on a type with history would retroactively move classes behind a wall members already booked
+// through. That refusal is the reason the create dialog says so out loud.
+function ServiceEditDialog({
+  service,
+  onClose,
+  onDone,
+}: {
+  service: ServiceRow
+  onClose: () => void
+  onDone: () => void
+}) {
+  const [name, setName] = useState(service.name)
+  const [windowHours, setWindowHours] = useState(
+    service.cancellationWindowHours === null ? '' : String(service.cancellationWindowHours),
+  )
+  const [maxDays, setMaxDays] = useState(String(service.maxDaysInAdvance))
+  const [selfBooking, setSelfBooking] = useState(service.allowMemberSelfBooking)
+  const [busy, setBusy] = useState(false)
+
+  async function save() {
+    if (name.trim().length === 0) return void toast.error('Ad girin.')
+    setBusy(true)
+    try {
+      if (name.trim() !== service.name) {
+        const r = await updateServiceAction({ serviceId: service.id, name: name.trim() })
+        if (!r.ok) {
+          toast.error(domainErrorMessage(r.error))
+          setBusy(false)
+          return
+        }
+      }
+      // The policy is PUBLISHED as a new version rather than edited in place — sessions already on
+      // the calendar keep the window they were stamped with (D14), and only classes created from
+      // now on see the new one.
+      const r = await publishServicePolicyAction({
+        serviceId: service.id,
+        policy: {
+          maxDaysInAdvance: Number(maxDays) || 0,
+          cancellationWindowHours: windowHours.trim() === '' ? null : Number(windowHours),
+          lateCancellationConsumesCredit: true,
+          noShowConsumesCredit: true,
+          attendanceDefaultOutcome: 'attended',
+          autoResolveAfterMinutes: 15,
+          allowMemberSelfBooking: selfBooking,
+        },
+      })
+      if (!r.ok) {
+        toast.error(domainErrorMessage(r.error))
+        setBusy(false)
+        return
+      }
+      toast.success('Ders türü güncellendi.')
+      onDone()
+    } catch {
+      toast.error('Kaydedilemedi.')
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Ders türünü düzenle</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          <Input placeholder="Ad" value={name} onChange={(e) => setName(e.target.value)} />
+          <p className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+            Kategori: <strong>{CATEGORY[service.category] ?? service.category}</strong> — değiştirilemez.
+            Hangi paketin bu dersi açtığı buna bağlı; sonradan değiştirmek, üyelerin çoktan rezervasyon
+            yaptığı dersleri başka bir duvarın arkasına taşırdı.
+          </p>
+          <Input
+            type="number"
+            min={0}
+            placeholder="İptal penceresi (saat) — boş bırakırsanız stüdyo varsayılanı"
+            value={windowHours}
+            onChange={(e) => setWindowHours(e.target.value)}
+          />
+          <Input
+            type="number"
+            min={0}
+            placeholder="En fazla kaç gün önceden rezervasyon"
+            value={maxDays}
+            onChange={(e) => setMaxDays(e.target.value)}
+          />
+          <label className="flex cursor-pointer items-start gap-2 text-sm">
+            <input
+              type="checkbox"
+              className="mt-0.5 size-4 shrink-0 accent-primary"
+              checked={selfBooking}
+              onChange={(e) => setSelfBooking(e.target.checked)}
+            />
+            <span>Üyeler bu dersi uygulamadan kendileri rezerve edebilsin</span>
+          </label>
+          <p className="text-xs text-muted-foreground">
+            İptal penceresi ve gün sınırı <strong>bundan sonra açılacak</strong> derslere uygulanır;
+            takvimde duran dersler oluşturulurken damgalanan değeri korur.
+          </p>
+        </div>
+        <div className="flex justify-end gap-2">
+          <Button variant="outline" onClick={onClose} disabled={busy}>
+            Vazgeç
+          </Button>
+          <Button onClick={() => void save()} disabled={busy}>
+            Kaydet
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function RoomEditDialog({ room, onClose, onDone }: { room: RoomRow; onClose: () => void; onDone: () => void }) {
+  const [name, setName] = useState(room.name)
+  const [capacity, setCapacity] = useState(String(room.capacity))
+  const [busy, setBusy] = useState(false)
+
+  async function save() {
+    if (name.trim().length === 0) return void toast.error('Ad girin.')
+    const cap = Number(capacity)
+    if (!Number.isInteger(cap) || cap < 1) return void toast.error('Kapasite en az 1 olmalı.')
+    setBusy(true)
+    try {
+      const r = await updateRoomAction({ roomId: room.id, name: name.trim(), capacity: cap })
+      if (!r.ok) {
+        toast.error(domainErrorMessage(r.error))
+        setBusy(false)
+        return
+      }
+      toast.success('Salon güncellendi.')
+      onDone()
+    } catch {
+      toast.error('Kaydedilemedi.')
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Salonu düzenle</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          <Input placeholder="Ad" value={name} onChange={(e) => setName(e.target.value)} />
+          <Input type="number" min={1} placeholder="Kapasite" value={capacity} onChange={(e) => setCapacity(e.target.value)} />
+          <p className="text-xs text-muted-foreground">
+            Kapasiteyi düşürmek, o salonda <strong>zaten açılmış</strong> derslerin kontenjanını
+            değiştirmez — onları tek tek düzenlemen gerekir.
+          </p>
+        </div>
+        <div className="flex justify-end gap-2">
+          <Button variant="outline" onClick={onClose} disabled={busy}>
+            Vazgeç
+          </Button>
+          <Button onClick={() => void save()} disabled={busy}>
+            Kaydet
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   )
