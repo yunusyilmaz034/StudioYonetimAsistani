@@ -766,3 +766,21 @@ The rule this leaves behind: **any field inside a provider hash must be computed
 places.** The Link flow already carried this lesson in a comment; POS did not, and now there is a test
 that recomputes PAYTR's hash from the body actually posted — so a mismatch in *any* field fails, not
 just the one we thought of.
+
+---
+
+**OR-43 · Yeni bir ders türü, satılmış hiçbir pakette yoktur.** (2026-08-21) Fit Paket ayrı bir ders
+türü olarak açıldı, kabul koşulu (`admission`) da çalışıyordu — ve ders **hiç kimseye görünmedi**.
+Sebep kategori değildi: `productSnapshot.serviceIds` satın alma anında donuyor, yani dün açılan bir
+ders türü elli paketin hiçbirinde yazmıyor. Üç paketi olan üye bile göremezdi.
+
+Owner'ın kuralı: **bir seans kimi kabul ettiğini açıkça söylüyorsa, paketin "neye karşı satıldığı"
+listesi o seansta geçerli değildir.** Beyan varsayılanı geçer. Alternatif — elli üyenin dondurulmuş
+paket snapshot'ını toplu güncellemek — reddedildi; dondurulmuş olmalarının sebebi tam olarak bu.
+
+Bunun operasyonel karşılığı: **kabul koşulu güçlü bir anahtardır.** İşaretlenen seans, seçilen
+kategorideki *tüm* paketlere açılır. Kutuyu işaretlemek bir tercih değil, bir karardır.
+
+**Ve `admission` yalnızca seans OLUŞTURULURKEN verilebilir.** Var olan bir dersi sonradan açmanın
+yolu yok — silip yeniden oluşturmak gerekiyor. Şablonlar da taşımıyor: haftalık üretilen seanslar
+kabul koşulunu kaybeder. İkisi de bilinen eksik; owner isterse ayrıca yapılacak.

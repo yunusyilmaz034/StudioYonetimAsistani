@@ -10,6 +10,7 @@ import {
   FirestoreSchedulingRepository,
   instant,
   isEligibleForService,
+  type Category,
   type ClassSession,
   type Entitlement,
   type MemberId,
@@ -186,9 +187,7 @@ export async function loadPortalAgenda(
     const eligible = entitlements.filter((e) =>
       isEligibleForServiceAt(e, s, instant(s.startsAt)),
     )
-    const anyCategoryMatch = entitlements.some(
-      (e) => e.productSnapshot.category === s.category && coversAt(e, s),
-    )
+    const anyCategoryMatch = entitlements.some((e) => coversAt(e, s))
     if (eligible.length === 0 && !anyCategoryMatch) continue
 
     visible.push({
@@ -220,16 +219,32 @@ function blockedReason(s: ClassSession, eligible: readonly Entitlement[]): Porta
   return null
 }
 
+// WHO THIS SESSION ADMITS — read from the session, never assumed to be its own category.
+//
+// 2026-08-21: the Fit Paket sessions were invisible to fitness members. `decideBooking` had been
+// widened and `selectEntitlement` had been widened, but THIS file still compared against
+// `s.category`, so the agenda filtered out exactly the members the class was opened for. The booking
+// rule said yes and the screen never offered it — the drift the domain file warns about, in the one
+// place I did not look.
+//
+// It is a function rather than three inline expressions because there were three copies here too,
+// and three copies is how it happened in the first place.
+const admitsOf = (s: ClassSession): readonly Category[] => s.admission?.categories ?? [s.category]
+
 const isEligibleForServiceAt = (e: Entitlement, s: ClassSession, at: number) =>
-  isEligibleForService(e, s.category, s.serviceId, instant(at))
+  isEligibleForService(e, admitsOf(s), s.serviceId, instant(at), s.admission != null)
 
 // The same walls minus the credit check: is this the KIND of class her package covers, even if
 // she has nothing left to spend on it? That is what keeps a spent-out member's agenda visible.
 const coversAt = (e: Entitlement, s: ClassSession): boolean =>
   e.status === 'active' &&
   s.startsAt <= e.validUntil &&
-  e.productSnapshot.category === s.category &&
-  (e.productSnapshot.serviceIds === undefined || e.productSnapshot.serviceIds.includes(s.serviceId))
+  admitsOf(s).includes(e.productSnapshot.category) &&
+  // Same waiver as the booking rule: a declared admission covers the service too, or the agenda
+  // would hide a class the domain would happily book.
+  (s.admission != null ||
+    e.productSnapshot.serviceIds === undefined ||
+    e.productSnapshot.serviceIds.includes(s.serviceId))
 
 // ── Profile (D9) ──────────────────────────────────────────────────────────────────────────
 export interface PortalProfile {

@@ -14,8 +14,9 @@ export function isBookable(e: Entitlement, session: ClassSession, now: Instant):
   void now // reserved: validFrom-in-future check arrives with waitlist/advance rules
   // A session that declares nothing admits its own category — the default that describes every
   // class created before Fit Paket existed.
+  const declared = session.admission != null
   const admits = session.admission?.categories ?? [session.category]
-  return isEligibleForService(e, admits, session.serviceId, session.startsAt)
+  return isEligibleForService(e, admits, session.serviceId, session.startsAt, declared)
 }
 
 // Credit entitlements are spent before period ones (unlimited access has no scarcity

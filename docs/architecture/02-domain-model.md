@@ -564,6 +564,26 @@ Invariant 4 deserves a note: it is the one people forget, and it produces the ug
 > Tek gerçek yeni kural `weeklyQuotaByCategory`: onsuz sınırsız bir üyelik, başkalarının kredi
 > ödediği bir dersten sınırsız yer alırdı. Hafta = stüdyo saatiyle pazartesi–pazar.
 
+> **2026-08-21 — beyan, I-9.8'i (ders türü duvarını) da aşar (owner onayı).** Yukarıdaki kural
+> tek başına işe yaramadı: "Fit Paket" **yeni bir ders türü**, ve `productSnapshot.serviceIds`
+> satın alma anında donduğu için onu **satılmış hiçbir paket taşımıyordu**. Elli aktif paketin
+> hepsi — kategori duvarını geçenler dâhil — ders türü duvarına takıldı; ders, üyelerin
+> ajandasında hiç görünmedi.
+>
+> Kural şu oldu: **`admission` beyanı olan bir seansta ders türü duvarı uygulanmaz.**
+> Gerekçe, duvarların farklı ağırlıkta olması. `serviceIds` bir **varsayılan** — paketin neye
+> karşı satıldığı. `admission` ise stüdyonun **o tek ders hakkındaki açık kararı**. Açık karar
+> varsayılanı geçer.
+>
+> Sınırları, çünkü bu bir maymuncuk değil: beyan yalnızca **kendi saydığı kategorileri** içeri
+> alır (listede olmayan paket hâlâ `category_mismatch` ile reddedilir), yalnızca **o seansı**
+> genişletir — paket değişmez, kredi yine kendi paketinden düşer — ve **beyanı olmayan her ders
+> eskisi gibi** yargılanır. Reddedilen alternatif: elli üyenin dondurulmuş snapshot'ını toplu
+> güncellemek. D12'nin var oluş sebebi tam olarak onu engellemek.
+>
+> Aynı gevşetme `decideReschedule`'da da yapıldı — yoksa üye Fit Paket dersini alabilir ama
+> saatini değiştiremezdi. Haftalık kota taşınmada **yeniden çalıştırılmaz**: yer zaten onun.
+
 Invariant 7 is the **category wall** *(OQ-8, resolved: separate products)*. An unlimited fitness membership grants unlimited **fitness**. It does not open the reformer room. This is enforced in the domain, not in the UI — a member portal, an imported reservation, and a future AI receptionist must all hit the same wall.
 
 ### 7.4 Which entitlement pays? (OQ-7 — resolved)

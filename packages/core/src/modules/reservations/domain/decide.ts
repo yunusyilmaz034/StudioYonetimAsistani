@@ -239,7 +239,10 @@ export function decideBooking(
   // I-9.8 — the service wall (D12, v1.21). Eligibility is the explicit service list the
   // package was sold with. A snapshot with NO list is a pre-D12 purchase: it keeps its
   // category-wide right, and is never narrowed after the fact.
-  if (!coversService(entitlement.productSnapshot, session.serviceId)) {
+  // Waived when the session DECLARES who it admits: the studio said this class takes these packages,
+  // and an explicit per-session grant outranks the list a package was sold against. See
+  // `isEligibleForService` for why the alternative — rewriting fifty frozen snapshots — is worse.
+  if (session.admission == null && !coversService(entitlement.productSnapshot, session.serviceId)) {
     return err({ code: 'service_not_covered', sessionServiceId: session.serviceId })
   }
 
@@ -363,14 +366,19 @@ export function decideMove(
   }
   if (occupiedSeats(to) >= to.capacity) return err({ code: 'class_full', capacity: to.capacity })
   if (memberHasBookedTarget) return err({ code: 'already_booked' })
-  if (entitlement.productSnapshot.category !== to.category) {
+  // Both walls read the TARGET's admission, exactly as `decideBooking` reads the session's. A move
+  // is a booking that keeps its held credit; judging it by a narrower rule would mean a member could
+  // book a Fit Paket class but never change its time. The weekly quota is deliberately NOT re-run:
+  // the seat is already hers, and a move inside the week would otherwise count twice.
+  const toAdmits = to.admission?.categories ?? [to.category]
+  if (!toAdmits.includes(entitlement.productSnapshot.category)) {
     return err({
       code: 'category_mismatch',
       sessionCategory: to.category,
       entitlementCategory: entitlement.productSnapshot.category,
     })
   }
-  if (!coversService(entitlement.productSnapshot, to.serviceId)) {
+  if (to.admission == null && !coversService(entitlement.productSnapshot, to.serviceId)) {
     return err({ code: 'service_not_covered', sessionServiceId: to.serviceId })
   }
   // The credit that is already held must still be valid FOR THE TARGET. Otherwise a member could

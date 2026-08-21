@@ -1238,4 +1238,62 @@ describe('decideBooking — Fit Paket admission (I-9.7 widened)', () => {
     const r = decideBooking(ctx, fitSession(), fitnessEnt(), bookInput, false, OPEN_ALWAYS)
     expect(r.ok).toBe(true)
   })
+
+  // ── The declared admission waives the SERVICE wall too (owner, 2026-08-21) ──────────────
+  // Why this exists: a new class type appears in no package sold before it existed. "Fit Paket"
+  // was invisible to all fifty active packages — including the pilates ones it was built for.
+  // The studio declaring "this class takes these packages" is an explicit grant, and an explicit
+  // grant outranks the list a package was sold against. It widens ONE SESSION, never the package.
+  const soldForSomethingElse = (c: Category) =>
+    creditEnt({
+      productSnapshot: {
+        ...creditEnt().productSnapshot,
+        category: c,
+        serviceIds: ['svc_reformer' as ServiceId], // NOT the session's svc_1
+      },
+    })
+
+  it('a package sold for another service still books a session that DECLARES it admits her', () => {
+    const r = decideBooking(
+      ctx,
+      fitSession(),
+      soldForSomethingElse('pilates_group'),
+      bookInput,
+      false,
+      OPEN_ALWAYS,
+      limits(0),
+    )
+    expect(r.ok).toBe(true)
+    if (r.ok) expect(r.value.reservation.creditEffect).toBe('held')
+  })
+
+  it('the waiver does NOT reach outside the admitted categories', () => {
+    // Only the wall the declaration speaks about falls. A PT package is not on the guest list,
+    // so it is refused on the category — never silently let in by the service waiver.
+    const r = decideBooking(
+      ctx,
+      fitSession(),
+      soldForSomethingElse('private'),
+      bookInput,
+      false,
+      OPEN_ALWAYS,
+      limits(0),
+    )
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.error.code).toBe('category_mismatch')
+  })
+
+  it('WITHOUT a declaration the service wall stands exactly as before (the regression that matters)', () => {
+    const r = decideBooking(
+      ctx,
+      session(),
+      soldForSomethingElse('pilates_group'),
+      bookInput,
+      false,
+      OPEN_ALWAYS,
+      limits(0),
+    )
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.error).toEqual({ code: 'service_not_covered', sessionServiceId: 'svc_1' })
+  })
 })

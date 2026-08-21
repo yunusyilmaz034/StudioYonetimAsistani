@@ -44,6 +44,19 @@ export function isEligibleForService(
   category: Category | readonly Category[],
   serviceId: ServiceId,
   at: Instant,
+  // A session that DECLARES which package categories it admits waives the service wall for them
+  // (owner, 2026-08-21). The service list is a DEFAULT — what a package was sold against. The
+  // admission is the studio's explicit decision about one class: "pilates and fitness packages may
+  // come to this". An explicit grant beats a default.
+  //
+  // Without this the feature is unusable: a new class type appears in no package sold before it
+  // existed, so "Fit Paket" was invisible to all fifty active packages — including the pilates ones
+  // it was built for. The alternative was rewriting fifty members' frozen snapshots, which is the
+  // one thing D12 exists to prevent.
+  //
+  // It widens ONE SESSION, never the package: the credit still comes from her own package, and
+  // every other class is judged exactly as before.
+  admissionDeclared = false,
 ): boolean {
   if (e.status !== 'active') return false
   if (at > e.validUntil) return false // expired by the time the class runs
@@ -61,7 +74,7 @@ export function isEligibleForService(
   // outside that list is refused exactly as before.
   const admits = Array.isArray(category) ? category : [category as Category]
   if (!admits.includes(e.productSnapshot.category)) return false
-  if (!coversService(e.productSnapshot, serviceId)) return false // I-9.8 (D12)
+  if (!admissionDeclared && !coversService(e.productSnapshot, serviceId)) return false // I-9.8 (D12)
   if (e.credits !== null && available(e.credits) < 1) return false // no credit left to spend
   return true
 }

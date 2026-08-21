@@ -146,4 +146,21 @@ describe('isEligibleForService (D13 — who may be reserved into this PT slot)',
     expect(isEligibleForService(ent(), 'private', PT_SVC, instant(NOW + 365 * DAY))).toBe(false) // only expiry matters
     expect(isEligibleForService(ent(), 'private', PT_SVC, instant(NOW + DAY))).toBe(true)
   })
+
+  // ── The declared-admission waiver (owner, 2026-08-21) ────────────────────────────────────
+  it('a DECLARED admission waives the service wall — but nothing else', () => {
+    const other = ent({}, { serviceIds: ['svc_other' as ServiceId] })
+    const at = instant(NOW + DAY)
+
+    // Default (no declaration): the wall stands, exactly as before.
+    expect(isEligibleForService(other, 'private', PT_SVC, at)).toBe(false)
+    // Declared: the studio said this class takes this package, so the sold-for list steps aside.
+    expect(isEligibleForService(other, 'private', PT_SVC, at, true)).toBe(true)
+
+    // Everything else still bites. The waiver is about ONE wall, not a skeleton key.
+    const wrongCategory = ent({}, { category: 'fitness', serviceIds: ['svc_other' as ServiceId] })
+    expect(isEligibleForService(wrongCategory, 'private', PT_SVC, at, true)).toBe(false)
+    expect(isEligibleForService(ent({ status: 'expired' }), 'private', PT_SVC, at, true)).toBe(false)
+    expect(isEligibleForService(other, 'private', PT_SVC, instant(NOW + 365 * DAY), true)).toBe(false)
+  })
 })

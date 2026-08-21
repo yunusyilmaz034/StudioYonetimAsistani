@@ -1227,6 +1227,54 @@ build's status alone will happily report a stale failure forever.
    adlarını kesinleştir — şu an tahmin edilen kısım orası, ve "emin değilsem ödenmemiş say" diyor
 4. "Bağlantıyı Test Et" kaydedilmemiş değişiklik varken uyarsın (bugün kafa karıştırdı)
 
+### 2026-08-21 — Fit Paket kimseye görünmüyordu: duvarın yanlışını değil, ikincisini bulmak
+
+Işıl "fit paket derslerini üyeler göremiyor" dedi. 26 Ağustos 18:30'da bir ders vardı ve **hiç
+kimsenin ajandasında çıkmıyordu** — ne pilates paketi olanın, ne fitness üyesinin.
+
+Üç ayrı sebep vardı, ve ilk ikisi bulunduktan sonra bile ders hâlâ görünmüyordu:
+
+1. **Kod hatası** — `portal-query.ts` üç yerde `s.category` ile karşılaştırıyordu, kabul listesiyle
+   değil. Yani domain'in seve seve kabul edeceği dersi ajanda saklıyordu. Duvarı 20 Ağustos'ta
+   genişletirken okuma tarafı unutulmuştu. `admitsOf()` ile tek yerden okunuyor artık.
+2. **Seansta kabul koşulu yoktu** — "Başka bir paket türüne de aç" kutusu işaretlenmemişti,
+   `admission: null`. Bu fitness tarafını kapatıyordu.
+3. **Asıl sebep: ders türü duvarı (I-9.8).** "Fit Paket" **yeni bir ders türü**, ve
+   `productSnapshot.serviceIds` satın alma anında donuyor. Üretimde sayıldı:
+
+   ```
+   AKTİF PİLATES PAKETLERİ
+     Fit Paket dersini KAPSAYAN : 0
+     KAPSAMAYAN                 : 50
+   ```
+
+   Yani ders, **onun için yapıldığı pilates üyelerine de** kapalıydı. Kategori duvarını geçiyor,
+   ders türü duvarına takılıyorlardı. Üç paketi olan üye bile göremezdi — sorun paket sayısı değil,
+   dün açılmış bir ders türünün dünden önce satılmış hiçbir pakette yazmaması.
+
+**Owner kararı (OR-43): beyan, ders türü duvarını da aşar.** `admission` beyanı olan seansta
+`serviceIds` listesi uygulanmaz. Gerekçe: `serviceIds` bir varsayılan (paket neye karşı satıldı),
+`admission` stüdyonun o tek ders hakkındaki açık kararı. Açık karar varsayılanı geçer.
+
+Reddedilen alternatif: elli üyenin dondurulmuş snapshot'ını toplu güncellemek. **D12'nin var oluş
+sebebi tam olarak onu engellemek** — bir katalog düzenlemesi satılmış paketin haklarını geriye dönük
+değiştirmesin diye. Bir görünürlük sorununu çözmek için onu delmek, sorunu borca çevirmek olurdu.
+
+Maymuncuk olmadığı testlerle yazılı: beyan yalnızca **saydığı kategorileri** alır (listede olmayan
+paket hâlâ `category_mismatch`), yalnızca **o seansı** genişletir (kredi yine kendi paketinden
+düşer), ve **beyanı olmayan her ders eskisi gibi** yargılanır. Aynı gevşetme `decideReschedule`'da
+da yapıldı, yoksa üye dersi alır ama saatini değiştiremezdi; haftalık kota taşımada yeniden
+çalıştırılmaz çünkü yer zaten onun.
+
+**Bilinen iki eksik** (owner'a söylendi, ayrıca karar verecek):
+- `admission` yalnızca seans **oluşturulurken** verilebiliyor. Var olan dersi sonradan açmanın yolu
+  yok; silip yeniden oluşturmak gerekiyor. 26 Ağustos seansında **0 rezervasyon** var, o yüzden
+  bedeli sıfır — ama her seferinde böyle olmayacak.
+- **Şablonlar kabul koşulunu taşımıyor.** Haftalık üretilen seanslar `admission` olmadan doğuyor,
+  yani düzenli bir Fit Paket dersi her hafta elle açılmak zorunda.
+
+---
+
 ### 2026-08-20 — dört iş, ve bir tanesi veriye bakmasak yanlış yapacaktık
 
 **QR check-in herkeste bozuktu.** Üye kodunu gösteriyor, resepsiyon okutuyor, "QR kod geçersiz".
