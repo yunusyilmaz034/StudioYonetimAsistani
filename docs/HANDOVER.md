@@ -1227,6 +1227,45 @@ build's status alone will happily report a stale failure forever.
    adlarını kesinleştir — şu an tahmin edilen kısım orası, ve "emin değilsem ödenmemiş say" diyor
 4. "Bağlantıyı Test Et" kaydedilmemiş değişiklik varken uyarsın (bugün kafa karıştırdı)
 
+### 2026-08-22 — Pilates kampanya fiyatı, ve asistanın kendi kuralıyla çelişmesi
+
+**Yeni fiyatlar** (owner): Reformer Pilates 8 Ders → nakit 4.200 / kart 5.000 · 16 Ders → nakit
+7.800 / kart 8.600 (kart fiyatı da 8.500'den yükseldi). `tools/migration/pilates-8-cash-price-2026-08.ts`.
+Fiyat yalnızca ürün belgesine yazıldı; asistan katalogdan okuyor, ikinci bir yere yazmak iki doğru
+üretirdi.
+
+**Ama asıl bulunan şey ayrı:** `settings/ai.policies` içinde şu vardı —
+
+> "ÖDEME/FİYAT — TEK FİYAT (EN ÖNEMLİ KURAL): Fiyatlarımız TEKTİR… Nakde özel indirimli bir liste
+> YOKTUR… 'nakit şu, kartla bu' ŞEKLİNDE İKİ RAKAM SÖYLEME"
+
+Bu kural yazıldığında doğruydu. Temmuz'daki fitness kampanyası üç pakete ayrı nakit fiyatı verdiğinde
+**yanlış oldu ve kimse fark etmedi** — çünkü asistan doğru rakamları söylemeye devam etti: CANLI VERİ
+bloğu iki fiyatı da yazıyor ve model veriyi kuralın üstüne koyuyor.
+
+Yani hata bir aydır oradaydı ve **görünmüyordu.** Görünürdü: "nakit daha ucuz mu?" diye SORAN birine
+kural devreye girer, asistan "fiyatımız tek hanımefendi" der — müşteri az önce iki fiyat almışken.
+
+Üç yerde geçiyordu (`policies`, `examples`, `basics`), üçü de düzeltildi
+(`tools/migration/ai-two-prices-2026-08.ts`). Yeni kural **rakam taşımıyor**: "listede kaç rakam
+varsa o kadarını söyle". Katalog değişince asistan kendiliğinden doğru kalır.
+
+**Ders:** asistanın prompt'una yazılan her iş kuralı, katalog verisinin ikizidir. Veri değişince
+kural sessizce yalancı olur ve bunu hiçbir test yakalamaz. Fiyat/paket kuralı yazarken **rakam ya da
+paket adı değil, veriyi nasıl okuyacağını** yaz.
+
+**Son 1 haftada pilates fiyatı soran 4 kişi** vardı. Toplu gönderim yapılmadı — 24 saat penceresi
+açık olan tek kişiye (tuğba bilici, sıcak lead) elle düzeltme mesajı gönderildi, sohbet geçmişine
+yazıldı ve sohbet asistana geri verildi. Biri zaten stüdyoya davetliydi (resepsiyon yüz yüze
+söyleyecek), ikisi fiyat noktasına gelmemişti. **"Kampanya başladı" denmedi, "eksik bilgi verdim"
+dendi** — aynı rakam, ama biri reklam (İYS izni gerekir), diğeri müşterinin kendi sorusunun devamı.
+
+**Uygun WhatsApp şablonu yok:** panelde yalnızca `balance_reminder` ve `portal_invite` tanımlı, ikisi
+de fiyat bilgilendirmesine uzak. Fiyat duyurusu Meta'da MARKETING kategorisine girer (onay + izin +
+İYS) — üç kişi için kurulmadı.
+
+---
+
 ### 2026-08-22 — Turnike donanımı kesinleşti, parçalar sipariş edildi
 
 Kararlar verildi, sipariş kilitlendi. Parçalar **24-25 Ağustos**'ta geliyor; firmware ondan sonra.
