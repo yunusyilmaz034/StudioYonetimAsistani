@@ -86,6 +86,12 @@ function buildSession(params: {
     policySnapshot: params.policySnapshot,
     bookedCount: 0,
     attendedCount: 0,
+    // Fit Paket. Bunlar parametre listesinde vardı ama BURAYA konmamıştı: seans onlarsız
+    // kuruluyor, olay `defaultAdmission()`u yazıyor, belge boş kalıyordu — yani özellik uçtan uca
+    // hiç çalışmadı ve hiçbir şey hata vermedi. `exactOptionalPropertyTypes` yüzünden anahtar
+    // yalnızca değer varsa konuyor: "yok" ile "açıkça undefined" farklı şeyler kalsın.
+    ...(params.admission ? { admission: params.admission } : {}),
+    ...(params.contentLabel ? { contentLabel: params.contentLabel } : {}),
     serviceName: service.name,
     roomName: room ? room.name : null,
     trainerName: params.trainerName,

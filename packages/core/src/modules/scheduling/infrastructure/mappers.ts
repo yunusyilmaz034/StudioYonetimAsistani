@@ -151,6 +151,9 @@ export function sessionToFirestore(s: ClassSession): DocumentData {
     note: s.note ? { text: s.note.text, visibility: s.note.visibility, setAt: toTs(s.note.setAt) } : null,
     serviceName: s.serviceName,
     ...(s.contentLabel ? { contentLabel: s.contentLabel } : {}),
+    // Fit Paket. Kabul koşulu OLAYA yazılıyordu ama DURUM belgesine yazılmıyordu — ve rezervasyon
+    // kuralı da üye ajandası da belgeyi okuyor. Yani beyan yazılıyor, sonra kimse göremiyordu.
+    ...(s.admission ? { admission: s.admission } : {}),
     roomName: s.roomName,
     trainerName: s.trainerName,
     branchName: s.branchName,
@@ -207,6 +210,7 @@ export function sessionFromFirestore(id: ClassSessionId, d: DocumentData): Class
       : null,
     serviceName: d.serviceName as string,
     ...(d.contentLabel ? { contentLabel: d.contentLabel as string } : {}),
+    ...(d.admission ? { admission: d.admission as NonNullable<ClassSession['admission']> } : {}),
     roomName: (d.roomName as string | null) ?? null,
     trainerName: (d.trainerName as string | null) ?? null,
     branchName: d.branchName as string,

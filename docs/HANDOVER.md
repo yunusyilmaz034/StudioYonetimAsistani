@@ -1227,6 +1227,39 @@ build's status alone will happily report a stale failure forever.
    adlarını kesinleştir — şu an tahmin edilen kısım orası, ve "emin değilsem ödenmemiş say" diyor
 4. "Bağlantıyı Test Et" kaydedilmemiş değişiklik varken uyarsın (bugün kafa karıştırdı)
 
+### 2026-08-22 (gece) — Fit Paket iki gündür ölüymüş: `buildSession` alanları düşürüyordu
+
+Owner dersi kabul koşuluyla oluşturdu, ekran görüntüsünde kutu işaretliydi, "Seans oluşturuldu"
+dedi. Üretimde bakıldığında seans belgesinde **ne `admission` ne `contentLabel`** vardı. Olay
+`admission: {categories:['pilates_group']}` yani `defaultAdmission()` yazmıştı — yani veri
+alan adama hiç ulaşmamıştı.
+
+**Sebep:** `buildSession` (application/session.ts) her iki alanı da **parametre olarak alıyor ama
+döndürdüğü nesneye koymuyordu.** Tip kontrolü geçiyor (ikisi de opsiyonel), 1069 test geçiyor, ve
+özellik uçtan uca hiç çalışmıyor.
+
+**İkinci hata, ilkinin arkasında saklıydı:** `infrastructure/mappers.ts` `admission`ı ne yazıyor ne
+okuyordu (`contentLabel` vardı, `admission` unutulmuş). İlki düzeltilseydi bile belge yine boş
+kalırdı — ve rezervasyon kuralı da üye ajandası da **belgeyi** okuyor.
+
+Yani 20 Ağustos'tan beri yapılan işin tamamı — kategori duvarının genişletilmesi, ders türü
+duvarının beyanla aşılması, ajandanın düzeltilmesi — doğruydu ve **hiçbiri devreye giremiyordu.**
+
+**Neden hiçbir test yakalamadı:** her test bir katman sınırında duruyordu. Karar fonksiyonu
+`admission`ı ZATEN olan bir seansla test edilmişti; action'ın ne ilettiği test edilmişti. Kimse
+"kullanım senaryosuna admission ver, KAYDEDİLEN seansta var mı" diye sormamıştı. Artık soruyor:
+`application/session.test.ts` (5 test; düzeltme geri alınınca 3'ü düşüyor — doğrulandı).
+
+**Ders:** bir alanı uçtan uca eklerken kontrol edilecek yer sadece karar fonksiyonu değil, **veriyi
+taşıyan her ara kat**: `buildSession` gibi elle yazılmış "nesne kur" fonksiyonları ve mapper'lar,
+alanı sessizce düşürür. Tipler bunu yakalamaz çünkü alan opsiyoneldir. Testin katman sınırında değil,
+**kullanım senaryosunun ucunda** durması gerekir.
+
+**Bu deploy'dan sonra owner iki seansı yeniden oluşturmalı** (26 ve 28 Ağustos, ikisinin de
+rezervasyonu yok) — mevcutları düzeltmek belge ile olayı çelişkiye düşürürdü.
+
+---
+
 ### 2026-08-22 — Pilates kampanya fiyatı, ve asistanın kendi kuralıyla çelişmesi
 
 **Yeni fiyatlar** (owner): Reformer Pilates 8 Ders → nakit 4.200 / kart 5.000 · 16 Ders → nakit
