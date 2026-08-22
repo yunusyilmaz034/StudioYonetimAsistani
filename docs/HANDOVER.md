@@ -1521,6 +1521,8 @@ beklemez — o ayrı değerlendirilir.
 | 1 | **Android FCM push** — Firebase'de Android app, `google-services.json`, FCM anahtarı EAS'e, `googleServicesFile` config'e | Android üyeler HİÇBİR bildirim almıyor ve sistem bunu hiç raporlamıyor. Ayrıntı aşağıda. | ⏸ owner erteledi (2026-08-18) |
 | 3 | **Fit Paket: rezervasyon ekranında ne ödeyeceğini göster** — "1 kredi" / "haftalık hakkın" | Üye bedava sandığı derste kredi kaybedebilir. Domain 2026-08-20'de çıktı, ekran metni çıkmadı. | ⏸ owner onayıyla ertelendi |
 | 2 | **Push kaydı sessizce yutulmasın** — `src/lib/push.ts`'teki boş `catch`, hatayı sunucuya bildirsin | 1 numaralı arıza iki aydır sürüyor olabilir ve kimse fark etmedi. Asıl kusur push'un çalışmaması değil, **çalışmadığını söyleyememesi**. | ⏸ 1 ile birlikte |
+| 4 | **Rezervasyondan önce onay adımı** — ders adı+içerik, tarih/saat, salon, ve **krediye ne olacağı** ("1 kredi düşecek · sonra 7 dersin kalır" / "haftalık hakkını kullanacaksın · kredi düşmez"). İptal penceresi de yazsın. | Şu an "Rezerve Et"e basınca **anında** yapılıyor: yanlış saate basan üye kredisini kaybediyor, geri almak elle düzeltme demek. Fit Paket'te iki üye grubu **farklı şey ödüyor** ve ekran bunu hiç söylemiyor — 3 numaralı iş bunun içinde eriyor. Owner: "çat diye rezerve ediyor". | ⏸ owner istedi (2026-08-22) |
+| 5 | **Kontenjan doluluk olarak gösterilsin** — "3 kaldı" değil **`5/8`** | Kalan sayı dersin ne kadar dolduğunu söylemiyor: "3 kaldı" 8 kişilik derste de 20 kişilik derste de aynı görünüyor. Doluluk hem üyeye aciliyet hissi veriyor hem stüdyoya dürüst bir sinyal. Owner istedi (2026-08-22). | ⏸ |
 
 ### Buraya yazarken
 
