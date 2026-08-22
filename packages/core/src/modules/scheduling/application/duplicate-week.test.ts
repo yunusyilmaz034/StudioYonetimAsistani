@@ -60,6 +60,21 @@ describe('computeDuplicationPlan', () => {
     expect(plan.toCreate[0]?.durationMinutes).toBe(60)
   })
 
+  it('copies the ADMISSION into every duplicate — a Fit Paket week stays a Fit Paket week', () => {
+    // The bug this guards: `buildSession` dropped admission, and duplication never carried it
+    // either. A duplicated Fit Paket class came out closed to fitness members — invisible to the
+    // people it exists for, with nothing failing anywhere.
+    const admission = { categories: ['pilates_group', 'fitness'], weeklyQuotaByCategory: { fitness: 1 } } as const
+    const plan = computeDuplicationPlan([makeSession({ admission })], [], 3, SRC - 1000, OFFSET)
+    expect(plan.toCreate).toHaveLength(3)
+    for (const t of plan.toCreate) expect(t.admission).toEqual(admission)
+  })
+
+  it('an ordinary session duplicates with NO admission — the default is absence, not invention', () => {
+    const plan = computeDuplicationPlan([makeSession()], [], 2, SRC - 1000, OFFSET)
+    for (const t of plan.toCreate) expect(t.admission).toBeUndefined()
+  })
+
   it('never generates into the past', () => {
     // now is after weeks 1 and 2 → only weeks 3 and 4 are created.
     const plan = computeDuplicationPlan([makeSession()], [], 4, SRC + 2 * WEEK + 1, OFFSET)

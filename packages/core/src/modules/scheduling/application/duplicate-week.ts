@@ -32,6 +32,15 @@ export interface DuplicationTarget {
   readonly capacity: number
   readonly startsAt: number // target instant (for display/sort)
   readonly weekOffset: number // 1..weeks
+  // Fit Paket. The admission IS copied: "this class admits fitness memberships, one a week" is a
+  // property of the CLASS, true every week it runs. Without it a duplicated Fit Paket week comes
+  // out invisible to the very members it was opened for.
+  //
+  // `contentLabel` is deliberately NOT copied. It is what THIS occurrence actually is — one week
+  // CrossFit, the next Pilates Mat — and copying it forward would assert next week's content
+  // before anyone has decided it. A blank label says "the service name is all we know", which is
+  // true; a stale one is a guess wearing a fact's clothes.
+  readonly admission?: ClassSession['admission']
 }
 
 export interface DuplicationPlan {
@@ -93,6 +102,7 @@ export function computeDuplicationPlan(
         capacity: s.capacity,
         startsAt,
         weekOffset: k,
+        ...(s.admission ? { admission: s.admission } : {}),
       }
       if (startsAt <= nowMs) {
         skippedPast.push(target)
@@ -169,6 +179,7 @@ export async function applyWeekDuplication(
       startTime: t.startTime,
       durationMinutes: t.durationMinutes,
       capacity: t.capacity,
+      ...(t.admission ? { admission: t.admission } : {}),
     })
     if (r.ok) created++
     // a per-session domain refusal (e.g. a race) is skipped, never aborts the batch
