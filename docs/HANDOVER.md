@@ -1227,6 +1227,51 @@ build's status alone will happily report a stale failure forever.
    adlarını kesinleştir — şu an tahmin edilen kısım orası, ve "emin değilsem ödenmemiş say" diyor
 4. "Bağlantıyı Test Et" kaydedilmemiş değişiklik varken uyarsın (bugün kafa karıştırdı)
 
+### 2026-08-22 — Turnike donanımı kesinleşti, parçalar sipariş edildi
+
+Kararlar verildi, sipariş kilitlendi. Parçalar **24-25 Ağustos**'ta geliyor; firmware ondan sonra.
+
+**Çift yönlü, çıkışta okutma ZORUNLU (owner kararı).** Telefonunu unutan üye içeride kalır ve gidip
+alır — owner'a bunun bedeli söylendi, kararı o verdi. Karşılığında doluluk kesin.
+
+**Sunucu tarafında yeni iş yok** — domain zaten bunun için yazılmış: `member.checked_out`,
+`member.auto_checked_out` (okutmadan çıkanı gece süpürgesi temizler), `turnstile.opened_manually`
+(resepsiyon elle açarsa zorunlu gerekçeyle olay yazılır).
+
+**İki ekran = iki cihaz.** QR cihaza bağlı (`code.deviceId !== device.id → qr_invalid`), yani her
+ekranın kendi kimliği, kendi sırrı, kendi QR'ı olacak. Bunun yan faydası: yön **okutulan ekrandan**
+kesin gelir, `presence`'a bakıp çıkarmaya gerek kalmaz.
+
+**Tek ESP32-S3, iki ekran.** İki kart önerilmişti, owner sorguladı, haklıydı: ekranlar turnike
+gövdesinde 50 cm'den yakın olacak, o mesafede SPI sorun çıkarmaz. Ekranlar MOSI/SCK/DC/RST'yi
+paylaşır, ayrı olan sadece **CS**. ~10 pin, S3'te bolca var.
+
+**Parça listesi (sipariş verildi):** ESP32-S3 (elde) · 3.2" ILI9341 SPI ekran ×2 (dokunmatiksiz) ·
+2 kanallı 5V röle kartı · buzzer · 5V 2A adaptör + USB-C · dişi-dişi dupont kablo 20cm + 30cm.
+Breadboard'dan vazgeçildi (titreşimde gevşer, turnike gövdesine monte edilmez).
+
+**Besleme:** adaptör → USB-C → ESP32-S3, röle VCC'si ESP32'nin **5V pininden** (o pin doğrudan
+USB girişine bağlı, 3.3V regülatöre uğramıyor; iki bobin ~140 mA). Kart röle çektiğinde resetlenirse
+besleme ayrılır — masada görülür. Kurulumda turnikenin 12V'undan **buck çevirici** ile beslenecek,
+ayrı priz gerekmesin diye.
+
+**12V kuru kontak sorun değil:** röle kartındaki "5V" bobin gerilimi, anahtarladığı devrenin değil.
+Kontak değeri 10A@30VDC. **NO kullanılacak** (enerji giderse kontak açık kalır), ve turnikenin GND'si
+ESP32'ye **bağlanmayacak** — kontak tarafının yalıtımını bozan tek şey odur.
+
+**Owner'ın teknisyene söyleyecekleri** (yazılımla ilgisi yok, güvenlik):
+- Enerji kesilince kollar **serbest kalsın** (fail-safe / anti-panik)
+- **Yangın alarmı kontağı** turnikeye bağlansın
+
+**Firmware'e başlamadan önce lazım olan tek bilgi:** S150'nin **röle çıkış süresi** (turnikeler
+sürekli kapalı kontak değil, 200-500 ms darbe ister). Kurulum kılavuzunda yazıyor; owner söyleyecek.
+
+**Firmware sırasında sorulacak küçük ekleme:** `TurnstileDevice`'a **hangi taraf** olduğu alanı
+(`giriş`/`çıkış`). Olay şemasına dokunmuyor, durum belgesine eklenen alan. Onunla yön tahmin
+edilmez, bilinir.
+
+---
+
 ### 2026-08-21 — Fit Paket kimseye görünmüyordu: duvarın yanlışını değil, ikincisini bulmak
 
 Işıl "fit paket derslerini üyeler göremiyor" dedi. 26 Ağustos 18:30'da bir ders vardı ve **hiç
