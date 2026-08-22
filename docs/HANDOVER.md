@@ -1263,8 +1263,32 @@ ESP32'ye **bağlanmayacak** — kontak tarafının yalıtımını bozan tek şey
 - Enerji kesilince kollar **serbest kalsın** (fail-safe / anti-panik)
 - **Yangın alarmı kontağı** turnikeye bağlansın
 
-**Firmware'e başlamadan önce lazım olan tek bilgi:** S150'nin **röle çıkış süresi** (turnikeler
-sürekli kapalı kontak değil, 200-500 ms darbe ister). Kurulum kılavuzunda yazıyor; owner söyleyecek.
+**Model: Perkotek S310** (S150 değil). Teknik doküman `~/Downloads/perkotekTurnike.pdf`, ve gereken
+her şeyi veriyor:
+
+**Menü ayarları (owner yapacak):** `F01 = 5` (açık kalma süresi — turnike KENDİ süresini sayar, yani
+firmware'in 300 ms tetik vermesi yeterli, darbe süresi bizim derdimiz değil) · `F02 = 0` (her iki
+yöne kilitli — çıkışta da okutma zorunlu, owner'ın kararı) · `F03 = 0` (bel turnikesi) ·
+**`F04 = 0`** (hafıza modu 1 olursa röle iki kez tetiklediğinde iki kişi geçer ve doluluk sessizce
+bozulur — bu en sinsi ayar).
+
+**Röle girişi üç terminal: `OP-R` · `COM` · `OP-L`** — her yön için ayrı kuru kontak. 2 kanallı röle
+kartı doğru seçimdi: kanal 1 → COM+OP-R, kanal 2 → COM+OP-L.
+
+⚠️ **Şemada çelişki var:** karttaki butonlarda `OP-R = GİRİŞ`, `OP-L = ÇIKIŞ` yazıyor ama terminal
+okları çaprazlanmış çizilmiş. **Tahmin edilmeyecek** — kurulumda COM bir kabloyla OP-R'ye değdirilip
+hangi yönün açıldığına bakılacak. Yanlış bağlanırsa girişte okutan üye çıkış kolunu açar, kimse fark
+etmez, doluluk ters döner.
+
+**Yangın güvenliği donanımda çözülmüş:** "düşen kollu mekanizma, acil durumda kol düşerek serbest
+geçiş". Enerji kesilince kollar düşüyor — ayrıca bir fail-safe ayarı aranmayacak.
+
+**Besleme planı değişti:** turnike 220V (100-240V, 30W), 12V değil. Ama anakartta okuyucu beslemek
+için konmuş bir **`GND`+`12V` çıkışı** var. Buck çevirici fikri geçerli ama önce **Perkotek'e
+sorulacak: o çıkış kaç mA veriyor?** Bize ~250 mA lazım.
+
+**Montaj:** gövde 480 mm; ESP32 **ortaya** konacak, böylece her ekrana ~24 cm kalır ve sipariş edilen
+30 cm dupont yeter. Bir uca konursa diğer ekrana 50+ cm gerekir — hem kablo yetmez hem SPI zorlanır.
 
 **Firmware sırasında sorulacak küçük ekleme:** `TurnstileDevice`'a **hangi taraf** olduğu alanı
 (`giriş`/`çıkış`). Olay şemasına dokunmuyor, durum belgesine eklenen alan. Onunla yön tahmin
