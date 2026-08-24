@@ -382,6 +382,8 @@ export async function createPackageLinkSaleAction(input: unknown) {
       componentOverrides: z.array(z.number().int().min(0).nullable()).nullable().optional(),
       note: z.string().default(''),
       amountKurus: z.number().int().min(1),
+      // Which provider this LINK goes through. Omitted ⇒ the studio's current choice.
+      provider: z.enum(['paytr', 'tami']).optional(),
     })
     .parse(input)
   const ctx = await requireTenantContext(OPS)
@@ -417,6 +419,7 @@ export async function createPackageLinkSaleAction(input: unknown) {
       itemName: product.name,
       // The primary component carries the whole bundle's debt, so it is the sale this link settles.
       saleId: bundle.value.saleId,
+      ...(p.provider ? { provider: p.provider } : {}),
     })
   }
 
@@ -476,6 +479,7 @@ export async function createPackageLinkSaleAction(input: unknown) {
     note: `Paket: ${product.name}`,
     itemName: product.name,
     saleId: sold.value.saleId,
+    ...(p.provider ? { provider: p.provider } : {}),
   })
 }
 

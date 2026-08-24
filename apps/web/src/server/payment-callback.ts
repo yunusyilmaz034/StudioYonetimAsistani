@@ -420,7 +420,11 @@ export async function handlePaytrCallback(sid: string, fields: Record<string, st
     total_amount: fields.total_amount,
     hasHash: Boolean(fields.hash),
   })
-  const { provider } = await paymentProviderFor(ctx)
+  // ALWAYS PAYTR. This is PAYTR's own webhook; the studio's current setting has nothing to say
+  // about it. Before this argument existed, switching the studio to TAMI handed every PAYTR
+  // notification to an adapter whose verifyCallback is permanently `false` — every real payment
+  // silently rejected, with a correct-looking "bad hash" in the log.
+  const { provider } = await paymentProviderFor(ctx, 'paytr')
   const verification = provider.verifyCallback(fields)
   console.log('[paytr-callback] verified', { valid: verification.valid, ref: verification.providerRef, status: verification.status })
   if (!verification.valid || !verification.providerRef) return { body: 'PAYTR notification failed: bad hash', status: 200 }

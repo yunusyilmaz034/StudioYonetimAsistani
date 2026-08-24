@@ -741,6 +741,12 @@ function AssignForm({
 
   const isPaytr = method === 'sanal_pos' || method === 'link'
 
+  // Which provider THIS link goes through. '' = the studio's own setting, which is the answer almost
+  // every time. Reception overrides it for the one case the default cannot serve — today, a member
+  // who wants more instalments than the studio's provider offers (owner, 2026-08-24).
+  const [linkProvider, setLinkProvider] = useState<'' | 'paytr' | 'tami'>('')
+  useEffect(() => setLinkProvider(''), [method, productId])
+
   // Defaults follow the chosen product + start date.
   const autoUntil = useMemo(() => (product ? addDays(validFrom, product.durationDays) : ''), [product, validFrom])
   const effectiveUntil = validUntil || autoUntil
@@ -803,6 +809,7 @@ function AssignForm({
           componentOverrides: isBundle ? componentCounts : null,
           note: '',
           amountKurus,
+          ...(linkProvider ? { provider: linkProvider } : {}),
         })
         // Grant already happened (member is now borçlu); show the link to share.
         if (res.ok) setCheckout({ flow: 'link', redirectUrl: res.value.redirectUrl, intentId: res.value.intentId })
@@ -1018,6 +1025,27 @@ function AssignForm({
               <strong className="text-foreground">{tl((toKurus(effectivePrice) || 0) + surchargeKurus)}</strong>
             </p>
           ) : null
+        ) : null}
+        {method === 'link' ? (
+          <Labeled label="Ödeme sağlayıcısı">
+            <Select value={linkProvider || 'default'} onValueChange={(v) => setLinkProvider(v === 'default' ? '' : (v as 'paytr' | 'tami'))}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="default">Varsayılan (stüdyo ayarı)</SelectItem>
+                <SelectItem value="paytr">PayTR</SelectItem>
+                <SelectItem value="tami">TAMI</SelectItem>
+              </SelectContent>
+            </Select>
+          </Labeled>
+        ) : null}
+        {method === 'link' && linkProvider ? (
+          <p className="col-span-2 rounded-lg bg-warning/10 px-3 py-2 text-sm text-muted-foreground">
+            Bu link <strong className="text-foreground">{linkProvider === 'paytr' ? 'PayTR' : 'TAMI'}</strong> üzerinden
+            gidecek. Ödeme, oluşturulduğu sağlayıcıyla tamamlanır — stüdyo ayarını sonradan değiştirmeniz bu linki
+            etkilemez.
+          </p>
         ) : null}
         {isPaytr ? (
           <p className="col-span-2 rounded-lg bg-muted/60 px-3 py-2 text-sm text-muted-foreground">

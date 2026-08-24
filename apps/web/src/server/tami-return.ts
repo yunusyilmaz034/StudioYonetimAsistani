@@ -84,13 +84,14 @@ export async function handleTamiReturn(sid: string, orderId: string): Promise<Ta
   // log honest about what happened.
   if (intent.status === 'paid') return { ok: true, intent }
 
-  const { provider, config } = await paymentProviderFor(ctx)
-  if (config.provider !== 'tami') {
-    // The studio switched providers while this payment was in flight. The intent names the provider
-    // it was minted under, so this is a real mismatch rather than a race to paper over.
-    console.warn('[tami-return] provider is no longer tami', { sid, orderId, now: config.provider })
-    return { ok: false, reason: 'provider_changed', intent }
+  // The INTENT decides, not the studio's current setting. A payment belongs to the provider it was
+  // minted under; the studio switching brands mid-flight must not strand the member who is paying
+  // right now. It used to refuse here — correct about the mismatch, wrong about whose fact it is.
+  if (intent.provider !== 'tami') {
+    console.warn('[tami-return] intent is not a tami payment', { sid, orderId, provider: intent.provider })
+    return { ok: false, reason: 'provider_mismatch', intent }
   }
+  const { provider } = await paymentProviderFor(ctx, 'tami')
   if (!provider.configured) return { ok: false, reason: 'not_configured', intent }
   if (!provider.confirm) return { ok: false, reason: 'confirm_unsupported', intent }
 

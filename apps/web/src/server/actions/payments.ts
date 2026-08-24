@@ -137,6 +137,11 @@ export async function createPackagePaymentAction(input: unknown) {
       // The installment cap reception offered for this payment (1 = tek çekim). Clamped to the
       // studio's configured maximum server-side.
       installments: z.number().int().min(1).max(12).optional(),
+      // Which provider THIS payment goes through. Omitted ⇒ the studio's current choice, which is
+      // the answer almost every time. Reception overrides it for the one case the studio's default
+      // cannot serve — today that is a member who wants more instalments than TAMI is opened for
+      // (owner, 2026-08-24). The intent records what was used, so nothing downstream has to guess.
+      provider: z.enum(['paytr', 'tami']).optional(),
     })
     .parse(input)
   const ctx = await requireTenantContext(OPS)
@@ -154,12 +159,13 @@ export interface PackageCheckoutInput {
   readonly componentOverrides?: readonly (number | null)[] | null
   readonly note: string
   readonly installments?: number | undefined
+  readonly provider?: PaymentProviderId | undefined
 }
 
 // ctx-taking core: BOTH the staff sell (above) and the member self-purchase (member API) run this one
 // tested money path — the only difference is who the actor is and where the ctx came from.
 export async function createPackageCheckout(ctx: TenantContext, p: PackageCheckoutInput) {
-  const { provider, config } = await paymentProviderFor(ctx)
+  const { provider, config } = await paymentProviderFor(ctx, p.provider)
   if (!provider.configured) return { ok: false as const, error: { code: 'payment_provider_not_configured' as const } }
 
   const product = await new FirestoreCatalogRepository(adminDb()).getProduct(ctx, p.productId as ProductId)
@@ -407,9 +413,20 @@ export async function createMemberCollectionCheckout(
   ctx: TenantContext,
   // `saleId` is the sale this money settles, when the caller made the two together (reception's
   // "Linkle Ödeme" for one package). Omitted ⇒ a plain balance collection, oldest debt first.
-  args: { memberId: MemberId; amountKurus: number; flow: 'pos' | 'link'; branchId: string | null; note: string; itemName: string; saleId?: string },
+  args: {
+    memberId: MemberId
+    amountKurus: number
+    flow: 'pos' | 'link'
+    branchId: string | null
+    note: string
+    itemName: string
+    saleId?: string
+    // Omitted ⇒ the studio's current choice. Reception overrides it for the one payment the default
+    // cannot serve (owner, 2026-08-24) — today, a member who wants more instalments than TAMI offers.
+    provider?: PaymentProviderId
+  },
 ) {
-  const { provider, config } = await paymentProviderFor(ctx)
+  const { provider, config } = await paymentProviderFor(ctx, args.provider)
   if (!provider.configured) return { ok: false as const, error: { code: 'payment_provider_not_configured' as const } }
   if (!Number.isInteger(args.amountKurus) || args.amountKurus <= 0) return { ok: false as const, error: { code: 'invalid_amount' as const } }
 
@@ -857,7 +874,9 @@ export async function refundPaymentIntentAction(input: unknown) {
   if (!requested.ok) return requested
   await intentRepo().saveIntent(ctx, requested.value.next, requested.value.events)
 
-  const { provider } = await paymentProviderFor(ctx)
+  // The money went out through the provider THIS INTENT names, and that is the only place it can
+  // come back from. Using the studio's current setting would send a PAYTR order id to TAMI.
+  const { provider } = await paymentProviderFor(ctx, intent.provider)
   if (!provider.configured) return { ok: false as const, error: { code: 'payment_provider_not_configured' as const } }
 
   const res = await provider.refund({ providerRef: intent.providerRef, amount: money(p.amountKurus) })

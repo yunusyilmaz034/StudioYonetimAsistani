@@ -1,4 +1,12 @@
-import { paytrProvider, tamiProvider, type PaymentProviderPort, type PaytrConfig, type TamiConfig, type TenantContext } from '@studio/core'
+import {
+  paytrProvider,
+  tamiProvider,
+  type PaymentProviderId,
+  type PaymentProviderPort,
+  type PaytrConfig,
+  type TamiConfig,
+  type TenantContext,
+} from '@studio/core'
 
 import { adminDb } from './firebase-admin'
 
@@ -64,12 +72,31 @@ function paytrSecrets(): { merchantKey: string; merchantSalt: string } | null {
   return merchantKey && merchantSalt ? { merchantKey, merchantSalt } : null
 }
 
-// Build the provider for a studio: real PAYTR only when the config is active AND the merchant id AND
-// the secrets are all present. Anything missing ⇒ the Unconfigured provider.
-export async function paymentProviderFor(ctx: TenantContext): Promise<{ provider: PaymentProviderPort; config: PaymentProviderConfig }> {
+/**
+ * Build the provider for a studio: real PAYTR only when the config is active AND the merchant id AND
+ * the secrets are all present. Anything missing ⇒ the Unconfigured provider.
+ *
+ * `want` overrides the studio's CURRENT choice, and exists because "which provider" is a property of
+ * a PAYMENT, not of a moment in time (owner, 2026-08-24). Three callers need it and each would be a
+ * defect without it:
+ *
+ *   • the PAYTR webhook — it is PAYTR's callback by definition, and asking a TAMI adapter to verify
+ *     a PAYTR hash rejects every real notification. This one breaks the day the studio switches.
+ *   • the TAMI return — same, the other way round.
+ *   • a refund — the money went out through the provider the INTENT names, and that is where it has
+ *     to come back from. Refunding a PAYTR sale through TAMI sends a stranger's order id.
+ *
+ * The studio's setting still decides which provider a NEW payment is created with. It just stops
+ * deciding what an existing one belongs to.
+ */
+export async function paymentProviderFor(
+  ctx: TenantContext,
+  want?: PaymentProviderId,
+): Promise<{ provider: PaymentProviderPort; config: PaymentProviderConfig }> {
   const config = await getPaymentProviderConfig(ctx)
+  const chosen = want ?? config.provider
 
-  if (config.provider === 'tami') {
+  if (chosen === 'tami') {
     const s = tamiSecrets()
     const tamiConfig: TamiConfig | null =
       config.active && config.tamiMerchantNumber && config.tamiTerminalNumber && s
@@ -81,15 +108,20 @@ export async function paymentProviderFor(ctx: TenantContext): Promise<{ provider
             jwk: s.jwk,
           }
         : null
-    return { provider: tamiProvider(tamiConfig), config }
+    // The returned config names the CHOSEN provider, so every caller that stamps `config.provider`
+    // onto an intent or a log line records what actually happened rather than what the settings
+    // screen happens to say right now.
+    return { provider: tamiProvider(tamiConfig), config: { ...config, provider: 'tami' } }
   }
 
   const secrets = paytrSecrets()
+  // `config.active` is the studio's master switch and applies to both: an inactive provider config
+  // means the studio has turned card payments off, whichever brand is named.
   const paytrConfig: PaytrConfig | null =
     config.active && config.merchantId && secrets
       ? { merchantId: config.merchantId, merchantKey: secrets.merchantKey, merchantSalt: secrets.merchantSalt, testMode: config.testMode }
       : null
-  return { provider: paytrProvider(paytrConfig), config }
+  return { provider: paytrProvider(paytrConfig), config: { ...config, provider: 'paytr' } }
 }
 
 // A truthful "is it ready?" for the settings screen — never reveals a secret, only whether it exists.
