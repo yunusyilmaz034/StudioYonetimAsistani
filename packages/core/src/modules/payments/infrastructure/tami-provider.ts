@@ -1,4 +1,4 @@
-import { createHash, createHmac } from 'node:crypto'
+import { createHash, createHmac, randomUUID } from 'node:crypto'
 
 import { money } from '../../../shared'
 import type {
@@ -217,7 +217,12 @@ class TamiProvider implements PaymentProviderPort {
           'Content-Type': 'application/json',
           'Accept-Language': 'tr',
           'PG-Api-Version': 'v3',
-          correlationId: `q-${providerRef}`,
+          // UNIQUE PER REQUEST. Tami refuses a repeat with errorCode 4001 ("aynı korelasyon
+          // numarası ile işlem yapamazsın"), and `confirm` is called more than once as a matter of
+          // course — she refreshes the return page, reconciliation asks again. A fixed id turned the
+          // SECOND question about a real payment into "not paid", which is the worst possible answer
+          // to give twice. Observed against production on 2026-08-24.
+          correlationId: `q-${providerRef}-${randomUUID().slice(0, 8)}`,
           'PG-Auth-Token': tamiAuthToken(this.config),
         },
         body: JSON.stringify({ securityHash: tamiSecurityHash(this.config.jwk, { orderId: providerRef }) }),
@@ -227,26 +232,40 @@ class TamiProvider implements PaymentProviderPort {
       const b = (await res.json().catch(() => ({}))) as {
         success?: boolean
         errorCode?: number
-        status?: string
-        transactionStatus?: string
+        orderStatus?: string
+        paymentStatus?: string
+        currency?: string
         amount?: number | string
         orderId?: string
       }
 
-      // `success` is Tami's own envelope flag, observed against sandbox on 2026-08-18: an unknown
-      // order answers `{ success: false, errorCode: 2013 }` and HTTP 400. It is checked FIRST because
-      // it is the only field we have actually seen.
-      //
-      // The shape of a PAID order is still unobserved — nobody has completed a sandbox payment yet —
-      // so the status check below stays as a second gate rather than being replaced by a guess. Both
-      // must agree. When the first real test payment lands, replace the guessed field names with the
-      // one Tami actually returns; until then this refuses rather than assumes, which is the correct
-      // way round for something that grants a package.
+      // `success` is Tami's envelope flag: an unknown order answers `{ success: false, errorCode:
+      // 2013 }` with HTTP 400. Checked first because it is the only thing true of every refusal.
       if (b.success !== true) return { valid: false, failureCode: `tami_not_paid_${b.errorCode ?? 'unknown'}` }
 
-      const raw = String(b.transactionStatus ?? b.status ?? '').toUpperCase()
-      const paid = raw === '' || raw === 'SUCCESS' || raw === 'APPROVED' || raw === 'SETTLED'
-      if (!paid) return { valid: false, failureCode: `tami_not_paid_${raw}` }
+      // The shape below was OBSERVED, not guessed — a real ₺1 payment on 2026-08-24 answered:
+      //   { success: true, paymentStatus: "SUCCESS", orderStatus: "AUTH", amount: 1,
+      //     currency: "TRY", installmentCount: 1, is3D: true, card: {...} }
+      // The fields this code used to look for (`transactionStatus`, `status`) do not exist. Their
+      // absence fell through to "paid", so it happened to be right — which is the most expensive
+      // kind of right, because nothing would have told us when it stopped being.
+      //
+      // ALLOWLIST, never a denylist. An unrecognised state refuses and names itself in the code, so
+      // the log teaches us the next one. The house rule decides the direction: a member who paid and
+      // is not credited phones within the hour; a member credited without paying is a silent loss.
+      const payment = String(b.paymentStatus ?? '').toUpperCase()
+      if (payment !== 'SUCCESS') return { valid: false, failureCode: `tami_payment_${payment || 'absent'}` }
+
+      // AUTH is what a fresh card payment reports; the later states are what it becomes once the
+      // hold period passes. A refund or a void must NOT be in this list.
+      const order = String(b.orderStatus ?? '').toUpperCase()
+      if (!['AUTH', 'CAPTURE', 'CAPTURED', 'SETTLED'].includes(order)) {
+        return { valid: false, failureCode: `tami_order_${order || 'absent'}` }
+      }
+
+      // A payment in another currency is not this payment, however well the number matches.
+      const currency = String(b.currency ?? 'TRY').toUpperCase()
+      if (currency !== 'TRY') return { valid: false, failureCode: `tami_currency_${currency}` }
 
       const major = typeof b.amount === 'string' ? Number(b.amount) : (b.amount ?? 0)
       return {

@@ -134,25 +134,68 @@ describe('tamiSecurityHash — the JWT that signs a query', () => {
 describe('confirm — the only thing that may credit a TAMI payment', () => {
   const withJwk: TamiConfig = { ...CONFIG, jwk: { kid: 'kid-1', k: 'c2VjcmV0LWtleS1mb3ItdGVzdA' } }
 
-  it('credits only an unambiguous success, and converts back to kuruş', async () => {
-    const p = tamiProvider(withJwk, jsonOnce({ success: true, status: 'SUCCESS', orderId: 'ref_1', amount: 8000 }))
+  // The shape below is the REAL one, copied from a ₺1 production payment on 2026-08-24. Until that
+  // payment happened these tests asserted `status: 'SUCCESS'` — a field Tami does not send. The
+  // adapter passed anyway, because an absent status fell through to "paid". Both the code and the
+  // tests agreed with each other and neither agreed with Tami.
+  const PAID = {
+    success: true,
+    orderId: 'ref_1',
+    amount: 8000,
+    currency: 'TRY',
+    orderStatus: 'AUTH',
+    paymentStatus: 'SUCCESS',
+    installmentCount: 1,
+    is3D: true,
+  }
+
+  it('credits an unambiguous success, and converts back to kuruş', async () => {
+    const p = tamiProvider(withJwk, jsonOnce(PAID))
     const r = await p.confirm!('ref_1')
     expect(r).toMatchObject({ valid: true, status: 'success', providerRef: 'ref_1' })
     expect(r.paidAmount?.amount).toBe(800_000)
   })
 
   it('rounds rather than truncates — a kuruş lost per payment is still money', async () => {
-    const p = tamiProvider(withJwk, jsonOnce({ success: true, status: 'SUCCESS', amount: 79.99 }))
-    const r = await p.confirm!('ref_1')
-    expect(r.paidAmount?.amount).toBe(7999)
+    const p = tamiProvider(withJwk, jsonOnce({ ...PAID, amount: 79.99 }))
+    expect((await p.confirm!('ref_1')).paidAmount?.amount).toBe(7999)
   })
 
-  it('refuses anything that is not clearly paid', async () => {
-    const p = tamiProvider(withJwk, jsonOnce({ success: true, status: 'PENDING' }))
-    expect((await p.confirm!('ref_1')).valid).toBe(false)
+  it('accepts the later states a held authorisation becomes', async () => {
+    for (const orderStatus of ['CAPTURE', 'CAPTURED', 'SETTLED']) {
+      const p = tamiProvider(withJwk, jsonOnce({ ...PAID, orderStatus }))
+      expect((await p.confirm!('ref_1')).valid).toBe(true)
+    }
   })
 
-  // The exact answer sandbox gave for an order that was never paid, on 2026-08-18. Kept as a test
+  it('refuses a paymentStatus that is not SUCCESS, and names it', async () => {
+    const p = tamiProvider(withJwk, jsonOnce({ ...PAID, paymentStatus: 'PENDING' }))
+    expect(await p.confirm!('ref_1')).toMatchObject({ valid: false, failureCode: 'tami_payment_PENDING' })
+  })
+
+  it('refuses when paymentStatus is missing entirely — absence is not consent', async () => {
+    // The old bug, as a test. `{ success: true }` with no status used to CREDIT.
+    const noStatus: Record<string, unknown> = { ...PAID }
+    delete noStatus.paymentStatus
+    const p = tamiProvider(withJwk, jsonOnce(noStatus))
+    expect(await p.confirm!('ref_1')).toMatchObject({ valid: false, failureCode: 'tami_payment_absent' })
+  })
+
+  it('refuses an unrecognised orderStatus — allowlist, so a refund can never look paid', async () => {
+    for (const orderStatus of ['REFUND', 'VOID', 'CANCELLED', 'WHATEVER_TAMI_ADDS_NEXT']) {
+      const p = tamiProvider(withJwk, jsonOnce({ ...PAID, orderStatus }))
+      const r = await p.confirm!('ref_1')
+      expect(r.valid).toBe(false)
+      expect(r.failureCode).toBe(`tami_order_${orderStatus}`)
+    }
+  })
+
+  it('refuses another currency, however well the number matches', async () => {
+    const p = tamiProvider(withJwk, jsonOnce({ ...PAID, currency: 'USD' }))
+    expect(await p.confirm!('ref_1')).toMatchObject({ valid: false, failureCode: 'tami_currency_USD' })
+  })
+
+  // The exact answer production gave for an order that was never paid, on 2026-08-24. Kept as a test
   // rather than a note, because "an unknown order looks like this" is the case that decides whether
   // a member gets a package she did not buy.
   it('refuses Tami\'s real "not this merchant\'s order" answer', async () => {
@@ -165,9 +208,24 @@ describe('confirm — the only thing that may credit a TAMI payment', () => {
     expect(await p.confirm!('ref_1')).toMatchObject({ valid: false, failureCode: 'tami_query_http_500' })
   })
 
-  // The state we are actually in tonight: a payment can be STARTED but never finished.
   it('refuses while the signing key is missing, instead of guessing', async () => {
-    const p = tamiProvider(CONFIG, jsonOnce({ success: true, status: 'SUCCESS' }))
+    const p = tamiProvider(CONFIG, jsonOnce(PAID))
     expect(await p.confirm!('ref_1')).toMatchObject({ valid: false, failureCode: 'tami_jwk_missing' })
+  })
+
+  // errorCode 4001, hit for real on 2026-08-24: the SECOND question about a paid order was refused
+  // because the correlationId repeated. `confirm` runs more than once by design.
+  it('sends a DIFFERENT correlationId each time it asks', async () => {
+    const seen: string[] = []
+    const spy: typeof fetch = async (_u, init) => {
+      seen.push(String((init?.headers as Record<string, string>).correlationId))
+      return new Response(JSON.stringify(PAID), { status: 200, headers: { 'Content-Type': 'application/json' } })
+    }
+    const p = tamiProvider(withJwk, spy)
+    await p.confirm!('ref_1')
+    await p.confirm!('ref_1')
+    expect(seen).toHaveLength(2)
+    expect(seen[0]).not.toBe(seen[1])
+    for (const c of seen) expect(c.startsWith('q-ref_1-')).toBe(true)
   })
 })
