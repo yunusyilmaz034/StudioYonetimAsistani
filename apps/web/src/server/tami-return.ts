@@ -1,4 +1,10 @@
-import { FirestorePaymentIntentRepository, type CallbackVerdict, type PaymentIntent, type TenantContext } from '@studio/core'
+import {
+  FirestorePaymentIntentRepository,
+  type CallbackVerdict,
+  type Money,
+  type PaymentIntent,
+  type TenantContext,
+} from '@studio/core'
 
 import { completePaidIntent } from './payment-callback'
 import { paymentProviderFor } from './payment-provider'
@@ -18,6 +24,33 @@ import { adminDb } from './firebase-admin'
 //
 // Everything after the verdict is the SAME code PayTR completes through (`completePaidIntent`), so
 // the package grant, the payment record, the ledger and the invite cannot drift between providers.
+
+/**
+ * The whole money decision, as a pure function: given TAMI's answer and the amount we minted, may
+ * this intent be marked paid?
+ *
+ * Extracted so it can be tested without a Firestore, a provider or a tenant. The bug that cost two
+ * days on 2026-08-22 was a value silently dropped between layers; the lesson was that a rule which
+ * only exists inside an I/O function is a rule nobody tests.
+ */
+export function tamiVerdict(
+  verification: { valid: boolean; paidAmount?: Money | undefined; failureCode?: string | undefined },
+  intentAmount: Money,
+): CallbackVerdict {
+  if (!verification.valid) {
+    return { ok: false, providerRef: '', reason: verification.failureCode ?? 'tami_not_paid' }
+  }
+  const echoed = verification.paidAmount
+  // If TAMI echoes an amount, it must be the amount we minted. The figure was fixed on the server
+  // (§16) and the hosted page cannot change it, so a disagreement is never a customer paying less —
+  // it is an orderId collision, a replayed query, or a bug, and none of those may grant a package.
+  // An ABSENT amount is not a disagreement: the query confirmed THIS order, and this order's amount
+  // is the one we set. `money(0)` there would record a paid sale of nothing.
+  if (echoed != null && echoed.amount !== intentAmount.amount) {
+    return { ok: false, providerRef: '', reason: 'tami_amount_mismatch' }
+  }
+  return { ok: true, providerRef: '', paidAmount: echoed ?? intentAmount }
+}
 
 export type TamiReturnOutcome =
   | { readonly ok: true; readonly intent: PaymentIntent }
@@ -64,15 +97,19 @@ export async function handleTamiReturn(sid: string, orderId: string): Promise<Ta
   const verification = await provider.confirm(orderId)
   console.log('[tami-return] confirm', { sid, orderId, valid: verification.valid, code: verification.failureCode })
 
-  const verdict: CallbackVerdict = verification.valid
-    // Falling back to the intent's own amount is deliberate: the figure was fixed on the server when
-    // the checkout was minted (§16), so a query that confirms the order without echoing an amount has
-    // still confirmed THAT amount. `money(0)` here would record a paid sale of nothing.
-    ? { ok: true, providerRef: orderId, paidAmount: verification.paidAmount ?? intent.amount }
-    : { ok: false, providerRef: orderId, reason: verification.failureCode ?? 'tami_not_paid' }
+  const decided = tamiVerdict(verification, intent.amount)
+  const verdict: CallbackVerdict = { ...decided, providerRef: orderId }
+  if (!decided.ok && decided.reason === 'tami_amount_mismatch') {
+    console.error('[tami-return] amount mismatch', {
+      sid,
+      orderId,
+      expectedKurus: intent.amount.amount,
+      reportedKurus: verification.paidAmount?.amount,
+    })
+  }
 
   await completePaidIntent(ctx, intent, verdict)
 
-  if (!verification.valid) return { ok: false, reason: verification.failureCode ?? 'tami_not_paid', intent }
+  if (!decided.ok) return { ok: false, reason: decided.reason, intent }
   return { ok: true, intent }
 }
