@@ -784,3 +784,32 @@ kategorideki *tüm* paketlere açılır. Kutuyu işaretlemek bir tercih değil, 
 **Ve `admission` yalnızca seans OLUŞTURULURKEN verilebilir.** Var olan bir dersi sonradan açmanın
 yolu yok — silip yeniden oluşturmak gerekiyor. Şablonlar da taşımıyor: haftalık üretilen seanslar
 kabul koşulunu kaybeder. İkisi de bilinen eksik; owner isterse ayrıca yapılacak.
+
+---
+
+**OR-44 · TAMI en fazla 3 taksit. Daha fazlasını isteyen PayTR linkiyle gider.** (2026-08-24)
+TAMI'nin ortak ödeme sayfasında tutar token üretilirken **sunucuda sabitleniyor**, müşteri taksit
+sayısını sonra sayfada seçiyor. TAMI teyit etti: *"vade farkına göre değişkenlik gösteren bir taksit
+yapımız bulunmuyor"* — yani vade farkını taksit sayısına göre fiyata yansıtmak **teknik olarak
+mümkün değil.** Komisyonu stüdyo üstleniyor.
+
+Komisyon: 1 taksit **%2,85** · 2 taksit %5,89 · 3 taksit **%7,95** · 6 taksit %13,47 · 12 taksit %24,32.
+
+Sınır 3'te, çünkü ölçüldü: **6 taksitte kartla satış nakitten AZ kazandırıyor.**
+
+| Paket | Nakit | Kart | 3 taksit net | 6 taksit net |
+|---|---|---|---|---|
+| Fitness 12 Aylık | 19.500 | 22.000 | 20.251 ✅ | 19.036 ❌ |
+| Fitness 6 Aylık | 12.750 | 14.000 | 12.887 ✅ | 12.114 ❌ |
+| Fitness 3 Aylık | 8.500 | 9.500 | 8.745 ✅ | 8.220 ❌ |
+| Pilates 16 Ders | 7.800 | 8.600 | 7.916 ✅ | 7.443 ❌ |
+
+Kart fiyatındaki marj (%9,8–19) 3 taksidi karşılıyor, 6'yı karşılamıyor. 6 taksit, nakit-kart fiyat
+mantığını tersine çevirirdi.
+
+**Sınır TAMI tarafında tanımlı** (Masterpass'te 3'ten fazlası görünmüyor), yani resepsiyonun
+hatırlaması gereken bir kural değil. Daha fazla taksit isteyen üye için: paket satarken
+**Linkle Ödeme → sağlayıcı: PayTR**. Orada vade farkını ödeme kuruluşu müşteriye yansıtıyor.
+
+**Ayarla oynanmaz.** Ödeme, oluşturulduğu sağlayıcıyla tamamlanır ([[OR-41]] hâlâ geçerli: ikisi bir
+arada durur). Stüdyo ayarını ileri geri çevirmek gerekmiyor ve gerekmemeli.
