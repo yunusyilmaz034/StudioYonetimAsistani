@@ -143,19 +143,36 @@ const componentLine = (s: SubscriptionView, products: readonly ProductView[] = [
 // allowance (owner, 2026-07-31). It is not the authorization — the Server Action refuses anyone
 // else regardless — it only decides whether the control is drawn, the same split the workspace
 // already uses for training and refunds.
+/**
+ * Survives the tab unmount, deliberately. Per member, per browser tab, cleared on reload — a cache
+ * that is only ever a head start on data we are already re-fetching.
+ */
+const SUBS_CACHE = new Map<string, readonly SubscriptionView[]>()
+
 export function SubscriptionsPanel({ memberId, memberPhone = null, products, surchargeByProduct = {}, isOwner = false, branchId = '' }: { memberId: string; memberPhone?: string | null; products: readonly ProductView[]; surchargeByProduct?: Record<string, number>; isOwner?: boolean; branchId?: string }) {
-  const [subs, setSubs] = useState<readonly SubscriptionView[] | null>(null)
+  // Seeded from the cache, so a return to this tab paints immediately instead of flashing a spinner.
+  const [subs, setSubs] = useState<readonly SubscriptionView[] | null>(() => SUBS_CACHE.get(memberId) ?? null)
   const [adding, setAdding] = useState(false)
   // Passive (expired/cancelled) packages are hidden by default — they clutter the card and confuse
   // (owner). A toggle reveals them when someone genuinely wants the history.
   const [showPast, setShowPast] = useState(false)
 
+  // Tab'lar Radix varsayılanıyla çalışıyor: Paketler'den çıkınca bileşen SÖKÜLÜYOR, geri gelince
+  // sıfırdan kuruluyor. Sunucu 200 ms'de cevap veriyor ama her sekme dönüşünde boş ekran + spinner
+  // görmek işi yavaş hissettiriyor (owner, 2026-08-24: "hâlâ yavaş").
+  //
+  // Çözüm bir istek daha az atmak değil — bekleme SIRASINDA eldekini göstermek. Modül seviyesindeki
+  // önbellek sökülmeden sağ kalıyor, sekme anında doluyor, ve arkada yine tazeleniyor. Bayat veri
+  // görünme süresi bir gidiş-dönüş kadar; boş ekran ise her seferinde tam süre.
   const load = useCallback(async () => {
-    setSubs(null)
     try {
-      setSubs(await listMemberSubscriptionsAction({ memberId }))
+      const fresh = await listMemberSubscriptionsAction({ memberId })
+      SUBS_CACHE.set(memberId, fresh)
+      setSubs(fresh)
     } catch {
-      setSubs([])
+      // Only empty the list if there was nothing to keep. Blanking a list that is on screen turns a
+      // failed refresh into "she has no packages", which is a worse lie than a slightly old truth.
+      setSubs((prev) => prev ?? [])
       toast.error('Abonelikler yüklenemedi.')
     }
   }, [memberId])
@@ -734,9 +751,16 @@ function AssignForm({
   // (package, method, dates, amount, credit, bundle counts), the old "Geçerli bir tutar girin." is stale
   // — clear it in ONE place so no field can be forgotten (switching packages used to leave it lingering).
   useEffect(() => setError(null), [productId, method, validFrom, validUntil, collectedTl, creditInput, componentCounts, discountTl, discountReason])
-  // A different package (or method) means a different amount owed, so the default becomes the right
-  // answer again — and a number typed for the previous package is not.
-  useEffect(() => setCollectedTouched(false), [productId, method])
+  // A different PACKAGE means a different sale, so the default becomes the right answer again — a
+  // number typed for the previous package is not.
+  //
+  // `method` was in this list until 2026-08-24 and it silently threw away money. Reception types
+  // "10", then picks Linkle Ödeme, and the field snaps back to the full package price with the
+  // dropdown covering it — the link goes out for ₺2.500 instead of ₺10 and nothing said so. The
+  // default still follows the method for anyone who has NOT typed: `effectiveCollected` recomputes
+  // from `owedKurus`, which already moves with the card surcharge. What is gone is only the part
+  // that discarded a figure a human had entered.
+  useEffect(() => setCollectedTouched(false), [productId])
   const paidRef = useRef(false) // set when a Sanal POS payment confirms — decides whether closing keeps the form
 
   const isPaytr = method === 'sanal_pos' || method === 'link'
