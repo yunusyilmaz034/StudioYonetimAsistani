@@ -187,13 +187,44 @@ export async function memberSubscriptions(ctx: TenantContext, memberId: MemberId
   return { active, past: [] }
 }
 
+/**
+ * The app could NOT register for push, and says so.
+ *
+ * Until 2026-08-25 the app swallowed this in an empty catch. Android push has been broken for
+ * months and nothing anywhere knew: the real defect was never that push failed, it was that failing
+ * was indistinguishable from a member who simply declined. Recorded on the member so the answer to
+ * "is push actually working?" is a query rather than a guess.
+ *
+ * Deliberately NOT an event: this is a device's current condition, not something that happened to
+ * the business. It is overwritten by the next attempt, and cleared by a success.
+ */
+export async function memberReportPushFailure(
+  ctx: TenantContext,
+  memberId: MemberId,
+  platform: string,
+  reason: string,
+) {
+  await adminDb()
+    .doc(`studios/${ctx.studioId}/members/${memberId}`)
+    .set({ pushStatus: { ok: false, platform, reason: reason.slice(0, 200), at: Date.now() } }, { merge: true })
+  return { ok: true as const }
+}
+
 export async function memberRegisterDevice(ctx: TenantContext, memberId: MemberId, token: string, platform: string) {
-  if (!token.startsWith('ExponentPushToken')) return { ok: false as const, error: { code: 'invalid_token' } }
+  if (!token.startsWith('ExponentPushToken')) {
+    await memberReportPushFailure(ctx, memberId, platform, 'invalid_token')
+    return { ok: false as const, error: { code: 'invalid_token' } }
+  }
   const { createHash } = await import('node:crypto')
   const deviceId = createHash('sha256').update(token).digest('hex').slice(0, 24)
   const memberRef = adminDb().doc(`studios/${ctx.studioId}/members/${memberId}`)
   await memberRef.collection('devices').doc(deviceId).set({ token, platform, updatedAt: Date.now() }, { merge: true })
-  await memberRef.set({ notificationPrefs: { push: true } }, { merge: true })
+  // A success clears any previous failure, so the field always describes the LAST attempt rather
+  // than the worst one ever seen.
+  await memberRef.set(
+    { notificationPrefs: { push: true }, pushStatus: { ok: true, platform, at: Date.now() } },
+    { merge: true },
+  )
   return { ok: true as const }
 }
 

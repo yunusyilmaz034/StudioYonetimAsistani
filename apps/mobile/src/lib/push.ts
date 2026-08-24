@@ -33,7 +33,18 @@ export async function registerForPush(): Promise<void> {
 
     const { data: token } = await Notifications.getExpoPushTokenAsync()
     if (token) await api.registerDevice(token, Platform.OS)
-  } catch {
-    // Push is a nice-to-have; never block the app on it.
+    else await api.reportPushFailure(Platform.OS, 'no_token')
+  } catch (e) {
+    // Push is a nice-to-have and must never block the app — but silence is not the same as
+    // resilience. This catch used to be empty, and Android push was broken for months with nothing
+    // anywhere able to say so: a failure looked exactly like a member who declined.
+    //
+    // Reporting is itself best-effort. If even this fails there is nothing further to try, and the
+    // member must not notice any of it.
+    try {
+      await api.reportPushFailure(Platform.OS, e instanceof Error ? e.message : String(e))
+    } catch {
+      /* nothing left to do */
+    }
   }
 }

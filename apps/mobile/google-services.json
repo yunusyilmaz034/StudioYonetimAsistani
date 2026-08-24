@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "31996400558",
+    "project_id": "studio-yonetim-prod",
+    "storage_bucket": "studio-yonetim-prod.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:31996400558:android:78a731005a5efaff60ae3f",
+        "android_client_info": {
+          "package_name": "com.pilatesfitnessbyisil.member"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB1JmbipbjwpDsy127paj2IzxfOcC_qHJ8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

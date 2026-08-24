@@ -97,7 +97,18 @@ export interface MemberSession {
   readonly isAssignedToMe: boolean
   readonly alreadyBooked: boolean
   readonly blockedReason: BlockedReason
+  /**
+   * What booking this class will cost her. `null` ⇒ she cannot book it.
+   *
+   * Optional so an app running against an older server (or an older app against this one) reads it
+   * as "unknown" and simply says less, rather than crashing or inventing a number. Store releases
+   * are slow; a field that only exists on one side of the wire must never be load-bearing.
+   */
+  readonly cost?: BookingCost | null
 }
+
+/** A credit package spends one credit; an unlimited membership spends nothing. */
+export type BookingCost = { readonly kind: 'credit'; readonly remainingAfter: number } | { readonly kind: 'unlimited' }
 
 export interface MemberAgenda {
   readonly sessions: readonly MemberSession[]

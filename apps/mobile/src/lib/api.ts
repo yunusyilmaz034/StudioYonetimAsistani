@@ -110,6 +110,8 @@ export const api = {
   walletBuy: (productId: string, quantity = 1) => post<ApiResult<StoredWallet>>('/wallet-buy', { productId, quantity }),
   walletTopup: (amountKurus: number) => post<ApiResult<{ redirectUrl: string }>>('/wallet-topup', { amountKurus }),
   registerDevice: (token: string, platform: string) => post<ApiResult<unknown>>('/devices', { token, platform }),
+  /** Push registration failed. Same endpoint — the server tells them apart by which field arrived. */
+  reportPushFailure: (platform: string, error: string) => post<ApiResult<unknown>>('/devices', { platform, error }),
   uploadPhoto: (dataUrl: string) => post<ApiResult<{ avatarUrl: string | null }>>('/photo', { dataUrl }),
   contact: () => get<MemberContact>('/contact'),
 }

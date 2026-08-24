@@ -60,7 +60,7 @@ module.exports = () => ({
     slug: studio.slug,
     owner: 'yunusyilmaz34',
     // Shared on purpose — see the note above about batched releases.
-    version: '1.6.0',
+    version: '1.7.0',
     orientation: 'portrait',
     scheme: studio.scheme,
     userInterfaceStyle: 'automatic',
@@ -79,6 +79,14 @@ module.exports = () => ({
     },
     android: {
       package: studio.androidPackage,
+      // ANDROID PUSH (2026-08-25). Without this file the build has no Firebase project to talk to,
+      // and `getExpoPushTokenAsync` fails on every Android device — which is exactly what had been
+      // happening, silently, since the app shipped. Not a secret: it is compiled into the APK and
+      // readable by anyone who has one. Access is decided by Firestore rules, never by this file.
+      //
+      // WHITE-LABEL: one file per studio when a second customer arrives, keyed the same way as
+      // `studios/<id>.json`. One studio, one Firebase project, one config.
+      googleServicesFile: './google-services.json',
       adaptiveIcon: {
         foregroundImage: studio.adaptiveIcon,
         backgroundColor: studio.backgroundColor,

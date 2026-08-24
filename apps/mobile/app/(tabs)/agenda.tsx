@@ -6,6 +6,7 @@ import { router } from 'expo-router'
 import type { MemberReservation, MemberSession } from '@studio/core/client'
 import { api } from '@/lib/api'
 import { useFetch } from '@/lib/useFetch'
+import { dayLabel } from '@/lib/format'
 import { FadeInUp, PressableScale } from '@/components/motion'
 import { Body, ScreenSkeleton, TopStrip } from '@/components/ui'
 import { EmptyState, PremiumCard, SegmentedControl, StatusChip, Txt } from '@/components/kit'
@@ -91,6 +92,34 @@ export default function Ajanda() {
   const reload = () => {
     void agenda.reload()
     void reservations.reload()
+  }
+
+  /**
+   * ONAY ADIMI (owner, 2026-08-22: "çat diye rezerve ediyor").
+   *
+   * Rezervasyon anında yapılıyordu: yanlış saate basan üye kredisini kaybediyor, geri almak
+   * resepsiyonun elle düzeltmesi demek. Ve Fit Paket'ten beri aynı derste iki üye grubu FARKLI şey
+   * ödüyor — kredili paket bir kredi, süreli üyelik hiçbir şey — ekran bunu hiç söylemiyordu.
+   *
+   * Maliyet cümlesi sunucudan geliyor (`cost`), rezervasyonu yapan seçicinin AYNISINDAN. Burada
+   * hesaplanmıyor: ekranda hesaplanan bir rakam, domain başka türlü davrandığı gün sessizce yalan
+   * olur. Sunucu söylemiyorsa (eski sürüm) satır hiç yazılmıyor — uydurmaktansa susmak.
+   */
+  function askBook(s: MemberSession) {
+    const when = `${dayLabel(s.startsAt)} · ${hhmm(s.startsAt)}`
+    const where = [s.trainerName, s.roomName].filter(Boolean).join(' · ')
+    const cost =
+      s.cost?.kind === 'credit'
+        ? `1 kredi düşecek — sonra ${s.cost.remainingAfter} dersin kalır.`
+        : s.cost?.kind === 'unlimited'
+          ? 'Kredi düşmez, üyeliğin kapsıyor.'
+          : null
+    const lines = [when, where, cost, `Ders saatine ${s.cancellationWindowHours} saat kalana kadar ücretsiz iptal edebilirsin.`]
+
+    Alert.alert(s.serviceName, lines.filter(Boolean).join('\n\n'), [
+      { text: 'Vazgeç', style: 'cancel' },
+      { text: 'Rezerve Et', onPress: () => void book(s) },
+    ])
   }
 
   async function book(s: MemberSession) {
@@ -241,8 +270,11 @@ export default function Ajanda() {
                           <StatusChip label={blocked.label} tone={s.blockedReason === 'full' ? 'neutral' : 'warning'} />
                         </View>
                       ) : (
+                        // DOLULUK, kalan değil (owner, 2026-08-22): "3 kaldı" 8 kişilik derste de 20
+                        // kişilik derste de aynı görünüyordu. `5/8` hem aciliyet veriyor hem dürüst.
+                        // Son iki yerde uyarı rengi kalıyor — orada mesele oran değil, acele.
                         <Txt role="caption" tone={seatsLeft <= 2 ? 'warning' : 'muted'} style={{ marginTop: space(0.5) }}>
-                          {seatsLeft <= 2 ? `Son ${seatsLeft} yer` : `${seatsLeft} yer kaldı`}
+                          {s.bookedCount}/{s.capacity} dolu{seatsLeft <= 2 ? ` · son ${seatsLeft} yer` : ''}
                         </Txt>
                       )}
 
@@ -255,7 +287,7 @@ export default function Ajanda() {
                     {mine && res && !locked ? (
                       <Action label="İptal" ghost busy={busyId === s.sessionId} onPress={() => askCancel(res)} />
                     ) : !mine && !blocked ? (
-                      <Action label="Rezerve" busy={busyId === s.sessionId} onPress={() => void book(s)} />
+                      <Action label="Rezerve" busy={busyId === s.sessionId} onPress={() => askBook(s)} />
                     ) : blocked?.cta && blocked.go ? (
                       <Action label={blocked.cta} ghost busy={false} onPress={blocked.go} />
                     ) : null}

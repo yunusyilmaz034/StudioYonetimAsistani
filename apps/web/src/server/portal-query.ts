@@ -10,6 +10,7 @@ import {
   FirestoreSchedulingRepository,
   instant,
   isEligibleForService,
+  selectEntitlement,
   type Category,
   type ClassSession,
   type Entitlement,
@@ -149,6 +150,18 @@ export interface PortalSession {
   // Why she cannot book it (null = she can). Computed server-side from the SAME rules the
   // decider enforces; the client never decides this.
   readonly blockedReason: 'full' | 'no_credit' | 'self_booking_off' | 'past' | null
+  /**
+   * What booking this class will actually COST her — computed from the same selector the booking
+   * uses, so the confirmation screen cannot promise one thing while the domain does another.
+   *
+   * `null` when she cannot book it at all. It exists because Fit Paket made the answer stop being
+   * obvious: at the same class a credit-holder spends a credit and an unlimited membership spends
+   * nothing, and until now the screen said neither (owner, 2026-08-22: "çat diye rezerve ediyor").
+   */
+  readonly cost:
+    | { readonly kind: 'credit'; readonly remainingAfter: number }
+    | { readonly kind: 'unlimited' }
+    | null
 }
 
 export interface PortalAgenda {
@@ -204,11 +217,25 @@ export async function loadPortalAgenda(
       isAssignedToMe: assigned === memberId,
       alreadyBooked: bookedSessionIds.has(s.id),
       blockedReason: blockedReason(s, eligible),
+      cost: bookingCost(s, eligible),
     })
   }
 
   visible.sort((a, b) => a.startsAt - b.startsAt)
   return { sessions: visible, hasActivePackage: entitlements.length > 0 }
+}
+
+/**
+ * What the booking will take, decided by the SAME `selectEntitlement` the booking runs — never a
+ * second guess written for the screen. A credit package spends one credit; an unlimited membership
+ * spends nothing. Anything we cannot answer stays `null` rather than being narrated hopefully.
+ */
+function bookingCost(s: ClassSession, eligible: readonly Entitlement[]): PortalSession['cost'] {
+  const chosen = selectEntitlement(eligible, s, instant(s.startsAt))
+  if (!chosen) return null
+  if (!chosen.credits) return { kind: 'unlimited' }
+  // `available` already subtracts what is held, so this is the number she will see afterwards.
+  return { kind: 'credit', remainingAfter: Math.max(0, available(chosen.credits) - 1) }
 }
 
 // A session she can see but not book, and the honest reason.
