@@ -7,27 +7,41 @@ explains the moment.
 Keep it current the way the code is kept current: when the state changes, this changes in the same
 commit. A handover document that lags is worse than none, because it is believed.
 
-_Last true as of: **2026-08-14**._
+_Last true as of: **2026-08-25**._
 
-Panel live at **`build-2026-08-14-004`** (100% of traffic) and **Cloud Functions deployed 2026-08-09
-16:01 UTC** — the functions do NOT need another: today's change is in `packages/core` but only the
-web tier reads it (`moneyByEntitlement`), so functions running older core decide nothing differently.
-That question is asked every time core changes, and the answer is not always no — both verified the only way that counts, Cloud Run's traffic split (OR-17), not the App
-Hosting listing.
+Panel live at **`build-2026-08-24-003`** (100% of traffic, verified the only way that counts —
+Cloud Run's traffic split, OR-17, not the App Hosting listing). **Cloud Functions have NOT been
+redeployed since 2026-08-09**; that question is asked every time `packages/core` changes and the
+answer today is no — the week's core changes (`buildSession`, the session mapper, the TAMI adapter,
+`PortalSession.cost`) are read by the web tier only.
 
-**The panel's cold start is gone (2026-08-14, deployed during the day at the owner's call).**
-`apphosting.yaml` now sets `minInstances: 1`. The container used to scale to zero during every quiet
-stretch and reception paid **12.35 / 12.20 / 12.31 s** on the first request back — measured three
-times, hours apart, against 0.22 s warm. After the deploy, and after fifteen minutes of deliberate
-idling, the same request took **0.29 / 0.26 / 0.24 s**. Verified by waiting and measuring, not by
-reading the Cloud Run setting: the service-level annotation is `run.googleapis.com/minScale = 1`
-while the revision template still reads `autoscaling.knative.dev/minScale = 0`, so the annotation
-alone would have been an ambiguous answer.
+**Mobile 1.7.0 is BUILDING as this is written** — iOS `1.7.0 (12)`, Android `1.7.0 (13)`, both
+started 2026-08-25 ~01:20. On success they submit automatically: Android to Play **production at
+100%**, iOS to App Store Connect. **iOS still needs "Submit for Review" clicked by hand** —
+`eas submit` uploads, it does not release.
 
-⚠️ **The dead man's switch shipped today but is NOT deployed yet.** `HEARTBEAT_URL` is empty in
-`apps/functions/.env.studio-yonetim-prod`; the nightly sweep will log `heartbeat_not_configured`
-every night until the owner creates the external check (`docs/RUNBOOK.md` → "Dış izleme") and the
-functions are redeployed. Loud on purpose: an unconfigured monitor must never read as a passing one.
+⚠️ **Three things are waiting on the owner, and none of them block anything else:**
+
+1. **TAMI is finished but NOT switched on.** `settings/paymentProvider.provider` is still `paytr`.
+   Everything else is verified against real money (see 2026-08-24 below). Flipping it in
+   Ayarlar → Ödeme is the whole remaining step, and a small live sale should follow it — every test
+   so far minted the token OUTSIDE our own flow, so the return path and the package grant have never
+   run end to end.
+2. **The FCM V1 key is not in EAS**, so Android tokens are issued but nothing is delivered.
+   `eas credentials` has no scriptable path; the service account and key are prepared
+   (`~/Downloads/eas-fcm-push-key.json`) and the four steps are in the 1.7.0 section below. **No new
+   build is needed** — delivery starts the moment it lands.
+3. **The dead man's switch is still not deployed.** `HEARTBEAT_URL` is empty in
+   `apps/functions/.env.studio-yonetim-prod`; the nightly sweep logs `heartbeat_not_configured`
+   every night until the owner creates the external check (`docs/RUNBOOK.md` → "Dış izleme") and the
+   functions are redeployed. Loud on purpose: an unconfigured monitor must never read as a passing one.
+
+**The panel's cold start is gone** (2026-08-14). `apphosting.yaml` sets `minInstances: 1`. Reception
+used to pay **12.35 / 12.20 / 12.31 s** on the first request back — measured three times, hours
+apart, against 0.22 s warm. After the change, and after fifteen minutes of deliberate idling, the
+same request took **0.29 / 0.26 / 0.24 s**. Verified by waiting and measuring, not by reading the
+Cloud Run setting: the service annotation says `minScale = 1` while the revision template still
+reads `0`, so the setting alone would have been an ambiguous answer.
 
 ---
 
@@ -1226,6 +1240,84 @@ build's status alone will happily report a stale failure forever.
 3. İlk başarılı ödemede `/payment/query` yanıtını logdan oku ve `tami-provider.ts`'teki alan
    adlarını kesinleştir — şu an tahmin edilen kısım orası, ve "emin değilsem ödenmemiş say" diyor
 4. "Bağlantıyı Test Et" kaydedilmemiş değişiklik varken uyarsın (bugün kafa karıştırdı)
+
+### 2026-08-24/25 — TAMI canlıya hazır, ödeme başına sağlayıcı, ve mobil 1.7.0
+
+Uzun bir gün; sırayla ne olduğu ve **hangi hatanın nasıl bulunduğu**.
+
+#### TAMI — ortak ödeme sayfası açıldı, ve dört tuzak çıktı
+
+Aylardır beklenen ürün tanımlandı. Kod zaten dokümana göre yazılmıştı; asıl iş **gerçek parayla
+doğrulamak** oldu, ve tahminle canlıya çıksaydık dördü de sessizce yanlış çalışacaktı.
+
+**Doğrulananlar:** prod token üretimi (HTTP 200) · gerçek **₺1 ödeme** (Garanti, Mastercard, 3D) ·
+sorgu · **gerçek iade**. Komisyon %2,85, valör 1 gün. JWK zaten yerindeydi — cevabın kendi
+`securityHash`'i bizim `kid`'imizle imzalı geldi, doğruluğunun kanıtı bu.
+
+1. **Alan adları uydurmaymış.** Adaptör `transactionStatus`/`status` arıyordu; TAMI
+   **`paymentStatus`** ve **`orderStatus`** gönderiyor. Alan bulunamayınca kod "ödendi" varsayıyordu
+   — yani **tesadüfen doğru** çalışıyordu. Testler de aynı uydurma alanı doğruluyordu: kod ve testler
+   birbiriyle anlaşıyor, ikisi de TAMI ile anlaşmıyordu. Artık **beyaz liste**.
+2. **İade edilmiş ödeme hâlâ "SUCCESS" diyor.** ₺1'i geri alıp tekrar sorunca:
+   `orderStatus AUTH → REVERSE`, ama **`paymentStatus` SUCCESS kaldı** ve `amount` 0 oldu. Yani
+   `paymentStatus` "ödeme başarılı OLMUŞTU" demek, "para hâlâ burada" değil. Beyaz liste olmasaydı
+   parasını geri almış birine paket verirdik. Tutar koruması ikinci kez yakalıyor.
+3. **Sabit `correlationId`.** TAMI tekrarı `4001` ile reddediyor, ve `confirm` **tasarım gereği**
+   birden fazla çalışıyor (üye sayfayı yeniler, mutabakat tekrar sorar). Gerçek bir ödemenin ikinci
+   sorgusu "ödenmemiş" diyordu. Canlıda birebir yaşandı.
+4. **Tutar kontrolü yoktu.** Tutar token üretilirken sunucuda sabitlenir ve sayfa değiştiremez —
+   dolayısıyla TAMI farklı bir tutar bildirirse bu "az ödedi" değil, **sipariş çakışması, tekrar
+   sorgu ya da hata** demektir. Üçünde de paket verilmez. Karar saf fonksiyona çıkarıldı, 7 testi var.
+
+#### Sağlayıcı, ödemenin özelliği oldu — ve iki hata daha buradan çıktı
+
+Owner: *"6 taksit isteyene PayTR'den link veririz."* Bunun çalışması için sağlayıcının stüdyo ayarı
+değil **ödemenin kendi kaydı** olması gerekiyordu. Değiştirirken:
+
+- **PayTR webhook'u ayarlı sağlayıcıyla imza doğruluyordu.** TAMI'ye geçtiğimiz an PayTR'den gelen
+  her bildirim TAMI'nin doğrulayıcısına düşecekti — o da her zaman `false`. **Para gelir, paket
+  verilmez**, ve log'a ikna edici bir "bad hash" yazardı. Canlıya geçmeden bulundu.
+- **İade, paranın çıktığı sağlayıcıya değil o anki ayarlıya gidiyordu.**
+
+Resepsiyon artık "Linkle Ödeme"de sağlayıcı seçebiliyor. Ayarla oynamak gerekmiyor ve gerekmemeli.
+
+#### Fiyat ve komisyon ekonomisi ([[OR-44]], [[OR-45]])
+
+Pilates kampanya fiyatları girildi (8 Ders 4.200/5.000, 16 Ders 7.800/8.600) ve **asistanın bir
+aydır sessizce yanlış olan kuralı** bulundu: `ai.policies` "fiyatlarımız TEKTİR, iki rakam söyleme"
+diyordu. Temmuz'daki fitness kampanyası nakit fiyat kazandığında yanlış olmuştu ve **kimse fark
+etmedi** — çünkü asistan doğru rakamları söylemeye devam etti (canlı veri kuralı eziyor). "Nakit daha
+ucuz mu?" diye SORAN ilk kişide patlayacaktı.
+
+Taksit tartışması iki kez döndü ve iki kez de **rakam kararı verdi**: 3 taksit sınırı TAMI tarafında
+tanımlandı; vade farkı çarpanı reddedildi. İkinci turda owner "biz 4.200 + KDV olarak yorumluyoruz"
+deyince **kendi tablomu düzelttim** — KDV kart fiyatının %16,67'si, komisyon %2,85-7,95, yani
+**komisyon küçük ortak**. Kart satışı nakdin %83-90'ını getiriyor; eşik %80 olarak yazıldı.
+
+#### Mobil 1.7.0 — beş iş, ve iki aylık bir sessizlik
+
+Liste kapandı: rezervasyon onayı (+ Fit Paket maliyeti), `5/8` doluluk, Android push, push hatasının
+bildirilmesi. Ayrıntısı aşağıdaki 1.7.0 bölümünde. **En önemlisi:** Firebase projesinde **Android
+uygulaması hiç yokmuş** — Android üyelerin iki aydır token bile alamamasının sebebi buydu, ve boş
+`catch` yüzünden hiçbir yer bunu söyleyemiyordu.
+
+#### Panelde iki küçük ama pahalı hata
+
+- **Tahsilat tutarı sessizce siliniyordu.** Resepsiyon 10 yazıp sonra yöntemi "Linkle Ödeme" yapınca
+  alan paket tutarına geri dönüyordu — ve açılan sağlayıcı listesi alanın üstünü kapattığı için
+  görünmüyordu. Link ₺2.500'e çıktı. Varsayılanı güncellemek doğruydu, **insanın yazdığı rakamı
+  atmak** değil.
+- **Paketler sekmesi "yavaş" değildi, boştu.** Ölçüldü: üyenin verisi 3 paket/2 satış, sunucu 230 ms.
+  Radix sekme içeriğini söküyor, `load()` da listeyi önce boşaltıyordu. Hızlandırılacak sorgu yoktu;
+  **gösterilmeyecek boş ekran** vardı.
+
+#### Ve bir faz eklendi
+
+**Faz 3 · Kadın Sağlığı Modülü** ([[ROADMAP]]) — owner'ın "uygulamayı sadece bize abone oldukları
+için indirmesinler" sorusunun araştırılmış cevabı. Strateji B2C'ye çıkmak DEĞİL. Sıra: doğum sonrası
+→ döngü modu → ölçüm zaman tüneli. Reddedilenler (fal, kalori fotoğrafı) gerekçeleriyle yazılı.
+
+---
 
 ### 2026-08-22 (gece) — Fit Paket iki gündür ölüymüş: `buildSession` alanları düşürüyordu
 
