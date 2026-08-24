@@ -807,9 +807,60 @@ Sınır 3'te, çünkü ölçüldü: **6 taksitte kartla satış nakitten AZ kaza
 Kart fiyatındaki marj (%9,8–19) 3 taksidi karşılıyor, 6'yı karşılamıyor. 6 taksit, nakit-kart fiyat
 mantığını tersine çevirirdi.
 
+> ⚠️ **Yukarıdaki "net" sütunları KDV'yi hesaba KATMIYOR** ve tek başına okunursa kart satışını
+> olduğundan iyi gösterir. Tam tablo [[OR-45]]'te. Sonuç değişmiyor — 3 taksit hâlâ doğru sınır —
+> ama gerekçe farklı: komisyon küçük ortak, asıl kalem KDV.
+
 **Sınır TAMI tarafında tanımlı** (Masterpass'te 3'ten fazlası görünmüyor), yani resepsiyonun
 hatırlaması gereken bir kural değil. Daha fazla taksit isteyen üye için: paket satarken
 **Linkle Ödeme → sağlayıcı: PayTR**. Orada vade farkını ödeme kuruluşu müşteriye yansıtıyor.
 
 **Ayarla oynanmaz.** Ödeme, oluşturulduğu sağlayıcıyla tamamlanır ([[OR-41]] hâlâ geçerli: ikisi bir
 arada durur). Stüdyo ayarını ileri geri çevirmek gerekmiyor ve gerekmemeli.
+
+---
+
+**OR-45 · Kartla satış bilerek nakitten az getiriyor. Eşik %80.** (2026-08-25)
+
+Owner'ın kararı, kendi cümlesiyle: *"rekabet zor… ödeme kolaylığına binaen sürümden kazanalım
+mantığıyla, kartta nakite göre zarar etsek de tolere edebilecek seviyelere kadar idare ediyoruz."*
+Bu bir kabul, bir kaza değil — ve tartışması yapılmıştır, yeniden açılmaz.
+
+**Kart tahsilatından stüdyoya kalan:**
+
+```
+kalan = kart fiyatı − KDV − TAMI komisyonu
+KDV (%20, fiyata dahil) = fiyat ÷ 6        → %16,67
+komisyon = %2,85 (tek çekim) … %7,95 (3 taksit)
+```
+
+**2026-08 fiyatlarıyla, 3 taksit senaryosunda:**
+
+| Paket | Kart | Kalan | Nakit fiyat | **Oran** |
+|---|---|---|---|---|
+| Pilates 8 Ders | 5.000 | 3.769 | 4.200 | **%90** |
+| Fitness 12 Aylık | 22.000 | 16.584 | 19.500 | %85 |
+| Fitness 3 Aylık | 9.500 | 7.161 | 8.500 | %84 |
+| Pilates 16 Ders | 8.600 | 6.483 | 7.800 | %83 |
+| Fitness 6 Aylık | 14.000 | 10.554 | 12.750 | **%83** |
+
+**Eşik: bu oran %80'in altına düşerse fiyat gözden geçirilir.** Şu an hepsi üstünde ve dağılım dar
+(%83–90) — yani "şu pakette kart orantısız kötü" diye bir yamukluk yok. **Eşiği ilk kıracak olan
+Fitness 6 Aylık**; komisyon oranı artarsa ya da KDV değişirse önce oraya bakılır.
+
+**Komisyon küçük ortak.** Kart fiyatının **%16,67'si KDV**, komisyon %2,85–7,95. Bunun iki sonucu
+var ve ikisi de tekrar tartışılmasın diye yazılıyor:
+
+- **Taksit kararı ikinci derecedendir.** Tek çekimle 3 taksit arası fark kart fiyatının %5,1'i —
+  Pilates 8'de 255 ₺. "Ödeme kolaylığıyla hacim" stratejisinin en ucuz parçası taksit. 3 taksidi
+  komisyon gerekçesiyle tekrar sorgulamaya değmez ([[OR-44]]).
+- **Vade farkı çarpanı REDDEDİLDİ.** TAMI'nin tablosundaki çarpanla (3 taksit ×1,0864) tutarı baştan
+  şişirmek gündeme geldi. Üç sebeple yapılmadı: **(1)** çok daha büyük bir açığın yalnızca %7,95'ini
+  kapatır; **(2)** taksit sayısı önceden bilinemez — TAMI teyit etti, token'da sabitleyen parametre
+  yok — yani 3 taksit için şişirilen tutarda müşteri tek çekim seçerse ondan fazla tahsil edilir, ve
+  tek çekim en yaygın seçenek; **(3)** ilan edilen fiyatla tahsil edilen fiyat ayrışır, ki mesafeli
+  satış metinlerini bu ay yayınladık.
+
+**Fiyat, müşteriye söylendikten günler sonra değişen bir şey değildir.** İnce marjlı paketler bir
+sonraki DOĞAL fiyat güncellemesinde (zam, yeni sezon, yeni paket) düzeltilir — ortasında değil.
+Güveni aşındıran şey rakamın kendisi değil, oynaklığı.
