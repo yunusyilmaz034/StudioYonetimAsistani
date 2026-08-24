@@ -181,6 +181,16 @@ describe('confirm — the only thing that may credit a TAMI payment', () => {
     expect(await p.confirm!('ref_1')).toMatchObject({ valid: false, failureCode: 'tami_payment_absent' })
   })
 
+  // THE case for the allowlist, observed on 2026-08-24 by paying ₺1 and reversing it. After the
+  // reversal Tami still answers `paymentStatus: "SUCCESS"` — it means "the payment succeeded", not
+  // "the money is still here". Only `orderStatus` moved, AUTH → REVERSE. Trusting paymentStatus
+  // alone would hand a package to someone who took their money back.
+  it('refuses a REVERSED payment, which still reports paymentStatus SUCCESS', async () => {
+    const reversed = { ...PAID, orderStatus: 'REVERSE', paymentStatus: 'SUCCESS', amount: 0 }
+    const r = await tamiProvider(withJwk, jsonOnce(reversed)).confirm!('ref_1')
+    expect(r).toMatchObject({ valid: false, failureCode: 'tami_order_REVERSE' })
+  })
+
   it('refuses an unrecognised orderStatus — allowlist, so a refund can never look paid', async () => {
     for (const orderStatus of ['REFUND', 'VOID', 'CANCELLED', 'WHATEVER_TAMI_ADDS_NEXT']) {
       const p = tamiProvider(withJwk, jsonOnce({ ...PAID, orderStatus }))
@@ -227,5 +237,67 @@ describe('confirm — the only thing that may credit a TAMI payment', () => {
     expect(seen).toHaveLength(2)
     expect(seen[0]).not.toBe(seen[1])
     for (const c of seen) expect(c.startsWith('q-ref_1-')).toBe(true)
+  })
+})
+
+describe('refund — reverse first, then refund', () => {
+  const withJwk: TamiConfig = { ...CONFIG, jwk: { kid: 'kid-1', k: 'c2VjcmV0LWtleS1mb3ItdGVzdA' } }
+
+  /** Answers each call in order, and records where it was sent. */
+  function sequence(...replies: { status?: number; body: unknown }[]) {
+    const paths: string[] = []
+    const bodies: Record<string, unknown>[] = []
+    let i = 0
+    const impl: typeof fetch = async (url, init) => {
+      paths.push(String(url))
+      bodies.push(JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>)
+      const r = replies[Math.min(i++, replies.length - 1)]!
+      return new Response(JSON.stringify(r.body), {
+        status: r.status ?? 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+    return { impl, paths, bodies }
+  }
+
+  it('reverses a same-day payment and never reaches the refund endpoint', async () => {
+    const s = sequence({ body: { success: true, orderId: 'ref_1', amount: 1 } })
+    const r = await tamiProvider(withJwk, s.impl).refund({ providerRef: 'ref_1', amount: money(100) })
+    expect(r).toMatchObject({ ok: true, providerRef: 'ref_1' })
+    expect(s.paths).toHaveLength(1)
+    expect(s.paths[0]).toContain('/payment/reverse')
+  })
+
+  it('falls back to refund when the day has already closed', async () => {
+    const s = sequence(
+      { status: 400, body: { success: false, errorCode: 2020 } },
+      { body: { success: true, orderId: 'ref_1' } },
+    )
+    const r = await tamiProvider(withJwk, s.impl).refund({ providerRef: 'ref_1', amount: money(100) })
+    expect(r.ok).toBe(true)
+    expect(s.paths[0]).toContain('/payment/reverse')
+    expect(s.paths[1]).toContain('/payment/refund')
+  })
+
+  it('names BOTH failures when neither works — "which did we try" is the first question', async () => {
+    const s = sequence({ status: 400, body: { success: false, errorCode: 2020 } })
+    const r = await tamiProvider(withJwk, s.impl).refund({ providerRef: 'ref_1', amount: money(100) })
+    expect(r.ok).toBe(false)
+    expect(r.errorCode).toBe('tami_reverse_2020|tami_refund_2020')
+  })
+
+  it('always sends the amount — an omitted amount means ALL of it to Tami', async () => {
+    // A partial refund that silently becomes a full one is discovered at the bank, not here.
+    const s = sequence({ body: { success: true } })
+    await tamiProvider(withJwk, s.impl).refund({ providerRef: 'ref_1', amount: money(4250) })
+    expect(s.bodies[0]).toMatchObject({ orderId: 'ref_1', amount: 42.5 })
+  })
+
+  it('refuses without the signing key rather than reporting money returned', async () => {
+    const r = await tamiProvider(CONFIG, jsonOnce({ success: true })).refund({
+      providerRef: 'ref_1',
+      amount: money(100),
+    })
+    expect(r).toMatchObject({ ok: false, errorCode: 'tami_refund_requires_jwk' })
   })
 })

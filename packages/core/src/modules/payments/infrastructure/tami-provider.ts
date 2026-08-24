@@ -6,6 +6,7 @@ import type {
   CheckoutResult,
   CreateCheckoutInput,
   PaymentProviderPort,
+  RefundInput,
   RefundResult,
 } from '../application/ports'
 import type { PaymentFlow } from '../domain/types'
@@ -281,10 +282,62 @@ class TamiProvider implements PaymentProviderPort {
     }
   }
 
-  async refund(): Promise<RefundResult> {
-    // `/payment/reverse` and `/payment/refund` both want a JWK-signed `securityHash`. Refusing is
-    // honest; pretending would leave reception believing money went back when it did not.
-    return { ok: false, configured: true, errorCode: 'tami_refund_requires_jwk' }
+  /**
+   * Give the money back.
+   *
+   * Tami splits this in two, by whether the day has closed on the payment:
+   *   • İPTAL  (`/payment/reverse`) — same day, before settlement. The authorisation is dropped and
+   *     the customer's statement usually never shows the charge at all.
+   *   • İADE   (`/payment/refund`)  — after settlement. A separate movement back.
+   *
+   * We try REVERSE first and fall back to REFUND. The alternative — asking `/payment/query` for
+   * `orderStatus` and branching on it — costs an extra round trip to learn something the refund call
+   * tells us anyway, and would still race with a settlement happening between the two calls. A
+   * reverse that Tami refuses changes nothing, so trying it first is free.
+   *
+   * The amount is always sent. Tami treats an omitted amount as "all of it", and a partial refund
+   * that silently becomes a full one is the kind of mistake that is discovered at the bank.
+   */
+  async refund(input: RefundInput): Promise<RefundResult> {
+    if (!this.config.jwk) return { ok: false, configured: true, errorCode: 'tami_refund_requires_jwk' }
+
+    const attempt = async (path: 'reverse' | 'refund'): Promise<{ ok: boolean; code?: string }> => {
+      const body = {
+        orderId: input.providerRef,
+        // Major units, like everywhere else Tami takes an amount. Our Money is integer kuruş.
+        amount: input.amount.amount / 100,
+      }
+      const res = await this.fetchImpl(`${this.base()}/payment/${path}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept-Language': 'tr',
+          'PG-Api-Version': 'v3',
+          // Unique per request, for the same reason `confirm` needs it: Tami refuses a repeated
+          // correlationId with 4001, and this method is retried by hand when it fails.
+          correlationId: `r-${input.providerRef}-${randomUUID().slice(0, 8)}`,
+          'PG-Auth-Token': tamiAuthToken(this.config),
+        },
+        body: JSON.stringify({ ...body, securityHash: tamiSecurityHash(this.config.jwk!, body) }),
+      })
+      const b = (await res.json().catch(() => ({}))) as { success?: boolean; errorCode?: number }
+      if (res.ok && b.success === true) return { ok: true }
+      return { ok: false, code: `tami_${path}_${b.errorCode ?? res.status}` }
+    }
+
+    try {
+      const reversed = await attempt('reverse')
+      if (reversed.ok) return { ok: true, configured: true, providerRef: input.providerRef }
+
+      const refunded = await attempt('refund')
+      if (refunded.ok) return { ok: true, configured: true, providerRef: input.providerRef }
+
+      // BOTH codes, because "which one did we even try" is the first question asked when money did
+      // not come back, and one code alone makes the answer a guess.
+      return { ok: false, configured: true, errorCode: `${reversed.code}|${refunded.code}` }
+    } catch {
+      return { ok: false, configured: true, errorCode: 'tami_unreachable' }
+    }
   }
 }
 
