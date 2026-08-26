@@ -1,7 +1,8 @@
 import * as logger from 'firebase-functions/logger'
 
 import {
-  FirestoreEntitlementRepository, FirestoreCheckinRepository, sweepAutoCheckOut, systemClock, type SystemJobId } from '@studio/core'
+  FirestoreEntitlementRepository,
+  FirestoreReservationRepository, FirestoreCheckinRepository, sweepAutoCheckOut, systemClock, type SystemJobId } from '@studio/core'
 
 import { listStudioIds, systemTenantContext } from '../shared/context'
 import { db } from '../shared/firebase'
@@ -35,7 +36,12 @@ export async function runAutoCheckOutSweep(): Promise<void> {
   const database = db()
   // Gece süpürgesi yalnızca ÇIKIŞ yazar, yani sayaç hiç hareket etmez — ama kapı arayüzü tek,
   // ve eksik bir bağımlılık derlenmesin diye zorunlu.
-  const deps = { repo: new FirestoreCheckinRepository(database), clock: systemClock, entries: new FirestoreEntitlementRepository(database) }
+  const deps = {
+    repo: new FirestoreCheckinRepository(database),
+    clock: systemClock,
+    entries: new FirestoreEntitlementRepository(database),
+    classes: new FirestoreReservationRepository(database),
+  }
 
   for (const sid of await listStudioIds(database)) {
     const res = await sweepAutoCheckOut(deps, systemTenantContext(sid, JOB_ID), THRESHOLD_HOURS)

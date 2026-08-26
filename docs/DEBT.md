@@ -1062,3 +1062,23 @@ it is fixed upstream.
 **Also pinned in the same change:** `firebase-admin` and `firebase-functions` to exact versions.
 A deploy artifact that resolves `^` at build time can change underneath a studio at 03:00 without
 anyone touching the repository, and the first symptom is a function that will not start.
+
+---
+
+### `EARLY_ARRIVAL_MS` — dersine erken gelme payı kodda, policy'de değil
+
+**Alındı:** 2026-08-26 · **Yer:** `packages/core/src/modules/checkin/application/checkin.ts`
+
+Kapı, bir girişin "derse geliş" mi "spor ziyareti" mi olduğunu üyenin o saatteki rezervasyonuna
+bakarak ayırıyor. Pencere: dersin başlangıcından **60 dakika** önce başlayıp dersin bitişinde biten
+aralık. Bu bir EŞİK ve eşiklerin yeri policy'dir (#4 — *"hiçbir şey altı sayısını bilmez"*), çünkü
+kredi etkiliyor: pencerenin içinde kalan bir giriş fitness sayacını harcamıyor.
+
+**Neden borç alındı.** Kural owner'dan gece geldi ve canlıda hatalı düşen giriş hakları vardı —
+hibrit paketli bir üye dersine geldiğinde hem ders kredisini hem spor giriş hakkını kaybediyordu.
+Policy alanı eklemek şema kararı; düzeltmeyi ona bağlamak, bilinen bir hatayı bir gece daha canlıda
+tutmak olurdu.
+
+**Ödeme tetiği (tarih değil, koşul):** ikinci bir stüdyo bu payı farklı istediğinde, ya da
+`policy.attendance` bir sonraki sebeple zaten açıldığında — `entryConsumption.earlyArrivalMinutes`
+olarak oraya taşınır ve karar policy sürümünü damgalar.

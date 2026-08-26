@@ -104,7 +104,7 @@ function initRepos(): void {
   memberDeps = { repo: memberRepo, clock: systemClock }
   catalogDeps = { repo: catalogRepo, clock: systemClock }
   entDeps = { repo: entRepo, clock: systemClock }
-  checkinDeps = { repo: checkinRepo, clock: systemClock, entries: entRepo }
+  checkinDeps = { repo: checkinRepo, clock: systemClock, entries: entRepo, classes: resRepo }
 }
 
 function ok<T>(res: { ok: true; value: T } | { ok: false; error: unknown }, what: string): T {

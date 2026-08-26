@@ -258,6 +258,42 @@ export class FirestoreReservationRepository implements ReservationRepository {
     return snap.docs.map((doc) => reservationFromFirestore(doc.id as ReservationId, doc.data()))
   }
 
+  /**
+   * Bu üye, `at` anına denk gelen bir ders rezervasyonu tutuyor mu? (`ClassVisitLookup`, 2026-08-26)
+   *
+   * Kapı bunu şunu sormak için soruyor: "derse mi geldi, spora mı?" Cevap evetse fitness giriş
+   * sayacı işlemez.
+   *
+   * Sorgu `memberId + sessionStartsAt DESC` index'ini kullanıyor — var olan index, yenisi gerekmiyor.
+   * `orderBy` yönü index yönüyle KASTEN aynı: ters yön prod'da "requires an index" ile patlar ve
+   * emülatör bunu göstermez.
+   *
+   * Aralık `sessionStartsAt` üzerinden, çünkü Firestore tek bir alanda aralık sorgusuna izin
+   * veriyor. Dersin gerçekten devam edip etmediği (`sessionEndsAt >= at`) bellekte eleniyor; getirilen
+   * doküman sayısı bir üyenin birkaç saatlik penceresi kadar, yani avuç içi.
+   */
+  async hasClassAround(
+    ctx: TenantContext,
+    memberId: MemberId,
+    at: Instant,
+    earlyArrivalMs: number,
+  ): Promise<boolean> {
+    // Hiçbir ders üç saatten uzun değil; aralığın alt ucu bu yüzden sabit ve cömert.
+    const MAX_CLASS_MS = 3 * 3_600_000
+    const snap = await this.col(ctx.studioId, 'reservations')
+      .where('memberId', '==', memberId)
+      .where('sessionStartsAt', '>=', Timestamp.fromMillis(at - MAX_CLASS_MS))
+      .where('sessionStartsAt', '<=', Timestamp.fromMillis(at + earlyArrivalMs))
+      .orderBy('sessionStartsAt', 'desc')
+      .get()
+    return snap.docs.some((doc) => {
+      const r = reservationFromFirestore(doc.id as ReservationId, doc.data())
+      // İptal edilmiş rezervasyon bir ziyareti açıklamaz — o gün gelmediği ders, geldiği ziyareti
+      // bedava yapmamalı.
+      return r.status !== 'cancelled' && r.sessionEndsAt >= at
+    })
+  }
+
   // Hızlı Not (v1.19): write the reservation state (with its note) + the note_set event
   // in one batch. A note touches neither credits nor the session, so no transaction.
   async applyNote(ctx: TenantContext, reservation: Reservation, events: readonly NewEvent[]): Promise<void> {

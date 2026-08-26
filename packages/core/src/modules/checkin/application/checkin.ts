@@ -49,6 +49,18 @@ export interface RecordCheckInResult {
 }
 
 /**
+ * Dersinden ne kadar önce gelirse hâlâ "derse geldi" sayılır.
+ *
+ * DEBT: bu bir eşik ve eşiklerin yeri policy, kod değil (#4 — "hiçbir şey altı sayısını bilmez").
+ * Şimdilik sabit, çünkü owner kuralı gece verdi ve canlıda hatalı düşen giriş hakları var; policy
+ * alanı eklemek şema kararı ve sabahı bekleyebilir. `docs/DEBT.md`'de kayıtlı.
+ *
+ * Bir saat: dersten önce üstünü değiştiren, ısınan, kahve içen üye hâlâ derse gelmiştir. Buse'nin
+ * vakasında geliş 11:50, ders 17:00 — beş saat, yani doğru şekilde spor ziyareti sayılıyor.
+ */
+const EARLY_ARRIVAL_MS = 60 * 60_000
+
+/**
  * Bir KAPI GİRİŞİ, limitli fitness üyeliğinden bir giriş harcar (v1.27).
  *
  * BURADA, çünkü her kapı buradan geçiyor: QR, elle check-in, turnike. 2026-08-26'ya kadar bu kod
@@ -72,6 +84,12 @@ async function consumeFitnessEntry(
   )
   // Sınırsız fitness erişimi olan biri hiçbir şey harcamaz — sayaç ona ait değil.
   if (fitness.length === 0 || fitness.some((e) => (e.productSnapshot.entryAllowance ?? null) === null)) return null
+
+  // DERSİNE GELDİYSE SAYAÇ İŞLEMEZ (owner, 2026-08-26). Rezervasyon sorgusu KASTEN burada, fitness
+  // kontrolünden sonra: sayacı olmayan üyeler için fazladan bir okuma yapmıyoruz, ki kapı hızlı
+  // kalsın. Bkz. `ClassVisitLookup`.
+  if (await deps.classes.hasClassAround(ctx, memberId, now, EARLY_ARRIVAL_MS)) return null
+
   const target = [...fitness].sort(
     (a, b) => a.validUntil - b.validUntil || a.purchasedAt - b.purchasedAt || (a.id < b.id ? -1 : 1),
   )[0]

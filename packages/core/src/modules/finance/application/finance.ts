@@ -218,6 +218,14 @@ export interface CollectInput {
   readonly giftCardCode: string | null
   readonly note: string | null
   readonly allowNoDrawer?: boolean // desk backfill: record cash truthfully drawerless when no kasa is open
+  /**
+   * Sağlayıcının kendi referansı (PAYTR/TAMI). Nakit ve elle tahsilatta null.
+   *
+   * `collect` bunu SABİT null yazıyordu: bir link tahsilatı mevcut borca mahsup edildiğinde para
+   * doğru yere gidiyor ama hangi işlemden geldiği kayboluyordu — banka ekstresiyle karşılaştırma
+   * elle yapılmak zorunda kalıyordu.
+   */
+  readonly providerRef?: string | null
   // Which sales it pays, in order. Omitted ⇒ oldest debt first, which is what reception means when
   // she says "bakiyesine yaz".
   readonly allocateTo?: readonly { saleId: string; amount: Money; allocationId: string }[]
@@ -246,7 +254,7 @@ export async function collect(
       receivedAt: input.receivedAt,
       drawerId: input.drawerId,
       giftCardId: card?.id ?? null,
-      providerRef: null,
+      providerRef: input.providerRef ?? null,
       note: input.note,
       allowNoDrawer: input.allowNoDrawer ?? false,
     },

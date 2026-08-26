@@ -51,7 +51,7 @@ const fitnessEnt = (allowance: number | null, consumed = 0): Entitlement =>
     purchasedAt: instant(NOW - 86_400_000),
   }) as unknown as Entitlement
 
-function fakeDeps(opts: { inside: boolean; ents: readonly Entitlement[] }) {
+function fakeDeps(opts: { inside: boolean; ents: readonly Entitlement[]; dersiVar?: boolean }) {
   const saved: Entitlement[] = []
   const deps = {
     clock: { now: () => instant(NOW) },
@@ -69,6 +69,8 @@ function fakeDeps(opts: { inside: boolean; ents: readonly Entitlement[] }) {
         saved.push(e)
       },
     },
+    // Derse mi geldi, spora mı? (owner, 2026-08-26)
+    classes: { hasClassAround: async () => opts.dersiVar === true },
   } as unknown as CheckinDeps
   return { deps, saved }
 }
@@ -119,6 +121,29 @@ describe('recordCheckIn — the fitness meter moves at EVERY door', () => {
     expect(r.ok).toBe(true)
     if (r.ok) expect(r.value.fitnessEntry).toBeNull()
     expect(saved).toHaveLength(0)
+  })
+
+  it('a member arriving for her BOOKED CLASS spends no entry — the hybrid case', async () => {
+    // Buse's complaint. A hybrid package grants gym entries AND pilates credits; walking in for the
+    // pilates class used to burn a gym entry as well, so one visit cost her twice. The owner's rule:
+    // "pilates rezervasyonu varsa kişi pilatese katılmıştır" — the meter is for the visits that are
+    // NOT a class.
+    const { deps, saved } = fakeDeps({ inside: false, ents: [fitnessEnt(6, 2)], dersiVar: true })
+    const r = await recordCheckIn(deps, CTX, entry())
+    expect(r.ok).toBe(true)
+    if (r.ok) expect(r.value.fitnessEntry).toBeNull()
+    expect(saved).toHaveLength(0)
+  })
+
+  it('the same member with NO class that hour spends an entry — she came for the gym', async () => {
+    // The other half of the same rule, and the half that must not be lost: Buse checked in at 11:50
+    // with her class at 17:00, and at 10:30 on a day with no class at all. Those two ARE gym visits
+    // and the meter is right to move.
+    const { deps, saved } = fakeDeps({ inside: false, ents: [fitnessEnt(6, 2)], dersiVar: false })
+    const r = await recordCheckIn(deps, CTX, entry())
+    expect(r.ok).toBe(true)
+    if (r.ok) expect(r.value.fitnessEntry).toEqual({ used: 3, allowance: 6 })
+    expect(saved).toHaveLength(1)
   })
 
   it('over-use is RECORDED, never refused — the door is not a bouncer', async () => {

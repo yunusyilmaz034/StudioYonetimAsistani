@@ -214,7 +214,7 @@ async function main(): Promise<void> {
   if (!drw.ok) throw new Error(`drawer: ${drw.error.code}`)
   ok('kasa açıldı')
 
-  await openBranch({ repo: checkin, clock: systemClock, entries: ents }, ctx, { branchId: BRANCH })
+  await openBranch({ repo: checkin, clock: systemClock, entries: ents, classes: resRepo }, ctx, { branchId: BRANCH })
   ok('şube açıldı')
 
   // ═══ 1. ÜYE ══════════════════════════════════════════════════════════════════════════════
@@ -446,7 +446,7 @@ async function main(): Promise<void> {
 
   // ═══ 8. CHECK-IN ═════════════════════════════════════════════════════════════════════════
   step('8. CHECK-IN')
-  const ci = await recordCheckIn({ repo: checkin, clock: systemClock, entries: ents }, ctx, {
+  const ci = await recordCheckIn({ repo: checkin, clock: systemClock, entries: ents, classes: resRepo }, ctx, {
     memberId: ayse,
     branchId: BRANCH,
     method: 'qr',

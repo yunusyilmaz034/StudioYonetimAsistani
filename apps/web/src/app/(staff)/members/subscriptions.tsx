@@ -1524,7 +1524,16 @@ function ContentDialog({ items, onClose, onDone }: { items: readonly Subscriptio
   // Only components with something to edit: a credit count, or a fitness giriş cap. A pure-unlimited
   // period part (no cap) has no number to change and is left out.
   const editable = items.filter((s) => s.type === 'credit' || s.entryAllowance != null)
-  const currentOf = (s: SubscriptionView) => (s.type === 'credit' ? (s.creditsAvailable ?? 0) : (s.entryAllowance ?? 0))
+  // HER İKİ KUTU DA "KALAN"I SORAR (owner, 2026-08-26).
+  //
+  // Kredi kutusu kalan krediyi, giriş kutusu TOPLAM hakkı soruyordu — aynı dialogda iki farklı
+  // anlam. Kartta ikisi de `kalan/toplam` yazdığı için owner 8 yazdı ve kart 6 gösterdi (8 toplam
+  // − 2 kullanılmış). Sistem doğru hesaplıyordu; sorduğu soru ekrandaki sayı değildi.
+  //
+  // Kalan doğru soru, çünkü resepsiyonun elindeki bilgi o: "bu üyenin 8 girişi kalsın." Kaç tane
+  // kullandığını hatırlayıp toplamı zihinden hesaplamak resepsiyonun işi değil.
+  const currentOf = (s: SubscriptionView) =>
+    s.type === 'credit' ? (s.creditsAvailable ?? 0) : Math.max(0, (s.entryAllowance ?? 0) - s.entriesUsed)
   const [values, setValues] = useState<Record<string, string>>(() =>
     Object.fromEntries(editable.map((s) => [s.id, String(currentOf(s))])),
   )
@@ -1545,7 +1554,13 @@ function ContentDialog({ items, onClose, onDone }: { items: readonly Subscriptio
       ops.push(
         s.type === 'credit'
           ? adjustSubscriptionCreditsAction({ entitlementId: s.id, delta: target - current, note: reason.trim() })
-          : amendSubscriptionAction({ entitlementId: s.id, entryAllowance: target, reason: reason.trim() }),
+          : // Kutu KALAN sordu; saklanan alan TOPLAM. Kullanılmışları geri ekliyoruz, yoksa hak
+            // sessizce kullanılmış giriş sayısı kadar eksilirdi.
+            amendSubscriptionAction({
+              entitlementId: s.id,
+              entryAllowance: s.entriesUsed + target,
+              reason: reason.trim(),
+            }),
       )
     }
     if (ops.length === 0) {
@@ -1573,10 +1588,12 @@ function ContentDialog({ items, onClose, onDone }: { items: readonly Subscriptio
   return (
     <ReasonDialogShell
       title={multi ? 'Kredi/Giriş düzenle' : single?.type === 'credit' ? 'Krediyi düzelt' : 'Giriş hakkını düzelt'}
+      // Kutunun ne sorduğu YAZILI. Aynı sayının "kalan" mı "toplam" mı olduğu bir kez karıştı,
+      // bir daha karışmasın diye ekranda duruyor.
       description={
         multi || !single
-          ? 'Paketin her bölümünü ayrı ayrı düzenleyin.'
-          : `Mevcut ${unitOf(single)}: ${currentOf(single)}. Yeni ${unitOf(single)} sayısını girin.`
+          ? 'Üyenin KALAN hakkını girin — paketin toplamını değil.'
+          : `Kalan ${unitOf(single)}: ${currentOf(single)}. Yeni KALAN ${unitOf(single)} sayısını girin.`
       }
       reason={reason}
       setReason={setReason}

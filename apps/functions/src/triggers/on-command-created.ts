@@ -111,7 +111,12 @@ export const onCommandCreated = onDocumentCreated(
         const res = await recordCheckIn(
           // ELLE CHECK-IN. Fitness giriş sayacı 2026-08-26'ya kadar bu yolda HİÇ hareket etmiyordu:
           // tüketim `qr.ts` içinde yaşıyordu ve buradan çağrılmıyordu.
-          { repo: new FirestoreCheckinRepository(db()), clock: systemClock, entries: new FirestoreEntitlementRepository(db()) },
+          {
+            repo: new FirestoreCheckinRepository(db()),
+            clock: systemClock,
+            entries: new FirestoreEntitlementRepository(db()),
+            classes: new FirestoreReservationRepository(db()),
+          },
           ctx,
           {
             memberId: payload.memberId,

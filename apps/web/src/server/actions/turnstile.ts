@@ -9,6 +9,7 @@ import {
   FirestoreCheckinRepository,
   FirestoreEntitlementRepository,
   FirestoreMemberRepository,
+  FirestoreReservationRepository,
   issueTurnstileCode,
   openTurnstileManually,
   systemClock,
@@ -37,6 +38,7 @@ const deps = (): CheckinDeps => ({
   repo: new FirestoreCheckinRepository(adminDb()),
   clock: systemClock,
   entries: new FirestoreEntitlementRepository(adminDb()),
+  classes: new FirestoreReservationRepository(adminDb()),
 })
 const OPS = ['owner', 'receptionist', 'platform_admin'] as const
 const sha256 = (s: string) => createHash('sha256').update(s).digest('hex')

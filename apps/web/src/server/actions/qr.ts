@@ -151,7 +151,7 @@ export async function checkInByQrAction(input: unknown) {
   }
 
   const res = await recordCheckIn(
-    { repo: new FirestoreCheckinRepository(db), clock: systemClock, entries: new FirestoreEntitlementRepository(db) },
+    { repo: new FirestoreCheckinRepository(db), clock: systemClock, entries: new FirestoreEntitlementRepository(db), classes: new FirestoreReservationRepository(db) },
     ctx,
     {
       memberId: claims.memberId as MemberId,
@@ -277,7 +277,7 @@ export async function checkInByPosterToken(ctx: TenantContext, memberId: MemberI
   if (Date.now() > claims.exp) return { ok: false as const, error: { code: 'qr_expired' as const } }
 
   const res = await recordCheckIn(
-    { repo: new FirestoreCheckinRepository(adminDb()), clock: systemClock, entries: new FirestoreEntitlementRepository(adminDb()) },
+    { repo: new FirestoreCheckinRepository(adminDb()), clock: systemClock, entries: new FirestoreEntitlementRepository(adminDb()), classes: new FirestoreReservationRepository(adminDb()) },
     ctx,
     { memberId, branchId: claims.branchId as BranchId, method: 'qr', occurredAt: systemClock.now(), commandId: null },
   )
@@ -388,7 +388,7 @@ export async function memberCheckInByToken(ctx: TenantContext, memberId: MemberI
     return { ok: false as const, error: { code: 'qr_used' as const } }
   }
   const res = await recordCheckIn(
-    { repo: new FirestoreCheckinRepository(db), clock: systemClock, entries: new FirestoreEntitlementRepository(db) },
+    { repo: new FirestoreCheckinRepository(db), clock: systemClock, entries: new FirestoreEntitlementRepository(db), classes: new FirestoreReservationRepository(db) },
     ctx,
     { memberId, branchId: claims.branchId as BranchId, method: 'qr', occurredAt: systemClock.now(), commandId: null },
   )

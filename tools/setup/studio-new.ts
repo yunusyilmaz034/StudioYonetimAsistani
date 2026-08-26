@@ -46,6 +46,7 @@ import {
   FirestoreCheckinRepository,
   FirestoreEntitlementRepository,
   FirestoreIdentityRepository,
+  FirestoreReservationRepository,
   FirestoreSchedulingRepository,
   FirestoreStudioHours,
   openBranch,
@@ -276,7 +277,7 @@ async function main(): Promise<void> {
   }
 
   // ── 2. The branch. Merge-only, so a second run changes nothing. ───────────────────────────
-  const branch = await openBranch({ repo: new FirestoreCheckinRepository(), clock: systemClock, entries: new FirestoreEntitlementRepository() }, ctx, {
+  const branch = await openBranch({ repo: new FirestoreCheckinRepository(), clock: systemClock, entries: new FirestoreEntitlementRepository(), classes: new FirestoreReservationRepository() }, ctx, {
     branchId: args.branchId,
   })
   if (!branch.ok) {

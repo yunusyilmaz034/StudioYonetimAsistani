@@ -68,8 +68,38 @@ export interface EntryMeterRepository {
   saveEntitlement(ctx: TenantContext, ent: Entitlement, events: readonly NewEvent[]): Promise<void>
 }
 
+/**
+ * DERSE Mİ GELDİ, SPORA MI? (owner kararı, 2026-08-26)
+ *
+ * Owner'ın cümlesi: *"pilates rezervasyonu varsa kişi pilatese katılmıştır diye görmeliyiz, onun
+ * dışında geldikleri olursa fitness."*
+ *
+ * Hibrit paketli bir üye (2 fitness girişi + 1 pilates dersi) kapıdan geçtiğinde sistem bugüne
+ * kadar tek bir soru soruyordu: "limitli fitness üyeliği var mı?" Varsa giriş düşüyordu — dersine
+ * gelmiş olsa bile. Yani rezervasyonlu dersine 10 dakika önce gelen üye, hem ders kredisini hem de
+ * spor salonu giriş hakkını kaybediyordu.
+ *
+ * Bu port o soruyu ikiye ayırıyor. Sayaç yalnızca ziyaretin bir DERSE bağlanamadığı durumda işler.
+ */
+export interface ClassVisitLookup {
+  /**
+   * Üyenin, `at` anına denk gelen iptal edilmemiş bir ders rezervasyonu var mı?
+   *
+   * "Denk gelmek" = dersin başlangıcından `earlyArrivalMs` kadar önce başlayıp dersin bitişinde
+   * biten pencere. Erken gelme payı gerekli: kimse dersin başladığı saniyede turnikeden geçmiyor.
+   */
+  hasClassAround(
+    ctx: TenantContext,
+    memberId: MemberId,
+    at: Instant,
+    earlyArrivalMs: number,
+  ): Promise<boolean>
+}
+
 export interface CheckinDeps {
   readonly repo: CheckinRepository
   readonly clock: Clock
   readonly entries: EntryMeterRepository
+  /** ZORUNLU, `entries` ile aynı sebeple: opsiyonel olsaydı bir kapı sessizce eski davranışta kalırdı. */
+  readonly classes: ClassVisitLookup
 }

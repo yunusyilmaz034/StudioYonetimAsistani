@@ -156,6 +156,23 @@ async function main(): Promise<void> {
       at: basla + i * arasi(4, 90) * 60_000,
     }))
     const son = mesajlar[mesajlar.length - 1]?.at ?? basla
+
+    // SESSİZ ALARM TUZAĞI (2026-08-26). `ai_not_replying` sağlık sinyali şunu arıyor: AI'ın
+    // yürüttüğü (`status: 'ai'`) bir sohbet, son mesajı ÜYEDEN ve 10 dakikadan eski. İlk demo
+    // verisinde altı sohbet tam olarak buna uyuyordu — hepsi günler öncesinden. Sonuç: üretimde
+    // her 15 dakikada bir "critical" alarm ve owner'ın gelen kutusuna mail. Demo verisi, gerçek
+    // bir izleme sistemini yalancı çıkardı.
+    //
+    // Kural: cevapsız bekleyen bir sohbet İNSANDADIR. Zaten anlamı da bu — bekleyen konuşma
+    // resepsiyonun işi, AI'ın değil. Yorum değil, kontrol: unutulabilecek bir şeyi derleyici
+    // değil, script'in kendisi yakalıyor.
+    if (v.status === 'ai' && v.mesajlar[v.mesajlar.length - 1]?.[0] === 'user') {
+      throw new Error(
+        `sohbet ${v.ad}: 'ai' statüsündeki sohbet üye mesajıyla bitemez — ` +
+          `ya bir asistan cevabı ekle ya da status: 'human' yap (ai_not_replying alarmı).`,
+      )
+    }
+
     await db.doc(`studios/${STUDIO}/conversations/${v.rakam}`).set({
       phone: v.rakam,
       name: v.ad,
@@ -194,6 +211,7 @@ async function main(): Promise<void> {
       ['user', 'Paylaşın lütfen'],
       ['assistant', 'Bugün 17:00\'den sonra uygun musunuz? Size özel fiyatı yüz yüze konuşalım.'],
       ['user', 'Uygunum, geliyorum'],
+      ['assistant', 'Harika, sizi bekliyoruz 🌸 Geldiğinizde resepsiyondaki arkadaşımıza adınızı söylemeniz yeterli.'],
     ],
   })
 
@@ -208,7 +226,7 @@ async function main(): Promise<void> {
     ],
   })
   await sohbet({
-    rakam: '905331229074', ad: 'Ayça Ünal', gunOnce: 2, temp: SICAK, status: 'ai',
+    rakam: '905331229074', ad: 'Ayça Ünal', gunOnce: 2, temp: SICAK, status: 'human',
     dikkat: 'hot_lead', reason: 'Deneme dersine geldi, paketi bekliyor.',
     mesajlar: [
       ['user', 'Dün deneme dersine gelmiştim, çok beğendim'],
@@ -219,7 +237,7 @@ async function main(): Promise<void> {
     ],
   })
   await sohbet({
-    rakam: '905071883452', ad: 'Selin Baş', gunOnce: 4, temp: SICAK, status: 'ai',
+    rakam: '905071883452', ad: 'Selin Baş', gunOnce: 4, temp: SICAK, status: 'human',
     dikkat: 'ai_failed', reason: 'Doğum sonrası dönem — AI cevap vermeyip devretti.',
     mesajlar: [
       ['user', 'Merhaba, 3 ay önce doğum yaptım. Pilates yapabilir miyim?'],
@@ -234,6 +252,7 @@ async function main(): Promise<void> {
       ['user', 'Aylık ne kadar?'],
       ['assistant', 'Merhaba! Fitness üyeliğimiz aylık 1.500 TL, 3 aylık 3.900 TL 🙂 Reformer pilates paketlerimiz için de bilgi vereyim mi?'],
       ['user', 'Şimdilik teşekkürler'],
+      ['assistant', 'Rica ederim 🙂 Aklınıza bir soru gelirse buradayım, iyi günler!'],
     ]],
     ['905356620941', 'Beyza K.', 9, 'Saat uyuşmazlığı — akşam 21:00 istiyor.', [
       ['user', 'Akşam 21:00 seansınız var mı?'],
@@ -245,11 +264,13 @@ async function main(): Promise<void> {
       ['user', 'Stüdyonuz nerede?'],
       ['assistant', 'Merkez şubemizdeyiz 📍 Konum linkini paylaşıyorum. Otopark sorunu yaşamazsınız, hemen önümüzde yer var.'],
       ['user', 'Teşekkürler'],
+      ['assistant', 'Rica ederim! Beklediğiniz an uğrayabilirsiniz, kapımız açık 🌸'],
     ]],
     ['905546338820', 'Merve S.', 19, 'Hamilelik pilatesi soruyor.', [
       ['user', 'Hamileler için grubunuz var mı?'],
       ['assistant', 'Şu anda ayrı bir hamile grubumuz yok, ancak eğitmenimiz mevcut seanslarda size uygun hareketlerle çalışabiliyor 🌸 Doktor onayınız varsa detayını konuşalım.'],
       ['user', 'Doktora soracağım'],
+      ['assistant', 'Çok iyi olur 🙂 Onay aldığınızda bize yazmanız yeterli, gerisini birlikte planlarız.'],
     ]],
   ]
   for (const [tel, ad, g, neden, msgs] of ILIKLAR) {

@@ -127,7 +127,7 @@ async function main(): Promise<void> {
   const memberDeps = { repo: memberRepo, clock: systemClock }
   const catalogDeps = { repo: catalogRepo, clock: systemClock }
   const entDeps = { repo: entRepo, clock: systemClock }
-  const checkinDeps: CheckinDeps = { repo: checkinRepo, clock: systemClock, entries: entRepo }
+  const checkinDeps: CheckinDeps = { repo: checkinRepo, clock: systemClock, entries: entRepo, classes: resRepo }
   const schedDeps = (c: Clock = systemClock) => ({ repo: schedRepo, clock: c, studioConfig: DEFAULT_STUDIO_CONFIG, hours })
   const resDeps = (c: Clock = systemClock) => ({ repo: resRepo, clock: c, hours })
 
