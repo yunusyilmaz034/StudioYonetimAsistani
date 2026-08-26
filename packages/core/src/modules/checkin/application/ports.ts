@@ -1,5 +1,6 @@
 import type { BranchId, Clock, Instant, MemberId, NewEvent, TenantContext, DeviceId} from '../../../shared'
 import type { BranchOccupancy, CheckIn, Presence, TurnstileCode, TurnstileDevice} from '../domain/types'
+import type { Entitlement } from '../../entitlements'
 
 // Admin SDK only (AD-15). The check-in state lives in three shapes: the append-style
 // `/checkIns` log, the `/presence/{memberId}` toggle docs (existence ⇔ inside), and
@@ -54,7 +55,21 @@ export interface CheckinRepository {
   applyAutoCheckOut(ctx: TenantContext, memberId: MemberId, events: readonly NewEvent[]): Promise<void>
 }
 
+/**
+ * The fitness serbest-giriş meter, reached from the door.
+ *
+ * ZORUNLU, bilerek. Giriş tüketimi 2026-08-26'ya kadar `qr.ts` içinde üç kez KOPYALANMIŞTI ve
+ * diğer iki kapı (elle check-in, turnike) onu hiç çağırmıyordu: üye geliyor, sayaç hiç hareket
+ * etmiyordu. Alanı opsiyonel yapmak aynı hatayı sessizce mümkün kılardı — zorunlu olunca derleyici
+ * her kapıyı tek tek buluyor.
+ */
+export interface EntryMeterRepository {
+  listActiveByMember(ctx: TenantContext, memberId: MemberId): Promise<readonly Entitlement[]>
+  saveEntitlement(ctx: TenantContext, ent: Entitlement, events: readonly NewEvent[]): Promise<void>
+}
+
 export interface CheckinDeps {
   readonly repo: CheckinRepository
   readonly clock: Clock
+  readonly entries: EntryMeterRepository
 }

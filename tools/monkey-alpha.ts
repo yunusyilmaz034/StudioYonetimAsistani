@@ -100,7 +100,7 @@ const entDeps = { repo: ents, clock: systemClock }
 const financeDeps = { repo: finance, clock: systemClock }
 const schedDeps = { repo: sched, clock: systemClock, studioConfig: DEFAULT_STUDIO_CONFIG, hours }
 const resDeps = { repo: resRepo, clock: systemClock, hours }
-const checkinDeps = { repo: checkin, clock: systemClock }
+const checkinDeps = { repo: checkin, clock: systemClock, entries: ents }
 const sellDeps = { finance: financeDeps, entitlements: entDeps }
 
 const PRICE = 300_000

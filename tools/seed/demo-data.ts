@@ -17,6 +17,7 @@ import {
   DEFAULT_STUDIO_CONFIG,
   FirestoreCatalogRepository,
   FirestoreCheckinRepository,
+  type CheckinDeps,
   FirestoreEntitlementRepository,
   FirestoreMemberRepository,
   FirestoreReservationRepository,
@@ -79,7 +80,7 @@ let checkinRepo!: FirestoreCheckinRepository
 let memberDeps!: { repo: FirestoreMemberRepository; clock: Clock }
 let catalogDeps!: { repo: FirestoreCatalogRepository; clock: Clock }
 let entDeps!: { repo: FirestoreEntitlementRepository; clock: Clock }
-let checkinDeps!: { repo: FirestoreCheckinRepository; clock: Clock }
+let checkinDeps!: CheckinDeps
 let hoursPort!: FirestoreStudioHours
 // AG-1 made the studio's opening hours a REQUIRED dependency of anything that can create a class.
 // The seed was never updated — so `pnpm seed` had been broken since, and nobody knew, because
@@ -103,7 +104,7 @@ function initRepos(): void {
   memberDeps = { repo: memberRepo, clock: systemClock }
   catalogDeps = { repo: catalogRepo, clock: systemClock }
   entDeps = { repo: entRepo, clock: systemClock }
-  checkinDeps = { repo: checkinRepo, clock: systemClock }
+  checkinDeps = { repo: checkinRepo, clock: systemClock, entries: entRepo }
 }
 
 function ok<T>(res: { ok: true; value: T } | { ok: false; error: unknown }, what: string): T {

@@ -1,8 +1,6 @@
 'use server'
 
 import {
-  decideConsumeEntry,
-  entriesUsed,
   FirestoreCheckinRepository,
   FirestoreEntitlementRepository,
   FirestoreMemberRepository,
@@ -11,7 +9,6 @@ import {
   FirestoreStudioHours,
   instant,
   localDateAt,
-  newCorrelationId,
   recordCheckIn,
   resolveOnCheckIn,
   systemClock,
@@ -114,34 +111,12 @@ export async function mintCheckInToken(ctx: TenantContext, memberId: MemberId) {
 // ── Reception: scan and check in ──────────────────────────────────────────────────────────
 // ONLINE-ONLY by design (D16). This is a Server Action, not a /commands write: a signature must
 // be verified, and that cannot happen on a client or later in a trigger.
-// EC3 (v1.27) — fitness serbest-giriş. On a door ENTRY (never an exit), if the member has a LIMITED
-// fitness membership (and no unlimited fitness access), spend one entry — SOFT: never blocks the door,
-// just records it so the toast/panel can show "3/4 kaldı". Returns the state to show, or null.
+// FITNESS SERBEST-GİRİŞ artık BURADA DEĞİL (2026-08-26). Tüketim `recordCheckIn`'in içine taşındı,
+// çünkü kural bir kapıya değil odaya ait: bu dosyada yaşarken elle check-in ve turnike onu hiç
+// çağırmıyordu ve sayaç haftalarca sıfırda kaldı. Ekranın göstereceği bilgi artık sonuçla geliyor.
 export interface FitnessEntryInfo {
   readonly used: number
   readonly allowance: number
-}
-async function consumeFitnessEntry(
-  ctx: TenantContext,
-  memberId: MemberId,
-  checkInId: string,
-  direction: 'in' | 'out',
-): Promise<FitnessEntryInfo | null> {
-  if (direction !== 'in') return null
-  const entRepo = new FirestoreEntitlementRepository(adminDb())
-  const fitness = (await entRepo.listActiveByMember(ctx, memberId)).filter((e) => e.productSnapshot.category === 'fitness')
-  // No fitness membership, or ANY unlimited fitness access ⇒ nothing to spend.
-  if (fitness.length === 0 || fitness.some((e) => (e.productSnapshot.entryAllowance ?? null) === null)) return null
-  const target = [...fitness].sort((a, b) => a.validUntil - b.validUntil || a.purchasedAt - b.purchasedAt || (a.id < b.id ? -1 : 1))[0]
-  if (!target) return null
-  const decided = decideConsumeEntry(
-    { studioId: ctx.studioId, actor: ctx.actor, now: systemClock.now(), correlationId: newCorrelationId(), source: 'reception_web', commandId: null },
-    target,
-    checkInId,
-  )
-  if (!decided.ok) return null
-  await entRepo.saveEntitlement(ctx, decided.value.next, decided.value.events)
-  return { used: entriesUsed(decided.value.next.entryLedger), allowance: target.productSnapshot.entryAllowance ?? 0 }
 }
 
 export async function checkInByQrAction(input: unknown) {
@@ -176,7 +151,7 @@ export async function checkInByQrAction(input: unknown) {
   }
 
   const res = await recordCheckIn(
-    { repo: new FirestoreCheckinRepository(db), clock: systemClock },
+    { repo: new FirestoreCheckinRepository(db), clock: systemClock, entries: new FirestoreEntitlementRepository(db) },
     ctx,
     {
       memberId: claims.memberId as MemberId,
@@ -187,7 +162,7 @@ export async function checkInByQrAction(input: unknown) {
     },
   )
   if (!res.ok) return res
-  const entry = await consumeFitnessEntry(ctx, claims.memberId as MemberId, res.value.checkInId, res.value.direction)
+  const entry = res.value.fitnessEntry
   // Every ENTRY through this door is the same evidence, whoever held the scanner (see
   // `resolveAttendanceForCheckIn`). Reception scanning her phone says no less about where she is
   // than her scanning the wall.
@@ -302,12 +277,12 @@ export async function checkInByPosterToken(ctx: TenantContext, memberId: MemberI
   if (Date.now() > claims.exp) return { ok: false as const, error: { code: 'qr_expired' as const } }
 
   const res = await recordCheckIn(
-    { repo: new FirestoreCheckinRepository(adminDb()), clock: systemClock },
+    { repo: new FirestoreCheckinRepository(adminDb()), clock: systemClock, entries: new FirestoreEntitlementRepository(adminDb()) },
     ctx,
     { memberId, branchId: claims.branchId as BranchId, method: 'qr', occurredAt: systemClock.now(), commandId: null },
   )
   if (!res.ok) return res
-  const entry = await consumeFitnessEntry(ctx, memberId, res.value.checkInId, res.value.direction)
+  const entry = res.value.fitnessEntry
   const attendance = res.value.direction === 'in' ? await resolveAttendanceForCheckIn(ctx, memberId) : null
   return { ok: true as const, value: { direction: res.value.direction, entry, attendance } }
 }
@@ -413,12 +388,12 @@ export async function memberCheckInByToken(ctx: TenantContext, memberId: MemberI
     return { ok: false as const, error: { code: 'qr_used' as const } }
   }
   const res = await recordCheckIn(
-    { repo: new FirestoreCheckinRepository(db), clock: systemClock },
+    { repo: new FirestoreCheckinRepository(db), clock: systemClock, entries: new FirestoreEntitlementRepository(db) },
     ctx,
     { memberId, branchId: claims.branchId as BranchId, method: 'qr', occurredAt: systemClock.now(), commandId: null },
   )
   if (!res.ok) return res
-  const entry = await consumeFitnessEntry(ctx, memberId, res.value.checkInId, res.value.direction)
+  const entry = res.value.fitnessEntry
   const attendance = res.value.direction === 'in' ? await resolveAttendanceForCheckIn(ctx, memberId) : null
   return { ok: true as const, value: { branchId: claims.branchId, direction: res.value.direction, entry, attendance } }
 }

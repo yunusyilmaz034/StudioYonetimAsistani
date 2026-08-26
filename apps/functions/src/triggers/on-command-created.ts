@@ -6,6 +6,7 @@ import {
   ATTENDANCE_MARK,
   CHECKIN_RECORD,
   FirestoreCheckinRepository,
+  FirestoreEntitlementRepository,
   FirestoreReservationRepository,
   FirestoreStudioHours,
   instant,
@@ -108,7 +109,9 @@ export const onCommandCreated = onDocumentCreated(
       if (data.type === CHECKIN_RECORD) {
         const payload = data.payload as CheckInRecordPayload
         const res = await recordCheckIn(
-          { repo: new FirestoreCheckinRepository(db()), clock: systemClock },
+          // ELLE CHECK-IN. Fitness giriş sayacı 2026-08-26'ya kadar bu yolda HİÇ hareket etmiyordu:
+          // tüketim `qr.ts` içinde yaşıyordu ve buradan çağrılmıyordu.
+          { repo: new FirestoreCheckinRepository(db()), clock: systemClock, entries: new FirestoreEntitlementRepository(db()) },
           ctx,
           {
             memberId: payload.memberId,

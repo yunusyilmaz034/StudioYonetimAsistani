@@ -3,6 +3,7 @@
 import {
   closeBranch,
   FirestoreCheckinRepository,
+  FirestoreEntitlementRepository,
   openBranch,
   systemClock,
   type BranchId,
@@ -22,7 +23,7 @@ const OPS = ['owner', 'receptionist', 'trainer', 'platform_admin'] as const
 const nonEmpty = z.string().min(1)
 
 function deps(): CheckinDeps {
-  return { repo: new FirestoreCheckinRepository(adminDb()), clock: systemClock }
+  return { repo: new FirestoreCheckinRepository(adminDb()), clock: systemClock, entries: new FirestoreEntitlementRepository(adminDb()) }
 }
 
 export async function openBranchAction(input: unknown) {

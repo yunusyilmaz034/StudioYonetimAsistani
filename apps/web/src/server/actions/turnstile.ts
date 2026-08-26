@@ -7,6 +7,7 @@ import { z } from 'zod'
 import {
   crossTurnstile,
   FirestoreCheckinRepository,
+  FirestoreEntitlementRepository,
   FirestoreMemberRepository,
   issueTurnstileCode,
   openTurnstileManually,
@@ -32,7 +33,11 @@ import { requireTenantContext } from '../auth'
 // The device's secret is compared as a HASH. Storing it in the clear would mean anyone who can read
 // the database can open the door, and the database is read by more people than the door should be.
 
-const deps = (): CheckinDeps => ({ repo: new FirestoreCheckinRepository(adminDb()), clock: systemClock })
+const deps = (): CheckinDeps => ({
+  repo: new FirestoreCheckinRepository(adminDb()),
+  clock: systemClock,
+  entries: new FirestoreEntitlementRepository(adminDb()),
+})
 const OPS = ['owner', 'receptionist', 'platform_admin'] as const
 const sha256 = (s: string) => createHash('sha256').update(s).digest('hex')
 

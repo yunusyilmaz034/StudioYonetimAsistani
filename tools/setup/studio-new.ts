@@ -44,6 +44,7 @@ import {
   createStaff,
   DEFAULT_STUDIO_CONFIG,
   FirestoreCheckinRepository,
+  FirestoreEntitlementRepository,
   FirestoreIdentityRepository,
   FirestoreSchedulingRepository,
   FirestoreStudioHours,
@@ -258,7 +259,7 @@ async function main(): Promise<void> {
   }
 
   // ── 2. The branch. Merge-only, so a second run changes nothing. ───────────────────────────
-  const branch = await openBranch({ repo: new FirestoreCheckinRepository(), clock: systemClock }, ctx, {
+  const branch = await openBranch({ repo: new FirestoreCheckinRepository(), clock: systemClock, entries: new FirestoreEntitlementRepository() }, ctx, {
     branchId: args.branchId,
   })
   if (!branch.ok) {

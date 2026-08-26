@@ -68,6 +68,8 @@ function fakeDeps(opts: { presence: Presence | null; lastCrossedAt?: number }): 
       applyCheckIn: async () => undefined,
       touchDevice: async () => undefined,
     },
+    // Bu üyenin fitness paketi yok — sayaç bu testlerin konusu değil, ama kapı ondan da geçiyor.
+    entries: { listActiveByMember: async () => [], saveEntitlement: async () => undefined },
   } as unknown as CheckinDeps
 }
 

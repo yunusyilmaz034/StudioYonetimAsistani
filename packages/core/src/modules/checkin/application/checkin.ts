@@ -10,6 +10,8 @@ import {
   type TenantContext,
   instant,
 } from '../../../shared'
+import { decideConsumeEntry, entriesUsed } from '../../entitlements'
+import { newCorrelationId } from '../../../shared'
 import { decideCheckIn } from '../domain/decide'
 import type { CheckInMethod, CheckInDirection } from '../domain/types'
 import { decideContext } from './context'
@@ -42,6 +44,47 @@ export interface RecordCheckInInput {
 export interface RecordCheckInResult {
   readonly direction: 'in' | 'out'
   readonly checkInId: string
+  /** Limitli fitness üyeliğinden giriş düşüldüyse, sonraki hâli. Düşmediyse `null`. */
+  readonly fitnessEntry: { readonly used: number; readonly allowance: number } | null
+}
+
+/**
+ * Bir KAPI GİRİŞİ, limitli fitness üyeliğinden bir giriş harcar (v1.27).
+ *
+ * BURADA, çünkü her kapı buradan geçiyor: QR, elle check-in, turnike. 2026-08-26'ya kadar bu kod
+ * `qr.ts` içinde yaşıyordu ve diğer iki kapı onu çağırmıyordu — Işıl bunu haftalarca elle işaretlenen
+ * bir üyenin sayacının sıfırda kalmasıyla buldu. Kural bir kapıya değil, odaya ait.
+ *
+ * YUMUŞAK: aşım kaydedilir, kapı asla reddedilmez. Kaç girişin kaldığını söylemek ekranın işi;
+ * kimseyi dışarıda bırakmak bu fonksiyonun işi değil.
+ */
+async function consumeFitnessEntry(
+  deps: CheckinDeps,
+  ctx: TenantContext,
+  memberId: MemberId,
+  checkInId: string,
+  direction: 'in' | 'out',
+  now: Instant,
+): Promise<RecordCheckInResult['fitnessEntry']> {
+  if (direction !== 'in') return null
+  const fitness = (await deps.entries.listActiveByMember(ctx, memberId)).filter(
+    (e) => e.productSnapshot.category === 'fitness',
+  )
+  // Sınırsız fitness erişimi olan biri hiçbir şey harcamaz — sayaç ona ait değil.
+  if (fitness.length === 0 || fitness.some((e) => (e.productSnapshot.entryAllowance ?? null) === null)) return null
+  const target = [...fitness].sort(
+    (a, b) => a.validUntil - b.validUntil || a.purchasedAt - b.purchasedAt || (a.id < b.id ? -1 : 1),
+  )[0]
+  if (!target) return null
+
+  const decided = decideConsumeEntry(
+    { studioId: ctx.studioId, actor: ctx.actor, now, correlationId: newCorrelationId(), source: 'door', commandId: null },
+    target,
+    checkInId,
+  )
+  if (!decided.ok) return null
+  await deps.entries.saveEntitlement(ctx, decided.value.next, decided.value.events)
+  return { used: entriesUsed(decided.value.next.entryLedger), allowance: target.productSnapshot.entryAllowance ?? 0 }
 }
 
 export async function recordCheckIn(
@@ -86,5 +129,18 @@ export async function recordCheckIn(
     decided.value.presenceNext,
     decided.value.events,
   )
-  return { ok: true, value: { direction: decided.value.checkIn.direction, checkInId: decided.value.checkIn.id } }
+  // Kapı yazıldıktan SONRA sayaç. Ayrı bir toplam, ayrı bir işlem — burada başarısızlık kapıyı
+  // geri almaz, sadece sayaç eksik kalır ve mutabakat onu görür.
+  const fitnessEntry = await consumeFitnessEntry(
+    deps,
+    ctx,
+    input.memberId,
+    decided.value.checkIn.id,
+    decided.value.checkIn.direction,
+    now,
+  )
+  return {
+    ok: true,
+    value: { direction: decided.value.checkIn.direction, checkInId: decided.value.checkIn.id, fitnessEntry },
+  }
 }
