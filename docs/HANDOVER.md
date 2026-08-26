@@ -175,6 +175,33 @@ Firestore, so the flag lights the UI and sends nothing anywhere.
   null. The wall is correct; offering a fitness member a reformer slot is what was wrong. Candidates
   are now drawn from members who actually hold a package covering that service.
 
+### A seeded studio needs the nightly jobs run ONCE
+
+Seeding writes history; it does not write the **consequences** of history, because in production
+those come from the scheduled sweeps. Right after seeding, 35 of 88 packages had a `validUntil`
+weeks in the past and were still `active` — a member's screen showed three "active" packages, two of
+them long dead. That reads as a bug, and to a broker it *is* one.
+
+Fixed by running the real sweep rather than flipping a status by hand:
+
+```ts
+sweepExpireCredits({ repo: new FirestoreEntitlementRepository(lockedDb), clock: systemClock }, demoCtx)
+// → { expired: 35, skipped: 0, failed: 0 }
+```
+
+Hand-flipping `status` would have produced no `entitlement.expired` events and no `expired` bucket
+in the ledger — and the burned-credit churn signal, which is one of the things the product is FOR,
+would have stayed at zero. It is now 71.
+
+**Do this for any future seeded studio.** `auto-resolve-attendance` → `expire-credits`, in that
+order (I-19).
+
+### Verified, not assumed
+
+Login was actually performed against Identity Toolkit, not inferred: the token comes back with
+`studioId: demo`, `role: owner`, `platformAdmin: false`. So the broker's session cannot read `retro`
+at all — the security rules gate on exactly that claim.
+
 ### Still open
 
 The remaining ~14 empty future sessions are **kept on purpose** — the dashboard's `empty_session`
