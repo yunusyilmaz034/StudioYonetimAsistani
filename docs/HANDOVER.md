@@ -1241,6 +1241,55 @@ build's status alone will happily report a stale failure forever.
    adlarını kesinleştir — şu an tahmin edilen kısım orası, ve "emin değilsem ödenmemiş say" diyor
 4. "Bağlantıyı Test Et" kaydedilmemiş değişiklik varken uyarsın (bugün kafa karıştırdı)
 
+### 2026-08-26 — Turnike: ekran, QR ve geçiş çalışıyor; röle 5 volt bekliyor
+
+Firmware `apps/turnstile/` (PlatformIO, pnpm workspace'inin dışında — `pnpm check` oraya bakmaz).
+Derleme/yükleme: `~/Library/Python/3.9/bin/pio run -t upload --upload-port /dev/cu.usbmodem…`
+
+**ÇALIŞAN, uçtan uca doğrulanmış:** ekran (ILI9341, 2 MHz) · WiFi · sunucudan kod alma · ekranda QR ·
+telefonla okutma · sunucunun geçişi kaydetmesi · cihazın geçişi görüp **"Hoş geldin YUNUS"** yazması.
+
+**Kalan tek şey: röleye gerçek 5 volt.** Polarite **aktif-LOW** olarak kanıtlandı (pini toprağa
+çekince `DS1` yanıyor). Bobin 3.3 V'ta çekmiyor — LED yanıyor, kontak kapanmıyor.
+
+⚠️ **Kartın `5Vin` pini bir GİRİŞ, çıkış değil.** Oradan gerilim alınmıyor (röle bağlanınca `DS1`
+hiç yanmadı; 3V3'e alınınca yandı). Yani ESP32'nin pininden röle beslenemez. Çözüm: adaptör 5 V'u
+**klemensle ikiye ayrılıp** hem `5Vin`e hem röle `Vcc`sine gidecek. Owner **USB dişi klemens**
+sipariş edecek.
+
+**DONANIM — acı çekerek öğrenilenler:**
+- Kart **YD-ESP32-S3** (klon), **pin şeritleri lehimsiz geliyordu.** Bir akşamın tamamı buna gitti:
+  temas tesadüfe kalmış, elle bastırınca değişen bir arıza. Lehimletildi, sonra ilk denemede çalıştı.
+- Ekran **LockerBox 3.2" ILI9341, 3.3 V** (regülatörü yok, 5 V yakar). `J1` açık olduğu için arka
+  ışığı `LED` pini sürüyor — **GPIO'ya bağlanmalı**, 3V3'e değil.
+- `ARDUINO_USB_CDC_ON_BOOT=0` olmalı: 1 yapılırsa `Serial` kartın DİĞER USB portuna gider ve
+  UART'tan bakan hiçbir şey göremez.
+- **Pin haritası:** SCK 12 · MOSI 11 · DC 13 · RST 8 · CS 10 · LED(arka ışık) 18 · röle IN1/IN2 5/4
+  (IN1 geçici olarak 18'e alınmıştı, geri konacak).
+
+**SUNUCU — bugün iki şey değişti:**
+1. **Çift okuma koruması turnikede hiç çalışmıyormuş** (`a5da017`). Kural "yön açıkça istenmediyse
+   45 sn içinde ikinciyi reddet" diyor; turnike her geçişte yön gönderdiği için muafiyeti her
+   seferinde alıyordu — oysa turnikenin yönü istek değil, ÇIKARIM. Ekran 8 sn'de bir yeni kod
+   ürettiği için kamerayı açık tutan üye giriyor ve hemen çıkıyordu. Owner on dakikada buldu.
+   Süre **45 sn'de bırakıldı** (owner kararı).
+2. **Cihaz artık tarafını beyan ediyor** (`9c71d4b`, `TurnstileDevice.side`). Yön sırası: kolun
+   raporu → ekranın tarafı → mevcut durum. Eskiden ortadaki yoktu ve çıkışta okutmayı zorunlu
+   kılmanın anlamı kayboluyordu: sistemin "içeride" sandığı üye giriş ekranını okutunca **çıkış**
+   kaydediliyordu.
+
+**Cihaz:** `dev_8f0a11df8e7e81885000`, adı `polis`, taraf `in`, şube `mutlukent`. Sırrı
+`apps/turnstile/src/secrets.h` içinde — **git'in görmediği dosya**, kopyası yok.
+
+**Panelde cihaz ekleme ekranı YOK.** İlk cihaz elle oluşturuldu; ikinci ekran için ikincisi de
+gerekecek. `listTurnstilesAction` var ama onu kullanan bir ekran yok.
+
+**Sırada:** klemens gelince röle (Aşama 3 kapanır) → ikinci ekran + ikinci cihaz (Aşama 4) →
+turnikeye montaj (Aşama 5: `F01=5 F02=0 F03=0 F04=0`, ve `COM`u `OP-R`ye değdirip hangi yönün
+açıldığının **denenmesi** — şemadaki oklar çelişkili).
+
+---
+
 ### 2026-08-24/25 — TAMI canlıya hazır, ödeme başına sağlayıcı, ve mobil 1.7.0
 
 Uzun bir gün; sırayla ne olduğu ve **hangi hatanın nasıl bulunduğu**.
