@@ -7,7 +7,12 @@ explains the moment.
 Keep it current the way the code is kept current: when the state changes, this changes in the same
 commit. A handover document that lags is worse than none, because it is believed.
 
-_Last true as of: **2026-08-25**._
+_Last true as of: **2026-08-26**._
+
+🎬 **There is now a demo studio: `demo`, "Demo Stüdyo".** A broker asked to see the system and the
+answer is no longer a screenshot. It lives in the SAME database as Işıl's, which is the whole reason
+`tools/seed/demo-guard.ts` exists — see "The demo studio" below before touching any seeding script.
+Login: `demo@retroasistan.com`, one-time password `AbQtq33SZ00O` (uid `zhnXax65cmUvm7gvRMGenr75oqL2`).
 
 Panel live at **`build-2026-08-24-003`** (100% of traffic, verified the only way that counts —
 Cloud Run's traffic split, OR-17, not the App Hosting listing). **Cloud Functions have NOT been
@@ -105,6 +110,75 @@ are never stale. Memberships can be frozen, including past the allowance when th
 **Members can buy and renew their own packages** from the app and the portal. A renewal is QUEUED
 behind the package it renews so no paid day burns unused; a hybrid queues behind every category it
 grants and refuses when they disagree. The studio is notified the moment a self-service sale lands.
+
+## The demo studio (2026-08-26)
+
+**`demo` — "Demo Stüdyo".** Built for a broker who asked whether there was something to show, and
+handed to anyone who asks after him. `demo@retroasistan.com` / `AbQtq33SZ00O`, owner role, single
+branch `merkez`.
+
+### Read this before you run any seeding script
+
+The demo lives in the **same Firestore database as a studio with 171 real members.** Multi-tenancy
+makes that safe architecturally; it does not make it safe against one mistyped id. So the seeders do
+not *try* to stay inside `studios/demo/` — `tools/seed/demo-guard.ts` wraps Firestore in a proxy
+where every path outside it, **reads included**, throws before reaching the database. Reads are
+locked too on purpose: reading the wrong studio and mixing it into demo data is as bad as writing to
+it, and harder to notice.
+
+Three scripts, all requiring `--apply` (dry run otherwise):
+
+| Script | What it does |
+|---|---|
+| `tools/seed/demo-studio.ts` | The skeleton: catalogue, 45 members, renewals, 50 days of agenda, attendance, check-ins |
+| `tools/seed/demo-extras.ts` | What the product actually *says*: WhatsApp funnel, leads, AI card, patron briefing, training, turnstile |
+| `tools/seed/demo-reset.ts` | Empties `studios/demo/` — keeps `branches`, `settings`, `staff`, so the account survives |
+
+`demo-studio.ts` is **single-pass by design**: it refuses to run when members already exist, and it
+does not resume. If it dies halfway, reset and re-run. A resume branch that has never been executed
+produces silently wrong data, which is worse than a re-run that costs two minutes.
+
+### What is in it
+
+45 members · 88 subscriptions (renewals, mixed paid/partial/outstanding) · 237 sessions over 50 days ·
+936 reservations · 685 attendance records · 12 WhatsApp conversations · 11 leads across five stages ·
+16 exercises · 4 published programmes · 20 measurements over 90 days · 2 turnstile devices ·
+608 crossings.
+
+The WhatsApp funnel **narrows like a real one**: 12 wrote → 9 engaged → 5 hot → 2 converted. The two
+converted conversations use real demo members' phone numbers, because `/ai-report` matches the
+conversation's digits against `phoneNormalized` — a made-up number silently scores zero conversions.
+
+**Meta looks configured without being configured.** `settings/ai.whatsappActive` is `true` and the
+knowledge card is full (12 FAQs, escalation rules, things-never-to-do). Credentials live in env, not
+Firestore, so the flag lights the UI and sends nothing anywhere.
+
+### What is deliberately NOT seeded
+
+- **`settings/aiChecklist`** — it is a *cache*, and the client drops any cached row whose id does not
+  match a live advisor id. The checklist fills itself from the underlying signals (outstanding
+  balances, expiring packages, empty sessions, hot leads), and those are genuinely present. A faked
+  cache does not imitate the real list; it just disagrees with it.
+- **`/patron` chat and the AI programme draft** — a live Anthropic call per request. Not seedable.
+  The *accepted* output is: two of the four programmes carry the note "AI önerisi".
+
+### Three things measurement caught (and guessing would not have)
+
+- `demo-reset` originally listed what to **delete** and missed `members_by_phone`: 45 members went,
+  the phone index stayed, and the next run died on the first member with `phone_already_registered`.
+  It now lists what to **keep**. A hand-written delete-list fails silently, and nobody updates it
+  when a collection is added.
+- One package per member left **24 of 66 future sessions empty** — average occupancy 1.6 in an
+  8-person room. The fix was renewals, not bigger packages: giving the 8-class package 30 credits
+  would have made the catalogue lie. Occupancy went 1.2 → 4.0.
+- Booking randomly chosen members hit the category wall ~1400 times, each one silently returning
+  null. The wall is correct; offering a fitness member a reformer slot is what was wrong. Candidates
+  are now drawn from members who actually hold a package covering that service.
+
+### Still open
+
+The remaining ~14 empty future sessions are **kept on purpose** — the dashboard's `empty_session`
+signal needs something to point at.
 
 ## Store state
 

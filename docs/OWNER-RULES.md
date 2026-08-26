@@ -864,3 +864,30 @@ var ve ikisi de tekrar tartışılmasın diye yazılıyor:
 **Fiyat, müşteriye söylendikten günler sonra değişen bir şey değildir.** İnce marjlı paketler bir
 sonraki DOĞAL fiyat güncellemesinde (zam, yeni sezon, yeni paket) düzeltilir — ortasında değil.
 Güveni aşındıran şey rakamın kendisi değil, oynaklığı.
+
+---
+
+**OR-46 · Demo, Işıl'ın verisiyle aynı veritabanında yaşar — ve oraya ULAŞAMAZ.** (2026-08-26)
+
+Bir aracı sistemi görmek istedi. Owner'ın koyduğu üç şart net: **(1)** Işıl'ın verisiyle karışmayacak,
+**(2)** stüdyonun adı "Demo Stüdyo" olacak, **(3)** aracıya ve isteyen herkese erişim verilecek.
+
+Owner'ın kendi cümlesi kuralın gerekçesi: *"bak sakın ışıl a bulaşma orayı bozarsak hiç bir şeyin
+önemi yok."*
+
+**Ayrı bir proje açılmadı, kasten.** Ayrı proje demoyu izole ederdi ama demoyu ÜRÜNDEN de izole
+ederdi: ikinci bir dağıtım, ikinci bir sürüm, ve birkaç hafta sonra aracıya gösterilen şeyin canlı
+üründen farklı olduğu bir durum. Çok kiracılılık zaten bunun için var. Riski taşıyan şey mimari
+değil, **elle yazılan bir stüdyo id'si.**
+
+**Bu yüzden demoya yazan hiçbir script'e "dikkatli ol" denmiyor.** `tools/seed/demo-guard.ts`
+Firestore'u bir proxy'ye sarıyor; `studios/demo/` dışındaki her yol — **okumalar dahil** — veritabanına
+ulaşmadan istisna atıyor. Okumanın da kilitli olması bilinçli: yanlış stüdyodan okuyup demo verisine
+karıştırmak, yanlış yere yazmak kadar kötü ve fark edilmesi daha zor.
+
+**Demoya yazan her yeni script bu kilidi kullanmak zorundadır.** Kilitsiz bir `getFirestore()` ile
+demo verisi yazmak, kuralı çiğnemektir — çalışsa bile.
+
+Doğrulama, her seferinde, tek yol: script'ten önce ve sonra `retro`'nun sayıları. 2026-08-26'da
+171 üye → 171 üye.
+
