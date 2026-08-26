@@ -204,6 +204,23 @@ async function main(): Promise<void> {
   const db = getFirestore()
   const auth = getAuth()
 
+  // ── HANGİ PROJE, TAHMİNSİZ (2026-08-26) ──────────────────────────────────────────────────
+  //
+  // Yukarıdaki `projectId` Firestore'u bağlar ama Auth'u bağlamaz: Identity Toolkit çağrısının
+  // KOTA PROJESİ ADC'den gelir, ve o başka bir projeye ayarlıysa script Firestore'a bir yere,
+  // Auth'a başka bir yere yazar. Bir kez yaşandı: stüdyo `studio-yonetim-prod`ta açıldı, owner
+  // hesabı bambaşka bir projede aranmaya çalışıldı.
+  //
+  // Üretime yazan bir script hangi üretim olduğunu tahmin etmemeli. Uyuşmazsa hiçbir şey yapmıyor.
+  const adcProject = process.env.GOOGLE_CLOUD_PROJECT ?? process.env.GCLOUD_PROJECT ?? ''
+  if (project && adcProject && adcProject !== project) {
+    console.error(`\nDURDURULDU — proje uyuşmazlığı.`)
+    console.error(`  Firestore : ${project}`)
+    console.error(`  ADC/Auth  : ${adcProject}`)
+    console.error(`\nDüzeltmek için:  gcloud auth application-default set-quota-project ${project}`)
+    process.exit(1)
+  }
+
   // ── The guard, BEFORE anything is read or written. ────────────────────────────────────────
   if ((await memberCount(db, args.studioId)) > 0) {
     console.error(`❌ '${args.studioId}' stüdyosunun üyeleri var — bu bir kurulum değil, çalışan bir stüdyo.`)
