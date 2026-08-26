@@ -246,10 +246,19 @@ export function decideRedeemTurnstileCode(
   // Single use: two people scanning the same photograph must not both get in.
   if (code.usedBy !== null) return err({ code: 'qr_used' })
 
-  // The arm's own report wins over our inference — what the door DID beats what we assumed she
-  // meant. Without the wire we fall back to presence, which is right until somebody scans without
-  // crossing; the nightly auto-check-out sweep cleans that up.
-  const direction: CheckInDirection = input.reportedDirection ?? (input.presence === null ? 'in' : 'out')
+  // Three sources, in order of how much they actually KNOW:
+  //
+  //   1. the arm's own report — what the door DID. Beats everything, when the wire is connected.
+  //   2. the screen's declared side — a screen bolted to the exit is an exit, every time. Not a
+  //      guess: a fact about where the box is. (owner, 2026-08-26)
+  //   3. presence — the fallback for a single-screen door. Right until somebody scans without
+  //      crossing, and the nightly auto-check-out sweep cleans that up.
+  //
+  // The order matters. Presence used to come second, which meant a member the system still believed
+  // was inside got recorded LEAVING when she scanned the entry screen — the exact case that makes
+  // mandatory exit-scanning pointless.
+  const direction: CheckInDirection =
+    input.reportedDirection ?? device.side ?? (input.presence === null ? 'in' : 'out')
   return ok({ direction, branchId: code.branchId, deviceId: device.id })
 }
 

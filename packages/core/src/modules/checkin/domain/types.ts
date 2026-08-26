@@ -54,6 +54,20 @@ export interface TurnstileDevice {
    */
   readonly secretHash: string
   readonly active: boolean
+  /**
+   * WHICH SIDE OF THE DOOR THIS SCREEN IS ON (owner, 2026-08-26).
+   *
+   * The direction used to be inferred from presence: outside ⇒ she must be coming in. That is a
+   * guess, and it is wrong exactly when it matters — a member the system still believes is inside
+   * scans the ENTRY screen the next morning and is recorded leaving.
+   *
+   * The studio made exit-scanning mandatory so occupancy would be certain. A guessed direction
+   * gives that away. A screen bolted to the entry side is always an entry, and it can simply say so.
+   *
+   * `null` ⇒ the old behaviour, and it stays supported: a single-screen door has no side to declare,
+   * and every device paired before this field existed reads as null rather than as a wrong guess.
+   */
+  readonly side?: CheckInDirection | null
   /** Last time the device called us at all — the panel's "is it alive" answer. */
   readonly lastSeenAt: Instant | null
   readonly createdAt: Instant

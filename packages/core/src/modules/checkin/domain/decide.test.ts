@@ -184,6 +184,59 @@ describe('decideRedeemTurnstileCode', () => {
     if (r.ok) expect(r.value.direction).toBe('in')
   })
 
+  // ── The screen's declared side (owner, 2026-08-26) ──────────────────────────────────────
+  //
+  // Two screens, one each side of the arm. The side is not a guess about the member, it is a fact
+  // about where the box is bolted — and it is the whole reason mandatory exit-scanning gives
+  // certain occupancy rather than a plausible number.
+  it('an EXIT screen records an exit, even for a member we believe is outside', () => {
+    // The case that used to go wrong: presence had drifted (she left without scanning yesterday),
+    // so the inference said "she must be coming in" and recorded the opposite of what happened.
+    const r = decideRedeemTurnstileCode(ctx, {
+      code: code(),
+      device: device({ side: 'out' }),
+      reportedDirection: null,
+      presence: null,
+    })
+    expect(r.ok).toBe(true)
+    if (r.ok) expect(r.value.direction).toBe('out')
+  })
+
+  it('an ENTRY screen records an entry, even for a member we believe is inside', () => {
+    const r = decideRedeemTurnstileCode(ctx, {
+      code: code(),
+      device: device({ side: 'in' }),
+      reportedDirection: null,
+      presence: inside,
+    })
+    expect(r.ok).toBe(true)
+    if (r.ok) expect(r.value.direction).toBe('in')
+  })
+
+  it('the ARM still outranks the screen — what the door did beats where the box is', () => {
+    const r = decideRedeemTurnstileCode(ctx, {
+      code: code(),
+      device: device({ side: 'in' }),
+      reportedDirection: 'out',
+      presence: null,
+    })
+    expect(r.ok).toBe(true)
+    if (r.ok) expect(r.value.direction).toBe('out')
+  })
+
+  it('a device with NO side declared behaves exactly as before', () => {
+    // Every door paired before this field existed. Absence must read as "no side to declare",
+    // never as a side of its own.
+    const r = decideRedeemTurnstileCode(ctx, {
+      code: code(),
+      device: device({ side: null }),
+      reportedDirection: null,
+      presence: inside,
+    })
+    expect(r.ok).toBe(true)
+    if (r.ok) expect(r.value.direction).toBe('out')
+  })
+
   it('REFUSES an expired code — the whole point of a public screen', () => {
     const late = { ...ctx, now: instant(NOW + 60_001) }
     const r = decideRedeemTurnstileCode(late, { code: code(), device: device(), reportedDirection: null, presence: null })
