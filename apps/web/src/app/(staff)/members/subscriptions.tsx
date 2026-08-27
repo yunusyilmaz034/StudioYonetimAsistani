@@ -31,6 +31,7 @@ import { createPackagePaymentAction } from '@/server/actions/payments'
 import { collectAction, listDrawersAction } from '@/server/actions/finance'
 import {
   adjustSubscriptionCreditsAction,
+  adjustSubscriptionEntriesAction,
   amendSubscriptionAction,
   correctDiscountAction,
   discountSaleAction,
@@ -1554,12 +1555,13 @@ function ContentDialog({ items, onClose, onDone }: { items: readonly Subscriptio
       ops.push(
         s.type === 'credit'
           ? adjustSubscriptionCreditsAction({ entitlementId: s.id, delta: target - current, note: reason.trim() })
-          : // Kutu KALAN sordu; saklanan alan TOPLAM. Kullanılmışları geri ekliyoruz, yoksa hak
-            // sessizce kullanılmış giriş sayısı kadar eksilirdi.
-            amendSubscriptionAction({
+          : // GİRİŞ: paketin hakkına DEĞİL, kullanıma dokunuyoruz. Hak ürünün verdiği sayıdır
+            // (8'lik paket 8'liktir); "kalan 5 olsun" demek kullanımın düzeltilmesi demek. İlk
+            // düzeltmede hakkı oynatmıştık — sayı doğru çıkıyordu ama paket 7'lik görünüyordu.
+            adjustSubscriptionEntriesAction({
               entitlementId: s.id,
-              entryAllowance: s.entriesUsed + target,
-              reason: reason.trim(),
+              targetRemaining: target,
+              note: reason.trim(),
             }),
       )
     }

@@ -53,7 +53,7 @@ export {
   type LedgerOutcome,
 } from './domain/decide'
 export { purchaseEntitlement, type PurchaseEntitlementInput } from './application/purchase'
-export { adjustCredits, type AdjustCreditsInput } from './application/adjust'
+export { adjustCredits, adjustEntries, type AdjustCreditsInput, type AdjustEntriesInput } from './application/adjust'
 export {
   assignSubscription,
   amendEntitlement,

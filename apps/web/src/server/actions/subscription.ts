@@ -10,6 +10,7 @@ import {
   localDateAt,
   unfreezeEntitlement,
   adjustCredits,
+  adjustEntries,
   amendEntitlement,
   assignSubscription,
   available,
@@ -607,6 +608,28 @@ export async function adjustSubscriptionCreditsAction(input: unknown) {
         entitlementId: p.entitlementId as EntitlementId,
         delta: p.delta,
         reason: 'correction',
+        note: p.note?.trim() || 'Düzeltme',
+      }),
+  )
+}
+
+export async function adjustSubscriptionEntriesAction(input: unknown) {
+  const p = z
+    .object({ entitlementId: nonEmpty, targetRemaining: z.number().int().min(0), note: z.string().optional() })
+    .parse(input)
+  const ctx = await requireTenantContext(OPS)
+  // Kredi düzeltmesiyle aynı gerekçe: elle oynatılmış bir sayı, üyenin fark edebileceği ve hiçbir
+  // aritmetiğin yeniden türetemeyeceği türden. Hedef ve paket loglanır; not loglanmaz (serbest metin,
+  // PII'nin saklandığı yer).
+  return observed(
+    'entitlement.adjust_entries',
+    ctx,
+    undefined,
+    { entitlementId: p.entitlementId, targetRemaining: p.targetRemaining },
+    () =>
+      adjustEntries(entDeps(), ctx, {
+        entitlementId: p.entitlementId as EntitlementId,
+        targetRemaining: p.targetRemaining,
         note: p.note?.trim() || 'Düzeltme',
       }),
   )

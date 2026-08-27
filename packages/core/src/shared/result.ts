@@ -43,6 +43,11 @@ export type DomainError =
   // REFUSED, not repeated.
   | { readonly code: 'operation_already_applied' }
   | { readonly code: 'operation_not_applicable' }
+  // Giriş sayacında KALANI AZALTMA isteği. Azaltmak "kaydedilmemiş ziyaretler oldu" demektir ve
+  // `entitlement.entry_consumed` her tüketimin hangi check-in'e ait olduğunu ZORUNLU tutar. Doğru
+  // yol eksik ziyareti check-in olarak kaydetmek; sayacı sessizce aşağı çekmek, o ziyaretleri
+  // kimsenin göremeyeceği bir yere gömer.
+  | { readonly code: 'entry_decrease_needs_checkin' }
   | { readonly code: 'not_a_credit_entitlement' }
   | { readonly code: 'no_held_credit' }
   | { readonly code: 'invalid_adjustment' }
