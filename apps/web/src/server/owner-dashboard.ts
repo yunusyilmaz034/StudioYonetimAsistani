@@ -20,6 +20,7 @@ import {
   type Entitlement,
   type LocalDate,
   type TenantContext,
+  loadExcludedMemberIds,
 } from '@studio/core'
 
 import { adminDb } from './firebase-admin'
@@ -197,16 +198,19 @@ export async function loadOwnerDashboard(
   const sched = new FirestoreSchedulingRepository(db)
 
   // ── one projection read + five bounded state queries + the feed, all at once ──
+  let members
+  let entitlements
+  let openSales
   const [
     daily,
-    members,
-    entitlements,
+    members_,
+    entitlements_,
     sessions7d,
     waiting,
     settings,
     calendar,
     closures,
-    openSales,
+    openSales_,
     drawers,
     feed,
     collections,
@@ -231,6 +235,25 @@ export async function loadOwnerDashboard(
       loadFeed(ctx, { kinds: FEED_KINDS }),
       new FirestorePaytrCollectionRepository(db).listUnreconciled(ctx), // PF-37
     ])
+
+  // TEST HESAPLARI PANODA DA GÖRÜNMEZ (owner, 2026-08-27).
+  //
+  // `settings/projection.excludedMemberIds` bugüne kadar YALNIZCA günlük projeksiyonda okunuyordu:
+  // stüdyonun kendi denemeleri rakamlara girmiyordu ama "Bugün ilgilenmen gerekenler" listesinde
+  // duruyordu — owner her sabah kendi test hesabının açık bakiyesini iş olarak görüyordu.
+  //
+  // Aynı liste, aynı anlam: olay silinmez, okuma modeli saymaz. Filtre burada, çünkü panonun her
+  // türev listesi (bitmek üzere, düşük kredi, açık bakiye, uykuda, kredisi tükenmiş) bu iki
+  // diziden doğuyor — tek yerde kesince hepsi birden temizleniyor.
+  members = members_
+  entitlements = entitlements_
+  openSales = openSales_
+  const excluded = await loadExcludedMemberIds(db, ctx.studioId)
+  if (excluded.size > 0) {
+    members = members.filter((m) => !excluded.has(m.id as string))
+    entitlements = entitlements.filter((e) => !excluded.has(e.memberId as string))
+    openSales = openSales.filter((s) => !excluded.has(s.memberId as string))
+  }
 
   const today = daily ?? emptyDaily(date)
   const names = new Map(members.map((m) => [m.id as string, m.fullName]))

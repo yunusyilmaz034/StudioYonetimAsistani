@@ -1,4 +1,4 @@
-import type { TenantContext } from '@studio/core'
+import { loadExcludedMemberIds, type TenantContext } from '@studio/core'
 
 import { formatKurus } from '@/lib/payroll-labels'
 
@@ -61,18 +61,24 @@ export async function onlinePaymentAdvisorItems(ctx: TenantContext): Promise<rea
     .filter((r) => r.amountKurus > 0)
     .sort((a, b) => b.receivedAtMs - a.receivedAtMs)
 
-  if (rows.length === 0) return []
+  // Stüdyonun kendi test hesabının kart ödemesi burada iş olarak görünmez (owner, 2026-08-27):
+  // *"paket aldı etti kasaya yansımasın, bu tamamen demo."* Aynı liste, aynı anlam — olay silinmez,
+  // okuma modeli saymaz.
+  const excluded = await loadExcludedMemberIds(adminDb(), ctx.studioId)
+  const visible = excluded.size === 0 ? rows : rows.filter((r) => !excluded.has(r.memberId))
+
+  if (visible.length === 0) return []
 
   // Two batched reads: the members' names and the intents' origins. Both by id, both bounded by the
   // number of card payments the studio took today — a handful.
-  const memberIds = [...new Set(rows.map((r) => r.memberId).filter(Boolean))]
+  const memberIds = [...new Set(visible.map((r) => r.memberId).filter(Boolean))]
   const names = await getAllById(ctx, 'members', memberIds, (d) => String(d.get('fullName') ?? ''))
-  const intentIds = rows.map((r) => r.paymentId.replace(/^pay_/, 'pin_'))
+  const intentIds = visible.map((r) => r.paymentId.replace(/^pay_/, 'pin_'))
   const intents = await getAllById(ctx, 'paymentIntents', intentIds, (d) => d.data() as Record<string, unknown>)
 
-  const total = rows.reduce((s, r) => s + r.amountKurus, 0)
+  const total = visible.reduce((s, r) => s + r.amountKurus, 0)
 
-  return rows.map((r, i) => {
+  return visible.map((r, i) => {
     const name = names.get(r.memberId) || 'Bilinmeyen üye'
     const time = new Date(r.receivedAtMs + 3 * 3_600_000).toISOString().slice(11, 16)
     const intent = intents.get(r.paymentId.replace(/^pay_/, 'pin_'))
@@ -90,7 +96,7 @@ export async function onlinePaymentAdvisorItems(ctx: TenantContext): Promise<rea
         (what ? ` · ${what}` : '') +
         '. Para banka hesabına geçer, kasaya girmez.' +
         // The single-row case has no group header to carry the day's total, so the first row does.
-        (i === 0 && rows.length > 1 ? ` Bugün karttan toplam ${formatKurus(total)}.` : ''),
+        (i === 0 && visible.length > 1 ? ` Bugün karttan toplam ${formatKurus(total)}.` : ''),
       href: r.memberId ? `/members/${r.memberId}` : '/finance',
       actionLabel: r.memberId ? 'Üyeyi aç' : 'Kasayı aç',
     }

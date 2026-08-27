@@ -23,14 +23,39 @@ import { space, usePalette } from '@/theme'
 // callback, which is the only thing that can be trusted — a card can still decline after the browser
 // has moved on. That is why the wording is "alındı, tanımlanacak" and not "tanımlandı".
 
+// HOST'A BAKAR, METNE DEĞİL (2026-08-27).
+//
+// Bu fonksiyon eskiden ham URL içinde `/portal` arıyordu — bizim üye portalımızın dönüş adresi için.
+// Sonra stüdyo TAMI'ye geçti ve TAMI'nin ödeme sayfası `https://portal.tami.com.tr/...` adresinde
+// yaşıyor. `//portal.tami.com.tr` içinde `/portal` geçtiği için WebView sayfayı AÇAR AÇMAZ ekran
+// "Ödemen alındı 🌸" diyordu: kart girilmeden, hiçbir şey olmadan.
+//
+// Bir alt dizgi eşleşmesi, alan adı denetimi değildir. Artık URL ayrıştırılıyor ve karar HOST'a
+// bakıyor; sağlayıcının kendi sayfası asla bizim onayımız olamaz.
 function outcomeFor(rawUrl: string): 'ok' | 'fail' | null {
-  const u = rawUrl.toLowerCase()
-  // Ours first — the iframe flow returns to these.
-  if (u.includes('/payments/return') || u.includes('?ok') || u.includes('/portal')) return 'ok'
-  if (u.includes('?fail') || u.includes('/payments/fail')) return 'fail'
-  // PAYTR's own terminal pages (link flow). `basarili`/`success` and their failure twins.
-  if (u.includes('paytr.com') && (u.includes('basarili') || u.includes('success') || u.includes('odeme-basarili'))) return 'ok'
-  if (u.includes('paytr.com') && (u.includes('basarisiz') || u.includes('fail') || u.includes('hata'))) return 'fail'
+  let u: URL
+  try {
+    u = new URL(rawUrl)
+  } catch {
+    return null // ayrıştırılamayan bir adres hakkında hiçbir şey iddia etmeyiz
+  }
+  const host = u.hostname.toLowerCase()
+  const path = u.pathname.toLowerCase()
+
+  // TAMI kendi sayfasında kalıyor ve başarısızlıkta yönlendirmiyor. Başarıda BİZİM okUrl'imize
+  // dönüyor — yani sonu aşağıdaki "bizimki" dalı söyler, bu host asla bir hüküm vermez.
+  if (host === 'tami.com.tr' || host.endsWith('.tami.com.tr')) return null
+
+  // PAYTR'nin link akışı kendi bitiş sayfasında duruyor; onlar gerçek birer sonuç.
+  if (host === 'paytr.com' || host.endsWith('.paytr.com')) {
+    if (path.includes('basarili') || path.includes('success') || path.includes('odeme-basarili')) return 'ok'
+    if (path.includes('basarisiz') || path.includes('fail') || path.includes('hata')) return 'fail'
+    return null
+  }
+
+  // Bizim adreslerimiz.
+  if (path.startsWith('/payments/fail') || u.searchParams.has('fail')) return 'fail'
+  if (path.startsWith('/payments/return') || path.startsWith('/portal') || u.searchParams.has('ok')) return 'ok'
   return null
 }
 
