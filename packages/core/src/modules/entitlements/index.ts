@@ -39,6 +39,7 @@ export {
   decideRefundCancellation,
   decideConsumeEntry,
   decideRestoreEntry,
+  decideRevokeEntry,
   decideConsume,
   decideExpire,
   decideExtend,

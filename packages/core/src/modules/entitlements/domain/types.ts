@@ -105,11 +105,18 @@ export function cancellationsUsed(l: CancellationLedger): number {
 //    gave back. Net = consumed − refunded, rebuildable from the log. The MAX (entryAllowance) is NOT
 //    stored here — it lives on the product snapshot, so a later edit never rewrites the entitlement.
 export type EntryLedger = {
-  readonly consumed: number
-  readonly restored: number
+  readonly consumed: number // a DOOR took it — a visit happened
+  readonly restored: number // given back (a mistaken check-in, or a desk correction)
+  // An admin took one away — NEVER `consumed` (2026-08-27). The credit ledger has had this
+  // separation since the beginning and the rule is written down: *"consumed means a class took
+  // it."* The entry meter simply never got the bucket, so "set her remaining to 5" had nowhere
+  // honest to go: writing it as `consumed` would invent a visit nobody made, and the only
+  // alternative was to resize the package. Optional so that every document written before today
+  // reads back unchanged.
+  readonly revoked?: number
 }
 export function entriesUsed(l: EntryLedger): number {
-  return l.consumed - l.restored
+  return l.consumed + (l.revoked ?? 0) - l.restored
 }
 
 // Freeze is modelled here so the aggregate shape is stable and I-8 holds, but the

@@ -67,6 +67,10 @@ export const ENTITLEMENT_CANCELLATION_REFUNDED = 'entitlement.cancellation_refun
 // v1.27 — fitness serbest-giriş cap. A door check-in spends an entry; a correction gives one back.
 export const ENTITLEMENT_ENTRY_CONSUMED = 'entitlement.entry_consumed'
 export const ENTITLEMENT_ENTRY_RESTORED = 'entitlement.entry_restored'
+// An admin took an entry away. A SEPARATE type from `entry_consumed`, deliberately: consumed means a
+// door took it, and the difference is the whole reason the studio can still answer "how many times
+// did she actually come?" after a correction (2026-08-27).
+export const ENTITLEMENT_ENTRY_REVOKED = 'entitlement.entry_revoked'
 
 export type EntitlementPurchasedPayload = {
   readonly productId: ProductId
@@ -104,6 +108,11 @@ export type EntryConsumedPayload = {
 export type EntryRestoredPayload = {
   readonly checkInId: string | null
   readonly reason: string // mandatory (#9) — a correction always carries why
+  readonly entriesUsedAfter: number
+}
+
+export type EntryRevokedPayload = {
+  readonly reason: string // mandatory (#9) — a hand-moved number always carries why
   readonly entriesUsedAfter: number
 }
 

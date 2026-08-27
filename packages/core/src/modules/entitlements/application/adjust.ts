@@ -1,5 +1,5 @@
 import type { DomainError, EntitlementId, Result, TenantContext } from '../../../shared'
-import { decideAdjust, decideRestoreEntry } from '../domain/decide'
+import { decideAdjust, decideRestoreEntry, decideRevokeEntry } from '../domain/decide'
 import { entriesUsed, type AdjustmentReason } from '../domain/types'
 import { decideContext, loadEntitlement } from './context'
 import type { EntitlementsDeps } from './ports'
@@ -45,11 +45,11 @@ export interface AdjustEntriesInput {
  * Kredi tarafı bunu zaten böyle yapıyor: `granted` sabit kalır, defter hareket eder. Bu, giriş
  * tarafının aynısı.
  *
- * TEK YÖN, BİLEREK. Kalanı ARTIRMAK bir geri verme (`entitlement.entry_restored`) — olayı zaten
- * `checkInId: null` kabul ediyor, yani "hangi ziyaret" sorusunun cevapsız olması meşru. Kalanı
- * AZALTMAK ise "kaydedilmemiş ziyaretler oldu" demek; `entitlement.entry_consumed` bir `checkInId`
- * ZORUNLU tutuyor ve onu gevşetmek kalıcı bir olay şeması kararı. O yüzden azaltma burada
- * reddediliyor: doğru yol eksik check-in'i kaydetmek.
+ * İKİ YÖN, AMA AYRI KUTULAR. Artırmak bir geri verme (`entry_restored`), azaltmak bir geri alma
+ * (`entry_revoked`). Azaltmayı `consumed`'a yazmak, olmamış bir ziyareti geçmişine koymak olurdu —
+ * ve stüdyo o geçmişi kâğıt föyle karşılaştırıyor, yani yalan bulunur ve inanılır. Kredi defteri bu
+ * ayrımı ilk günden yapıyor: *"consumed demek bir ders onu aldı demek."* Giriş defterine bu kutu
+ * bugüne kadar hiç açılmamıştı; ilk denemede azaltmayı reddetmem de onun eksikliğindendi.
  */
 export async function adjustEntries(
   deps: EntitlementsDeps,
@@ -64,14 +64,16 @@ export async function adjustEntries(
   }
 
   const remainingOf = (e: typeof ent): number => Math.max(0, allowance - entriesUsed(e.entryLedger))
-  const missing = input.targetRemaining - remainingOf(ent)
-  if (missing === 0) return { ok: true, value: { remaining: remainingOf(ent) } }
-  if (missing < 0) return { ok: false, error: { code: 'entry_decrease_needs_checkin' } }
+  const delta = input.targetRemaining - remainingOf(ent)
+  if (delta === 0) return { ok: true, value: { remaining: remainingOf(ent) } }
 
-  // Tek tek, çünkü her geri verme kendi olayını yazıyor: "üç giriş iade edildi" diye tek bir olay
-  // yok, üç iade var — ve defterde hangisinin ne zaman yapıldığı ayrı ayrı duruyor.
-  for (let i = 0; i < missing; i++) {
-    const outcome = decideRestoreEntry(decideContext(deps, ctx), ent, null, input.note)
+  // Tek tek, çünkü her hareket kendi olayını yazıyor: "üç giriş iade edildi" diye tek bir olay yok,
+  // üç iade var — defterde hangisinin ne zaman yapıldığı ayrı ayrı duruyor.
+  for (let i = 0; i < Math.abs(delta); i++) {
+    const outcome =
+      delta > 0
+        ? decideRestoreEntry(decideContext(deps, ctx), ent, null, input.note)
+        : decideRevokeEntry(decideContext(deps, ctx), ent, input.note)
     if (!outcome.ok) return outcome
     await deps.repo.saveEntitlement(ctx, outcome.value.next, outcome.value.events)
     ent = outcome.value.next

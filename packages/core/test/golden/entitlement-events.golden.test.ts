@@ -8,6 +8,7 @@ import {
   decideConsume,
   decideConsumeEntry,
   decideRestoreEntry,
+  decideRevokeEntry,
   decideExpire,
   decideHold,
   decidePurchase,
@@ -47,6 +48,7 @@ import cancellationCharged from './entitlement.cancellation_charged.v1.json'
 import cancellationRefunded from './entitlement.cancellation_refunded.v1.json'
 import entryConsumed from './entitlement.entry_consumed.v1.json'
 import entryRestored from './entitlement.entry_restored.v1.json'
+import entryRevoked from './entitlement.entry_revoked.v1.json'
 
 const ctx: DecideContext = {
   studioId: 'std_1' as StudioId,
@@ -155,5 +157,11 @@ describe('entitlement event payloads match golden fixtures (AD-33)', () => {
   it('entitlement.entry_restored', () => {
     const used: Entitlement = { ...ent(), productSnapshot: { ...ent().productSnapshot, category: 'fitness', entryAllowance: 4 }, entryLedger: { consumed: 1, restored: 0 } }
     expect(okEvents(decideRestoreEntry(ctx, used, 'chk_1', 'correction'))[0]?.payload).toEqual(entryRestored)
+  })
+  it('entitlement.entry_revoked', () => {
+    // Carries NO checkInId, and that absence is the point: an admin take-back is not a visit, and the
+    // payload must not leave room to read it as one.
+    const used: Entitlement = { ...ent(), productSnapshot: { ...ent().productSnapshot, category: 'fitness', entryAllowance: 4 }, entryLedger: { consumed: 1, restored: 0 } }
+    expect(okEvents(decideRevokeEntry(ctx, used, 'correction'))[0]?.payload).toEqual(entryRevoked)
   })
 })

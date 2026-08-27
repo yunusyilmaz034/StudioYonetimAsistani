@@ -31,6 +31,7 @@ import {
   ENTITLEMENT_CANCELLED,
   ENTITLEMENT_ENTRY_CONSUMED,
   ENTITLEMENT_ENTRY_RESTORED,
+  ENTITLEMENT_ENTRY_REVOKED,
   ENTITLEMENT_CREDIT_CONSUMED,
   ENTITLEMENT_CREDIT_HELD,
   ENTITLEMENT_CREDIT_RELEASED,
@@ -194,6 +195,42 @@ export function decideRestoreEntry(
         ...base(ctx, next, { memberId: next.memberId, entitlementId: next.id, ...(checkInId ? { checkInId } : {}) }),
         type: ENTITLEMENT_ENTRY_RESTORED,
         payload: { checkInId, reason, entriesUsedAfter: entriesUsed(ledger) },
+      },
+    ],
+  })
+}
+
+/**
+ * An admin takes an entry away — into `revoked`, never `consumed` (2026-08-27).
+ *
+ * The mirror of `decideRestoreEntry`, and the reason the desk can now set the remaining in both
+ * directions without anybody lying. Writing this as a consumption would put a visit in her history
+ * that never happened; the studio compares that history against a paper sheet, so the lie would be
+ * found and believed.
+ *
+ * Refuses to take away more than she has left, for the same reason the credit side does: a negative
+ * remainder is not a number anybody can act on. (AD-39: refused, never clamped.)
+ */
+export function decideRevokeEntry(
+  ctx: DecideContext,
+  ent: Entitlement,
+  reason: string,
+): Result<LedgerOutcome, DomainError> {
+  if (reason.trim() === '') return err({ code: 'reason_required' })
+  if (ent.status !== 'active') return err({ code: 'entitlement_not_active' })
+  const allowance = ent.productSnapshot.entryAllowance
+  if (allowance == null) return err({ code: 'operation_not_applicable' })
+  const kalan = allowance - entriesUsed(ent.entryLedger)
+  if (kalan <= 0) return err({ code: 'insufficient_credits', available: Math.max(0, kalan) })
+  const ledger: EntryLedger = { ...ent.entryLedger, revoked: (ent.entryLedger.revoked ?? 0) + 1 }
+  const next = withEntries(ent, ledger)
+  return ok({
+    next,
+    events: [
+      {
+        ...base(ctx, next, { memberId: next.memberId, entitlementId: next.id }),
+        type: ENTITLEMENT_ENTRY_REVOKED,
+        payload: { reason, entriesUsedAfter: entriesUsed(ledger) },
       },
     ],
   })

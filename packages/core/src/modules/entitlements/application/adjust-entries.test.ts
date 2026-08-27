@@ -91,13 +91,25 @@ describe('adjustEntries — the package keeps its size, the meter moves', () => 
     expect(saved).toHaveLength(0)
   })
 
-  it('REFUSES to lower the remainder — that means visits nobody recorded', async () => {
-    // Lowering is not symmetric with raising: `entitlement.entry_consumed` requires the checkInId of
-    // the visit that spent it. Quietly decrementing would bury real visits where nobody can see them.
-    const { deps, saved } = fakeDeps(entitlement(8, 5))
-    const r = await adjustEntries(deps, CTX, { entitlementId: ENT, targetRemaining: 1, note: 'Düzeltme' })
-    expect(r.ok).toBe(false)
-    if (!r.ok) expect(r.error.code).toBe('entry_decrease_needs_checkin')
+  it('lowers the remainder into REVOKED, never into consumed', async () => {
+    // The distinction the whole ledger rests on: `consumed` means a door took it. An admin taking one
+    // away is a different fact, and keeping them apart is what lets the studio still answer "how many
+    // times did she actually come?" after a correction. The credit ledger has always done this; the
+    // entry meter had no such bucket until the desk needed to lower a number and there was nowhere
+    // honest to put it.
+    const { deps, now } = fakeDeps(entitlement(8, 2))
+    const r = await adjustEntries(deps, CTX, { entitlementId: ENT, targetRemaining: 5, note: 'Düzeltme' })
+    expect(r.ok).toBe(true)
+    if (r.ok) expect(r.value.remaining).toBe(5)
+    expect(now().entryLedger.consumed).toBe(2) // the two real visits are untouched
+    expect(now().entryLedger.revoked).toBe(1)
+    expect(now().productSnapshot.entryAllowance).toBe(8)
+  })
+
+  it('refuses to take away more than she has left — never a negative remainder', async () => {
+    const { deps, saved } = fakeDeps(entitlement(8, 8))
+    const r = await adjustEntries(deps, CTX, { entitlementId: ENT, targetRemaining: 0, note: 'Düzeltme' })
+    expect(r.ok).toBe(true) // already 0 left — nothing to do
     expect(saved).toHaveLength(0)
   })
 
