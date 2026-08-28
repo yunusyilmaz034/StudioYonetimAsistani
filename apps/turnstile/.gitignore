@@ -1,4 +1,5 @@
 # Sırlar ve ağ bilgileri asla depoya girmez. Bu dosya olmadan firmware DERLENMEZ — sessizce
 # varsayılana düşüp yanlış bir ağa ya da yanlış cihaza bağlanmasındansa hata vermesi iyidir.
 src/secrets.h
+src/secrets_cikis.h
 .pio/

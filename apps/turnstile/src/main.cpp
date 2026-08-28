@@ -18,7 +18,13 @@
 #include <WiFi.h>
 #include <qrcode.h>
 
-#include "secrets.h"
+// HANGİ KUTUYU DERLİYORUZ (2026-08-28). İki fiziksel cihaz var — giriş ve çıkış — ve her birinin
+// kendi kimliği, anahtarı ve röle kanalı var. Dosya adı derleme bayrağından geliyor; `platformio.ini`
+// içindeki ortam seçimi (`-e giris` / `-e cikis`) hangi kutuya yazdığını tek yerde belirliyor.
+#ifndef SECRETS_FILE
+#define SECRETS_FILE "secrets.h"
+#endif
+#include SECRETS_FILE
 
 static const int PIN_SCK = 12;
 static const int PIN_MOSI = 11;
@@ -26,8 +32,18 @@ static const int PIN_DC = 13;
 static const int PIN_RST = 8;
 static const int PIN_CS = 10;
 static const int PIN_LED = 18;
-static const int PIN_ROLE_GIRIS = 5;   // In1 — besleme çözülünce buraya dönülecek
-static const int PIN_ROLE_CIKIS = 4;   // In2
+// HER KUTU KENDİ KANALINI SÜRER (2026-08-28).
+//
+// Turnikenin iki kuru kontak girişi var: biri "giriş yönünde aç", biri "çıkış yönünde aç". Her
+// tarafta ayrı bir kutu duruyor ve her kutu YALNIZCA kendi kanalını tetikliyor — giriş ekranından
+// okutan biri çıkış kolunu döndüremesin diye.
+//
+// Hangi kanal olduğu `secrets.h`'den geliyor, çünkü orası zaten cihaza özel dosya: kimlik, anahtar
+// ve taraf aynı yerde durur. Tanımlanmamışsa 5 (In1) — ilk kutunun davranışı hiç değişmesin.
+#ifndef RELAY_PIN
+#define RELAY_PIN 5
+#endif
+static const int PIN_ROLE = RELAY_PIN;
 
 // Turnike kendi süresini sayıyor (F01), bize sadece tetiklemek düşüyor.
 static const uint32_t DARBE_MS = 300;
@@ -137,9 +153,8 @@ void setup() {
   delay(300);
   Serial.println("\n[turnike] aciliyor");
 
-  // Röleler ÖNCE serbest bırakılıyor: açılışta bir anlık tetik, kapıyı kimse okutmadan açardı.
-  pinMode(PIN_ROLE_GIRIS, INPUT);
-  pinMode(PIN_ROLE_CIKIS, INPUT);
+  // Röle ÖNCE serbest bırakılıyor: açılışta bir anlık tetik, kapıyı kimse okutmadan açardı.
+  pinMode(PIN_ROLE, INPUT);
 
   pinMode(PIN_LED, OUTPUT);
   digitalWrite(PIN_LED, HIGH);
@@ -165,7 +180,7 @@ void loop() {
       Serial.printf("[turnike] GECIS: %s\n", ad.c_str());
 
       // Önce kol, sonra ekran: üye kolun döndüğünü görmeden yazıyı okumaz.
-      darbe(PIN_ROLE_GIRIS);
+      darbe(PIN_ROLE);
 
       tft.fillScreen(ILI9341_BLACK);
       tft.setTextColor(ILI9341_GREEN);

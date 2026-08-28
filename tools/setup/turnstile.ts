@@ -1,4 +1,4 @@
-// `pnpm setup:turnstile <studioId> <branchId> "<name>"` — pair a turnstile with the studio.
+// `pnpm setup:turnstile <studioId> <branchId> "<name>" <in|out>` — pair a turnstile with the studio.
 //
 // Mints the device's id and secret and prints the secret ONCE. Only the SHA-256 hash is stored: a
 // door key readable from the database is a key that everyone who can read the database also has, and
@@ -23,6 +23,21 @@ if (!process.env.FIRESTORE_EMULATOR_HOST && !process.env.ALLOW_PRODUCTION) {
 const STUDIO = (process.argv[2] ?? 'retro') as StudioId
 const BRANCH = process.argv[3] ?? 'mutlukent'
 const NAME = process.argv[4] ?? 'Turnike'
+// WHICH SIDE OF THE DOOR THIS BOX IS ON (2026-08-28).
+//
+// Without it the server infers the direction from presence — "is she inside?" — and a member who
+// forgets her phone inside flips the occupancy count for everyone after her. With two boxes, one per
+// side, the door can simply SAY what it did, and inference stops being needed.
+//
+// Required rather than defaulted: a second device silently registered without a side is exactly the
+// bug this field exists to remove, and it would not show up until the counts drifted.
+const SIDE = process.argv[5]
+if (SIDE !== 'in' && SIDE !== 'out') {
+  console.error('\nKullanım: pnpm setup:turnstile <studioId> <branchId> "<ad>" <in|out>')
+  console.error('  in  = giriş tarafındaki ekran')
+  console.error('  out = çıkış tarafındaki ekran\n')
+  process.exit(1)
+}
 
 async function main(): Promise<void> {
   initializeApp({ projectId: PROJECT })
@@ -36,13 +51,14 @@ async function main(): Promise<void> {
     studioId: STUDIO,
     branchId: BRANCH,
     name: NAME,
+    side: SIDE,
     secretHash,
     active: true,
     lastSeenAt: null,
     createdAt: Timestamp.now(),
   })
 
-  console.log(`\n✅ Turnike kaydedildi: ${NAME}`)
+  console.log(`\n✅ Turnike kaydedildi: ${NAME} (${SIDE === 'in' ? 'giriş' : 'çıkış'} tarafı)`)
   console.log(`\n   Cihaz kimliği : ${deviceId}`)
   console.log(`   Gizli anahtar : ${secret}`)
   console.log(`\n   Cihazın Authorization başlığı:`)
