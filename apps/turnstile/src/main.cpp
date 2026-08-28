@@ -40,6 +40,17 @@ static const int PIN_LED = 18;
 static const int PIN_ROLE_GIRIS = 5;   // In1
 static const int PIN_ROLE_CIKIS = 4;   // In2
 
+// BUZZER — üye ekrana değil, kola bakar (2026-08-28).
+//
+// Okuttuktan sonra kimse ekranı okumuyor; kolun dönmesini bekliyor. Ses, ekranın yapamadığı işi
+// yapıyor — özellikle "okundu ama geçemedi" hâlinde, ki orada üye ne olduğunu hiç anlamıyor.
+//
+// AKTİF buzzer, doğrudan GPIO'dan sürülüyor: 5V'luk bir buzzer 3.3V'ta daha kısık öter ama öter, ve
+// araya transistör koymak parça beklemek demekti. Bu yüzden bipler KISA — sürekli sürüş pinin rahat
+// akım sınırını zorlar, 120 ms zorlamaz. Ses yetersiz kalırsa çözüm NPN + 5V, kod değişmez.
+static const int PIN_BUZZER = 14;
+static const uint32_t BIP_MS = 120;
+
 // Turnike kendi süresini sayıyor (F01), bize sadece tetiklemek düşüyor.
 static const uint32_t DARBE_MS = 300;
 static const uint32_t SORGU_MS = 600;      // "kodum kullanıldı mı"
@@ -110,6 +121,16 @@ static void qrCiz(Kapi& k, const char* metin) {
   tft.println("okutun");
 }
 
+/** `adet` kısa bip. Sesin ANLAMI var: 1 = geçtin, 2 = olmadı, 3 = bağlantı yok. */
+static void bip(int adet) {
+  for (int i = 0; i < adet; i++) {
+    digitalWrite(PIN_BUZZER, HIGH);
+    delay(BIP_MS);
+    digitalWrite(PIN_BUZZER, LOW);
+    if (i + 1 < adet) delay(90);
+  }
+}
+
 static void darbe(int pin) {
   Serial.printf("[turnike] role darbesi: pin %d\n", pin);
   pinMode(pin, OUTPUT);
@@ -154,6 +175,7 @@ static void kodYenile(Kapi& k) {
     // düşündürür. Susmak yanıltmaktan iyidir.
     k.kod = "";
     mesaj(k, "Baglanti yok", "birazdan tekrar denenecek", ILI9341_RED);
+    bip(3);
     k.kodBitis = millis() + 5000;
   }
 }
@@ -168,6 +190,10 @@ void setup() {
 
   // Tek arka ışık pini iki ekranı da yakıyor: o bacak modüldeki transistörün bazını sürüyor, akımı
   // ekranın kendi VCC'sinden çekiyor. İki modül için bir GPIO fazlasıyla yeter.
+  // Buzzer önce SUSTURULUYOR: açılışta bir anlık yüksek, boş bir stüdyoda öten bir kutu demek.
+  pinMode(PIN_BUZZER, OUTPUT);
+  digitalWrite(PIN_BUZZER, LOW);
+
   pinMode(PIN_LED, OUTPUT);
   digitalWrite(PIN_LED, HIGH);
 
@@ -196,8 +222,10 @@ static void kapiTuru(Kapi& k) {
       const String ad = asciile(alanOku(c, "firstName"));
       Serial.printf("[turnike:%s] GECIS: %s\n", k.ad, ad.c_str());
 
-      // Önce kol, sonra ekran: üye kolun döndüğünü görmeden yazıyı okumaz.
+      // Önce kol, sonra ses, sonra ekran: üye önce kolun döndüğünü hisseder, sesi duyar, en son
+      // yazıya bakar — bakarsa.
       darbe(k.rolePin);
+      bip(1);
 
       Adafruit_ILI9341& tft = *k.tft;
       tft.fillScreen(ILI9341_BLACK);
