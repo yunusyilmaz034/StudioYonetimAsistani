@@ -34,7 +34,10 @@ static const int PIN_MOSI = 11;
 static const int PIN_DC = 13;
 static const int PIN_RST = 8;
 static const int PIN_CS_GIRIS = 10;  // giriş ekranının CS'i
-static const int PIN_CS_CIKIS = 9;   // çıkış ekranının CS'i — TEK farklı pin
+static const int PIN_CS_CIKIS = 9;   // çıkış ekranının CS'i — TEK farklı pin.
+                                     // 6 DEĞİL: iki kez denendi, 6'da yalnızca bir ekran açılıyor.
+                                     // 9'da ikisi birden çalıştı ve fotoğrafla kayıtlı. Sebebini
+                                     // bilmiyoruz; bildiğimiz şey hangisinin çalıştığı.
 static const int PIN_LED = 18;
 // Her ekran KENDİ röle kanalını sürer: giriş ekranından okutan biri çıkış kolunu döndüremesin.
 static const int PIN_ROLE_GIRIS = 5;   // In1
@@ -57,7 +60,16 @@ static const uint32_t SORGU_MS = 600;      // "kodum kullanıldı mı"
 static const uint32_t KARSILAMA_MS = 3000; // ekranda ismin kaldığı süre
 
 static Adafruit_ILI9341 tftGiris(PIN_CS_GIRIS, PIN_DC, PIN_RST);
-static Adafruit_ILI9341 tftCikis(PIN_CS_CIKIS, PIN_DC, PIN_RST);
+// İKİNCİ EKRAN RST'YE DOKUNMAZ (2026-08-28).
+//
+// `RESET` hattı iki panelde ORTAK. Kütüphanenin `begin()`'i o hattı darbeliyor, yani ikinci ekranın
+// başlatılması BİRİNCİ paneli sıfırlıyor — ve birinci bir daha ayarlanmadığı için ayarsız kalıyor.
+// Ayarsız bir ILI9341 beyaz görünür; biz onu günlerce "çizim yarıda kalıyor" diye okuduk, halbuki
+// panel hiç başlamamıştı.
+//
+// `-1` vererek ikinci nesneye "reset pini yok" diyoruz. Donanımsal sıfırlamayı birinci nesnenin
+// `begin()`'i zaten yapıyor ve o tek darbe iki paneli birden sıfırlıyor — hat ortak olduğu için.
+static Adafruit_ILI9341 tftCikis(PIN_CS_CIKIS, PIN_DC, -1);
 
 /** Bir kapı = bir ekran + bir kimlik + bir röle kanalı. İkisi de aynı döngüde yürüyor. */
 struct Kapi {
@@ -111,6 +123,30 @@ static void mesaj(Kapi& k, const char* a, const char* b, uint16_t renk) {
   if (b) { tft.setTextColor(ILI9341_WHITE); tft.setTextSize(1); tft.setCursor(12, 170); tft.println(b); }
 }
 
+#ifdef TESHIS
+/**
+ * EKRAN, LOGUN KENDİSİ (2026-08-28).
+ *
+ * Bu kart seri çıktı vermiyor — CDC_ON_BOOT, USB_MODE, DTR, hepsi denendi, 0 bayt. Logsuz arama
+ * bir gün yedi ve ikinci ekranda tekrar aynı yere geldik. Elimizde ekran varken körlemesine
+ * aramanın anlamı yok: QR yerine DURUMU basıyoruz.
+ *
+ * Sadece metin çiziyor — QR döngüsü hiç çalışmıyor. Metin görünürse çizim sağlam demektir ve suçlu
+ * QR yolu; metin de görünmezse çizimin kendisi iki kapıyla bozuluyor demektir. İki cevaptan biri.
+ */
+static void teshisCiz(Kapi& k, const char* kod) {
+  Adafruit_ILI9341& tft = *k.tft;
+  tft.fillScreen(ILI9341_BLACK);
+  tft.setTextColor(ILI9341_WHITE);
+  tft.setTextSize(2);
+  tft.setCursor(6, 20);   tft.println(k.ad);
+  tft.setCursor(6, 60);   tft.print("kod:"); tft.println(kod);
+  tft.setCursor(6, 100);  tft.print("wifi:"); tft.println(WiFi.status() == WL_CONNECTED ? "ok" : "yok");
+  tft.setCursor(6, 140);  tft.print("heap:"); tft.println((int)ESP.getFreeHeap());
+  tft.setCursor(6, 180);  tft.print("up:"); tft.println((int)(millis() / 1000));
+}
+#endif
+
 static void qrCiz(Kapi& k, const char* metin) {
   Adafruit_ILI9341& tft = *k.tft;
   QRCode qr;
@@ -119,10 +155,20 @@ static void qrCiz(Kapi& k, const char* metin) {
   const int modul = 240 / (qr.size + 8);
   const int kenar = (240 - qr.size * modul) / 2;
   const int ust = 30;
-  tft.fillScreen(ILI9341_WHITE);
+  // TEK İŞLEM, 450 DEĞİL (2026-08-28).
+  //
+  // Her `fillRect` kendi SPI işlemini açıp kapatıyordu; 21×21'lik bir QR'da bu ~450 kez demek.
+  // Tek ekranda yavaş ama görünmez; iki ekranda tur o kadar uzuyor ki ESP32'nin bekçi köpeği
+  // "bu görev takıldı" deyip kartı resetliyor — ekranda "ışık gelip gidiyor" diye görünen şey bu.
+  //
+  // `startWrite`/`endWrite` arasında `writeFillRect` işlemi bir kez açıyor: aynı çizim, tek işlem.
+  tft.startWrite();
+  tft.writeFillRect(0, 0, 240, 320, ILI9341_WHITE);
   for (uint8_t y = 0; y < qr.size; y++)
     for (uint8_t x = 0; x < qr.size; x++)
-      if (qrcode_getModule(&qr, x, y)) tft.fillRect(kenar + x * modul, ust + y * modul, modul, modul, ILI9341_BLACK);
+      if (qrcode_getModule(&qr, x, y))
+        tft.writeFillRect(kenar + x * modul, ust + y * modul, modul, modul, ILI9341_BLACK);
+  tft.endWrite();
   tft.setTextColor(ILI9341_BLACK);
   tft.setTextSize(2);
   tft.setCursor(45, ust + qr.size * modul + 18);
@@ -179,7 +225,11 @@ static void kodYenile(Kapi& k) {
     k.kod = kod;
     k.kodBitis = millis() + 25000;
     Serial.printf("[turnike:%s] kod: %s\n", k.ad, kod.c_str());
+#ifdef TESHIS
+    teshisCiz(k, kod.c_str());
+#else
     qrCiz(k, kod.c_str());
+#endif
   } else {
     // Süresi geçmiş bir QR, üyeyi çalışmayan bir şeye okutur ve hatanın kendisinde olduğunu
     // düşündürür. Susmak yanıltmaktan iyidir.
@@ -263,6 +313,9 @@ static void kapiTuru(Kapi& k) {
 }
 
 void loop() {
-  for (size_t i = 0; i < KAPI_SAYISI; i++) kapiTuru(kapilar[i]);
+  for (size_t i = 0; i < KAPI_SAYISI; i++) {
+    kapiTuru(kapilar[i]);
+    delay(1);  // iki kapı arasında nefes: uzun çizimden sonra görev sırasını bırak
+  }
   delay(SORGU_MS);
 }

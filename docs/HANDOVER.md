@@ -678,6 +678,30 @@ pass, or it puts the studio's own mail in spam.
   testers enrolled until it is approved**, because a rejection puts the fourteen-day counter back in
   play and a tester leaving resets it. What was answered is in the store section; if it comes back
   rejected, reapply from those answers rather than writing new ones that contradict them.
+- **The turnstile — STAGE 4 IS ELECTRICALLY DONE, THE MAPPING IS NOT (2026-08-29, 00:15).**
+  Two screens, two identities, one board: both draw, both mint their own codes, both `lastSeenAt`
+  are current, and a scan turns the arm. What is NOT settled after a night of re-wiring is **which
+  physical screen is which door**, and whether In1/In2 are the right way round.
+
+  Do not sort that out by swapping wires. `-D TESHIS` replaces the QR with a status block that
+  prints the door's own name (`giris` / `cikis`) plus code, wifi, heap and uptime — the screen tells
+  you what it is. Two minutes: read the names, mount each screen on the side it names, scan, listen
+  for which channel clicks, and if the channels are crossed it is one line in the firmware.
+
+  **The trap that ate the night: white is not a colour we draw.** An ILI9341 that never got its init
+  sequence shows white. I read "white" as "the drawing stopped half way" and spent hours in the
+  wiring, the backlight, continuity, and a second display. The panel had simply never been
+  initialised — because both screens shared `RESET`, and the second object's `begin()` pulsed that
+  line and left the first panel unconfigured. Giving the second instance `-1` for its reset pin fixed
+  it. `TESHIS` mode is what finally showed this, and it exists now because this board emits no serial
+  at all (0 bytes, on every combination of `CDC_ON_BOOT` / `USB_MODE` / DTR tried).
+
+  **Known defect, to fix with a test — not at midnight.** The code is consumed BEFORE the check-in is
+  decided, so when the check-in is refused (the 45 s debounce, say) the code is already spent, the
+  device sees `crossed`, the arm turns and the screen says "Hoş geldin" — while the member's app says
+  "geçersiz kod" and nothing is recorded. A door that opens without a record is how counts drift.
+  Consume-first exists to stop two phones redeeming one code; reordering must not reopen that race.
+
 - **The turnstile — STAGE 3 WORKS ON THE BENCH (2026-08-28).** Scan → server records the crossing →
   device asks "was my code used?" → relay pulses → greeting. The whole chain, end to end. Firmware
   in `apps/turnstile`; the pairing tool is `pnpm setup:turnstile`. Still to do: the second screen and
