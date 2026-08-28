@@ -109,6 +109,21 @@ export interface CheckInInput {
    */
   readonly direction?: CheckInDirection
   /**
+   * Yön BİLİNÇLİ olarak söylendi mi? (2026-08-29)
+   *
+   * `direction` üç işi birden yapıyordu: yönü belirlemek, `already_inside`/`already_outside`
+   * kontrolünü açmak, ve çift-okuma korumasını atlamak. Üçüncüsü yalnızca İSTEĞE ait: resepsiyonun
+   * "Çıkış" düğmesine basması ya da kolun kendi telinin bildirmesi bilinçli bir eylemdir, engellenmez.
+   *
+   * Ama ekranın TARAFI (`device.side`) bir istek değil, kutunun nerede durduğuna dair bir olgu. O da
+   * yönü belirlemeli — ama korumayı kaldırmamalı. İkisi tek alana binince şu oldu: korumayı
+   * çalıştırmak için turnike yönü hiç geçirmez oldu, ve `device.side` sessizce devre dışı kaldı —
+   * yön yine "içeride mi?" tahmininden çıkmaya başladı, girişten okutan üye "çıkış yaptı" gördü.
+   *
+   * Belirtilmezse eski davranış: yön verilmişse bilinçli sayılır.
+   */
+  readonly directionAsserted?: boolean
+  /**
    * When this member last crossed the door, if she has. Used only to refuse a repeat within
    * seconds — see `DEBOUNCE_MS`.
    */
@@ -146,11 +161,8 @@ export function decideCheckIn(
   // ── The same crossing, twice ──────────────────────────────────────────────────────────────
   // Refused rather than silently ignored: the caller showed somebody a confirmation, and "it was
   // already recorded" is a different sentence from "done" — one of them is true.
-  if (
-    input.lastCrossedAt !== undefined &&
-    ctx.now - input.lastCrossedAt < DEBOUNCE_MS &&
-    input.direction === undefined
-  ) {
+  const yonBilincli = input.directionAsserted ?? input.direction !== undefined
+  if (input.lastCrossedAt !== undefined && ctx.now - input.lastCrossedAt < DEBOUNCE_MS && !yonBilincli) {
     return err({ code: 'checkin_too_soon' })
   }
 

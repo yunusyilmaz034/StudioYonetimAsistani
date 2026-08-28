@@ -132,17 +132,15 @@ export async function crossTurnstile(
     method: 'device',
     occurredAt: now,
     commandId: null,
-    // Yön yalnızca KOL BİLDİRDİYSE iletiliyor (owner, 2026-08-26: "istemeden 2. defa okuyabiliyor").
-    //
-    // `decideCheckIn`'deki çift-okuma koruması, yön açıkça istenmediğinde devreye giriyor: "Çıkış"
-    // düğmesine basan resepsiyon bilinçli davranmıştır, engellenmez. Ama turnikenin yönü istek
-    // değil, mevcut duruma bakılarak yapılmış bir ÇIKARIM — ve onu istek gibi geçirmek korumayı
-    // sessizce kapatıyordu. Ekranda 8 saniyede bir yeni kod çıktığı için kamerayı açık tutan üye
-    // giriyor ve hemen çıkıyordu; doluluk kimsenin fark etmediği bir yerde bozuluyordu.
-    //
-    // Yön burada verilmeyince `recordCheckIn` aynı çıkarımı kendisi yapıyor, yani sonuç değişmiyor
-    // — sadece koruma artık çalışıyor.
-    ...(input.reportedDirection !== null ? { direction: input.reportedDirection } : {}),
+    // HESAPLANAN YÖN KULLANILIYOR (2026-08-29). Buraya kadar `decideRedeemTurnstileCode` yönü
+    // zaten belirledi: kolun raporu → ekranın tarafı → mevcut duruma bakarak çıkarım. Eskiden o
+    // sonuç ATILIYOR, yalnızca `reportedDirection` geçiliyordu — o da null olduğu için `device.side`
+    // hiç işe yaramıyordu ve yön yine tahminden çıkıyordu. Girişten okutan üye "çıkış yaptı"
+    // görüyordu; kayıtlar `out → in → out → in` diye sırayla gidiyordu, çünkü tahmin ediliyordu.
+    direction: decided.value.direction,
+    // Ama koruma AÇIK kalıyor: ekranın tarafı bir olgu, bilinçli bir eylem değil. Kolun kendi teli
+    // bağlandığında (o gerçekten bir bildirim) koruma kalkar.
+    directionAsserted: input.reportedDirection !== null,
   })
   if (!prepared.ok) return prepared
 

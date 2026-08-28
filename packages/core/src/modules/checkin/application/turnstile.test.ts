@@ -111,6 +111,41 @@ describe('crossTurnstile — the double-scan guard actually runs', () => {
     if (r.ok) expect(r.value.direction).toBe('in')
   })
 
+  it("the screen's SIDE decides the direction, not whether she seems to be inside", async () => {
+    // The bug the owner hit at midnight: scanning the ENTRY screen recorded an EXIT. The redemption
+    // computed the direction from `device.side` correctly and then `crossTurnstile` threw that
+    // result away, passing only the arm's report — which is null. So the check-in fell back to
+    // presence and the records alternated out/in/out/in regardless of which screen was scanned.
+    const giris: TurnstileDevice = { ...device, side: 'in' }
+    const deps = fakeDeps({ presence: inside })      // sistem onu İÇERİDE sanıyor
+    ;(deps.repo as unknown as { getDevice: () => Promise<TurnstileDevice> }).getDevice = async () => giris
+    const r = await crossTurnstile(deps, CTX, { memberId: MEMBER, code: CODE, reportedDirection: null })
+    expect(r.ok).toBe(false)
+    // Giriş ekranı 'in' diyor, ama zaten içeride görünüyor → doğru cevap REDDETMEK, sessizce
+    // "çıkış" yazmak değil. Üye çıkış ekranını okutmalı.
+    if (!r.ok) expect(r.error.code).toBe('already_inside')
+  })
+
+  it('the exit screen records an exit even for a member presence has lost', async () => {
+    const cikis: TurnstileDevice = { ...device, side: 'out' }
+    const deps = fakeDeps({ presence: inside })
+    ;(deps.repo as unknown as { getDevice: () => Promise<TurnstileDevice> }).getDevice = async () => cikis
+    const r = await crossTurnstile(deps, CTX, { memberId: MEMBER, code: CODE, reportedDirection: null })
+    expect(r.ok).toBe(true)
+    if (r.ok) expect(r.value.direction).toBe('out')
+  })
+
+  it('a side is NOT a deliberate assertion — the double-scan guard still runs', async () => {
+    // The distinction this rests on: reception pressing "Çıkış" is an act and waives the guard; a
+    // screen bolted to a wall is a fact and does not. Conflating them is what disabled `side`.
+    const cikis: TurnstileDevice = { ...device, side: 'out' }
+    const deps = fakeDeps({ presence: inside, lastCrossedAt: NOW - 15_000 })
+    ;(deps.repo as unknown as { getDevice: () => Promise<TurnstileDevice> }).getDevice = async () => cikis
+    const r = await crossTurnstile(deps, CTX, { memberId: MEMBER, code: CODE, reportedDirection: null })
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.error.code).toBe('checkin_too_soon')
+  })
+
   it('a REFUSED crossing spends no code — the arm must not turn on a refusal', async () => {
     // The defect this replaced: the code was consumed BEFORE the check-in was decided, so a refusal
     // left a spent code behind. The device polls "was my code used?", saw yes, turned the arm and

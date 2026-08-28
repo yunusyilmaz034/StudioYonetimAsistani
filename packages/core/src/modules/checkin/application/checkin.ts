@@ -33,6 +33,8 @@ export interface RecordCheckInInput {
    * instead of quietly putting her back inside.
    */
   readonly direction?: CheckInDirection
+  /** Yön bilinçli bir eylemden mi geliyor? Cihazın tarafı yönü belirler ama korumayı kaldırmaz. */
+  readonly directionAsserted?: boolean
 }
 
 // Applied by `on-command-created` from a `checkIn.record` command (QR scan or manual
@@ -154,6 +156,7 @@ export async function prepareCheckIn(
       method: input.method,
       // Absent keys, not `undefined` — `exactOptionalPropertyTypes`.
       ...(input.direction !== undefined ? { direction: input.direction } : {}),
+      ...(input.directionAsserted !== undefined ? { directionAsserted: input.directionAsserted } : {}),
       ...(lastCrossedAt !== undefined ? { lastCrossedAt } : {}),
     },
     presence,
