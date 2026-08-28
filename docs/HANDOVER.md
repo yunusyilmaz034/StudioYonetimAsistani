@@ -678,10 +678,41 @@ pass, or it puts the studio's own mail in spam.
   testers enrolled until it is approved**, because a rejection puts the fourteen-day counter back in
   play and a tester leaving resets it. What was answered is in the store section; if it comes back
   rejected, reapply from those answers rather than writing new ones that contradict them.
-- **The turnstile's hardware.** The software is live and the device pairing tool exists
-  (`pnpm setup:turnstile`), but the Perkotek S150 is not fitted and its firmware is deliberately
-  unwritten — writing it blind against hardware nobody has held is how you debug two things at once.
-  Nothing runs until the box is on the wall.
+- **The turnstile — STAGE 3 WORKS ON THE BENCH (2026-08-28).** Scan → server records the crossing →
+  device asks "was my code used?" → relay pulses → greeting. The whole chain, end to end. Firmware
+  in `apps/turnstile`; the pairing tool is `pnpm setup:turnstile`. Still to do: the second screen and
+  exit device (stage 4), then mounting and the F01–F04 / OP-R / OP-L tests on the real arm.
+
+  **The wiring that works — write it down once, do not re-derive it:**
+
+  ```
+  4-pin header (ESP32 side)        3-pin header (coil side)
+    Vcc   → ESP32 3V3   ← NOT 5V     JDVcc → USB +5V
+    Gnd   → ESP32 GND                Gnd   → USB GND
+    In1   → ESP32 GPIO 5             Vcc   → empty
+    In2   → ESP32 GPIO 4             JUMPER CAP REMOVED
+  ```
+
+  **Why the jumper comes off.** With it on, both the optocoupler and the coil run from 5V, so the IN
+  pins sit at 5V — wired to 3.3V GPIOs that is a back-feed: the ESP32 would not boot at all, and with
+  the ESP32 off *both relays energised*, which on a wall means the door stands open when the
+  controller dies. Splitting the supplies fixes both: inputs at 3.3V, coil at 5V, and no power on the
+  input side means the relays sit still. The two grounds stay separate — that is what the optocoupler
+  is for.
+
+  Screen (LockerBox 3.2" ILI9341, 240×320): `VCC→3V3 · GND→GND · CS→10 · RESET→8 · DC→13 · SDI→11 ·
+  SCK→12 · LED→18`. Touch (`T-*`) and `SDO` unused. The relay is active-LOW; `darbe()` drives the pin
+  low for 300 ms and returns it to INPUT, and `setup()` leaves both pins INPUT on purpose so a boot
+  glitch cannot open the door.
+
+  **The trap that cost an afternoon.** The screen stopped working and I searched the hardware —
+  continuity on all eight lines, a second display, and a serious discussion about whether a 1600 TL
+  module was dead. Both displays were fine. The board simply had no valid application on it; a
+  reflash brought it back on the first try. The reason it took so long is that
+  `ARDUINO_USB_CDC_ON_BOOT` was 0, which sends the log to a UART bridge **this Mac never
+  enumerates** — so "nothing on serial" read as *no information* when it meant *we are blind*. It is
+  1 now. If a device ever goes quiet again: make the log readable FIRST, then reflash, and only then
+  reach for the multimeter.
 - ~~**The Meta invite template `uyelik_daveti_v2`.**~~ Approved, and the code switched to it on
   2026-08-09. **Every template we have at Meta is now approved; nothing is pending.** The switch
   also repaired a path that had been quietly broken — see the release note below.
