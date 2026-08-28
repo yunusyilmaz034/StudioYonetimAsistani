@@ -17,6 +17,8 @@ import {
   type DeviceId,
   type MemberId,
   type TenantContext,
+  available,
+  entriesUsed,
 } from '@studio/core'
 
 import { adminDb } from '../firebase-admin'
@@ -115,8 +117,35 @@ export async function deviceCrossingAction(ctx: TenantContext, deviceId: DeviceI
   const firstName = (member?.fullName ?? '').trim().split(/\s+/)[0] ?? ''
   return {
     ok: true as const,
-    value: { crossed: { firstName, at: record.usedAt as number } },
+    value: { crossed: { firstName, kalan: await kalanOzeti(ctx, record.usedBy), at: record.usedAt as number } },
   }
+}
+
+/**
+ * KAPIDA GÖRÜLEN TEK SATIR: "6 ders · 23 gün" (owner, 2026-08-29).
+ *
+ * Üye kapıdan geçerken üç saniye ekrana bakıyor. O üç saniyede sorduğu soru "kaç hakkım kaldı" —
+ * ve bugüne kadar cevabı için uygulamayı açması gerekiyordu. Kapı zaten kim olduğunu biliyor;
+ * söylememesi için bir sebep yok.
+ *
+ * KISA TUTULUYOR, bilerek. Ekran 240 piksel geniş ve yazı üç saniye duruyor: iki kalem yeter,
+ * gerisi okunmadan kayar. Sıralama en yakın biteni öne alıyor — acil olan o.
+ */
+async function kalanOzeti(ctx: TenantContext, memberId: MemberId): Promise<string> {
+  const ents = await new FirestoreEntitlementRepository(adminDb()).listActiveByMember(ctx, memberId)
+  const now = Date.now()
+  const parcalar = [...ents]
+    .sort((a, b) => (a.validUntil as number) - (b.validUntil as number))
+    .map((e) => {
+      const izin = e.productSnapshot.entryAllowance ?? null
+      if (izin != null) return `${Math.max(0, izin - entriesUsed(e.entryLedger))} giris`
+      if (e.credits) return `${available(e.credits)} ders`
+      const gun = Math.ceil(((e.validUntil as number) - now) / 86_400_000)
+      return gun > 0 ? `${gun} gun` : ''
+    })
+    .filter((x) => x !== '')
+  // ASCII: ekran fontunda Türkçe harf yok, cihaz zaten dönüştürüyor — burada da sade tutuyoruz.
+  return parcalar.slice(0, 2).join(' - ')
 }
 
 export async function crossOwnTurnstile(ctx: TenantContext, memberId: MemberId, input: unknown) {

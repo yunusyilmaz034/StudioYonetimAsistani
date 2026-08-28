@@ -74,6 +74,7 @@ static Adafruit_ILI9341 tftCikis(PIN_CS_CIKIS, PIN_DC, -1);
 /** Bir kapı = bir ekran + bir kimlik + bir röle kanalı. İkisi de aynı döngüde yürüyor. */
 struct Kapi {
   const char* ad;              // yalnızca log için
+  const char* baslik;          // ekranda QR'ın üstünde duran yön yazısı
   const char* auth;            // cihazın Bearer kimliği
   Adafruit_ILI9341* tft;
   int rolePin;
@@ -90,9 +91,9 @@ struct Kapi {
 // Bu yüzden gece, ÇALIŞAN hâlle kapanıyor. `-D IKI_KAPI` ile ikinci kapı geri gelir; asıl iş logu
 // akıtmak, ondan sonra çizimi ayıklamak dakikalar sürer.
 static Kapi kapilar[] = {
-  { "giris", DEVICE_AUTH_GIRIS, &tftGiris, PIN_ROLE_GIRIS, "", 0 },
+  { "giris", "GIRIS", DEVICE_AUTH_GIRIS, &tftGiris, PIN_ROLE_GIRIS, "", 0 },
 #ifdef IKI_KAPI
-  { "cikis", DEVICE_AUTH_CIKIS, &tftCikis, PIN_ROLE_CIKIS, "", 0 },
+  { "cikis", "CIKIS", DEVICE_AUTH_CIKIS, &tftCikis, PIN_ROLE_CIKIS, "", 0 },
 #endif
 };
 static const size_t KAPI_SAYISI = sizeof(kapilar) / sizeof(kapilar[0]);
@@ -154,7 +155,9 @@ static void qrCiz(Kapi& k, const char* metin) {
   qrcode_initText(&qr, veri, 3, ECC_MEDIUM, metin);
   const int modul = 240 / (qr.size + 8);
   const int kenar = (240 - qr.size * modul) / 2;
-  const int ust = 30;
+  // QR biraz aşağı: üstte yön yazısına yer açıyoruz. Üye hangi taraftan geçtiğini kapıya varmadan
+  // bilmeli — yanlış ekrana okutup "olmadı" demesin (owner, 2026-08-29).
+  const int ust = 62;
   // TEK İŞLEM, 450 DEĞİL (2026-08-28).
   //
   // Her `fillRect` kendi SPI işlemini açıp kapatıyordu; 21×21'lik bir QR'da bu ~450 kez demek.
@@ -169,12 +172,16 @@ static void qrCiz(Kapi& k, const char* metin) {
       if (qrcode_getModule(&qr, x, y))
         tft.writeFillRect(kenar + x * modul, ust + y * modul, modul, modul, ILI9341_BLACK);
   tft.endWrite();
+  // Üstte yön, altta ne yapılacağı.
   tft.setTextColor(ILI9341_BLACK);
+  tft.setTextSize(3);
+  tft.setCursor(k.baslik[1] == 'I' ? 62 : 62, 14);
+  tft.println(k.baslik);
   tft.setTextSize(2);
-  tft.setCursor(45, ust + qr.size * modul + 18);
+  tft.setCursor(30, 42);
+  tft.println("icin okutun");
+  tft.setCursor(45, ust + qr.size * modul + 16);
   tft.println("Uygulamadan");
-  tft.setCursor(75, ust + qr.size * modul + 42);
-  tft.println("okutun");
 }
 
 /** `adet` kısa bip. Sesin ANLAMI var: 1 = geçtin, 2 = olmadı, 3 = bağlantı yok. */
@@ -284,6 +291,7 @@ static void kapiTuru(Kapi& k) {
     const String c = istek(k, "/api/turnstile/status", String("{\"code\":\"") + k.kod + "\"}");
     if (c.indexOf("\"crossed\":{") >= 0) {
       const String ad = asciile(alanOku(c, "firstName"));
+      const String kalan = asciile(alanOku(c, "kalan"));
       Serial.printf("[turnike:%s] GECIS: %s\n", k.ad, ad.c_str());
 
       // Önce kol, sonra ses, sonra ekran: üye önce kolun döndüğünü hisseder, sesi duyar, en son
@@ -300,6 +308,14 @@ static void kapiTuru(Kapi& k) {
       tft.setTextColor(ILI9341_WHITE);
       tft.setCursor(20, 165);
       tft.println(ad.length() ? ad.c_str() : "");
+      // Kalan hak: üyenin kapıda sorduğu tek soru. Yoksa satır hiç çizilmiyor — boş bir "kalan:"
+      // yazısı, bilgi vermemekten kötüdür.
+      if (kalan.length()) {
+        tft.setTextColor(ILI9341_YELLOW);
+        tft.setTextSize(2);
+        tft.setCursor(20, 215);
+        tft.println(kalan.c_str());
+      }
       // Karşılama süresi boyunca ÖBÜR kapı beklemede. İki kişinin aynı saniyede iki taraftan
       // geçmesi nadir; buna karşılık kodu basit tutmak, turnikede debug etmeyeceğimiz anlamına
       // geliyor. Sorun olursa burası bloklamayan bir zamanlayıcıya döner.
