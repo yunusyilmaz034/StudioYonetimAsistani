@@ -14,7 +14,7 @@ import { decideOpenTurnstileManually, decideRedeemTurnstileCode } from '../domai
 import type { TurnstileCode, TurnstileDirection } from '../domain/types'
 import { decideContext } from './context'
 import type { CheckinDeps } from './ports'
-import { recordCheckIn } from './checkin'
+import { commitCheckIn, prepareCheckIn } from './checkin'
 
 // ── TURNSTILE (v1.33) ────────────────────────────────────────────────────────────────────────
 //
@@ -88,10 +88,18 @@ export interface CrossTurnstileResult {
 /**
  * The member scanned the screen. May the arm turn?
  *
- * ORDER MATTERS HERE. The code is spent BEFORE the check-in is recorded, and that is deliberate: if
- * the two races, the failure we want is "the door did not open" — never "two people crossed on one
- * code". A spent code with no check-in behind it costs the member one rescan; the other way round
- * costs the studio a membership.
+ * ORDER MATTERS HERE — and it changed on 2026-08-29.
+ *
+ * The code used to be spent BEFORE the check-in was decided, so that two phones on one screen could
+ * never both win. But a check-in can be REFUSED — the double-scan guard, a closed branch, a full
+ * room — and when it was, the code was already gone: the device saw `crossed`, the arm turned, the
+ * screen said "Hoş geldin", and nothing was recorded. The member's app said the code was invalid
+ * while the door stood open. A door that opens without a record is how occupancy drifts, quietly.
+ *
+ * The order is now: DECIDE (reads only) → spend the code → WRITE. A refusal now costs nothing: the
+ * code is untouched, the arm does not move, and the member can simply scan again. The race is still
+ * closed, because spending is still one transaction with one winner — two phones both pass the
+ * decision, then exactly one of them consumes.
  *
  * The check-in itself goes through `recordCheckIn`, the same path reception and the kiosk use. One
  * arithmetic for occupancy, one debounce, one set of invariants — a second door into the same room,
@@ -117,12 +125,8 @@ export async function crossTurnstile(
   })
   if (!decided.ok) return decided
 
-  // Spend it first — see the note above. `consumeTurnstileCode` is a transaction, so two phones on
-  // the same screen in the same second produce one winner and one `qr_used`.
-  const won = await deps.repo.consumeTurnstileCode(ctx, input.code, input.memberId, now)
-  if (!won) return err({ code: 'qr_used' })
-
-  const recorded = await recordCheckIn(deps, ctx, {
+  // ── 1. KARAR — yalnızca okur. Reddedilirse kod harcanmaz, kol dönmez.
+  const prepared = await prepareCheckIn(deps, ctx, {
     memberId: input.memberId,
     branchId: decided.value.branchId,
     method: 'device',
@@ -140,10 +144,18 @@ export async function crossTurnstile(
     // — sadece koruma artık çalışıyor.
     ...(input.reportedDirection !== null ? { direction: input.reportedDirection } : {}),
   })
-  if (!recorded.ok) return recorded
+  if (!prepared.ok) return prepared
+
+  // ── 2. KODU TÜKET — tek işlem, tek kazanan. Aynı ekranı aynı saniyede okutan iki telefondan
+  // biri geçer, diğeri `qr_used` alır.
+  const won = await deps.repo.consumeTurnstileCode(ctx, input.code, input.memberId, now)
+  if (!won) return err({ code: 'qr_used' })
+
+  // ── 3. YAZ — bu noktadan sonra geçiş kesin: kod bizim, karar verilmiş.
+  const recorded = await commitCheckIn(deps, ctx, prepared.value)
 
   return ok({
-    direction: recorded.value.direction,
+    direction: recorded.direction,
     deviceId: decided.value.deviceId,
     branchId: decided.value.branchId,
   })

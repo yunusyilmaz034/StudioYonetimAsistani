@@ -49,7 +49,7 @@ const code: TurnstileCode = {
 }
 
 /** Only what `crossTurnstile` touches. A fuller fake would hide which parts decide anything. */
-function fakeDeps(opts: { presence: Presence | null; lastCrossedAt?: number }): CheckinDeps {
+function fakeDeps(opts: { presence: Presence | null; lastCrossedAt?: number; tuketilenler?: string[] }): CheckinDeps {
   const recent: CheckIn[] =
     opts.lastCrossedAt === undefined
       ? []
@@ -61,7 +61,10 @@ function fakeDeps(opts: { presence: Presence | null; lastCrossedAt?: number }): 
       getTurnstileCode: async () => code,
       getDevice: async () => device,
       getPresence: async () => opts.presence,
-      consumeTurnstileCode: async () => true,
+      consumeTurnstileCode: async (_c: unknown, kod: string) => {
+        opts.tuketilenler?.push(kod)
+        return true
+      },
       getBranch: async () => ({ branchId: BRANCH, isOpen: true, capacity: 50 }),
       countPresence: async () => 3,
       listCheckInsByMember: async () => recent,
@@ -106,6 +109,33 @@ describe('crossTurnstile — the double-scan guard actually runs', () => {
     })
     expect(r.ok).toBe(true)
     if (r.ok) expect(r.value.direction).toBe('in')
+  })
+
+  it('a REFUSED crossing spends no code — the arm must not turn on a refusal', async () => {
+    // The defect this replaced: the code was consumed BEFORE the check-in was decided, so a refusal
+    // left a spent code behind. The device polls "was my code used?", saw yes, turned the arm and
+    // said "Hoş geldin" — while the member's app said the code was invalid and nothing was recorded.
+    // A door that opens with no record is how occupancy drifts where nobody is looking.
+    const tuketilenler: string[] = []
+    const r = await crossTurnstile(fakeDeps({ presence: inside, lastCrossedAt: NOW - 15_000, tuketilenler }), CTX, {
+      memberId: MEMBER,
+      code: CODE,
+      reportedDirection: null,
+    })
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.error.code).toBe('checkin_too_soon')
+    expect(tuketilenler).toHaveLength(0) // kod dokunulmadan duruyor, üye tekrar okutabilir
+  })
+
+  it('an ACCEPTED crossing does spend the code', async () => {
+    const tuketilenler: string[] = []
+    const r = await crossTurnstile(fakeDeps({ presence: null, tuketilenler }), CTX, {
+      memberId: MEMBER,
+      code: CODE,
+      reportedDirection: null,
+    })
+    expect(r.ok).toBe(true)
+    expect(tuketilenler).toEqual([CODE])
   })
 
   it('an ARM-REPORTED direction still bypasses the guard, and should', async () => {

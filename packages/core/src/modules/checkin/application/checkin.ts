@@ -6,6 +6,7 @@ import {
   type DomainError,
   type Instant,
   type MemberId,
+  type NewEvent,
   type Result,
   type TenantContext,
   instant,
@@ -105,11 +106,32 @@ async function consumeFitnessEntry(
   return { used: entriesUsed(decided.value.next.entryLedger), allowance: target.productSnapshot.entryAllowance ?? 0 }
 }
 
-export async function recordCheckIn(
+/**
+ * Kararı verilmiş ama HENÜZ YAZILMAMIŞ bir check-in.
+ *
+ * `crossTurnstile` bunun için var: turnike kodu tek kullanımlık ve tüketimi bir işlem, ama check-in
+ * reddedilebiliyor (çift okuma koruması, kapalı şube, dolu kapasite). Eskiden kod ÖNCE tükeniyordu;
+ * check-in reddedilince geriye harcanmış bir kod, dönmüş bir kol ve hiç kayıt kalmıyordu — kapı
+ * açılıyor, kimse geçmemiş görünüyordu. Sayımların sessizce kayması tam olarak böyle olur.
+ *
+ * Karar ile yazmayı ayırınca sıra düzeliyor: önce karar (yalnızca okur), sonra kodu tüket, sonra
+ * yaz. Yarış da kapalı kalıyor, çünkü tüketim hâlâ tek bir işlem — iki telefon aynı kodu okutursa
+ * biri kazanır, diğeri `qr_used` alır.
+ */
+export interface PreparedCheckIn {
+  readonly checkIn: { readonly id: string; readonly direction: 'in' | 'out' }
+  readonly presenceNext: Awaited<ReturnType<CheckinDeps['repo']['getPresence']>>
+  readonly events: readonly NewEvent[]
+  readonly memberId: MemberId
+  readonly now: Instant
+}
+
+/** Yalnızca OKUR ve karar verir. Hiçbir şey yazmaz — reddedilirse geriye iz kalmaz. */
+export async function prepareCheckIn(
   deps: CheckinDeps,
   ctx: TenantContext,
   input: RecordCheckInInput,
-): Promise<Result<RecordCheckInResult, DomainError>> {
+): Promise<Result<PreparedCheckIn, DomainError>> {
   const now = deps.clock.now()
   const dctx = decideContext(deps, ctx, { now: clampOccurredAt(input.occurredAt, now), commandId: input.commandId })
 
@@ -140,25 +162,50 @@ export async function recordCheckIn(
   )
   if (!decided.ok) return decided
 
+  return {
+    ok: true,
+    value: {
+      checkIn: decided.value.checkIn,
+      presenceNext: decided.value.presenceNext,
+      events: decided.value.events,
+      memberId: input.memberId,
+      now,
+    },
+  }
+}
+
+/** Kararı YAZAR: kapı kaydı + presence + olaylar tek işlemde, sonra fitness sayacı. */
+export async function commitCheckIn(
+  deps: CheckinDeps,
+  ctx: TenantContext,
+  prepared: PreparedCheckIn,
+): Promise<RecordCheckInResult> {
   await deps.repo.applyCheckIn(
     ctx,
-    input.memberId,
-    decided.value.checkIn,
-    decided.value.presenceNext,
-    decided.value.events,
+    prepared.memberId,
+    prepared.checkIn as never,
+    prepared.presenceNext,
+    prepared.events,
   )
   // Kapı yazıldıktan SONRA sayaç. Ayrı bir toplam, ayrı bir işlem — burada başarısızlık kapıyı
   // geri almaz, sadece sayaç eksik kalır ve mutabakat onu görür.
   const fitnessEntry = await consumeFitnessEntry(
     deps,
     ctx,
-    input.memberId,
-    decided.value.checkIn.id,
-    decided.value.checkIn.direction,
-    now,
+    prepared.memberId,
+    prepared.checkIn.id,
+    prepared.checkIn.direction,
+    prepared.now,
   )
-  return {
-    ok: true,
-    value: { direction: decided.value.checkIn.direction, checkInId: decided.value.checkIn.id, fitnessEntry },
-  }
+  return { direction: prepared.checkIn.direction, checkInId: prepared.checkIn.id, fitnessEntry }
+}
+
+export async function recordCheckIn(
+  deps: CheckinDeps,
+  ctx: TenantContext,
+  input: RecordCheckInInput,
+): Promise<Result<RecordCheckInResult, DomainError>> {
+  const prepared = await prepareCheckIn(deps, ctx, input)
+  if (!prepared.ok) return prepared
+  return { ok: true, value: await commitCheckIn(deps, ctx, prepared.value) }
 }
