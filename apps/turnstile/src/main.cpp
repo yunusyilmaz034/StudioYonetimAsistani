@@ -1,4 +1,10 @@
-// AŞAMA 3 — RÖLE
+// TURNİKE — İKİ EKRAN, TEK KART
+//
+// Turnikenin iki tarafında birer ekran var ve her biri AYRI bir cihaz: kendi kimliği, kendi sırrı,
+// kendi QR'ı. Yön, okutulan EKRANDAN kesin geliyor — sunucunun "içeride mi?" diye tahmin etmesine
+// gerek kalmıyor. Ama ikisi tek bir ESP32'de yaşıyor: ekranlar turnike gövdesinde 50 cm'den yakın,
+// o mesafede SPI sorun çıkarmıyor ve ikinci bir kart iki kez WiFi, iki kez besleme, iki kez arıza
+// demek. Ekranlar SCK/MOSI/DC/RST/LED'i PAYLAŞIR; ayrı olan tek şey CS.
 //
 // Akış: ekranda kod → üye okutur → sunucu geçişi kaydeder → cihaz sorar "kodum kullanıldı mı" →
 // kullanıldıysa röle darbesi + karşılama.
@@ -21,38 +27,42 @@
 // HANGİ KUTUYU DERLİYORUZ (2026-08-28). İki fiziksel cihaz var — giriş ve çıkış — ve her birinin
 // kendi kimliği, anahtarı ve röle kanalı var. Dosya adı derleme bayrağından geliyor; `platformio.ini`
 // içindeki ortam seçimi (`-e giris` / `-e cikis`) hangi kutuya yazdığını tek yerde belirliyor.
-#ifndef SECRETS_FILE
-#define SECRETS_FILE "secrets.h"
-#endif
-#include SECRETS_FILE
+#include "secrets.h"
 
 static const int PIN_SCK = 12;
 static const int PIN_MOSI = 11;
 static const int PIN_DC = 13;
 static const int PIN_RST = 8;
-static const int PIN_CS = 10;
+static const int PIN_CS_GIRIS = 10;  // giriş ekranının CS'i
+static const int PIN_CS_CIKIS = 9;   // çıkış ekranının CS'i — TEK farklı pin
 static const int PIN_LED = 18;
-// HER KUTU KENDİ KANALINI SÜRER (2026-08-28).
-//
-// Turnikenin iki kuru kontak girişi var: biri "giriş yönünde aç", biri "çıkış yönünde aç". Her
-// tarafta ayrı bir kutu duruyor ve her kutu YALNIZCA kendi kanalını tetikliyor — giriş ekranından
-// okutan biri çıkış kolunu döndüremesin diye.
-//
-// Hangi kanal olduğu `secrets.h`'den geliyor, çünkü orası zaten cihaza özel dosya: kimlik, anahtar
-// ve taraf aynı yerde durur. Tanımlanmamışsa 5 (In1) — ilk kutunun davranışı hiç değişmesin.
-#ifndef RELAY_PIN
-#define RELAY_PIN 5
-#endif
-static const int PIN_ROLE = RELAY_PIN;
+// Her ekran KENDİ röle kanalını sürer: giriş ekranından okutan biri çıkış kolunu döndüremesin.
+static const int PIN_ROLE_GIRIS = 5;   // In1
+static const int PIN_ROLE_CIKIS = 4;   // In2
 
 // Turnike kendi süresini sayıyor (F01), bize sadece tetiklemek düşüyor.
 static const uint32_t DARBE_MS = 300;
 static const uint32_t SORGU_MS = 600;      // "kodum kullanıldı mı"
 static const uint32_t KARSILAMA_MS = 3000; // ekranda ismin kaldığı süre
 
-static Adafruit_ILI9341 tft(PIN_CS, PIN_DC, PIN_RST);
-static String aktifKod = "";
-static uint32_t kodBitis = 0;
+static Adafruit_ILI9341 tftGiris(PIN_CS_GIRIS, PIN_DC, PIN_RST);
+static Adafruit_ILI9341 tftCikis(PIN_CS_CIKIS, PIN_DC, PIN_RST);
+
+/** Bir kapı = bir ekran + bir kimlik + bir röle kanalı. İkisi de aynı döngüde yürüyor. */
+struct Kapi {
+  const char* ad;              // yalnızca log için
+  const char* auth;            // cihazın Bearer kimliği
+  Adafruit_ILI9341* tft;
+  int rolePin;
+  String kod;
+  uint32_t kodBitis;
+};
+
+static Kapi kapilar[] = {
+  { "giris", DEVICE_AUTH_GIRIS, &tftGiris, PIN_ROLE_GIRIS, "", 0 },
+  { "cikis", DEVICE_AUTH_CIKIS, &tftCikis, PIN_ROLE_CIKIS, "", 0 },
+};
+static const size_t KAPI_SAYISI = sizeof(kapilar) / sizeof(kapilar[0]);
 
 /** Türkçe harfler Adafruit fontunda yok; ismi tanınır halde bırakan en yakın karşılık. */
 static String asciile(const String& s) {
@@ -70,7 +80,8 @@ static String asciile(const String& s) {
   return o;
 }
 
-static void mesaj(const char* a, const char* b, uint16_t renk) {
+static void mesaj(Kapi& k, const char* a, const char* b, uint16_t renk) {
+  Adafruit_ILI9341& tft = *k.tft;
   tft.fillScreen(ILI9341_BLACK);
   tft.setTextColor(renk);
   tft.setTextSize(2);
@@ -79,7 +90,8 @@ static void mesaj(const char* a, const char* b, uint16_t renk) {
   if (b) { tft.setTextColor(ILI9341_WHITE); tft.setTextSize(1); tft.setCursor(12, 170); tft.println(b); }
 }
 
-static void qrCiz(const char* metin) {
+static void qrCiz(Kapi& k, const char* metin) {
+  Adafruit_ILI9341& tft = *k.tft;
   QRCode qr;
   uint8_t veri[qrcode_getBufferSize(3)];
   qrcode_initText(&qr, veri, 3, ECC_MEDIUM, metin);
@@ -106,13 +118,13 @@ static void darbe(int pin) {
   pinMode(pin, INPUT);      // bırak — yüksek empedans, 3.3V/5V uyumsuzluğu hiç doğmuyor
 }
 
-static String istek(const char* yol, const String& govde) {
+static String istek(Kapi& k, const char* yol, const String& govde) {
   if (WiFi.status() != WL_CONNECTED) return "";
   HTTPClient http;
   http.begin(String(API_BASE) + yol);
   http.addHeader("Content-Type", "application/json");
   http.addHeader("x-studio-id", STUDIO_ID);
-  http.addHeader("Authorization", String("Bearer ") + DEVICE_AUTH);
+  http.addHeader("Authorization", String("Bearer ") + k.auth);
   http.setTimeout(6000);
   const int kod = http.POST(govde);
   const String cevap = http.getString();
@@ -129,22 +141,20 @@ static String alanOku(const String& json, const char* alan) {
 }
 
 /** Yeni kod al, ekrana bas. Alınamazsa ekranda ESKİ KOD BIRAKILMAZ. */
-static void kodYenile() {
-  const String c = istek("/api/turnstile", "{}");
+static void kodYenile(Kapi& k) {
+  const String c = istek(k, "/api/turnstile", "{}");
   const String kod = alanOku(c, "code");
   if (kod.length() == 6) {
-    aktifKod = kod;
-    const int i = c.indexOf("\"expiresAt\"");
-    kodBitis = millis() + 25000;
-    if (i > 0) { (void)i; }
-    Serial.printf("[turnike] kod: %s\n", kod.c_str());
-    qrCiz(kod.c_str());
+    k.kod = kod;
+    k.kodBitis = millis() + 25000;
+    Serial.printf("[turnike:%s] kod: %s\n", k.ad, kod.c_str());
+    qrCiz(k, kod.c_str());
   } else {
     // Süresi geçmiş bir QR, üyeyi çalışmayan bir şeye okutur ve hatanın kendisinde olduğunu
     // düşündürür. Susmak yanıltmaktan iyidir.
-    aktifKod = "";
-    mesaj("Baglanti yok", "birazdan tekrar denenecek", ILI9341_RED);
-    kodBitis = millis() + 5000;
+    k.kod = "";
+    mesaj(k, "Baglanti yok", "birazdan tekrar denenecek", ILI9341_RED);
+    k.kodBitis = millis() + 5000;
   }
 }
 
@@ -153,35 +163,43 @@ void setup() {
   delay(300);
   Serial.println("\n[turnike] aciliyor");
 
-  // Röle ÖNCE serbest bırakılıyor: açılışta bir anlık tetik, kapıyı kimse okutmadan açardı.
-  pinMode(PIN_ROLE, INPUT);
+  // Röleler ÖNCE serbest bırakılıyor: açılışta bir anlık tetik, kapıyı kimse okutmadan açardı.
+  for (size_t i = 0; i < KAPI_SAYISI; i++) pinMode(kapilar[i].rolePin, INPUT);
 
+  // Tek arka ışık pini iki ekranı da yakıyor: o bacak modüldeki transistörün bazını sürüyor, akımı
+  // ekranın kendi VCC'sinden çekiyor. İki modül için bir GPIO fazlasıyla yeter.
   pinMode(PIN_LED, OUTPUT);
   digitalWrite(PIN_LED, HIGH);
-  SPI.begin(PIN_SCK, -1, PIN_MOSI, PIN_CS);
-  tft.begin(2000000);
-  tft.setRotation(0);
 
-  mesaj("WiFi...", WIFI_SSID, ILI9341_YELLOW);
+  // CS'siz başlatılıyor: her ekran kendi CS'ini kendi nesnesinden sürüyor, veri yolu ortak.
+  SPI.begin(PIN_SCK, -1, PIN_MOSI, -1);
+  for (size_t i = 0; i < KAPI_SAYISI; i++) {
+    kapilar[i].tft->begin(2000000);
+    kapilar[i].tft->setRotation(0);
+    mesaj(kapilar[i], "WiFi...", WIFI_SSID, ILI9341_YELLOW);
+  }
+
   WiFi.mode(WIFI_STA);
   WiFi.begin(WIFI_SSID, WIFI_PASS);
   for (int i = 0; i < 40 && WiFi.status() != WL_CONNECTED; i++) { delay(500); Serial.print('.'); }
   Serial.println();
   Serial.printf("[turnike] %s\n", WiFi.status() == WL_CONNECTED ? WiFi.localIP().toString().c_str() : "WiFi YOK");
 
-  kodYenile();
+  for (size_t i = 0; i < KAPI_SAYISI; i++) kodYenile(kapilar[i]);
 }
 
-void loop() {
-  if (aktifKod.length() == 6) {
-    const String c = istek("/api/turnstile/status", String("{\"code\":\"") + aktifKod + "\"}");
+/** Bir kapının bir turu: kodu kullanıldı mı, kullanıldıysa kolu çevir ve karşıla. */
+static void kapiTuru(Kapi& k) {
+  if (k.kod.length() == 6) {
+    const String c = istek(k, "/api/turnstile/status", String("{\"code\":\"") + k.kod + "\"}");
     if (c.indexOf("\"crossed\":{") >= 0) {
       const String ad = asciile(alanOku(c, "firstName"));
-      Serial.printf("[turnike] GECIS: %s\n", ad.c_str());
+      Serial.printf("[turnike:%s] GECIS: %s\n", k.ad, ad.c_str());
 
       // Önce kol, sonra ekran: üye kolun döndüğünü görmeden yazıyı okumaz.
-      darbe(PIN_ROLE);
+      darbe(k.rolePin);
 
+      Adafruit_ILI9341& tft = *k.tft;
       tft.fillScreen(ILI9341_BLACK);
       tft.setTextColor(ILI9341_GREEN);
       tft.setTextSize(3);
@@ -190,13 +208,19 @@ void loop() {
       tft.setTextColor(ILI9341_WHITE);
       tft.setCursor(20, 165);
       tft.println(ad.length() ? ad.c_str() : "");
+      // Karşılama süresi boyunca ÖBÜR kapı beklemede. İki kişinin aynı saniyede iki taraftan
+      // geçmesi nadir; buna karşılık kodu basit tutmak, turnikede debug etmeyeceğimiz anlamına
+      // geliyor. Sorun olursa burası bloklamayan bir zamanlayıcıya döner.
       delay(KARSILAMA_MS);
 
-      kodYenile();  // kullanılan kod ölüdür, hemen yenisi
+      kodYenile(k);  // kullanılan kod ölüdür, hemen yenisi
       return;
     }
   }
+  if (millis() > k.kodBitis) kodYenile(k);
+}
 
-  if (millis() > kodBitis) kodYenile();
+void loop() {
+  for (size_t i = 0; i < KAPI_SAYISI; i++) kapiTuru(kapilar[i]);
   delay(SORGU_MS);
 }
