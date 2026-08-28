@@ -69,9 +69,19 @@ struct Kapi {
   uint32_t kodBitis;
 };
 
+// İKİNCİ KAPI GEÇİCİ OLARAK KAPALI (2026-08-28 gecesi).
+//
+// Sunucu tarafı hazır ve doğrulandı: iki cihaz da dönüşümlü kod üretiyor, ikisinin de son görülmesi
+// güncel. Duran şey ÇİZİM — iki ekranda da `fillScreen` sonrası kalıyor ve seri log bu kartta hiç
+// akmadığı için sebebi körlemesine arıyorduk. Körlemesine aramak bugün bir gün yedi.
+//
+// Bu yüzden gece, ÇALIŞAN hâlle kapanıyor. `-D IKI_KAPI` ile ikinci kapı geri gelir; asıl iş logu
+// akıtmak, ondan sonra çizimi ayıklamak dakikalar sürer.
 static Kapi kapilar[] = {
   { "giris", DEVICE_AUTH_GIRIS, &tftGiris, PIN_ROLE_GIRIS, "", 0 },
+#ifdef IKI_KAPI
   { "cikis", DEVICE_AUTH_CIKIS, &tftCikis, PIN_ROLE_CIKIS, "", 0 },
+#endif
 };
 static const size_t KAPI_SAYISI = sizeof(kapilar) / sizeof(kapilar[0]);
 
@@ -199,11 +209,15 @@ void setup() {
 
   // CS'siz başlatılıyor: her ekran kendi CS'ini kendi nesnesinden sürüyor, veri yolu ortak.
   SPI.begin(PIN_SCK, -1, PIN_MOSI, -1);
+
+  // ÖNCE İKİSİNİ DE BAŞLAT, SONRA ÇİZ. `RESET` hattı ortak: ikinci ekranın `begin()`'i o hattı
+  // darbeliyor ve BİRİNCİ ekranı siliyor. Başlatıp hemen çizersen, birinci ekran bir sonraki
+  // satırda kararıyor — ve bunu "ekran bozuk" diye okursun.
   for (size_t i = 0; i < KAPI_SAYISI; i++) {
     kapilar[i].tft->begin(2000000);
     kapilar[i].tft->setRotation(0);
-    mesaj(kapilar[i], "WiFi...", WIFI_SSID, ILI9341_YELLOW);
   }
+  for (size_t i = 0; i < KAPI_SAYISI; i++) mesaj(kapilar[i], "WiFi...", WIFI_SSID, ILI9341_YELLOW);
 
   WiFi.mode(WIFI_STA);
   WiFi.begin(WIFI_SSID, WIFI_PASS);
