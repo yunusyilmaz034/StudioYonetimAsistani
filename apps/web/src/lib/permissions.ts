@@ -45,6 +45,7 @@ export type Area =
   | '/settings' // S2
   | '/staff' // S1 — who may work here, and as what
   | '/my-classes' // the trainer's one screen
+  | '/trainees' // the trainer's member screen — names + training only, no phone and no money
   | '/training' // Plus Phase 7 — exercise library + feedback center (owner + trainer)
   | '/payroll' // Plus Phase 9 — trainer payroll & commission (owner-confidential)
   | '/my-payroll' // Plus Phase 9 — the trainer's own earnings, read-only (owner + trainer)
@@ -128,6 +129,25 @@ export const PERMISSIONS: Readonly<Record<Area, readonly PrincipalRole[]>> = {
   // carry it: the owner keeps the studio-wide view (Ders Ajandası) here, and sees her own teaching
   // day by signing in with her TRAINER account (owner request, 2026-07-16). Trainer only.
   '/my-classes': ['trainer'],
+
+  // ÜYELER, THE TRAINER'S VERSION (owner, 2026-08-30). She is being brought into the system, and the
+  // work she is here to do — write a programme, record a measurement, plan around what is left of a
+  // package — needs a member screen. `/members` cannot be that screen: its header carries the PHONE,
+  // and its tabs carry Cari Hesap, Cüzdan, Belgeler and the whole package history. Opening that door
+  // would hand her everything the owner just said she must not have.
+  //
+  // So this is a SECOND, narrower screen over the same members: name, active packages, programme,
+  // measurements. No phone, no balance, no payment, no package history. What she may not see is not
+  // hidden with CSS — it never leaves the server (see `server/trainee-query.ts`).
+  //
+  // WHICH members: all of them (owner's call, 2026-08-30, over the alternative of restricting her to
+  // her own roster). A trainer covering another's class can work immediately; the cost, stated and
+  // accepted, is that the studio's member NAMES are now readable by three more accounts.
+  //
+  // Trainer-only, like the two personal screens above: the owner already has the richer `/members`,
+  // and adding this to her rail would put two "Üyeler" entries in it. She checks this view the way
+  // she checks Derslerim — by signing in with her trainer account (the 2026-07-16 arrangement).
+  '/trainees': ['trainer'],
 
   // Plus Phase 7 — the training workspace: the exercise library and the feedback center. This is
   // studio-content management (a shared catalogue + cross-member feedback), not a personal "my"

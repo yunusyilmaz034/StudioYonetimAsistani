@@ -51,7 +51,7 @@ static const int PIN_ROLE_CIKIS = 4;   // In2
 // AKTİF buzzer, doğrudan GPIO'dan sürülüyor: 5V'luk bir buzzer 3.3V'ta daha kısık öter ama öter, ve
 // araya transistör koymak parça beklemek demekti. Bu yüzden bipler KISA — sürekli sürüş pinin rahat
 // akım sınırını zorlar, 120 ms zorlamaz. Ses yetersiz kalırsa çözüm NPN + 5V, kod değişmez.
-static const int PIN_BUZZER = 7;   // kartta 14 basılı değil; 6/7 boş ve S3'te güvenli
+static const int PIN_BUZZER = 6;   // kartta 14 basılı değil; 6 boş ve S3'te güvenli
 static const uint32_t BIP_MS = 120;
 
 // Turnike kendi süresini sayıyor (F01), bize sadece tetiklemek düşüyor.

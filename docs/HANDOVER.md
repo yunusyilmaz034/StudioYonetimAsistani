@@ -111,6 +111,33 @@ are never stale. Memberships can be frozen, including past the allowance when th
 behind the package it renews so no paid day burns unused; a hybrid queues behind every category it
 grants and refuses when they disagree. The studio is notified the moment a self-service sale lands.
 
+## Eğitmenler sisteme girdi (2026-08-30)
+
+Üç eğitmen hesabı zaten vardı ve kullanılmıyordu: **Işıl Hoca · Buse Hoca · Reyhan Hoca**. Owner
+onları sisteme sokuyor. Kural [[OR-47]]'de; burada nerede durduğu:
+
+| Eğitmen görüyor | Görmüyor |
+|---|---|
+| **Derslerim** — kendi dersleri, isim listesi, tek dokunuşla yoklama (offline çalışır) | Genel Görünüm · Kasa · Cari Hesap · Ürün Sat |
+| **Rezervasyon Ajandası** · **Check-in** | Resepsiyonun **Üyeler** kartı (`/members`) |
+| **Üyeler** (`/trainees`) — ad-soyad, aktif paket, program, ölçüm, fotoğraf | Telefon · geçmiş paketler · fiyat · ödeme · bakiye |
+| **Antrenman** — egzersiz kütüphanesi, şablonlar, geri bildirim | Satış Hunisi · Raporlar · Analitik · Bordro · Ayarlar · Personel |
+| **Bilgi Merkezi** · **Hakedişim** (kendi hakedişi) | Başka eğitmenin hakedişi · Denetim Kaydı |
+
+**`/trainees` yeni; gerisi zaten açıktı.** Program/ölçüm yazma yetkisi 7. Fazdan beri eğitmende —
+eksik olan bir ekrandı, yetki değil.
+
+**Telefon ve para tarayıcıya HİÇ gitmiyor.** `server/trainee-query.ts` iki okuma yapıyor (üyeler +
+entitlement'lar) ve yalnızca sunacağı alanları okuyor. `server/trainee-boundary.test.ts` bunu yapısal
+olarak kilitliyor — o dosyalara `phone`/`balanceDue`/`priceAgreed`/`payment`/`Kurus` girerse
+`pnpm check` düşer. Kanıtlandı: telefon eklendi → test düştü → geri alındı → geçti.
+
+**Owner'ın panelinde `/trainees` yok** — onda zaten `/members` var. Eğitmen görünümünü kontrol etmek
+isterse Derslerim'de olduğu gibi kendi eğitmen hesabıyla girer (2026-07-16 düzeni).
+
+**Açık kalan:** eğitmenlerin giriş bilgileri. Hesaplar var ama owner'ın onlara şifre/davet vermesi
+gerekiyor — Ayarlar → Personel'den.
+
 ## The demo studio (2026-08-26)
 
 **`demo` — "Demo Stüdyo".** Built for a broker who asked whether there was something to show, and

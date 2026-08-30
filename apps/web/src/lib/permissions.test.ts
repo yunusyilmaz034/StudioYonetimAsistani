@@ -18,8 +18,33 @@ describe('the trainer — staff, and the person least entitled to the studio’s
     // in practice ("bizim hocalar biraz da resepsiyona bakıyor"). Two screens, not a promotion —
     // everything that reveals the business or the studio's PII at large stays shut, which is what
     // the next four cases hold in place.
+    // Since 2026-08-30 also `/trainees` — the trainers are being brought into the system, and the
+    // work they are here to do needs a member screen. It is a SECOND screen over the same members,
+    // not the members list with rows hidden: the case below holds that distinction in place.
     const visible = AREAS.filter((a) => canSee('trainer', a))
-    expect(visible).toEqual(['/reservations', '/checkin', '/knowledge', '/my-classes', '/training', '/my-payroll'])
+    expect(visible).toEqual([
+      '/reservations',
+      '/checkin',
+      '/knowledge',
+      '/my-classes',
+      '/trainees',
+      '/training',
+      '/my-payroll',
+    ])
+  })
+
+  it('reaches members through her OWN screen, never through reception’s', () => {
+    // `/members` carries the phone in its header and Cari Hesap, Cüzdan, Belgeler and the package
+    // history in its tabs. Opening it to her would hand her everything the owner said she must not
+    // have, which is why the answer was a second screen rather than a wider row here.
+    expect(canSee('trainer', '/trainees')).toBe(true)
+    expect(canSee('trainer', '/members')).toBe(false)
+  })
+
+  it('the desk does NOT get the trainer’s member screen — it would be a worse /members', () => {
+    // Reception already has the real one. A second, thinner members list in her rail is two doors to
+    // the same room and one more place for the two to drift apart.
+    expect(canSee('receptionist', '/trainees')).toBe(false)
   })
 
   it('cannot see the studio-wide payroll — it is owner-confidential (Plus Phase 9)', () => {
@@ -95,7 +120,9 @@ describe('the owner', () => {
   // The two PERSONAL trainer screens ("Derslerim", "Hakedişim") are not part of the admin panel —
   // the owner manages the studio here and uses her separate TRAINER account for her own teaching day
   // and earnings (owner request, 2026-07-16). Everything else, she sees.
-  const TRAINER_PERSONAL = ['/my-classes', '/my-payroll'] as const
+  // `/trainees` joins them for the same reason: the owner has the richer `/members`, and putting a
+  // second "Üyeler" in her rail would be two doors to the same room.
+  const TRAINER_PERSONAL = ['/my-classes', '/my-payroll', '/trainees'] as const
   it('sees every management screen — kept out of nothing but the two personal trainer screens', () => {
     for (const area of AREAS) {
       expect(canSee('owner', area), area).toBe(!TRAINER_PERSONAL.includes(area as (typeof TRAINER_PERSONAL)[number]))

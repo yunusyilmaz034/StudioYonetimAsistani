@@ -733,6 +733,37 @@ one sale, N entitlements) and non-package lines, so "the sale is dead now" is no
 one component is cancelled. Until that is decided, the orphans remain — which is one more reason the
 suspicious-transaction screen the owner asked for on the same day has something real to show.
 
+---
+
+**OR-47 · Eğitmen sisteme giriyor: üyenin ADI ve ANTRENMANI evet, TELEFONU ve PARASI hayır.** (2026-08-30)
+
+Owner eğitmenleri sisteme aldı. Görecekleri: rezervasyon ajandası, üyelerin ad-soyadı, antrenman
+bilgisi (ekleme/değiştirme/görme), ölçüm, ve **aktif** paket. Görmeyecekleri: **telefon**, **geçmiş
+paketler**, ve stüdyonun parasına dair her şey — kasa, cari hesap, ödeme, fiyat.
+
+**Resepsiyonun üye kartı bu ekran OLAMAZ, ve bu bir tercih değil.** `/members/{id}` başlığında
+telefonu, sekmelerinde Cari Hesap · Cüzdan · Belgeler · paket geçmişini taşıyor. O kapıyı eğitmene
+açmak, owner'ın "göremesin" dediği her şeyi aynı hareketle vermek olurdu. Bu yüzden ikinci ve dar bir
+ekran açıldı: `/trainees`.
+
+**Sınır ekranda değil, sorguda.** `server/trainee-query.ts` göstermediği alanı **okumaz** — telefon
+tarayıcıya hiç gitmez, sayfa kaynağında da ağ sekmesinde de yoktur. CSS ile gizlenen telefon,
+gizlenmiş telefon değildir. `server/trainee-boundary.test.ts` bunu yapısal olarak tutuyor: bu
+dosyalara `phone`, `balanceDue`, `priceAgreed`, `payment` ya da herhangi bir `Kurus` girerse
+`pnpm check` düşer. Kural, altı ay sonra "eğitmen ders değişikliği için arasın diye telefonu da
+koyalım" cümlesini durdurmak için var — kimsenin kasım ayında hatırlamadığı kural, aralıkta yoktur.
+
+**Hangi üyeler: HEPSİ.** (owner'ın kararı; alternatif "sadece kendi derslerindekiler" idi.) Dersi
+devralan hoca anında çalışabiliyor. Bedeli açıkça söylendi ve kabul edildi: stüdyonun üye **isimleri**
+artık üç hesapta daha okunabilir. Para ve telefon değil — isim.
+
+**Owner'ın panelinde yok, kasten.** Owner'da zaten zengin olan `/members` var; ikinci bir "Üyeler"
+aynı odaya iki kapı demek. Eğitmen görünümünü, Derslerim'i kontrol ettiği gibi kendi eğitmen hesabıyla
+girerek görür (2026-07-16 düzeni).
+
+Yazma yetkisi zaten hazırdı — program, şablon, ölçüm action'ları 7. Fazdan beri
+`['owner','trainer','platform_admin']`. Eksik olan yetki değil, **ekrandı.**
+
 ## Traps that have already cost something
 
 **OR-14 · Firestore indexes are a production-only trap.** The emulator does NOT enforce them, so a

@@ -80,6 +80,9 @@ export const GROUPS: readonly NavGroup[] = [
     // reception by the same matrix as everything else.
     items: [
       { href: '/my-classes', label: 'Derslerim', icon: ClipboardCheckIcon },
+      // Üyeler, the trainer's version (owner, 2026-08-30) — names, active packages and training work.
+      // A different screen from reception's `/members`, not the same one with rows hidden.
+      { href: '/trainees', label: 'Üyeler', icon: UsersIcon },
       // Plus Phase 9 — the trainer's own earnings (owner + trainer; read-only for her).
       { href: '/my-payroll', label: 'Hakedişim', icon: BanknoteIcon },
     ],
