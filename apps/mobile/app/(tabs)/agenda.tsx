@@ -273,8 +273,13 @@ export default function Ajanda() {
                         // DOLULUK, kalan değil (owner, 2026-08-22): "3 kaldı" 8 kişilik derste de 20
                         // kişilik derste de aynı görünüyordu. `5/8` hem aciliyet veriyor hem dürüst.
                         // Son iki yerde uyarı rengi kalıyor — orada mesele oran değil, acele.
+                        //
+                        // "dolu" KELİMESİ KALKTI (owner, 2026-08-30). `0/8 dolu` bomboş bir dersi
+                        // DOLU gibi okutuyordu: göz önce "dolu"yu görüyor, oranı sonra. Boş bir
+                        // salonu dolu sanan üye rezerve etmeden kapatıyor. Sayı zaten kendini
+                        // anlatıyor; onu bir kelimeyle açıklamaya çalışmak yanlış anlaşılmayı üretti.
                         <Txt role="caption" tone={seatsLeft <= 2 ? 'warning' : 'muted'} style={{ marginTop: space(0.5) }}>
-                          {s.bookedCount}/{s.capacity} dolu{seatsLeft <= 2 ? ` · son ${seatsLeft} yer` : ''}
+                          {s.bookedCount}/{s.capacity}{seatsLeft <= 2 ? ` · son ${seatsLeft} yer` : ''}
                         </Txt>
                       )}
 
