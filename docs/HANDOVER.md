@@ -1804,6 +1804,27 @@ girip kredisini kaybederse resepsiyona gelir.
 
 **Sırada:** "Fit Paket" ders türünün katalogda açılması (veri, kod değil).
 
+## 📱 Mobil 1.7.1 — biriken işler
+
+**Çıkmadı.** Aynı kural: mobil tarafta bulunan her şey burada birikir, bir arada çıkar. Bulan buraya
+yazar.
+
+| # | İş | Neden | Durum |
+|---|---|---|---|
+| 1 | **Sahte "Ödemen alındı"** — `outcomeFor` URL içinde `/portal` arıyordu | Stüdyo TAMI'ye geçince ödeme sayfası `portal.tami.com.tr` oldu ve `//portal.tami.com.tr` içinde `/portal` geçtiği için WebView sayfayı AÇAR AÇMAZ ekran "Ödemen alındı 🌸" diyordu — kart girilmeden, hiçbir şey olmadan. Canlı kayıtla doğrulandı: 08:36'daki niyet hâlâ `awaiting_payment`, ödeme yok, paket yok. Para hareket etmedi ama **ekran yalan söyledi**. Artık URL ayrıştırılıp HOST'a bakılıyor; sağlayıcının kendi sayfası asla bizim onayımız olamaz. | ✅ kodda (`a615fc7` öncesi) |
+| 2 | **`0/8 dolu` DOLU diye okunuyordu** | Bomboş bir ders "0/8 dolu" yazıyordu; göz oranı değil kelimeyi görüyor ve üye boş salonu dolu sanıp rezerve etmeden kapatıyordu. Işıl bir üyeden duydu — sessizce rezervasyon kaybettiriyordu. Kelime kalktı, sayı tek başına duruyor; "son 2 yer" uyarısı kaldı, orada mesele oran değil acele. | ✅ kodda (`bc75579`) |
+| 3 | **`expo-updates` (EAS Update / OTA)** | 2 numaradaki gibi bir KELİME düzeltmesi bugün mağaza sürümü istiyor: build, inceleme, yayılma, ve güncellemeyen üyelerde bir süre eski metin. Uygulama Expo 54 ama `expo-updates` kurulu değil. Kurulursa JS tarafındaki düzeltmeler mağazaya uğramadan dakikalar içinde iner. Sınırı net: **native değişiklik yine sürüm ister**. Bir kez kurulur, sonraki her metin düzeltmesi bedavadır. | ⏳ owner onayladı, kurulmadı |
+
+**Neden i18n dosyası çözüm değil.** Metni `tr.json`'a taşımak da uygulamanın içinde paketlenir —
+dili değiştirmeyi kolaylaştırır, *sürüm çıkarmadan metin düzeltmeyi* değil. Bugünkü sorun çokdillilik
+değil, **düzeltmenin maliyeti**: aynı kelime panelde iki dakika, mobilde günler. Çözüm OTA.
+
+**Her metni sunucuya taşımak da doğru değil** — her yazı için bir ağ isteği, bir yükleme durumu ve
+"sunucu susarsa ne yazsın" sorusu doğar. Ayrım şu: **iş kararı olan metin** sunucudan (fiyat, kampanya,
+kural), **arayüzün kendi dili** uygulamada. `0/8 dolu` ikinci gruptaydı ve yanlış anlaşıldı.
+
+---
+
 ## 📱 Mobil 1.7.0 — biriken işler
 
 **Bu liste bir sonraki mobil sürüme kadar büyür.** Bir mağaza sürümü ucuz değil: build, Apple'ın
