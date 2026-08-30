@@ -35,6 +35,8 @@ export function WhatsAppDock() {
   const [selected, setSelected] = useState<string | null>(null)
   const [detail, setDetail] = useState<ConvDetail | null>(null)
   const [text, setText] = useState('')
+  /** Sohbet yüklenemedi. Boş bir kutu göstermek yerine söylüyoruz — sessiz hata en kötüsü. */
+  const [yuklemeHatasi, setYuklemeHatasi] = useState(false)
   const [busy, setBusy] = useState(false)
   const seen = useRef<Set<string>>(new Set())
   const baselined = useRef(false)
@@ -72,7 +74,12 @@ export function WhatsAppDock() {
               toast.success(`🟢 Operatör devri geliyor · ${c.name || c.phone.slice(-4)}`, { duration: 5000 })
             }
             setOpen(true)
-            setSelected(c.phone)
+            // AÇIK SOHBETİ ÇALMA (2026-08-30). Burası eskiden doğrudan `setSelected(c.phone)`
+            // yapıyordu: resepsiyon bir sohbeti okurken gelen yoklama onu başka birine atıyordu.
+            // Kullanıcı geri dönüp tekrar tıklıyor, yoklama tekrar çalıyor — "konuşmalar gelmiyor"
+            // diye görünen şey buydu. Uyarı yine çıkıyor ve dock yine açılıyor; sadece elindeki
+            // konuşma elinden alınmıyor.
+            setSelected((cur) => cur ?? c.phone)
           }
           // Cleared (a human took it, or the AI answered after all) → forget it, so the NEXT time
           // this same person needs the desk the alert fires again. Without this, every conversation
@@ -101,11 +108,17 @@ export function WhatsAppDock() {
     const load = async () => {
       try {
         const d = await getConversationAction({ phone: selected })
-        if (alive) setDetail(d)
+        if (!alive) return
+        setDetail(d)
+        // `null` = sohbet bulunamadı. Bu da bir hata: boş bir pencere, kullanıcıya sistemin
+        // çalıştığını ama konuşmanın olmadığını düşündürüyor.
+        setYuklemeHatasi(d === null)
       } catch {
-        /* keep last */
+        // Sessizce yutmuyoruz. Eski içerik duruyorsa kalsın, ama hiç içerik yoksa söyle.
+        if (alive) setYuklemeHatasi(true)
       }
     }
+    setYuklemeHatasi(false)
     void load()
     void markConversationSeenAction({ phone: selected }).catch(() => {})
     seen.current.add(selected)
@@ -216,6 +229,24 @@ export function WhatsAppDock() {
             )}
           </div>
           <div ref={scrollRef} className="min-h-0 flex-1 space-y-2 overflow-y-auto bg-muted/20 p-3">
+            {yuklemeHatasi && !detail ? (
+              // Boş bir pencere "sohbet yok" gibi okunuyor ve resepsiyon geri dönüp tekrar tıklıyor.
+              // Ne olduğunu söylemek, sessizce boş kalmaktan her zaman iyi.
+              <div className="space-y-2 py-6 text-center">
+                <p className="text-sm text-muted-foreground">Sohbet yüklenemedi.</p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const p = selected
+                    setSelected(null)
+                    setTimeout(() => setSelected(p), 0)
+                  }}
+                  className="text-sm font-medium text-emerald-700 hover:underline"
+                >
+                  Tekrar dene
+                </button>
+              </div>
+            ) : null}
             {(detail?.messages ?? []).map((m, i) => (
               <div key={i} className={`flex ${m.role === 'user' ? 'justify-start' : 'justify-end'}`}>
                 <div className={`max-w-[80%] whitespace-pre-wrap rounded-2xl px-3 py-1.5 text-sm ${m.role === 'user' ? 'bg-card text-foreground' : 'bg-emerald-600 text-white'}`}>
