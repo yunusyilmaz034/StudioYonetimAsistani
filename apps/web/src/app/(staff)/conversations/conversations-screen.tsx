@@ -16,7 +16,7 @@ import {
   type Temp,
 } from '@/server/actions/conversations'
 
-const time = (ms: number) => new Date(ms).toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+import { mesajZamani } from '@/lib/mesaj-zamani'
 const POLL_MS = 5000
 
 const TEMP_DOT: Record<Temp, string> = { sıcak: 'bg-rose-500', ılık: 'bg-amber-500', soğuk: 'bg-slate-400' }
@@ -131,7 +131,7 @@ export function ConversationsScreen() {
                   <span className="min-w-0 flex-1">
                     <span className="flex items-center justify-between gap-2">
                       <span className="truncate text-sm font-medium text-foreground">{c.name || c.phone.slice(-6)}</span>
-                      <span className="shrink-0 text-[11px] text-muted-foreground">{time(c.lastAt).slice(0, 5)}</span>
+                      <span className="shrink-0 text-[11px] text-muted-foreground">{mesajZamani(c.lastAt).slice(0, 5)}</span>
                     </span>
                     <span className="line-clamp-1 text-xs text-muted-foreground">{c.lastText || '—'}</span>
                     {c.needsAttention ? <span className="mt-0.5 inline-block rounded bg-emerald-500/15 px-1.5 text-[10px] font-medium text-emerald-700">operatör bekliyor</span> : null}
@@ -168,7 +168,7 @@ export function ConversationsScreen() {
                   <div key={i} className={`flex ${m.role === 'user' ? 'justify-start' : 'justify-end'}`}>
                     <div className={`max-w-[75%] whitespace-pre-wrap rounded-2xl px-3 py-1.5 text-sm ${m.role === 'user' ? 'bg-card text-foreground shadow-sm' : 'bg-emerald-600 text-white'}`}>
                       {m.text}
-                      <div className={`mt-0.5 text-[10px] ${m.role === 'user' ? 'text-muted-foreground' : 'text-white/70'}`}>{time(m.at).slice(-5)}</div>
+                      <div className={`mt-0.5 text-[10px] ${m.role === 'user' ? 'text-muted-foreground' : 'text-white/70'}`}>{mesajZamani(m.at).slice(-5)}</div>
                     </div>
                   </div>
                 ))}

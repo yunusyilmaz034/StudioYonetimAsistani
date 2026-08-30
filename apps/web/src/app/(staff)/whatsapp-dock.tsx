@@ -14,7 +14,7 @@ import {
   type ConvSummary,
 } from '@/server/actions/conversations'
 
-const time = (ms: number) => new Date(ms).toLocaleTimeString('tr-TR', { timeZone: 'Europe/Istanbul', hour: '2-digit', minute: '2-digit' })
+import { mesajZamani } from '@/lib/mesaj-zamani'
 const POLL_MS = 4000
 
 // "WP Hattı" — the floating operator dock. It lives in the staff layout, so it SURVIVES page navigation
@@ -192,7 +192,7 @@ export function WhatsAppDock() {
                     <span className="min-w-0 flex-1">
                       <span className="flex items-center justify-between gap-2">
                         <span className="truncate text-sm font-medium text-foreground">{c.name || c.phone.slice(-6)}</span>
-                        <span className="shrink-0 text-[11px] text-muted-foreground">{time(c.lastAt)}</span>
+                        <span className="shrink-0 text-[11px] text-muted-foreground">{mesajZamani(c.lastAt)}</span>
                       </span>
                       <span className="line-clamp-1 text-xs text-muted-foreground">{c.lastText || '—'}</span>
                     </span>
@@ -220,7 +220,7 @@ export function WhatsAppDock() {
               <div key={i} className={`flex ${m.role === 'user' ? 'justify-start' : 'justify-end'}`}>
                 <div className={`max-w-[80%] whitespace-pre-wrap rounded-2xl px-3 py-1.5 text-sm ${m.role === 'user' ? 'bg-card text-foreground' : 'bg-emerald-600 text-white'}`}>
                   {m.text}
-                  <div className={`mt-0.5 text-[10px] ${m.role === 'user' ? 'text-muted-foreground' : 'text-white/70'}`}>{time(m.at)}</div>
+                  <div className={`mt-0.5 text-[10px] ${m.role === 'user' ? 'text-muted-foreground' : 'text-white/70'}`}>{mesajZamani(m.at)}</div>
                 </div>
               </div>
             ))}
