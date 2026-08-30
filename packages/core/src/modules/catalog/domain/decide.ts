@@ -68,6 +68,14 @@ const PRODUCT_FIELDS = [
   'durationDays',
   'creditCount',
   'priceInKurus',
+  // NAKİT FİYAT VE GİRİŞ HAKKI DA İZLENİYOR (2026-08-30).
+  //
+  // Bu ikisi listede yoktu ve sonucu sessizdi: yalnızca nakit fiyatı değiştiren bir kayıt hiçbir
+  // olay üretmiyor, `updateProduct` "değişen bir şey yok" deyip HİÇ YAZMIYOR, form ise
+  // "kaydedildi" diyordu. Owner sekiz ürünün nakit fiyatını girdi, bir kısmı tutmadı ve sebebi
+  // görünmüyordu. Kart/nakit farkı satış tutarını belirliyor — sessizce yok sayılacak bir alan değil.
+  'cashPriceInKurus',
+  'entryAllowance',
   'freezeAllowanceDays',
   'dailyReservationLimit',
   'cancellationAllowanceCount',
@@ -81,12 +89,24 @@ const PRODUCT_FIELDS = [
 
 export function decideUpdateProduct(ctx: DecideContext, current: Product, next: Product): NewEvent[] {
   const changes = diffFields(current, next, PRODUCT_FIELDS)
-  if (changes.length === 0) return []
+
+  // `components` YUKARIDAKİ LİSTEDE DEĞİL, kasten: nesne dizisi, ve `diffFields` dizi elemanlarını
+  // referansla kıyaslıyor — aynı demet her kayıtta "değişti" görünürdü. Burada yapısal olarak
+  // kıyaslanıyor, böylece yalnızca demet içeriğini değiştiren bir kayıt ne sessizce yok sayılıyor
+  // ne de her seferinde yalancı bir değişiklik bildiriyor.
+  const demetOnce = JSON.stringify(current.components ?? null)
+  const demetSonra = JSON.stringify(next.components ?? null)
+  const tum =
+    demetOnce === demetSonra
+      ? changes
+      : [...changes, { field: 'components', from: current.components ?? null, to: next.components ?? null }]
+
+  if (tum.length === 0) return []
   return [
     {
       ...base(ctx, next.id),
       type: PRODUCT_UPDATED,
-      payload: { changedFields: changedFieldNames(changes), changes },
+      payload: { changedFields: changedFieldNames(tum), changes: tum },
     },
   ]
 }
