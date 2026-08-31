@@ -181,6 +181,17 @@ export type DomainError =
   | { readonly code: 'freeze_blocked_by_reservation' }
   | { readonly code: 'entitlement_already_frozen' }
   | { readonly code: 'entitlement_not_frozen' }
+  // ── freeze booked for later (owner, 2026-08-31) ──
+  // Going past the studio's own terms stays allowed, and stops being silent: the reason is asked for
+  // at the moment of the exception, when the person still knows it.
+  | { readonly code: 'freeze_override_reason_required' }
+  // Two windows on one membership cannot both be honoured; choosing one silently would be the system
+  // deciding something the desk did not.
+  | { readonly code: 'freeze_already_scheduled' }
+  // Today is not a plan, it is a freeze — and it has its own function and its own event.
+  | { readonly code: 'freeze_start_not_future' }
+  | { readonly code: 'freeze_not_scheduled' }
+  | { readonly code: 'freeze_not_due' }
   // ── Package Rules 2.0 (Plus Phase 3) ──
   // Member restriction validation (a malformed rule is refused, never silently reinterpreted).
   | { readonly code: 'invalid_weekday' }

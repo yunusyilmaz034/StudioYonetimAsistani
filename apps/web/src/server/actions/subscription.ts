@@ -6,7 +6,9 @@ import {
   DEFAULT_STUDIO_CONFIG,
   FirestoreReservationRepository,
   freezeDaysRemaining,
+  cancelFreezeSchedule,
   freezeEntitlement,
+  scheduleFreeze,
   localDateAt,
   unfreezeEntitlement,
   adjustCredits,
@@ -691,6 +693,10 @@ export interface SubscriptionView {
   readonly freezeDaysRemaining: number | null
   /** LocalDate the current freeze started, or null. */
   readonly frozenSince: string | null
+  // A freeze BOOKED for later (owner, 2026-08-31). Present ⇒ she is still active and a window is
+  // waiting. The card has to say so, or the plan is invisible until the day it fires.
+  readonly freezeScheduledFrom: string | null
+  readonly freezeScheduledTo: string | null
   /**
    * LocalDate the running freeze ENDS on — what the sweep will actually do, not what the budget
    * implies. They are the same in the ordinary case and differ after an initiative (2026-07-31):
@@ -743,6 +749,10 @@ export async function listMemberSubscriptionsAction(input: unknown): Promise<rea
       freezeEntitledDays: e.freeze?.entitledDays ?? null,
       freezeDaysRemaining: e.freeze ? freezeDaysRemaining(e.freeze) : null,
       frozenSince: e.freeze?.activeFrom ?? null,
+      freezeScheduledFrom: e.freeze?.scheduledFrom ?? null,
+      // Only meaningful while a window is BOOKED — once it starts, `plannedUntil` describes the
+      // running freeze and this pair must stop claiming a plan is still pending.
+      freezeScheduledTo: e.freeze?.scheduledFrom ? (e.freeze.plannedUntil ?? null) : null,
       freezeEndsOn: e.freeze?.activeFrom ? e.freeze.plannedUntil ?? null : null,
     }))
     .sort((a, b) => b.validFrom - a.validFrom)
@@ -775,6 +785,9 @@ export async function freezeSubscriptionAction(input: unknown) {
       // allowance exactly as it always did. It is an opt-in flag rather than a looser rule so that
       // a caller which does not know about initiative cannot use it by accident.
       override: z.boolean().optional(),
+      // WHY the allowance is being exceeded (owner, 2026-08-31). Required by the DOMAIN whenever
+      // there is an overage — this only carries it; the refusal is not the form's to make.
+      overrideReason: z.string().trim().max(300).nullable().optional(),
     })
     .parse(input)
   // OWNER-ONLY, and the guard is chosen by what is being asked for. Reception may freeze within the
@@ -814,8 +827,86 @@ export async function freezeSubscriptionAction(input: unknown) {
           reason: p.reason,
           note: p.note ?? null,
           override: p.override === true,
+          overrideReason: p.overrideReason ?? null,
         },
       }),
+  )
+}
+
+/**
+ * Book a freeze for a FUTURE window (owner, 2026-08-31).
+ *
+ * *"Başlangıç ve bitiş tarihi verebilsin, o tarihlerde dondurma işlemi yapabilsin."* Until now the
+ * desk could only stop her today, so a member leaving next week could only be honoured by somebody
+ * remembering to come back — which means she went on paying for days she had been told she would not.
+ *
+ * The reservation question asked here is about the WINDOW, not about "any upcoming class". Under the
+ * immediate-only freeze those were the same thing; they are not any more, and asking the broad
+ * question would refuse a September freeze because of a class booked in December.
+ */
+export async function scheduleFreezeAction(input: unknown) {
+  const p = z
+    .object({
+      entitlementId: nonEmpty,
+      from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      reason: z.enum(['tatil', 'saglik', 'is', 'diger']),
+      note: z.string().trim().max(300).nullable().optional(),
+      override: z.boolean().optional(),
+      overrideReason: z.string().trim().max(300).nullable().optional(),
+    })
+    .parse(input)
+  // Same door as an immediate freeze: reception may freeze within the terms the studio sells, only
+  // the owner may exceed them.
+  const ctx = await requireTenantContext(p.override ? INITIATIVE : OPS)
+
+  const ent = await new FirestoreEntitlementRepository(adminDb()).getEntitlement(ctx, p.entitlementId as EntitlementId)
+  if (!ent) throw new Error(`Entitlement not found: ${p.entitlementId}`)
+
+  const offset = DEFAULT_STUDIO_CONFIG.utcOffsetMinutes
+  const today = localDateAt(instant(Date.now()), offset) as string
+  const reservations = await new FirestoreReservationRepository(adminDb()).listByMember(ctx, ent.memberId)
+  const hasReservationInWindow = reservations.some((r) => {
+    if (r.status !== 'booked') return false
+    const day = localDateAt(instant(r.sessionStartsAt as number), offset) as string
+    return day >= p.from && day < p.to
+  })
+
+  return observed(
+    'entitlement.freeze_schedule',
+    ctx,
+    undefined,
+    { entitlementId: p.entitlementId, from: p.from, to: p.to, override: p.override === true },
+    () =>
+      scheduleFreeze(entDeps(), ctx, {
+        entitlementId: p.entitlementId as EntitlementId,
+        today,
+        hasReservationInWindow,
+        plan: {
+          from: p.from,
+          to: p.to,
+          // The domain recomputes the days from the dates; this satisfies the shared plan shape and
+          // is never the number it trusts.
+          plannedDays: 0,
+          reason: p.reason,
+          note: p.note ?? null,
+          override: p.override === true,
+          overrideReason: p.overrideReason ?? null,
+        },
+      }),
+  )
+}
+
+/** She changed her plans. Nothing was frozen, so no day is paid back and no date moves. */
+export async function cancelFreezeScheduleAction(input: unknown) {
+  const p = z.object({ entitlementId: nonEmpty, reason: z.string().trim().min(1).max(300) }).parse(input)
+  const ctx = await requireTenantContext(OPS)
+  return observed(
+    'entitlement.freeze_schedule_cancel',
+    ctx,
+    undefined,
+    { entitlementId: p.entitlementId },
+    () => cancelFreezeSchedule(entDeps(), ctx, { entitlementId: p.entitlementId as EntitlementId, reason: p.reason }),
   )
 }
 

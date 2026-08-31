@@ -7,7 +7,16 @@ import {
   type Result,
   type TenantContext,
 } from '../../../shared'
-import { decideFreeze, type FreezePlan, decideUnfreeze, freezeDaysRemaining } from '../domain/decide'
+import {
+  decideCancelFreezeSchedule,
+  decideFreeze,
+  decideScheduleFreeze,
+  decideStartScheduledFreeze,
+  decideUnfreeze,
+  freezeDaysRemaining,
+  type FreezePlan,
+  type FreezeSchedule,
+} from '../domain/decide'
 import type { Entitlement } from '../domain/types'
 import { decideContext, loadEntitlement } from './context'
 import type { EntitlementsDeps } from './ports'
@@ -65,6 +74,53 @@ export async function unfreezeEntitlement(
   return { ok: true, value: undefined }
 }
 
+
+/**
+ * Book a freeze for LATER (owner, 2026-08-31).
+ *
+ * Nothing stops today: she stays active until the window begins, and the nightly sweep starts it.
+ * The caller answers `hasReservationInWindow` because the reservations live in another aggregate —
+ * and note that the question is about the WINDOW, not about "any upcoming class". Under the old
+ * immediate-only freeze the two were the same thing; they are not any more, and asking the broad
+ * question would refuse a member in September because she has a class booked in December.
+ */
+export async function scheduleFreeze(
+  deps: EntitlementsDeps,
+  ctx: TenantContext,
+  input: {
+    readonly entitlementId: EntitlementId
+    /** Today, in the studio's timezone — resolved by the caller, never by the domain. */
+    readonly today: string
+    readonly hasReservationInWindow: boolean
+    readonly plan: FreezeSchedule
+  },
+): Promise<Result<void, DomainError>> {
+  const ent = await loadEntitlement(deps, ctx, input.entitlementId)
+  const outcome = decideScheduleFreeze(
+    decideContext(deps, ctx),
+    ent,
+    input.today,
+    input.hasReservationInWindow,
+    input.plan,
+  )
+  if (!outcome.ok) return outcome
+  await deps.repo.saveEntitlement(ctx, outcome.value.next, outcome.value.events)
+  return { ok: true, value: undefined }
+}
+
+/** She changed her plans. Nothing was frozen, so no day is paid back and no date moves. */
+export async function cancelFreezeSchedule(
+  deps: EntitlementsDeps,
+  ctx: TenantContext,
+  input: { readonly entitlementId: EntitlementId; readonly reason: string },
+): Promise<Result<void, DomainError>> {
+  const ent = await loadEntitlement(deps, ctx, input.entitlementId)
+  const outcome = decideCancelFreezeSchedule(decideContext(deps, ctx), ent, input.reason)
+  if (!outcome.ok) return outcome
+  await deps.repo.saveEntitlement(ctx, outcome.value.next, outcome.value.events)
+  return { ok: true, value: undefined }
+}
+
 /**
  * THE SWEEP — nightly, `actor: system`.
  *
@@ -81,8 +137,27 @@ export async function runFreezeBudgetSweep(
   ctx: TenantContext,
   now: Instant,
   utcOffsetMinutes: number,
-): Promise<{ readonly unfrozen: number }> {
+): Promise<{ readonly unfrozen: number; readonly started: number }> {
   const today = localDateAt(now, utcOffsetMinutes) as string
+
+  // ── First, START the windows that have come due (owner, 2026-08-31) ────────────────────────
+  //
+  // Before unfreezing, because the two are the same job seen from both ends and doing them in this
+  // order lets a one-day freeze booked for today begin and end on the same night rather than
+  // waiting an extra day for a second sweep.
+  //
+  // `listActive` rather than a dedicated query: a scheduled freeze leaves the row ACTIVE (that is
+  // the point), and a studio has hundreds of active entitlements, not millions. A new index for a
+  // nightly loop over a small collection would be a cost with no reader — and index mistakes are a
+  // production-only trap here (OR-14).
+  let started = 0
+  for (const ent of await deps.repo.listActive(ctx)) {
+    const from = ent.freeze?.scheduledFrom
+    if (!from || from > today) continue
+    const res = await startScheduledFreeze(deps, ctx, ent.id, today)
+    if (res.ok) started++
+  }
+
   const frozen = await deps.repo.listFrozen(ctx)
 
   let unfrozen = 0
@@ -97,7 +172,21 @@ export async function runFreezeBudgetSweep(
     })
     if (res.ok) unfrozen++
   }
-  return { unfrozen }
+  return { unfrozen, started }
+}
+
+/** The sweep turning one booked window into a running freeze. */
+async function startScheduledFreeze(
+  deps: EntitlementsDeps,
+  ctx: TenantContext,
+  entitlementId: EntitlementId,
+  today: string,
+): Promise<Result<void, DomainError>> {
+  const ent = await loadEntitlement(deps, ctx, entitlementId)
+  const outcome = decideStartScheduledFreeze(decideContext(deps, ctx), ent, today)
+  if (!outcome.ok) return outcome
+  await deps.repo.saveEntitlement(ctx, outcome.value.next, outcome.value.events)
+  return { ok: true, value: undefined }
 }
 
 /**

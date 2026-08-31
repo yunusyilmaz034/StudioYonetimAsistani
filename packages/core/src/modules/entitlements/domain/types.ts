@@ -158,6 +158,30 @@ export type FreezeState = {
   readonly reason?: FreezeReason
   /** The human's explanation. STATE, never an event — free text is where PII hides. */
   readonly note?: string | null
+  /**
+   * A freeze agreed for LATER (owner, 2026-08-31): the LocalDate it will start on.
+   *
+   * Present ⇔ a window is booked and has not begun. She is still `active` and may still come to
+   * class before it starts — a scheduled freeze is not a freeze, and the day the clock stops is
+   * still the day `entitlement.frozen` says it stopped.
+   *
+   * `plannedUntil` and `grantedDays` describe the booked window while this is set, and go on
+   * describing the running one after the sweep starts it. `activeFrom` is what separates the two.
+   */
+  readonly scheduledFrom?: string | null // LocalDate
+  /**
+   * Why the desk went past the allowance (owner, 2026-08-31).
+   *
+   * Initiative has been allowed since 2026-07-31, but it was silent: the event recorded HOW MANY
+   * days were over, and nothing recorded WHY. The owner asked for both — the reason is required at
+   * the moment of the exception, when the person still knows it, rather than reconstructed from a
+   * date months later.
+   *
+   * STATE, never an event, for the same reason `note` is: "ameliyat sonrası" typed into a permanent
+   * log is health data nobody can take back out. The EVENT carries `overageDays`, which is the part
+   * the owner will query ("how often do we go past our own terms?"); the words stay erasable.
+   */
+  readonly overrideReason?: string | null
 }
 
 // D3 — the rules AS THEY WERE at purchase. Mirrors shared PolicyRef.

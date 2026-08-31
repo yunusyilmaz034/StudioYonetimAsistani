@@ -32,7 +32,9 @@ export async function runUnfreezeSweep(): Promise<void> {
       systemClock.now(),
       DEFAULT_STUDIO_CONFIG.utcOffsetMinutes,
     )
-    if (summary.unfrozen > 0) {
+    // `started` too, since 2026-08-31: the sweep now also BEGINS the windows booked for later, and a
+    // freeze that starts is exactly as much of a membership change as one that ends.
+    if (summary.unfrozen > 0 || summary.started > 0) {
       // Loud, because a member's membership just moved without her asking. It is correct, it is what
       // she bought — and the owner should be able to see it happen.
       logger.info('freeze budget sweep', { studioId: sid, ...summary })

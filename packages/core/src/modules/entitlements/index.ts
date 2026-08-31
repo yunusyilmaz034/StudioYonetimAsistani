@@ -80,8 +80,19 @@ export {
   freezeEntitlement,
   runFreezeBudgetSweep,
   unfreezeEntitlement,
+  // Owner, 2026-08-31 — a freeze booked for a future window; the sweep carries it out.
+  scheduleFreeze,
+  cancelFreezeSchedule,
 } from './application/freeze'
-export { decideFreeze, decideUnfreeze, freezeDaysRemaining } from './domain/decide'
+export {
+  decideFreeze,
+  decideUnfreeze,
+  decideScheduleFreeze,
+  decideStartScheduledFreeze,
+  decideCancelFreezeSchedule,
+  freezeDaysRemaining,
+  type FreezeSchedule,
+} from './domain/decide'
 export {
   ENTITLEMENT_FROZEN,
   ENTITLEMENT_UNFROZEN,

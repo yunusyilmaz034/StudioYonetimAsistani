@@ -54,6 +54,32 @@ export const ENTITLEMENT_EXTENDED = 'entitlement.extended'
 export const ENTITLEMENT_FROZEN = 'entitlement.frozen'
 export const ENTITLEMENT_UNFROZEN = 'entitlement.unfrozen'
 
+// ── A FREEZE BOOKED FOR LATER (owner, 2026-08-31) ────────────────────────────────────────────
+//
+// A member says on the 31st of August that she is away from the 5th to the 15th of September.
+// Until now the desk could only freeze her TODAY, so the only way to honour that was to remember to
+// come back on the 5th — which means it did not happen, and she kept paying for days she was told
+// she would not.
+//
+// So the plan is recorded when she says it, and the nightly sweep carries it out.
+//
+// **Three events, not one, because three different things happen on three different days**, and
+// collapsing them would make the log lie about when the studio acted:
+//
+//   • `freeze_scheduled` — the desk agreed a window. NOTHING has stopped: she is still active and
+//     may still come to class before it starts. No date moves.
+//   • `frozen` — the day it actually began. Emitted by the `system` actor when the sweep starts a
+//     scheduled freeze, and by the member of staff when she freezes on the spot. Same event either
+//     way, because the same thing happened; only the actor differs (#5, #11).
+//   • `freeze_schedule_cancelled` — she changed her plans before it started. The window is dropped
+//     and nothing was ever frozen, so no day is paid back and no date moves.
+//
+// A scheduled freeze that has not started is not a freeze. That is why `frozen` is still the event
+// that stops the clock, and why the unfreeze arithmetic below is untouched: the day the clock stops
+// is still the day it stops.
+export const ENTITLEMENT_FREEZE_SCHEDULED = 'entitlement.freeze_scheduled'
+export const ENTITLEMENT_FREEZE_SCHEDULE_CANCELLED = 'entitlement.freeze_schedule_cancelled'
+
 // ── CANCELLATION ALLOWANCE (Plus Phase 3) ────────────────────────────────────────────────────
 //
 // A package may grant N free (in-window) cancellations. The count is a LEDGER, not a mutable field:

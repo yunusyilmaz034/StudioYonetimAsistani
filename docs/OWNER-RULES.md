@@ -815,6 +815,45 @@ meslektaş kendi şifresini belirler ve link kendiliğinden geçersizleşir.
 Kapılar: sadece owner · sadece **bu stüdyonun** personeli (yoksa istenen her uid için link basardı) ·
 **pasif hesaba link yok** — link erişimdir, pasif meslektaş tam da erişmemesi gereken kişidir.
 
+---
+
+**OR-50 · Dondurma ileri tarihe planlanabilir. Hak aşılabilir — ama sebepsiz aşılamaz.** (2026-08-31)
+
+Owner iki şey istedi:
+
+**1 · Başlangıç ve bitiş tarihi.** *"O tarihlerde dondurma işlemi yapabilsin."* Üye 31 Ağustos'ta
+"5–15 Eylül yokum" diyor. Eskiden masa onu ancak BUGÜN durdurabiliyordu; bunu onurlandırmanın tek
+yolu 5 Eylül'de birinin hatırlamasıydı — yani olmuyordu, ve üye gelmeyeceği söylenen günlerin parasını
+ödemeye devam ediyordu.
+
+**Planlanan dondurma, dondurma DEĞİLDİR.** Üye pencere başlayana kadar **aktif** kalır ve derse
+gelebilir. Hiçbir tarih planlama anında oynamaz — uzatma yine çözülünce, üyeliğin gerçekten durduğu
+günler kadar ödenir. Üç ayrı olay var çünkü üç ayrı günde üç ayrı şey oluyor: `freeze_scheduled`
+(masa pencereyi kaydetti) · `frozen` (o gün geldi ve durdu) · `freeze_schedule_cancelled` (üye
+vazgeçti, hiçbir şey donmadı). Bunları tek olaya indirmek, kaydın stüdyonun NE ZAMAN hareket ettiği
+konusunda yalan söylemesi olurdu.
+
+**Süpürücü gecikirse pencere yine söz verilen günde başlar**, süpürücünün uyandığı günde değil.
+Stüdyo söylediğini borçludur, zamanlayıcısının becerdiğini değil.
+
+**2 · Hak aşımı artık sessiz değil.** İnisiyatif 31 Temmuz'dan beri serbestti ([[OR-21]] hattı) ama
+kayıt sadece KAÇ gün aşıldığını tutuyordu, NEDEN'i hiç tutmuyordu. Artık hakkı aşan işlemde zorunlu
+bir sebep kutusu çıkıyor ve ekran ne olacağını açıkça yazıyor: *"Bu işlem paketin 7 günlük dondurma
+hakkını 3 gün aşıyor. Sistemde dikkat çekecek ve kayda geçecektir."*
+
+**Sebep DOMAIN'de zorunlu, formda değil** (`freeze_override_reason_required`). Sadece ekranın
+uyguladığı kural, aynı action başka bir yerden çağrıldığı gün biter.
+
+**Sebebin kendisi olaya YAZILMAZ, duruma yazılır.** `note` ile aynı sebep (#6): "ameliyat sonrası"
+kalıcı bir kayda düşerse kimse geri çıkaramaz. Olay `overageDays` taşır — owner'ın gerçekten
+soracağı şey odur: *"kendi şartlarımızı ne sıklıkla, kimin için aşıyoruz?"*
+
+**Bilerek kapatılmayan açık:** pencere planlandıktan SONRA o aralığa ders rezervasyonu hâlâ
+yapılabiliyor. Tersi (önce rezervasyon, sonra dondurma) zaten reddediliyor. Sebebi ve geri ödeme
+tetiği [`DEBT-037`](DEBT.md)'de — kısaca: doğru kontrol saf `isEligibleForService` içinde olmalı, o
+da sadece `Instant` tutuyor, pencere ise iki `LocalDate`. UTC gününe göre kıyaslamak UTC+3'te gündüz
+ders yapan stüdyo için doğru, ilk farklı saat dilimi için sessizce yanlış olurdu.
+
 ## Traps that have already cost something
 
 **OR-14 · Firestore indexes are a production-only trap.** The emulator does NOT enforce them, so a

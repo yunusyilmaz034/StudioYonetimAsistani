@@ -201,6 +201,19 @@ export function domainErrorMessage(error: DomainError): string {
       return 'Bu paket zaten dondurulmuş.'
     case 'entitlement_not_frozen':
       return 'Bu paket dondurulmuş değil.'
+    // ── Dondurma planı (owner, 2026-08-31) ──
+    case 'freeze_override_reason_required':
+      // The sentence says WHY it is being asked, not just that a field is empty. "Sebep zorunlu"
+      // reads as bureaucracy; this reads as the studio keeping a record of its own exceptions.
+      return 'Paketin dondurma hakkını aşıyorsunuz. Devam etmek için sebebini yazın — bu işlem kayda geçer.'
+    case 'freeze_already_scheduled':
+      return 'Bu pakette planlanmış bir dondurma zaten var. Önce onu iptal edin.'
+    case 'freeze_start_not_future':
+      return 'Planlanan dondurma ileri bir tarihte başlamalı. Bugünden başlatmak için "Şimdi dondur" kullanın.'
+    case 'freeze_not_scheduled':
+      return 'Bu pakette planlanmış bir dondurma yok.'
+    case 'freeze_not_due':
+      return 'Planlanan dondurmanın başlama tarihi henüz gelmedi.'
     // AG-1 — the studio's own opening hours. It refuses, and it says WHICH hours it refused against:
     // "kapalı saatte olamaz" leaves reception guessing what the hours are.
     case 'studio_closed_on_day':

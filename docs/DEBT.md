@@ -938,6 +938,36 @@ category), and have `payStatement` optionally emit that finance event in the sam
 
 ---
 
+## DEBT-037 — a class can still be booked INTO a freeze window that was scheduled for later
+
+**Taken:** 2026-08-31 · scheduled freeze (owner request) · Yunus
+**What:** Scheduling a freeze REFUSES when the member already has a class inside the window — the
+same rule an immediate freeze has, and for the same reason (we do not cancel her class for her). The
+reverse is not guarded: after the window is booked, nothing stops her booking a class *inside* it,
+from the member app or the desk. When the sweep starts the freeze she is frozen with a live
+reservation; the credit was held at booking, so she can attend a class during a period the studio is
+paying her back for in days.
+**Why it was not closed now:** the check belongs in `isEligibleForService`, which is PURE and holds
+only `Instant`s, while a freeze window is two `LocalDate`s. Comparing them needs the studio's UTC
+offset, which the domain deliberately does not have ("resolved by the caller, never by the domain").
+Doing it properly means threading the window as instants through `decideBooking` → `selectEntitlement`
+→ `isEligibleForService`; doing it improperly means a UTC-day comparison that is exact for a studio
+at UTC+3 running daytime classes and silently wrong for the first customer who is not — which is the
+kind of assumption this product exists to avoid baking in.
+**Cost:** bounded and small. It needs a member to book a class during days she has just told the
+studio she will be away. The likely direction (freeze first, then book) is the rare one; the common
+direction (book first, then freeze) is already refused. Worst case is one or two days of membership
+extension the studio did not owe — no money moves, no data is corrupted, and the event log records
+both the freeze and the attendance truthfully.
+**Trigger to repay:** the first time it actually happens (a `reservation.attended` whose session
+falls inside a `frozen` period on the same entitlement — findable from the log), OR the first studio
+in a timezone where a session and its local date can disagree.
+**Repayment:** add an optional `frozenWindow: { from: Instant; to: Instant } | null` to
+`isEligibleForService`, converted from the LocalDates by the application layer that already knows
+`utcOffsetMinutes`, and refuse a session inside it. Two callers; the tests exist.
+
+---
+
 ## DEBT-036 — Progress-photo Storage is not wired (no bucket, no Storage rules)
 
 **Taken:** 2026-07-16 · Product Plus Phase 7 (Training & Progress) · Yunus (owner-approved autonomy)

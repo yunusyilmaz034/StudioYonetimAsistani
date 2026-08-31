@@ -39,6 +39,8 @@ import {
   ENTITLEMENT_EXTENDED,
   ENTITLEMENT_EXHAUSTED,
   ENTITLEMENT_EXPIRED,
+  ENTITLEMENT_FREEZE_SCHEDULED,
+  ENTITLEMENT_FREEZE_SCHEDULE_CANCELLED,
   ENTITLEMENT_FROZEN,
   ENTITLEMENT_UNFROZEN,
   ENTITLEMENT_PAYMENT_RECORDED,
@@ -683,6 +685,17 @@ export interface FreezePlan {
    * exactly one place, by a button that says what it is about to do.
    */
   readonly override?: boolean
+  /**
+   * WHY the desk went past the allowance. Required whenever it does (owner, 2026-08-31).
+   *
+   * Initiative was allowed a month ago and was silent: the log recorded how many days were over and
+   * nothing recorded why. Asking at the moment of the exception costs one sentence; reconstructing
+   * it from a date three months later costs the answer.
+   *
+   * Kept on STATE, never in the event — free text is where PII hides (#6). The event carries
+   * `overageDays`, which is what the owner will actually query.
+   */
+  readonly overrideReason?: string | null
 }
 
 export function decideFreeze(
@@ -724,6 +737,10 @@ export function decideFreeze(
   if (!Number.isInteger(plan.plannedDays) || plan.plannedDays < 1) return err({ code: 'invalid_freeze_days' })
   if (plan.plannedDays > remaining && !plan.override) return err({ code: 'freeze_days_exceed_budget', remaining })
   const overageDays = Math.max(0, plan.plannedDays - remaining)
+  // Going past the studio's own terms is allowed and must be EXPLAINED (owner, 2026-08-31). The
+  // refusal is here rather than in the form because a rule enforced only by a screen is a rule that
+  // ends the first time somebody calls the action from anywhere else.
+  if (overageDays > 0 && !plan.overrideReason?.trim()) return err({ code: 'freeze_override_reason_required' })
 
   const plannedUntil = addLocalDays(from, plan.plannedDays)
   const next: Entitlement = {
@@ -738,6 +755,10 @@ export function decideFreeze(
       grantedDays: plan.plannedDays,
       reason: plan.reason,
       note: plan.note?.trim() || null,
+      overrideReason: overageDays > 0 ? (plan.overrideReason?.trim() ?? null) : null,
+      // Freezing NOW clears any window that was booked for later: she is stopping today, and two
+      // freezes cannot run on one membership.
+      scheduledFrom: null,
     },
   }
 
@@ -770,6 +791,177 @@ export function decideFreeze(
  * @param auto  TRUE when the nightly sweep ended it because her budget ran out. Nobody asked for
  *              this, and the audit must not read as though somebody did.
  */
+
+// ── A FREEZE BOOKED FOR LATER (owner, 2026-08-31) ─────────────────────────────────────────────
+//
+// *"Başlangıç ve bitiş tarihi verebilsin, o tarihlerde dondurma işlemi yapabilsin."*
+//
+// A member says on the 31st of August that she is away from the 5th to the 15th. Until now the desk
+// could only stop her TODAY, so honouring that meant remembering to come back on the 5th — which is
+// to say it did not happen, and she went on paying for days she had been told she would not.
+//
+// The window is recorded when she says it; the nightly sweep carries it out. Three things follow,
+// and each of them is a decision rather than an accident:
+//
+//   • She stays ACTIVE until it starts, and may keep coming to class. A booked freeze is not a
+//     freeze — nothing has stopped, so nothing may behave as though it had.
+//   • **No date moves at scheduling time**, exactly as none moves at freeze time. The extension is
+//     still paid at unfreeze, for the days the membership actually stood still (the rule above).
+//   • A class already booked INSIDE the window refuses the schedule. Same rule as an immediate
+//     freeze and the same reason: cancelling her class for her would move a credit she never asked
+//     us to move (owner, 2026-07-13).
+
+export interface FreezeSchedule extends FreezePlan {
+  /** LocalDate the freeze starts. Must be in the future — today is `decideFreeze`. */
+  readonly from: string
+  /** LocalDate it ends; the sweep resumes her on this day. */
+  readonly to: string
+}
+
+export function decideScheduleFreeze(
+  ctx: DecideContext,
+  ent: Entitlement,
+  today: string, // LocalDate in the studio's timezone — resolved by the caller, never here
+  hasReservationInWindow: boolean,
+  plan: FreezeSchedule,
+): Result<LedgerOutcome, DomainError> {
+  if (ent.status === 'frozen') return err({ code: 'entitlement_already_frozen' })
+  if (ent.status !== 'active') return err({ code: 'entitlement_not_active' })
+
+  const f = ent.freeze
+  if (!f || f.entitledDays <= 0) return err({ code: 'freeze_not_allowed' })
+  // Two windows on one membership cannot both be honoured, and picking one silently would be the
+  // system deciding something the desk did not. Cancel the first, then book the second.
+  if (f.scheduledFrom) return err({ code: 'freeze_already_scheduled' })
+
+  // Today or earlier is not a plan, it is a freeze — and it has its own function, with its own
+  // event. Routing it here would record `freeze_scheduled` for something that started immediately.
+  if (plan.from <= today) return err({ code: 'freeze_start_not_future' })
+
+  const days = daysBetween(plan.from, plan.to)
+  if (!Number.isInteger(days) || days < 1) return err({ code: 'invalid_freeze_days' })
+
+  const remaining = freezeDaysRemaining(f)
+  if (days > remaining && !plan.override) return err({ code: 'freeze_days_exceed_budget', remaining })
+  const overageDays = Math.max(0, days - remaining)
+  if (overageDays > 0 && !plan.overrideReason?.trim()) return err({ code: 'freeze_override_reason_required' })
+
+  if (hasReservationInWindow) return err({ code: 'freeze_blocked_by_reservation' })
+
+  const next: Entitlement = {
+    ...ent,
+    // Status is UNCHANGED on purpose. She is active, and the screens that ask "can she book?" must
+    // go on getting the true answer until the day it actually stops.
+    freeze: {
+      ...f,
+      scheduledFrom: plan.from,
+      plannedUntil: plan.to,
+      grantedDays: days,
+      reason: plan.reason,
+      note: plan.note?.trim() || null,
+      overrideReason: overageDays > 0 ? (plan.overrideReason?.trim() ?? null) : null,
+    },
+  }
+
+  return ok({
+    next,
+    events: [
+      {
+        ...base(ctx, ent, { entitlementId: ent.id, memberId: ent.memberId }),
+        type: ENTITLEMENT_FREEZE_SCHEDULED,
+        payload: {
+          from: plan.from,
+          to: plan.to,
+          plannedDays: days,
+          entitledDays: f.entitledDays,
+          usedDaysBefore: f.usedDays,
+          reason: plan.reason,
+          ...(overageDays > 0 ? { overageDays } : {}),
+        },
+      },
+    ],
+  })
+}
+
+/**
+ * The sweep starting a window that has come due.
+ *
+ * Emits `entitlement.frozen` — the SAME event a member of staff produces, because the same thing
+ * happened. Only the actor differs, and that is exactly what the actor field is for (#5): the log
+ * must be able to answer "did a person stop her, or did the plan she agreed to?".
+ *
+ * It starts from `scheduledFrom`, not from `today`. If the sweep missed a night, the freeze still
+ * began on the day she was promised — the studio owes what it said, not what its scheduler managed.
+ */
+export function decideStartScheduledFreeze(
+  ctx: DecideContext,
+  ent: Entitlement,
+  today: string,
+): Result<LedgerOutcome, DomainError> {
+  if (ent.status !== 'active') return err({ code: 'entitlement_not_active' })
+  const f = ent.freeze
+  if (!f?.scheduledFrom) return err({ code: 'freeze_not_scheduled' })
+  if (f.scheduledFrom > today) return err({ code: 'freeze_not_due' })
+
+  const from = f.scheduledFrom
+  const next: Entitlement = {
+    ...ent,
+    status: 'frozen',
+    freeze: { ...f, activeFrom: from, scheduledFrom: null },
+  }
+  return ok({
+    next,
+    events: [
+      {
+        ...base(ctx, ent, { entitlementId: ent.id, memberId: ent.memberId }),
+        type: ENTITLEMENT_FROZEN,
+        payload: {
+          from,
+          entitledDays: f.entitledDays,
+          usedDaysBefore: f.usedDays,
+          plannedDays: f.grantedDays ?? 0,
+          ...(f.reason ? { reason: f.reason } : {}),
+          // `scheduled: true` is what lets the log distinguish "the desk stopped her today" from
+          // "the plan she agreed to a week ago came due". Both are `entitlement.frozen`; only one
+          // of them is somebody acting today.
+          scheduled: true,
+        },
+      },
+    ],
+  })
+}
+
+/** She changed her plans. Nothing was ever frozen, so no day is paid back and no date moves. */
+export function decideCancelFreezeSchedule(
+  ctx: DecideContext,
+  ent: Entitlement,
+  reason: string,
+): Result<LedgerOutcome, DomainError> {
+  if (reason.trim().length === 0) return err({ code: 'reason_required' })
+  const f = ent.freeze
+  if (!f?.scheduledFrom) return err({ code: 'freeze_not_scheduled' })
+
+  const from = f.scheduledFrom
+  const to = f.plannedUntil ?? null
+  const next: Entitlement = {
+    ...ent,
+    freeze: { ...f, scheduledFrom: null, plannedUntil: null, grantedDays: null, overrideReason: null },
+  }
+  return ok({
+    next,
+    events: [
+      {
+        ...base(ctx, ent, { entitlementId: ent.id, memberId: ent.memberId }),
+        type: ENTITLEMENT_FREEZE_SCHEDULE_CANCELLED,
+        // The window that was dropped, so the log can answer "what did we undo?" — and `reason`,
+        // which is mandatory here for the same purpose it is mandatory on every other correction
+        // (#9): an undo nobody explained is an undo nobody can defend.
+        payload: { from, ...(to ? { to } : {}), reason: reason.trim() },
+      },
+    ],
+  })
+}
+
 export function decideUnfreeze(
   ctx: DecideContext,
   ent: Entitlement,
