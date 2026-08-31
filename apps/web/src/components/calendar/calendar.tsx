@@ -11,6 +11,7 @@ import {
   dayKey,
   isInMonth,
   monthGridDays,
+  monthNameTr,
   studioToday,
   viewDays,
   WEEKDAYS_TR,
@@ -152,22 +153,54 @@ function MonthGrid<T extends CalendarItem>({
             const inMonth = isInMonth(d, year, month)
             const isToday = d === today
             const isFocus = d === date && !isToday // the date being navigated to
+            // Ay etiketi yalnızca ayın DEĞİŞTİĞİ yerde: ayın 1'i, ve ızgaranın ilk hücresi (o gün
+            // 1'i olmasa da, ekranda görünen ilk ayın adını söylemek gerekiyor).
+            const aySinir = d.slice(8, 10) === '01' || d === days[0]
             return (
               <div
                 key={d}
-                className={`group relative min-h-32 space-y-1 rounded-md px-1.5 py-2 transition-colors duration-150 hover:z-20 ${
+                className={`group relative space-y-1 rounded-md px-1.5 py-2 transition-colors duration-150 hover:z-20 ${
+                  inMonth ? 'min-h-32' : 'min-h-24'
+                } ${
                   isToday
-                    ? 'bg-primary-soft/60'
+                    ? // BUGÜN: rakamın üstündeki küçük rozet 42 hücrenin içinde kayboluyordu. Artık
+                      // hücrenin TAMAMI çerçeveli — ekran açılır açılmaz göz oraya düşüyor.
+                      'bg-primary-soft/70 ring-2 ring-inset ring-primary'
                     : isFocus
                       ? 'bg-primary-soft/35'
                       : inMonth
                         ? 'bg-calendar-cell'
-                        : 'bg-calendar-cell/40'
+                        : // BAŞKA AY: eskiden yalnızca zemin %40 saydamdı — içindeki dersler tam
+                          // güçteydi, ve gürültüyü yapan onlardı. Artık zemin de FARKLI (ince tarama),
+                          // içerik de sönük (aşağıda). Bilgi kaybolmuyor, sadece bağırmıyor.
+                          'bg-[repeating-linear-gradient(135deg,transparent_0_6px,var(--color-border)_6px_7px)] bg-background/60'
+                } ${
+                  // Ayın ilk günü: sol kenarda mürdüm bir çizgi. Sınır görünür olmalı ki "buradan
+                  // sonrası başka ay" sorusu sorulmasın.
+                  aySinir && inMonth ? 'shadow-[inset_3px_0_0_var(--color-primary)]' : ''
                 }`}
               >
                 {/* D23 — the day's mark. It is a BACKGROUND fact: it must not compete with the
                     `today` and `selected` treatments, which stay the strongest marks on screen. */}
                 {renderDayMark ? renderDayMark(d) : null}
+                {/* HANGİ AY (owner, 2026-08-31). Rakam bunu söylemiyor: 31 hem Temmuz'un hem
+                    Ağustos'un son günü olabilir ve ızgarada ikisi de aynı anda duruyor. Owner'ın
+                    tarifi netti — *"göz ilk baştakine gidiyor, alttakini sonra arıyorsun"*. Etiket
+                    yalnızca ayın DEĞİŞTİĞİ yerde çıkar; her hücrede olsa gürültü olurdu. */}
+                {aySinir ? (
+                  <span
+                    className={`pointer-events-none absolute top-1.5 left-2 text-[10px] font-bold uppercase tracking-wider ${
+                      inMonth ? 'text-primary' : 'text-muted-foreground/70'
+                    }`}
+                  >
+                    {monthNameTr(d)}
+                  </span>
+                ) : null}
+                {isToday ? (
+                  <span className="pointer-events-none absolute top-1.5 left-2 text-[10px] font-bold uppercase tracking-wider text-primary">
+                    Bugün
+                  </span>
+                ) : null}
                 {/* One emphasis language for the day number: today is the strongest, the focused
                     day the same shape a step quieter, everything else recedes. */}
                 <div className="flex justify-end pb-0.5">
@@ -192,7 +225,11 @@ function MonthGrid<T extends CalendarItem>({
                     key={it.id}
                     type="button"
                     onClick={() => onSelect(it)}
-                    className="block w-full rounded-md px-1 py-1 text-left leading-[1.45] transition-colors hover:bg-primary-soft/70"
+                    className={`block w-full rounded-md px-1 py-1 text-left leading-[1.45] transition-colors hover:bg-primary-soft/70 ${
+                      // İçeriği de geri çek. Hücrenin zeminini soldurmak yetmiyordu: dolu/boş
+                      // rakamları kırmızıydı ve gözü asıl onlar çekiyordu.
+                      inMonth ? '' : 'opacity-55 saturate-[.35]'
+                    }`}
                   >
                     {renderChip(it)}
                   </button>
@@ -270,6 +307,30 @@ function MonthGrid<T extends CalendarItem>({
               </div>
             )
           })}
+        </div>
+
+        {/* AÇIKLAMA ŞERİDİ. Renk bir dil, ve dilin sözlüğü ekranda olmalı — özellikle üç farklı
+            durumun (bugün / bu ay / başka ay) aynı ızgarada yan yana durduğu yerde. */}
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-border bg-surface px-3 py-2 text-xs text-muted-foreground">
+          <span className="inline-flex items-center gap-1.5">
+            <i className="inline-block size-3 rounded-[3px] bg-primary-soft ring-2 ring-inset ring-primary" aria-hidden />
+            Bugün
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <i className="inline-block size-3 rounded-[3px] border border-border bg-calendar-cell" aria-hidden />
+            Bu ay
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <i
+              className="inline-block size-3 rounded-[3px] border border-border bg-[repeating-linear-gradient(135deg,transparent_0_4px,var(--color-border)_4px_5px)]"
+              aria-hidden
+            />
+            Başka ay
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <i className="inline-block h-3 w-[3px] rounded-sm bg-primary" aria-hidden />
+            Ay başlangıcı
+          </span>
         </div>
       </div>
 

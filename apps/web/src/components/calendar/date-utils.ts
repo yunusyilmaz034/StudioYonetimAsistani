@@ -81,3 +81,14 @@ export function viewDays(dateStr: string, view: CalendarView): string[] {
 export function isInMonth(dateStr: string, year: number, month: number): boolean {
   return dateStr.slice(0, 7) === `${year}-${String(month).padStart(2, '0')}`
 }
+
+/**
+ * Ay adı, tek başına: "Ağustos".
+ *
+ * Ay ızgarasında bir hücrenin hangi aya ait olduğunu SÖYLEMEK için (owner, 2026-08-31). Rakamın
+ * kendisi bunu söylemiyor — 31 hem Temmuz'un hem Ağustos'un son günü olabilir, ve ekranda ikisi de
+ * aynı anda duruyor.
+ */
+export function monthNameTr(dateStr: string): string {
+  return new Date(`${dateStr}T00:00:00Z`).toLocaleDateString('tr-TR', { month: 'long', timeZone: 'UTC' })
+}
