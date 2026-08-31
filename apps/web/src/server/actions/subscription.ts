@@ -6,6 +6,7 @@ import {
   DEFAULT_STUDIO_CONFIG,
   FirestoreReservationRepository,
   freezeDaysRemaining,
+  instantFromLocalDate,
   cancelFreezeSchedule,
   freezeEntitlement,
   scheduleFreeze,
@@ -885,6 +886,11 @@ export async function scheduleFreezeAction(input: unknown) {
         plan: {
           from: p.from,
           to: p.to,
+          // The window as instants, converted HERE because this is the layer that knows the studio's
+          // offset. It is what lets the pure booking check refuse a class inside the window without
+          // the domain ever learning a timezone (DEBT-037).
+          fromAt: instantFromLocalDate(p.from, offset) ?? 0,
+          untilAt: instantFromLocalDate(p.to, offset) ?? 0,
           // The domain recomputes the days from the dates; this satisfies the shared plan shape and
           // is never the number it trusts.
           plannedDays: 0,

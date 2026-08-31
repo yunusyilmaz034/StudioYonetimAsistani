@@ -70,6 +70,17 @@ export function isEligibleForService(
   // the queue is decorative: she would buy the next package and immediately spend it alongside the
   // one she already has, which is the exact overlap the queue exists to prevent.
   if (at < e.validFrom) return false
+  // ── A freeze BOOKED for later (2026-08-31, DEBT-037) ────────────────────────────────────────
+  // Scheduling a freeze refuses when she already has a class inside the window. The reverse has to
+  // refuse too, or the guard only works in one direction: book the window today, book a class into
+  // it tomorrow, and she attends a class during days the studio is paying her back for.
+  //
+  // Compared as instants, resolved by the application layer that knows the offset — this function
+  // stays pure and timezone-free (see FreezeState.scheduledFromAt).
+  const fz = e.freeze
+  if (fz?.scheduledFromAt != null && fz.scheduledUntilAt != null && at >= fz.scheduledFromAt && at < fz.scheduledUntilAt) {
+    return false
+  }
   // I-9.7 — the category wall. Widened, not removed: the session names who it admits, and a package
   // outside that list is refused exactly as before.
   const admits = Array.isArray(category) ? category : [category as Category]

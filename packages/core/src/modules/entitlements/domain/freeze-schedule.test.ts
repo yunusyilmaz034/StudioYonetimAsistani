@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { instant, money, type CorrelationId, type EntitlementId, type MemberId, type ProductId, type StudioId } from '../../../shared'
+import { instant, instantFromLocalDate, money, type CorrelationId, type EntitlementId, type MemberId, type ProductId, type StudioId } from '../../../shared'
 import {
   decideCancelFreezeSchedule,
   decideFreeze,
@@ -8,6 +8,7 @@ import {
   decideStartScheduledFreeze,
   decideUnfreeze,
 } from './decide'
+import { isEligibleForService } from './eligibility'
 import type { Entitlement, FreezeState } from './types'
 import scheduledFixture from '../../../../test/golden/entitlement.freeze_scheduled.v1.json'
 import cancelledFixture from '../../../../test/golden/entitlement.freeze_schedule_cancelled.v1.json'
@@ -72,7 +73,13 @@ const ent = (over: Partial<Entitlement> = {}): Entitlement => ({
 })
 
 const TODAY = '2026-08-31'
-const PLAN = { from: '2026-09-05', to: '2026-09-12', plannedDays: 7, reason: 'tatil' as const, note: null }
+// Studio time is UTC+3. Resolved HERE, exactly as the application layer resolves it — the domain
+// never converts a date to an instant. `instantFromLocalDate` is pure integer arithmetic, which is
+// why it may be called from a domain test at all (D2 forbids `Date` here).
+const OFFSET = 180
+const TRT = (localDate: string) => instantFromLocalDate(localDate, OFFSET)!
+const win = (from: string, to: string) => ({ from, to, fromAt: TRT(from), untilAt: TRT(to) })
+const PLAN = { ...win('2026-09-05', '2026-09-12'), plannedDays: 7, reason: 'tatil' as const, note: null }
 
 describe('the owner’s example: booked on the 31st, for the 5th to the 12th', () => {
   it('books the window and stops NOTHING — she is still active, and no date moves', () => {
@@ -143,14 +150,14 @@ describe('the owner’s example: booked on the 31st, for the 5th to the 12th', (
 
 describe('what a booked freeze REFUSES', () => {
   it('refuses a start date of today — that is a freeze, and it has its own event', () => {
-    const r = decideScheduleFreeze(ctx, ent(), TODAY, false, { ...PLAN, from: TODAY, to: '2026-09-05' })
+    const r = decideScheduleFreeze(ctx, ent(), TODAY, false, { ...PLAN, ...win(TODAY, '2026-09-05') })
     expect(r.ok).toBe(false)
     if (r.ok) return
     expect(r.error.code).toBe('freeze_start_not_future')
   })
 
   it('refuses a window that ends before it begins', () => {
-    const r = decideScheduleFreeze(ctx, ent(), TODAY, false, { ...PLAN, from: '2026-09-10', to: '2026-09-05' })
+    const r = decideScheduleFreeze(ctx, ent(), TODAY, false, { ...PLAN, ...win('2026-09-10', '2026-09-05') })
     expect(r.ok).toBe(false)
     if (r.ok) return
     expect(r.error.code).toBe('invalid_freeze_days')
@@ -159,7 +166,7 @@ describe('what a booked freeze REFUSES', () => {
   it('refuses a SECOND window while one is already booked', () => {
     const first = decideScheduleFreeze(ctx, ent(), TODAY, false, PLAN)
     if (!first.ok) return
-    const second = decideScheduleFreeze(ctx, first.value.next, TODAY, false, { ...PLAN, from: '2026-10-01', to: '2026-10-05' })
+    const second = decideScheduleFreeze(ctx, first.value.next, TODAY, false, { ...PLAN, ...win('2026-10-01', '2026-10-05') })
     expect(second.ok).toBe(false)
     if (second.ok) return
     // Two windows on one membership cannot both be honoured, and picking one silently would be the
@@ -185,7 +192,7 @@ describe('what a booked freeze REFUSES', () => {
 })
 
 describe('going past the allowance — allowed, and no longer silent', () => {
-  const LONG = { ...PLAN, from: '2026-09-05', to: '2026-09-15', plannedDays: 10 } // 10 > 7
+  const LONG = { ...PLAN, ...win('2026-09-05', '2026-09-15'), plannedDays: 10 } // 10 > 7
 
   it('refuses without the initiative flag — the exception must be an ACT, not a typo', () => {
     const r = decideScheduleFreeze(ctx, ent(), TODAY, false, LONG)
@@ -271,8 +278,7 @@ describe('she changed her plans', () => {
 describe('golden payloads — the shape is a contract, and events are permanent', () => {
   it('entitlement.freeze_scheduled', () => {
     const r = decideScheduleFreeze(ctx, ent(), TODAY, false, {
-      from: '2026-09-05',
-      to: '2026-09-15',
+      ...win('2026-09-05', '2026-09-15'),
       plannedDays: 10,
       reason: 'tatil',
       note: 'yurt disi',
@@ -285,7 +291,7 @@ describe('golden payloads — the shape is a contract, and events are permanent'
   })
 
   it('entitlement.freeze_schedule_cancelled', () => {
-    const booked = decideScheduleFreeze(ctx, ent(), TODAY, false, { ...PLAN, to: '2026-09-15', override: true, overrideReason: 'x' })
+    const booked = decideScheduleFreeze(ctx, ent(), TODAY, false, { ...PLAN, ...win('2026-09-05', '2026-09-15'), override: true, overrideReason: 'x' })
     if (!booked.ok) return
     const c = decideCancelFreezeSchedule(ctx, booked.value.next, 'uye vazgecti')
     expect(c.ok).toBe(true)
@@ -298,5 +304,51 @@ describe('golden payloads — the shape is a contract, and events are permanent'
     if (!r.ok) return
     expect(JSON.stringify(r.value.events[0]!.payload)).not.toContain('Ayse')
     expect(JSON.stringify(r.value.events[0]!.payload)).not.toContain('ameliyat')
+  })
+})
+
+describe('the other direction — a class cannot be booked INTO a booked window (DEBT-037)', () => {
+  // The guard was one-way for exactly as long as it took to write it down: scheduling refuses when
+  // she already has a class in the window, and nothing stopped her booking one afterwards. She would
+  // then attend a class during days the studio was paying her back for.
+  // Local 10:00 = local midnight + 10h. Written this way so no `Date` appears in a domain test.
+  const at10 = (d: string) => instant(TRT(d) + 10 * 3_600_000)
+  const SESSION_IN = at10('2026-09-08') // inside 05→12
+  const SESSION_BEFORE = at10('2026-09-03')
+  const SESSION_AFTER = at10('2026-09-20')
+  const SVC = 'svc_fitness' as never
+
+  // Bu blok EYLÜL'e bakıyor; yukarıdaki örnek paket 1 Nisan'da bitiyor. Süresi dolmuş bir paket
+  // zaten uygun değildir ve testin ölçtüğü şeyi gizlerdi.
+  const uzun = () => ent({ validUntil: TRT('2026-12-31') })
+  const booked = () => {
+    const r = decideScheduleFreeze(ctx, uzun(), TODAY, false, PLAN)
+    if (!r.ok) throw new Error('planlanamadı')
+    return r.value.next
+  }
+
+  it('refuses a session INSIDE the window', () => {
+    expect(isEligibleForService(booked(), 'fitness', SVC, SESSION_IN)).toBe(false)
+  })
+
+  it('allows a session BEFORE it — she is still active until the day it starts', () => {
+    // The whole promise of a booked freeze. If this were false, scheduling would silently stop her
+    // today, which is the thing it exists not to do.
+    expect(isEligibleForService(booked(), 'fitness', SVC, SESSION_BEFORE)).toBe(true)
+  })
+
+  it('allows a session AFTER it', () => {
+    expect(isEligibleForService(booked(), 'fitness', SVC, SESSION_AFTER)).toBe(true)
+  })
+
+  it('allows the same session once the plan is cancelled', () => {
+    const c = decideCancelFreezeSchedule(ctx, booked(), 'uye vazgecti')
+    expect(c.ok).toBe(true)
+    if (!c.ok) return
+    expect(isEligibleForService(c.value.next, 'fitness', SVC, SESSION_IN)).toBe(true)
+  })
+
+  it('a membership with no booked window is unaffected', () => {
+    expect(isEligibleForService(uzun(), 'fitness', SVC, SESSION_IN)).toBe(true)
   })
 })

@@ -111,6 +111,23 @@ export function instantFromLocalParts(
   return instant(daysFromCivil(y, m, d) * 86_400_000 - utcOffsetMinutes * 60_000)
 }
 
+/**
+ * Local midnight of a `YYYY-MM-DD`, as an Instant. Null if the date is not a real one.
+ *
+ * The inverse of `localDateAt`, and it exists for the same reason: a calendar date and an instant
+ * are different things, and the conversion belongs wherever the studio's offset is known — never
+ * inside a decision function. A freeze window is two dates; the booking check that has to honour it
+ * holds only instants (DEBT-037).
+ *
+ * Pure integer arithmetic, no `Date` — callable from `domain/` and from its tests, where a `Date` is
+ * a build failure (D2).
+ */
+export function instantFromLocalDate(date: string, utcOffsetMinutes: number): Instant | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date)
+  if (!m) return null
+  return instantFromLocalParts(Number(m[1]), Number(m[2]), Number(m[3]), utcOffsetMinutes)
+}
+
 /** Whole days between two `YYYY-MM-DD` dates. `daysBetween('2026-01-10', '2026-01-15')` is 5. */
 export function daysBetween(from: string, to: string): number {
   return parseLocalDate(to) - parseLocalDate(from)

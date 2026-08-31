@@ -848,11 +848,16 @@ uyguladığı kural, aynı action başka bir yerden çağrıldığı gün biter.
 kalıcı bir kayda düşerse kimse geri çıkaramaz. Olay `overageDays` taşır — owner'ın gerçekten
 soracağı şey odur: *"kendi şartlarımızı ne sıklıkla, kimin için aşıyoruz?"*
 
-**Bilerek kapatılmayan açık:** pencere planlandıktan SONRA o aralığa ders rezervasyonu hâlâ
-yapılabiliyor. Tersi (önce rezervasyon, sonra dondurma) zaten reddediliyor. Sebebi ve geri ödeme
-tetiği [`DEBT-037`](DEBT.md)'de — kısaca: doğru kontrol saf `isEligibleForService` içinde olmalı, o
-da sadece `Instant` tutuyor, pencere ise iki `LocalDate`. UTC gününe göre kıyaslamak UTC+3'te gündüz
-ders yapan stüdyo için doğru, ilk farklı saat dilimi için sessizce yanlış olurdu.
+**Kural iki yönlü.** Pencerede dersi olan üye dondurulamaz — ve pencere planlandıktan sonra o
+aralığa ders de alınamaz. İkincisi ilk turda atlanmıştı: owner "bilerek yapmadığın şeyi anlamadım"
+diye sorunca anlatmak, ucuz yolu görmemi sağladı. Pencere entitlement'ta **iki biçimde** duruyor —
+kayıt olan tarihler, ve kıyaslanabilir olan anlık karşılıkları. Çevrimi saat dilimini zaten bilen
+Server Action bir kez yapıyor; `isEligibleForService` iki sayı karşılaştırıyor ve saat diliminden
+habersiz kalıyor. **Hiçbir çağrı yeri değişmedi** — rezervasyon, bekleme listesi, tekrarlayan
+rezervasyon ve üye uygulamasının ajandası dördü de otomatik miras aldı.
+
+Aynı bilginin iki kopyası, ve gerekçesi hız değil **doğruluk** — CLAUDE.md'nin "mimari" ile "kılık
+değiştirmiş borç" arasına çektiği çizgi tam burada. Ayrıntı ve kanıt: [`DEBT-037`](DEBT.md).
 
 ## Traps that have already cost something
 

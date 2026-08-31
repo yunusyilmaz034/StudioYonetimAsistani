@@ -759,6 +759,8 @@ export function decideFreeze(
       // Freezing NOW clears any window that was booked for later: she is stopping today, and two
       // freezes cannot run on one membership.
       scheduledFrom: null,
+      scheduledFromAt: null,
+      scheduledUntilAt: null,
     },
   }
 
@@ -816,6 +818,15 @@ export interface FreezeSchedule extends FreezePlan {
   readonly from: string
   /** LocalDate it ends; the sweep resumes her on this day. */
   readonly to: string
+  /**
+   * The SAME two dates as instants, resolved by the caller that knows the studio's offset.
+   *
+   * They exist so the pure booking-eligibility check can refuse a class inside the window without
+   * this module ever learning a timezone (DEBT-037). The dates above stay the record; these are the
+   * comparable form of them.
+   */
+  readonly fromAt: number
+  readonly untilAt: number
 }
 
 export function decideScheduleFreeze(
@@ -855,6 +866,8 @@ export function decideScheduleFreeze(
     freeze: {
       ...f,
       scheduledFrom: plan.from,
+      scheduledFromAt: plan.fromAt,
+      scheduledUntilAt: plan.untilAt,
       plannedUntil: plan.to,
       grantedDays: days,
       reason: plan.reason,
@@ -907,7 +920,9 @@ export function decideStartScheduledFreeze(
   const next: Entitlement = {
     ...ent,
     status: 'frozen',
-    freeze: { ...f, activeFrom: from, scheduledFrom: null },
+    // The window instants go with `scheduledFrom`: once she is `frozen`, eligibility refuses on
+    // status alone, and a stale window left behind would go on refusing bookings after she resumes.
+    freeze: { ...f, activeFrom: from, scheduledFrom: null, scheduledFromAt: null, scheduledUntilAt: null },
   }
   return ok({
     next,
@@ -945,7 +960,15 @@ export function decideCancelFreezeSchedule(
   const to = f.plannedUntil ?? null
   const next: Entitlement = {
     ...ent,
-    freeze: { ...f, scheduledFrom: null, plannedUntil: null, grantedDays: null, overrideReason: null },
+    freeze: {
+      ...f,
+      scheduledFrom: null,
+      scheduledFromAt: null,
+      scheduledUntilAt: null,
+      plannedUntil: null,
+      grantedDays: null,
+      overrideReason: null,
+    },
   }
   return ok({
     next,

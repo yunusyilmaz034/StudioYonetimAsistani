@@ -966,6 +966,26 @@ in a timezone where a session and its local date can disagree.
 `isEligibleForService`, converted from the LocalDates by the application layer that already knows
 `utcOffsetMinutes`, and refuse a session inside it. Two callers; the tests exist.
 
+**✅ REPAID 2026-08-31, the same day — and the estimate above was wrong.** The owner asked what the
+gap actually was, and explaining it out loud showed the cheap route: the window does not need to be
+THREADED anywhere. It is stored on the entitlement in both forms — `scheduledFrom`/`plannedUntil`
+as the LocalDates that are the record, and `scheduledFromAt`/`scheduledUntilAt` as instants, converted
+**once** by the Server Action that already resolves the studio offset. `isEligibleForService` then
+compares two numbers and stays entirely timezone-free. **No call site changed** — the four callers
+(booking, waitlist, recurring, the portal agenda) all inherit it, which also closes the second-order
+risk the file warns about: a UI that offers a booking the domain would refuse.
+
+The extra pair of fields is the same fact twice, and it is justified by CORRECTNESS rather than
+speed — the distinction CLAUDE.md draws between architecture and debt in costume. It is rebuildable
+from the dates and the offset.
+
+Conversion uses a new pure `instantFromLocalDate` in `shared/time.ts` (integer arithmetic, no `Date`)
+— the inverse of `localDateAt`, callable from `domain/` and from its tests, where a `Date` is a build
+failure. Five tests in `freeze-schedule.test.ts` cover it, including the two that matter most: a
+session BEFORE the window is still bookable (otherwise scheduling would silently freeze her today),
+and the same session becomes bookable again once the plan is cancelled. Proven load-bearing by
+disabling the check and watching the inside-the-window case fail.
+
 ---
 
 ## DEBT-036 — Progress-photo Storage is not wired (no bucket, no Storage rules)

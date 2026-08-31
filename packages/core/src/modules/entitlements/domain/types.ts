@@ -170,6 +170,21 @@ export type FreezeState = {
    */
   readonly scheduledFrom?: string | null // LocalDate
   /**
+   * The same window as INSTANTS — so a pure eligibility check can use it (DEBT-037, repaid the day
+   * it was taken).
+   *
+   * A booked window is two calendar dates; `isEligibleForService` holds only `Instant`s and must
+   * stay ignorant of the studio's timezone. Rather than teach it, or thread a local date through
+   * four call sites that would each have to learn the offset, the conversion is done ONCE by the
+   * caller that already knows it — the same arrangement `from` uses everywhere else here.
+   *
+   * It is the same fact twice, and it is justified by CORRECTNESS rather than speed: without it a
+   * member can book a class into days the studio has already agreed to stop for. Rebuildable from
+   * `scheduledFrom`/`plannedUntil` and the studio offset if it ever drifts.
+   */
+  readonly scheduledFromAt?: number | null
+  readonly scheduledUntilAt?: number | null
+  /**
    * Why the desk went past the allowance (owner, 2026-08-31).
    *
    * Initiative has been allowed since 2026-07-31, but it was silent: the event recorded HOW MANY
