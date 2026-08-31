@@ -55,7 +55,12 @@ const ROLE_LABEL: Record<string, string> = {
 const ROLE_MEANS: Record<string, string> = {
   owner: 'Her şeyi görür ve yönetir — denetim kaydı, analiz, personel dahil.',
   receptionist: 'Üyeler, paketler, rezervasyon, satış, tahsilat, kasa. Analiz ve denetim kaydını görmez.',
-  trainer: 'Yalnızca kendi derslerini ve o derslerdeki üyelerin adlarını görür. Başka hiçbir şeyi.',
+  // 2026-08-31: bu satır bir gün yanlış kaldı. Eğitmenin yetkisi 30 Ağustos'ta genişledi (rezervasyon
+  // ajandası · check-in · antrenman · üye ekranı) ve burada hâlâ "başka hiçbir şeyi" yazıyordu —
+  // üstelik owner'ın kime ne verdiğine bakarak karar verdiği ekranda. Yetki matrisi değişince BU
+  // cümlenin de değişmesi gerekir; yanlış bir açıklama, olmayan bir kısıttan daha kötüdür.
+  trainer:
+    'Kendi dersleri, rezervasyon ajandası, check-in ve antrenman. Üyelerin adını, aktif paketini, programını ve ölçümünü görür — telefonunu, geçmiş paketlerini, kasayı ve parayı görmez.',
   kiosk: 'Duvardaki tablet için. Yalnızca QR ile giriş ekranını gösterir — üyeleri, kasayı, ayarları asla. Bu hesapla tablete bir kez giriş yapıp bırakırsınız.',
 }
 
