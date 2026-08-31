@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation'
 import { CameraIcon, LogInIcon, LogOutIcon, PrinterIcon, SearchIcon, UsersIcon } from 'lucide-react'
 import { toast } from 'sonner'
 
+import { commandErrorMessage } from '@/lib/stale-deployment'
+
 import type { MemberId } from '@studio/core'
 
 import { Button } from '@/components/ui/button'
@@ -92,9 +94,12 @@ export function CheckinScreen({ state, members }: { state: CheckinState; members
         })
         toast.success(`${nameOf.get(memberId) ?? 'Üye'} — ${wasInside ? 'çıkış' : 'giriş'} alındı.`)
         window.setTimeout(() => router.refresh(), 1800) // let the trigger apply
-      } catch {
+      } catch (e) {
         debounce.current.delete(memberId)
-        toast.error('İşlem alınamadı. Bağlantıyı kontrol edin.')
+        // Hatayı KONSOLA da bas. Kapıdaki bir arıza tekrar olduğunda tek elimizde olan şey bu —
+        // 2026-08-31'de owner bu ekranda hata aldı ve geriye bakacak hiçbir iz yoktu.
+        console.error('[checkin] komut yazılamadı', e)
+        toast.error(commandErrorMessage(e))
       }
     },
     [state.isOpen, insideIds, nameOf, router],

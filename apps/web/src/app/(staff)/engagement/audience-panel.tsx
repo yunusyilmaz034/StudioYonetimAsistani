@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input'
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { saveErrorMessage } from '@/lib/stale-deployment'
-import type { SegmentKey } from '@/lib/segments'
+import { SEGMENT_GROUPS, type SegmentKey } from '@/lib/segments'
 import {
   audienceMembersAction,
   deleteEngagementGroupAction,
@@ -85,36 +85,44 @@ export function AudiencePanel({
 
   return (
     <section className="space-y-3">
-      <div className="space-y-2">
-        <p className="text-sm font-medium">Kitle</p>
-        <div className="flex flex-wrap gap-2">
-          {segments.map((s) => {
-            const active = audience.kind === 'segment' && audience.key === s.key
-            return (
-              <span key={s.key} className={chipClass(active)}>
-                <button type="button" onClick={() => onAudience({ kind: 'segment', key: s.key })} className="inline-flex items-center gap-1.5">
-                  <UsersIcon className="size-3.5" /> {s.label}
-                </button>
-                {/* The COUNT is the button. Tapping the label picks the audience; tapping the number
-                    asks who they are — which is the question the number provokes. */}
-                <button
-                  type="button"
-                  onClick={() => setShowing({ title: s.label, audience: { kind: 'segment', key: s.key } })}
-                  disabled={s.count === 0}
-                  title={s.count === 0 ? 'Bu kitlede üye yok' : 'Kimler?'}
-                  className="tabular-nums underline decoration-dotted underline-offset-2 opacity-70 transition-opacity hover:opacity-100 disabled:no-underline disabled:opacity-40"
-                >
-                  ({s.count})
-                </button>
-              </span>
-            )
-          })}
-        </div>
-      </div>
+      {/* Gruplanmış rozetler. Başlıklar süs değil: biri KİM OLDUĞUNA, biri NE SATIN ALDIĞINA, biri
+          NE YAPTIĞINA bakar — farklı sorular, farklı raflar. */}
+      {SEGMENT_GROUPS.map((grup) => {
+        const uyeler = grup.keys.map((k) => segments.find((s) => s.key === k)).filter((s): s is SegmentInfo => Boolean(s))
+        if (uyeler.length === 0) return null
+        return (
+          <div key={grup.label} className="space-y-2">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{grup.label}</p>
+            <div className="flex flex-wrap gap-2">
+              {uyeler.map((s) => {
+                const active = audience.kind === 'segment' && audience.key === s.key
+                return (
+                  <span key={s.key} className={`${chipClass(active)} ${s.count === 0 ? 'opacity-50' : ''}`}>
+                    <button type="button" onClick={() => onAudience({ kind: 'segment', key: s.key })} className="inline-flex items-center gap-1.5">
+                      <UsersIcon className="size-3.5" /> {s.label}
+                    </button>
+                    {/* The COUNT is the button. Tapping the label picks the audience; tapping the
+                        number asks who they are — which is the question the number provokes. */}
+                    <button
+                      type="button"
+                      onClick={() => setShowing({ title: s.label, audience: { kind: 'segment', key: s.key } })}
+                      disabled={s.count === 0}
+                      title={s.count === 0 ? 'Bu kitlede üye yok' : 'Kimler?'}
+                      className="tabular-nums underline decoration-dotted underline-offset-2 opacity-70 transition-opacity hover:opacity-100 disabled:no-underline disabled:opacity-40"
+                    >
+                      ({s.count})
+                    </button>
+                  </span>
+                )
+              })}
+            </div>
+          </div>
+        )
+      })}
 
       <div className="space-y-2">
-        <p className="text-sm font-medium">
-          Gruplarım <span className="font-normal text-muted-foreground">(elle seçilir, kendiliğinden güncellenmez)</span>
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+          Kendi listelerim <span className="font-normal normal-case tracking-normal">(elle seçilir, kendiliğinden güncellenmez)</span>
         </p>
         <div className="flex flex-wrap gap-2">
           {groups.map((g) => {
@@ -142,7 +150,7 @@ export function AudiencePanel({
           })}
           {canManage ? (
             <button type="button" onClick={() => setPicker({ open: true, editing: null })} className="inline-flex items-center gap-1.5 rounded-full border border-dashed px-3.5 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:border-primary hover:text-foreground">
-              <UserPlusIcon className="size-3.5" /> Üye Seç
+              <UserPlusIcon className="size-3.5" /> Üye seçerek liste oluştur
             </button>
           ) : null}
           {groups.length === 0 && !canManage ? <p className="text-sm text-muted-foreground">Henüz grup yok.</p> : null}
@@ -173,11 +181,6 @@ export function AudiencePanel({
         />
       ) : null}
 
-      {/* Which audience is selected, spelled out — the chip highlight alone is easy to lose on a
-          phone once the row wraps onto three lines. */}
-      <p className="text-xs text-muted-foreground">
-        Seçili kitle: <b className="text-foreground">{label(audience) || '—'}</b>
-      </p>
     </section>
   )
 }

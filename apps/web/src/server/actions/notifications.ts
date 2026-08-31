@@ -463,6 +463,50 @@ export interface EngagementPreviewRow {
   readonly suppressed: readonly { channel: string; reason: string }[]
 }
 
+/**
+ * Kanal başına kaç kişiye ULAŞIR — mesaj yazılmadan önce (owner, 2026-08-31).
+ *
+ * Ekran artık her kanalı ayrı bir kutu olarak gösteriyor ve yanında bu sayıyı yazıyor. Sebebi
+ * somut: "Sadece e-posta" seçmek 130 üyeye değil 18'ine gitmek demek, çünkü 18 üyenin e-posta
+ * adresi var — ve bunu bugüne kadar ancak önizleme ekranında görülebiliyordu, yani seçim yapıldıktan
+ * SONRA.
+ *
+ * Aynı saf `selectChannels`'i çağırır. Her kanal tek tek, açıkmış gibi sorulur: soru "bu kanal açık
+ * olsaydı kaça ulaşırdı", "şu an kaça ulaşıyor" değil.
+ */
+export async function audienceReachAction(input: unknown): Promise<Record<string, number>> {
+  const p = z
+    .object({ segment: z.enum(SEGMENT_KEYS).optional(), groupId: z.string().min(1).optional() })
+    .parse(input)
+  const ctx = await requireTenantContext(OPS)
+  const studioDeps = await notificationDepsFor(ctx.studioId)
+
+  const [ids, memberSnap] = await Promise.all([
+    resolveAudience(ctx.studioId, p),
+    adminDb().collection(`studios/${ctx.studioId}/members`).get(),
+  ])
+  const byId = new Map(memberSnap.docs.map((d) => [d.id, d.data()]))
+
+  const out: Record<string, number> = { in_app: 0, whatsapp: 0, email: 0, push: 0 }
+  for (const id of ids) {
+    const m = byId.get(id)
+    if (!m) continue
+    const prefs: NotificationPrefs = { ...DEFAULT_PREFS, ...((m.notificationPrefs as NotificationPrefs | undefined) ?? {}) }
+    const recipient: RecipientRef = {
+      kind: 'member',
+      id,
+      email: (m.email as string | null) ?? null,
+      phone: (m.phone as string | null) ?? null,
+      displayName: String(m.fullName ?? ''),
+    }
+    for (const ch of ['in_app', 'whatsapp', 'email', 'push'] as const) {
+      const settings = { ...studioDeps.settings, enabledChannels: [...new Set(['in_app', ch])] as typeof studioDeps.settings.enabledChannels }
+      if (selectChannels(recipient, prefs, settings, 'marketing').channels.includes(ch)) out[ch] = (out[ch] ?? 0) + 1
+    }
+  }
+  return out
+}
+
 export async function previewEngagementAction(input: unknown) {
   const p = z
     .object({

@@ -28,3 +28,17 @@ export const SEGMENT_LABEL: Record<SegmentKey, string> = {
 
 /** Every segment key, for validation. Derived, so a new segment cannot be forgotten in one place. */
 export const SEGMENT_KEYS = Object.keys(SEGMENT_LABEL) as [SegmentKey, ...SegmentKey[]]
+
+// ── KİTLE GRUPLARI (owner, 2026-08-31) ────────────────────────────────────────────────────────
+//
+// On rozet tek bir yığın hâlinde duruyordu ve owner'ın tarifi netti: *"burası çok karışık ya"*.
+// Gruplayınca on rozet üç başlık olarak okunuyor — ve başlıklar süs değil, gerçek bir ayrımı
+// taşıyor: biri KİM OLDUĞUNA, biri NE SATIN ALDIĞINA, biri NE YAPTIĞINA bakar. Farklı sorular,
+// farklı raflar.
+//
+// Sıra da anlamlı: en sık kullanılan üstte. "Tüm aktif üyeler" günlük duyurunun kitlesidir.
+export const SEGMENT_GROUPS: readonly { readonly label: string; readonly keys: readonly SegmentKey[] }[] = [
+  { label: 'Herkes', keys: ['all', 'active'] },
+  { label: 'Paketine göre', keys: ['fitness', 'pilates', 'pt'] },
+  { label: 'Davranışına göre', keys: ['dormant', 'regular', 'cancellers', 'new', 'birthday'] },
+]

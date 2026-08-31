@@ -48,3 +48,36 @@ export const GENERIC_SAVE_ERROR = 'Kaydedilemedi. Lütfen tekrar deneyin.'
 export function saveErrorMessage(e: unknown): string {
   return isStaleDeployment(e) ? STALE_DEPLOYMENT_MESSAGE : GENERIC_SAVE_ERROR
 }
+
+/**
+ * Kapıdaki bir yazmanın NEDEN düştüğü.
+ *
+ * `checkInCommand` bir Server Action değil — istemci doğrudan `/commands`'a yazar. Ekran bu yazmanın
+ * her başarısızlığını tek bir cümleyle karşılıyordu: *"İşlem alınamadı. Bağlantıyı kontrol edin."*
+ * Bu bir TAHMİNDİ, ve üç ayrı arızayı aynı torbaya koyuyordu — oturum düşmüş, yetki reddetmiş, ağ
+ * gitmiş. Üçünün çaresi farklı, ve resepsiyon üçünde de wifi'ye bakıyordu.
+ *
+ * 2026-08-31'de owner "çıkış yap"a basıp bu cümleyi gördü ve elimizde teşhis edecek hiçbir şey
+ * yoktu, çünkü `catch` hatayı olduğu gibi çöpe atıyordu (OR-42: görülemeyen arıza).
+ */
+export function commandErrorMessage(e: unknown): string {
+  // Firestore hataları bir `code` taşır; onu okumak tahmin etmekten iyidir.
+  const code = typeof e === 'object' && e !== null && 'code' in e ? String((e as { code: unknown }).code) : ''
+  const text = e instanceof Error ? e.message : String(e ?? '')
+
+  if (text.includes('Not authenticated') || code.includes('unauthenticated')) {
+    return 'Oturumunuz düşmüş. Sayfayı yenileyip tekrar giriş yapın.'
+  }
+  if (text.includes('claim on token')) {
+    // Nadir ama gerçek: yetkiler değiştiğinde token tazelenene kadar bu olur, ve tek çare yenilemek.
+    return 'Yetki bilgileriniz güncel değil. Sayfayı yenileyin (⌘R), sonra tekrar deneyin.'
+  }
+  if (code.includes('permission-denied')) {
+    return 'Bu işlem için yetkiniz görünmüyor. Sayfayı yenileyin; sürerse haber verin.'
+  }
+  if (isStaleDeployment(e)) return saveErrorMessage(e)
+  if (code.includes('unavailable') || code.includes('deadline-exceeded')) {
+    return 'Sunucuya ulaşılamadı. İnternet bağlantınızı kontrol edip tekrar deneyin.'
+  }
+  return 'İşlem alınamadı. Sayfayı yenileyip tekrar deneyin; sürerse haber verin.'
+}

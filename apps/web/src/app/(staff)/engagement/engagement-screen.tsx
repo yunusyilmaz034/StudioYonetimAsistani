@@ -31,6 +31,7 @@ import {
 } from '@/server/actions/notifications'
 
 import { AudiencePanel, type Audience } from './audience-panel'
+import { ChannelPicker, type Sendable } from './channel-picker'
 import { SendPreviewDialog, type EngagementPreview } from './send-preview-dialog'
 
 const CAT_LABEL: Record<EngagementCategory, string> = {
@@ -44,6 +45,7 @@ const CAT_LABEL: Record<EngagementCategory, string> = {
   custom: 'Diğer',
 }
 const CATS = Object.keys(CAT_LABEL) as EngagementCategory[]
+const KANAL_ADI: Record<string, string> = { whatsapp: 'WhatsApp', email: 'E-posta', push: 'Push' }
 const EMPTY = { id: '', category: 'motivation' as EngagementCategory, title: '', subject: '', body: '', updatedAt: 0 }
 
 export function EngagementScreen({
@@ -61,7 +63,7 @@ export function EngagementScreen({
   const reloadContent = async () => setContent([...(await listEngagementContentAction())])
 
   return (
-    <div className="mx-auto max-w-4xl space-y-5 p-4 pb-10">
+    <div className="mx-auto max-w-6xl space-y-5 p-4 pb-10">
       <div>
         <h1 className="text-display font-semibold">Stüdyodan</h1>
         <p className="text-sm text-muted-foreground">Üyelerinle bağ kur — motivasyon, kutlama ve kampanyaları doğru kitleye gönder. Her gönderim senin onayınla.</p>
@@ -74,8 +76,8 @@ export function EngagementScreen({
               <BellRingIcon className="size-4" /> Öneriler{initialSuggestions.length > 0 ? ` (${initialSuggestions.length})` : ''}
             </TabsTrigger>
           ) : null}
-          <TabsTrigger value="send"><SendIcon className="size-4" /> Gönder</TabsTrigger>
-          <TabsTrigger value="library"><SparklesIcon className="size-4" /> İçerik Kütüphanesi</TabsTrigger>
+          <TabsTrigger value="send"><SendIcon className="size-4" /> Bildirim Gönder</TabsTrigger>
+          <TabsTrigger value="library"><SparklesIcon className="size-4" /> Hazır Metinler</TabsTrigger>
         </TabsList>
 
         {canManage ? (
@@ -164,9 +166,13 @@ function Composer({ content, segments, canManage }: { content: EngagementContent
   // Live progress of the running send. The send itself is a single long request, so the ONLY way to
   // see inside it is to ask the server separately — which is also what makes it stoppable.
   const [run, setRun] = useState<EngagementRun | null>(null)
+  const [hepsiMetin, setHepsiMetin] = useState(false)
   const [result, setResult] = useState<{ sent: number; failed: number; total: number } | null>(null)
-  // Empty ⇒ the studio's own channels. A one-off announcement often wants exactly one of them.
-  const [channels, setChannels] = useState<string[]>([])
+  // Hangi kanallardan gidecek. BOŞ artık "stüdyo ayarı" değil, "yalnızca uygulama içi" demek
+  // (owner, 2026-08-31) — ve bu ayrım sunucuya da açıkça taşınıyor: `in_app` her zaman listeye
+  // eklenerek gönderiliyor, böylece dizi hiç boş kalmıyor ve "belirtilmedi" ile "hiçbiri"
+  // birbirine karışmıyor. Varsayılan WhatsApp: stüdyonun bugüne kadarki davranışı bu.
+  const [channels, setChannels] = useState<Sendable[]>(['whatsapp'])
   const [subject, setSubject] = useState('')
   const [body, setBody] = useState('')
   const [sending, setSending] = useState(false)
@@ -189,7 +195,7 @@ function Composer({ content, segments, canManage }: { content: EngagementContent
     }
     setChecking(true)
     try {
-      const res = await previewEngagementAction({ ...audienceInput, ...(channels.length ? { channels } : {}) })
+      const res = await previewEngagementAction({ ...audienceInput, channels: ['in_app', ...channels] })
       if (!res.ok) {
         toast.error('Önizleme alınamadı.')
         return
@@ -220,7 +226,7 @@ function Composer({ content, segments, canManage }: { content: EngagementContent
         subject: subject.trim(),
         body: body.trim(),
         ...audienceInput,
-        ...(channels.length ? { channels } : {}),
+        channels: ['in_app', ...channels],
       })
       if (res.ok) {
         // "Durduruldu" alone invites the question it must answer: durduruldu, ama kaça gitti?
@@ -264,84 +270,121 @@ function Composer({ content, segments, canManage }: { content: EngagementContent
     }
   }
 
-  return (
-    <div className="space-y-5">
-      <AudiencePanel
-        segments={segments}
-        audience={audience}
-        onAudience={setAudience}
-        onLabel={setAudienceLabel}
-        canManage={canManage}
-      />
+  // Seçili kitledeki kişi sayısı — kanal satırlarının "kaçına ulaşamıyoruz"u için.
+  const audienceTotal =
+    audience.kind === 'segment' ? (segments.find((x) => x.key === audience.key)?.count ?? 0) : 0
 
-      {content.length > 0 ? (
-        <section className="space-y-2">
-          <p className="text-sm font-medium">Kütüphaneden seç <span className="font-normal text-muted-foreground">(sonra düzenleyebilirsin)</span></p>
-          <div className="flex flex-wrap gap-2">
-            {content.map((c) => (
-              <button key={c.id} type="button" onClick={() => pick(c)} className="rounded-lg border bg-card px-3 py-1.5 text-left text-sm shadow-xs transition-colors hover:border-primary">
-                <span className="text-xs text-accent">{CAT_LABEL[c.category]}</span>
-                <span className="block font-medium">{c.title}</span>
-              </button>
-            ))}
-          </div>
-        </section>
-      ) : null}
-
-      <section className="space-y-3">
-        <div className="space-y-1.5">
-          <label className="text-sm font-medium">Başlık</label>
-          <Input value={subject} onChange={(e) => setSubject(e.target.value)} maxLength={120} placeholder="Yeni bir hafta, yeni bir sen ✨" />
-        </div>
-        <div className="space-y-1.5">
-          <label className="text-sm font-medium">Mesaj</label>
-          <Textarea value={body} onChange={(e) => setBody(e.target.value)} rows={5} maxLength={600} placeholder="Üyene söylemek istediğin sıcak mesaj…" />
-        </div>
-      </section>
-
-      {subject || body ? (
-        <section className="space-y-2 rounded-2xl border bg-muted/40 p-4">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Önizleme (üyenin ana sayfasında)</p>
-          <div className="rounded-xl border-l-4 border-primary bg-card p-3 shadow-sm">
-            <p className="text-sm font-semibold">📣 {subject || 'Başlık'}</p>
-            <p className="text-sm text-muted-foreground">{body || 'Mesaj burada görünecek.'}</p>
-          </div>
-        </section>
-      ) : null}
-
-      {/* Channel choice for THIS send only. The studio's configuration is untouched — an
-          announcement that needs WhatsApp alone must not quietly redefine what every later
-          notification does. */}
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="text-xs uppercase tracking-wide text-muted-foreground">Kanal</span>
-        {([
-          ['', 'Ayardaki kanallar'],
-          ['whatsapp', 'Sadece WhatsApp'],
-          ['email', 'Sadece e-posta'],
-        ] as const).map(([key, label]) => (
-          <button
-            key={key || 'default'}
-            type="button"
-            onClick={() => setChannels(key ? [key] : [])}
-            className={`rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
-              (channels[0] ?? '') === key ? 'bg-accent text-accent-foreground' : 'bg-muted text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            {label}
-          </button>
-        ))}
+  /** Bir adımın kabuğu. Numara süs değil: kitleyi seçmeden kaç kişiye ulaşılacağı hesaplanamaz. */
+  const Adim = ({ n, baslik, ipucu, children }: { n: number; baslik: string; ipucu?: string; children: React.ReactNode }) => (
+    <section className="space-y-3 rounded-2xl border border-border bg-card p-4 shadow-xs sm:p-5">
+      <div className="flex items-center gap-2.5">
+        <span className="grid size-[22px] shrink-0 place-items-center rounded-full bg-primary-soft text-[12px] font-bold text-primary">
+          {n}
+        </span>
+        <span className="text-[15px] font-semibold text-foreground">{baslik}</span>
+        {ipucu ? <span className="ml-auto hidden text-xs text-muted-foreground sm:block">{ipucu}</span> : null}
       </div>
-      <p className="text-xs text-muted-foreground">
-        Uygulama içi kayıt her seçimde düşer — üyenin kendi hesap geçmişidir, kapatılamaz.
-      </p>
+      {children}
+    </section>
+  )
 
-      {/* The label CHANGES while it works. A bare spinner on a 158-person send says only "something
-          is happening", and the honest question underneath it — to how many, and is it stuck? — has
-          no answer on screen. The count is what makes the wait legible. */}
-      <Button onClick={() => void check()} disabled={checking || sending}>
-        {checking ? <Loader2Icon className="animate-spin" /> : <SendIcon className="size-4" />}
-        {checking ? 'Kimlere gideceği hesaplanıyor…' : 'Gönder'}
-      </Button>
+  return (
+    <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_336px]">
+      <div className="space-y-4">
+        <Adim n={1} baslik="Kime gidecek?" ipucu="Sayıya tıkla → kimler olduğunu gör">
+          <AudiencePanel
+            segments={segments}
+            audience={audience}
+            onAudience={setAudience}
+            onLabel={setAudienceLabel}
+            canManage={canManage}
+          />
+        </Adim>
+
+        <Adim n={2} baslik="Ne yazacaksın?" ipucu="Hazır metni seç, üstünde değiştir">
+          {content.length > 0 ? (
+            <div className="flex flex-wrap gap-2">
+              {(hepsiMetin ? content : content.slice(0, 6)).map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => pick(c)}
+                  className="rounded-lg border bg-surface px-3 py-1.5 text-left text-sm shadow-xs transition-colors hover:border-primary"
+                >
+                  <span className="text-xs text-muted-foreground">{CAT_LABEL[c.category]}</span>
+                  <span className="block font-medium">{c.title}</span>
+                </button>
+              ))}
+              {/* 16 hazır metin ekranı boğuyordu. Kaybolmadılar — hepsi aynı anda bağırmıyor. */}
+              {content.length > 6 ? (
+                <button
+                  type="button"
+                  onClick={() => setHepsiMetin((v) => !v)}
+                  className="self-center rounded-full border border-dashed border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground"
+                >
+                  {hepsiMetin ? 'Daha az göster' : `Tüm hazır metinler (${content.length}) →`}
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">Başlık</label>
+            <Input value={subject} onChange={(e) => setSubject(e.target.value)} maxLength={120} placeholder="Yeni bir hafta, yeni bir sen ✨" />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">Mesaj</label>
+            <Textarea value={body} onChange={(e) => setBody(e.target.value)} rows={5} maxLength={600} placeholder="Üyene söylemek istediğin sıcak mesaj…" />
+          </div>
+        </Adim>
+
+        <Adim n={3} baslik="Nereden gitsin?" ipucu="Kaç kişiye ulaşacağı yanında yazıyor">
+          <ChannelPicker audience={audience} total={audienceTotal} selected={channels} onChange={setChannels} />
+        </Adim>
+      </div>
+
+      {/* ── ÖZET. "Ne yapmak üzereyim?" sorusunun cevabı, ekranı kaydırınca kaybolmasın diye
+          yapışkan. Gönder düğmesi de burada — karar ile eylem aynı yerde. ── */}
+      <aside className="space-y-3 lg:sticky lg:top-4">
+        <div className="space-y-3 rounded-2xl border border-border bg-card p-4 shadow-xs">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Bu gönderim</p>
+
+          <div className="rounded-r-lg border-l-[3px] border-primary bg-muted/50 p-3">
+            <p className="text-sm font-semibold">📣 {subject.trim() || 'Başlık'}</p>
+            <p className="line-clamp-3 text-sm text-muted-foreground">{body.trim() || 'Mesaj burada görünecek.'}</p>
+          </div>
+
+          <dl className="text-sm">
+            <div className="flex justify-between gap-3 border-b border-border py-1.5">
+              <dt className="text-muted-foreground">Kitle</dt>
+              <dd className="text-right font-medium">{audienceLabel || '—'}</dd>
+            </div>
+            <div className="flex justify-between gap-3 py-1.5">
+              <dt className="text-muted-foreground">Kanallar</dt>
+              <dd className="text-right font-medium">
+                {['Uygulama içi', ...channels.map((c) => KANAL_ADI[c])].join(' · ')}
+              </dd>
+            </div>
+          </dl>
+
+          <Button className="w-full" onClick={() => void check()} disabled={checking || sending}>
+            {checking ? <Loader2Icon className="animate-spin" /> : <SendIcon className="size-4" />}
+            {checking ? 'Hesaplanıyor…' : 'Kimlere gideceğini gör'}
+          </Button>
+          <p className="text-center text-xs text-muted-foreground">Onaylamadan hiçbir mesaj gitmez</p>
+
+          {/* Meta konuşma başına ücret alıyor. Kapatma seçeneğinin orada olduğunu hatırlatmak,
+              faturayı ay sonunda açıklamaktan ucuz. */}
+          {channels.includes('whatsapp') ? (
+            <div className="flex gap-2 rounded-lg bg-warning/10 p-2.5 text-xs leading-snug text-foreground">
+              <span aria-hidden>💬</span>
+              <span>
+                WhatsApp seçili — <b>ücretli mesaj</b> gider. Yalnızca uygulamaya düşürmek için WhatsApp'ı kapat.
+              </span>
+            </div>
+          ) : null}
+        </div>
+      </aside>
 
       {preview ? (
         <SendPreviewDialog
