@@ -21,7 +21,14 @@ import {
   type EngagementSuggestion,
   type SegmentInfo,
 } from '@/server/actions/engagement'
-import { previewEngagementAction, sendEngagementAction, sendSuggestionsAction } from '@/server/actions/notifications'
+import {
+  cancelEngagementRunAction,
+  engagementRunAction,
+  previewEngagementAction,
+  sendEngagementAction,
+  sendSuggestionsAction,
+  type EngagementRun,
+} from '@/server/actions/notifications'
 
 import { AudiencePanel, type Audience } from './audience-panel'
 import { SendPreviewDialog, type EngagementPreview } from './send-preview-dialog'
@@ -154,6 +161,9 @@ function Composer({ content, segments, canManage }: { content: EngagementContent
   const [preview, setPreview] = useState<EngagementPreview | null>(null)
   const [audienceLabel, setAudienceLabel] = useState('')
   const [checking, setChecking] = useState(false)
+  // Live progress of the running send. The send itself is a single long request, so the ONLY way to
+  // see inside it is to ask the server separately — which is also what makes it stoppable.
+  const [run, setRun] = useState<EngagementRun | null>(null)
   const [result, setResult] = useState<{ sent: number; failed: number; total: number } | null>(null)
   // Empty ⇒ the studio's own channels. A one-off announcement often wants exactly one of them.
   const [channels, setChannels] = useState<string[]>([])
@@ -198,6 +208,13 @@ function Composer({ content, segments, canManage }: { content: EngagementContent
 
   async function send() {
     setSending(true)
+    // Poll while it runs. Started BEFORE the await, because the send does not return until it is
+    // finished and by then there is nothing left to watch.
+    const timer = setInterval(() => {
+      void engagementRunAction()
+        .then((r) => setRun(r))
+        .catch(() => undefined)
+    }, 1500)
     try {
       const res = await sendEngagementAction({
         subject: subject.trim(),
@@ -206,7 +223,12 @@ function Composer({ content, segments, canManage }: { content: EngagementContent
         ...(channels.length ? { channels } : {}),
       })
       if (res.ok) {
-        toast.success(`${res.value.sent} üyeye gönderildi${res.value.failed ? `, ${res.value.failed} başarısız` : ''}.`)
+        // "Durduruldu" alone invites the question it must answer: durduruldu, ama kaça gitti?
+        toast.success(
+          res.value.stopped
+            ? `Gönderim durduruldu — ${res.value.sent} üyeye gitti, ${res.value.total - res.value.sent - res.value.failed} kişiye gönderilmedi.`
+            : `${res.value.sent} üyeye gönderildi${res.value.failed ? `, ${res.value.failed} başarısız` : ''}.`,
+        )
         // Kept on screen, not only in a toast. A toast for a 158-person send is gone in four seconds
         // and the one number worth remembering — how many failed — goes with it.
         setResult({ sent: res.value.sent, failed: res.value.failed, total: res.value.total })
@@ -220,7 +242,25 @@ function Composer({ content, segments, canManage }: { content: EngagementContent
       // seconds apart, none of which ever reached the server.
       toast.error(saveErrorMessage(e))
     } finally {
+      clearInterval(timer)
+      setRun(null)
       setSending(false)
+    }
+  }
+
+  async function stop() {
+    if (!run) return
+    try {
+      const res = await cancelEngagementRunAction({ operationId: run.operationId })
+      if (res.ok) {
+        // Deliberately not "durduruldu": the loop stops at its next check, and the messages already
+        // in flight are gone. Saying it is done before it is done is the lie this screen exists to
+        // stop telling.
+        toast.info('Durdurma isteği gönderildi — bir sonraki adımda duracak.')
+        setRun({ ...run, status: 'cancelling' })
+      } else toast.error('Gönderim durdurulamadı.')
+    } catch (e) {
+      toast.error(saveErrorMessage(e))
     }
   }
 
@@ -310,7 +350,9 @@ function Composer({ content, segments, canManage }: { content: EngagementContent
           subject={subject.trim()}
           body={body.trim()}
           sending={sending}
+          run={run}
           onConfirm={() => void send()}
+          onStop={() => void stop()}
           onClose={() => setPreview(null)}
         />
       ) : null}

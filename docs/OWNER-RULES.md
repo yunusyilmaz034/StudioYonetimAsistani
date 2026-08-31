@@ -859,6 +859,40 @@ rezervasyon ve üye uygulamasının ajandası dördü de otomatik miras aldı.
 Aynı bilginin iki kopyası, ve gerekçesi hız değil **doğruluk** — CLAUDE.md'nin "mimari" ile "kılık
 değiştirmiş borç" arasına çektiği çizgi tam burada. Ayrıntı ve kanıt: [`DEBT-037`](DEBT.md).
 
+---
+
+**OR-51 · Toplu gönderim DURDURULABİLİR olmalı, ve nerede kaldığı görünmeli.** (2026-08-31)
+
+Resepsiyon pazartesi motivasyon mesajını **tüm listeye** gönderdi, bekledi, uzun sürdüğünü düşünüp
+"iptal etti" — yani ekranı kapattı. **İptal edecek bir şey kalmamıştı:** gönderim 16:43:18'de
+başlamış, 16:46:56'da bitmişti. 154 üyeye WhatsApp gitti, 174 uygulama içi, 20 e-posta; tek bir hata
+bile yok.
+
+İki ayrı kusur, ve ikincisi daha sinsi: **(1)** durdurma yoktu, **(2)** durdurulacak bir şey olup
+olmadığını öğrenmenin de yolu yoktu. Ekranı kapatmak sunucudaki döngüyü durdurmaz — gönderim hiçbir
+zaman o sekmede değildi.
+
+**Çözüm: gönderim kendi kaydını açar.** `engagementRuns/{opId}` belgesi hem **kumanda** hem
+**kayıttır**: döngü ilerledikçe oraya yazar ve her beş üyede bir "durduruldum mu" diye okur. Ekran o
+belgeyi 1,5 saniyede bir sorar; **Durdur** ise `cancelling` yazar. Sekme kapansa gönderim devam eder
+ve ekran tekrar açıldığında onu bulur.
+
+**Durdurma ÖLDÜRMEZ, RİCA EDER.** Uçmakta olan bir mesaj geri alınamaz — mesaj ya çıktı ya çıkmadı.
+Ekran "durduruldu" demeden önce döngünün gerçekten durmasını bekler; arada "durduruluyor…" der.
+*Bitmeden bitti demek, bu ekranın söylememek için var olduğu yalandır.*
+
+**Sonuç sayıyla söylenir:** *"Gönderim durduruldu — 134 üyeye gitti, 40 kişiye gönderilmedi."* Kuru
+bir "durduruldu", cevaplaması gereken soruyu davet eder.
+
+Beş üyede bir kontrol bilinçli: her üyede okumak, mesaj başına bir okuma daha demek — cevabı neredeyse
+hep "hayır" olan bir soru için gönderim maliyetini ikiye katlar. Üye başına ~1 saniyede bu, düğmeye
+basmakla durması arasında ~5 saniye bırakır.
+
+**Bilinen sınır:** gönderim hâlâ tek bir uzun istek. 174 kişi 3,5 dakika sürdü; liste 600'e çıkarsa
+istek zaman aşımına uğrayabilir. O gün olduğunda **yarım kalan gönderim sessiz olmaz** — kayıt
+belgesi `running`'de asılı kalır ve nerede durduğunu söyler. Gerçek çözüm (kuyruk + arka plan işi)
+o gün gelir; bugün gereken şey görünürlüktü.
+
 ## Traps that have already cost something
 
 **OR-14 · Firestore indexes are a production-only trap.** The emulator does NOT enforce them, so a

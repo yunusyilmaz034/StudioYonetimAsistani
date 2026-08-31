@@ -1,11 +1,11 @@
 'use client'
 
-import { Loader2Icon, SendIcon } from 'lucide-react'
+import { Loader2Icon, SendIcon, SquareIcon } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import type { EngagementPreviewRow } from '@/server/actions/notifications'
+import type { EngagementPreviewRow, EngagementRun } from '@/server/actions/notifications'
 
 // BEFORE IT GOES OUT (owner, 2026-08-31).
 //
@@ -52,7 +52,9 @@ export function SendPreviewDialog({
   subject,
   body,
   sending,
+  run,
   onConfirm,
+  onStop,
   onClose,
 }: {
   preview: EngagementPreview
@@ -60,7 +62,10 @@ export function SendPreviewDialog({
   subject: string
   body: string
   sending: boolean
+  /** Live progress once the send starts. null before it does. */
+  run: EngagementRun | null
   onConfirm: () => void
+  onStop: () => void
   onClose: () => void
 }) {
   const channels = Object.entries(preview.perChannel).sort((a, b) => b[1] - a[1])
@@ -123,13 +128,46 @@ export function SendPreviewDialog({
           </div>
         </div>
 
+        {/* İLERLEME VE DURDURMA (owner, 2026-08-31). Reception pressed send, waited, gave up and
+            closed the screen believing she had cancelled it. It had already finished — 154 WhatsApps
+            in three and a half minutes. She could neither see where it was nor stop it. */}
+        {sending && run ? (
+          <div className="space-y-2 rounded-xl border border-border bg-muted/30 p-3">
+            <div className="flex items-center justify-between gap-2 text-sm">
+              <span className="font-medium tabular-nums">
+                {run.sent + run.failed} / {run.total} işlendi
+              </span>
+              <span className="text-muted-foreground">
+                {run.status === 'cancelling' ? 'durduruluyor…' : `${run.sent} gönderildi`}
+              </span>
+            </div>
+            <div className="h-2 overflow-hidden rounded-full bg-muted">
+              <div
+                className="h-full rounded-full bg-primary transition-[width] duration-500"
+                style={{ width: `${run.total ? Math.round(((run.sent + run.failed) / run.total) * 100) : 0}%` }}
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Gönderim sunucuda çalışıyor — bu sekmeyi kapatsanız da devam eder ve buradan tekrar
+              görünür. Durdurulan gönderimde o ana kadar gidenler geri alınamaz.
+            </p>
+          </div>
+        ) : null}
+
         <DialogFooter className="flex-row justify-end gap-2">
-          <Button variant="outline" onClick={onClose} disabled={sending}>
-            Vazgeç
-          </Button>
+          {sending ? (
+            <Button variant="outline" className="text-danger" onClick={onStop} disabled={run?.status === 'cancelling'}>
+              <SquareIcon className="size-4" />
+              {run?.status === 'cancelling' ? 'Durduruluyor…' : 'Durdur'}
+            </Button>
+          ) : (
+            <Button variant="outline" onClick={onClose}>
+              Vazgeç
+            </Button>
+          )}
           <Button onClick={onConfirm} disabled={sending || preview.total === 0}>
             {sending ? <Loader2Icon className="size-4 animate-spin" /> : <SendIcon className="size-4" />}
-            {sending ? `${preview.total} üyeye gönderiliyor…` : `Onayla ve ${preview.total} üyeye gönder`}
+            {sending ? 'Gönderiliyor…' : `Onayla ve ${preview.total} üyeye gönder`}
           </Button>
         </DialogFooter>
       </DialogContent>

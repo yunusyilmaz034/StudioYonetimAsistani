@@ -298,9 +298,45 @@ export async function sendEngagementAction(input: unknown) {
 
   const memberRepo = new FirestoreMemberRepository(adminDb())
   const opId = newOperationId()
+
+  // ── THE RUN (owner, 2026-08-31) ───────────────────────────────────────────────────────────
+  //
+  // Today reception sent the Monday message to the whole roster, waited, decided it was taking too
+  // long and "cancelled" it — by which she meant she closed the screen. It had already finished:
+  // 154 WhatsApps in three and a half minutes. There was nothing to cancel, and no way to find out
+  // that there was nothing to cancel.
+  //
+  // Both halves of that are fixed by writing the run down. The document is the control surface AND
+  // the record: the loop reports its progress into it and asks it, as it goes, whether it has been
+  // stopped. A closed tab no longer loses the send, because the send was never in the tab.
+  const runRef = adminDb().doc(`studios/${ctx.studioId}/engagementRuns/${opId}`)
+  await runRef.set({
+    status: 'running',
+    total: ids.length,
+    sent: 0,
+    failed: 0,
+    subject: p.subject,
+    startedAt: Date.now(),
+    startedBy: ctx.actor.id,
+  })
+
   let sent = 0
   let failed = 0
-  for (const memberId of ids) {
+  let stopped = false
+  // Checked every FIVE members, not every one. Per-member it would be one extra read for each
+  // message — the same cost again, to answer a question whose answer is almost always no. At roughly
+  // a second per member this bounds the delay after pressing Durdur at about five seconds, which is
+  // the difference between a button that works and a button that feels broken.
+  const CHECK_EVERY = 5
+  for (const [i, memberId] of ids.entries()) {
+    if (i > 0 && i % CHECK_EVERY === 0) {
+      const run = await runRef.get()
+      if (run.get('status') === 'cancelling') {
+        stopped = true
+        break
+      }
+      await runRef.update({ sent, failed })
+    }
     const member = await memberRepo.findById(ctx, memberId as MemberId)
     if (!member) {
       failed++
@@ -325,7 +361,81 @@ export async function sendEngagementAction(input: unknown) {
     if (res.ok) sent++
     else failed++
   }
-  return { ok: true as const, value: { sent, failed, total: ids.length, operationId: opId } }
+
+  // The final numbers, and — when it was stopped — how many were never attempted. "Durduruldu" alone
+  // invites the question this answers: durduruldu, ama kaç kişiye gitti?
+  await runRef.update({
+    status: stopped ? 'stopped' : 'done',
+    sent,
+    failed,
+    notSent: ids.length - sent - failed,
+    finishedAt: Date.now(),
+  })
+  return { ok: true as const, value: { sent, failed, total: ids.length, operationId: opId, stopped } }
+}
+
+export interface EngagementRun {
+  readonly operationId: string
+  readonly status: 'running' | 'cancelling' | 'stopped' | 'done'
+  readonly total: number
+  readonly sent: number
+  readonly failed: number
+  readonly notSent: number
+  readonly subject: string
+}
+
+/**
+ * The most recent send, for the screen to poll.
+ *
+ * The LATEST rather than one named by the caller, because the caller cannot name it: the send's id
+ * is created on the server and does not come back until the send has finished — which is exactly the
+ * moment progress stops being interesting. A studio runs one broadcast at a time, so "the latest" is
+ * unambiguous; and it has the better property anyway, that a reopened screen finds the send it lost.
+ *
+ * Ordered on ONE field, so no composite index is needed — this repository has been taken down once
+ * by an index that existed only in production's imagination (OR-14).
+ */
+export async function engagementRunAction(): Promise<EngagementRun | null> {
+  const ctx = await requireTenantContext(OPS)
+  const q = await adminDb()
+    .collection(`studios/${ctx.studioId}/engagementRuns`)
+    .orderBy('startedAt', 'desc')
+    .limit(1)
+    .get()
+  const snap = q.docs[0]
+  if (!snap) return null
+  const d = snap.data() ?? {}
+  return {
+    operationId: snap.id,
+    status: String(d.status ?? 'running') as EngagementRun['status'],
+    total: Number(d.total ?? 0),
+    sent: Number(d.sent ?? 0),
+    failed: Number(d.failed ?? 0),
+    notSent: Number(d.notSent ?? 0),
+    subject: String(d.subject ?? ''),
+  }
+}
+
+/**
+ * Stop a running send.
+ *
+ * It asks rather than kills: the flag becomes `cancelling`, and the loop stops itself at its next
+ * check. There is no way to interrupt a send that is mid-flight — the message either left or it did
+ * not — and pretending otherwise would produce a screen saying "stopped" over a WhatsApp already on
+ * its way. The loop then writes `stopped` with the real numbers, so the difference between "asked to
+ * stop" and "stopped" stays visible.
+ *
+ * Owner-only: stopping a send is the same weight of decision as starting one.
+ */
+export async function cancelEngagementRunAction(input: unknown) {
+  const p = z.object({ operationId: z.string().min(1) }).parse(input)
+  const ctx = await requireTenantContext(OWNER)
+  const ref = adminDb().doc(`studios/${ctx.studioId}/engagementRuns/${p.operationId}`)
+  const snap = await ref.get()
+  if (!snap.exists) return { ok: false as const, error: { code: 'run_not_found' as const } }
+  if (snap.get('status') !== 'running') return { ok: false as const, error: { code: 'run_not_running' as const } }
+  await ref.update({ status: 'cancelling', cancelledBy: ctx.actor.id, cancelledAt: Date.now() })
+  return { ok: true as const }
 }
 
 // ── GÖNDERMEDEN ÖNCE: KİME NE GİDECEK (owner, 2026-08-31) ────────────────────────────────────
