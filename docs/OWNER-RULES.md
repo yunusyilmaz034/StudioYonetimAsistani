@@ -893,6 +893,39 @@ istek zaman aşımına uğrayabilir. O gün olduğunda **yarım kalan gönderim 
 belgesi `running`'de asılı kalır ve nerede durduğunu söyler. Gerçek çözüm (kuyruk + arka plan işi)
 o gün gelir; bugün gereken şey görünürlüktü.
 
+---
+
+**OR-52 · Bitiş tarihi ileri alınan paket CANLANIR. Kendisiyle çelişen kayıt yazılamaz.** (2026-08-31)
+
+Işıl iki üyenin bitiş tarihini 7 Eylül'e aldı, kaydetti — ikisi de **pasif** kaldı. Biri kapıda QR
+okuttu, sistem "pasif" gösterdi.
+
+**Sebep:** `decideAmend` tarihi taşıyordu, **duruma hiç dokunmuyordu**. Başka bir yol da yoktu:
+`decideReactivate` yalnızca `cancelled` kabul ediyor ("expired terminaldir"), `decideExtend` aktif
+olmayanı reddediyor. Sonuç: **kendisiyle çelişen bir kayıt** — "süresi doldu", ama bir hafta daha
+geçerli — ve rezervasyon yapamayan iki ödeyen üye.
+
+**Asıl kusur eksik canlandırma değildi.** Hiçbir kuralın üretemeyeceği ve hiçbir ekranın
+açıklayamayacağı bir durumu üreten bir kaydın **kabul edilmesiydi.**
+
+**Kural, hangi alanın değiştiğine değil ORTAYA ÇIKAN DURUMA bakar.** "Süresi doldu" ama tarihi
+gelecekte olan bir kayıt, oraya nasıl geldiyse gelsin çelişkilidir; sebebi yazılmış her bilinçli
+düzenleme onu onarmak için doğru andır. (İlk yazdığım hâli "validUntil değişti mi?" diye soruyordu —
+o zaman **zaten bozuk olan kayıt** hiçbir zaman onarılamazdı, çünkü aynı tarihi tekrar kaydetmek bir
+değişiklik değildir.)
+
+**KREDİLİ paket REDDEDİLİR.** Süre dolarken kalan dersler yanar (`decideExpire`). Sadece tarihi ileri
+almak, **dersi olmayan "aktif" bir paket** bırakır — reddetmekten kötüdür, çünkü düzelmiş görünür ve
+kimse bir daha bakmaz. Ekran ne olduğunu söyler ve ne yapılacağını önerir.
+
+**Canlanma AYRI bir olaydır** (`entitlement.reactivated`), `amended` içinde bir alan değil. "Sönmüş
+bir üyeliği ne sıklıkla geri getiriyoruz?" birinin soracağı sorudur; fiyat düzeltmeleri ve yazım
+hatalarının arasına gömülürse bir daha ayrıştırılamaz.
+
+Canlıdaki iki kayıt elle değil, **domain üzerinden** onarıldı — sebebi olayla birlikte yazıldı
+(`tools/migration/revive-expired-with-future-date-2026-08.ts`). Konsoldan elle düzeltme durumu doğru,
+kaydı sessiz bırakırdı; oysa bir üyeliğin neden geri döndüğünü sonradan yalnızca kayıt söyleyebilir.
+
 ## Traps that have already cost something
 
 **OR-14 · Firestore indexes are a production-only trap.** The emulator does NOT enforce them, so a

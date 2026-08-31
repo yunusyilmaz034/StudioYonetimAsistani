@@ -192,6 +192,9 @@ export type DomainError =
   | { readonly code: 'freeze_start_not_future' }
   | { readonly code: 'freeze_not_scheduled' }
   | { readonly code: 'freeze_not_due' }
+  // Süresi dolmuş KREDİLİ paketin tarihini ileri almak (2026-08-31). Süre dolarken kalan krediler
+  // yakılır; sadece tarihi taşımak 0 kredili "aktif" bir paket üretir — sessizce yanlış olan hâli.
+  | { readonly code: 'expired_credits_cannot_revive' }
   // ── Package Rules 2.0 (Plus Phase 3) ──
   // Member restriction validation (a malformed rule is refused, never silently reinterpreted).
   | { readonly code: 'invalid_weekday' }

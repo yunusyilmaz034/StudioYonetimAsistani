@@ -610,12 +610,46 @@ export function decideAmend(
     next = { ...next, productSnapshot: { ...next.productSnapshot, entryAllowance: patch.entryAllowance } }
   }
 
+  // ── MOVING AN EXPIRED PACKAGE'S END DATE FORWARD (owner, 2026-08-31) ─────────────────────────
+  //
+  // The owner extended a member's end date to the 7th of September and the member stayed passive.
+  // The date moved; the STATUS did not, and nothing else would ever move it: `decideReactivate`
+  // takes only `cancelled` ("expired is terminal"), and `decideExtend` refuses anything not active.
+  // The result was a record that contradicted itself — `expired`, valid for another week — and a
+  // paying member who could not book. Two of them, live.
+  //
+  // The deeper defect was not the missing revival. It was that a save was ACCEPTED that produced a
+  // state no rule could have produced, and no screen was ever going to explain.
+  //
+  // A PERIOD package revives cleanly: it grants time, the time is now in the future, and there is no
+  // counter to reconcile. A CREDIT package does not, and is REFUSED — expiry BURNS the remaining
+  // credits (`decideExpire`), so moving the date alone would produce an active package with nothing
+  // in it: worse than the refusal, because it looks fixed.
+  //
+  // The condition is about the RESULTING STATE, not about which field the caller happened to touch.
+  // A row that is `expired` while valid for another week is self-contradictory whatever put it that
+  // way, and any deliberate, reasoned edit is the right moment to heal it. Requiring `validUntil` to
+  // be the field that changed also broke the obvious repair — re-saving the date it already has is
+  // a no-op patch, so nothing would have fired.
+  if (ent.status === 'expired' && next.validUntil > ctx.now) {
+    if (next.credits) return err({ code: 'expired_credits_cannot_revive' })
+    changes.status = { from: 'expired', to: 'active' }
+    next = { ...next, status: 'active' }
+  }
+
+  // AFTER the revival check, so a status change on its own is enough to make the edit real.
   const changedFields = Object.keys(changes)
   if (changedFields.length === 0) return ok({ next: ent, events: [] })
-  return ok({
-    next,
-    events: [{ ...base(ctx, next, relOf(next)), type: ENTITLEMENT_AMENDED, payload: { changedFields, changes, reason } }],
-  })
+  const events: NewEvent[] = [
+    { ...base(ctx, next, relOf(next)), type: ENTITLEMENT_AMENDED, payload: { changedFields, changes, reason } },
+  ]
+  // Coming back to life is its own fact, and it is the one somebody will count ("how often do we
+  // revive a lapsed membership?"). Folding it into an `amended` with a `status` field would bury it
+  // among price edits and typo corrections — and once buried, it can never be separated again.
+  if (changes.status) {
+    events.push({ ...base(ctx, next, relOf(next)), type: ENTITLEMENT_REACTIVATED, payload: { reason, from: 'expired' } })
+  }
+  return ok({ next, events })
 }
 
 // ── Reactivate a cancelled subscription (v1.14) — the inverse of cancel. Only a
