@@ -46,6 +46,11 @@ export type SuppressionReason =
   | 'daily_limit'
   | 'missing_contact' // no e-mail / no phone on file
   | 'duplicate'
+  // The studio switched this template off for this channel (owner, 2026-08-31). Not the member's
+  // choice and not a consent question — a decision about WHICH of our messages are worth a
+  // WhatsApp. Recorded, like every other suppression, so a message nobody received is never a
+  // message nobody can account for.
+  | 'template_muted'
 
 export interface RecipientRef {
   readonly kind: 'member' | 'staff'
@@ -160,6 +165,18 @@ export interface NotificationTemplate {
   readonly category: Category
   readonly priority: Priority
   readonly requiredParams: readonly string[]
+  /**
+   * Channels this template must NOT use, whatever the studio has enabled (owner, 2026-08-31).
+   *
+   * The studio turns WhatsApp on once, for everything. That is too blunt: a package about to expire
+   * is worth a WhatsApp; a booking the member just made herself, in the app, two seconds ago, is
+   * not — and the owner asked for exactly those two to stop.
+   *
+   * The alternative was deactivating the template, which also silences the IN-APP record — the
+   * member's own account history, which is not ours to remove. So the mute is per channel, and
+   * `in_app` can never be in this list (enforced where it is applied).
+   */
+  readonly mutedChannels?: readonly Channel[]
   readonly subject: string // for e-mail; ignored by in-app
   readonly body: string // Turkish, with {{param}} placeholders. No technical event names, ever.
   // Plus Phase 5 — template management. The code catalogue is the SEED; a studio may override a

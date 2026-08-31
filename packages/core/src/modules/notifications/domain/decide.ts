@@ -196,9 +196,36 @@ export function decideCreateIntent(
   const rendered = render(template, input.params)
   if (!rendered.ok) return rendered
 
-  const decision = input.forceChannels
-    ? { channels: input.forceChannels, suppressed: [] }
+  const selected = input.forceChannels
+    ? { channels: input.forceChannels, suppressed: [] as { channel: Channel; reason: SuppressionReason }[] }
     : selectChannels(input.recipient, input.prefs, input.settings, template.category)
+
+  // The studio's per-template mute (owner, 2026-08-31). Applied AFTER selection rather than inside
+  // it, so the record still shows the channel was chosen and then withheld — and by whom.
+  //
+  // `in_app` survives regardless. It is not a message, it is the member's record of what happened to
+  // her account, and a template setting must not be able to erase her own history. This is the same
+  // line `selectChannels` already holds against a member's own preferences.
+  //
+  // A DELIBERATE channel override (`forceChannels` — the desk sending one WhatsApp by hand) is muted
+  // too: the mute is the studio's decision about this message, and a per-send override is about
+  // which transport, not about overriding that decision.
+  // The type narrowing is the rule, not a formality: `in_app` is excluded here, so it cannot reach
+  // the suppression list at all — the compiler holds the same line the comment above states.
+  const muted = new Set(
+    (template.mutedChannels ?? []).filter((c): c is Exclude<Channel, 'in_app'> => c !== 'in_app'),
+  )
+  const decision = muted.size
+    ? {
+        channels: selected.channels.filter((c) => c === 'in_app' || !muted.has(c)),
+        suppressed: [
+          ...selected.suppressed,
+          ...selected.channels
+            .filter((c): c is Exclude<Channel, 'in_app'> => c !== 'in_app' && muted.has(c))
+            .map((channel) => ({ channel, reason: 'template_muted' as SuppressionReason })),
+        ],
+      }
+    : selected
 
   const intent: NotificationIntent = {
     id: input.intentId,

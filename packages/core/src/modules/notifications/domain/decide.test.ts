@@ -293,3 +293,64 @@ describe('every rule points at a real template (Phase 5)', () => {
     expect(TEMPLATES.package_expired).toBeDefined()
   })
 })
+
+describe('a template the studio muted on one channel (owner, 2026-08-31)', () => {
+  // *"Rezervasyon yapanlara otomatik wp mesajı gidiyor ya, gitmesin; iptalde de gitmesin."*
+  //
+  // The studio enables WhatsApp once, for everything, and that is too blunt: a package about to
+  // expire is worth a WhatsApp; a booking the member just made herself in the app two seconds ago is
+  // not. Deactivating the template was the only existing lever and it also silences the IN-APP
+  // record — the member's own account history, which is not the studio's to delete.
+  const WA = { ...DEFAULT_NOTIFICATION_SETTINGS, enabledChannels: ['in_app', 'email', 'whatsapp'] as const }
+  // The studio enabling a channel is only half of it — the member must allow it too. Without this
+  // the mute tests would pass for the wrong reason: WhatsApp never selected, so never muted.
+  const WA_PREFS = { ...DEFAULT_PREFS, whatsapp: true }
+  const muted = (channels: readonly string[]) => ({
+    ...TEMPLATES.booking_confirmed!,
+    mutedChannels: channels as never,
+  })
+
+  it('drops the muted channel and keeps the rest', () => {
+    const r = decideCreateIntent(ctx, input({ settings: WA, prefs: WA_PREFS, template: muted(['whatsapp']) }))
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.value.intent.channels).toEqual(['in_app', 'email'])
+  })
+
+  it('the same template is untouched when nothing is muted — the mute is opt-in', () => {
+    const r = decideCreateIntent(ctx, input({ settings: WA, prefs: WA_PREFS }))
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.value.intent.channels).toContain('whatsapp')
+  })
+
+  it('records the suppression rather than swallowing it', () => {
+    // A message nobody received must never be a message nobody can account for — the same rule the
+    // consent and preference suppressions already follow.
+    const r = decideCreateIntent(ctx, input({ settings: WA, prefs: WA_PREFS, template: muted(['whatsapp']) }))
+    if (!r.ok) return
+    expect(r.value.events.map((e) => e.type)).toContain('notification.suppressed')
+    const sup = r.value.events.filter((e) => e.type === 'notification.suppressed')
+    expect(sup.some((e) => (e.payload as Record<string, unknown>).reason === 'template_muted')).toBe(true)
+  })
+
+  it('CANNOT mute the in-app record, even when asked to', () => {
+    // Her own account history is not ours to remove. The type narrowing says so too; this says it
+    // out loud, because the type could be widened by somebody who did not read the comment.
+    const r = decideCreateIntent(ctx, input({ settings: WA, prefs: WA_PREFS, template: muted(['in_app', 'whatsapp']) }))
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.value.intent.channels).toContain('in_app')
+    expect(r.value.intent.channels).not.toContain('whatsapp')
+  })
+
+  it('mutes a DESK-forced channel too — the mute is the studio’s decision about this message', () => {
+    const r = decideCreateIntent(
+      ctx,
+      input({ settings: WA, prefs: WA_PREFS, template: muted(['whatsapp']), forceChannels: ['whatsapp'] }),
+    )
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.value.intent.channels).toEqual([])
+  })
+})

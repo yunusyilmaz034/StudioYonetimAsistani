@@ -94,12 +94,18 @@ function TemplateEditor({
   const [subject, setSubject] = useState(template.subject)
   const [body, setBody] = useState(template.body)
   const [active, setActive] = useState(template.active)
+  // Per-template channel mute (owner, 2026-08-31). Kept as the set that is OFF rather than the set
+  // that is ON, so a template nobody has touched carries no setting at all and follows the studio's
+  // channels exactly as it always did.
+  const [muted, setMuted] = useState<string[]>([...template.mutedChannels])
+  const toggleMute = (c: string) =>
+    setMuted((cur) => (cur.includes(c) ? cur.filter((x) => x !== c) : [...cur, c]))
   const [busy, setBusy] = useState(false)
 
   async function save() {
     setBusy(true)
     try {
-      const res = await updateNotificationTemplateAction({ id: template.id, subject: subject.trim(), body: body.trim(), active })
+      const res = await updateNotificationTemplateAction({ id: template.id, subject: subject.trim(), body: body.trim(), active, mutedChannels: muted })
       if (res.ok) {
         toast.success('Şablon kaydedildi.')
         onSaved()
@@ -160,6 +166,32 @@ function TemplateEditor({
             <Checkbox checked={active} onCheckedChange={(v) => setActive(v === true)} />
             Aktif (kapalıyken yeni gönderim yapılmaz)
           </label>
+
+          {/* HANGİ KANALDAN GİTMESİN (owner, 2026-08-31). The studio turns WhatsApp on once, for
+              everything, and that is too blunt: a package about to expire is worth a WhatsApp; a
+              booking the member just made herself in the app is not. Switching the template OFF was
+              the only lever and it also removes the in-app record — her own account history, which
+              is not the studio's to delete. So the choice is per channel, and the in-app line is
+              stated rather than offered. */}
+          <div className="space-y-2 rounded-lg border border-border p-3">
+            <p className="text-sm font-medium">Bu bildirim şu kanallardan gitmesin</p>
+            <div className="flex flex-wrap gap-3">
+              {([
+                ['whatsapp', 'WhatsApp'],
+                ['email', 'E-posta'],
+                ['push', 'Push bildirim'],
+              ] as const).map(([key, label]) => (
+                <label key={key} className="flex items-center gap-2 text-sm">
+                  <Checkbox checked={muted.includes(key)} onCheckedChange={() => toggleMute(key)} />
+                  {label}
+                </label>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Uygulama içi bildirim kapatılamaz — üyenin kendi hesap geçmişidir. İşaretlenen kanallar,
+              stüdyo ayarlarında açık olsa bile bu bildirim için kullanılmaz.
+            </p>
+          </div>
         </div>
 
         <DialogFooter className="sm:justify-between">

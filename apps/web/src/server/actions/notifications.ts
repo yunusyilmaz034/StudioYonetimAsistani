@@ -61,6 +61,8 @@ export interface TemplateRow {
   // Mapped to a Meta-approved WhatsApp template (META_TEMPLATE), so it CAN be sent over WhatsApp as a
   // business-initiated message. The WhatsApp-send screen lists only these.
   readonly whatsappCapable: boolean
+  /** Channels the studio switched OFF for this template (owner, 2026-08-31). `in_app` never here. */
+  readonly mutedChannels: readonly string[]
 }
 
 export async function listNotificationTemplatesAction(): Promise<readonly TemplateRow[]> {
@@ -85,6 +87,7 @@ export async function listNotificationTemplatesAction(): Promise<readonly Templa
         overridden: Boolean(o),
         updatedAt: (o?.updatedAt as number | undefined) ?? null,
         whatsappCapable: seed.id in META_TEMPLATE,
+        mutedChannels: [...(t.mutedChannels ?? [])],
       }
     })
     .sort((a, b) => a.name.localeCompare(b.name, 'tr'))
@@ -97,6 +100,10 @@ export async function updateNotificationTemplateAction(input: unknown) {
       subject: z.string().min(1),
       body: z.string().min(1),
       active: z.boolean(),
+      // Per-template channel mute. `in_app` is REFUSED rather than filtered: the member's record of
+      // her own account is not a setting, and a caller asking to remove it has misunderstood
+      // something that should be corrected loudly rather than absorbed.
+      mutedChannels: z.array(z.enum(['email', 'sms', 'whatsapp', 'push'])).optional(),
     })
     .parse(input)
   const ctx = await requireTenantContext(OWNER)
@@ -114,6 +121,7 @@ export async function updateNotificationTemplateAction(input: unknown) {
     subject: p.subject,
     body: p.body,
     active: p.active,
+    mutedChannels: p.mutedChannels ?? [],
     version: (existing?.version ?? seed.version) + 1,
     updatedBy: ctx.actor.id,
     updatedAt: instant(Date.now()),
