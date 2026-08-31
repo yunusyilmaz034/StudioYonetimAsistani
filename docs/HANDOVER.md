@@ -7,7 +7,67 @@ explains the moment.
 Keep it current the way the code is kept current: when the state changes, this changes in the same
 commit. A handover document that lags is worse than none, because it is believed.
 
-_Last true as of: **2026-08-26**._
+_Last true as of: **2026-08-31**._
+
+## 🌙 31 Ağustos 2026 — uzun bir gün, on beş deploy
+
+Panel canlıda **`build-2026-08-31-015`** (commit `8e4e263`, trafiğin %100'ü — OR-17: tek dürüst
+kanıt Cloud Run trafik dağılımı). **Cloud Functions bugün yeniden dağıtıldı** (`onEventCreated`
+16:11:57Z) — şablon bazında kanal susturma orada çalışıyor, panelde değil.
+
+### Canlıya giden işler
+
+| Alan | Ne oldu | Kural |
+|---|---|---|
+| **Dondurma** | İleri tarihe planlanabiliyor; hak aşımında zorunlu sebep + uyarı | [[OR-50]] |
+| **Dondurma** | Süresi dolmuş paketin bitişi ileri alınınca paket **canlanıyor** (kredili paket reddedilir) | [[OR-52]] |
+| **Turnike** | Canlı paketi olmayana kol dönmüyor — **çıkış hariç** | [[OR-53]] |
+| **Stüdyodan** | Gönderim önizlemesi (kime ne gidecek), **durdurulabilir** gönderim, elle üye grupları, tıklanabilir kitle sayıları | [[OR-48]] · [[OR-51]] |
+| **Stüdyodan** | Ekran yeniden tasarlandı: her kanal ayrı kutu + kaç kişiye ulaştığı, "Bildirim Gönder", üç adım, sabit özet | owner onaylı tasarım |
+| **Bildirimler** | Şablon bazında kanal susturma; rezervasyon + iptal WhatsApp'ı **kapalı** | — |
+| **Takvim** | Ay görünümünde başka ay geri çekildi, ay sınırı isimlendi, bugün çerçeveli | owner onaylı tasarım |
+| **Eğitmen** | Kendi üye ekranı (`/trainees`) + Personel'de **davet linki** | [[OR-47]] · [[OR-49]] |
+| **AI** | Fit Paket'ten hiç bahsetmiyor · müşteriye "hocam" demiyor · satış dışını 0533'e yönlendiriyor · telefon cevabı tek cümle · 16 Ders (2 aylık) satıyor | — |
+| **Check-in** | Hata artık yutulmuyor: oturum/yetki/ağ ayrı ayrı söyleniyor ve konsola yazılıyor | [[OR-42]] hattı |
+
+### Elle düzeltilen canlı kayıtlar
+
+Üçü de **domain üzerinden**, sebebi olayla birlikte — konsoldan elle değil.
+
+- **GÜLNARA YYILMAZ · HAYRİYE BAYRAM** — bitiş tarihi 7 Eylül'e alınmış ama paket `expired` kalmıştı;
+  ikisi de aktife alındı (`tools/migration/revive-expired-with-future-date-2026-08.ts`).
+- **ESRA TEPE** — 24 Ders satılmış, resepsiyon 8 Ders / 4.200 ₺ yazmıştı. Paket 24 Ders'e, süre
+  29.11.2026'ya, tutar 11.000 ₺'ye çekildi; +16 kredi **telafi kaydıyla** eklendi (`granted`
+  değiştirilmedi); yanlış ödeme ve satış iptal edilip doğrusu kuruldu. Kalan **23 ders**, borç yok.
+  Havale olduğu için kasa etkilenmedi. (`tools/migration/fix-esra-24-ders-2026-08.ts`)
+
+### ⚠️ Yarına kalanlar
+
+1. **Turnike firmware'i YÜKLENMEDİ.** Kod değişti (ret ekranı), ESP32'ye atılması gerekiyor:
+   `cd apps/turnstile && pio run -t upload`. **Yüklenmeden de kol dönmüyor** ve üyenin telefonu
+   uyarıyor — eksik olan yalnızca kapıdaki yazı.
+2. **GAMZE BAYKALDI** — paketleri 7 Eylül'de başlıyor, 30 Ağustos'ta bitti, arada 7 gün boşluk.
+   Owner Işıl'a soracak: biten paketi 7 Eylül'e uzatmış olabilir. **Uzattıysa bugünkü hatanın kurbanı
+   olmuş olabilir** (tarih ilerledi, durum `expired` kaldı) — öyleyse aynı script açar. Onay gelmeden
+   dokunulmadı.
+3. **Eğitmen davet linkleri** — Işıl Hoca · Buse Hoca · Reyhan Hoca. Üçü de bugüne kadar **hiç giriş
+   yapmamış**. Personel ekranından link üretilip WhatsApp'tan yollanacak.
+4. **Resepsiyona anlatılacak:** gönderim artık önce önizleme istiyor, başladıktan sonra
+   durdurulabiliyor, ve sekmeyi kapatmak iptal ETMİYOR (bugün 154 kişiye mesaj bu yüzden gitti).
+5. **Mobilden iş verme** — owner'ın Mac'i her zaman yanında değil. Yarın telefondan claude.ai/code
+   ile iki soru sorulup ölçülecek: *"retro'da kaç üye var"* (canlı veri erişimi) ve *"son commit ne"*
+   (repo erişimi). Tahmin edilmeyecek.
+
+### Bugün öğrenilen iki tuzak
+
+- **Türkçe arama:** `/fit ?paket/i` deseni **"FİT PAKET" ile eşleşmez** — noktalı İ ASCII `i`'ye
+  katlanmaz. Kartta üç satır bu yüzden gözden kaçtı ve "temizlendi" diye rapor edildi. Sessizce az
+  sonuç döndüren arama, bulunacak bir şey olmadığı için az döndüren aramayla aynı görünür.
+- **Ard arda iki push:** ilk build'in revizyonu ikinci commit'ten SONRA oluşabiliyor ve "commit'ten
+  sonra ✓" testini geçiyor — içinde ikinci commit olmadan. Doğru kontrol, App Hosting build
+  kayıtlarından **hangi commit'in hangi build'e girdiğine** bakmak.
+
+---
 
 🎬 **There is now a demo studio: `demo`, "Demo Stüdyo".** A broker asked to see the system and the
 answer is no longer a screenshot. It lives in the SAME database as Işıl's, which is the whole reason
