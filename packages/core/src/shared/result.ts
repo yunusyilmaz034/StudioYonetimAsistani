@@ -195,6 +195,9 @@ export type DomainError =
   // Süresi dolmuş KREDİLİ paketin tarihini ileri almak (2026-08-31). Süre dolarken kalan krediler
   // yakılır; sadece tarihi taşımak 0 kredili "aktif" bir paket üretir — sessizce yanlış olan hâli.
   | { readonly code: 'expired_credits_cannot_revive' }
+  // Turnike: canlı paketi olmayan üyeye kol dönmez (owner, 2026-08-31). ÇIKIŞTA asla kullanılmaz —
+  // içerideki birini içeride tutmak bir kural değil, bir arızadır.
+  | { readonly code: 'no_active_membership' }
   // ── Package Rules 2.0 (Plus Phase 3) ──
   // Member restriction validation (a malformed rule is refused, never silently reinterpreted).
   | { readonly code: 'invalid_weekday' }

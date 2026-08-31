@@ -926,6 +926,39 @@ Canlıdaki iki kayıt elle değil, **domain üzerinden** onarıldı — sebebi o
 (`tools/migration/revive-expired-with-future-date-2026-08.ts`). Konsoldan elle düzeltme durumu doğru,
 kaydı sessiz bırakırdı; oysa bir üyeliğin neden geri döndüğünü sonradan yalnızca kayıt söyleyebilir.
 
+---
+
+**OR-53 · Paketi olmayan üyeye TURNİKE açılmaz. Ama çıkış asla engellenmez.** (2026-08-31)
+
+Owner sordu: *"pasif olan üye qr okutabiliyor mu ya"* — evet, okutabiliyordu. `decideCheckIn` yalnızca
+şubenin açık olmasına, "zaten içeride/dışarıda" durumuna ve QR'ın geçerliliğine bakıyordu; paketi
+hiç sormuyordu. Karar: **paketi olmayan pasif sayılır**, kol dönmez, ekran resepsiyona yönlendirir.
+
+**Üç şey bilerek böyle:**
+
+**1 · Yalnızca GİRİŞTE.** Çıkışta asla sorulmaz. İçeride olan biri paketi bittiği için içeride kalamaz —
+o bir kural değil, bir arızadır. Dersi sırasında süresi dolan üye tam çıkarken kapıda kalırdı.
+
+**2 · Yalnızca TURNİKEDE.** Resepsiyon ve kiosk aynı kontrolden geçmez: paketi olmayan üye ödemeye,
+konuşmaya, bakmaya gelmiş olabilir ve **insan karar verir.** Kapı karar veremez, o yüzden kapı hayır
+der. `recordCheckIn` bilerek dokunulmadan bırakıldı — girişin KAYDI hâlâ mümkün, çünkü kişi gerçekten
+girdiyse bunu yazmamak başka bir yalan olurdu.
+
+**3 · Geçerlilik penceresi de sayılır.** `listActiveByMember` yalnızca `status` bakar; **ileri tarihli**
+bir paket (7 Eylül'de başlayan) bugün canlı DEĞİLDİR ve bugün kapıyı açmaz. Gamze'nin durumu tam
+buydu; testte de o şekilde yazılı.
+
+**Ret KODU HARCAMAZ.** Üye resepsiyona uğrayıp paketini yeniletince aynı ekranı okutabilmeli. Ama bu
+bir yan etki doğurdu: ekran geçişleri *"kod kullanıldı mı?"* diye sorarak öğreniyor, yani harcanmamış bir
+kod ekran için **hiç olmamış bir okutma** demek — üye kapıda hiçbir şey görmez, turnike sessizce
+açılmaz ve bozuk sanılırdı. Bu yüzden cihaz başına **tek bir "son ret" kaydı** tutuluyor: 20 saniye
+yaşar, ekran bir kez gösterir ve siler. Kodun kimliğine alan eklenmedi — ret geçici bir arayüz
+sinyalidir.
+
+**Ekranda suçlama yok:** *"Merhaba <ad> · Lütfen resepsiyona uğrayın"*. Kapıda kalmış birine "hakkınız
+yok" demek hem kırıcı hem işe yaramaz; ne yapacağını söylemek işe yarar. Ses de karşılamadan
+farklı (2 bip), böylece üye ekrana bakmadan da anlar.
+
 ## Traps that have already cost something
 
 **OR-14 · Firestore indexes are a production-only trap.** The emulator does NOT enforce them, so a

@@ -49,7 +49,18 @@ const code: TurnstileCode = {
 }
 
 /** Only what `crossTurnstile` touches. A fuller fake would hide which parts decide anything. */
-function fakeDeps(opts: { presence: Presence | null; lastCrossedAt?: number; tuketilenler?: string[] }): CheckinDeps {
+/** Bugün geçerli bir paket. Kapı 2026-08-31'den beri buna bakıyor, o yüzden varsayılan bu. */
+const CANLI_PAKET = [
+  { validFrom: instant(NOW - 30 * 86_400_000), validUntil: instant(NOW + 30 * 86_400_000), productSnapshot: {} },
+] as never
+
+function fakeDeps(opts: {
+  presence: Presence | null
+  lastCrossedAt?: number
+  tuketilenler?: string[]
+  /** Varsayılan: canlı bir paketi var. `[]` ⇒ paketi yok, kol dönmemeli. */
+  paketler?: unknown
+}): CheckinDeps {
   const recent: CheckIn[] =
     opts.lastCrossedAt === undefined
       ? []
@@ -71,8 +82,8 @@ function fakeDeps(opts: { presence: Presence | null; lastCrossedAt?: number; tuk
       applyCheckIn: async () => undefined,
       touchDevice: async () => undefined,
     },
-    // Bu üyenin fitness paketi yok — sayaç bu testlerin konusu değil, ama kapı ondan da geçiyor.
-    entries: { listActiveByMember: async () => [], saveEntitlement: async () => undefined },
+    // Sayaç bu testlerin konusu değil, ama kapı hem sayaçtan hem paket kontrolünden geçiyor.
+    entries: { listActiveByMember: async () => opts.paketler ?? CANLI_PAKET, saveEntitlement: async () => undefined },
   } as unknown as CheckinDeps
 }
 
@@ -184,5 +195,70 @@ describe('crossTurnstile — the double-scan guard actually runs', () => {
     })
     expect(r.ok).toBe(true)
     if (r.ok) expect(r.value.direction).toBe('out')
+  })
+})
+
+describe('paketi olmayan üyeye kol dönmez (owner, 2026-08-31)', () => {
+  // *"Paketi olmayan pasif sayılsın."* Kapı karar veremez, o yüzden kapı hayır der ve
+  // resepsiyona yönlendirir.
+  const paketsiz = { paketler: [] as unknown }
+
+  it('GİRİŞTE reddeder', async () => {
+    const r = await crossTurnstile(fakeDeps({ presence: null, ...paketsiz }), CTX, {
+      memberId: MEMBER,
+      code: CODE,
+      reportedDirection: 'in',
+    })
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.error.code).toBe('no_active_membership')
+  })
+
+  it('ÇIKIŞTA reddetmez — içerideki birini içeride tutmak kural değil, arızadır', async () => {
+    // Bu testin varlık sebebi: dersi sırasında paketi biten üye tam çıkarken kapıda kalırdı.
+    const r = await crossTurnstile(fakeDeps({ presence: inside, lastCrossedAt: NOW - 60_000, ...paketsiz }), CTX, {
+      memberId: MEMBER,
+      code: CODE,
+      reportedDirection: 'out',
+    })
+    expect(r.ok).toBe(true)
+    if (r.ok) expect(r.value.direction).toBe('out')
+  })
+
+  it('reddedince KODU HARCAMAZ — üye paketini yeniletip aynı ekranı okutabilir', async () => {
+    const tuketilenler: string[] = []
+    const r = await crossTurnstile(fakeDeps({ presence: null, tuketilenler, ...paketsiz }), CTX, {
+      memberId: MEMBER,
+      code: CODE,
+      reportedDirection: 'in',
+    })
+    expect(r.ok).toBe(false)
+    expect(tuketilenler).toEqual([])
+  })
+
+  it('İLERİ TARİHLİ paket bugün kapıyı açmaz', async () => {
+    // Gamze'nin durumu: parası ödenmiş ama 7 Eylül'de başlayan paketler. `listActiveByMember`
+    // yalnızca `status` bakar; pencereyi burada kontrol etmesek bugün geçerdi.
+    const ileri = [
+      { validFrom: instant(NOW + 7 * 86_400_000), validUntil: instant(NOW + 97 * 86_400_000), productSnapshot: {} },
+    ] as never
+    const r = await crossTurnstile(fakeDeps({ presence: null, paketler: ileri }), CTX, {
+      memberId: MEMBER,
+      code: CODE,
+      reportedDirection: 'in',
+    })
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.error.code).toBe('no_active_membership')
+  })
+
+  it('SÜRESİ GEÇMİŞ paket de açmaz', async () => {
+    const gecmis = [
+      { validFrom: instant(NOW - 97 * 86_400_000), validUntil: instant(NOW - 86_400_000), productSnapshot: {} },
+    ] as never
+    const r = await crossTurnstile(fakeDeps({ presence: null, paketler: gecmis }), CTX, {
+      memberId: MEMBER,
+      code: CODE,
+      reportedDirection: 'in',
+    })
+    expect(r.ok).toBe(false)
   })
 })

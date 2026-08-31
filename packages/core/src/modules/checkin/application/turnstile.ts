@@ -125,6 +125,28 @@ export async function crossTurnstile(
   })
   if (!decided.ok) return decided
 
+  // ── 0. CANLI PAKET VAR MI? (owner, 2026-08-31) ─────────────────────────────────────────────
+  //
+  // *"Paketi olmayan pasif sayılsın."* Kol, paketi bitmiş üyeye dönmez; ekran resepsiyona yönlendirir.
+  //
+  // ÜÇ ŞEY BİLEREK BÖYLE:
+  //
+  // 1. SADECE GİRİŞTE. Çıkışta asla sorulmaz. İçeride olan biri paketi bittiği için içeride
+  //    kalamaz — o bir kural değil, bir arızadır. Ayrıca ders sırasında süresi dolan üye tam da
+  //    çıkarken kapıya takılırdı.
+  //
+  // 2. SADECE TURNİKEDE. Resepsiyon ve kiosk aynı kontrolden geçmez: paketi olmayan üye ödemeye,
+  //    konuşmaya, bakmaya gelmiş olabilir ve insan karar verir. Kapı karar veremez, o yüzden
+  //    kapı hayır der. `recordCheckIn` bilerek dokunulmadan bırakıldı.
+  //
+  // 3. GEÇERLİLİK PENCERESİ DE SAYILIR. `listActiveByMember` yalnızca `status === 'active'` bakar;
+  //    ileri tarihli bir paket (7 Eylül'de başlayan) bugün canlı DEĞİLDİR ve bugün kapıyı açmaz.
+  if (decided.value.direction === 'in') {
+    const paketler = await deps.entries.listActiveByMember(ctx, input.memberId)
+    const canli = paketler.some((e) => e.validFrom <= now && now < e.validUntil)
+    if (!canli) return err({ code: 'no_active_membership' })
+  }
+
   // ── 1. KARAR — yalnızca okur. Reddedilirse kod harcanmaz, kol dönmez.
   const prepared = await prepareCheckIn(deps, ctx, {
     memberId: input.memberId,

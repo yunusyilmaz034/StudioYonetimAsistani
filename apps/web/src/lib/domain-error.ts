@@ -58,6 +58,10 @@ export function domainErrorMessage(error: DomainError): string {
       return 'Tutulan kredisi olan paket süre sonuna erdirilemez.'
     case 'invalid_amount':
       return 'Geçerli bir tutar girin.'
+    case 'no_active_membership':
+      // Kapıda okunacak. Suçlayıcı değil, yönlendirici: üye kapıda kalmışken "hakkınız yok" demek,
+      // "resepsiyona uğrayın" demekten hem daha kırıcı hem daha az işe yarar.
+      return 'Aktif paketiniz görünmüyor. Lütfen resepsiyona uğrayın 🌸'
     case 'expired_credits_cannot_revive':
       // The sentence has to say what the system DID, not only that it refused — otherwise the owner
       // reads it as a bug and tries again. The credits are gone; giving them back is a separate act.

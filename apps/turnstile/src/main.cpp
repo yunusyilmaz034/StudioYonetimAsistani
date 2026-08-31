@@ -324,6 +324,39 @@ static void kapiTuru(Kapi& k) {
       kodYenile(k);  // kullanılan kod ölüdür, hemen yenisi
       return;
     }
+
+    // ── RET: paketi olmayan üye (owner, 2026-08-31) ─────────────────────────────────────────
+    //
+    // Kol DÖNMEZ. Buradaki tek iş yazıyı göstermek — `darbe()` bilerek çağrılmıyor, ve bu satırın
+    // yokluğu kuralın kendisidir.
+    //
+    // Kod da yenilenmiyor: sunucu reddederken kodu harcamadı, üye resepsiyona uğrayıp paketini
+    // yeniletince aynı ekranı okutabilmeli. Yenilesek, çalışan bir kodu boşuna çöpe atardık.
+    if (c.indexOf("\"refused\":{") >= 0) {
+      const String ad = asciile(alanOku(c, "firstName"));
+      Serial.printf("[turnike:%s] RET: %s (paket yok)\n", k.ad, ad.c_str());
+      bip(2);  // karşılamadan FARKLI bir ses: üye ekrana bakmadan da bir şeyin olmadığını anlar
+
+      Adafruit_ILI9341& tft = *k.tft;
+      tft.fillScreen(ILI9341_BLACK);
+      tft.setTextColor(ILI9341_RED);
+      tft.setTextSize(3);
+      tft.setCursor(20, 100);
+      tft.println("Merhaba");
+      tft.setTextColor(ILI9341_WHITE);
+      tft.setCursor(20, 145);
+      tft.println(ad.length() ? ad.c_str() : "");
+      // Suçlayıcı değil, yönlendirici. Kapıda kalmış birine "hakkınız yok" demek hem kırıcı hem
+      // işe yaramaz; ne yapacağını söylemek işe yarar.
+      tft.setTextColor(ILI9341_YELLOW);
+      tft.setTextSize(2);
+      tft.setCursor(20, 195);
+      tft.println("Lutfen resepsiyona");
+      tft.setCursor(20, 218);
+      tft.println("ugrayin");
+      delay(KARSILAMA_MS);
+      return;
+    }
   }
   if (millis() > k.kodBitis) kodYenile(k);
 }
