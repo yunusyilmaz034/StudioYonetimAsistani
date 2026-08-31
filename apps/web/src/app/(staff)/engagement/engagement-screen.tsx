@@ -1,8 +1,7 @@
 'use client'
 
-import type { SegmentKey } from '@/lib/segments'
 import { useMemo, useState } from 'react'
-import { BellRingIcon, Loader2Icon, PencilIcon, PlusIcon, SendIcon, SparklesIcon, Trash2Icon, UsersIcon } from 'lucide-react'
+import { BellRingIcon, Loader2Icon, PencilIcon, PlusIcon, SendIcon, SparklesIcon, Trash2Icon } from 'lucide-react'
 import { toast } from 'sonner'
 import { saveErrorMessage } from '@/lib/stale-deployment'
 
@@ -22,7 +21,10 @@ import {
   type EngagementSuggestion,
   type SegmentInfo,
 } from '@/server/actions/engagement'
-import { sendEngagementAction, sendSuggestionsAction } from '@/server/actions/notifications'
+import { previewEngagementAction, sendEngagementAction, sendSuggestionsAction } from '@/server/actions/notifications'
+
+import { AudiencePanel, type Audience } from './audience-panel'
+import { SendPreviewDialog, type EngagementPreview } from './send-preview-dialog'
 
 const CAT_LABEL: Record<EngagementCategory, string> = {
   motivation: 'Motivasyon',
@@ -76,7 +78,7 @@ export function EngagementScreen({
         ) : null}
 
         <TabsContent value="send">
-          <Composer content={content} segments={segments} />
+          <Composer content={content} segments={segments} canManage={canManage} />
         </TabsContent>
 
         <TabsContent value="library">
@@ -147,37 +149,60 @@ function Suggestions({ initial }: { initial: EngagementSuggestion[] }) {
 }
 
 // ── Composer ──────────────────────────────────────────────────────────────────────────────────
-function Composer({ content, segments }: { content: EngagementContent[]; segments: SegmentInfo[] }) {
-  const [segment, setSegment] = useState<SegmentKey>('all')
+function Composer({ content, segments, canManage }: { content: EngagementContent[]; segments: SegmentInfo[]; canManage: boolean }) {
+  const [audience, setAudience] = useState<Audience>({ kind: 'segment', key: 'all' })
+  const [preview, setPreview] = useState<EngagementPreview | null>(null)
+  const [audienceLabel, setAudienceLabel] = useState('')
+  const [checking, setChecking] = useState(false)
   const [result, setResult] = useState<{ sent: number; failed: number; total: number } | null>(null)
   // Empty ⇒ the studio's own channels. A one-off announcement often wants exactly one of them.
   const [channels, setChannels] = useState<string[]>([])
   const [subject, setSubject] = useState('')
   const [body, setBody] = useState('')
   const [sending, setSending] = useState(false)
-  const seg = segments.find((s) => s.key === segment)
 
   const pick = (c: EngagementContent) => {
     setSubject(c.subject)
     setBody(c.body)
   }
 
-  async function send() {
+  /** The audience, as the actions want it. One place, so preview and send cannot disagree. */
+  const audienceInput = audience.kind === 'segment' ? { segment: audience.key } : { groupId: audience.id }
+
+  // "Gönder" no longer sends. It ASKS the server who would receive what, and shows it. The send is a
+  // second, deliberate press — because 173 messages cannot be taken back and a confirm() repeating a
+  // number the owner already saw was never a check.
+  async function check() {
     if (!subject.trim() || !body.trim()) {
       toast.error('Başlık ve mesaj zorunlu.')
       return
     }
-    if (!seg || seg.count === 0) {
-      toast.error('Seçilen kitlede üye yok.')
-      return
+    setChecking(true)
+    try {
+      const res = await previewEngagementAction({ ...audienceInput, ...(channels.length ? { channels } : {}) })
+      if (!res.ok) {
+        toast.error('Önizleme alınamadı.')
+        return
+      }
+      if (res.value.total === 0) {
+        toast.error('Seçilen kitlede üye yok.')
+        return
+      }
+      setPreview(res.value)
+    } catch (e) {
+      toast.error(saveErrorMessage(e))
+    } finally {
+      setChecking(false)
     }
-    if (!confirm(`"${seg.label}" (${seg.count} üye) grubuna göndermeyi onaylıyor musun?`)) return
+  }
+
+  async function send() {
     setSending(true)
     try {
       const res = await sendEngagementAction({
         subject: subject.trim(),
         body: body.trim(),
-        segment,
+        ...audienceInput,
         ...(channels.length ? { channels } : {}),
       })
       if (res.ok) {
@@ -185,6 +210,7 @@ function Composer({ content, segments }: { content: EngagementContent[]; segment
         // Kept on screen, not only in a toast. A toast for a 158-person send is gone in four seconds
         // and the one number worth remembering — how many failed — goes with it.
         setResult({ sent: res.value.sent, failed: res.value.failed, total: res.value.total })
+        setPreview(null)
         setSubject('')
         setBody('')
       } else toast.error('Gönderilemedi.')
@@ -200,21 +226,13 @@ function Composer({ content, segments }: { content: EngagementContent[]; segment
 
   return (
     <div className="space-y-5">
-      <section className="space-y-2">
-        <p className="text-sm font-medium">Kitle</p>
-        <div className="flex flex-wrap gap-2">
-          {segments.map((s) => (
-            <button
-              key={s.key}
-              type="button"
-              onClick={() => setSegment(s.key)}
-              className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${segment === s.key ? 'bg-accent text-accent-foreground' : 'bg-muted text-muted-foreground hover:text-foreground'}`}
-            >
-              <UsersIcon className="size-3.5" /> {s.label} <span className="tabular-nums opacity-70">({s.count})</span>
-            </button>
-          ))}
-        </div>
-      </section>
+      <AudiencePanel
+        segments={segments}
+        audience={audience}
+        onAudience={setAudience}
+        onLabel={setAudienceLabel}
+        canManage={canManage}
+      />
 
       {content.length > 0 ? (
         <section className="space-y-2">
@@ -280,10 +298,22 @@ function Composer({ content, segments }: { content: EngagementContent[]; segment
       {/* The label CHANGES while it works. A bare spinner on a 158-person send says only "something
           is happening", and the honest question underneath it — to how many, and is it stuck? — has
           no answer on screen. The count is what makes the wait legible. */}
-      <Button onClick={() => void send()} disabled={sending}>
-        {sending ? <Loader2Icon className="animate-spin" /> : <SendIcon className="size-4" />}
-        {sending ? `${seg?.count ?? 0} üyeye gönderiliyor…` : seg ? `${seg.count} üyeye gönder` : 'Gönder'}
+      <Button onClick={() => void check()} disabled={checking || sending}>
+        {checking ? <Loader2Icon className="animate-spin" /> : <SendIcon className="size-4" />}
+        {checking ? 'Kimlere gideceği hesaplanıyor…' : 'Gönder'}
       </Button>
+
+      {preview ? (
+        <SendPreviewDialog
+          preview={preview}
+          audienceLabel={audienceLabel}
+          subject={subject.trim()}
+          body={body.trim()}
+          sending={sending}
+          onConfirm={() => void send()}
+          onClose={() => setPreview(null)}
+        />
+      ) : null}
 
       {sending ? (
         <p className="text-xs text-muted-foreground">

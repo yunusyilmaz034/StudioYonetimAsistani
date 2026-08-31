@@ -178,3 +178,39 @@ export async function reactivateStaffAction(input: unknown) {
   revalidatePath('/staff')
   return res
 }
+
+/**
+ * A one-time link that lets a colleague set her OWN password (owner, 2026-08-31).
+ *
+ * The three trainer accounts had existed for weeks and none had ever signed in, because onboarding a
+ * colleague meant the owner inventing a temporary password and reading it out. Two of the three
+ * addresses are `@pilatesfitnessbyisil.com` mailboxes that do not receive mail yet, so Firebase's own
+ * "send a reset e-mail" would have posted the invitation into a void.
+ *
+ * So the link is GENERATED, never sent: the owner copies it and passes it on however she already
+ * talks to her staff — WhatsApp, in person. The mailbox does not have to work for the link to.
+ *
+ * The reason this is better than a temporary password, and not merely more convenient: **the owner
+ * never learns the password.** A shared temporary one tends to survive for months, gets reused, and
+ * is typed into a WhatsApp thread that stays there. Here the colleague sets her own, and the link
+ * expires by itself.
+ *
+ * Owner-only, and never for an account that has been deactivated — a link is access, and a
+ * deactivated colleague is precisely somebody who should not have it.
+ */
+export async function staffPasswordLinkAction(input: unknown) {
+  const p = z.object({ staffUserId: z.string().min(1) }).parse(input)
+  const ctx = await requireTenantContext(OWNER)
+
+  // She must be OUR staff. Without this the action would mint a password-reset link for any uid a
+  // caller could name — including an account in another studio.
+  const staff = (await deps().repo.listStaff(ctx)).find((s) => s.id === p.staffUserId)
+  if (!staff) return { ok: false as const, error: { code: 'staff_not_found' as const } }
+  if (!staff.active) return { ok: false as const, error: { code: 'staff_inactive' as const } }
+
+  const user = await adminAuth().getUser(p.staffUserId).catch(() => null)
+  if (!user?.email) return { ok: false as const, error: { code: 'staff_email_missing' as const } }
+
+  const link = await adminAuth().generatePasswordResetLink(user.email)
+  return { ok: true as const, value: { link, email: user.email, displayName: staff.displayName } }
+}

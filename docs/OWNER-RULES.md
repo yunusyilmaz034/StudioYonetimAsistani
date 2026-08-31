@@ -764,6 +764,57 @@ girerek görür (2026-07-16 düzeni).
 Yazma yetkisi zaten hazırdı — program, şablon, ölçüm action'ları 7. Fazdan beri
 `['owner','trainer','platform_admin']`. Eksik olan yetki değil, **ekrandı.**
 
+---
+
+**OR-48 · Toplu gönderim ÖNİZLEMESİZ yapılmaz. Ve her sayı açılabilir olmalı.** (2026-08-31)
+
+Owner Stüdyodan ekranına iki şey istedi, ve ikisi de aynı şikâyetin iki yüzü: **rakamı görüyorum,
+insanları göremiyorum.**
+
+**1 · "Gönder" artık göndermez.** Eskiden "173 üyeye gönder" düğmesi basıldığı anda 173 geri
+alınamaz mesaj yolluyordu; arada duran tek şey, owner'ın ekranda zaten gördüğü sayıyı tekrar eden bir
+`confirm()`'di. O bir kontrol değildir. Artık düğme **kimin ne alacağını sunucuya sorar**, gösterir,
+ve gönderim ikinci ve bilinçli bir onaydır.
+
+**Önizleme kuralları yeniden yazmaz — aynı fonksiyonları çağırır.** Kitleyi `resolveAudience` ile
+çözer (gönderimin kullandığının aynısı), kanalları `selectChannels` ile hesaplar (pipeline'ın saf
+fonksiyonu), aynı `marketing` kategorisi ve aynı kanal geçersiz kılmasıyla. Kuralın ikinci bir kopyası
+olsaydı, ilk değişiklikte önizleme **var olmayan bir gönderimin** önizlemesine dönerdi — ve hiçbir şey
+kırılmadığı için kimse fark etmezdi. `engagement-preview.test.ts` bunu yapısal olarak tutuyor.
+
+**Şaşırtan sayı toplam değil, erişim.** 173 üyeye "Sadece e-posta" seçilirse **23 kişiye** gider,
+çünkü 23'ünün e-posta adresi var. Eski düğme 173 diyordu ve stüdyonun bunu öğrenmesinin bir yolu yoktu.
+Önizleme kanal kanal kaç kişi + ulaşılamayanların **sebebini** gösterir (izin yok · adres yok · üye o
+kanalı kapatmış), çünkü bastırılmış bir kampanya sessiz olamaz.
+
+**2 · Her kitle sayısı tıklanabilir.** "Sürekli iptal edenler (9)" — dokuz kim? Açılamayan sayı,
+üzerine hareket edilemeyen sayıdır.
+
+**3 · Elle üye grupları.** Buradaki her kitle bir KURALDAN hesaplanır; bazı kitlelerin kuralı yoktur
+(Salı 10:00 grubu, arkadaşını getirenler). Onlar elle seçilir ya da hiç var olmaz. Gruplar
+segmentlerden **ayrı satırda** durur, çünkü ikisi farklı şeydir: segment her açılışta yeniden sorulan
+canlı bir soru, grup donmuş bir liste. Bayatlamış bir segment hatadır; bayatlamış bir grup sadece
+güncellenmemiş bir listedir. Ayrılan üye gönderimden **düşer**, ve ekrandaki sayı da onunla düşer.
+
+---
+
+**OR-49 · Personele davet linki ÜRETİLİR, e-postayla gönderilmez.** (2026-08-31)
+
+Üç eğitmen hesabı haftalardır duruyordu ve **hiçbiri hiç giriş yapmamıştı**. Sebebi kayıt değil,
+onboarding: bir meslektaşı sisteme sokmak, owner'ın geçici bir şifre uydurup sözlü iletmesi demekti.
+Üstelik üç adresten ikisi henüz mail almayan `@pilatesfitnessbyisil.com` kutuları — Firebase'in kendi
+"sıfırlama e-postası gönder" akışı daveti boşluğa postalardı.
+
+Bu yüzden link **üretilir, gönderilmez**: owner kopyalar ve personeliyle zaten nasıl konuşuyorsa
+öyle iletir. Kutunun çalışması gerekmez.
+
+**Geçici şifreden daha iyi olmasının sebebi kolaylık değil: owner şifreyi hiç öğrenmez.** Paylaşılan
+geçici şifre aylarca yaşar, tekrar kullanılır, ve bir WhatsApp konuşmasında öylece durur. Burada
+meslektaş kendi şifresini belirler ve link kendiliğinden geçersizleşir.
+
+Kapılar: sadece owner · sadece **bu stüdyonun** personeli (yoksa istenen her uid için link basardı) ·
+**pasif hesaba link yok** — link erişimdir, pasif meslektaş tam da erişmemesi gereken kişidir.
+
 ## Traps that have already cost something
 
 **OR-14 · Firestore indexes are a production-only trap.** The emulator does NOT enforce them, so a

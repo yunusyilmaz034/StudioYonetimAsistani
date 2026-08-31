@@ -10,6 +10,7 @@ import {
   newOperationId,
   notify,
   render,
+  selectChannels,
   TEMPLATES,
   type MemberId,
   type NotificationPrefs,
@@ -18,12 +19,15 @@ import {
 } from '@studio/core'
 import { z } from 'zod'
 
+import { maskName } from '@/lib/demo-mask'
+
 import { requireMemberContext, requireTenantContext } from '../auth'
+import { isDemoMode } from '../demo-mode'
 import { adminDb } from '../firebase-admin'
 import { notificationDeps, notificationDepsFor } from '../notification-deps'
 import { SEGMENT_KEYS } from '@/lib/segments'
 
-import { resolveSegment } from './engagement'
+import { resolveAudience } from './engagement'
 
 // The Notification Center is never a "send an SMS" screen (owner). It is the centre of Intent ·
 // Queue · Attempt · Delivery · Retry · Audit — the record of who we tried to reach, how it went, and
@@ -259,6 +263,7 @@ export async function sendEngagementAction(input: unknown) {
       subject: z.string().trim().min(1).max(120),
       body: z.string().trim().min(1).max(600),
       segment: z.enum(SEGMENT_KEYS).optional(),
+      groupId: z.string().min(1).optional(),
       memberIds: z.array(z.string().min(1)).max(2000).optional(),
       // Which channels THIS send may use. Omitted ⇒ the studio's own configuration.
       //
@@ -278,7 +283,9 @@ export async function sendEngagementAction(input: unknown) {
   const sendDeps = p.channels?.length
     ? { ...studioDeps, settings: { ...studioDeps.settings, enabledChannels: [...new Set(['in_app', ...p.channels])] as typeof studioDeps.settings.enabledChannels } }
     : studioDeps
-  const ids = p.segment ? await resolveSegment(ctx.studioId, p.segment) : (p.memberIds ?? [])
+  // The SAME resolver the preview calls. If these two ever answered differently, the preview would be
+  // a preview of some other send — and the owner would have approved a list that was never used.
+  const ids = await resolveAudience(ctx.studioId, p)
   if (ids.length === 0) return { ok: false as const, error: { code: 'no_recipients' as const } }
 
   const memberRepo = new FirestoreMemberRepository(adminDb())
@@ -311,6 +318,88 @@ export async function sendEngagementAction(input: unknown) {
     else failed++
   }
   return { ok: true as const, value: { sent, failed, total: ids.length, operationId: opId } }
+}
+
+// ── GÖNDERMEDEN ÖNCE: KİME NE GİDECEK (owner, 2026-08-31) ────────────────────────────────────
+//
+// "173 üyeye gönder" sent 173 irreversible messages the moment it was pressed. A `confirm()` asking
+// "are you sure?" is not a check: it repeats the number the owner already saw and adds nothing she
+// could act on. What she asked for is the thing she cannot get anywhere else — **the list**, before
+// it goes.
+//
+// The preview must be TRUE, so it does not re-implement the rules. It calls the same
+// `resolveAudience` the send calls, and the same pure `selectChannels` the pipeline calls, under the
+// same 'marketing' category and the same per-send channel override. A preview computed by a second
+// copy of the logic is a preview of a send that does not exist — and it would drift on the first
+// change to either copy.
+//
+// The number that matters most here is not the total. Selecting "Sadece e-posta" for 173 members
+// reaches 23 of them, because 23 have an e-mail address; the old button said 173 and the studio would
+// have had no way to learn otherwise. Every member who will NOT be reached is returned with the
+// reason — no consent, no address, her own preference — because a suppressed campaign must never be
+// a silent one (the same principle the pipeline already holds for delivery).
+export interface EngagementPreviewRow {
+  readonly id: string
+  readonly name: string
+  readonly channels: readonly string[]
+  readonly suppressed: readonly { channel: string; reason: string }[]
+}
+
+export async function previewEngagementAction(input: unknown) {
+  const p = z
+    .object({
+      segment: z.enum(SEGMENT_KEYS).optional(),
+      groupId: z.string().min(1).optional(),
+      memberIds: z.array(z.string().min(1)).max(2000).optional(),
+      channels: z.array(z.enum(['in_app', 'email', 'sms', 'whatsapp', 'push'])).optional(),
+    })
+    .parse(input)
+  const ctx = await requireTenantContext(OWNER)
+
+  const studioDeps = await notificationDepsFor(ctx.studioId)
+  // The identical override the send performs — including adding `in_app` back, which is the member's
+  // own account record and not a message anyone may switch off for her.
+  const settings = p.channels?.length
+    ? { ...studioDeps.settings, enabledChannels: [...new Set(['in_app', ...p.channels])] as typeof studioDeps.settings.enabledChannels }
+    : studioDeps.settings
+
+  // The members are read RAW here rather than through the repository, because the one field this
+  // screen turns on — `notificationPrefs` — is not part of the domain `Member`: consent is a
+  // notification concern, and the member aggregate has no business carrying it. One collection read
+  // for 173 members, not 173 document reads inside the loop.
+  const [ids, memberSnap, demo] = await Promise.all([
+    resolveAudience(ctx.studioId, p),
+    adminDb().collection(`studios/${ctx.studioId}/members`).get(),
+    isDemoMode(),
+  ])
+  const byId = new Map(memberSnap.docs.map((d) => [d.id, d.data()]))
+
+  const rows: EngagementPreviewRow[] = []
+  const perChannel: Record<string, number> = {}
+  const reasons: Record<string, number> = {}
+  for (const id of ids) {
+    const m = byId.get(id)
+    if (!m) continue
+    const prefs: NotificationPrefs = { ...DEFAULT_PREFS, ...((m.notificationPrefs as NotificationPrefs | undefined) ?? {}) }
+    const recipient: RecipientRef = {
+      kind: 'member',
+      id,
+      email: (m.email as string | null) ?? null,
+      phone: (m.phone as string | null) ?? null,
+      displayName: String(m.fullName ?? ''),
+    }
+    const d = selectChannels(recipient, prefs, settings, 'marketing')
+    for (const c of d.channels) perChannel[c] = (perChannel[c] ?? 0) + 1
+    for (const s of d.suppressed) reasons[s.reason] = (reasons[s.reason] ?? 0) + 1
+    rows.push({
+      id,
+      name: demo ? maskName(String(m.fullName ?? ''), id) : String(m.fullName ?? ''),
+      channels: [...d.channels],
+      suppressed: d.suppressed.map((s) => ({ channel: s.channel as string, reason: s.reason as string })),
+    })
+  }
+  rows.sort((a, b) => a.name.localeCompare(b.name, 'tr'))
+  return { ok: true as const, value: { total: rows.length, rows, perChannel, reasons } }
 }
 
 // Approve engagement SUGGESTIONS (birthday, seni özledik, kilometre taşı…) — one draft per member. Sends

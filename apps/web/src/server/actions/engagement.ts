@@ -5,7 +5,7 @@ import { maskName } from '@/lib/demo-mask'
 import { FirestoreEntitlementRepository, FirestoreMemberRepository, FirestoreReservationRepository, instant, lastActivityAt } from '@studio/core'
 import { z } from 'zod'
 
-import { SEGMENT_LABEL, type SegmentKey } from '@/lib/segments'
+import { SEGMENT_KEYS, SEGMENT_LABEL, type SegmentKey } from '@/lib/segments'
 
 import { requireTenantContext } from '../auth'
 import { adminDb } from '../firebase-admin'
@@ -178,6 +178,146 @@ function membersInSegment(
 
 export async function resolveSegment(studioId: string, segment: SegmentKey): Promise<string[]> {
   return membersInSegment(segment, await loadAudience(studioId))
+}
+
+// ── ÜYE GRUPLARI (owner, 2026-08-31) ──────────────────────────────────────────────────────────
+//
+// The segments above are COMPUTED: "Fitness paketi olanlar" is a question re-asked every time it is
+// shown, and its answer changes as the studio changes. A group is the opposite — a list the owner
+// picked by hand ("Salı 10:00 grubu", "hamileler", "referans getirenler"). No rule describes it, so
+// nothing can recompute it, and it must be stored.
+//
+// The distinction is deliberately visible in the UI, because it decides whether a stale audience is a
+// bug or a fact: a segment that has gone out of date is broken; a group that no longer matches is
+// simply a list the owner has not updated yet.
+//
+// Config data, like the content library and the notification templates — not event-sourced. A group is
+// a saved query, not a business event: forgetting how the owner grouped her members in March costs
+// nothing, and the membership itself lives in `/members` regardless.
+
+const groupCol = (studioId: string) => adminDb().collection('studios').doc(studioId).collection('engagementGroups')
+
+export interface EngagementGroup {
+  readonly id: string
+  readonly name: string
+  readonly memberIds: readonly string[]
+  /** Kaçı hâlâ gönderilebilir durumda — silinmiş/pasif üyeler düşülmüş hâli. */
+  readonly liveCount: number
+  readonly updatedAt: number
+}
+
+export async function listEngagementGroupsAction(): Promise<readonly EngagementGroup[]> {
+  const ctx = await requireTenantContext(OPS)
+  const [snap, members] = await Promise.all([
+    groupCol(ctx.studioId).get(),
+    new FirestoreMemberRepository(adminDb()).list({ studioId: ctx.studioId } as never),
+  ])
+  const canli = new Set(members.filter((m) => m.status === 'active').map((m) => m.id as string))
+  return snap.docs
+    .map((d) => {
+      const x = d.data()
+      const memberIds = (Array.isArray(x.memberIds) ? x.memberIds : []).map(String)
+      return {
+        id: d.id,
+        name: String(x.name ?? ''),
+        memberIds,
+        // A member who left is silently dropped from the SEND, so the count on screen has to drop
+        // with her. A group that says 12 and reaches 9 is the kind of number that stops being read.
+        liveCount: memberIds.filter((id) => canli.has(id)).length,
+        updatedAt: Number(x.updatedAt ?? 0),
+      }
+    })
+    .sort((a, b) => a.name.localeCompare(b.name, 'tr'))
+}
+
+export async function upsertEngagementGroupAction(input: unknown) {
+  const p = z
+    .object({
+      id: z.string().optional(),
+      name: z.string().trim().min(1).max(60),
+      // 2000 is the same ceiling `sendEngagementAction` accepts — a group that could not be sent to
+      // is not a group worth saving.
+      memberIds: z.array(z.string().min(1)).min(1).max(2000),
+    })
+    .parse(input)
+  const ctx = await requireTenantContext(OWNER)
+  const ref = p.id ? groupCol(ctx.studioId).doc(p.id) : groupCol(ctx.studioId).doc()
+  // Aynı üye iki kez seçilirse iki mesaj gitmesin.
+  const memberIds = [...new Set(p.memberIds)]
+  await ref.set({ name: p.name, memberIds, updatedAt: Date.now() }, { merge: true })
+  return { ok: true as const, value: { id: ref.id } }
+}
+
+export async function deleteEngagementGroupAction(input: unknown) {
+  const p = z.object({ id: z.string().min(1) }).parse(input)
+  const ctx = await requireTenantContext(OWNER)
+  await groupCol(ctx.studioId).doc(p.id).delete()
+  return { ok: true as const }
+}
+
+/**
+ * The member ids an audience resolves to — the ONE function both the preview and the send call.
+ *
+ * They cannot be allowed to answer this differently. A preview that resolves its own audience is a
+ * preview of a different send, and the whole point of showing it is that what it shows is what goes.
+ */
+export async function resolveAudience(
+  studioId: string,
+  audience: { segment?: SegmentKey | undefined; groupId?: string | undefined; memberIds?: readonly string[] | undefined },
+): Promise<string[]> {
+  if (audience.groupId) {
+    const [snap, members] = await Promise.all([
+      groupCol(studioId).doc(audience.groupId).get(),
+      new FirestoreMemberRepository(adminDb()).list({ studioId } as never),
+    ])
+    if (!snap.exists) return []
+    const canli = new Set(members.filter((m) => m.status === 'active').map((m) => m.id as string))
+    const ids = (snap.get('memberIds') as unknown[] | undefined) ?? []
+    // Ayrılan üye listede kalabilir — ona gönderilmez. Grubu elle temizlemek owner'ın işi değil.
+    return ids.map(String).filter((id) => canli.has(id))
+  }
+  if (audience.segment) return resolveSegment(studioId, audience.segment)
+  return [...(audience.memberIds ?? [])]
+}
+
+/**
+ * WHO is in an audience — names, for the "(9) · kimler?" list.
+ *
+ * The counts alone were a dead end: the owner could see that nine members cancel constantly and had
+ * no way to find out whether they were the nine she was thinking of. A number you cannot open is a
+ * number you cannot act on.
+ */
+export async function audienceMembersAction(input: unknown): Promise<readonly { id: string; name: string }[]> {
+  const p = z
+    .object({
+      segment: z.enum(SEGMENT_KEYS).optional(),
+      groupId: z.string().min(1).optional(),
+    })
+    .parse(input)
+  const ctx = await requireTenantContext(OPS)
+  const [ids, members, demo] = await Promise.all([
+    resolveAudience(ctx.studioId, p),
+    new FirestoreMemberRepository(adminDb()).list(ctx),
+    isDemoMode(),
+  ])
+  const byId = new Map(members.map((m) => [m.id as string, m]))
+  return ids
+    .map((id) => {
+      const m = byId.get(id)
+      return m ? { id, name: demo ? maskName(m.fullName, id) : m.fullName } : null
+    })
+    .filter((x): x is { id: string; name: string } => x !== null)
+    .sort((a, b) => a.name.localeCompare(b.name, 'tr'))
+}
+
+/** The member picker's source: every active member, name only. */
+export async function pickableMembersAction(): Promise<readonly { id: string; name: string }[]> {
+  const ctx = await requireTenantContext(OPS)
+  const [members, demo] = await Promise.all([new FirestoreMemberRepository(adminDb()).list(ctx), isDemoMode()])
+  return members
+    .filter((m) => m.status === 'active')
+    .map((m) => ({ id: m.id as string, name: demo ? maskName(m.fullName, m.id as string) : m.fullName }))
+    .sort((a, b) => a.name.localeCompare(b.name, 'tr'))
 }
 
 

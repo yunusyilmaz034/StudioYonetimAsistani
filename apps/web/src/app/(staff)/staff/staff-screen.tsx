@@ -1,6 +1,6 @@
 'use client'
 
-import { UserPlusIcon } from 'lucide-react'
+import { LinkIcon, Loader2Icon, UserPlusIcon } from 'lucide-react'
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
@@ -11,6 +11,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -32,6 +33,7 @@ import {
   createStaffAction,
   deactivateStaffAction,
   reactivateStaffAction,
+  staffPasswordLinkAction,
   type StaffRow,
 } from '@/server/actions/staff'
 
@@ -104,6 +106,37 @@ function StaffCard({ staff }: { staff: StaffRow }) {
       }
     })
 
+  const [linking, setLinking] = useState(false)
+  const [link, setLink] = useState<string | null>(null)
+
+  async function invite() {
+    setLinking(true)
+    try {
+      const res = await staffPasswordLinkAction({ staffUserId: staff.id })
+      if (!res.ok) {
+        toast.error(
+          res.error.code === 'staff_email_missing'
+            ? 'Bu hesabın e-posta adresi yok — link üretilemez.'
+            : 'Link üretilemedi.',
+        )
+        return
+      }
+      // The clipboard can be refused (an insecure context, a locked-down browser), and a toast that
+      // says "kopyalandı" when nothing was copied sends the owner to WhatsApp to paste nothing. So
+      // the failure path shows the link itself, to be copied by hand.
+      try {
+        await navigator.clipboard.writeText(res.value.link)
+        toast.success(`${res.value.displayName} için davet linki kopyalandı — WhatsApp'tan gönderebilirsin.`)
+      } catch {
+        setLink(res.value.link)
+      }
+    } catch {
+      toast.error('Link üretilemedi.')
+    } finally {
+      setLinking(false)
+    }
+  }
+
   return (
     <Card className={staff.active ? undefined : 'opacity-60'}>
       <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
@@ -149,6 +182,17 @@ function StaffCard({ staff }: { staff: StaffRow }) {
             </SelectContent>
           </Select>
 
+          {/* DAVET LİNKİ. Copied, not e-mailed: two of the studio's staff addresses are mailboxes
+              that do not receive mail yet, and an invitation posted into a void is why three trainer
+              accounts sat unused for weeks. The owner passes it on however she already talks to her
+              staff. She never learns the password — the colleague sets her own. */}
+          {staff.active ? (
+            <Button variant="outline" disabled={linking} onClick={() => void invite()}>
+              {linking ? <Loader2Icon className="size-4 animate-spin" /> : <LinkIcon className="size-4" />}
+              Davet linki
+            </Button>
+          ) : null}
+
           {staff.active ? (
             <Button
               variant="outline"
@@ -170,6 +214,20 @@ function StaffCard({ staff }: { staff: StaffRow }) {
           )}
         </div>
       </CardContent>
+
+      {/* Pano reddettiyse: linkin kendisi, elle kopyalansın diye. */}
+      <Dialog open={link !== null} onOpenChange={(v) => !v && setLink(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Davet linki</DialogTitle>
+            <DialogDescription>
+              Kopyalanamadı — aşağıdaki linki elle kopyalayıp {staff.displayName} kişisine gönder. Link ile kendi
+              şifresini belirler; sen şifreyi hiç görmezsin.
+            </DialogDescription>
+          </DialogHeader>
+          <Input readOnly value={link ?? ''} onFocus={(e) => e.currentTarget.select()} />
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={asking} onOpenChange={setAsking}>
         <DialogContent>
