@@ -98,8 +98,11 @@ ya hiç ötmez ya hiç susmazdı. Ayrıca buzzer artık `setup()`'ın **ilk** sa
 
 ### 🔧 Montaj gecesi — sırayla
 
-1. **Firmware'i at:** `cd apps/turnstile && pio run -e giris -t upload`, sonra ikinci kutuya
-   `-e cikis`. İki değişiklik bekliyor: ret ekranı ve panelden açma.
+1. ~~**Firmware'i at.**~~ 1 Eylül 16:40'ta atıldı. **TEK komut, tek kart:**
+   `cd apps/turnstile && ~/Library/Python/3.9/bin/pio run -t upload`.
+   `-e giris` / `-e cikis` diye bir şey YOK — `platformio.ini`de tek ortam var ve iki ekran tek
+   ESP32'de yaşıyor. (`main.cpp`in tepesindeki o bayrakları anan yorum eskiydi, düzeltildi.)
+   `pio` PATH'te değil, tam yolla çağrılıyor.
 2. **Röle kablosu:** her ekran KENDİ kanalını sürüyor (giriş → In1/GPIO5, çıkış → In2/GPIO4).
    Ters bağlanırsa giriş kolu çıkıştan döner ve bu, kodda değil kabloda bir hatadır.
 3. **Aç–kapa testi, panelden:** Check-in ekranındaki *Giriş kapısını aç* / *Çıkış kapısını aç*.
@@ -113,11 +116,8 @@ ya hiç ötmez ya hiç susmazdı. Ayrıca buzzer artık `setup()`'ın **ilk** sa
 
 ### ⚠️ Yarına kalanlar
 
-1. **Turnike firmware'i YÜKLENMEDİ.** Artık **üç** değişiklik bekliyor: ret ekranı, panelden açma
-   ve buzzer polaritesi. `cd apps/turnstile && pio run -t upload`.
-   · Ret ekranı: yüklenmeden de kol dönmüyor, üyenin telefonu uyarıyor — eksik olan kapıdaki yazı.
-   · **Panelden açma ise yüklenene kadar HİÇ çalışmaz.** Düğme panelde görünür, olay yazılır, kol
-     dönmez. Resepsiyona "artık panelden açabilirsin" denmeden önce firmware atılmalı.
+1. ~~**Turnike firmware'i YÜKLENMEDİ.**~~ **1 Eylül 16:40'ta atıldı** — ret ekranı, panelden açma
+   ve buzzer polaritesi kartta. Komut: `cd apps/turnstile && ~/Library/Python/3.9/bin/pio run -t upload`.
 2. **GAMZE BAYKALDI** — paketleri 7 Eylül'de başlıyor, 30 Ağustos'ta bitti, arada 7 gün boşluk.
    Owner Işıl'a soracak: biten paketi 7 Eylül'e uzatmış olabilir. **Uzattıysa bugünkü hatanın kurbanı
    olmuş olabilir** (tarih ilerledi, durum `expired` kaldı) — öyleyse aynı script açar. Onay gelmeden

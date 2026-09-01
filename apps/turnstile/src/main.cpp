@@ -24,9 +24,14 @@
 #include <WiFi.h>
 #include <qrcode.h>
 
-// HANGİ KUTUYU DERLİYORUZ (2026-08-28). İki fiziksel cihaz var — giriş ve çıkış — ve her birinin
-// kendi kimliği, anahtarı ve röle kanalı var. Dosya adı derleme bayrağından geliyor; `platformio.ini`
-// içindeki ortam seçimi (`-e giris` / `-e cikis`) hangi kutuya yazdığını tek yerde belirliyor.
+// İKİ KİMLİK, TEK KUTU (2026-08-28; yorum 2026-09-01'de düzeltildi).
+//
+// İki cihaz var — giriş ve çıkış — ve her birinin kendi kimliği, anahtarı ve röle kanalı var. Ama
+// ikisi de AYNI ESP32'de çalışıyor, iki ayrı kart yok: `secrets.h` iki `DEVICE_AUTH_*` taşıyor ve
+// `kapilar[]` ikisini birden yürütüyor.
+//
+// Bu yüzden **tek ortam, tek yükleme**: `pio run -t upload`. Bir zamanlar buraya `-e giris` /
+// `-e cikis` yazılmıştı; öyle ortamlar hiç var olmadı ve o komut hata verir.
 #include "secrets.h"
 
 static const int PIN_SCK = 12;
