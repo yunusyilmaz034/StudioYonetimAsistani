@@ -1110,6 +1110,23 @@ kısıttır. `GPIO 6` yalnızca öterken LOW çekilir, asla HIGH sürülmez.
 Ve teşhis yöntemi kuralın diğer yarısı: **şüpheliyi bayrakla ayır, tornavidayla değil.** Ekranlar
 silikonlanmıştı; `-D TESHIS` ve `-D BUZZERSIZ` ile iki flash, sökmeden cevabı verdi.
 
+### OR-61 · "Bu satır hiçbir şey yapamaz" dediğin an, modelinde olmayan bir parça vardır
+
+Turnikede bir akşam şuna gitti: `pinMode(16, INPUT)` iki ekranı birden öldürüyordu. Satır zararsız —
+bağlı olmayan bir pini girişe almak. O cümleye güvendiğim için sırayla pini, donanımı ve lehim
+temasını suçladım; owner ise ısrarla *"bir şey yapmadık, birden gitti"* dedi ve haklıydı.
+
+Eksik parça, o pine takılı buzzer'dı. Boşta bırakılan pin, buzzer'a 3.3 V rayından akım yolu açıyordu.
+Satır gerçekten hiçbir şey yapmıyordu — **devrede bir şey varken yapıyordu.**
+
+Kural: bir belirti "imkânsız" görünüyorsa, yanlış olan belirti değil modeldir. O noktada teori
+üretmeyi bırak, **devrede o an fiziksel olarak neyin bağlı olduğunu sor** — cevap çoğu zaman senin
+sormadığın şeydedir. (Owner bu bilgiyi kendiliğinden verdi: *"buzzer çıkartmadım şuanda takılı"*.
+Hata o cümleyle çözüldü.)
+
+İkinci yarısı: **kontrol deneyini tekrarla.** Çalışan sürüm iki kez atıldı, iki kez çalıştı; ancak
+ondan sonra "kod suçlu" demek kanıt oldu.
+
 ## Traps that have already cost something
 
 **OR-14 · Firestore indexes are a production-only trap.** The emulator does NOT enforce them, so a

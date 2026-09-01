@@ -89,36 +89,37 @@ mesai saymak "saat kaçta geldi"yi cevapsız bırakırdı. Yeni olaylar: `staff.
 RFID kart okuyucu sipariş edilecek ama **beklenmiyor**: geldiğinde personel geçişi karta bağlanabilir,
 mesai kaydı yine ayrı kalır.
 
-**AÇIK SORU — buzzer pini değişince İKİ EKRAN BİRDEN ÖLÜYOR (1 Eylül, çözülmedi).**
+**ÇÖZÜLDÜ — takılı bir buzzer varken pin boşta bırakılmaz (1 Eylül).**
 
-Montaj gecesi buzzer'ı `GPIO 6`dan `16`ya aldık. Ses geldi, **ekranlar gitti.** Owner haklıydı:
-*"bir şey yapmadık, birden gitti"* — kabloya dokunulmamıştı, suçlu koddu.
+Buzzer'ı `GPIO 6`dan `16`ya alınca ses geldi, **iki ekran birden gitti.** Owner haklıydı: *"bir şey
+yapmadık, birden gitti"* — kabloya dokunulmamıştı, suçlu koddu.
 
-Bisect'in tablosu, ve sonucun tuhaflığı bunda:
+Bisect tablosu (kontrol iki kez tekrarlandı, yani sonuç şansa bağlı değil):
 
 | Sürüm | Ekranlar |
 |---|---|
-| `GPIO 6`, boşta (INPUT) | **çalışıyor — 4/4** |
+| `GPIO 6`, boşta (INPUT) | çalışıyor — 4/4 |
 | `GPIO 6`, HIGH sürülüyor | bozuk — 2/2 |
-| `GPIO 16` | bozuk — 3/3 |
+| `GPIO 16`, boşta (INPUT) | bozuk — 3/3 |
+| **`GPIO 16`, HIGH'ta tutuluyor** | **çalışıyor** |
 
-Bozan fark **iki satır**: `PIN_BUZZER` 6→16 ve `BIP_MS` 120→250. İkisi de açılışta ekranlara
-dokunamaz — `pinMode(16, INPUT)` bağlı bile olmayan bir pini girişe alıyor, `BIP_MS` ise ancak bip
-çalınca okunuyor ve açılışta hiç çağrılmıyor. **Yani gördüğümüz şey mümkün değil**, ve o cümle
-teşhisin kendisi: ya bu kartta `GPIO 16` da bir yere bağlı, ya da kodda küçük değişikliklerle yer
-değiştiren gizli bir bellek hatası var (ilk şüpheli `qrCiz`'in yığındaki QR tamponu).
+**Sebep:** aktif-LOW modülde buzzer'ın bir ucu 3.3 V'ta, öbür ucu bu pinde. Pini `INPUT` yapmak onu
+boşta bırakmak, ve boşta bırakmak açılıştaki iç pull-up'ı kapatmak demek. O anda buzzer kendi
+üzerinden pine akım akıtıyor: 3.3 V rayı yükleniyor, pinin koruma diyotları sürülüyor. Ekranlar o
+raydaki en ağır yük, başlatma dizisi bu yüzden tutmuyordu.
 
-Kontrol deneyi **iki kez** tekrarlandı: çalışan sürüm iki kez atıldı, iki kez QR geldi. Yani sonuç
-şansa bağlı değil, gerçekten koda bağlı.
+**Neden bu kadar uzun sürdü:** `pinMode(16, INPUT)` "hiçbir şey yapamaz" bir satır. O cümleye
+güvendim, ve o yüzden önce pini, sonra donanımı, sonra teması suçladım. **Takılı bir buzzer varken o
+satır bir şey yapar** — ve `GPIO 6`da yapmamasının sebebi, oraya bağlı bir şey olmamasıydı. Yani
+"imkânsız" olan belirti değil, devre hakkındaki modelimdi.
 
-**Karar: buzzer bu gece takılmıyor.** Kartta iki kez üst üste çalıştığı kanıtlanmış sürüm duruyor
-(`c905ade`) — ekranlar, röle, ret ekranı, panelden açma, çift WiFi, hepsi içinde. Eksik olan tek şey
-ses, ve ses zaten `DEBT-038` yüzünden kısıktı.
+**Doğru hâl:** boşta bırakma; `HIGH`'ta tut. Buzzer'ın iki ucu da 3.3 V'ta olur, akım sıfır. `bip()`
+artık pini hiç serbest bırakmıyor, yalnızca LOW/HIGH arasında sürüyor.
 
-**Bir dahaki denemede yapılacak ilk şey:** pin değiştirmeden önce, `qrCiz`'deki yığın tamponunu
-`static` yapıp aynı testi tekrarla. Hipotez ucuz ve tablo zaten kurulu.
+`GPIO 6` yine de kullanılmıyor: HIGH sürülünce ekranları bağımsız olarak bozdu (2/2) ve buzzer'ı
+250 ms'de hiç öttüremedi. O pinin kendi ayrı derdi var, ve sebebini hâlâ bilmiyoruz.
 
-**Buzzer `GPIO 16`ya alınmıştı, geri alındı (1 Eylül).** `GPIO 6` bu kartta **üç kez** tökezledi: çıkış
+**Buzzer `GPIO 16`da, 250 ms, çalışıyor (1 Eylül).** `GPIO 6` bu kartta **üç kez** tökezledi: çıkış
 ekranının `CS`'i olarak denenip elenmişti · HIGH sürülünce iki ekranı birden söndürdü · buzzer'ı
 250 ms LOW'da hiç öttüremedi (sürekli LOW'da yalnızca zar zor bir uğultu — akımı düzgün çekemiyor).
 Üç bağımsız arıza, tek pin. Sebebini bilmiyoruz; bildiğimiz, uzak durmak. `21` denendi ama o şerit

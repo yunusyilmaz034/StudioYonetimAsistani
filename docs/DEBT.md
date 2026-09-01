@@ -1150,5 +1150,7 @@ boştayken o 5 V buzzer üzerinden pine gelir — ESP32 pinleri 5 V toleranslı 
 hepsi olur). Baz `GPIO 16`ya, kollektör buzzer'a, emiter GND'ye, buzzer'ın `+`'sı 5 V hattına.
 **Kodda hiçbir şey değişmez** — `bip()` zaten pini çekerek sürüyor.
 
+**Durum (1 Eylül akşamı):** `GPIO 16`da 250 ms'lik bip **duyuluyor** — borç kapanmadı ama acil değil.
+
 **Belirti, geri geldiğinde:** stüdyoda müzik açıkken kapıdaki üye sesi duymuyorsa, borç faize
 binmiş demektir.

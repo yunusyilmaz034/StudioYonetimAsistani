@@ -56,8 +56,19 @@ static const int PIN_ROLE_CIKIS = 4;   // In2
 // AKTİF buzzer, doğrudan GPIO'dan sürülüyor: 5V'luk bir buzzer 3.3V'ta daha kısık öter ama öter, ve
 // araya transistör koymak parça beklemek demekti. Bu yüzden bipler KISA — sürekli sürüş pinin rahat
 // akım sınırını zorlar, 120 ms zorlamaz. Ses yetersiz kalırsa çözüm NPN + 5V, kod değişmez.
-static const int PIN_BUZZER = 6;   // kartta 14 basılı değil; 6 boş ve S3'te güvenli
-static const uint32_t BIP_MS = 120;
+// 16, ve pin ASLA BOŞTA BIRAKILMAZ (owner, 2026-09-01 — gizli hata buydu).
+//
+// Aktif-LOW modülde buzzer'ın bir ucu 3.3 V'ta, öbür ucu bu pinde. Pini INPUT yapmak onu boşta
+// bırakmak demek, ve boşta bırakmak açılıştaki iç pull-up'ı da kapatıyor. O anda buzzer kendi
+// üzerinden pine akım akıtıyor: 3.3 V rayı yükleniyor ve pinin koruma diyotlarına akım basıyor.
+// Ekranlar o raydaki en ağır yük — başlatma dizisi bu yüzden tutmuyordu.
+//
+// Belirti "imkânsız" görünüyordu: `pinMode(16, INPUT)` hiçbir şey yapmaz. **Takılı bir buzzer
+// varken yapar.** Pin 6'da olmamasının sebebi de buydu: oraya bağlı bir şey yoktu.
+//
+// Doğru boşta hâli HIGH: buzzer'ın iki ucu da 3.3 V'ta, akım sıfır, yük sıfır.
+static const int PIN_BUZZER = 16;
+static const uint32_t BIP_MS = 250;
 
 // BUZZER: SÜRÜLMEZ, YALNIZCA ÖTERKEN ÇEKİLİR (owner, 2026-09-01, montajda).
 //
@@ -207,10 +218,9 @@ static void qrCiz(Kapi& k, const char* metin) {
 /** `adet` kısa bip. Sesin ANLAMI var: 1 = geçtin, 2 = olmadı, 3 = bağlantı yok. */
 static void bip(int adet) {
   for (int i = 0; i < adet; i++) {
-    pinMode(PIN_BUZZER, OUTPUT);
     digitalWrite(PIN_BUZZER, LOW);   // aktif-low modül: çekince öter
     delay(BIP_MS);
-    pinMode(PIN_BUZZER, INPUT);      // bırak — boşta sessiz, ve ekranlar sağ kalıyor
+    digitalWrite(PIN_BUZZER, HIGH);  // sus — INPUT DEĞİL: boşta bırakmak buzzer'a akım yolu açıyor
     if (i + 1 < adet) delay(90);
   }
 }
@@ -269,8 +279,11 @@ static void kodYenile(Kapi& k) {
 }
 
 void setup() {
-  // Buzzer pini BAŞTAN serbest: sürülmediği sürece sessiz, ve sürülmediği sürece ekranlar açılıyor.
-  pinMode(PIN_BUZZER, INPUT);
+  // Buzzer BAŞTAN ve HER ZAMAN sürülü: HIGH = sessiz. Boşta bırakılırsa buzzer kendi üzerinden
+  // pine akım akıtıyor ve o akım ekranların başlamasını engelliyor. Bu satırın yeri de önemli:
+  // her şeyden önce, çünkü ondan önceki her satır o akımın aktığı süredir.
+  pinMode(PIN_BUZZER, OUTPUT);
+  digitalWrite(PIN_BUZZER, HIGH);
 
   Serial.begin(115200);
   delay(300);
