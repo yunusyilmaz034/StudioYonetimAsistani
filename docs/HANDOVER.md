@@ -89,6 +89,13 @@ mesai saymak "saat kaçta geldi"yi cevapsız bırakırdı. Yeni olaylar: `staff.
 RFID kart okuyucu sipariş edilecek ama **beklenmiyor**: geldiğinde personel geçişi karta bağlanabilir,
 mesai kaydı yine ayrı kalır.
 
+**Buzzer modülü AKTİF-LOW çıktı (1 Eylül, montajda).** Takılınca sürekli zayıf bir uğultu verdi:
+modülde buzzer `VCC` ile `S` arasında duruyor, yani bizim "sessiz" dediğimiz seviye onun "öt"
+seviyesiymiş. Teşhis `S`'i pinden çekmekle kondu — ses kesildi, demek ki pini süren bizdik.
+`BUZZER_TERS = true` ve polarite **tek yerde**: sus ve öt ayrı ayrı çevrilseydi biri unutulur, kutu
+ya hiç ötmez ya hiç susmazdı. Ayrıca buzzer artık `setup()`'ın **ilk** satırında susturuluyor —
+`pinMode` çağrılana kadar pin boşta ve boşta duran pin ötüyor demek.
+
 ### 🔧 Montaj gecesi — sırayla
 
 1. **Firmware'i at:** `cd apps/turnstile && pio run -e giris -t upload`, sonra ikinci kutuya
@@ -106,8 +113,8 @@ mesai kaydı yine ayrı kalır.
 
 ### ⚠️ Yarına kalanlar
 
-1. **Turnike firmware'i YÜKLENMEDİ.** Artık **iki** değişiklik bekliyor: ret ekranı ve panelden
-   açma. `cd apps/turnstile && pio run -t upload`.
+1. **Turnike firmware'i YÜKLENMEDİ.** Artık **üç** değişiklik bekliyor: ret ekranı, panelden açma
+   ve buzzer polaritesi. `cd apps/turnstile && pio run -t upload`.
    · Ret ekranı: yüklenmeden de kol dönmüyor, üyenin telefonu uyarıyor — eksik olan kapıdaki yazı.
    · **Panelden açma ise yüklenene kadar HİÇ çalışmaz.** Düğme panelde görünür, olay yazılır, kol
      dönmez. Resepsiyona "artık panelden açabilirsin" denmeden önce firmware atılmalı.

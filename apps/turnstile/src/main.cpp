@@ -54,6 +54,20 @@ static const int PIN_ROLE_CIKIS = 4;   // In2
 static const int PIN_BUZZER = 6;   // kartta 14 basılı değil; 6 boş ve S3'te güvenli
 static const uint32_t BIP_MS = 120;
 
+// BUZZER MODÜLÜNÜN POLARİTESİ (owner, 2026-09-01, montajda).
+//
+// Çıplak buzzer yerine KY-012 tipi bir modül takıldı ve **sürekli zayıf bir uğultu** verdi. Sebep:
+// o modüllerin bir kısmında buzzer `VCC` ile `S` arasında duruyor, yani `S` DÜŞÜKKEN ötüyor —
+// bizim "sessiz" dediğimiz seviye onun "öt" seviyesi.
+//
+// Polarite tek yerde, çünkü iki yerde olsaydı (sus ve öt) biri unutulur ve kutu ya hiç ötmez ya
+// hiç susmaz. `BUZZER_TERS` doğruysa her şey kendiliğinden döner.
+// Takılan modül AKTİF-LOW çıktı: `S` çekilince uğultu kesildi, yani pini süren şey bizdik ve
+// "sessiz" sandığımız seviye onun "öt" seviyesiydi (owner, 2026-09-01, kutuyu elinde tutarken).
+static const bool BUZZER_TERS = true;
+static const int BUZZER_OT = BUZZER_TERS ? LOW : HIGH;
+static const int BUZZER_SUS = BUZZER_TERS ? HIGH : LOW;
+
 // Turnike kendi süresini sayıyor (F01), bize sadece tetiklemek düşüyor.
 static const uint32_t DARBE_MS = 300;
 static const uint32_t SORGU_MS = 600;      // "kodum kullanıldı mı"
@@ -188,9 +202,9 @@ static void qrCiz(Kapi& k, const char* metin) {
 /** `adet` kısa bip. Sesin ANLAMI var: 1 = geçtin, 2 = olmadı, 3 = bağlantı yok. */
 static void bip(int adet) {
   for (int i = 0; i < adet; i++) {
-    digitalWrite(PIN_BUZZER, HIGH);
+    digitalWrite(PIN_BUZZER, BUZZER_OT);
     delay(BIP_MS);
-    digitalWrite(PIN_BUZZER, LOW);
+    digitalWrite(PIN_BUZZER, BUZZER_SUS);
     if (i + 1 < adet) delay(90);
   }
 }
@@ -249,6 +263,12 @@ static void kodYenile(Kapi& k) {
 }
 
 void setup() {
+  // BUZZER ÖNCE SUSTURULUYOR, her şeyden önce. Aktif-LOW bir modülde pin `pinMode` çağrılana kadar
+  // boşta duruyor ve boşta duran pin ötüyor demek — açılışta uğuldayan bir kutu, boş bir stüdyoda
+  // bir arıza gibi duyulur. Aradaki her satır o uğultunun süresidir.
+  pinMode(PIN_BUZZER, OUTPUT);
+  digitalWrite(PIN_BUZZER, BUZZER_SUS);
+
   Serial.begin(115200);
   delay(300);
   Serial.println("\n[turnike] aciliyor");
@@ -258,10 +278,6 @@ void setup() {
 
   // Tek arka ışık pini iki ekranı da yakıyor: o bacak modüldeki transistörün bazını sürüyor, akımı
   // ekranın kendi VCC'sinden çekiyor. İki modül için bir GPIO fazlasıyla yeter.
-  // Buzzer önce SUSTURULUYOR: açılışta bir anlık yüksek, boş bir stüdyoda öten bir kutu demek.
-  pinMode(PIN_BUZZER, OUTPUT);
-  digitalWrite(PIN_BUZZER, LOW);
-
   pinMode(PIN_LED, OUTPUT);
   digitalWrite(PIN_LED, HIGH);
 
