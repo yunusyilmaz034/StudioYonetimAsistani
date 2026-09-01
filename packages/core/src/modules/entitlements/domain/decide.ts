@@ -267,7 +267,11 @@ export function decideHold(
 ): Result<LedgerOutcome, DomainError> {
   const ledger = ent.credits
   if (!ledger) return err({ code: 'not_a_credit_entitlement' })
-  if (ent.status !== 'active') return err({ code: 'entitlement_not_active' })
+  // `expired` bilerek geçirilir (owner, 2026-09-01). Masa, süresi dolmuş bir paketin YANAN hakkını
+  // bir derse saydırabiliyor; o karar bir üst katmanda verilir ve yanan hak orada kayıtlı bir
+  // düzeltmeyle geri verilir. Burada kredi zaten geri gelmiş olur — tutmanın reddetmesi için bir
+  // sebep kalmaz. `cancelled` geçmez: iptal bilinçli bir karardı.
+  if (ent.status !== 'active' && ent.status !== 'expired') return err({ code: 'entitlement_not_active' })
   const avail = available(ledger)
   if (avail < 1) return err({ code: 'insufficient_credits', available: avail })
 

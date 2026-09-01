@@ -7,7 +7,9 @@ import { toast } from 'sonner'
 
 import { domainErrorMessage } from '@/lib/domain-error'
 import { getBookingStatusAction, listUpcomingSessionsAction, type BookingStatus, type UpcomingSession } from '@/server/actions/booking'
-import { bookReservationAction } from '@/server/actions/reservations'
+import type { ExpiredCreditOption } from '@/server/actions/reservations'
+
+import { ExpiredCreditDialog, bookOrOfferExpiredCredit } from './expired-credit-dialog'
 import { searchMembersAction, type MemberHit } from '@/server/actions/search'
 import { cn } from '@/lib/utils'
 
@@ -31,6 +33,7 @@ export function QuickBooking() {
   const [sessions, setSessions] = useState<readonly UpcomingSession[] | null>(null)
   const [sq, setSq] = useState('')
   const [status, setStatus] = useState<BookingStatus | null>(null)
+  const [yananSecenekler, setYananSecenekler] = useState<readonly ExpiredCreditOption[] | null>(null)
   const [chosen, setChosen] = useState<UpcomingSession | null>(null)
   const [busy, setBusy] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -122,14 +125,17 @@ export function QuickBooking() {
   const confirm = async () => {
     if (!member || !chosen) return
     setBusy(true)
-    const r = await bookReservationAction({ memberId: member.id, sessionId: chosen.sessionId })
+    const r = await bookOrOfferExpiredCredit(member.id, chosen.sessionId)
     setBusy(false)
-    if (r.ok) {
+    if (r.kind === 'ok') {
       toast.success(`${member.fullName} · ${chosen.serviceName} rezervasyonu oluşturuldu.`)
       setOpen(false)
       router.refresh()
+    } else if (r.kind === 'choose') {
+      // Aktif paketi yok ama süresi dolmuş paketinde yanan hakkı var — masaya sor.
+      setYananSecenekler(r.options)
     } else {
-      toast.error(domainErrorMessage(r.error))
+      toast.error(domainErrorMessage(r.error as never))
     }
   }
 
@@ -138,6 +144,21 @@ export function QuickBooking() {
   return (
     <div className="fixed inset-0 z-[60] flex items-start justify-center p-4 pt-[10vh]" role="dialog" aria-modal="true" aria-label="Hızlı rezervasyon">
       <button aria-hidden tabIndex={-1} onClick={() => setOpen(false)} className="fixed inset-0 -z-10 cursor-default bg-foreground/25 backdrop-blur-sm" />
+      {yananSecenekler && member && chosen ? (
+        <ExpiredCreditDialog
+          memberId={member.id}
+          sessionId={chosen.sessionId}
+          memberName={member.fullName}
+          options={yananSecenekler}
+          onDone={() => {
+            toast.success(`${member.fullName} · ${chosen.serviceName} rezervasyonu oluşturuldu.`)
+            setYananSecenekler(null)
+            setOpen(false)
+            router.refresh()
+          }}
+          onClose={() => setYananSecenekler(null)}
+        />
+      ) : null}
       <div className="flex max-h-[80vh] w-full max-w-lg flex-col overflow-hidden rounded-xl border border-border bg-popover shadow-lg">
         <div className="flex items-center gap-2 border-b border-border px-4 py-3">
           {member ? (

@@ -959,6 +959,43 @@ sinyalidir.
 yok" demek hem kırıcı hem işe yaramaz; ne yapacağını söylemek işe yarar. Ses de karşılamadan
 farklı (2 bip), böylece üye ekrana bakmadan da anlar.
 
+---
+
+**OR-54 · Süresi dolmuş paketin YANAN hakkı bir derse saydırılabilir — masa açıkça seçerek.** (2026-09-01)
+
+Owner: *"Paket süresi biten üyenin kredisi kalınca bazen Işıl bu üyeye süre de vermeden direkt o
+kredisine binaen bir ders rezerve etmek istiyor. Süre vermektense direkt bir ders belirleyip rezerve
+etmek daha mantıklı oluyor."*
+
+**Süre eklemek paketi bir ay daha açar; bir ders saydırmak yalnızca o dersi verir.** İkincisi hem
+daha az hem daha dürüst.
+
+**AKIŞ (owner'ın sırası):** üyenin bu dersi ödeyebilecek **aktif paketi varsa hiçbir şey sorulmaz** —
+rezervasyon normal yolundan gider. Diyalog yalnızca o yol tıkandığında ve gerçekten yanmış hak varsa
+açılır; birden fazla paketi olabileceği için hangisine sayılacağı sorulur.
+
+**"Aktif paket" KATEGORİ bazlıdır** (owner kararı). Aktif fitness paketi, pilates dersini zaten
+ödeyemez — kategori duvarı. O yüzden soru "herhangi bir aktif paketi var mı" değil, *"bu DERSİ
+ödeyebilecek aktif paketi var mı"*.
+
+**Yalnızca `expired`. `cancelled` asla** (owner: *"sadece süresi dolmuş paketleri göster"*). İptal
+alınmış bir karardır; listeye koymak onu kazara geri getirmek olurdu.
+
+**Defter: geri ver, sonra harca.** Süre dolarken krediler `expired` kovasına yakılır ve `available`
+sıfırlanır — yani "o krediyle rezerve et" aslında **yanmış hakkı geri verip harcamak**tır. Sayaçların
+üstüne YAZILMAZ: `expired` azaltılmaz, `restored` bir artırılır. Telafi kaydı, sessiz düzeltme değil
+(#9), sebebi `correction` ve notu olayla birlikte durur — *"kendi kuralımızı kaç kez esnettik"*
+sonradan cevaplanabilir. **Paket dirilmez, kalan yanık dersler yanık kalır.**
+
+**Kapı bir gevşetme değil, ayrı bir kapıdır.** `honourExpiredCredit` yalnızca masa yolundan ve
+yalnızca `entitlementId` AÇIKÇA verildiğinde geçer. Otomatik seçim buraya asla düşmez — sessiz bir
+yedek olsaydı süresi dolmuş paketler zamanla normal bir kaynağa dönüşür ve "süre doldu" diye bir şey
+kalmazdı. Üye kendi uygulamasından bunu hiç yapamaz.
+
+**Diğer bütün korumalar yerinde:** kontenjan, kategori duvarı, hizmet duvarı, kredinin gerçekten var
+olması. Ayrı bir "süresi dolmuş rezervasyon" karar fonksiyonu yazmak, değişmezlerin yanlış
+yapılabileceği ikinci bir yer açmak olurdu — aynı `decideBooking` kullanılıyor.
+
 ## Traps that have already cost something
 
 **OR-14 · Firestore indexes are a production-only trap.** The emulator does NOT enforce them, so a

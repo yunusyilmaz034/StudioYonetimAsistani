@@ -12,7 +12,7 @@ import {
   type ReservationId,
   type TenantContext,
 } from '../../../shared'
-import { decideHold } from '../../entitlements'
+import { decideAdjust, decideHold } from '../../entitlements'
 import type { MemberSnapshot } from '../../members'
 import type { ServiceId } from '../../../shared'
 import type { Reservation } from '../domain/types'
@@ -62,6 +62,13 @@ export interface BookReservationInput {
   // OP-2 — set when this booking belongs to a larger operation (a promotion from the waiting
   // list, a recurring series). Omitted for a stand-alone booking.
   readonly operationId?: OperationId
+  /**
+   * Süresi dolmuş bir paketin YANAN hakkını bu derse saydır (owner, 2026-09-01).
+   *
+   * Yalnızca masanın açtığı bir kapı, ve yalnızca `entitlementId` ile AÇIKÇA gösterilen paket için.
+   * Üye kendi uygulamasından buraya asla gelmez; gelseydi "süre doldu" diye bir şey kalmazdı.
+   */
+  readonly honourExpiredCredit?: boolean
 }
 
 // Booking = a synchronous, trusted Server-Action write (AD-35): it allocates a
@@ -128,13 +135,39 @@ export async function bookReservation(
           events: booked.value.events,
         })
       }
-      const hold = decideHold(dctx, entitlement, reservationId)
+      // ── YANAN HAKKI GERİ VER, SONRA HARCA (owner, 2026-09-01) ──────────────────────────────
+      //
+      // Süre dolarken kalan dersler `expired` kovasına yakılır ve `available` sıfırlanır. Owner'ın
+      // istediği "o krediyle bir ders rezerve et" işlemi, bu yüzden bir kredi harcaması değil —
+      // önce YANAN hakkın geri verilmesi, sonra normal yolundan harcanması.
+      //
+      // Sayaçların üstüne yazılmaz: `expired` azaltılmaz, `restored` bir artırılır — telafi kaydı,
+      // sessiz düzeltme değil (#9). Sebep `correction` ve notu olayla birlikte durur, böylece
+      // "kendi kuralımızı kaç kez esnettik" sorusu sonradan cevaplanabilir.
+      //
+      // Üyenin kalan yanık dersleri YANIK KALIR. Bir ders için bir hak; paket dirilmez.
+      let ent = entitlement
+      const oncekiOlaylar = [...booked.value.events]
+      if (input.honourExpiredCredit && entitlement.status === 'expired') {
+        const geriVer = decideAdjust(
+          dctx,
+          entitlement,
+          1,
+          'correction',
+          'Süresi dolmuş pakette yanan hak, bir ders için kullanıldı (resepsiyon kararı).',
+        )
+        if (!geriVer.ok) return geriVer
+        ent = geriVer.value.next
+        oncekiOlaylar.push(...geriVer.value.events)
+      }
+
+      const hold = decideHold(dctx, ent, reservationId)
       if (!hold.ok) return hold
       return ok({
         reservation: booked.value.reservation,
         nextEntitlement: hold.value.next,
         bookedCountAfter: session.bookedCount + 1,
-        events: [...booked.value.events, ...hold.value.events],
+        events: [...oncekiOlaylar, ...hold.value.events],
       })
     },
   })

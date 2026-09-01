@@ -41,7 +41,10 @@ import {
   bookReservationAction,
   cancelReservationAction,
   setReservationNoteAction,
+  type ExpiredCreditOption,
 } from '@/server/actions/reservations'
+
+import { ExpiredCreditDialog, bookOrOfferExpiredCredit } from '@/components/expired-credit-dialog'
 import type { CalendarSession } from '@/server/schedule-query'
 
 import { MoveReservationDialog } from './move-reservation-dialog'
@@ -66,6 +69,7 @@ export function BookingPanel({ session, onMutated, canBackdate = true }: { sessi
   const [status, setStatus] = useState<BookingStatus | null>(null)
   const [statusLoading, setStatusLoading] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [yananSecenekler, setYananSecenekler] = useState<readonly ExpiredCreditOption[] | null>(null)
   const [cancelling, setCancelling] = useState<RosterMember | null>(null)
   const [noting, setNoting] = useState<RosterMember | null>(null)
   const [noteText, setNoteText] = useState('')
@@ -133,12 +137,20 @@ export function BookingPanel({ session, onMutated, canBackdate = true }: { sessi
     if (!picked) return
     setBusy(true)
     try {
-      const res = await bookReservationAction({
-        memberId: picked.id,
-        sessionId: session.sessionId,
-        entitlementId: status?.entitlementId ?? undefined,
-      })
-      if (res.ok) {
+      // Masanın seçtiği paket varsa onunla; yoksa normal yol, ve tıkanırsa yanan hak sorulur.
+      const res = status?.entitlementId
+        ? await bookReservationAction({ memberId: picked.id, sessionId: session.sessionId, entitlementId: status.entitlementId })
+        : await (async () => {
+            const r = await bookOrOfferExpiredCredit(picked.id, session.sessionId)
+            if (r.kind === 'choose') {
+              setYananSecenekler(r.options)
+              return { ok: true as const, _sorulacak: true }
+            }
+            return r.kind === 'ok' ? ({ ok: true as const }) : ({ ok: false as const, error: r.error })
+          })()
+      if ('_sorulacak' in res) {
+        // Diyalog açıldı; sonucu o bildirecek.
+      } else if (res.ok) {
         toast.success(`${picked.fullName} rezerve edildi.`)
         setPicked(null)
         setStatus(null)
@@ -147,7 +159,7 @@ export function BookingPanel({ session, onMutated, canBackdate = true }: { sessi
         await loadRoster()
         onMutated()
       } else {
-        toast.error(domainErrorMessage(res.error))
+        toast.error(domainErrorMessage(res.error as never))
       }
     } catch {
       toast.error('Rezervasyon tamamlanamadı.')
@@ -204,6 +216,24 @@ export function BookingPanel({ session, onMutated, canBackdate = true }: { sessi
 
   return (
     <section className="space-y-3">
+      {yananSecenekler && picked ? (
+        <ExpiredCreditDialog
+          memberId={picked.id}
+          sessionId={session.sessionId}
+          memberName={picked.fullName}
+          options={yananSecenekler}
+          onDone={() => {
+            toast.success(`${picked.fullName} rezerve edildi.`)
+            setYananSecenekler(null)
+            setPicked(null)
+            setStatus(null)
+            setAdding(false)
+            setQuery('')
+            void loadRoster().then(onMutated)
+          }}
+          onClose={() => setYananSecenekler(null)}
+        />
+      ) : null}
       <div className="flex items-center justify-between gap-3">
         <h3 className="text-h2 font-semibold tabular-nums text-foreground">
           {session.bookedCount}

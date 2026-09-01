@@ -15,6 +15,7 @@ import {
   FirestoreStudioHours,
   instant,
   newOperationId,
+  isEligibleForService,
   selectEntitlement,
   weeksUntilPackageEnd,
   type OperationId,
@@ -51,10 +52,18 @@ export async function bookReservationAction(input: unknown) {
       memberId: nonEmpty,
       sessionId: nonEmpty,
       entitlementId: nonEmpty.nullable().optional(),
+      // SÜRESİ DOLMUŞ PAKETİN YANAN HAKKI (owner, 2026-09-01). Yalnızca `entitlementId` AÇIKÇA
+      // verildiğinde anlamlı: masa hangi paketi kastettiğini söyler, sistem kendiliğinden süresi
+      // dolmuş bir pakete düşmez.
+      honourExpiredCredit: z.boolean().optional(),
     })
     .parse(input)
   const ctx = await requireTenantContext(OPS)
   const db = adminDb()
+  // Sessiz bir yedeğe dönüşmesin: bayrak yalnızca AÇIKÇA gösterilen bir paketle geçerlidir.
+  // Otomatik seçim yolunda kullanılabilseydi, süresi dolmuş paketler zamanla normal bir kaynak
+  // hâline gelir ve "süre doldu" diye bir şey kalmazdı.
+  const yananHak = p.honourExpiredCredit === true && Boolean(p.entitlementId)
 
   const member = await new FirestoreMemberRepository(db).findById(ctx, p.memberId as MemberId)
   if (!member) throw new Error(`Member not found: ${p.memberId}`)
@@ -81,8 +90,67 @@ export async function bookReservationAction(input: unknown) {
       entitlementId,
       memberId: p.memberId as MemberId,
       memberSnapshot,
+      ...(yananHak ? { honourExpiredCredit: true } : {}),
     },
   )
+}
+
+/**
+ * Bu derse saydırılabilecek, SÜRESİ DOLMUŞ paketler (owner, 2026-09-01).
+ *
+ * Ekran bunu yalnızca üyenin bu dersi ödeyebilecek AKTİF paketi yokken sorar — aktifi varsa hiç
+ * sorulmaz, rezervasyon normal yolundan yapılır. Owner'ın cümlesi: *"aktif ve kredisi olan paketi
+ * varsa pasifi hiç sormasın."*
+ *
+ * `cancelled` paketler bilerek listelenmez: iptal alınmış bir karardı.
+ *
+ * Gösterilen sayı YANAN haktır, "kalan kredi" değil — süre dolarken krediler `expired` kovasına
+ * geçtiği için `available` sıfırdır. Ekranda "3 kredi" yazmak, olmayan bir bakiye göstermek olurdu.
+ */
+export async function expiredCreditOptionsAction(input: unknown) {
+  const p = z.object({ memberId: nonEmpty, sessionId: nonEmpty }).parse(input)
+  const ctx = await requireTenantContext(OPS)
+  const db = adminDb()
+
+  const [session, hepsi] = await Promise.all([
+    new FirestoreSchedulingRepository(db).getSession(ctx, p.sessionId as ClassSessionId),
+    new FirestoreEntitlementRepository(db).listByMember(ctx, p.memberId as MemberId),
+  ])
+  if (!session) return { aktifVar: false, secenekler: [] as ExpiredCreditOption[] }
+
+  const admits = session.admission?.categories ?? [session.category]
+  const declared = session.admission != null
+
+  // Bu DERSİ ödeyebilecek aktif bir paket var mı? Owner'ın kararı kategori bazlı: aktif fitness
+  // paketi, pilates dersini zaten ödeyemez (kategori duvarı) — o yüzden "herhangi bir aktif paket"
+  // değil, "bu dersi ödeyen aktif paket" sorulur.
+  const aktifVar = hepsi.some(
+    (e) => e.status === 'active' && isEligibleForService(e, admits, session.serviceId, session.startsAt, declared),
+  )
+
+  const secenekler: ExpiredCreditOption[] = aktifVar
+    ? []
+    : hepsi
+        .filter((e) => e.status === 'expired' && e.credits)
+        .filter((e) => admits.includes(e.productSnapshot.category))
+        .filter((e) => (e.credits?.expired ?? 0) > 0)
+        .map((e) => ({
+          entitlementId: e.id as string,
+          productName: e.productSnapshot.name,
+          validUntil: e.validUntil as number,
+          yananHak: e.credits?.expired ?? 0,
+        }))
+        .sort((a, b) => b.validUntil - a.validUntil)
+
+  return { aktifVar, secenekler }
+}
+
+export interface ExpiredCreditOption {
+  readonly entitlementId: string
+  readonly productName: string
+  readonly validUntil: number
+  /** Süre dolarken YANAN ders sayısı — "kalan kredi" değil. */
+  readonly yananHak: number
 }
 
 // ── GEÇMİŞ DERSE ÜYE EKLEME (owner, 2026-08-02) ──────────────────────────────────────────────

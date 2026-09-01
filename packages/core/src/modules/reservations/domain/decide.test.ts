@@ -1297,3 +1297,71 @@ describe('decideBooking — Fit Paket admission (I-9.7 widened)', () => {
     if (!r.ok) expect(r.error).toEqual({ code: 'service_not_covered', sessionServiceId: 'svc_1' })
   })
 })
+
+describe('süresi dolmuş paketin yanan hakkı (owner, 2026-09-01)', () => {
+  // *"Paket süresi biten üyenin kredisi kalınca Işıl süre vermeden direkt bir ders rezerve etmek
+  // istiyor."* Süre eklemek paketi bir ay daha açar; bir ders saydırmak yalnızca o dersi verir. Masa
+  // ikincisini istiyor, ve bu ayrı bir kapı — gevşetilmiş bir kural değil.
+  const bitmis = () =>
+    creditEnt({
+      status: 'expired',
+      // Süre dolarken kalan 3 ders yakıldı: available 0. Geri verme çağıran katmanda, kayıtlı bir
+      // düzeltmeyle olur; burada test edilen şey KARARIN kapıyı açıp açmadığı.
+      credits: { granted: 8, held: 0, consumed: 5, restored: 3, revoked: 0, expired: 3 },
+      validUntil: instant(NOW - 86_400_000), // dün bitti
+    })
+
+  it('bayrak OLMADAN reddeder — varsayılan davranış hiç değişmedi', () => {
+    const r = book(session(), bitmis(), bookInput, false)
+    expect(r.ok).toBe(false)
+    if (r.ok) return
+    expect(r.error.code).toBe('entitlement_not_active')
+  })
+
+  it('bayrakla kabul eder — ve ders paketin bitiş tarihinden SONRA olabilir', () => {
+    // İki ayrı korumanın da kalkması gerekiyordu: "aktif değil" ve "paket dersten önce bitiyor".
+    // Biri açılıp diğeri kalsaydı özellik çalışmaz, sebebi de görünmezdi.
+    const r = book(session(), bitmis(), { ...bookInput, honourExpiredCredit: true }, false)
+    expect(r.ok).toBe(true)
+  })
+
+  it('İPTAL EDİLMİŞ paketi bayrakla bile açmaz', () => {
+    // owner: *"sadece süresi dolmuş paketleri göster."* İptal bilinçli bir karardı; onu geri
+    // getirmek, alınmış bir kararı kazara bozmak olurdu.
+    const iptal = creditEnt({ status: 'cancelled', credits: { granted: 8, held: 0, consumed: 2, restored: 0, revoked: 0, expired: 0 } })
+    const r = book(session(), iptal, { ...bookInput, honourExpiredCredit: true }, false)
+    expect(r.ok).toBe(false)
+    if (r.ok) return
+    expect(r.error.code).toBe('entitlement_not_active')
+  })
+
+  it('diğer korumaların HİÇBİRİ kalkmıyor — kategori duvarı hâlâ yerinde', () => {
+    // İzin bir "her şeye izin" değil. Bu, ayrı bir karar fonksiyonu yazmak yerine aynısını
+    // kullanmanın sebebi: değişmezlerin yanlış yapılabileceği ikinci bir yer açılmıyor.
+    const fitnessDersi = session({ category: 'fitness' })
+    const r = book(fitnessDersi, bitmis(), { ...bookInput, honourExpiredCredit: true }, false)
+    expect(r.ok).toBe(false)
+    if (r.ok) return
+    expect(r.error.code).toBe('category_mismatch')
+  })
+
+  it('kredisi gerçekten kalmamışsa yine reddeder', () => {
+    const bos = creditEnt({
+      status: 'expired',
+      credits: { granted: 8, held: 0, consumed: 8, restored: 0, revoked: 0, expired: 0 },
+      validUntil: instant(NOW - 86_400_000),
+    })
+    const r = book(session(), bos, { ...bookInput, honourExpiredCredit: true }, false)
+    expect(r.ok).toBe(false)
+    if (r.ok) return
+    expect(r.error.code).toBe('insufficient_credits')
+  })
+
+  it('kontenjan dolu bir derse yine giremez', () => {
+    const dolu = session({ capacity: 1, bookedCount: 1 })
+    const r = book(dolu, bitmis(), { ...bookInput, honourExpiredCredit: true }, false)
+    expect(r.ok).toBe(false)
+    if (r.ok) return
+    expect(r.error.code).toBe('class_full')
+  })
+})

@@ -152,6 +152,17 @@ export interface BookInput {
    * window is policy and the domain knows no numbers.
    */
   readonly backdate?: { readonly earliest: Instant }
+  /**
+   * SÜRESİ DOLMUŞ PAKETİN YANAN HAKKINI KULLANDIR (owner, 2026-09-01).
+   *
+   * Backdating ile aynı kalıp, ve aynı sebeple: bilmeyen bir çağıran bunu kazara kullanamaz. Masa
+   * hangi paketi kastettiğini açıkça söyler; sistem kendiliğinden süresi dolmuş bir pakete düşmez.
+   *
+   * Diğer bütün korumalar aynen işler — kontenjan, kategori duvarı, hizmet duvarı, kredi. Ayrı bir
+   * "süresi dolmuş rezervasyon" karar fonksiyonu yazmak, değişmezlerin yanlış yapılabileceği ikinci
+   * bir yer açmak olurdu.
+   */
+  readonly honourExpiredCredit?: boolean
 }
 
 export function decideBooking(
@@ -213,11 +224,32 @@ export function decideBooking(
   if (occupiedSeats(session) >= session.capacity) {
     return err({ code: 'class_full', capacity: session.capacity })
   }
-  // I-9.3
-  if (entitlement.status !== 'active') return err({ code: 'entitlement_not_active' })
-  // I-9.4
-  if (session.startsAt > entitlement.validUntil) {
-    return err({ code: 'entitlement_expires_before_session' })
+  // ── I-9.3 / I-9.4 — ve SÜRESİ DOLMUŞ PAKETİN YANAN HAKKI (owner, 2026-09-01) ────────────────
+  //
+  // Owner'ın anlattığı durum: üye paketini bitiremedi, süre doldu, geriye kullanılmamış dersler
+  // kaldı. Işıl'ın istediği şey pakete süre EKLEMEK değil — *"süre vermektense direk bir ders
+  // belirleyip rezerve etmek daha mantıklı oluyor."* Bir ders, bir kez, bilinçli olarak.
+  //
+  // Bu izin bir gevşetme DEĞİL, ayrı bir kapıdır ve üç şeyle çevrilidir:
+  //
+  //   · YALNIZCA MASA AÇAR. `honourExpiredCredit` yalnızca resepsiyon/patron yolundan geçer. Üye
+  //     kendi uygulamasından bunu asla yapamaz — yapabilseydi "süre doldu" diye bir şey kalmazdı.
+  //   · PAKET SEÇİLİR, BULUNMAZ. Masa hangi paketin hakkını kullandıracağını açıkça söyler; sistem
+  //     kendiliğinden süresi dolmuş bir pakete düşmez. Sessiz bir yedek, kuralın kendisini siler.
+  //   · YALNIZCA SÜRESİ DOLMUŞ. `cancelled` bir paket bilerek iptal edilmiştir (owner, 2026-09-01:
+  //     *"sadece süresi dolmuş paketleri göster"*) — onu listeye almak, geri alınmış bir kararı
+  //     kazara geri getirmek olurdu.
+  //
+  // Kredinin kendisi burada hareket etmez: yanan hak, çağıran katmanda kayıtlı bir DÜZELTME ile
+  // geri verilir, sonra normal yolundan tutulur. Defter iki hareketi de sebebiyle taşır.
+  const expiredHonoured = input.honourExpiredCredit === true && entitlement.status === 'expired'
+  if (!expiredHonoured) {
+    // I-9.3
+    if (entitlement.status !== 'active') return err({ code: 'entitlement_not_active' })
+    // I-9.4
+    if (session.startsAt > entitlement.validUntil) {
+      return err({ code: 'entitlement_expires_before_session' })
+    }
   }
   // I-9.5
   const avail = availableOf(entitlement)
