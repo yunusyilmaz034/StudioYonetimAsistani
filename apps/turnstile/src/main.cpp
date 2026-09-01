@@ -294,13 +294,41 @@ void setup() {
     kapilar[i].tft->begin(2000000);
     kapilar[i].tft->setRotation(0);
   }
-  for (size_t i = 0; i < KAPI_SAYISI; i++) mesaj(kapilar[i], "WiFi...", WIFI_SSID, ILI9341_YELLOW);
-
+  // İKİ AĞ, TEK KART (owner, 2026-09-01).
+  //
+  // Kart evde kuruldu, turnike dükkânda. Tek ağ yazılı olsaydı montaj gecesi kutu hiçbir şey
+  // çizmez, "Baglanti yok" der ve 3 bip öterdi — ve düzeltmek için Mac'i, kabloyu ve yeniden
+  // flash'ı oraya taşımak gerekirdi. Bir kurulum gecesinin en kötü yeri, laptop olmadan fark
+  // edilen bir ayar.
+  //
+  // Sırayla denenir, ilk bağlanan kazanır. İkinci ağ `secrets.h`de tanımlı değilse bu blok
+  // derlemeye bile girmiyor.
   WiFi.mode(WIFI_STA);
-  WiFi.begin(WIFI_SSID, WIFI_PASS);
-  for (int i = 0; i < 40 && WiFi.status() != WL_CONNECTED; i++) { delay(500); Serial.print('.'); }
-  Serial.println();
-  Serial.printf("[turnike] %s\n", WiFi.status() == WL_CONNECTED ? WiFi.localIP().toString().c_str() : "WiFi YOK");
+  const char* ssidler[] = {
+      WIFI_SSID,
+#ifdef WIFI_SSID2
+      WIFI_SSID2,
+#endif
+  };
+  const char* sifreler[] = {
+      WIFI_PASS,
+#ifdef WIFI_PASS2
+      WIFI_PASS2,
+#endif
+  };
+  const size_t agSayisi = sizeof(ssidler) / sizeof(ssidler[0]);
+
+  for (size_t a = 0; a < agSayisi && WiFi.status() != WL_CONNECTED; a++) {
+    Serial.printf("[turnike] deneniyor: %s\n", ssidler[a]);
+    for (size_t i = 0; i < KAPI_SAYISI; i++) mesaj(kapilar[i], "WiFi...", ssidler[a], ILI9341_YELLOW);
+    WiFi.begin(ssidler[a], sifreler[a]);
+    // Ağ başına 10 saniye: yoksa 20 saniye beklemek, VAR OLAN ağa geçmeyi o kadar geciktirir.
+    for (int i = 0; i < 20 && WiFi.status() != WL_CONNECTED; i++) { delay(500); Serial.print('.'); }
+    Serial.println();
+  }
+  Serial.printf("[turnike] %s (%s)\n",
+                WiFi.status() == WL_CONNECTED ? WiFi.localIP().toString().c_str() : "WiFi YOK",
+                WiFi.status() == WL_CONNECTED ? WiFi.SSID().c_str() : "-");
 
   for (size_t i = 0; i < KAPI_SAYISI; i++) kodYenile(kapilar[i]);
 }

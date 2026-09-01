@@ -113,8 +113,15 @@ seviyesiymiş. Teşhis `S`'i pinden çekmekle kondu — ses kesildi, demek ki pi
 ya hiç ötmez ya hiç susmazdı. Ayrıca buzzer artık `setup()`'ın **ilk** satırında susturuluyor —
 `pinMode` çağrılana kadar pin boşta ve boşta duran pin ötüyor demek.
 
+**İki ağ, tek kart (1 Eylül).** Kart evde kuruldu, turnike dükkânda. Tek ağ yazılıyken kutu montaj
+gecesi hiçbir şey çizmez, "Baglanti yok" der ve 3 bip öter — ve düzeltmek Mac'i, kabloyu ve flash'ı
+oraya taşımak demektir. `secrets.h` artık ikinci bir ağ kabul ediyor (`WIFI_SSID2`/`WIFI_PASS2`);
+tanımlı değilse blok derlemeye girmiyor. Sırayla denenir, ağ başına 10 sn, ilk bağlanan kazanır.
+
 ### 🔧 Montaj gecesi — sırayla
 
+0. **Dükkânın WiFi'si `secrets.h`e girildi mi?** Girilmediyse kart orada bağlanamaz. Bu, kapıya
+   varmadan yapılacak tek şey.
 1. ~~**Firmware'i at.**~~ 1 Eylül 16:40'ta atıldı. **TEK komut, tek kart:**
    `cd apps/turnstile && ~/Library/Python/3.9/bin/pio run -t upload`.
    `-e giris` / `-e cikis` diye bir şey YOK — `platformio.ini`de tek ortam var ve iki ekran tek
