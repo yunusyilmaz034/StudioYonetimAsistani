@@ -95,18 +95,50 @@ export async function replyConversationAction(input: unknown) {
   return { ok: true as const }
 }
 
-// Take over from the AI ('human') or hand back ('ai'); either way the attention flag is cleared.
+// ── CEVAPSIZ BİR SORU KAPATILAMAZ (owner, 2026-09-01) ───────────────────────────────────────
+//
+// Bir müşteri 21 saat cevapsız kaldı ve nasıl olduğu şuydu: Işıl telefondan elle cevap yazdı,
+// sohbet `human`a geçti (doğru), müşteri tekrar yazdı, AI susup resepsiyona işaret koydu (doğru) —
+// ve sonra sohbet `ai`ya geri verilirken **o işaret, soru cevaplanmadan temizlendi.** AI yalnızca
+// yeni mesaj gelince konuşur; yeni mesaj hiç gelmediği için soru sonsuza kadar orada kaldı.
+//
+// Yani kaybolan şey cevap değil, cevabın gerektiğini söyleyen tek işaretti.
+//
+// Kural: **son söz müşterideyse, "gördüm" ya da "AI'ya ver" o işareti kapatmaz.** Kapatan tek şey
+// cevaptır (`replyConversationAction`, mesajı ekliyor). Kim ilgileniyor sorusuyla, ilgilenilmesi
+// gerekiyor mu sorusu ayrı sorulardır; ikisini tek bayrağa bağlamak, ilkini değiştirmeyi ikincisini
+// silmek yaptı.
+//
+// AI'ın devir-teslimde kendiliğinden cevap yazması bilerek YAPILMADI: insanın yarım bıraktığı bir
+// konuşmaya AI'ın söze girmesi, sessizlikten daha kötü bir şey söyleyebilir. Sistem bildirir,
+// insan karar verir.
+const cevapBekliyor = (c: Record<string, unknown>): boolean => {
+  const msgs = (c.messages as ConvMsg[] | undefined) ?? []
+  return msgs[msgs.length - 1]?.role === 'user'
+}
+
+/** Devral ('human') ya da AI'ya geri ver ('ai'). Cevapsız soru varsa işaret KAPANMAZ. */
 export async function setConversationStatusAction(input: unknown) {
   const p = z.object({ phone: nonEmpty, status: z.enum(['ai', 'human']) }).parse(input)
   const ctx = await requireTenantContext(OPS)
-  await adminDb().doc(`studios/${ctx.studioId}/conversations/${p.phone}`).set({ status: p.status, needsAttention: false }, { merge: true })
-  return { ok: true as const }
+  const ref = adminDb().doc(`studios/${ctx.studioId}/conversations/${p.phone}`)
+  const bekliyor = cevapBekliyor(((await ref.get()).data() as Record<string, unknown>) ?? {})
+  await ref.set(
+    bekliyor
+      ? { status: p.status, needsAttention: true, attentionReason: 'unanswered' }
+      : { status: p.status, needsAttention: false },
+    { merge: true },
+  )
+  return { ok: true as const, stillWaiting: bekliyor }
 }
 
-// Reception has seen it — clear the "needs attention" flag without changing who's handling it.
+/** Resepsiyon gördü. Cevapsız soru varsa işaret yine KAPANMAZ — görmek cevap değildir. */
 export async function markConversationSeenAction(input: unknown) {
   const p = z.object({ phone: nonEmpty }).parse(input)
   const ctx = await requireTenantContext(OPS)
-  await adminDb().doc(`studios/${ctx.studioId}/conversations/${p.phone}`).set({ needsAttention: false }, { merge: true })
-  return { ok: true as const }
+  const ref = adminDb().doc(`studios/${ctx.studioId}/conversations/${p.phone}`)
+  const bekliyor = cevapBekliyor(((await ref.get()).data() as Record<string, unknown>) ?? {})
+  if (bekliyor) return { ok: true as const, stillWaiting: true }
+  await ref.set({ needsAttention: false }, { merge: true })
+  return { ok: true as const, stillWaiting: false }
 }

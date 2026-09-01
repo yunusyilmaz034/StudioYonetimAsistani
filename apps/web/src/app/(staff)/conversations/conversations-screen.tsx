@@ -97,8 +97,11 @@ export function ConversationsScreen() {
 
   async function handOff(status: 'ai' | 'human') {
     if (!selected) return
-    await setConversationStatusAction({ phone: selected, status }).catch(() => {})
+    const res = await setConversationStatusAction({ phone: selected, status }).catch(() => null)
     setDetail((d) => (d ? { ...d, status } : d))
+    // Cevapsız bir soru varken işaret kapanmıyor. Sessizce kapanmamasından daha kötü tek şey var:
+    // sessizce kapanmaması ve kimsenin sebebini bilmemesi.
+    if (res?.stillWaiting) toast.warning('Müşterinin son sorusu hâlâ cevapsız — işaret açık kalıyor. Cevap yazınca kapanır.')
   }
 
   return (

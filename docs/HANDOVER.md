@@ -59,6 +59,46 @@ döneceğini tahmin ettirirdi). Ekranda kimse karşılanmaz — kimin geçtiğin
 
 Turnikesi olmayan stüdyoda bölüm hiç görünmez.
 
+### 📵 20 saattir çalan alarm — ve alarmın kendisinin sesi çıkmıyordu (1 Eylül akşamı)
+
+Google Cloud her saat başı e-posta gönderiyordu: `health: ai_not_replying`, 20 saattir. Ölçüldü:
+**AI çalışıyor** (en son 12 dakika önce cevap vermişti). Alarm tek bir sohbet yüzünden bağırıyordu ve
+o sohbet gerçekten cevapsızdı — **Tuğba Şardan, 21 saat.**
+
+**Nasıl oldu:**
+```
+17:23  Işıl telefondan elle cevap yazdı        → sohbet 'human'a geçti        (doğru)
+18:20  Müşteri: "Fitness için bilgi alabilir miyim"
+       webhook: status=human → AI susuyor, resepsiyona işaret koyuyor        (doğru)
+       …sonra sohbet 'ai'ya geri verildi ve İŞARET, SORU CEVAPLANMADAN temizlendi
+```
+AI yalnızca **yeni mesaj geldiğinde** konuşuyor. Yeni mesaj hiç gelmediği için soru sonsuza kadar
+orada kaldı. Kaybolan şey cevap değil, **cevabın gerektiğini söyleyen tek işaretti.**
+
+**Düzeltme:** son söz müşterideyse "gördüm" ve "AI'ya ver" o işareti artık kapatmıyor
+(`attentionReason: 'unanswered'`), ve panel sebebini söylüyor. Kapatan tek şey cevabın kendisi.
+*Kim ilgileniyor* ile *ilgilenilmesi gerekiyor mu* ayrı sorulardır; ikisini tek bayrağa bağlamak,
+birincisini değiştirmeyi ikincisini silmek yaptı.
+
+**AI'ın devir-teslimde kendiliğinden cevap yazması bilerek YAPILMADI:** insanın yarım bıraktığı bir
+konuşmaya AI'ın söze girmesi, sessizlikten kötü bir şey söyleyebilir. Sistem bildirir, insan karar
+verir.
+
+### 🔇 Uyaramayan uyarı sistemi (1 Eylül akşamı)
+
+Aynı loglarda duran iki satır:
+```
+e-mail transport is the CONSOLE — no message will leave the building
+WhatsApp transport is the MOCK   — no message will leave the building
+```
+`healthCheck` fonksiyonu kritik bulguyu owner'a `notify()` ile ulaştırıyor — ama **`secrets`
+bağlanmamıştı**, o yüzden e-posta console'a, WhatsApp mock'a düşüyordu. Komşuları
+(`infrastructureWatch`, `notificationRetry`) bağlamıştı; bu satır atlanmış.
+
+Yani sistem sorunu **görüyor ve kimseye söyleyemiyordu.** 20 saatlik alarmı fark etmemizin tek
+sebebi Google'ın kendi uyarı e-postasıydı — bizim yolumuz değil, altımızdaki bulutun yolu.
+**Uyaramayan bir uyarı sistemi yoktur.** Tek satır: `secrets: [...NOTIFICATION_SECRETS]`.
+
 ### 🚦 Turnike, canlıya çıkmadan önce ölçülenler (1 Eylül)
 
 Owner: *"amacımız turnike sistemini tamamen bitirmek, akşam da montajını yapalım, aktife canlıya

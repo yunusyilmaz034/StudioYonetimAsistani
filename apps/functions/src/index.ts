@@ -105,7 +105,16 @@ export const paymentReconcileSweep = onSchedule(
 // a dead command trigger loses check-ins while reception's optimistic UI keeps saying "girdi", and
 // a lagging projection renders yesterday's studio with today's confidence. Neither raises an error
 // anywhere. Five minutes of stuck commands is an alarm (Doc 6 §9); an hour of projection lag is.
-export const healthCheck = onSchedule({ schedule: 'every 15 minutes' }, async () => {
+//
+// `secrets` BURADA OLMALIYDI ve yoktu (owner, 2026-09-01). Bu fonksiyon kritik bir bulguyu owner'a
+// `notify()` ile ulaştırıyor — ama sırlar bağlanmadığı için e-posta CONSOLE'a, WhatsApp MOCK'a
+// düşüyordu: *"no message will leave the building"*. Yani sistem sorunu görüyor ve **kimseye
+// söyleyemiyordu.** Bugün 20 saat süren bir alarmı fark etmemizin tek sebebi Google'ın kendi
+// uyarı e-postasıydı; yani bizim uyarı yolumuz değil, altımızdaki bulutun yolu.
+//
+// Komşuları (`infrastructureWatch`, `notificationRetry`) bağlamıştı; bu satır atlanmıştı. Uyaramayan
+// bir uyarı sistemi yoktur.
+export const healthCheck = onSchedule({ schedule: 'every 15 minutes', secrets: [...NOTIFICATION_SECRETS] }, async () => {
   await runFastHealthChecks(Date.now())
 })
 
