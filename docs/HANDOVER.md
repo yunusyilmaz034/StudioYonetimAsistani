@@ -233,21 +233,39 @@ tanımlı değilse blok derlemeye girmiyor. Sırayla denenir, ağ başına 10 sn
 6. **Resepsiyona anlatılacak üç cümle:** kapıyı panelden açabilirsin · paketi bitmiş üye geçemez,
    ekranda yazıyor · kendi mesaini `/mesai`den başlat ve bitir.
 
-### ⚠️ Yarına kalanlar
+### ⚠️ Açık kalanlar (1 Eylül 19:00 itibarıyla, ölçülerek)
 
-1. ~~**Turnike firmware'i YÜKLENMEDİ.**~~ **1 Eylül 16:40'ta atıldı** — ret ekranı, panelden açma
-   ve buzzer polaritesi kartta. Komut: `cd apps/turnstile && ~/Library/Python/3.9/bin/pio run -t upload`.
-2. **GAMZE BAYKALDI** — paketleri 7 Eylül'de başlıyor, 30 Ağustos'ta bitti, arada 7 gün boşluk.
-   Owner Işıl'a soracak: biten paketi 7 Eylül'e uzatmış olabilir. **Uzattıysa bugünkü hatanın kurbanı
-   olmuş olabilir** (tarih ilerledi, durum `expired` kaldı) — öyleyse aynı script açar. Onay gelmeden
-   dokunulmadı.
-3. **Eğitmen davet linkleri** — Işıl Hoca · Buse Hoca · Reyhan Hoca. Üçü de bugüne kadar **hiç giriş
-   yapmamış**. Personel ekranından link üretilip WhatsApp'tan yollanacak.
-4. **Resepsiyona anlatılacak:** gönderim artık önce önizleme istiyor, başladıktan sonra
-   durdurulabiliyor, ve sekmeyi kapatmak iptal ETMİYOR (bugün 154 kişiye mesaj bu yüzden gitti).
-5. **Mobilden iş verme** — owner'ın Mac'i her zaman yanında değil. Yarın telefondan claude.ai/code
-   ile iki soru sorulup ölçülecek: *"retro'da kaç üye var"* (canlı veri erişimi) ve *"son commit ne"*
-   (repo erişimi). Tahmin edilmeyecek.
+**İnsan işi — yazılım tarafında yapılacak bir şey yok:**
+
+1. **Cevapsız iki WhatsApp sorusu.** İşaretleri panelde geri açıldı: **Tuğba Şardan** (21 saat,
+   *"Fitness için bilgi alabilir miyim"*) ve 37 gün önce yazmış biri (*"endokrinoloji…"*).
+   Cevabı insan yazacak — sistem bilerek otomatik cevap vermiyor.
+2. **Eğitmen davet linkleri.** Işıl Hoca · Buse Hoca · Reyhan Hoca — **üçü de hâlâ hiç giriş
+   yapmamış** (Auth'tan ölçüldü). Eski linkler bir saatte ölmüştü; yeni sistem **7 gün**. Personel
+   ekranından yeniden üretilip yollanacak.
+3. **Resepsiyona anlatılacak:** Stüdyodan gönderimi artık önce önizleme istiyor, başladıktan sonra
+   durdurulabiliyor, ve sekmeyi kapatmak iptal ETMİYOR (154 kişiye mesaj bu yüzden gitti).
+   Turnike için ayrıca: kapıyı panelden açabilirsin · paketi bitmiş üye geçemez, ekranda yazıyor ·
+   kendi mesaini `/mesai`den başlat ve bitir.
+4. **Eşleşmemiş 10 TL test ödemesi** — panelden sebep yazılarak iptal edilmesi öneriliyor.
+
+**Bu akşam, dükkânda:**
+
+5. **Turnike montajı.** Sıra: dükkânın WiFi'si `secrets.h`e → flash → `COM`–`OP-R` yön testi →
+   `F01=5 F02=0 F03=0 F04=0` → panelden aç → üye geçişi (uygulama **ve** tarayıcı) → ret testi.
+   Ayrıntı: [`TURNSTILE-HARDWARE.md`](TURNSTILE-HARDWARE.md) §4.
+6. **Buzzer sesi kısık** (`DEBT-038`). 12 V buzzer + sürücü (röle modülü ya da NPN) sipariş edilecek;
+   hangisi olacağı dükkânda prize ve 12 V çıkışına bakınca netleşir.
+
+**İkinci stüdyodan önce — Faz 2, owner kararı bekliyor:**
+
+7. WiFi cihazın üstünden girilebilmeli · cihaz kimliği panelden üretilebilmeli · kablo düzeni
+   sabitlenmeli. Üçü de [`TURNSTILE-HARDWARE.md`](TURNSTILE-HARDWARE.md) §5'te. Bugünkü hâliyle her
+   kurulum bir Mac ve bir yazılımcı istiyor.
+
+**Kapananlar:** ~~turnike firmware'i~~ (atıldı, `turnike-v1.0`) · ~~GAMZE BAYKALDI'nın 7 günlük
+boşluğu~~ (ölçüldü: 31.05→06.09 ve 06.09→05.12, boşluk yok) · ~~mobilden iş verme ölçümü~~ (bugün
+gerek kalmadı).
 
 ### Bugün öğrenilen iki tuzak
 
