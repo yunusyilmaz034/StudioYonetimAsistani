@@ -84,6 +84,19 @@ birincisini değiştirmeyi ikincisini silmek yaptı.
 konuşmaya AI'ın söze girmesi, sessizlikten kötü bir şey söyleyebilir. Sistem bildirir, insan karar
 verir.
 
+**Ve sonra alarm susmadı (aynı akşam, 21:20).** Sırlar bağlanınca uyarı ilk kez ulaştı — ama 15
+dakikada bir ulaşmaya devam etti, üstelik iki ayrı Google politikasından iki kopya hâlinde. İki hata
+üst üste binmişti:
+
+· `ai_not_replying`, **37 gün** önce cevapsız kalmış bir mesajı da sayıyordu. Oysa o, asistanın şu an
+  bozuk olduğunu göstermez. Kontrole **üst sınır** kondu: 10 dakika – 6 saat. Altı saatten eskisi bir
+  arıza değil, düşmüş bir lead'dir ve yeri panodaki günlük liste — orada adı var ve tek tıkla açılıyor.
+· Her bulgu, önemi ne olursa olsun `ERROR` yazılıyordu; Google'da `ERROR`'a bakan **ayrı** bir
+  politika var, yani tek bulgu iki e-posta üretiyordu. Artık `critical` → ERROR, gerisi → WARNING.
+
+**On beş dakikada bir çalan alarm, susturulan alarmdır** — ve susturulduğu andan sonra yoktur.
+Ölçüldü: değişiklikten sonra alarm penceresinde 0 kayıt, Tuğba panoda iş olarak duruyor.
+
 ### 🔇 Uyaramayan uyarı sistemi (1 Eylül akşamı)
 
 Aynı loglarda duran iki satır:
