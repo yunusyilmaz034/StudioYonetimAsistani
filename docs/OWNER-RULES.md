@@ -1098,6 +1098,18 @@ Kural: **turnike kodunu tanıyan her okuyucu kapıyı açar.** Tarayıcıdaki po
 uygulama da aynı üç kodu dener; üye hangi koda baktığını bilmek zorunda değil. Ayırt eden şey ŞEKİL:
 turnike kodu altı hane, çünkü birkaç saniyede bir küçük bir ekrana yeniden çiziliyor.
 
+### OR-60 · Bir pin iki kez suçlanmışsa, üçüncü kez denenmez
+
+`GPIO 6` bu kartta ekranları iki kez bozdu: bir kez çıkış ekranının `CS`'i olarak, bir kez buzzer'ı
+susturmak için HIGH sürülünce. Mekanizmasını **bilmiyoruz** ve bilmediğimiz için de açıklama
+uydurmuyoruz — kayda geçen şey hangisinin çalıştığı.
+
+Kural: donanımda sebebi bilinmeyen ama **tekrarlanan** bir davranış, teori bulunana kadar bir
+kısıttır. `GPIO 6` yalnızca öterken LOW çekilir, asla HIGH sürülmez.
+
+Ve teşhis yöntemi kuralın diğer yarısı: **şüpheliyi bayrakla ayır, tornavidayla değil.** Ekranlar
+silikonlanmıştı; `-D TESHIS` ve `-D BUZZERSIZ` ile iki flash, sökmeden cevabı verdi.
+
 ## Traps that have already cost something
 
 **OR-14 · Firestore indexes are a production-only trap.** The emulator does NOT enforce them, so a

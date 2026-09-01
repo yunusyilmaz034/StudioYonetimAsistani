@@ -89,6 +89,23 @@ mesai saymak "saat kaçta geldi"yi cevapsız bırakırdı. Yeni olaylar: `staff.
 RFID kart okuyucu sipariş edilecek ama **beklenmiyor**: geldiğinde personel geçişi karta bağlanabilir,
 mesai kaydı yine ayrı kalır.
 
+**`GPIO 6` HIGH SÜRÜLMEZ — ikinci kez ekranları bozdu (1 Eylül).**
+
+Buzzer aktif-LOW çıkınca bariz çözüm göründü: sussun diye pini HIGH tut. **İki ekran birden beyaz
+kaldı.** Sebebini bilmiyoruz ve uydurmuyoruz; bildiğimiz, bu pinin bu kartta ikinci kez ekranları
+bozduğu — bir kez çıkış ekranının `CS`'i olarak denenip elenmişti.
+
+Teşhis, kabloya hiç dokunmadan yapıldı ve sırası önemliydi:
+1. `-D TESHIS` (QR yerine düz yazı) → hâlâ beyaz. Demek ki suçlu QR yolu değil, panel hiç
+   başlamıyor. Bu, "beyaz" ile "yarım çizim"i ayıran tek adım: `qrCiz` ekranı **önce beyaza**
+   boyuyor, yani beyaz iki farklı arızanın aynı görüntüsü.
+2. `-D BUZZERSIZ` (pine hiç dokunma) → **yazılar geldi.** Şüpheli bayrakla ayrıldı, tornavidayla
+   değil — ekranlar silikonlanmıştı, sökmek saatler yerdi.
+
+**Çözüm kabloyu taşımak değil, pini hiç sürmemek.** Boşta (INPUT) bırakılınca buzzer zaten sessiz,
+bu da aynı akşam ölçüldü. `bip()` artık `darbe()`nin röle için yaptığını yapıyor: normalde yüksek
+empedans, yalnızca öterken LOW. `HIGH` hiçbir yerde yazmıyor ve o satırın yokluğu kuralın kendisi.
+
 **Buzzer modülü AKTİF-LOW çıktı (1 Eylül, montajda).** Takılınca sürekli zayıf bir uğultu verdi:
 modülde buzzer `VCC` ile `S` arasında duruyor, yani bizim "sessiz" dediğimiz seviye onun "öt"
 seviyesiymiş. Teşhis `S`'i pinden çekmekle kondu — ses kesildi, demek ki pini süren bizdik.

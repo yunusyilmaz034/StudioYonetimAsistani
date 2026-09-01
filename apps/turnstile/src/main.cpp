@@ -59,19 +59,19 @@ static const int PIN_ROLE_CIKIS = 4;   // In2
 static const int PIN_BUZZER = 6;   // kartta 14 basılı değil; 6 boş ve S3'te güvenli
 static const uint32_t BIP_MS = 120;
 
-// BUZZER MODÜLÜNÜN POLARİTESİ (owner, 2026-09-01, montajda).
+// BUZZER: SÜRÜLMEZ, YALNIZCA ÖTERKEN ÇEKİLİR (owner, 2026-09-01, montajda).
 //
-// Çıplak buzzer yerine KY-012 tipi bir modül takıldı ve **sürekli zayıf bir uğultu** verdi. Sebep:
-// o modüllerin bir kısmında buzzer `VCC` ile `S` arasında duruyor, yani `S` DÜŞÜKKEN ötüyor —
-// bizim "sessiz" dediğimiz seviye onun "öt" seviyesi.
+// Takılan KY-012 modülü AKTİF-LOW: buzzer `VCC` ile `S` arasında duruyor, yani `S` düşükken ötüyor.
+// İlk çözüm bariz görünüyordu — sussun diye pini HIGH tut. **İki ekran birden beyaz kaldı.**
 //
-// Polarite tek yerde, çünkü iki yerde olsaydı (sus ve öt) biri unutulur ve kutu ya hiç ötmez ya
-// hiç susmaz. `BUZZER_TERS` doğruysa her şey kendiliğinden döner.
-// Takılan modül AKTİF-LOW çıktı: `S` çekilince uğultu kesildi, yani pini süren şey bizdik ve
-// "sessiz" sandığımız seviye onun "öt" seviyesiydi (owner, 2026-09-01, kutuyu elinde tutarken).
-static const bool BUZZER_TERS = true;
-static const int BUZZER_OT = BUZZER_TERS ? LOW : HIGH;
-static const int BUZZER_SUS = BUZZER_TERS ? HIGH : LOW;
+// Sebebini BİLMİYORUZ. Bildiğimiz şey, `GPIO 6`nın bu kartta ikinci kez ekranları bozduğu: bir kez
+// çıkış ekranının `CS`'i olarak denenip elenmişti ("6'da yalnızca bir ekran açılıyor"), şimdi de
+// HIGH sürülünce paneller hiç başlamadı. Teşhis modu ayırdı: `-D BUZZERSIZ` ile pine hiç
+// dokunulmayınca yazılar geldi.
+//
+// Çözüm kabloyu taşımak değil — pini hiç sürmemek. Boşta (INPUT) bırakıldığında buzzer SESSİZ, bu
+// da aynı akşam ölçüldü. Yani `darbe()`nin röle için yaptığının aynısı: normalde yüksek empedans,
+// yalnızca iş görürken sür. HIGH hiç yazılmıyor, ve o satırın yokluğu kuralın kendisidir.
 
 // Turnike kendi süresini sayıyor (F01), bize sadece tetiklemek düşüyor.
 static const uint32_t DARBE_MS = 300;
@@ -207,9 +207,10 @@ static void qrCiz(Kapi& k, const char* metin) {
 /** `adet` kısa bip. Sesin ANLAMI var: 1 = geçtin, 2 = olmadı, 3 = bağlantı yok. */
 static void bip(int adet) {
   for (int i = 0; i < adet; i++) {
-    digitalWrite(PIN_BUZZER, BUZZER_OT);
+    pinMode(PIN_BUZZER, OUTPUT);
+    digitalWrite(PIN_BUZZER, LOW);   // aktif-low modül: çekince öter
     delay(BIP_MS);
-    digitalWrite(PIN_BUZZER, BUZZER_SUS);
+    pinMode(PIN_BUZZER, INPUT);      // bırak — boşta sessiz, ve ekranlar sağ kalıyor
     if (i + 1 < adet) delay(90);
   }
 }
@@ -268,11 +269,8 @@ static void kodYenile(Kapi& k) {
 }
 
 void setup() {
-  // BUZZER ÖNCE SUSTURULUYOR, her şeyden önce. Aktif-LOW bir modülde pin `pinMode` çağrılana kadar
-  // boşta duruyor ve boşta duran pin ötüyor demek — açılışta uğuldayan bir kutu, boş bir stüdyoda
-  // bir arıza gibi duyulur. Aradaki her satır o uğultunun süresidir.
-  pinMode(PIN_BUZZER, OUTPUT);
-  digitalWrite(PIN_BUZZER, BUZZER_SUS);
+  // Buzzer pini BAŞTAN serbest: sürülmediği sürece sessiz, ve sürülmediği sürece ekranlar açılıyor.
+  pinMode(PIN_BUZZER, INPUT);
 
   Serial.begin(115200);
   delay(300);
