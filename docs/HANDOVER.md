@@ -89,7 +89,36 @@ mesai saymak "saat kaçta geldi"yi cevapsız bırakırdı. Yeni olaylar: `staff.
 RFID kart okuyucu sipariş edilecek ama **beklenmiyor**: geldiğinde personel geçişi karta bağlanabilir,
 mesai kaydı yine ayrı kalır.
 
-**Buzzer artık `GPIO 16`da, `6`da değil (1 Eylül).** `GPIO 6` bu kartta **üç kez** tökezledi: çıkış
+**AÇIK SORU — buzzer pini değişince İKİ EKRAN BİRDEN ÖLÜYOR (1 Eylül, çözülmedi).**
+
+Montaj gecesi buzzer'ı `GPIO 6`dan `16`ya aldık. Ses geldi, **ekranlar gitti.** Owner haklıydı:
+*"bir şey yapmadık, birden gitti"* — kabloya dokunulmamıştı, suçlu koddu.
+
+Bisect'in tablosu, ve sonucun tuhaflığı bunda:
+
+| Sürüm | Ekranlar |
+|---|---|
+| `GPIO 6`, boşta (INPUT) | **çalışıyor — 4/4** |
+| `GPIO 6`, HIGH sürülüyor | bozuk — 2/2 |
+| `GPIO 16` | bozuk — 3/3 |
+
+Bozan fark **iki satır**: `PIN_BUZZER` 6→16 ve `BIP_MS` 120→250. İkisi de açılışta ekranlara
+dokunamaz — `pinMode(16, INPUT)` bağlı bile olmayan bir pini girişe alıyor, `BIP_MS` ise ancak bip
+çalınca okunuyor ve açılışta hiç çağrılmıyor. **Yani gördüğümüz şey mümkün değil**, ve o cümle
+teşhisin kendisi: ya bu kartta `GPIO 16` da bir yere bağlı, ya da kodda küçük değişikliklerle yer
+değiştiren gizli bir bellek hatası var (ilk şüpheli `qrCiz`'in yığındaki QR tamponu).
+
+Kontrol deneyi **iki kez** tekrarlandı: çalışan sürüm iki kez atıldı, iki kez QR geldi. Yani sonuç
+şansa bağlı değil, gerçekten koda bağlı.
+
+**Karar: buzzer bu gece takılmıyor.** Kartta iki kez üst üste çalıştığı kanıtlanmış sürüm duruyor
+(`c905ade`) — ekranlar, röle, ret ekranı, panelden açma, çift WiFi, hepsi içinde. Eksik olan tek şey
+ses, ve ses zaten `DEBT-038` yüzünden kısıktı.
+
+**Bir dahaki denemede yapılacak ilk şey:** pin değiştirmeden önce, `qrCiz`'deki yığın tamponunu
+`static` yapıp aynı testi tekrarla. Hipotez ucuz ve tablo zaten kurulu.
+
+**Buzzer `GPIO 16`ya alınmıştı, geri alındı (1 Eylül).** `GPIO 6` bu kartta **üç kez** tökezledi: çıkış
 ekranının `CS`'i olarak denenip elenmişti · HIGH sürülünce iki ekranı birden söndürdü · buzzer'ı
 250 ms LOW'da hiç öttüremedi (sürekli LOW'da yalnızca zar zor bir uğultu — akımı düzgün çekemiyor).
 Üç bağımsız arıza, tek pin. Sebebini bilmiyoruz; bildiğimiz, uzak durmak. `21` denendi ama o şerit
