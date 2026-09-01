@@ -85,7 +85,19 @@ export interface EmailBrand {
   readonly mapsUrl?: string | null // Google Maps / directions link → the "Yol tarifi al" button
 }
 
-export function renderEmailHtml(subject: string, body: string, brand: EmailBrand = {}): string {
+/**
+ * İKİ TON, TEK SARMALAYICI (owner, 2026-09-01).
+ *
+ * İlk sistem uyarısı e-postası ulaştığında altında şu yazıyordu: *"Studio ekibi olarak her zaman
+ * yanınızdayız 💜"*. Cümle üyeye yazılmış; alarma yapıştırılınca hem tuhaf duruyor hem uyarıyı
+ * yumuşatıyor. Bir arıza bildirimi, arıza gibi görünmeli.
+ *
+ * `ops` tonunda sıcak imza ve "Yol tarifi al" düğmesi hiç çizilmiyor — bir arızayı okuyan kişi
+ * stüdyoya yol tarifi aramıyor. Başlık şeridi kalıyor: e-postanın kimden geldiği yine belli olmalı.
+ */
+export type EmailTone = 'member' | 'ops'
+
+export function renderEmailHtml(subject: string, body: string, brand: EmailBrand = {}, tone: EmailTone = 'member'): string {
   const paragraphs = body
     .split(/\n{2,}/)
     .map((p) => `<p style="margin:0 0 16px;line-height:1.6">${escapeHtml(p).replace(/\n/g, '<br/>')}</p>`)
@@ -95,7 +107,12 @@ export function renderEmailHtml(subject: string, body: string, brand: EmailBrand
   const maps = brand.mapsUrl?.trim()
   // A warm sign-off, built from the studio's own name so it reads as coming from a team, not a system.
   const signoff = `${escapeHtml(name)} ekibi olarak her zaman yanınızdayız 💜`
-  const footer = `<tr><td style="padding:22px 28px;background:#faf6f4;border-top:1px solid #efe6e2">
+  const footer =
+    tone === 'ops'
+      ? `<tr><td style="padding:16px 28px;background:#faf6f4;border-top:1px solid #efe6e2">
+<p style="margin:0;font-size:12px;color:#8a7a82;line-height:1.5">Bu bir sistem uyarısıdır — ${escapeHtml(name)} yönetim paneli tarafından otomatik gönderildi.</p>
+</td></tr>`
+      : `<tr><td style="padding:22px 28px;background:#faf6f4;border-top:1px solid #efe6e2">
 <p style="margin:0 0 ${address || maps ? '10px' : '0'};font-size:14px;color:#6b5a63;line-height:1.6">${signoff}</p>
 ${address ? `<p style="margin:0 0 ${maps ? '12px' : '0'};font-size:13px;color:#8a7a82;line-height:1.5">${escapeHtml(address)}</p>` : ''}
 ${maps ? `<a href="${escapeHtml(maps)}" style="display:inline-block;background:#a22d60;color:#ffffff;text-decoration:none;font-size:13px;font-weight:600;padding:9px 16px;border-radius:8px">📍 Yol tarifi al</a>` : ''}
@@ -108,6 +125,9 @@ ${maps ? `<a href="${escapeHtml(maps)}" style="display:inline-block;background:#
 ${footer}
 </table></td></tr></table></body></html>`
 }
+
+/** Sahibe/personele giden işletme uyarıları. Üyeye giden hiçbir şey bu listede olamaz. */
+const OPS_SABLONLARI: ReadonlySet<string> = new Set(['system_alert', 'system_heartbeat'])
 
 export class ResendEmailProvider implements NotificationProvider {
   readonly channel = 'email' as const
@@ -148,7 +168,9 @@ export class ResendEmailProvider implements NotificationProvider {
           // Plain text stays (the accessible, deliverable fallback every client renders); the HTML
           // part is the "richer e-mail" — a clean branded shell around the same rendered body.
           text: message.body,
-          html: renderEmailHtml(message.subject, message.body, this.brand),
+          // Şablon, tonu belirliyor: sahibe giden bir arıza bildirimi üyeye giden bir mesaj gibi
+          // bitmemeli. `templateId` zaten mesajın üstünde duruyordu; kullanılmıyordu.
+          html: renderEmailHtml(message.subject, message.body, this.brand, OPS_SABLONLARI.has(message.templateId) ? 'ops' : 'member'),
         }),
       })
     } catch (err) {

@@ -13,7 +13,7 @@ import { getAuth } from 'firebase-admin/auth'
 import * as logger from 'firebase-functions/logger'
 
 import { db } from '../shared/firebase'
-import { notificationDeps, studioNotificationSettings } from '../triggers/on-event-notify'
+import { notificationDeps, studioBrand, studioNotificationSettings } from '../triggers/on-event-notify'
 
 // The five signals (Doc 6 §9), and the reason they are worth a scheduled function at all:
 // **each of them fails SILENTLY.** Nothing crashes, nobody is told, and the product carries on
@@ -89,8 +89,11 @@ async function tellOwner(studioId: StudioId, findings: readonly HealthFinding[],
   const owners = staff.filter((s) => s.active && s.role === 'owner')
   if (owners.length === 0) return
 
-  const settings = await studioNotificationSettings(studioId)
-  const deps = notificationDeps(settings)
+  // MARKA GEÇİRİLİYOR (owner, 2026-09-01). Geçirilmediği için ilk uyarı e-postasının başlığında
+  // stüdyonun adı değil, varsayılan "Studio" yazıyordu — sahibinin kendi paneline ait olduğu
+  // anlaşılmayan bir uyarı, spam'e en çok benzeyen uyarıdır.
+  const [settings, brand] = await Promise.all([studioNotificationSettings(studioId), studioBrand(studioId)])
+  const deps = notificationDeps(settings, brand)
   const window = Math.floor(now / (6 * 60 * 60 * 1000)) // one message per alert per 6h
 
   for (const f of critical) {

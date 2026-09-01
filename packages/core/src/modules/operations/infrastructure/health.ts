@@ -141,7 +141,7 @@ async function projectionLag(db: Firestore, studioId: StudioId, now: number): Pr
     ids: [],
     // The remedy is never a hand-edit: `pnpm projections:rebuild` replays the log. The projection is
     // disposable precisely so that this is a boring incident.
-    detail: `${Math.round(lagMs / MS_PER_MIN)} dakika geride`,
+    detail: `${sure(lagMs)} geride`,
   }
 }
 
@@ -255,6 +255,22 @@ async function expiringWithHeld(db: Firestore, studioId: StudioId, now: number):
 // it is capped with `limit`.
 
 /**
+ * Bir süreyi okunabilir yaz (owner, 2026-09-01).
+ *
+ * İlk sistem uyarısı e-postasında *"en eskisi 1427 dk önce yazdı"* yazıyordu. Doğru bir sayı, ve
+ * kimsenin okumak istemediği bir sayı: 1427'yi 60'a bölmek okuyanın işi değil. Bir alarmın tek
+ * görevi, okuyanın kafasında hesap yaptırmadan durumun ağırlığını söylemek — "24 saat" bunu bir
+ * bakışta yapar, "1427 dk" yapmaz.
+ */
+function sure(ms: number): string {
+  const dk = Math.round(ms / MS_PER_MIN)
+  if (dk < 90) return `${dk} dakika`
+  const saat = Math.round(dk / 60)
+  if (saat < 36) return `${saat} saat`
+  return `${Math.round(saat / 24)} gün`
+}
+
+/**
  * SIGNAL 6 — the AI receptionist has gone quiet.
  *
  * A prospective member wrote, the assistant produced nothing, and WhatsApp shows her message sitting
@@ -284,7 +300,7 @@ async function aiNotReplying(db: Firestore, studioId: StudioId, now: number): Pr
     severity: 'critical',
     count: waiting.length,
     ids: waiting.slice(0, 10).map((d) => d.id),
-    detail: `en eskisi ${Math.round((now - Math.min(...waiting.map((d) => (d.data() as { messages?: { at?: number }[] }).messages?.slice(-1)[0]?.at ?? now))) / MS_PER_MIN)} dk önce yazdı`,
+    detail: `en eskisi ${sure(now - Math.min(...waiting.map((d) => (d.data() as { messages?: { at?: number }[] }).messages?.slice(-1)[0]?.at ?? now)))} önce yazdı`,
   }
 }
 
