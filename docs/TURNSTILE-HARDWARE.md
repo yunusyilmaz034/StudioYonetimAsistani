@@ -59,12 +59,25 @@ RÖLE  IN1 → 5 (giriş kolu)   ·   IN2 → 4 (çıkış kolu)
 besliyor. Jumper takılı kalırsa `IN` pinleri 5 V'ta oturur, ESP32 açılmaz ve kontrolcü ölünce
 **iki röle birden çeker** — duvarda "kapı açık kalır" demek.
 
-**Kontak tarafı:** kanal 1 → turnike `COM`+`OP-R`, kanal 2 → `COM`+`OP-L`, **`NO`** ucu.
-**Turnikenin GND'si ESP32'ye bağlanmaz** — kuru kontağın yalıtımını bozan tek şey odur.
+**Turnike anakartındaki terminaller** (1 Eylül, gövde açılıp etiketten okundu — artık tahmin değil):
 
-⚠️ **`OP-R`/`OP-L` yönü tahmin edilmez.** Şemadaki oklar butonlardaki yazıyla çelişiyor. `COM` bir
-kabloyla `OP-R`'ye değdirilip hangi kolun döndüğüne bakılır. Yanlışsa girişte okutan üye çıkış kolunu
-açar, kimse fark etmez, doluluk ters döner.
+```
+OP-L solenoid   12V Adapter input   [OP-L · COM · OP-R]   [12V · GND]
+                                     Access Control Input  12V Output
+OP-L test key   OP-R test key       Drop arm solenoid   LED indicator   OP-R solenoid
+```
+
+**Kontak tarafı:** röle kanal 1 → `Access Control Input`'ta `COM`+`OP-R`, kanal 2 → `COM`+`OP-L`,
+**`NO`** ucu. **Turnikenin GND'si ESP32'ye bağlanmaz** — kuru kontağın yalıtımını bozan tek şey odur.
+
+**`12V Output` mevcut.** LM2596 buradan beslenebilir, ayrı priz gerekmez — ama kaç mA verdiği hâlâ
+ölçülmedi (bkz. §4/1).
+
+⚠️ **`OP-R`/`OP-L` yönü tahmin edilmez** — şemadaki oklar butonlardaki yazıyla çelişiyor. Ama kabloyla
+uğraşmaya da gerek yok: **anakartta `OP-L test key` ve `OP-R test key` butonları var.** Basılır,
+hangi kolun döndüğüne bakılır, yazılır. ESP takılmadan, kablo bağlanmadan yapılabilir — ve kurulumun
+en erken adımı olmalı, çünkü yanlış eşleme sessizce yaşar: girişte okutan üye çıkış kolunu açar,
+kimse fark etmez, doluluk ters döner.
 
 **Ekran:** `VCC→3V3 · GND→GND · CS→10/9 · RESET→8 · DC→13 · SDI→11 · SCK→12 · LED→18`.
 `SDO` ve `T-*` boş. İkinci ekran nesnesi `RST` almaz (`-1`): hat ortak, ikinci `begin()` birinciyi
@@ -83,7 +96,8 @@ Her adım bir öncekini varsayar. Atlanan adım, sonrakinin cevabını da şüph
    öğrenilir, kablo değiştirerek değil.
 4. Röle: panelden *Giriş kapısını aç* → `DS1` yanmalı, klik gelmeli.
    · DS1 yanmıyor → 4'lü sıranın `VCC`/`GND`'si yok. · DS1 yanıyor klik yok → `JD-VCC`'deki 5 V.
-5. `COM`–`OP-R` elle değdirilir, dönen kol yazılır.
+5. **`OP-R test key` / `OP-L test key`** butonlarına basılır, dönen kollar yazılır. (Bu adım aslında
+   1'den de önce yapılabilir: ne ESP ne kablo gerekiyor.)
 6. Üye geçişi **iki yoldan**: mobil uygulama **ve** tarayıcı. İkincisi üyelerin çoğunun yolu.
 7. Paketi bitmiş üyeyle ret testi: kol dönmemeli, ekranda "Lütfen resepsiyona uğrayın".
 
