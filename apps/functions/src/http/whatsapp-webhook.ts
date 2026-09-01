@@ -13,6 +13,7 @@
 import {
   productPrices,
   decideCaptureLead,
+  decideMoveStage,
   FirestoreCatalogRepository,
   FirestoreCrmRepository,
   FirestoreIdentityRepository,
@@ -64,7 +65,17 @@ interface Conversation {
   lastAt: number
   seenIds: string[]
   messages: Msg[]
-  temp?: 'sıcak' | 'ılık' | 'soğuk' // AI's read of conversion likelihood (updated each turn)
+  /**
+   * AI'ın sohbetten okuduğu HUNİ AŞAMASI (owner, 2026-09-01).
+   *
+   * Eskiden sıcaklıktı (`sıcak/ılık/soğuk`) ve işe yaramıyordu: 184 sohbetin 82'si "sıcak"tı, yani
+   * etiket nüfusun yarısına uyuyordu ve hiçbir şeyi sıralamıyordu. Sıcaklık İLGİYİ ölçer; masanın
+   * ihtiyacı SIRADAKİ ADIM.
+   *
+   * Eski değerler okunmaya devam ediyor (aşağıdaki `legacy` eşlemesi), ama yenisi yazılıyor.
+   */
+  stage?: ConvStage
+  temp?: 'sıcak' | 'ılık' | 'soğuk' // eski alan — yalnızca geçmiş kayıtlarda
   reason?: string
 }
 
@@ -221,18 +232,35 @@ KURALLAR:
 Önce SADECE müşteriye gidecek mesajı düz metin yaz. Ardından, SADECE gerekiyorsa, aşağıdaki gizli satırları TAM OLARAK bu formatta ekle. Bunları AYIRMAK için "---" veya başka ayraç KULLANMA; parantez içinde serbest not YAZMA:
 - Devretmek GERÇEKTEN gerekiyorsa (müşteri insan/yetkili ister, şikayet/iade/sağlık/pazarlık, ya da yanıtlayamıyorsan) ayrı satır: [[DEVRET]]. Selam, tanışma, isim sorma, normal bilgi/fiyat sorularında ASLA [[DEVRET]] yazma.
 - SICAK DEVİR (YENİ, ÇOK ÖNEMLİ): Müşteri ALMAYA HAZIR sinyali verdiğinde de [[DEVRET]] yaz. Sinyaller: "hangi paket bana uygun / nasıl kayıt olurum / kayıt yaptırmak istiyorum / ne zaman başlayabilirim / yarın gelebilir miyim / yer var mı / ödeme nasıl / taksit olur mu / linki gönderir misiniz / düşüneyim dönerim değil, tamam" gibi ilerleme isteyen her ifade. Bu durumda önce KISA bir cevap yaz ve şu şekilde kapat: "Size en uygun paketi birlikte seçelim hanımefendi 🌸 Hemen yetkilimiz buradan yazacak, birkaç dakika içinde döneceğiz." Sonra ayrı satıra [[DEVRET:SATIS]] koy (sorun devrinde düz [[DEVRET]], satış devrinde [[DEVRET:SATIS]]). Sohbeti KESME, veda etme, "iyi günler" deme — kişi hatta kalsın, yetkili aynı sohbete yazacak. Bu devir bir sorun işareti DEĞİLDİR: satışa hazır bir kişiyi insana teslim etmektir ve geciktirilirse müşteri kaybedilir.
-- Skor için ayrı satır, TAM olarak şu formatta: ##SKOR: sıcak | tek satır gerekçe  (sıcak=çok ilgili/fiyat sordu/gelmek istiyor · ılık=ilgili ama kararsız · soğuk=ilgisiz/kısa). Bu satırı "##SKOR:" ile başlatMAZSAN sistem gizleyemez ve müşteri görür — bu yüzden ayracsız, tam bu formatta yaz.`
+- Aşama için ayrı satır, TAM olarak şu formatta: ##ASAMA: bilgi | tek satır gerekçe
+  Üç değerden BİRİ (owner, 01.09.2026 — "sıcak/ılık/soğuk" kaldırıldı; onlar ilgiyi ölçüyordu, oysa gereken SIRADAKİ ADIM):
+    · randevu = stüdyoya gelmeye söz verdi, gün/saat konuştu, "yarın geleyim" dedi
+    · fiyat   = fiyatı/paketi öğrendi, karar aşamasında
+    · bilgi   = soru soruyor, henüz fiyat almadı ya da yalnızca bakıyor
+  GERİYE ALMA: bir kez "randevu" dediysen sonraki mesajlarda "fiyat"a düşürme — kişi nereye kadar geldiyse orada kalır.
+  "Kayıt oldu" ya da "vazgeçti" YAZMA: satışı ve kaybı insan kapatır, sen yalnızca gördüğünü söylersin.
+  Bu satırı "##ASAMA:" ile başlatMAZSAN sistem gizleyemez ve müşteri görür — bu yüzden ayracsız, tam bu formatta yaz.`
 }
 
 // Plain-text reply (robust — Haiku often ignores a JSON instruction and answers naturally). Escalation
 // rides as a trailing [[DEVRET]] marker we strip before sending; the customer never sees it.
-type Temp = 'sıcak' | 'ılık' | 'soğuk'
+/** AI'ın gördüğü aşama. Kapanış (kazanıldı/kaybedildi) BİLEREK yok: onu insan söyler. */
+type ConvStage = 'randevu' | 'fiyat' | 'bilgi'
+
+/** Sohbet aşaması → huni aşaması. Tek yön: AI gözlemler, insan kapatır. */
+const HUNI: Record<ConvStage, 'contacted' | 'offer' | 'visit_booked'> = {
+  bilgi: 'contacted',
+  fiyat: 'offer',
+  randevu: 'visit_booked',
+}
+/** Huninin ileri sırası. Geriye alma YOK: kişi nereye kadar geldiyse orada kalır. */
+const HUNI_SIRA: readonly string[] = ['new', 'contacted', 'offer', 'visit_booked']
 async function aiReply(
   apiKey: string,
   system: string,
   facts: string,
   history: Msg[],
-): Promise<{ reply: string; escalate: boolean; hot: boolean; temp: Temp | null; reason: string } | null> {
+): Promise<{ reply: string; escalate: boolean; hot: boolean; stage: ConvStage | null; reason: string } | null> {
   try {
     const res = await fetch(ANTHROPIC_URL, {
       method: 'POST',
@@ -276,15 +304,18 @@ async function aiReply(
     // other is a problem waiting. Same marker, one suffix — the scrubber below already removes
     // anything beginning `[[DEVRET`, so neither form can reach the customer.
     const hot = /\[\[?\s*DEVRET\s*:\s*SATIS/i.test(text)
-    // Parse the hidden ##SKOR: <sıcak|ılık|soğuk> | <reason> line.
-    const scoreLine = text.match(/##\s*SKOR\s*:\s*(sıcak|ılık|soğuk)\s*(?:\|\s*(.*))?/i)
-    const temp = (scoreLine?.[1]?.toLocaleLowerCase('tr') as Temp | undefined) ?? null
-    const reason = (scoreLine?.[2] ?? '').trim()
+    // Gizli ##ASAMA satırı. Eski ##SKOR biçimi de okunuyor: dağıtımdan hemen sonraki birkaç
+    // yanıt eski istemle üretilmiş olabilir, ve o mesajlarda aşamayı kaybetmenin sebebi yok.
+    const stageLine = text.match(/##\s*ASAMA\s*:\s*(randevu|fiyat|bilgi)\s*(?:\|\s*(.*))?/i)
+    const legacy = text.match(/##\s*SKOR\s*:\s*(sıcak|ılık|soğuk)\s*(?:\|\s*(.*))?/i)
+    const stage = (stageLine?.[1]?.toLocaleLowerCase('tr') as ConvStage | undefined)
+      ?? (legacy ? ({ sıcak: 'fiyat', ılık: 'bilgi', soğuk: 'bilgi' } as const)[legacy[1]!.toLocaleLowerCase('tr') as 'sıcak' | 'ılık' | 'soğuk'] : null)
+    const reason = (stageLine?.[2] ?? legacy?.[2] ?? '').trim()
     // The VISIBLE message is everything before the hidden section. The model separates it
     // inconsistently — a "---" line, a "##SKOR" line, or a "[[DEVRET" — so cut at the EARLIEST such
     // marker (otherwise a mis-formatted score line like "--- (kişi kimliği belirsiz)" leaks to the
     // customer), then scrub any stray [[DEVRET]] token and lone "(reason)" lines the model leaks.
-    const cut = [/\n\s*-{3,}\s*(?:\n|$)/, /##\s*SKOR/i, /\[\[?\s*DEVRET/i]
+    const cut = [/\n\s*-{3,}\s*(?:\n|$)/, /##\s*(?:SKOR|ASAMA)/i, /\[\[?\s*DEVRET/i]
       .map((re) => text.search(re))
       .filter((i) => i >= 0)
     const reply = text
@@ -293,10 +324,48 @@ async function aiReply(
       .replace(/^\s*\([^)]*\)\s*$/gm, '')
       .trim()
     if (!reply) return null
-    return { reply, escalate, hot, temp, reason }
+    return { reply, escalate, hot, stage, reason }
   } catch (e) {
     logger.warn('[wa-webhook] anthropic failed', (e as Error)?.message)
     return null
+  }
+}
+
+/**
+ * AI'ın gördüğü aşamayı HUNİYE yaz (owner, 2026-09-01).
+ *
+ * *"Satış hunisine bu durumları entegre et, orası atıl kaldı. Otomatik doldursun."*
+ *
+ * Atıl kalmasının sebebi ölçüldü: 192 lead'in 190'ı `new`de duruyordu. AI her sohbeti okuyup bir
+ * kanaate varıyordu, o kanaat sohbet belgesinde kalıyor ve huniye HİÇ ulaşmıyordu; huni de birinin
+ * kartları elle sürüklemesini bekliyordu. Kimse sürüklemedi — ve haklıydılar, çünkü bilgisayarın
+ * zaten bildiği bir şeyi insana yaptırmak iş değil, angaryadır.
+ *
+ * ÜÇ SINIR:
+ *  · YALNIZCA İLERİ. Fiyat almış biri sonra bir soru sorunca geri düşmez — kişi nereye kadar
+ *    geldiyse orada kalır. Huni "en son ne konuşuldu"yu değil, "nereye kadar gelindi"yi gösterir.
+ *  · KAPANIŞ İNSANIN. `won`/`lost`a AI dokunmaz: satış bir karardır, kayıp bir sebep ister.
+ *  · SESSİZ BAŞARISIZLIK YOK — ama sohbeti de düşürmez. Huni yazılamazsa loglanır; müşteriye
+ *    verilen cevabın bir CRM yazmasına takılmasının hiçbir gerekçesi olamaz.
+ */
+async function huniyiIlerlet(database: Firestore, ctx: TenantContext, phone: string, stage: ConvStage): Promise<void> {
+  try {
+    const repo = new FirestoreCrmRepository(database)
+    const lead = (await repo.listLeads(ctx)).find((l) => l.phone === phone)
+    if (!lead) return
+    const hedef = HUNI[stage]
+    const su = HUNI_SIRA.indexOf(lead.stage)
+    const yeni = HUNI_SIRA.indexOf(hedef)
+    // Kapanmış lead'e (won/lost) hiç dokunma: `su` -1 çıkar ve buradan geçemez.
+    if (su < 0 || yeni <= su) return
+    const decided = decideMoveStage(
+      { studioId: ctx.studioId, actor: ctx.actor, now: instant(Date.now()), correlationId: newCorrelationId(), source: 'whatsapp_ai' },
+      lead,
+      hedef,
+    )
+    if (decided.ok) await repo.saveLead(ctx, decided.value.next, decided.value.events)
+  } catch (e) {
+    logger.warn('[wa-webhook] huni ilerletilemedi', (e as Error)?.message)
   }
 }
 
@@ -375,9 +444,10 @@ async function processMessage(sid: string, from: string, name: string, text: str
   const config: MetaWhatsAppConfig = { phoneNumberId: phoneId, accessToken: token, ...(process.env.WHATSAPP_API_VERSION ? { apiVersion: process.env.WHATSAPP_API_VERSION } : {}) }
   const sent = await sendWhatsAppText(config, from, result.reply)
   conv.messages = [...conv.messages, { role: 'assistant' as Role, text: result.reply, at: Date.now() }].slice(-MAX_HISTORY)
-  if (result.temp) {
-    conv.temp = result.temp
+  if (result.stage) {
+    conv.stage = result.stage
     conv.reason = result.reason
+    await huniyiIlerlet(database, ctx, conv.phone, result.stage)
   }
   // Devret (escalation) only FLAGS the desk (green "operatör devri geliyor" alert). It no longer silences
   // the AI: the assistant KEEPS answering so the customer is never left hanging, until a human actually
@@ -481,9 +551,10 @@ async function resumeAll(sid: string): Promise<{ resumed: number; replied: numbe
       if (result) {
         await sendWhatsAppText(config, conv.phone, result.reply)
         conv.messages = [...conv.messages, { role: 'assistant' as Role, text: result.reply, at: Date.now() }].slice(-MAX_HISTORY)
-        if (result.temp) {
-          conv.temp = result.temp
+        if (result.stage) {
+          conv.stage = result.stage
           conv.reason = result.reason
+          await huniyiIlerlet(database, ctx, conv.phone, result.stage)
         }
         conv.needsAttention = result.escalate // AI handled it; only flag the desk if it wants a human
         replied++

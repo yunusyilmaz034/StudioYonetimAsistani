@@ -996,6 +996,79 @@ kalmazdı. Üye kendi uygulamasından bunu hiç yapamaz.
 olması. Ayrı bir "süresi dolmuş rezervasyon" karar fonksiyonu yazmak, değişmezlerin yanlış
 yapılabileceği ikinci bir yer açmak olurdu — aynı `decideBooking` kullanılıyor.
 
+---
+
+**OR-55 · Lead etiketi SIRADAKİ ADIMI söyler. Huniyi AI doldurur, kapanışı insan yapar.** (2026-09-01)
+
+Owner: *"Sıcaklık ılıklık rankını daha tutarlı yapalım… satış hunisine bu durumları entegre et,
+orası atıl kaldı, otomatik doldursun."*
+
+**Ölçüm, şikâyeti doğruladı ve sebebini gösterdi:** 192 lead'in **190'ı `new`de sıkışmıştı**; 184
+sohbetin **82'si "sıcak"**tı. Panoda 24 satır vardı ve 24'ü de "Sıcak lead" diyordu.
+
+**Sıcaklık İLGİYİ ölçer; masanın ihtiyacı SIRADAKİ ADIM.** Nüfusun yarısına uyan etiket hiçbir şeyi
+sıralamaz. Yeni dil — owner'ın A kararı — her satırda ne yapılacağını söylüyor:
+**Bilgi alıyor → Fiyat verildi → Randevulu.**
+
+**"Yanıt yok" bir AŞAMA DEĞİL.** İlk önerim buydu ve yanlıştı: aşama yapılsaydı, fiyat alıp susan
+biriyle hiç konuşmadan susan biri aynı kutuya düşerdi — oysa ilki çok daha değerli. **Aşama nereye
+kadar geldiğidir; sessizlik son mesajdan hesaplanır ve YANINA yazılır:** *"Fiyat verildi · 6 gündür
+sessiz"*. Bir kutu iki şeyi birden tutamaz.
+
+**`trial` kaldırıldı:** stüdyoda deneme dersi yok (bilgi kartının kendi kuralı), aşama hiç
+doldurulamıyordu. Boş bir kutu, huniyi okuyan herkese olmayan bir adım gösterir.
+
+**Huniyi AI ilerletir, ama üç sınırla:** yalnızca İLERİ (fiyat almış biri soru sorunca geri
+düşmez) · kapanışa (`won`/`lost`) ASLA dokunmaz — satış bir karardır, kayıp bir sebep ister ·
+huni yazılamazsa loglanır ama sohbet düşmez.
+
+**Geriye dönük doldurma "Bilgi alıyor"da durdu, bilerek.** Eski sıcaklığı aşamaya çevirmek cazipti;
+82 "sıcak"ı toptan "Fiyat verildi" yapmak huniyi doğru rakamla değil **güvenilir görünen** bir
+rakamla doldururdu, ve bir daha kimse sorgulamazdı. Kanıtlanabilir tek şey vardı: bu kişi yazdı, biz
+cevapladık.
+
+---
+
+**OR-56 · Sessiz lead'e otomatik mesaj YOK; otomatik HATIRLATMA var.** (2026-09-01)
+
+Owner sordu: *"WP lead'lerine belirli aralıklarla tekrar sorulsun mu, ilgilenir misin diye?"*
+
+**Ölçek ölçüldü:** 82 "sıcak" sohbetin **61'i 7+ gündür, 55'i 14+ gündür sessiz.**
+
+**Otomatik gönderim yapılmadı** ve gerekçesi üç maddeydi: 24 saat penceresi dışında her mesaj Meta'ya
+**konuşma başına ücret** · istenmeyen takip mesajı engelleme/şikâyet getirir ve **numaranın kalite
+puanını** düşürür — ki o numara artık stüdyonun satış hattı ([[OR-53]] hattı değil, satış hattı) ·
+bunlar üye değil, **kampanya izinleri yok.**
+
+Riske atılacak olan bir kampanya değil, **hattın kendisi.**
+
+**Onun yerine hatırlatma otomatikleştirildi** (owner onayı: *"önerin hatırlatma olsun"*): fiyat almış
+ve susmuş kişi panoda *"Fiyat verildi: Selin · 6 gündür sessiz"* diye çıkar, tek tıkla sohbeti açılır,
+yazıp yazmamaya insan karar verir. Bedeli sıfır, riski sıfır.
+
+**Panoya çıkma eşiği 3 gün, ve "Bilgi alıyor" olanlar sessizleşmeden çıkmaz.** Panonun işi her sohbeti
+listelemek değil, bugün dokunulması gerekeni söylemek — her şeyi gösteren liste hiçbir şey söylemez.
+
+---
+
+**OR-57 · Dördüncü bir hareket listesi açılmadı; olan büyütüldü.** (2026-09-01)
+
+Owner *"sistemde doğal gözükmeyen hareketler gün gün"* bir ekran istedi. **Zaten vardı:** Denetim
+Kaydı, ve tarif edilenlerin çoğunu listeliyordu. Yeni bir ekran, Hareket Merkezi ve Denetim Kaydı'nın
+yanında **üçüncü bir "gerçek"** olurdu — hangisine bakılacağı belirsiz.
+
+Bunun yerine: adı **"Elle Yapılan İşlemler"** oldu (ne olduğunu söylüyor), **gün gün gruplandı**,
+**konu filtresi** ve **sayfa başına** eklendi, ve eksik üç tür listeye girdi: **dondurma**, **yanan
+hak hareketleri**, **giden bildirimler**.
+
+**Filtre olay adına göre değil KONUYA göre.** Otuz olay adı arasından "hangisi kredi düzeltmesiydi"
+diye seçmek, aranan şeyin adını zaten bilmeyi gerektirir — oysa buraya bakan kişi tam da onu bilmediği
+için bakıyordur.
+
+**Süzme bellekte, bilerek:** Firestore'da `type in [...]` en fazla 30 değer alır ve liste şimdiden ona
+yakın; ayrıca her yeni tür bileşik bir indeks isterdi — bu depoyu bir kez, yalnızca üretimde var olan
+bir indeks yüzünden durdurmuş bir tuzak ([[OR-14]]).
+
 ## Traps that have already cost something
 
 **OR-14 · Firestore indexes are a production-only trap.** The emulator does NOT enforce them, so a

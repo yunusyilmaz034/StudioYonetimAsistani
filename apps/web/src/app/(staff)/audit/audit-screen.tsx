@@ -32,27 +32,145 @@ const show = (v: unknown): string => {
   return String(v)
 }
 
+// ── GRUPLAR (owner, 2026-09-01) ───────────────────────────────────────────────────────────
+//
+// *"Gün gün grupla, filtre olarak sayfa başına ekle."*
+//
+// Filtre kutuları olayları TEK TEK değil, KONUYA göre süzüyor. Otuz olay adı arasından "hangisi
+// kredi düzeltmesiydi" diye seçim yapmak, aranan şeyin adını zaten bilmeyi gerektirir — oysa buraya
+// bakan kişi tam da onu bilmediği için bakıyordur.
+const KONULAR: readonly { readonly id: string; readonly label: string; readonly types: readonly string[] }[] = [
+  {
+    id: 'kredi',
+    label: 'Kredi ve haklar',
+    types: ['entitlement.adjusted', 'entitlement.entry_revoked', 'entitlement.entry_restored'],
+  },
+  {
+    id: 'paket',
+    label: 'Paket değişiklikleri',
+    types: ['entitlement.amended', 'entitlement.extended', 'entitlement.cancelled', 'entitlement.reactivated'],
+  },
+  {
+    id: 'dondurma',
+    label: 'Dondurma',
+    types: [
+      'entitlement.frozen',
+      'entitlement.unfrozen',
+      'entitlement.freeze_scheduled',
+      'entitlement.freeze_schedule_cancelled',
+    ],
+  },
+  { id: 'bildirim', label: 'Gönderilen bildirimler', types: ['notification.intent_created', 'notification.suppressed'] },
+  { id: 'ders', label: 'Ders ve rezervasyon', types: ['class_session.cancelled', 'class_session.capacity_changed', 'reservation.corrected'] },
+  {
+    id: 'toplu',
+    label: 'Toplu işlemler ve kapanışlar',
+    types: ['bulk_operation.planned', 'bulk_operation.applied', 'studio_closure.planned', 'studio_closure.applied', 'studio_closure.cancelled'],
+  },
+  {
+    id: 'ayar',
+    label: 'Ürün, hizmet ve ayarlar',
+    types: ['product.created', 'product.updated', 'service.updated', 'service.deactivated', 'service.policy_published', 'studio.settings_updated'],
+  },
+  { id: 'uye', label: 'Üye kaydı', types: ['member.deactivated', 'member.profile_updated', 'member.churned', 'lead.lost'] },
+]
+
+const SAYFA = [25, 50, 100, 200] as const
+
+/** Gün başlığı: "Bugün", "Dün", sonra tam tarih. Bir kaydın hangi güne ait olduğu, saatinden önce gelir. */
+function gunBasligi(ms: number, now: number): string {
+  const g = (t: number) => new Date(t).toLocaleDateString('en-CA', { timeZone: 'Europe/Istanbul' })
+  if (g(ms) === g(now)) return 'Bugün'
+  if (g(ms) === g(now - 86_400_000)) return 'Dün'
+  return new Date(ms).toLocaleDateString('tr-TR', { timeZone: 'Europe/Istanbul', day: 'numeric', month: 'long', year: 'numeric', weekday: 'long' })
+}
+
 export function AuditScreen({ initial }: { initial: ActivityPage }) {
   const [entries, setEntries] = useState<readonly ActivityEvent[]>(initial.entries)
   const [cursor, setCursor] = useState<string | null>(initial.nextCursor)
+  const [konu, setKonu] = useState<string | null>(null)
+  const [sayfa, setSayfa] = useState<number>(50)
   const [pending, start] = useTransition()
+
+  const tipler = (id: string | null) => (id ? (KONULAR.find((k) => k.id === id)?.types ?? []) : undefined)
+
+  const yenile = (yeniKonu: string | null, yeniSayfa: number) =>
+    start(async () => {
+      setKonu(yeniKonu)
+      setSayfa(yeniSayfa)
+      const page = await auditAction({ cursor: null, ...(tipler(yeniKonu) ? { types: tipler(yeniKonu) } : {}), pageSize: yeniSayfa })
+      setEntries(page.entries)
+      setCursor(page.nextCursor)
+    })
 
   const more = () =>
     start(async () => {
-      const page = await auditAction({ cursor })
+      const page = await auditAction({ cursor, ...(tipler(konu) ? { types: tipler(konu) } : {}), pageSize: sayfa })
       setEntries((prev) => [...prev, ...page.entries])
       setCursor(page.nextCursor)
     })
 
+  // Gün gün grupla. Sıra zaten yeniden eskiye; gruplama onu bozmadan başlık ekler.
+  const now = Date.now()
+  const gunler: { baslik: string; rows: ActivityEvent[] }[] = []
+  for (const e of entries) {
+    const b = gunBasligi(e.occurredAt, now)
+    const son = gunler.at(-1)
+    if (son && son.baslik === b) son.rows.push(e)
+    else gunler.push({ baslik: b, rows: [e] })
+  }
+
   return (
     <main className="mx-auto max-w-4xl space-y-4 p-4 sm:p-6 lg:p-8">
-      <PageHeader title="Denetim Kaydı" description="Kim, neyi, ne zaman değiştirdi." />
+      <PageHeader
+        title="Elle Yapılan İşlemler"
+        description="Sistemde kendiliğinden olmayan hareketler: kim, neyi, ne zaman, kime yaptı."
+      />
+
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={() => yenile(null, sayfa)}
+          className={`rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${konu === null ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:text-foreground'}`}
+        >
+          Tümü
+        </button>
+        {KONULAR.map((k) => (
+          <button
+            key={k.id}
+            type="button"
+            onClick={() => yenile(k.id, sayfa)}
+            className={`rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${konu === k.id ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:text-foreground'}`}
+          >
+            {k.label}
+          </button>
+        ))}
+        <label className="ml-auto flex items-center gap-2 text-xs text-muted-foreground">
+          Sayfa başına
+          <select
+            value={sayfa}
+            onChange={(e) => yenile(konu, Number(e.target.value))}
+            className="min-h-9 rounded-md border border-border bg-background px-2 text-sm text-foreground"
+          >
+            {SAYFA.map((n) => (
+              <option key={n} value={n}>
+                {n}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
 
       {entries.length === 0 ? (
-        <EmptyState icon={ShieldIcon} title="Kayıt yok" description="Henüz denetlenecek bir değişiklik yapılmadı." />
+        <EmptyState icon={ShieldIcon} title="Kayıt yok" description={konu ? 'Bu konuda kayıt bulunamadı — filtreyi değiştirin.' : 'Henüz denetlenecek bir değişiklik yapılmadı.'} />
       ) : (
+        gunler.map((g) => (
+        <section key={g.baslik} className="space-y-1.5">
+          <h2 className="sticky top-0 z-10 -mx-1 bg-background/95 px-1 py-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground backdrop-blur">
+            {g.baslik} <span className="font-normal normal-case tracking-normal">· {g.rows.length} işlem</span>
+          </h2>
         <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card shadow-sm">
-          {entries.map((e) => {
+          {g.rows.map((e) => {
             const p = present(e)
             const changes = (e.payload.changes as FieldChange[] | undefined) ?? []
             return (
@@ -88,6 +206,8 @@ export function AuditScreen({ initial }: { initial: ActivityPage }) {
             )
           })}
         </div>
+        </section>
+        ))
       )}
 
       {cursor ? (

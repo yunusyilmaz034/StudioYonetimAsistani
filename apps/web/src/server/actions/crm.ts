@@ -100,7 +100,7 @@ export async function listLeadsAction() {
 
 export async function moveLeadAction(input: unknown) {
   const p = z
-    .object({ leadId: nonEmpty, stage: z.enum(['new', 'contacted', 'trial', 'offer']) })
+    .object({ leadId: nonEmpty, stage: z.enum(['new', 'contacted', 'offer', 'visit_booked']) })
     .parse(input)
   const ctx = await requireTenantContext(OPS)
   const lead = await repo().getLead(ctx, p.leadId)

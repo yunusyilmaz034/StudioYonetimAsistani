@@ -154,7 +154,7 @@ export const GROUPS: readonly NavGroup[] = [
       { href: '/notifications', label: 'Bildirim Merkezi', icon: BellIcon },
       { href: '/staff', label: 'Personel', icon: UserCogIcon },
       { href: '/settings', label: 'Ayarlar', icon: SettingsIcon },
-      { href: '/audit', label: 'Denetim Kaydı', icon: ShieldIcon },
+      { href: '/audit', label: 'Elle Yapılan İşlemler', icon: ShieldIcon },
       // The cutover tool. It stays in the nav after cutover rather than being hidden behind a flag:
       // it is idempotent (a phone is unique — I-21), it refuses a dirty file, and a tool the owner
       // cannot find is a tool she will ask us to run for her.

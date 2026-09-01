@@ -334,7 +334,7 @@ async function main(): Promise<void> {
     }
     // new → contacted → trial → offer, sırayla: aşama atlamak bir iş akışını değil, veri kurgusunu
     // anlatır ve olayların sırası da yalan olur.
-    const SIRA: readonly LeadStage[] = ['contacted', 'trial', 'offer']
+    const SIRA: readonly LeadStage[] = ['contacted', 'offer', 'visit_booked']
     for (const asama of SIRA) {
       if (SIRA.indexOf(asama) > SIRA.indexOf(v.hedef as LeadStage)) break
       const m = decideMoveStage(dc(), simdiki, asama)
@@ -349,11 +349,11 @@ async function main(): Promise<void> {
   const LEADLER: readonly Parameters<typeof lead>[0][] = [
     { ad: 'Nihan Çetinkaya', tel: '+905321440118', kaynak: 'phone', kaynakDetay: 'WhatsApp AI', gunOnce: 1, hedef: 'offer', not: '6 kişilik kurumsal grup. Fiyat onayı bekliyor.' },
     { ad: 'Ayça Ünal', tel: '+905331229074', kaynak: 'instagram', kaynakDetay: 'WhatsApp AI', gunOnce: 5, hedef: 'offer', not: 'Deneme dersine geldi, 16 ders istiyor.' },
-    { ad: 'Selin Baş', tel: '+905071883452', kaynak: 'instagram', kaynakDetay: 'WhatsApp AI', gunOnce: 4, hedef: 'trial', not: 'Doğum sonrası, doktor onayı var.' },
+    { ad: 'Selin Baş', tel: '+905071883452', kaynak: 'instagram', kaynakDetay: 'WhatsApp AI', gunOnce: 4, hedef: 'visit_booked', not: 'Doğum sonrası, doktor onayı var.' },
     { ad: 'Gül Ertan', tel: '+905442017733', kaynak: 'google', kaynakDetay: 'WhatsApp AI', gunOnce: 6, hedef: 'contacted', not: 'Fiyat sordu.' },
     { ad: 'Beyza Kılıçarslan', tel: '+905356620941', kaynak: 'walk_in', kaynakDetay: null, gunOnce: 9, hedef: 'contacted', not: 'Akşam 21:00 istiyor.' },
     { ad: 'Hazal Yücel', tel: '+905309914502', kaynak: 'google', kaynakDetay: 'WhatsApp AI', gunOnce: 14, hedef: 'new', not: 'Adres sordu.' },
-    { ad: 'Merve Sağlam', tel: '+905546338820', kaynak: 'referral', kaynakDetay: 'Üye tavsiyesi', gunOnce: 19, hedef: 'trial', not: 'Hamilelik pilatesi.' },
+    { ad: 'Merve Sağlam', tel: '+905546338820', kaynak: 'referral', kaynakDetay: 'Üye tavsiyesi', gunOnce: 19, hedef: 'visit_booked', not: 'Hamilelik pilatesi.' },
     { ad: 'Esin Toprak', tel: '+905324471190', kaynak: 'event', kaynakDetay: 'Mahalle etkinliği', gunOnce: 22, hedef: 'new', not: 'Standtan broşür aldı.' },
     { ad: 'Ceyda Meriç', tel: '+905427790614', kaynak: 'instagram', kaynakDetay: 'WhatsApp AI', gunOnce: 24, hedef: 'lost', kayipNeden: 'location', not: 'Başka ilçe.' },
     { ad: 'Tuğba Erdem', tel: '+905059912847', kaynak: 'google', kaynakDetay: 'WhatsApp AI', gunOnce: 28, hedef: 'lost', kayipNeden: 'price', not: 'Bütçe uymadı.' },

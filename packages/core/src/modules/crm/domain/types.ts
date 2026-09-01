@@ -12,7 +12,24 @@ import type { ActorRef, BranchId, Instant, MemberId, Money, StudioId } from '../
 //                                   → rejected / lost (with a reason)
 
 export type LeadSource = 'instagram' | 'walk_in' | 'referral' | 'google' | 'phone' | 'event' | 'other'
-export type LeadStage = 'new' | 'contacted' | 'trial' | 'offer' | 'won' | 'lost'
+// ── HUNİ AŞAMALARI (owner, 2026-09-01) ──────────────────────────────────────────────────────
+//
+// 192 lead'in 190'ı `new`de sıkışmıştı. Sebebi aşamaların yanlış olması değildi — **hiçbir şeyin
+// onları ilerletmemesiydi.** AI her sohbeti okuyup bir kanaate varıyor, o kanaat sohbet belgesinde
+// kalıyor ve huniye hiç ulaşmıyordu; huni ise birinin kartları elle sürüklemesini bekliyordu.
+//
+// İki değişiklik:
+//
+//   · `visit_booked` EKLENDİ. Bu stüdyoda en değerli sinyal "stüdyoya gelmeye söz verdi" ve onu
+//     tutacak bir aşama yoktu — fiyat soran biriyle yarın kapıya gelecek biri aynı kutudaydı.
+//   · `trial` KALDIRILDI. Stüdyoda deneme dersi YOK (bilgi kartının kendi kuralı), yani aşama hiç
+//     doldurulamıyordu. Boş bir kutu, huniyi okuyan herkese olmayan bir adım gösterir.
+//
+// SESSİZLİK BİR AŞAMA DEĞİL. "Yanıt yok" ayrı bir kutu olsaydı, fiyat alıp susan biriyle hiç
+// konuşmadan susan biri aynı yere düşerdi — oysa ilki çok daha değerli. Aşama NEREYE KADAR
+// GELDİĞİDİR; sessizlik son mesajdan hesaplanır ve ayrı gösterilir: *"Fiyat verildi · 6 gündür
+// sessiz"*. Bir kutu iki şeyi birden tutamaz.
+export type LeadStage = 'new' | 'contacted' | 'offer' | 'visit_booked' | 'won' | 'lost'
 
 // The enum is what makes a loss ANALYSABLE; the free text is what makes it TRUE. Always both.
 export type LostReason =

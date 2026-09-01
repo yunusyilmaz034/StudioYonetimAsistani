@@ -70,7 +70,9 @@ export function decideCaptureLead(ctx: DecideContext, lead: Lead): Result<Outcom
   })
 }
 
-const OPEN_STAGES: readonly LeadStage[] = ['new', 'contacted', 'trial', 'offer']
+// Kapanmamış aşamalar. Sıra da anlamlı: soldan sağa satışa yaklaşır, ve `visit_booked` en sağdadır
+// çünkü bu stüdyoda satış kapıda kapanır.
+const OPEN_STAGES: readonly LeadStage[] = ['new', 'contacted', 'offer', 'visit_booked']
 
 export function decideMoveStage(
   ctx: DecideContext,

@@ -150,7 +150,10 @@ async function loadLeadSignal(studioId: string, now: number): Promise<{ wrote: n
       if (userMsgs.length === 0 || firstAt < since) continue
       wrote++
       if (userMsgs.length >= 2) engaged++
-      if (c.temp === 'sıcak') hot++
+      // Aşama tabanlı (2026-09-01). "Sıcak" nüfusun yarısıydı ve bir sayı olarak hiçbir şey
+      // söylemiyordu; "randevulu + fiyat verildi" ise gerçekten satışa yakın olanları sayar.
+      const st = String((c as { stage?: string; temp?: string }).stage ?? '')
+      if (st === 'randevu' || st === 'fiyat' || c.temp === 'sıcak') hot++
     }
     return { wrote, engaged, hot }
   } catch {

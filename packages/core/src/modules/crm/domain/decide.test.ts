@@ -83,11 +83,11 @@ describe('CRM (v1.24)', () => {
   })
 
   it('moves through the funnel, and refuses to move a closed lead', () => {
-    const moved = decideMoveStage(ctx, lead(), 'trial')
+    const moved = decideMoveStage(ctx, lead(), 'visit_booked')
     expect(moved.ok).toBe(true)
     if (!moved.ok) return
-    expect(moved.value.events[0]?.payload).toEqual({ from: 'new', to: 'trial' })
-    expect(decideMoveStage(ctx, lead({ stage: 'lost' }), 'trial').ok).toBe(false)
+    expect(moved.value.events[0]?.payload).toEqual({ from: 'new', to: 'visit_booked' })
+    expect(decideMoveStage(ctx, lead({ stage: 'lost' }), 'visit_booked').ok).toBe(false)
   })
 
   it('a lost lead needs BOTH the enum and the note — the enum makes it analysable, the note true', () => {

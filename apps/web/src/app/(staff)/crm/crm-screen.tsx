@@ -31,11 +31,14 @@ import {
 
 type Lead = Awaited<ReturnType<typeof listLeadsAction>>[number]
 
+// Sütun adları, owner'ın A kararı (2026-09-01). Her biri SIRADAKİ ADIMI söylüyor — "sıcak/ılık"
+// gibi bir ilgi ölçüsü değil. Bir etiket ne yapılacağını söylemiyorsa, ona bakan kişi kararı yine
+// kendi vermek zorunda kalır.
 const STAGES = [
   { id: 'new', label: 'Yeni' },
-  { id: 'contacted', label: 'İletişim kuruldu' },
-  { id: 'trial', label: 'Deneme dersi' },
-  { id: 'offer', label: 'Teklif' },
+  { id: 'contacted', label: 'Bilgi alıyor' },
+  { id: 'offer', label: 'Fiyat verildi' },
+  { id: 'visit_booked', label: 'Randevulu' },
 ] as const
 
 const SOURCES: Record<string, string> = {
@@ -82,7 +85,7 @@ export function CrmScreen({ initial }: { initial: readonly Lead[] }) {
     router.push(`/members/${res.value.memberId}`)
   }
 
-  const open = leads.filter((l) => ['new', 'contacted', 'trial', 'offer'].includes(l.stage))
+  const open = leads.filter((l) => ['new', 'contacted', 'offer', 'visit_booked'].includes(l.stage))
   const won = leads.filter((l) => l.stage === 'won')
   const lost = leads.filter((l) => l.stage === 'lost')
   const conversion = won.length + lost.length > 0 ? Math.round((won.length / (won.length + lost.length)) * 100) : 0
@@ -210,8 +213,10 @@ export function CrmScreen({ initial }: { initial: readonly Lead[] }) {
   )
 }
 
-const nextStage = (s: string): 'contacted' | 'trial' | 'offer' | null =>
-  s === 'new' ? 'contacted' : s === 'contacted' ? 'trial' : s === 'trial' ? 'offer' : null
+// İleri sıra. `visit_booked` en sağda: bu stüdyoda satış kapıda kapanır, o yüzden "gelmeye söz
+// verdi" fiyat vermekten SONRAKİ adımdır.
+const nextStage = (s: string): 'contacted' | 'offer' | 'visit_booked' | null =>
+  s === 'new' ? 'contacted' : s === 'contacted' ? 'offer' : s === 'offer' ? 'visit_booked' : null
 
 function CaptureDialog({ open, onClose, onDone }: { open: boolean; onClose: () => void; onDone: () => void }) {
   const [fullName, setFullName] = useState('')

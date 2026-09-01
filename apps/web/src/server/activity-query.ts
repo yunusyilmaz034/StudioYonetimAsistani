@@ -455,23 +455,65 @@ export const AUDIT_TYPES: readonly string[] = [
   'bulk_operation.applied',
   'class_session.cancelled',
   'class_session.capacity_changed',
+  // ── ELLE YAPILAN İŞLEMLER, tamamlandı (owner, 2026-09-01) ─────────────────────────────────
+  //
+  // Owner'ın istediği liste okununca üç tür eksik çıktı, ve üçü de tam olarak "sistemde doğal
+  // görünmeyen hareket" tarifine giriyor:
+  //
+  //   · DONDURMA — bir üyeliğin durdurulması ve süresinin uzaması. Hak aşıldığında `overageDays`
+  //     taşır: "kendi kuralımızı ne sıklıkla esnettik" sorusu buradan cevaplanır.
+  //   · YANAN HAKKIN GERİ VERİLMESİ — süresi dolmuş paketten bir ders kullandırmak. `adjusted`
+  //     zaten listedeydi ama dondurma yoktu; ikisi aynı sınıf hareket.
+  //   · GİDEN BİLDİRİMLER — owner "bildirim gidenler" dedi. Kime ne gittiği, gitmeyen varsa sebebi.
+  'entitlement.frozen',
+  'entitlement.unfrozen',
+  'entitlement.freeze_scheduled',
+  'entitlement.freeze_schedule_cancelled',
+  'entitlement.entry_revoked',
+  'entitlement.entry_restored',
+  'notification.intent_created',
+  'notification.suppressed',
 ]
 
+/**
+ * ELLE YAPILAN İŞLEMLER — sistemde kendiliğinden olmayan hareketler (owner, 2026-09-01).
+ *
+ * *"Sistemde doğal gözükmeyen hareketler gün gün yer verilsin; admin detayına tıklayıp tarih, saat,
+ * kim yaptı, kime yaptı, ne oldu görsün."*
+ *
+ * Bu ekran ZATEN vardı (Denetim Kaydı) ve tarif edilenlerin çoğunu listeliyordu. Dördüncü bir kayıt
+ * ekranı açmak yerine bu büyütüldü — üç ayrı "hareket listesi", hangisine bakılacağı belirsiz üç
+ * ayrı gerçek demektir.
+ *
+ * Eklenenler: tür filtresi, sayfa başına kaç kayıt, ve ekranda gün gün gruplama.
+ *
+ * SÜZME BELLEKTE, bilerek. Firestore'da `type in [...]` en fazla 30 değer alır ve liste şimdiden
+ * ona yakın; ayrıca her yeni tür bileşik bir indeks isterdi — bu depoyu bir kez, yalnızca üretimde
+ * var olan bir indeks yüzünden durdurmuş bir tuzak (OR-14). Sayfa büyütülerek okunuyor ve bellekte
+ * eleniyor: küçük bir stüdyoda bu, bir indeks yanlışının maliyetinden ucuz.
+ */
 export async function loadAudit(
   ctx: TenantContext,
-  filter: { cursor?: string | null } = {},
+  filter: { cursor?: string | null; types?: readonly string[]; pageSize?: number } = {},
 ): Promise<ActivityPage> {
   let q: Query = events(ctx).orderBy('recordedAt', 'desc')
   if (filter.cursor) {
     const anchor = await events(ctx).doc(filter.cursor).get()
     if (anchor.exists) q = q.startAfter(anchor)
   }
+  // İstenen tür listesi AUDIT_TYPES ile kesiştirilir: ekran, denetim kapsamı dışındaki bir olayı
+  // filtre parametresiyle görünür kılamaz.
   const audit = new Set(AUDIT_TYPES)
-  const snap = await q.limit(EVENT_LIMIT * 4).get()
-  const visible = snap.docs.filter((d) => audit.has(d.get('type') as string))
-  const page = visible.slice(0, EVENT_LIMIT)
+  const secilen = filter.types?.length ? new Set(filter.types.filter((t) => audit.has(t))) : audit
+  const boyut = Math.min(Math.max(filter.pageSize ?? EVENT_LIMIT, 10), 200)
+  const snap = await q.limit(boyut * 6).get()
+  const visible = snap.docs.filter((d) => secilen.has(d.get('type') as string))
+  const page = visible.slice(0, boyut)
   return {
     entries: await hydrate(ctx, page),
-    nextCursor: visible.length > EVENT_LIMIT ? (page.at(-1)?.id ?? null) : null,
+    nextCursor: visible.length > boyut ? (page.at(-1)?.id ?? null) : null,
   }
 }
+
+/** Filtre kutusunun seçenekleri — denetim kapsamının kendisi, elle yazılmış ikinci bir liste değil. */
+export const AUDIT_TYPE_OPTIONS: readonly string[] = AUDIT_TYPES

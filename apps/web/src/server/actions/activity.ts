@@ -115,6 +115,16 @@ export async function operationEventsAction(input: unknown): Promise<readonly Ac
 // The Audit Log — owner only (owner, 2026-07-13). The record of who changed the world must not be
 // governed by the people it records.
 export async function auditAction(input: unknown): Promise<ActivityPage> {
-  const p = z.object({ cursor: z.string().nullable().default(null) }).parse(input)
-  return loadAudit(await requireTenantContext(OWNER), { cursor: p.cursor })
+  const p = z
+    .object({
+      cursor: z.string().nullable().default(null),
+      types: z.array(z.string()).optional(),
+      pageSize: z.number().int().min(10).max(200).optional(),
+    })
+    .parse(input)
+  return loadAudit(await requireTenantContext(OWNER), {
+    cursor: p.cursor,
+    ...(p.types?.length ? { types: p.types } : {}),
+    ...(p.pageSize ? { pageSize: p.pageSize } : {}),
+  })
 }
