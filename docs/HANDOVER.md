@@ -262,11 +262,28 @@ tanımlı değilse blok derlemeye girmiyor. Sırayla denenir, ağ başına 10 sn
    kendi mesaini `/mesai`den başlat ve bitir.
 4. **Eşleşmemiş 10 TL test ödemesi** — panelden sebep yazılarak iptal edilmesi öneriliyor.
 
-**Bu akşam, dükkânda:**
+**Turnike — 1 Eylül gecesi nerede kaldı:**
 
-5. **Turnike montajı.** Sıra: dükkânın WiFi'si `secrets.h`e → flash → `COM`–`OP-R` yön testi →
-   `F01=5 F02=0 F03=0 F04=0` → panelden aç → üye geçişi (uygulama **ve** tarayıcı) → ret testi.
-   Ayrıntı: [`TURNSTILE-HARDWARE.md`](TURNSTILE-HARDWARE.md) §4.
+5. **Yapılanlar:** turnike gövdesi ve **kolları monte edildi** · yön ölçüldü (`COM`–`OP-R` = **giriş**,
+   `COM`–`OP-L` = **çıkış**; firmware'in varsaydığı eşleme çıktı) · dükkânın WiFi'si (`SUPERONLINE_
+   Wi-Fi_0118`) `secrets.h`e **birinci sıraya** yazıldı, ev ikinciye · flash atıldı · **iki ekranda da
+   QR göründü**, yani WiFi ve sunucu bağlantısı dükkânda çalışıyor.
+
+   **Kalan tek iş: röle kontak kabloları.** Kuru kontak, gerilim yok, iki kablo:
+   ```
+   Röle K1  NO → turnike OP-R   ·   K1 COM → turnike COM     (giriş kolu)
+   Röle K2  NO → turnike OP-L   ·   K2 COM → turnike COM     (çıkış kolu)
+   ```
+   `NC` kullanılmaz (enerji giderse kapı açık kalırdı). **Turnikenin `GND`'si ESP32'ye bağlanmaz.**
+   Vida sıkarken turnikenin `12V` fişi çekili olsun.
+
+   Sonra sırayla: `F01=5 F02=0 F03=0 F04=0` → panelden *Giriş/Çıkış kapısını aç* → üye geçişi
+   (uygulama **ve** tarayıcı) → paketi bitmiş üyeyle ret testi.
+   Ayrıntı: [`TURNSTILE-HARDWARE.md`](TURNSTILE-HARDWARE.md) §3–4.
+
+   **`NO`/`COM`/`NC` nasıl ayırt edilir:** orta uç `COM`. Röle çekmemişken multimetre süreklilik
+   modunda orta uçla öten dış uç `NC`, susan `NO`. Multimetre yoksa deneyerek de anlaşılır ve bir şey
+   yakmaz: yanlış uca bağlanırsa turnike sürekli serbest kalır, o da hemen görülür.
 6. **Buzzer sesi kısık** (`DEBT-038`). 12 V buzzer + sürücü (röle modülü ya da NPN) sipariş edilecek;
    hangisi olacağı dükkânda prize ve 12 V çıkışına bakınca netleşir.
 
