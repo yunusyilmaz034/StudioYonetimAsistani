@@ -33,10 +33,23 @@ import { notificationDeps, studioBrand, studioNotificationSettings } from '../tr
 //
 // And still, and above all:  THE CHECK REPORTS. IT NEVER REPAIRS.
 
-/** One log line per finding, at ERROR, carrying the `alert` the alarm and the runbook agree on. */
+/**
+ * One log line per finding, carrying the `alert` the alarm and the runbook agree on.
+ *
+ * ── SEVİYE, ÖNEMİ TAKİP EDER (owner, 2026-09-01) ───────────────────────────────────────────
+ *
+ * Her bulgu, önemi ne olursa olsun `ERROR` yazılıyordu. Google'da `ERROR` seviyesine bakan AYRI bir
+ * politika var (*"Cloud Function hata verdi"*), yani tek bir bulgu iki ayrı e-posta üretiyordu — ve
+ * ikisi de aynı şeyi söylüyordu. Bir uyarıyı iki kez göndermek, onu iki kat önemli yapmıyor; iki kat
+ * daha hızlı görmezden gelinir yapıyor.
+ *
+ * `critical` → ERROR (alarm çalsın). Gerisi → WARNING: kayıtta durur, aranınca bulunur, kimseyi
+ * uyandırmaz.
+ */
 function raise(studioId: StudioId, findings: readonly HealthFinding[]): void {
   for (const f of findings) {
-    logger.error(`health: ${f.alert}`, {
+    const yaz = f.severity === 'critical' ? logger.error : logger.warn
+    yaz(`health: ${f.alert}`, {
       alert: f.alert,
       studioId,
       severity: f.severity,

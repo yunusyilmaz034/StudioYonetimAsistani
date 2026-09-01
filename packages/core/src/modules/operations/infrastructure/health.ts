@@ -279,6 +279,20 @@ function sure(ms: number): string {
  *
  * Only counts conversations the AI is supposed to be handling: a thread a human took over is not
  * unanswered, it is being answered by a person.
+ *
+ * ── BİR PENCERE, VE NEDEN (owner, 2026-09-01) ──────────────────────────────────────────────
+ *
+ * Bu kontrol açık kaldığı sürece her 15 dakikada bir aynı alarmı çalıyordu, çünkü 37 gün önce
+ * cevaplanmamış bir mesajı da sayıyordu. Cevaplanana kadar da susmayacaktı. **On beş dakikada bir
+ * çalan alarm, susturulan alarmdır** — ve susturulduğu andan sonra yoktur.
+ *
+ * Oysa iki ayrı şey karıştırılıyordu:
+ *   · **Asistan ŞU AN bozuk** — az önce yazılmış bir mesaj cevapsız. Bu acil, ve bu alarm.
+ *   · **Bir lead düşmüş** — günler önce cevapsız kalmış. Bu bir arıza değil, bir iş; ve yeri
+ *     panodaki günlük liste, çünkü orada kim olduğu yazıyor ve tek tıkla açılıyor.
+ *
+ * Üst sınır o ayrımı çiziyor. Altı saatten eski bir sessizlik, asistanın çalışıp çalışmadığı
+ * hakkında hiçbir şey söylemez.
  */
 async function aiNotReplying(db: Firestore, studioId: StudioId, now: number): Promise<HealthFinding | null> {
   const ai = await db.collection('studios').doc(studioId).collection('settings').doc('ai').get()
@@ -291,7 +305,9 @@ async function aiNotReplying(db: Firestore, studioId: StudioId, now: number): Pr
     const last = data.messages?.[data.messages.length - 1]
     // Her message, unanswered, and old enough that a working assistant would have replied. The
     // webhook answers within seconds; ten minutes is not slowness, it is failure.
-    return last?.role === 'user' && typeof last.at === 'number' && last.at < now - 10 * MS_PER_MIN
+    if (last?.role !== 'user' || typeof last.at !== 'number') return false
+    const yas = now - last.at
+    return yas > 10 * MS_PER_MIN && yas < 6 * 60 * MS_PER_MIN
   })
 
   if (waiting.length === 0) return null
