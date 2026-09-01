@@ -122,7 +122,9 @@ function StaffCard({ staff }: { staff: StaffRow }) {
         toast.error(
           res.error.code === 'staff_email_missing'
             ? 'Bu hesabın e-posta adresi yok — link üretilemez.'
-            : 'Link üretilemedi.',
+            : res.error.code === 'app_url_missing'
+              ? 'Sunucu adresi tanımlı değil (PUBLIC_APP_URL) — link üretilemez.'
+              : 'Link üretilemedi.',
         )
         return
       }
@@ -135,8 +137,8 @@ function StaffCard({ staff }: { staff: StaffRow }) {
         // linkler ölmüştü. Firebase'in şifre linki 1 saat yaşar ve bu ayarlanabilir değil — panelde
         // yazmayınca, kimse bilemez. Bir aracın sınırını söylememek, o sınırı gizlemektir.
         toast.success(`${res.value.displayName} için davet linki kopyalandı.`, {
-          description: 'Link 1 SAAT geçerli — hoca hemen açamayacaksa, açacağı sırada yeniden üret.',
-          duration: 8000,
+          description: 'Link 7 gün geçerli, tek kullanımlık. Yeni link üretirsen eskisi geçersiz olur.',
+          duration: 7000,
         })
       } catch {
         setLink(res.value.link)
@@ -233,8 +235,7 @@ function StaffCard({ staff }: { staff: StaffRow }) {
             <DialogTitle>Davet linki</DialogTitle>
             <DialogDescription>
               Kopyalanamadı — aşağıdaki linki elle kopyalayıp {staff.displayName} kişisine gönder. Link ile kendi
-              şifresini belirler; sen şifreyi hiç görmezsin. <b>Link 1 saat geçerlidir</b> — hemen
-              açılmayacaksa, açılacağı sırada yeniden üret.
+              şifresini belirler; sen şifreyi hiç görmezsin. <b>7 gün geçerli</b> ve tek kullanımlıktır.
             </DialogDescription>
           </DialogHeader>
           <Input readOnly value={link ?? ''} onFocus={(e) => e.currentTarget.select()} />

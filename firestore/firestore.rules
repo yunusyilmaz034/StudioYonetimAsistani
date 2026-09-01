@@ -67,6 +67,10 @@ service cloud.firestore {
           // and for the same reason — it is her body, described.
           'workoutLogs',
           'paymentIntents',
+          // 2026-09-01 — personel davet jetonlarının ÖZETLERİ. Ham jeton hiçbir yerde saklanmıyor,
+          // yani buradan bir link üretilemez; yine de kimin daveti beklediği personelin bilmesi
+          // gereken bir şey değil ve bir kapının yanındaki kayıt her zaman en dar erişimi hak eder.
+          'staffInvites',
           // PF-37 — payment links + unattributed PAYTR collections (buyer PII). Server-only; the
           // staff app reads them through Server Actions on the Admin SDK, never the client SDK.
           'paytrLinks', 'paytrCollections',

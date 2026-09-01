@@ -15,6 +15,7 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 
 import { requireTenantContext } from '../auth'
+import { issueStaffInvite } from '../staff-invite'
 import { adminAuth, adminDb } from '../firebase-admin'
 import { observed } from '../log'
 
@@ -180,30 +181,33 @@ export async function reactivateStaffAction(input: unknown) {
 }
 
 /**
- * A one-time link that lets a colleague set her OWN password (owner, 2026-08-31).
+ * Bir meslektaşın KENDİ şifresini belirlemesi için davet linki (owner, 2026-08-31 · 2026-09-01'de
+ * kesin çözüme çevrildi).
  *
- * The three trainer accounts had existed for weeks and none had ever signed in, because onboarding a
- * colleague meant the owner inventing a temporary password and reading it out. Two of the three
- * addresses are `@pilatesfitnessbyisil.com` mailboxes that do not receive mail yet, so Firebase's own
- * "send a reset e-mail" would have posted the invitation into a void.
+ * Üç eğitmen hesabı haftalarca duruyordu ve hiçbiri hiç giriş yapmamıştı, çünkü bir meslektaşı
+ * sisteme sokmak owner'ın geçici bir şifre uydurup okuması demekti. Üstelik üç adresten ikisi henüz
+ * mail almayan `@pilatesfitnessbyisil.com` kutuları — Firebase'in kendi "sıfırlama e-postası gönder"
+ * akışı daveti boşluğa postalardı.
  *
- * So the link is GENERATED, never sent: the owner copies it and passes it on however she already
- * talks to her staff — WhatsApp, in person. The mailbox does not have to work for the link to.
+ * ── NEDEN FIREBASE'İN LİNKİ DEĞİL ──────────────────────────────────────────────────────────
  *
- * The reason this is better than a temporary password, and not merely more convenient: **the owner
- * never learns the password.** A shared temporary one tends to survive for months, gets reused, and
- * is typed into a WhatsApp thread that stays there. Here the colleague sets her own, and the link
- * expires by itself.
+ * İlk hâli `generatePasswordResetLink` kullanıyordu. Owner linkleri gönderdi, hocalar ertesi gün
+ * girmeye kalktı, linkler ölmüştü: Firebase'in şifre linki **1 saat** yaşar ve bu proje düzeyinde
+ * ayarlanabilir değil. WhatsApp'tan gönderilen bir davetin ömrü bir saat olamaz.
  *
- * Owner-only, and never for an account that has been deactivated — a link is access, and a
- * deactivated colleague is precisely somebody who should not have it.
+ * Artık davet BİZİM: süresi 7 gün, tek kullanımlık, ve süresi dolan linke tıklayan kişi Firebase'in
+ * İngilizce hata sayfasını değil stüdyonun kendi Türkçe ekranını görüyor.
+ *
+ * Link ÜRETİLİR, gönderilmez: owner kopyalar ve personeliyle zaten nasıl konuşuyorsa öyle iletir —
+ * kutunun çalışması gerekmez. Ve owner şifreyi hiç öğrenmez; meslektaş kendi belirler.
+ *
+ * Kapılar: sadece owner · sadece BU stüdyonun personeli (yoksa istenen her uid için davet basardı) ·
+ * pasif hesaba davet YOK — davet erişimdir.
  */
 export async function staffPasswordLinkAction(input: unknown) {
   const p = z.object({ staffUserId: z.string().min(1) }).parse(input)
   const ctx = await requireTenantContext(OWNER)
 
-  // She must be OUR staff. Without this the action would mint a password-reset link for any uid a
-  // caller could name — including an account in another studio.
   const staff = (await deps().repo.listStaff(ctx)).find((s) => s.id === p.staffUserId)
   if (!staff) return { ok: false as const, error: { code: 'staff_not_found' as const } }
   if (!staff.active) return { ok: false as const, error: { code: 'staff_inactive' as const } }
@@ -211,6 +215,17 @@ export async function staffPasswordLinkAction(input: unknown) {
   const user = await adminAuth().getUser(p.staffUserId).catch(() => null)
   if (!user?.email) return { ok: false as const, error: { code: 'staff_email_missing' as const } }
 
-  const link = await adminAuth().generatePasswordResetLink(user.email)
-  return { ok: true as const, value: { link, email: user.email, displayName: staff.displayName } }
+  const base = (process.env.PUBLIC_APP_URL ?? '').replace(/\/+$/, '')
+  if (!base) return { ok: false as const, error: { code: 'app_url_missing' as const } }
+
+  const { token, expiresAt } = await issueStaffInvite(ctx.studioId, p.staffUserId, String(ctx.actor.id))
+  return {
+    ok: true as const,
+    value: {
+      link: `${base}/personel-davet/${ctx.studioId}/${token}`,
+      email: user.email,
+      displayName: staff.displayName,
+      expiresAt,
+    },
+  }
 }
