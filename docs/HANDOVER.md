@@ -89,7 +89,15 @@ mesai saymak "saat kaçta geldi"yi cevapsız bırakırdı. Yeni olaylar: `staff.
 RFID kart okuyucu sipariş edilecek ama **beklenmiyor**: geldiğinde personel geçişi karta bağlanabilir,
 mesai kaydı yine ayrı kalır.
 
-**`GPIO 6` HIGH SÜRÜLMEZ — ikinci kez ekranları bozdu (1 Eylül).**
+**Buzzer artık `GPIO 16`da, `6`da değil (1 Eylül).** `GPIO 6` bu kartta **üç kez** tökezledi: çıkış
+ekranının `CS`'i olarak denenip elenmişti · HIGH sürülünce iki ekranı birden söndürdü · buzzer'ı
+250 ms LOW'da hiç öttüremedi (sürekli LOW'da yalnızca zar zor bir uğultu — akımı düzgün çekemiyor).
+Üç bağımsız arıza, tek pin. Sebebini bilmiyoruz; bildiğimiz, uzak durmak. `21` denendi ama o şerit
+bu kartta **lehimsiz** geldi — pin seçimi teoriyle değil karta bakarak yapılıyor, çünkü lehimsiz bir
+pin teması tesadüfe bırakır ve bu kart bir akşamını tam olarak buna yedirmişti. `16` ilk denemede
+öttü. Ses kısık kaldı: **DEBT-038**.
+
+**`GPIO 6` HIGH SÜRÜLMEZ — ekranları bozdu (1 Eylül).**
 
 Buzzer aktif-LOW çıkınca bariz çözüm göründü: sussun diye pini HIGH tut. **İki ekran birden beyaz
 kaldı.** Sebebini bilmiyoruz ve uydurmuyoruz; bildiğimiz, bu pinin bu kartta ikinci kez ekranları

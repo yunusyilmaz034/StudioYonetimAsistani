@@ -56,8 +56,19 @@ static const int PIN_ROLE_CIKIS = 4;   // In2
 // AKTİF buzzer, doğrudan GPIO'dan sürülüyor: 5V'luk bir buzzer 3.3V'ta daha kısık öter ama öter, ve
 // araya transistör koymak parça beklemek demekti. Bu yüzden bipler KISA — sürekli sürüş pinin rahat
 // akım sınırını zorlar, 120 ms zorlamaz. Ses yetersiz kalırsa çözüm NPN + 5V, kod değişmez.
-static const int PIN_BUZZER = 6;   // kartta 14 basılı değil; 6 boş ve S3'te güvenli
-static const uint32_t BIP_MS = 120;
+// 6 DEĞİL, 21 (owner, 2026-09-01). `GPIO 6` bu kartta üç kez tökezledi: çıkış ekranının `CS`'i
+// olarak denenip elenmişti, HIGH sürülünce iki ekranı birden söndürdü, ve buzzer'ı 250 ms LOW'da
+// hiç öttüremedi — sürekli LOW'da yalnızca zar zor bir uğultu verdi, yani akımı düzgün çekemiyor.
+// Üç bağımsız arıza, tek pin. Sebebini hâlâ bilmiyoruz; bildiğimiz, bu pinden uzak durmak.
+//
+// 21 değil 16: 21'in şeridi bu kartta lehimsiz geldi. Pin seçimi burada teoriyle değil, karta
+// bakarak yapılıyor — lehimsiz bir pin, temas tesadüfe kalmış bir pindir ve bu kart bir akşamını
+// tam olarak buna yedirmişti.
+static const int PIN_BUZZER = 16;
+// 250 ms, 120 değil (owner, 2026-09-01): geçişte bip HİÇ duyulmadı. Modül 3.3 V'ta zaten kısık
+// ötüyor ve 120 ms'lik kısık bir ses, kapıda duran birinin fark edeceği bir şey değil. Pin akımı
+// dert değil — aktif-low modülde GPIO akımı ÇEKİYOR, sürmüyor.
+static const uint32_t BIP_MS = 250;
 
 // BUZZER: SÜRÜLMEZ, YALNIZCA ÖTERKEN ÇEKİLİR (owner, 2026-09-01, montajda).
 //

@@ -1132,3 +1132,23 @@ tutmak olurdu.
 **Ödeme tetiği (tarih değil, koşul):** ikinci bir stüdyo bu payı farklı istediğinde, ya da
 `policy.attendance` bir sonraki sebeple zaten açıldığında — `entryConsumption.earlyArrivalMinutes`
 olarak oraya taşınır ve karar policy sürümünü damgalar.
+
+## DEBT-038 · Turnike buzzer'ı kısık (2026-09-01)
+
+**Ne:** Kapıdaki buzzer 5 V'luk bir modül (`TMB12A05`) ve 3.3 V'tan besleniyor. Üstelik modül
+aktif-LOW, yani buzzer akımı doğrudan GPIO'nun içinden geçiyor — arada transistör olsaydı aktif-HIGH
+olurdu. Ses duyuluyor ama kısık.
+
+**Neden alındı:** Montaj gecesiydi ve elde transistör yoktu. Sesin işi ikincil: üye kolun döndüğünü
+hissediyor ve ekranda adını görüyor. Kısık bir bip, hiç bip olmamasından iyi; montajı bir transistör
+için ertelemek kötü.
+
+**Neden 5 V'a alınamaz:** Buzzer'ın bir ucu doğrudan `GPIO 16`ya bağlı. `+` 5 V'a alınırsa, pin
+boştayken o 5 V buzzer üzerinden pine gelir — ESP32 pinleri 5 V toleranslı değil.
+
+**Ödeme koşulu (tarih değil):** Eve/stüdyoya bir NPN transistör girdiğinde (BC337 · 2N2222 · S8050,
+hepsi olur). Baz `GPIO 16`ya, kollektör buzzer'a, emiter GND'ye, buzzer'ın `+`'sı 5 V hattına.
+**Kodda hiçbir şey değişmez** — `bip()` zaten pini çekerek sürüyor.
+
+**Belirti, geri geldiğinde:** stüdyoda müzik açıkken kapıdaki üye sesi duymuyorsa, borç faize
+binmiş demektir.
