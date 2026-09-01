@@ -119,6 +119,14 @@ artık pini hiç serbest bırakmıyor, yalnızca LOW/HIGH arasında sürüyor.
 `GPIO 6` yine de kullanılmıyor: HIGH sürülünce ekranları bağımsız olarak bozdu (2/2) ve buzzer'ı
 250 ms'de hiç öttüremedi. O pinin kendi ayrı derdi var, ve sebebini hâlâ bilmiyoruz.
 
+**KARTTAKİ SÜRÜM: `turnike-v1.0` (owner: *"bu sürüm çalışan sürüm, bunu kilitle"*).**
+
+Etiketlenen commit, ESP32'ye atılmış ve tek tek doğrulanmış hâl: iki ekranda QR · röle darbesi ·
+geçiş kaydı ve karşılama · çıkış yönü · buzzer (`GPIO 16`, 250 ms, duyulur).
+
+Firmware'e bir daha dokunulacaksa **önce bu etikete dön**, üstüne tek değişiklik koy, ve karta atıp
+ekranlara bak. Bu akşam öğrenilen şey şu: bu kartta "ekranlarla ilgisi olmayan" bir değişiklik yoktur.
+
 **Buzzer `GPIO 16`da, 250 ms, çalışıyor (1 Eylül).** `GPIO 6` bu kartta **üç kez** tökezledi: çıkış
 ekranının `CS`'i olarak denenip elenmişti · HIGH sürülünce iki ekranı birden söndürdü · buzzer'ı
 250 ms LOW'da hiç öttüremedi (sürekli LOW'da yalnızca zar zor bir uğultu — akımı düzgün çekemiyor).
