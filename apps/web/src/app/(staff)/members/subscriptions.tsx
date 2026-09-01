@@ -416,10 +416,23 @@ function SubscriptionRow({ sub, siblings, products, onChanged, isOwner = false, 
             {sub.note ? <Row label="Açıklama" value={sub.note} /> : null}
             {/* v1.27 S3 — her freeze budget. Shown only where it exists: a Pilates package has none,
                 and a row that says "0 gün" would read as a right she has and cannot use. */}
+            {/* KESİRLİ SAYI OKUNMUYOR (owner, 2026-09-01). Burada "7 / 7 gün" yazıyordu ve owner onu
+                *"7 hakkın 7'si kullanılmış"* diye okudu — üç üye için "dondurma hakları gitmiş"
+                diye haber verdi, oysa üçünün de hakkı tamdı. Kesir, hangi tarafın ne olduğunu
+                söylemez; okuyan kendi varsayımını koyar.
+                Mobil uygulamada bir gün önce aynısı olmuştu: boş bir ders "0/8 dolu" yazıyordu ve
+                DOLU diye okunuyordu. Aynı hatanın ikinci kez, başka bir ekranda çıkması, kesirlerin
+                bu üründe genel olarak yanlış araç olduğunu söylüyor: sayıyı KELİMEYLE söyle. */}
             {freezeSub.freezeEntitledDays ? (
               <Row
                 label="Dondurma hakkı"
-                value={`${freezeSub.freezeDaysRemaining} / ${freezeSub.freezeEntitledDays} gün`}
+                value={
+                  (freezeSub.freezeDaysRemaining ?? 0) === 0
+                    ? `Kalmadı (${freezeSub.freezeEntitledDays} gün kullanıldı)`
+                    : freezeSub.freezeDaysRemaining === freezeSub.freezeEntitledDays
+                      ? `${freezeSub.freezeEntitledDays} gün — hiç kullanılmadı`
+                      : `${freezeSub.freezeDaysRemaining} gün kaldı (${freezeSub.freezeEntitledDays} günün ${(freezeSub.freezeEntitledDays ?? 0) - (freezeSub.freezeDaysRemaining ?? 0)}'i kullanıldı)`
+                }
               />
             ) : null}
             {freezeSub.frozenSince ? (
