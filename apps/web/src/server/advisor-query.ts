@@ -24,6 +24,11 @@ export interface AdvisorItem {
   // The resolved subject (member/session) name — kept SEPARATE so the AI narrator can tokenise it out
   // and no PII reaches the model. null when there is no named subject.
   readonly subject: { readonly id: string; readonly name: string } | null
+  // GRUBUN özeti, satırın değil (owner, 2026-09-01). Bir günün toplamı bir satıra yazılınca göz onu
+  // o satıra ait sanıyor: 5.000 ₺'lik bir tahsilatın sonunda "toplam 19.000 ₺" yazması, 19 bin
+  // çekilmiş gibi okunuyordu. Aynı `kind`'daki satırların hepsi aynı notu taşır; ekran bir kez,
+  // listenin altında yazar.
+  readonly groupNote?: string
 }
 
 function present(insight: Insight, memberName: Map<string, string>, sessionName: Map<string, string>): AdvisorItem {

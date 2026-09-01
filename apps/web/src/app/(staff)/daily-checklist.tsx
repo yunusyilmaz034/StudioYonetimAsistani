@@ -17,6 +17,8 @@ interface Row {
   note: string
   severity: InsightSeverity
   href: string
+  /** Grubun altına bir kez yazılan özet — satırın değil, grubun. */
+  groupNote?: string
 }
 
 const ring = (s: InsightSeverity) =>
@@ -51,7 +53,15 @@ export function DailyChecklist({ items }: { items: readonly AdvisorItem[] }) {
   const [intro, setIntro] = useState<string | null>(null)
   const [ai, setAi] = useState(false)
   const [rows, setRows] = useState<Row[]>(() =>
-    items.map((it) => ({ id: it.id, kind: it.kind, headline: it.title, note: it.detail, severity: it.severity, href: it.href })),
+    items.map((it) => ({
+      id: it.id,
+      kind: it.kind,
+      headline: it.title,
+      note: it.detail,
+      severity: it.severity,
+      href: it.href,
+      ...(it.groupNote ? { groupNote: it.groupNote } : {}),
+    })),
   )
   // itemId → who closed it. Server-held (owner, 2026-08-05): the desk ticks and everyone sees it,
   // including the owner on his phone. It used to be `localStorage`, which made it a private note on
@@ -205,11 +215,20 @@ export function DailyChecklist({ items }: { items: readonly AdvisorItem[] }) {
                   </button>
                 </div>
                 {isOpen ? (
-                  <ul className="divide-y divide-border/50 border-t border-border/50 bg-background/40">
-                    {children.map((r) => (
-                      <TaskRow key={r.id} r={r} onCheck={toggle} nested doneBy={done.get(r.id) ?? null} />
-                    ))}
-                  </ul>
+                  <>
+                    <ul className="divide-y divide-border/50 border-t border-border/50 bg-background/40">
+                      {children.map((r) => (
+                        <TaskRow key={r.id} r={r} onCheck={toggle} nested doneBy={done.get(r.id) ?? null} />
+                      ))}
+                    </ul>
+                    {/* Grubun özeti — SATIRIN değil (owner, 2026-09-01). Günün toplamı bir satırın
+                        sonunda dururken, o satırda o kadar para çekilmiş gibi okunuyordu. */}
+                    {children[0]?.groupNote ? (
+                      <p className="border-t border-border/50 bg-background/40 px-4 py-2.5 text-xs text-muted-foreground">
+                        {children[0].groupNote}
+                      </p>
+                    ) : null}
+                  </>
                 ) : null}
               </li>
             )

@@ -78,7 +78,7 @@ export async function onlinePaymentAdvisorItems(ctx: TenantContext): Promise<rea
 
   const total = visible.reduce((s, r) => s + r.amountKurus, 0)
 
-  return visible.map((r, i) => {
+  return visible.map((r) => {
     const name = names.get(r.memberId) || 'Bilinmeyen üye'
     const time = new Date(r.receivedAtMs + 3 * 3_600_000).toISOString().slice(11, 16)
     const intent = intents.get(r.paymentId.replace(/^pay_/, 'pin_'))
@@ -94,11 +94,15 @@ export async function onlinePaymentAdvisorItems(ctx: TenantContext): Promise<rea
       detail:
         `${originLabel(intent)} · saat ${time}` +
         (what ? ` · ${what}` : '') +
-        '. Para banka hesabına geçer, kasaya girmez.' +
-        // The single-row case has no group header to carry the day's total, so the first row does.
-        (i === 0 && visible.length > 1 ? ` Bugün karttan toplam ${formatKurus(total)}.` : ''),
+        // TEK satırsa açıklama burada, çünkü altında grup yok. Birden fazlaysa hem açıklamayı hem
+        // toplamı `groupNote` taşıyor: aynı cümleyi her satırda tekrarlamak, okunmayı bırakmasının
+        // en hızlı yolu.
+        (visible.length === 1 ? '. Kasaya nakit girmez; para online olarak banka hesabına geçer.' : '.'),
       href: r.memberId ? `/members/${r.memberId}` : '/finance',
       actionLabel: r.memberId ? 'Üyeyi aç' : 'Kasayı aç',
+      ...(visible.length > 1
+        ? { groupNote: `Bugün karttan toplam ${formatKurus(total)}. Kasaya nakit girmez; para online olarak banka hesabına geçer.` }
+        : {}),
     }
   })
 }
