@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ArrowLeftIcon, BotIcon, MessageCircleIcon, SendIcon, UserRoundIcon, XIcon } from 'lucide-react'
+import { ArrowLeftIcon, BotIcon, MessageCircleIcon, SendIcon, UserRoundIcon, XIcon, Loader2Icon } from 'lucide-react'
 import { toast } from 'sonner'
 
 import {
@@ -37,6 +37,11 @@ export function WhatsAppDock() {
   const [text, setText] = useState('')
   /** Sohbet yüklenemedi. Boş bir kutu göstermek yerine söylüyoruz — sessiz hata en kötüsü. */
   const [yuklemeHatasi, setYuklemeHatasi] = useState(false)
+  // AÇIKÇA "YÜKLENİYOR" (owner, 2026-09-01). Bir sohbete tıklayınca panel bomboş kalıyordu: hata
+  // yoktu, içerik de yoktu, ve ekran hiçbir şey söylemiyordu. Owner'ın cümlesi: *"yüklenecekse
+  // loading gelsin bari."* Geçen sefer yalnızca HATA durumunu eklemiştim — bekleme durumunu değil,
+  // ve resepsiyonun gördüğü şey tam olarak oydu.
+  const [yukleniyor, setYukleniyor] = useState(false)
   const [busy, setBusy] = useState(false)
   const seen = useRef<Set<string>>(new Set())
   const baselined = useRef(false)
@@ -110,15 +115,23 @@ export function WhatsAppDock() {
         const d = await getConversationAction({ phone: selected })
         if (!alive) return
         setDetail(d)
+        setYukleniyor(false)
         // `null` = sohbet bulunamadı. Bu da bir hata: boş bir pencere, kullanıcıya sistemin
         // çalıştığını ama konuşmanın olmadığını düşündürüyor.
         setYuklemeHatasi(d === null)
       } catch {
         // Sessizce yutmuyoruz. Eski içerik duruyorsa kalsın, ama hiç içerik yoksa söyle.
-        if (alive) setYuklemeHatasi(true)
+        if (alive) {
+          setYuklemeHatasi(true)
+          setYukleniyor(false)
+        }
       }
     }
+    // ÖNCEKİ SOHBETİ HEMEN TEMİZLE. Aksi halde B'ye tıklayınca A'nın mesajları ekranda kalıyor ve
+    // yeni sohbet yüklenene kadar YANLIŞ konuşma okunuyor — boş ekrandan daha kötü.
+    setDetail(null)
     setYuklemeHatasi(false)
+    setYukleniyor(true)
     void load()
     void markConversationSeenAction({ phone: selected }).catch(() => {})
     seen.current.add(selected)
@@ -219,16 +232,29 @@ export function WhatsAppDock() {
       ) : (
         <>
           <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-1.5 text-xs">
+            {/* YÜKLENMEDEN HÜKÜM VERME. `detail` boşken bu satır varsayılan dala düşüp güvenle
+                "🤖 AI yönetiyor" diyor ve "Devral" sunuyordu — henüz okunmamış bir sohbetin durumu
+                hakkında. O düğmeye basmak, bilinmeyen bir durumu değiştirmek olurdu. */}
             <span className="text-muted-foreground">
-              {detail?.status === 'human' ? '👤 Sen yönetiyorsun' : '🤖 AI yönetiyor'}
+              {!detail ? '…' : detail.status === 'human' ? '👤 Sen yönetiyorsun' : '🤖 AI yönetiyor'}
             </span>
-            {detail?.status === 'human' ? (
+            {!detail ? null : detail.status === 'human' ? (
               <button type="button" onClick={() => void handOff('ai')} className="font-medium text-emerald-700 hover:underline">AI’ya geri ver</button>
             ) : (
               <button type="button" onClick={() => void handOff('human')} className="font-medium text-amber-600 hover:underline">Devral</button>
             )}
           </div>
           <div ref={scrollRef} className="min-h-0 flex-1 space-y-2 overflow-y-auto bg-muted/20 p-3">
+            {yukleniyor && !detail ? (
+              <div className="flex items-center justify-center gap-2 py-8 text-sm text-muted-foreground">
+                <Loader2Icon className="size-4 animate-spin" />
+                Sohbet yükleniyor…
+              </div>
+            ) : null}
+            {/* Yüklendi ama içi boş: bu da bir cevap, ve boş ekrandan farklı bir cevap. */}
+            {!yukleniyor && !yuklemeHatasi && detail && detail.messages.length === 0 ? (
+              <p className="py-8 text-center text-sm text-muted-foreground">Bu sohbette henüz mesaj yok.</p>
+            ) : null}
             {yuklemeHatasi && !detail ? (
               // Boş bir pencere "sohbet yok" gibi okunuyor ve resepsiyon geri dönüp tekrar tıklıyor.
               // Ne olduğunu söylemek, sessizce boş kalmaktan her zaman iyi.
