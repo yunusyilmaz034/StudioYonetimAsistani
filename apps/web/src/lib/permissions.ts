@@ -56,6 +56,7 @@ export type Area =
   | '/conversations' // Faz 2 — WhatsApp AI receptionist conversations (owner + reception)
   | '/ai-report' // Faz 2 — WhatsApp AI receptionist analytics (owner-only)
   | '/patron' // Faz 2 — AI Patron Asistanı: conversational business assistant (owner-only)
+  | '/mesai' // her personelin kendi vardiyası: başla / bitir, ve owner için günün listesi
 
 const OWNER_ONLY: readonly PrincipalRole[] = ['owner']
 const DESK: readonly PrincipalRole[] = ['owner', 'receptionist']
@@ -159,6 +160,12 @@ export const PERMISSIONS: Readonly<Record<Area, readonly PrincipalRole[]>> = {
   // admin panel does not carry it — the owner sees the studio-wide Bordro here, and her own earnings
   // by signing in with her TRAINER account (owner request, 2026-07-16). Trainer only.
   '/my-payroll': ['trainer'],
+  // MESAİ — herkes, çünkü herkesin bir vardiyası var (owner, 2026-09-01).
+  //
+  // Ekranda görünen tek şey KİŞİNİN KENDİ vardiyası; günün listesini yalnızca owner görür ve bu
+  // ayrım sayfanın içinde yapılıyor, burada değil. Hoca kendi saatini yazabilmeli — bunu resepsiyona
+  // sordurmak, kaydı hem geciktirir hem yanlışlar.
+  '/mesai': ['owner', 'receptionist', 'trainer'],
 }
 
 export function canSee(role: PrincipalRole, area: Area): boolean {

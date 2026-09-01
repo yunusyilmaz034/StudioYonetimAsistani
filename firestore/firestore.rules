@@ -91,6 +91,14 @@ service cloud.firestore {
           // codes collection could open the door without ever standing in front of it, and one that
           // could WRITE it could mint its own.
           'devices', 'turnstileCodes',
+          // 2026-08-31 · 2026-09-01 — kapıya giden iki geçici sinyal: son ret ve panelden verilen
+          // AÇ komutu. İkisi de saniyeler yaşıyor, ikisi de bir kolun dönmesine karşılık geliyor.
+          // Yazabilen bir istemci, önünde durmadan kapıyı açardı.
+          'turnstileRefusals', 'turnstileCommands',
+          // 2026-09-01 — mesai. Kimin ne zaman çalıştığı, personelin birbirine sormadığı bir şey;
+          // ve kendi saatini yazan biri, bir başkasınınkini yazamamalı. Karar bunu zaten reddediyor,
+          // bu satır istemcinin kararı hiç atlayamamasını sağlıyor (#8).
+          'staffShifts',
           // v1.27 — internal counters (public-form rate limits, hashed IPs). Server-only; no client read.
           'rateLimits',
           // 2026-07-30 — import batches. Each one lists the members and packages one file created,

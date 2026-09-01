@@ -174,6 +174,13 @@ export type DomainError =
   // can administer staff; a studio whose last owner was demoted has locked every human out of its
   // own permission system, and the way back is a developer with admin credentials.
   | { readonly code: 'last_owner_required' }
+  // ── mesai (owner, 2026-09-01) ──
+  // Vardiyayı yazan, vardiyayı yaşayan kişidir. Bir başkasının saatini yazmak bir düzeltmedir ve
+  // düzeltmenin yolu telafi kaydıdır (#9) — sessizce başkasının adına mesai açmak değil.
+  | { readonly code: 'own_shift_only' }
+  // Açık vardiya varken ikincisi açılmaz: gün sonunda hangisinin gerçek olduğu bilinemez olurdu.
+  | { readonly code: 'shift_already_open' }
+  | { readonly code: 'no_open_shift' }
   // ── freeze (v1.27 S3 · owner, 2026-07-13 · closes DEBT-009) ──
   | { readonly code: 'freeze_not_allowed' }
   | { readonly code: 'freeze_budget_exhausted' }

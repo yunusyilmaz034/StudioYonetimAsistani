@@ -13,6 +13,7 @@ import {
   BellIcon,
   BookOpenIcon,
   CalendarClockIcon,
+  ClockIcon,
   CalendarDaysIcon,
   LayersIcon,
   MegaphoneIcon,
@@ -86,6 +87,12 @@ export const GROUPS: readonly NavGroup[] = [
       // Plus Phase 9 — the trainer's own earnings (owner + trainer; read-only for her).
       { href: '/my-payroll', label: 'Hakedişim', icon: BanknoteIcon },
     ],
+  },
+  {
+    // MESAİ — herkeste, çünkü herkesin bir vardiyası var (owner, 2026-09-01). Kendi başına duruyor:
+    // ne "Bugün"ün bir parçası (o resepsiyonun günü), ne yönetimin (kimse kimseyi yönetmiyor,
+    // herkes kendi saatini yazıyor).
+    items: [{ href: '/mesai', label: 'Mesai', icon: ClockIcon }],
   },
   {
     // Grouped by what the user is TRYING TO DO, not by which subsystem owns the screen (PF-40).

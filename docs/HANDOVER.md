@@ -59,6 +59,36 @@ döneceğini tahmin ettirirdi). Ekranda kimse karşılanmaz — kimin geçtiğin
 
 Turnikesi olmayan stüdyoda bölüm hiç görünmez.
 
+### 🚦 Turnike, canlıya çıkmadan önce ölçülenler (1 Eylül)
+
+Owner: *"amacımız turnike sistemini tamamen bitirmek, akşam da montajını yapalım, aktife canlıya
+alalım."* Montajdan önce üç şey ölçüldü ve ikisi eksikti.
+
+**1 · Kapıyı yalnızca mobil uygulama açabiliyordu.** 177 aktif üyenin **138'i** portalı açmış,
+mobil uygulaması olan **58**. Yani turnike bu hâliyle takılsaydı üç üyeden ikisi kapıda kalırdı.
+Düzeltildi: tarayıcıdaki portal okuyucusu artık altı haneli turnike kodunu da tanıyor — mobildeki
+kuralın aynısı, aynı yerde ([[OR-59]]).
+
+**2 · Panelden açma cihaza hiç ulaşmıyordu** — yukarıda.
+
+**3 · Giriş cihazının adı `polis`'ti** (kurulum gecesinden kalma test adı) ve o ad panelde
+resepsiyona görünüyordu. `Giriş turnikesi` yapıldı
+(`tools/migration/rename-turnstile-device-2026-09.ts`).
+
+Ayrıca panelde artık **çevrimdışı** kapı düğmesi basılamıyor: cihaz kodunu ~25 saniyede bir tazeliyor,
+90 saniye sessizlik arızadır. Bu satır olmasa resepsiyon ölü bir kapıya basıp düğmeyi bozuk sanırdı.
+
+### ⏱ Mesai — personelin giriş çıkışı (1 Eylül)
+
+`/mesai`: tek düğme, *Mesaiye başla* / *Mesaiyi bitir*. Günün listesini yalnızca owner görür.
+
+Turnikeden **ayrı** tutuldu ve sebebi [[OR-58]]'de: personel gün içinde defalarca geçiyor, her geçişi
+mesai saymak "saat kaçta geldi"yi cevapsız bırakırdı. Yeni olaylar: `staff.shift_started`,
+`staff.shift_ended` (PII yok — opak kimlik ve dakika).
+
+RFID kart okuyucu sipariş edilecek ama **beklenmiyor**: geldiğinde personel geçişi karta bağlanabilir,
+mesai kaydı yine ayrı kalır.
+
 ### ⚠️ Yarına kalanlar
 
 1. **Turnike firmware'i YÜKLENMEDİ.** Artık **iki** değişiklik bekliyor: ret ekranı ve panelden

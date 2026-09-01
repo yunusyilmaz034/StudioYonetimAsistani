@@ -22,6 +22,7 @@ import { z } from 'zod'
 import { requireMemberContext, requireTenantContext } from '../auth'
 import { adminDb } from '../firebase-admin'
 import { newJti, signQrToken, verifyQrToken } from '../qr-token'
+import { crossOwnTurnstile } from './turnstile'
 import { reservationPolicyPort } from '../reservation-policy'
 import { qrSigningSecret, qrVerificationSecrets } from '../secrets'
 
@@ -371,6 +372,19 @@ export async function memberScanCheckInAction(input: unknown) {
 // and, from where she is standing, untrue: the code is neither invalid nor used. So the kiosk token
 // is tried first and the poster second, and only if BOTH refuse does she see an error.
 export async function memberCheckInByToken(ctx: TenantContext, memberId: MemberId, scanned: string) {
+  // ── ÜÇÜNCÜ KOD: TURNİKE (owner, 2026-09-01, montajdan önce) ─────────────────────────────────
+  //
+  // Turnike kolunu bugüne kadar YALNIZCA mobil uygulama döndürebiliyordu. Ölçüldü: 177 aktif üyenin
+  // 138'i portalı açmış, ama uygulaması olan **58**. Yani turnike bu hâliyle canlıya alınsaydı, üç
+  // üyeden ikisi kapıda kalır ve resepsiyon bütün gün elle açardı — turnikenin var olma sebebi de
+  // bu olurdu.
+  //
+  // Tarayıcıdaki okuyucu zaten burada ve zaten çalışıyor; eksik olan tek şey üçüncü kodu tanımaktı.
+  // Ayırt eden ŞEKİL, mobilde olduğu gibi: turnike kodu altı hane, çünkü birkaç saniyede bir küçük
+  // bir ekrana yeniden çiziliyor. Üye hangi koda baktığını bilmek zorunda değil.
+  const t = scanned.trim()
+  if (/^\d{6}$/.test(t)) return crossOwnTurnstile(ctx, memberId, { code: t })
+
   const token = tokenFromScan(scanned)
   const claims = verifyQrToken(token, qrVerificationSecrets())
   // Not a kiosk code — try the printed sheet before giving up on her.

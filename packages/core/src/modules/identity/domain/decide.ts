@@ -11,18 +11,23 @@ import {
   type StaffRole,
   type StaffUserId,
   type StudioId,
+  type BranchId,
 } from '../../../shared'
 import {
   STAFF_CREATED,
   STAFF_DEACTIVATED,
   STAFF_REACTIVATED,
   STAFF_ROLE_CHANGED,
+  STAFF_SHIFT_ENDED,
+  STAFF_SHIFT_STARTED,
   type StaffCreatedPayload,
   type StaffDeactivatedPayload,
   type StaffReactivatedPayload,
   type StaffRoleChangedPayload,
+  type StaffShiftEndedPayload,
+  type StaffShiftStartedPayload,
 } from '../events'
-import type { StaffMember } from './types'
+import type { StaffMember, StaffShift } from './types'
 
 // Who may work here, and as what (v1.27 S1 · owner, 2026-07-13).
 //
@@ -186,4 +191,58 @@ export function decideReactivateStaff(
       },
     ],
   })
+}
+
+// ── MESAİ (owner, 2026-09-01) ───────────────────────────────────────────────────────────────
+//
+// Günde iki karar: başladım, bitirdim. Saf, çünkü "şimdi"yi de kimliği de dışarıdan alıyor.
+//
+// Kendi vardiyasını herkes kendi yazar — bir başkasının adına mesai yazmak, bu ekranın işi değil.
+// Owner bir düzeltme yapacaksa bunun yolu bir telafi kaydıdır, sessizce başkasının saatini
+// değiştirmek değil (#9).
+
+export function decideStartShift(
+  ctx: DecideContext,
+  input: { readonly staffUserId: StaffUserId; readonly shiftId: string; readonly branchId: BranchId | null },
+  acik: StaffShift | null,
+): Result<NewEvent<typeof STAFF_SHIFT_STARTED, StaffShiftStartedPayload>[], DomainError> {
+  if (!kendisi(ctx, input.staffUserId)) return err({ code: 'own_shift_only' })
+  // Zaten açık bir vardiya varken ikincisini açmak, gün sonunda hangisinin gerçek olduğunu
+  // bilinemez yapar. Reddediyoruz — sessizce kapatıp yenisini açmak, olmamış bir çıkışı yazmak olur.
+  if (acik) return err({ code: 'shift_already_open' })
+  return ok([
+    {
+      ...base(ctx, input.staffUserId),
+      branchId: input.branchId,
+      type: STAFF_SHIFT_STARTED,
+      payload: { staffUserId: input.staffUserId, shiftId: input.shiftId },
+    },
+  ])
+}
+
+export function decideEndShift(
+  ctx: DecideContext,
+  acik: StaffShift | null,
+): Result<NewEvent<typeof STAFF_SHIFT_ENDED, StaffShiftEndedPayload>[], DomainError> {
+  if (!acik) return err({ code: 'no_open_shift' })
+  if (!kendisi(ctx, acik.staffUserId)) return err({ code: 'own_shift_only' })
+  return ok([
+    {
+      ...base(ctx, acik.staffUserId),
+      branchId: acik.branchId,
+      type: STAFF_SHIFT_ENDED,
+      payload: {
+        staffUserId: acik.staffUserId,
+        shiftId: acik.id,
+        // Aşağı yuvarlanıyor: 59 saniye bir dakika değildir. Saniyeyi hiç yazmıyoruz, çünkü
+        // kimse bir vardiyayı saniyesiyle sormuyor.
+        minutes: Math.max(0, Math.floor(((ctx.now as number) - (acik.startedAt as number)) / 60_000)),
+      },
+    },
+  ])
+}
+
+/** Kendi vardiyası mı? Platform yöneticisi hariç kimse bir başkasının saatini yazamaz. */
+function kendisi(ctx: DecideContext, staffUserId: StaffUserId): boolean {
+  return ctx.actor.type === 'platform_admin' || String(ctx.actor.id) === String(staffUserId)
 }

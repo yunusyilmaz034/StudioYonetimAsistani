@@ -44,3 +44,38 @@ export type StaffDeactivatedPayload = {
 export type StaffReactivatedPayload = {
   readonly staffUserId: string
 }
+
+// ── MESAİ (owner, 2026-09-01) ───────────────────────────────────────────────────────────────
+//
+// Owner: *"personel de giriş çıkış yapabilsin pdks gibi değil de en azından saat kaçta girdi çıktı
+// görsek yeterli."*
+//
+// ── Neden turnikeden DEĞİL ─────────────────────────────────────────────────────────────────
+//
+// Personel gün içinde defalarca girip çıkıyor: kargo, öğle, komşu dükkân. Her geçişi mesai sayarsak
+// "saat kaçta geldi" sorusunun cevabı otuz satır olur ve hiçbiri doğru olmaz — öğle çıkışıyla mesai
+// bitişi aynı şekle sahip. Turnikeden geçiş SÜRTÜNMESİZ kalıyor; mesai günde iki kez, elle,
+// bilinçli olarak yazılıyor. Ölçmek istediğimiz şey geçiş değil, VARDİYA.
+//
+// ── Neden üye giriş-çıkışıyla aynı yerde değil ─────────────────────────────────────────────
+//
+// `member.checked_in` doluluk sayar. Personeli oraya karıştırmak, salondaki üye sayısını kalıcı
+// olarak yanlış yapardı — check-in/attendance karışıklığının aynısı, bir kez karıştıktan sonra
+// ayrıştırılamaz.
+//
+// PII yok (#6): olayda yalnızca opak kullanıcı kimliği duruyor, isim `/staff` belgesinde.
+export const STAFF_SHIFT_STARTED = 'staff.shift_started'
+export const STAFF_SHIFT_ENDED = 'staff.shift_ended'
+
+export type StaffShiftStartedPayload = {
+  readonly staffUserId: string
+  readonly shiftId: string
+}
+
+export type StaffShiftEndedPayload = {
+  readonly staffUserId: string
+  readonly shiftId: string
+  /** Dakika. Türetilebilir ama olayın kendisi okunabilir olsun diye yazılıyor — bir vardiyanın
+   *  uzunluğu, o vardiya hakkında sorulan ilk sorudur. */
+  readonly minutes: number
+}

@@ -21,6 +21,8 @@ describe('the trainer — staff, and the person least entitled to the studio’s
     // Since 2026-08-30 also `/trainees` — the trainers are being brought into the system, and the
     // work they are here to do needs a member screen. It is a SECOND screen over the same members,
     // not the members list with rows hidden: the case below holds that distinction in place.
+    // Since 2026-09-01 also `/mesai` — her OWN shift. She writes her own hours; the day's list on
+    // that page is owner-only and gated inside the page, not by this matrix.
     const visible = AREAS.filter((a) => canSee('trainer', a))
     expect(visible).toEqual([
       '/reservations',
@@ -30,6 +32,7 @@ describe('the trainer — staff, and the person least entitled to the studio’s
       '/trainees',
       '/training',
       '/my-payroll',
+      '/mesai',
     ])
   })
 

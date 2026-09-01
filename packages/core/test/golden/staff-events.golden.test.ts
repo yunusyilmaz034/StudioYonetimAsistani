@@ -4,7 +4,9 @@ import {
   decideChangeRole,
   decideCreateStaff,
   decideDeactivateStaff,
+  decideEndShift,
   decideReactivateStaff,
+  decideStartShift,
 } from '../../src/modules/identity/domain/decide'
 import type { StaffMember } from '../../src/modules/identity/domain/types'
 import { instant, type CorrelationId, type StaffUserId, type StudioId } from '../../src/shared'
@@ -12,6 +14,8 @@ import created from './staff.created.v1.json'
 import deactivated from './staff.deactivated.v1.json'
 import reactivated from './staff.reactivated.v1.json'
 import roleChanged from './staff.role_changed.v1.json'
+import shiftEnded from './staff.shift_ended.v1.json'
+import shiftStarted from './staff.shift_started.v1.json'
 
 // Staff — who may work here, and as what (v1.27 S1 · owner, 2026-07-13).
 //
@@ -154,5 +158,40 @@ describe('a departure is explained, and a re-run is not a second hiring', () => 
     expect(r.ok).toBe(true)
     if (!r.ok) return
     expect(r.value.events).toEqual([])
+  })
+})
+
+// ── MESAİ (owner, 2026-09-01) ───────────────────────────────────────────────────────────────
+//
+// Vardiyanın yükü de aynı kurala tabi: opak kimlik ve süre. Kimin çalıştığının ADI `/staff`
+// belgesinde durur; burada duran şey, o kişi işten ayrıldıktan sonra da anlamlı kalan kısımdır.
+describe('mesai olayları', () => {
+  const BEN = 'usr_1' as StaffUserId
+  const mesaiCtx = (now: number) => ({
+    studioId: 'std_1' as StudioId,
+    actor: { type: 'receptionist' as const, id: BEN as never },
+    now: instant(now),
+    correlationId: 'cor_1' as CorrelationId,
+    source: 'reception_web' as const,
+  })
+
+  it('staff.shift_started', () => {
+    const r = decideStartShift(mesaiCtx(1_700_000_000_000), { staffUserId: BEN, shiftId: 'shf_1', branchId: null }, null)
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.value[0]?.payload).toEqual(shiftStarted)
+  })
+
+  it('staff.shift_ended', () => {
+    const r = decideEndShift(mesaiCtx(1_700_000_000_000 + 8 * 3_600_000), {
+      id: 'shf_1',
+      staffUserId: BEN,
+      branchId: null,
+      startedAt: instant(1_700_000_000_000),
+      endedAt: null,
+    })
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.value[0]?.payload).toEqual(shiftEnded)
   })
 })

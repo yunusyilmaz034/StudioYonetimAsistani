@@ -1069,6 +1069,35 @@ için bakıyordur.
 yakın; ayrıca her yeni tür bileşik bir indeks isterdi — bu depoyu bir kez, yalnızca üretimde var olan
 bir indeks yüzünden durdurmuş bir tuzak ([[OR-14]]).
 
+### OR-58 · Personelin mesaisi turnikeden değil, panelden yazılır
+
+> *"personel de giriş çıkış yapabilsin pdks gibi değil de en azından saat kaçta girdi çıktı görsek
+> yeterli"* — ve aynı mesajda: *"personel gün içinde içeriye girip çıkmak durumunda çok kalıyor."*
+
+İki ihtiyaç aynı cümlede duruyor ama aynı şey değil, ve birleştirmek ikisini de bozardı:
+
+- **Turnikeden geçiş sürtünmesiz kalır.** Personel gün içinde defalarca geçer — kargo, öğle, komşu
+  dükkân. Her geçişi kaydetmek "saat kaçta geldi" sorusunun cevabını otuz satır yapar.
+- **Mesai günde iki kez, elle yazılır.** `/mesai` ekranı: *Mesaiye başla · Mesaiyi bitir*. Hocaların
+  artık hesabı var, telefonlarından da girebiliyorlar.
+
+Kural: **öğle çıkışı ile mesai bitişi aynı şekle sahiptir; ayıran tek şey niyettir, ve niyeti yalnızca
+kişinin kendisi bildirir.** Bu yüzden vardiyayı turnike değil kişi yazar, ve kimse bir başkasının
+adına yazamaz (`own_shift_only`).
+
+Mesai üye doluluğuna KARIŞMAZ: `member.checked_in` salondaki üye sayısıdır, personel oraya girseydi o
+sayı kalıcı olarak yanlış olurdu — check-in/attendance karışıklığının aynısı.
+
+### OR-59 · Turnikeyi yalnızca uygulama değil, tarayıcı da açar
+
+Montajdan önce ölçüldü: 177 aktif üyenin **138'i** portalı açmış, ama mobil uygulaması olan **58**.
+Turnike o hâliyle canlıya alınsaydı üç üyeden ikisi kapıda kalır, resepsiyon bütün gün elle açardı —
+yani turnikenin var olma sebebi ortadan kalkardı.
+
+Kural: **turnike kodunu tanıyan her okuyucu kapıyı açar.** Tarayıcıdaki portal okuyucusu da mobil
+uygulama da aynı üç kodu dener; üye hangi koda baktığını bilmek zorunda değil. Ayırt eden şey ŞEKİL:
+turnike kodu altı hane, çünkü birkaç saniyede bir küçük bir ekrana yeniden çiziliyor.
+
 ## Traps that have already cost something
 
 **OR-14 · Firestore indexes are a production-only trap.** The emulator does NOT enforce them, so a

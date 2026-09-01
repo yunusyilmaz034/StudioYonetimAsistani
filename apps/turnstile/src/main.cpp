@@ -82,14 +82,15 @@ struct Kapi {
   uint32_t kodBitis;
 };
 
-// İKİNCİ KAPI GEÇİCİ OLARAK KAPALI (2026-08-28 gecesi).
+// İKİ KAPI AÇIK (`-D IKI_KAPI`, `platformio.ini`).
 //
-// Sunucu tarafı hazır ve doğrulandı: iki cihaz da dönüşümlü kod üretiyor, ikisinin de son görülmesi
-// güncel. Duran şey ÇİZİM — iki ekranda da `fillScreen` sonrası kalıyor ve seri log bu kartta hiç
-// akmadığı için sebebi körlemesine arıyorduk. Körlemesine aramak bugün bir gün yedi.
+// 2026-08-28 gecesi ikinci kapı geçici olarak kapatılmıştı: çizim iki ekranda `fillScreen` sonrası
+// kalıyordu ve seri log bu kartta akmadığı için sebebi körlemesine arıyorduk. Sebep sonradan
+// bulundu ve yukarıda yazılı — ortak `RESET` hattı ve tek SPI işlemi. İkisi de düzeldiğinden beri
+// iki ekran birlikte çalışıyor.
 //
-// Bu yüzden gece, ÇALIŞAN hâlle kapanıyor. `-D IKI_KAPI` ile ikinci kapı geri gelir; asıl iş logu
-// akıtmak, ondan sonra çizimi ayıklamak dakikalar sürer.
+// Bayrak yerinde duruyor: bir sorun çıkarsa `platformio.ini`den o satırı silmek, kurulumu tek
+// kapıyla ayakta tutar.
 static Kapi kapilar[] = {
   { "giris", "GIRIS", DEVICE_AUTH_GIRIS, &tftGiris, PIN_ROLE_GIRIS, "", 0 },
 #ifdef IKI_KAPI

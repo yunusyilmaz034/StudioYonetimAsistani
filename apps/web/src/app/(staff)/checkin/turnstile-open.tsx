@@ -31,9 +31,15 @@ export function TurnstileOpen() {
   const [acilan, setAcilan] = useState<string | null>(null)
 
   useEffect(() => {
-    void listTurnstilesAction()
-      .then((d) => setCihazlar(d.filter((x) => x.active)))
-      .catch(() => setCihazlar([]))
+    const oku = () =>
+      void listTurnstilesAction()
+        .then((d) => setCihazlar(d.filter((x) => x.active)))
+        .catch(() => setCihazlar([]))
+    oku()
+    // Yarım dakikada bir tazeleniyor: "çevrimdışı" yazısı bir kez çizilip donarsa, yanlış olduğu
+    // anda da orada durur — ve bu ekran bütün gün açık kalıyor.
+    const t = window.setInterval(oku, 30_000)
+    return () => window.clearInterval(t)
   }, [])
 
   // Turnikesi olmayan stüdyoda hiç görünmez. Basılamayacak bir düğme, ekranda yer kaplamaktan başka
@@ -56,12 +62,28 @@ export function TurnstileOpen() {
   return (
     <div className="flex flex-wrap items-center gap-2">
       <span className="text-xs uppercase tracking-wide text-muted-foreground">Turnike</span>
-      {cihazlar.map((c) => (
-        <Button key={c.id} variant="outline" size="sm" onClick={() => void ac(c)} disabled={acilan !== null}>
-          {acilan === c.id ? <Loader2Icon className="size-4 animate-spin" /> : <DoorOpenIcon className="size-4" />}
-          {c.side ? `${ETIKET[c.side]} kapısını aç` : `${c.name} — aç`}
-        </Button>
-      ))}
+      {cihazlar.map((c) => {
+        // KAPI YAŞIYOR MU? Cihaz kodunu ~25 saniyede bir tazeliyor ve her tazeleme `lastSeenAt`e
+        // dokunuyor. 90 saniye sessizlik, bir gecikme değil bir arıza.
+        //
+        // Bu satır olmadan çevrimdışı bir kapıda "Aç" düğmesi hiçbir şey yapmaz ve resepsiyon bunu
+        // düğmenin bozukluğu sanar — kapıda bekleyen biri varken en pahalı yanlış anlama bu.
+        const cevrimdisi = c.lastSeenAt === null || Date.now() - c.lastSeenAt > 90_000
+        return (
+          <Button
+            key={c.id}
+            variant="outline"
+            size="sm"
+            onClick={() => void ac(c)}
+            disabled={acilan !== null || cevrimdisi}
+            title={cevrimdisi ? 'Cihaz çevrimdışı — kapı bu düğmeye cevap veremez.' : undefined}
+          >
+            {acilan === c.id ? <Loader2Icon className="size-4 animate-spin" /> : <DoorOpenIcon className="size-4" />}
+            {c.side ? `${ETIKET[c.side]} kapısını aç` : `${c.name} — aç`}
+            {cevrimdisi ? <span className="ml-1 text-xs text-muted-foreground">· çevrimdışı</span> : null}
+          </Button>
+        )
+      })}
     </div>
   )
 }

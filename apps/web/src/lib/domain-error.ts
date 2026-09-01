@@ -310,6 +310,13 @@ export function domainErrorMessage(error: DomainError): string {
         : `Bu derse üyeliğinle haftada en fazla ${error.limit} kez katılabilirsin; bu haftaki hakkını kullandın.`
     case 'wallet_insufficient':
       return `Cüzdan bakiyesi yetersiz (bakiye ${(error.balance / 100).toLocaleString('tr-TR')} ₺, istenen ${(error.requested / 100).toLocaleString('tr-TR')} ₺).`
+    // ── Mesai (owner, 2026-09-01) ──
+    case 'own_shift_only':
+      return 'Yalnızca kendi mesaini başlatıp bitirebilirsin.'
+    case 'shift_already_open':
+      return 'Zaten açık bir mesain var. Önce onu bitir.'
+    case 'no_open_shift':
+      return 'Açık bir mesain yok. Önce mesaiyi başlat.'
     default: {
       const exhaustive: never = error
       void exhaustive
