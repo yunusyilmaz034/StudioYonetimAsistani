@@ -89,6 +89,21 @@ mesai saymak "saat kaçta geldi"yi cevapsız bırakırdı. Yeni olaylar: `staff.
 RFID kart okuyucu sipariş edilecek ama **beklenmiyor**: geldiğinde personel geçişi karta bağlanabilir,
 mesai kaydı yine ayrı kalır.
 
+### 🔧 Montaj gecesi — sırayla
+
+1. **Firmware'i at:** `cd apps/turnstile && pio run -e giris -t upload`, sonra ikinci kutuya
+   `-e cikis`. İki değişiklik bekliyor: ret ekranı ve panelden açma.
+2. **Röle kablosu:** her ekran KENDİ kanalını sürüyor (giriş → In1/GPIO5, çıkış → In2/GPIO4).
+   Ters bağlanırsa giriş kolu çıkıştan döner ve bu, kodda değil kabloda bir hatadır.
+3. **Aç–kapa testi, panelden:** Check-in ekranındaki *Giriş kapısını aç* / *Çıkış kapısını aç*.
+   Düğme sönükse cihaz çevrimdışıdır — önce WiFi, sonra kod.
+4. **Üye testi, iki yoldan:** bir kez mobil uygulamayla, bir kez **tarayıcıdan** (portal → QR →
+   kamera). İkisi de kolu döndürmeli; ikincisi üyelerin çoğunun kullanacağı yol.
+5. **Ret testi:** paketi bitmiş bir üyeyle okut. Kol DÖNMEMELİ, ekran "Lütfen resepsiyona uğrayın"
+   demeli, telefon uyarmalı.
+6. **Resepsiyona anlatılacak üç cümle:** kapıyı panelden açabilirsin · paketi bitmiş üye geçemez,
+   ekranda yazıyor · kendi mesaini `/mesai`den başlat ve bitir.
+
 ### ⚠️ Yarına kalanlar
 
 1. **Turnike firmware'i YÜKLENMEDİ.** Artık **iki** değişiklik bekliyor: ret ekranı ve panelden
