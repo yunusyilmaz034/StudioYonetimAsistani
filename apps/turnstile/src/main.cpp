@@ -325,6 +325,31 @@ static void kapiTuru(Kapi& k) {
       return;
     }
 
+    // ── PANELDEN AÇ (owner, 2026-09-01) ─────────────────────────────────────────────────────
+    //
+    // Resepsiyon ekrandan "Aç" dedi: misafir, kargo, ya da elinde telefonu olmayan personel. Kol
+    // döner ve ekran kimseyi karşılamaz — çünkü kim geçtiğini bilmiyoruz ve bilmediğimiz bir şeyi
+    // yazmak, yazmamaktan kötüdür. Kaydı sunucu tutuyor: kimin açtığı ve sebebi olayda duruyor.
+    if (c.indexOf("\"open\":{") >= 0) {
+      Serial.printf("[turnike:%s] PANELDEN ACILDI\n", k.ad);
+      darbe(k.rolePin);
+      bip(1);
+
+      Adafruit_ILI9341& tft = *k.tft;
+      tft.fillScreen(ILI9341_BLACK);
+      tft.setTextColor(ILI9341_GREEN);
+      tft.setTextSize(3);
+      tft.setCursor(20, 130);
+      tft.println("Buyurun");
+      tft.setTextColor(ILI9341_WHITE);
+      tft.setTextSize(2);
+      tft.setCursor(20, 180);
+      tft.println("Kapi acildi");
+      delay(KARSILAMA_MS);
+      // Kod harcanmadı: ekrandaki QR hâlâ geçerli ve bir üye onu okutabilir.
+      return;
+    }
+
     // ── RET: paketi olmayan üye (owner, 2026-08-31) ─────────────────────────────────────────
     //
     // Kol DÖNMEZ. Buradaki tek iş yazıyı göstermek — `darbe()` bilerek çağrılmıyor, ve bu satırın

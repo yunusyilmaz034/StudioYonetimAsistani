@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation'
 import { CameraIcon, LogInIcon, LogOutIcon, PrinterIcon, SearchIcon, UsersIcon } from 'lucide-react'
 import { toast } from 'sonner'
 
+import { TurnstileOpen } from './turnstile-open'
+
 import { commandErrorMessage } from '@/lib/stale-deployment'
 
 import type { MemberId } from '@studio/core'
@@ -170,6 +172,9 @@ export function CheckinScreen({ state, members }: { state: CheckinState; members
           </div>
         }
       />
+
+      {/* Kapıda biri varken resepsiyon zaten bu ekranda. Düğmenin yeri burası. */}
+      <TurnstileOpen />
 
       {!state.isOpen ? (
         <div className="rounded-xl border border-warning/30 bg-warning/10 p-4 text-sm text-warning">

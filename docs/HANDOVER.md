@@ -41,11 +41,31 @@ kanıt Cloud Run trafik dağılımı). **Cloud Functions bugün yeniden dağıt�
   değiştirilmedi); yanlış ödeme ve satış iptal edilip doğrusu kuruldu. Kalan **23 ders**, borç yok.
   Havale olduğu için kasa etkilenmedi. (`tools/migration/fix-esra-24-ders-2026-08.ts`)
 
+### 🚪 Panelden turnikeyi açmak (1 Eylül)
+
+Owner: *"panelden resepsiyon açabilmeli çift yönlü olarak turnikeyi."*
+
+Ortaya çıkan şey şuydu: `openTurnstileManually` Ağustos sonundan beri **olay yazıyor ve cihaza hiç
+ulaşmıyordu**. Yani panelde bir "elle aç" kaydı vardı ve o kayıt hiçbir zaman bir kolun dönmesine
+karşılık gelmiyordu. Kimse fark etmemişti çünkü kimse denememişti.
+
+Kurulan yol, ret bildirimiyle aynı desen: `turnstileCommands/{deviceId}` altında cihaz başına **tek**
+komut, **20 saniye** ömürlü, cihaz okuduğu anda silinir. Kalıcı kuyruk yok — vazgeçilmiş bir açma
+on dakika sonra kapıyı kimsenin beklemediği bir anda döndürmesin.
+
+Düğmeler **Giriş / Çıkış ekranında**, iki kapı iki ayrı düğme (tek düğme resepsiyona hangi kolun
+döneceğini tahmin ettirirdi). Ekranda kimse karşılanmaz — kimin geçtiğini bilmiyoruz, ve bilmediğimiz
+şeyi yazmayız (#11). Kimin **açtığı** ve sebebi olayda duruyor.
+
+Turnikesi olmayan stüdyoda bölüm hiç görünmez.
+
 ### ⚠️ Yarına kalanlar
 
-1. **Turnike firmware'i YÜKLENMEDİ.** Kod değişti (ret ekranı), ESP32'ye atılması gerekiyor:
-   `cd apps/turnstile && pio run -t upload`. **Yüklenmeden de kol dönmüyor** ve üyenin telefonu
-   uyarıyor — eksik olan yalnızca kapıdaki yazı.
+1. **Turnike firmware'i YÜKLENMEDİ.** Artık **iki** değişiklik bekliyor: ret ekranı ve panelden
+   açma. `cd apps/turnstile && pio run -t upload`.
+   · Ret ekranı: yüklenmeden de kol dönmüyor, üyenin telefonu uyarıyor — eksik olan kapıdaki yazı.
+   · **Panelden açma ise yüklenene kadar HİÇ çalışmaz.** Düğme panelde görünür, olay yazılır, kol
+     dönmez. Resepsiyona "artık panelden açabilirsin" denmeden önce firmware atılmalı.
 2. **GAMZE BAYKALDI** — paketleri 7 Eylül'de başlıyor, 30 Ağustos'ta bitti, arada 7 gün boşluk.
    Owner Işıl'a soracak: biten paketi 7 Eylül'e uzatmış olabilir. **Uzattıysa bugünkü hatanın kurbanı
    olmuş olabilir** (tarih ilerledi, durum `expired` kaldı) — öyleyse aynı script açar. Onay gelmeden

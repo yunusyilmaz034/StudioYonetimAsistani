@@ -112,9 +112,9 @@ export async function deviceCrossingAction(ctx: TenantContext, deviceId: DeviceI
   // Not this device's code ⇒ say nothing. A screen must never be able to watch another door.
   if (!record || record.deviceId !== deviceId) return { ok: true as const, value: { crossed: null } }
   if (!record.usedBy || !record.usedAt) {
-    // Geçiş yok — ama bu kapıda az önce reddedilen biri olabilir.
-    const ret = await sonRet(ctx, deviceId)
-    return { ok: true as const, value: { crossed: null, ...(ret ? { refused: ret } : {}) } }
+    // Geçiş yok — ama bu kapıda az önce reddedilen biri ya da panelden verilmiş bir açma olabilir.
+    const [ret, ac] = await Promise.all([sonRet(ctx, deviceId), bekleyenAcma(ctx, deviceId)])
+    return { ok: true as const, value: { crossed: null, ...(ret ? { refused: ret } : {}), ...(ac ? { open: ac } : {}) } }
   }
 
   const member = await new FirestoreMemberRepository(adminDb()).findById(ctx, record.usedBy)
@@ -123,6 +123,32 @@ export async function deviceCrossingAction(ctx: TenantContext, deviceId: DeviceI
     ok: true as const,
     value: { crossed: { firstName, kalan: await kalanOzeti(ctx, record.usedBy), at: record.usedAt as number } },
   }
+}
+
+/**
+ * Panelden verilmiş bir AÇ komutu var mı? (owner, 2026-09-01)
+ *
+ * `openTurnstileManually` 2026-08 sonunda yazıldığından beri bir olay yazıyor ve **cihaza hiç
+ * ulaşmıyordu** — yani panelden "aç" demek kolu hiç döndürmedi. Ekran geçişleri "kod kullanıldı mı?"
+ * diye öğreniyor; elle açmanın bir kodu yok, dolayısıyla cihazın haberi olacak bir yol da yoktu.
+ *
+ * Ret bildirimiyle aynı desen: cihaz başına TEK bir komut kaydı, kısa ömürlü, okununca silinir.
+ * Kalıcı bir kuyruk kurmadım — açılmamış bir "aç" komutu on dakika sonra çalışırsa, kapı kimsenin
+ * beklemediği bir anda döner.
+ */
+async function bekleyenAcma(ctx: TenantContext, deviceId: DeviceId): Promise<{ reason: string } | null> {
+  const ref = adminDb().doc(`studios/${ctx.studioId}/turnstileCommands/${deviceId}`)
+  const snap = await ref.get()
+  if (!snap.exists) return null
+  const at = Number(snap.get('at') ?? 0)
+  // 20 saniye: resepsiyon düğmeye bastığında kişi kapıda duruyordur. Daha uzun bir pencere,
+  // vazgeçilmiş bir açmanın sonradan gerçekleşmesi demek.
+  if (Date.now() - at > 20_000) {
+    await ref.delete()
+    return null
+  }
+  await ref.delete()
+  return { reason: String(snap.get('reason') ?? '') }
 }
 
 /** Son 20 saniyede bu kapıda reddedilmiş biri var mı? Ekran bunu bir kez gösterir ve siler. */
@@ -205,11 +231,22 @@ export async function crossOwnTurnstile(ctx: TenantContext, memberId: MemberId, 
   return res
 }
 
-/** Reception opens the arm for a guest. Records WHO opened it, and nothing about a member. */
+/**
+ * Resepsiyon kolu açar. KİMİN açtığını kaydeder, üye hakkında hiçbir şey kaydetmez.
+ *
+ * 2026-09-01: artık gerçekten AÇIYOR. Olay yazmak yetmiyordu — cihazın haberi olması gerekiyordu.
+ */
 export async function openTurnstileAction(input: unknown) {
   const p = z.object({ deviceId: z.string().min(1), reason: z.string().trim().min(1).max(200) }).parse(input)
   const ctx = await requireTenantContext(OPS)
-  return openTurnstileManually(deps(), ctx, p.deviceId as DeviceId, p.reason)
+  const res = await openTurnstileManually(deps(), ctx, p.deviceId as DeviceId, p.reason)
+  if (!res.ok) return res
+  // Olay YAZILDIKTAN sonra komut bırakılır. Ters sırada, kaydı olmayan bir açılma olabilirdi —
+  // kapının kaydı olmayan her hareketi, sonradan kimsenin hesabını veremeyeceği bir hareket.
+  await adminDb()
+    .doc(`studios/${ctx.studioId}/turnstileCommands/${p.deviceId}`)
+    .set({ action: 'open', at: Date.now(), by: String(ctx.actor.id), reason: p.reason })
+  return res
 }
 
 /** The panel's device list — name, branch, and whether the door has spoken to us lately. */
@@ -222,5 +259,8 @@ export async function listTurnstilesAction() {
     branchId: d.branchId as string,
     active: d.active,
     lastSeenAt: d.lastSeenAt === null ? null : Number(d.lastSeenAt),
+    // Hangi kapı. Ekran "Giriş"i ve "Çıkış"ı ayrı düğme olarak gösterebilsin diye — iki kapıya tek
+    // düğme koymak, resepsiyona hangisinin açıldığını tahmin ettirmek olurdu.
+    side: (d as { side?: 'in' | 'out' }).side ?? null,
   }))
 }
