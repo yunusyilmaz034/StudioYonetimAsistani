@@ -73,11 +73,25 @@ OP-L test key   OP-R test key       Drop arm solenoid   LED indicator   OP-R sol
 **`12V Output` mevcut.** LM2596 buradan beslenebilir, ayrı priz gerekmez — ama kaç mA verdiği hâlâ
 ölçülmedi (bkz. §4/1).
 
-⚠️ **`OP-R`/`OP-L` yönü tahmin edilmez** — şemadaki oklar butonlardaki yazıyla çelişiyor. Ama kabloyla
-uğraşmaya da gerek yok: **anakartta `OP-L test key` ve `OP-R test key` butonları var.** Basılır,
-hangi kolun döndüğüne bakılır, yazılır. ESP takılmadan, kablo bağlanmadan yapılabilir — ve kurulumun
-en erken adımı olmalı, çünkü yanlış eşleme sessizce yaşar: girişte okutan üye çıkış kolunu açar,
-kimse fark etmez, doluluk ters döner.
+**YÖN ÖLÇÜLDÜ (1 Eylül, dükkânda):**
+
+```
+Röle K1  IN1 ← GPIO 5   →   COM + OP-R   =  GİRİŞ kolu
+Röle K2  IN2 ← GPIO 4   →   COM + OP-L   =  ÇIKIŞ kolu
+```
+
+Firmware'in zaten varsaydığı eşleme çıktı; kodda değişiklik gerekmedi. Ama **ölçülmeden bilinemezdi**
+ve yanlış olsaydı sessizce yaşardı: girişte okutan üye çıkış kolunu açar, kimse fark etmez, doluluk
+ters döner.
+
+**Nasıl ölçüldü, ve neden test butonuyla değil:** anakartta `OP-L/OP-R test key` butonları var, ama
+o servis tuşunun ne yaptığından emin olunamadı — basınca kol önce ileri, sonra geri gitti. Onun
+yerine **rölenin göndereceği sinyalin aynısı** verildi: `COM` ile `OP-R` bir saniye kısa devre
+edildi. Burada görülen, kurulumda olacak olandır; test tuşunun farklı davranmasının önemi yok, çünkü
+onu kullanmıyoruz.
+
+⚠️ **Kolu bir adımın TAMAMI kadar çevir.** Turnikede geri dönüş yayı var; yarıda bırakılan bir dönüşü
+yay geri alır ve bu "ikinci bir açılma" gibi görünür. Ölçüm ancak tam adımda anlamlıdır.
 
 **Ekran:** `VCC→3V3 · GND→GND · CS→10/9 · RESET→8 · DC→13 · SDI→11 · SCK→12 · LED→18`.
 `SDO` ve `T-*` boş. İkinci ekran nesnesi `RST` almaz (`-1`): hat ortak, ikinci `begin()` birinciyi
@@ -96,8 +110,9 @@ Her adım bir öncekini varsayar. Atlanan adım, sonrakinin cevabını da şüph
    öğrenilir, kablo değiştirerek değil.
 4. Röle: panelden *Giriş kapısını aç* → `DS1` yanmalı, klik gelmeli.
    · DS1 yanmıyor → 4'lü sıranın `VCC`/`GND`'si yok. · DS1 yanıyor klik yok → `JD-VCC`'deki 5 V.
-5. **`OP-R test key` / `OP-L test key`** butonlarına basılır, dönen kollar yazılır. (Bu adım aslında
-   1'den de önce yapılabilir: ne ESP ne kablo gerekiyor.)
+5. **Yön:** `COM` ile `OP-R` bir saniye kısa devre edilir, kol **tam bir adım** çevrilir, açılan yön
+   yazılır. Servis tuşuyla değil — rölenin göndereceği sinyalin aynısıyla. (Bu adım 1'den de önce
+   yapılabilir: ne ESP ne kablo gerekiyor, tek bir tel yeter.)
 6. Üye geçişi **iki yoldan**: mobil uygulama **ve** tarayıcı. İkincisi üyelerin çoğunun yolu.
 7. Paketi bitmiş üyeyle ret testi: kol dönmemeli, ekranda "Lütfen resepsiyona uğrayın".
 
