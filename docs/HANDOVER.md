@@ -119,6 +119,15 @@ artık pini hiç serbest bırakmıyor, yalnızca LOW/HIGH arasında sürüyor.
 `GPIO 6` yine de kullanılmıyor: HIGH sürülünce ekranları bağımsız olarak bozdu (2/2) ve buzzer'ı
 250 ms'de hiç öttüremedi. O pinin kendi ayrı derdi var, ve sebebini hâlâ bilmiyoruz.
 
+**DONANIM SPESİFİKASYONU DONDURULDU:** [`docs/TURNSTILE-HARDWARE.md`](TURNSTILE-HARDWARE.md).
+Parça listesi, pin haritası, yasak pinler ve kurulum sırası tek yerde. **İkinci stüdyoya bu belgeden
+kurulur.** Owner'ın itirazı yerindeydi: *"habire ürün değiştiriyoruz, bir standart donanım yapamadık."*
+Birinci ünitenin işi BOM'u keşfetmekti; hata, keşfedip dondurmadan ikinciye gitmek olurdu.
+
+Belgenin §5'i asıl uyarı: **ikinci kapı takılmadan önce WiFi'nin cihaz üstünden girilmesi ve cihaz
+kimliğinin panelden üretilmesi gerekiyor.** Bugün ikisi de elle yapılıyor, yani her kurulum bir Mac ve
+bir yazılımcı istiyor. Parça meselesi değil, ve Faz 2.
+
 **KARTTAKİ SÜRÜM: `turnike-v1.0` (owner: *"bu sürüm çalışan sürüm, bunu kilitle"*).**
 
 Etiketlenen commit, ESP32'ye atılmış ve tek tek doğrulanmış hâl: iki ekranda QR · röle darbesi ·
