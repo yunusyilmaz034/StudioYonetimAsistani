@@ -310,8 +310,28 @@ export async function loadPortalReservations(
   const relevant = [...reservations].sort((a, b) => b.sessionStartsAt - a.sessionStartsAt)
 
   const upcomingRaw = relevant.filter((r) => r.status === 'booked' && r.sessionStartsAt > nowMs)
+
+  // ── "GEÇMİŞ" NE DEMEK (owner, 2026-09-01) ─────────────────────────────────────────────────
+  //
+  // Burası bir OLUMSUZLUKLA tanımlanmıştı: *"yaklaşan rezervasyon olmayan her şey."* Öyle bir tanım
+  // ne dışarıda bırakacağını söylemez, sadece süpürür — ve iptalleri, geç iptalleri, hepsini içeri
+  // aldı. Sonuç üyenin ekranında iki ayrı yanlış olarak göründü: iptal ettiği ders "geçmişim"de
+  // duruyordu, ve 3 Eylül'e ait iptal edilmiş bir kayıt, aynı güne yeniden aldığı dersin KOPYASI
+  // gibi okunuyordu. Owner: *"geçmişte iptali hiç gösterme."*
+  //
+  // Artık OLUMLU tanımlı: geçmiş, **başına gerçekten gelenler**. Katıldığı ders, gelmediği ders, ve
+  // henüz sonuçlanmamış ama saati geçmiş ders. İptal ettiği bir ders başına gelmedi — o, olmayan
+  // bir şeyin kaydı.
+  //
+  // `late_cancelled` de dışarıda, ve bu bilinçli: üye için o da bir iptaldir. Kredisinin nereye
+  // gittiğini merak ederse cevabı stüdyodan alır — ekranında "gitmediğin dersler" listesi tutmak
+  // ondan daha kötü.
+  //
+  // YALNIZCA ÜYE TARAFI. Panel kendi sorgusunu kullanır ve iptalleri "İptalleri göster (2 gizli)"
+  // ile açıkça sunar — resepsiyonun neyin iptal edildiğini görmesi gerekir, üyenin gerekmez.
+  const GECMISTE_GORUNENLER: readonly string[] = ['attended', 'no_show', 'booked']
   const pastRaw = relevant
-    .filter((r) => !(r.status === 'booked' && r.sessionStartsAt > nowMs))
+    .filter((r) => r.sessionStartsAt <= nowMs && GECMISTE_GORUNENLER.includes(r.status))
     .slice(0, PORTAL_LIMITS.pastReservations)
 
   const sessions = await loadSessions(
