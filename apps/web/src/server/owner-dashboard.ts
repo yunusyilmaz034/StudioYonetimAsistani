@@ -272,6 +272,24 @@ export async function loadOwnerDashboard(
   // a FROZEN package counts here even though `isValidNow` excludes it: she has bought and she is
   // coming back, and the list calls her Aktif. `isValidNow` keeps its own meaning — *usable today* —
   // which is the right question for the credit and occupancy figures below, and the wrong one here.
+  // ── KİMİ ARAMAYA DEĞER (owner, 2026-09-01) ────────────────────────────────────────────────
+  //
+  // *"Aktif paketi fitness'sa önemseme, pilates ise değerli. Fitness'ta gelmeyen üyeden kazanıyoruz
+  // sonuçta, arayıp 'gel' diye ikna etmeye gerek yok."*
+  //
+  // İş mantığı: fitness SINIRSIZ bir üyelik — gelmeyen üye de ödüyor, ve boş kalan salonun stüdyoya
+  // maliyeti yok. Pilates ise ders bazlı: uzaklaşan üye derslerini kullanmaz, kullanmayınca yenilemez.
+  // Yani "uzaklaşma" sinyali yalnızca ders bazlı üyelikte bir RİSK; fitness'ta yalnızca bir gözlem.
+  //
+  // Bir üyenin hem pilates hem fitness paketi varsa (hibritler dahil) SAYILIR — pilates tarafı onu
+  // aranmaya değer kılar. Dışarıda kalan yalnızca SADECE fitness'ı olan üye.
+  const withClassPackage = new Set<string>()
+  for (const e of entitlements) {
+    if (!isValidNow(e, nowMs)) continue
+    if (e.productSnapshot.category === 'fitness') continue
+    withClassPackage.add(e.memberId as string)
+  }
+
   const withLivePackage = new Set(withValidPackage)
   for (const e of entitlements) {
     if (e.status === 'frozen') withLivePackage.add(e.memberId as string)
@@ -393,7 +411,10 @@ export async function loadOwnerDashboard(
   // attendance recency, floored at joinedAt (a new member is not dormant). Zero extra reads: the member
   // list and `withValidPackage` are already in hand. NOT a projection — it is "how the world is right
   // now", a bounded state computation (daily.ts's rule).
-  const activeWithPackage = members.filter((m) => m.status === 'active' && withValidPackage.has(m.id as string))
+  // Ders bazlı paketi olanlar. Sadece fitness'ı olan üye buraya girmez — ne arama listesine, ne de
+  // nabız dağılımına. İkisi AYNI kümeden çıkıyor, çünkü kart "6 üye uzaklaşıyor" derken liste 3
+  // gösterseydi, ikisinden hangisinin doğru olduğunu kimse bilemezdi.
+  const activeWithPackage = members.filter((m) => m.status === 'active' && withClassPackage.has(m.id as string))
   let fresh = 0
   let steady = 0
   let cooling = 0

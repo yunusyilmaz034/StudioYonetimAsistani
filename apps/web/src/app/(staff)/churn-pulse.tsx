@@ -53,7 +53,7 @@ export function ChurnPulse({
   return (
     <Section
       title="Üye Nabzı"
-      hint="Aktif paketi olan üyeler ne zaman geldi? Uzaklaşanları geç olmadan görün."
+      hint="Ders paketi olan üyeler ne zaman geldi? Sınırsız fitness üyeleri burada sayılmaz — gelmediğinde kayıp değil."
     >
       <div className="space-y-4 rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-5">
         {/* Headline — the one thing that matters, said in words. */}
@@ -64,6 +64,9 @@ export function ChurnPulse({
           <div className="min-w-0">
             {mode === 'churn' ? (
               <p className="text-sm">
+                {/* "Ders paketi olan" demek zorunlu: sayı artık tüm aktif üyeleri değil, ders bazlı
+                    paketi olanları ölçüyor (owner, 2026-09-01 — fitness sınırsız, gelmeyen üye de
+                    ödüyor). Sayının neyi saydığını yazmayan bir kart, yanlış okunmaya davetiyedir. */}
                 <span className="font-semibold text-foreground">{drifting} üye</span> uzaklaşıyor
                 {atRisk > 0 ? <span className="text-rose-600"> — {atRisk} tanesi risk altında</span> : null}.
               </p>
@@ -75,7 +78,10 @@ export function ChurnPulse({
                 <span className="text-muted-foreground">Check-in ve rezervasyon oldukça nabız dolar.</span>
               </p>
             )}
-            <p className="text-xs text-muted-foreground">{total} aktif üyelik üzerinden</p>
+            {/* Payda değişti, o yüzden cümlesi de değişti. "117 aktif üyelik" derken artık 117'yi
+                saymıyor — sadece fitness'ı olanlar dışarıda. Eski cümleyi bırakmak, doğru rakamın
+                üstüne yanlış bir etiket koymak olurdu. */}
+            <p className="text-xs text-muted-foreground">{total} ders paketli üyelik üzerinden</p>
           </div>
         </div>
 
