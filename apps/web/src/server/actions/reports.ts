@@ -1,7 +1,7 @@
 'use server'
 
 import {
-  debtByMember,
+  debtByEntitlement,
   FirestoreEntitlementRepository,
   FirestoreFinanceRepository,
   FirestoreIdentityRepository,
@@ -68,7 +68,7 @@ export async function loadReportAction(input: unknown): Promise<ReportResult> {
       const [members, entitlements, debt] = await Promise.all([
         new FirestoreMemberRepository(db).list(ctx),
         new FirestoreEntitlementRepository(db).listAll(ctx),
-        debtByMember({ repo: new FirestoreFinanceRepository(db), clock: systemClock }, ctx),
+        debtByEntitlement({ repo: new FirestoreFinanceRepository(db), clock: systemClock }, ctx),
       ])
       return {
         id: p.id,

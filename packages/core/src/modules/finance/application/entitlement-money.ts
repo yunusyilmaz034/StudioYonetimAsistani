@@ -102,3 +102,28 @@ export async function debtByMember(
   }
   return new Map([...out].map(([id, kurus]) => [id, money(kurus)]))
 }
+
+/**
+ * PAKET BAŞINA AÇIK BAKİYE, bütün stüdyo için — tek okuma (owner, 2026-09-02).
+ *
+ * `debtByMember` ÜYE başına topluyor. Üyelik raporunda o toplam, satırda adı yazan paketin yanına
+ * geliyordu — ve iki paketi olan bir üyede satırdaki hiçbir şey aynı pakete ait olmuyordu: paket
+ * eskisinin, bakiye yenisinin. Doğru okunan ama yanlış olan bir satır.
+ *
+ * Aynı `listOpenSales` okumasından çıkıyor, yani ek maliyet yok. Anahtar `SaleLine.entitlementId`.
+ * Bir demet (hibrit) satışında her bileşen satışın borcunu bildirir — üye ekranındaki tek kartın
+ * gösterdiği rakamın aynısı.
+ */
+export async function debtByEntitlement(deps: FinanceDeps, ctx: TenantContext): Promise<Map<string, Money>> {
+  const open = await deps.repo.listOpenSales(ctx)
+  const out = new Map<string, number>()
+  for (const s of open) {
+    const due = saleBalanceDue(s)
+    if (due <= 0) continue
+    for (const line of s.lines) {
+      if (!line.entitlementId) continue
+      out.set(line.entitlementId as string, due)
+    }
+  }
+  return new Map([...out].map(([id, kurus]) => [id, money(kurus)]))
+}

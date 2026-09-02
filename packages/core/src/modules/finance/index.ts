@@ -95,6 +95,7 @@ export {
   type SellPackagePayment,
 } from './application/sell-package'
 export {
+  debtByEntitlement,
   debtByMember,
   moneyByEntitlement,
   type EntitlementMoney,

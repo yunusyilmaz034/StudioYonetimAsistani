@@ -108,8 +108,9 @@ export function buildMembership(
   members: readonly Member[],
   entitlements: readonly Entitlement[],
   nowMs: number,
-  // What each member owes, from the LEDGER's open sales. `member.stats.balanceDue` was never written
-  // by anything — this column used to be a column of zeros (Alpha Review).
+  // Ne kadar borç, PAKET başına — üye başına değil (owner, 2026-09-02). İki paketi olan bir üyede
+  // üye toplamı, satırda adı yazan paketin yanında yanlış duruyordu: paket eskisinin, bakiye
+  // yenisinindi. Bir satır tek bir pakete ait olmalı.
   debtKurus: ReadonlyMap<string, number>,
 ): Report {
   const live = members.filter((m) => !m.erased && m.status !== 'deleted')
@@ -127,9 +128,15 @@ export function buildMembership(
     const all = byMember.get(m.id as string) ?? []
     const own = all
       .filter((e) => e.status === 'active' || e.status === 'frozen')
-      // Earliest-expiring first — the same order the booking path spends them in, so the package the
-      // report names is the package the next class will actually take a credit from.
-      .sort((a, b) => a.validUntil - b.validUntil)
+      // EN SON ALINAN önce (owner, 2026-09-02). Eskiden en yakın biten seçiliyordu ve gerekçesi
+      // sağlamdı: rezervasyon krediyi ondan harcar, yani rapor "bir sonraki dersin düşeceği paketi"
+      // adlandırırdı. Ama bu raporun sorduğu soru o değil — başlığında yazıyor: *"kim üye, paketi ne
+      // durumda"*. Owner'ın bakarken aradığı şey üyenin **şu anki/son** üyeliği.
+      //
+      // Fark gerçek: bir üyenin 11 Eylül'de biten eski paketi ve 14 Eylül'de BAŞLAYAN yeni paketi
+      // olabiliyor. Eskisi önce harcanır, ama "bu üyenin üyeliği ne" sorusunun cevabı yenisidir.
+      // Başlangıç tarihi sütunu tam da bu yüzden eklendi: ileri tarihli bir paket satırda görünür.
+      .sort((a, b) => (b.purchasedAt as number) - (a.purchasedAt as number) || a.validUntil - b.validUntil)
     const e = own[0]
     // Her state reads the DATE too: `status` is flipped to expired by the nightly sweep, and this
     // column must not depend on whether that job fired (a frozen package outruns its date by design).
@@ -148,7 +155,9 @@ export function buildMembership(
       e ? e.productSnapshot.name : '—',
       kalanGun === null ? '—' : kalanGun,
       credits === null ? (e ? 'Süresiz' : '—') : credits,
-      lira(debtKurus.get(m.id as string) ?? 0),
+      // O PAKETİN borcu — üyenin toplamı değil. Satırdaki her hücre aynı pakete ait.
+      lira(e ? (debtKurus.get(e.id as string) ?? 0) : 0),
+      e ? date(e.validFrom) : '—',
       e ? date(e.validUntil) : '—',
       // "Dondurulmuş" is more specific than "Aktif" and the spreadsheet is where detail belongs —
       // it is the same choice the list's badge makes for a frozen member.
@@ -184,7 +193,10 @@ export function buildMembership(
         'Aktif paket',
         'Kalan gün',
         'Kalan kredi',
-        'Bakiye (₺)',
+        // "Paket bakiyesi", "Bakiye" değil: bu sütun artık ÜYENİN toplam borcu değil, satırda adı
+        // yazan paketin borcu. Adı söylemezse, aynı kelime iki farklı şeyi anlatmış olur.
+        'Paket bakiyesi (₺)',
+        'Başlangıç',
         'Bitiş',
         'Durum',
         'Telefon',
