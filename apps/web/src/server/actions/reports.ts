@@ -2,6 +2,8 @@
 
 import {
   debtByEntitlement,
+  loadExcludedMemberIds,
+  type TenantContext,
   FirestoreEntitlementRepository,
   FirestoreFinanceRepository,
   FirestoreIdentityRepository,
@@ -52,6 +54,25 @@ export interface ReportResult extends Report {
   readonly id: ReportId
 }
 
+/**
+ * TEST HESAPLARI RAPORLARDA DA GÖRÜNMEZ (owner, 2026-09-02).
+ *
+ * `settings/projection.excludedMemberIds` günlük projeksiyonda ve panoda okunuyordu; raporlarda
+ * okunmuyordu. Owner test hesabını üyelik raporunda borçlu olarak gördü: *"hiçbir kayıtta yunus
+ * test gözükmesin."*
+ *
+ * Aynı liste, aynı anlam: olay silinmez, okuma modeli saymaz. Rapor bir okuma modelidir.
+ */
+async function haricTut<T extends { readonly memberId?: unknown; readonly id?: unknown }>(
+  ctx: TenantContext,
+  rows: readonly T[],
+  alan: 'id' | 'memberId',
+): Promise<readonly T[]> {
+  const excluded = await loadExcludedMemberIds(adminDb(), ctx.studioId)
+  if (excluded.size === 0) return rows
+  return rows.filter((r) => !excluded.has(String(r[alan])))
+}
+
 export async function loadReportAction(input: unknown): Promise<ReportResult> {
   const p = z
     .object({
@@ -73,8 +94,8 @@ export async function loadReportAction(input: unknown): Promise<ReportResult> {
       return {
         id: p.id,
         ...buildMembership(
-          members,
-          entitlements,
+          await haricTut(ctx, members, 'id'),
+          await haricTut(ctx, entitlements, 'memberId'),
           p.toMs,
           new Map([...debt].map(([id, m]) => [id, m.amount])),
         ),
@@ -88,7 +109,7 @@ export async function loadReportAction(input: unknown): Promise<ReportResult> {
         new FirestoreMemberRepository(db).list(ctx),
         new FirestoreIdentityRepository(db).listStaff(ctx),
       ])
-      return { id: p.id, ...buildSales(sales, members, staff) }
+      return { id: p.id, ...buildSales(await haricTut(ctx, sales, 'memberId'), members, staff) }
     }
 
     case 'collections': {

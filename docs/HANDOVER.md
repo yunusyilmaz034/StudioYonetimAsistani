@@ -78,6 +78,28 @@ bir indirimi rapora sokardı.
 kuruldu; `sell` satış tarihini saatten alıyor, dışarıdan verilemiyor). Yani satış raporunda 2 Eylül,
 tahsilat raporunda 1 Eylül. Paranın girdiği gün 1 Eylül ve orası doğru.
 
+### 💸 Eski fiyatla satılmış iki hibrit paket + test hesabının borcu (2 Eylül)
+
+`Hibrit Aylık — 2 Fitness + 1 Pilates` güncel fiyatı **nakit 5.000 / kart 5.500**; iki üyeye eski
+fiyat (6.000) yazılmıştı.
+
+- **SELMA BOZKURT YILDIRIM** — 6.000 satış, 5.000 nakit ödenmiş → kayıtta 1.000 ₺ borç görünüyordu.
+- **EBRU KILIÇ** — bakiyesi zaten sıfırdı; bozuk olan kaydın ŞEKLİYDİ: eski fiyatı 5.000'e indirmek
+  için **1.000 ₺'lik "hediye" indirimi** yazılmış. Öyle bir hediye verilmedi. İndirim raporunun tek
+  varlık sebebi *"bu tavizi vermeye devam edelim mi"* sorusudur ([[OR-32]]); hiç verilmemiş bir
+  tavizi oraya yazmak o sorunun cevabını bozar.
+
+`tools/migration/fix-hibrit-eski-fiyat-2026-09.ts` — ödemeler ve satış sebebiyle iptal, doğrusu
+5.000'den kuruldu, ödemeler **özgün tarih ve yöntemleriyle** geri yazıldı. Kasa net değişmedi.
+
+**YUNUS TEST** — ekranlar yalan söylemiyordu: hesabın gerçekten **2.500 ₺ açık satışı** vardı,
+denemede kalmış. Filtreyle gizlemek yanlış cevap olurdu; **gizlenen bir alacak hâlâ alacaktır.**
+`tools/migration/cancel-test-open-sales-2026-09.ts` onu sebebiyle iptal etti (yalnızca hariç tutulan
+hesaplar, yalnızca `open` satışlar — tahsil edilmişlere dokunulmadı).
+
+Ayrıca **raporlar da artık `excludedMemberIds`i okuyor.** Pano bunu 27 Ağustos'ta öğrenmişti,
+raporlar öğrenmemişti. Rapor bir okuma modelidir; aynı kural oraya da geçerli.
+
 ### 📵 20 saattir çalan alarm — ve alarmın kendisinin sesi çıkmıyordu (1 Eylül akşamı)
 
 Google Cloud her saat başı e-posta gönderiyordu: `health: ai_not_replying`, 20 saattir. Ölçüldü:
