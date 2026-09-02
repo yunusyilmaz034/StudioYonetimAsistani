@@ -59,6 +59,25 @@ döneceğini tahmin ettirirdi). Ekranda kimse karşılanmaz — kimin geçtiğin
 
 Turnikesi olmayan stüdyoda bölüm hiç görünmez.
 
+### 💸 SAKİNE GÜMÜŞ — eski fiyatla satılmış paket (2 Eylül)
+
+Hibrit Aylık paketi **7.000 ₺** yazılmıştı; katalogdaki güncel fiyat **nakit 5.850 / kart 6.500**.
+Yani tutar fiyat değişmeden önceki tutardı, üstelik tahsilat hiç kaydedilmemişti — üye nakit ödemiş,
+kayıtta 7.000 ₺ borç duruyordu. Owner doğruladı: **5.850 ₺, nakit, 1 Eylül.**
+
+`tools/migration/fix-sakine-hibrit-fiyat-2026-09.ts` — yanlış satış **sebebiyle iptal**, doğrusu
+kuruldu, nakit tahsilat Merkez Kasa'ya 1 Eylül tarihiyle yazıldı. **Aboneliğe dokunulmadı**: ürün,
+tarihler ve krediler zaten doğruydu; yeni satışın satırı aynı abonelik kimliğini gösteriyor.
+
+**Neden indirim olarak yazılmadı:** `discountSale` ile 1.150 ₺ indirim yazmak kolaydı ve yanlış
+olurdu. İndirim, stüdyonun **bilerek** verdiği tavizdir ve ölçülmesinin sebebi "vermeye devam edelim
+mi" sorusudur ([[OR-32]]). Burada taviz yok, eski fiyat var. İndirim diye kaydetmek, hiç yapılmamış
+bir indirimi rapora sokardı.
+
+**Bilinen ayrıntı:** tahsilat 1 Eylül'e yazıldı ama satış kaydının kendi tarihi 2 Eylül (kayıt o gün
+kuruldu; `sell` satış tarihini saatten alıyor, dışarıdan verilemiyor). Yani satış raporunda 2 Eylül,
+tahsilat raporunda 1 Eylül. Paranın girdiği gün 1 Eylül ve orası doğru.
+
 ### 📵 20 saattir çalan alarm — ve alarmın kendisinin sesi çıkmıyordu (1 Eylül akşamı)
 
 Google Cloud her saat başı e-posta gönderiyordu: `health: ai_not_replying`, 20 saattir. Ölçüldü:
