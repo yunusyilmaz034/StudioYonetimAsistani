@@ -1,5 +1,6 @@
 'use client'
 
+import { foldTr } from '@/lib/fold-tr'
 import { useCallback, useEffect, useState } from 'react'
 import { CheckIcon, DoorOpenIcon, Loader2Icon, UserIcon, UsersIcon, XIcon } from 'lucide-react'
 import { toast } from 'sonner'
@@ -548,9 +549,9 @@ function PtAssignment({
     setBusy(false)
   }
 
-  const q = query.trim().toLocaleLowerCase('tr')
+  const q = foldTr(query.trim())
   const filtered = (members ?? []).filter(
-    (m) => q === '' || m.fullName.toLocaleLowerCase('tr').includes(q) || m.phone.includes(q),
+    (m) => q === '' || foldTr(m.fullName).includes(q) || m.phone.includes(q),
   )
 
   return (

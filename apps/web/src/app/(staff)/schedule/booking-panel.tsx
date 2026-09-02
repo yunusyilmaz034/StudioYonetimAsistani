@@ -1,5 +1,6 @@
 'use client'
 
+import { foldTr } from '@/lib/fold-tr'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import {
@@ -108,11 +109,11 @@ export function BookingPanel({ session, onMutated, canBackdate = true }: { sessi
 
   const filteredMembers = useMemo(() => {
     if (!members) return []
-    const q = query.trim().toLocaleLowerCase('tr')
+    const q = foldTr(query.trim())
     const digits = query.replace(/\D/g, '')
     if (!q && !digits) return members.slice(0, 30)
     return members
-      .filter((m) => m.fullName.toLocaleLowerCase('tr').includes(q) || (digits.length > 0 && m.phone.includes(digits)))
+      .filter((m) => foldTr(m.fullName).includes(q) || (digits.length > 0 && m.phone.includes(digits)))
       .slice(0, 30)
   }, [members, query])
 

@@ -1,5 +1,6 @@
 'use client'
 
+import { foldTr } from '@/lib/fold-tr'
 import { CheckIcon, QrCodeIcon, ScanLineIcon, SearchIcon, WifiOffIcon, XIcon } from 'lucide-react'
 import Link from 'next/link'
 import QRCode from 'qrcode'
@@ -139,10 +140,10 @@ export function KioskScreen({
   )
 
   const matches = useMemo(() => {
-    const q = query.trim().toLocaleLowerCase('tr')
+    const q = foldTr(query.trim())
     if (q.length < 2) return []
     return members
-      .filter((m) => m.fullName.toLocaleLowerCase('tr').includes(q))
+      .filter((m) => foldTr(m.fullName).includes(q))
       .slice(0, 6) // a kiosk list you have to scroll is a kiosk list nobody reads
   }, [members, query])
 

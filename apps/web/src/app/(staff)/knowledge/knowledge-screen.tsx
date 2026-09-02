@@ -1,5 +1,6 @@
 'use client'
 
+import { foldTr } from '@/lib/fold-tr'
 import { useMemo, useState } from 'react'
 import {
   AlertTriangleIcon,
@@ -49,11 +50,11 @@ export function KnowledgeScreen({ initial, canManage }: { initial: KnowledgeArti
   const reload = async () => setArticles([...(await listKnowledgeArticlesAction())])
 
   const filtered = useMemo(() => {
-    const needle = q.trim().toLocaleLowerCase('tr')
+    const needle = foldTr(q.trim())
     return articles.filter(
       (a) =>
         (cat === 'all' || a.category === cat) &&
-        (needle === '' || a.title.toLocaleLowerCase('tr').includes(needle) || a.body.toLocaleLowerCase('tr').includes(needle)),
+        (needle === '' || foldTr(a.title).includes(needle) || foldTr(a.body).includes(needle)),
     )
   }, [articles, q, cat])
 

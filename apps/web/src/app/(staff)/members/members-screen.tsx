@@ -1,5 +1,6 @@
 'use client'
 
+import { foldTr } from '@/lib/fold-tr'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -89,13 +90,13 @@ export function MembersScreen({
   // Search AND filter — they compose. "Bitecek paketi olanlar arasında Ayşe hangisiydi?" is one
   // question, not two screens.
   const filtered = useMemo(() => {
-    const q = query.trim().toLocaleLowerCase('tr')
+    const q = foldTr(query.trim())
     const digits = query.replace(/\D/g, '')
     const rows = members.filter((m) => {
       if (!matches(filter, m.badges)) return false
       if (!q && !digits) return true
       return (
-        m.fullName.toLocaleLowerCase('tr').includes(q) ||
+        foldTr(m.fullName).includes(q) ||
         (digits.length > 0 && m.phoneNormalized.includes(digits))
       )
     })

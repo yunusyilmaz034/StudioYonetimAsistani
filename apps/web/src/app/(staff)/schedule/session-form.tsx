@@ -1,5 +1,6 @@
 'use client'
 
+import { foldTr } from '@/lib/fold-tr'
 import type { WorkingHours } from '@studio/core'
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Loader2Icon } from 'lucide-react'
@@ -181,9 +182,9 @@ export function SessionForm({
     return null
   }, [workingHours, date, startTime, durationMinutes])
 
-  const q = memberQuery.trim().toLocaleLowerCase('tr')
+  const q = foldTr(memberQuery.trim())
   const filteredMembers = (members ?? []).filter(
-    (m) => q === '' || m.fullName.toLocaleLowerCase('tr').includes(q) || m.phone.includes(q),
+    (m) => q === '' || foldTr(m.fullName).includes(q) || m.phone.includes(q),
   )
   const chosenMember = (members ?? []).find((m) => m.id === ptMemberId) ?? null
 

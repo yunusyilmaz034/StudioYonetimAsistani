@@ -1,5 +1,6 @@
 'use client'
 
+import { foldTr } from '@/lib/fold-tr'
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { ChevronRightIcon, SearchIcon, UsersIcon } from 'lucide-react'
@@ -31,9 +32,9 @@ export function TraineesScreen({ rows }: { rows: readonly TraineeRow[] }) {
   const [query, setQuery] = useState('')
 
   const gorunen = useMemo(() => {
-    const q = query.trim().toLocaleLowerCase('tr')
+    const q = foldTr(query.trim())
     if (q === '') return rows
-    return rows.filter((r) => r.fullName.toLocaleLowerCase('tr').includes(q))
+    return rows.filter((r) => foldTr(r.fullName).includes(q))
   }, [rows, query])
 
   return (

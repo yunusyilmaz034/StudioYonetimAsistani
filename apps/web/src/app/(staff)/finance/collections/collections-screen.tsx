@@ -1,5 +1,6 @@
 'use client'
 
+import { foldTr } from '@/lib/fold-tr'
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -122,11 +123,11 @@ function ReconcileDialog({
   const selectedMember = members.find((m) => m.id === memberId) ?? null
 
   const matches = useMemo(() => {
-    const q = memberQuery.trim().toLocaleLowerCase('tr')
+    const q = foldTr(memberQuery.trim())
     const digits = memberQuery.replace(/\D/g, '')
     if (!q && !digits) return []
     return members
-      .filter((m) => m.name.toLocaleLowerCase('tr').includes(q) || (digits.length > 2 && m.phone.includes(digits)))
+      .filter((m) => foldTr(m.name).includes(q) || (digits.length > 2 && m.phone.includes(digits)))
       .slice(0, 6)
   }, [members, memberQuery])
 

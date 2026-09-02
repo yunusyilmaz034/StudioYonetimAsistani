@@ -1,5 +1,6 @@
 'use client'
 
+import { foldTr } from '@/lib/fold-tr'
 import { useEffect, useMemo, useState } from 'react'
 import { CheckIcon, Loader2Icon, PencilIcon, SearchIcon, Trash2Icon, UserPlusIcon, UsersIcon } from 'lucide-react'
 import { toast } from 'sonner'
@@ -262,8 +263,8 @@ function MemberPickerDialog({
 
   const shown = useMemo(() => {
     if (!all) return []
-    const q = query.trim().toLocaleLowerCase('tr')
-    return q === '' ? all : all.filter((m) => m.name.toLocaleLowerCase('tr').includes(q))
+    const q = foldTr(query.trim())
+    return q === '' ? all : all.filter((m) => foldTr(m.name).includes(q))
   }, [all, query])
 
   const toggle = (id: string) =>

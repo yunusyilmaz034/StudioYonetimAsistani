@@ -1,5 +1,6 @@
 'use client'
 
+import { foldTr } from '@/lib/fold-tr'
 import { useCallback, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { CameraIcon, LogInIcon, LogOutIcon, PrinterIcon, SearchIcon, UsersIcon } from 'lucide-react'
@@ -127,11 +128,11 @@ export function CheckinScreen({ state, members }: { state: CheckinState; members
   }
 
   const filtered = useMemo(() => {
-    const q = query.trim().toLocaleLowerCase('tr')
+    const q = foldTr(query.trim())
     const digits = query.replace(/\D/g, '')
     if (!q && !digits) return []
     return members
-      .filter((m) => m.fullName.toLocaleLowerCase('tr').includes(q) || (digits.length > 0 && m.phone.includes(digits)))
+      .filter((m) => foldTr(m.fullName).includes(q) || (digits.length > 0 && m.phone.includes(digits)))
       .slice(0, 20)
   }, [members, query])
 

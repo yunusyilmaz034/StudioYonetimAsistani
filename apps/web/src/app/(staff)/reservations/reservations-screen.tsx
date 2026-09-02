@@ -1,5 +1,6 @@
 'use client'
 
+import { foldTr } from '@/lib/fold-tr'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArmchairIcon, CalendarIcon, CircleCheckIcon, LayersIcon, SearchIcon, UsersIcon } from 'lucide-react'
@@ -91,14 +92,14 @@ export function ReservationsScreen({
   const rosterOf = (id: string): readonly SessionRosterEntry[] => data.rosters[id] ?? []
 
   const visible = useMemo(() => {
-    const q = memberQuery.trim().toLocaleLowerCase('tr')
+    const q = foldTr(memberQuery.trim())
     return data.sessions.filter((s) => {
       if (trainer !== ALL && s.trainerId !== trainer) return false
       if (service !== ALL && s.serviceId !== service) return false
       if (status !== ALL && s.status !== status) return false
       // Hide cancelled by default; the toggle (or an explicit status=İptal) reveals them.
       if (s.status === 'cancelled' && !showCancelled && status !== 'cancelled') return false
-      if (q) return (data.rosters[s.sessionId] ?? []).some((m) => m.memberName.toLocaleLowerCase('tr').includes(q))
+      if (q) return (data.rosters[s.sessionId] ?? []).some((m) => foldTr(m.memberName).includes(q))
       return true
     })
   }, [data.sessions, data.rosters, memberQuery, trainer, service, status, showCancelled])

@@ -1,5 +1,6 @@
 'use client'
 
+import { foldTr } from '@/lib/fold-tr'
 import { useEffect, useMemo, useState } from 'react'
 import { CheckCircle2Icon, ChevronRightIcon, Loader2Icon, MessageCircleIcon, SendIcon, XCircleIcon } from 'lucide-react'
 import { toast } from 'sonner'
@@ -85,7 +86,7 @@ export function InviteScreen({
   const [results, setResults] = useState<readonly InviteSendResult[]>([])
 
   const visible = useMemo(() => {
-    const q = query.trim().toLocaleLowerCase('tr')
+    const q = foldTr(query.trim())
     return rows.filter((r) => {
       // Every filter except "Tümü" hides members who already have an account: this screen exists to
       // find who still needs one, and a done row is noise in every one of these lists.
@@ -96,7 +97,7 @@ export function InviteScreen({
       if (filter === 'package' && !r.hasActivePackage) return false
       if ((filter === 'pilates' || filter === 'fitness' || filter === 'pt' || filter === 'hibrit') && !r.packageKinds.includes(filter))
         return false
-      if (q && !r.fullName.toLocaleLowerCase('tr').includes(q) && !r.phone.includes(q)) return false
+      if (q && !foldTr(r.fullName).includes(q) && !r.phone.includes(q)) return false
       return true
     })
   }, [rows, filter, query])

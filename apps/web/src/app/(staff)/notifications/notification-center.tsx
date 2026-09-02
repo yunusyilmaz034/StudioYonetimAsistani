@@ -1,5 +1,6 @@
 'use client'
 
+import { foldTr } from '@/lib/fold-tr'
 import { useMemo, useState, useTransition } from 'react'
 import Link from 'next/link'
 import { InboxIcon, Loader2Icon, RefreshCwIcon, SearchIcon, SendIcon } from 'lucide-react'
@@ -116,14 +117,14 @@ export function NotificationCenter({
 
   const filtered = useMemo(() => {
     const now = Date.now()
-    const q = query.trim().toLocaleLowerCase('tr')
+    const q = foldTr(query.trim())
     const floor = range === 'today' ? now - DAY : range === '7d' ? now - 7 * DAY : range === '30d' ? now - 30 * DAY : 0
     return rows.filter((r) => {
       if (channel && r.channel !== channel) return false
       if (status && r.status !== status) return false
       if (cause && r.causedBy !== cause) return false
       if (floor && r.at < floor) return false
-      if (q && !r.recipientName.toLocaleLowerCase('tr').includes(q)) return false
+      if (q && !foldTr(r.recipientName).includes(q)) return false
       return true
     })
   }, [rows, channel, status, cause, range, query])

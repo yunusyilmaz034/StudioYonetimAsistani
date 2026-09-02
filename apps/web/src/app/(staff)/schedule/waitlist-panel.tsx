@@ -1,5 +1,6 @@
 'use client'
 
+import { foldTr } from '@/lib/fold-tr'
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { ArrowUpIcon, HourglassIcon, Loader2Icon, PlusIcon, SearchIcon, XIcon } from 'lucide-react'
@@ -65,9 +66,9 @@ export function WaitlistPanel({
   }, [adding, members])
 
   const waiting = (rows ?? []).filter((r) => r.status === 'waiting')
-  const q = query.trim().toLocaleLowerCase('tr')
+  const q = foldTr(query.trim())
   const candidates = (members ?? []).filter(
-    (m) => q === '' || m.fullName.toLocaleLowerCase('tr').includes(q) || m.phone.includes(q),
+    (m) => q === '' || foldTr(m.fullName).includes(q) || m.phone.includes(q),
   )
 
   async function run(fn: () => Promise<{ ok: boolean; error?: unknown }>, done: string) {

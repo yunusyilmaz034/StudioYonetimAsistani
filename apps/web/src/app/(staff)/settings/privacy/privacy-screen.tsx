@@ -1,5 +1,6 @@
 'use client'
 
+import { foldTr } from '@/lib/fold-tr'
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { ArrowLeftIcon, Loader2Icon, SearchIcon, ShieldAlertIcon } from 'lucide-react'
@@ -33,11 +34,11 @@ export function PrivacyScreen() {
 
   const filtered = useMemo(() => {
     if (!members) return []
-    const q = query.trim().toLocaleLowerCase('tr')
+    const q = foldTr(query.trim())
     const digits = query.replace(/\D/g, '')
     if (!q && !digits) return members.slice(0, 20)
     return members
-      .filter((m) => m.fullName.toLocaleLowerCase('tr').includes(q) || (digits.length > 0 && m.phone.includes(digits)))
+      .filter((m) => foldTr(m.fullName).includes(q) || (digits.length > 0 && m.phone.includes(digits)))
       .slice(0, 20)
   }, [members, query])
 

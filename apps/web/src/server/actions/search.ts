@@ -9,6 +9,7 @@ import {
   systemClock,
 } from '@studio/core'
 
+import { foldTr } from '@/lib/fold-tr'
 import { badgesFor, STATE_LABEL, type MemberFacts } from '@/lib/members/filters'
 import { requireTenantContext } from '../auth'
 import { adminDb } from '../firebase-admin'
@@ -51,17 +52,38 @@ function packageLabel(packages: MemberFacts['packages'], now: number): string {
 }
 
 export async function searchMembersAction(query: string): Promise<MemberHit[]> {
-  const q = query.trim().toLowerCase()
+  // `toLowerCase()` DEĞİL (owner, 2026-09-02). Türkçede `I`nin küçüğü `ı`dır; `toLowerCase()`
+  // "KILIÇ"ı "kiliç" yapıyordu ve "kılıç" arayan hiçbir zaman bulamıyordu. `foldTr` aksanı da
+  // düşürüyor: "gulnare" → "GÜLNARE".
+  const q = foldTr(query.trim())
   if (q.length < 2) return []
 
   const ctx = await requireTenantContext(['owner', 'receptionist', 'trainer', 'platform_admin'])
   const now = systemClock.now()
   const db = adminDb()
-  const [members, entitlements, debt] = await Promise.all([
-    new FirestoreMemberRepository(db).list(ctx),
-    new FirestoreEntitlementRepository(db).listAll(ctx),
+
+  // ÖNCE SÜZ, SONRA OKU (owner: *"bazen çok geç kalıyor"*).
+  //
+  // Eskiden her tuş vuruşunda stüdyodaki BÜTÜN abonelikler okunuyordu — yüzlerce belge, tek bir
+  // ismi bulmak için. Oysa süzme yalnızca isim ve telefon istiyor; abonelik ve borç ancak
+  // GÖSTERİLECEK sekiz satır için gerekiyor. Ağır okuma, sonucun büyüklüğüne bağlı olmalı, listenin
+  // büyüklüğüne değil.
+  const members = await new FirestoreMemberRepository(db).list(ctx)
+  const qDigits = digits(q)
+  const eslesen = members
+    .filter((m) => {
+      if (foldTr(m.fullName).includes(q)) return true
+      return qDigits.length >= 3 && digits(m.phoneNormalized as string).includes(qDigits)
+    })
+    .slice(0, 8)
+  if (eslesen.length === 0) return []
+
+  const entRepo = new FirestoreEntitlementRepository(db)
+  const [entitlementLists, debt] = await Promise.all([
+    Promise.all(eslesen.map((m) => entRepo.listByMember(ctx, m.id))),
     debtByMember({ repo: new FirestoreFinanceRepository(db), clock: systemClock }, ctx),
   ])
+  const entitlements = entitlementLists.flat()
 
   const byMember = new Map<string, MemberFacts['packages']>()
   for (const e of entitlements) {
@@ -74,14 +96,7 @@ export async function searchMembersAction(query: string): Promise<MemberHit[]> {
     byMember.set(e.memberId as string, list)
   }
 
-  const qDigits = digits(q)
-  return members
-    .filter((m) => {
-      if (m.fullName.toLowerCase().includes(q)) return true
-      return qDigits.length >= 3 && digits(m.phoneNormalized as string).includes(qDigits)
-    })
-    .slice(0, 8)
-    .map((m) => {
+  return eslesen.map((m) => {
       const packages = byMember.get(m.id as string) ?? []
       const badges = badgesFor(
         { status: m.status, balanceDueKurus: debt.get(m.id as string)?.amount ?? 0, packages },

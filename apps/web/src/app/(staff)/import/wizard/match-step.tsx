@@ -1,5 +1,6 @@
 'use client'
 
+import { foldTr } from '@/lib/fold-tr'
 import { useMemo, useState } from 'react'
 import { CircleAlertIcon, UserPlusIcon } from 'lucide-react'
 
@@ -122,7 +123,7 @@ export function MatchStep({
   }
 
   const shown = filter
-    ? rows.filter((r) => r.memberName.toLocaleLowerCase('tr').includes(filter.toLocaleLowerCase('tr')))
+    ? rows.filter((r) => foldTr(r.memberName).includes(foldTr(filter)))
     : rows
 
   return (
@@ -215,8 +216,8 @@ export function MatchStep({
                         </div>
                         {sortedRoster
                           .filter((m) => {
-                            const q = (rosterQuery[r.line] ?? '').trim().toLocaleLowerCase('tr')
-                            return !q || m.fullName.toLocaleLowerCase('tr').includes(q)
+                            const q = foldTr((rosterQuery[r.line] ?? '').trim())
+                            return !q || foldTr(m.fullName).includes(q)
                           })
                           .slice(0, 60)
                           .map((m) => (
