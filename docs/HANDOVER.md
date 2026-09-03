@@ -154,9 +154,19 @@ okuma). Üç sınır bilerek kondu:
 - **Liste kaç işin beklediğini söylüyor** — *"2 iş bu hafta arandığı için listede değil"*. İz
   bırakmadan kaybolan bir satır, gitmeyen satırın tersten aynı yalanıdır.
 
-Süzme **sunucuda**, AI anlatıcıdan önce: üstteki özet ile alttaki satırlar aynı işi sayıyor. Soğuması
-olan tek tür şimdilik `dormant_member`; ölçüsü şu: **tik, yapılmış bir insan temasını mı kaydediyor?**
-Telefon görüşmesi öyle, boş seans doldurmak değil (o ders üç saat sonra başlıyor ve geçiyor).
+Süzme **sunucuda**, AI anlatıcıdan önce: üstteki özet ile alttaki satırlar aynı işi sayıyor.
+
+Ölçü şu: **tik, yapılmış bir insan temasını mı kaydediyor?** Telefon görüşmesi öyle; boş seans
+doldurmak değil (o ders üç saat sonra başlıyor ve geçiyor), eşleşmemiş tahsilat da değil (o bir kayıt
+işi, arama değil). Owner soğumayı beş türe birden istedi (3 Eylül) ve süreler işin şekline göre ayrıldı:
+
+| İş | Süre | Neden |
+|---|---|---|
+| `dormant_member` · uzaklaşıyor | 7 gün | Sebep bir tarih değil, bir davranış — yarın da 35 gündür gelmiyor olacak |
+| `outstanding_balance` · tahsilat | 7 gün | Ödendiği an zaten düşüyor; her sabah aramak tahsilat değil taciz |
+| `low_credit` · hak azaldı | 7 gün | Yenileme bir satış konuşması; üst üste günlerde tekrarı satışı değil rahatsızlığı artırır |
+| `expiring_with_credits` · hak yanmak üzere | **3 gün** | Arkada SON TARİH var; dolmadan önceki son hatırlatma meşru, 7 gün onu yutardı |
+| `expiring_soon` · paket doluyor | **3 gün** | Aynı sebep — yanan hak geri gelmiyor |
 
 ### 📵 20 saattir çalan alarm — ve alarmın kendisinin sesi çıkmıyordu (1 Eylül akşamı)
 

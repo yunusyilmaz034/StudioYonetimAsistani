@@ -35,6 +35,15 @@ describe('checklist cooldown', () => {
 
   it('yalnızca insanın telefon ettiği işler soğur', () => {
     expect(CHECKLIST_COOLDOWN_DAYS.dormant_member).toBe(7)
+    expect(CHECKLIST_COOLDOWN_DAYS.outstanding_balance).toBe(7)
+    expect(CHECKLIST_COOLDOWN_DAYS.low_credit).toBe(7)
+    // Boş seans üç saat sonra başlıyor; onu doldurmak yarına devredilen bir temas değil.
     expect(CHECKLIST_COOLDOWN_DAYS.empty_session).toBeUndefined()
+    expect(CHECKLIST_COOLDOWN_DAYS.unreconciled_payment).toBeUndefined()
+  })
+
+  it('son tarihi olan işler daha kısa soğur — yanan hak geri gelmiyor', () => {
+    expect(CHECKLIST_COOLDOWN_DAYS.expiring_with_credits).toBe(3)
+    expect(CHECKLIST_COOLDOWN_DAYS.expiring_soon).toBe(3)
   })
 })

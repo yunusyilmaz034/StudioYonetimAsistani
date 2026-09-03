@@ -33,7 +33,19 @@ import { adminDb } from './firebase-admin'
  * Filling an empty session does not — that class starts in three hours and is gone.
  */
 export const CHECKLIST_COOLDOWN_DAYS: Readonly<Record<string, number>> = {
+  // Bir hafta: aramanın sebebi bir TARİH değil, bir DAVRANIŞ. Yarın da 35 gündür gelmiyor olacak, ve
+  // bu yeni bir haber değil.
   dormant_member: 7,
+  // Bir hafta: borç ödenene kadar duruyor ve ödendiği an listeden zaten düşüyor. Her sabah aynı kişiyi
+  // aramak tahsilat değil taciz; ertelemek de alacağı gizlemek değil — satır tahsilat ekranında duruyor.
+  outstanding_balance: 7,
+  // Bir hafta: yenileme bir satış konuşmasıdır. Üst üste günlerde aynı teklifi götürmek satışı değil
+  // rahatsızlığı artırır.
+  low_credit: 7,
+  // ÜÇ gün, yedi değil — burada arkada bir SON TARİH var. Paket dolmadan bir gün önceki son hatırlatma
+  // meşrudur; bir haftalık soğuma o hatırlatmayı yutardı, ve yanan hak geri gelmiyor.
+  expiring_with_credits: 3,
+  expiring_soon: 3,
 }
 
 export interface TickedItem {
