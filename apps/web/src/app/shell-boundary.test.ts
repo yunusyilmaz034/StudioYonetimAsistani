@@ -123,9 +123,20 @@ describe('the catalogue standard never reaches a member', () => {
     const api = readFileSync(join(process.cwd(), 'apps/web/src/server/member-api.ts'), 'utf8')
     const block = api.slice(api.indexOf('export async function memberSubscriptions'))
     const body = block.slice(0, block.indexOf('\nexport '))
-    // `granted` is the ledger's own number — what this member was given. A catalogue lookup here
-    // (products, creditCount) would be the standard leaking into her app.
+    // `granted` is the ledger's own number — what this member was given.
     expect(body).toContain('e.credits.granted')
-    expect(body).not.toMatch(/creditCount|listProducts|standardCredits/)
+    // The CATALOGUE'S numbers are what must never appear: the standard credit count, the price. Those
+    // describe the product, not what this member holds, and the two differ routinely (reception grants
+    // seven of an eight-class package to a member who migrated with one used).
+    expect(body).not.toMatch(/creditCount|standardCredits|listPrice|\.grant\b/)
+    // ONE catalogue read is allowed here and only one: "is this product a demet?" — which is a
+    // question about SHAPE, not about numbers, and AD-41 says the catalogue is the only honest place
+    // to ask it (name-matching would be a guess). If this function reads the catalogue at all, the
+    // only thing it may take from a product is `components`. Widening that is what this line stops.
+    if (body.includes('listProducts')) {
+      expect(body, 'katalogdan yalnızca `components` okunabilir').toMatch(/p\.components\?\.length/)
+      const productReads = [...body.matchAll(/\bp\.(\w+)/g)].map((m) => m[1])
+      expect(new Set(productReads), 'katalog ürününden başka bir alan okunuyor').toEqual(new Set(['components', 'id']))
+    }
   })
 })

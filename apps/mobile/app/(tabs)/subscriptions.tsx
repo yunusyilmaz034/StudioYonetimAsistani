@@ -84,17 +84,28 @@ function SubCard({ sub, index, active }: { sub: MemberSubscription; index: numbe
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: space(2) }}>
           <View style={{ flex: 1, gap: space(1) }}>
             <Txt role="h3" numberOfLines={2}>{sub.productName}</Txt>
+            {/* İLERİ TARİHLİ PAKET — yalnızca gerçekten ileri tarihliyse (3 Eylül). Paket 3 Eylül'de
+                satılıp 7 Eylül'de başlayabiliyor; ekranda sadece "Alındı" yazınca üye paketin bugün
+                geçerli olduğunu sanıyordu. Bugün başlamışsa bu satır hiç çıkmaz — çünkü o zaman
+                söyleyecek bir şey yok. */}
+            {sub.validFrom != null && sub.validFrom > Date.now() ? (
+              <Txt role="caption" tone="brand">Başlangıç: {d(sub.validFrom)}</Txt>
+            ) : null}
             <Txt role="caption" tone="muted">Alındı: {d(sub.purchasedAt)}</Txt>
             <Txt role="caption" tone="muted">Bitiş: {d(sub.validUntil)}</Txt>
           </View>
           <StatusChip label={st.label} tone={st.tone} />
         </View>
+        {/* HİBRİT: ders VE giriş, İKİSİ BİRDEN. Eskiden `else if`ti — bir demetin iki yarısı ayrı
+            kartlar olarak geldiği için tek kart yalnızca birini göstermesi yetiyordu. Artık tek kart
+            geliyor, ve o kartın iki yarısı da var (owner, 2026-09-03). */}
         {active && sub.remaining !== null && sub.total ? (
           <View style={{ gap: space(2), marginTop: space(3) }}>
             <ProgressBar value={sub.remaining / Math.max(sub.total, 1)} color={p.primary} track={p.surfaceMuted} />
             <Txt role="caption" tone="muted">{sub.remaining} / {sub.total} ders kaldı</Txt>
           </View>
-        ) : active && sub.fitnessEntry ? (
+        ) : null}
+        {active && sub.fitnessEntry ? (
           <View style={{ gap: space(2), marginTop: space(3) }}>
             <ProgressBar value={Math.max(0, sub.fitnessEntry.allowance - sub.fitnessEntry.used) / Math.max(sub.fitnessEntry.allowance, 1)} color={p.primary} track={p.surfaceMuted} />
             <Txt role="caption" tone="muted">
@@ -103,7 +114,8 @@ function SubCard({ sub, index, active }: { sub: MemberSubscription; index: numbe
                 : `${Math.max(0, sub.fitnessEntry.allowance - sub.fitnessEntry.used)} / ${sub.fitnessEntry.allowance} giriş kaldı`}
             </Txt>
           </View>
-        ) : active && sub.remaining === null ? (
+        ) : null}
+        {active && sub.remaining === null && !sub.fitnessEntry ? (
           <View style={{ flexDirection: 'row', marginTop: space(3) }}>
             <StatusChip label="Sınırsız kullanım" tone="brand" />
           </View>

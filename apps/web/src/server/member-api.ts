@@ -167,24 +167,94 @@ export async function memberUploadPhoto(ctx: TenantContext, memberId: MemberId, 
 // app build that maps over it must keep working, and this ships to phones long before every member
 // updates. Filtering here rather than in the client is what makes the rule true on every surface at
 // once — data that nothing renders is data that something renders by accident later.
+//
+// BİR DEMET, İKİ KAYIT, TEK PAKET (owner, 2026-09-03).
+//
+// Owner iki ekran görüntüsü yan yana koydu: panelde **1 aktif paket**, üyenin telefonunda *"2 aktif
+// paketin var"* ve alt alta **aynı adı taşıyan iki kart** — "Hibrit Aylık — 2 Pilates + 1 Fitness",
+// biri 8/8 ders, öbürü 4/4 giriş.
+//
+// İkisi de doğru veriyi okuyordu. Fark, bu uçtaki eksik bir kuraldı: hibrit bir ürün alan üyeye
+// alan duvarı yüzünden **bileşen başına bir entitlement** yazılır (bir pilates kredisi, bir fitness
+// girişi — aynı belgede toplanamazlar, çünkü kategori duvarı ikisini ayırmak için var). Panel bunu
+// bir karta topluyordu; bu uç ise deponun şeklini olduğu gibi dışarı veriyordu.
+//
+// Üye tek bir paket satın aldı, tek bir fiyat ödedi ve tek bir bitiş tarihi var. Ona iki paket
+// göstermek yalnızca çirkin değil, **yanlış**: "2 aktif paketim var" diye hatırlar, biri bitince
+// öbürünün sürdüğünü sanar, ve resepsiyona bunu sorar.
+//
+// Gruplama SUNUCUDA, istemcide değil — bu dosyanın `past: []` kuralıyla aynı sebep: burada yapılan
+// bir kural her yüzeyde aynı anda doğru olur, istemcide yapılan yalnızca güncelleyen telefonlarda.
+// Panel'in `toCards`'ı ile aynı anahtar kullanılıyor: **hibrit ürünün `productId`'si** (AD-41 —
+// "hibrit mi" sorusunun cevabı isimde değil, katalogdadır).
 export async function memberSubscriptions(ctx: TenantContext, memberId: MemberId) {
-  const all = await new FirestoreEntitlementRepository(adminDb()).listByMember(ctx, memberId)
-  const map = (e: Entitlement) => ({
+  const [all, products] = await Promise.all([
+    new FirestoreEntitlementRepository(adminDb()).listByMember(ctx, memberId),
+    new FirestoreCatalogRepository(adminDb()).listProducts(ctx),
+  ])
+  const bundleProductIds = new Set(products.filter((p) => (p.components?.length ?? 0) > 0).map((p) => p.id as string))
+
+  const component = (e: Entitlement) => ({
     entitlementId: e.id as string,
-    productName: e.productSnapshot.name,
     category: e.productSnapshot.category,
     remaining: e.credits ? (e.status === 'active' ? available(e.credits) : 0) : null,
     total: e.credits ? e.credits.granted : null,
-    validUntil: Number(e.validUntil),
-    purchasedAt: Number(e.purchasedAt),
-    status: e.status,
     fitnessEntry:
       e.productSnapshot.entryAllowance != null
         ? { used: entriesUsed(e.entryLedger), allowance: e.productSnapshot.entryAllowance }
         : null,
   })
-  const active = all.filter((e) => e.status === 'active').map(map).sort((a, b) => a.validUntil - b.validUntil)
-  return { active, past: [] }
+
+  // Bir kart. Kredili bileşen `remaining`/`total`ı, girişli bileşen `fitnessEntry`yi doldurur — yani
+  // ESKİ uygulama sürümleri de tek kart görür (eksik ama yanlış değil), yenisi `components`ten tam
+  // dökümü çizer. Tarihler ve ad demetin tamamına ait: zaten hepsi aynı.
+  const card = (group: readonly Entitlement[]) => {
+    // BİRİNCİL, PARAYA BAKMADAN. Panel demetin yüzü olarak en pahalı bileşeni seçer, çünkü panel
+    // parayı gösterir. Bu uç para göstermez ve GÖSTERMEMELİDİR (owner, 2026-07-29) — o yüzden burada
+    // fiyat bir ölçüt bile değil: kredili bileşen yüzdür, yoksa `id` sırası. İkisi de kesin, yani
+    // aynı demet her okumada aynı kartı verir.
+    const credit = group.find((e) => e.credits)
+    const primary = credit ?? [...group].sort((a, b) => (a.id as string).localeCompare(b.id as string))[0]!
+    const entry = group.find((e) => e.productSnapshot.entryAllowance != null)
+    return {
+      entitlementId: primary.id as string,
+      productName: primary.productSnapshot.name,
+      category: primary.productSnapshot.category,
+      remaining: credit?.credits ? (credit.status === 'active' ? available(credit.credits) : 0) : null,
+      total: credit?.credits ? credit.credits.granted : null,
+      // Demetin en geç biteni: üyenin "ne zamana kadar geçerli" sorusunun tek dürüst cevabı.
+      validUntil: Math.max(...group.map((e) => Number(e.validUntil))),
+      // İLERİ TARİHLİ PAKET (3 Eylül): satın alma günü ile geçerlilik günü aynı olmak zorunda değil.
+      // HALE'ninki 3 Eylül'de satıldı, 7 Eylül'de başlıyordu; telefon yalnızca "Alındı: 3 Eylül"
+      // yazdığı için paket bugün geçerliymiş gibi okunuyordu. Başlangıç da gönderiliyor, ekran
+      // gerektiğinde söylesin.
+      validFrom: Math.min(...group.map((e) => Number(e.validFrom))),
+      purchasedAt: Number(primary.purchasedAt),
+      status: primary.status,
+      fitnessEntry: entry
+        ? { used: entriesUsed(entry.entryLedger), allowance: entry.productSnapshot.entryAllowance! }
+        : null,
+      // Demetin dökümü. Tek bileşenli (normal) paketlerde de dolu — istemcinin iki ayrı yolu olmasın.
+      components: group.map(component),
+    }
+  }
+
+  const active = all.filter((e) => e.status === 'active')
+  const bundles = new Map<string, Entitlement[]>()
+  const cards: ReturnType<typeof card>[] = []
+  for (const e of active) {
+    const pid = e.productSnapshot.productId as string
+    if (bundleProductIds.has(pid)) {
+      const g = bundles.get(pid) ?? []
+      g.push(e)
+      bundles.set(pid, g)
+    } else {
+      cards.push(card([e]))
+    }
+  }
+  for (const g of bundles.values()) cards.push(card(g))
+
+  return { active: cards.sort((a, b) => a.validUntil - b.validUntil), past: [] }
 }
 
 /**

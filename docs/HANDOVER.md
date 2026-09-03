@@ -109,6 +109,50 @@ sonra bildirim sırları). Her şey push'lu.
 kere aranan üye yarın tekrar listeye düşmüyor · satışa hazır müşterinin uyarısı artık log'a değil
 owner'a gidiyor.
 
+### 📱 Bir demet, üyenin telefonunda iki paket (3 Eylül)
+
+Owner iki ekranı yan yana koydu. **Panel:** HALE ERTÜRK · AKTİF PAKET **1** · "Hibrit Aylık — 2
+Pilates + 1 Fitness · Pilates 7/8 kredi · Fitness 4/4 giriş". **Telefon:** *"2 aktif paketin var"* ve
+alt alta **aynı adı taşıyan iki kart** — biri 8/8 ders, öbürü 4/4 giriş.
+
+İkisi de doğru veriyi okuyordu. Fark, üye ucundaki eksik bir kuraldı: hibrit ürün **kategori duvarı**
+yüzünden bileşen başına bir entitlement yazar (pilates kredisi ayrı, fitness girişi ayrı — tek belgede
+toplanamazlar, duvar tam da ikisini ayırmak için var). Panel bunu bir karta topluyordu
+(`toCards`); `memberSubscriptions` deponun şeklini olduğu gibi dışarı veriyordu.
+
+Üye **tek paket** aldı, **tek fiyat** ödedi, **tek bitiş tarihi** var. Ona iki paket göstermek çirkin
+değil, yanlış: "iki paketim var" diye hatırlar, biri bitince öbürünün sürdüğünü sanar, ve bunu
+resepsiyona sorar.
+
+**Gruplama sunucuda**, istemcide değil — bu dosyanın `past: []` kuralıyla aynı gerekçe: burada
+konan kural her yüzeyde aynı anda doğru olur. Anahtar panelinkiyle aynı: hibrit ürünün `productId`'si
+(AD-41 — "hibrit mi" sorusunun cevabı isimde değil katalogdadır).
+
+**İki yan bulgu, ikisi de düzeltildi:**
+
+- **Tek kart iki yarıyı da gösteriyor.** Mobil kart `ders VEYA giriş` diye yazılmıştı (`else if`) —
+  iki yarı ayrı kart olarak geldiğinde yetiyordu. Artık ikisi de aynı kartta. Profil kartına da bir
+  satır eklendi (`+ 4/4 fitness girişi`): demet tek karta inince *"2 aktif paketin var — tümünü gör"*
+  bağlantısı kaybolmuştu, yani üye giriş hakkını hiçbir yerde göremeyecekti.
+- **İleri tarihli paket söylenmiyordu.** HALE'ninki **3 Eylül'de satıldı, 7 Eylül'de başlıyor**.
+  Telefon yalnızca "Alındı: 3 Eylül" yazdığı için paket bugün geçerliymiş gibi okunuyordu. `validFrom`
+  artık gönderiliyor ve ekran **yalnızca gelecekteyse** "Başlangıç: 7 Eylül" diyor.
+
+**7/8 ile 8/8 farkı hata DEĞİL:** telefon görüntüleri 12:42–12:45, panel 14:46. Arada bir rezervasyon
+yapılmışsa kredi *held* olur ve `available` bir düşer — beklenen davranış. Doğrulaması: üyenin
+Rezervasyonlar sekmesinde 12:45'ten sonra bir kayıt var mı.
+
+**ESKİ UYGULAMA SÜRÜMLERİ:** tek kart görürler, ama yalnızca ders satırını — `components` ve
+`validFrom` alanlarını tanımıyorlar. Eksik, ama bugünkü *iki aynı isimli kart*tan daha az yanlış.
+1.6.0 çıkınca tamamlanır.
+
+**Bir koruma testi bu değişikliği yakaladı ve haklıydı** (`shell-boundary.test.ts`): üye ucunda fiyat
+ve katalog standardı yasak. İkisi de sızmadı — ama test kaba bir grep'ti. Gevşetmek yerine
+**keskinleştirildi**: birincil bileşen artık fiyata bakmadan seçiliyor (kredili bileşen, yoksa `id`),
+ve katalog okuması serbest bırakılmadı — testi artık *"katalogdan yalnızca `components` okunabilir"*
+diye doğruluyor. Bir koruma testini kendi değişikliğine uydurmak, onu bir dahaki sefere işe yaramaz
+hâle getirir.
+
 ### 🔌 Turnike — Pazartesi/Salı, sırayla
 
 **Sipariş verildi (3 Eylül):** `BC337` NPN transistör (Robotistan, 2,94 ₺ — birkaç tane) + 1 kΩ +

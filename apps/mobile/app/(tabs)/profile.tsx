@@ -132,9 +132,21 @@ export default function Ben() {
                 <View style={{ height: 4, borderRadius: 2, backgroundColor: p.primary, width: `${Math.round((pack.remaining / pack.total) * 100)}%` }} />
               </View>
             ) : null}
-            {active.length > 1 ? (
+            {/* HİBRİTİN ÖBÜR YARISI (owner, 2026-09-03). Bu kart tek bir sayı gösterir — paketin
+                "kaç ders" yüzü. Bir demette ikinci bir yüz daha var (fitness girişi), ve demet artık
+                TEK kart olarak geldiği için "tümünü gör" bağlantısı da kaybolmuştu: üye giriş
+                hakkını hiçbir yerde göremez olurdu. Bir satır, yalnızca gerçekten varsa. */}
+            {pack.fitnessEntry ? (
+              <Txt role="caption" tone="muted" style={{ marginTop: space(2) }}>
+                {`+ ${Math.max(0, pack.fitnessEntry.allowance - pack.fitnessEntry.used)} / ${pack.fitnessEntry.allowance} fitness girişi`}
+              </Txt>
+            ) : null}
+            {active.length > 1 || (pack.components?.length ?? 1) > 1 ? (
               <View style={{ marginTop: space(3) }}>
-                <TextButton label={`${active.length} aktif paketin var — tümünü gör`} onPress={() => router.push('/subscriptions')} />
+                <TextButton
+                  label={active.length > 1 ? `${active.length} aktif paketin var — tümünü gör` : 'Paketimin ayrıntısı'}
+                  onPress={() => router.push('/subscriptions')}
+                />
               </View>
             ) : null}
             </PremiumCard>

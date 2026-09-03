@@ -64,6 +64,22 @@ export interface MemberReservations {
   readonly past: readonly MemberReservation[]
 }
 
+/** Bir demetin tek bileşeni — bir kredi yarısı ya da bir giriş yarısı. */
+export interface MemberSubscriptionComponent {
+  readonly entitlementId: string
+  readonly category: string
+  readonly remaining: number | null
+  readonly total: number | null
+  readonly fitnessEntry: { readonly used: number; readonly allowance: number } | null
+}
+
+/**
+ * Üyenin TUTTUĞU paket — deponun satırı değil.
+ *
+ * Hibrit bir ürün kategori duvarı yüzünden bileşen başına bir entitlement yazar (bir pilates
+ * kredisi, bir fitness girişi). Üye ise tek bir paket aldı, tek fiyat ödedi, tek bitiş tarihi var —
+ * bu yüzden burası bir demeti TEK satır olarak taşır ve dökümünü `components`e koyar.
+ */
 export interface MemberSubscription {
   readonly entitlementId: string
   readonly productName: string
@@ -71,11 +87,18 @@ export interface MemberSubscription {
   readonly remaining: number | null
   readonly total: number | null
   readonly validUntil: number
+  /**
+   * Geçerliliğin BAŞLADIĞI an — satın alma anıyla aynı olmak zorunda değil (ileri tarihli satış).
+   * İsteğe bağlı: eski istemciler görmez, ve eski sürümlerin cevabı okumayı sürdürmesi gerekiyor.
+   */
+  readonly validFrom?: number
   readonly purchasedAt: number
   readonly status: string
   // Fitness serbest-giriş cap (v1.27) — present only on a capped fitness membership. `used` door
   // check-ins of `allowance`; remaining = allowance − used (soft, so `used` may exceed `allowance`).
   readonly fitnessEntry: { readonly used: number; readonly allowance: number } | null
+  /** Demetin dökümü; normal pakette tek elemanlı. İsteğe bağlı — eski istemciler yok sayar. */
+  readonly components?: readonly MemberSubscriptionComponent[]
 }
 export interface MemberSubscriptions {
   readonly active: readonly MemberSubscription[]
