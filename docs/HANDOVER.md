@@ -246,6 +246,25 @@ konan kural her yüzeyde aynı anda doğru olur. Anahtar panelinkiyle aynı: hib
 yapılmışsa kredi *held* olur ve `available` bir düşer — beklenen davranış. Doğrulaması: üyenin
 Rezervasyonlar sekmesinde 12:45'ten sonra bir kayıt var mı.
 
+### 📝 "Yenilikler" boş çıkmasın — artık ölçülebilir (3 Eylül)
+
+`eas submit` sürüm notu YAZAMAZ, ve bu iki kez ısırdı: 15 Ağustos'ta 1.6.0 uygulamanın gördüğü en
+büyük görsel değişiklikte notsuz çıktı; 3 Eylül'de 1.7.1 gönderildi ve aynısı oldu — ölçüldü,
+`releaseNotes` boştu.
+
+İki kez düşmenin tek bir sebebi var: **eksiklik hiçbir yerde hata gibi görünmüyor.** Gönderim
+başarılı döner, sürüm %100 yayına çıkar, mağaza sayfasında yalnızca bir alan boş durur.
+
+`pnpm android:notes` — üretimdeki sürümün notunu okur, yoksa BAĞIRIR. Yazmak `--write <dosya>` ister,
+yani kazara çalıştırmak hiçbir şey değiştirmez. Yalnızca notu değiştirir: `versionCodes`, `status` ve
+dağıtım oranı olduğu gibi geri gönderilir — sürüm yükseltmek ya da dağıtımı oynatmak bu dosyanın işi
+değildir.
+
+1.7.1'in Türkçe notu yazıldı ve doğrulandı (319 karakter; Google sınırı 500, aşan metin sessizce
+kesilmez — gönderim reddedilir). Mağaza tek dilli (`tr-TR`).
+
+**Bir sonraki sürümde: gönderimden sonra `pnpm android:notes` çalıştır.** Boşsa üç kez düşmüş oluruz.
+
 ### ⏳ SIRADAKİ MOBİL SÜRÜME GİRECEK — mobil tarafı henüz telefonlarda değil
 
 Sunucu düzeltmesi **canlıda** (`build-2026-09-03-005`), yani çift kart her uygulama sürümünde gitti.
