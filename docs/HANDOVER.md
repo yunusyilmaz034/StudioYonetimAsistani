@@ -142,9 +142,24 @@ konan kural her yüzeyde aynı anda doğru olur. Anahtar panelinkiyle aynı: hib
 yapılmışsa kredi *held* olur ve `available` bir düşer — beklenen davranış. Doğrulaması: üyenin
 Rezervasyonlar sekmesinde 12:45'ten sonra bir kayıt var mı.
 
-**ESKİ UYGULAMA SÜRÜMLERİ:** tek kart görürler, ama yalnızca ders satırını — `components` ve
-`validFrom` alanlarını tanımıyorlar. Eksik, ama bugünkü *iki aynı isimli kart*tan daha az yanlış.
-1.6.0 çıkınca tamamlanır.
+### ⏳ 1.6.0'A GİRECEK — mobil tarafı henüz telefonlarda değil
+
+Sunucu düzeltmesi **canlıda** (`build-2026-09-03-005`), yani çift kart her uygulama sürümünde gitti.
+Ama mobil kod değişikliği **mağazadan geçmeden telefona inmez**: `expo-updates` kurulu DEĞİL, yani
+OTA güncelleme yolu yok.
+
+**Bu arada bir gerileme var ve owner bilerek kabul etti (3 Eylül):** eski uygulama kartı "ders VEYA
+giriş" diye yazılmıştı; tek satır gelince yalnızca ders satırını çiziyor. Yani hibrit paketli üye
+**fitness giriş hakkını uygulamada göremiyor**, ve "Başlangıç: 7 Eylül" satırı da çıkmıyor.
+
+**Ölçüldü (3 Eylül, salt okuma):** 5 hibrit ürün · **aktif hibrit paketi olan 13 üye** · 164 aktif
+entitlement. Yani 13 kişi, birkaç günlüğüne, giriş hakkını uygulamada göremiyor — resepsiyon ve panel
+görüyor.
+
+**1.6.0 ÇIKMADAN KAPANMAZ.** Sürüm hazırlanırken kontrol edilecek üç şey:
+1. Hibrit kartta hem "7/8 ders kaldı" hem "4/4 giriş kaldı" görünüyor mu
+2. İleri tarihli pakette "Başlangıç: 7 Eylül" çıkıyor, bugün başlamışsa ÇIKMIYOR mu
+3. Profil kartında "+ 4/4 fitness girişi" satırı ve "Paketimin ayrıntısı" bağlantısı var mı
 
 **Bir koruma testi bu değişikliği yakaladı ve haklıydı** (`shell-boundary.test.ts`): üye ucunda fiyat
 ve katalog standardı yasak. İkisi de sızmadı — ama test kaba bir grep'ti. Gevşetmek yerine
