@@ -70,6 +70,29 @@ static const int PIN_ROLE_CIKIS = 4;   // In2
 static const int PIN_BUZZER = 16;
 static const uint32_t BIP_MS = 250;
 
+// ── BUZZER SÜRÜCÜSÜ — TEK ANAHTAR (2026-09-03) ────────────────────────────────────────────────
+//
+// NPN transistör takıldığı gün DEĞİŞECEK TEK ŞEY bu satırdır: `false` → `true`, sonra karta at.
+// Başka hiçbir yere dokunulmaz — sessizlik ve ötme seviyeleri buradan türüyor, ve `setup()` ile
+// `bip()` ikisi de aynı yerden okuyor. Sebebi acı: polarite iki yere elle yazılırsa biri unutulur,
+// ve kutu ya hiç ötmez ya hiç susmaz — bu kart bir akşamını tam olarak buna yedirmişti.
+//
+// NEDEN TERS DÖNÜYOR: bugün buzzer 5 V'luk modülün içinde `VCC` ile `S` arasında duruyor ve akımı
+// pinin İÇİNDEN geçiyor — pin LOW olunca ötüyor (aktif-LOW), ve ses bu yüzden kısık (DEBT-038).
+// Transistör girince pin artık buzzer'ı değil transistörün BAZINI sürüyor: HIGH olunca iletime
+// geçiyor, buzzer 5 V'unu 3.3 V yerine besleme hattından çekiyor. Yani anahtar HIGH'a dönüyor.
+//
+// Transistör takılıp bu satır `false` bırakılırsa kutu SÜREKLİ öter ve bip attığında SUSAR — ve bu,
+// ters polarite gibi değil BOZUK PARÇA gibi görünür. O yüzden burada duruyor, bir yorumda değil.
+//
+// Bağlantı (DEBT-038): modül `VCC` → 5 V · modül `S` → kollektör · `GPIO 16` →[1 kΩ]→ baz ·
+// baz–GND arası 10 kΩ (açılışta boşta kalan pin buzzer'ı öttürmesin) · emiter → GND.
+static const bool BUZZER_NPN = false;
+
+// Seviyeler sürücüden ÇIKAR, elle yazılmaz.
+static const int BUZZER_SUS = BUZZER_NPN ? LOW : HIGH;
+static const int BUZZER_OT = BUZZER_NPN ? HIGH : LOW;
+
 // BUZZER: SÜRÜLMEZ, YALNIZCA ÖTERKEN ÇEKİLİR (owner, 2026-09-01, montajda).
 //
 // Takılan KY-012 modülü AKTİF-LOW: buzzer `VCC` ile `S` arasında duruyor, yani `S` düşükken ötüyor.
@@ -218,9 +241,9 @@ static void qrCiz(Kapi& k, const char* metin) {
 /** `adet` kısa bip. Sesin ANLAMI var: 1 = geçtin, 2 = olmadı, 3 = bağlantı yok. */
 static void bip(int adet) {
   for (int i = 0; i < adet; i++) {
-    digitalWrite(PIN_BUZZER, LOW);   // aktif-low modül: çekince öter
+    digitalWrite(PIN_BUZZER, BUZZER_OT);
     delay(BIP_MS);
-    digitalWrite(PIN_BUZZER, HIGH);  // sus — INPUT DEĞİL: boşta bırakmak buzzer'a akım yolu açıyor
+    digitalWrite(PIN_BUZZER, BUZZER_SUS); // sus — INPUT DEĞİL: boşta bırakmak buzzer'a akım yolu açıyor
     if (i + 1 < adet) delay(90);
   }
 }
@@ -279,11 +302,13 @@ static void kodYenile(Kapi& k) {
 }
 
 void setup() {
-  // Buzzer BAŞTAN ve HER ZAMAN sürülü: HIGH = sessiz. Boşta bırakılırsa buzzer kendi üzerinden
-  // pine akım akıtıyor ve o akım ekranların başlamasını engelliyor. Bu satırın yeri de önemli:
-  // her şeyden önce, çünkü ondan önceki her satır o akımın aktığı süredir.
+  // Buzzer BAŞTAN ve HER ZAMAN sürülü. Boşta bırakılırsa buzzer kendi üzerinden pine akım akıtıyor
+  // ve o akım ekranların başlamasını engelliyor. Bu satırın YERİ de önemli — her şeyden önce, çünkü
+  // ondan önceki her satır o akımın aktığı süredir. Seviye `BUZZER_SUS`tan geliyor: bugün HIGH,
+  // transistör takılınca LOW. Burada sabit bir HIGH yazsaydı, NPN'den sonra kutu açılıştan itibaren
+  // öterdi ve tek anahtarın anlamı kalmazdı.
   pinMode(PIN_BUZZER, OUTPUT);
-  digitalWrite(PIN_BUZZER, HIGH);
+  digitalWrite(PIN_BUZZER, BUZZER_SUS);
 
   Serial.begin(115200);
   delay(300);
