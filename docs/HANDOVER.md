@@ -7,7 +7,7 @@ explains the moment.
 Keep it current the way the code is kept current: when the state changes, this changes in the same
 commit. A handover document that lags is worse than none, because it is believed.
 
-_Last true as of: **2026-09-03**._
+_Last true as of: **2026-09-03, 21:15**._
 
 ## 🌙 31 Ağustos 2026 — uzun bir gün, on beş deploy
 
@@ -100,7 +100,65 @@ hesaplar, yalnızca `open` satışlar — tahsil edilmişlere dokunulmadı).
 Ayrıca **raporlar da artık `excludedMemberIds`i okuyor.** Pano bunu 27 Ağustos'ta öğrenmişti,
 raporlar öğrenmemişti. Rapor bir okuma modelidir; aynı kural oraya da geçerli.
 
-## 📍 3 Eylül 14:40 — nerede kaldık
+## 📍 3 EYLÜL 21:15 — NEREDE KALDIK
+
+**Canlıda:** panel `build-2026-09-03-011` (%100) · `whatsappWebhook` bugün iki kez dağıtıldı ·
+mobil **1.7.1** — Android üretimde (versionCode 14, %100, sürüm notu yazılı), iOS **incelemede**.
+Her şey push'lu, çalışan dizin temiz.
+
+**Uzun bir gündü — dokuz iş kapandı:**
+
+| # | Ne | Nerede anlatıldı |
+|---|---|---|
+| 1 | WhatsApp asistanı artık kiminle konuştuğunu biliyor; üye lead sayılmıyor | [[OR-63]] |
+| 2 | Bir kere aranan yarın listeye düşmüyor (5 tür, süreleri ayrı) | [[OR-62]] |
+| 3 | Satışa hazır müşterinin uyarısı log'a değil owner'a gidiyor | secrets bağlandı |
+| 4 | Hibrit paket üyenin telefonunda tek kart + ileri tarihli paketin başlangıcı | 1.7.1 ile inecek |
+| 5 | İki PAYTR panel ödemesi deftere alındı, üyelere eşleştirildi, borç yok | 3 break-glass script |
+| 6 | İptal edilmiş satış artık canlı satışın üstüne yazmıyor (6 paket düzeldi) | kod hatası, 4 gündür |
+| 7 | Bayat sekme uyarısı: ⌘K paleti ve antrenman yayınlama | [[DEBT-043]] geri kalanı |
+| 8 | Play sürüm notu artık ölçülebilir (`pnpm android:notes`) | iki kez boş çıkmıştı |
+| 9 | Program sürümü geri çekme — yeni olay, owner onaylı | [[OR-64]] |
+
+### ⏭ SIRADAKİ — açık işler, ölçülmüş hâliyle
+
+**Yarın/hafta içi, yazılım:**
+
+1. **Ayşegül'ün v2/v3'ünü geri çek.** Özellik canlıda; sebebiyle geri çekilecekler
+   (`prg_01KZ47J0VF1JFT0G37Y5SSZG3F`, v2 ve v3 — v4 güncel kalacak). Bu özelliğin ilk müşterisi.
+2. **Peşin fiyatına taksit — ÖNCE 5 DAKİKALIK TEST, kod değil.** PAYTR mağaza ayarında 2 taksiti aç →
+   bizim panelden 100 ₺ / 2 taksit link kur → kart adımında "P.F." çıkıyor mu. Çıkıyorsa iş biter.
+   Çıkmıyorsa büyük iş: `pft` yalnızca Link API'de, ve orada `callback_id` link başına tek — çok
+   kişilik linklerimiz çalışmaz. **Test sonucu görülmeden başlanmayacak.**
+3. **DEBT-043** — bayat sekme uyarısı panelin geri kalanına; ortak bir `saveErrorMessage(e, fallback)`.
+
+**Turnike — Pazartesi/Salı:** aşağıdaki bölüm aynen geçerli. Röle kontak kabloları + buzzer devresi
+(parçalar sipariş edildi, kod hazır: `BUZZER_NPN = false` → `true`).
+
+**İnsan işi — yazılımda yapılacak bir şey yok:**
+
+- **2 cevapsız WhatsApp sohbeti** (ölçüldü 3 Eylül: `handoff` 1 · `unanswered` 1)
+- **3 eğitmenin 3'ü hâlâ hiç giriş yapmamış** — Işıl, Buse, Reyhan; davet linki 7 gün geçerli
+- **iOS 1.7.1 incelemesi** — reddedilirse ilk bakılacak yer: inceleyene "giriş TELEFON NUMARASI ile
+  yapılır" cümlesi yazıldı mı
+- **Resepsiyona anlatılacak:** ödeme linki **bizim panelden** kurulur — PAYTR panelinden kurulan link
+  parayı tahsil eder ve deftere HİÇ uğramaz
+
+### ⚠️ BUGÜNÜN DERSİ, üç kez tekrarlandığı için yazılıyor
+
+Üç ayrı hata, tek bir şekil: **mekanizma vardı, çağıran yer onu kullanmıyordu.**
+
+- `healthCheck` sırları bağlamıştı, `whatsappWebhook` bağlamamıştı → uyarı log'a düşüyordu
+- `isStaleDeployment` yazılmıştı, panelin 2 ekranına bağlıydı → Işıl "Yayınlanamadı" gördü
+- `foldTr` tek yere alınmıştı ama palet hatayı hiç yakalamıyordu → "Sonuç yok" yalanı
+
+Üçünün de ortak sebebi: **eksiklik hiçbir yerde hata gibi görünmüyor.** Kod çalışır, fonksiyon
+başarıyla döner, ve yalnızca bir yerde bir şey eksik kalır. Bir sonraki ortak yardımcı yazıldığında
+soru şu olmalı: *"bunu çağırması gereken kaç yer var ve kaçı çağırıyor?"*
+
+---
+
+## 📍 3 Eylül 14:40 — o ana kadar
 
 **Canlıda:** panel `build-2026-09-03-001` · `whatsappWebhook` bugün iki kez dağıtıldı (üye tanıma,
 sonra bildirim sırları). Her şey push'lu.
