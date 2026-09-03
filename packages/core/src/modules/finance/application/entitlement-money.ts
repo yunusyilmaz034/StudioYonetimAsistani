@@ -60,10 +60,26 @@ export async function moneyByEntitlement(
     if (m && !bySale.has(a.saleId)) bySale.set(a.saleId, m)
   }
 
+  // İPTAL EDİLMİŞ BİR SATIŞ, CANLI OLANIN ÜSTÜNE YAZMAZ (owner, 2026-09-03).
+  //
+  // Bir paketin parası düzeltildiğinde yol hep aynı: yanlış satış SEBEBİYLE İPTAL edilir, doğrusu
+  // aynı `entitlementId`ye kurulur (#9 — düzeltme sessiz bir üzerine yazma değil, telafi kaydıdır).
+  // Böylece o abonelik İKİ satışta geçer, ve burası bir map'e `set` ediyordu: son yazan kazanıyordu.
+  // Sıra `listSalesByMember`ın sırasıdır, yani iptal edilmiş satış sona düştüğünde paket kartı ONU
+  // okuyordu — **"Paket tutarı 9.500 · Tahsil edilen 0 · Kalan bakiye 0"**, üye parayı ödemişken.
+  //
+  // Ölçüldü (2026-09-03): altı paket bu durumdaydı ve DÖRDÜ günler öncesinden — SAKİNE, ESRA, SELMA,
+  // EBRU. Yani hata her para düzeltmesinde sessizce oluşuyordu ve kimse fark etmemişti; fark edilmesi
+  // için birinin kartı o gün açması gerekti.
+  //
+  // Kural: bir abonelik için CANLI satış varsa o kazanır. İptal edilmiş satış yalnızca başka satış
+  // yoksa yazılır — gerçekten iptal edilmiş bir paket de görünmeye devam etsin (`cancelled: true`).
   const out = new Map<string, EntitlementMoney>()
   for (const sale of sales) {
     for (const line of sale.lines) {
       if (!line.entitlementId) continue // a gift card, a fee — not a package
+      const varOlan = out.get(line.entitlementId as string)
+      if (varOlan && !varOlan.cancelled && sale.status === 'cancelled') continue
       out.set(line.entitlementId as string, {
         saleId: sale.id,
         agreed: sale.total,

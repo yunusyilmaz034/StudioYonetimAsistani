@@ -164,6 +164,41 @@ hiç verilmemiş bir indirim yaratırdı ([[OR-32]]).
 Doğrulandı: iki satış da `settled` · ödenen 9.500 · borç yok · üyede tek aktif paket
 (04.09 → 03.12.2026) · tahsilatlar `reconciled` · paket tutarı 9.500.
 
+### 🐞 İptal edilmiş satış, canlı olanın üstüne yazıyordu — DÖRT GÜNDÜR (3 Eylül)
+
+Owner düzeltmeden sonra kartı açtı: **"Paket tutarı 9.500 · Tahsil edilen 0 ₺ · Kalan bakiye 0"**.
+Üye parayı ödemişti, pano da doğru gösteriyordu (*"2 sanal POS tahsilatı · 19.000 ₺"*) — yanlış olan
+paket kartıydı.
+
+Sebep `moneyByEntitlement`te ve bir veri hatası değil, **kod hatası**:
+
+```ts
+for (const sale of sales)
+  for (const line of sale.lines)
+    out.set(line.entitlementId, { ... })   // ← son yazan kazanır
+```
+
+Bir paketin parası düzeltildiğinde yol hep aynıdır ve olması gereken de budur: yanlış satış
+**sebebiyle iptal** edilir, doğrusu **aynı `entitlementId`ye** kurulur (#9 — düzeltme sessiz bir
+üzerine yazma değil, telafi kaydıdır). Böylece o abonelik İKİ satışta geçer. Map ise sonuncuyu
+tutuyordu, ve `listSalesByMember`ın sırası iptal edilmiş satışı sona koyduğunda kart **iptal edilmiş
+satışı** okuyordu: tutar 0, tahsilat 0, borç 0.
+
+**Ölçüldü: altı paket bu durumda, ve DÖRDÜ günler öncesinden** — SAKİNE GÜMÜŞ · ESRA TEPE · SELMA
+BOZKURT YILDIRIM · EBRU KILIÇ. Yani hata her para düzeltmesinde sessizce oluşuyordu; fark edilmesi
+için birinin o kartı açması gerekti. Bu, düzeltme yapılan her seferde ekranda yanlış bir tahsilat
+rakamı bıraktığımız anlamına geliyor.
+
+**Kural:** bir abonelik için CANLI satış varsa o kazanır; iptal edilmiş satış yalnızca başka satış
+yoksa yazılır — gerçekten iptal edilmiş bir paket de görünmeye devam etsin.
+
+Üç test eklendi ve **düzeltme kaldırılıp testin ısırdığı doğrulandı** (sıra bağımlı bir hatada bu
+şart): canlı satış önce gelse de sonra gelse de sonuç aynı, ve tek satışı iptal olan paket hâlâ
+görünüyor.
+
+**Veriye dokunulmadı** — altı paketin de kaydı doğruydu, yanlış olan okuma yoluydu. Düzeltme
+dağıtıldığı an altısı da düzelir.
+
 ### ⏭ Peşin fiyatına taksit — bizim panelde henüz yok, ve düz çözüm YANLIŞ
 
 `pft` (2–12, hash'e girmiyor) **yalnızca Link API'de** var; `/settings/payment-links`in kullandığı

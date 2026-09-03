@@ -79,3 +79,63 @@ describe('moneyByEntitlement — the discount is reported, not just applied', ()
     expect(out.get('ent_1')!.discount.amount).toBe(80_000)
   })
 })
+
+// ── İPTAL EDİLMİŞ SATIŞ, CANLI OLANIN ÜSTÜNE YAZMAZ (owner, 2026-09-03) ─────────────────────
+//
+// Para düzeltmesinin şekli sabittir: yanlış satış iptal edilir, doğrusu AYNI aboneliğe kurulur. O
+// abonelik böylece iki satışta geçer, ve buranın map'i son yazana teslim oluyordu. Sonuç ekranda
+// şuydu: "Paket tutarı 9.500 · Tahsil edilen 0 · Kalan bakiye 0" — üye ödemişken.
+//
+// İki yön de test ediliyor, çünkü hatanın sebebi SIRAYDI: canlı satış önce gelirse de sonra gelirse
+// de sonuç aynı olmalı.
+describe('cancelled sale never overwrites a live one', () => {
+  const enement = 'ent_1'
+  const sale = (id: string, status: 'settled' | 'cancelled', total: number, paid: number) => ({
+    id,
+    studioId: 'st' as never,
+    branchId: 'br' as never,
+    memberId: 'mem_1' as never,
+    lines: [{ productId: 'p1' as never, description: 'x', quantity: 1, unitPrice: money(total), entitlementId: enement as never, giftCardId: null }],
+    discounts: [],
+    gross: money(total),
+    total: money(total),
+    paid: money(paid),
+    status,
+    soldBy: { type: 'system', id: 's' } as never,
+    soldAt: 0 as never,
+    cancelledAt: null,
+    cancelReason: null,
+  })
+
+  const run = async (sales: unknown[]) =>
+    moneyByEntitlement(
+      {
+        repo: {
+          listSalesByMember: async () => sales,
+          listAllocationsByMember: async () => [],
+          listPaymentsByMember: async () => [],
+        },
+        clock: { now: () => 0 as never },
+      } as never,
+      { studioId: 'st' } as never,
+      'mem_1' as never,
+    )
+
+  it('iptal edilmiş satış SONRA gelse bile canlı olan kazanır', async () => {
+    const m = await run([sale('live', 'settled', 950_000, 950_000), sale('old', 'cancelled', 850_000, 0)])
+    expect(m.get(enement)?.paid.amount).toBe(950_000)
+    expect(m.get(enement)?.agreed.amount).toBe(950_000)
+    expect(m.get(enement)?.cancelled).toBe(false)
+  })
+
+  it('iptal edilmiş satış ÖNCE gelse de sonuç aynı', async () => {
+    const m = await run([sale('old', 'cancelled', 850_000, 0), sale('live', 'settled', 950_000, 950_000)])
+    expect(m.get(enement)?.paid.amount).toBe(950_000)
+    expect(m.get(enement)?.cancelled).toBe(false)
+  })
+
+  it('gerçekten iptal edilmiş bir paket hâlâ görünür — gizlenmez', async () => {
+    const m = await run([sale('only', 'cancelled', 850_000, 0)])
+    expect(m.get(enement)?.cancelled).toBe(true)
+  })
+})
