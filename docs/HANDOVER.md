@@ -142,7 +142,7 @@ konan kural her yüzeyde aynı anda doğru olur. Anahtar panelinkiyle aynı: hib
 yapılmışsa kredi *held* olur ve `available` bir düşer — beklenen davranış. Doğrulaması: üyenin
 Rezervasyonlar sekmesinde 12:45'ten sonra bir kayıt var mı.
 
-### ⏳ 1.6.0'A GİRECEK — mobil tarafı henüz telefonlarda değil
+### ⏳ SIRADAKİ MOBİL SÜRÜME GİRECEK — mobil tarafı henüz telefonlarda değil
 
 Sunucu düzeltmesi **canlıda** (`build-2026-09-03-005`), yani çift kart her uygulama sürümünde gitti.
 Ama mobil kod değişikliği **mağazadan geçmeden telefona inmez**: `expo-updates` kurulu DEĞİL, yani
@@ -156,7 +156,9 @@ giriş" diye yazılmıştı; tek satır gelince yalnızca ders satırını çizi
 entitlement. Yani 13 kişi, birkaç günlüğüne, giriş hakkını uygulamada göremiyor — resepsiyon ve panel
 görüyor.
 
-**1.6.0 ÇIKMADAN KAPANMAZ.** Sürüm hazırlanırken kontrol edilecek üç şey:
+**SIRADAKİ MOBİL SÜRÜM ÇIKMADAN KAPANMAZ.** Numara henüz belli değil: owner 3 Eylül'de "1.7.0
+olacak" dedi, ama ölçüm 1.7.0'ın **Android üretiminde zaten yayında** olduğunu gösterdi (aşağıda,
+Store state). Numara bump edilecek. Sürüm hazırlanırken kontrol edilecek üç şey:
 1. Hibrit kartta hem "7/8 ders kaldı" hem "4/4 giriş kaldı" görünüyor mu
 2. İleri tarihli pakette "Başlangıç: 7 Eylül" çıkıyor, bugün başlamışsa ÇIKMIYOR mu
 3. Profil kartında "+ 4/4 fitness girişi" satırı ve "Paketimin ayrıntısı" bağlantısı var mı
@@ -782,10 +784,25 @@ signal needs something to point at.
 
 ## Store state
 
-| | In members' hands | Submitted / in review |
+**ÖLÇÜLDÜ 2026-09-03, `pnpm android:tracks` ile** — aşağıdaki tablo bu okumadan, hafızadan değil.
+Android'in üç kanalı yan yana:
+
+```
+ÜRETİM (markette)  1.7.0   versionCode 13   %100
+kapalı test        1.6.0   versionCode 12   %100
+dahili test        1.0.1   versionCode  5   %100
+```
+
+| | In members' hands | Not |
 |---|---|---|
-| iOS | 1.0.1 (build 4) — live since 2026-07-29 | **1.6.0** (build 11) — uploaded 2026-08-14, on top of 1.5.0 |
-| Android | **1.3.0** (versionCode 9) — closed test | **1.6.0** (versionCode 12) — uploaded 2026-08-14 to the CLOSED TEST track; production ACCESS still under review |
+| Android | **1.7.0** (versionCode 13) — üretimde, %100 | Ölçüldü 2026-09-03 |
+| iOS | **DOĞRULANMADI** | App Store tarafında `android:tracks`ın karşılığı YOK; tek dürüst cevap App Store Connect'ten okunur. Bu satır tahmin taşımaz. |
+
+**BİR SONRAKİ SÜRÜM 1.7.0 OLAMAZ — o numara Android üretiminde ZATEN VAR.** `app.config.js` hâlâ
+`1.7.0` diyor; o dosya çıkmış sürümü tarif ediyor, sıradakini değil. Aynı adla ikinci bir yayın
+(versionCode 14, sürüm adı 1.7.0) Android'de teknik olarak mümkün ama *"üyede hangi 1.7.0 var"*
+sorusunu cevapsız bırakır — `android:tracks` betiği tam olarak bu soruyu cevaplamak için yazılmıştı.
+Numara **bump edilecek** (1.7.1 ya da 1.8.0); hangisi owner'ın kararı.
 
 ✅ **Android production access was granted, and the alpha-track trap fired exactly as written
 (2026-08-15).** `eas.json` hardcoded `"track": "alpha"`, so 1.6.0 sat in the closed test while the
@@ -814,7 +831,11 @@ let them lapse rather than spend a review turn on any of them. 1.6.0 carries eve
 the late-cancel block (OR-30), workout tracking (OR-33), the consistency strip, one price (OR-31) —
 plus the turnstile's six-digit scanner and the premium UI redesign below.
 
-**The next mobile build is 1.6.0**, bumped on 2026-08-09 along with the white-label work (A4). It
+**~~The next mobile build is 1.6.0~~ — STALE.** 1.6.0 shipped, and so did 1.7.0: Android production
+serves `1.7.0 (13)` as of the 2026-09-03 reading above. Everything below about 1.6.0 is the record of
+releases that have been made, not a plan. What the NEXT build owes is at the top of this document.
+
+1.6.0 was bumped on 2026-08-09 along with the white-label work (A4). It
 carries the turnstile's six-digit scanner, which had been sitting in the tree under a 1.5.0 label —
 a build made before the bump would have reached the stores calling itself 1.5.0 while behaving
 differently from the 1.5.0 under review.
