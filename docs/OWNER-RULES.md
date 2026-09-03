@@ -1285,3 +1285,61 @@ demo verisi yazmak, kuralı çiğnemektir — çalışsa bile.
 Doğrulama, her seferinde, tek yol: script'ten önce ve sonra `retro`'nun sayıları. 2026-08-26'da
 171 üye → 171 üye.
 
+
+---
+
+### OR-62 · Bir kere arananı yarın tekrar arama listesine koyma
+
+*(2026-09-03 · owner: "2 üye uzaklaşıyor diyor ya, bir kere üstü çizildi; onu bugün tekrar aramak
+gibi bir iş olamaz. 1 hafta kadar çıkarmaması lazım bunları.")*
+
+Panodaki tik, satırına göre iki ayrı şey demek — ve liste ikisini aynı sanıyordu. **"9 boş seans"
+bugüne aittir**: yarınki boş seans başka bir seanstır, başka bir kimliktir, tikin sabah silinmesi
+doğrudur. **"ESRA — 34 gündür gelmiyor · bir arayın" bugüne ait değildir**; yapılmış bir telefon
+görüşmesine aittir ve güneşin doğması onu geri almaz.
+
+Ölçü: **tik, yapılmış bir insan temasını mı kaydediyor?** Öyleyse iş bir süre listeden çıkar.
+
+| İş | Süre |
+|---|---|
+| uzaklaşıyor · bir arayın | 7 gün |
+| açık bakiye · tahsilat | 7 gün |
+| ders hakkı azaldı | 7 gün |
+| hakkı yanmak üzere · derse çağırın | **3 gün** |
+| paket doluyor · yenileme | **3 gün** |
+
+Son iki satır kısa, çünkü arkalarında bir **son tarih** var: paket dolmadan önceki son hatırlatma
+meşru bir iştir, bir haftalık soğuma onu yutardı, ve yanan hak geri gelmiyor. Boş seans ve eşleşmemiş
+tahsilat hiç soğumaz — biri üç saat sonra başlıyor, öbürü bir arama değil bir kayıt işi.
+
+**Üç sınır, ve üçü de kuralın parçası:**
+
+1. **Tiklendiği gün satır yerinde kalır**, üstü çizili — 5 Ağustos'ta konmuş kuralın aynısı (*"resepsiyon
+   tiklesin, gün sonunda görsün ne kadar iş kapatmış"*): tik "bunu ben yaptım" demektir, "bu hiç
+   yoktu" değil. Ayrıca tek geri dönüş yolu budur — satır aynı gün kaybolsaydı, yanlışlıkla atılan
+   bir tik işi bir haftalığına kimsenin göremediği bir yere koyardı. Tiki kaldırmak soğumayı iptal eder.
+2. **Silme değil, erteleme.** Süre dolduğunda sebep hâlâ duruyorsa satır geri gelir.
+3. **Liste kaç işin beklediğini söyler.** İz bırakmadan kaybolan bir satır, gitmeyen satırın tersten
+   aynı yalanıdır — ve bir kez yalan söyleyen liste okunmadan tiklenir.
+
+### OR-63 · Üyeye lead gibi davranılmaz
+
+*(2026-09-03 · bir üyenin aldığı cevap üzerine: "bu nasıl bir cevap ya")*
+
+WhatsApp asistanı her mesajı reklamdan gelen bir yabancı gibi karşılıyordu — karşıla, stüdyoyu tanıt,
+ismini sor, satışa götür. Dün burada ders yapmış kadın için dördü de yanlış, ve stüdyonun onu
+tanımadığını ilan ediyor.
+
+- Numaradan **üye araması** yapılır. Üyeyse modele *üyedir* + **adı** gider; paketi, kredisi, katılımı
+  GİTMEZ — nazik olmak için gerekmiyor, ve ders programı asistandan zaten bilerek saklanıyor ([[OR-13]]).
+- Üyeye **isim sorulmaz**, stüdyo **tanıtılmaz**, kendiliğinden **satış yapılmaz**.
+- Üye **başka bir numaraya yönlendirilmez.** 0533 yönlendirmesi satış dışı yabancılar için doğrudur;
+  zaten stüdyoya yazmış bir üyeyi ikinci bir hatta göndermek onu kapıdan geri çevirmektir. Cevap
+  bilinmiyorsa: "kontrol edip size döneceğiz" + devir, ve resepsiyon **aynı sohbetten** yazar.
+- **Üye lead değildir.** İlk kez WhatsApp'tan yazan bir üye huniye düşmez: "39 WhatsApp lead'i" listesi
+  paket ortasındaki üyeyi satılacak kişi diye gösterirdi, ve huninin ölçmek için var olduğu sayıyı
+  şişirirdi.
+
+Ayrıca: **yazdığı mesaj son hâlidir.** "canım… pardon, hanımefendi" gibi bir düzeltme müşterinin önünde
+yapılmaz — düşünme bütçesi kapalı bir model, fikrini değiştirecek özel bir yer bulamazsa kararını
+ekranda verir. Doğru cevap yasak kelimeyi yazıp düzeltmek değil, hiç yazmamaktır.

@@ -115,7 +115,7 @@ fikir değiştirecek özel bir yeri yok: kararını müşterinin gözü önünde
 Yani asistan **her mesajı reklamdan gelen bir yabancı** gibi karşılıyordu — karşıla, stüdyoyu tanıt,
 ismini sor, satışa götür. Dün burada ders yapmış kadın için bunların hepsi yanlış.
 
-**Ne yapıldı:**
+**Ne yapıldı** ([[OR-63]]):
 - Telefon numarasından **üye araması** (`findByPhone`, tek belge okuması, benzersizlik anahtarı
   üzerinden). Üyeyse modele önbelleğin arkasından tek blok gider: *üyedir* ve **adı** — paketi,
   kredisi, katılımı DEĞİL. Nazik olmak için gerekmiyor, ders programı zaten bilerek verilmiyor.
@@ -158,7 +158,7 @@ Süzme **sunucuda**, AI anlatıcıdan önce: üstteki özet ile alttaki satırla
 
 Ölçü şu: **tik, yapılmış bir insan temasını mı kaydediyor?** Telefon görüşmesi öyle; boş seans
 doldurmak değil (o ders üç saat sonra başlıyor ve geçiyor), eşleşmemiş tahsilat da değil (o bir kayıt
-işi, arama değil). Owner soğumayı beş türe birden istedi (3 Eylül) ve süreler işin şekline göre ayrıldı:
+işi, arama değil). Owner soğumayı beş türe birden istedi (3 Eylül) ve süreler işin şekline göre ayrıldı ([[OR-62]]):
 
 | İş | Süre | Neden |
 |---|---|---|
