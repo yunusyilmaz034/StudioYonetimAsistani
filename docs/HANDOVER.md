@@ -109,6 +109,75 @@ sonra bildirim sırları). Her şey push'lu.
 kere aranan üye yarın tekrar listeye düşmüyor · satışa hazır müşterinin uyarısı artık log'a değil
 owner'a gidiyor.
 
+### 💳 PAYTR panelinden kurulan link, panele HİÇ ulaşmıyor (3 Eylül akşamı)
+
+Owner iki ödeme linkini **PAYTR'ın kendi panelinden** kurup gönderdi ve akşam ikisi de ödendi
+(9.500 ₺ × 2, `P.F. 2 Taksit %7.06` — peşin fiyatına taksit, komisyonu stüdyo üstlendi). Panelde
+hiçbir yere düşmedi.
+
+**Sebep, callback'in nasıl eşleştiğinde:**
+
+```
+Link API : hash = callback_id + merchant_oid + salt + status + total_amount
+                  ↑ callback_id = BİZİM referansımız; linki kurarken biz gönderiyoruz
+iFrame   : hash = merchant_oid + salt + status + total_amount
+```
+
+`handlePaytrCallback`, gelen referansa karşılık **bizim `PaymentIntent`**imizi arıyor. PAYTR panelinden
+kurulan linkte `callback_id` yok ve `merchant_oid` PAYTR'ın kendi numarası — biçim farkı tek bakışta
+görülüyor: bizimki `4a33bb2aec474fee82202cf49c487860` (32 hane hex), o ödeme
+`S1788454546036736112547192168`. Eşleşecek kayıt yok, log'a `unknown ref` yazılıp bırakılıyor.
+
+Ölçüldü: o akşam **tek bir callback log'u yok** · `paytrCollections` 3 → değişmedi ·
+`paymentIntents` 105 → değişmedi. Yani yutulmuş bir hata değil; bildirim hiç gelmedi.
+
+**KURAL: ödeme linki BİZİM panelden kurulur.** PAYTR panelinden kurulan link parayı tahsil eder ve
+stüdyonun defterine hiç uğramaz.
+
+### 🧾 O iki ödemenin deftere geçirilmesi (3 Eylül, break-glass)
+
+Resepsiyon owner'ı beklemeden paketleri tanımlamış ve link ödemesini göremediği için satışı **nakit
+fiyatından (8.500 ₺)** yazmış. Ölçüm owner'ın anlattığından bir yerde ayrıldı ve script o yüzden
+durmadı: *"nakit/havale diye kaydetmiş"* denen ödeme **hiç kaydedilmemişti** — iki üye de 8.500 ₺
+BORÇLU görünüyordu, kasada olmayan bir nakit yoktu.
+
+Katalog: `Fitness - 3 Aylık` → **kart 9.500 / nakit 8.500**. Kartla ödendi, dolayısıyla satışın tutarı
+KART fiyatıdır. 8.500 bırakıp 9.500 tahsil etmek uydurma bir fazla tahsilat, 8.500 tahsil etmek ise
+hiç verilmemiş bir indirim yaratırdı ([[OR-32]]).
+
+Üç script, üçü de domain üzerinden ve sebebiyle:
+
+1. `record-paytr-panel-collection-2026-09.ts` — iki tahsilat PAYTR'ın **kendi referansıyla** deftere
+   alındı (`unreconciled`). Alıcı adları **kart sahibinin**, ve öyle bırakıldı: `Ayşe Özdefe` →
+   üye İDİL ÖZDEDE, `Makbule Yilmaz` → üye İREM YILMAZ. Gözlemi yorumla değiştirmek defteri bozar;
+   kimin üyeliği olduğu eşleştirme adımında kaydedilir.
+2. `fix-fitness-3aylik-link-odemesi-2026-09.ts` — nakit fiyatlı satış sebebiyle iptal, 9.500'den
+   doğrusu kuruldu (**aynı abonelik satırı**, yani üyede tek paket), 9.500 `online` tahsilat PAYTR
+   referansıyla yazıldı, tahsilat üyeye eşleştirildi. **`drawerId: null`** — para karttan geldi,
+   kasaya girmedi; nakit gibi yazmak sayım yapana çekmecede bulamayacağı 19.000 ₺ demek olurdu.
+3. `fix-fitness-3aylik-abonelik-tutari-2026-09.ts` — **uygulamadan sonra fark edildi.** `sell`
+   ABONELİĞE dokunmaz: defter 9.500 diyordu ama `entitlement.priceAgreed` 8.500 kalmıştı, ve o alan
+   görünmez değil — üye kartındaki **"Paket tutarı"** satırı ve **bilgi fişi** oradan okuyor. Yani
+   müşteriye 8.500 ₺'lik bir fiş verilebilirdi. Kardeş script'i yeniden çalıştırmak satışı ikinci kez
+   kurmaya kalkacağı için ayrı bir adım olarak yazıldı.
+
+Doğrulandı: iki satış da `settled` · ödenen 9.500 · borç yok · üyede tek aktif paket
+(04.09 → 03.12.2026) · tahsilatlar `reconciled` · paket tutarı 9.500.
+
+### ⏭ Peşin fiyatına taksit — bizim panelde henüz yok, ve düz çözüm YANLIŞ
+
+`pft` (2–12, hash'e girmiyor) **yalnızca Link API'de** var; `/settings/payment-links`in kullandığı
+iFrame `get-token`da yok. Ama "o zaman Link API'ye geçelim" demek tuzak: **`callback_id` link başına
+tektir**, oysa bizim linkler ÇOK KİŞİLİK — bir kez paylaşılır, on kişi öder. Bu çalışıyor çünkü
+`/pay/...` sayfamız her ödeyene AYRI intent üretiyor. PAYTR'ın kendi linkinde tek `callback_id` var,
+yani ikinci ödeyen birinciyle çakışırdı.
+
+**Önce kod yazmadan denenecek:** PAYTR'ın link formunda *"Mağaza Varsayılanı"* seçeneği var, demek ki
+mağaza seviyesinde bir peşin-fiyatına ayarı mevcut. Açılırsa iFrame ödemelerine de yansıması beklenir.
+Test: mağaza ayarında 2 taksiti aç → bizim panelden 100 ₺ / 2 taksit link kur → kart adımında "P.F."
+çıkıyor mu. Yansımıyorsa iş büyük: linkleri tek-kullanımlık yapmak ya da ödeyen başına PAYTR linki
+üretmek gerekir. **Test sonucu görülmeden başlanmayacak.**
+
 ### 📱 Bir demet, üyenin telefonunda iki paket (3 Eylül)
 
 Owner iki ekranı yan yana koydu. **Panel:** HALE ERTÜRK · AKTİF PAKET **1** · "Hibrit Aylık — 2
