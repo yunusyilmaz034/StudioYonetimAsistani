@@ -16,6 +16,8 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 
+import { isStaleDeployment, STALE_DEPLOYMENT_MESSAGE } from '@/lib/stale-deployment'
+
 import type { Exercise, Measurement, Program, ProgramDay, ProgramTemplate } from '@studio/core'
 
 import { Badge } from '@/components/ui/badge'
@@ -878,8 +880,12 @@ function ProgramBuilderSheet({
     setBusy(true)
     try {
       await publishInner()
-    } catch {
-      toast.error('Yayınlanamadı.')
+    } catch (e) {
+      // "TEKRAR DENE" ÇALIŞMAYAN TEK DURUM (owner, 2026-09-03). Işıl v2'yi yayınlamaya çalıştı ve
+      // "Yayınlanamadı." gördü; oysa panelin yeni sürümü dağıtılmıştı ve onun sekmesi eskiydi
+      // (log: `POST …?tab=training → 404`). Doğru tavsiye "yenile"ydi, ekran ona bunu söylemedi —
+      // ve o cümleyle basıp durmak, kaybedilen tek şeyin zaman olduğu bir döngüdür.
+      toast.error(isStaleDeployment(e) ? STALE_DEPLOYMENT_MESSAGE : 'Yayınlanamadı.')
     }
     setBusy(false)
   }

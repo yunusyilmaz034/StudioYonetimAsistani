@@ -1164,3 +1164,28 @@ Bu satır atlanırsa kutu açılıştan itibaren öter.
 
 **Belirti, geri geldiğinde:** stüdyoda müzik açıkken kapıdaki üye sesi duymuyorsa, borç faize
 binmiş demektir.
+
+---
+
+## DEBT-043 · Bayat sekme uyarısı panelin YALNIZCA iki ekranında (2026-09-03)
+
+**Ne:** `isStaleDeployment` + `STALE_DEPLOYMENT_MESSAGE` 29 Temmuz'da yazıldı ve doğru cümleyi
+söylüyor: *"Panelin yeni bir sürümü yayınlandı, bu sekme eski kaldı. Sayfayı yenileyin."* Ama panelin
+**iki** ekranına bağlı: üye formu ve davet formu. 3 Eylül'de ⌘K paleti ve antrenman yayınlama da
+bağlandı — geri kalan her kaydetme noktası hâlâ *"Kaydedilemedi, tekrar deneyin"* diyor.
+
+**Neden önemli:** bu, "tekrar dene"nin çalışması **imkânsız** olan tek hatadır. Sekme yenilenene kadar
+bozuktur, ve kullanıcı doğru tavsiyeyi almadığı için basıp durur. 3 Eylül akşamı üç dağıtım yapıldı ve
+aynı akşam Işıl programı yayınlayamadı, owner üye arayamadı — ikisi de bu yüzden, ikisi de yanlış
+mesajla.
+
+**Neden şimdi kapatılmadı:** yirmiden fazla `catch` bloğu var ve gece yarısı yapılan toplu bir tarama,
+düzelttiği hatadan daha risklidir. İkisi bugün elle bağlandı, çünkü ikisi bugün ısırdı.
+
+**Ödeme koşulu (tarih değil):** üçüncü bir ekran aynı sebeple şikayet edildiğinde — ya da bir sonraki
+kaydetme akışına dokunulduğunda, o dosya bu kontrolle birlikte bırakılır. Doğru şekli ortak bir
+yardımcıdır (`saveErrorMessage(e, fallback)`), çünkü on iki yerde tekrarlanan bir kural on ikinci
+yerde unutulur — `foldTr`da tam olarak bu olmuştu (2026-09-02).
+
+**Belirti, geri geldiğinde:** "kaydedilemedi diyor ama sorun yok" diye gelen her şikayet. Log'da
+karşılığı `POST … → 404`tür.

@@ -21,6 +21,7 @@ import { canSee } from '@/lib/permissions'
 import { openWhatsApp, WA_TEMPLATES, isWhatsAppReachable } from '@/lib/whatsapp'
 import { searchMembersAction, type MemberHit } from '@/server/actions/search'
 import { cn } from '@/lib/utils'
+import { isStaleDeployment, STALE_DEPLOYMENT_MESSAGE } from '@/lib/stale-deployment'
 
 // ⌘K — the operations command palette (Plus Phase 2 §1). One keystroke: find a member by name or
 // phone and see, without opening anything, her package, credits, days left and the one status worth
@@ -37,6 +38,16 @@ export function CommandPalette({ role }: { role: PrincipalRole }) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [hits, setHits] = useState<readonly MemberHit[]>([])
+  // ARAMANIN BAŞARISIZ OLMASI, "SONUÇ YOK" DEĞİLDİR (owner, 2026-09-03).
+  //
+  // Owner ⌘K'ya "ayşegül" yazdı, üye kayıtlıydı, palet **"Sonuç yok."** dedi — ve o cümle bir cevap
+  // gibi okunur: *bu üye sistemde yok*. Oysa arama hiç yapılmamıştı. O akşam üç kez dağıtım yapıldı,
+  // owner'ın sekmesi eskiydi, ve Server Action çağrısı 404 döndü (log: `POST / → 404`, 20:48).
+  //
+  // Kod `await`i yakalamıyordu: istek reddedilince `setHits` HİÇ çağrılmıyor, palet bir önceki boş
+  // hâlini göstermeye devam ediyordu. Yani bir BAŞARISIZLIK, bir OLGU olarak yazılıyordu — ve bu,
+  // yanlış rakam göstermekten kötüdür: kullanıcı ekrana değil, kendi hatırasına şüphe duyar.
+  const [searchError, setSearchError] = useState<string | null>(null)
   const [active, setActive] = useState(0)
   const [picked, setPicked] = useState<MemberHit | null>(null) // a member whose action menu is showing
   const inputRef = useRef<HTMLInputElement>(null)
@@ -90,8 +101,18 @@ export function CommandPalette({ role }: { role: PrincipalRole }) {
     }
     const id = ++reqId.current
     const t = setTimeout(async () => {
-      const r = await searchMembersAction(q)
-      if (id === reqId.current) setHits(r)
+      try {
+        const r = await searchMembersAction(q)
+        if (id === reqId.current) {
+          setHits(r)
+          setSearchError(null)
+        }
+      } catch (e) {
+        // Yarış koruması burada da geçerli: eski bir isteğin hatası yeni bir sorgunun sonucunu silmez.
+        if (id !== reqId.current) return
+        setHits([])
+        setSearchError(isStaleDeployment(e) ? STALE_DEPLOYMENT_MESSAGE : 'Arama yapılamadı. Bağlantını kontrol edip tekrar dene.')
+      }
     }, 160)
     return () => clearTimeout(t)
   }, [query, picked])
@@ -194,7 +215,7 @@ export function CommandPalette({ role }: { role: PrincipalRole }) {
           <ul className="max-h-[52vh] overflow-y-auto p-1.5">
             {rows.length === 0 ? (
               <li className="px-3 py-6 text-center text-sm text-muted-foreground">
-                {query.trim().length >= 2 ? 'Sonuç yok.' : 'Üye ara veya bir ekrana git.'}
+                {searchError ?? (query.trim().length >= 2 ? 'Sonuç yok.' : 'Üye ara veya bir ekrana git.')}
               </li>
             ) : (
               rows.map((row, i) =>
