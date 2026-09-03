@@ -1147,8 +1147,18 @@ için ertelemek kötü.
 boştayken o 5 V buzzer üzerinden pine gelir — ESP32 pinleri 5 V toleranslı değil.
 
 **Ödeme koşulu (tarih değil):** Eve/stüdyoya bir NPN transistör girdiğinde (BC337 · 2N2222 · S8050,
-hepsi olur). Baz `GPIO 16`ya, kollektör buzzer'a, emiter GND'ye, buzzer'ın `+`'sı 5 V hattına.
-**Kodda hiçbir şey değişmez** — `bip()` zaten pini çekerek sürüyor.
+hepsi olur). Baz `GPIO 16`ya **1 kΩ üzerinden**, baz–GND arasına **10 kΩ** (açılışta pin boştayken
+buzzer kendiliğinden ötmesin), kollektör buzzer'ın `−`'sine, emiter GND'ye, buzzer'ın `+`'sı 5 V
+hattına, buzzer'a ters paralel bir **1N4148/1N4007** (manyetik buzzer bobin geri gerilimi üretir).
+
+**KOD DEĞİŞİR — polarite TERS DÖNER (3 Eylül'de düzeltildi; bu satır önceden "hiçbir şey değişmez"
+diyordu ve yanlıştı).** Bugünkü modülde buzzer 3.3 V ile pin arasında duruyor, yani **pin LOW olunca
+ötüyor** (`BUZZER_TERS`). NPN'de anahtarı pin HIGH açar. Transistör takılıp `bip()` çevrilmezse
+**buzzer sürekli öter ve bip attığında susar.** İki satır yer değiştirir, ama bilmeden takan kişi bunu
+bir arıza sanıp akşamını yer — bu kartta bir kez tam olarak öyle oldu.
+
+**Sessizlik hangi seviyeyse `setup()`'ın ilk satırı da odur.** Bugün `HIGH`; NPN'den sonra `LOW`.
+Bu satır atlanırsa kutu açılıştan itibaren öter.
 
 **Durum (1 Eylül akşamı):** `GPIO 16`da 250 ms'lik bip **duyuluyor** — borç kapanmadı ama acil değil.
 

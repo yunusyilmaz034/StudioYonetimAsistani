@@ -19,9 +19,15 @@
 | **2 kanallı 5 V röle modülü** (optokuplörlü, jumper'lı) | Turnikenin iki yönü ayrı kuru kontak ister | Tek kanal, iki yönü sürmez |
 | **5 V 2 A adaptör + USB-C** | Kurulumun varsayılan beslemesi | — |
 | **LM2596 buck çevirici** | Priz yoksa turnikenin 12 V çıkışından beslemek için | Yalnızca priz yoksa; varsayılan değil |
-| **12 V aktif buzzer + sürücü** (röle modülü ya da NPN) | Salonda müzik varken duyulan tek çözüm | **3.3 V'luk modül yetmiyor** — ölçüldü |
+| **Aktif buzzer + NPN sürücü** (BC337/2N2222/S8050 · 1 kΩ baz · 10 kΩ baz-GND · 1N4148) | Sesi açan şey gerilim değil, akımın pinin içinden geçmemesi | **3.3 V'tan doğrudan sürmek yetmiyor** — ölçüldü |
 | **Dupont dişi-dişi 20 cm + 30 cm** | ESP32 gövdenin ortasında, her ekrana ~24 cm | Breadboard titreşimde gevşer |
 | **Vidalı klemens** (3V3 dağıtımı) | Kartta iki `3V3` var, dört tüketici | — |
+
+**Buzzer beslemesi — önce 5 V, 12 V'a sonra bakılır (3 Eylül).** 5 V zaten kutuda ve toprağı ESP32'yle
+ortak. 12 V'u turnikeden almak, **turnikenin GND'sini ESP32'ye bağlamayı** gerektirir — §3'teki "kuru
+kontak, GND bağlanmaz" kuralının yanına ters bir cümle koyar, ve bir sonraki kurulumda yanlış bağlanacak
+yer tam orasıdır. 5 V + NPN yetmezse **ayrı bir 12 V adaptörle** büyütülür; devre aynı, buzzer'ın `+`'sı
+başka hatta gider. Salonda müzik açıkken ölçülmeden hangisinin gerektiği bilinmiyor — [[DEBT-038]].
 
 **Turnike:** Perkotek S310. Menü: `F01=5` · `F02=0` · `F03=0` · **`F04=0`**.
 
@@ -41,7 +47,7 @@ RÖLE  IN1 → 5 (giriş kolu)   ·   IN2 → 4 (çıkış kolu)
 |---|---|
 | **`GPIO 6`** | Çıkış ekranının `CS`'i olarak denendi, tek ekran açıldı · HIGH sürülünce **iki ekran birden söndü** (2/2) · buzzer'ı 250 ms'de hiç öttüremedi. Üç bağımsız arıza, sebep bilinmiyor. **Kullanılmaz.** |
 | **`GPIO 21`** | Bu kartta şerit **lehimsiz** geldi. Pin seçimi pinout'a değil **karta bakarak** yapılır. |
-| **Boşta bırakılan buzzer pini** | `pinMode(INPUT)` — takılı buzzer üzerinden 3.3 V rayına akım yolu açıyor, ekranlar başlamıyor. **Buzzer pini her zaman sürülür** (`HIGH` = sessiz). |
+| **Boşta bırakılan buzzer pini** | `pinMode(INPUT)` — takılı buzzer üzerinden 3.3 V rayına akım yolu açıyor, ekranlar başlamıyor. **Buzzer pini her zaman sürülür** (bugünkü modülde `HIGH` = sessiz; NPN takılırsa `LOW` = sessiz — polarite döner, [[DEBT-038]]). |
 
 ---
 
