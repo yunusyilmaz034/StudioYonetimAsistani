@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
-import { decideCompleteWorkoutDay, decideUndoWorkoutDay, type DecideContext } from '../../src/modules/training/domain/decide'
+import { decideCompleteWorkoutDay, decideRetractProgramVersion, decideUndoWorkoutDay, type DecideContext } from '../../src/modules/training/domain/decide'
 import type { WorkoutLog } from '../../src/modules/training/domain/types'
 import { instant, type ActorRef, type CorrelationId, type StudioId } from '../../src/shared'
 import completed from './workout.day_completed.v1.json'
+import retracted from './program.version_retracted.v1.json'
 
 // The payload SHAPE is a contract: once written, an event is never edited and never deleted, so a
 // field added or renamed here is a permanent fork in the log. The fixture is the agreed shape; this
@@ -66,5 +67,51 @@ describe('golden · workout.day_undone v1', () => {
       dayOrder: 1,
       reason: 'yanlış günü işaretledim',
     })
+  })
+})
+
+
+// ── program.version_retracted (owner onayı, 2026-09-03) ─────────────────────────────────────
+//
+// `becameCurrent` sözleşmenin parçası ve kolayca atlanabilecek alan: onsuz "üye o an hangi programı
+// görüyordu" sorusu log'dan cevaplanamaz. `reason` da öyle — geri çekmenin sebebi olayın içinde
+// durmazsa, bir yıl sonra "bu neden kalktı" sorusunun cevabı yoktur.
+//
+// PII yok: gün adları, egzersizler ve notlar olaya HİÇ girmez — program belgesinde dururlar.
+describe('program.version_retracted v1', () => {
+  const program = {
+    id: 'prg_01K000000000000000000000',
+    studioId: 'std_1',
+    memberId: 'mem_1',
+    trainerId: 'trn_1',
+    title: 'Program A',
+    status: 'active',
+    startsOn: null,
+    endsOn: null,
+    currentVersion: 3,
+    versions: [1, 2, 3].map((n) => ({
+      version: n,
+      note: '',
+      days: [{ order: 1, name: '1. Gün', exercises: [] }],
+      publishedBy: ctx.actor,
+      publishedAt: ctx.now,
+    })),
+    createdAt: ctx.now,
+    updatedAt: ctx.now,
+  } as never
+
+  it('payload sabit sözleşmeye uyuyor', () => {
+    const r = decideRetractProgramVersion(ctx, program, 3, 'Yanlışlıkla iki kez yayınlandı')
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.value.events[0]?.payload).toEqual(retracted)
+  })
+
+  it('payload üyeye ait hiçbir içerik taşımıyor', () => {
+    const r = decideRetractProgramVersion(ctx, program, 3, 'sebep')
+    if (!r.ok) return
+    expect(Object.keys(r.value.events[0]!.payload as object).sort()).toEqual(
+      ['becameCurrent', 'programId', 'reason', 'version'].sort(),
+    )
   })
 })

@@ -10,6 +10,11 @@ export const EXERCISE_UPSERTED = 'exercise.upserted'
 export const PROGRAM_CREATED = 'program.created'
 export const PROGRAM_VERSION_PUBLISHED = 'program.version_published'
 export const PROGRAM_STATUS_CHANGED = 'program.status_changed'
+// Bir sürüm GERİ ÇEKİLDİ (owner onayı, 2026-09-03). Üretici olayın adında YOK (#2): eğitmen de
+// yapsa owner da yapsa olan şey aynı — bir sürüm yayından kalktı. `reason` ZORUNLU ve domainde
+// zorlanıyor (#9): düzeltme sessiz bir üzerine yazma değildir, sebebi olan bir kayıttır.
+export const PROGRAM_VERSION_RETRACTED = 'program.version_retracted'
+export const PROGRAM_VERSION_RESTORED = 'program.version_restored'
 export const MEASUREMENT_RECORDED = 'measurement.recorded'
 export const MEASUREMENT_CORRECTED = 'measurement.corrected'
 export const TRAINING_FEEDBACK_LEFT = 'training_feedback.left'
@@ -26,6 +31,17 @@ export type ExerciseUpsertedPayload = { readonly exerciseId: string; readonly ve
 export type ProgramCreatedPayload = { readonly programId: string; readonly trainerId: string }
 export type ProgramVersionPublishedPayload = { readonly programId: string; readonly version: number; readonly dayCount: number; readonly exerciseCount: number }
 export type ProgramStatusChangedPayload = { readonly programId: string; readonly from: ProgramStatus; readonly to: ProgramStatus }
+// PII YOK: sebep serbest metindir ama üyenin adını değil, kararın gerekçesini taşır — alanların
+// kendisi (egzersizler, notlar) olaya HİÇ girmez, program belgesinde durur.
+// `becameCurrent`: güncel sürüm geri çekildiğinde hangisinin devraldığı. Bu alan olmadan "üye o an
+// hangi programı görüyordu" sorusu log'dan cevaplanamaz.
+export type ProgramVersionRetractedPayload = {
+  readonly programId: string
+  readonly version: number
+  readonly reason: string
+  readonly becameCurrent: number | null
+}
+export type ProgramVersionRestoredPayload = { readonly programId: string; readonly version: number }
 // A measurement event carries the FACT + which metrics were present, never the values (they are the
 // member's PII and live on the measurement record).
 export type MeasurementRecordedPayload = { readonly measurementId: string; readonly takenOn: string; readonly metrics: readonly string[] }

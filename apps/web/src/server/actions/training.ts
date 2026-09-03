@@ -29,7 +29,9 @@ import {
   FirestoreCheckinRepository,
   type WorkoutLog,
   instant,
-  type CheckIn
+  type CheckIn,
+  retractProgramVersion,
+  restoreProgramVersion,
 } from '@studio/core'
 import { z } from 'zod'
 
@@ -274,6 +276,37 @@ export async function assignTemplateAction(input: unknown) {
   await assertMayReadMemberContent(ctx, p.memberId)
   await assertMayHaveProgram(ctx, p.memberId)
   return instantiateTemplate(trainingDeps(), ctx, { templateId: p.templateId, memberId: p.memberId, trainerId }, STAFF_SOURCE)
+}
+
+// SÜRÜM GERİ ÇEKME (owner onayı, 2026-09-03). Yetki `publishProgramVersionAction` ile AYNI: sürümü
+// yayınlayabilen kişi geri de çekebilir. Farklı olsaydı, kendi yanlışını düzeltemeyen bir eğitmen
+// her seferinde owner'ı beklerdi — ve o bekleme sırasında üye yanlış programı görmeye devam ederdi.
+//
+// `assertTrainerOwns` burada da: bir eğitmen başkasının programına dokunamaz.
+export async function retractProgramVersionAction(input: unknown) {
+  const p = z
+    .object({
+      programId: z.string().min(1),
+      version: z.number().int().positive(),
+      // Domain de reddediyor (`reason_required`); burada da istenmesinin sebebi, boş bir sebebin
+      // ağdan geçip domaine kadar gitmesinin bir faydası olmaması.
+      reason: z.string().trim().min(1),
+    })
+    .parse(input)
+  const ctx = await requireTenantContext(TRAINER)
+  const program = await repo().getProgram(ctx, p.programId)
+  if (!program) return { ok: false as const, error: { code: 'program_version_not_found' as const } }
+  assertTrainerOwns(ctx, program.trainerId)
+  return retractProgramVersion(trainingDeps(), ctx, p, STAFF_SOURCE)
+}
+
+export async function restoreProgramVersionAction(input: unknown) {
+  const p = z.object({ programId: z.string().min(1), version: z.number().int().positive() }).parse(input)
+  const ctx = await requireTenantContext(TRAINER)
+  const program = await repo().getProgram(ctx, p.programId)
+  if (!program) return { ok: false as const, error: { code: 'program_version_not_found' as const } }
+  assertTrainerOwns(ctx, program.trainerId)
+  return restoreProgramVersion(trainingDeps(), ctx, p, STAFF_SOURCE)
 }
 
 export async function publishProgramVersionAction(input: unknown) {
@@ -650,7 +683,14 @@ export async function loadMyTraining(ctx: TenantContext, memberId: MemberId) {
   //
   // Filtered on the SERVER, not the screen: what a member must not see should not travel to her
   // phone. Archiving is reversible and nothing is deleted, so this hides without losing anything.
-  const programs = allPrograms.filter((p) => p.status !== 'archived')
+  const programs = allPrograms
+    .filter((p) => p.status !== 'archived')
+    // GERİ ÇEKİLEN SÜRÜM ÜYENİN TELEFONUNA HİÇ GİTMEZ (owner onayı, 2026-09-03) — yukarıdaki
+    // arşiv kuralıyla aynı gerekçe ve aynı yer. `currentVersion` domain gereği hep yayında bir
+    // sürümü gösterir, ama uygulama bulamadığında listenin SONUNCUSUNA düşüyor; o sonuncu geri
+    // çekilmiş olabilirdi. Süzmeyi burada yapmak, o düşüşün yanlış bir programa inmesini imkânsız
+    // kılar — istemciyi güncellemeden.
+    .map((p) => ({ ...p, versions: p.versions.filter((v) => !v.retracted) }))
 
   // Training PROGRAMMES are for members who actually train — fitness (gym) or PT. A pilates-only member
   // has no use for a workout plan; she sees only her measurements. Kept honest by a real membership

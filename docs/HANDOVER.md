@@ -164,6 +164,26 @@ hiç verilmemiş bir indirim yaratırdı ([[OR-32]]).
 Doğrulandı: iki satış da `settled` · ödenen 9.500 · borç yok · üyede tek aktif paket
 (04.09 → 03.12.2026) · tahsilatlar `reconciled` · paket tutarı 9.500.
 
+### ↩️ Program sürümü geri çekme — yeni olay, owner onaylı (3 Eylül gecesi)
+
+Ayşegül'ün programında tek oturumda **dört sürüm** birikti ve owner ilk olarak *"v1 kalsın, diğerlerini
+sil"* dedi. Silmeden önce sürümler okundu: **kopya değillerdi**, üst üste yapılmış gerçek düzenlemeler —
+v1 Ağustos şablonu, v4 ise Işıl'ın o akşam bitirdiği program. v1'i bırakmak, bütün akşamki çalışmayı
+silmek olurdu. Owner tabloyu görünce **v2/v3 silinsin, v4 kalsın** dedi.
+
+Sonra asıl soruyu sordu: *"silmek de bir ihtiyaç değil mi, yanlış işlem olabilir"* — ve haklıydı.
+Benim itirazım yanlış yere gitmişti: silme ihtiyacına değil, **olaysız silmeye** itiraz ediyordum.
+
+**Yapıldı: `program.version_retracted` + `program.version_restored`** ([[OR-64]]). Geri çekme, silme
+değil — düğmeye eğitmen basıyor, ve hata olasılığının en yüksek olduğu yerde geri dönüşü olmayan bir
+işlem olmamalı. Reddedilenler, devralma kuralı ve üye tarafındaki süzme OR-64'te.
+
+**Sürüm birikmesinin sebebi Işıl değildi:** bayat sekme uyarısı olmadığı için yayınlama 404'e düşüyor,
+ekran "Yayınlanamadı" diyor, o da tekrar deniyordu. O da aynı gece düzeltildi.
+
+**Ayşegül'ün v2/v3'üne dokunulmadı** — özellik yayına girince sebebiyle geri çekilecekler. İlk
+müşterisi onlar.
+
 ### 🐞 İptal edilmiş satış, canlı olanın üstüne yazıyordu — DÖRT GÜNDÜR (3 Eylül)
 
 Owner düzeltmeden sonra kartı açtı: **"Paket tutarı 9.500 · Tahsil edilen 0 ₺ · Kalan bakiye 0"**.

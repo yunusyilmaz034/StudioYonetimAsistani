@@ -317,6 +317,17 @@ export function domainErrorMessage(error: DomainError): string {
       return 'Zaten açık bir mesain var. Önce onu bitir.'
     case 'no_open_shift':
       return 'Açık bir mesain yok. Önce mesaiyi başlat.'
+    // ── Program sürümü geri çekme (owner onayı, 2026-09-03) ──
+    case 'program_version_not_found':
+      return 'Bu sürüm bulunamadı. Sayfayı yenileyip tekrar deneyin.'
+    case 'program_version_already_retracted':
+      return 'Bu sürüm zaten geri çekilmiş.'
+    case 'program_version_not_retracted':
+      return 'Bu sürüm zaten yayında.'
+    // Cümle NE YAPILACAĞINI söylüyor, yalnızca reddi değil: programın tamamını kaldırmanın ayrı bir
+    // yolu var ve kullanıcı burada onu arıyor olabilir.
+    case 'program_last_version':
+      return 'Son kalan sürüm geri çekilemez — üyenin görebileceği bir program kalmazdı. Programın tamamını kaldırmak için durumunu "Arşiv" yapın.'
     default: {
       const exhaustive: never = error
       void exhaustive

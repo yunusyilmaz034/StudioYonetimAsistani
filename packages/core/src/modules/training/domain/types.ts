@@ -58,12 +58,32 @@ export interface ProgramDay {
   readonly exercises: readonly ProgramExercise[]
 }
 
+/**
+ * Bir sürümün GERİ ÇEKİLMESİ — silinmesi değil (owner onayı, 2026-09-03).
+ *
+ * Yanlış sürüm yayınlanır: eğitmen yarım bırakır, yanlış üyeye yazar, ya da 3 Eylül'deki gibi bayat
+ * bir sekme yüzünden tekrar tekrar deneyip ara kayıtlar biriktirir. "Yayınladım, geri alamıyorum"
+ * kabul edilebilir bir eksik değil.
+ *
+ * Ama silme değil GERİ ÇEKME, ve fark bilerek: bu ekranı kullanan kişi eğitmen, yani hata olasılığı
+ * en yüksek yerde geri dönüşü olmayan bir düğme olmamalı. Geri çekilen sürüm listeden kaybolur —
+ * ekranda sonuç silmeyle aynıdır — ama kaydı durur, geri alınabilir, ve bir üye "geçen ay programımda
+ * şu vardı" dediğinde cevap verilebilir.
+ */
+export interface ProgramVersionRetraction {
+  readonly reason: string
+  readonly by: ActorRef
+  readonly at: Instant
+}
+
 export interface ProgramVersion {
   readonly version: number
   readonly note: string
   readonly days: readonly ProgramDay[]
   readonly publishedBy: ActorRef
   readonly publishedAt: Instant
+  /** `null`/absent ⇒ yayında. Dolu ⇒ geri çekilmiş; ekranlar göstermez. */
+  readonly retracted?: ProgramVersionRetraction | null
 }
 
 export interface Program {

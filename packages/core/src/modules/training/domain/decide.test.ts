@@ -9,8 +9,10 @@ import {
   decideRecordMeasurement,
   decideUndoWorkoutDay,
   type DecideContext,
+  decideRetractProgramVersion,
+  decideRestoreProgramVersion,
 } from './decide'
-import type { Measurement, Program, ProgramDay, WorkoutLog } from './types'
+import type { Measurement, Program, ProgramDay, WorkoutLog, ProgramVersion } from './types'
 
 const ctx: DecideContext = {
   studioId: 'std_1' as StudioId,
@@ -235,5 +237,106 @@ describe('decideUndoWorkoutDay', () => {
   it('refuses to undo twice', () => {
     const r = decideUndoWorkoutDay(ctx, { ...done(), undoneAt: instant(1) }, 'yine', instant(2))
     expect(r.ok).toBe(false)
+  })
+})
+
+// ── SÜRÜM GERİ ÇEKME (owner onayı, 2026-09-03) ──────────────────────────────────────────────
+//
+// 3 Eylül akşamı bir programda tek oturumda dört sürüm birikti — sebebi eğitmenin dikkatsizliği
+// değil, bayat bir sekmenin yayınlamayı 404'e düşürüp tekrar denetmesiydi. "Yayınladım, geri
+// alamıyorum" o gece kabul edilebilir bir eksik olmaktan çıktı.
+//
+// Testin ağırlığı REDDEDİLENLERDE: bir sürümü kaldırmak kolaydır, kaldırılMAMASI gereken durumları
+// bilmek zordur.
+describe('program sürümü geri çekme', () => {
+  const surum = (n: number, retracted: unknown = undefined): ProgramVersion =>
+    ({
+      version: n,
+      note: '',
+      days: [{ order: 1, name: '1. Gün', exercises: [] }],
+      publishedBy: ctx.actor,
+      publishedAt: ctx.now,
+      ...(retracted !== undefined ? { retracted } : {}),
+    }) as ProgramVersion
+
+  const prog = (versions: ProgramVersion[], currentVersion: number): Program =>
+    ({
+      id: 'prg_1',
+      studioId: 'std_1',
+      memberId: 'mem_1',
+      trainerId: 'trn_1',
+      title: 'Program A',
+      status: 'active',
+      startsOn: null,
+      endsOn: null,
+      currentVersion,
+      versions,
+      createdAt: ctx.now,
+      updatedAt: ctx.now,
+    }) as unknown as Program
+
+  it('ara bir sürümü geri çeker, güncel olan değişmez', () => {
+    const r = decideRetractProgramVersion(ctx, prog([surum(1), surum(2), surum(3)], 3), 2, 'iki kez yayınlandı')
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.value.next.currentVersion).toBe(3)
+    expect(r.value.next.versions.find((v) => v.version === 2)?.retracted?.reason).toBe('iki kez yayınlandı')
+    expect(r.value.events[0]?.payload).toMatchObject({ version: 2, becameCurrent: null })
+  })
+
+  it('GÜNCEL sürüm geri çekilince yayında kalan EN YÜKSEK devralır', () => {
+    // v3 zaten geri çekilmişse "bir öncekine dön" v3 değil v2'dir — aradaki geri çekilmişler atlanır.
+    const r = decideRetractProgramVersion(ctx, prog([surum(1), surum(2), surum(3, { reason: 'x', by: ctx.actor, at: ctx.now }), surum(4)], 4), 4, 'yanlış yayınlandı')
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.value.next.currentVersion).toBe(2)
+    expect(r.value.events[0]?.payload).toMatchObject({ becameCurrent: 2 })
+  })
+
+  it('SEBEPSİZ geri çekilemez — boşluk da sebep değildir', () => {
+    for (const sebep of ['', '   ', '\n']) {
+      const r = decideRetractProgramVersion(ctx, prog([surum(1), surum(2)], 2), 1, sebep)
+      expect(r.ok).toBe(false)
+      if (!r.ok) expect(r.error.code).toBe('reason_required')
+    }
+  })
+
+  it('SON yayındaki sürüm geri çekilemez — programsız program olmaz', () => {
+    const r = decideRetractProgramVersion(ctx, prog([surum(1)], 1), 1, 'sil')
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.error.code).toBe('program_last_version')
+  })
+
+  it('geri çekilmiş sürümler sayılmaz: ikisinden biri kalmışsa o da çekilemez', () => {
+    // SINIR: iki sürüm var ama biri zaten geri çekilmiş ⇒ yayında BİR tane, yani son olan.
+    const r = decideRetractProgramVersion(ctx, prog([surum(1, { reason: 'x', by: ctx.actor, at: ctx.now }), surum(2)], 2), 2, 'sil')
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.error.code).toBe('program_last_version')
+  })
+
+  it('aynı sürüm iki kez geri çekilemez', () => {
+    const r = decideRetractProgramVersion(ctx, prog([surum(1), surum(2, { reason: 'ilk sebep', by: ctx.actor, at: ctx.now }), surum(3)], 3), 2, 'ikinci sebep')
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.error.code).toBe('program_version_already_retracted')
+  })
+
+  it('olmayan sürüm geri çekilemez', () => {
+    const r = decideRetractProgramVersion(ctx, prog([surum(1), surum(2)], 2), 9, 'sil')
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.error.code).toBe('program_version_not_found')
+  })
+
+  it('geri alınır ve GÜNCEL OLMAZ — yayına dönmek yeniden yayınlanmak değildir', () => {
+    const r = decideRestoreProgramVersion(ctx, prog([surum(1), surum(2, { reason: 'x', by: ctx.actor, at: ctx.now }), surum(3)], 3), 2)
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.value.next.versions.find((v) => v.version === 2)?.retracted).toBeNull()
+    expect(r.value.next.currentVersion).toBe(3)
+  })
+
+  it('geri çekilmemiş sürüm geri alınamaz', () => {
+    const r = decideRestoreProgramVersion(ctx, prog([surum(1), surum(2)], 2), 2)
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.error.code).toBe('program_version_not_retracted')
   })
 })

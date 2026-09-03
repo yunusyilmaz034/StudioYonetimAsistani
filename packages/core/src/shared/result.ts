@@ -232,6 +232,13 @@ export type DomainError =
   | { readonly code: 'retail_out_of_stock'; readonly available: number }
   // ── Plus Phase 7 (Training & Progress) ──
   | { readonly code: 'program_archived' }
+  // Sürüm geri çekme (owner onayı, 2026-09-03). Üçü de bir REDDİN adıdır: son yayındaki sürüm
+  // kaldırılamaz (programsız program olmaz), aynı sürüm iki kez geri çekilemez (ikinci kayıt ilkinin
+  // sebebini gölgeler), ve geri çekilmemiş bir sürüm geri alınamaz.
+  | { readonly code: 'program_version_not_found' }
+  | { readonly code: 'program_version_already_retracted' }
+  | { readonly code: 'program_version_not_retracted' }
+  | { readonly code: 'program_last_version' }
   | { readonly code: 'program_empty' }
   | { readonly code: 'program_version_conflict' }
   // v1.31 — the workout cycle is walked in order, 1 → 2 → 3 → 1 (owner: "sıralama atlamaya izin

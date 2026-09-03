@@ -29,6 +29,8 @@ import {
   decideUndoWorkoutDay,
   decideUpsertExercise,
   cycleState,
+  decideRetractProgramVersion,
+  decideRestoreProgramVersion,
   type DecideContext,
 } from '../domain/decide'
 import type {
@@ -155,6 +157,39 @@ export interface DraftProgramDay {
   readonly order: number
   readonly name: string
   readonly exercises: readonly DraftProgramExercise[]
+}
+
+/**
+ * Bir sürümü geri çek — yükle, karar ver, yaz. Karar `decideRetractProgramVersion`ta ve saf; buranın
+ * işi yalnızca programı bulmak ve sonucu olayla birlikte tek işlemde yazmak.
+ */
+export async function retractProgramVersion(
+  deps: TrainingDeps,
+  ctx: TenantContext,
+  input: { readonly programId: string; readonly version: number; readonly reason: string },
+  source: EventSource,
+): Promise<Result<Program, DomainError>> {
+  const program = await deps.repo.getProgram(ctx, input.programId)
+  if (!program) return { ok: false, error: { code: 'program_version_not_found' } }
+  const decided = decideRetractProgramVersion(dctx(deps, ctx, source), program, input.version, input.reason)
+  if (!decided.ok) return decided
+  await deps.repo.saveProgram(ctx, decided.value.next, decided.value.events)
+  return { ok: true, value: decided.value.next }
+}
+
+/** Yanlışlıkla geri çekileni yayına al. */
+export async function restoreProgramVersion(
+  deps: TrainingDeps,
+  ctx: TenantContext,
+  input: { readonly programId: string; readonly version: number },
+  source: EventSource,
+): Promise<Result<Program, DomainError>> {
+  const program = await deps.repo.getProgram(ctx, input.programId)
+  if (!program) return { ok: false, error: { code: 'program_version_not_found' } }
+  const decided = decideRestoreProgramVersion(dctx(deps, ctx, source), program, input.version)
+  if (!decided.ok) return decided
+  await deps.repo.saveProgram(ctx, decided.value.next, decided.value.events)
+  return { ok: true, value: decided.value.next }
 }
 
 export async function publishProgramVersion(

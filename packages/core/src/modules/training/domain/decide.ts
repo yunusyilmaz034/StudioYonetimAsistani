@@ -19,6 +19,8 @@ import {
   PROGRAM_CREATED,
   PROGRAM_STATUS_CHANGED,
   PROGRAM_VERSION_PUBLISHED,
+  PROGRAM_VERSION_RESTORED,
+  PROGRAM_VERSION_RETRACTED,
   PROGRESS_PHOTO_ADDED,
   PROGRESS_PHOTO_REMOVED,
   TRAINING_FEEDBACK_ANSWERED,
@@ -100,6 +102,89 @@ export function decidePublishVersion(
   return ok({
     next,
     events: [{ ...base(ctx, 'program', program.id, program.memberId, { programId: program.id }), type: PROGRAM_VERSION_PUBLISHED, payload: { programId: program.id, version: nextVersionNo, dayCount: days.length, exerciseCount } }],
+  })
+}
+
+/**
+ * BİR SÜRÜMÜ GERİ ÇEK — silme değil (owner onayı, 2026-09-03).
+ *
+ * Yanlış sürüm yayınlanır ve "geri alamıyorum" kabul edilebilir bir eksik değildi. Ama silme yerine
+ * geri çekme, ve fark bilerek seçildi: bu düğmeye eğitmen basıyor, yani hata olasılığı en yüksek
+ * yerde geri dönüşü olmayan bir işlem olmamalı. Ekranda sonuç silmeyle aynıdır; kayıt durur.
+ *
+ * ÜÇ RET, ve üçü de owner'ın kararı:
+ *
+ *  1. **Son yayında sürüm geri çekilemez.** Programsız bir program olmaz — üye açtığında hiçbir şey
+ *     görmezdi, ve "program yok" ile "programı kaldırdık" aynı ekranla anlatılamaz. Programın
+ *     tamamını kaldırmanın kendi yolu var: durumu `archived` yapmak.
+ *  2. **Sebep zorunlu.** Boş bir sebep, sebebi olmayan bir düzeltmedir (#9) — kredi düzeltmesinde de
+ *     aynı kural. Bir yıl sonra "bu neden kalktı" sorusunun tek cevabı burasıdır.
+ *  3. **Zaten geri çekilmiş sürüm iki kez geri çekilemez.** İkinci kayıt, ilkinin sebebini gölgeler.
+ *
+ * GÜNCEL SÜRÜM GERİ ÇEKİLEBİLİR ve en çok istenecek şey odur: *"az önce yayınladığımı geri al."* O
+ * durumda yayında kalan EN YÜKSEK sürüm güncel olur. `becameCurrent` olayın içine yazılıyor, çünkü
+ * o alan olmadan "üye o an hangi programı görüyordu" sorusu log'dan cevaplanamaz.
+ */
+export function decideRetractProgramVersion(
+  ctx: DecideContext,
+  program: Program,
+  version: number,
+  reason: string,
+): Result<{ next: Program; events: NewEvent[] }, DomainError> {
+  if (reason.trim().length === 0) return err({ code: 'reason_required' })
+  const hedef = program.versions.find((v) => v.version === version)
+  if (!hedef) return err({ code: 'program_version_not_found' })
+  if (hedef.retracted) return err({ code: 'program_version_already_retracted' })
+  const yayinda = program.versions.filter((v) => !v.retracted)
+  if (yayinda.length <= 1) return err({ code: 'program_last_version' })
+
+  const versions = program.versions.map((v) =>
+    v.version === version ? { ...v, retracted: { reason: reason.trim(), by: ctx.actor, at: ctx.now } } : v,
+  )
+  // Güncel geri çekildiyse yayında kalanların EN YÜKSEĞİ devralır — "bir öncekine dön" demenin
+  // doğru hâli bu: aradaki sürümler de geri çekilmiş olabilir.
+  const kalan = versions.filter((v) => !v.retracted).map((v) => v.version)
+  const yeniGuncel = program.currentVersion === version ? Math.max(...kalan) : program.currentVersion
+  const next: Program = { ...program, currentVersion: yeniGuncel, versions, updatedAt: ctx.now }
+  return ok({
+    next,
+    events: [
+      {
+        ...base(ctx, 'program', program.id, program.memberId, { programId: program.id }),
+        type: PROGRAM_VERSION_RETRACTED,
+        payload: {
+          programId: program.id,
+          version,
+          reason: reason.trim(),
+          becameCurrent: yeniGuncel === program.currentVersion ? null : yeniGuncel,
+        },
+      },
+    ],
+  })
+}
+
+/** Yanlışlıkla geri çekileni yayına al. Geri çekmenin geri alınabilir olmasının SEBEBİ bu fonksiyon. */
+export function decideRestoreProgramVersion(
+  ctx: DecideContext,
+  program: Program,
+  version: number,
+): Result<{ next: Program; events: NewEvent[] }, DomainError> {
+  const hedef = program.versions.find((v) => v.version === version)
+  if (!hedef) return err({ code: 'program_version_not_found' })
+  if (!hedef.retracted) return err({ code: 'program_version_not_retracted' })
+  // Geri gelen sürüm GÜNCEL OLMAZ: yayına dönmek, yeniden yayınlanmak değildir. Üyenin gördüğü
+  // programı değiştirmek ayrı ve bilinçli bir karardır — onun yolu yeni sürüm yayınlamaktır.
+  const versions = program.versions.map((v) => (v.version === version ? { ...v, retracted: null } : v))
+  const next: Program = { ...program, versions, updatedAt: ctx.now }
+  return ok({
+    next,
+    events: [
+      {
+        ...base(ctx, 'program', program.id, program.memberId, { programId: program.id }),
+        type: PROGRAM_VERSION_RESTORED,
+        payload: { programId: program.id, version },
+      },
+    ],
   })
 }
 

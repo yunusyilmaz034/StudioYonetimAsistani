@@ -54,6 +54,8 @@ export {
   workoutProgress,
   listProgramTemplates,
   publishProgramVersion,
+  retractProgramVersion,
+  restoreProgramVersion,
   recordMeasurement,
   removePhoto,
   resolveFeedback,

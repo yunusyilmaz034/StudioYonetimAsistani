@@ -1343,3 +1343,39 @@ tanımadığını ilan ediyor.
 Ayrıca: **yazdığı mesaj son hâlidir.** "canım… pardon, hanımefendi" gibi bir düzeltme müşterinin önünde
 yapılmaz — düşünme bütçesi kapalı bir model, fikrini değiştirecek özel bir yer bulamazsa kararını
 ekranda verir. Doğru cevap yasak kelimeyi yazıp düzeltmek değil, hiç yazmamaktır.
+
+---
+
+### OR-64 · Yanlış yayınlanan program sürümü GERİ ÇEKİLİR, silinmez
+
+*(2026-09-03 · owner: "silmek de bir ihtiyaç değil mi, yanlış işlem olabilir" — ve haklıydı)*
+
+Yanlış sürüm yayınlanır: eğitmen yarım bırakır, yanlış üyeye yazar, ya da 3 Eylül'deki gibi bayat bir
+sekme yayınlamayı 404'e düşürüp tekrar denetir ve tek oturumda dört sürüm birikir. **"Yayınladım, geri
+alamıyorum" kabul edilebilir bir eksik değildir.**
+
+**Ama silme değil GERİ ÇEKME.** Bu düğmeye eğitmen basıyor — hata olasılığının en yüksek olduğu yerde
+geri dönüşü olmayan bir işlem olmamalı. Ekranda sonuç silmeyle aynıdır: sürüm listeden kalkar, üyenin
+telefonuna hiç gitmez. Ama kaydı durur, sebebi durur, geri alınabilir, ve bir üye *"geçen ay
+programımda şu vardı"* dediğinde cevap verilebilir.
+
+**Üç ret, ve üçü de kuralın parçası:**
+
+1. **Son yayındaki sürüm geri çekilemez** — programsız bir program olmaz, ve "program yok" ile
+   "programı kaldırdık" aynı ekranla anlatılamaz. Programın tamamını kaldırmanın kendi yolu var:
+   durumu **Arşiv** yapmak. Hata mesajı bunu söylüyor, çünkü kullanıcı orada onu arıyordur.
+2. **Sebep zorunlu** — kredi düzeltmesindeki kuralın aynısı ([[AD-39]] hattı). Bir yıl sonra "bu neden
+   kalktı" sorusunun tek cevabı o alandır, ve sebepsiz bir düzeltme sessiz bir üzerine yazmadır (#9).
+3. **Aynı sürüm iki kez geri çekilemez** — ikinci kayıt, ilkinin sebebini gölgeler.
+
+**Güncel sürüm geri çekilebilir ve en çok istenecek şey odur** (*"az önce yayınladığımı geri al"*).
+O zaman yayında kalanların **en yükseği** güncel olur — aradaki geri çekilmişler atlanır. Devralan
+sürüm hem olayın içine yazılır (`becameCurrent`) hem de düğmeye basılmadan ÖNCE ekranda söylenir:
+"hangi programı görecek", kullanıcının tahmin etmesi gereken bir şey değildir.
+
+**Geri alınan sürüm GÜNCEL OLMAZ.** Yayına dönmek, yeniden yayınlanmak değildir; üyenin gördüğü
+programı değiştirmek ayrı ve bilinçli bir karardır ve yolu yeni sürüm yayınlamaktır.
+
+**Süzme sunucuda.** Geri çekilen sürüm üyenin telefonuna hiç gitmez — arşivlenmiş programda konan
+kuralın aynısı, aynı yerde: üyenin görmemesi gerekeni istemciye göndermek, istemciyi tek doğruluk
+noktası yapmaktır.

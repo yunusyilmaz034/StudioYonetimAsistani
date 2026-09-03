@@ -63,6 +63,8 @@ import {
   recordMeasurementAction,
   removeProgressPhotoAction,
   mayHaveProgramAction,
+  retractProgramVersionAction,
+  restoreProgramVersionAction,
 } from '@/server/actions/training'
 
 const LEVEL_LABEL: Record<string, string> = { beginner: 'Başlangıç', intermediate: 'Orta', advanced: 'İleri' }
@@ -679,6 +681,47 @@ function ProgramDetailSheet({
   const [building, setBuilding] = useState(false)
   const [busy, setBusy] = useState(false)
   const [guide, setGuide] = useState<Exercise | null>(null)
+  // Geri çekme akışı: hangi sürüm ve neden. Sebep ZORUNLU — domain de reddediyor (`reason_required`),
+  // ekran da: bir yıl sonra "bu neden kalktı" sorusunun tek cevabı o alandır.
+  const [retracting, setRetracting] = useState<number | null>(null)
+  const [retractReason, setRetractReason] = useState('')
+  const [retractBusy, setRetractBusy] = useState(false)
+  const yayindaki = program.versions.filter((v) => !v.retracted)
+  const yayindakiSurumSayisi = yayindaki.length
+  const cekilenSayisi = program.versions.length - yayindakiSurumSayisi
+
+  async function retract() {
+    if (retracting === null || retractReason.trim().length === 0) return
+    setRetractBusy(true)
+    try {
+      const r = await retractProgramVersionAction({ programId: program.id, version: retracting, reason: retractReason.trim() })
+      if (r.ok) {
+        toast.success(`v${retracting} geri çekildi.`)
+        setRetracting(null)
+        setRetractReason('')
+        onChanged()
+      } else {
+        toast.error(domainErrorMessage(r.error))
+      }
+    } catch (e) {
+      toast.error(isStaleDeployment(e) ? STALE_DEPLOYMENT_MESSAGE : 'Geri çekilemedi.')
+    }
+    setRetractBusy(false)
+  }
+
+  async function restore(version: number) {
+    try {
+      const r = await restoreProgramVersionAction({ programId: program.id, version })
+      if (r.ok) {
+        toast.success(`v${version} yayına alındı.`)
+        onChanged()
+      } else {
+        toast.error(domainErrorMessage(r.error))
+      }
+    } catch (e) {
+      toast.error(isStaleDeployment(e) ? STALE_DEPLOYMENT_MESSAGE : 'Yayına alınamadı.')
+    }
+  }
   const latest = program.versions[program.versions.length - 1] ?? null
 
   async function setStatus(to: Program['status']) {
@@ -730,6 +773,10 @@ function ProgramDetailSheet({
             </p>
           ) : (
             [...program.versions]
+              // GERİ ÇEKİLENLER LİSTEDE GÖRÜNMEZ (owner onayı, 2026-09-03) — ekranda sonuç silmeyle
+              // aynıdır. Kaç tanesinin çekildiği listenin ALTINDA yazıyor: iz bırakmadan kaybolan bir
+              // sürüm, gitmeyen sürümün tersten aynı yalanıdır, ve geri almanın tek kapısı o satır.
+              .filter((v) => !v.retracted)
               .sort((a, b) => b.version - a.version)
               .map((v) => (
                 <div key={v.version} className="rounded-xl border border-border bg-card p-3 shadow-xs">
@@ -740,7 +787,17 @@ function ProgramDetailSheet({
                         <Badge className="ml-2 bg-success/10 text-success">Güncel</Badge>
                       ) : null}
                     </p>
-                    <span className="text-xs text-muted-foreground">yayınlandı {dtime(v.publishedAt)}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">yayınlandı {dtime(v.publishedAt)}</span>
+                      {/* Son yayındaki sürüm geri çekilemez — domain de reddediyor
+                          (`program_last_version`). Düğme orada hiç ÇIKMIYOR: basılıp reddedilen bir
+                          düğme, olmayan bir düğmeden kötüdür. */}
+                      {yayindakiSurumSayisi > 1 ? (
+                        <Button variant="ghost" size="sm" onClick={() => setRetracting(v.version)}>
+                          Geri çek
+                        </Button>
+                      ) : null}
+                    </div>
                   </div>
                   {v.note ? <p className="mt-1 text-xs text-muted-foreground">{v.note}</p> : null}
                   <div className="mt-2 space-y-2">
@@ -778,6 +835,27 @@ function ProgramDetailSheet({
                 </div>
               ))
           )}
+          {/* İZ BIRAKMADAN KAYBOLMAZ. Kaç sürümün geri çekildiği burada yazıyor, ve geri almanın tek
+              kapısı bu satır — geri çekmenin silme YERİNE seçilmesinin sebebi de buydu. */}
+          {cekilenSayisi > 0 ? (
+            <div className="rounded-lg border border-dashed border-border px-3 py-2 text-xs text-muted-foreground">
+              {cekilenSayisi} sürüm geri çekildi.
+              <div className="mt-1.5 space-y-1">
+                {program.versions
+                  .filter((v) => v.retracted)
+                  .sort((a, b) => b.version - a.version)
+                  .map((v) => (
+                    <div key={v.version} className="flex flex-wrap items-baseline gap-x-2">
+                      <span className="font-medium text-foreground">v{v.version}</span>
+                      <span className="truncate">{v.retracted?.reason}</span>
+                      <button type="button" className="underline hover:text-primary" onClick={() => void restore(v.version)}>
+                        yayına al
+                      </button>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          ) : null}
         </div>
 
         {building ? (
@@ -794,6 +872,49 @@ function ProgramDetailSheet({
           />
         ) : null}
         {guide ? <ExerciseGuideDialog exercise={guide} onClose={() => setGuide(null)} /> : null}
+
+        {/* GERİ ÇEKME — sebep zorunlu, ve neyin olacağı önceden yazıyor. Güncel sürüm çekiliyorsa
+            devralanı SÖYLÜYOR: "hangi programı görecek" sorusunu kullanıcının tahmin etmesi
+            gereken bir düğme, basılmadan önce cevaplanmayan bir sorudur. */}
+        {retracting !== null ? (
+          <Dialog open onOpenChange={(o) => !o && (setRetracting(null), setRetractReason(''))}>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>v{retracting} sürümünü geri çek</DialogTitle>
+                <DialogDescription>
+                  Sürüm listeden kalkar ve üye görmez. Silinmez — sebebiyle kayıtta kalır ve istersen yayına geri alabilirsin.
+                  {retracting === program.currentVersion ? (
+                    <>
+                      {' '}
+                      Bu GÜNCEL sürüm: geri çekilince{' '}
+                      <strong>
+                        v{Math.max(...yayindaki.filter((v) => v.version !== retracting).map((v) => v.version))}
+                      </strong>{' '}
+                      güncel olur ve üye onu görür.
+                    </>
+                  ) : null}
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Sebep</label>
+                <Input
+                  autoFocus
+                  value={retractReason}
+                  onChange={(e) => setRetractReason(e.target.value)}
+                  placeholder="ör. yanlışlıkla iki kez yayınlandı"
+                />
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => { setRetracting(null); setRetractReason('') }}>
+                  Vazgeç
+                </Button>
+                <Button onClick={() => void retract()} disabled={retractBusy || retractReason.trim().length === 0}>
+                  {retractBusy ? <Loader2Icon className="animate-spin" /> : null} Geri çek
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        ) : null}
       </SheetContent>
     </Sheet>
   )
