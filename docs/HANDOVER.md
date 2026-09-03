@@ -132,6 +132,29 @@ ismini sor, satışa götür. Dün burada ders yapmış kadın için bunların h
 yollamak owner'ın kuralı ve yerinde; yanlış olan, **zaten stüdyoya yazmış bir üyeyi** ikinci bir hatta
 göndermesiydi. Onu artık üye bloğu kesiyor. Ayardaki metne dokunulmadı.
 
+### 🔇 Aynı hata, ikinci fonksiyonda: satışa hazır müşterinin uyarısı log'a düşüyordu (3 Eylül)
+
+Deploy'ı doğrularken log'da 1 Eylül'de düzeltilen satırın aynısı duruyordu — bu sefer
+`whatsappWebhook`'ta:
+
+```
+e-mail transport is the CONSOLE — no message will leave the building
+```
+
+`tellTheDesk`, *"kayıt olmak istiyorum"* diyen kişiyi bir insanın önüne koyar ve bunu olağan bildirim
+hattından yapar. O hat kimlik bilgilerini ortamdan okur; webhook ise yalnızca
+`WHATSAPP_ACCESS_TOKEN` + `ANTHROPIC_API_KEY` bağlıyordu. Yani **21:40'ta satışa hazır olan kişinin
+uyarısı** — mekanizmanın var olma sebebi olan tek durum, çünkü o saatte kimse panele bakmıyor — bir
+log dosyasına yazılıyordu.
+
+Tek satır: `AI_RECEPTIONIST_SECRETS = [...NOTIFICATION_SECRETS, 'ANTHROPIC_API_KEY']`. Doğrulandı:
+Cloud Run kabında `RESEND_API_KEY` artık duruyor.
+
+**Ders 1 Eylül'ünkiyle aynı ve bu yüzden iki kez yazılıyor: BİLDİREN HER FONKSİYON
+`NOTIFICATION_SECRETS` BAĞLAR** — yoksa bildirdiğini yalnızca sanır. Bunu iki kez ıskalamamızın
+sebebi, eksikliğin hiçbir yerde hata gibi görünmemesi: kod çalışır, `notify()` başarıyla döner, ve
+mesaj console'a gider.
+
 ### ✅ Bir kere arananı yarın tekrar arama (3 Eylül)
 
 Owner: *"2 üye uzaklaşıyor diyor ya, bir kere üstü çizildi; onu bugün tekrar aramak gibi bir iş olamaz.

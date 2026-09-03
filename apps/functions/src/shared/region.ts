@@ -54,4 +54,13 @@ export const PAYTR_SECRETS = ['PAYTR_MERCHANT_KEY', 'PAYTR_MERCHANT_SALT'] as co
 // The inbound WhatsApp webhook replies with Claude. It sends WhatsApp (the Meta token) and calls
 // Anthropic (the API key). WHATSAPP_VERIFY_TOKEN (the GET handshake) is NOT a secret — a low-value
 // nonce that only gates the one-time webhook verification — so it rides in the functions .env.
-export const AI_RECEPTIONIST_SECRETS = ['WHATSAPP_ACCESS_TOKEN', 'ANTHROPIC_API_KEY'] as const
+//
+// IT ALSO NOTIFIES. `tellTheDesk` puts a ready-to-buy customer in front of a human through the
+// ordinary notification pipeline, and that pipeline reads its credentials from the environment — so
+// the webhook must bind the SAME secrets the notification functions do. It did not, and the log said
+// so on every handover: `e-mail transport is the CONSOLE — no message will leave the building`.
+// The alert about the person who says "kayıt olmak istiyorum" at 21:40 — the one case the whole
+// mechanism exists for, because nobody is looking at a browser then — was being written to a log
+// file. Same line, same lesson as `healthCheck` on 1 Eylül: a function that notifies binds
+// NOTIFICATION_SECRETS, or it only thinks it notified.
+export const AI_RECEPTIONIST_SECRETS = [...NOTIFICATION_SECRETS, 'ANTHROPIC_API_KEY'] as const
