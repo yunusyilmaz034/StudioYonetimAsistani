@@ -60,7 +60,18 @@ module.exports = () => ({
     slug: studio.slug,
     owner: 'yunusyilmaz34',
     // Shared on purpose — see the note above about batched releases.
-    version: '1.7.0',
+    //
+    // 1.7.1 (owner, 2026-09-03). **BU DOSYA SIRADAKİ SÜRÜMÜ SÖYLEMEZ — çıkanı söyler.** 1.7.0 burada
+    // yazılı kaldığı sürece "sıradaki 1.7.0" sanılıyordu; oysa `pnpm android:tracks` 1.7.0'ın Android
+    // ÜRETİMİNDE (versionCode 13, %100) yayında olduğunu gösterdi. Aynı adla ikinci bir yayın,
+    // "üyede hangi 1.7.0 var" sorusunu cevapsız bırakırdı.
+    //
+    // Yama sürümü, çünkü taşıdığı şey üç DÜZELTME: hibrit demet tek kart · ileri tarihli paketin
+    // başlangıcı · fitness giriş satırı. Yeni ekran yok.
+    //
+    // versionCode / buildNumber BURADA YAZMAZ: `eas.json` `appVersionSource: "remote"` +
+    // `autoIncrement`. Elle bir numara yazmak, uzaktaki sayaçla yarışmak olur.
+    version: '1.7.1',
     orientation: 'portrait',
     scheme: studio.scheme,
     userInterfaceStyle: 'automatic',

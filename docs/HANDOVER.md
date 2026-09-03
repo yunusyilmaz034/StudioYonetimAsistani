@@ -156,9 +156,10 @@ giriş" diye yazılmıştı; tek satır gelince yalnızca ders satırını çizi
 entitlement. Yani 13 kişi, birkaç günlüğüne, giriş hakkını uygulamada göremiyor — resepsiyon ve panel
 görüyor.
 
-**SIRADAKİ MOBİL SÜRÜM ÇIKMADAN KAPANMAZ.** Numara henüz belli değil: owner 3 Eylül'de "1.7.0
-olacak" dedi, ama ölçüm 1.7.0'ın **Android üretiminde zaten yayında** olduğunu gösterdi (aşağıda,
-Store state). Numara bump edilecek. Sürüm hazırlanırken kontrol edilecek üç şey:
+**`1.7.1` ÇIKMADAN KAPANMAZ** (owner, 3 Eylül). Numara `app.config.js`'te yazılı. Yama sürümü,
+çünkü taşıdığı şey üç düzeltme; yeni ekran yok. 1.7.0 **Android üretiminde zaten yayında** olduğu
+için o numara tekrar kullanılamazdı (aşağıda, Store state). Sürüm hazırlanırken kontrol edilecek
+üç şey:
 1. Hibrit kartta hem "7/8 ders kaldı" hem "4/4 giriş kaldı" görünüyor mu
 2. İleri tarihli pakette "Başlangıç: 7 Eylül" çıkıyor, bugün başlamışsa ÇIKMIYOR mu
 3. Profil kartında "+ 4/4 fitness girişi" satırı ve "Paketimin ayrıntısı" bağlantısı var mı
@@ -495,6 +496,17 @@ tanımlı değilse blok derlemeye girmiyor. Sırayla denenir, ağ başına 10 sn
 6. **Resepsiyona anlatılacak üç cümle:** kapıyı panelden açabilirsin · paketi bitmiş üye geçemez,
    ekranda yazıyor · kendi mesaini `/mesai`den başlat ve bitir.
 
+### ⚠️ Açık kalanlar — 3 EYLÜL 15:20 İTİBARIYLA YENİDEN ÖLÇÜLDÜ
+
+Aşağıdaki 1 Eylül listesi olduğu gibi duruyor, ama üç maddesi bugün **prod'dan salt okumayla** tekrar
+sayıldı — bir açık iş listesi hatırlanarak değil, ölçülerek taşınır:
+
+| # | 1 Eylül'de | 3 Eylül ölçümü |
+|---|---|---|
+| 1 · Cevapsız WhatsApp | 2 soru | **2 sohbet hâlâ bekliyor** (`handoff` 1 · `unanswered` 1) — kapanmadı |
+| 2 · Eğitmen davet linkleri | 3'ü de girmemiş | **3 eğitmenin 3'ü hâlâ hiç giriş yapmamış** — kapanmadı |
+| 4 · Eşleşmemiş 10 TL | 1 kayıt | **0 — KAPANDI** |
+
 ### ⚠️ Açık kalanlar (1 Eylül 19:00 itibarıyla, ölçülerek)
 
 **İnsan işi — yazılım tarafında yapılacak bir şey yok:**
@@ -802,7 +814,8 @@ dahili test        1.0.1   versionCode  5   %100
 `1.7.0` diyor; o dosya çıkmış sürümü tarif ediyor, sıradakini değil. Aynı adla ikinci bir yayın
 (versionCode 14, sürüm adı 1.7.0) Android'de teknik olarak mümkün ama *"üyede hangi 1.7.0 var"*
 sorusunu cevapsız bırakır — `android:tracks` betiği tam olarak bu soruyu cevaplamak için yazılmıştı.
-Numara **bump edilecek** (1.7.1 ya da 1.8.0); hangisi owner'ın kararı.
+Numara bump edildi: **`1.7.1`** (owner, 2026-09-03) — üç düzeltme taşıyor, yeni ekran yok, yani yama.
+`versionCode`/`buildNumber` elle yazılmaz: `eas.json` `appVersionSource: "remote"` + `autoIncrement`.
 
 ✅ **Android production access was granted, and the alpha-track trap fired exactly as written
 (2026-08-15).** `eas.json` hardcoded `"track": "alpha"`, so 1.6.0 sat in the closed test while the
