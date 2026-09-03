@@ -100,6 +100,62 @@ hesaplar, yalnızca `open` satışlar — tahsil edilmişlere dokunulmadı).
 Ayrıca **raporlar da artık `excludedMemberIds`i okuyor.** Pano bunu 27 Ağustos'ta öğrenmişti,
 raporlar öğrenmemişti. Rapor bir okuma modelidir; aynı kural oraya da geçerli.
 
+## 📍 3 Eylül 14:40 — nerede kaldık
+
+**Canlıda:** panel `build-2026-09-03-001` · `whatsappWebhook` bugün iki kez dağıtıldı (üye tanıma,
+sonra bildirim sırları). Her şey push'lu.
+
+**Bugün kapanan üç iş** (üçü de aşağıda ayrıntılı): asistan artık kiminle konuştuğunu biliyor · bir
+kere aranan üye yarın tekrar listeye düşmüyor · satışa hazır müşterinin uyarısı artık log'a değil
+owner'a gidiyor.
+
+### 🔌 Turnike — Pazartesi/Salı, sırayla
+
+**Sipariş verildi (3 Eylül):** `BC337` NPN transistör (Robotistan, 2,94 ₺ — birkaç tane) + 1 kΩ +
+10 kΩ + 1N4148.
+
+**Yeni buzzer ALINMADI, bilerek.** Eldeki `TMB12A05` zaten 5 V'luk bir modül, yalnızca 3.3 V'tan
+besleniyor ve akımı pinin içinden geçiyor. Transistör ikisini birden çözüyor:
+
+```
+modül VCC → 5 V          (3.3 V değil)
+modül GND → GND
+modül  S  → kollektör
+GPIO 16 ──[1 kΩ]──┬── baz          emiter → GND
+                [10 kΩ]            buzzer'a ters paralel 1N4148
+                  │
+                 GND
+```
+
+GPIO hiçbir noktada 5 V görmüyor. Yetmezse ayrı bir 12 V adaptörle büyür; devre aynı kalır.
+12 V'u TURNİKEDEN almak, turnikenin `GND`'sini ESP32'ye bağlamak demektir — §3'ün tam tersi, ve bir
+sonraki kurulumun yanlış bağlanacağı yer orasıdır.
+
+**KOD HAZIR — parça gelince tek kelime.** `apps/turnstile/src/main.cpp`:
+
+```cpp
+static const bool BUZZER_NPN = false;   // ← transistör takılınca true
+```
+
+`BUZZER_SUS` ve `BUZZER_OT` bundan türüyor; `setup()` ve `bip()` ikisi de oradan okuyor, yani
+polarite tek yerde. `false` iken davranış **bugünküyle birebir aynı**, bu hâliyle karta atmak güvenli
+(derlendi, 3 Eylül). Sonra: `cd apps/turnstile && ~/Library/Python/3.9/bin/pio run -t upload`.
+
+**Neden anahtar, neden doğrudan çevrilmedi:** transistörden ÖNCE çevrilmiş bir kodu karta atmak
+kutuyu sürekli öttürür. Ve polarite iki yere elle yazılsaydı biri unutulurdu — kutu ya hiç ötmez ya
+hiç susmazdı. Bu kart bir akşamını tam olarak buna yedirmişti.
+
+**Bacak sırası — en sık yapılan hata.** BC337 TO-92 ve sıra üreticiye göre değişiyor. Datasheet'ine
+bak; multimetre varsa diyot modunda **baz**, diğer iki bacağa da ~0.7 V veren bacaktır. C ile E ters
+takılırsa devre yanmaz ama ses cılız kalır — ilk şüphelenilecek yer orası.
+
+**Kalan tek montaj işi hâlâ röle kontak kabloları** (aşağıda, 1 Eylül bölümü): `K1 NO → OP-R`,
+`K1 COM → COM`, `K2 NO → OP-L`, `K2 COM → COM`. `NC` kullanılmaz, turnikenin `GND`'si ESP32'ye
+BAĞLANMAZ, vida sıkarken 12 V fişi çekili olsun.
+
+**Sıra:** röle kabloları → `F01=5 F02=0 F03=0 F04=0` → panelden aç/kapa → üye geçişi (uygulama **ve**
+tarayıcı) → paketi bitmiş üyeyle ret testi → buzzer (transistör geldiyse).
+
 ### 🙋 "canım… pardon, hanımefendi" — asistan kiminle konuştuğunu bilmiyordu (3 Eylül)
 
 Owner bir ekran görüntüsü gönderdi: üye *"dün yanlış saatte gelmiştim, akşam derslerde boşluk olursa
