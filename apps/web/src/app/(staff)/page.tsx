@@ -5,6 +5,7 @@ import { deriveAdvisorItems } from '@/server/advisor-query'
 import { hotLeadAdvisorItems } from '@/server/lead-checklist'
 import { loadOwnerDashboard } from '@/server/owner-dashboard'
 import { onlinePaymentAdvisorItems } from '@/server/online-payment-checklist'
+import { loadSnoozedItemIds } from '@/server/checklist-snooze'
 import { loadTodayOps } from '@/server/today-ops'
 
 import { DashboardScreen } from './dashboard-screen'
@@ -19,17 +20,32 @@ import { DashboardScreen } from './dashboard-screen'
 export default async function HomePage() {
   const ctx = await requirePageAccess('/')
   const now = Date.now()
-  const [data, todayOps, hotLeads, onlinePayments] = await Promise.all([
+  const [data, todayOps, hotLeads, onlinePayments, snoozed] = await Promise.all([
     loadOwnerDashboard(ctx, now),
     loadTodayOps(ctx, now),
     hotLeadAdvisorItems(ctx),
     onlinePaymentAdvisorItems(ctx),
+    loadSnoozedItemIds(ctx.studioId as string, now),
   ])
   // Card money FIRST — it is the one thing on this list that has already happened, and until it is
   // somewhere he looks, "did that payment arrive?" is a question only the provider's panel answers.
   // Then hot WhatsApp leads (act now), then the dashboard-derived advisor items.
-  const advisorItems = [...onlinePayments, ...hotLeads, ...deriveAdvisorItems(data)]
-  return <DashboardScreen data={data} todayOps={todayOps} advisorItems={advisorItems} role={ctx.role} roleLabel={roleLabel(ctx.role)} />
+  const allItems = [...onlinePayments, ...hotLeads, ...deriveAdvisorItems(data)]
+  // A line already ticked off stays off for its cooldown — reception called that member, and a call is
+  // not work again tomorrow (owner, 2026-09-03). Filtered HERE, before the AI narrator sees the list,
+  // so the briefing at the top counts the same work the rows below show.
+  const advisorItems = allItems.filter((it) => !snoozed.has(it.id))
+  const snoozedCount = allItems.length - advisorItems.length
+  return (
+    <DashboardScreen
+      data={data}
+      todayOps={todayOps}
+      advisorItems={advisorItems}
+      snoozedCount={snoozedCount}
+      role={ctx.role}
+      roleLabel={roleLabel(ctx.role)}
+    />
+  )
 }
 
 function roleLabel(role: PrincipalRole): string {

@@ -17,7 +17,9 @@ import {
   FirestoreCatalogRepository,
   FirestoreCrmRepository,
   FirestoreIdentityRepository,
+  FirestoreMemberRepository,
   instant,
+  normalizePhone,
   notify,
   newCorrelationId,
   sendWhatsAppText,
@@ -178,6 +180,52 @@ async function liveFacts(database: Firestore, ctx: TenantContext): Promise<strin
   return parts.join('\n')
 }
 
+// ── KİMİNLE KONUŞUYORSUN (owner, 2026-09-03) ────────────────────────────────────────────────
+//
+// The assistant used to answer every WhatsApp message as if it came from an Instagram ad — greet,
+// introduce the studio, ask for a name, work towards a sale. That is right for a stranger and wrong
+// for the woman who trained here yesterday, and the studio had no way to tell them apart: the
+// contact's name sat on the conversation document and was never sent to the model, and nothing ever
+// asked whether the number belonged to a member.
+//
+// What it cost, in one reply (3 Eylül): a member wrote *"dün yanlış saatte gelmiştim, akşam boşluk
+// olursa arayacaktınız"* and got back "Günaydın, kolay gelsin canım… pardon, hanımefendi" followed by
+// another phone number to write to. The self-correction is the tell: the prompt says address her by
+// name if you know it, otherwise "hanımefendi", and the model — with no thinking budget, so nowhere
+// private to change its mind — did its choosing out loud, in front of the customer. It never had the
+// name it was told to use.
+//
+// One document read, straight off the phone uniqueness key. Only two things are sent: that she is a
+// member, and her first name. NOT her package, her credits or her attendance — the assistant does not
+// need them to be polite, and the schedule is deliberately withheld from it anyway (see liveFacts).
+async function whoIsWriting(database: Firestore, ctx: TenantContext, phone: string): Promise<string | null> {
+  try {
+    const norm = normalizePhone(phone)
+    if (!norm.ok) return null
+    const member = await new FirestoreMemberRepository(database).findByPhone(ctx, norm.value.normalized)
+    if (!member || member.status === 'deleted') return null
+    // First name only. "AYŞE NUR YILMAZ Hanım" is how a form addresses somebody, not how a studio does.
+    const first = member.fullName.trim().split(/\s+/)[0] ?? ''
+    if (!first) return null
+    const cased = first.charAt(0).toLocaleUpperCase('tr') + first.slice(1).toLocaleLowerCase('tr')
+    return cased
+  } catch (e) {
+    // A failed lookup costs the assistant a name, not the customer her reply.
+    logger.warn('[wa-webhook] member lookup failed', (e as Error)?.message)
+    return null
+  }
+}
+
+/** Bu sohbete özel, ÖNBELLEĞE GİRMEYEN blok: kim yazıyor. Kişiden kişiye değişir. */
+function whoBlock(memberFirstName: string | null): string | null {
+  if (!memberFirstName) return null
+  return `— KİM YAZIYOR —
+Bu numara STÜDYONUN KAYITLI ÜYESİNE ait: ${memberFirstName}.
+- Ona "${memberFirstName} Hanım" diye hitap et. İsmini SORMA, stüdyoyu TANITMA, "hoş geldiniz" diye karşılama — o zaten üye, tanışmışsınız.
+- SATIŞ YAPMAYA ÇALIŞMA. Kendiliğinden paket/kampanya önerme; yalnızca kendisi fiyat ya da yenileme sorarsa cevapla.
+- BAŞKA BİR NUMARAYA YÖNLENDİRME. O zaten stüdyoya yazdı; ikinci bir hatta yollamak onu kapıdan geri çevirmektir. Ders saati, yer durumu, rezervasyon, dondurma, ödeme gibi bir şey sorarsa "kontrol edip size döneceğiz" de ve ayrı satıra [[DEVRET]] yaz — resepsiyon aynı sohbetten cevaplayacak.`
+}
+
 // The STABLE half of the system prompt — the studio's knowledge card and the conversational rules.
 // It is built WITHOUT the live facts on purpose: this text is what gets prompt-cached (see aiReply),
 // and a cache only pays off if the bytes are identical from one call to the next. The live facts —
@@ -221,6 +269,9 @@ KURALLAR:
 - SADECE bu bilgi kartından ve CANLI VERİ bölümünden konuş. Fiyat/program/tarih UYDURMA. Bilmiyorsan escalate=true.
 - DERS PROGRAMI / MÜSAİT SAAT BİLGİSİ VERME — İSTİSNASIZ. Hangi gün hangi saatte ders var, hangi seansta yer var, doluluk ne kadar, kaç kişi kaldı: HİÇBİRİNİ söyleme. Müşteri ısrar etse de, başka bir soruyu cevaplarken bile olsa, tahmin ederek bile olsa verme. Zaten sende bu bilgi YOK — uydurma. Bunun yerine: "Uygun saatleri ve yer durumunu resepsiyonumuz gün içinde netleştiriyor; hangi saatler size uyuyor yazarsanız kontrol edip dönelim 🌸" de. Yer/saat kesinleştirme isteği gelirse escalate=true.
 - Kısa, samimi, Türkçe, ölçülü emoji. Tek mesajda çok soru sorma.
+- YAZDIĞIN MESAJ SON HÂLİDİR — MÜŞTERİNİN ÖNÜNDE KENDİNİ DÜZELTME (owner, 03.09.2026). "canım… pardon, hanımefendi", "yani", "düzeltiyorum", "affedersiniz öyle demeyecektim" gibi bir şey ASLA yazma. Bir hitabı ya da kelimeyi yanlış buluyorsan YANLIŞINI HİÇ YAZMA, doğrusunu yaz. Müşteri senin karar verişini değil, yalnızca kararını görür.
+- HİTAP: ismini biliyorsan "Ayşe Hanım", bilmiyorsan "hanımefendi". "canım", "canım benim", "hanımcım", "kardeşim", "tatlım" ASLA — stüdyo adına yazıyorsun (owner, 2026-07-31 · 03.09.2026).
+- "Ben bunu buradan yapamıyorum / netleştiremiyorum / göremiyorum" DEME. Müşteri için bu, kapıdan geri çevrilmektir. Yapamadığını değil, NE YAPACAĞINI söyle: "kontrol edip size döneceğiz 🌸" de ve gerekiyorsa [[DEVRET]] yaz.
 - UZUNLUK (owner, 02.09.2026): normal bir cevap **en fazla 5-6 satır**. Fiyat listesi verirken her paket TEK satır: ad + tutar, gerekçe en fazla birkaç kelime. Aynı şeyi iki kez söyleme, kendi cümleni özetleyip tekrarlama. WhatsApp'ta uzun mesaj okunmadan geçiliyor — sorulan şey ne kadar kısa cevaplanırsa o kadar okunuyor. (İstisna: 2.5'teki hizmet anlatımı; orada 4-8 satır serbest.)
 - DÜZ CÜMLE KUR: özne-nesne-yüklem, devrik cümle KURMA. "Sizin için uygun olacaktır kanaatindeyim" değil, "Size bu paket uygun olur". Yüklemi cümlenin sonuna koy, süslü/resmî kalıplardan kaçın; nasıl konuşuyorsan öyle yaz.
 - DOĞAL karşıla: gelen mesaja uygun cevap ver. Müşteri sana "merhaba/hoş geldin" demediyse "siz de hoş geldiniz" gibi karşılık verme; "Merhaba 🌸" yeter. Refleks nezaket kalıpları kullanma, robotik olma.
@@ -261,6 +312,7 @@ async function aiReply(
   apiKey: string,
   system: string,
   facts: string,
+  who: string | null,
   history: Msg[],
 ): Promise<{ reply: string; escalate: boolean; hot: boolean; stage: ConvStage | null; reason: string } | null> {
   try {
@@ -286,6 +338,8 @@ async function aiReply(
         system: [
           { type: 'text', text: system, cache_control: { type: 'ephemeral' } },
           ...(facts ? [{ type: 'text', text: `— CANLI VERİ —\n${facts}` }] : []),
+          // Kim yazıyor — sohbete özel, o yüzden önbellek kırığının ARKASINDA.
+          ...(who ? [{ type: 'text', text: who }] : []),
         ],
         messages: history.map((m) => ({ role: m.role, content: m.text })),
       }),
@@ -380,9 +434,17 @@ async function processMessage(sid: string, from: string, name: string, text: str
   const conv = (snap.data() as Conversation | undefined) ?? { phone: from, name, status: 'ai', needsAttention: false, lastAt: 0, seenIds: [], messages: [] }
   if (conv.seenIds.includes(msgId)) return // idempotent: Meta retries the same message id
 
+  // WHO is writing, before anything else is decided — it changes both what the assistant says and
+  // whether this is a lead at all.
+  const memberFirstName = await whoIsWriting(database, ctx, from)
+
   // FIRST contact → record the lead in the CRM funnel (existing lead.captured event, no schema change).
   // The AI is a system principal (#5); a lead whose name we don't have yet gets a phone-tail placeholder.
-  if (isNew) {
+  //
+  // A MEMBER IS NOT A LEAD (owner, 2026-09-03). She has already bought; putting her in "39 WhatsApp
+  // lead'i · dönüş yapın" tells reception to sell to somebody who is mid-package, and it quietly
+  // inflates the one number the funnel exists to measure.
+  if (isNew && !memberFirstName) {
     try {
       const correlationId = newCorrelationId()
       const now = instant(Date.now())
@@ -435,7 +497,7 @@ async function processMessage(sid: string, from: string, name: string, text: str
 
   const facts = await liveFacts(database, ctx)
   const system = buildSystem(aiDoc)
-  const result = await aiReply(apiKey, system, facts, conv.messages)
+  const result = await aiReply(apiKey, system, facts, whoBlock(memberFirstName), conv.messages)
   if (!result) {
     conv.needsAttention = true
     conv.attentionReason = 'ai_failed'
@@ -549,7 +611,7 @@ async function resumeAll(sid: string): Promise<{ resumed: number; replied: numbe
     }
     const last = conv.messages[conv.messages.length - 1]
     if (last?.role === 'user') {
-      const result = await aiReply(apiKey, system, facts, conv.messages)
+      const result = await aiReply(apiKey, system, facts, whoBlock(await whoIsWriting(database, ctx, conv.phone)), conv.messages)
       if (result) {
         await sendWhatsAppText(config, conv.phone, result.reply)
         conv.messages = [...conv.messages, { role: 'assistant' as Role, text: result.reply, at: Date.now() }].slice(-MAX_HISTORY)

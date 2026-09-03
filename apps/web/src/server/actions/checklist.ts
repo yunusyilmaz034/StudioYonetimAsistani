@@ -7,6 +7,7 @@ import { adminDb } from '../firebase-admin'
 import { narrateChecklist, type DailyChecklist } from '../ai/anthropic'
 import { loadAiSettings } from './ai-settings'
 import type { AdvisorItem } from '../advisor-query'
+import { applyChecklistCooldown, type TickedItem } from '../checklist-snooze'
 
 // The dashboard (owner + reception) asks the AI to turn today's deterministic advisor items into a warm,
 // prioritised checklist. Returns null when the AI key isn't configured or the call fails — the client
@@ -89,7 +90,8 @@ export async function getChecklistDoneAction(dayKey: string): Promise<readonly C
 
 export async function setChecklistDoneAction(input: {
   dayKey: string
-  itemIds: readonly string[]
+  /** Tiklenen işler. `kind` soğuma için gerekli: bir telefon görüşmesi ertesi gün geri gelmez. */
+  items: readonly TickedItem[]
   done: boolean
 }): Promise<readonly ChecklistDoneEntry[]> {
   const ctx = await requireTenantContext(OPS)
@@ -105,11 +107,19 @@ export async function setChecklistDoneAction(input: {
   // A merge write: two people ticking different lines at the same moment must not overwrite each
   // other, which a whole-document set would do.
   const patch: Record<string, unknown> = {}
-  for (const id of input.itemIds) {
-    patch[`items.${id}`] = input.done ? { byName, at: now } : FieldValue.delete()
+  for (const it of input.items) {
+    patch[`items.${it.id}`] = input.done ? { byName, at: now } : FieldValue.delete()
   }
   await ref.set({}, { merge: true })
   await ref.update(patch)
+
+  // Bazı işler bugüne değil, yapılan bir telefon görüşmesine aittir; onlar bir süre listeden çıkar.
+  // Başarısız olursa tik yine de durur — soğuma bir kolaylık, tikin kendisi kayıt.
+  try {
+    await applyChecklistCooldown(ctx.studioId as string, input.items, input.done, byName, now)
+  } catch {
+    /* best-effort: the item simply comes back tomorrow, which is the old behaviour */
+  }
 
   return getChecklistDoneAction(input.dayKey)
 }

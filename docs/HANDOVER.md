@@ -7,7 +7,7 @@ explains the moment.
 Keep it current the way the code is kept current: when the state changes, this changes in the same
 commit. A handover document that lags is worse than none, because it is believed.
 
-_Last true as of: **2026-08-31**._
+_Last true as of: **2026-09-03**._
 
 ## 🌙 31 Ağustos 2026 — uzun bir gün, on beş deploy
 
@@ -99,6 +99,64 @@ hesaplar, yalnızca `open` satışlar — tahsil edilmişlere dokunulmadı).
 
 Ayrıca **raporlar da artık `excludedMemberIds`i okuyor.** Pano bunu 27 Ağustos'ta öğrenmişti,
 raporlar öğrenmemişti. Rapor bir okuma modelidir; aynı kural oraya da geçerli.
+
+### 🙋 "canım… pardon, hanımefendi" — asistan kiminle konuştuğunu bilmiyordu (3 Eylül)
+
+Owner bir ekran görüntüsü gönderdi: üye *"dün yanlış saatte gelmiştim, akşam derslerde boşluk olursa
+arayacaktınız"* diye yazmış; asistan **"Günaydın, kolay gelsin canım… pardon, hanımefendi 🌸"** diye
+başlayıp *"bu konuyu ben buradan netleştiremiyorum"* demiş ve **0533'e yönlendirmiş.**
+
+Cümlenin ortasındaki o düzeltme, hatanın kendisini söylüyordu. İstem şunu diyor: *ismini biliyorsan
+"Ayşe Hanım" de, bilmiyorsan "hanımefendi"*. Model ismi **hiç almamıştı** — `conv.name` sohbet
+belgesinde duruyordu ve modele gönderilmiyordu, telefonun bir **üyeye** ait olup olmadığı ise hiç
+sorulmuyordu. Düşünme bütçesi kapalı (`thinking: disabled`, `effort: low`, ve ikisi de bilerek), yani
+fikir değiştirecek özel bir yeri yok: kararını müşterinin gözü önünde verdi.
+
+Yani asistan **her mesajı reklamdan gelen bir yabancı** gibi karşılıyordu — karşıla, stüdyoyu tanıt,
+ismini sor, satışa götür. Dün burada ders yapmış kadın için bunların hepsi yanlış.
+
+**Ne yapıldı:**
+- Telefon numarasından **üye araması** (`findByPhone`, tek belge okuması, benzersizlik anahtarı
+  üzerinden). Üyeyse modele önbelleğin arkasından tek blok gider: *üyedir* ve **adı** — paketi,
+  kredisi, katılımı DEĞİL. Nazik olmak için gerekmiyor, ders programı zaten bilerek verilmiyor.
+- Üyeye: isim sorma, stüdyoyu tanıtma, kendiliğinden satış yapma, **başka numaraya yollama** yok.
+  Cevabı bilmiyorsa "kontrol edip size döneceğiz" + `[[DEVRET]]` — resepsiyon aynı sohbetten yazar.
+- **Üye lead değildir.** İlk kez WhatsApp'tan yazan bir üye artık huniye `lead.captured` olarak
+  düşmüyor: "39 WhatsApp lead'i · dönüş yapın" listesi paket ortasındaki üyeyi resepsiyona satılacak
+  kişi diye gösteriyordu, ve huninin ölçmek için var olduğu sayıyı şişiriyordu.
+- İsteme üç kural: **yazdığın mesaj son hâlidir** (müşterinin önünde kendini düzeltme) · "canım /
+  hanımcım / tatlım" yasak · **"ben bunu buradan yapamıyorum" deme** — yapamadığını değil, ne
+  yapacağını söyle.
+
+**0533 yönlendirmesi kodda değil**, stüdyonun AI ayarlarında (Ayarlar → AI). Satış dışını oraya
+yollamak owner'ın kuralı ve yerinde; yanlış olan, **zaten stüdyoya yazmış bir üyeyi** ikinci bir hatta
+göndermesiydi. Onu artık üye bloğu kesiyor. Ayardaki metne dokunulmadı.
+
+### ✅ Bir kere arananı yarın tekrar arama (3 Eylül)
+
+Owner: *"2 üye uzaklaşıyor diyor ya, bir kere üstü çizildi; onu bugün tekrar aramak gibi bir iş olamaz.
+1 hafta kadar çıkarmaması lazım bunları."*
+
+Tik, satırına göre iki ayrı şey demek — liste ikisini aynı sanıyordu. *"9 boş seans"* **bugüne** ait
+bir olgudur; yarınki boş seans başka bir seanstır, başka bir kimliktir, tikin sabah silinmesi doğrudur.
+*"ESRA — 34 gündür gelmiyor · bir arayın"* ise bugüne ait değil, **yapılmış bir telefon görüşmesine**
+aittir ve güneşin doğması onu geri almaz. Ertesi gün yeniden listelemek resepsiyona iş hatırlatmaz;
+**listenin yalan söylediğini öğretir**, ve yalan söyleyen liste okunmadan tiklenir.
+
+`dormant_member` tiklenince **7 gün** listeden çıkıyor (`settings/checklistSnooze`, tek belge, tek
+okuma). Üç sınır bilerek kondu:
+
+- **Tiklendiği gün satır YERİNDE kalır** — üstü çizili. 5 Ağustos'taki kuralın aynısı (*"gün sonunda
+  görsün ne kadar iş kapatmış"*), ve tek geri dönüş yolu bu: satır aynı gün kaybolsaydı, yanlışlıkla
+  atılan bir tik işi bir haftalığına kimsenin göremediği bir yere koyardı. Tiki kaldırmak soğumayı
+  anında iptal ediyor.
+- **Silme değil, erteleme.** Bir hafta sonra sebep hâlâ duruyorsa satır geri gelir.
+- **Liste kaç işin beklediğini söylüyor** — *"2 iş bu hafta arandığı için listede değil"*. İz
+  bırakmadan kaybolan bir satır, gitmeyen satırın tersten aynı yalanıdır.
+
+Süzme **sunucuda**, AI anlatıcıdan önce: üstteki özet ile alttaki satırlar aynı işi sayıyor. Soğuması
+olan tek tür şimdilik `dormant_member`; ölçüsü şu: **tik, yapılmış bir insan temasını mı kaydediyor?**
+Telefon görüşmesi öyle, boş seans doldurmak değil (o ders üç saat sonra başlıyor ve geçiyor).
 
 ### 📵 20 saattir çalan alarm — ve alarmın kendisinin sesi çıkmıyordu (1 Eylül akşamı)
 

@@ -49,7 +49,7 @@ const maxSeverity = (rows: readonly Row[]): InsightSeverity =>
 // "Bugün İlgilenmen Gerekenler" — the dashboard's focal point. It renders the deterministic advisor list
 // immediately (so it never blocks) and, once the AI narrator answers, swaps in the warmer, re-prioritised
 // version with a one-line briefing. Each item is a checkable task the desk can tick off for the day.
-export function DailyChecklist({ items }: { items: readonly AdvisorItem[] }) {
+export function DailyChecklist({ items, snoozedCount = 0 }: { items: readonly AdvisorItem[]; snoozedCount?: number }) {
   const [intro, setIntro] = useState<string | null>(null)
   const [ai, setAi] = useState(false)
   const [rows, setRows] = useState<Row[]>(() =>
@@ -119,7 +119,10 @@ export function DailyChecklist({ items }: { items: readonly AdvisorItem[] }) {
       }
       return next
     })
-    void setChecklistDoneAction({ dayKey, itemIds: ids, done: !willUndo })
+    // `kind` rides along because the server decides from it whether the tick lasts the day or the
+    // week — a call made to a drifting member is not work again tomorrow (owner, 2026-09-03).
+    const kindOf = new Map(rows.map((r) => [r.id, r.kind]))
+    void setChecklistDoneAction({ dayKey, items: ids.map((id) => ({ id, kind: kindOf.get(id) ?? 'info' })), done: !willUndo })
       .then((rows) => setDone(new Map(rows.map((r) => [r.itemId, r.byName]))))
       .catch(() => {
         toast.error('İşaret kaydedilemedi.')
@@ -235,6 +238,15 @@ export function DailyChecklist({ items }: { items: readonly AdvisorItem[] }) {
           })}
         </ul>
       )}
+
+      {/* An item that leaves the list silently is the same lie as one that will not leave: the desk
+          cannot tell "handled" from "gone missing". So the week-long cooldown says its own name.
+          (owner, 2026-09-03) */}
+      {snoozedCount > 0 ? (
+        <p className="mt-2 text-xs text-muted-foreground">
+          {snoozedCount} iş bu hafta arandığı için listede değil — hâlâ gerekiyorsa bir hafta sonra geri gelir.
+        </p>
+      ) : null}
 
       {doneCount > 0 ? (
         <p className="mt-2 text-xs text-muted-foreground">

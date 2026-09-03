@@ -31,12 +31,15 @@ export function DashboardScreen({
   data,
   todayOps,
   advisorItems,
+  snoozedCount = 0,
   role,
   roleLabel,
 }: {
   data: OwnerDashboard
   todayOps: TodayOps
   advisorItems: readonly AdvisorItem[]
+  /** Tikleneli bir hafta olmamış, bu yüzden listede olmayan iş sayısı. Sıfırsa hiç yazılmaz. */
+  snoozedCount?: number
   role: PrincipalRole
   roleLabel: string
 }) {
@@ -102,7 +105,7 @@ export function DashboardScreen({
       {/* What needs a decision TODAY — the dashboard's focal point. An AI-prioritised, checkable list
           built from the same signals the widgets below expose (advisor items); it declutters the "where
           do I look?" problem. Falls back to the deterministic order when the AI key isn't set. */}
-      <DailyChecklist items={advisorItems} />
+      <DailyChecklist items={advisorItems} snoozedCount={snoozedCount} />
 
       {/* Phase 2 — the churn signal made visible: who has an active package but stopped coming. */}
       <ChurnPulse distribution={data.activityDistribution} dormant={data.dormant} />
