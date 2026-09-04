@@ -100,6 +100,42 @@ hesaplar, yalnızca `open` satışlar — tahsil edilmişlere dokunulmadı).
 Ayrıca **raporlar da artık `excludedMemberIds`i okuyor.** Pano bunu 27 Ağustos'ta öğrenmişti,
 raporlar öğrenmemişti. Rapor bir okuma modelidir; aynı kural oraya da geçerli.
 
+## 🏋️ 4 Eylül — Hibrit üyeler için iki program: "Hibrit 1" ve "Hibrit 2"
+
+Owner: *"Hibrit paketlerde fitness'a gelenler 1 gün ya da 2 gün geliyor, bunlara program lazım. Bu
+arada bunlar güçsüz kadınlar, ona göre yap."*
+
+Stüdyodaki üç şablon da **üç günlüktü** (Program A/B, İleri Program A). Haftada bir gelen birine üç
+günlük program vermek, programın üçte birini yapmasını istemektir — ve hangi üçte biri yapacağını
+kişi kendi seçer. Yani hibrit üyesi ya yanlış programı alıyordu ya hiç almıyordu.
+
+**Hibrit 1 — tek gün, TÜM VÜCUT.** Bölünmüş program tek günde işe yaramaz: haftada bir antrenman
+yapan biri için o antrenman her bölgeye dokunmalı. Sıra ağırdan hafife.
+
+**Hibrit 2 — iki gün, ALT / ÜST.** İki gün bölmeye yeter ve bölmek her bölgeye daha fazla iş düşürür.
+Aynı bölge üst üste çalışılmadığı için gün sırası serbest.
+
+**Güçsüz başlangıç için üç seçim, üçü de bilinçli:** makine ağırlıklı (serbest ağırlık denge ve teknik
+ister; makine hareketin yolunu kendi çizer) · **12–15 tekrar, 60–75 sn** (düşük tekrar + ağır yük,
+formu oturmamış birinde riski artırır) · **tempo `2-0-2`** (yeni başlayan ağırlığı düşürür ve sallar;
+sayılan tempo bunu birinin başında durmasına gerek kalmadan engeller).
+
+### 🔧 Multi press: eklenmedi, çünkü ZATEN VARDI
+
+Owner *"multi press aldık; incline, normal chest press ve shoulder press'i kütüphaneye ekle"* dedi.
+Ölçüldü: **üçü de kütüphanede var**, aktif, ve alanları eksiksiz dolu — açıklama, ipuçları, sık
+yapılan hatalar, video, fotoğraf, gif. Kopyalarını eklemek kütüphaneyi bozardı: aynı hareketin iki
+kaydı, programı yazana hangisini seçeceğini sorar ve iki üye aynı hareketi farklı adla görür.
+
+Makinenin üç pozisyonu da kullanılıyor ama **üçü aynı güne konmadı** — yeni başlayan bir kadında
+göğüs/omuzu şişirip sırtı aç bırakırdı. `Incline Chest Press`, `Chest Press (Düz)`'ün
+**alternatifi** olarak bağlandı: makine doluysa ya da kişi sıkıldıysa aynı iş eğik pozisyonda yapılır.
+`alternativeExerciseId` alanı tam bunun için var.
+
+**Script kimliklerle çalışıyor, adlarla değil** (`tools/migration/seed-hibrit-programlari-2026-09.ts`)
+ve yazmadan önce kütüphaneyi doğruluyor: bir kimlik tutmazsa DURUYOR. Yanlış hareket taşıyan bir
+şablon, bir eğitmenin fark etmesi en zor hatasıdır — ad doğru görünür, hareket yanlıştır.
+
 ## ☕ 4 Eylül — Kafe hesabı: ödemeden çıkılan kahve artık kayıtta
 
 Owner: *"Stüdyoda kahve su içiyorlar ödemeden gidiyorlar. Biz bunları üyeye atayalım, gün saat olarak
