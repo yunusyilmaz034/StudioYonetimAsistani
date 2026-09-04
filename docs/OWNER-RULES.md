@@ -1442,3 +1442,32 @@ Bedeli, en fazla yedi küçük belge okuması: sabit, ve stüdyo büyüdükçe a
 
 **Genel ders:** bir kural, o kuralın *uygulandığı an* hakkında bilgi taşıyan bir kayda dayanıyorsa,
 kuralı sonradan değiştirdiğinde geçmiş sessizce dışarıda kalır. Kuralı, olguya dayandır.
+
+---
+
+### OR-68 · Kasa 23:00'te otomatik kapanır, 09:00'da otomatik açılır — ama kapanış SAYIM İDDİA ETMEZ
+
+*(2026-09-05, owner: "otomatik kapansın ya 23'te, sabah da otomatik 9'da açılsın")*
+
+Sebebi ölçülmüştü: Merkez Kasa 17 Temmuz'dan 4 Eylül'e **açık kaldı** ve beklenen bakiye
+**774.061 ₺**'ye çıktı. Kimse gün sonu yapmıyordu, ve yapılmayan bir kasa hiç kapanmıyor.
+
+**İtiraz edildi, owner karar verdi, ve kayıt yalan söylemiyor.** İtirazım kodun kendi cümlesiydi:
+*"sayıları sessizce uydurup denkleştiren bir gün sonu, bir kontrol değil, bir örtbastır."* Otomatik
+kapanış hiçbir çekmece sayamaz.
+
+Çözüm, iddiayı kaldırmak: kapanış notu HER SEFERİNDE şunu yazıyor —
+
+> *"Otomatik gün sonu (23:00) — SAYIM YAPILMADI. Fark sıfır görünüyorsa denklik değil, sayılmamış
+> olmasıdır."*
+
+Yani fark sıfır çıkar ama neden sıfır olduğu kayıtta duruyor. **Elle yapılan gün sonu bunun yerini
+alır ve almalıdır** — gerçek sayım, farkı olan tek kapanıştır. Bu döngü yalnızca kasanın sonsuza
+kadar açık kalmasını engelliyor.
+
+**Açılış SIFIRDAN.** `expected` artık O GÜNÜN nakit hareketini gösteriyor, devreden bakiye taşımıyor.
+Devretseydi 774 binlik hata her sabah yeniden doğardı. Çekmecede fiziksel kalan para bankaya
+yatırıldığında `bank_deposit` çıkışıyla yazılır ([[OR-…]] kasa çıkışı) — onun yeri gün sonu değil.
+
+**Arşivlenmiş kasa açılmaz:** emekliye ayrılmış bir kasayı her sabah diriltmek, listeyi kimsenin
+kullanmadığı kasalarla doldurur.

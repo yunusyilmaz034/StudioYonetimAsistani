@@ -12,6 +12,7 @@ import { setGlobalOptions } from 'firebase-functions/v2'
 import { onSchedule } from 'firebase-functions/v2/scheduler'
 
 import { runAutoCheckOutSweep } from './scheduled/auto-check-out'
+import { runDrawerAutoClose, runDrawerAutoOpen } from './scheduled/drawer-cycle'
 import { runAutoResolveSweep } from './scheduled/auto-resolve-attendance'
 import { runClassReminderSweep } from './scheduled/class-reminders'
 import { runExpirySweep } from './scheduled/expire-credits'
@@ -75,6 +76,28 @@ export const nightlySweep = onSchedule(
 //
 // Deliberately NOT part of `nightlySweep`: it has no ordering relationship with I-19 (a door event
 // touches no credit), so sequencing it with the credit sweeps only tied it to their schedule.
+// ── KASA GÜNLÜK DÖNGÜSÜ (owner kararı, 2026-09-05) ──────────────────────────────────────────
+//
+// Merkez Kasa 17 Temmuz'dan 4 Eylül'e AÇIK kaldı ve beklenen bakiye 774.061 ₺'ye çıktı; kimse gün
+// sonu yapmıyordu. İki iş, iki saat: 23:00 kapat, 09:00 aç.
+//
+// Kapanış SAYIM İDDİASI TAŞIMIYOR — notu her kapanışta "SAYIM YAPILMADI" diyor. Elle yapılan gün
+// sonu bunun yerini alır ve almalıdır; bu döngü yalnızca kasanın sonsuza kadar açık kalmasını
+// engelliyor. Ayrıntı ve itirazın kaydı `scheduled/drawer-cycle.ts`te.
+export const drawerAutoClose = onSchedule(
+  { schedule: '0 23 * * *', timeZone: 'Europe/Istanbul' },
+  async () => {
+    await runDrawerAutoClose()
+  },
+)
+
+export const drawerAutoOpen = onSchedule(
+  { schedule: '0 9 * * *', timeZone: 'Europe/Istanbul' },
+  async () => {
+    await runDrawerAutoOpen()
+  },
+)
+
 export const occupancySweep = onSchedule(
   { schedule: 'every 60 minutes', timeZone: 'Europe/Istanbul' },
   async () => {
