@@ -17,6 +17,7 @@ import {
   FirestoreMemberRepository,
   FirestorePaymentIntentRepository,
   newCorrelationId,
+  normalizePhone,
   registerMember,
   systemClock,
   type BranchId,
@@ -46,6 +47,18 @@ const dctx = (ctx: TenantContext) => ({
 // context — state, never an event (#6) — because until reception acts there is no member to read them
 // from. `existingMemberId` is the phone match: a SUGGESTION for a human, never an automatic merge
 // (AD-40 — a collision is reported).
+
+/** E.164 → benzersizlik anahtarı, sonra ara. Normalleşmeyen bir numara eşleşme ÜRETMEZ, uydurmaz. */
+async function membersByKey(
+  members: { findByPhone: (ctx: TenantContext, key: string) => Promise<{ id: unknown; fullName: string } | null> },
+  ctx: TenantContext,
+  phone: string,
+) {
+  const norm = normalizePhone(phone)
+  if (!norm.ok) return null
+  return members.findByPhone(ctx, norm.value.normalized)
+}
+
 export interface PendingOnlineSale {
   readonly intentId: string
   readonly buyerName: string
@@ -73,7 +86,16 @@ export async function listPendingOnlineSales(ctx: TenantContext): Promise<readon
       const phone = i.context.buyerPhone ?? ''
       const [product, existing] = await Promise.all([
         i.context.productId ? catalog.getProduct(ctx, i.context.productId as ProductId) : Promise.resolve(null),
-        phone ? members.findByPhone(ctx, phone) : Promise.resolve(null),
+        // TELEFON, BENZERSİZLİK ANAHTARINA ÇEVRİLEREK ARANIR (2026-09-04).
+        //
+        // `context.buyerPhone` E.164'tür ("+905380895488"); `findByPhone` ise rakam-only anahtarı
+        // bekler ("905380895488"). Aradaki artı yüzünden arama HİÇBİR ZAMAN eşleşmiyordu ve ekran
+        // her seferinde yalnızca "Yeni üye oluştur" öneriyordu — yani zaten kayıtlı bir üye için tek
+        // tık ikinci bir üye, ikinci bir paket ve ikinci kez sayılan bir tahsilat demekti.
+        //
+        // 4 Eylül'de ramak kaldı: Elif Atalay Öztürk 18:43'te resepsiyonca kaydedilmişti, 18:49'da
+        // online ödemesi düştü, ve pano onu tanımadığı için "yeni üye" dedi.
+        phone ? membersByKey(members, ctx, phone) : Promise.resolve(null),
       ])
       return {
         intentId: i.id,

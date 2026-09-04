@@ -1032,7 +1032,19 @@ function AssignForm({
           productId,
           validFrom,
           validUntil: effectiveUntil || null,
-          priceAgreedKurus: toKurus(effectivePrice),
+          // SATIŞ, TAHSİL EDİLENLE AYNI FİYATTAN KURULUR (2026-09-04).
+          //
+          // Burada `effectivePrice` NAKİT fiyatıdır; kart farkı yalnızca `owedKurus`a ve dolayısıyla
+          // tahsilata ekleniyordu. Sonuç: satış 12.750 yazılırken 14.000 tahsil ediliyor, aradaki
+          // 1.250 hiçbir satışa tahsis edilemeden ödemenin üstünde "üye alacağı" olarak kalıyordu
+          // (I-33). Ekran bunu göremiyordu bile — "Kalan bakiye 0" diyordu, çünkü satış kendi
+          // içinde kapanmıştı.
+          //
+          // İki yönlü sessiz bir hata: stüdyonun CİROSU kart farkı kadar EKSİK, üyenin alacağı o
+          // kadar FAZLA görünüyordu. Ölçüldü: 21 Ağustos–4 Eylül arası 5 satış, 4.350 TL.
+          //
+          // İndirim tabana uygulanmaya devam ediyor: indirim pakete verilir, kart farkına değil.
+          priceAgreedKurus: toKurus(effectivePrice) + (method !== 'cash' ? surchargeKurus : 0),
           discountKurus,
           discountReason,
           discountNote,

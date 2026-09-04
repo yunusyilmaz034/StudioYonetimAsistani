@@ -100,6 +100,45 @@ hesaplar, yalnızca `open` satışlar — tahsil edilmişlere dokunulmadı).
 Ayrıca **raporlar da artık `excludedMemberIds`i okuyor.** Pano bunu 27 Ağustos'ta öğrenmişti,
 raporlar öğrenmemişti. Rapor bir okuma modelidir; aynı kural oraya da geçerli.
 
+## 💸 4 Eylül akşamı — kart farkı satışa yazılmıyordu, ve panel kayıtlı üyeyi tanımıyordu
+
+Owner bir üye kartı gönderdi: *"neyle ödenmiş, gerçek değil fiziksel POS bence."* Etiket doğruydu
+(`credit_card` = fiziksel POS, `online` = sanal POS), ama bakarken iki ayrı hata çıktı.
+
+### 1 · Satış nakit fiyatından kuruluyordu, tahsilat kart fiyatından
+
+```
+priceAgreedKurus: toKurus(effectivePrice)   → 12.750  (nakit)
+collectedKurus:   amountKurus               → 14.000  (kart farkı dahil)
+```
+
+Ekran kart farkını `owedKurus`a ekliyor ve tahsilatı ona göre yapıyordu, ama SATIŞI farksız fiyattan
+kuruyordu. Aradaki tutar hiçbir satışa tahsis edilemeden ödemenin üstünde "üye alacağı" olarak
+kalıyordu (I-33) — ve ekran bunu göstermiyordu bile, çünkü satış kendi içinde kapanmış görünüyordu:
+*"Kalan bakiye 0"*.
+
+Çift yönlü sessiz bir hata: **ciro kart farkı kadar EKSİK, üyenin alacağı o kadar FAZLA.**
+
+**Ölçüldü — 5 satış, 4.350 ₺:** Leman Demirel Tatoğlu 1.000 · Hayrunisa Kıraç 800 · Neslihan Eroğlu
+1.000 · İrem Kılıç 300 · Elif Atalay Öztürk 1.250. Hepsi `credit_card`, 21 Ağustos–4 Eylül.
+
+İndirim tabana uygulanmaya devam ediyor: indirim pakete verilir, kart farkına değil.
+
+### 2 · Bekleyen online satış, kayıtlı üyeyi HİÇ tanımıyordu
+
+```
+context.buyerPhone = "+905380895488"    ← E.164
+findByPhone bekler = "905380895488"     ← benzersizlik anahtarı
+```
+
+Baştaki artı yüzünden arama hiçbir zaman eşleşmiyordu, ve pano **her seferinde yalnızca "Yeni üye
+oluştur"** öneriyordu. Yani zaten kayıtlı bir üye için tek tık: ikinci üye, ikinci paket, ikinci kez
+sayılan tahsilat.
+
+**4 Eylül'de ramak kaldı.** Elif Atalay Öztürk 18:43'te resepsiyonca elle kaydedildi, 18:49'da online
+ödemesi düştü — aynı telefon, aynı tutar, aynı paket — ve pano onu tanımayıp "yeni üye" dedi. Owner
+basmadan önce sordu.
+
 ## 📞 4 Eylül — AI kapanışta numara veriyor, aranan lead listeden çıkıyor
 
 **1 · Kapanışta telefon** ([[OR-65]]). Müşteri teşekkür edip vedalaştığında AI stüdyonun numarasını
