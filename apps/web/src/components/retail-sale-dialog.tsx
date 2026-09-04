@@ -39,7 +39,10 @@ export function RetailSaleDialog({
   const [query, setQuery] = useState('')
   const [member, setMember] = useState<BookingMember | null>(null)
   const [qty, setQty] = useState<Record<string, number>>({})
-  const [method, setMethod] = useState<'cash' | 'bank_transfer' | 'credit_card'>('cash')
+  // 'account' = şimdi ödeme yok, üyenin hesabına (owner, 2026-09-04). Kafe satışının asıl hâli budur
+  // ama buraya da kondu: resepsiyon aynı işi iki ekrandan yapabilmeli, ve iki ekranın SEÇENEKLERİ
+  // farklıysa hangisinin doğru olduğu sorusu doğar.
+  const [method, setMethod] = useState<'cash' | 'bank_transfer' | 'credit_card' | 'account'>('cash')
   const [tills, setTills] = useState<readonly Till[]>([])
   const [tillId, setTillId] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -54,6 +57,7 @@ export function RetailSaleDialog({
   }, [])
 
   // Which till kind does this method draw from? Cash → a cash till, card (POS) → a pos till, havale none.
+  // Hesaba yazmak para hareketi DEĞİLDİR — kasa istemez, kasayı etkilemez.
   const tillKind = method === 'cash' ? 'cash' : method === 'credit_card' ? 'pos' : null
   const openTills = useMemo(
     () => (tillKind ? tills.filter((t) => t.status === 'open' && t.kind === tillKind) : []),
@@ -157,12 +161,14 @@ export function RetailSaleDialog({
               <Select value={method} onValueChange={(v) => setMethod((v as typeof method) ?? 'cash')}>
                 <SelectTrigger>
                   <SelectValue>
-                    {(v: unknown) => (v === 'cash' ? 'Nakit' : v === 'bank_transfer' ? 'Havale/EFT' : 'Kredi kartı')}
+                    {(v: unknown) =>
+                      v === 'cash' ? 'Nakit' : v === 'bank_transfer' ? 'Havale/EFT' : v === 'account' ? 'Hesabına yaz' : 'Kredi kartı'}
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="cash">Nakit</SelectItem>
                   <SelectItem value="bank_transfer">Havale/EFT</SelectItem>
+                  <SelectItem value="account">Hesabına yaz (şimdi ödeme yok)</SelectItem>
                   <SelectItem value="credit_card">Kredi kartı</SelectItem>
                 </SelectContent>
               </Select>

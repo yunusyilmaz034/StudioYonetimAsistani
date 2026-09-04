@@ -90,6 +90,20 @@ export interface SaleLine {
   // that bought it — and vice versa.
   readonly entitlementId: EntitlementId | null
   readonly giftCardId: string | null
+  /**
+   * Hangi RAF ürünü satıldı (su, kahve, çorap) — kafe/ürün satırlarının POZİTİF işareti.
+   *
+   * `productId` paket kataloğunu gösterir ve bir raf ürününde `null`dur; o yüzden "kafe satırı"nı
+   * yokluktan çıkarmak mümkündü ama yanlış olurdu: yarın eklenen bir ücret satırı da `null`
+   * taşıyacak ve sessizce kafe borcu sayılacaktı. Bir şeyin ne OLDUĞU, ne olmadığından okunmaz.
+   *
+   * Üyenin ana sayfasında YALNIZCA bu satırların borcu gösteriliyor (owner, 2026-09-04): paket
+   * taksiti oraya çıkmaz. Ölçüldü — o gün 10 üyenin 90.900 ₺ açık paket borcu vardı ve bir kısmının
+   * ödeme anlaşması sözlüydü; kahve borcuyla aynı ekrana koymak ikisini de yanlış anlatırdı.
+   *
+   * `sale.created` yalnızca `lineCount` taşır, yani bu alan OLAY ŞEMASI DEĞİL, durumdur.
+   */
+  readonly retailProductId?: string | null
 }
 
 export interface Sale {

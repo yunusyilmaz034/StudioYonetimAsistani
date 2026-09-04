@@ -146,3 +146,59 @@ describe('collect — with no named sale, reception still means "her balance"', 
     expect((writes[0]!.allocations ?? []).map((a) => a.saleId)).toEqual(['sal_old', 'sal_new'])
   })
 })
+
+// ── CÜZDANLA VAR OLAN BİR BORCU KAPATMAK (owner, 2026-09-04) ────────────────────────────────
+//
+// `sell` cüzdanı satış anında düşürüyordu; `collect` düşürmüyordu. Eksiklik SESSİZDİ: borç kapanır,
+// bakiye olduğu gibi kalırdı — yoktan para. Kimse denemediği için ortaya çıkmamıştı; kafe hesabını
+// cüzdandan ödetme ihtiyacı denetti.
+//
+// İkinci test birincisinden önemli: bakiye yetmiyorsa işlem REDDEDİLMELİ. Sıfırın altına inen bir
+// cüzdan, stüdyonun hiç almadığı bir parayı almış gibi görünmesidir.
+describe('collect — cüzdan bakiyeden DÜŞER', () => {
+  function walletFake(sales: readonly Sale[], balance: number) {
+    const writes: FinanceWrite[] = []
+    const repo = {
+      listSalesByMember: async () => sales,
+      getDrawer: async () => null,
+      getGiftCardByCode: async () => null,
+      getWalletByMember: async () => ({
+        id: 'wlt_1',
+        studioId: ctx.studioId,
+        memberId: MEMBER,
+        balance: money(balance),
+        updatedAt: instant(1_700_000_000_000),
+      }),
+      commit: async (_c: TenantContext, w: FinanceWrite) => {
+        writes.push(w)
+      },
+    } as unknown as FinanceRepository
+    return { deps: { repo, clock } as unknown as FinanceDeps, writes }
+  }
+
+  it('borcu kapatır VE cüzdandan aynı tutarı düşer', async () => {
+    const { deps, writes } = walletFake([sale('sal_1', 1_699_000_000_000, 5_000)], 20_000)
+    const r = await collect(deps, ctx, { ...base, method: 'wallet', paymentId: 'pay_1', amount: money(5_000) })
+    expect(r.ok).toBe(true)
+    const w = writes[0]!
+    expect(w.walletApplies?.[0]?.deltaKurus).toBe(-5_000)
+    expect(w.walletApplies?.[0]?.refuseBelowZero).toBe(true)
+    expect(w.sales?.[0]?.paid.amount).toBe(5_000)
+  })
+
+  it('BAKİYE YETMİYORSA reddeder — kısmi ödeme yok, eksi bakiye yok', async () => {
+    const { deps, writes } = walletFake([sale('sal_1', 1_699_000_000_000, 5_000)], 3_000)
+    const r = await collect(deps, ctx, { ...base, method: 'wallet', paymentId: 'pay_1', amount: money(5_000) })
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.error.code).toBe('wallet_insufficient')
+    // HİÇBİR ŞEY YAZILMADI: reddedilen bir ödeme yarım bir iz bırakmaz.
+    expect(writes).toHaveLength(0)
+  })
+
+  it('cüzdan DIŞINDAKİ yöntemler bakiyeye dokunmaz', async () => {
+    const { deps, writes } = walletFake([sale('sal_1', 1_699_000_000_000, 5_000)], 20_000)
+    const r = await collect(deps, ctx, { ...base, method: 'cash', paymentId: 'pay_1', amount: money(5_000) })
+    expect(r.ok).toBe(true)
+    expect(writes[0]?.walletApplies).toBeUndefined()
+  })
+})

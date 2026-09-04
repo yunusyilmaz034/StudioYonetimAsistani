@@ -98,7 +98,12 @@ export async function sellRetailProductAction(input: unknown) {
     .object({
       memberId: z.string().min(1),
       items: z.array(z.object({ retailProductId: z.string().min(1), quantity: z.number().int().min(1) })).min(1),
-      method: z.enum(['cash', 'bank_transfer', 'credit_card', 'wallet']),
+      // 'account' = ÖDEME YOK, ÜYENİN HESABINA (owner, 2026-09-04). Stüdyoda kahve/su içip ödemeden
+      // çıkılıyor; resepsiyon bunu üyeye yazsın, üye uygulamadan görüp ödesin. Domain bunu zaten
+      // yasal sayıyor (`sell`de `payment: null`, borç `balanceDue`ya düşer) — eksik olan buraya
+      // gelen yoldu. AYRI BİR ADİSYON DEFTERİ AÇILMADI: iki defter, "üye ne kadar borçlu" sorusunun
+      // iki cevabı demektir.
+      method: z.enum(['cash', 'bank_transfer', 'credit_card', 'wallet', 'account']),
       // Optional explicit till: honoured only if it is open and of the method's kind; otherwise the
       // server auto-picks the single open till. Havale needs none.
       drawerId: z.string().min(1).nullable().optional(),
@@ -108,7 +113,7 @@ export async function sellRetailProductAction(input: unknown) {
   const db = adminDb()
 
   // ── Stock + line build, transactionally (refuse oversell). ──
-  let lines: { productId: null; description: string; quantity: number; unitPrice: ReturnType<typeof money>; entitlementId: null; giftCardId: null }[] = []
+  let lines: { productId: null; description: string; quantity: number; unitPrice: ReturnType<typeof money>; entitlementId: null; giftCardId: null; retailProductId: string }[] = []
   let decremented: { id: string; qty: number }[] = []
   let total = 0
   try {
@@ -135,6 +140,8 @@ export async function sellRetailProductAction(input: unknown) {
           unitPrice: money(price),
           entitlementId: null,
           giftCardId: null,
+          // Hangi raf ürünü — kafe borcunun pozitif işareti (bkz. SaleLine.retailProductId).
+          retailProductId: item.retailProductId,
         })
       }
       return { built, dec }
@@ -150,6 +157,7 @@ export async function sellRetailProductAction(input: unknown) {
   // ── The money, through the ONE sale path. Cash needs an open cash till, a card (POS) an open pos
   //    till; havale and WALLET need none (wallet money is the balance itself). Honour an explicit open
   //    till of the right kind, else auto-pick. ──
+  const hesaba = p.method === 'account'
   const drawerKind: 'cash' | 'pos' | null = p.method === 'cash' ? 'cash' : p.method === 'credit_card' ? 'pos' : null
   let drawerId: string | null = null
   if (drawerKind) {
@@ -165,16 +173,20 @@ export async function sellRetailProductAction(input: unknown) {
     lines,
     discounts: [],
     discountCeilingPercent: null,
-    payment: {
-      paymentId: `pay_${suffix}`,
-      allocationId: `alc_${suffix}`,
-      amount: money(total),
-      method: p.method as PaymentMethod,
-      receivedAt: systemClock.now(),
-      drawerId,
-      giftCardCode: null,
-      note: 'Ürün satışı',
-    },
+    // Hesaba yazılan satışta ÖDEME YOKTUR — uydurma bir tahsilat yazmak yerine borç açık kalır.
+    // Kasa da etkilenmez: para girmedi.
+    payment: hesaba
+      ? null
+      : {
+          paymentId: `pay_${suffix}`,
+          allocationId: `alc_${suffix}`,
+          amount: money(total),
+          method: p.method as PaymentMethod,
+          receivedAt: systemClock.now(),
+          drawerId,
+          giftCardCode: null,
+          note: 'Ürün satışı',
+        },
   })
 
   // The stock moved in a separate transaction from the money. If the sale is REFUSED (e.g. a wallet

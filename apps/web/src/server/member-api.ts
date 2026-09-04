@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 
-import { available, productPrices, DEFAULT_PREFS, FirestoreCatalogRepository, FirestoreMemberRepository, FirestoreSchedulingRepository, requestMemberDeletion, entriesUsed, FirestoreEntitlementRepository, FirestoreFinanceRepository, FirestoreNotificationRepository, money, newOperationId, sell, systemClock, type BranchId, type Entitlement, type FinanceDeps, type MemberId, type NotificationPrefs, type TenantContext } from '@studio/core'
+import { available, collect, productPrices, DEFAULT_PREFS, FirestoreCatalogRepository, FirestoreMemberRepository, FirestoreSchedulingRepository, requestMemberDeletion, entriesUsed, FirestoreEntitlementRepository, FirestoreFinanceRepository, FirestoreNotificationRepository, money, newOperationId, sell, systemClock, type BranchId, type Entitlement, type FinanceDeps, type MemberId, type NotificationPrefs, type TenantContext } from '@studio/core'
 import type { RetailItem, StoredWallet } from '@studio/core/client'
 
 import { loadOccupancyNow } from './fitness-query'
@@ -78,10 +78,92 @@ export async function memberPrefsSet(ctx: TenantContext, memberId: MemberId, pre
 // token lives ONLY in this server-only subcollection (rules deny client reads). Registering a device
 // flips `prefs.push` on so she starts receiving push — she can turn it back off from Profil.
 // Home-screen extras: anonymous occupancy level + the owner's active campaign banner.
-export async function memberHomeExtras(ctx: TenantContext) {
-  const [occ, snap] = await Promise.all([
+// ── KAFE HESABI — üyenin ödemeden çıktığı kahve/su (owner, 2026-09-04) ──────────────────────
+//
+// *"Stüdyoda kahve su içiyorlar ödemeden gidiyorlar."* Resepsiyon bunu üyenin hesabına yazıyor
+// (`method: 'account'`), ve üye burada görüyor: ne, kaç adet, hangi gün, saat kaçta.
+//
+// YALNIZCA KAFE/ÜRÜN BORCU — paket taksiti buraya ÇIKMAZ (owner kararı, 2026-09-04). Ölçüldü: o gün
+// 10 üyenin 90.900 ₺ açık PAKET borcu vardı ve bir kısmının ödeme anlaşması sözlüydü. Kahve borcuyla
+// aynı ekrana koymak ikisini de yanlış anlatırdı — biri "ha evet, unuttum", öbürü bir görüşmenin
+// konusu. Paket tahsilatı resepsiyonun işi ve panoda zaten duruyor.
+//
+// Ayrım POZİTİF bir işaretle yapılıyor (`SaleLine.retailProductId`), yokluğa bakarak değil: yarın
+// eklenecek bir ücret satırı sessizce kafe borcu sayılmasın.
+export async function memberCafeAccount(ctx: TenantContext, memberId: MemberId) {
+  const sales = await new FirestoreFinanceRepository(adminDb()).listSalesByMember(ctx, memberId)
+  const items: { readonly name: string; readonly quantity: number; readonly totalKurus: number; readonly at: number }[] = []
+  let dueKurus = 0
+  for (const sale of sales) {
+    if (sale.status !== 'open') continue
+    const due = sale.total.amount - sale.paid.amount
+    if (due <= 0) continue
+    const cafeLines = sale.lines.filter((l) => Boolean(l.retailProductId))
+    if (cafeLines.length === 0) continue // paket borcu — buraya çıkmaz
+    dueKurus += due
+    for (const l of cafeLines) {
+      items.push({ name: l.description, quantity: l.quantity, totalKurus: l.unitPrice.amount * l.quantity, at: Number(sale.soldAt) })
+    }
+  }
+  // En yeni önce: "bugün ne içtim" en çok sorulan sorudur.
+  return { dueKurus, items: items.sort((a, b) => b.at - a.at) }
+}
+
+/**
+ * ÜYE KAFE HESABINI CÜZDANINDAN KAPATIR (owner, 2026-09-04).
+ *
+ * *"İstersen resepsiyona gidip öde, istersen cüzdana yükle oradan öde."* Bu, ikincisinin son adımı.
+ *
+ * ÜÇ SINIR:
+ *  · Yalnızca KAFE borcu kapanır. Paket taksiti bu yoldan ödenemez — üye onu ekranında görmüyor bile,
+ *    ve görmediği bir borcu kapatan bir düğme, bastığında ne olduğunu bilmediği bir düğmedir.
+ *  · Bakiye yetmezse REDDEDİLİR, kısmi ödeme yapılmaz (`wallet_insufficient`). Yarısı ödenmiş bir
+ *    kahve hesabı, resepsiyonun elle çözeceği bir artık bırakır.
+ *  · Tutar SUNUCUDA hesaplanır. İstemciden gelen bir rakama göre borç kapatmak, borcu istemciye
+ *    yazdırmaktır.
+ */
+export async function memberPayCafeFromWallet(ctx: TenantContext, memberId: MemberId) {
+  const cafe = await memberCafeAccount(ctx, memberId)
+  if (cafe.dueKurus <= 0) return { ok: false as const, error: { code: 'invalid_amount' as const } }
+
+  const repo = new FirestoreFinanceRepository(adminDb())
+  // Hangi satışların kapanacağı da SUNUCUDA seçiliyor: yalnızca kafe satırı taşıyan açık satışlar.
+  const sales = await repo.listSalesByMember(ctx, memberId)
+  const hedefler = sales.filter(
+    (sale) =>
+      sale.status === 'open' &&
+      sale.total.amount - sale.paid.amount > 0 &&
+      sale.lines.some((l) => Boolean(l.retailProductId)),
+  )
+  const opId = newOperationId()
+  const suffix = opId.slice(4)
+  return collect(
+    { repo, clock: systemClock },
+    ctx,
+    {
+      paymentId: `pay_${suffix}`,
+      memberId,
+      branchId: (ctx.branchIds[0] ?? null) as never,
+      amount: money(cafe.dueKurus),
+      method: 'wallet',
+      receivedAt: systemClock.now(),
+      drawerId: null, // cüzdan para hareketi değil bakiye hareketi — kasa istemez
+      giftCardCode: null,
+      note: 'Kafe hesabı — cüzdandan',
+      allocateTo: hedefler.map((sale, i) => ({
+        saleId: sale.id,
+        amount: money(sale.total.amount - sale.paid.amount),
+        allocationId: `alc_${suffix}_${i}`,
+      })),
+    },
+  )
+}
+
+export async function memberHomeExtras(ctx: TenantContext, memberId: MemberId) {
+  const [occ, snap, cafe] = await Promise.all([
     loadOccupancyNow(ctx),
     adminDb().doc(`studios/${ctx.studioId}/settings/mobile`).get(),
+    memberCafeAccount(ctx, memberId),
   ])
   const data = snap.data() as Partial<MobileSettings> | undefined
   const legacy = (data?.banner ?? null) as MobileBanner | null
@@ -95,6 +177,9 @@ export async function memberHomeExtras(ctx: TenantContext) {
     banners,
     branding,
     campaign: campaign?.active && campaign.imageUrl ? campaign : null,
+    // Borç YOKKEN de gönderiliyor (0 + boş liste); GÖSTERİLMEMESİ ekranın kararı. "0 ₺ borcun var"
+    // yazan bir kart, her açılışta bir borç hatırlatmasıdır.
+    cafeAccount: cafe,
   }
 }
 

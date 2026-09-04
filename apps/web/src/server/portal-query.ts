@@ -19,6 +19,7 @@ import {
 } from '@studio/core'
 
 import { adminDb } from './firebase-admin'
+import { memberCafeAccount } from './member-api'
 
 // The member portal's reads (v1.21, Batches 6–7).
 //
@@ -72,11 +73,29 @@ export interface PortalReservation {
   readonly lateCancellationConsumesCredit: boolean
 }
 
+export interface PortalCafeItem {
+  readonly name: string
+  readonly quantity: number
+  readonly totalKurus: number
+  readonly at: number
+}
+
 export interface PortalDashboard {
   readonly memberName: string
   readonly upcoming: readonly PortalReservation[]
   readonly packages: readonly PortalPackage[]
   readonly balanceDue: number
+  /**
+   * Kafe hesabı — kahve/su gibi ödemeden çıkılan ürünler (owner, 2026-09-04).
+   *
+   * Kuralın TEK yeri `memberCafeAccount`: portal ve mobil aynı fonksiyondan okuyor. İki yerde iki kez
+   * yazılsaydı biri unutulurdu ve üye bir ekranda borçlu, öbüründe borçsuz görünürdü — `foldTr`da
+   * tam olarak bu olmuştu (2026-09-02).
+   */
+  readonly cafeDueKurus: number
+  /** Cüzdan bakiyesi — yeterliyse ekran doğrudan ödemeyi önerir, yetmiyorsa yüklemeyi. */
+  readonly walletKurus: number
+  readonly cafeItems: readonly PortalCafeItem[]
 }
 
 // ── Dashboard ─────────────────────────────────────────────────────────────────────────────
@@ -86,10 +105,13 @@ export async function loadPortalDashboard(
   nowMs: number,
 ): Promise<PortalDashboard> {
   const db = adminDb()
-  const [member, entitlements, reservations] = await Promise.all([
+  const [member, entitlements, reservations, cafe, wallet] = await Promise.all([
     new FirestoreMemberRepository(db).findById(ctx, memberId),
     new FirestoreEntitlementRepository(db).listActiveByMember(ctx, memberId),
     new FirestoreReservationRepository(db).listByMember(ctx, memberId),
+    // Aynı fonksiyon mobilin okuduğu — kural tek yerde.
+    memberCafeAccount(ctx, memberId),
+    new FirestoreFinanceRepository(db).getWalletByMember(ctx, memberId).catch(() => null),
   ])
   if (!member) throw new Error('member not found')
 
@@ -111,6 +133,9 @@ export async function loadPortalDashboard(
 
   return {
     memberName: member.fullName,
+    cafeDueKurus: cafe.dueKurus,
+    walletKurus: wallet?.balance.amount ?? 0,
+    cafeItems: cafe.items,
     upcoming: upcomingRes.flatMap((r) => {
       const s = sessions.get(r.classSessionId)
       return s ? [toPortalReservation(r.id, r.status, s)] : []

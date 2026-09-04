@@ -10,6 +10,7 @@ import { Section } from '@/components/ui/section'
 import type { PortalDashboard } from '@/server/portal-query'
 
 import { CATEGORY_CHIP, CATEGORY_LABEL } from '../category'
+import { CafePayButton } from './cafe-pay-button'
 import { OccupancyCard } from './occupancy-card'
 
 const TZ = 'Europe/Istanbul'
@@ -82,6 +83,72 @@ export function PortalDashboardScreen({ data }: { data: PortalDashboard }) {
           </ul>
         )}
       </Section>
+
+      {/* ── KAFE HESABIM (owner, 2026-09-04) ────────────────────────────────────────────────
+          *"Stüdyoda kahve su içiyorlar ödemeden gidiyorlar."* Resepsiyon üyenin hesabına yazıyor,
+          üye burada görüyor: ne, kaç adet, hangi gün saat kaçta.
+
+          BORÇ YOKKEN HİÇ ÇIKMIYOR. "0 ₺ borcun var" diyen bir kart, her açılışta bir borç
+          hatırlatmasıdır ve stresi boşuna artırır.
+
+          Paket taksiti buraya ÇIKMAZ (owner kararı): ölçüldüğünde 10 üyenin 90.900 ₺ açık paket
+          borcu vardı ve bir kısmının ödeme anlaşması sözlüydü. Kahve borcuyla aynı ekrana koymak
+          ikisini de yanlış anlatırdı. */}
+      {data.cafeDueKurus > 0 ? (
+        <Section title="Kafe hesabım">
+          <Card>
+            <CardContent className="space-y-3 py-1">
+              <div className="flex items-baseline justify-between">
+                <span className="text-sm text-muted-foreground">Toplam</span>
+                <span className="text-h2 font-semibold tabular-nums text-foreground">
+                  {(data.cafeDueKurus / 100).toLocaleString('tr-TR')} ₺
+                </span>
+              </div>
+
+              <ul className="space-y-1 border-t border-border pt-2">
+                {data.cafeItems.map((it, i) => (
+                  <li key={`${it.name}-${it.at}-${i}`} className="flex items-baseline justify-between gap-2 text-sm">
+                    <span className="min-w-0 flex-1 truncate text-foreground">
+                      {it.name}
+                      {/* Adet YALNIZCA birden fazlaysa: "1 ×" yazmak, okuyanın saymasını istemektir. */}
+                      {it.quantity > 1 ? <span className="text-muted-foreground"> × {it.quantity}</span> : null}
+                    </span>
+                    <span className="shrink-0 text-xs text-muted-foreground">
+                      {new Date(it.at).toLocaleString('tr-TR', {
+                        timeZone: 'Europe/Istanbul',
+                        day: 'numeric',
+                        month: 'long',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </span>
+                    <span className="shrink-0 tabular-nums text-foreground">
+                      {(it.totalKurus / 100).toLocaleString('tr-TR')} ₺
+                    </span>
+                  </li>
+                ))}
+              </ul>
+
+              {/* İKİ YOL, owner'ın söylediği gibi. Kartla doğrudan ödeme YOK: küçük tutarlarda
+                  komisyon oranı anlamsızlaşıyor (10 ₺ su için ~%3) ve her biri ayrı bir işlem olurdu.
+                  Cüzdan bir kez yüklenir, kahveler oradan düşer. */}
+              <div className="space-y-2 border-t border-border pt-3">
+                {/* Bakiye YETİYORSA doğrudan öde; yetmiyorsa yükleme yolu. İki düğmeyi birden
+                    göstermek, üyeye kendi bakiyesini hesaplatmaktır. */}
+                <CafePayButton walletKurus={data.walletKurus} dueKurus={data.cafeDueKurus} />
+                {data.walletKurus < data.cafeDueKurus ? (
+                  <Button size="sm" className="w-full" render={<Link href="/portal/wallet" />}>
+                    Cüzdanıma yükle ve öde
+                  </Button>
+                ) : null}
+                <p className="text-xs text-muted-foreground">
+                  Dilersen resepsiyona uğrayıp nakit veya kartla da ödeyebilirsin.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </Section>
+      ) : null}
 
       <Section title="Paketlerim">
         {data.packages.length === 0 ? (

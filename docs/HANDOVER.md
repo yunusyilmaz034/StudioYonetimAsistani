@@ -7,7 +7,7 @@ explains the moment.
 Keep it current the way the code is kept current: when the state changes, this changes in the same
 commit. A handover document that lags is worse than none, because it is believed.
 
-_Last true as of: **2026-09-03, 21:15**._
+_Last true as of: **2026-09-04**._
 
 ## 🌙 31 Ağustos 2026 — uzun bir gün, on beş deploy
 
@@ -99,6 +99,53 @@ hesaplar, yalnızca `open` satışlar — tahsil edilmişlere dokunulmadı).
 
 Ayrıca **raporlar da artık `excludedMemberIds`i okuyor.** Pano bunu 27 Ağustos'ta öğrenmişti,
 raporlar öğrenmemişti. Rapor bir okuma modelidir; aynı kural oraya da geçerli.
+
+## ☕ 4 Eylül — Kafe hesabı: ödemeden çıkılan kahve artık kayıtta
+
+Owner: *"Stüdyoda kahve su içiyorlar ödemeden gidiyorlar. Biz bunları üyeye atayalım, gün saat olarak
+adet olarak hesabı burada görsün, isterse ödesin."*
+
+**Yeni bir defter AÇILMADI.** Ürün satışı zaten vardı; eksik olan tek şey **ödemenin zorunlu
+olmasıydı** — nakit/havale/kart/cüzdan, ve kahvenin sorunu tam olarak buydu: o an ödeme yok. `sell`
+zaten `payment: null` kabul ediyordu (borç `balanceDue`ya düşer); eksik olan oraya giden yoldu.
+İki defter, *"üye ne kadar borçlu"* sorusunun iki cevabı demektir ve bu hafta o hatanın bedeli iki kez
+ödendi.
+
+**Resepsiyon tarafı**
+- Üye sayfasında yeni **Kafe Satışı** sekmesi: ürünler, adet, ve birincil düğme **"Hesabına yaz"**.
+  Nakit/kart/cüzdan da orada, üye o an ödemek isterse başka ekrana gitmesin diye.
+- **Ürün Sat** ekranına da *"Hesabına yaz (şimdi ödeme yok)"* eklendi — aynı iş iki ekrandan
+  yapılabilmeli, ve iki ekranın seçenekleri farklıysa hangisinin doğru olduğu sorusu doğar.
+
+**Üye tarafı**
+- Portal ana sayfasında **Kafe hesabım**: toplam + ne, kaç adet, hangi gün saat kaçta.
+- **Borç yokken kart hiç çıkmıyor.** "0 ₺ borcun var" diyen bir kart, her açılışta bir borç
+  hatırlatmasıdır.
+- İki yol, owner'ın dediği gibi: **cüzdandan öde** (bakiye yetiyorsa) ya da **cüzdana yükle**;
+  yetmiyorsa ödeme düğmesi hiç görünmez — basıldığında reddedilecek bir düğme, olmayandan kötüdür.
+  Resepsiyondan nakit/kartla ödeme de kartın altında bir cümle olarak duruyor.
+
+**PAKET BORCU BURAYA ÇIKMAZ** (owner kararı). Ölçüldü: o gün **10 üyenin 90.900 ₺ açık paket borcu**
+vardı ve bir kısmının ödeme anlaşması sözlüydü. Kahve borcuyla aynı ekrana koymak ikisini de yanlış
+anlatırdı — biri "ha evet, unuttum", öbürü bir görüşmenin konusu. Ayrım **pozitif bir işaretle**
+yapılıyor (`SaleLine.retailProductId`), yokluğa bakarak değil: yarın eklenecek bir ücret satırı
+sessizce kafe borcu sayılmasın. (`sale.created` yalnızca `lineCount` taşıdığı için bu alan olay
+şeması değil, durumdur.)
+
+### 🐞 Yanında çıkan sessiz hata: `collect` cüzdanı düşürmüyordu
+
+`sell` cüzdanı satış anında düşürüyordu, `collect` düşürmüyordu. Yani bugüne kadar var olan bir borç
+`method: 'wallet'` ile kapatılsaydı **borç kapanır, bakiye olduğu gibi kalırdı** — yoktan para. Kimse
+denemediği için ortaya çıkmamıştı; kafe hesabını cüzdandan ödetme ihtiyacı denetti. `sell`in yaptığının
+aynısı eklendi: aynı işlemde düş, sıfırın altına inmeyi reddet (I-37). Üç test, en önemlisi
+**yetersiz bakiyede hiçbir şey yazılmadığı**.
+
+### ⏭ Bu işin kalan parçası
+
+**Mobil ekran yok.** Portal bugün canlıya çıkabilir; uygulama bir sonraki sürümü bekler. Sıralama
+ölçüme dayalı: 177 aktif üyenin **138'i portalı açmış, mobil uygulaması olan 58**. Payload (`/api/
+member/home` → `cafeAccount`) ve ödeme ucu (`/api/member/cafe-pay`) **hazır**, yani mobil tarafta
+kalan yalnızca ekran.
 
 ## 📍 3 EYLÜL 21:15 — NEREDE KALDIK
 

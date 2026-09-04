@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import {
+  CoffeeIcon,
   ArrowLeftIcon,
   CalendarPlusIcon,
   CheckIcon,
@@ -64,6 +65,7 @@ import { deactivateMember } from '@/server/actions/members'
 import { STATE_LABEL, type MemberState } from '@/lib/members/filters'
 
 import { RestrictionPanel } from './restriction-panel'
+import { CafePanel } from './cafe-panel'
 import { WalletPanel } from './wallet-panel'
 import { DocumentsPanel } from './documents-panel'
 import { TrainingPanel } from './training-panel'
@@ -107,6 +109,7 @@ type SectionId =
   | 'checkin'
   | 'payments'
   | 'wallet'
+  | 'cafe'
   | 'documents'
   | 'audit'
 const SECTIONS: readonly { id: SectionId; label: string; icon: typeof UserIcon }[] = [
@@ -118,6 +121,7 @@ const SECTIONS: readonly { id: SectionId; label: string; icon: typeof UserIcon }
   { id: 'checkin', label: 'Check-in', icon: DoorOpenIcon },
   { id: 'payments', label: 'Cari Hesap', icon: CreditCardIcon },
   { id: 'wallet', label: 'Cüzdan', icon: WalletIcon },
+  { id: 'cafe', label: 'Kafe Satışı', icon: CoffeeIcon },
   { id: 'documents', label: 'Belgeler', icon: FileTextIcon },
   { id: 'audit', label: 'Geçmiş', icon: HistoryIcon },
 ]
@@ -308,6 +312,10 @@ export function MemberWorkspaceScreen({
         <TabsContent value="wallet">
           {/* Doc 27 — the stored-value wallet: load balance at the desk, buy from it in the shop. */}
           <WalletPanel memberId={member.id} memberPhone={member.phone} />
+        </TabsContent>
+        <TabsContent value="cafe">
+          {/* owner, 2026-09-04 — kahve/su üyenin hesabına yazılır; ödeme o an olmak zorunda değil. */}
+          <CafePanel memberId={member.id} memberName={member.fullName} />
         </TabsContent>
         <TabsContent value="audit">
           <AuditPanel memberId={member.id} />

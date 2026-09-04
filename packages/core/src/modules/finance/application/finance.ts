@@ -316,6 +316,35 @@ export async function collect(
     events.push(...allocated.value.events)
   }
 
+  // CÜZDANLA VAR OLAN BİR BORCU KAPATMAK (owner, 2026-09-04).
+  //
+  // `sell` bunu satış anında zaten yapıyordu; `collect` yapmıyordu — ve eksikliği sessizdi. Bugün
+  // `method: 'wallet'` ile çağrılsaydı borç kapanır, cüzdan bakiyesi OLDUĞU GİBİ KALIRDI: yoktan
+  // para. Kimse denemediği için ortaya çıkmamıştı; kafe hesabını cüzdandan ödetme ihtiyacı denetti.
+  //
+  // `sell`in yaptığının aynısı, aynı yerde: aynı işlemde düş, sıfırın altına inmeyi REDDET (I-37),
+  // ve `balanceAfter`ı işlem içinde kesinleştir ki log bayat bir bakiye yazmasın.
+  const walletApplies = []
+  if (payment.method === 'wallet') {
+    const wallet = await deps.repo.getWalletByMember(ctx, input.memberId)
+    if (!wallet) return { ok: false, error: { code: 'wallet_insufficient', balance: 0, requested: payment.amount.amount } }
+    const spent = decideWalletPurchase(c, wallet, {
+      amount: payment.amount,
+      // Hangi satışa gittiği tahsis kayıtlarında duruyor; birden fazla satışı kapatabildiği için
+      // cüzdan olayına TEK bir satış yazmak yanlış olurdu.
+      saleId: sales[0]?.id ?? '',
+      paymentId: payment.id,
+    })
+    if (!spent.ok) return spent
+    walletApplies.push({
+      walletId: wallet.id,
+      memberId: input.memberId,
+      deltaKurus: -payment.amount.amount,
+      refuseBelowZero: true,
+      event: spent.value.events[0]!,
+    })
+  }
+
   await deps.repo.commit(ctx, {
     sales,
     payments: [payment],
@@ -324,6 +353,7 @@ export async function collect(
       ? { drawerDeltas: [{ drawerId: drawer.id, deltaKurus: payment.amount.amount }] }
       : {}),
     ...(card ? { giftCards: [{ ...card, redeemed: addMoney(card.redeemed, payment.amount) }] } : {}),
+    ...(walletApplies.length > 0 ? { walletApplies } : {}),
     events,
   })
 
