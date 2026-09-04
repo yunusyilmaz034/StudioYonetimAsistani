@@ -1415,3 +1415,30 @@ alanı, üç tıkla biten işi bir forma çevirir ve o form doldurulmadığı i�
 **İki yazım, ikisi de bilinçli:** kalıcı kayıt lead'in `Interaction` geçmişinde (bir hafta sonra satır
 geri geldiğinde "geçen sefer ne olmuştu"nun cevabı) · tik yanındaki kısa not yalnızca BUGÜNÜN ekranı
 için, ve tik kaydı gibi atılabilir.
+
+
+---
+
+### OR-67 · Soğuma, tik anında ne bildiğimize değil, TİKİN KENDİSİNE dayanır
+
+*(2026-09-04, owner ikinci kez bildirdikten sonra: "dünün tekrarı olmasın diye konuştuk seninle ama
+yine aynı, dün tıklanan işler bugün yine gelmiş")*
+
+İlk sürüm soğumayı **tik anında** ayrı bir belgeye yazıyordu. Çalışıyordu — ama yalnızca o an
+soğuması tanımlı olan türler için. `hot_lead` soğuması 4 Eylül **16:23**'te dağıtıldı, o günün lead
+tikleri ise **16:09**'da atılmıştı: **25 lead ertesi sabah listeye geri geldi.**
+
+Hata bir unutkanlık değil, bağımlılığın yanlış yerde olmasıydı: soğuma *"tik atıldığında ne
+biliyorduk"*a bağlıydı. Oysa gerçek olan şey **tikin kendisi** ve o zaten kayıtlı.
+
+**Soğuma artık günlük tik kayıtlarından TÜRETİLİYOR.** Üç sonucu var, üçü de kuralın parçası:
+
+1. **Yeni bir tür listeye eklendiğinde GEÇMİŞE DÖNÜK çalışır.** Dağıtım anı önemsizdir; dün tiklenmiş
+   bir iş bugün de susar.
+2. **Sürüklenebilecek ikinci bir belge yok.** Tek doğruluk noktası günlük tik kaydı.
+3. **Tiki kaldırmak soğumayı da kaldırır**, çünkü kayıt siliniyor — ayrıca bir iptal yolu gerekmiyor.
+
+Bedeli, en fazla yedi küçük belge okuması: sabit, ve stüdyo büyüdükçe artmıyor.
+
+**Genel ders:** bir kural, o kuralın *uygulandığı an* hakkında bilgi taşıyan bir kayda dayanıyorsa,
+kuralı sonradan değiştirdiğinde geçmiş sessizce dışarıda kalır. Kuralı, olguya dayandır.

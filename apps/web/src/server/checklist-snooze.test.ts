@@ -1,45 +1,61 @@
 import { describe, expect, it } from 'vitest'
 
-import { CHECKLIST_COOLDOWN_DAYS, isSnoozedNow } from './checklist-snooze'
+import { CHECKLIST_COOLDOWN_DAYS, isSnoozedNow, kindOfItemId } from './checklist-snooze'
 
-// A ticked "bir arayın" line must survive the day it was ticked (so reception can see what she
-// closed, and undo a mis-tick) and be gone the next morning — that pair IS the rule.
-const TRT = (iso: string) => new Date(iso).getTime() // ISO carries its own offset
+// Tiklenmiş bir "bir arayın" satırı, tiklendiği gün YERİNDE kalmalı (resepsiyon ne kapattığını
+// görsün, ve yanlış tik geri alınabilsin) ve ertesi sabah GİTMELİ. Bu çift, kuralın kendisidir.
+//
+// 2026-09-04: soğuma artık ayrı bir belgeden değil, TİKİN KENDİSİNDEN türetiliyor. Sebebi burada
+// test ediliyor — yeni bir tür listeye eklendiğinde GEÇMİŞTE atılmış tikler de susmalı, çünkü
+// soğumanın dayanağı "tik anında ne biliyorduk" değil, "bu iş yapıldı mı".
+const T = (iso: string) => new Date(iso).getTime()
+const LEAD = 'wa:+905321234567'
+const UZAK = 'dormant_member__mem_1'
+const SEANS = 'empty_session__ses_1'
 
-describe('checklist cooldown', () => {
-  const at = TRT('2026-09-03T13:00:00+03:00')
-  const until = at + 7 * 86_400_000
-  const entry = { at, until }
+describe('checklist soğuması', () => {
+  const at = T('2026-09-03T13:00:00+03:00')
 
   it('tiklendiği gün listede kalır — üstü çizili, geri alınabilir', () => {
-    expect(isSnoozedNow(entry, TRT('2026-09-03T13:00:01+03:00'))).toBe(false)
-    expect(isSnoozedNow(entry, TRT('2026-09-03T23:59:59+03:00'))).toBe(false)
+    expect(isSnoozedNow(UZAK, at, T('2026-09-03T13:00:01+03:00'))).toBe(false)
+    expect(isSnoozedNow(UZAK, at, T('2026-09-03T23:59:59+03:00'))).toBe(false)
   })
 
   it('ertesi sabah listeden çıkar', () => {
-    expect(isSnoozedNow(entry, TRT('2026-09-04T00:00:01+03:00'))).toBe(true)
-    expect(isSnoozedNow(entry, TRT('2026-09-09T12:00:00+03:00'))).toBe(true)
+    expect(isSnoozedNow(UZAK, at, T('2026-09-04T00:00:01+03:00'))).toBe(true)
+    expect(isSnoozedNow(UZAK, at, T('2026-09-09T12:00:00+03:00'))).toBe(true)
   })
 
   it('süre dolunca geri gelir — sebep hâlâ duruyorsa iş hâlâ iştir', () => {
-    expect(isSnoozedNow(entry, until + 1)).toBe(false)
+    expect(isSnoozedNow(UZAK, at, at + 7 * 86_400_000 + 1)).toBe(false)
   })
 
-  it('gece yarısı sınırı stüdyonun saatiyle okunur, tarayıcının değil', () => {
-    // 2026-09-03 22:30 UTC is already the 4th in Istanbul — a tick at 23:00 TRT on the 3rd is
-    // "yesterday" by 00:30 TRT, not by 00:30 UTC.
-    const gece = { at: TRT('2026-09-03T23:00:00+03:00'), until: TRT('2026-09-10T23:00:00+03:00') }
-    expect(isSnoozedNow(gece, TRT('2026-09-03T23:30:00+03:00'))).toBe(false)
-    expect(isSnoozedNow(gece, TRT('2026-09-04T00:30:00+03:00'))).toBe(true)
+  it('gece yarısı sınırı STÜDYONUN saatiyle okunur', () => {
+    const gece = T('2026-09-03T23:00:00+03:00')
+    expect(isSnoozedNow(UZAK, gece, T('2026-09-03T23:30:00+03:00'))).toBe(false)
+    expect(isSnoozedNow(UZAK, gece, T('2026-09-04T00:30:00+03:00'))).toBe(true)
   })
 
-  it('yalnızca insanın telefon ettiği işler soğur', () => {
-    expect(CHECKLIST_COOLDOWN_DAYS.dormant_member).toBe(7)
-    expect(CHECKLIST_COOLDOWN_DAYS.outstanding_balance).toBe(7)
-    expect(CHECKLIST_COOLDOWN_DAYS.low_credit).toBe(7)
-    // Boş seans üç saat sonra başlıyor; onu doldurmak yarına devredilen bir temas değil.
+  it('WhatsApp lead satırı da soğur — kimlik `wa:` ile başlar', () => {
+    expect(kindOfItemId(LEAD)).toBe('hot_lead')
+    expect(isSnoozedNow(LEAD, at, T('2026-09-04T09:00:00+03:00'))).toBe(true)
+  })
+
+  it('GEÇMİŞTE atılmış tik de susar — soğumanın dayanağı tikin kendisidir', () => {
+    // Bu, 4 Eylül'de owner'ın ikinci kez bildirdiği hatanın testi: `hot_lead` soğuması tiklerden
+    // SONRA eklenmişti ve 25 lead ertesi sabah geri gelmişti. Türetme geçmişe dönük çalışır.
+    const oncekiGun = T('2026-09-04T16:09:00+03:00')
+    expect(isSnoozedNow(LEAD, oncekiGun, T('2026-09-05T00:04:00+03:00'))).toBe(true)
+  })
+
+  it('soğuması olmayan tür susmaz — boş seans üç saat sonra başlıyor', () => {
+    expect(isSnoozedNow(SEANS, at, T('2026-09-04T09:00:00+03:00'))).toBe(false)
     expect(CHECKLIST_COOLDOWN_DAYS.empty_session).toBeUndefined()
-    expect(CHECKLIST_COOLDOWN_DAYS.unreconciled_payment).toBeUndefined()
+  })
+
+  it('tanınmayan bir kimlik biçimi soğumaz — uydurma tür, sebepsiz silinen iş demektir', () => {
+    expect(kindOfItemId('garip-kimlik')).toBeNull()
+    expect(isSnoozedNow('garip-kimlik', at, T('2026-09-04T09:00:00+03:00'))).toBe(false)
   })
 
   it('son tarihi olan işler daha kısa soğur — yanan hak geri gelmiyor', () => {

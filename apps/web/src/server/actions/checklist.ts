@@ -10,7 +10,7 @@ import { narrateChecklist, type DailyChecklist } from '../ai/anthropic'
 import { loadAiSettings } from './ai-settings'
 import type { AdvisorItem } from '../advisor-query'
 import { logInteractionAction } from './crm'
-import { applyChecklistCooldown, type TickedItem } from '../checklist-snooze'
+import type { TickedItem } from '../checklist-snooze'
 
 // The dashboard (owner + reception) asks the AI to turn today's deterministic advisor items into a warm,
 // prioritised checklist. Returns null when the AI key isn't configured or the call fails — the client
@@ -130,13 +130,10 @@ export async function setChecklistDoneAction(input: {
   await ref.set({}, { merge: true })
   await ref.update(patch)
 
-  // Bazı işler bugüne değil, yapılan bir telefon görüşmesine aittir; onlar bir süre listeden çıkar.
-  // Başarısız olursa tik yine de durur — soğuma bir kolaylık, tikin kendisi kayıt.
-  try {
-    await applyChecklistCooldown(ctx.studioId as string, input.items, input.done, byName, now)
-  } catch {
-    /* best-effort: the item simply comes back tomorrow, which is the old behaviour */
-  }
+  // SOĞUMA İÇİN AYRI BİR YAZIM YOK (2026-09-04). Bir süre listeden çıkacak işler, TİKİN KENDİSİNDEN
+  // türetiliyor (`loadSnoozedItemIds`). Tik anında ikinci bir belgeye yazmak, soğumayı "o an ne
+  // biliyorduk"a bağlıyordu: `hot_lead` soğuması eklendiğinde ondan ÖNCE tiklenmiş 25 lead ertesi gün
+  // geri geldi. Türetmek geçmişe dönük çalışır ve sürüklenecek ikinci bir kayıt bırakmaz.
 
   return getChecklistDoneAction(input.dayKey)
 }
