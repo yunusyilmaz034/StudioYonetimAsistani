@@ -1,12 +1,15 @@
 'use server'
 
+import { FirestoreCrmRepository } from '@studio/core'
 import { FieldValue } from 'firebase-admin/firestore'
+import { z } from 'zod'
 
 import { requireTenantContext } from '../auth'
 import { adminDb } from '../firebase-admin'
 import { narrateChecklist, type DailyChecklist } from '../ai/anthropic'
 import { loadAiSettings } from './ai-settings'
 import type { AdvisorItem } from '../advisor-query'
+import { logInteractionAction } from './crm'
 import { applyChecklistCooldown, type TickedItem } from '../checklist-snooze'
 
 // The dashboard (owner + reception) asks the AI to turn today's deterministic advisor items into a warm,
@@ -72,6 +75,15 @@ export interface ChecklistDoneEntry {
   readonly itemId: string
   readonly byName: string
   readonly at: number
+  /**
+   * Tikle birlikte bırakılan kısa not — "aradım açmadı", "aradım gelecek" (owner, 2026-09-04).
+   *
+   * Bu, notun KALICI kaydı DEĞİLDİR. Lead için gerçek kayıt bir `Interaction`dır (kind `call`,
+   * outcome `no_answer`/`callback`/`reached`) ve Satış Hunisi'nde durur. Buradaki kopya yalnızca
+   * BUGÜNÜN ekranı için: satır listede kalırken yanında ne yazdığı görünsün. Tik kaydı zaten
+   * atılabilir sayılıyor ("kaybı bir günlük tik işaretine mal olur"), ve bu not da onunla gider.
+   */
+  readonly note?: string
 }
 
 const doneDoc = (studioId: string, dayKey: string) =>
@@ -80,11 +92,12 @@ const doneDoc = (studioId: string, dayKey: string) =>
 export async function getChecklistDoneAction(dayKey: string): Promise<readonly ChecklistDoneEntry[]> {
   const ctx = await requireTenantContext(OPS)
   const snap = await doneDoc(ctx.studioId as string, dayKey).get()
-  const map = (snap.data()?.items ?? {}) as Record<string, { byName?: string; at?: number }>
+  const map = (snap.data()?.items ?? {}) as Record<string, { byName?: string; at?: number; note?: string }>
   return Object.entries(map).map(([itemId, v]) => ({
     itemId,
     byName: v.byName ?? '—',
     at: Number(v.at ?? 0),
+    ...(v.note ? { note: String(v.note) } : {}),
   }))
 }
 
@@ -93,6 +106,8 @@ export async function setChecklistDoneAction(input: {
   /** Tiklenen işler. `kind` soğuma için gerekli: bir telefon görüşmesi ertesi gün geri gelmez. */
   items: readonly TickedItem[]
   done: boolean
+  /** Tikle birlikte bırakılan not (owner, 2026-09-04). Yalnızca bugünün ekranı için. */
+  note?: string
 }): Promise<readonly ChecklistDoneEntry[]> {
   const ctx = await requireTenantContext(OPS)
   const ref = doneDoc(ctx.studioId as string, input.dayKey)
@@ -108,7 +123,9 @@ export async function setChecklistDoneAction(input: {
   // other, which a whole-document set would do.
   const patch: Record<string, unknown> = {}
   for (const it of input.items) {
-    patch[`items.${it.id}`] = input.done ? { byName, at: now } : FieldValue.delete()
+    patch[`items.${it.id}`] = input.done
+      ? { byName, at: now, ...(input.note?.trim() ? { note: input.note.trim().slice(0, 200) } : {}) }
+      : FieldValue.delete()
   }
   await ref.set({}, { merge: true })
   await ref.update(patch)
@@ -122,4 +139,58 @@ export async function setChecklistDoneAction(input: {
   }
 
   return getChecklistDoneAction(input.dayKey)
+}
+
+// ── LEAD'İ ARADIM, SONUCU BU (owner, 2026-09-04) ────────────────────────────────────────────
+//
+// *"WhatsApp lead'lerini tiklendiyse bir daha çıkmasın, hatta bunlara not ekleyebilsin — 'aradım
+// açmadı', 'aradım gelecek' gibi."*
+//
+// YENİ BİR KAVRAM UYDURULMADI. Bu tam olarak `Interaction`: `kind: 'call'` ve
+// `outcome: 'reached' | 'no_answer' | 'callback'`. Model aylardır duruyordu ve bu ekran onu
+// kullanmıyordu — bugünlerde üç kez tekrarlanan hatanın aynısı ("mekanizma var, çağıran yer yok").
+//
+// TEK EYLEM, İKİ YAZIM ve ikisi de bilinçli:
+//  · `Interaction` — KALICI kayıt. Satış Hunisi'nde ve lead geçmişinde durur, bir hafta sonra satır
+//    geri geldiğinde "geçen sefer ne olmuştu" sorusunun cevabı budur.
+//  · Tik + kısa not — BUGÜNÜN ekranı. Satır listede üstü çizili kalırken yanında ne yazdığı görünsün.
+//    Atılabilir, ve tik kaydının kendisi de öyle.
+//
+// Tek eylemde yapılıyor ki ikisi birbirinden ayrılmasın: not yazılıp arama kaydedilmezse, kalıcı
+// olan taraf boş kalırdı.
+export async function recordLeadCallAction(input: unknown) {
+  const p = z
+    .object({
+      dayKey: z.string().min(1),
+      itemId: z.string().min(1),
+      phone: z.string().min(1),
+      outcome: z.enum(['reached', 'no_answer', 'callback']),
+      note: z.string().trim().max(200).default(''),
+    })
+    .parse(input)
+  const ctx = await requireTenantContext(OPS)
+
+  const OUTCOME_TR: Record<typeof p.outcome, string> = {
+    reached: 'Arandı, görüşüldü',
+    no_answer: 'Arandı, açmadı',
+    callback: 'Arandı, gelecek',
+  }
+  // Metin BOŞ BIRAKILAMAZ (`logInteraction` reddediyor) — sonucun Türkçesi varsayılan. Resepsiyonun
+  // her aramada bir cümle yazmaya mecbur olması, üç tıkla biten işi yazı işine çevirirdi.
+  const text = p.note.trim() || OUTCOME_TR[p.outcome]
+
+  // Lead'i TELEFONDAN buluyoruz: checklist satırı `wa:{phone}` kimliğini taşıyor, lead kimliğini
+  // değil. Lead yoksa (sohbet var, huniye hiç düşmemiş) arama kaydı yazılmaz ama TİK YİNE ATILIR —
+  // resepsiyonun işini, bizim veri modelimizin eksiği yüzünden geri çevirmeyiz.
+  try {
+    const leads = await new FirestoreCrmRepository(adminDb()).listLeads(ctx)
+    const lead = leads.find((l) => l.phone === p.phone)
+    if (lead) {
+      await logInteractionAction({ kind: 'call', leadId: lead.id, memberId: null, text, outcome: p.outcome })
+    }
+  } catch {
+    /* arama kaydı yazılamadıysa tik yine de atılır — ikisinden hangisinin daha değerli olduğu belli */
+  }
+
+  return setChecklistDoneAction({ dayKey: p.dayKey, items: [{ id: p.itemId, kind: 'hot_lead' }], done: true, note: text })
 }

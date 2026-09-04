@@ -1379,3 +1379,39 @@ programı değiştirmek ayrı ve bilinçli bir karardır ve yolu yeni sürüm ya
 **Süzme sunucuda.** Geri çekilen sürüm üyenin telefonuna hiç gitmez — arşivlenmiş programda konan
 kuralın aynısı, aynı yerde: üyenin görmemesi gerekeni istemciye göndermek, istemciyi tek doğruluk
 noktası yapmaktır.
+
+
+---
+
+### OR-65 · AI numarayı SOHBETİN SONUNDA bir kez verir
+
+*(2026-09-04 · owner: "her cevabın sonunda değil, görüşmenin sonunda, teşekkür ederiz dedikten sonra")*
+
+Kapanış mesajında — müşteri teşekkür edip vedalaştığında — stüdyonun telefonu **bir kez** yazılır.
+Her cevabın sonuna eklenmez: her mesajda tekrarlanan bir numara okunmayan bir imzaya döner ve sohbeti
+resmîleştirir.
+
+Numara **bilgi kartındaki İLETİŞİM satırından** okunur, koda yazılmaz — stüdyo başına değişir ve
+ezberden yazılan yanlış bir numara, hiç vermemekten kötüdür. Zaten o numaraya yönlendirilmişse ikinci
+kez yazılmaz.
+
+### OR-66 · Aranan lead ertesi gün listeye düşmez, ve NE OLDUĞU kaydedilir
+
+*(2026-09-04 · owner: "tiklendiyse bir daha çıkmasın, hatta not ekleyebilsin — aradım açmadı, aradım
+gelecek gibi")*
+
+`hot_lead` [[OR-62]]'nin soğuma listesine girdi: **7 gün**. Aranmış bir lead ertesi gün yeniden
+aranmaz — hele "8 gündür sessiz" diye listelenen biri. Bir hafta sonra hâlâ sessizse satır geri gelir,
+çünkü o zaman gerçekten yeni bir iştir.
+
+**Not için yeni bir kavram uydurulmadı.** Bu tam olarak `Interaction`: `kind: 'call'` ve
+`outcome: 'reached' | 'no_answer' | 'callback'` — yani "görüşüldü / açmadı / gelecek" modelde aylardır
+duruyordu ve bu ekran onu kullanmıyordu.
+
+**Üç düğme, not isteğe bağlı.** Resepsiyonun günde kırk kez yapacağı bir iş yazı işine
+dönüştürülemez; not boş bırakılırsa sonucun kendisi yazılır ("Arandı, açmadı"). Zorunlu bir metin
+alanı, üç tıkla biten işi bir forma çevirir ve o form doldurulmadığı için kayıt hiç tutulmaz.
+
+**İki yazım, ikisi de bilinçli:** kalıcı kayıt lead'in `Interaction` geçmişinde (bir hafta sonra satır
+geri geldiğinde "geçen sefer ne olmuştu"nun cevabı) · tik yanındaki kısa not yalnızca BUGÜNÜN ekranı
+için, ve tik kaydı gibi atılabilir.

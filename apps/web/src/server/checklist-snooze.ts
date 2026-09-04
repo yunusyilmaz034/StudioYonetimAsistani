@@ -42,6 +42,10 @@ export const CHECKLIST_COOLDOWN_DAYS: Readonly<Record<string, number>> = {
   // Bir hafta: yenileme bir satış konuşmasıdır. Üst üste günlerde aynı teklifi götürmek satışı değil
   // rahatsızlığı artırır.
   low_credit: 7,
+  // Bir hafta (owner, 2026-09-04): *"tiklendiyse bir daha çıkmasın."* Aranmış bir lead ertesi gün
+  // yeniden aranmaz — hele "8 gündür sessiz" diye listelenen biri. Bir hafta sonra hâlâ sessizse
+  // satır geri gelir, çünkü o zaman gerçekten yeni bir iştir.
+  hot_lead: 7,
   // ÜÇ gün, yedi değil — burada arkada bir SON TARİH var. Paket dolmadan bir gün önceki son hatırlatma
   // meşrudur; bir haftalık soğuma o hatırlatmayı yutardı, ve yanan hak geri gelmiyor.
   expiring_with_credits: 3,

@@ -100,6 +100,23 @@ hesaplar, yalnızca `open` satışlar — tahsil edilmişlere dokunulmadı).
 Ayrıca **raporlar da artık `excludedMemberIds`i okuyor.** Pano bunu 27 Ağustos'ta öğrenmişti,
 raporlar öğrenmemişti. Rapor bir okuma modelidir; aynı kural oraya da geçerli.
 
+## 📞 4 Eylül — AI kapanışta numara veriyor, aranan lead listeden çıkıyor
+
+**1 · Kapanışta telefon** ([[OR-65]]). Müşteri teşekkür edip vedalaştığında AI stüdyonun numarasını
+bir kez yazıyor. Her cevabın sonuna DEĞİL — her mesajda tekrarlanan bir numara okunmayan bir imzaya
+döner. Numara koda yazılmadı: bilgi kartındaki İLETİŞİM satırından okunuyor, çünkü stüdyo başına
+değişir ve ezberden yazılan yanlış bir numara hiç vermemekten kötüdür.
+
+**2 · Aranan lead ertesi gün çıkmıyor** ([[OR-66]]). `hot_lead` soğuma listesine girdi: 7 gün.
+
+**Not için yeni bir kavram uydurulmadı** — `Interaction` zaten tam bunu modelliyordu: `kind: 'call'`,
+`outcome: 'reached' | 'no_answer' | 'callback'`. Yani "görüşüldü / açmadı / gelecek" aylardır
+duruyordu ve ekran onu kullanmıyordu. **Bugünlerde dördüncü kez aynı şekil:** mekanizma var, çağıran
+yer onu kullanmıyor.
+
+Lead satırında tik artık önce *"ne oldu"* diye soruyor: üç düğme, not isteğe bağlı (boşsa sonucun
+Türkçesi yazılıyor). Kalıcı kayıt lead'in geçmişine, kısa not bugünün satırına.
+
 ## 📱 4 Eylül — Mobil 1.7.2 gönderildi
 
 | | Durum |

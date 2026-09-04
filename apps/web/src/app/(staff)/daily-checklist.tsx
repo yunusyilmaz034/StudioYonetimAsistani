@@ -8,7 +8,11 @@ import { CheckIcon, ChevronDownIcon, ChevronRightIcon, SparklesIcon } from 'luci
 import { Section } from '@/components/ui/section'
 import type { InsightSeverity } from '@studio/core'
 import type { AdvisorItem } from '@/server/advisor-query'
-import { getChecklistDoneAction, narrateChecklistAction, setChecklistDoneAction } from '@/server/actions/checklist'
+import { getChecklistDoneAction, narrateChecklistAction, recordLeadCallAction, setChecklistDoneAction } from '@/server/actions/checklist'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
+import { isStaleDeployment, STALE_DEPLOYMENT_MESSAGE } from '@/lib/stale-deployment'
 
 interface Row {
   id: string
@@ -67,13 +71,21 @@ export function DailyChecklist({ items, snoozedCount = 0 }: { items: readonly Ad
   // including the owner on his phone. It used to be `localStorage`, which made it a private note on
   // one machine.
   const [done, setDone] = useState<Map<string, string>>(new Map())
+  // itemId → tikle bırakılan kısa not ("Arandı, açmadı"). Bugünün ekranı için; kalıcı kayıt lead'in
+  // `Interaction` geçmişinde (owner, 2026-09-04).
+  const [notes, setNotes] = useState<Map<string, string>>(new Map())
+  // Hangi lead satırı için arama sonucu soruluyor.
+  const [calling, setCalling] = useState<Row | null>(null)
   const [openGroups, setOpenGroups] = useState<Set<string>>(new Set())
 
   const dayKey = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Istanbul' })
 
   useEffect(() => {
     void getChecklistDoneAction(dayKey)
-      .then((rows) => setDone(new Map(rows.map((r) => [r.itemId, r.byName]))))
+      .then((rows) => {
+        setDone(new Map(rows.map((r) => [r.itemId, r.byName])))
+        setNotes(new Map(rows.flatMap((r) => (r.note ? [[r.itemId, r.note] as const] : []))))
+      })
       .catch(() => {
         /* the list still works; it just shows nothing ticked */
       })
@@ -123,12 +135,24 @@ export function DailyChecklist({ items, snoozedCount = 0 }: { items: readonly Ad
     // week — a call made to a drifting member is not work again tomorrow (owner, 2026-09-03).
     const kindOf = new Map(rows.map((r) => [r.id, r.kind]))
     void setChecklistDoneAction({ dayKey, items: ids.map((id) => ({ id, kind: kindOf.get(id) ?? 'info' })), done: !willUndo })
-      .then((rows) => setDone(new Map(rows.map((r) => [r.itemId, r.byName]))))
+      .then((rows) => {
+        setDone(new Map(rows.map((r) => [r.itemId, r.byName])))
+        setNotes(new Map(rows.flatMap((r) => (r.note ? [[r.itemId, r.note] as const] : []))))
+      })
       .catch(() => {
         toast.error('İşaret kaydedilemedi.')
       })
   }
-  const toggle = (id: string) => markDone([id])
+  // LEAD SATIRINDA TİK, ÖNCE "NE OLDU" DİYE SORAR (owner, 2026-09-04). Geri alma sormaz: tiki
+  // kaldırmak bir arama değildir.
+  const toggle = (id: string) => {
+    const row = rows.find((r) => r.id === id)
+    if (row?.kind === 'hot_lead' && !done.has(id)) {
+      setCalling(row)
+      return
+    }
+    markDone([id])
+  }
   const toggleGroup = (kind: string) =>
     setOpenGroups((prev) => {
       const next = new Set(prev)
@@ -182,7 +206,7 @@ export function DailyChecklist({ items, snoozedCount = 0 }: { items: readonly Ad
           {order.map((kind) => {
             const children = groups.get(kind) ?? []
             // A single task of its kind → a plain, directly-actionable row.
-            if (children.length === 1) return <TaskRow key={kind} r={children[0]!} onCheck={toggle} doneBy={done.get(children[0]!.id) ?? null} />
+            if (children.length === 1) return <TaskRow key={kind} r={children[0]!} onCheck={toggle} doneBy={done.get(children[0]!.id) ?? null} note={notes.get(children[0]!.id) ?? null} />
 
             // Several of a kind → one titled, collapsible line.
             const isOpen = openGroups.has(kind)
@@ -221,7 +245,7 @@ export function DailyChecklist({ items, snoozedCount = 0 }: { items: readonly Ad
                   <>
                     <ul className="divide-y divide-border/50 border-t border-border/50 bg-background/40">
                       {children.map((r) => (
-                        <TaskRow key={r.id} r={r} onCheck={toggle} nested doneBy={done.get(r.id) ?? null} />
+                        <TaskRow key={r.id} r={r} onCheck={toggle} nested doneBy={done.get(r.id) ?? null} note={notes.get(r.id) ?? null} />
                       ))}
                     </ul>
                     {/* Grubun özeti — SATIRIN değil (owner, 2026-09-01). Günün toplamı bir satırın
@@ -257,13 +281,25 @@ export function DailyChecklist({ items, snoozedCount = 0 }: { items: readonly Ad
           </button>
         </p>
       ) : null}
+      {calling ? (
+        <LeadCallDialog
+          row={calling}
+          dayKey={dayKey}
+          onClose={() => setCalling(null)}
+          onDone={(entries) => {
+            setCalling(null)
+            setDone(new Map(entries.map((e) => [e.itemId, e.byName])))
+            setNotes(new Map(entries.flatMap((e) => (e.note ? [[e.itemId, e.note] as const] : []))))
+          }}
+        />
+      ) : null}
     </Section>
   )
 }
 
 // One task line — a checkbox to tick it off and a deep link to the tool that resolves it. `nested` drops
 // its own border/rounding so it reads as a child inside an expanded group.
-function TaskRow({ r, onCheck, nested, doneBy = null }: { r: Row; onCheck: (id: string) => void; nested?: boolean; doneBy?: string | null }) {
+function TaskRow({ r, onCheck, nested, doneBy = null, note = null }: { r: Row; onCheck: (id: string) => void; nested?: boolean; doneBy?: string | null; note?: string | null }) {
   const done = doneBy !== null
   return (
     <li
@@ -292,9 +328,85 @@ function TaskRow({ r, onCheck, nested, doneBy = null }: { r: Row; onCheck: (id: 
           {r.note ? <span className="text-muted-foreground"> {r.note}</span> : null}
           {/* Who closed it — the point of moving these off one machine (owner, 2026-08-05). */}
           {done && doneBy ? <span className="ml-1 text-xs text-success">· {doneBy}</span> : null}
+          {note ? <span className="ml-1 text-xs text-primary">· {note}</span> : null}
         </span>
         <ChevronRightIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
       </Link>
     </li>
+  )
+}
+
+// ── ARAMA SONUCU (owner, 2026-09-04) ────────────────────────────────────────────────────────
+//
+// *"Bunlara not ekleyebilsin: aradım açmadı, aradım gelecek gibi."*
+//
+// Üç düğme, çünkü resepsiyonun günde kırk kez yapacağı bir iş yazı işine dönüştürülemez. Not
+// İSTEĞE BAĞLI: boş bırakılırsa sonucun kendisi yazılıyor ("Arandı, açmadı"). Zorunlu bir metin
+// alanı, üç tıkla biten işi bir forma çevirir ve o form doldurulmadığı için kayıt hiç tutulmaz.
+//
+// Kalıcı kayıt lead'in `Interaction` geçmişine gidiyor (kind `call` + outcome) — bir hafta sonra
+// satır geri geldiğinde "geçen sefer ne olmuştu" sorusunun cevabı orada.
+function LeadCallDialog({
+  row,
+  dayKey,
+  onClose,
+  onDone,
+}: {
+  row: Row
+  dayKey: string
+  onClose: () => void
+  onDone: (entries: readonly { itemId: string; byName: string; note?: string }[]) => void
+}) {
+  const [note, setNote] = useState('')
+  const [busy, setBusy] = useState(false)
+  // Satır kimliği `wa:{telefon}` — lead kimliği burada yok, sunucu telefondan buluyor.
+  const phone = row.id.startsWith('wa:') ? row.id.slice(3) : ''
+
+  async function kaydet(outcome: 'reached' | 'no_answer' | 'callback') {
+    setBusy(true)
+    try {
+      const entries = await recordLeadCallAction({ dayKey, itemId: row.id, phone, outcome, note })
+      toast.success('Arama kaydedildi.')
+      onDone(entries)
+    } catch (e) {
+      toast.error(isStaleDeployment(e) ? STALE_DEPLOYMENT_MESSAGE : 'Kaydedilemedi.')
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Arama sonucu</DialogTitle>
+          <DialogDescription className="truncate">{row.headline}</DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium">Not (isteğe bağlı)</label>
+          <Input
+            autoFocus
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder="ör. cumartesi gelecek · eşiyle konuşacak"
+          />
+        </div>
+
+        <div className="grid gap-2 sm:grid-cols-3">
+          <Button variant="outline" disabled={busy} onClick={() => void kaydet('no_answer')}>
+            Açmadı
+          </Button>
+          <Button variant="outline" disabled={busy} onClick={() => void kaydet('callback')}>
+            Gelecek
+          </Button>
+          <Button disabled={busy} onClick={() => void kaydet('reached')}>
+            Görüşüldü
+          </Button>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Arama lead’in geçmişine kaydedilir. Satır bir hafta listede çıkmaz; hâlâ sessizse geri gelir.
+        </p>
+      </DialogContent>
+    </Dialog>
   )
 }
