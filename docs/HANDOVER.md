@@ -100,6 +100,57 @@ hesaplar, yalnızca `open` satışlar — tahsil edilmişlere dokunulmadı).
 Ayrıca **raporlar da artık `excludedMemberIds`i okuyor.** Pano bunu 27 Ağustos'ta öğrenmişti,
 raporlar öğrenmemişti. Rapor bir okuma modelidir; aynı kural oraya da geçerli.
 
+## 🧾 4 Eylül gecesi — Hareket Merkezi'nde HİÇBİR tutar yazmıyordu
+
+Owner ekrana bakıp *"bu ne ya, hiçbir şey anlaşılmıyor ki ne olduğu"* dedi. Haklıydı: satırlar
+*"— tutarındaki satışı tamamen tahsil edildi"*, *"— tahsilat alındı"* diyordu. Para geçen her satırda
+paranın kendisi eksikti.
+
+```ts
+const money = (kurus: unknown) => typeof kurus === 'number' ? … : '—'
+```
+
+Finans olaylarının yükü parayı **nesne** taşır (`{ amount, currency }`), sayı değil. `typeof` hiçbir
+zaman `'number'` olmadığı için HER tutar "—" görünüyordu — Hareket Merkezi açıldığından beri.
+
+Aynı hatanın kuzeni üye portalında da yaşanmıştı (`Number(e.priceAgreed)` bir Money nesnesinde
+`NaN`). Ortak sebep: **`Money` bir sayı GİBİ okunuyor.** İkisi de kabul ediliyor artık, çünkü log
+sonsuza kadar duruyor ve geçmiş bir olayı okunamaz yapmak onu kaybetmekle aynı şeydir. Üç test.
+
+### 💳 Kart farkı düzeltmesi — dört üye, ve BENİM bir hatam
+
+Dört kayıt düzeltildi (satış nakit fiyatından kurulup kart fiyatından tahsil edilmişti):
+Leman Demirel Tatoğlu 9.500 · Hayrunisa Kıraç 8.600 · İrem Kılıç 4.500. **Ciro 2.100 ₺ düzeldi**
+(Elif'in 1.250'siyle birlikte 3.350).
+
+**İlk tur hatalıydı ve sebebi yazılmaya değer:** vaka tablosuna abonelik kimliklerini bir ekran
+çıktısından kopyaladım, o çıktı `.slice(0, 24)` ile KESİLMİŞTİ. Yeni satışlar var olmayan bir
+aboneliğe bağlandı ve script ikinci üyede "Entitlement not found" ile durdu.
+
+**Kural, onarım script'inin içine yazıldı: kimlik asla ekrana basılmış metinden alınmaz.** Kesilmiş
+bir id yanlış bir id'dir, ve para kaydında yanlış bir bağ GÖZLE GÖRÜLMEZ — satış ekranda doğru
+görünür, yalnızca hiçbir pakete bağlanmaz. Onarım turu, yazmadan önce her kimliğin var olduğunu
+doğruluyor.
+
+### 🚫 Neslihan Eroğlu — hiç girmemiş bir para defterde duruyordu
+
+```
+27.08 14:52  paket satıldı 8.500 ₺ · 9.500 ₺ tahsilat yazıldı
+31.08 11:20  paket İPTAL · sebep "iptal etti" · iade YOK
+```
+
+Owner: *"Neslihan hiç ödememiş aslında, kasada yok yani, yanlış yapılmış."*
+
+**"Kasadan düş" DENDİ ama işlem o değil:** kasa çıkışı *"para ÇIKTI"* demektir; burada para hiç
+GİRMEDİ. Çıkış yazmak, olmamış bir girişi olmuş sayıp üstüne olmamış bir çıkış eklemek olurdu — iki
+uydurma hareket, ikisi de raporlarda. Doğrusu tahsilatın İPTALİ: kayıt silinmez, sebebiyle durur,
+ciroya girmez (I-31).
+
+**Satış da iptal edildi.** Yalnızca ödeme iptal edilseydi satış 8.500 ₺ AÇIK BORÇ olarak kalır ve
+Neslihan vazgeçtiği, hiç ödemediği bir paket için borçlu görünürdü.
+
+**Sonuç: tahsis edilemeyen fazla 0 ₺.** Beş kaydın beşi de kapandı.
+
 ## 💸 4 Eylül akşamı — kart farkı satışa yazılmıyordu, ve panel kayıtlı üyeyi tanımıyordu
 
 Owner bir üye kartı gönderdi: *"neyle ödenmiş, gerçek değil fiziksel POS bence."* Etiket doğruydu

@@ -103,3 +103,28 @@ describe('the activity presenter', () => {
     expect(p.title).toBe('Silinmiş üye için rezervasyon yapıldı.')
   })
 })
+
+// ── PARA BİR NESNE OLARAK GELİR (2026-09-04) ────────────────────────────────────────────────
+//
+// Finans olaylarının yükü `Money` taşır: `{ amount, currency }`. Sunucu yalnızca `number` kabul
+// ettiği için Hareket Merkezi'ndeki HER tutar "—" görünüyordu — satış, tahsilat, mahsup. Ekranda
+// para geçen her satırda paranın kendisi eksikti; owner *"hiçbir şey anlaşılmıyor ki"* dedi.
+//
+// İki yön de test ediliyor: bugünkü nesne biçimi VE düz sayı, çünkü log SONSUZA KADAR duruyor ve
+// geçmiş bir olayı okunamaz yapmak onu kaybetmekle aynı şeydir.
+describe('tutarlar — Money nesnesi de düz sayı da okunur', () => {
+  const metin = (total: unknown) =>
+    present(event({ type: 'sale.created', kind: 'payment', payload: { total, lineCount: 1 } })).title
+
+  it('Money nesnesinden tutarı okur', () => {
+    expect(metin({ amount: 1_400_000, currency: 'TRY' })).toContain('14.000 ₺')
+  })
+
+  it('düz kuruş sayısını da okur — eski olaylar kaybolmaz', () => {
+    expect(metin(1_400_000)).toContain('14.000 ₺')
+  })
+
+  it('okunamayan bir değerde tutar UYDURMAZ', () => {
+    expect(metin(null)).toContain('—')
+  })
+})

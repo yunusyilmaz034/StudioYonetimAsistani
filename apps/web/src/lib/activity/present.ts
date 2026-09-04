@@ -26,10 +26,30 @@ export interface PresentedEntry {
   readonly tone: 'default' | 'success' | 'warning' | 'danger' | 'info'
 }
 
-const money = (kurus: unknown): string =>
-  typeof kurus === 'number'
-    ? `${(kurus / 100).toLocaleString('tr-TR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ₺`
-    : '—'
+// PARA, OLAY YÜKÜNDE BİR NESNEDİR — SAYI DEĞİL (2026-09-04).
+//
+// Bu fonksiyon yalnızca `number` kabul ediyordu; oysa finans olaylarının yükü `Money` taşıyor:
+// `{ amount, currency }`. `typeof nesne === 'number'` hiçbir zaman doğru olmadığı için Hareket
+// Merkezi'ndeki HER TUTAR "—" görünüyordu — satış, tahsilat, mahsup, hepsi. Owner ekrana bakıp
+// *"hiçbir şey anlaşılmıyor ki ne olduğu"* dedi ve haklıydı: ekranda para geçen her satırda paranın
+// kendisi eksikti.
+//
+// Aynı hatanın bir kuzeni üye portalında da yaşanmıştı (`Number(e.priceAgreed)` bir Money nesnesinde
+// `NaN` veriyordu). İkisinin ortak sebebi: `Money` bir sayı GİBİ okunuyor.
+//
+// İkisi de kabul ediliyor, çünkü log SONSUZA KADAR duruyor: bugün nesne yazan bir alan dün sayı
+// yazmış olabilir, ve geçmiş bir olayı okunamaz yapmak onu kaybetmekle aynı şeydir.
+const money = (kurus: unknown): string => {
+  const n =
+    typeof kurus === 'number'
+      ? kurus
+      : typeof kurus === 'object' && kurus !== null && typeof (kurus as { amount?: unknown }).amount === 'number'
+        ? (kurus as { amount: number }).amount
+        : null
+  return n === null
+    ? '—'
+    : `${(n / 100).toLocaleString('tr-TR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ₺`
+}
 
 // "bugün 19:30" · "yarın 18:00" · "28 Temmuz Salı 19:30". The first two are what the desk actually
 // asks about; a full date for those is noise it has to decode every time.
