@@ -80,6 +80,17 @@ export default function Home() {
     [activeProgramId],
   )
 
+  // HOOK'LAR ERKEN ÇIKIŞIN ÜSTÜNDE KALIR (1.7.2'de kırıldı, 1.7.3'te düzeltildi).
+  //
+  // 1.7.2 uygulamayı AÇILIŞTA çökertti ve sebebi buydu: kafe hesabının `useState`i bu `return`ün
+  // ALTINA yazılmıştı. İlk render'da veri henüz yokken erken dönülüyor ve o hook hiç çalışmıyor;
+  // veri gelince render devam edip hook çalışıyor, React iki render arasında farklı sayıda hook
+  // görüp atıyor. Ekran boş değil, uygulama açılmıyor.
+  //
+  // Bu dosya kuralı zaten biliyordu — yukarıda `workout` için "`useFetch` her zaman çalışır, bir
+  // hook…" diye yazıyor. Kural yazılıydı, uygulanmadı: yeni bir hook her zaman BURANIN ÜSTÜNE.
+  const [cafeBusy, setCafeBusy] = useState(false)
+
   if (dash.loading && !dash.data) return <ScreenSkeleton />
   const d = dash.data
   const next = d?.upcoming[0] ?? null
@@ -91,7 +102,6 @@ export default function Home() {
   const cafeDue = home.data?.cafeAccount?.dueKurus ?? 0
   const cafeItems = home.data?.cafeAccount?.items ?? []
   const walletKurus = walletBal.data?.balance ?? 0
-  const [cafeBusy, setCafeBusy] = useState(false)
 
   async function odeKafe() {
     setCafeBusy(true)
