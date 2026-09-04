@@ -108,6 +108,10 @@ export const api = {
   walletBalance: () => get<StoredWallet>('/wallet-balance'),
   store: () => get<readonly RetailItem[]>('/store'),
   walletBuy: (productId: string, quantity = 1) => post<ApiResult<StoredWallet>>('/wallet-buy', { productId, quantity }),
+  // Kafe hesabını cüzdandan kapat (owner, 2026-09-04). Tutar ve hangi satışların kapanacağı SUNUCUDA
+  // belirlenir — gövdede rakam YOKTUR, çünkü istemciden gelen bir tutara göre borç kapatmak borcu
+  // istemciye yazdırmaktır.
+  cafePay: () => post<ApiResult<unknown>>('/cafe-pay', {}),
   walletTopup: (amountKurus: number) => post<ApiResult<{ redirectUrl: string }>>('/wallet-topup', { amountKurus }),
   registerDevice: (token: string, platform: string) => post<ApiResult<unknown>>('/devices', { token, platform }),
   /** Push registration failed. Same endpoint — the server tells them apart by which field arrived. */
@@ -154,12 +158,25 @@ export interface HomeCampaign {
   readonly ctaLabel: string
   readonly ctaUrl: string
 }
+export interface CafeItem {
+  readonly name: string
+  readonly quantity: number
+  readonly totalKurus: number
+  readonly at: number
+}
+
 export interface HomeExtras {
   readonly occupancyLevel: string | null
   readonly banner: HomeBanner | null // legacy single banner (back-compat)
   readonly banners?: readonly HomeBanner[] // the carousel
   readonly branding: Branding | null
   readonly campaign: HomeCampaign | null
+  /**
+   * Kafe hesabı — stüdyoda ödemeden içilen kahve/su (owner, 2026-09-04). İsteğe bağlı, çünkü bu alan
+   * sunucuya eklendiğinde eski uygulama sürümleri hâlâ dolaşımdaydı ve onların cevabı okumaya devam
+   * etmesi gerekiyordu.
+   */
+  readonly cafeAccount?: { readonly dueKurus: number; readonly items: readonly CafeItem[] }
 }
 
 // The training endpoint returns everything the screen shows; the app reads the parts it renders.

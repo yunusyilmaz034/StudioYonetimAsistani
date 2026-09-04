@@ -71,7 +71,10 @@ module.exports = () => ({
     //
     // versionCode / buildNumber BURADA YAZMAZ: `eas.json` `appVersionSource: "remote"` +
     // `autoIncrement`. Elle bir numara yazmak, uzaktaki sayaçla yarışmak olur.
-    version: '1.7.1',
+    //
+    // 1.7.2 (owner, 2026-09-04) — yine bir YAMA: kafe hesabı ekranı. 1.7.1'in taşıdığı hibrit kartı
+    // ve ileri tarihli paket düzeltmeleri de bu sürümle birlikte gidiyor (iOS incelemesi sürüyordu).
+    version: '1.7.2',
     orientation: 'portrait',
     scheme: studio.scheme,
     userInterfaceStyle: 'automatic',

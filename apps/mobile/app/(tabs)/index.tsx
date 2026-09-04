@@ -1,4 +1,4 @@
-import { Image, RefreshControl, useWindowDimensions, View } from 'react-native'
+import { Alert, Image, RefreshControl, useWindowDimensions, View } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { router } from 'expo-router'
 import Animated, { useAnimatedStyle, useSharedValue, withDelay, withTiming, Easing } from 'react-native-reanimated'
@@ -49,6 +49,7 @@ export default function Home() {
   const dash = useFetch(api.dashboard)
   const inbox = useFetch(api.inbox)
   const home = useFetch(api.home)
+  const walletBal = useFetch(api.walletBalance)
   const fitness = useFetch(api.fitness)
   // Her own past classes — the only thing the line under her name is allowed to speak from.
   const reservations = useFetch(api.reservations)
@@ -85,6 +86,30 @@ export default function Home() {
   const announcement = (inbox.data ?? []).find((m) => !m.read) ?? (inbox.data ?? [])[0] ?? null
   const banners = home.data?.banners ?? (home.data?.banner ? [home.data.banner] : [])
   const occ = home.data?.occupancyLevel ? OCC[home.data.occupancyLevel] : null
+  // Kafe hesabı (owner, 2026-09-04). Alanlar İSTEĞE BAĞLI okunuyor: sunucu bunları yeni gönderiyor
+  // ve eski bir cevabı okuyan bir sürüm hâlâ çalışmalı.
+  const cafeDue = home.data?.cafeAccount?.dueKurus ?? 0
+  const cafeItems = home.data?.cafeAccount?.items ?? []
+  const walletKurus = walletBal.data?.balance ?? 0
+  const [cafeBusy, setCafeBusy] = useState(false)
+
+  async function odeKafe() {
+    setCafeBusy(true)
+    try {
+      const r = await api.cafePay()
+      if (r.ok) {
+        Alert.alert('Ödendi', 'Kafe hesabın cüzdanından ödendi.')
+        void home.reload()
+        void walletBal.reload()
+      } else {
+        Alert.alert('Ödenemedi', 'Bakiyen yetmiyor olabilir. Cüzdanını kontrol et.')
+      }
+    } catch {
+      Alert.alert('Ödenemedi', 'Bağlantını kontrol edip tekrar dene.')
+    }
+    setCafeBusy(false)
+  }
+
   const tod = timeOfDay()
   const brand = home.data?.branding ?? null
   const motivation = motivationLine(reservations.data?.past ?? [], Date.now())
@@ -214,6 +239,63 @@ export default function Home() {
             cta="Ders ara"
             onCta={() => router.push('/(tabs)/agenda')}
           />
+        </FadeInUp>
+      ) : null}
+
+      {/* ── KAFE HESABIM (owner, 2026-09-04) ──────────────────────────────────────────────────
+          Stüdyoda ödemeden içilen kahve/su. Resepsiyon üyenin hesabına yazıyor, üye burada görüyor:
+          ne, kaç adet, hangi gün saat kaçta.
+
+          BORÇ YOKKEN HİÇ ÇIKMIYOR — "0 ₺ borcun var" diyen bir kart, her açılışta bir borç
+          hatırlatmasıdır. Paket taksiti buraya ÇIKMAZ (owner kararı): ölçüldüğünde 10 üyenin
+          90.900 ₺ açık paket borcu vardı ve bir kısmının ödeme anlaşması sözlüydü.
+
+          YERİ BİLEREK BURASI: yaklaşan dersin ALTINDA, gelişiminin ÜSTÜNDE. Üstte olsaydı uygulamayı
+          her açan önce borcunu görürdü; altta kaybolurdu. */}
+      {cafeDue > 0 ? (
+        <FadeInUp index={3}>
+          <View>
+            <SectionHeader>Kafe hesabım</SectionHeader>
+            <PremiumCard>
+              <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' }}>
+                <Txt role="caption" tone="muted">Toplam</Txt>
+                <Txt role="h2">{`${(cafeDue / 100).toLocaleString('tr-TR')} ₺`}</Txt>
+              </View>
+
+              <View style={{ gap: space(1), marginTop: space(2) }}>
+                {cafeItems.map((it, i) => (
+                  <View key={`${it.name}-${it.at}-${i}`} style={{ flexDirection: 'row', alignItems: 'baseline', gap: space(2) }}>
+                    <Txt role="caption" style={{ flex: 1 }} numberOfLines={1}>
+                      {it.quantity > 1 ? `${it.name} × ${it.quantity}` : it.name}
+                    </Txt>
+                    <Txt role="caption" tone="muted">
+                      {new Date(it.at).toLocaleString('tr-TR', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}
+                    </Txt>
+                    <Txt role="caption">{`${(it.totalKurus / 100).toLocaleString('tr-TR')} ₺`}</Txt>
+                  </View>
+                ))}
+              </View>
+
+              {/* Bakiye yetiyorsa doğrudan öde; yetmiyorsa yükleme yolu. İkisini birden göstermek,
+                  üyeye kendi bakiyesini hesaplatmaktır. */}
+              <View style={{ marginTop: space(3), gap: space(2) }}>
+                {walletKurus >= cafeDue ? (
+                  <PressableScale onPress={() => void odeKafe()} disabled={cafeBusy}>
+                    <View style={{ backgroundColor: p.primary, borderRadius: radius.md, paddingVertical: space(3), alignItems: 'center' }}>
+                      <Txt role="button" tone="onPrimary">{cafeBusy ? 'Ödeniyor…' : 'Cüzdanımdan öde'}</Txt>
+                    </View>
+                  </PressableScale>
+                ) : (
+                  <PressableScale onPress={() => router.push('/wallet')}>
+                    <View style={{ backgroundColor: p.primary, borderRadius: radius.md, paddingVertical: space(3), alignItems: 'center' }}>
+                      <Txt role="button" tone="onPrimary">Cüzdanıma yükle ve öde</Txt>
+                    </View>
+                  </PressableScale>
+                )}
+                <Txt role="caption" tone="muted">Dilersen resepsiyona uğrayıp nakit veya kartla da ödeyebilirsin.</Txt>
+              </View>
+            </PremiumCard>
+          </View>
         </FadeInUp>
       ) : null}
 
