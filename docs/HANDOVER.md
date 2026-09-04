@@ -7,7 +7,7 @@ explains the moment.
 Keep it current the way the code is kept current: when the state changes, this changes in the same
 commit. A handover document that lags is worse than none, because it is believed.
 
-_Last true as of: **2026-09-04**._
+_Last true as of: **2026-09-04, 16:05**._
 
 ## 🌙 31 Ağustos 2026 — uzun bir gün, on beş deploy
 
@@ -99,6 +99,26 @@ hesaplar, yalnızca `open` satışlar — tahsil edilmişlere dokunulmadı).
 
 Ayrıca **raporlar da artık `excludedMemberIds`i okuyor.** Pano bunu 27 Ağustos'ta öğrenmişti,
 raporlar öğrenmemişti. Rapor bir okuma modelidir; aynı kural oraya da geçerli.
+
+## 📱 4 Eylül — Mobil 1.7.2 gönderildi
+
+| | Durum |
+|---|---|
+| **Android** | `1.7.2 (15)` **ÜRETİMDE, %100** · sürüm notu yazılı ve doğrulandı |
+| **iOS** | `1.7.2 (14)` App Store Connect'e yüklendi · **incelemeye GÖNDERİLMEDİ** |
+
+**iOS'ta owner'ın kararı bekliyor:** `1.7.1 (13)` dün incelemeye gönderilmişti ve hâlâ orada. 1.7.2'yi
+yüklemek onu iptal etmez; iki build yan yana durur. İki yol var — 1.7.1'in geçmesini beklemek
+(kafe ekranı bir sonraki tura kalır) ya da ASC'de *Remove from Review* → 1.7.2'yi göndermek (her şey
+tek turda iner ama inceleme sayacı sıfırlanır).
+
+Öneri: **1.7.1 geçsin.** Kafe hesabının mobil ekranı acil değil — portal çalışıyor ve 177 üyenin
+138'i portalı kullanıyor. İncelemeye girmiş bir sürümü geri çekmek, elindeki kesini belirsizle
+değiştirmektir.
+
+**Sürüm notu betiği işe yaradı (`pnpm android:notes`).** Gönderimden hemen sonra çalıştırıldı,
+*"SÜRÜM NOTU YOK"* diye bağırdı, not yazıldı ve doğrulandı. Dün iki kez düşülen çukur bu sefer
+görüldü — çünkü ölçülebilir hâle getirilmişti.
 
 ## 💰 4 Eylül — Kasa hareketleri, ve finansın olmayan yarısı
 
