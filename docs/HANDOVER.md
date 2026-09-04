@@ -124,14 +124,22 @@ Türkçesi yazılıyor). Kalıcı kayıt lead'in geçmişine, kısa not bugünü
 | **Android** | `1.7.2 (15)` **ÜRETİMDE, %100** · sürüm notu yazılı ve doğrulandı |
 | **iOS** | `1.7.2 (14)` App Store Connect'e yüklendi · **incelemeye GÖNDERİLMEDİ** |
 
-**iOS'ta owner'ın kararı bekliyor:** `1.7.1 (13)` dün incelemeye gönderilmişti ve hâlâ orada. 1.7.2'yi
-yüklemek onu iptal etmez; iki build yan yana durur. İki yol var — 1.7.1'in geçmesini beklemek
-(kafe ekranı bir sonraki tura kalır) ya da ASC'de *Remove from Review* → 1.7.2'yi göndermek (her şey
-tek turda iner ama inceleme sayacı sıfırlanır).
+**OWNER KARARI: iOS de 1.7.2 olacak** (2026-09-04). Gerekçesi repo'nun kendi ilkesi —
+`app.config.js`: *"sürümler TOPLU çıkar; herkesin ayrı sürümde olması 'uygulama ne yapıyor' sorusunu
+cevapsız bırakır."* İki mağazada iki farklı sürüm tam olarak odur. Benim önerim 1.7.1'in geçmesiydi
+(inceleme sayacı sıfırlanmasın diye); owner sürüm birliğini öne aldı ve gerekçesi daha güçlü.
 
-Öneri: **1.7.1 geçsin.** Kafe hesabının mobil ekranı acil değil — portal çalışıyor ve 177 üyenin
-138'i portalı kullanıyor. İncelemeye girmiş bir sürümü geri çekmek, elindeki kesini belirsizle
-değiştirmektir.
+**iOS `1.7.2 (14)` App Store Connect'e YÜKLENDİ** ve seçilmeye hazır. Kalan adımlar ASC'de, elle
+yapılır — `eas submit` yalnızca yükler, incelemeye göndermez:
+
+1. Bekleyen `1.7.1`i **Remove from Review**.
+2. Sürüm numarasını `1.7.2` yap (düzenlenebilir durumdaysa) ya da **+ Version → 1.7.2**.
+3. **"What's New" TR *ve* EN dolu** — TR boşsa *"Add for Review"* GRİ KALIR (bir gün kaybettirmişti).
+4. Build olarak **`1.7.2 (14)`** seç.
+5. İnceleyen notuna: **"Giriş TELEFON NUMARASI ile yapılır, e-posta ile değil."** + test hesabı
+   `0500 000 00 01` / `Yu156211`. Bu cümle yazılmazsa inceleyen e-posta alanı arar ve reddeder.
+
+Metinler hazır: `scratchpad/ios-1.7.2.md`.
 
 **Sürüm notu betiği işe yaradı (`pnpm android:notes`).** Gönderimden hemen sonra çalıştırıldı,
 *"SÜRÜM NOTU YOK"* diye bağırdı, not yazıldı ve doğrulandı. Dün iki kez düşülen çukur bu sefer
