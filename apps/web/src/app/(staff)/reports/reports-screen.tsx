@@ -39,6 +39,9 @@ export function ReportsScreen() {
   const [trendTable, setTrendTable] = useState<ExportableTable | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // İPTALLER: varsayılan KAPALI (owner, 2026-09-05). Zaten toplamlara girmiyorlardı; listede
+  // durmaları "89 satış" başlığının altını her seferinde saydırıyordu.
+  const [iptalleriGoster, setIptalleriGoster] = useState(false)
 
   const spec = REPORTS.find((r) => r.id === id)!
 
@@ -73,6 +76,15 @@ export function ReportsScreen() {
   }, [id, rangeId, custom, charts])
 
   const table = charts ? trendTable : result?.table
+
+  // İPTAL SATIRLARI — hangi sütunda olduğu SÜTUN ADINDAN bulunuyor, sabit bir indeksten değil:
+  // raporlar farklı sütun düzenlerine sahip ve birine sütun eklendiğinde sabit bir indeks sessizce
+  // yanlış sütunu okumaya başlardı.
+  const durumIdx = table?.columns.findIndex((c) => c === 'Durum') ?? -1
+  const iptalMi = (row: readonly (string | number)[]) =>
+    durumIdx >= 0 && typeof row[durumIdx] === 'string' && (row[durumIdx] as string).startsWith('İptal')
+  const iptalSayisi = table ? table.rows.filter(iptalMi).length : 0
+  const gorunenSatirlar = !table ? [] : iptalleriGoster ? table.rows : table.rows.filter((r) => !iptalMi(r))
   const range = resolveRange(rangeId, Date.now(), custom)
 
   return (
@@ -89,8 +101,8 @@ export function ReportsScreen() {
               </Button>
               <Button
                 variant="outline"
-                disabled={!table || table.rows.length === 0}
-                onClick={() => table && downloadCsv(table)}
+                disabled={!table || gorunenSatirlar.length === 0}
+                onClick={() => table && downloadCsv({ ...table, rows: gorunenSatirlar })}
               >
                 <DownloadIcon />
                 CSV
@@ -174,7 +186,7 @@ export function ReportsScreen() {
 
       {busy ? <p className="text-sm text-muted-foreground print:hidden">Yükleniyor…</p> : null}
 
-      {table && table.rows.length === 0 && !busy && !charts ? (
+      {table && gorunenSatirlar.length === 0 && !busy && !charts ? (
         <div className="rounded-xl border border-border bg-card p-8 text-center text-sm text-muted-foreground">
           Bu aralıkta kayıt yok.
         </div>
@@ -182,7 +194,23 @@ export function ReportsScreen() {
 
       {charts ? <TrendReport fromMs={range.fromMs} toMs={range.toMs} onTable={setTrendTable} /> : null}
 
-      {table && table.rows.length > 0 && !charts ? (
+      {/* ── İPTALLER VARSAYILAN OLARAK GİZLİ (owner, 2026-09-05) ──────────────────────────────
+          İptal edilen satırlar zaten TOPLAMLARA GİRMİYORDU, ama listede duruyordu — ve "89 satış"
+          yazan bir başlığın altında 16'sı iptal olan bir tablo, okuyanı her seferinde saydırıyor.
+          Silinmiyorlar: bir kayıt yok edilmez, gösterilip gösterilmeyeceği okuyanın kararıdır. */}
+      {iptalSayisi > 0 && !charts ? (
+        <label className="flex w-fit cursor-pointer items-center gap-2 text-sm text-muted-foreground print:hidden">
+          <input
+            type="checkbox"
+            checked={iptalleriGoster}
+            onChange={(e) => setIptalleriGoster(e.target.checked)}
+            className="size-4 accent-primary"
+          />
+          İptal edilenleri de göster ({iptalSayisi})
+        </label>
+      ) : null}
+
+      {table && gorunenSatirlar.length > 0 && !charts ? (
         <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-sm">
           <table className="w-full text-sm">
             <thead className="border-b border-border bg-muted/40">
@@ -198,7 +226,7 @@ export function ReportsScreen() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {table.rows.map((row, i) => (
+              {gorunenSatirlar.map((row, i) => (
                 <tr key={i} className="hover:bg-muted/30">
                   {row.map((cell, j) => (
                     <td

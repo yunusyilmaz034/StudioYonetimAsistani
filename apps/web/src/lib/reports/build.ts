@@ -1,5 +1,6 @@
 import {
   available,
+  money,
   saleBalanceDue,
   type CashDrawer,
   type ClassSession,
@@ -550,5 +551,57 @@ export function buildCash(drawers: readonly CashDrawer[], staff: readonly StaffM
       (off.length === 0
         ? 'hiçbirinde fark yok'
         : `${off.length} kasada fark var, toplam ${tl(total)}`),
+  }
+}
+
+
+// ── 9. BORÇLULAR (owner, 2026-09-05) ────────────────────────────────────────────────────────
+//
+// *"Borçluların listesini de göreyim, açık tahsilatlar o nerede."* Panoda satır satır vardı ama tek
+// bir liste yoktu: resepsiyon kimi arayacağını görmek için satırları tek tek açmak zorundaydı.
+//
+// TARİH ARALIĞINDAN ETKİLENMEZ. Borç bir dönem değil, BUGÜNKÜ DURUMDUR — "son 7 gün" seçen biri eski
+// borçları görmeseydi, borcun kapandığını sanardı.
+//
+// SIRA: en ESKİ borç önde. Tutar değil, BEKLEME SÜRESİ sıralıyor — 300 ₺'lik iki aylık bir borç,
+// dünkü 5.000 ₺'den daha acil bir konuşmadır, çünkü zaman geçtikçe tahsil edilme ihtimali düşer.
+export function buildDebts(sales: readonly Sale[], members: readonly Member[], now: number): Report {
+  const names = nameOf(members)
+  const phones = new Map(members.map((m) => [m.id as string, m.phone as string]))
+  const open = sales.filter((s) => s.status !== 'cancelled' && saleBalanceDue(s) > 0)
+
+  const rows = [...open]
+    .sort((a, b) => a.soldAt - b.soldAt)
+    .map((s) => {
+      const due = saleBalanceDue(s)
+      const gun = Math.max(0, Math.floor((now - Number(s.soldAt)) / 86_400_000))
+      return [
+        date(s.soldAt),
+        names.get(s.memberId as string) ?? '(silinmiş üye)',
+        phones.get(s.memberId as string) ?? '—',
+        s.lines.map((l) => l.description).join(', '),
+        lira(s.total),
+        lira(s.paid),
+        lira(money(due)),
+        gun,
+      ]
+    })
+
+  const toplam = open.reduce((n, s) => n + saleBalanceDue(s), 0)
+  // ÜYE SAYISI, SATIŞ SAYISI DEĞİL: "13 açık bakiye" cümlesi kaç KİŞİYİ arayacağını söylemeli; bir
+  // üyenin iki açık satışı varsa o iki telefon görüşmesi değil, birdir.
+  const kisi = new Set(open.map((s) => s.memberId as string)).size
+  const enEski = open.length > 0 ? Math.max(...open.map((s) => Math.floor((now - Number(s.soldAt)) / 86_400_000))) : 0
+
+  return {
+    table: {
+      name: 'borclular',
+      columns: ['Satış tarihi', 'Üye', 'Telefon', 'Ürünler', 'Tutar (₺)', 'Tahsil edilen (₺)', 'Kalan (₺)', 'Gün'],
+      rows,
+    },
+    summary:
+      open.length === 0
+        ? 'Açık bakiye yok — herkesin hesabı kapalı.'
+        : `${kisi} üye · ${open.length} açık satış · ${tl(toplam)} bekliyor · en eskisi ${enEski} gündür.`,
   }
 }

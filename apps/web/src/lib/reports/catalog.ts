@@ -21,6 +21,7 @@ export type ReportId =
   | 'reservations'
   | 'trainer'
   | 'dayend'
+  | 'debts'
   | 'cash'
   // PF-40 (2026-07-27) — what used to be the separate `/analytics` screen. It was never a different
   // KIND of thing: the same date range over the same events, drawn instead of listed. Two screens
@@ -94,6 +95,14 @@ export const REPORTS: readonly ReportSpec[] = [
     question: 'Bu dönemde işler nasıl gitti — rezervasyon, doluluk, saat yoğunluğu, satış?',
     time: 'range',
     render: 'charts',
+  },
+  {
+    id: 'debts',
+    label: 'Borçlular',
+    question: 'Kim ne kadar borçlu, kaç gündür bekliyor?',
+    // TARİHTEN ETKİLENMEZ: borç bir DÖNEM değil, BUGÜNKÜ DURUMDUR. Tarih aralığına bağlasaydık
+    // "son 7 gün" seçen biri eski borçları görmez ve borcun kapandığını sanırdı.
+    time: 'state',
   },
   {
     id: 'cash',

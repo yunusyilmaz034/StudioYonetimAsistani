@@ -26,6 +26,7 @@ import {
   buildSales,
   buildTrainer,
   type Report,
+  buildDebts,
 } from '@/lib/reports/build'
 import type { ReportId } from '@/lib/reports/catalog'
 
@@ -76,7 +77,7 @@ async function haricTut<T extends { readonly memberId?: unknown; readonly id?: u
 export async function loadReportAction(input: unknown): Promise<ReportResult> {
   const p = z
     .object({
-      id: z.enum(['membership', 'sales', 'collections', 'reservations', 'trainer', 'dayend', 'cash']),
+      id: z.enum(['membership', 'sales', 'collections', 'reservations', 'trainer', 'dayend', 'debts', 'cash']),
       fromMs: z.number(),
       toMs: z.number(),
     })
@@ -170,6 +171,16 @@ export async function loadReportAction(input: unknown): Promise<ReportResult> {
         finance.listDrawers(ctx),
       ])
       return { id: p.id, ...buildDayEnd(label, daily, payments, sales, drawers) }
+    }
+
+    case 'debts': {
+      // Tarih aralığı OKUNMUYOR — borç bugünkü durumdur (bkz. katalog: `time: 'state'`).
+      const finance = new FirestoreFinanceRepository(db)
+      const [open, members] = await Promise.all([
+        finance.listOpenSales(ctx),
+        new FirestoreMemberRepository(db).list(ctx),
+      ])
+      return { id: p.id, ...buildDebts(open, members, Date.now()) }
     }
 
     case 'cash': {
