@@ -25,6 +25,8 @@ import {
   type FinanceDeps,
   type GiftCard,
   type MemberId,
+  withdrawCash,
+  CashOutflowCategories,
 } from '@studio/core'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
@@ -38,6 +40,8 @@ import { adminDb } from '../firebase-admin'
 // discounts above the studio's ceiling (the domain enforces that last one — this file only decides
 // who may knock on the door).
 const OPS = ['owner', 'receptionist', 'platform_admin'] as const
+// Kasadan para çıkarmak bir HARCAMA kararıdır; resepsiyon tahsil eder, owner harcar (AD-46 hattı).
+const OWNER_ONLY = ['owner', 'platform_admin'] as const
 const OWNER = ['owner', 'platform_admin'] as const
 
 const nonEmpty = z.string().min(1)
@@ -330,6 +334,35 @@ export async function openDrawerAction(input: unknown) {
   return openDrawer(deps(), await requireTenantContext(OPS), {
     drawerId: p.drawerId,
     openingFloat: money(p.openingFloatKurus),
+  })
+}
+
+// ── KASADAN PARA ÇIKIŞI (owner onayı, 2026-09-04) ──────────────────────────────────────────
+//
+// Finansın bugüne kadar olmayan yarısı. Ölçülen bedeli: Merkez Kasa 17 Temmuz'dan 4 Eylül'e kadar
+// açık kaldı ve beklenen bakiye 774.061 ₺'ye çıktı — çekmecede olmayan bir para, çünkü bankaya ve
+// ödemelere gideni yazacak yer yoktu.
+//
+// YETKİ SADECE OWNER. Tahsilat resepsiyonun işidir; kasadan para ÇIKARMAK bir harcama kararıdır ve
+// harcama kararı stüdyonun sahibinindir. Fiyat listesinde konan kuralın aynısı (AD-46).
+export async function withdrawCashAction(input: unknown) {
+  const p = z
+    .object({
+      drawerId: nonEmpty,
+      category: z.enum(CashOutflowCategories),
+      amountKurus: kurus,
+      // Domain de reddediyor (`reason_required`); burada da istenmesinin sebebi, boş bir sebebin
+      // ağdan geçip domaine kadar gitmesinin bir faydası olmaması.
+      reason: z.string().trim().min(1).max(200),
+    })
+    .parse(input)
+  const ctx = await requireTenantContext(OWNER_ONLY)
+  return withdrawCash(deps(), ctx, {
+    outflowId: `cof_${newOperationId().slice(4)}`,
+    drawerId: p.drawerId,
+    category: p.category,
+    amount: money(p.amountKurus),
+    reason: p.reason,
   })
 }
 

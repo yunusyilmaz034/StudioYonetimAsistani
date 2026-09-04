@@ -20,6 +20,7 @@ import {
   walletIdFor,
   type Allocation,
   type CashDrawer,
+  type CashOutflow,
   type Coupon,
   type GiftCard,
   type Payment,
@@ -48,6 +49,8 @@ const saleFrom = (id: string, d: DocumentData): Sale => ({
 })
 
 const paymentTo = (p: Payment): DocumentData => ({ ...p, receivedAt: ts(p.receivedAt) })
+const outflowTo = (o: CashOutflow): DocumentData => ({ ...o, occurredAt: ts(o.occurredAt) })
+const outflowFrom = (id: string, d: DocumentData): CashOutflow => ({ ...(d as CashOutflow), id, occurredAt: instant(ms(d.occurredAt)) })
 const paymentFrom = (id: string, d: DocumentData): Payment => ({
   ...(d as Payment),
   id,
@@ -195,6 +198,11 @@ export class FirestoreFinanceRepository implements FinanceRepository {
     const d = s.data()
     return d ? drawerFrom(id, d) : null
   }
+  async listCashOutflows(ctx: TenantContext): Promise<readonly CashOutflow[]> {
+    const snap = await this.col(ctx.studioId, 'cashOutflows').get()
+    return snap.docs.map((d) => outflowFrom(d.id, d.data())).sort((a, b) => b.occurredAt - a.occurredAt)
+  }
+
   async listDrawers(ctx: TenantContext): Promise<readonly CashDrawer[]> {
     const snap = await this.col(ctx.studioId, 'cashDrawers').get()
     return snap.docs.map((d) => drawerFrom(d.id, d.data()))
@@ -330,6 +338,9 @@ export class FirestoreFinanceRepository implements FinanceRepository {
       for (const a of write.allocations ?? [])
         tx.set(this.col(sid, 'allocations').doc(a.id), allocationTo(a))
       for (const r of write.refunds ?? []) tx.set(this.col(sid, 'refunds').doc(r.id), refundTo(r))
+      // Kasa çıkışları — kasanın deltasıyla AYNI işlemde (#1): biri yazılıp öbürü yazılmazsa kasa
+      // ya olmayan bir parayı gösterir ya da nereye gittiği yazmayan bir eksik taşır.
+      for (const o of write.cashOutflows ?? []) tx.set(this.col(sid, 'cashOutflows').doc(o.id), outflowTo(o))
       for (const d of drawerWrites) tx.update(d.ref, { expected: d.expected })
       for (const g of write.giftCards ?? []) tx.set(this.col(sid, 'giftCards').doc(g.id), cardTo(g))
       for (const c of write.coupons ?? []) tx.set(this.col(sid, 'coupons').doc(c.id), couponTo(c))

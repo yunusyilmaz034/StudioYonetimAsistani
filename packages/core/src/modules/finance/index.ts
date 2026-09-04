@@ -9,6 +9,8 @@
 export type {
   Allocation,
   CashDrawer,
+  CashOutflow,
+  CashOutflowCategory,
   Coupon,
   Discount,
   DiscountCorrection,
@@ -26,6 +28,7 @@ export type {
   Wallet,
 } from './domain/types'
 export {
+  CashOutflowCategories,
   giftCardRemaining,
   memberBalance,
   paymentUnallocated,
@@ -59,6 +62,7 @@ export {
   closeDrawer,
   createDrawer,
   collect,
+  withdrawCash,
   createPlan,
   issueGiftCard,
   loadMemberAccount,

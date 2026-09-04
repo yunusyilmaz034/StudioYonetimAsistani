@@ -1,0 +1,7 @@
+{
+  "outflowId": "cof_01K000000000000000000000",
+  "drawerId": "drw_01K000000000000000000000",
+  "category": "bank_deposit",
+  "amount": { "amount": 70000000, "currency": "TRY" },
+  "reason": "Bankaya yatırıldı — Ziraat"
+}

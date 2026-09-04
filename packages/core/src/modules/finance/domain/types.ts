@@ -29,6 +29,40 @@ import type {
 export type SaleStatus = 'open' | 'settled' | 'cancelled'
 export type PaymentMethod = 'cash' | 'bank_transfer' | 'credit_card' | 'pos' | 'online' | 'gift_card' | 'wallet'
 
+// ── KASA ÇIKIŞI (owner onayı, 2026-09-04) ───────────────────────────────────────────────────
+//
+// Kapalı bir liste, ve kapalı olması kasıtlı: serbest metin bir kategori alanı, altı ay sonra aynı
+// şeyin dört yazımını ("eğitmen", "hoca ödemesi", "Buse", "maaş") ve toplanamayan bir raporu üretir.
+// Dördü stüdyonun gerçekten yaptığı şeyler:
+//
+//  · `trainer_pay`   — eğitmene nakit ödeme (DEBT-037'nin ödeme koşulu tam olarak buydu)
+//  · `bank_deposit`  — kasadan bankaya yatırma. En büyük kalem; 774.061 ₺'lik hayaletin sebebi.
+//  · `expense`       — kira, malzeme, fatura, temizlik
+//  · `owner_draw`    — owner'ın kasadan aldığı para. Gider DEĞİL, ve ayrı durması şart: gidere
+//                      yazılırsa stüdyonun maliyeti olduğundan büyük görünür.
+export const CashOutflowCategories = ['trainer_pay', 'bank_deposit', 'expense', 'owner_draw'] as const
+export type CashOutflowCategory = (typeof CashOutflowCategories)[number]
+
+/**
+ * Kasadan çıkan para. Ödeme değildir — ödeme bir ÜYEDEN gelir; bu, kasadan çıkar ve üyesi yoktur.
+ * Aynı tabloya koymak "üye kim" sorusunu cevapsız bırakırdı.
+ *
+ * İPTAL EDİLİR, SİLİNMEZ (#9): yanlış girilen bir çıkış `voided` işaretlenir ve kasayı geri yükler.
+ */
+export interface CashOutflow {
+  readonly id: string
+  readonly studioId: StudioId
+  readonly branchId: BranchId | null
+  readonly drawerId: string
+  readonly category: CashOutflowCategory
+  readonly amount: Money
+  readonly reason: string
+  readonly occurredAt: Instant
+  readonly recordedBy: ActorRef
+  readonly voided: boolean
+  readonly voidReason: string | null
+}
+
 // ── Member WALLET (Doc 27). One per member. `balance` is DERIVED from the wallet events (topups −
 //    purchases ± adjustments…), denormalised here for a one-read balance and rebuildable at any time.
 //    The decision functions load it to enforce I-37 (never spent below zero). Money is kuruş. ──

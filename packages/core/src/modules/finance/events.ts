@@ -1,5 +1,5 @@
 import type { Instant, Money, MemberId } from '../../shared'
-import type { DiscountReason, PaymentMethod } from './domain/types'
+import type { CashOutflowCategory, DiscountReason, PaymentMethod } from './domain/types'
 
 // Finance events (v1.24). No PII (#6): a member is an id, a coupon is a code, a card is an id.
 // Every one carries the actor, the two timestamps and the OperationId (= correlationId, OP-2), so a
@@ -30,6 +30,19 @@ export const DRAWER_CLOSED = 'drawer.closed'
 export const DRAWER_DISCREPANCY = 'drawer.discrepancy_recorded'
 // PF-15 — a till is renamed or retired (archived), never deleted; its history stays intact.
 export const DRAWER_RENAMED = 'drawer.renamed'
+// ── KASA ÇIKIŞI (owner onayı, 2026-09-04) — finansın EKSİK YARISI ───────────────────────────
+//
+// Bugüne kadar finans modülünde gider tarafı YOKTU (DEBT-037): eğitmene nakit ödendiğinde bordro
+// "ödendi" derdi ama kasa düşmezdi; bankaya para yatırmanın da yazılacak yeri yoktu. Sonucu
+// ölçülebilirdi — Merkez Kasa 17 Temmuz'dan 4 Eylül'e kadar AÇIK kaldı ve beklenen bakiye
+// **774.061 ₺** oldu. Çekmecede o para yoktu; bankaya ve ödemelere gitmişti. Kasa kapanmıyordu
+// çünkü dürüstçe kapanamıyordu, ve kapanmayan bir kasa kimsenin bakmadığı bir sayıdır.
+//
+// Üretici olayın adında YOK (#2): parayı owner da çekse resepsiyon da çekse olan şey aynı — kasadan
+// para çıktı. Kimin çıkardığı zarftaki aktörde.
+//
+// `reason` ZORUNLU ve domainde zorlanıyor: sebepsiz bir kasa çıkışı, sayım farkından ayırt edilemez.
+export const CASH_WITHDRAWN = 'cash.withdrawn'
 export const DRAWER_ARCHIVED = 'drawer.archived'
 export const DRAWER_REACTIVATED = 'drawer.reactivated'
 export const GIFTCARD_ISSUED = 'giftcard.issued'
@@ -54,6 +67,19 @@ export const WALLET_PURCHASE = 'wallet.purchase'
 export const WALLET_REFUND = 'wallet.refund'
 export const WALLET_ADJUSTMENT = 'wallet.adjustment'
 export const WALLET_VOIDED = 'wallet.voided'
+
+/**
+ * Kasadan çıkan para. PII yok: kategori + tutar + sebep; kime ödendiği bir ADSA `reason`da kalır ve
+ * oraya isim yazmak resepsiyonun tercihidir — sistem zorlamaz, çünkü zorlarsa PII olay kaydına
+ * yapısal olarak girer.
+ */
+export type CashWithdrawnPayload = {
+  readonly outflowId: string
+  readonly drawerId: string
+  readonly category: CashOutflowCategory
+  readonly amount: Money
+  readonly reason: string
+}
 
 export type SaleCreatedPayload = {
   readonly gross: Money

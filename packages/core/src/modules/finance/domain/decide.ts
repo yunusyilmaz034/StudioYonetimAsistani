@@ -20,6 +20,7 @@ import {
 } from '../../../shared'
 import {
   ALLOCATION_APPLIED,
+  CASH_WITHDRAWN,
   COUPON_REDEEMED,
   DRAWER_ARCHIVED,
   DRAWER_CLOSED,
@@ -58,6 +59,8 @@ import {
   saleBalanceDue,
   type Allocation,
   type CashDrawer,
+  type CashOutflow,
+  type CashOutflowCategory,
   type Coupon,
   type Discount,
   type DiscountCorrection,
@@ -634,6 +637,61 @@ export function decideOpenDrawer(
         ...base(ctx, 'branch', drawer.id, drawer.branchId, {}),
         type: DRAWER_OPENED,
         payload: { openingFloat, kind: drawer.kind },
+      },
+    ],
+  })
+}
+
+/**
+ * KASADAN PARA ÇIKIŞI (owner onayı, 2026-09-04) — finansın bugüne kadar olmayan yarısı.
+ *
+ * Ölçülen sonuç: Merkez Kasa 17 Temmuz'dan 4 Eylül'e kadar AÇIK kaldı ve beklenen bakiye
+ * **774.061 ₺** oldu. Çekmecede o para yoktu — bankaya ve ödemelere gitmişti — ama yazacak yer
+ * olmadığı için kasa kapanamadı. Kapanmayan bir kasa kimsenin bakmadığı bir sayıdır.
+ *
+ * DÖRT RET:
+ *
+ *  1. **Kapalı kasadan para çıkmaz.** Kapalı bir kasa sayılmış ve mühürlenmiştir; sonradan tutarını
+ *     değiştirmek o sayımı yalan yapar. (Geçmişe kayıt gerekiyorsa yol ayrı ve bilinçlidir.)
+ *  2. **Sıfır ya da eksi tutar reddedilir.** Eksi bir çıkış, adı konmamış bir girişten başka bir şey
+ *     değildir ve tahsilat sayılmadan kasayı büyütürdü.
+ *  3. **Kasada olandan fazlası çıkmaz.** Çekmecede olmayan parayı çıkarmak, sayım farkını ileri bir
+ *     tarihe taşımaktır — fark orada değil, burada görünmeli.
+ *  4. **Sebep zorunlu.** Sebepsiz bir çıkış ile sayım farkı, altı ay sonra birbirinden ayırt
+ *     edilemez; ikisi de "para eksildi" der ve biri kabul edilebilir, öbürü değildir (#9).
+ */
+export function decideWithdrawCash(
+  ctx: DecideContext,
+  drawer: CashDrawer,
+  input: { readonly outflowId: string; readonly category: CashOutflowCategory; readonly amount: Money; readonly reason: string },
+): Result<{ next: CashDrawer; outflow: CashOutflow; events: NewEvent[] }, DomainError> {
+  if (drawer.status !== 'open') return err({ code: 'drawer_not_open' })
+  if (input.amount.amount <= 0) return err({ code: 'invalid_amount' })
+  if (input.reason.trim().length === 0) return err({ code: 'reason_required' })
+  if (input.amount.amount > drawer.expected.amount) return err({ code: 'drawer_insufficient' })
+
+  const outflow: CashOutflow = {
+    id: input.outflowId,
+    studioId: ctx.studioId,
+    branchId: drawer.branchId,
+    drawerId: drawer.id,
+    category: input.category,
+    amount: input.amount,
+    reason: input.reason.trim(),
+    occurredAt: ctx.now,
+    recordedBy: ctx.actor,
+    voided: false,
+    voidReason: null,
+  }
+  const next: CashDrawer = { ...drawer, expected: money(drawer.expected.amount - input.amount.amount) }
+  return ok({
+    next,
+    outflow,
+    events: [
+      {
+        ...base(ctx, 'branch', drawer.id, drawer.branchId, {}),
+        type: CASH_WITHDRAWN,
+        payload: { outflowId: outflow.id, drawerId: drawer.id, category: input.category, amount: input.amount, reason: outflow.reason },
       },
     ],
   })

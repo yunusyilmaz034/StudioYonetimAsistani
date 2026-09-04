@@ -34,6 +34,7 @@ import {
   type DecideContext,
   decideDiscountSale,
   decideCorrectDiscount,
+  decideWithdrawCash,
 } from '../domain/decide'
 import {
   giftCardRemaining,
@@ -49,6 +50,7 @@ import {
   type PaymentPlan,
   type Sale,
   type SaleLine,
+  type CashOutflowCategory,
 } from '../domain/types'
 import type { DrawerDelta, FinanceDeps, WalletApply } from './ports'
 
@@ -230,6 +232,33 @@ export interface CollectInput {
   // she says "bakiyesine yaz".
   readonly allocateTo?: readonly { saleId: string; amount: Money; allocationId: string }[]
   readonly allocationIdPrefix?: string
+}
+
+/**
+ * KASADAN PARA ÇIKAR — yükle, karar ver, tek işlemde yaz (owner onayı, 2026-09-04).
+ *
+ * Karar `decideWithdrawCash`te ve saf. Buranın işi kasayı bulmak ve çıkış kaydını, kasanın yeni
+ * bakiyesini ve olayı AYNI işlemde yazmak: biri yazılıp öbürü yazılmazsa kasa ya olmayan bir parayı
+ * gösterir ya da nereye gittiği yazmayan bir eksik taşır (#1).
+ */
+export async function withdrawCash(
+  deps: FinanceDeps,
+  ctx: TenantContext,
+  input: { readonly outflowId: string; readonly drawerId: string; readonly category: CashOutflowCategory; readonly amount: Money; readonly reason: string },
+): Promise<Result<{ outflowId: string }, DomainError>> {
+  const drawer = await deps.repo.getDrawer(ctx, input.drawerId)
+  if (!drawer) return { ok: false, error: { code: 'drawer_not_open' } }
+  const c = dctx(deps, ctx, newOperationId())
+  const decided = decideWithdrawCash(c, drawer, input)
+  if (!decided.ok) return decided
+  await deps.repo.commit(ctx, {
+    // Kasa deltası EKSİ: `drawerDeltas` giriş için de çıkış için de aynı yol, ve çıkışın kendi
+    // yolunu açmak kasayı iki ayrı şeyin güncellediği bir sayı yapardı.
+    drawerDeltas: [{ drawerId: drawer.id, deltaKurus: -input.amount.amount }],
+    cashOutflows: [decided.value.outflow],
+    events: decided.value.events,
+  })
+  return { ok: true, value: { outflowId: decided.value.outflow.id } }
 }
 
 export async function collect(

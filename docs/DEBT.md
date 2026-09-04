@@ -919,6 +919,15 @@ a non-`'use server'` module.)
 
 ---
 
+## DEBT-037 — Marking a payroll statement paid posts no cash outflow ✅ **KISMEN ÖDENDİ — 2026-09-04**
+
+**Ödendi:** Finansa bir ÇIKIŞ ilkelı eklendi (`cash.withdrawn` · `withdrawCash` · Kasa Hareketleri).
+Artık kasadan çıkan para — eğitmen ödemesi, bankaya yatırma, gider, sahip çekimi — sebebiyle
+yazılıyor ve kasayı düşürüyor. Kasa ilk kez dürüstçe kapanabilir.
+**KALAN:** bordronun "ödendi" işareti ile kasa çıkışı hâlâ İKİ AYRI eylem — resepsiyon ikisini de
+yapmalı. Bağlamak (bordroyu ödemek çıkışı otomatik yazsın) ayrı bir iş; ödeme koşulu: aynı ödemenin
+iki kez girildiği ilk karışıklık.
+
 ## DEBT-037 — Marking a payroll statement paid posts no cash outflow
 
 **Taken:** 2026-07-16 · Product Plus Phase 9 (Trainer Payroll & Commission) · Yunus (owner-approved autonomy)

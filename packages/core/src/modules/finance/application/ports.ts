@@ -2,6 +2,7 @@ import type { Clock, EventSource, MemberId, NewEvent, TenantContext } from '../.
 import type {
   Allocation,
   CashDrawer,
+  CashOutflow,
   Coupon,
   GiftCard,
   Payment,
@@ -26,6 +27,7 @@ export interface FinanceRepository {
 
   getDrawer(ctx: TenantContext, id: string): Promise<CashDrawer | null>
   listDrawers(ctx: TenantContext): Promise<readonly CashDrawer[]>
+  listCashOutflows(ctx: TenantContext): Promise<readonly CashOutflow[]>
   saveDrawer(ctx: TenantContext, drawer: CashDrawer, events: readonly NewEvent[]): Promise<void>
 
   getGiftCardByCode(ctx: TenantContext, code: string): Promise<GiftCard | null>
@@ -98,6 +100,8 @@ export interface FinanceWrite {
   readonly coupons?: readonly Coupon[]
   readonly plans?: readonly PaymentPlan[]
   readonly walletApplies?: readonly WalletApply[]
+  /** Kasa çıkışları (2026-09-04). Kasa deltası `drawerDeltas` ile AYNI işlemde yazılır. */
+  readonly cashOutflows?: readonly CashOutflow[]
   readonly events: readonly NewEvent[]
 }
 

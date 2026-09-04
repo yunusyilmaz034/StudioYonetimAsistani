@@ -326,6 +326,10 @@ export function domainErrorMessage(error: DomainError): string {
       return 'Bu sürüm zaten yayında.'
     // Cümle NE YAPILACAĞINI söylüyor, yalnızca reddi değil: programın tamamını kaldırmanın ayrı bir
     // yolu var ve kullanıcı burada onu arıyor olabilir.
+    // Kasa çıkışı (owner onayı, 2026-09-04). Cümle ne yapılacağını söylüyor: fark burada görünmeli,
+    // ileri bir tarihe taşınmamalı.
+    case 'drawer_insufficient':
+      return 'Kasada bu kadar para görünmüyor. Önce eksik tahsilatları girin ya da gün sonu yapıp farkı kaydedin.'
     case 'program_last_version':
       return 'Son kalan sürüm geri çekilemez — üyenin görebileceği bir program kalmazdı. Programın tamamını kaldırmak için durumunu "Arşiv" yapın.'
     default: {

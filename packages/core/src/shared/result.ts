@@ -52,6 +52,8 @@ export type DomainError =
   | { readonly code: 'discount_exceeds_ceiling'; readonly ceilingPercent: number }
   | { readonly code: 'drawer_required' }
   | { readonly code: 'drawer_not_open' }
+  // Kasada olmayan parayı çıkarmak, sayım farkını ileri bir tarihe taşımaktır (2026-09-04).
+  | { readonly code: 'drawer_insufficient' }
   | { readonly code: 'drawer_already_open' }
   | { readonly code: 'drawer_open_cannot_archive' }
   | { readonly code: 'giftcard_not_found' }

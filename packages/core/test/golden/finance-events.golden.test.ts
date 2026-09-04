@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { decideCorrectDiscount, decideCreateDrawer } from '../../src/modules/finance/domain/decide'
+import { decideCorrectDiscount, decideCreateDrawer, decideWithdrawCash } from '../../src/modules/finance/domain/decide'
 import {
   instant,
   type BranchId,
@@ -11,6 +11,7 @@ import {
 import type { Sale } from '../../src/modules/finance/domain/types'
 import { money } from '../../src/shared'
 import drawerCreated from './drawer.created.v1.json'
+import withdrawn from './cash.withdrawn.v1.json'
 import discountCorrected from './sale.discount_corrected.v1.json'
 
 // `drawer.created` — the till (hotfix B-2, 2026-07-13).
@@ -118,5 +119,52 @@ describe('sale.discount_corrected', () => {
     })
     if (!r.ok) throw new Error('unreachable')
     expect(JSON.stringify(r.value.events[0]?.payload)).not.toContain('Ayşe')
+  })
+})
+
+// ── cash.withdrawn v1 (owner onayı, 2026-09-04) ─────────────────────────────────────────────
+//
+// Finansın gider tarafı yoktu; bu, olay kaydındaki ilk çıkış. Şekli sabitleniyor çünkü bir olay
+// yazıldıktan sonra düzenlenmez: burada eklenen ya da adı değişen bir alan, defterde kalıcı bir
+// çataldır.
+//
+// PII yok ve olmaması yapısal: kime ödendiği bir AD ise `reason`da kalır, ve oraya isim yazmak
+// resepsiyonun tercihidir — sistem ayrı bir "kime" alanı açsaydı isim olay kaydına ZORUNLU girerdi.
+describe('cash.withdrawn v1', () => {
+  const drawer = {
+    id: 'drw_01K000000000000000000000',
+    studioId: 'std_1',
+    branchId: 'brn_1',
+    name: 'Merkez Kasa',
+    kind: 'cash',
+    status: 'open',
+    openingFloat: money(0),
+    expected: money(100_000_000),
+    active: true,
+  } as never
+
+  it('payload sabit sözleşmeye uyuyor', () => {
+    const r = decideWithdrawCash(ctx, drawer, {
+      outflowId: 'cof_01K000000000000000000000',
+      category: 'bank_deposit',
+      amount: money(70_000_000),
+      reason: 'Bankaya yatırıldı — Ziraat',
+    })
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.value.events[0]?.payload).toEqual(withdrawn)
+  })
+
+  it('payload üyeye ait hiçbir alan taşımıyor', () => {
+    const r = decideWithdrawCash(ctx, drawer, {
+      outflowId: 'cof_1',
+      category: 'trainer_pay',
+      amount: money(500_000),
+      reason: 'x',
+    })
+    if (!r.ok) return
+    expect(Object.keys(r.value.events[0]!.payload as object).sort()).toEqual(
+      ['amount', 'category', 'drawerId', 'outflowId', 'reason'].sort(),
+    )
   })
 })

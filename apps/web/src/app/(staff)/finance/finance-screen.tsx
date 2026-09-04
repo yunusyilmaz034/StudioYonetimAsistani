@@ -17,6 +17,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { PageHeader } from '@/components/ui/page-header'
 import { Section } from '@/components/ui/section'
+import { MovementsPanel } from './movements-panel'
 import { formatDateTime } from '@/lib/datetime'
 import { domainErrorMessage } from '@/lib/domain-error'
 import { closeDrawerAction, listDrawersAction, openDrawerAction } from '@/server/actions/finance'
@@ -120,6 +121,9 @@ export function FinanceScreen({ isOwner }: { isOwner: boolean }) {
           </ul>
         )}
       </Section>
+
+      {/* owner, 2026-09-04 — kasaya ne girdi ne çıktı, gruplu ve dökümlü. */}
+      <MovementsPanel isOwner={isOwner} onChanged={() => void load()} />
 
       {/* Open */}
       <AmountDialog

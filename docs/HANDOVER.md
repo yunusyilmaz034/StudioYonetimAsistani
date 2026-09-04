@@ -100,6 +100,61 @@ hesaplar, yalnızca `open` satışlar — tahsil edilmişlere dokunulmadı).
 Ayrıca **raporlar da artık `excludedMemberIds`i okuyor.** Pano bunu 27 Ağustos'ta öğrenmişti,
 raporlar öğrenmemişti. Rapor bir okuma modelidir; aynı kural oraya da geçerli.
 
+## 💰 4 Eylül — Kasa hareketleri, ve finansın olmayan yarısı
+
+Owner: *"Burada detaylı kasa hareketi olmalı; nakit ne kadar, KK ne kadar diye ödeme tiplerine göre
+filtrelesin, günlük/haftalık/aylık/yıllık gruplasın, tıklayınca o gün kimden ne geldi gitti görelim."*
+
+Ekranı yapmadan önce ölçüldü, ve istenen şeyin **yarısının kaydı yoktu.**
+
+**Giriş tarafı tamdı** — 17 Temmuz'dan bu yana nakit 785.050 · online 99.500 · kredi kartı 80.600 ·
+havale 73.650 ₺, toplam **1.038.800 ₺**, hepsi tarihi/üyesi/yöntemi/alanıyla.
+
+**Çıkış tarafı HİÇ YOKTU** (DEBT-037): finans modülünde gider tarafı bulunmuyordu. Eğitmene nakit
+ödendiğinde bordro "ödendi" derdi, kasa düşmezdi; bankaya para yatırmanın yazılacak yeri yoktu.
+
+Sonucu ekranda duruyordu: **Merkez Kasa 17 Temmuz'dan beri AÇIK, beklenen 774.061 ₺.** Çekmecede o
+para yoktu — bankaya ve ödemelere gitmişti. Kasa yedi haftadır kapanmıyordu çünkü **dürüstçe
+kapanamıyordu**: gün sonu yapılsa devasa bir fark çıkardı. Kapanmayan bir kasa, kimsenin bakmadığı
+bir sayıdır.
+
+Ekranı yalnızca giriş tarafıyla yapmak, çıkış sütununu boş gösterip *"hiç para çıkmıyor"* demek
+olurdu — yanlış rakamdan beteri: doğru görünen yanlış bir tablo. Owner ikisini birden istedi.
+
+### Yapılanlar
+
+**`cash.withdrawn` — finansın ilk çıkış olayı.** Dört kapalı kategori: `bank_deposit` ·
+`trainer_pay` · `expense` · `owner_draw`. Serbest metin olsaydı altı ay sonra aynı şeyin dört yazımı
+("eğitmen", "hoca ödemesi", "Buse", "maaş") ve toplanamayan bir rapor çıkardı. **`owner_draw` ayrı
+duruyor ve gidere karışmıyor**: owner'ın çektiği para stüdyonun maliyeti değildir, gidere yazılırsa
+işletme olduğundan pahalı görünür.
+
+**Dört ret, hepsi test edildi:** kapalı kasadan para çıkmaz (sayılmış bir kasayı sonradan değiştirmek
+o sayımı yalan yapar) · sıfır/eksi tutar reddedilir (eksi bir çıkış, adı konmamış bir giriştir) ·
+**kasada olandan fazlası çıkmaz** (fark ileri bir tarihe taşınmaz, burada görünür) · sebep zorunlu
+(sebepsiz bir çıkış ile sayım farkı altı ay sonra ayırt edilemez).
+
+**Yetki: para çıkarmak OWNER'a özel.** Tahsilat resepsiyonun işi; kasadan para çıkarmak bir harcama
+kararıdır ve o kararın sahibi stüdyonun sahibidir — fiyat listesindeki kuralın aynısı (AD-46 hattı).
+
+**Kasa Hareketleri ekranı:** gün/hafta/ay/yıl gruplama, ödeme tipi filtresi, satıra dokununca o
+dönemin dökümü — saat, kim/sebep, tip, tutar. Giriş yeşil, çıkış kırmızı. **Hafta pazartesi başlıyor**
+(`getDay()`in pazar-başlangıcı, pazar günkü parayı bir önceki haftaya yazardı). **İptaller listede
+kalır, toplama girmez** (I-31): hatayı gizleyen bir liste kasayla karşılaştırılamaz. **Çıkış toplamı
+yalnızca varsa yazılıyor** — sıfır bir çıkış "hiç para çıkmıyor" diye okunur, oysa doğrusu "henüz
+kimse girmedi"dir.
+
+Okuma **tarihle sınırlı** (son 12 ay, `listPaymentsBetween`): bugün 183 ödeme var ve hepsini okumak
+ucuz görünüyor, ama üç yıl sonra aynı ekran her açılışta binlerce belge okur — ve o günü fark eden
+olmaz, ekran yalnızca yavaşlar. Gruplama pencerenin içinde, ekranda: owner gruplamayı anlık
+değiştiriyor.
+
+### ⏭ Bunun ardından yapılacak ilk iş
+
+**774.061 ₺'lik hayaleti kapatmak.** Artık yolu var: `bank_deposit` ve `trainer_pay` çıkışları
+girilecek, sonra ilk kez dürüst bir **gün sonu** yapılabilecek. Bu bir yazılım işi değil — owner'ın
+hangi paranın nereye gittiğini bilmesi gerekiyor, ve o bilgi sistemde yok.
+
 ## 🏋️ 4 Eylül — Hibrit üyeler için iki program: "Hibrit 1" ve "Hibrit 2"
 
 Owner: *"Hibrit paketlerde fitness'a gelenler 1 gün ya da 2 gün geliyor, bunlara program lazım. Bu
