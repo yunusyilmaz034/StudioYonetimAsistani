@@ -2915,6 +2915,34 @@ girip kredisini kaybederse resepsiyona gelir.
 
 **Sırada:** "Fit Paket" ders türünün katalogda açılması (veri, kod değil).
 
+## 📱 Mobil 1.7.4 — biriken işler
+
+**Çıkmadı.** Aynı kural: mobil tarafta bulunan her şey burada birikir, bir arada çıkar. Bulan buraya
+yazar.
+
+| # | İş | Neden | Durum |
+|---|---|---|---|
+| 1 | **Banner detay sayfasında görsel yüklenmiyor** (owner, 8 Eylül) | Ana sayfadaki banner'a basınca `/banner` açılıyor ve görsel gelmiyor — ama AYNI görsel ana sayfadaki kartta sorunsuz görünüyor. İki ekran da aynı `<Image source={{ uri }}>`'yi kullanıyor, yani sorun çizimde değil, URL'in ekrana TAŞINMASINDA. `openBanner` veriyi query param'la yolluyor (`apps/mobile/app/(tabs)/index.tsx:401`) ve kodun kendi yorumu sebebi söylüyor: *"Data rides in query params so the screen needs no extra fetch."* | ⏳ notta, düzeltilmedi |
+
+**En olası sebep — ama CİHAZDA DOĞRULANMADI.** Canlıdaki banner URL'i (salt okuma, 8 Eylül):
+
+```
+https://firebasestorage.googleapis.com/v0/b/…/o/studios%2Fretro%2Fmedia%2F1788869295856.png?alt=media&token=…
+```
+
+İçinde **üç `%2F`** ve `?alt=media&token=…` var. Bu URL bir query param'a konup `useLocalSearchParams`
+ile geri okunduğunda bir kez daha çözülüyor: `%2F` → `/` olursa Storage yolu `studios/retro/media/…`
+hâline gelir ve Firebase **404** döner; `&token=` de ayrı bir param'a bölünebilir. İkisi de aynı
+belirtiyi verir — görsel yok, hata yok.
+
+**Doğru düzeltme param'ı kaçırmak değil, veriyi taşımamak:** detay ekranına yalnızca banner `id`'si
+gitmeli, içerik zaten yüklü olan ana sayfa verisinden okunmalı. Bugünkü tasarım "ekstra istek
+olmasın" diye tüm metni ve URL'i adres çubuğundan geçiriyor; 656 karakterlik `detail` metni de aynı
+yoldan gidiyor ve aynı riski taşıyor.
+
+**Denenecek:** banner'a bas → detayda görsel çıkıyor mu · uzun `detail` metni tam mı · başlıkta
+Türkçe karakterler bozulmuyor mu.
+
 ## 📱 Mobil 1.7.1 — biriken işler
 
 **Çıkmadı.** Aynı kural: mobil tarafta bulunan her şey burada birikir, bir arada çıkar. Bulan buraya
