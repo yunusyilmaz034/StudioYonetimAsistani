@@ -22,8 +22,10 @@ import {
   MEMBER_AUTO_CHECKED_OUT,
   MEMBER_CHECKED_IN,
   MEMBER_CHECKED_OUT,
+  MEMBER_ENTRY_REFUSED,
   TURNSTILE_OPENED_MANUALLY,
 } from '../events'
+import type { EntryRefusalReason } from '../events'
 import type { BranchOccupancy, CheckIn, CheckInMethod, Presence, CheckInDirection,
   TurnstileCode,
   TurnstileDevice,
@@ -279,6 +281,28 @@ export function decideRedeemTurnstileCode(
  * never silent: an arm that opens with no record is an arm anybody can open, and "who let them in"
  * is the first question asked after something goes wrong.
  */
+/**
+ * Kapı hayır dedi ve bu yazılıyor.
+ *
+ * Durum DEĞİŞMİYOR — kimse girmedi, doluluk oynamadı, kod harcanmadı. Yalnızca log'a bir gözlem
+ * ekleniyor. Olaysız bırakmak, olmayan bir şey gibi davranmak olurdu.
+ */
+export function decideRefuseEntry(
+  ctx: DecideContext,
+  memberId: MemberId,
+  deviceId: DeviceId,
+  branchId: BranchId,
+  reason: EntryRefusalReason,
+): NewEvent[] {
+  return [
+    {
+      ...base(ctx, 'member', memberId as string, branchId, { deviceId: deviceId as string }),
+      type: MEMBER_ENTRY_REFUSED,
+      payload: { branchId, deviceId: deviceId as string, reason },
+    },
+  ]
+}
+
 export function decideOpenTurnstileManually(
   ctx: DecideContext,
   deviceId: DeviceId,

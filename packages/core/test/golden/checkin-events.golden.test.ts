@@ -5,12 +5,14 @@ import {
   decideCheckIn,
   decideCloseBranch,
   decideOpenBranch,
+  decideRefuseEntry,
 } from '../../src/modules/checkin/domain/decide'
 import type { DecideContext } from '../../src/modules/checkin/domain/decide'
 import type { BranchOccupancy, Presence } from '../../src/modules/checkin/domain/types'
 import {
   instant,
   type BranchId,
+  type DeviceId,
   type CheckInId,
   type CorrelationId,
   type MemberId,
@@ -22,6 +24,7 @@ import branchOpened from './branch.opened.v1.json'
 import autoCheckedOut from './member.auto_checked_out.v1.json'
 import checkedIn from './member.checked_in.v1.json'
 import checkedOut from './member.checked_out.v1.json'
+import entryRefused from './member.entry_refused.v1.json'
 
 const NOW = instant(1_700_000_000_000)
 const H = 3_600_000
@@ -52,6 +55,12 @@ describe('check-in event payloads match golden fixtures (AD-33)', () => {
     const presence: Presence = { memberId: MEM, branchId: BR, checkedInAt: instant(NOW - 90 * 60_000) }
     const r = decideCheckIn(ctx, input, presence, 5, openBranch)
     expect(r.ok && r.value.events[0]?.payload).toEqual(checkedOut)
+  })
+  // Kapıda kalan üye. PII yok: ödeme yok, isim yok, sebep kapalı enum.
+  it('member.entry_refused', () => {
+    const e = decideRefuseEntry(ctx, MEM, 'dev_giris' as DeviceId, BR, 'no_active_membership')
+    expect(e[0]?.payload).toEqual(entryRefused)
+    expect(e[0]?.subject).toEqual({ kind: 'member', id: MEM })
   })
   it('member.auto_checked_out', () => {
     const presence: Presence = { memberId: MEM, branchId: BR, checkedInAt: instant(NOW - 5 * H) }

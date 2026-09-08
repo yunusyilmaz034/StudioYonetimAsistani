@@ -60,6 +60,8 @@ function fakeDeps(opts: {
   tuketilenler?: string[]
   /** Varsayılan: canlı bir paketi var. `[]` ⇒ paketi yok, kol dönmemeli. */
   paketler?: unknown
+  /** Ret kaydı buraya düşer — kapıda kalan üye YAZILMALI (owner, 2026-09-08). */
+  yazilanlar?: { type: string }[]
 }): CheckinDeps {
   const recent: CheckIn[] =
     opts.lastCrossedAt === undefined
@@ -81,6 +83,9 @@ function fakeDeps(opts: {
       listCheckInsByMember: async () => recent,
       applyCheckIn: async () => undefined,
       touchDevice: async () => undefined,
+      saveDeviceWithEvents: async (_c: unknown, _d: unknown, events: { type: string }[]) => {
+        opts.yazilanlar?.push(...events)
+      },
     },
     // Sayaç bu testlerin konusu değil, ama kapı hem sayaçtan hem paket kontrolünden geçiyor.
     entries: { listActiveByMember: async () => opts.paketler ?? CANLI_PAKET, saveEntitlement: async () => undefined },
@@ -222,6 +227,30 @@ describe('paketi olmayan üyeye kol dönmez (owner, 2026-08-31)', () => {
     })
     expect(r.ok).toBe(true)
     if (r.ok) expect(r.value.direction).toBe('out')
+  })
+
+  it('ret bir OLAY yazar — kapıda kalan üye kaybolmaz', async () => {
+    // Bu testin varlık sebebi: 8 Eylül'e kadar ret hiçbir yere yazılmıyordu. Ekrana giden geçici
+    // kayıt okununca siliniyordu, yani ret ~600 ms yaşayıp yok oluyordu ve owner hiç görmüyordu.
+    // Kaydedilmeyen ret geri getirilemez — o yüzden burada kilitli.
+    const yazilanlar: { type: string }[] = []
+    const r = await crossTurnstile(fakeDeps({ presence: null, yazilanlar, ...paketsiz }), CTX, {
+      memberId: MEMBER,
+      code: CODE,
+      reportedDirection: 'in',
+    })
+    expect(r.ok).toBe(false)
+    expect(yazilanlar.map((e) => e.type)).toEqual(['member.entry_refused'])
+  })
+
+  it('ÇIKIŞ reddi diye bir şey yok — çıkışta olay da yazılmaz', async () => {
+    const yazilanlar: { type: string }[] = []
+    await crossTurnstile(fakeDeps({ presence: inside, lastCrossedAt: NOW - 60_000, yazilanlar, ...paketsiz }), CTX, {
+      memberId: MEMBER,
+      code: CODE,
+      reportedDirection: 'out',
+    })
+    expect(yazilanlar).toEqual([])
   })
 
   it('reddedince KODU HARCAMAZ — üye paketini yeniletip aynı ekranı okutabilir', async () => {

@@ -15,7 +15,8 @@ export interface AdvisorItem {
   // Two kinds live outside the insight engine on purpose: neither is derived from the dashboard's
   // facts, and neither is a problem to be solved. 'hot_lead' is a WhatsApp conversation worth
   // answering; 'online_payment' is money that already arrived by card.
-  readonly kind: InsightKind | 'hot_lead' | 'online_payment'
+  // 'door_refused' de dışarıdan: pano okuma modelinden değil, olay kaydından geliyor.
+  readonly kind: InsightKind | 'hot_lead' | 'online_payment' | 'door_refused'
   readonly severity: InsightSeverity
   readonly title: string
   readonly detail: string

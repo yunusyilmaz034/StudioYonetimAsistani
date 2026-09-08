@@ -10,7 +10,7 @@ import {
   type Result,
   type TenantContext,
 } from '../../../shared'
-import { decideOpenTurnstileManually, decideRedeemTurnstileCode } from '../domain/decide'
+import { decideOpenTurnstileManually, decideRedeemTurnstileCode, decideRefuseEntry } from '../domain/decide'
 import type { TurnstileCode, TurnstileDirection } from '../domain/types'
 import { decideContext } from './context'
 import type { CheckinDeps } from './ports'
@@ -144,7 +144,20 @@ export async function crossTurnstile(
   if (decided.value.direction === 'in') {
     const paketler = await deps.entries.listActiveByMember(ctx, input.memberId)
     const canli = paketler.some((e) => e.validFrom <= now && now < e.validUntil)
-    if (!canli) return err({ code: 'no_active_membership' })
+    if (!canli) {
+      // RET YAZILIYOR (owner, 2026-09-08). Eskiden burada yalnızca `err` dönülüyordu ve kapıda
+      // kalan üye hiçbir yere kaydedilmiyordu — resepsiyon görmüyor, owner görmüyor, ertesi gün
+      // kimse aramıyordu. Durum değişmediği için yazılacak bir state yok; olayı cihazın
+      // `lastSeenAt` dokunuşuyla aynı işlemde ekliyoruz (#1 bozulmuyor: state ve olay birlikte).
+      if (device) {
+        await deps.repo.saveDeviceWithEvents(
+          ctx,
+          { ...device, lastSeenAt: now },
+          decideRefuseEntry(dctx, input.memberId, device.id, decided.value.branchId, 'no_active_membership'),
+        )
+      }
+      return err({ code: 'no_active_membership' })
+    }
   }
 
   // ── 1. KARAR — yalnızca okur. Reddedilirse kod harcanmaz, kol dönmez.

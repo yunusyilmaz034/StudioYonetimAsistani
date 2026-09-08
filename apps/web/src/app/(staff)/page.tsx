@@ -2,6 +2,7 @@ import type { PrincipalRole } from '@studio/core'
 
 import { requirePageAccess } from '@/server/auth'
 import { deriveAdvisorItems } from '@/server/advisor-query'
+import { doorRefusalAdvisorItems } from '@/server/door-refusal-checklist'
 import { hotLeadAdvisorItems } from '@/server/lead-checklist'
 import { loadOwnerDashboard } from '@/server/owner-dashboard'
 import { onlinePaymentAdvisorItems } from '@/server/online-payment-checklist'
@@ -20,17 +21,20 @@ import { DashboardScreen } from './dashboard-screen'
 export default async function HomePage() {
   const ctx = await requirePageAccess('/')
   const now = Date.now()
-  const [data, todayOps, hotLeads, onlinePayments, snoozed] = await Promise.all([
+  const [data, todayOps, hotLeads, doorRefusals, onlinePayments, snoozed] = await Promise.all([
     loadOwnerDashboard(ctx, now),
     loadTodayOps(ctx, now),
     hotLeadAdvisorItems(ctx),
+    doorRefusalAdvisorItems(ctx),
     onlinePaymentAdvisorItems(ctx),
     loadSnoozedItemIds(ctx.studioId as string, now),
   ])
   // Card money FIRST — it is the one thing on this list that has already happened, and until it is
   // somewhere he looks, "did that payment arrive?" is a question only the provider's panel answers.
   // Then hot WhatsApp leads (act now), then the dashboard-derived advisor items.
-  const allItems = [...onlinePayments, ...hotLeads, ...deriveAdvisorItems(data)]
+  // Kapıda kalan üye lead'in de ÖNÜNDE: yola çıkmış, gelmiş ve geri dönmüş biri, fiyat sormuş
+  // birinden daha ileridedir — ve o gün aranmazsa gitmiş sayılır.
+  const allItems = [...doorRefusals, ...onlinePayments, ...hotLeads, ...deriveAdvisorItems(data)]
   // A line already ticked off stays off for its cooldown — reception called that member, and a call is
   // not work again tomorrow (owner, 2026-09-03). Filtered HERE, before the AI narrator sees the list,
   // so the briefing at the top counts the same work the rows below show.
