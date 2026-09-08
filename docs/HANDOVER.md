@@ -905,7 +905,37 @@ Belgenin §5'i asıl uyarı: **ikinci kapı takılmadan önce WiFi'nin cihaz üs
 kimliğinin panelden üretilmesi gerekiyor.** Bugün ikisi de elle yapılıyor, yani her kurulum bir Mac ve
 bir yazılımcı istiyor. Parça meselesi değil, ve Faz 2.
 
-**KARTTAKİ SÜRÜM: `turnike-v1.0` (owner: *"bu sürüm çalışan sürüm, bunu kilitle"*).**
+**KARTTAKİ SÜRÜM: `turnike-v1.1` — ekran yenilendi (8 Eylül). Bir önceki kilitli hâl `turnike-v1.0`.**
+
+### 🖥️ Turnike ekranı yeniden yazıldı (8 Eylül)
+
+Owner: *"ekranını daha güzel yapsak mı"* — ve arkasından tam bir tasarım şartnamesi. Sonuç
+`apps/turnstile/src/ui.{h,cpp}`: **çizim, iş mantığından ayrıldı.** `main.cpp` artık ağ, röle,
+buzzer ve kod tazeleme yapıyor; ekranla ilgili tek yaptığı `uiHazir` / `uiKontrol` / `uiBasarili` /
+`uiReddedildi` / `uiBaglaniyor` çağırmak. Giriş ve çıkış AYNI fonksiyonları çağırıyor, farkları tek
+alan (`Mod::Giris` / `Mod::Cikis`) — iki ayrı çizim yolu olsaydı biri düzeltilip öbürü unutulurdu.
+
+**Türkçe kapıya girdi.** Eskiden `asciile()` ismi ASCII'ye düşürüyordu ve ekran üyeye
+*"Hos geldin SULE GURSES"* diyordu. Artık `ŞULE GÜRSES` yazıyor. Nasıl olduğu
+[`apps/turnstile/FONTS.md`](../apps/turnstile/FONTS.md)'de; kısaca: GFX'in yazdırma yolu
+`uint8_t` taşıdığı için `ğ` doğrudan basılamıyor, o yüzden altı Türkçe glif Latin-1'in boş
+yuvalarına yerleştirildi. Font **üretiliyor**, elle yazılmıyor — `tools/merge-tr-font.py` kayıtlı
+dosyayı birebir yeniden üretiyor, doğrulandı.
+
+**Teknik bilgi ekrandan kalktı.** Eskiden bağlanırken SSID yazıyordu. Artık kapıdaki üye
+"Bağlantı kuruluyor..." görüyor; IP, HTTP kodu, istisna, SSID hiçbiri ekranda yok. Reddedilen
+üyeye de `no_active_membership` değil *"Lütfen resepsiyona uğrayın"* deniyor — ve **adı
+yazılmıyor**: kırmızı bir ekranın üstündeki kendi adı, üyeyi kalabalıkta teşhir ediyor.
+
+**QR daha iri.** Eski sürüm QR sürüm-3 (29 modül) üretiyordu ve modül 6 px'ti; kod altı haneli
+olduğu için sürüm-1 (21 modül) fazlasıyla yetiyor ve modül **8 px** oldu — %33 iri. Sessiz bölge
+3,5 modül (standart 4 ister); 240 px'lik ekranda dördü, camgöbeği köşe işaretlerine yer
+bırakmıyordu. Bilerek verilen taviz, `ui.cpp`de yazılı.
+
+**Yerleşim karta atılmadan ölçüldü.** Font tablosundan metin genişliği hesaplayan bir betik iki
+taşma yakaladı: `QR Kodunuzu Okutun` 12 puntoda 252 px (ekran 240), `Lütfen resepsiyona uğrayın`
+9 puntoda tam 240 px. İlki 11 punto fontla, ikincisi iki satıra bölerek çözüldü. **Turnikenin
+başında öğrenilmedi.**
 
 Etiketlenen commit, ESP32'ye atılmış ve tek tek doğrulanmış hâl: iki ekranda QR · röle darbesi ·
 geçiş kaydı ve karşılama · çıkış yönü · buzzer (`GPIO 16`, 250 ms, duyulur).

@@ -33,6 +33,7 @@
 // Bu yüzden **tek ortam, tek yükleme**: `pio run -t upload`. Bir zamanlar buraya `-e giris` /
 // `-e cikis` yazılmıştı; öyle ortamlar hiç var olmadı ve o komut hata verir.
 #include "secrets.h"
+#include "ui.h"
 
 static const int PIN_SCK = 12;
 static const int PIN_MOSI = 11;
@@ -133,6 +134,7 @@ struct Kapi {
   int rolePin;
   String kod;
   uint32_t kodBitis;
+  Yuz yuz;   // ekranın çizim durumu — UI katmanının tek hafızası
 };
 
 // İKİ KAPI AÇIK (`-D IKI_KAPI`, `platformio.ini`).
@@ -145,38 +147,12 @@ struct Kapi {
 // Bayrak yerinde duruyor: bir sorun çıkarsa `platformio.ini`den o satırı silmek, kurulumu tek
 // kapıyla ayakta tutar.
 static Kapi kapilar[] = {
-  { "giris", "GIRIS", DEVICE_AUTH_GIRIS, &tftGiris, PIN_ROLE_GIRIS, "", 0 },
+  { "giris", "GIRIS", DEVICE_AUTH_GIRIS, &tftGiris, PIN_ROLE_GIRIS, "", 0, { &tftGiris, Mod::Giris, Ekran::Yok, "" } },
 #ifdef IKI_KAPI
-  { "cikis", "CIKIS", DEVICE_AUTH_CIKIS, &tftCikis, PIN_ROLE_CIKIS, "", 0 },
+  { "cikis", "CIKIS", DEVICE_AUTH_CIKIS, &tftCikis, PIN_ROLE_CIKIS, "", 0, { &tftCikis, Mod::Cikis, Ekran::Yok, "" } },
 #endif
 };
 static const size_t KAPI_SAYISI = sizeof(kapilar) / sizeof(kapilar[0]);
-
-/** Türkçe harfler Adafruit fontunda yok; ismi tanınır halde bırakan en yakın karşılık. */
-static String asciile(const String& s) {
-  String o;
-  for (size_t i = 0; i < s.length(); i++) {
-    const uint8_t c = (uint8_t)s[i];
-    if (c < 0x80) { o += (char)c; continue; }
-    if (i + 1 >= s.length()) break;
-    const uint8_t d = (uint8_t)s[++i];
-    if (c == 0xC3) { o += (d == 0xB6 || d == 0x96) ? 'O' : (d == 0xBC || d == 0x9C) ? 'U' : (d == 0xA7 || d == 0x87) ? 'C' : '?'; }
-    else if (c == 0xC4) { o += (d == 0x9F || d == 0x9E) ? 'G' : (d == 0xB1) ? 'I' : (d == 0xB0) ? 'I' : '?'; }
-    else if (c == 0xC5) { o += (d == 0x9F || d == 0x9E) ? 'S' : '?'; }
-    else o += '?';
-  }
-  return o;
-}
-
-static void mesaj(Kapi& k, const char* a, const char* b, uint16_t renk) {
-  Adafruit_ILI9341& tft = *k.tft;
-  tft.fillScreen(ILI9341_BLACK);
-  tft.setTextColor(renk);
-  tft.setTextSize(2);
-  tft.setCursor(12, 140);
-  tft.println(a);
-  if (b) { tft.setTextColor(ILI9341_WHITE); tft.setTextSize(1); tft.setCursor(12, 170); tft.println(b); }
-}
 
 #ifdef TESHIS
 /**
@@ -191,6 +167,7 @@ static void mesaj(Kapi& k, const char* a, const char* b, uint16_t renk) {
  */
 static void teshisCiz(Kapi& k, const char* kod) {
   Adafruit_ILI9341& tft = *k.tft;
+  tft.setFont();  // teşhis ekranı yerleşik fontla çizer
   tft.fillScreen(ILI9341_BLACK);
   tft.setTextColor(ILI9341_WHITE);
   tft.setTextSize(2);
@@ -201,42 +178,6 @@ static void teshisCiz(Kapi& k, const char* kod) {
   tft.setCursor(6, 180);  tft.print("up:"); tft.println((int)(millis() / 1000));
 }
 #endif
-
-static void qrCiz(Kapi& k, const char* metin) {
-  Adafruit_ILI9341& tft = *k.tft;
-  QRCode qr;
-  uint8_t veri[qrcode_getBufferSize(3)];
-  qrcode_initText(&qr, veri, 3, ECC_MEDIUM, metin);
-  const int modul = 240 / (qr.size + 8);
-  const int kenar = (240 - qr.size * modul) / 2;
-  // QR biraz aşağı: üstte yön yazısına yer açıyoruz. Üye hangi taraftan geçtiğini kapıya varmadan
-  // bilmeli — yanlış ekrana okutup "olmadı" demesin (owner, 2026-08-29).
-  const int ust = 62;
-  // TEK İŞLEM, 450 DEĞİL (2026-08-28).
-  //
-  // Her `fillRect` kendi SPI işlemini açıp kapatıyordu; 21×21'lik bir QR'da bu ~450 kez demek.
-  // Tek ekranda yavaş ama görünmez; iki ekranda tur o kadar uzuyor ki ESP32'nin bekçi köpeği
-  // "bu görev takıldı" deyip kartı resetliyor — ekranda "ışık gelip gidiyor" diye görünen şey bu.
-  //
-  // `startWrite`/`endWrite` arasında `writeFillRect` işlemi bir kez açıyor: aynı çizim, tek işlem.
-  tft.startWrite();
-  tft.writeFillRect(0, 0, 240, 320, ILI9341_WHITE);
-  for (uint8_t y = 0; y < qr.size; y++)
-    for (uint8_t x = 0; x < qr.size; x++)
-      if (qrcode_getModule(&qr, x, y))
-        tft.writeFillRect(kenar + x * modul, ust + y * modul, modul, modul, ILI9341_BLACK);
-  tft.endWrite();
-  // Üstte yön, altta ne yapılacağı.
-  tft.setTextColor(ILI9341_BLACK);
-  tft.setTextSize(3);
-  tft.setCursor(k.baslik[1] == 'I' ? 62 : 62, 14);
-  tft.println(k.baslik);
-  tft.setTextSize(2);
-  tft.setCursor(30, 42);
-  tft.println("icin okutun");
-  tft.setCursor(45, ust + qr.size * modul + 16);
-  tft.println("Uygulamadan");
-}
 
 /** `adet` kısa bip. Sesin ANLAMI var: 1 = geçtin, 2 = olmadı, 3 = bağlantı yok. */
 static void bip(int adet) {
@@ -288,14 +229,15 @@ static void kodYenile(Kapi& k) {
     Serial.printf("[turnike:%s] kod: %s\n", k.ad, kod.c_str());
 #ifdef TESHIS
     teshisCiz(k, kod.c_str());
+    k.yuz.ekran = Ekran::Yok;  // teşhis ekranı UI'ın dışında çizdi; hafızası geçersiz
 #else
-    qrCiz(k, kod.c_str());
+    uiHazir(k.yuz, kod);
 #endif
   } else {
     // Süresi geçmiş bir QR, üyeyi çalışmayan bir şeye okutur ve hatanın kendisinde olduğunu
     // düşündürür. Susmak yanıltmaktan iyidir.
     k.kod = "";
-    mesaj(k, "Baglanti yok", "birazdan tekrar denenecek", ILI9341_RED);
+    uiBaglaniyor(k.yuz);
     bip(3);
     k.kodBitis = millis() + 5000;
   }
@@ -358,7 +300,7 @@ void setup() {
 
   for (size_t a = 0; a < agSayisi && WiFi.status() != WL_CONNECTED; a++) {
     Serial.printf("[turnike] deneniyor: %s\n", ssidler[a]);
-    for (size_t i = 0; i < KAPI_SAYISI; i++) mesaj(kapilar[i], "WiFi...", ssidler[a], ILI9341_YELLOW);
+    for (size_t i = 0; i < KAPI_SAYISI; i++) uiBaglaniyor(kapilar[i].yuz);
     WiFi.begin(ssidler[a], sifreler[a]);
     // Ağ başına 10 saniye: yoksa 20 saniye beklemek, VAR OLAN ağa geçmeyi o kadar geciktirir.
     for (int i = 0; i < 20 && WiFi.status() != WL_CONNECTED; i++) { delay(500); Serial.print('.'); }
@@ -376,32 +318,21 @@ static void kapiTuru(Kapi& k) {
   if (k.kod.length() == 6) {
     const String c = istek(k, "/api/turnstile/status", String("{\"code\":\"") + k.kod + "\"}");
     if (c.indexOf("\"crossed\":{") >= 0) {
-      const String ad = asciile(alanOku(c, "firstName"));
-      const String kalan = asciile(alanOku(c, "kalan"));
+      const String ad = alanOku(c, "firstName");
+      const String kalan = alanOku(c, "kalan");
       Serial.printf("[turnike:%s] GECIS: %s\n", k.ad, ad.c_str());
+
+      // "KONTROL EDİLİYOR" ÖNCE, ama YALNIZCA ALT ŞERİT (owner şartı: sistem cevap veriyor
+      // hissi). Tam ekran çizmek 2 MHz'lik veri yolunda ~0,6 s sürüyor ve kolu o kadar
+      // geciktirirdi; şerit ~0,1 s. Kol hâlâ ekrandan önce dönüyor.
+      uiKontrol(k.yuz);
 
       // Önce kol, sonra ses, sonra ekran: üye önce kolun döndüğünü hisseder, sesi duyar, en son
       // yazıya bakar — bakarsa.
       darbe(k.rolePin);
       bip(1);
 
-      Adafruit_ILI9341& tft = *k.tft;
-      tft.fillScreen(ILI9341_BLACK);
-      tft.setTextColor(ILI9341_GREEN);
-      tft.setTextSize(3);
-      tft.setCursor(20, 120);
-      tft.println("Hos geldin");
-      tft.setTextColor(ILI9341_WHITE);
-      tft.setCursor(20, 165);
-      tft.println(ad.length() ? ad.c_str() : "");
-      // Kalan hak: üyenin kapıda sorduğu tek soru. Yoksa satır hiç çizilmiyor — boş bir "kalan:"
-      // yazısı, bilgi vermemekten kötüdür.
-      if (kalan.length()) {
-        tft.setTextColor(ILI9341_YELLOW);
-        tft.setTextSize(2);
-        tft.setCursor(20, 215);
-        tft.println(kalan.c_str());
-      }
+      uiBasarili(k.yuz, ad, kalan);
       // Karşılama süresi boyunca ÖBÜR kapı beklemede. İki kişinin aynı saniyede iki taraftan
       // geçmesi nadir; buna karşılık kodu basit tutmak, turnikede debug etmeyeceğimiz anlamına
       // geliyor. Sorun olursa burası bloklamayan bir zamanlayıcıya döner.
@@ -421,16 +352,9 @@ static void kapiTuru(Kapi& k) {
       darbe(k.rolePin);
       bip(1);
 
-      Adafruit_ILI9341& tft = *k.tft;
-      tft.fillScreen(ILI9341_BLACK);
-      tft.setTextColor(ILI9341_GREEN);
-      tft.setTextSize(3);
-      tft.setCursor(20, 130);
-      tft.println("Buyurun");
-      tft.setTextColor(ILI9341_WHITE);
-      tft.setTextSize(2);
-      tft.setCursor(20, 180);
-      tft.println("Kapi acildi");
+      // İSİM YOK, UYDURULMUYOR: kimin geçtiğini bilmiyoruz. Ekran yalnızca kapının açıldığını
+      // söylüyor — bilmediğimiz bir şeyi yazmak, yazmamaktan kötüdür.
+      uiBasarili(k.yuz, "", "");
       delay(KARSILAMA_MS);
       // Kod harcanmadı: ekrandaki QR hâlâ geçerli ve bir üye onu okutabilir.
       return;
@@ -444,27 +368,16 @@ static void kapiTuru(Kapi& k) {
     // Kod da yenilenmiyor: sunucu reddederken kodu harcamadı, üye resepsiyona uğrayıp paketini
     // yeniletince aynı ekranı okutabilmeli. Yenilesek, çalışan bir kodu boşuna çöpe atardık.
     if (c.indexOf("\"refused\":{") >= 0) {
-      const String ad = asciile(alanOku(c, "firstName"));
-      Serial.printf("[turnike:%s] RET: %s (paket yok)\n", k.ad, ad.c_str());
+      Serial.printf("[turnike:%s] RET: %s (paket yok)\n", k.ad, alanOku(c, "firstName").c_str());
       bip(2);  // karşılamadan FARKLI bir ses: üye ekrana bakmadan da bir şeyin olmadığını anlar
 
-      Adafruit_ILI9341& tft = *k.tft;
-      tft.fillScreen(ILI9341_BLACK);
-      tft.setTextColor(ILI9341_RED);
-      tft.setTextSize(3);
-      tft.setCursor(20, 100);
-      tft.println("Merhaba");
-      tft.setTextColor(ILI9341_WHITE);
-      tft.setCursor(20, 145);
-      tft.println(ad.length() ? ad.c_str() : "");
-      // Suçlayıcı değil, yönlendirici. Kapıda kalmış birine "hakkınız yok" demek hem kırıcı hem
-      // işe yaramaz; ne yapacağını söylemek işe yarar.
-      tft.setTextColor(ILI9341_YELLOW);
-      tft.setTextSize(2);
-      tft.setCursor(20, 195);
-      tft.println("Lutfen resepsiyona");
-      tft.setCursor(20, 218);
-      tft.println("ugrayin");
+      // TEKNİK SEBEP EKRANA YAZILMIYOR (owner şartı). Sunucu "no_active_membership" diyor;
+      // kapıdaki üyeye söylenecek şey bu değil. Suçlayıcı değil, yönlendirici: kapıda kalmış
+      // birine "hakkınız yok" demek hem kırıcı hem işe yaramaz; ne yapacağını söylemek yarar.
+      //
+      // İsim de yazılmıyor: kırmızı bir ekranın üstündeki kendi adı, üyeyi kalabalıkta teşhir
+      // ediyor. Kim olduğunu zaten biliyor; bilmediği şey ne yapacağı.
+      uiReddedildi(k.yuz, tr("Giriş Yapılamadı").c_str(), tr("Lütfen resepsiyona uğrayın").c_str());
       delay(KARSILAMA_MS);
       return;
     }
