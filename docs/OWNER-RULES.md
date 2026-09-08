@@ -1470,4 +1470,27 @@ Devretseydi 774 binlik hata her sabah yeniden doğardı. Çekmecede fiziksel kal
 yatırıldığında `bank_deposit` çıkışıyla yazılır ([[OR-…]] kasa çıkışı) — onun yeri gün sonu değil.
 
 **Arşivlenmiş kasa açılmaz:** emekliye ayrılmış bir kasayı her sabah diriltmek, listeyi kimsenin
-kullanmadığı kasalarla doldurur.
+kullanmadığı kasalarla doldurur
+### OR-69 · AI, stüdyoda birinin gidip yapacağı hiçbir işe SÖZ VERMEZ
+
+*(2026-09-08, owner: "böyle şeylerden muhattap olmasın diğer numarayı yazsın")*
+
+Bir üye "eşyalarımı 5 numaralı dolaba koymuştuk, bakabilir misiniz" yazdı. AI *"hemen 5 numaralı
+dolaba baktırıyoruz 🌸 bulur bulmaz size haber vereceğiz 🙏"* dedi — ve arkasında kimse yoktu.
+Devretmediği için resepsiyon da öğrenmedi. Yani üyeye verilen söz hem tutulmadı hem de tutulacağı
+kimseye ulaşmadı.
+
+**Kapsam:** unutulan eşya, dolap, kayıp, arıza, temizlik, ısı/klima, ekipman, personel şikâyeti,
+sağlıkla ilgili her olay. Ortak yanları: stüdyoda FİZİKSEL bir iş isterler. AI bunları ne yapabilir
+ne de yapıldığını görebilir.
+
+**Davranış:** "baktırıyoruz / hallediyoruz / haber vereceğiz" YAZILMAZ. Kısa bir anlayış cümlesi,
+bilgi kartındaki `İLETİŞİM` numarası, ve `[[DEVRET]]` — böylece sohbet panoda "operatör bekliyor"
+olarak çıkar ve dolaba gerçekten bakılır.
+
+**Numara koda yazılmaz.** Bilgi kartının `İLETİŞİM` satırından okunur; [[OR-65]] ile aynı kaynak.
+Kaynak dosyaya bir stüdyonun numarasını yazmak, ikinci stüdyonun üyelerini Işıl'ın hattına
+yönlendirmek demektir.
+
+**Neden bu boşluk vardı:** kurallar fiyat/program uydurmayı ve rezervasyon/ödeme taahhüdünü zaten
+yasaklıyordu. "Yapamayacağın bir İŞE söz verme" diye bir kural yoktu, ve eksik olan tam da oydu.
