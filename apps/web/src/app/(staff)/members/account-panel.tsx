@@ -48,6 +48,7 @@ const METHOD: Record<string, string> = {
   pos: 'POS',
   online: 'Online',
   gift_card: 'Hediye kartı',
+  wallet: 'Cüzdan',
 }
 
 const STATUS: Record<string, { label: string; className: string }> = {
@@ -234,6 +235,7 @@ export function AccountPanel({
         memberId={memberId}
         branchId={branchId}
         drawers={drawers}
+        walletKurus={account.walletKurus}
         suggested={Math.max(0, account.balanceKurus)}
         onClose={() => setCollecting(false)}
         onDone={() => {
@@ -326,6 +328,7 @@ function CollectDialog({
   memberId,
   branchId,
   drawers,
+  walletKurus,
   suggested,
   onClose,
   onDone,
@@ -334,6 +337,7 @@ function CollectDialog({
   memberId: string
   branchId: string
   drawers: readonly Drawer[]
+  walletKurus: number
   suggested: number
   onClose: () => void
   onDone: () => void
@@ -353,7 +357,11 @@ function CollectDialog({
     }
   }, [open, suggested, drawers])
 
+  // Cüzdan kasaya girmez: o para zaten stüdyoda, sadece yer değiştiriyor. `needsDrawer` bu yüzden
+  // yalnızca nakit ve POS için açık.
   const needsDrawer = method === 'cash' || method === 'pos'
+  // Bakiyesi yoksa seçenek HİÇ görünmüyor. Görünüp reddedilmek, resepsiyona iş çıkarmaktır.
+  const yontemler = Object.entries(METHOD).filter(([id]) => id !== 'wallet' || walletKurus > 0)
   const openDrawers = drawers.filter((d) => d.status === 'open')
 
   async function submit() {
@@ -407,9 +415,9 @@ function CollectDialog({
               <SelectValue>{(v: unknown) => METHOD[String(v)] ?? 'Yöntem'}</SelectValue>
             </SelectTrigger>
             <SelectContent>
-              {Object.entries(METHOD).map(([id, label]) => (
+              {yontemler.map(([id, label]) => (
                 <SelectItem key={id} value={id}>
-                  {label}
+                  {id === 'wallet' ? `${label} (${tl(walletKurus)})` : label}
                 </SelectItem>
               ))}
             </SelectContent>

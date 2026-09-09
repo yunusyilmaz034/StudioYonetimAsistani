@@ -141,7 +141,11 @@ export async function collectAction(input: unknown) {
       memberId: nonEmpty,
       branchId: nonEmpty,
       amountKurus: kurus.refine((v) => v > 0, 'Tutar sıfırdan büyük olmalı'),
-      method: paymentSchema.shape.method,
+      // CÜZDAN BURADA (owner, 2026-09-09). Çekirdekteki `collect` cüzdanı zaten destekliyordu —
+      // bakiyeyi düşürüyor, yetmezse reddediyor, testi de var — ama panelin çağırdığı liste onu
+      // taşımıyordu. Sonucu: kafe borcu açık, üyenin cüzdanında para, ve ikisini birleştiren
+      // hiçbir düğme yok. Bu ay dördüncü kez aynı şekil: mekanizma var, çağıran yer kullanmıyor.
+      method: z.enum(['cash', 'bank_transfer', 'credit_card', 'pos', 'online', 'gift_card', 'wallet']),
       receivedAtMs: z.number().optional(),
       drawerId: z.string().nullable().default(null),
       giftCardCode: z.string().nullable().default(null),
@@ -214,7 +218,11 @@ export async function memberAccountAction(input: unknown) {
   const p = z.object({ memberId: nonEmpty }).parse(input)
   const ctx = await requireTenantContext(OPS)
   const account = await loadMemberAccount(deps(), ctx, p.memberId as MemberId)
+  // Cüzdan bakiyesi de dönüyor: tahsilat ekranı "cüzdandan tahsil et"i ancak parayı GÖRÜRSE
+  // sunabilir, ve resepsiyona boş bir seçenek göstermek onu bir hatayla tanıştırmaktır.
+  const wallet = await deps().repo.getWalletByMember(ctx, p.memberId as MemberId)
   return {
+    walletKurus: wallet?.balance.amount ?? 0,
     balanceKurus: account.balanceKurus,
     totalSoldKurus: account.totalSoldKurus,
     totalPaidKurus: account.totalPaidKurus,
