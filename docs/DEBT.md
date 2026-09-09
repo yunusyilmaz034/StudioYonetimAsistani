@@ -1198,3 +1198,31 @@ yerde unutulur — `foldTr`da tam olarak bu olmuştu (2026-09-02).
 
 **Belirti, geri geldiğinde:** "kaydedilemedi diyor ama sorun yok" diye gelen her şikayet. Log'da
 karşılığı `POST … → 404`tür.
+
+## DEBT-044 · Turnike ekranları bazen hiç başlamıyor, ve bunu SORAMIYORUZ (2026-09-08)
+
+**Belirti.** Açılışta iki ekran birden beyaz kalıyor. Beyaz, "çizim yarıda kaldı" değil, **panel hiç
+yapılandırılmadı** demektir: arka ışık yanıyor, ILI9341 ayarsız. Takıp çıkarınca düzeliyor, ve aynı
+firmware onlarca kez sorunsuz açılıyor.
+
+**Ne biliyoruz.** İki ekran hep BİRLİKTE gidiyor. Ayrı olan tek pin `CS`; `RST(8) · DC(13) ·
+SCK(12) · MOSI(11) · 3V3 · GND` ortak. Yani suçlu paylaşılan bir hat ya da paylaşılan rayın kendisi.
+Ekranlar bu kartta 3.3 V rayındaki en ağır yük, ve bu ray daha önce iki kez ekranları düşürdü
+(boşta bırakılan buzzer pini; `GPIO 6`ya sürülen HIGH).
+
+**Neden borç.** İki tarafı da körüz:
+
+1. **Panel okunamıyor.** `SPI.begin(PIN_SCK, -1, PIN_MOSI, -1)` — `MISO` bağlı değil, yani
+   `readcommand8` ile "başladın mı?" diye soramıyoruz. Başlatmanın tuttuğunu doğrulamanın yolu yok.
+2. **Seri port yok.** Bu kart macOS'a tek bayt vermiyor (`CDC_ON_BOOT`, `USB_MODE`, DTR — hepsi
+   denendi, 8 Eylül'de bir kez daha). Kutu `loop()`a geliyor mu, yeniden mi başlıyor, bilemiyoruz.
+   Ekran zaten tek log'umuzdu; ekranın kendisi bozulunca elimizde hiçbir şey kalmıyor.
+
+**Bugün alınan pay (çözüm değil).** Arka ışık artık başlatmadan SONRA yanıyor — iki modülü tepe
+akımdan çıkarıyor; ve başlatma iki kez çalışıyor: ilk tur düşerse ikincisi 150 ms sonra tutuyor.
+İkisi de olasılığı düşürüyor, hiçbiri garanti vermiyor.
+
+**Ödeme tetiği (tarih değil, koşul).** Bu arıza montajdan SONRA bir kez daha görülürse, tahminle
+uğraşmayı bırakıp enstrümanı kur: `MISO`yu bağla ve başlatmayı `readcommand8` ile doğrula, tutmazsa
+tekrar dene. Turnike gövdesinde titreşim var; orada "bazen açılmıyor" diye bir kutu, kapıda kalan
+üye demektir ve körlemesine aranamaz.

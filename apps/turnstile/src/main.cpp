@@ -259,21 +259,50 @@ void setup() {
   // Röleler ÖNCE serbest bırakılıyor: açılışta bir anlık tetik, kapıyı kimse okutmadan açardı.
   for (size_t i = 0; i < KAPI_SAYISI; i++) pinMode(kapilar[i].rolePin, INPUT);
 
+  // ── ARKA IŞIK, BAŞLATMADAN SONRA (owner, 2026-09-08 gecesi — montajdan sonra beyaz ekran) ──
+  //
   // Tek arka ışık pini iki ekranı da yakıyor: o bacak modüldeki transistörün bazını sürüyor, akımı
   // ekranın kendi VCC'sinden çekiyor. İki modül için bir GPIO fazlasıyla yeter.
+  //
+  // ÖNCEDEN BURADA `HIGH` YAZIYORDU ve iki arka ışık, paneller yapılandırılırken zaten yanıyordu.
+  // Montajdan sonra kutuya yeni yükler girdi (röle kartının 5 V'u gerçekten bağlandı, buzzer
+  // takılı) ve besleme USB'den geliyor. Ray sıkışınca panel HİÇ başlamıyor — ve yapılandırılmamış
+  // bir ILI9341, arka ışığı yanan BEYAZ bir dikdörtgendir. "Bazen beyaz geliyor, takıp çıkarınca
+  // düzeliyor" tarifi tam olarak budur: her açılışta yarışı bazen kazanıyor, bazen kaybediyor.
+  //
+  // Arka ışık artık en son yanıyor: başlatma anındaki tepe akımdan iki modülü birden çıkarıyoruz.
+  // Bu bir ÇÖZÜM DEĞİL, PAYDIR — beslemesi yetersiz bir kutuyu yazılım kurtaramaz (DEBT-044).
   pinMode(PIN_LED, OUTPUT);
-  digitalWrite(PIN_LED, HIGH);
+  digitalWrite(PIN_LED, LOW);
 
   // CS'siz başlatılıyor: her ekran kendi CS'ini kendi nesnesinden sürüyor, veri yolu ortak.
   SPI.begin(PIN_SCK, -1, PIN_MOSI, -1);
+  delay(120);  // ray otursun: açılışta USB regülatörü henüz toparlanıyor
 
   // ÖNCE İKİSİNİ DE BAŞLAT, SONRA ÇİZ. `RESET` hattı ortak: ikinci ekranın `begin()`'i o hattı
   // darbeliyor ve BİRİNCİ ekranı siliyor. Başlatıp hemen çizersen, birinci ekran bir sonraki
   // satırda kararıyor — ve bunu "ekran bozuk" diye okursun.
-  for (size_t i = 0; i < KAPI_SAYISI; i++) {
-    kapilar[i].tft->begin(2000000);
-    kapilar[i].tft->setRotation(0);
+  //
+  // İKİ KEZ, BİLEREK. Panelde MISO bağlı değil (`SPI.begin(..., -1, ...)`), yani başladı mı diye
+  // SORAMIYORUZ — okuma yolu fiziksel olarak yok. Soramadığımıza göre tekrar ediyoruz: ilk tur
+  // rayın en sıkışık anına denk gelip düşerse, ikincisi 150 ms sonra sakin bir rayda tutar.
+  // Tur BÜTÜN olarak tekrarlanıyor, tek tek değil: `giris`in `begin()`'i ortak `RESET`i darbeleyip
+  // `cikis`i siler, dolayısıyla ikisi hep birlikte kurulmalı.
+  for (int tur = 0; tur < 2; tur++) {
+    for (size_t i = 0; i < KAPI_SAYISI; i++) {
+      kapilar[i].tft->begin(2000000);
+      kapilar[i].tft->setRotation(0);
+    }
+    if (tur == 0) delay(150);
   }
+  // Ekranı KARART, sonra ışığı yak. Sırası önemli: önce ışığı yakıp sonra karartırsak, açılışta
+  // bir anlık beyaz parlama olur ve o parlama tam da teşhis etmeye çalıştığımız belirtiye benzer.
+  for (size_t i = 0; i < KAPI_SAYISI; i++) kapilar[i].tft->fillScreen(0x0863);
+  digitalWrite(PIN_LED, HIGH);
+  // TEŞHİS: bu satır seri portta görünüyorsa panel başlatma TAMAMLANMIŞ demektir. Beyaz ekran
+  // varken bu satır YOKSA kutu buraya hiç gelmiyor — yani sorun başlatmada değil, ondan
+  // öncesinde. Ekrandan bakınca ikisi aynı görünüyor; bu satır ikisini ayırıyor.
+  Serial.println("[turnike] ekranlar hazir, arka isik acik");
   // İKİ AĞ, TEK KART (owner, 2026-09-01).
   //
   // Kart evde kuruldu, turnike dükkânda. Tek ağ yazılı olsaydı montaj gecesi kutu hiçbir şey
@@ -385,7 +414,16 @@ static void kapiTuru(Kapi& k) {
   if (millis() > k.kodBitis) kodYenile(k);
 }
 
+// AÇILIŞ SAYACI. Kutu kendiliğinden yeniden başlıyorsa bu sayaç sıfırlanır: seri portta "tur 60"
+// yerine tekrar tekrar "tur 20" görüyorsan sorun ekranda değil, kartın yeniden başlamasındadır —
+// ve o ikisi ekrandan bakınca AYNI görünür.
+static uint32_t tur = 0;
+
 void loop() {
+  if (++tur % 20 == 0)
+    Serial.printf("[turnike] tur %u · calisma %u sn · heap %u · wifi %s\n", (unsigned)tur,
+                  (unsigned)(millis() / 1000), (unsigned)ESP.getFreeHeap(),
+                  WiFi.status() == WL_CONNECTED ? "ok" : "yok");
   for (size_t i = 0; i < KAPI_SAYISI; i++) {
     kapiTuru(kapilar[i]);
     delay(1);  // iki kapı arasında nefes: uzun çizimden sonra görev sırasını bırak
