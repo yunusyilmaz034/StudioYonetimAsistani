@@ -132,6 +132,10 @@ struct Kapi {
   const char* auth;            // cihazın Bearer kimliği
   Adafruit_ILI9341* tft;
   int rolePin;
+  // EKRANIN FİZİKSEL DURUŞU (owner, 2026-09-09): çıkış ekranı gövdeye ters monte edildi, tutacağı
+  // öbür tarafa geliyor. Kodun döndürmesi, panelin sökülüp çevrilmesinden ucuz — ve montaj bir kez
+  // yapılıyor. 0 = düz, 2 = 180°. Yerleşim dikey kaldığı için bütün koordinatlar aynen geçerli.
+  uint8_t rotasyon;
   String kod;
   uint32_t kodBitis;
   Yuz yuz;   // ekranın çizim durumu — UI katmanının tek hafızası
@@ -147,9 +151,9 @@ struct Kapi {
 // Bayrak yerinde duruyor: bir sorun çıkarsa `platformio.ini`den o satırı silmek, kurulumu tek
 // kapıyla ayakta tutar.
 static Kapi kapilar[] = {
-  { "giris", "GIRIS", DEVICE_AUTH_GIRIS, &tftGiris, PIN_ROLE_GIRIS, "", 0, { &tftGiris, Mod::Giris, Ekran::Yok, "" } },
+  { "giris", "GIRIS", DEVICE_AUTH_GIRIS, &tftGiris, PIN_ROLE_GIRIS, 0, "", 0, { &tftGiris, Mod::Giris, Ekran::Yok, "" } },
 #ifdef IKI_KAPI
-  { "cikis", "CIKIS", DEVICE_AUTH_CIKIS, &tftCikis, PIN_ROLE_CIKIS, "", 0, { &tftCikis, Mod::Cikis, Ekran::Yok, "" } },
+  { "cikis", "CIKIS", DEVICE_AUTH_CIKIS, &tftCikis, PIN_ROLE_CIKIS, 2, "", 0, { &tftCikis, Mod::Cikis, Ekran::Yok, "" } },
 #endif
 };
 static const size_t KAPI_SAYISI = sizeof(kapilar) / sizeof(kapilar[0]);
@@ -291,7 +295,7 @@ void setup() {
   for (int tur = 0; tur < 2; tur++) {
     for (size_t i = 0; i < KAPI_SAYISI; i++) {
       kapilar[i].tft->begin(2000000);
-      kapilar[i].tft->setRotation(0);
+      kapilar[i].tft->setRotation(kapilar[i].rotasyon);
     }
     if (tur == 0) delay(150);
   }
