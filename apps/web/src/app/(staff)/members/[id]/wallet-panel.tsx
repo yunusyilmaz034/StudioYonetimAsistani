@@ -13,10 +13,12 @@ import { PaytrCheckoutDialog, type PaytrCheckout } from '@/components/paytr-chec
 import { createWalletTopupPaymentAction } from '@/server/actions/payments'
 import { adjustMemberWalletAction, getMemberWalletAction, topUpMemberWalletAction } from '@/server/actions/wallet'
 
-const SOURCES: { id: 'cash' | 'bank_transfer' | 'manual'; label: string }[] = [
+// 'manual' listeden ÇIKMADI, düğmesi kalktı: eski yüklemeler o kaynakla yazılı ve geçmiş
+// okunabilir kalmalı. Yeni yükleme artık gerçek kaynağını söylüyor.
+const SOURCES: { id: 'cash' | 'bank_transfer' | 'pos'; label: string }[] = [
   { id: 'cash', label: 'Nakit' },
   { id: 'bank_transfer', label: 'Havale' },
-  { id: 'manual', label: 'Fiziksel POS' },
+  { id: 'pos', label: 'Fiziksel POS' },
 ]
 const REASONS: { id: 'gift' | 'correction' | 'migration' | 'support'; label: string }[] = [
   { id: 'gift', label: 'Hediye' },
@@ -29,7 +31,7 @@ const dt = (ms: number) => new Date(ms).toLocaleString('tr-TR', { timeZone: 'Eur
 export function WalletPanel({ memberId, memberPhone = null }: { memberId: string; memberPhone?: string | null }) {
   const [wallet, setWallet] = useState<StoredWallet | null>(null)
   const [amount, setAmount] = useState('')
-  const [source, setSource] = useState<'cash' | 'bank_transfer' | 'manual'>('cash')
+  const [source, setSource] = useState<'cash' | 'bank_transfer' | 'pos'>('cash')
   const [checkout, setCheckout] = useState<PaytrCheckout | null>(null)
   const [busy, setBusy] = useState(false)
   const [showAdjust, setShowAdjust] = useState(false)
@@ -132,7 +134,7 @@ export function WalletPanel({ memberId, memberPhone = null }: { memberId: string
         </div>
       </Section>
 
-      <Section title="Bakiye Yükle" hint="Nakit tahsilat kasaya işlenir; havale/fiziksel POS yalnızca bakiyeye yazılır. Sanal POS / Link ile de yükleyebilirsiniz.">
+      <Section title="Bakiye Yükle" hint="Nakit ve fiziksel POS açık kasaya işlenir; havale yalnızca bakiyeye yazılır. Sanal POS / Link ile de yükleyebilirsiniz.">
         <div className="space-y-2">
           <div className="flex flex-wrap items-end gap-2">
             <div className="w-32">

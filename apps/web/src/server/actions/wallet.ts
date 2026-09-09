@@ -36,16 +36,27 @@ export async function topUpMemberWalletAction(input: unknown) {
     .object({
       memberId: z.string().min(1),
       amountKurus: z.number().int().positive(),
-      source: z.enum(['cash', 'bank_transfer', 'manual']),
+      // 'pos' EKLENDİ (owner onayı, 2026-09-09). Fiziksel POS'tan yapılan yükleme 'manual' olarak
+      // yazılıyordu: kasaya girmiyor, kart cirosunda görünmüyordu. 9 Eylül'de kartla çekilen 160 ₺
+      // defterde hiçbir kasada yoktu. `WalletTopupSource` 'pos'u ZATEN tanıyordu ve `topUpWallet`
+      // `drawerId` verilince kasa deltasını uyguluyordu — eksik olan yalnızca buraya gelen yoldu.
+      // Bu ay beşinci kez aynı şekil: mekanizma var, çağıran yer kullanmıyor.
+      source: z.enum(['cash', 'bank_transfer', 'manual', 'pos']),
       drawerId: z.string().min(1).nullable().optional(),
     })
     .parse(input)
   const ctx = await requireTenantContext(OPS)
 
-  // Cash physically enters a till — pick the honoured open cash drawer, else the single open one.
+  // Para fiziksel olarak bir kasaya girer: nakit NAKİT kasasına, kart POS kasasına. Havale hiçbir
+  // kasaya girmez — banka hesabına gider ve stüdyonun çekmecesinde karşılığı yoktur.
+  //
+  // Açık kasa yoksa `drawerId` null kalır ve yükleme yine YAPILIR, sadece kasaya işlenmez. Kasası
+  // kapalı diye üyenin parasını reddetmek, resepsiyonu kasa açmaya zorlamak için üyeyi bekletmektir;
+  // ve bu stüdyoda POS kasası bugün hiç tanımlı değil.
+  const drawerKind: 'cash' | 'pos' | null = p.source === 'cash' ? 'cash' : p.source === 'pos' ? 'pos' : null
   let drawerId: string | null = null
-  if (p.source === 'cash') {
-    const open = (await financeDeps().repo.listDrawers(ctx)).filter((d) => d.status === 'open' && d.kind === 'cash')
+  if (drawerKind) {
+    const open = (await financeDeps().repo.listDrawers(ctx)).filter((d) => d.status === 'open' && d.kind === drawerKind)
     drawerId = (p.drawerId ? open.find((d) => d.id === p.drawerId)?.id : undefined) ?? open[0]?.id ?? null
   }
 
