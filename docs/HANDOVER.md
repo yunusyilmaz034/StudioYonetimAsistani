@@ -905,7 +905,18 @@ Belgenin §5'i asıl uyarı: **ikinci kapı takılmadan önce WiFi'nin cihaz üs
 kimliğinin panelden üretilmesi gerekiyor.** Bugün ikisi de elle yapılıyor, yani her kurulum bir Mac ve
 bir yazılımcı istiyor. Parça meselesi değil, ve Faz 2.
 
-**KARTTAKİ SÜRÜM: `turnike-v1.1` — ekran yenilendi (8 Eylül). Bir önceki kilitli hâl `turnike-v1.0`.**
+**KARTTAKİ SÜRÜM: `turnike-v1.2` — KİLİTLİ** (owner, 9 Eylül: *"oldu düz durdu şimdi bu konuyu
+kilitleyelim ben montaja geçiyorum"*). Önceki kilitli hâller: `turnike-v1.1` (yeni ekran),
+`turnike-v1.0` (ilk çalışan sürüm).
+
+`v1.1` üstüne iki şey taşıyor, ikisi de karta atılıp gözle doğrulandı:
+1. **Başlatma dayanıklılığı** — arka ışık başlatmadan sonra yanıyor, panel başlatma iki kez
+   çalışıyor. Beyaz ekran arızasına karşı **pay**, çözüm değil; gerekçesi [[DEBT-044]]'te.
+2. **Çıkış ekranı 180° dönük** — panel gövdeye ters monte edildi. Rotasyon kapının alanında
+   (`Kapi.rotasyon`), çizim katmanında değil: bu ünitenin montaj olgusu, ekranın tasarımı değil.
+
+**Montaja bu sürümle gidildi.** Turnike bağlandıktan sonra firmware'e dokunulacaksa önce bu
+etikete dön, üstüne TEK değişiklik koy, karta at ve ekranlara bak.
 
 ### 🖥️ Turnike ekranı yeniden yazıldı (8 Eylül)
 
