@@ -7,7 +7,12 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { domainErrorMessage } from '@/lib/domain-error'
 import { isStaleDeployment, STALE_DEPLOYMENT_MESSAGE } from '@/lib/stale-deployment'
-import { listRetailProductsAction, sellRetailProductAction, type RetailProductRow } from '@/server/actions/retail'
+import {
+  listRetailProductsAction,
+  memberCafeHistoryAction,
+  sellRetailProductAction,
+  type RetailProductRow,
+} from '@/server/actions/retail'
 
 // ── KAFE SATIŞI (owner, 2026-09-04) ─────────────────────────────────────────────────────────
 //
@@ -30,13 +35,23 @@ export function CafePanel({ memberId, memberName }: { memberId: string; memberNa
   const [qty, setQty] = useState<Record<string, number>>({})
   const [busy, setBusy] = useState(false)
   const [loading, setLoading] = useState(true)
+  // GEÇMİŞ BURADA DA GÖRÜNÜYOR (owner, 2026-09-09): *"kafe satışında ödemiş mesela orada gözükmüyor
+  // ama kişiye girince borçlu gözüküyor."* Bu sekme bir kasaydı; ne alındığı ve neyin ödendiği
+  // yalnızca Cari Hesap'ta duruyordu. Aynı kayıt, ikinci bir defter değil.
+  const [gecmis, setGecmis] = useState<Awaited<ReturnType<typeof memberCafeHistoryAction>> | null>(null)
+
+  const gecmisYukle = () =>
+    memberCafeHistoryAction({ memberId })
+      .then(setGecmis)
+      .catch(() => setGecmis(null))
 
   useEffect(() => {
     void listRetailProductsAction()
       .then((r) => setProducts(r.filter((p) => p.active)))
       .catch(() => setProducts([]))
       .finally(() => setLoading(false))
-  }, [])
+    void gecmisYukle()
+  }, [memberId])
 
   const secili = Object.entries(qty).filter(([, n]) => n > 0)
   const toplam = secili.reduce((sum, [id, n]) => sum + (products.find((p) => p.id === id)?.priceInKurus ?? 0) * n, 0)
@@ -57,6 +72,7 @@ export function CafePanel({ memberId, memberName }: { memberId: string; memberNa
         setQty({})
         // Stok düştü: raf sayıları ekranda kalmasın.
         void listRetailProductsAction().then((x) => setProducts(x.filter((p) => p.active)))
+        void gecmisYukle()
       } else {
         toast.error(domainErrorMessage(r.error))
       }
@@ -130,6 +146,47 @@ export function CafePanel({ memberId, memberName }: { memberId: string; memberNa
           <p className="text-xs text-muted-foreground">
             Hesabına yazılan tutar Cari Hesap’ta ve üyenin uygulamasında görünür; nakit/kart açık kasaya işlenir.
           </p>
+        </div>
+      ) : null}
+
+      {gecmis && gecmis.rows.length > 0 ? (
+        <div className="space-y-2">
+          <div className="flex items-baseline justify-between">
+            <h3 className="text-sm font-semibold text-foreground">Kafe geçmişi</h3>
+            {gecmis.dueKurus > 0 ? (
+              <span className="text-sm font-semibold tabular-nums text-warning">
+                Ödenmemiş: {tl(gecmis.dueKurus)}
+              </span>
+            ) : (
+              <span className="text-sm text-success">Borç yok</span>
+            )}
+          </div>
+          <ul className="divide-y divide-border rounded-xl border border-border">
+            {gecmis.rows.map((r) => (
+              <li key={r.id} className="flex items-start justify-between gap-3 px-3 py-2">
+                <div className="min-w-0">
+                  <p className="truncate text-sm text-foreground">
+                    {r.lines.map((l) => (l.quantity > 1 ? `${l.name} ×${l.quantity}` : l.name)).join(', ')}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {new Date(r.at).toLocaleString('tr-TR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                  </p>
+                </div>
+                <div className="shrink-0 text-right">
+                  <p className="text-sm font-medium tabular-nums text-foreground">{tl(r.totalKurus)}</p>
+                  {/* Ödendi mi, ödenmedi mi — bu sekmenin cevaplamadığı soru buydu. */}
+                  <p className={r.dueKurus > 0 ? 'text-xs text-warning' : 'text-xs text-success'}>
+                    {r.dueKurus > 0 ? `${tl(r.dueKurus)} borç` : 'Ödendi'}
+                  </p>
+                </div>
+              </li>
+            ))}
+          </ul>
+          {gecmis.dueKurus > 0 ? (
+            <p className="text-xs text-muted-foreground">
+              Tahsilat Cari Hesap sekmesinden yapılır — nakit, kart ya da üyenin cüzdanından.
+            </p>
+          ) : null}
         </div>
       ) : null}
     </div>

@@ -203,3 +203,40 @@ export async function sellRetailProductAction(input: unknown) {
   }
   return result
 }
+
+/**
+ * ÜYENİN KAFE GEÇMİŞİ — ne aldı, ne ödedi, ne borçlu (owner, 2026-09-09).
+ *
+ * *"Kafe satışında ödemiş mesela orada gözükmüyor ama kişiye girince borçlu gözüküyor."*
+ *
+ * Kafe sekmesi bugüne kadar yalnızca bir KASA'ydı: ürün ızgarası ve satış düğmeleri. Ne alındığını,
+ * neyin ödendiğini, ne kadar borç kaldığını göstermiyordu — o bilgi yalnızca Cari Hesap'ta vardı.
+ * Sonuç, resepsiyonun iki ekran arasında gidip gelmesi ve "ödemiş miydi?" sorusunun kafe ekranında
+ * cevapsız kalması.
+ *
+ * AYRI BİR DEFTER AÇILMIYOR: kaynak yine `sales`. Kafe satırı taşıyan satışlar süzülüyor, o kadar.
+ * İkinci bir defter, "üye ne kadar borçlu" sorusunun iki cevabı demektir.
+ */
+export async function memberCafeHistoryAction(input: unknown) {
+  const p = z.object({ memberId: z.string().min(1) }).parse(input)
+  const ctx = await requireTenantContext(OPS)
+  const sales = await financeDeps().repo.listSalesByMember(ctx, p.memberId as MemberId)
+
+  const rows = sales
+    .filter((s) => s.status !== 'cancelled' && s.lines.some((l) => Boolean(l.retailProductId)))
+    .sort((a, b) => Number(b.soldAt) - Number(a.soldAt))
+    .slice(0, 50) // ekranda okunabilir bir pencere; kafe geçmişi bir muhasebe defteri değil
+    .map((s) => ({
+      id: s.id,
+      at: Number(s.soldAt),
+      totalKurus: s.total.amount,
+      paidKurus: s.paid.amount,
+      // Borç TÜRETİLİYOR, saklanmıyor: iki sayının farkı, üçüncü bir alanın yalan söyleme ihtimalinden iyidir.
+      dueKurus: Math.max(0, s.total.amount - s.paid.amount),
+      lines: s.lines
+        .filter((l) => Boolean(l.retailProductId))
+        .map((l) => ({ name: l.description, quantity: l.quantity, totalKurus: l.unitPrice.amount * l.quantity })),
+    }))
+
+  return { dueKurus: rows.reduce((n, r) => n + r.dueKurus, 0), rows }
+}
