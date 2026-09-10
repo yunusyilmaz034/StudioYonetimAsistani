@@ -22,6 +22,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Section } from '@/components/ui/section'
+import { TurnstileDevicesPanel } from './turnstile-devices-panel'
 import { RetailPanel } from './retail-panel'
 import { Textarea } from '@/components/ui/textarea'
 import { domainErrorMessage } from '@/lib/domain-error'
@@ -348,6 +349,9 @@ export function DefinitionsPanel({ branchId, canManage = false }: { branchId: st
           ekranından yapılır.
         </p>
       </Section>
+
+      {/* Kapı cihazları — ikinci stüdyodan önce kapatılması gereken üç işten biri. */}
+      <TurnstileDevicesPanel branchId={branchId} canManage={canManage} />
 
       {/* Ürünler (Retail) — Plus Phase 6. Physical items sold alongside packages. */}
       <RetailPanel canManage={canManage} />

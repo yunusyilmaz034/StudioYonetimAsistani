@@ -1,6 +1,6 @@
 'use server'
 
-import { createHash, randomInt } from 'node:crypto'
+import { createHash, randomBytes, randomInt } from 'node:crypto'
 import { type NextRequest } from 'next/server'
 import { z } from 'zod'
 
@@ -12,7 +12,11 @@ import {
   FirestoreReservationRepository,
   issueTurnstileCode,
   openTurnstileManually,
+  registerDevice,
+  rotateDeviceSecret,
+  setDeviceActive,
   systemClock,
+  type BranchId,
   type CheckinDeps,
   type DeviceId,
   type MemberId,
@@ -263,4 +267,72 @@ export async function listTurnstilesAction() {
     // düğme koymak, resepsiyona hangisinin açıldığını tahmin ettirmek olurdu.
     side: (d as { side?: 'in' | 'out' }).side ?? null,
   }))
+}
+
+// ── CİHAZ YÖNETİMİ (owner onayı, 2026-09-11 — ikinci stüdyo hazırlığı) ──────────────────────
+//
+// İlk iki cihaz ELLE oluşturulmuştu; panelde ekleme ekranı yoktu. Yani her yeni kapı bir Mac, bir
+// yazılımcı ve bir gece demekti. `TURNSTILE-HARDWARE.md` §5 bunu ikinci stüdyodan önce kapatılacak
+// üç işten biri olarak yazmıştı, ve sebebi de: *"ikinci kapı takıldığı anda bunlar birer arıza
+// olarak geri gelir."*
+//
+// SIR BİR KEZ GÖSTERİLİR. Veritabanında yalnızca SHA-256 özeti duruyor. Kaybolursa üretilmez,
+// DÖNDÜRÜLÜR — çünkü sırrı geri getirebilen bir sistem, onu saklıyor demektir ve o zaman
+// veritabanını okuyabilen herkes kapıyı açabilir.
+//
+// OWNER-ONLY. Resepsiyon kapıyı AÇAR ama kapının anahtarını üretmez: bu ayrım, panelin
+// yetkilendirmesinin taşıdığı en pahalı ayrımlardan biri.
+
+const OWNER_ONLY = ['owner', 'platform_admin'] as const
+
+export async function createTurnstileDeviceAction(input: unknown) {
+  const p = z
+    .object({
+      name: z.string().trim().min(1).max(60),
+      branchId: z.string().min(1),
+      side: z.enum(['in', 'out']).nullable().default(null),
+    })
+    .parse(input)
+  const ctx = await requireTenantContext(OWNER_ONLY)
+
+  // Kimlik ve sır BURADA üretiliyor — domain saf kalsın diye (`Math.random` orada yasak) ve
+  // rastgeleliği tohumlanabilir bir yerde tutmak sınanabilirlik için tek yol.
+  const deviceId = `dev_${randomBytes(10).toString('hex')}` as DeviceId
+  // 24 bayt: tahmin edilemez, ve `deviceId.secret` biçiminde bir HTTP başlığına sığacak kadar kısa.
+  const secret = randomBytes(24).toString('base64url')
+
+  const res = await registerDevice(deps(), ctx, {
+    deviceId,
+    branchId: p.branchId as BranchId,
+    name: p.name,
+    side: p.side,
+    secretHash: sha256(secret),
+  })
+  if (!res.ok) return { ok: false as const, error: res.error }
+
+  // BİR KEZ. Çağıran ekran bunu gösterir ve bir daha hiçbir yerden okunamaz.
+  return { ok: true as const, deviceId: deviceId as string, pairing: `${deviceId}.${secret}` }
+}
+
+export async function rotateTurnstileSecretAction(input: unknown) {
+  const p = z.object({ deviceId: z.string().min(1), reason: z.string().trim().min(1).max(200) }).parse(input)
+  const ctx = await requireTenantContext(OWNER_ONLY)
+  const secret = randomBytes(24).toString('base64url')
+  const res = await rotateDeviceSecret(deps(), ctx, {
+    deviceId: p.deviceId as DeviceId,
+    secretHash: sha256(secret),
+    reason: p.reason,
+  })
+  if (!res.ok) return { ok: false as const, error: res.error }
+  // Eski sır bu satırdan itibaren ÖLÜ: duvardaki kutu yeni sırrı alana kadar kapı açmayacak, ve
+  // bu bilerek böyle — kaybolmuş bir anahtarı bir süre daha geçerli tutmanın adı sızıntıdır.
+  return { ok: true as const, pairing: `${p.deviceId}.${secret}` }
+}
+
+export async function setTurnstileDeviceActiveAction(input: unknown) {
+  const p = z.object({ deviceId: z.string().min(1), active: z.boolean() }).parse(input)
+  const ctx = await requireTenantContext(OWNER_ONLY)
+  const res = await setDeviceActive(deps(), ctx, { deviceId: p.deviceId as DeviceId, active: p.active })
+  if (!res.ok) return { ok: false as const, error: res.error }
+  return { ok: true as const }
 }

@@ -22,6 +22,10 @@ import {
   MEMBER_AUTO_CHECKED_OUT,
   MEMBER_CHECKED_IN,
   MEMBER_CHECKED_OUT,
+  DEVICE_DEACTIVATED,
+  DEVICE_REACTIVATED,
+  DEVICE_REGISTERED,
+  DEVICE_SECRET_ROTATED,
   MEMBER_ENTRY_REFUSED,
   TURNSTILE_OPENED_MANUALLY,
 } from '../events'
@@ -317,4 +321,83 @@ export function decideOpenTurnstileManually(
       payload: { deviceId: deviceId as string, reason },
     },
   ])
+}
+
+// ── KAPI CİHAZLARININ YAŞAM DÖNGÜSÜ (owner onayı, 2026-09-11) ───────────────────────────────
+//
+// SIR BURADA ÜRETİLMİYOR. `secretHash` DIŞARIDAN geliyor, tıpkı `issueTurnstileCode`ın rastgele
+// haneleri dışarıdan alması gibi: rastgelelik saf bir karar fonksiyonunda olamaz, ve tohumlanamayan
+// bir üreteç sınanamaz. Burada yalnızca KURALLAR var.
+
+export function decideRegisterDevice(
+  ctx: DecideContext,
+  existing: TurnstileDevice | null,
+  input: { deviceId: DeviceId; branchId: BranchId; name: string; side: 'in' | 'out' | null; secretHash: string },
+): Result<{ next: TurnstileDevice; events: NewEvent[] }, DomainError> {
+  // Aynı kimlikle ikinci bir kayıt, çalışan bir kapının sırrını sessizce değiştirirdi: kutu duvarda
+  // kalır, artık kimse açamaz, ve sebebi hiçbir yerde yazmaz.
+  if (existing) return err({ code: 'operation_not_applicable' })
+  if (input.name.trim() === '') return err({ code: 'reason_required' })
+  const next: TurnstileDevice = {
+    id: input.deviceId,
+    studioId: ctx.studioId,
+    branchId: input.branchId,
+    name: input.name.trim(),
+    secretHash: input.secretHash,
+    active: true,
+    side: input.side,
+    lastSeenAt: null,
+    createdAt: ctx.now,
+  }
+  return ok({
+    next,
+    events: [
+      {
+        ...base(ctx, 'branch', input.deviceId as string, input.branchId, { deviceId: input.deviceId as string }),
+        type: DEVICE_REGISTERED,
+        payload: { deviceId: input.deviceId as string, name: next.name, side: input.side },
+      },
+    ],
+  })
+}
+
+/** Sır döndürme: eski sır o anda ölür. Sebep ZORUNLU — kaybolan bir kutu ile rutin bir yenileme
+ *  aynı şey değildir, ve altı ay sonra ikisini ayıran tek şey bu satırdır. */
+export function decideRotateDeviceSecret(
+  ctx: DecideContext,
+  device: TurnstileDevice,
+  secretHash: string,
+  reason: string,
+): Result<{ next: TurnstileDevice; events: NewEvent[] }, DomainError> {
+  if (reason.trim() === '') return err({ code: 'reason_required' })
+  const next: TurnstileDevice = { ...device, secretHash }
+  return ok({
+    next,
+    events: [
+      {
+        ...base(ctx, 'branch', device.id as string, device.branchId, { deviceId: device.id as string }),
+        type: DEVICE_SECRET_ROTATED,
+        payload: { deviceId: device.id as string, reason: reason.trim() },
+      },
+    ],
+  })
+}
+
+/** Devre dışı bırakmak SİLMEK değildir: cihazın geçmişi duruyor, yalnızca artık kapıyı açmıyor. */
+export function decideSetDeviceActive(
+  ctx: DecideContext,
+  device: TurnstileDevice,
+  active: boolean,
+): { next: TurnstileDevice; events: NewEvent[] } {
+  if (device.active === active) return { next: device, events: [] } // fikir değişmedi, olay da yok
+  return {
+    next: { ...device, active },
+    events: [
+      {
+        ...base(ctx, 'branch', device.id as string, device.branchId, { deviceId: device.id as string }),
+        type: active ? DEVICE_REACTIVATED : DEVICE_DEACTIVATED,
+        payload: { deviceId: device.id as string, name: device.name },
+      },
+    ],
+  }
 }

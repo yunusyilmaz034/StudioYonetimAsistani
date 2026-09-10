@@ -28,6 +28,22 @@ export const TURNSTILE_OPENED_MANUALLY = 'turnstile.opened_manually'
 // üye kimliği `subject`te, isim hiçbir yerde. Ve bu bir GÖZLEM, varsayım değil (#11) — üye
 // gerçekten okuttu ve kol gerçekten dönmedi.
 export const MEMBER_ENTRY_REFUSED = 'member.entry_refused'
+// ── KAPI CİHAZLARI (owner onayı, 2026-09-11 — ikinci stüdyo hazırlığı) ──────────────────────
+//
+// İlk iki cihaz ELLE oluşturulmuştu: panelde cihaz ekleme ekranı yoktu, sır `secrets.h`e yazılıp
+// flash'lanıyordu. Yani her yeni kapı bir Mac, bir yazılımcı ve bir gece demekti — ve ikinci
+// stüdyoya bu şekilde gidilmez.
+//
+// Cihazın kaydı bir DURUM DEĞİŞİKLİĞİDİR ve olay yazar (#1). Sebebi teorik değil: bir kapı
+// anahtarı üretmek, iptal etmek ya da döndürmek, sonradan "bunu kim ne zaman yaptı" diye
+// sorulacak şeylerdir. Sır olayda YOK — yalnızca özeti veritabanında, o da hash olarak.
+//
+// Üretici adda yok (#2): kapıyı panelden owner da kaydetse bir kurulum betiği de kaydetse olan şey
+// aynı — bir cihaz kaydedildi. Kimin kaydettiği zarftaki aktörde.
+export const DEVICE_REGISTERED = 'device.registered'
+export const DEVICE_SECRET_ROTATED = 'device.secret_rotated'
+export const DEVICE_DEACTIVATED = 'device.deactivated'
+export const DEVICE_REACTIVATED = 'device.reactivated'
 
 export type MemberCheckedInPayload = {
   readonly branchId: BranchId
@@ -60,4 +76,20 @@ export type MemberEntryRefusedPayload = {
 }
 export type BranchClosedPayload = {
   readonly occupancyAtClose: number
+}
+
+/** Sır YOK, hash bile yok: bir olay kaydı, anahtarın kendisini taşımaz. */
+export type DeviceRegisteredPayload = {
+  readonly deviceId: string
+  readonly name: string
+  readonly side: 'in' | 'out' | null
+}
+export type DeviceSecretRotatedPayload = {
+  readonly deviceId: string
+  /** Neden döndürüldü — kaybolan bir kutu ile rutin bir yenileme aynı şey değildir. */
+  readonly reason: string
+}
+export type DeviceActivationPayload = {
+  readonly deviceId: string
+  readonly name: string
 }
