@@ -1494,3 +1494,45 @@ yönlendirmek demektir.
 
 **Neden bu boşluk vardı:** kurallar fiyat/program uydurmayı ve rezervasyon/ödeme taahhüdünü zaten
 yasaklıyordu. "Yapamayacağın bir İŞE söz verme" diye bir kural yoktu, ve eksik olan tam da oydu.
+
+### OR-70 · Stüdyo bir seansı iptal ettiğinde krediler ANINDA iade edilir, ve kimin etkilendiği onaydan ÖNCE gösterilir
+
+*(2026-09-10, owner: "iade edilecek kredilere ait kişileri de verip onaydan sonra o seansı iptal edip
+o üyelerin kredisini iade etmesi gerekiyor")*
+
+Eskiden seans iptal ediliyor, **rezervasyonlara hiç dokunulmuyordu**. Krediler `held` kalıyor,
+üyenin kullanılabilir hakkı düşük görünüyor, yeniden rezervasyon yapamıyordu. [[I-14]] doğru cevabı
+zaten biliyordu ama onu yalnızca **gece süpürmesi** soruyordu — hem de seansın kendi bitiş saati
+geçtikten sonra. Kredi kaybolmuyordu; akşam boyunca rehin kalıyordu, ki üye için ikisi aynı şey.
+
+**Sıra kuralın kendisidir:** önce seans iptal edilir, sonra rezervasyonlar. Ters sırada her
+rezervasyon "geç iptal" sayılır ve krediler yanardı.
+
+**İade seçenek DEĞİLDİR.** Ekran kimin etkilendiğini ve kaç kredi döneceğini listeler, onay ister;
+"iade etme" düğmesi yoktur. Stüdyo iptal ettiğinde üyenin kusuru yok — ve oraya bir anahtar koymak,
+[[I-14]]'ü delebilen bir anahtar koymaktır.
+
+---
+
+### OR-71 · Geç iptalde krediye POLİTİKA değil İNSAN karar verir, varsayılan İADE
+
+*(2026-09-10, owner: "admin rezervasyon iptal edeceği zaman her zaman sistem sorsun kredi iade
+edelim mi yoksa etmeyelim mi, loglara da eklensin, elle yapılan işlemler ekranımıza eklensin")*
+
+Ölçülen durum: pencere 6 saat, `lateCancellationConsumesCredit = true`. Yani 6 saatten yakın **her**
+resepsiyon iptali, kimseye sorulmadan bir kredi yakıyordu ve hiçbir yerde "buna resepsiyon karar
+verdi" yazmıyordu. Üye ertesi gün "kredim niye eksildi" dediğinde cevap verecek kayıt yoktu.
+
+**Varsayılan İADE.** Gerekçe: kaza ile kredi yakmak, kaza ile iade etmekten pahalıdır — biri üyeyi
+kızdırır ve telefonla çözülür, öbürü bir kredidir.
+
+**Pencere dışında soru sorulmaz.** Orada kredi zaten iade edilir; "yak" seçeneği koymak, resepsiyona
+politikanın bedava dediği bir krediyi yakma yetkisi vermek olurdu.
+
+**Yalnızca SAPMA kayda geçer** (`reservation.credit_decided`), ve sebebiyle birlikte. Kuralla aynı
+kararı vermek bir müdahale değildir; her iptale olay yazmak, gerçek müdahaleleri gürültüde
+kaybederdi. Olay hem verilen kararı hem **kuralın ne diyeceğini** taşır — sapma görünmezse bu
+olayın varlık sebebi kalmaz.
+
+**Elle müdahaleler kendi ailesinde:** Aktivite Merkezi → *Elle Müdahaleler*. Nadirdirler, ve nadir
+olan bir şey sık olanın arasında aranamaz.
