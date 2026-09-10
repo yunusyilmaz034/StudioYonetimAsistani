@@ -32,6 +32,7 @@ export function DashboardScreen({
   todayOps,
   advisorItems,
   snoozedCount = 0,
+  eksikListeler = [],
   role,
   roleLabel,
 }: {
@@ -40,6 +41,8 @@ export function DashboardScreen({
   advisorItems: readonly AdvisorItem[]
   /** Tikleneli bir hafta olmamış, bu yüzden listede olmayan iş sayısı. Sıfırsa hiç yazılmaz. */
   snoozedCount?: number
+  /** Alınamayan ek listeler. Boş liste ile 'liste gelmedi' aynı şey değildir; ekran ayırıyor. */
+  eksikListeler?: readonly string[]
   role: PrincipalRole
   roleLabel: string
 }) {
@@ -105,6 +108,11 @@ export function DashboardScreen({
       {/* What needs a decision TODAY — the dashboard's focal point. An AI-prioritised, checkable list
           built from the same signals the widgets below expose (advisor items); it declutters the "where
           do I look?" problem. Falls back to the deterministic order when the AI key isn't set. */}
+      {eksikListeler.length > 0 ? (
+        <p className="rounded-lg border border-warning/30 bg-warning/5 px-3 py-2 text-sm text-warning" role="alert">
+          Şu bölümler alınamadı: {eksikListeler.join(', ')}. Listede eksik olabilir — sayfayı yenileyin.
+        </p>
+      ) : null}
       <DailyChecklist items={advisorItems} snoozedCount={snoozedCount} />
 
       {/* Phase 2 — the churn signal made visible: who has an active package but stopped coming. */}
