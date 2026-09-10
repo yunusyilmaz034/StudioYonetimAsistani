@@ -129,18 +129,60 @@ adım `-D TESHIS`. İlk hamle her zaman o olmalı.
 
 ## 5 · İkinci stüdyodan ÖNCE yapılması gerekenler
 
-Bunlar parça meselesi değil, ve bu hâliyle her kurulum bir gece yer:
+Bunlar parça meselesi değil, ve bu hâliyle her kurulum bir gece yer.
 
-1. **WiFi, cihazın üstünden girilmeli.** Bugün SSID/şifre `secrets.h`e yazılıp flash'lanıyor — yani
-   her kurulum bir Mac ve bir yazılımcı istiyor. Gereken: kart kendi erişim noktasını açsın, telefondan
-   ağ seçilsin. Firmware bugün **iki ağı** deniyor; bu bir yama, çözüm değil.
-2. **Cihaz kimliği panelden üretilmeli.** İlk iki cihaz elle oluşturuldu; panelde cihaz ekleme ekranı
-   yok. Yeni bir kapı, yeni bir sır ve yeni bir `side` demek.
-3. **Kablo düzeni sabitlenmeli.** Dupont + klemens bir prototip çözümü. Vidalı taşıyıcı ya da küçük
-   bir kart, titreşimli bir gövdede tek kalıcı cevap.
+**Durum (2026-09-11, owner onayı):** 1 ve 2 **YAZILDI**. 3 bir satın alma kararı — spesifikasyonu
+aşağıda donduruldu, uygulaması ikinci ünitenin montajında.
 
-Üçü de **Faz 2**. Bugün yazılmayacak — ama ikinci kapı takılmadan önce yazılacak, çünkü ikinci kapı
-takıldığı anda bunlar birer arıza olarak geri gelir.
+### 1 · WiFi cihazın üstünden ✅ (11 Eylül)
+
+Kaynak sırası: **NVS → `secrets.h` → kurulum modu.**
+
+Hiçbir ağ tutmazsa kart kendi erişim noktasını açıyor: `Turnike-Kurulum-XXXXXX` (son üç MAC baytı —
+aynı binada iki kart varsa hangisine bağlandığın belli olsun), şifre `kurulum1234`. Telefondan
+bağlanınca **yakalayıcı portal** kurulum sayfasını kendiliğinden açıyor; ağ listesi taranmış hâlde
+geliyor, şifre ve iki cihaz anahtarı yapıştırılıyor, kart yeniden başlıyor.
+
+**`secrets.h` KALDIRILMADI.** Duvardaki çalışan ünitenin NVS'i boş; fallback olmasaydı bu firmware
+onu doğrudan kurulum moduna düşürürdü — çalışan bir kapıyı çalışmayan bir kapıya çevirmek. Yeni
+ünitelerde `secrets.h` boş bırakılır ve zincir kendiliğinden kurulum moduna iner.
+
+**Kurulum ekranı teknik bilgi gösterir, ve göstermeli.** Normal çalışmada IP/SSID/HTTP kodu yasak —
+orada duran kişi üyedir. Kurulum modunda orada duran kişi montajcıdır ve tam olarak o bilgilere
+ihtiyacı vardır. İki ekran, iki izleyici, iki kural.
+
+### 2 · Cihaz kimliği panelden ✅ (11 Eylül)
+
+**Ayarlar → Tanımlar → Kapı Cihazları.** Cihaz ekle · sırrı döndür (sebep zorunlu) · devre dışı
+bırak. Üçü de olay yazıyor.
+
+**Sır BİR KEZ gösterilir.** Veritabanında yalnızca SHA-256 özeti duruyor. Kaybolursa üretilmez,
+**döndürülür** — sırrı geri verebilen bir sistem onu saklıyor demektir, ve o zaman veritabanını
+okuyabilen herkes kapıyı açabilir. Ekranda çıkan `dev_xxx.sır` dizesi, kurulum sayfasına
+yapıştırılacak olanın ta kendisi.
+
+**Owner-only.** Resepsiyon kapıyı AÇAR ama kapının anahtarını üretmez.
+
+### 3 · Kablo düzeni — SPESİFİKASYON DONDURULDU, uygulaması ikinci ünitede
+
+Dupont + klemens bir prototip çözümüdür ve bu ünitede bedeli **ölçüldü**: 8 Eylül gecesi iki ekran
+birden defalarca beyaz kaldı, takıp çıkarınca düzeldi ([[DEBT-044]]). İki ekranın **ortak** hatları
+(`3V3 · GND · RST 8 · DC 13 · SCK 12 · MOSI 11`) tam da gevşemeye en duyarlı yerler: biri temassız
+kalırsa iki ekran birden ölür ve belirti "panel bozuk" gibi görünür.
+
+**Donduruldu — ikinci ünitede dupont KULLANILMAZ:**
+
+| Hat | Nasıl |
+|---|---|
+| `3V3` ve `GND` dağıtımı | **Vidalı klemens**, kartın yanına vidalı. Dört tüketici (2 ekran, röle sinyal, buzzer) tek noktadan. |
+| Ekran hatları (`RST·DC·SCK·MOSI·CS·LED`) | **Lehimli** ya da **JST-XH 6'lı soket**. Gövde titriyor; sürtme temas orada tutmuyor. |
+| Röle `IN1/IN2` | Vidalı klemensli röle kartı — modülün kendi vidası yeterli. |
+| Turnike kontak uçları | Zaten vidalı (`Access Control Input`). Değişmiyor. |
+| Kablo boyu | ESP32 gövdenin ortasında, her ekrana ~24 cm. 20 cm **kısa kalıyor** — 30 cm alınır. |
+
+**Kabul ölçütü:** montaj bittikten sonra kart on kez elektriği kesilip verilir. **On seferin onunda**
+iki ekran da açılmalı. Dokuz/on, düzelmiş değil — arada kalmış demektir ve turnikede arada kalmış
+bir bağlantı, kapıda kalan üye demektir.
 
 ---
 

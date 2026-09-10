@@ -33,6 +33,7 @@
 // Bu yüzden **tek ortam, tek yükleme**: `pio run -t upload`. Bir zamanlar buraya `-e giris` /
 // `-e cikis` yazılmıştı; öyle ortamlar hiç var olmadı ve o komut hata verir.
 #include "secrets.h"
+#include "provision.h"
 #include "ui.h"
 
 static const int PIN_SCK = 12;
@@ -129,7 +130,7 @@ static Adafruit_ILI9341 tftCikis(PIN_CS_CIKIS, PIN_DC, -1);
 struct Kapi {
   const char* ad;              // yalnızca log için
   const char* baslik;          // ekranda QR'ın üstünde duran yön yazısı
-  const char* auth;            // cihazın Bearer kimliği
+  String auth;                 // cihazın Bearer kimliği — NVS'ten ya da secrets.h'ten
   Adafruit_ILI9341* tft;
   int rolePin;
   // EKRANIN FİZİKSEL DURUŞU (owner, 2026-09-09): çıkış ekranı gövdeye ters monte edildi, tutacağı
@@ -247,6 +248,15 @@ static void kodYenile(Kapi& k) {
   }
 }
 
+/**
+ * Kurulum modunun ekranı. Normal çalışmada IP/SSID göstermek YASAK — orada duran kişi üyedir.
+ * Burada duran kişi montajcıdır ve tam olarak bu bilgilere ihtiyacı var. İki ekran, iki izleyici,
+ * iki kural.
+ */
+static void kurulumEkrani(const char* baslik, const char* alt1, const char* alt2) {
+  for (size_t i = 0; i < KAPI_SAYISI; i++) uiKurulum(kapilar[i].yuz, baslik, alt1, alt2);
+}
+
 void setup() {
   // Buzzer BAŞTAN ve HER ZAMAN sürülü. Boşta bırakılırsa buzzer kendi üzerinden pine akım akıtıyor
   // ve o akım ekranların başlamasını engelliyor. Bu satırın YERİ de önemli — her şeyden önce, çünkü
@@ -316,28 +326,51 @@ void setup() {
   //
   // Sırayla denenir, ilk bağlanan kazanır. İkinci ağ `secrets.h`de tanımlı değilse bu blok
   // derlemeye bile girmiyor.
+  // ── KİMLİK VE AĞ: ÖNCE NVS, SONRA `secrets.h` (owner onayı, 2026-09-11) ────────────────────
+  //
+  // `secrets.h` fallback olarak KALDI ve bu bilinçli: duvardaki çalışan ünitenin NVS'i boş, ve
+  // fallback olmasaydı bu firmware onu doğrudan kurulum moduna düşürürdü — çalışan bir kapıyı
+  // çalışmayan bir kapıya çevirmek. Yeni ünitelerde `secrets.h` boş bırakılır, zincir kendiliğinden
+  // kurulum moduna iner.
+  const Ayar kayit = ayarOku();
+  kapilar[0].auth = kayit.authGiris.length() ? kayit.authGiris : String(DEVICE_AUTH_GIRIS);
+#ifdef IKI_KAPI
+  kapilar[1].auth = kayit.authCikis.length() ? kayit.authCikis : String(DEVICE_AUTH_CIKIS);
+#endif
+
   WiFi.mode(WIFI_STA);
-  const char* ssidler[] = {
-      WIFI_SSID,
+  String ssidler[] = {
+      kayit.ssid,          // kurulumda telefondan girilen ağ — varsa ilk o denenir
+      String(WIFI_SSID),
 #ifdef WIFI_SSID2
-      WIFI_SSID2,
+      String(WIFI_SSID2),
 #endif
   };
-  const char* sifreler[] = {
-      WIFI_PASS,
+  String sifreler[] = {
+      kayit.sifre,
+      String(WIFI_PASS),
 #ifdef WIFI_PASS2
-      WIFI_PASS2,
+      String(WIFI_PASS2),
 #endif
   };
   const size_t agSayisi = sizeof(ssidler) / sizeof(ssidler[0]);
 
   for (size_t a = 0; a < agSayisi && WiFi.status() != WL_CONNECTED; a++) {
-    Serial.printf("[turnike] deneniyor: %s\n", ssidler[a]);
+    if (ssidler[a].length() == 0) continue;  // yazılmamış bir ağ denenmez
+    Serial.printf("[turnike] deneniyor: %s\n", ssidler[a].c_str());
     for (size_t i = 0; i < KAPI_SAYISI; i++) uiBaglaniyor(kapilar[i].yuz);
-    WiFi.begin(ssidler[a], sifreler[a]);
+    WiFi.begin(ssidler[a].c_str(), sifreler[a].c_str());
     // Ağ başına 10 saniye: yoksa 20 saniye beklemek, VAR OLAN ağa geçmeyi o kadar geciktirir.
     for (int i = 0; i < 20 && WiFi.status() != WL_CONNECTED; i++) { delay(500); Serial.print('.'); }
     Serial.println();
+  }
+
+  // HİÇBİR AĞ TUTMADIYSA KURULUM MODU. Buradan dönüş yok: ayarlar kaydedilince kart yeniden
+  // başlıyor. Yarı yapılandırılmış bir kutunun çalışmaya devam etmesi, montajcıya "oldu galiba"
+  // dedirtir ve o gece orada bitmez.
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("[turnike] ag yok → kurulum modu");
+    kurulumModu(kurulumEkrani);
   }
   Serial.printf("[turnike] %s (%s)\n",
                 WiFi.status() == WL_CONNECTED ? WiFi.localIP().toString().c_str() : "WiFi YOK",

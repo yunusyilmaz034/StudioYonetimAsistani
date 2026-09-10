@@ -36,3 +36,11 @@ void uiReddedildi(Yuz& y, const char* baslik, const char* alt);
 
 /** UTF-8 Türkçe → fontun tek baytlık yuvaları. Bilinmeyen çok baytlı karakter atlanır. */
 String tr(const String& s);
+
+/**
+ * KURULUM EKRANI. Ağ adı, şifre ve adres — yani normal çalışmada YASAK olan her şey.
+ *
+ * Yasağın sebebi bilginin kendisi değil, izleyicisiydi: koridordaki üye için IP bir gürültüdür.
+ * Kurulum modunda ekranın karşısındaki kişi montajcıdır ve o bilgiler onun işidir.
+ */
+void uiKurulum(Yuz& y, const char* baslik, const char* alt1, const char* alt2);

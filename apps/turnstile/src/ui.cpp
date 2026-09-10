@@ -258,3 +258,17 @@ void uiReddedildi(Yuz& y, const char* baslik, const char* alt) {
   y.ekran = Ekran::Reddedildi;
   y.kod = "";
 }
+
+void uiKurulum(Yuz& y, const char* baslik, const char* alt1, const char* alt2) {
+  Adafruit_ILI9341& tft = *y.tft;
+  tft.startWrite();
+  tft.writeFillRect(0, 0, 240, 320, ZEMIN);
+  tft.endWrite();
+  ortala(tft, &TrSans11, VURGU, 90, tr("KURULUM"));
+  ortala(tft, enBuyuk(tft, baslik, 224), BEYAZ, 140, baslik);
+  if (alt1 && alt1[0]) ortala(tft, &TrSans11, SOLUK, 180, alt1);
+  if (alt2 && alt2[0]) ortala(tft, &TrSans11, SOLUK, 214, alt2);
+  ortala(tft, &TrSans9, SOLUK, 280, tr("Telefonundan bu ağa bağlan"));
+  y.ekran = Ekran::Yok;  // sonraki normal çizim tam ekranı yenilesin
+  y.kod = "";
+}

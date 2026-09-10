@@ -1063,11 +1063,20 @@ sayıldı — bir açık iş listesi hatırlanarak değil, ölçülerek taşın�
 6. **Buzzer sesi kısık** (`DEBT-038`). 12 V buzzer + sürücü (röle modülü ya da NPN) sipariş edilecek;
    hangisi olacağı dükkânda prize ve 12 V çıkışına bakınca netleşir.
 
-**İkinci stüdyodan önce — Faz 2, owner kararı bekliyor:**
+**İkinci stüdyodan önce — owner onayladı (11 Eylül), ikisi YAZILDI:**
 
-7. WiFi cihazın üstünden girilebilmeli · cihaz kimliği panelden üretilebilmeli · kablo düzeni
-   sabitlenmeli. Üçü de [`TURNSTILE-HARDWARE.md`](TURNSTILE-HARDWARE.md) §5'te. Bugünkü hâliyle her
-   kurulum bir Mac ve bir yazılımcı istiyor.
+7. ~~WiFi cihazın üstünden~~ ✅ · ~~cihaz kimliği panelden~~ ✅ · kablo düzeni **spesifikasyonu
+   donduruldu**, uygulaması ikinci ünitenin montajında. Üçü de
+   [`TURNSTILE-HARDWARE.md`](TURNSTILE-HARDWARE.md) §5'te.
+
+   **Kurulum artık Mac istemiyor:** kart ağ bulamazsa kendi erişim noktasını açıyor
+   (`Turnike-Kurulum-XXXXXX` / `kurulum1234`), telefondan ağ seçiliyor ve panelden alınan iki cihaz
+   anahtarı yapıştırılıyor. `secrets.h` fallback olarak DURUYOR — duvardaki ünitenin NVS'i boş ve
+   onu kurulum moduna düşürmek, çalışan bir kapıyı çalışmayan bir kapıya çevirmek olurdu.
+
+   **YENİ FIRMWARE KARTA ATILMADI.** Derlemesi yeşil (flash %28,8) ama kart bağlı değildi. Duvardaki
+   sürüm hâlâ `turnike-v1.2`. Atılınca `turnike-v1.3` etiketlenecek ve **on kez elektrik kesip
+   verme** testi yapılacak — dokuz/on düzelmiş değil, arada kalmış demektir.
 
 **Kapananlar:** ~~turnike firmware'i~~ (atıldı, `turnike-v1.0`) · ~~GAMZE BAYKALDI'nın 7 günlük
 boşluğu~~ (ölçüldü: 31.05→06.09 ve 06.09→05.12, boşluk yok) · ~~mobilden iş verme ölçümü~~ (bugün
