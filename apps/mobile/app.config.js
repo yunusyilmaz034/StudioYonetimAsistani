@@ -79,6 +79,21 @@ module.exports = () => ({
     //
     // Bu sürümün tek işi o satırı erken çıkışın ÜSTÜNE almak. Başka hiçbir şey değişmedi.
     version: '1.7.3',
+    // ── OTA GÜNCELLEME (owner onayı, 2026-09-11) ──────────────────────────────────────────────
+    //
+    // Bugüne kadar bir KELİME düzeltmesi bile mağaza turu istiyordu: build, inceleme, yayılma, ve
+    // güncellemeyen üyelerde günlerce eski metin. "0/8 dolu" yazısı tam olarak buna takılmıştı.
+    // `expo-updates` ile JS tarafındaki düzeltmeler dakikalar içinde iniyor.
+    //
+    // SINIR NET: native değişiklik (yeni kütüphane, izin, ikon) YİNE sürüm ister. OTA yalnızca
+    // JS/varlık taşır.
+    //
+    // `runtimeVersion: appVersion` — bir güncelleme yalnızca AYNI sürüm numarasındaki build'e
+    // iner. 1.7.4 için yayınlanan bir düzeltme 1.7.3'teki telefona GİTMEZ, ve gitmemeli: o
+    // build'in içindeki native kod başka. Bu politikanın bedeli, her mağaza sürümünün kendi OTA
+    // kanalını taşıması; karşılığı, uyumsuz bir JS paketinin asla eski bir native'e inmemesi.
+    updates: { url: 'https://u.expo.dev/a8b4df59-0a10-4dc2-9796-8304a997be51' },
+    runtimeVersion: { policy: 'appVersion' },
     orientation: 'portrait',
     scheme: studio.scheme,
     userInterfaceStyle: 'automatic',
