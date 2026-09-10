@@ -11,8 +11,21 @@ _Last true as of: **2026-09-11, 01:30**._
 
 ## 🌙 10–11 Eylül gecesi — turnike kilitlendi, para yolları kapandı, izin sistemi geldi
 
-**Panel canlıda `build-2026-09-10-003`** (UTC 22:06). İzin sisteminin deploy'u o sırada hâlâ
-sürüyordu — **sabah trafiği doğrula** (OR-17: tek dürüst kanıt Cloud Run trafik dağılımı).
+**Panel canlıda `build-2026-09-10-008`** (UTC 22:56, trafiğin %100'ü — OR-17). Bu gecenin
+HEPSİ içinde: izin sistemi, kapı cihazları ekranı, kredi kararları, kafe geçmişi.
+
+⚠️ **Ama önce dört build üst üste düştü ve hiçbir şey haber vermedi.** React tiplerini sabitlemek
+için koyduğum kök `pnpm.overrides`, kilit dosyasına bir blok yazıyor ve App Hosting'in **donmuş
+kurulumu** onu reddediyor (`ERR_PNPM_LOCKFILE_CONFIG_MISMATCH`). Yerelde
+`pnpm install --frozen-lockfile` sorunsuz geçiyor ve `pnpm check` yeşildi — yani gate hiçbir şey
+göremedi. 22:09'dan 22:50'ye kadar hiçbir iş canlıya çıkmadı.
+
+Düzeltme: `overrides` kaldırıldı, sürüm doğrudan `apps/web`in kendi bağımlılığında sabitlendi
+(iç içe duran kopya zaten 19.1.17'ydi; üstteki ona eşitlenince ikizlenme bitiyor ve builder'ın
+hemfikir olması gereken bir ayar kalmıyor).
+
+**Alınacak ders, ve CI ölüyken iki kat geçerli:** yerelde yeşil bir gate, işin DEPLOY olduğunu
+söylemiyor. `gcloud builds list --region=europe-west4` bu gece tek dürüst araçtı.
 
 ### Turnike
 
