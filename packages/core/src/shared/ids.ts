@@ -69,6 +69,7 @@ const PREFIX = {
   //    which is what makes the whole thing reversible (2026-07-30). ──
   importBatch: 'imp',
   // ── Bir vardiya: başladı, belki bitti (owner, 2026-09-01) ──
+  staffLeave: 'lv',
   staffShift: 'shf',
 } as const
 
@@ -98,6 +99,7 @@ export const newCommandId = (): CommandId => mint(PREFIX.command) as CommandId
 export const newCorrelationId = (): CorrelationId => mint(PREFIX.correlation) as CorrelationId
 export const newWaitlistEntryId = (): string => mint(PREFIX.waitlistEntry)
 export const newStaffShiftId = (): string => mint(PREFIX.staffShift)
+export const newStaffLeaveId = (): string => mint(PREFIX.staffLeave)
 export const newSeatHoldId = (): string => mint(PREFIX.seatHold)
 export const newImportBatchId = (): string => mint(PREFIX.importBatch)
 export const newExerciseId = (): string => mint(PREFIX.exercise)

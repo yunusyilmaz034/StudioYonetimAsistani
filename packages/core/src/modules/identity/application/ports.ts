@@ -1,5 +1,5 @@
 import type { Clock, NewEvent, StaffUserId, TenantContext } from '../../../shared'
-import type { StaffMember, StaffShift } from '../domain/types'
+import type { StaffLeave, StaffMember, StaffShift } from '../domain/types'
 
 // Admin SDK only (AD-15). Staff are written by the owner, from the product — and, exactly once per
 // studio, by a break-glass bootstrap script, because somebody has to be able to log in first.
@@ -30,4 +30,30 @@ export interface StaffShiftRepository {
   listShifts(ctx: TenantContext, fromAt: number, toAt: number): Promise<readonly StaffShift[]>
   /** Belge ve olay(lar), TEK işlemde (#1). */
   saveShift(ctx: TenantContext, shift: StaffShift, events: readonly NewEvent[]): Promise<void>
+}
+
+// ── İZİN / YOKLUK (owner onayı, 2026-09-11) ─────────────────────────────────────────────────
+export interface StaffLeaveRepository {
+  getLeave(ctx: TenantContext, id: string): Promise<StaffLeave | null>
+  /**
+   * Bir kişinin BEKLEYEN ve ONAYLI izinleri. Çakışma kontrolünün tek girdisi bu — ve reddedilmiş
+   * ya da geri çekilmiş kayıtlar bilerek dışarıda: o günler gerçekten boş.
+   */
+  listLiveLeavesOf(ctx: TenantContext, staffUserId: StaffUserId): Promise<readonly StaffLeave[]>
+  /** Bir aralığa DEĞEN bütün canlı izinler — takvimin "o gün kim yok" sorusu. */
+  listLeavesOverlapping(ctx: TenantContext, fromAt: number, toAt: number): Promise<readonly StaffLeave[]>
+  /** Karar bekleyenler; owner panelinin listesi. */
+  listPendingLeaves(ctx: TenantContext): Promise<readonly StaffLeave[]>
+  saveLeave(ctx: TenantContext, leave: StaffLeave, events: readonly NewEvent[]): Promise<void>
+}
+
+export interface StaffLeaveDeps {
+  readonly repo: StaffLeaveRepository
+  readonly clock: Clock
+  /**
+   * O aralıkta bu eğitmene atanmış ders sayısı. AYRI BİR PORT: izin modülü takvimi tanımıyor ve
+   * tanımamalı — ama onaylayanın kaç dersin sahipsiz kalacağını görmesi, bu özelliğin tek gerçek
+   * sebebidir. Bağımlılık değil, soru.
+   */
+  readonly affectedSessions: (ctx: TenantContext, staffUserId: StaffUserId, fromAt: number, toAt: number) => Promise<number>
 }

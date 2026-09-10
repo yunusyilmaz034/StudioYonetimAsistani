@@ -18,6 +18,10 @@ import {
   STAFF_DEACTIVATED,
   STAFF_REACTIVATED,
   STAFF_ROLE_CHANGED,
+  STAFF_LEAVE_APPROVED,
+  STAFF_LEAVE_CANCELLED,
+  STAFF_LEAVE_REJECTED,
+  STAFF_LEAVE_REQUESTED,
   STAFF_SHIFT_ENDED,
   STAFF_SHIFT_STARTED,
   type StaffCreatedPayload,
@@ -27,7 +31,8 @@ import {
   type StaffShiftEndedPayload,
   type StaffShiftStartedPayload,
 } from '../events'
-import type { StaffMember, StaffShift } from './types'
+import type { LeaveKind } from '../events'
+import type { StaffLeave, StaffMember, StaffShift } from './types'
 
 // Who may work here, and as what (v1.27 S1 · owner, 2026-07-13).
 //
@@ -245,4 +250,142 @@ export function decideEndShift(
 /** Kendi vardiyası mı? Platform yöneticisi hariç kimse bir başkasının saatini yazamaz. */
 function kendisi(ctx: DecideContext, staffUserId: StaffUserId): boolean {
   return ctx.actor.type === 'platform_admin' || String(ctx.actor.id) === String(staffUserId)
+}
+
+// ── İZİN / YOKLUK (owner onayı, 2026-09-11) ─────────────────────────────────────────────────
+//
+// Kurallar burada, ve az: talep edilen aralık geçerli olmalı, aynı kişi aynı günlere iki kez izin
+// alamamalı, ve kararı ancak owner verebilmeli. Bakiye aritmetiği YOK — bilerek (bkz. `events.ts`).
+
+const GUN = 86_400_000
+
+/** İki yokluk aralığı çakışıyor mu? Uçlar DAHİL: 12–15 ile 15–18 aynı günü paylaşıyor. */
+const cakisiyor = (aFrom: Instant, aTo: Instant, bFrom: Instant, bTo: Instant): boolean =>
+  aFrom <= bTo && bFrom <= aTo
+
+export function decideRequestLeave(
+  ctx: DecideContext,
+  input: {
+    readonly leaveId: string
+    readonly staffUserId: StaffUserId
+    readonly kind: LeaveKind
+    readonly from: Instant
+    readonly to: Instant
+    readonly note: string
+  },
+  mevcut: readonly StaffLeave[],
+): Result<{ next: StaffLeave; events: NewEvent[] }, DomainError> {
+  // Başkasının adına izin isteyemezsin. Owner bir çalışanın izninu KENDİSİ girecekse yine bu yoldan
+  // geçer ve `platform_admin` istisnası onu geçirir — ama olayda aktör olarak o görünür.
+  if (!kendisi(ctx, input.staffUserId)) return err({ code: 'own_shift_only' })
+  if (input.to < input.from) return err({ code: 'invalid_range' })
+  // Geçmişe izin YAZILABİLİR — rapor dün alınır ve ertesi gün girilir. Ama bu bir düzeltmedir ve
+  // gelecekteki bir izinle aynı şey değil; ayrımı `requestedAt` ile `from` arasındaki fark taşıyor.
+
+  // ÇAKIŞMA REDDEDİLİR. İki üst üste izin, "bu gün izinli mi" sorusunun iki cevabı demektir ve
+  // takvimdeki etkiyi hesaplarken hangisinin geçerli olduğu bilinemez.
+  for (const m of mevcut) {
+    if (m.status !== 'pending' && m.status !== 'approved') continue
+    if (String(m.staffUserId) !== String(input.staffUserId)) continue
+    if (cakisiyor(input.from, input.to, m.from, m.to)) return err({ code: 'leave_overlaps' })
+  }
+
+  const next: StaffLeave = {
+    id: input.leaveId,
+    staffUserId: input.staffUserId,
+    kind: input.kind,
+    from: input.from,
+    to: input.to,
+    note: input.note.trim(),
+    status: 'pending',
+    requestedAt: ctx.now,
+    decidedBy: null,
+    decidedAt: null,
+    decisionReason: '',
+  }
+  return ok({
+    next,
+    events: [
+      {
+        ...base(ctx, input.staffUserId),
+        type: STAFF_LEAVE_REQUESTED,
+        payload: {
+          leaveId: input.leaveId,
+          staffUserId: String(input.staffUserId),
+          kind: input.kind,
+          fromMs: input.from,
+          toMs: input.to,
+          days: Math.max(1, Math.round((input.to - input.from) / GUN)),
+          // Notun KENDİSİ olayda yok: serbest metin, PII'nin sızdığı yerdir (#6). Not durum
+          // belgesinde duruyor ve silinebiliyor; olay silinemez.
+          hasNote: next.note.length > 0,
+        },
+      },
+    ],
+  })
+}
+
+/**
+ * Onay ya da red. `affectedSessions` DIŞARIDAN geliyor: takvimi okumak I/O'dur ve burası saf.
+ *
+ * O sayının olaya yazılmasının sebebi, altı ay sonra sorulacak tek soru: onaylayan kişi kaç dersin
+ * sahipsiz kalacağını GÖRDÜ mü? Gördüyse bu satır onu söylüyor.
+ */
+export function decideDecideLeave(
+  ctx: DecideContext,
+  leave: StaffLeave,
+  karar: { readonly approve: true; readonly affectedSessions: number } | { readonly approve: false; readonly reason: string },
+): Result<{ next: StaffLeave; events: NewEvent[] }, DomainError> {
+  if (leave.status !== 'pending') return err({ code: 'operation_not_applicable' })
+  // KARARI SAHİBİ VEREMEZ. Kendi iznini onaylamak, onayı bir tıklamaya indirger — ve o zaman
+  // onay diye bir şey yoktur, yalnızca bir form vardır.
+  if (String(ctx.actor.id) === String(leave.staffUserId) && ctx.actor.type !== 'platform_admin')
+    return err({ code: 'own_shift_only' })
+
+  if (!karar.approve) {
+    if (karar.reason.trim() === '') return err({ code: 'reason_required' })
+    return ok({
+      next: { ...leave, status: 'rejected', decidedBy: ctx.actor.id as StaffUserId, decidedAt: ctx.now, decisionReason: karar.reason.trim() },
+      events: [
+        {
+          ...base(ctx, leave.staffUserId),
+          type: STAFF_LEAVE_REJECTED,
+          payload: { leaveId: leave.id, staffUserId: String(leave.staffUserId), reason: karar.reason.trim() },
+        },
+      ],
+    })
+  }
+
+  return ok({
+    next: { ...leave, status: 'approved', decidedBy: ctx.actor.id as StaffUserId, decidedAt: ctx.now, decisionReason: '' },
+    events: [
+      {
+        ...base(ctx, leave.staffUserId),
+        type: STAFF_LEAVE_APPROVED,
+        payload: { leaveId: leave.id, staffUserId: String(leave.staffUserId), affectedSessions: karar.affectedSessions },
+      },
+    ],
+  })
+}
+
+/** Geri çekme: sahibi bekleyen talebini, owner onaylanmış izni de geri alabilir. */
+export function decideCancelLeave(
+  ctx: DecideContext,
+  leave: StaffLeave,
+): Result<{ next: StaffLeave; events: NewEvent[] }, DomainError> {
+  if (leave.status === 'cancelled' || leave.status === 'rejected') return err({ code: 'operation_not_applicable' })
+  const sahibi = kendisi(ctx, leave.staffUserId)
+  const yetkili = ctx.actor.type === 'owner' || ctx.actor.type === 'platform_admin'
+  // Onaylanmış bir izni sahibi tek başına geri alamaz: o izne göre ders programı değişmiş olabilir.
+  if (leave.status === 'approved' ? !yetkili : !(sahibi || yetkili)) return err({ code: 'own_shift_only' })
+  return ok({
+    next: { ...leave, status: 'cancelled', decidedBy: ctx.actor.id as StaffUserId, decidedAt: ctx.now },
+    events: [
+      {
+        ...base(ctx, leave.staffUserId),
+        type: STAFF_LEAVE_CANCELLED,
+        payload: { leaveId: leave.id, staffUserId: String(leave.staffUserId), wasApproved: leave.status === 'approved' },
+      },
+    ],
+  })
 }

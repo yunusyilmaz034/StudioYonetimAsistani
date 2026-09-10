@@ -8,8 +8,8 @@ import {
 } from 'firebase-admin/firestore'
 
 import { instant, newEventId, type NewEvent, type StaffUserId, type StudioId, type TenantContext } from '../../../shared'
-import type { IdentityRepository, StaffShiftRepository } from '../application/ports'
-import type { StaffMember, StaffShift } from '../domain/types'
+import type { IdentityRepository, StaffLeaveRepository, StaffShiftRepository } from '../application/ports'
+import type { StaffLeave, StaffMember, StaffShift } from '../domain/types'
 import { staffFromFirestore, staffToFirestore } from './mappers'
 
 export class FirestoreIdentityRepository implements IdentityRepository {
@@ -113,6 +113,98 @@ export class FirestoreStaffShiftRepository implements StaffShiftRepository {
       branchId: (d.branchId ?? null) as StaffShift['branchId'],
       startedAt: instant(ts(d.startedAt)),
       endedAt: d.endedAt == null ? null : instant(ts(d.endedAt)),
+    }
+  }
+
+  private writeEvents(sid: StudioId, tx: Transaction, events: readonly NewEvent[]): void {
+    for (const e of events) {
+      tx.set(this.db.collection('studios').doc(sid).collection('events').doc(newEventId()), {
+        ...e,
+        occurredAt: Timestamp.fromMillis(e.occurredAt as number),
+        recordedAt: FieldValue.serverTimestamp(),
+      })
+    }
+  }
+}
+
+// ── İZİN / YOKLUK (owner onayı, 2026-09-11) ─────────────────────────────────────────────────
+//
+// Ayrı bir koleksiyon (`staffLeaves`), vardiyaların içine karıştırılmadı: bir izin bir vardiya
+// DEĞİLDİR ve ikisini aynı belgede tutmak, "kaç saat çalıştı" sorusunu izin günleriyle kirletirdi.
+export class FirestoreStaffLeaveRepository implements StaffLeaveRepository {
+  constructor(private readonly db: Firestore = getFirestore()) {}
+
+  private col(sid: StudioId): CollectionReference {
+    return this.db.collection('studios').doc(sid).collection('staffLeaves')
+  }
+
+  async getLeave(ctx: TenantContext, id: string): Promise<StaffLeave | null> {
+    const d = await this.col(ctx.studioId).doc(id).get()
+    return d.exists ? this.oku(d.id, d.data() as Record<string, unknown>) : null
+  }
+
+  async listLiveLeavesOf(ctx: TenantContext, staffUserId: StaffUserId): Promise<readonly StaffLeave[]> {
+    const snap = await this.col(ctx.studioId)
+      .where('staffUserId', '==', staffUserId)
+      .where('status', 'in', ['pending', 'approved'])
+      .get()
+    return snap.docs.map((d) => this.oku(d.id, d.data()))
+  }
+
+  async listLeavesOverlapping(ctx: TenantContext, fromAt: number, toAt: number): Promise<readonly StaffLeave[]> {
+    // TEK EŞİTSİZLİK ALANI. Firestore iki farklı alanda aralık sorgusunu birlikte kabul etmiyor,
+    // ve çakışma iki karşılaştırma ister (`from <= toAt && to >= fromAt`). Bu yüzden sorgu
+    // `to >= fromAt` ile daraltılıyor, öteki uç HAFIZADA süzülüyor — sonuç kümesi zaten küçük
+    // (izinler nadirdir) ve `collectionGroup` gerektirmiyor.
+    const snap = await this.col(ctx.studioId)
+      .where('to', '>=', Timestamp.fromMillis(fromAt))
+      .where('status', 'in', ['pending', 'approved'])
+      .get()
+    return snap.docs.map((d) => this.oku(d.id, d.data())).filter((l) => (l.from as number) <= toAt)
+  }
+
+  async listPendingLeaves(ctx: TenantContext): Promise<readonly StaffLeave[]> {
+    const snap = await this.col(ctx.studioId).where('status', '==', 'pending').orderBy('from', 'asc').get()
+    return snap.docs.map((d) => this.oku(d.id, d.data()))
+  }
+
+  async saveLeave(ctx: TenantContext, leave: StaffLeave, events: readonly NewEvent[]): Promise<void> {
+    const ref = this.col(ctx.studioId).doc(leave.id)
+    await this.db.runTransaction(async (tx: Transaction) => {
+      tx.set(
+        ref,
+        {
+          staffUserId: leave.staffUserId,
+          kind: leave.kind,
+          from: Timestamp.fromMillis(leave.from as number),
+          to: Timestamp.fromMillis(leave.to as number),
+          note: leave.note,
+          status: leave.status,
+          requestedAt: Timestamp.fromMillis(leave.requestedAt as number),
+          decidedBy: leave.decidedBy,
+          decidedAt: leave.decidedAt === null ? null : Timestamp.fromMillis(leave.decidedAt as number),
+          decisionReason: leave.decisionReason,
+        },
+        { merge: true },
+      )
+      this.writeEvents(ctx.studioId, tx, events)
+    })
+  }
+
+  private oku(id: string, d: Record<string, unknown>): StaffLeave {
+    const ts = (v: unknown): number => (v as Timestamp).toMillis()
+    return {
+      id,
+      staffUserId: d.staffUserId as StaffUserId,
+      kind: d.kind as StaffLeave['kind'],
+      from: instant(ts(d.from)),
+      to: instant(ts(d.to)),
+      note: String(d.note ?? ''),
+      status: d.status as StaffLeave['status'],
+      requestedAt: instant(ts(d.requestedAt)),
+      decidedBy: (d.decidedBy ?? null) as StaffLeave['decidedBy'],
+      decidedAt: d.decidedAt == null ? null : instant(ts(d.decidedAt)),
+      decisionReason: String(d.decisionReason ?? ''),
     }
   }
 

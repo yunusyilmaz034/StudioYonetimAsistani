@@ -1536,3 +1536,32 @@ olayın varlık sebebi kalmaz.
 
 **Elle müdahaleler kendi ailesinde:** Aktivite Merkezi → *Elle Müdahaleler*. Nadirdirler, ve nadir
 olan bir şey sık olanın arasında aranamaz.
+
+### OR-72 · İzin sistemi bir İK yazılımı değildir: tutulan şey BAKİYE değil YOKLUK
+
+*(2026-09-11, owner: "mesaiye bir de izin yönetim sistemi eklesek mi ne dersin" — öneri sunuldu,
+owner onayladı)*
+
+**Yazılan:** eğitmen bir tarih aralığını yokluk olarak bildirir (izin · rapor · eğitim · diğer),
+owner onaylar ya da sebebiyle reddeder. Sistem tek bir soruyu cevaplar ve o soru bu özelliğin
+varlık sebebidir: **o aralıkta bu eğitmene atanmış hangi dersler sahipsiz kalıyor?**
+
+**YAZILMAYAN, ve bilerek:** yıllık izin hakkı, devreden gün, kıdeme göre 14/20/26 gün aritmetiği,
+çok kademeli onay zinciri. Bunlar İK yazılımıdır — otuz kişilik bir şirket için yazılır, İş
+Kanunu'nu koda gömer ve her yıl çürür. Beş eğitmenli bir stüdyoda owner'ın hiçbir günlük kararını
+değiştirmez.
+
+**Faz testi neden geçti:** bakiye aritmetiği sonradan, **veriye dokunmadan** eklenebilir. Yokluğun
+kendisi eklenemez — bugün kaydedilmeyen izin, yarın raporlanamaz.
+
+**Onay olayı `affectedSessions` taşır.** Altı ay sonra "kaç dersin sahipsiz kalacağını biliyor
+muydun?" diye sorulduğunda cevabı olan tek kayıt odur.
+
+**Kimse kendi iznini onaylayamaz.** Onaylayabildiği bir sistemde onay diye bir şey yoktur, yalnızca
+bir form vardır.
+
+**Panoya izin değil DERS düşer.** *"Ayşe 12–15 izinli"* bir bilgidir; *"Perşembe 14:00 Reformer
+eğitmensiz"* bir iştir. Panonun işi haber vermek değil, bugün dokunulması gerekeni söylemek.
+
+**Büyümeye en yatkın yer onaydır** ve şimdiden yazılıyor: bildirim, hatırlatma, itiraz, çok
+kademeli onay derken bu İK yazılımına döner. Orada durulacak.

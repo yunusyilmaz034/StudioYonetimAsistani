@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { domainErrorMessage } from '@/lib/domain-error'
 import { endShiftAction, startShiftAction } from '@/server/actions/shift'
+import { IzinPanel } from './izin-panel'
 import type { ShiftView } from '@/server/shift-query'
 
 // Tek ekran, tek düğme. Açık mesain varsa "Bitir", yoksa "Başlat" — üçüncü bir hâl yok, ve
@@ -71,6 +72,10 @@ export function MesaiScreen({ view, ownerMu }: { view: ShiftView; ownerMu: boole
           {acik ? 'Mesaiyi bitir' : 'Mesaiye başla'}
         </Button>
       </Card>
+
+      {/* İZİN, MESAİNİN YANINDA (owner onayı, 2026-09-11): ikisi de "kim ne zaman burada" sorusunun
+          parçası. Ayrı bir ekrana koymak, izin isteyeni üçüncü bir yeri hatırlamaya zorlardı. */}
+      <IzinPanel ownerMu={ownerMu} />
 
       {/* Günün listesi yalnızca owner'a. Bir hocanın bir başkasının saatini görmesi için sebep yok. */}
       {ownerMu ? (

@@ -180,6 +180,11 @@ export type DomainError =
   // Vardiyayı yazan, vardiyayı yaşayan kişidir. Bir başkasının saatini yazmak bir düzeltmedir ve
   // düzeltmenin yolu telafi kaydıdır (#9) — sessizce başkasının adına mesai açmak değil.
   | { readonly code: 'own_shift_only' }
+  // İzin (2026-09-11): bitiş başlangıçtan önce olamaz · aynı kişi aynı günlere iki kez izin alamaz.
+  // İkincisi bir rahatlık değil bir zorunluluk: iki üst üste izin, "bu gün izinli mi" sorusunun
+  // iki cevabı demektir ve takvimdeki etkiyi hesaplarken hangisinin geçerli olduğu bilinemez.
+  | { readonly code: 'invalid_range' }
+  | { readonly code: 'leave_overlaps' }
   // Açık vardiya varken ikincisi açılmaz: gün sonunda hangisinin gerçek olduğu bilinemez olurdu.
   | { readonly code: 'shift_already_open' }
   | { readonly code: 'no_open_shift' }

@@ -67,6 +67,67 @@ export type StaffReactivatedPayload = {
 export const STAFF_SHIFT_STARTED = 'staff.shift_started'
 export const STAFF_SHIFT_ENDED = 'staff.shift_ended'
 
+// ── İZİN / YOKLUK (owner onayı, 2026-09-11) ─────────────────────────────────────────────────
+//
+// Owner: *"mesaiye bir de izin yönetim sistemi eklesek mi?"*
+//
+// EKLENEN ŞEY İZİN BAKİYESİ DEĞİL, YOKLUKTUR — ve fark, ürünün tamamını belirliyor.
+//
+// Yıllık izin hakkı, devreden gün, kıdeme göre 14/20/26 gün aritmetiği İK yazılımıdır: otuz kişilik
+// bir şirket için yazılır, İş Kanunu'nu koda gömer ve her yıl çürür. Beş eğitmenli bir stüdyoda
+// owner'ın hiçbir günlük kararını değiştirmez.
+//
+// Değiştirdiği karar şu: **eğitmen yarın yok, ve o gün ona atanmış dersler sahipsiz.** Yerine biri
+// konacak mı, yoksa ders iptal mi edilecek? Bugün bu ancak eğitmen söylerse ve owner hatırlarsa
+// biliniyor; perşembe sabahı öğrenilen bir yokluk üç ders demek.
+//
+// Bakiye aritmetiği SONRADAN, veriye dokunmadan eklenebilir. Yokluğun kendisi eklenemez: bugün
+// kaydedilmeyen izin, yarın raporlanamaz.
+//
+// PII yok (#6): olayda opak kullanıcı kimliği, tarihler ve kapalı bir tür duruyor. İsim `/staff`te.
+export const STAFF_LEAVE_REQUESTED = 'staff.leave_requested'
+export const STAFF_LEAVE_APPROVED = 'staff.leave_approved'
+export const STAFF_LEAVE_REJECTED = 'staff.leave_rejected'
+// Geri çekmek SİLMEK değildir: talep kaydı duruyor, durumu değişiyor. Silinen bir izin talebi,
+// "ben istemiştim / bana gelmedi" tartışmasının iki tarafını da kanıtsız bırakır.
+export const STAFF_LEAVE_CANCELLED = 'staff.leave_cancelled'
+
+/** Kapalı enum: yokluğun sebepleri sayılabilir olmalı, serbest metin değil — rapor buna dayanıyor. */
+export type LeaveKind = 'izin' | 'rapor' | 'egitim' | 'diger'
+
+export type StaffLeaveRequestedPayload = {
+  readonly leaveId: string
+  readonly staffUserId: string
+  readonly kind: LeaveKind
+  /** Stüdyo yerel saatiyle GÜN sınırları: `from` günün başı, `to` günün SONU (dahil). */
+  readonly fromMs: number
+  readonly toMs: number
+  readonly days: number
+  /** Not YAZILDI MI — notun kendisi olayda değil: serbest metin, PII'nin sızdığı yerdir. */
+  readonly hasNote: boolean
+}
+
+export type StaffLeaveApprovedPayload = {
+  readonly leaveId: string
+  readonly staffUserId: string
+  /** Onay anında o aralıkta bu eğitmene atanmış ders sayısı. Onaylayan bunu GÖRDÜ demektir —
+   *  ve altı ay sonra "haberim yoktu" cümlesinin karşısına konacak tek kayıt budur. */
+  readonly affectedSessions: number
+}
+
+export type StaffLeaveRejectedPayload = {
+  readonly leaveId: string
+  readonly staffUserId: string
+  readonly reason: string
+}
+
+export type StaffLeaveCancelledPayload = {
+  readonly leaveId: string
+  readonly staffUserId: string
+  /** Onaylanmış bir izni geri almak ile talebi geri çekmek aynı şey değil; rapor ikisini ayırıyor. */
+  readonly wasApproved: boolean
+}
+
 export type StaffShiftStartedPayload = {
   readonly staffUserId: string
   readonly shiftId: string

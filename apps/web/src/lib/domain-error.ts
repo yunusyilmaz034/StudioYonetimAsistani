@@ -315,6 +315,11 @@ export function domainErrorMessage(error: DomainError): string {
       return 'Yalnızca kendi mesaini başlatıp bitirebilirsin.'
     case 'shift_already_open':
       return 'Zaten açık bir mesain var. Önce onu bitir.'
+    // ── İzin (2026-09-11) ──
+    case 'invalid_range':
+      return 'Bitiş tarihi başlangıçtan önce olamaz.'
+    case 'leave_overlaps':
+      return 'Bu tarihlerde zaten bir izin kaydın var. Önce onu düzelt.'
     case 'no_open_shift':
       return 'Açık bir mesain yok. Önce mesaiyi başlat.'
     // ── Program sürümü geri çekme (owner onayı, 2026-09-03) ──

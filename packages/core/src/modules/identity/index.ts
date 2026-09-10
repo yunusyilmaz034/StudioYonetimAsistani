@@ -20,3 +20,10 @@ export {
   decideStartShift,
 } from './domain/decide'
 export * from './events'
+
+// ── İzin / yokluk (owner onayı, 2026-09-11). Eklenen şey izin BAKİYESİ değil YOKLUKTUR: takvimde
+//    hangi derslerin sahipsiz kalacağını söyleyen kayıt. Gerekçesi `events.ts`te. ──
+export { requestStaffLeave, decideStaffLeave, cancelStaffLeave } from './application/leave'
+export type { StaffLeaveDeps, StaffLeaveRepository } from './application/ports'
+export type { StaffLeave } from './domain/types'
+export { FirestoreStaffLeaveRepository } from './infrastructure/repos'

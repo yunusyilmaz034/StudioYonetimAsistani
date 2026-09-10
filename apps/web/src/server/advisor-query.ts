@@ -16,7 +16,9 @@ export interface AdvisorItem {
   // facts, and neither is a problem to be solved. 'hot_lead' is a WhatsApp conversation worth
   // answering; 'online_payment' is money that already arrived by card.
   // 'door_refused' de dışarıdan: pano okuma modelinden değil, olay kaydından geliyor.
-  readonly kind: InsightKind | 'hot_lead' | 'online_payment' | 'door_refused'
+  // 'staff_leave' — eğitmensiz kalan dersler ve karar bekleyen izinler. Pano okuma modelinden
+  // değil, izin kayıtlarından geliyor.
+  readonly kind: InsightKind | 'hot_lead' | 'online_payment' | 'door_refused' | 'staff_leave'
   readonly severity: InsightSeverity
   readonly title: string
   readonly detail: string

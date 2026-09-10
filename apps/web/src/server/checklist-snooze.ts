@@ -38,6 +38,8 @@ export interface TickedItem {
 export const CHECKLIST_COOLDOWN_DAYS: Readonly<Record<string, number>> = {
   // Sebep bir tarih değil, bir DAVRANIŞ: yarın da 35 gündür gelmiyor olacak, ve bu yeni bir haber değil.
   door_refused: 7,
+  leave_pending: 3,
+  leave_uncovered: 7,
   dormant_member: 7,
   // Ödendiği an zaten listeden düşüyor; her sabah aynı kişiyi aramak tahsilat değil taciz.
   outstanding_balance: 7,
