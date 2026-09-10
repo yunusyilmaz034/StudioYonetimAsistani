@@ -27,6 +27,20 @@ hemfikir olması gereken bir ayar kalmıyor).
 **Alınacak ders, ve CI ölüyken iki kat geçerli:** yerelde yeşil bir gate, işin DEPLOY olduğunu
 söylemiyor. `gcloud builds list --region=europe-west4` bu gece tek dürüst araçtı.
 
+⚠️ **VE SONRA PANEL 20 DAKİKA ÇÖKTÜ (02:01–02:20).** İzin listesi `staffLeaves`te bileşik index
+isteyen bir sorgu yapıyor; **Firestore bunu yalnızca CANLIDA reddediyor** — emülatör index
+uygulamaz, dolayısıyla yereldeki her çalıştırma yeşildi. Bu tuzak zaten bu depoda yazılıydı.
+
+Üç index eklendi ve dağıtıldı (yönler tahminle değil örtük sıralamayla eşleşerek); 26 index `READY`.
+
+**Asıl kusur index değildi:** `Promise.all`, panonun EK listelerini (lead'ler, kapıda kalanlar,
+izinler, online ödemeler) taşıyıcı yapmıştı ve biri fırlayınca owner'ın ana ekranı komple
+"Application error" oldu. Artık her biri yalıtılmış — hata ne yutuluyor ne öldürücü: konsola
+yazılıyor, ekran hangi bölümün gelmediğini söylüyor. **Boş bir liste ile gelmeyen bir liste aynı
+görünür, ama zıt şeyler söyler.**
+
+**Yeni bir sorgu canlıya çıkıyorsa index'ini AYNI commit'te yaz.** Emülatör bunu asla yakalamaz.
+
 ### Turnike
 
 **`turnike-v1.2` KİLİTLİ ve kartta.** Ekran yeniden yazıldı (Türkçe glifli font, tarayıcı köşeleri,
