@@ -25,6 +25,7 @@ const FILTERS: readonly { kind: ActivityKind; label: string }[] = [
   { kind: 'feedback', label: 'Geri bildirimler' },
   { kind: 'notification', label: 'Bildirimler' },
   { kind: 'operation', label: 'Toplu İşlemler' },
+  { kind: 'manual', label: 'Elle Müdahaleler' },
   { kind: 'checkin', label: 'Check-in' },
   { kind: 'schedule', label: 'Program' },
   { kind: 'system', label: 'Sistem' },

@@ -222,12 +222,26 @@ export async function bookPastAttendedAction(input: unknown) {
 }
 
 export async function cancelReservationAction(input: unknown) {
-  const p = z.object({ reservationId: nonEmpty }).parse(input)
+  const p = z
+    .object({
+      reservationId: nonEmpty,
+      // KREDİYE İNSAN KARAR VERİR (owner, 2026-09-10). Verilmezse politika karar verir — eski
+      // çağıranlar (üye portalı, mobil, toplu işler) hiç değişmiyor. Yalnızca 6 saatlik pencere
+      // İÇİNDE bir anlamı var: dışarıda kredi zaten iade ediliyor.
+      creditDecision: z.enum(['refund', 'consume']).optional(),
+      // Politikadan sapılıyorsa sebep zorunlu — sebepsiz bir müdahale, bir hatadan ayırt edilemez.
+      reason: z.string().trim().max(300).optional(),
+    })
+    .parse(input)
   const ctx = await requireTenantContext(OPS)
   return cancelReservation(
     { repo: new FirestoreReservationRepository(adminDb()), clock: systemClock, hours: new FirestoreStudioHours(adminDb()), policy: reservationPolicyPort() },
     ctx,
-    { reservationId: p.reservationId as ReservationId },
+    {
+      reservationId: p.reservationId as ReservationId,
+      ...(p.creditDecision ? { creditDecision: p.creditDecision } : {}),
+      ...(p.reason ? { reason: p.reason } : {}),
+    },
   )
 }
 

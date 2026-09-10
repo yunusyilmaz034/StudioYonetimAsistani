@@ -34,6 +34,10 @@ export type ActivityKind =
   | 'feedback' // a member left training feedback, or a trainer answered it
   | 'notification' // message delivery (sent/delivered) — kept for the audit log, OFF the live feed
   | 'operation'
+  // ELLE MÜDAHALE (owner, 2026-09-10): *"elle yapılan işlemler ekranımıza eklensin."* Bir insanın
+  // stüdyo kuralının önüne geçtiği anlar. Kendi ailesi olmasının sebebi sayıları: bunlar nadirdir,
+  // ve nadir olan bir şey sık olanın arasında aranamaz.
+  | 'manual'
   | 'schedule'
   | 'system'
 
@@ -49,6 +53,10 @@ export const KIND_OF: Record<string, ActivityKind> = {
   'reservation.no_show': 'reservation',
   'reservation.auto_resolved': 'system',
   'reservation.corrected': 'reservation',
+  // ELLE VERİLEN KREDİ KARARI (owner, 2026-09-10). Rezervasyonda değil, `manual`de: bu satırın
+  // konusu rezervasyon değil, bir insanın stüdyo kuralının önüne geçmesidir. Rezervasyon
+  // gürültüsünün arasına karışsaydı, aranan şey tam da bulunamayacak olan olurdu.
+  'reservation.credit_decided': 'manual',
   'reservation.note_set': 'reservation',
   'waitlist.joined': 'reservation',
   'waitlist.left': 'reservation',

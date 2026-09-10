@@ -36,6 +36,7 @@ import autoResolvedByCheckIn from './reservation.auto_resolved.member_checkin.v1
 import booked from './reservation.booked.v1.json'
 import cancelled from './reservation.cancelled.v1.json'
 import corrected from './reservation.corrected.v1.json'
+import creditDecided from './reservation.credit_decided.v1.json'
 import lateCancelled from './reservation.late_cancelled.v1.json'
 import moved from './reservation.moved.v1.json'
 import noShow from './reservation.no_show.v1.json'
@@ -151,6 +152,18 @@ describe('reservation event payloads match golden fixtures (AD-33)', () => {
   })
   it('reservation.cancelled', () => {
     expect(payload(decideCancellation(ctx, res(), session()))).toEqual(cancelled)
+  })
+  // Resepsiyon politikadan saptı: kredi yakılacakken iade edildi. AYRI bir olay — `late_cancelled`
+  // olduğu gibi duruyor, sürümü artmıyor, upcaster gerekmiyor.
+  it('reservation.credit_decided', () => {
+    const r = decideCancellation(ctx, res(), session(instant(NOW + 3 * H)), {
+      allowance: null,
+      usedNet: 0,
+      staffCreditDecision: 'refund',
+      staffReason: 'Üye hasta, telefonla haber verdi',
+    })
+    const e = r.ok ? r.value.events.find((x) => x.type === 'reservation.credit_decided') : null
+    expect(e?.payload).toEqual(creditDecided)
   })
   it('reservation.late_cancelled', () => {
     expect(payload(decideCancellation(ctx, res(), session(instant(NOW + 3 * H))))).toEqual(lateCancelled)

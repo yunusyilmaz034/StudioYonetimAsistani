@@ -22,6 +22,13 @@ export interface CancelReservationInput {
   // The member pressed the button herself. Inside the cancellation window this is REFUSED rather
   // than charged (owner, 2026-08-06) — see decideCancellation. Reception passes nothing.
   readonly selfService?: boolean
+  /**
+   * Resepsiyonun açık kredi kararı (owner, 2026-09-10). Verilmezse politika karar verir — yani
+   * bugüne kadarki davranış; eski çağıranların hiçbiri değişmiyor.
+   */
+  readonly creditDecision?: 'refund' | 'consume'
+  /** Politikadan sapıldığında ZORUNLU: sebepsiz bir müdahale, hatadan ayırt edilemez. */
+  readonly reason?: string
 }
 
 // Cancellation moves a credit (release inside no counter; late-cancel may consume),
@@ -50,6 +57,8 @@ export async function cancelReservation(
         allowance: eff.cancellationAllowance,
         usedNet: cancellationsUsed(entitlement.cancellationLedger),
         selfService: input.selfService === true,
+        ...(input.creditDecision ? { staffCreditDecision: input.creditDecision } : {}),
+        ...(input.reason ? { staffReason: input.reason } : {}),
       })
       if (!cancelled.ok) return cancelled
 

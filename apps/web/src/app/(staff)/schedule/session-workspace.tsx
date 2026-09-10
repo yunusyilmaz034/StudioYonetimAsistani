@@ -34,13 +34,13 @@ import {
 import {
   assignSessionMemberAction,
   listEligibleMembersForServiceAction,
-  cancelSessionAction,
   changeCapacityAction,
   changeRoomAction,
   changeTrainerAction,
   rescheduleSessionAction,
   setSessionNoteAction,
 } from '@/server/actions/scheduling'
+import { cancelSessionWithRefundAction, sessionCancelImpactAction, type SessionCancelImpact } from '@/server/actions/session-cancel'
 import { correctReservationAction } from '@/server/actions/reservations'
 import type { CalendarSession, PickOption, StaffOption } from '@/server/schedule-query'
 
@@ -221,6 +221,7 @@ function InfoTab({
   const [rsEnd, setRsEnd] = useState('')
   const [typeGuidance, setTypeGuidance] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [etki, setEtki] = useState<{ rows: readonly SessionCancelImpact[]; creditsToReturn: number } | null>(null)
   const { record } = useUndo()
 
   const editable = session.status === 'scheduled' && session.startsAt > Date.now()
@@ -233,6 +234,10 @@ function InfoTab({
     setRsDate(localDate(session.startsAt))
     setRsStart(localTime(session.startsAt))
     setRsEnd(localTime(session.endsAt))
+    setEtki(null)
+    // Etkilenenler yalnızca iptal kutusunda okunuyor: her açılışta bir sorgu, kimsenin bakmadığı
+    // bir sayı için ödenmiş bir okumadır.
+    if (a === 'cancel') void sessionCancelImpactAction({ sessionId: session.sessionId }).then(setEtki).catch(() => setEtki({ rows: [], creditsToReturn: 0 }))
     setAction(a)
   }
 
@@ -285,7 +290,20 @@ function InfoTab({
           redo: () => adapt(rescheduleSessionAction({ sessionId: sid, date: rsDate, startTime: rsStart, endTime: rsEnd, reason: r })),
         }
       } else {
-        res = await cancelSessionAction({ sessionId: sid, reason: r })
+        // SEANS İPTALİ ARTIK KREDİLERİ DE İADE EDİYOR (owner, 2026-09-10). Eskiden yalnızca seans
+        // iptal ediliyordu; rezervasyonlar `booked`, krediler `held` kalıyor ve ancak gece
+        // süpürmesinde serbest bırakılıyordu — yani üye o akşam boyunca hakkını kullanamıyordu.
+        const c = await cancelSessionWithRefundAction({ sessionId: sid, reason: r })
+        res = c.ok ? { ok: true as const, value: undefined } : { ok: false as const, error: c.error }
+        if (c.ok) {
+          // `failed` YUTULMUYOR: kalanları gece süpürmesi toplayacak ama bunu bilmek resepsiyonun
+          // hakkı — "iade edildi" deyip sessizce yarısını bırakmak, ertesi günkü telefondur.
+          toast.success(
+            c.failed > 0
+              ? `Seans iptal edildi · ${c.refunded} kredi iade edildi · ${c.failed} tanesi iade edilemedi, gece tekrar denenecek.`
+              : `Seans iptal edildi · ${c.refunded} kredi iade edildi.`,
+          )
+        }
       }
       if (res.ok) {
         setAction(null)
@@ -420,6 +438,40 @@ function InfoTab({
                 ))}
               </SelectContent>
             </Select>
+          ) : null}
+
+          {/* SEANS İPTALİNDE KİM ETKİLENİYOR (owner, 2026-09-10): *"iade edilecek kredilere ait
+              kişileri de verip onaydan sonra iptal etsin."* Kimin etkilendiğini görmeden verilen bir
+              iptal kararı, sonuçları ertesi gün telefonla öğrenilen bir karardır. */}
+          {action === 'cancel' ? (
+            etki === null ? (
+              <p className="text-sm text-muted-foreground">Etkilenen üyeler yükleniyor…</p>
+            ) : etki.rows.length === 0 ? (
+              <p className="rounded-lg bg-muted/40 p-3 text-sm text-muted-foreground">
+                Bu seansta rezervasyon yok — iade edilecek kredi de yok.
+              </p>
+            ) : (
+              <div className="space-y-2 rounded-lg border border-warning/30 bg-warning/5 p-3">
+                <p className="text-sm font-medium text-foreground">
+                  {etki.rows.length} üye etkilenecek · {etki.creditsToReturn} kredi iade edilecek
+                </p>
+                <ul className="max-h-40 space-y-1 overflow-y-auto text-sm">
+                  {etki.rows.map((r) => (
+                    <li key={r.memberId} className="flex justify-between gap-2">
+                      <span className="truncate text-foreground">{r.memberName}</span>
+                      <span className={r.holdsCredit ? 'shrink-0 text-success' : 'shrink-0 text-muted-foreground'}>
+                        {r.holdsCredit ? 'kredi iade' : 'kredi tutmuyor'}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+                {/* İade SEÇENEK DEĞİL: stüdyo iptal ettiğinde üyenin kusuru yok ve I-14 bunu
+                    değişmez kural sayıyor. Ekran haber veriyor, izin istemiyor. */}
+                <p className="text-xs text-muted-foreground">
+                  Stüdyo iptal ettiği için krediler koşulsuz iade edilir — 6 saat kuralı burada işlemez.
+                </p>
+              </div>
+            )
           ) : null}
 
           {action === 'capacity' ? (

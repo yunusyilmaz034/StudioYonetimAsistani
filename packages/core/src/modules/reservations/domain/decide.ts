@@ -36,6 +36,7 @@ import {
   RESERVATION_AUTO_RESOLVED,
   RESERVATION_BOOKED,
   RESERVATION_CANCELLED,
+  RESERVATION_CREDIT_DECIDED,
   RESERVATION_CORRECTED,
   RESERVATION_LATE_CANCELLED,
   RESERVATION_MOVED,
@@ -478,6 +479,18 @@ export interface CancellationInputs {
   // charged — see decideCancellation. Reception is unaffected: a person at the desk can see the case
   // in front of her and explain it, which is exactly what a member alone with a phone cannot.
   readonly selfService?: boolean
+  /**
+   * RESEPSİYONUN AÇIK KREDİ KARARI (owner, 2026-09-10). Yalnızca pencere İÇİNDEKİ (geç) iptalde
+   * anlamlı: pencere dışında kredi zaten iade edilir, iptal edilen seansta zaten iade edilir (I-14).
+   *
+   * Verilmezse politika ne diyorsa o olur — yani bugünkü davranış. Verilirse politikanın yerine
+   * geçer ve sapma AYRI BİR OLAYLA kayda geçer (`reservation.credit_decided`).
+   *
+   * `selfService` iptalinde YOK SAYILIR: üye kendi kredisinin yanıp yanmayacağına karar veremez.
+   */
+  readonly staffCreditDecision?: 'refund' | 'consume'
+  /** Politikadan sapıldığında kayda geçen sebep. Sebepsiz bir müdahale, bir hatadan ayırt edilemez. */
+  readonly staffReason?: string
 }
 
 export function decideCancellation(
@@ -526,12 +539,38 @@ export function decideCancellation(
   // Reception, inside the window: late cancel. Burns per policy; otherwise the hold is released
   // (a resolved reservation can never keep a hold — I-2). A late cancel does NOT spend the
   // free-cancellation allowance (only in-window cancels count, owner).
-  const effect: CreditEffect = !heldACredit
-    ? 'none'
-    : policy.lateCancellationConsumesCredit
-      ? 'consumed'
-      : 'released'
-  return ok(resolveCancel(ctx, reservation, hoursBeforeStart, false, effect, 'late_cancelled', false))
+  const politikaninKarari: CreditEffect = policy.lateCancellationConsumesCredit ? 'consumed' : 'released'
+  // İnsanın kararı politikanın önüne geçer — ama yalnızca RESEPSİYON için. Üye kendi kredisinin
+  // yanıp yanmayacağına karar veremez; `selfService` bu noktaya zaten hiç gelmiyor (yukarıda
+  // reddediliyor), ve gelseydi bile bu satır onu yok sayardı.
+  const insaninKarari: CreditEffect | null =
+    cancellation?.selfService || !cancellation?.staffCreditDecision
+      ? null
+      : cancellation.staffCreditDecision === 'refund'
+        ? 'released'
+        : 'consumed'
+  const effect: CreditEffect = !heldACredit ? 'none' : (insaninKarari ?? politikaninKarari)
+  const sonuc = resolveCancel(ctx, reservation, hoursBeforeStart, false, effect, 'late_cancelled', false)
+
+  // Politikadan SAPILDIYSA ayrıca yazılır. Aynı kararsa hiçbir şey yazılmaz: aynı karar bir
+  // müdahale değildir, ve her geç iptale bir olay eklemek gerçek müdahaleleri gürültüde kaybederdi.
+  if (!heldACredit || insaninKarari === null || insaninKarari === politikaninKarari) return ok(sonuc)
+  return ok({
+    ...sonuc,
+    events: [
+      ...sonuc.events,
+      {
+        ...base(ctx, sonuc.reservation),
+        type: RESERVATION_CREDIT_DECIDED,
+        payload: {
+          decision: insaninKarari === 'released' ? ('refund' as const) : ('consume' as const),
+          policyWouldHave: politikaninKarari === 'released' ? ('refund' as const) : ('consume' as const),
+          hoursBeforeStart,
+          reason: cancellation?.staffReason ?? '',
+        },
+      },
+    ],
+  })
 }
 
 function resolveCancel(

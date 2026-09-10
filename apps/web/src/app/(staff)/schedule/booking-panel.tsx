@@ -72,6 +72,10 @@ export function BookingPanel({ session, onMutated, canBackdate = true }: { sessi
   const [busy, setBusy] = useState(false)
   const [yananSecenekler, setYananSecenekler] = useState<readonly ExpiredCreditOption[] | null>(null)
   const [cancelling, setCancelling] = useState<RosterMember | null>(null)
+  // KREDİYE İNSAN KARAR VERİR (owner, 2026-09-10). Varsayılan İADE: kaza ile kredi yakmak, kaza ile
+  // iade etmekten pahalıdır — biri üyeyi kızdırır ve telefonla çözülür, öbürü bir kredidir.
+  const [iade, setIade] = useState(true)
+  const [krediSebep, setKrediSebep] = useState('')
   const [noting, setNoting] = useState<RosterMember | null>(null)
   const [noteText, setNoteText] = useState('')
 
@@ -174,10 +178,18 @@ export function BookingPanel({ session, onMutated, canBackdate = true }: { sessi
     if (!cancelling) return
     setBusy(true)
     try {
-      const res = await cancelReservationAction({ reservationId: cancelling.reservationId })
+      // Pencere DIŞINDA seçim yok: kredi zaten iade ediliyor, ve oraya "yak" seçeneği koymak
+      // resepsiyona politikanın bedava dediği bir krediyi yakma yetkisi vermek olurdu.
+      const res = await cancelReservationAction({
+        reservationId: cancelling.reservationId,
+        ...(lateCancel ? { creditDecision: iade ? ('refund' as const) : ('consume' as const) } : {}),
+        ...(lateCancel && iade && krediSebep.trim() ? { reason: krediSebep.trim() } : {}),
+      })
       if (res.ok) {
         toast.success(replace ? 'İptal edildi — doğru üyeyi seçin.' : 'Rezervasyon iptal edildi.')
         setCancelling(null)
+        setIade(true)
+        setKrediSebep('')
         await loadRoster()
         onMutated()
         if (replace) await openPicker()
@@ -424,10 +436,33 @@ export function BookingPanel({ session, onMutated, canBackdate = true }: { sessi
             <DialogDescription>{cancelling?.memberName} bu seanstan çıkarılacak.</DialogDescription>
           </DialogHeader>
           {lateCancel ? (
-            <p className="rounded-lg bg-warning/10 p-3 text-sm text-warning" role="alert">
-              Geç iptal: ders başlamasına {Math.max(0, Math.floor(hoursUntil))} saatten az kaldı — bu üyenin kredisi yanacak.
-            </p>
-          ) : null}
+            <div className="space-y-2 rounded-lg border border-warning/30 bg-warning/5 p-3">
+              <p className="text-sm text-warning" role="alert">
+                Geç iptal: derse {Math.max(0, Math.floor(hoursUntil))} saatten az kaldı. Kredi ne olsun?
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                <Button type="button" size="sm" variant={iade ? 'default' : 'outline'} onClick={() => setIade(true)}>
+                  Krediyi iade et
+                </Button>
+                <Button type="button" size="sm" variant={iade ? 'outline' : 'default'} onClick={() => setIade(false)}>
+                  Krediyi yak
+                </Button>
+              </div>
+              {/* Sebep YALNIZCA sapmada isteniyor: politikanın dediğini yapmak bir müdahale değildir
+                  ve her iptalde gerekçe yazdırmak, gerekçeyi anlamsızlaştırır. */}
+              {iade ? (
+                <Input
+                  placeholder="Neden iade ediliyor? (kayda geçer)"
+                  value={krediSebep}
+                  onChange={(e) => setKrediSebep(e.target.value)}
+                />
+              ) : (
+                <p className="text-xs text-muted-foreground">Stüdyo kuralı zaten bunu söylüyor; ayrı bir kayıt açılmaz.</p>
+              )}
+            </div>
+          ) : (
+            <p className="rounded-lg bg-success/10 p-3 text-sm text-success">Kredi iade edilecek.</p>
+          )}
           <DialogFooter className="sm:flex-col sm:gap-2">
             {/* "Wrong member" — cancel and immediately pick the correct one, without leaving. */}
             <Button variant="outline" onClick={() => void confirmCancel(true)} disabled={busy}>

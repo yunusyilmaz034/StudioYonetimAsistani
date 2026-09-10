@@ -198,6 +198,22 @@ export function present(e: ActivityEvent): PresentedEntry {
         join(cls, p.creditEffect === 'consumed' ? 'kredi yandı (geç iptal)' : 'kredi iade edildi'),
         'danger',
       )
+    // Bu satırın gösterdiği şey iptal değil, KARARDIR: stüdyo kuralı bir şey diyordu, bir insan
+    // başka bir şey dedi. O yüzden iki tarafı da yazıyor — sadece sonucu yazmak, sapmayı görünmez
+    // kılardı ve bu satırın tek varlık sebebi sapmayı görünür kılmaktır.
+    case 'reservation.credit_decided':
+      return entry(
+        p.decision === 'refund'
+          ? `${of_(member)} kredisi elle İADE EDİLDİ.`
+          : `${of_(member)} kredisi elle YAKILDI.`,
+        join(
+          cls,
+          `stüdyo kuralı: ${p.policyWouldHave === 'refund' ? 'iade' : 'yak'} · ${
+            typeof p.reason === 'string' && p.reason.trim() ? `sebep: ${p.reason}` : 'sebep yazılmadı'
+          }`,
+        ),
+        p.decision === 'refund' ? 'success' : 'danger',
+      )
     case 'reservation.moved':
       return entry(
         `${of_(member)} rezervasyonu taşındı.`,

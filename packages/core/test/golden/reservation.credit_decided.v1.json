@@ -1,0 +1,6 @@
+{
+  "decision": "refund",
+  "policyWouldHave": "consume",
+  "hoursBeforeStart": 3,
+  "reason": "Üye hasta, telefonla haber verdi"
+}

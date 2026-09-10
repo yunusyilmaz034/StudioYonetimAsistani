@@ -1365,3 +1365,50 @@ describe('süresi dolmuş paketin yanan hakkı (owner, 2026-09-01)', () => {
     expect(r.error.code).toBe('class_full')
   })
 })
+
+// ── KREDİYE İNSAN KARAR VERİR (owner, 2026-09-10) ──────────────────────────────────────────
+//
+// *"Admin rezervasyon iptal edeceği zaman her zaman sistem sorsun: kredi iade edelim mi yoksa
+// etmeyelim mi. Loglara da eklensin."*
+//
+// Bu testlerin varlık sebebi ölçülmüş bir davranış: bu stüdyoda pencere 6 saat ve
+// `lateCancellationConsumesCredit = true`. Yani 6 saatten yakın her resepsiyon iptali, kimseye
+// sorulmadan bir kredi yakıyordu.
+describe('geç iptalde kredi kararı — politika mı, insan mı', () => {
+  // Ders 1 saat sonra: 6 saatlik pencerenin İÇİNDE, yani "geç iptal".
+  const gecIptal = (
+    staff?: { staffCreditDecision?: 'refund' | 'consume'; staffReason?: string; selfService?: boolean },
+  ) =>
+    decideCancellation(
+      ctx,
+      bookedReservation({ sessionStartsAt: instant(NOW + H) }),
+      session({ startsAt: instant(NOW + H), endsAt: instant(NOW + 2 * H) }),
+      { allowance: null, usedNet: 0, ...(staff ?? {}) },
+    )
+
+  it('karar verilmezse POLİTİKA uygular — bugünkü davranış aynen duruyor', () => {
+    const r = gecIptal()
+    expect(r.ok && r.value.reservation.creditEffect).toBe('consumed')
+    // Sapma yoksa fazladan olay da yok: aynı karar bir müdahale değildir.
+    expect(r.ok && r.value.events.some((e) => e.type === 'reservation.credit_decided')).toBe(false)
+  })
+
+  it('resepsiyon İADE derse kredi geri döner ve SAPMA kayda geçer', () => {
+    const r = gecIptal({ staffCreditDecision: 'refund', staffReason: 'Üye hasta, telefonla haber verdi' })
+    expect(r.ok && r.value.reservation.creditEffect).toBe('released')
+    const olay = r.ok ? r.value.events.find((e) => e.type === 'reservation.credit_decided') : null
+    expect(olay?.payload).toMatchObject({ decision: 'refund', policyWouldHave: 'consume', reason: 'Üye hasta, telefonla haber verdi' })
+  })
+
+  it('resepsiyon politikayla AYNI kararı verirse fazladan olay yazılmaz', () => {
+    const r = gecIptal({ staffCreditDecision: 'consume', staffReason: 'x' })
+    expect(r.ok && r.value.reservation.creditEffect).toBe('consumed')
+    expect(r.ok && r.value.events.some((e) => e.type === 'reservation.credit_decided')).toBe(false)
+  })
+
+  it('ÜYE kendi kredisine karar veremez — selfService pencere içinde zaten reddedilir', () => {
+    const r = gecIptal({ selfService: true, staffCreditDecision: 'refund' })
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.error.code).toBe('outside_cancellation_window')
+  })
+})

@@ -13,6 +13,24 @@ import type { CreditEffect, ReservationStatus } from './domain/types'
 export const RESERVATION_BOOKED = 'reservation.booked'
 export const RESERVATION_CANCELLED = 'reservation.cancelled'
 export const RESERVATION_LATE_CANCELLED = 'reservation.late_cancelled'
+// ── KREDİYE İNSAN KARAR VERDİ (owner, 2026-09-10) ───────────────────────────────────────────
+//
+// *"Admin rezervasyon iptal edeceği zaman her zaman sistem sorsun: kredi iade edelim mi yoksa
+// etmeyelim mi. Loglara da eklensin."*
+//
+// Bugüne kadar bu kararı POLİTİKA veriyordu ve sessizce veriyordu: 6 saatten yakın bir iptalde
+// `lateCancellationConsumesCredit` true olduğu için kredi yanıyor, kimseye sorulmuyor, hiçbir yerde
+// "buna resepsiyon karar verdi" yazmıyordu. Üye ertesi gün "kredim niye eksildi" diye sorduğunda
+// cevap verebilecek bir kayıt yoktu.
+//
+// YENİ BİR OLAY TÜRÜ, alan eklemesi değil: `reservation.late_cancelled` olduğu gibi duruyor, sürüm
+// artmıyor, upcaster gerekmiyor. Aynı desen `sale.discount_corrected`ta da kullanıldı.
+//
+// YALNIZCA politikanın diyeceğinden FARKLI karar verildiğinde yazılıyor. Politikayla aynı karar bir
+// müdahale değildir; her iptalde bu olayı yazmak, gerçek müdahaleleri gürültüde kaybederdi.
+//
+// PII yok (#6): üye kimliği zarfta, sebep serbest metin ama isim yazmak resepsiyonun tercihidir.
+export const RESERVATION_CREDIT_DECIDED = 'reservation.credit_decided'
 export const RESERVATION_ATTENDED = 'reservation.attended'
 export const RESERVATION_NO_SHOW = 'reservation.no_show'
 export const RESERVATION_AUTO_RESOLVED = 'reservation.auto_resolved'
@@ -91,4 +109,17 @@ export type ReservationCorrectedPayload = {
 // additive and won't break v1.
 export type ReservationNoteSetPayload = {
   readonly text: string
+}
+
+/**
+ * Resepsiyon/owner, politikanın vereceği karardan başka bir karar verdi.
+ *
+ * `policyWouldHave` olmadan bu olay "kredi iade edildi" der ve bu bilgi tek başına işe yaramaz —
+ * asıl soru **politikadan sapıldı mı**, ve sapıldıysa neden.
+ */
+export type ReservationCreditDecidedPayload = {
+  readonly decision: 'refund' | 'consume'
+  readonly policyWouldHave: 'refund' | 'consume'
+  readonly hoursBeforeStart: number
+  readonly reason: string
 }
