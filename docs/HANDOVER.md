@@ -7,7 +7,91 @@ explains the moment.
 Keep it current the way the code is kept current: when the state changes, this changes in the same
 commit. A handover document that lags is worse than none, because it is believed.
 
-_Last true as of: **2026-09-04, 16:05**._
+_Last true as of: **2026-09-11, 01:30**._
+
+## 🌙 10–11 Eylül gecesi — turnike kilitlendi, para yolları kapandı, izin sistemi geldi
+
+**Panel canlıda `build-2026-09-10-003`** (UTC 22:06). İzin sisteminin deploy'u o sırada hâlâ
+sürüyordu — **sabah trafiği doğrula** (OR-17: tek dürüst kanıt Cloud Run trafik dağılımı).
+
+### Turnike
+
+**`turnike-v1.2` KİLİTLİ ve kartta.** Ekran yeniden yazıldı (Türkçe glifli font, tarayıcı köşeleri,
+irileşen QR), başlatma dayanıklılaştırıldı ([[DEBT-044]]), çıkış ekranı 180° döndürüldü (gövdeye
+ters monte edilmişti). Owner montaja bu sürümle gitti.
+
+**Yazıldı ama KARTA ATILMADI:** kurulum modu (WiFi + cihaz kimliği cihazın üstünden). Derleme yeşil,
+kart bağlı değildi. **Bu firmware'in duvardaki üniteye acil ihtiyacı YOK** — o kartın ağı ve kimliği
+`secrets.h`'inde yazılı. Değeri iki yerde: ikinci ünite kurulumunda, ve stüdyonun WiFi şifresi
+değişirse (bugün o durumda kutu ölür ve düzeltmek için oraya Mac gerekir). Atılınca `turnike-v1.3`
+etiketlenecek ve **on kez elektrik kesip verme** testi yapılacak.
+
+### İkinci stüdyo hazırlığı — owner onayladı, ikisi bitti
+
+`TURNSTILE-HARDWARE.md` §5'in üç maddesi: **WiFi cihazın üstünden ✅** · **cihaz kimliği panelden ✅**
+(Ayarlar → Tanımlar → Kapı Cihazları; sır bir kez gösterilir, kaybolursa döndürülür) · **kablo
+düzeni** spesifikasyonu donduruldu, uygulaması ikinci ünitede (ortak hatlarda dupont yok, kabul
+ölçütü on/on temiz açılış).
+
+### Para yolları
+
+| Ne | Durum |
+|---|---|
+| Cüzdandan tahsilat (Cari Hesap → Tahsil et → **Cüzdan**) | ✅ canlıda |
+| Kafe geçmişi — ne alındı, ne ödendi, ne borç | ✅ canlıda |
+| Fiziksel POS cüzdan yüklemesi artık **kart tahsilatı** ve POS kasasına düşüyor | ✅ canlıda |
+| **POS Kasası** oluşturuldu (`drw_pos_retro`, sıfır açılış, gece döngüsüne dahil) | ✅ |
+
+**HAVA KOLU'nun defteri kapandı:** 9 Eylül'de kartla çekilen 200 ₺'nin tamamı yerine oturdu
+(160 cüzdan + 20 su + 20 su), açık bakiye 0, cüzdan 160 ₺. İkinci su **kart** olarak yazıldı;
+owner "elden" dediyse nakde çevrilecek — bekliyor.
+
+### Rezervasyon / kredi
+
+**Seans iptali artık kredileri ANINDA iade ediyor** ([[OR-70]]). Eskiden yalnızca seans iptal
+oluyor, krediler gece süpürmesine kadar rehin kalıyordu. İptal kutusu onaydan önce **kimin
+etkilendiğini** listeliyor.
+
+**Geç iptalde krediye insan karar veriyor** ([[OR-71]]), varsayılan **iade**. Yalnızca stüdyo
+kuralından SAPMA kayda geçiyor (`reservation.credit_decided`) ve Aktivite Merkezi'nde yeni
+**"Elle Müdahaleler"** filtresinde görünüyor.
+
+**Kapıda kalan üye artık kaydediliyor** (`member.entry_refused`) ve panoda en üstte çıkıyor.
+Turnike bağlanınca test edilecek — bugüne kadar sıfır kayıt var, ölçüldü.
+
+### İzin sistemi (yeni)
+
+Mesai sayfasında. **Tutulan şey bakiye değil YOKLUK** ([[OR-72]]): eğitmen aralık bildirir, owner
+onaylar/reddeder, ve sistem tek soruyu cevaplar — *o aralıkta hangi dersler eğitmensiz kalıyor*.
+Panoya izin değil **eğitmensiz kalan dersler** düşüyor. Bakiye/kıdem aritmetiği bilerek yazılmadı.
+
+### Mobil
+
+**`expo-updates` kuruldu** (OTA). **AMA telefonlardaki 1.7.3 build'inde bu kütüphane YOK** — ona
+hiçbir OTA inmez. OTA ancak `expo-updates` taşıyan **ilk mağaza sürümü** çıktıktan sonra çalışır.
+`runtimeVersion: appVersion`, yani her sürüm kendi kanalını taşır.
+
+**Banner detay sayfasında görsel yüklenmiyor** — `Mobil 1.7.4 — biriken işler` listesinde, en olası
+sebebiyle (query param'dan geçen Storage URL'inin çift çözülmesi), **cihazda doğrulanmadı**.
+
+### Bir hata: React tipleri ikizlendi
+
+`pnpm add expo-updates` kilit dosyasını yeniden çözdü ve `apps/web`in kayan `^19.0.4` aralığını
+19.1.17'den 19.2.17'ye taşıdı; bağımlılıklar eskisinde kaldı ve panelin tip kontrolü komple kırıldı.
+Kök `package.json`da `pnpm.overrides` ile sabitlendi. **Ders:** kayan bir aralık, ilgisiz bir kurulumda
+yeniden çözülür.
+
+### Owner'ın kararını bekleyenler
+
+1. **"Elden" nakit miydi?** Bugünkü ikinci su kart yazıldı; nakitse ödeme iptal edilip nakde çevrilir.
+2. **GitHub CI ödemesi** — işler 4 Eylül'den beri hiç başlamıyor (*"account is locked due to a billing
+   issue"*). E-posta atıldı, cevap gelmedi. Şu an `main`'i tutan tek şey yerelde çalıştırılan
+   `pnpm check`; ağ sıfır.
+3. **Buzzer** — BC337 alındı, takılmadı; 12 V'a geçilmedi ([[DEBT-038]]). Askıda.
+4. **Turnike montajı** ve ilk geçiş testleri.
+5. Owner'ın *"bir işim daha olacak"* dediği, henüz anlatılmamış iş.
+
+---
 
 ## 🌙 31 Ağustos 2026 — uzun bir gün, on beş deploy
 
