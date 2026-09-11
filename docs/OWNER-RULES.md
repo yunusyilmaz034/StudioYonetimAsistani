@@ -1565,3 +1565,36 @@ eğitmensiz"* bir iştir. Panonun işi haber vermek değil, bugün dokunulması 
 
 **Büyümeye en yatkın yer onaydır** ve şimdiden yazılıyor: bildirim, hatırlatma, itiraz, çok
 kademeli onay derken bu İK yazılımına döner. Orada durulacak.
+
+### OR-73 · Bu hat SATIŞ hattıdır: satış dışı hiçbir şeye cevap verilmez, numara verilir ve orada bitirilir
+
+*(2026-09-11, owner: "satış dışındaki hiçbirşeye yanıt vermeden 0533 199 41 23 numaralı telefona
+yazın desin" · "AI bu şekilde yaparsa bizi zor durumda bırakıyor")*
+
+Bir üye *"bugün son günümdü ama gelemeyeceğim, haftaya gelsem olur mu"* yazdı. AI cevapladı:
+*"hemen resepsiyonumuza iletelim, size dönüş yapsınlar."* **Kimse iletmedi, kimse dönmedi** — çünkü
+AI ne iletebilir ne de iletildiğini görebilir. [[OR-69]]'un aynısı, başka bir kılıkta: tutulmayan
+söz, sözü stüdyonun sırtına bırakıyor.
+
+**Satış olan:** fiyat · paketler · hizmetler · stüdyo/adres · nasıl başlanır · gelip görme ·
+kayıt olmak isteyen yeni müşteri · mevcut üyenin YENİ paket alması.
+
+**Satış olmayan (yönlendirilir):** mevcut üyenin dersi/hakkı/rezervasyonu/telafisi/dondurması/
+ödemesi · "bugün gelemeyeceğim" · unutulan eşya, dolap, arıza, temizlik · şikâyet · sağlık ·
+personel · ve tanınmayan her konu.
+
+**ÜYE OLMAK İSTİSNA DEĞİL, TAM TERSİ.** Yazanı tanıyor olmak cevap verme yetkisi vermiyor: üyenin
+işini resepsiyon yürütüyor.
+
+**MULTISPORT:** tek cümle bilgi + numara. *"Kartımız yalnızca pilates (reformer grup) derslerinde
+geçiyor; detaylar için <numara> numaralı hattımıza yazmanız yeterli."* Saat, rezervasyon, hak
+sayısı — hiçbiri anlatılmaz.
+
+**YASAK CÜMLELER, tek tek yazılı:** "resepsiyonumuza iletelim" · "size dönüş yapsınlar" · "hemen
+ilgilenirler" · "kontrol edip döneriz" · "not aldım". Hepsi BAŞKASININ tutmak zorunda kalacağı bir
+sözdür.
+
+**Doğru cevap tek cümledir** ve arkasına hiçbir şey eklenmez — ne çözüm önerisi, ne soru, ne
+"bu arada". Numara bilgi kartından okunur, koda yazılmaz ([[OR-65]] ile aynı kaynak).
+
+**Bu kural prompt'ta BİRİNCİ sıradadır**, yirmi kuraldan biri değil — çünkü sürekli kırılan kural bu.
