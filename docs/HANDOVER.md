@@ -47,11 +47,14 @@ görünür, ama zıt şeyler söyler.**
 (WiFi + kimlik cihazın üstünden) · elle uzun `RST` darbesi · panel başlatmanın **altı kez** tekrarı ·
 `-D PROB` teşhis modu. Açılış ~17 sn, iki kapı da kodunu alıyor, QR ekranda.
 
-⚠️ **BEYAZ EKRANIN SEBEBİ BULUNDU VE YAZILIMDA DEĞİL** ([[DEBT-044]]). Arka ışık yanarken ekran
-beyazsa panelde 3.3 V var demektir; nabız teşhisi de kodun sonuna kadar çalıştığını gösterdi. Geriye
-SPI sinyalinin ulaşmaması kaldı — ortak `SCK(12)·MOSI(11)·DC(13)·RST(8)` hatlarında **gevşek dupont**.
-Owner kabloları elleyince ekranlar geldi. **Gövde kapanmadan önce bu dört hat sabitlenmeli**
-(`TURNSTILE-HARDWARE.md` §5/3: vidalı klemens ya da lehim, dupont YOK).
+✅ **BEYAZ EKRAN ÇÖZÜLDÜ — ve sebep gevşek kablo DEĞİLMİŞ** ([[DEBT-044]]). Panel, `begin()`
+çalıştığı anda henüz hazır olmuyordu; **başlatma altı kez** tekrarlanınca geçti. Owner elektriği
+on kez kesip verdi: **10/10**.
+
+Teşhis bir ara "gevşek dupont"a gitmişti ve owner çürüttü: *"kablolarla oynuyorum, ekranlar stabil
+duruyor."* Çalışan bir ekranı kabloyla bozamıyorsan temas sağlamdır — ve arıza zaten hep AÇILIŞTA
+oluyordu. "Takıp çıkarınca düzeliyor"un sebebi teması düzeltmek değil, **yeniden açılıştı**.
+Lehim hâlâ doğru iş (titreşim), ama artık acil değil.
 
 **Ve seri port aslında çalışıyormuş:** aylardır "bu kart log vermiyor" biliniyordu; sebep kartın
 kendisi değil **bayat port adıydı**. Kabloyu çıkarıp takınca `usbmodem5C372706761` → `usbmodem1101`

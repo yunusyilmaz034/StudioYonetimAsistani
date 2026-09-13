@@ -1199,51 +1199,42 @@ yerde unutulur — `foldTr`da tam olarak bu olmuştu (2026-09-02).
 **Belirti, geri geldiğinde:** "kaydedilemedi diyor ama sorun yok" diye gelen her şikayet. Log'da
 karşılığı `POST … → 404`tür.
 
-## DEBT-044 · Turnike ekranları bazen hiç başlamıyor, ve bunu SORAMIYORUZ (2026-09-08)
+## DEBT-044 · Turnike ekranları açılışta başlamıyordu — ÇÖZÜLDÜ, ve sebep sanılan şey değildi (2026-09-08 → 13)
 
-**Belirti.** Açılışta iki ekran birden beyaz kalıyor. Beyaz, "çizim yarıda kaldı" değil, **panel hiç
-yapılandırılmadı** demektir: arka ışık yanıyor, ILI9341 ayarsız. Takıp çıkarınca düzeliyor, ve aynı
-firmware onlarca kez sorunsuz açılıyor.
+**Belirti.** Açılışta iki ekran birden beyaz. Beyaz, "çizim yarıda kaldı" değil, **panel hiç
+yapılandırılmadı** demektir. Takıp çıkarınca düzeliyor, ve aynı firmware onlarca kez sorunsuz
+açılıyordu.
 
-**Ne biliyoruz.** İki ekran hep BİRLİKTE gidiyor. Ayrı olan tek pin `CS`; `RST(8) · DC(13) ·
-SCK(12) · MOSI(11) · 3V3 · GND` ortak. Yani suçlu paylaşılan bir hat ya da paylaşılan rayın kendisi.
-Ekranlar bu kartta 3.3 V rayındaki en ağır yük, ve bu ray daha önce iki kez ekranları düşürdü
-(boşta bırakılan buzzer pini; `GPIO 6`ya sürülen HIGH).
+### Yanlış teşhis, ve onu neyin çürüttüğü
 
-**Neden borç.** İki tarafı da körüz:
+Uzun süre **gevşek dupont** sanıldı: iki ekran hep BİRLİKTE ölüyordu, ortak hatlar
+`SCK·MOSI·DC·RST`, `CS` ayrı — ve takıp çıkarmak düzeltiyordu. Tablo birebir uyuyordu.
 
-1. **Panel okunamıyor.** `SPI.begin(PIN_SCK, -1, PIN_MOSI, -1)` — `MISO` bağlı değil, yani
-   `readcommand8` ile "başladın mı?" diye soramıyoruz. Başlatmanın tuttuğunu doğrulamanın yolu yok.
-2. **Seri port yok.** Bu kart macOS'a tek bayt vermiyor (`CDC_ON_BOOT`, `USB_MODE`, DTR — hepsi
-   denendi, 8 Eylül'de bir kez daha). Kutu `loop()`a geliyor mu, yeniden mi başlıyor, bilemiyoruz.
-   Ekran zaten tek log'umuzdu; ekranın kendisi bozulunca elimizde hiçbir şey kalmıyor.
+**Owner çürüttü (13 Eylül):** *"kablolarla oynuyorum, QR gitmiyor, ekranlar stabil duruyor."*
+Çalışan bir ekranı kabloyu oynatarak bozamıyorsan, temas sağlamdır. Ve arıza zaten hep AÇILIŞTA
+oluyordu, çalışırken değil — "takıp çıkarınca düzeliyor"un sebebi teması düzeltmek değil, **yeniden
+açılıştı**. Aynı belirti, tamamen başka bir sebep.
 
-**Bugün alınan pay (çözüm değil).** Arka ışık artık başlatmadan SONRA yanıyor — iki modülü tepe
-akımdan çıkarıyor; ve başlatma iki kez çalışıyor: ilk tur düşerse ikincisi 150 ms sonra tutuyor.
-İkisi de olasılığı düşürüyor, hiçbiri garanti vermiyor.
+### Gerçek sebep ve çözüm
 
-### 13 Eylül montajı — ÖLÇÜLDÜ, ve suçlu daraldı
+Panel, `begin()` çalıştığı anda henüz hazır değil. Tek deneme yazı tura atmak; okunabilir bir geri
+bildirim de yok (`MISO` bağlı değil, `readcommand8` soramıyor).
 
-Arıza montajda tekrarladı ve bu kez enstrüman kuruldu. Üç şey elendi:
+**Çözüm: başlatma bir kez değil ALTI kez, aralarında 120 ms.** Ayrıca elle uzun bir `RST` darbesi ve
+arka ışığın başlatmadan SONRA yanması.
 
-1. **Besleme değil.** Beyaz ekran varken arka ışık YANIYOR → panellerde 3.3 V var.
-2. **Kod değil.** Arka ışıkla nabız atan bir teşhis eklendi: dört çakmanın dördü de görüldü, yani
-   `setup()` sonuna kadar çalışıyor, `begin()` dönüyor, `fillScreen` veriliyor.
-3. **Seri port ÇALIŞIYORMUŞ.** Aylardır "bu kart log vermiyor" diye biliniyordu; sebep kartın
-   kendisi değil, **bayat port adıydı** (`usbmodem5C372706761` → kabloyu çıkarıp takınca
-   `usbmodem1101`). Uygulama logu şimdi akıyor ve açılışın tamamı okunabiliyor.
+**Kabul ölçütü karşılandı:** owner elektriği **on kez** kesip verdi, **10/10** iki ekran da açıldı.
 
-Geriye tek açıklama kaldı: **SPI yapılandırması panellere ulaşmıyor.** Ortak hatlar
-`SCK(12) · MOSI(11) · DC(13) · RST(8)`; `CS` ayrı olduğu hâlde ikisi birden ölüyor.
+### Geriye kalan iki şey
 
-**Kanıt:** iki saniyede bir paneli kurup ekranı boyayan bir `-D PROB` modu atıldı. Owner kabloları
-elleyince ekranlar renk değiştirmeye başladı ve devam etti — yani temas marjinal, tek bir kablo
-değil genel gevşeklik.
+1. **NEDEN tek denemenin yetmediğini tam bilmiyoruz.** Panel okunamadığı için ölçemiyoruz; altı tur
+   bir tedavi değil, bir paydır. `MISO` bağlanır ve `readcommand8` ile doğrulanırsa gerçek cevap
+   alınır — ama arıza bir daha görülmedikçe o işe girmeye değmez.
+2. **Lehim hâlâ doğru iş, ama artık BU arızanın çözümü değil.** `TURNSTILE-HARDWARE.md` §5/3'ün
+   gerekçesi titreşim: turnike gövdesinde dupont uzun vadede tutmaz. Aciliyeti kalmadı.
 
-**Yazılım tarafında yapılan (çözüm değil, pay):** elle uzun `RST` darbesi + panel başlatmanın
-**altı kez** tekrarı. %50 tutan bir uç %98'e çıkar.
+### Bu arada bulunan asıl körlük
 
-**Ödeme tetiği (koşul):** `TURNSTILE-HARDWARE.md` §5/3 zaten bu dört hatta dupont yasaklıyor —
-vidalı klemens ya da lehim. Bu arıza lehimden SONRA bir kez daha görülürse, `MISO`yu bağlayıp
-başlatmayı `readcommand8` ile doğrula. Turnike gövdesinde titreşim var; orada "bazen açılmıyor"
-diye bir kutu, kapıda kalan üye demektir.
+Aylardır *"bu kart seri çıktı vermiyor"* biliniyordu ve teşhis hep ekrandan yapılıyordu. Sebep kart
+değil, **bayat port adıydı**: kabloyu çıkarıp takınca `usbmodem5C372706761` → `usbmodem1101` oldu ve
+uygulama logu aktı. Enstrüman bozuktu, kart değil — ve o körlük bu arızayı günlerce çözülemez yaptı.
