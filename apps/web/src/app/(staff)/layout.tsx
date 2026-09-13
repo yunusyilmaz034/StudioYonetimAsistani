@@ -4,6 +4,7 @@ import { AnalyticsSetup } from '@/components/analytics-setup'
 import { AppShell } from '@/components/app-nav'
 import { PwaSetup } from '@/components/pwa-setup'
 import { ReportButton } from '@/components/report-button'
+import { TurnstileDock } from '@/components/turnstile-dock'
 import { ThemeStyle } from '@/components/theme-style'
 import { Toaster } from '@/components/ui/sonner'
 import { UndoProvider } from '@/lib/undo'
@@ -71,6 +72,12 @@ export default async function StaffLayout({ children }: { children: ReactNode })
       {/* The WhatsApp AI receptionist operator dock — a floating right-side chat that survives page
           navigation; the AI hands off here. Owner + reception only. */}
       {ctx.role === 'owner' || ctx.role === 'receptionist' ? <WhatsAppDock /> : null}
+      {/* TURNİKE, HER EKRANDA (owner, 2026-09-13). Düğme Check-in ekranında zaten vardı ve sorun
+          tam olarak oydu: kapıyı açman gereken an, o ekranda olduğun an değil. Kargo gelir, misafir
+          gelir, telefonu ölmüş bir üye bekler — resepsiyon o sırada üye kartında ya da tahsilattadır.
+          EĞİTMENE GÖSTERİLMİYOR: kapıyı açmak bir resepsiyon yetkisi, ve eğitmen bu panelin en az
+          veri gören kullanıcısı. */}
+      {ctx.role === 'owner' || ctx.role === 'receptionist' ? <TurnstileDock /> : null}
       {/* Non-PII analytics context (studio + staff role) + the global error sink. No name/phone. */}
       <AnalyticsSetup studioId={ctx.studioId} role={ctx.role} />
       {/* Undo/Redo is a pure UX layer over compensating actions (Phase 2 Edit Experience). */}
