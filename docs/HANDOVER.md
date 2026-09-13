@@ -7,7 +7,18 @@ explains the moment.
 Keep it current the way the code is kept current: when the state changes, this changes in the same
 commit. A handover document that lags is worse than none, because it is believed.
 
-_Last true as of: **2026-09-14, 00:30**._
+_Last true as of: **2026-09-14, 00:45**._
+
+## ⏭️ Sıradaki oturum — BURADAN BAŞLA
+
+Kod tarafında yarım iş YOK. Bekleyen iki şey, ikisi de owner'la birlikte:
+
+1. **Owner denemesi yapılmadı** — "deneme sonra yaparız" (14 Eylül 00:45). Aşağıdaki "Deneme adımı"
+   dört maddeyi sırayla yürüt; dock konumu da bu denemeye dahil (tarayıcıda hiç bakılmadı, ölçü ekran
+   görüntüsünden hesaplandı).
+2. **İlk gece kapanışı 14 Eylül 23:00.** 15 Eylül sabahı: Cloud Functions logunda `staff shift close`
+   satırı (`closed` / `skipped` sayıları) ve `/mesai` listesinde dünkü satırların son geçiş saatine
+   kapanmış olması. Hiç eğitmen turnikeden geçmediyse `closed: 0` doğru sonuçtur, arıza değil.
 
 ## 🔧 13–14 Eylül — turnike montajı, ve eğitmen mesaisi turnikeden
 
