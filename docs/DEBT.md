@@ -1222,7 +1222,28 @@ Ekranlar bu kartta 3.3 V rayındaki en ağır yük, ve bu ray daha önce iki kez
 akımdan çıkarıyor; ve başlatma iki kez çalışıyor: ilk tur düşerse ikincisi 150 ms sonra tutuyor.
 İkisi de olasılığı düşürüyor, hiçbiri garanti vermiyor.
 
-**Ödeme tetiği (tarih değil, koşul).** Bu arıza montajdan SONRA bir kez daha görülürse, tahminle
-uğraşmayı bırakıp enstrümanı kur: `MISO`yu bağla ve başlatmayı `readcommand8` ile doğrula, tutmazsa
-tekrar dene. Turnike gövdesinde titreşim var; orada "bazen açılmıyor" diye bir kutu, kapıda kalan
-üye demektir ve körlemesine aranamaz.
+### 13 Eylül montajı — ÖLÇÜLDÜ, ve suçlu daraldı
+
+Arıza montajda tekrarladı ve bu kez enstrüman kuruldu. Üç şey elendi:
+
+1. **Besleme değil.** Beyaz ekran varken arka ışık YANIYOR → panellerde 3.3 V var.
+2. **Kod değil.** Arka ışıkla nabız atan bir teşhis eklendi: dört çakmanın dördü de görüldü, yani
+   `setup()` sonuna kadar çalışıyor, `begin()` dönüyor, `fillScreen` veriliyor.
+3. **Seri port ÇALIŞIYORMUŞ.** Aylardır "bu kart log vermiyor" diye biliniyordu; sebep kartın
+   kendisi değil, **bayat port adıydı** (`usbmodem5C372706761` → kabloyu çıkarıp takınca
+   `usbmodem1101`). Uygulama logu şimdi akıyor ve açılışın tamamı okunabiliyor.
+
+Geriye tek açıklama kaldı: **SPI yapılandırması panellere ulaşmıyor.** Ortak hatlar
+`SCK(12) · MOSI(11) · DC(13) · RST(8)`; `CS` ayrı olduğu hâlde ikisi birden ölüyor.
+
+**Kanıt:** iki saniyede bir paneli kurup ekranı boyayan bir `-D PROB` modu atıldı. Owner kabloları
+elleyince ekranlar renk değiştirmeye başladı ve devam etti — yani temas marjinal, tek bir kablo
+değil genel gevşeklik.
+
+**Yazılım tarafında yapılan (çözüm değil, pay):** elle uzun `RST` darbesi + panel başlatmanın
+**altı kez** tekrarı. %50 tutan bir uç %98'e çıkar.
+
+**Ödeme tetiği (koşul):** `TURNSTILE-HARDWARE.md` §5/3 zaten bu dört hatta dupont yasaklıyor —
+vidalı klemens ya da lehim. Bu arıza lehimden SONRA bir kez daha görülürse, `MISO`yu bağlayıp
+başlatmayı `readcommand8` ile doğrula. Turnike gövdesinde titreşim var; orada "bazen açılmıyor"
+diye bir kutu, kapıda kalan üye demektir.

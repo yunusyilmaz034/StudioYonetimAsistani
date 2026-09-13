@@ -291,7 +291,18 @@ void setup() {
 
   // CS'siz başlatılıyor: her ekran kendi CS'ini kendi nesnesinden sürüyor, veri yolu ortak.
   SPI.begin(PIN_SCK, -1, PIN_MOSI, -1);
-  delay(120);  // ray otursun: açılışta USB regülatörü henüz toparlanıyor
+  delay(120);
+
+  // ── RESET'İ KENDİMİZ DARBELEYELİM (13.09.2026) ────────────────────────────────────────────
+  //
+  // `RST` (GPIO 8) İKİ PANELDE ORTAK ve en güçlü şüpheli: tek bir gevşek uç, iki ekranı birden
+  // öldürür ve takıp çıkarınca düzelir — tarif birebir bu. Kütüphanenin kendi darbesi kısa;
+  // burada uzun ve temiz bir darbe atıyoruz, sonra panelin toparlanması için bekliyoruz.
+  // Marjinal bir hatta bu bazen yeter; yetmiyorsa da suçu daralt: yazılım elinden geleni yaptı.
+  pinMode(PIN_RST, OUTPUT);
+  digitalWrite(PIN_RST, HIGH); delay(20);
+  digitalWrite(PIN_RST, LOW);  delay(50);   // veri sayfası 10 µs ister; 50 ms cömert ve zararsız
+  digitalWrite(PIN_RST, HIGH); delay(150);  // ray otursun: açılışta USB regülatörü henüz toparlanıyor
 
   // ÖNCE İKİSİNİ DE BAŞLAT, SONRA ÇİZ. `RESET` hattı ortak: ikinci ekranın `begin()`'i o hattı
   // darbeliyor ve BİRİNCİ ekranı siliyor. Başlatıp hemen çizersen, birinci ekran bir sonraki
@@ -302,12 +313,26 @@ void setup() {
   // rayın en sıkışık anına denk gelip düşerse, ikincisi 150 ms sonra sakin bir rayda tutar.
   // Tur BÜTÜN olarak tekrarlanıyor, tek tek değil: `giris`in `begin()`'i ortak `RESET`i darbeleyip
   // `cikis`i siler, dolayısıyla ikisi hep birlikte kurulmalı.
-  for (int tur = 0; tur < 2; tur++) {
+  // ── ALTI TUR, TEK TUR DEĞİL (13.09.2026, montajda ölçüldü) ────────────────────────────────
+  //
+  // Ölçüm şunu eledi: beyaz ekran varken arka ışık YANIYOR, yani panellerde 3.3 V var — besleme
+  // değil. Kod da sonuna kadar çalışıyor (dört nabız görünüyor). Geriye tek açıklama kalıyor:
+  // SPI yapılandırması panellere ULAŞMIYOR. Ortak hatlar `SCK·MOSI·DC·RST`; `CS` ayrı olduğu hâlde
+  // ikisi birden ölüyor, yani suçlu o dördünden biri ve temassızlığı MARJİNAL (bazen tutuyor).
+  //
+  // Marjinal bir temasta tek deneme yazı tura atmaktır. Altı deneme, aralarında nefesle: %50
+  // tutan bir uç %98'e çıkar. BU BİR ÇÖZÜM DEĞİL — gevşek bir kabloyu yazılım tamir edemez
+  // ([[DEBT-044]], ve `TURNSTILE-HARDWARE.md` §5/3 zaten bu hatlarda dupont yasaklıyor). Ama
+  // montaj gecesinde kapıyı çalışır hâlde tutar.
+  //
+  // Tur BÜTÜN olarak tekrarlanıyor: `giris`in `begin()`'i ortak `RESET`i darbeleyip `cikis`i
+  // siliyor, dolayısıyla ikisi hep birlikte kurulmalı.
+  for (int tur = 0; tur < 6; tur++) {
     for (size_t i = 0; i < KAPI_SAYISI; i++) {
       kapilar[i].tft->begin(2000000);
       kapilar[i].tft->setRotation(kapilar[i].rotasyon);
     }
-    if (tur == 0) delay(150);
+    if (tur < 5) delay(120);
   }
   // Ekranı KARART, sonra ışığı yak. Sırası önemli: önce ışığı yakıp sonra karartırsak, açılışta
   // bir anlık beyaz parlama olur ve o parlama tam da teşhis etmeye çalıştığımız belirtiye benzer.
@@ -456,7 +481,41 @@ static void kapiTuru(Kapi& k) {
 // ve o ikisi ekrandan bakınca AYNI görünür.
 static uint32_t tur = 0;
 
+// ── PROB MODU (13.09.2026, montajda) ───────────────────────────────────────────────────────
+//
+// `-D PROB` ile derlenir. Yaptığı tek şey: her 2 saniyede bir panelleri yeniden kurup ekranı
+// boyamak, ve her turu seri porta yazmak.
+//
+// VARLIK SEBEBİ ANLIK GERİ BİLDİRİM. Normal çalışmada ekran 25 saniyede bir tazeleniyor; montajcı
+// bir kabloya bastırdığında sonucu 25 saniye sonra görüyor ve nedenle sonucu ilişkilendiremiyor.
+// İki saniyede bir çizince, doğru uca bastırdığın an ekran geliyor — ve suçlu kablo kendini
+// gösteriyor. Ölçüm aleti, ürün değil.
+#ifdef PROB
+static void probTuru() {
+  static uint32_t n = 0;
+  n++;
+  pinMode(PIN_RST, OUTPUT);
+  digitalWrite(PIN_RST, HIGH); delay(5);
+  digitalWrite(PIN_RST, LOW);  delay(20);
+  digitalWrite(PIN_RST, HIGH); delay(120);
+  for (size_t i = 0; i < KAPI_SAYISI; i++) {
+    kapilar[i].tft->begin(2000000);
+    kapilar[i].tft->setRotation(kapilar[i].rotasyon);
+  }
+  // Sırayla farklı renk: ekran GELDİĞİNDE donmuş bir görüntü mü yoksa canlı mı, bakışta anlaşılsın.
+  const uint16_t renkler[] = { ILI9341_RED, ILI9341_GREEN, ILI9341_BLUE, ILI9341_WHITE };
+  const uint16_t renk = renkler[n % 4];
+  for (size_t i = 0; i < KAPI_SAYISI; i++) kapilar[i].tft->fillScreen(renk);
+  Serial.printf("[prob] tur %u · renk %u · ekranlara yazildi\n", (unsigned)n, (unsigned)(n % 4));
+}
+#endif
+
 void loop() {
+#ifdef PROB
+  probTuru();
+  delay(2000);
+  return;
+#endif
   if (++tur % 20 == 0)
     Serial.printf("[turnike] tur %u · calisma %u sn · heap %u · wifi %s\n", (unsigned)tur,
                   (unsigned)(millis() / 1000), (unsigned)ESP.getFreeHeap(),
