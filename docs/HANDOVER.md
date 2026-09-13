@@ -43,7 +43,21 @@ görünür, ama zıt şeyler söyler.**
 
 ### Turnike
 
-**`turnike-v1.2` KİLİTLİ ve kartta.** Ekran yeniden yazıldı (Türkçe glifli font, tarayıcı köşeleri,
+**`turnike-v1.3` KİLİTLİ ve kartta (13 Eylül, montajda).** Üstüne taşıdıkları: kurulum modu
+(WiFi + kimlik cihazın üstünden) · elle uzun `RST` darbesi · panel başlatmanın **altı kez** tekrarı ·
+`-D PROB` teşhis modu. Açılış ~17 sn, iki kapı da kodunu alıyor, QR ekranda.
+
+⚠️ **BEYAZ EKRANIN SEBEBİ BULUNDU VE YAZILIMDA DEĞİL** ([[DEBT-044]]). Arka ışık yanarken ekran
+beyazsa panelde 3.3 V var demektir; nabız teşhisi de kodun sonuna kadar çalıştığını gösterdi. Geriye
+SPI sinyalinin ulaşmaması kaldı — ortak `SCK(12)·MOSI(11)·DC(13)·RST(8)` hatlarında **gevşek dupont**.
+Owner kabloları elleyince ekranlar geldi. **Gövde kapanmadan önce bu dört hat sabitlenmeli**
+(`TURNSTILE-HARDWARE.md` §5/3: vidalı klemens ya da lehim, dupont YOK).
+
+**Ve seri port aslında çalışıyormuş:** aylardır "bu kart log vermiyor" biliniyordu; sebep kartın
+kendisi değil **bayat port adıydı**. Kabloyu çıkarıp takınca `usbmodem5C372706761` → `usbmodem1101`
+oldu ve uygulama logu aktı. Enstrüman bozuktu, kart değil.
+
+**Bir önceki kilitli hâl `turnike-v1.2`.** Ekran yeniden yazıldı (Türkçe glifli font, tarayıcı köşeleri,
 irileşen QR), başlatma dayanıklılaştırıldı ([[DEBT-044]]), çıkış ekranı 180° döndürüldü (gövdeye
 ters monte edilmişti). Owner montaja bu sürümle gitti.
 
