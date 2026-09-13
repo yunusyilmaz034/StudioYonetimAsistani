@@ -11,9 +11,11 @@ _Last true as of: **2026-09-14, 00:30**._
 
 ## 🔧 13–14 Eylül — turnike montajı, ve eğitmen mesaisi turnikeden
 
-**Eğitmen mesaisi artık turnikeden türetiliyor ([[OR-74]], [[OR-58]]'in yerine).** Kod `main`de, gate
-yeşil. **Canlıda değil** — push/deploy owner onayı bekliyor. Functions'a yeni bir zamanlanmış iş
-eklendiği için deploy'da `firebase deploy --only functions` de gerekiyor, App Hosting yetmez.
+**Eğitmen mesaisi artık turnikeden türetiliyor ([[OR-74]], [[OR-58]]'in yerine).** ✅ **CANLIDA**
+(14 Eylül 00:26 push): panel `build-2026-09-13-007` trafiğin %100'ü; `staffShiftClose` fonksiyonu
+`europe-west1`de, Cloud Scheduler'da `0 23 * * *` Europe/Istanbul, ENABLED. İlk gece kapanışı
+14 Eylül 23:00 — ertesi sabah `/mesai` listesinden kontrol edilecek. Diğer fonksiyonlar bilerek
+yeniden deploy EDİLMEDİ (yalnızca `--only functions:staffShiftClose`).
 
 ### Nasıl çalışıyor
 
@@ -51,7 +53,7 @@ eklendiği için deploy'da `firebase deploy --only functions` de gerekiyor, App 
 
 Owner: *"turnike giriş çıkış butonlarını biraz daha üste al."* Dock takvimin Ay/Hafta düğmelerine
 biniyordu; artık sayfa başlığı ile içerik arasındaki boşlukta (`top-[64px]`, düğmeler bir kademe küçük).
-`f8dd75c`, henüz push edilmedi.
+`f8dd75c`, canlıda (aynı build).
 
 ### Bugün canlıya çıkanlar
 
