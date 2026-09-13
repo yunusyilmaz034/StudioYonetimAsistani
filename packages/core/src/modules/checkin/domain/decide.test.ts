@@ -160,6 +160,7 @@ describe('decideRedeemTurnstileCode', () => {
     expiresAt: instant(NOW + 60_000),
     usedBy: null,
     usedAt: null,
+    usedByKind: null,
     ...over,
   })
   const inside: Presence = { memberId: 'mem_1' as MemberId, branchId: 'brn_1' as BranchId, checkedInAt: NOW }

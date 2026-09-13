@@ -109,13 +109,19 @@ export class FirestoreCheckinRepository implements CheckinRepository {
    * at the same screen in the same second must produce one winner. Read-then-write would let both
    * see `usedBy: null` and both open the door — the one failure mode this feature cannot have.
    */
-  async consumeTurnstileCode(ctx: TenantContext, code: string, memberId: MemberId, at: Instant): Promise<boolean> {
+  async consumeTurnstileCode(
+    ctx: TenantContext,
+    code: string,
+    memberId: MemberId,
+    at: Instant,
+    kind: 'member' | 'staff' = 'member',
+  ): Promise<boolean> {
     const ref = this.col(ctx.studioId, 'turnstileCodes').doc(code)
     return this.db.runTransaction(async (tx) => {
       const snap = await tx.get(ref)
       const d = snap.data()
       if (!d || d.usedBy) return false
-      tx.update(ref, { usedBy: memberId, usedAt: Timestamp.fromMillis(at) })
+      tx.update(ref, { usedBy: memberId, usedAt: Timestamp.fromMillis(at), usedByKind: kind })
       return true
     })
   }

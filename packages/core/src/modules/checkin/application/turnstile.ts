@@ -64,6 +64,7 @@ export async function issueTurnstileCode(
     expiresAt: instant(now + TURNSTILE_CODE_TTL_MS),
     usedBy: null,
     usedAt: null,
+    usedByKind: null,
   }
   await deps.repo.saveTurnstileCode(ctx, code)
   // Touching `lastSeenAt` on every mint is what makes the panel's "is the door alive" honest: the

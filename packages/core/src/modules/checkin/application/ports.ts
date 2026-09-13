@@ -41,7 +41,14 @@ export interface CheckinRepository {
    * two phones scanning the same screen in the same second must not both succeed. Returns false when
    * it was already spent — the caller turns that into "kod kullanılmış", never into an open door.
    */
-  consumeTurnstileCode(ctx: TenantContext, code: string, memberId: MemberId, at: Instant): Promise<boolean>
+  consumeTurnstileCode(
+    ctx: TenantContext,
+    code: string,
+    memberId: MemberId,
+    at: Instant,
+    /** Üye mi personel mi harcadı. Personel doluluğa girmez ve hakkı düşmez — ikisi aynı şey değil. */
+    kind?: 'member' | 'staff',
+  ): Promise<boolean>
   /**
    * Touch the device AND append its events in one write.
    *

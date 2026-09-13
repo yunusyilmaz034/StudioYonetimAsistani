@@ -46,6 +46,7 @@ const code: TurnstileCode = {
   expiresAt: instant(NOW + 20_000),
   usedBy: null,
   usedAt: null,
+  usedByKind: null,
 }
 
 /** Only what `crossTurnstile` touches. A fuller fake would hide which parts decide anything. */

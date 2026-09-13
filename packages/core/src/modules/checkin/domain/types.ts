@@ -94,6 +94,13 @@ export interface TurnstileCode {
   /** The member who spent it, once someone has. */
   readonly usedBy: MemberId | null
   readonly usedAt: Instant | null
+  /**
+   * ÜYE Mİ PERSONEL Mİ (owner, 2026-09-13). Aynı kod iki farklı prensibin geçişini taşıyabiliyor ve
+   * ikisi AYNI ŞEY DEĞİL: üye doluluğa girer ve hakkı düşer, personel ne doluluğa girer ne hakkı
+   * vardır. `usedBy` opak bir kimlik olduğu için kimin olduğunu ondan çıkarmak mümkün değil —
+   * tahmin etmek yerine yazıyoruz.
+   */
+  readonly usedByKind: 'member' | 'staff' | null
 }
 
 /**

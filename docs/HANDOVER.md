@@ -7,7 +7,57 @@ explains the moment.
 Keep it current the way the code is kept current: when the state changes, this changes in the same
 commit. A handover document that lags is worse than none, because it is believed.
 
-_Last true as of: **2026-09-11, 01:30**._
+_Last true as of: **2026-09-13, 23:45**._
+
+## 🔧 13 Eylül — turnike montajı, ve YARIM KALAN İŞ
+
+**Kaldığımız yer: eğitmen mesaisini turnikeden türetmek.** Owner'ın şarjı bitti, evde devam
+edilecek. `main` YEŞİL ve deploy edilebilir — yarım kalan şey bir sonraki adımın hazırlığı, kırık
+bir şey değil.
+
+### Owner'ın onayladığı tasarım (13 Eylül, 23:40)
+
+> *"Eğitmenlerin gün içinde ilk QR okutması mesai başlangıcı, son okutması mesai çıkışı sayılsın;
+> gün içinde çoklu giriş yapabilirler."*
+
+**Bu [[OR-58]]'i tersine çeviriyor** — o kural mesainin turnikeden DEĞİL panelden yazılmasını
+söylüyordu. Owner bilerek değiştirdi.
+
+**Engel ve çözümü:** eğitmenler bugün turnikeye okutamıyor — kod üye oturumundan geçiyor ve yedi
+personelin hiçbirinin üye kaydı yok. Onları üye YAPMAK yanlış olurdu: personel doluluğa ve yoklamaya
+karışır, ikisi de kalıcı olarak bozulur. Owner'ın seçtiği yol:
+
+1. **Eğitmen kendi panelinden QR okutur** (hesabı zaten var). Geçiş PERSONEL geçişi olarak yazılır;
+   `member.checked_in` YAZILMAZ, doluluk etkilenmez.
+2. **İlk okutma mesaiyi başlatır.** Gün içinde kaç kez geçerse geçsin yeni mesai açılmaz.
+3. **Gece 23:00'te açık mesai, o günün SON okutma saatine kapanır** — "son okutma" ancak gün
+   bitince bilinebilir, o yüzden anlık değil gece işi.
+
+### Yapıldı (main'de, gate yeşil)
+
+- `TurnstileCode.usedByKind: 'member' | 'staff' | null` — aynı kod iki farklı prensibin geçişini
+  taşıyabiliyor ve ikisi aynı şey değil. `consumeTurnstileCode` artık `kind` alıyor.
+
+### YAPILACAK (sırayla)
+
+1. `identity`: `staff.crossed` olayı · `StaffShift.lastCrossingAt`
+2. `staffCrossTurnstile` use-case: kodu tüket (`kind: 'staff'`) → açık mesai yoksa başlat, varsa
+   `lastCrossingAt` güncelle
+3. `deviceCrossingAction`: `usedByKind === 'staff'` ise adı `/staff`ten oku (kalan hak GÖSTERİLMEZ —
+   personelin hakkı yok)
+4. Personel için QR okuma ekranı (üye portalındaki okuyucu yeniden kullanılabilir)
+5. Gece işi: açık mesaiyi o günün son `staff.crossed` saatine kapat
+6. [[OR-58]]'in yerine yeni kural yazılacak
+
+### Bugün canlıya çıkanlar
+
+- Üye sayfasında **Turnike Giriş / Turnike Çıkış** (yeşil/kırmızı): `recordCheckIn`i çağırıyor, yani
+  QR okutmakla aynı kurallar — dersi varsa fitness sayacı işlemiyor, limitli hibritte bir giriş
+  hakkı düşüyor, sınırsız fitnesste yalnızca kayıt. Kol da dönüyor, sonuç anında söyleniyor.
+- Her ekranın sağ üstünde **Giriş / Çıkış** dock'u (sayfa başlığının altına alındı).
+- Turnike beyaz ekran arızası **çözüldü** — bkz. aşağısı.
+
+---
 
 ## 🌙 10–11 Eylül gecesi — turnike kilitlendi, para yolları kapandı, izin sistemi geldi
 
