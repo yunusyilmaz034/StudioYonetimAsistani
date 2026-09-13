@@ -70,7 +70,7 @@ export function TurnstileDock() {
       <Button
         size="sm"
         variant={cevrimdisi(c) ? 'outline' : 'secondary'}
-        className="min-h-9 shadow-sm"
+        className="min-h-8 shadow-sm"
         disabled={acilan !== null}
         onClick={() => void ac(c, etiket)}
         title={cevrimdisi(c) ? `${etiket} kapısı çevrimdışı görünüyor` : `${etiket} kolunu aç`}
@@ -83,11 +83,12 @@ export function TurnstileDock() {
 
   return (
     <div
-      // SAYFANIN KENDİ DÜĞMELERİNİN ALTINDA (owner, 2026-09-13). İlk hâli sağ ÜST köşedeydi ve
-      // "Analiz / Canlı akış" ile "Rezervasyon Yap / Düzenle" gruplarının üstüne biniyordu. Kabukta
-      // ortak bir üst bar yok, sayfalar kendi başlığını çiziyor — o yüzden sabit konum kalıyor ama
-      // başlık bandının ALTINA iniyor.
-      className="fixed right-3 top-[88px] z-40 flex gap-1.5 rounded-xl border border-border/60 bg-background/85 p-1 shadow-sm backdrop-blur md:right-4 md:top-[104px]"
+      // BAŞLIK İLE İÇERİK ARASINDAKİ BOŞLUKTA (owner, 2026-09-13 → 14). İlk hâli sağ ÜST köşedeydi
+      // ve sayfa başlığının düğmelerine ("Toplu İşlemler", "Analiz / Canlı akış") biniyordu; sonra
+      // 104 px'e indi ve bu kez takvim kartının araç çubuğuna ("Ay / Hafta") bindi. Doğru yer ikisinin
+      // ARASI: başlık düğmeleri ~62 px'te bitiyor, kartın içeriği ~114 px'te başlıyor. Düğmeler bu
+      // aralığa sığsın diye bir kademe alçaldı (`min-h-8`).
+      className="fixed right-3 top-[64px] z-40 flex gap-1.5 rounded-xl border border-border/60 bg-background/85 p-1 shadow-sm backdrop-blur md:right-4 md:top-[64px]"
       aria-label="Turnike"
     >
       {dugme(giris, 'Giriş', LogInIcon)}
