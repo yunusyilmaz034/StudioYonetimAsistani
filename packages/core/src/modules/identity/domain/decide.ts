@@ -7,6 +7,7 @@ import {
   type EventSource,
   type Instant,
   type NewEvent,
+  localDateAt,
   type Result,
   type StaffRole,
   type StaffUserId,
@@ -22,9 +23,11 @@ import {
   STAFF_LEAVE_CANCELLED,
   STAFF_LEAVE_REJECTED,
   STAFF_LEAVE_REQUESTED,
+  STAFF_CROSSED,
   STAFF_SHIFT_ENDED,
   STAFF_SHIFT_STARTED,
   type StaffCreatedPayload,
+  type StaffCrossedPayload,
   type StaffDeactivatedPayload,
   type StaffReactivatedPayload,
   type StaffRoleChangedPayload,
@@ -245,6 +248,131 @@ export function decideEndShift(
       },
     },
   ])
+}
+
+// ── TURNİKEDEN MESAİ (owner, 2026-09-13 · OR-74) ────────────────────────────────────────────
+//
+// *"Eğitmenlerin gün içinde ilk QR okutması mesai başlangıcı, son okutması mesai çıkışı sayılsın;
+// gün içinde çoklu giriş yapabilirler."*
+//
+// Üç kural, üçü de bu fonksiyonda:
+//
+// 1. GÜNÜN İLK GEÇİŞİ vardiyayı açar. Sonrakiler yalnızca `lastCrossingAt`i ilerletir — kaç kez
+//    geçerse geçsin ikinci vardiya açılmaz.
+//
+// 2. "GÜNÜN" stüdyonun yerel günü demek. Açık vardiya DÜNDEN kalmışsa (gece işi çalışmadı, ya da
+//    23:00'ten sonra biri geçti) bugünün ilk geçişi onu önce kapatır, sonra yenisini açar. Bu
+//    olmasaydı dün 23:30'da çıkan birinin vardiyası bugün 18:00'e kadar "sürerdi". Gece işine
+//    güvenmek yerine kural burada doğru — iş bir gece düşse de sonuç değişmez.
+//
+// 3. Kapanış saati SON GÖZLENEN GEÇİŞTİR. Hiç geçişi olmayan (elle açılmış) bir vardiyada gözlenen
+//    bir bitiş yok; o zaman başladığı ana kapanır ve süresi 0 dk yazılır. Saat uydurmak, bir tahmini
+//    gözlem diye yazmak olurdu (#11) — 0 dk ise listede göze batar ve düzeltilir.
+
+export interface StaffCrossingInput {
+  readonly staffUserId: StaffUserId
+  readonly deviceId: string
+  readonly branchId: BranchId
+  readonly direction: 'in' | 'out' | null
+  /** Yeni vardiya açılırsa kullanılacak kimlik. Kimlik üretmek I/O'dur; karar onu dışarıdan alır. */
+  readonly newShiftId: string
+  readonly utcOffsetMinutes: number
+}
+
+export interface StaffCrossingDecision {
+  /** Yazılacak vardiya belgeleri — dünden kalan kapanan ve bugünün açık vardiyası. Tek işlemde. */
+  readonly shifts: readonly StaffShift[]
+  readonly events: readonly NewEvent[]
+  /** Bu geçiş vardiyayı AÇTI mı? Ekran "mesain başladı" ile "geçiş kaydedildi"yi buna göre söyler. */
+  readonly shiftStarted: boolean
+  readonly shiftStartedAt: Instant
+}
+
+export function decideStaffCrossing(
+  ctx: DecideContext,
+  input: StaffCrossingInput,
+  acik: StaffShift | null,
+): Result<StaffCrossingDecision, DomainError> {
+  if (!kendisi(ctx, input.staffUserId)) return err({ code: 'own_shift_only' })
+  if (acik && String(acik.staffUserId) !== String(input.staffUserId)) return err({ code: 'own_shift_only' })
+
+  const shifts: StaffShift[] = []
+  const events: NewEvent[] = []
+
+  let current = acik
+  if (current && localDateAt(current.startedAt, input.utcOffsetMinutes) !== localDateAt(ctx.now, input.utcOffsetMinutes)) {
+    const closed = kapat(ctx, current)
+    shifts.push(closed.shift)
+    events.push(closed.event)
+    current = null
+  }
+
+  const crossed: NewEvent<typeof STAFF_CROSSED, StaffCrossedPayload> = {
+    ...base(ctx, input.staffUserId),
+    branchId: input.branchId,
+    type: STAFF_CROSSED,
+    payload: { staffUserId: input.staffUserId, deviceId: input.deviceId, direction: input.direction },
+  }
+
+  if (current) {
+    shifts.push({ ...current, lastCrossingAt: ctx.now })
+    events.push(crossed)
+    return ok({ shifts, events, shiftStarted: false, shiftStartedAt: current.startedAt })
+  }
+
+  shifts.push({
+    id: input.newShiftId,
+    staffUserId: input.staffUserId,
+    branchId: input.branchId,
+    startedAt: ctx.now,
+    endedAt: null,
+    lastCrossingAt: ctx.now,
+  })
+  // Önce geçiş, sonra vardiya: vardiya geçişin SONUCU, ve log bu sırayla okunmalı.
+  events.push(crossed, {
+    ...base(ctx, input.staffUserId),
+    branchId: input.branchId,
+    type: STAFF_SHIFT_STARTED,
+    payload: { staffUserId: input.staffUserId, shiftId: input.newShiftId },
+  })
+  return ok({ shifts, events, shiftStarted: true, shiftStartedAt: ctx.now })
+}
+
+/**
+ * Gece işi: açık vardiyayı SON GEÇİŞ saatine kapat.
+ *
+ * `null` ⇒ yapılacak bir şey yok: bu vardiyada hiç geçiş olmadı (elle açılmış). Gece işi ona
+ * dokunmaz — gözlenmemiş bir bitişi `system` yazamaz (#11). O vardiya ya elle bitirilir ya da sahibi
+ * ertesi gün turnikeden geçtiğinde (kural 2) kapanır.
+ */
+export function decideCloseShiftAtLastCrossing(
+  ctx: DecideContext,
+  shift: StaffShift,
+): Result<{ shift: StaffShift; events: NewEvent[] } | null, DomainError> {
+  if (shift.endedAt !== null) return err({ code: 'no_open_shift' })
+  if (ctx.actor.type !== 'system' && !kendisi(ctx, shift.staffUserId)) return err({ code: 'own_shift_only' })
+  if (shift.lastCrossingAt === null) return ok(null)
+  const closed = kapat(ctx, shift)
+  return ok({ shift: closed.shift, events: [closed.event] })
+}
+
+/** Açık vardiyayı son gözlenen ana kapatır. `occurredAt` KAPANIŞ anıdır, kararın verildiği an değil. */
+function kapat(ctx: DecideContext, shift: StaffShift): { shift: StaffShift; event: NewEvent<typeof STAFF_SHIFT_ENDED, StaffShiftEndedPayload> } {
+  const end = shift.lastCrossingAt ?? shift.startedAt
+  return {
+    shift: { ...shift, endedAt: end },
+    event: {
+      ...base(ctx, shift.staffUserId),
+      occurredAt: end,
+      branchId: shift.branchId,
+      type: STAFF_SHIFT_ENDED,
+      payload: {
+        staffUserId: shift.staffUserId,
+        shiftId: shift.id,
+        minutes: Math.max(0, Math.floor(((end as number) - (shift.startedAt as number)) / 60_000)),
+      },
+    },
+  }
 }
 
 /** Kendi vardiyası mı? Platform yöneticisi hariç kimse bir başkasının saatini yazamaz. */

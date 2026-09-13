@@ -1,4 +1,4 @@
-import type { BranchId, Clock, Instant, MemberId, NewEvent, TenantContext, DeviceId} from '../../../shared'
+import type { BranchId, Clock, DeviceId, DomainError, Instant, MemberId, NewEvent, Result, StaffUserId, TenantContext } from '../../../shared'
 import type { BranchOccupancy, CheckIn, Presence, TurnstileCode, TurnstileDevice} from '../domain/types'
 import type { Entitlement } from '../../entitlements'
 
@@ -109,4 +109,24 @@ export interface CheckinDeps {
   readonly entries: EntryMeterRepository
   /** ZORUNLU, `entries` ile aynı sebeple: opsiyonel olsaydı bir kapı sessizce eski davranışta kalırdı. */
   readonly classes: ClassVisitLookup
+}
+
+// ── TURNİKEDEN GEÇEN PERSONEL (owner, 2026-09-13 · OR-74) ──────────────────────────────────
+//
+// Kodu `checkin` tanır, vardiyayı `identity`. Aralarındaki tek bağ bu port: `checkin` mesaiyi
+// bilmez, yalnızca "bu personel bu kapıdan geçti, hazırla / yaz" der. Uygulama katmanı iki modülü
+// birbirine burada bağlar, çekirdekte modüller birbirini import etmez.
+export interface StaffCrossingSummary {
+  readonly shiftStarted: boolean
+  readonly shiftStartedAt: Instant
+}
+
+export interface StaffCrossingPort<P extends StaffCrossingSummary = StaffCrossingSummary> {
+  /** Yalnızca OKUR. Reddederse kod harcanmaz. */
+  prepare(
+    ctx: TenantContext,
+    input: { readonly staffUserId: StaffUserId; readonly deviceId: DeviceId; readonly branchId: BranchId; readonly direction: 'in' | 'out' | null },
+  ): Promise<Result<P, DomainError>>
+  /** Vardiya ve olaylar, tek işlemde. */
+  commit(ctx: TenantContext, prepared: P): Promise<void>
 }

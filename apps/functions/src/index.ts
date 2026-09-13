@@ -12,6 +12,7 @@ import { setGlobalOptions } from 'firebase-functions/v2'
 import { onSchedule } from 'firebase-functions/v2/scheduler'
 
 import { runAutoCheckOutSweep } from './scheduled/auto-check-out'
+import { runStaffShiftClose } from './scheduled/close-staff-shifts'
 import { runDrawerAutoClose, runDrawerAutoOpen } from './scheduled/drawer-cycle'
 import { runAutoResolveSweep } from './scheduled/auto-resolve-attendance'
 import { runClassReminderSweep } from './scheduled/class-reminders'
@@ -88,6 +89,16 @@ export const drawerAutoClose = onSchedule(
   { schedule: '0 23 * * *', timeZone: 'Europe/Istanbul' },
   async () => {
     await runDrawerAutoClose()
+  },
+)
+
+// ── MESAİ KAPANIŞI (owner, 2026-09-13 · OR-74) ──────────────────────────────────────────────
+// Açık vardiya o günün SON turnike geçişine kapanır. Kasa döngüsüyle aynı saat ama sıralama ilişkisi
+// yok (kredi ya da para taşımıyor) — o yüzden ayrı fonksiyon. Gerekçe `scheduled/close-staff-shifts.ts`te.
+export const staffShiftClose = onSchedule(
+  { schedule: '0 23 * * *', timeZone: 'Europe/Istanbul' },
+  async () => {
+    await runStaffShiftClose()
   },
 )
 

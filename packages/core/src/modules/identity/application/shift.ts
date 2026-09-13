@@ -46,6 +46,7 @@ export async function startShift(
     branchId: input.branchId,
     startedAt: deps.clock.now(),
     endedAt: null,
+    lastCrossingAt: null,
   }
   await deps.repo.saveShift(ctx, shift, decided.value)
   return { ok: true, value: { shiftId: id } }

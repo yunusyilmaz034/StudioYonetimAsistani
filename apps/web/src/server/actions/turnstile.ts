@@ -7,6 +7,7 @@ import { z } from 'zod'
 import {
   crossTurnstile,
   FirestoreCheckinRepository,
+  FirestoreIdentityRepository,
   FirestoreEntitlementRepository,
   FirestoreMemberRepository,
   FirestoreReservationRepository,
@@ -22,6 +23,7 @@ import {
   type CheckinDeps,
   type DeviceId,
   type MemberId,
+  type StaffUserId,
   type TenantContext,
   available,
   entriesUsed,
@@ -121,6 +123,15 @@ export async function deviceCrossingAction(ctx: TenantContext, deviceId: DeviceI
     // Geçiş yok — ama bu kapıda az önce reddedilen biri ya da panelden verilmiş bir açma olabilir.
     const [ret, ac] = await Promise.all([sonRet(ctx, deviceId), bekleyenAcma(ctx, deviceId)])
     return { ok: true as const, value: { crossed: null, ...(ret ? { refused: ret } : {}), ...(ac ? { open: ac } : {}) } }
+  }
+
+  // PERSONEL GEÇTİ (owner, 2026-09-13 · OR-74). Adı `/members`ten değil `/staff`ten, ve KALAN HAK
+  // YOK: personelin paketi yok, "0 ders" yazmak ise kapıda yanlış bir şey söylemek olurdu. Cihaz boş
+  // `kalan`ı zaten hiç çizmiyor.
+  if (record.usedByKind === 'staff') {
+    const staff = await new FirestoreIdentityRepository(adminDb()).getStaff(ctx, record.usedBy as unknown as StaffUserId)
+    const ad = (staff?.displayName ?? '').trim().split(/\s+/)[0] ?? ''
+    return { ok: true as const, value: { crossed: { firstName: ad, kalan: '', at: record.usedAt as number } } }
   }
 
   const member = await new FirestoreMemberRepository(adminDb()).findById(ctx, record.usedBy)

@@ -8,12 +8,13 @@ import {
   type Instant,
   type MemberId,
   type Result,
+  type StaffUserId,
   type TenantContext,
 } from '../../../shared'
 import { decideOpenTurnstileManually, decideRedeemTurnstileCode, decideRefuseEntry } from '../domain/decide'
 import type { TurnstileCode, TurnstileDirection } from '../domain/types'
 import { decideContext } from './context'
-import type { CheckinDeps } from './ports'
+import type { CheckinDeps, StaffCrossingPort, StaffCrossingSummary } from './ports'
 import { commitCheckIn, prepareCheckIn } from './checkin'
 
 // ── TURNSTILE (v1.33) ────────────────────────────────────────────────────────────────────────
@@ -192,6 +193,67 @@ export async function crossTurnstile(
     direction: recorded.direction,
     deviceId: decided.value.deviceId,
     branchId: decided.value.branchId,
+  })
+}
+
+// ── PERSONEL TURNİKEDEN GEÇİYOR (owner, 2026-09-13 · OR-74) ────────────────────────────────
+//
+// *"Eğitmenlerin gün içinde ilk QR okutması mesai başlangıcı, son okutması mesai çıkışı sayılsın."*
+//
+// Eğitmenlerin üye kaydı yok ve OLMAMALI: personel doluluğa ve yoklamaya karışırsa ikisi de kalıcı
+// olarak bozulur. Bu yüzden bu yol `recordCheckIn`e HİÇ uğramıyor — `member.checked_in` yazılmaz,
+// varlık kaydı değişmez, paket sorulmaz. Ortak olan tek şey KOD: aynı ekran, aynı tek kullanım,
+// aynı süre. Kod `usedByKind: 'staff'` ile harcanır; ekran karşılamayı `/staff`ten okur.
+//
+// Sıra üye geçişindekiyle aynı: KARAR (yalnızca okur) → kodu harca → YAZ.
+
+export interface StaffCrossTurnstileResult {
+  readonly direction: 'in' | 'out' | null
+  readonly deviceId: DeviceId
+  readonly shiftStarted: boolean
+  readonly shiftStartedAt: Instant
+}
+
+export async function staffCrossTurnstile<P extends StaffCrossingSummary>(
+  deps: CheckinDeps & { readonly staffCrossing: StaffCrossingPort<P> },
+  ctx: TenantContext,
+  input: { readonly staffUserId: StaffUserId; readonly code: string; readonly reportedDirection: TurnstileDirection },
+): Promise<Result<StaffCrossTurnstileResult, DomainError>> {
+  const now = deps.clock.now()
+  const dctx = decideContext(deps, ctx, { now, commandId: null })
+
+  const code = await deps.repo.getTurnstileCode(ctx, input.code)
+  const device = code ? await deps.repo.getDevice(ctx, code.deviceId) : null
+
+  // Kodun geçerliliği üyeninkiyle AYNI kurallardan geçer. `presence: null` verilir çünkü personelin
+  // varlık kaydı yok — ve oradan çıkan tahmini yön AŞAĞIDA kullanılmıyor.
+  const decided = decideRedeemTurnstileCode(dctx, { code, device, reportedDirection: input.reportedDirection, presence: null })
+  if (!decided.ok) return decided
+
+  // Yön yalnızca BİLİNİYORSA yazılır: kolun raporu ya da ekranın tarafı. Tek ekranlı bir kapıda
+  // personelin yönü bilinmez, ve tahmin gözlem diye yazılmaz (#11).
+  const direction = input.reportedDirection ?? device?.side ?? null
+
+  // ── 1. KARAR — yalnızca okur.
+  const prepared = await deps.staffCrossing.prepare(ctx, {
+    staffUserId: input.staffUserId,
+    deviceId: decided.value.deviceId,
+    branchId: decided.value.branchId,
+    direction,
+  })
+  if (!prepared.ok) return prepared
+
+  // ── 2. KODU HARCA — tek işlem, tek kazanan.
+  const won = await deps.repo.consumeTurnstileCode(ctx, input.code, input.staffUserId as unknown as MemberId, now, 'staff')
+  if (!won) return err({ code: 'qr_used' })
+
+  // ── 3. YAZ.
+  await deps.staffCrossing.commit(ctx, prepared.value)
+  return ok({
+    direction,
+    deviceId: decided.value.deviceId,
+    shiftStarted: prepared.value.shiftStarted,
+    shiftStartedAt: prepared.value.shiftStartedAt,
   })
 }
 

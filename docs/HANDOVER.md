@@ -7,47 +7,51 @@ explains the moment.
 Keep it current the way the code is kept current: when the state changes, this changes in the same
 commit. A handover document that lags is worse than none, because it is believed.
 
-_Last true as of: **2026-09-13, 23:45**._
+_Last true as of: **2026-09-14, 00:30**._
 
-## 🔧 13 Eylül — turnike montajı, ve YARIM KALAN İŞ
+## 🔧 13–14 Eylül — turnike montajı, ve eğitmen mesaisi turnikeden
 
-**Kaldığımız yer: eğitmen mesaisini turnikeden türetmek.** Owner'ın şarjı bitti, evde devam
-edilecek. `main` YEŞİL ve deploy edilebilir — yarım kalan şey bir sonraki adımın hazırlığı, kırık
-bir şey değil.
+**Eğitmen mesaisi artık turnikeden türetiliyor ([[OR-74]], [[OR-58]]'in yerine).** Kod `main`de, gate
+yeşil. **Canlıda değil** — push/deploy owner onayı bekliyor. Functions'a yeni bir zamanlanmış iş
+eklendiği için deploy'da `firebase deploy --only functions` de gerekiyor, App Hosting yetmez.
 
-### Owner'ın onayladığı tasarım (13 Eylül, 23:40)
+### Nasıl çalışıyor
 
-> *"Eğitmenlerin gün içinde ilk QR okutması mesai başlangıcı, son okutması mesai çıkışı sayılsın;
-> gün içinde çoklu giriş yapabilirler."*
+- Eğitmen **`/mesai`** ekranında "Turnike kodunu okut" der, kapıdaki ekranın kodunu okutur. Kol döner,
+  ekran ilk adını söyler, kalan hak göstermez.
+- `staff.crossed` yazılır — **`member.checked_in` YAZILMAZ**, doluluk/yoklama/paket hiç sorulmaz.
+  Kod `usedByKind: 'staff'` ile harcanır.
+- **Günün (İstanbul) ilk geçişi** vardiyayı açar; sonrakiler `StaffShift.lastCrossingAt`i ilerletir.
+- **23:00 `staffShiftClose`** açık vardiyayı son geçiş saatine kapatır (`occurredAt` = son geçiş).
+  Kaçarsa sorun yok: ertesi günün ilk geçişi dünkünü önce kapatır, sonra yenisini açar.
+- Geçişi olmayan (elle açılmış) vardiyaya gece işi dokunmaz (#11).
+- Turnikesi olan stüdyoda elle **Başlat/Bitir düğmeleri gizli**; turnikesiz stüdyoda eskisi gibi.
+- Mimari: kodu `checkin` tanır (`staffCrossTurnstile`), vardiyayı `identity` yazar
+  (`prepareStaffCrossing` / `commitStaffCrossing`). Aradaki bağ bir port (`StaffCrossingPort`);
+  iki modül çekirdekte birbirini import etmiyor, Server Action bağlıyor.
 
-**Bu [[OR-58]]'i tersine çeviriyor** — o kural mesainin turnikeden DEĞİL panelden yazılmasını
-söylüyordu. Owner bilerek değiştirdi.
+### Deneme adımı (canlıya çıkınca)
 
-**Engel ve çözümü:** eğitmenler bugün turnikeye okutamıyor — kod üye oturumundan geçiyor ve yedi
-personelin hiçbirinin üye kaydı yok. Onları üye YAPMAK yanlış olurdu: personel doluluğa ve yoklamaya
-karışır, ikisi de kalıcı olarak bozulur. Owner'ın seçtiği yol:
+1. Bir eğitmen hesabıyla `/mesai` → "Turnike kodunu okut" → **giriş** ekranının kodu.
+   Beklenen: kol döner, ekranda eğitmenin adı, **kalan hak satırı yok**; panelde "Mesain HH:MM'de başladı".
+2. Aynı eğitmen birkaç dakika sonra **çıkış** ekranını okutur. Beklenen: "Geçişin kaydedildi", yeni
+   vardiya AÇILMAZ; owner'ın `/mesai` listesinde "sürüyor · son geçiş HH:MM".
+3. Check-in ekranındaki içerideki üye sayısı **değişmemeli**.
+4. Ertesi sabah: dünkü satır son geçiş saatine kapanmış olmalı.
+   Sınır: 23:00'ten sonra geçen biri yeni bir vardiya açar ve o, ertesi günün ilk geçişinde 0 dk kapanır.
 
-1. **Eğitmen kendi panelinden QR okutur** (hesabı zaten var). Geçiş PERSONEL geçişi olarak yazılır;
-   `member.checked_in` YAZILMAZ, doluluk etkilenmez.
-2. **İlk okutma mesaiyi başlatır.** Gün içinde kaç kez geçerse geçsin yeni mesai açılmaz.
-3. **Gece 23:00'te açık mesai, o günün SON okutma saatine kapanır** — "son okutma" ancak gün
-   bitince bilinebilir, o yüzden anlık değil gece işi.
+### Açık riskler
 
-### Yapıldı (main'de, gate yeşil)
+- Eğitmen çıkarken okutmayı unutursa mesai, gün içindeki son geçişine kapanır — kısa görünür. Kuralın
+  doğal sonucu; owner listede "son geçiş"i gün içinde görebiliyor.
+- Kamerası açılmayan telefon: resepsiyonun elle açması kolu döndürür ama **mesai yazmaz** (kimin
+  geçtiği bilinmiyor). Böyle bir gün olursa o eğitmenin mesaisi eksik kalır.
 
-- `TurnstileCode.usedByKind: 'member' | 'staff' | null` — aynı kod iki farklı prensibin geçişini
-  taşıyabiliyor ve ikisi aynı şey değil. `consumeTurnstileCode` artık `kind` alıyor.
+### Aynı gece: turnike dock'u
 
-### YAPILACAK (sırayla)
-
-1. `identity`: `staff.crossed` olayı · `StaffShift.lastCrossingAt`
-2. `staffCrossTurnstile` use-case: kodu tüket (`kind: 'staff'`) → açık mesai yoksa başlat, varsa
-   `lastCrossingAt` güncelle
-3. `deviceCrossingAction`: `usedByKind === 'staff'` ise adı `/staff`ten oku (kalan hak GÖSTERİLMEZ —
-   personelin hakkı yok)
-4. Personel için QR okuma ekranı (üye portalındaki okuyucu yeniden kullanılabilir)
-5. Gece işi: açık mesaiyi o günün son `staff.crossed` saatine kapat
-6. [[OR-58]]'in yerine yeni kural yazılacak
+Owner: *"turnike giriş çıkış butonlarını biraz daha üste al."* Dock takvimin Ay/Hafta düğmelerine
+biniyordu; artık sayfa başlığı ile içerik arasındaki boşlukta (`top-[64px]`, düğmeler bir kademe küçük).
+`f8dd75c`, henüz push edilmedi.
 
 ### Bugün canlıya çıkanlar
 

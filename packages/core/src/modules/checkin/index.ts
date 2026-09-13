@@ -19,7 +19,7 @@ export { openBranch, closeBranch } from './application/branch'
 export { sweepAutoCheckOut, type AutoCheckOutSummary } from './application/sweep'
 // Kapı cihazlarının yaşam döngüsü — kayıt, sır döndürme, devre dışı bırakma.
 export { registerDevice, rotateDeviceSecret, setDeviceActive } from './application/devices'
-export type { CheckinDeps, CheckinRepository } from './application/ports'
+export type { CheckinDeps, CheckinRepository, StaffCrossingPort, StaffCrossingSummary } from './application/ports'
 export { FirestoreCheckinRepository } from './infrastructure/repos'
 
 // Turnstile (v1.33) — the device at the door. Produces `member.checked_in` like every other
@@ -28,7 +28,9 @@ export {
   crossTurnstile,
   issueTurnstileCode,
   openTurnstileManually,
+  staffCrossTurnstile,
   TURNSTILE_CODE_TTL_MS,
+  type StaffCrossTurnstileResult,
   type CrossTurnstileInput,
   type CrossTurnstileResult,
 } from './application/turnstile'

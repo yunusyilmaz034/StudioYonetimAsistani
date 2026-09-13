@@ -25,6 +25,12 @@ export interface StaffShift {
   readonly branchId: BranchId | null
   readonly startedAt: Instant
   readonly endedAt: Instant | null
+  /**
+   * Bu vardiyadaki SON turnike geçişi (owner, 2026-09-13). Gece işi açık vardiyayı buraya kapatır:
+   * "son okutma" ancak gün bitince bilinebilir. `null` ⇒ bu vardiyada hiç geçiş olmadı (elle
+   * açılmış) — ve o zaman gece işi ona DOKUNMAZ: gözlenmemiş bir bitiş saati uydurulmaz.
+   */
+  readonly lastCrossingAt: Instant | null
 }
 
 /**

@@ -1071,6 +1071,9 @@ bir indeks yüzünden durdurmuş bir tuzak ([[OR-14]]).
 
 ### OR-58 · Personelin mesaisi turnikeden değil, panelden yazılır
 
+> ⚠️ **YERİNE [[OR-74]] GEÇTİ (2026-09-13).** Owner kuralı bilerek tersine çevirdi. Aşağısı neden
+> böyle başladığımızın kaydı olarak duruyor; bugün geçerli olan kural OR-74.
+
 > *"personel de giriş çıkış yapabilsin pdks gibi değil de en azından saat kaçta girdi çıktı görsek
 > yeterli"* — ve aynı mesajda: *"personel gün içinde içeriye girip çıkmak durumunda çok kalıyor."*
 
@@ -1598,3 +1601,30 @@ sözdür.
 "bu arada". Numara bilgi kartından okunur, koda yazılmaz ([[OR-65]] ile aynı kaynak).
 
 **Bu kural prompt'ta BİRİNCİ sıradadır**, yirmi kuraldan biri değil — çünkü sürekli kırılan kural bu.
+
+### OR-74 · Eğitmenin mesaisi turnikeden türetilir: günün ilk geçişi başlangıç, son geçişi çıkış
+
+*(2026-09-13, owner: "Eğitmenlerin gün içinde ilk QR okutması mesai başlangıcı, son okutması mesai
+çıkışı sayılsın; gün içinde çoklu giriş yapabilirler.")* — **[[OR-58]]'i tersine çevirir.**
+
+OR-58 "öğle çıkışı ile mesai bitişi aynı şekle sahip, niyeti yalnızca kişi bildirir" demişti. Owner
+başka bir soruya cevap veriyor: *elle basılmayan mesai hiç yazılmıyor.* İlk ve son geçiş, niyeti
+bilmese de günün sınırlarını doğru çiziyor — ve arada kaç kez geçildiği önemsizleşiyor.
+
+**Nasıl:**
+- Eğitmen kapıdaki ekranın kodunu **kendi panelinden** okutur (`/mesai`). Kol döner, ekran adını söyler,
+  kalan hak göstermez.
+- Geçiş `staff.crossed` olarak yazılır. **`member.checked_in` YAZILMAZ**, doluluk ve yoklama etkilenmez.
+  Personeli üye yapmak yasak: bir kez karışan doluluk ayrıştırılamaz.
+- **Günün ilk geçişi** vardiyayı açar (`staff.shift_started`); sonrakiler yalnızca son geçişi ilerletir.
+  "Gün" stüdyonun yerel günüdür.
+- **Gece 23:00** açık vardiya o günün **son geçiş saatine** kapanır. Kapanış saati işin çalıştığı an değil,
+  son gözlenen geçiştir. İş bir gece kaçarsa ertesi günün ilk geçişi dünkünü aynı kurala göre kapatır.
+- Geçişi olmayan (elle açılmış) vardiyaya gece işi **dokunmaz**: `system` gözlenmemiş bir bitiş yazamaz
+  (#11). Ertesi günün ilk geçişi onu başladığı ana, 0 dk olarak kapatır — uydurulmuş saat yerine göze
+  batan bir sıfır.
+- Turnikesi olan stüdyoda elle **Başlat / Bitir düğmeleri gösterilmez.** İkisi yan yana dururken 17:00'de
+  elle biten mesai 17:02'deki çıkışla yeniden açılırdı.
+
+**Geçiş ile vardiya ayrı olaylar, bilerek:** geçiş bir gözlem, vardiya bir yorum. `staff.crossed`
+vardiya kimliği taşımaz — yorum kuralı yarın değişirse (öğle arası düşülsün…) geçişler yeniden okunabilir.

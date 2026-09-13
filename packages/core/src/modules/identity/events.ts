@@ -128,6 +128,34 @@ export type StaffLeaveCancelledPayload = {
   readonly wasApproved: boolean
 }
 
+// ── TURNİKEDEN GEÇEN PERSONEL (owner, 2026-09-13) ─────────────────────────────────────────
+//
+// *"Eğitmenlerin gün içinde ilk QR okutması mesai başlangıcı, son okutması mesai çıkışı sayılsın;
+// gün içinde çoklu giriş yapabilirler."* — bu, yukarıdaki "neden turnikeden DEĞİL" gerekçesini
+// bilerek tersine çeviriyor (OR-74, OR-58'in yerine).
+//
+// ── Neden AYRI bir olay, `member.checked_in` değil ─────────────────────────────────────────
+//
+// `member.checked_in` doluluk sayar. Personel oraya girseydi salondaki üye sayısı kalıcı olarak
+// yanlış olurdu. Üretici (turnike) olay adında yok (#2): kapının kendisi değil, KİMİN geçtiği.
+//
+// ── Neden geçiş ve vardiya AYRI olaylar ────────────────────────────────────────────────────
+//
+// Geçiş bir GÖZLEMDİR: bu kişi bu kapıdan şu saatte geçti. Vardiya bir YORUMDUR: "günün ilk geçişi
+// başlangıç, son geçişi bitiş". Yorum kuralı yarın değişirse (öğle arası düşülsün, ilk giriş değil
+// ilk DERS saati sayılsın…) geçişler yeniden okunabilir — ama yalnızca yorumla KARIŞTIRILMADAN
+// yazıldılarsa. Bu yüzden yükte `shiftId` yok, bilerek.
+//
+// `direction` null OLABİLİR: tek ekranlı bir kapıda yön bilinmiyor ve personelin varlık kaydı yok
+// ki çıkarım yapılsın. Bilinmeyen bir yönü tahminle doldurmak, bir tahmini gözlem diye yazmaktır (#11).
+export const STAFF_CROSSED = 'staff.crossed'
+
+export type StaffCrossedPayload = {
+  readonly staffUserId: string
+  readonly deviceId: string
+  readonly direction: 'in' | 'out' | null
+}
+
 export type StaffShiftStartedPayload = {
   readonly staffUserId: string
   readonly shiftId: string

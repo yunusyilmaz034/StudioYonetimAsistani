@@ -1,6 +1,12 @@
 import 'server-only'
 
-import { FirestoreIdentityRepository, FirestoreStaffShiftRepository, type StaffUserId, type TenantContext } from '@studio/core'
+import {
+  FirestoreCheckinRepository,
+  FirestoreIdentityRepository,
+  FirestoreStaffShiftRepository,
+  type StaffUserId,
+  type TenantContext,
+} from '@studio/core'
 
 import { adminDb } from './firebase-admin'
 import { studioDayRange } from './reservations-query'
@@ -18,12 +24,20 @@ export interface ShiftRow {
   readonly displayName: string
   readonly startedAt: number
   readonly endedAt: number | null
+  /** Son turnike geçişi. `null` ⇒ elle açılmış bir vardiya. */
+  readonly lastCrossingAt: number | null
 }
 
 export interface ShiftView {
   readonly benimAcik: ShiftRow | null
   /** Owner değilse boş. Ekran bunu "liste yok" diye okur, "bugün kimse çalışmadı" diye değil. */
   readonly gun: readonly ShiftRow[]
+  /**
+   * Stüdyoda çalışan bir turnike var mı? (OR-74) Varsa mesai turnikeden türetilir ve elle
+   * başlat/bitir düğmeleri GÖSTERİLMEZ: ikisi yan yana dururken 17:00'de elle biten bir mesai,
+   * 17:02'deki çıkış geçişiyle yeniden açılırdı.
+   */
+  readonly turnikeVar: boolean
 }
 
 export async function loadShiftView(ctx: TenantContext, dateStr: string): Promise<ShiftView> {
@@ -33,25 +47,34 @@ export async function loadShiftView(ctx: TenantContext, dateStr: string): Promis
   const [fromMs, toMs] = studioDayRange(dateStr)
 
   const ownerMu = ctx.actor.type === 'owner' || ctx.actor.type === 'platform_admin'
-  const [acik, gunlukler, personel] = await Promise.all([
+  const [acik, gunlukler, personel, cihazlar] = await Promise.all([
     shifts.getOpenShift(ctx, ben),
     // Gün listesi yalnızca owner için okunuyor: göstermeyeceğimiz bir şeyi okumak, sızıntının
     // en ucuz hâlidir.
     ownerMu ? shifts.listShifts(ctx, fromMs, toMs) : Promise.resolve([]),
     new FirestoreIdentityRepository(db).listStaff(ctx),
+    new FirestoreCheckinRepository(db).listDevices(ctx),
   ])
 
   const ad = new Map(personel.map((s) => [String(s.id), s.displayName]))
-  const satir = (s: { id: string; staffUserId: StaffUserId; startedAt: number; endedAt: number | null }): ShiftRow => ({
+  const satir = (s: {
+    id: string
+    staffUserId: StaffUserId
+    startedAt: number
+    endedAt: number | null
+    lastCrossingAt: number | null
+  }): ShiftRow => ({
     id: s.id,
     staffUserId: String(s.staffUserId),
     displayName: ad.get(String(s.staffUserId)) ?? '—',
     startedAt: Number(s.startedAt),
     endedAt: s.endedAt === null ? null : Number(s.endedAt),
+    lastCrossingAt: s.lastCrossingAt === null ? null : Number(s.lastCrossingAt),
   })
 
   return {
     benimAcik: acik ? satir(acik) : null,
     gun: gunlukler.map(satir),
+    turnikeVar: cihazlar.some((d) => d.active),
   }
 }

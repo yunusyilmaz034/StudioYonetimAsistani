@@ -88,19 +88,31 @@ export class FirestoreStaffShiftRepository implements StaffShiftRepository {
     return snap.docs.map((d) => this.oku(d.id, d.data()))
   }
 
+  async listOpenShifts(ctx: TenantContext): Promise<readonly StaffShift[]> {
+    // Tek alanlı eşitlik — otomatik index yeter, bileşik index İSTEMEZ (OR-14'ün tuzağı burada yok).
+    const snap = await this.col(ctx.studioId).where('endedAt', '==', null).get()
+    return snap.docs.map((d) => this.oku(d.id, d.data()))
+  }
+
   async saveShift(ctx: TenantContext, shift: StaffShift, events: readonly NewEvent[]): Promise<void> {
-    const ref = this.col(ctx.studioId).doc(shift.id)
+    await this.saveShifts(ctx, [shift], events)
+  }
+
+  async saveShifts(ctx: TenantContext, shifts: readonly StaffShift[], events: readonly NewEvent[]): Promise<void> {
     await this.db.runTransaction(async (tx: Transaction) => {
-      tx.set(
-        ref,
-        {
-          staffUserId: shift.staffUserId,
-          branchId: shift.branchId,
-          startedAt: Timestamp.fromMillis(shift.startedAt as number),
-          endedAt: shift.endedAt === null ? null : Timestamp.fromMillis(shift.endedAt as number),
-        },
-        { merge: true },
-      )
+      for (const shift of shifts) {
+        tx.set(
+          this.col(ctx.studioId).doc(shift.id),
+          {
+            staffUserId: shift.staffUserId,
+            branchId: shift.branchId,
+            startedAt: Timestamp.fromMillis(shift.startedAt as number),
+            endedAt: shift.endedAt === null ? null : Timestamp.fromMillis(shift.endedAt as number),
+            lastCrossingAt: shift.lastCrossingAt === null ? null : Timestamp.fromMillis(shift.lastCrossingAt as number),
+          },
+          { merge: true },
+        )
+      }
       this.writeEvents(ctx.studioId, tx, events)
     })
   }
@@ -113,6 +125,8 @@ export class FirestoreStaffShiftRepository implements StaffShiftRepository {
       branchId: (d.branchId ?? null) as StaffShift['branchId'],
       startedAt: instant(ts(d.startedAt)),
       endedAt: d.endedAt == null ? null : instant(ts(d.endedAt)),
+      // 2026-09-13'ten önceki belgelerde alan YOK — onlar elle açılmış vardiyalar, geçişleri yok.
+      lastCrossingAt: d.lastCrossingAt == null ? null : instant(ts(d.lastCrossingAt)),
     }
   }
 

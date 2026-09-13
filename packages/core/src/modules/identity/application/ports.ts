@@ -30,6 +30,10 @@ export interface StaffShiftRepository {
   listShifts(ctx: TenantContext, fromAt: number, toAt: number): Promise<readonly StaffShift[]>
   /** Belge ve olay(lar), TEK işlemde (#1). */
   saveShift(ctx: TenantContext, shift: StaffShift, events: readonly NewEvent[]): Promise<void>
+  /** Birden çok vardiya ve olayları TEK işlemde — dünden kalanı kapatıp bugününü açan geçiş için. */
+  saveShifts(ctx: TenantContext, shifts: readonly StaffShift[], events: readonly NewEvent[]): Promise<void>
+  /** Stüdyodaki bütün açık vardiyalar. Gece işinin girdisi. */
+  listOpenShifts(ctx: TenantContext): Promise<readonly StaffShift[]>
 }
 
 // ── İZİN / YOKLUK (owner onayı, 2026-09-11) ─────────────────────────────────────────────────

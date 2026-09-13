@@ -11,12 +11,17 @@ export {
   reactivateStaff,
 } from './application/staff'
 export { endShift, startShift } from './application/shift'
+// Turnikeden mesai (owner, 2026-09-13 · OR-74): ilk geçiş açar, gece işi son geçişe kapatır.
+export { closeShiftsAtLastCrossing, commitStaffCrossing, prepareStaffCrossing } from './application/staff-crossing'
+export type { StaffCrossingDecision, StaffCrossingInput } from './domain/decide'
 export {
   decideChangeRole,
+  decideCloseShiftAtLastCrossing,
   decideCreateStaff,
   decideDeactivateStaff,
   decideEndShift,
   decideReactivateStaff,
+  decideStaffCrossing,
   decideStartShift,
 } from './domain/decide'
 export * from './events'

@@ -6,11 +6,13 @@ import {
   decideDeactivateStaff,
   decideEndShift,
   decideReactivateStaff,
+  decideStaffCrossing,
   decideStartShift,
 } from '../../src/modules/identity/domain/decide'
 import type { StaffMember } from '../../src/modules/identity/domain/types'
 import { instant, type CorrelationId, type StaffUserId, type StudioId } from '../../src/shared'
 import created from './staff.created.v1.json'
+import crossed from './staff.crossed.v1.json'
 import deactivated from './staff.deactivated.v1.json'
 import reactivated from './staff.reactivated.v1.json'
 import roleChanged from './staff.role_changed.v1.json'
@@ -189,9 +191,22 @@ describe('mesai olayları', () => {
       branchId: null,
       startedAt: instant(1_700_000_000_000),
       endedAt: null,
+      lastCrossingAt: null,
     })
     expect(r.ok).toBe(true)
     if (!r.ok) return
     expect(r.value[0]?.payload).toEqual(shiftEnded)
+  })
+
+  it('staff.crossed — kimlik, cihaz, yön; vardiya kimliği YOK', () => {
+    const r = decideStaffCrossing(
+      { ...mesaiCtx(1_700_000_000_000), actor: { type: 'trainer' as const, id: BEN as never } },
+      { staffUserId: BEN, deviceId: 'dev_1', branchId: null as never, direction: 'in', newShiftId: 'shf_1', utcOffsetMinutes: 180 },
+      null,
+    )
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.value.events[0]?.type).toBe('staff.crossed')
+    expect(r.value.events[0]?.payload).toEqual(crossed)
   })
 })
