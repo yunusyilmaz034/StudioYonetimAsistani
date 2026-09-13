@@ -12,6 +12,8 @@ import {
   FirestoreReservationRepository,
   issueTurnstileCode,
   openTurnstileManually,
+  instant,
+  recordCheckIn,
   registerDevice,
   rotateDeviceSecret,
   setDeviceActive,
@@ -335,4 +337,68 @@ export async function setTurnstileDeviceActiveAction(input: unknown) {
   const res = await setDeviceActive(deps(), ctx, { deviceId: p.deviceId as DeviceId, active: p.active })
   if (!res.ok) return { ok: false as const, error: res.error }
   return { ok: true as const }
+}
+
+// ── PANELDEN ÜYE GEÇİŞİ (owner, 2026-09-13) ─────────────────────────────────────────────────
+//
+// *"Üye kendisi QR okutmuş gibi tüm kurallar geçerli olsun."*
+//
+// YENİ BİR KURAL YAZILMADI ve yazılmamalıydı: kurallar zaten `recordCheckIn`in içinde ve owner'ın
+// tarif ettiği davranışın tamamı orada:
+//   · Giriş saatine yakın bir DERSİ varsa fitness sayacı İŞLEMEZ — o giriş dersin girişidir.
+//   · Hibrit/limitli fitness paketi varsa bir GİRİŞ hakkı düşer (`entryAllowance`).
+//   · Sınırsız fitness ise hiçbir şey düşmez, yalnızca giriş-çıkış kaydedilir.
+// Bu mantığı ikinci kez yazmak, "üye kaç hakkını kullandı" sorusunun iki cevabı demekti.
+//
+// İKİ ŞEY BİRLİKTE OLUYOR: kayıt (sunucuda, senkron) ve KOL (cihaza komut). Kayıt başarısızsa kol
+// hiç dönmüyor — açılmış ama kaydedilmemiş bir kapı, doluluğu kalıcı olarak yanlış yapar.
+//
+// KOMUT CİHAZ BAŞINA TEK ve 20 saniyelik: `bekleyenAcma` ile aynı desen. Ekran artık üyenin adını
+// ve kalan hakkını da gösteriyor — QR okutmakla panelden geçirmek arasında üye için hiçbir fark
+// kalmıyor, ki owner'ın istediği tam olarak buydu.
+export async function memberTurnstilePassAction(input: unknown) {
+  const p = z.object({ memberId: z.string().min(1), direction: z.enum(['in', 'out']) }).parse(input)
+  const ctx = await requireTenantContext(OPS)
+
+  // 1 · KAYIT — QR yolunun kullandığı use-case'in aynısı, method'u dışında.
+  const kayit = await recordCheckIn(deps(), ctx, {
+    memberId: p.memberId as MemberId,
+    branchId: (ctx.branchIds[0] ?? null) as BranchId,
+    method: 'reception',
+    occurredAt: instant(Date.now()),
+    commandId: null,
+    direction: p.direction,
+    // Yön BİLİNÇLİ olarak bildiriliyor: resepsiyon düğmeye hangi yön için bastığını biliyor.
+    directionAsserted: true,
+  })
+  if (!kayit.ok) return { ok: false as const, error: kayit.error }
+
+  // 2 · KOL — o yöndeki cihaza komut. Cihaz yoksa kayıt yine geçerli: turnikesi olmayan bir
+  // stüdyoda da bu düğme çalışmalı.
+  const cihaz = (await deps().repo.listDevices(ctx)).find((d) => d.active && (d as { side?: 'in' | 'out' }).side === p.direction)
+  const member = await new FirestoreMemberRepository(adminDb()).findById(ctx, p.memberId as MemberId)
+  const firstName = (member?.fullName ?? '').trim().split(/\s+/)[0] ?? ''
+  const kalan = await kalanOzeti(ctx, p.memberId as MemberId)
+
+  if (cihaz) {
+    const res = await openTurnstileManually(deps(), ctx, cihaz.id, 'Resepsiyon panelden geçirdi')
+    if (res.ok) {
+      await adminDb()
+        .doc(`studios/${ctx.studioId}/turnstileCommands/${cihaz.id}`)
+        .set({ action: 'open', at: Date.now(), by: String(ctx.actor.id), reason: 'Resepsiyon panelden geçirdi', firstName, kalan })
+    }
+  }
+
+  // Ekrana dönen özet: resepsiyon üyeye ne olduğunu SÖYLEYEBİLSİN. Turnike ekranındaki karşılama
+  // ile aynı bilgi — iki yerde iki farklı sayı görmek, ikisine de güveni bitirir.
+  return {
+    ok: true as const,
+    direction: kayit.value.direction,
+    firstName,
+    kalan,
+    // Limitli fitnessten giriş düştüyse kaçta kaç olduğu. Düşmediyse null — ve düşmemesinin sebebi
+    // ya dersi olması ya da sınırsız üyeliği.
+    fitnessEntry: kayit.value.fitnessEntry,
+    kolDondu: Boolean(cihaz),
+  }
 }

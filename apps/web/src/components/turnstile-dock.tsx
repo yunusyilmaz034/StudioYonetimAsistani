@@ -37,7 +37,7 @@ export function TurnstileDock() {
     oku()
     // Yarım dakikada bir: "çevrimdışı" bilgisi bir kez çizilip donarsa yanlış olduğu anda da orada
     // durur — ve bu panel bütün gün açık kalıyor.
-    const t = window.setInterval(oku, 30_000)
+    const t = window.setInterval(oku, 60_000)
     return () => window.clearInterval(t)
   }, [])
 
@@ -83,8 +83,11 @@ export function TurnstileDock() {
 
   return (
     <div
-      // `top-2` mobilde sayfa başlığının üstüne binmiyor: başlıklar sol hizalı, bu sağda duruyor.
-      className="fixed right-3 top-3 z-40 flex gap-1.5 rounded-xl border border-border/60 bg-background/80 p-1 backdrop-blur md:right-4 md:top-4"
+      // SAYFANIN KENDİ DÜĞMELERİNİN ALTINDA (owner, 2026-09-13). İlk hâli sağ ÜST köşedeydi ve
+      // "Analiz / Canlı akış" ile "Rezervasyon Yap / Düzenle" gruplarının üstüne biniyordu. Kabukta
+      // ortak bir üst bar yok, sayfalar kendi başlığını çiziyor — o yüzden sabit konum kalıyor ama
+      // başlık bandının ALTINA iniyor.
+      className="fixed right-3 top-[88px] z-40 flex gap-1.5 rounded-xl border border-border/60 bg-background/85 p-1 shadow-sm backdrop-blur md:right-4 md:top-[104px]"
       aria-label="Turnike"
     >
       {dugme(giris, 'Giriş', LogInIcon)}

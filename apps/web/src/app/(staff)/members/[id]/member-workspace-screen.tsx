@@ -4,23 +4,25 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import {
-  CoffeeIcon,
   ArrowLeftIcon,
   CalendarPlusIcon,
   CheckIcon,
   ClipboardListIcon,
+  CoffeeIcon,
   CreditCardIcon,
-  WalletIcon,
   DoorOpenIcon,
   DumbbellIcon,
   FileTextIcon,
   HistoryIcon,
   Loader2Icon,
+  LogInIcon,
+  LogOutIcon,
   MessageSquareIcon,
   PackageIcon,
   PencilIcon,
   ShieldAlertIcon,
   UserIcon,
+  WalletIcon,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -75,6 +77,7 @@ import {
   type UpcomingSession,
 } from '@/server/actions/booking'
 import { applyRecurringMultiAction, bookReservationAction, cancelReservationAction, previewRecurringMultiAction } from '@/server/actions/reservations'
+import { memberTurnstilePassAction } from '@/server/actions/turnstile'
 
 import { MemberForm } from '../member-form'
 import { InvitePanel } from './invite-panel'
@@ -380,6 +383,38 @@ function QuickActions({
   onRefresh: () => void
 }) {
   const [busy, setBusy] = useState(false)
+  const [turnike, setTurnike] = useState<'in' | 'out' | null>(null)
+
+  // ── TURNİKEDEN GEÇİR (owner, 2026-09-13) ──────────────────────────────────────────────────
+  //
+  // *"Sanki üye kendisi QR okutmuş gibi tüm kurallar geçerli olsun."* Ve öyle: yeni bir kural
+  // YAZILMADI, `recordCheckIn` çağrılıyor — dersi varsa fitness sayacı işlemiyor, limitli hibrit
+  // paketi varsa bir giriş hakkı düşüyor, sınırsız fitnesste yalnızca kayıt tutuluyor.
+  //
+  // Yandaki "Giriş" düğmesinden FARKI: bu kol da döndürüyor ve sonucu ANINDA söylüyor. Öteki
+  // `/commands` üzerinden gidiyor (çevrimdışı güvenli, 1-3 sn) ve turnikeye dokunmuyor.
+  async function turnikeGecir(direction: 'in' | 'out') {
+    setTurnike(direction)
+    try {
+      const r = await memberTurnstilePassAction({ memberId, direction })
+      if (!r.ok) {
+        toast.error(domainErrorMessage(r.error))
+        return
+      }
+      // Kalan hak MESAJDA: resepsiyon üyeye dönüp söyleyebilsin. Turnike ekranındaki karşılamayla
+      // aynı bilgi — iki yerde iki farklı sayı görmek, ikisine de güveni bitirir.
+      const ek = r.kalan ? ` · ${r.kalan}` : ''
+      toast.success(`${direction === 'in' ? 'Turnike girişi' : 'Turnike çıkışı'} alındı${ek}`, {
+        description: r.kolDondu ? 'Kol döndü.' : 'Turnike cihazı tanımlı değil — yalnızca kayıt alındı.',
+      })
+      setTimeout(onRefresh, 800)
+    } catch {
+      toast.error('İşlem alınamadı.')
+    } finally {
+      setTurnike(null)
+    }
+  }
+
   async function checkin() {
     setBusy(true)
     try {
@@ -401,6 +436,26 @@ function QuickActions({
   }
   return (
     <div className="flex flex-wrap gap-2">
+      {/* SOLDA VE RENKLİ (owner): yeşil giriş, kırmızı çıkış. Renk burada süs değil — kapıda
+          bekleyen biri varken doğru düğmeye bakmadan basılabilmesi gerekiyor. */}
+      <Button
+        size="sm"
+        className="min-h-11 bg-success text-success-foreground hover:bg-success/90 sm:min-h-9"
+        onClick={() => void turnikeGecir('in')}
+        disabled={turnike !== null}
+      >
+        {turnike === 'in' ? <Loader2Icon className="animate-spin" /> : <LogInIcon />}
+        Turnike Giriş
+      </Button>
+      <Button
+        size="sm"
+        className="min-h-11 bg-destructive text-destructive-foreground hover:bg-destructive/90 sm:min-h-9"
+        onClick={() => void turnikeGecir('out')}
+        disabled={turnike !== null}
+      >
+        {turnike === 'out' ? <Loader2Icon className="animate-spin" /> : <LogOutIcon />}
+        Turnike Çıkış
+      </Button>
       <Button size="sm" className="min-h-11 sm:min-h-9" onClick={onBook}>
         <CalendarPlusIcon /> Rezervasyon Yap
       </Button>
