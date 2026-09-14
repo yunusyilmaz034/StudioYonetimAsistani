@@ -30,7 +30,7 @@ karşılaştırılır, ceza yok · rapor yalnızca yükleyen + owner). **Üç i�
    (yeşil giriş · kırmızı çıkış · gri yön bilinmiyor). Sorgu `staff.crossed` olaylarını mevcut
    `(type ASC, recordedAt DESC)` indeksiyle, **aynı yönde** okuyor — yeni indeks yok. ✅ Canlıda
    `build-2026-09-14-003` (commit `9d935f1`).
-2. ✅ **Haftalık vardiya planı** — kod bitti, commit edildi, **deploy owner onayı bekliyor** (panel +
+2. ✅ **Haftalık vardiya planı** — ✅ CANLIDA `build-2026-09-14-004` (13:23), kurallar da yayında (panel +
    `firestore.rules`: `staffWeekPlans` sunucuya kapalı listeye eklendi. Kural deploy edilene kadar yalnızca
    masa rolleri — owner ve resepsiyon, zaten planın editörleri — istemci SDK ile okuyabilir; eğitmen okuyamaz).
    - Çekirdek `identity/domain/week-plan.ts` (saf): taslak kaydet · onaya gönder · onayla · geri gönder ·
@@ -49,7 +49,7 @@ karşılaştırılır, ceza yok · rapor yalnızca yükleyen + owner). **Üç i�
    kutuda sebep. Yeniden gönder → owner "Onayla" → eğitmenin "Haftam" kartında saatler. Sonra resepsiyon bir
    saati değiştirip gönderir: eğitmen onaylanana kadar **eski** saati görür. Sınır: geçen haftanın tablosu
    salt okunur; çıkış = giriş saati "Tamam"a basılamaz; izinli güne saat yazınca kırmızı uyarı.
-3. ✅ **Rapor yükleme** — kod bitti, commit edildi, deploy iş 2 ile birlikte. "Rapor" türündeki izne
+3. ✅ **Rapor yükleme** — ✅ CANLIDA `build-2026-09-14-004` (13:23); Storage + Firestore kuralları 13:15te yayınlandı. "Rapor" türündeki izne
    fotoğraf ya da PDF (≤10 sayfa, sayfa ≤10 MB). Ekleyen/gören yalnızca izin sahibi + owner; resepsiyon ve
    diğer hocalar satırda ne düğme ne sayı görür. Kayıt `staffLeaves/{id}/documents` (istemci kuralı yok),
    dosya özel Storage yolunda, 5 dk imzalı link. Olaylar `staff.leave_document_added|removed` (yol yok).
