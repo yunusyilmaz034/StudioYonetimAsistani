@@ -9,6 +9,7 @@ export function staffFromFirestore(id: StaffUserId, d: DocumentData): StaffMembe
     displayName: (d.displayName as string | undefined) ?? (d.name as string | undefined) ?? '',
     role: (d.role as StaffRole | undefined) ?? 'receptionist',
     active: d.active !== false,
+    ...(d.inShiftPlan === false ? { inShiftPlan: false } : {}),
   }
 }
 
@@ -17,5 +18,6 @@ export function staffToFirestore(s: StaffMember): DocumentData {
     displayName: s.displayName, // PII — it lives HERE, never in an event payload (#6)
     role: s.role,
     active: s.active,
+    inShiftPlan: s.inShiftPlan !== false,
   }
 }

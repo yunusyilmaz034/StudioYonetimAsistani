@@ -66,3 +66,7 @@ export {
   decideRemoveLeaveDocument,
 } from './domain/leave-document'
 export type { StaffLeaveDocument } from './domain/types'
+
+// Vardiya planında görünmek (owner, 2026-09-14 · OR-77): kimin planlanacağı bir rol değil, owner'ın kararı.
+export { setShiftPlanMembership } from './application/staff'
+export { decideSetShiftPlanMembership } from './domain/decide'

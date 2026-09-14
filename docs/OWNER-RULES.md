@@ -1723,3 +1723,10 @@ en fazla 10 sayfa, sayfa başı 10 MB. Ekleyen ve gören: **izin sahibi ve owner
 satırda ne düğme ne sayı görür — bir sağlık raporunun **varlığı** da bilgidir. Bekleyen ve onaylı izne
 eklenir (rapor çoğu zaman sonradan alınır); geri çekilmiş/reddedilmiş izne eklenmez. Kaldırmak sebep ister.
 Linkler 5 dakika yaşar. Olayda dosya yolu yok.
+
+**Kim planlanır (2026-09-14, owner):** *"burada resepsiyon ve ışıl hocayı kaldıralım, onların öyle bir görevi yok —
+biri genel bir pozisyon, biri patron."* Plana giren kişi bir rol değil bir karar. İsim koda yazılmadı: personel
+belgesinde `inShiftPlan` bayrağı, tablonun altındaki etiketlerden **yalnızca owner** değiştirir (× çıkar, + geri
+ekler), kayıt altında (`staff.shift_plan_membership_set`). Yeni eğitmen kendiliğinden planda görünür. Plandan
+çıkarılan kişi "Haftam" kartını da görmez; planda saati olan biri çıkarılsa bile saatleri kaybolmasın diye
+tabloda kalır.

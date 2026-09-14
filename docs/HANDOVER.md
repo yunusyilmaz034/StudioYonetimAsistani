@@ -56,6 +56,10 @@ karşılaştırılır, ceza yok · rapor yalnızca yükleyen + owner). **Üç i�
    **`storage.rules`'a yeni yol eklendi — Storage kuralı deploy edilmeden yükleme REDDEDİLİR.**
    Saklama süresi yok → [[DEBT-045]].
 
+   **Aynı gün, owner:** "resepsiyon" (ortak hesap) ve "Işıl Hoca" (owner'ın eğitmen hesabı) plandan çıkarılacak.
+   İsim koda yazılmadı — personelde `inShiftPlan` bayrağı, owner tablonun altındaki etiketlerden × ile çıkarır
+   (`staff.shift_plan_membership_set`). **Deploy sonrası owner iki etikete × basmalı** (veri elle yazılmadı).
+
    **Deneme (iş 3):** Eğitmen hesabıyla "İzin iste" → tür Rapor → gönder. Satırda "Rapor dosyası eklenmedi"
    + "Rapor ekle" → bir fotoğraf ve bir PDF seç. Beklenen: "Rapor (1)"; açınca iki sayfa linki, PDF yeni
    sekmede açılır. Owner hesabında aynı satırda "Rapor (1)" görünür. **Resepsiyon hesabında o satırda rapor

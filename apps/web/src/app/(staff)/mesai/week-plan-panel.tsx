@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { AlertTriangleIcon, ChevronLeftIcon, ChevronRightIcon, CopyIcon, Loader2Icon } from 'lucide-react'
+import { AlertTriangleIcon, ChevronLeftIcon, ChevronRightIcon, CopyIcon, Loader2Icon, PlusIcon, XIcon } from 'lucide-react'
 import { toast } from 'sonner'
 
 import type { DomainError, ShiftBlock, WeekPlanEntries } from '@studio/core'
@@ -18,6 +18,7 @@ import {
   loadWeekPlanEditorAction,
   returnWeekPlanAction,
   saveWeekPlanDraftAction,
+  setShiftPlanMembershipAction,
   submitWeekPlanAction,
   type WeekPlanEditorView,
 } from '@/server/actions/week-plan'
@@ -276,6 +277,53 @@ export function WeekPlanPanel({ initialWeek }: { initialWeek: string }) {
               </div>
             </>
           )}
+
+          {/* KİM PLANLANIR (owner, 2026-09-14): *"resepsiyon ve ışıl hocayı kaldıralım."* Yalnızca owner; ortak
+              resepsiyon hesabı ya da owner'ın eğitmen hesabı gibi planlanmayanlar tablodan çıkar, burada geri eklenir. */}
+          {view.canApprove && (view.staff.some((s) => s.inPlan) || view.hidden.length > 0) ? (
+            <div className="flex flex-wrap items-center gap-1.5 text-xs">
+              <span className="text-muted-foreground">Planda:</span>
+              {view.staff
+                .filter((s) => s.inPlan)
+                .map((s) => (
+                  <span key={s.id} className="inline-flex items-center gap-1 rounded-full bg-muted py-0.5 pl-2 pr-0.5 text-foreground">
+                    {s.displayName}
+                    <button
+                      type="button"
+                      disabled={busy}
+                      aria-label={`${s.displayName} plandan çıkar`}
+                      title="Plandan çıkar"
+                      onClick={() =>
+                        void calistir(() => setShiftPlanMembershipAction({ staffUserId: s.id, included: false }), `${s.displayName} planda artık gösterilmiyor.`)
+                      }
+                      className="inline-flex size-6 items-center justify-center rounded-full hover:bg-background disabled:opacity-50"
+                    >
+                      <XIcon className="size-3" />
+                    </button>
+                  </span>
+                ))}
+              {view.hidden.length > 0 ? (
+                <>
+                  <span className="ml-2 text-muted-foreground">Gösterilmeyenler:</span>
+                  {view.hidden.map((s) => (
+                    <button
+                      key={s.id}
+                      type="button"
+                      disabled={busy}
+                      title="Plana geri ekle"
+                      onClick={() =>
+                        void calistir(() => setShiftPlanMembershipAction({ staffUserId: s.id, included: true }), `${s.displayName} plana eklendi.`)
+                      }
+                      className="inline-flex min-h-6 items-center gap-1 rounded-full border border-dashed border-border px-2 py-0.5 text-muted-foreground hover:bg-muted disabled:opacity-50"
+                    >
+                      <PlusIcon className="size-3" />
+                      {s.displayName}
+                    </button>
+                  ))}
+                </>
+              ) : null}
+            </div>
+          ) : null}
 
           {!gecmis ? (
             <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-4">

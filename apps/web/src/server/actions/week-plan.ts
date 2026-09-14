@@ -14,10 +14,12 @@ import {
   mondayOf,
   returnWeekPlan,
   saveWeekPlanDraft,
+  setShiftPlanMembership,
   submitWeekPlan,
   systemClock,
   weekDates,
   type LeaveKind,
+  type StaffUserId,
   type WeekPlanEntries,
   type WeekPlanStatus,
 } from '@studio/core'
@@ -50,6 +52,8 @@ export interface WeekPlanStaff {
   readonly id: string
   readonly displayName: string
   readonly role: string
+  /** Personel belgesindeki bayrak. `false` ama tabloda — planda kaydı olduğu için hâlâ gösteriliyor. */
+  readonly inPlan: boolean
 }
 
 export interface WeekPlanEditorView {
@@ -63,6 +67,8 @@ export interface WeekPlanEditorView {
   readonly version: number
   readonly returnReason: string
   readonly staff: readonly WeekPlanStaff[]
+  /** Owner'ın plandan çıkardığı aktif resepsiyon/eğitmenler — tablonun altında, geri eklenebilir. */
+  readonly hidden: readonly WeekPlanStaff[]
   /** Onaylı izinli günler: personel → gün → tür. Hücrede uyarı olarak görünür, reddetmez. */
   readonly leaveDays: Readonly<Record<string, Readonly<Record<string, LeaveKind>>>>
   readonly canApprove: boolean
@@ -85,11 +91,27 @@ export async function loadWeekPlanEditorAction(input: unknown): Promise<WeekPlan
   // PLANLANAN: aktif resepsiyon ve eğitmenler. Owner ve kiosk hesabı listede yok — owner kendi
   // mesaisini planlatmıyor, kiosk bir tablet. Ama planda KAYDI olan biri (sonradan pasife alınmış)
   // yine görünür: yayındaki bir satır sessizce kaybolmasın.
+  //
+  // PLANDAN ÇIKARILANLAR (owner, 2026-09-14): ortak resepsiyon hesabı, owner'ın eğitmen hesabı gibi planlanmayan
+  // kişiler personel belgesindeki bayrakla (`inShiftPlan: false`) tablodan düşer ve altta listelenir.
   const plandaki = new Set([...Object.keys(plan?.draft ?? {}), ...Object.keys(plan?.published ?? {})])
+  const aday = (s: (typeof personel)[number]) => s.active && (s.role === 'receptionist' || s.role === 'trainer')
+  const satir = (s: (typeof personel)[number]): WeekPlanStaff => ({
+    id: String(s.id),
+    displayName: s.displayName,
+    role: s.role,
+    inPlan: s.inShiftPlan !== false,
+  })
+  const sirala = (a: WeekPlanStaff, b: WeekPlanStaff) =>
+    a.role === b.role ? a.displayName.localeCompare(b.displayName, 'tr') : a.role === 'receptionist' ? -1 : 1
   const staff = personel
-    .filter((s) => (s.active && (s.role === 'receptionist' || s.role === 'trainer')) || plandaki.has(String(s.id)))
-    .map((s) => ({ id: String(s.id), displayName: s.displayName, role: s.role }))
-    .sort((a, b) => (a.role === b.role ? a.displayName.localeCompare(b.displayName, 'tr') : a.role === 'receptionist' ? -1 : 1))
+    .filter((s) => (aday(s) && s.inShiftPlan !== false) || plandaki.has(String(s.id)))
+    .map(satir)
+    .sort(sirala)
+  const hidden = personel
+    .filter((s) => aday(s) && s.inShiftPlan === false && !plandaki.has(String(s.id)))
+    .map(satir)
+    .sort(sirala)
 
   return {
     weekStart,
@@ -101,6 +123,7 @@ export async function loadWeekPlanEditorAction(input: unknown): Promise<WeekPlan
     version: plan?.version ?? 0,
     returnReason: plan?.returnReason ?? '',
     staff,
+    hidden,
     leaveDays: leaveDaysInWeek(weekStart, izinler, OFF),
     canApprove: ctx.actor.type === 'owner' || ctx.actor.type === 'platform_admin',
   }
@@ -124,6 +147,18 @@ export async function approveWeekPlanAction(input: unknown) {
   const p = z.object({ weekStart: TARIH }).parse(input)
   const ctx = await requireTenantContext(ONAYLAYAN)
   const r = await approveWeekPlan(deps(), ctx, p.weekStart)
+  return r.ok ? { ok: true as const } : r
+}
+
+/** Vardiya planında görünsün mü — yalnızca owner (çekirdek de `staff_admin_required` ile reddeder). */
+export async function setShiftPlanMembershipAction(input: unknown) {
+  const p = z.object({ staffUserId: z.string().min(1), included: z.boolean() }).parse(input)
+  const ctx = await requireTenantContext(ONAYLAYAN)
+  const r = await setShiftPlanMembership(
+    { repo: new FirestoreIdentityRepository(adminDb()), clock: systemClock },
+    ctx,
+    { staffUserId: p.staffUserId as StaffUserId, included: p.included },
+  )
   return r.ok ? { ok: true as const } : r
 }
 

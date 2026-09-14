@@ -12,6 +12,7 @@ import {
   decideCreateStaff,
   decideDeactivateStaff,
   decideReactivateStaff,
+  decideSetShiftPlanMembership,
 } from '../domain/decide'
 import type { StaffMember } from '../domain/types'
 import type { IdentityDeps } from './ports'
@@ -109,6 +110,23 @@ export async function reactivateStaff(
   if (!current) throw new Error(`Staff not found: ${input.staffUserId}`)
 
   const decided = decideReactivateStaff(dctx(deps, ctx), current)
+  if (!decided.ok) return decided
+  if (decided.value.events.length === 0) return { ok: true, value: undefined }
+
+  await deps.repo.saveStaff(ctx, decided.value.next, decided.value.events)
+  return { ok: true, value: undefined }
+}
+
+/** Vardiya planında görünsün mü (owner, 2026-09-14 · OR-77). Belge ve olay tek işlemde (#1). */
+export async function setShiftPlanMembership(
+  deps: IdentityDeps,
+  ctx: TenantContext,
+  input: { readonly staffUserId: StaffUserId; readonly included: boolean },
+): Promise<Result<void, DomainError>> {
+  const current = await deps.repo.getStaff(ctx, input.staffUserId)
+  if (!current) throw new Error(`Staff not found: ${input.staffUserId}`)
+
+  const decided = decideSetShiftPlanMembership(dctx(deps, ctx), current, input.included)
   if (!decided.ok) return decided
   if (decided.value.events.length === 0) return { ok: true, value: undefined }
 

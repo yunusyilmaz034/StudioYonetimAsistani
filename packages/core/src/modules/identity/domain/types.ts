@@ -10,6 +10,11 @@ export interface StaffMember {
   readonly displayName: string
   readonly role: StaffRole
   readonly active: boolean
+  /**
+   * Haftalık vardiya planında görünür mü (owner, 2026-09-14 · OR-77). Alan YOKSA planda sayılır: yeni eğitmen
+   * kendiliğinden görünür. `false` — ortak resepsiyon hesabı, owner'ın eğitmen hesabı gibi planlanmayan biri.
+   */
+  readonly inShiftPlan?: boolean
 }
 
 /**

@@ -202,7 +202,10 @@ export async function loadShiftView(ctx: TenantContext, dateStr: string): Promis
 
   // PERSONELİN KENDİ HAFTASI — yalnızca yayındaki plan. Taslak GÖSTERİLMEZ (OR-77): onaylanmamış
   // bir saati kesinmiş gibi göstermek, gelmemesi gereken birini getirir.
-  const benimHaftam: MyWeek[] | null = ownerMu
+  // Plandan çıkarılmış hesap (ortak resepsiyon, owner'ın eğitmen hesabı) "Haftam"ı da görmez: planlanmayacak
+  // birine her hafta "plan onaylanmadı" demek, olmayan bir beklenti yaratır.
+  const planDisi = personel.find((s) => String(s.id) === String(ben))?.inShiftPlan === false
+  const benimHaftam: MyWeek[] | null = ownerMu || planDisi
     ? null
     : haftalarim.map((w) => {
         const yayinda = planlar.find((p) => p.weekStart === w)?.published ?? null

@@ -18,6 +18,7 @@ import {
   STAFF_CREATED,
   STAFF_DEACTIVATED,
   STAFF_REACTIVATED,
+  STAFF_SHIFT_PLAN_MEMBERSHIP_SET,
   STAFF_ROLE_CHANGED,
   STAFF_LEAVE_APPROVED,
   STAFF_LEAVE_CANCELLED,
@@ -30,6 +31,7 @@ import {
   type StaffCrossedPayload,
   type StaffDeactivatedPayload,
   type StaffReactivatedPayload,
+  type StaffShiftPlanMembershipSetPayload,
   type StaffRoleChangedPayload,
   type StaffShiftEndedPayload,
   type StaffShiftStartedPayload,
@@ -196,6 +198,35 @@ export function decideReactivateStaff(
         ...base(ctx, current.id),
         type: STAFF_REACTIVATED,
         payload: { staffUserId: current.id as string },
+      },
+    ],
+  })
+}
+
+// ── VARDİYA PLANINDA GÖRÜNMEK (owner, 2026-09-14 · OR-77) ─────────────────────────────────
+//
+// *"burada resepsiyon ve ışıl hocayı kaldıralım, onların öyle bir görevi yok — biri genel bir pozisyon,
+// biri patron."* Plana giren kişi bir ROL değil bir KARAR. İsim koda yazılmaz (bu ürün tek stüdyonun değil):
+// personel belgesinde bir bayrak, ve kimi owner'ın çıkardığı kayıt altında. Kimin planlanacağına owner karar
+// verir — plan yapan resepsiyon listeyi daraltamaz.
+export function decideSetShiftPlanMembership(
+  ctx: DecideContext,
+  current: StaffMember,
+  included: boolean,
+): Result<
+  { next: StaffMember; events: NewEvent<typeof STAFF_SHIFT_PLAN_MEMBERSHIP_SET, StaffShiftPlanMembershipSetPayload>[] },
+  DomainError
+> {
+  if (!mayAdminister(ctx)) return err({ code: 'staff_admin_required' })
+  // Aynı değer bir eylem değildir. Alanı olmayan eski belge planda sayılır.
+  if ((current.inShiftPlan !== false) === included) return ok({ next: current, events: [] })
+  return ok({
+    next: { ...current, inShiftPlan: included },
+    events: [
+      {
+        ...base(ctx, current.id),
+        type: STAFF_SHIFT_PLAN_MEMBERSHIP_SET,
+        payload: { staffUserId: current.id as string, included },
       },
     ],
   })

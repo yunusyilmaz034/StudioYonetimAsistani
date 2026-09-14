@@ -6,6 +6,7 @@ import {
   decideDeactivateStaff,
   decideEndShift,
   decideReactivateStaff,
+  decideSetShiftPlanMembership,
   decideStaffCrossing,
   decideStartShift,
 } from '../../src/modules/identity/domain/decide'
@@ -16,6 +17,7 @@ import crossed from './staff.crossed.v1.json'
 import deactivated from './staff.deactivated.v1.json'
 import reactivated from './staff.reactivated.v1.json'
 import roleChanged from './staff.role_changed.v1.json'
+import shiftPlanMembershipSet from './staff.shift_plan_membership_set.v1.json'
 import shiftEnded from './staff.shift_ended.v1.json'
 import shiftStarted from './staff.shift_started.v1.json'
 import leaveDocumentAdded from './staff.leave_document_added.v1.json'
@@ -300,5 +302,27 @@ describe('rapor dosyası olayları', () => {
   it('staff.leave_document_removed — sebebiyle', () => {
     const r = decideRemoveLeaveDocument(ctx() as never, izin, belge, 'Yanlış dosya')
     expect(r.ok && r.value[0]?.payload).toEqual(leaveDocumentRemoved)
+  })
+})
+
+// ── VARDİYA PLANINDA GÖRÜNMEK (owner, 2026-09-14 · OR-77) ─────────────────────────────────
+describe('vardiya planında görünmek', () => {
+  it('staff.shift_plan_membership_set — owner çıkarır', () => {
+    const r = decideSetShiftPlanMembership(ctx(), staff(), false)
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.value.events[0]?.payload).toEqual(shiftPlanMembershipSet)
+    expect(r.value.next.inShiftPlan).toBe(false)
+  })
+
+  it('REDDEDER: planı yapan resepsiyon kimin planlanacağına karar veremez', () => {
+    expect(decideSetShiftPlanMembership(ctx('receptionist'), staff(), false)).toEqual({ ok: false, error: { code: 'staff_admin_required' } })
+  })
+
+  it('aynı değer olay yazmaz — alanı olmayan eski belge planda sayılır', () => {
+    const r = decideSetShiftPlanMembership(ctx(), staff(), true)
+    expect(r.ok && r.value.events).toEqual([])
+    const geri = decideSetShiftPlanMembership(ctx(), staff({ inShiftPlan: false }), true)
+    expect(geri.ok && geri.value.events[0]?.payload).toEqual({ staffUserId: 'usr_1', included: true })
   })
 })

@@ -45,6 +45,14 @@ export type StaffReactivatedPayload = {
   readonly staffUserId: string
 }
 
+// Vardiya planında görünmek (owner, 2026-09-14 · OR-77). Plana giren kişi bir rol değil bir KARAR — ortak
+// resepsiyon hesabının ya da owner'ın eğitmen hesabının vardiyası planlanmaz. İsim yok (#6).
+export const STAFF_SHIFT_PLAN_MEMBERSHIP_SET = 'staff.shift_plan_membership_set'
+export type StaffShiftPlanMembershipSetPayload = {
+  readonly staffUserId: string
+  readonly included: boolean
+}
+
 // ── MESAİ (owner, 2026-09-01) ───────────────────────────────────────────────────────────────
 //
 // Owner: *"personel de giriş çıkış yapabilsin pdks gibi değil de en azından saat kaçta girdi çıktı
