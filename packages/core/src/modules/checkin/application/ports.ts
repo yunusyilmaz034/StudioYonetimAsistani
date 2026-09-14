@@ -17,6 +17,8 @@ export interface CheckinRepository {
   listCheckInsForDay(ctx: TenantContext, branchId: BranchId, since: Instant): Promise<readonly CheckIn[]>
   // Member Workspace (v1.18): one member's check-in history since a bound, newest first.
   listCheckInsByMember(ctx: TenantContext, memberId: MemberId, since: Instant): Promise<readonly CheckIn[]>
+  // OR-79: kol yeniden açıldı — geçiş kaydına damga ve olay, TEK işlemde (#1).
+  markCheckInReopened(ctx: TenantContext, checkIn: CheckIn, events: readonly NewEvent[]): Promise<void>
 
   // One transaction: write the CheckIn record, set-or-delete the presence doc, append
   // the events (non-negotiable #1).

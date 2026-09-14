@@ -32,6 +32,7 @@ export function checkInToFirestore(c: CheckIn): DocumentData {
     method: c.method,
     occurredAt: toTs(c.occurredAt),
     actor: c.actor,
+    reopenedAt: c.reopenedAt ? toTs(c.reopenedAt) : null,
     recordedAt: FieldValue.serverTimestamp(),
   }
 }
@@ -46,6 +47,7 @@ export function checkInFromFirestore(id: CheckInId, d: DocumentData): CheckIn {
     method: d.method as CheckInMethod,
     occurredAt: fromTs(d.occurredAt as Timestamp),
     actor: d.actor as ActorRef,
+    ...(d.reopenedAt ? { reopenedAt: fromTs(d.reopenedAt as Timestamp) } : {}),
   }
 }
 

@@ -75,6 +75,8 @@ export const KIND_OF: Record<string, ActivityKind> = {
   // OR-75: kapıdaki kaçağın izi — sistem gürültüsü değil, kapının kendisi hakkında bir gözlem.
   'member.exited_without_entry': 'checkin',
   'member.exit_unobserved': 'checkin',
+  // OR-79 — kol yeniden açıldı (yeni giriş değil): kapı gözlemi, girişlerle aynı filtrede.
+  'turnstile.reopened': 'checkin',
 
   // ── training feedback (owner: "geri bildirimler akışta olsun") ──
   'training_feedback.left': 'feedback',

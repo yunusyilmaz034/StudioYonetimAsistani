@@ -1753,3 +1753,17 @@ bitti). Panoda "Dersleri bitmiş, turnikeden geçemedi — yenileme için arayı
 **Değişmeyenler, bilerek:** çıkış hiç sormaz; resepsiyonun panelden "Turnike Giriş"i ve elle açma paket sormaz
 (insan karar verir); hibrit pakette fitness hakkı bitmiş ama pilates dersi kalan üye girer — kapı neden geldiğini
 bilemez. Kalan hak aritmetiği entitlements modülünden gelir, kapıda ikinci kez yazılmadı.
+
+### OR-79 · Kol dönmediyse üye aynı kapıyı 45 saniye içinde tekrar okutur ve kol BİR KEZ daha açılır
+
+*(2026-09-14, owner: "olur olur öyle yap" — önerilen iyileştirmeye onay)* · Bağlam: *"hoşgeldiniz diyor yine geçiş
+vermiyor kol ilerlemiyor."* Kaydı yazılmış ama kapıdan geçememiş üye tekrar okutunca çift-okuma koruması "az önce
+geçti" diye reddediyordu; 45 saniye kapıda kalıyordu.
+
+**Kural (yalnızca turnikede):** üyenin son geçişi **turnikeden**, **aynı yönde**, **45 sn içinde** ve **henüz yeniden
+açılmamışsa**, tekrar okutma kodu harcar ve kolu bir kez daha çevirir. **Yeni giriş/çıkış yazılmaz** — doluluk,
+yoklama, paket hakkı etkilenmez. Olay `turnstile.reopened { deviceId, direction, secondsSinceCrossing }`.
+
+**Bilinen bedel (owner kabul etti):** üye aynı telefonla ikinci açılışta bir kişiyi daha sokabilir. Bu yüzden **bir
+kez** ve kayıt altında: Hareket Merkezi'nde uyarı rengiyle görünür. Resepsiyonun elle geçirmesinden sonra yeniden
+açma yok (orada resepsiyon zaten kapıda).

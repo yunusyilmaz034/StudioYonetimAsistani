@@ -15,6 +15,10 @@ export const BRANCH_CLOSED = 'branch.closed'
 // NOT a check-in (nobody is identified, so nobody enters occupancy), but never silent either — an
 // arm that opens with no record is an arm anybody can open.
 export const TURNSTILE_OPENED_MANUALLY = 'turnstile.opened_manually'
+// OR-79 (owner, 2026-09-14): kol dönmedi, üye 45 sn içinde aynı kapıyı tekrar okuttu — kol BİR KEZ daha açıldı. Yeni
+// bir giriş/çıkış değil: doluluk, yoklama ve paket hakkı etkilenmez. Kayıt, arkadaşını ikinci açılışla sokma riskinin
+// görünür kalması için. Üretici adda yok: bu kapının kendisi hakkında bir olgu, kolu kimin döndürdüğü değil.
+export const TURNSTILE_REOPENED = 'turnstile.reopened'
 // ── KAPIDA KALDI (owner, 2026-09-08) ────────────────────────────────────────────────────────
 //
 // Paketi bitmiş üye turnikede okuttu, kol dönmedi. Bugüne kadar bu OLAY DEĞİLDİ: `crossTurnstile`
@@ -121,4 +125,11 @@ export type DeviceSecretRotatedPayload = {
 export type DeviceActivationPayload = {
   readonly deviceId: string
   readonly name: string
+}
+
+/** OR-79. `secondsSinceCrossing`: ilk (kaydedilmiş) geçişten kaç sn sonra tekrar okutuldu. */
+export type TurnstileReopenedPayload = {
+  readonly deviceId: string
+  readonly direction: 'in' | 'out'
+  readonly secondsSinceCrossing: number
 }

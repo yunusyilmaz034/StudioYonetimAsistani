@@ -154,7 +154,7 @@ export interface CheckInInput {
  * receptionist pressing again because the first press "did not look like it worked" — all of them
  * produce a pair of events seconds apart, and under a plain toggle the second one undoes the first.
  */
-const DEBOUNCE_MS = 45_000
+export const DEBOUNCE_MS = 45_000
 
 export interface CheckInOutcome {
   readonly events: readonly NewEvent[]

@@ -187,6 +187,18 @@ export class FirestoreCheckinRepository implements CheckinRepository {
     await batch.commit()
   }
 
+  async markCheckInReopened(ctx: TenantContext, checkIn: CheckIn, events: readonly NewEvent[]): Promise<void> {
+    const batch = this.db.batch()
+    batch.update(this.col(ctx.studioId, 'checkIns').doc(checkIn.id), {
+      reopenedAt: checkIn.reopenedAt ? Timestamp.fromMillis(checkIn.reopenedAt) : null,
+    })
+    for (const e of events) {
+      const { id, data } = eventToFirestore(e)
+      batch.set(this.col(ctx.studioId, 'events').doc(id), data)
+    }
+    await batch.commit()
+  }
+
   async applyAutoCheckOut(ctx: TenantContext, memberId: MemberId, events: readonly NewEvent[]): Promise<void> {
     const batch = this.db.batch()
     batch.delete(this.col(ctx.studioId, 'presence').doc(memberId))

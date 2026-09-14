@@ -610,6 +610,12 @@ export function present(e: ActivityEvent): PresentedEntry {
         'Yandan geçmiş ya da girerken turnike çalışmıyor olabilir.',
         'warning',
       )
+    case 'turnstile.reopened':
+      return entry(
+        `${member ?? 'Üye'} için turnike kolu yeniden açıldı.`,
+        `İlk geçişten ${num(p.secondsSinceCrossing) ?? '?'} sn sonra tekrar okuttu — kol dönmemişti. Yeni giriş yazılmadı.`,
+        'warning',
+      )
     case 'member.exit_unobserved':
       return entry(
         `${member ?? 'Üye'} çıkışı görülmeden ayrılmıştı; yeniden girişinde kapatıldı.`,

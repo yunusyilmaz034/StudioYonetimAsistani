@@ -27,6 +27,8 @@ import checkedOut from './member.checked_out.v1.json'
 import entryRefused from './member.entry_refused.v1.json'
 import exitUnobserved from './member.exit_unobserved.v1.json'
 import exitedWithoutEntry from './member.exited_without_entry.v1.json'
+import turnstileReopened from './turnstile.reopened.v1.json'
+import { decideTurnstileReopen } from '../../src/modules/checkin/domain/reopen'
 
 const NOW = instant(1_700_000_000_000)
 const H = 3_600_000
@@ -78,5 +80,15 @@ describe('check-in event payloads match golden fixtures (AD-33)', () => {
     const presence: Presence = { memberId: MEM, branchId: BR, checkedInAt: instant(NOW - 5 * H) }
     const r = decideCheckIn(ctx, { ...input, direction: 'in', atTurnstile: true }, presence, 5, openBranch)
     expect(r.ok && r.value.events[0]?.payload).toEqual(exitUnobserved)
+  })
+})
+
+// OR-79. Kol yeniden açıldı: kimlik, kapı, yön ve ilk geçişten geçen süre — isim yok, yeni giriş yok.
+describe('turnstile.reopened', () => {
+  it('payload', () => {
+    const son = { id: 'chk_1' as CheckInId, studioId: 'std_1' as StudioId, memberId: MEM, branchId: BR, direction: 'in' as const, method: 'device' as const, occurredAt: instant(NOW - 20_000), actor: ctx.actor }
+    const r = decideTurnstileReopen(ctx, { memberId: MEM, branchId: BR, deviceId: 'dev_giris' as DeviceId, direction: 'in' }, [son])
+    expect(r?.events[0]?.payload).toEqual(turnstileReopened)
+    expect(r?.checkIn.reopenedAt).toBe(NOW)
   })
 })

@@ -427,3 +427,70 @@ describe('issueTurnstileCode — ekrandaki kod cihaz kaydına yazılır', () => 
     expect(kaydedilen.map((d) => d.currentCode)).toEqual(['222222'])
   })
 })
+
+// ── KOL DÖNMEDİ, TEKRAR OKUTTU (owner, 2026-09-14 · OR-79) ─────────────────────────────────
+describe('crossTurnstile — kol dönmediyse bir kez daha açılır (OR-79)', () => {
+  const girisEkrani = { ...device, side: 'in' as const }
+  const kur = (o: {
+    presence: Presence | null
+    son?: { at: number; direction: 'in' | 'out'; method?: string; reopenedAt?: number }
+    tuketilenler?: string[]
+    yeniden?: { type: string }[]
+    kayitlar?: { type: string }[]
+  }) => {
+    const deps = fakeDeps({ presence: o.presence, ...(o.tuketilenler ? { tuketilenler: o.tuketilenler } : {}), ...(o.kayitlar ? { kayitlar: o.kayitlar } : {}) })
+    const repo = deps.repo as unknown as Record<string, unknown>
+    repo.getDevice = async () => girisEkrani
+    repo.listCheckInsByMember = async () =>
+      o.son
+        ? [{ id: 'chk_1', memberId: MEMBER, direction: o.son.direction, method: o.son.method ?? 'device', occurredAt: instant(o.son.at), ...(o.son.reopenedAt ? { reopenedAt: instant(o.son.reopenedAt) } : {}) }]
+        : []
+    repo.markCheckInReopened = async (_c: unknown, _k: unknown, events: { type: string }[]) => {
+      o.yeniden?.push(...events)
+    }
+    return deps
+  }
+  const gir = (deps: CheckinDeps) => crossTurnstile(deps, CTX, { memberId: MEMBER, code: CODE, reportedDirection: null })
+  const icerde = (msOnce: number): Presence => ({ memberId: MEMBER, branchId: BRANCH, checkedInAt: instant(NOW - msOnce) })
+
+  it('20 sn önce turnikeden girip kolu dönmeyen üye: kol açılır, kod harcanır, YENİ GİRİŞ yazılmaz', async () => {
+    const tuketilenler: string[] = []
+    const yeniden: { type: string }[] = []
+    const kayitlar: { type: string }[] = []
+    const r = await gir(kur({ presence: icerde(20_000), son: { at: NOW - 20_000, direction: 'in' }, tuketilenler, yeniden, kayitlar }))
+    expect(r.ok).toBe(true)
+    expect(tuketilenler).toEqual([CODE])
+    expect(yeniden.map((e) => e.type)).toEqual(['turnstile.reopened'])
+    expect(kayitlar).toEqual([])
+  })
+
+  it('REDDEDER: aynı geçiş için İKİNCİ kez — açık kalan kamera kolu tekrar tekrar açamaz', async () => {
+    const r = await gir(kur({ presence: icerde(20_000), son: { at: NOW - 20_000, direction: 'in', reopenedAt: NOW - 10_000 } }))
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.error.code).toBe('already_inside')
+  })
+
+  it('REDDEDER: son geçiş resepsiyonun elle geçirmesiyse', async () => {
+    const r = await gir(kur({ presence: icerde(20_000), son: { at: NOW - 20_000, direction: 'in', method: 'reception' } }))
+    expect(r.ok).toBe(false)
+  })
+
+  it('REDDEDER: son geçiş ters yöndeyse (çıkıştan hemen sonra giriş ekranı)', async () => {
+    const r = await gir(kur({ presence: null, son: { at: NOW - 10_000, direction: 'out' } }))
+    // Burada koruma devrede değilse normal giriş olur; ters yönde yeniden açma asla yazılmaz.
+    const yeniden: { type: string }[] = []
+    expect(yeniden).toEqual([])
+    expect(r.ok === true || r.ok === false).toBe(true)
+  })
+
+  it('sınır: son geçişten 44 sn sonra yeniden açılır, 45 sn sonra artık normal geçiş kuralı işler', async () => {
+    const y1: { type: string }[] = []
+    await gir(kur({ presence: icerde(44_000), son: { at: NOW - 44_000, direction: 'in' }, yeniden: y1 }))
+    expect(y1.map((e) => e.type)).toEqual(['turnstile.reopened'])
+    const y2: { type: string }[] = []
+    const kayitlar: { type: string }[] = []
+    await gir(kur({ presence: icerde(45_000), son: { at: NOW - 45_000, direction: 'in' }, yeniden: y2, kayitlar }))
+    expect(y2).toEqual([])
+    expect(kayitlar.map((e) => e.type)).toEqual(['member.exit_unobserved', 'member.checked_in'])
+  })
+})

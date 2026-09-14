@@ -16,6 +16,11 @@ export interface CheckIn {
   readonly method: CheckInMethod
   readonly occurredAt: Instant
   readonly actor: ActorRef
+  /**
+   * Kol dönmedi, üye 45 sn içinde aynı kapıyı tekrar okuttu ve kol BİR KEZ daha açıldı (owner, 2026-09-14 · OR-79).
+   * Doluysa ikinci kez açılmaz. Yeni bir geçiş DEĞİL — doluluk ve paket hakkı bu kayıttan etkilenmez.
+   */
+  readonly reopenedAt?: Instant | null
 }
 
 // Current presence — one doc per member who is inside (id = memberId). Its existence

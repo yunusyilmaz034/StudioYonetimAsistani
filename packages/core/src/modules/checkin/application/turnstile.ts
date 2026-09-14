@@ -17,6 +17,7 @@ import { decideContext } from './context'
 import type { CheckinDeps, StaffCrossingPort, StaffCrossingSummary } from './ports'
 import { available, entriesUsed, type Entitlement } from '../../entitlements'
 import { entryRefusalReason, type EntryRight } from '../domain/entry-gate'
+import { decideTurnstileReopen } from '../domain/reopen'
 import { EARLY_ARRIVAL_MS, commitCheckIn, prepareCheckIn } from './checkin'
 
 // ── TURNSTILE (v1.33) ────────────────────────────────────────────────────────────────────────
@@ -198,7 +199,30 @@ export async function crossTurnstile(
     // "içeride görünmüyor" diye çıkışta kalmaz; kaydın uyuşmadığı kendi olayıyla yazılır.
     atTurnstile: true,
   })
-  if (!prepared.ok) return prepared
+  if (!prepared.ok) {
+    // KOL DÖNMEDİ, TEKRAR OKUTTU (owner, 2026-09-14 · OR-79). Çift-okuma koruması reddettiyse ve son geçiş bu
+    // yönde, turnikeden, 45 sn içinde ve henüz tekrar açılmamışsa: kol BİR KEZ daha açılır, yeni giriş yazılmaz.
+    // Son geçişler yalnızca RET yolunda okunuyor — normal bir geçişte fazladan okuma yok.
+    const koruma = ['checkin_too_soon', 'already_inside', 'already_outside'].includes(prepared.error.code)
+    const tekrar = koruma
+      ? decideTurnstileReopen(
+          dctx,
+          {
+            memberId: input.memberId,
+            branchId: decided.value.branchId,
+            deviceId: decided.value.deviceId,
+            direction: decided.value.direction,
+          },
+          await deps.repo.listCheckInsByMember(ctx, input.memberId, instant(now - 5 * 60_000)),
+        )
+      : null
+    if (!tekrar) return prepared
+    // Kod harcanır ki cihaz "geçti"yi görsün ve kolu çevirsin — tek işlem, tek kazanan.
+    const kazandi = await deps.repo.consumeTurnstileCode(ctx, input.code, input.memberId, now)
+    if (!kazandi) return err({ code: 'qr_used' })
+    await deps.repo.markCheckInReopened(ctx, tekrar.checkIn, tekrar.events)
+    return ok({ direction: decided.value.direction, deviceId: decided.value.deviceId, branchId: decided.value.branchId })
+  }
 
   // ── 2. KODU TÜKET — tek işlem, tek kazanan. Aynı ekranı aynı saniyede okutan iki telefondan
   // biri geçer, diğeri `qr_used` alır.
