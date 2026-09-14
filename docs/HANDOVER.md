@@ -34,7 +34,7 @@ kod harcanmaz, ekran "resepsiyona uğrayın". `member.entry_refused.reason` art�
 `no_entries_left` da olabilir (enum genişlemesi, eski olaylar aynı). Pano metni sebebe göre. Çıkış, resepsiyonun
 elle girişi ve elle açma değişmedi.
 
-**Durum:** commit + deploy (owner: "en son deploy et bekleme beni").
+**Durum:** ✅ canlıda — `build-2026-09-14-006` trafiğin %100'ü, commit `4b36ea2`.
 
 **Deneme:** Dersleri bitmiş bir üye (ör. Ebru Yıldız, derse rezervasyonu yokken) giriş kodunu okutur → kol
 dönmez, ekranda "resepsiyona uğrayın", panoda "Dersleri bitmiş, turnikeden geçemedi". Aynı üyeye bugün ders
