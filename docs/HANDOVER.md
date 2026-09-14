@@ -20,6 +20,26 @@ Kod tarafında yarım iş YOK. Bekleyen iki şey, ikisi de owner'la birlikte:
    satırı (`closed` / `skipped` sayıları) ve `/mesai` listesinde dünkü satırların son geçiş saatine
    kapanmış olması. Hiç eğitmen turnikeden geçmediyse `closed: 0` doğru sonuçtur, arıza değil.
 
+## 🚫 14 Eylül — hakkı biten üye turnikeden giremez ([[OR-78]])
+
+Owner teyit istedi: *"üyeliği olmayan, üyeliği biten kişi kapıda kalsın."* Kural paketsiz/tarihi dolmuş için
+doğru çalışıyordu (bugün turnikeden giren 7 kişinin 7'sinin geçerli paketi vardı; 8 Eylül'den beri hiç
+`entry_refused` yok — kural gerçek bir kişide henüz tetiklenmedi). **Boşluk:** dersleri bitmiş ama tarihi
+dolmamış paket `active` kalıyor ve kapıyı açıyordu (canlıda 2 üye: Ebru Yıldız, Burcu Öztürk — 8 Ders, kalan 0);
+limitli fitness hakkı bitince de kapı açıktı.
+
+**Owner kararı:** ikisi de kapıda kalsın. `checkin/domain/entry-gate.ts` (saf) + `crossTurnstile`: sınırsız ·
+kalan ders · tutulan ders · kalan giriş → girer; hepsi bitmişse ve bu saate ders rezervasyonu yoksa kol dönmez,
+kod harcanmaz, ekran "resepsiyona uğrayın". `member.entry_refused.reason` artık `no_credits_left` /
+`no_entries_left` da olabilir (enum genişlemesi, eski olaylar aynı). Pano metni sebebe göre. Çıkış, resepsiyonun
+elle girişi ve elle açma değişmedi.
+
+**Durum:** commit + deploy (owner: "en son deploy et bekleme beni").
+
+**Deneme:** Dersleri bitmiş bir üye (ör. Ebru Yıldız, derse rezervasyonu yokken) giriş kodunu okutur → kol
+dönmez, ekranda "resepsiyona uğrayın", panoda "Dersleri bitmiş, turnikeden geçemedi". Aynı üyeye bugün ders
+rezervasyonu yapılır, ders saatinden en fazla 1 saat önce okutursa → girer. Sınır: 1 dersi kalan girer.
+
 ## 🗓️ 14 Eylül — personel: günlük geçişler, haftalık vardiya planı, rapor ([[OR-77]])
 
 Owner kararları OR-77'de (günde tek blok · onaydan sonra değişiklik = yeniden onay · plan ile turnike

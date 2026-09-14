@@ -41,14 +41,14 @@ export async function doorRefusalAdvisorItems(ctx: TenantContext): Promise<reado
 
   // ÜYE BAŞINA TEK SATIR, EN SONU. Aynı üye üç kez okutmuşsa bu üç iş değil, bir iştir — ve
   // kaç kez denediği satırın kendisinde daha çok işe yarıyor.
-  const enSon = new Map<string, { at: number; kez: number }>()
+  const enSon = new Map<string, { at: number; kez: number; sebep: string }>()
   for (const d of snap.docs) {
     const memberId = String(d.get('subject.id') ?? '')
     if (!memberId) continue
     const at = (d.get('recordedAt') as Timestamp | null)?.toMillis() ?? now
     const v = enSon.get(memberId)
     if (v) v.kez += 1
-    else enSon.set(memberId, { at, kez: 1 })
+    else enSon.set(memberId, { at, kez: 1, sebep: String(d.get('payload.reason') ?? 'no_active_membership') })
   }
   if (enSon.size === 0) return []
 
@@ -61,7 +61,9 @@ export async function doorRefusalAdvisorItems(ctx: TenantContext): Promise<reado
 
   return ids
     .map((id) => {
-      const { at, kez } = enSon.get(id)!
+      const { at, kez, sebep } = enSon.get(id)!
+      // OR-78: sebep ayrı — "dersleri bitmiş" bir yenileme konuşması, "paketi yok" başka bir konuşma.
+      const neden = sebep === 'no_credits_left' ? 'Dersleri bitmiş' : sebep === 'no_entries_left' ? 'Fitness giriş hakkı bitmiş' : 'Paketi bitmiş'
       const saat = new Date(at).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
       const gun = Math.floor((now - at) / GUN_MS)
       const neZaman = gun === 0 ? `bugün ${saat}` : gun === 1 ? `dün ${saat}` : `${gun} gün önce`
@@ -77,8 +79,8 @@ export async function doorRefusalAdvisorItems(ctx: TenantContext): Promise<reado
           title: `${ad.get(id) || 'Bilinmeyen üye'} — kapıda kaldı (${neZaman})`,
           detail:
             kez > 1
-              ? `Paketi bitmiş, turnikeden geçemedi — ${kez} kez denedi. Çalışmaya gelmişti; yenileme için arayın.`
-              : 'Paketi bitmiş, turnikeden geçemedi. Çalışmaya gelmişti; yenileme için arayın.',
+              ? `${neden}, turnikeden geçemedi — ${kez} kez denedi. Çalışmaya gelmişti; yenileme için arayın.`
+              : `${neden}, turnikeden geçemedi. Çalışmaya gelmişti; yenileme için arayın.`,
           href: `/members/${id}`,
           actionLabel: 'Üyeyi aç',
         },

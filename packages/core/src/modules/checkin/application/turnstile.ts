@@ -15,7 +15,9 @@ import { decideOpenTurnstileManually, decideRedeemTurnstileCode, decideRefuseEnt
 import type { TurnstileCode, TurnstileDirection } from '../domain/types'
 import { decideContext } from './context'
 import type { CheckinDeps, StaffCrossingPort, StaffCrossingSummary } from './ports'
-import { commitCheckIn, prepareCheckIn } from './checkin'
+import { available, entriesUsed, type Entitlement } from '../../entitlements'
+import { entryRefusalReason, type EntryRight } from '../domain/entry-gate'
+import { EARLY_ARRIVAL_MS, commitCheckIn, prepareCheckIn } from './checkin'
 
 // ── TURNSTILE (v1.33) ────────────────────────────────────────────────────────────────────────
 //
@@ -145,8 +147,18 @@ export async function crossTurnstile(
   //    ileri tarihli bir paket (7 Eylül'de başlayan) bugün canlı DEĞİLDİR ve bugün kapıyı açmaz.
   if (decided.value.direction === 'in') {
     const paketler = await deps.entries.listActiveByMember(ctx, input.memberId)
-    const canli = paketler.some((e) => e.validFrom <= now && now < e.validUntil)
-    if (!canli) {
+    const haklar = paketler.filter((e) => e.validFrom <= now && now < e.validUntil).map(girisHakki)
+    let sebep = entryRefusalReason(haklar)
+    // HAK BİTTİ AMA BUGÜN DERSİ VAR (owner, 2026-09-14 · OR-78): derse gelen üye kapıda kalmaz. Soru
+    // YALNIZCA ret yolunda soruluyor — normal bir girişte fazladan okuma yapılmıyor ki kapı hızlı kalsın.
+    if (
+      sebep !== null &&
+      sebep !== 'no_active_membership' &&
+      (await deps.classes.hasClassAround(ctx, input.memberId, now, EARLY_ARRIVAL_MS))
+    ) {
+      sebep = null
+    }
+    if (sebep !== null) {
       // RET YAZILIYOR (owner, 2026-09-08). Eskiden burada yalnızca `err` dönülüyordu ve kapıda
       // kalan üye hiçbir yere kaydedilmiyordu — resepsiyon görmüyor, owner görmüyor, ertesi gün
       // kimse aramıyordu. Durum değişmediği için yazılacak bir state yok; olayı cihazın
@@ -155,9 +167,11 @@ export async function crossTurnstile(
         await deps.repo.saveDeviceWithEvents(
           ctx,
           { ...device, lastSeenAt: now },
-          decideRefuseEntry(dctx, input.memberId, device.id, decided.value.branchId, 'no_active_membership'),
+          decideRefuseEntry(dctx, input.memberId, device.id, decided.value.branchId, sebep),
         )
       }
+      // Üyeye ve kapı ekranına TEK cümle: "resepsiyona uğrayın". Sebebin ayrıntısı (dersler bitti, giriş hakkı
+      // bitti) olayda ve owner'ın panosunda — ekran firmware'i yalnızca "reddedildi"yi tanıyor.
       return err({ code: 'no_active_membership' })
     }
   }
@@ -286,4 +300,16 @@ export async function openTurnstileManually(
   // untouched, because nobody was identified and nobody entered.
   await deps.repo.saveDeviceWithEvents(ctx, { ...device, lastSeenAt: deps.clock.now() }, decided.value)
   return ok({ deviceId })
+}
+
+/**
+ * Geçerli bir paketin kapı için özeti (OR-78). Kalan ders `available` ile, kalan giriş `entriesUsed` ile —
+ * entitlements modülünün kendi hesabıyla; burada yeniden hesaplanmıyor.
+ */
+function girisHakki(e: Entitlement): EntryRight {
+  const izin = e.productSnapshot.entryAllowance ?? null
+  return {
+    credits: e.credits ? { remaining: available(e.credits), held: e.credits.held } : null,
+    entries: izin === null ? null : { remaining: izin - (e.entryLedger ? entriesUsed(e.entryLedger) : 0) },
+  }
 }

@@ -61,7 +61,8 @@ export function domainErrorMessage(error: DomainError): string {
     case 'no_active_membership':
       // Kapıda okunacak. Suçlayıcı değil, yönlendirici: üye kapıda kalmışken "hakkınız yok" demek,
       // "resepsiyona uğrayın" demekten hem daha kırıcı hem daha az işe yarar.
-      return 'Aktif paketiniz görünmüyor. Lütfen resepsiyona uğrayın 🌸'
+      // OR-78: paket yok, dersler bitti ya da giriş hakkı bitti — üç durum, tek yönlendirici cümle.
+      return 'Kullanılabilir paket hakkınız görünmüyor. Lütfen resepsiyona uğrayın 🌸'
     case 'expired_credits_cannot_revive':
       // The sentence has to say what the system DID, not only that it refused — otherwise the owner
       // reads it as a bug and tries again. The credits are gone; giving them back is a separate act.

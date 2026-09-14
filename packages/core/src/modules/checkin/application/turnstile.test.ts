@@ -65,6 +65,8 @@ function fakeDeps(opts: {
   yazilanlar?: { type: string }[]
   /** Geçişin kendi olayları (`applyCheckIn`) buraya düşer. */
   kayitlar?: { type: string }[]
+  /** Üyenin bu saate denk gelen bir ders rezervasyonu var mı (OR-78). */
+  dersVar?: boolean
 }): CheckinDeps {
   const recent: CheckIn[] =
     opts.lastCrossedAt === undefined
@@ -94,6 +96,7 @@ function fakeDeps(opts: {
     },
     // Sayaç bu testlerin konusu değil, ama kapı hem sayaçtan hem paket kontrolünden geçiyor.
     entries: { listActiveByMember: async () => opts.paketler ?? CANLI_PAKET, saveEntitlement: async () => undefined },
+    classes: { hasClassAround: async () => opts.dersVar ?? false },
   } as unknown as CheckinDeps
 }
 
@@ -331,5 +334,73 @@ describe('paketi olmayan üyeye kol dönmez (owner, 2026-08-31)', () => {
       reportedDirection: 'in',
     })
     expect(r.ok).toBe(false)
+  })
+})
+
+// ── HAK BİTTİYSE KAPI AÇILMAZ (owner, 2026-09-14 · OR-78) ──────────────────────────────────
+//
+// *"üyeliği olmayan, üyeliği biten kişi kapıda kalsın."* Tarihi dolmamış ama dersleri tükenmiş paket ve
+// limitli fitness hakkı bitmiş paket de kapıda kalır — o gün dersi olan hariç.
+describe('crossTurnstile — hak bittiyse kol dönmez (OR-78)', () => {
+  const pencere = { validFrom: instant(NOW - 5 * 86_400_000), validUntil: instant(NOW + 20 * 86_400_000) }
+  const kredili = (kalan: number, tutulan = 0) => ({
+    ...pencere,
+    productSnapshot: { category: 'pilates_group' },
+    credits: { granted: 8, restored: 0, consumed: 8 - kalan - tutulan, held: tutulan, revoked: 0, expired: 0 },
+  })
+  const fitness = (kullanilan: number) => ({
+    ...pencere,
+    productSnapshot: { category: 'fitness', entryAllowance: 8 },
+    credits: null,
+    entryLedger: { consumed: kullanilan, restored: 0, revoked: 0 },
+  })
+  const gir = (deps: CheckinDeps) => crossTurnstile(deps, CTX, { memberId: MEMBER, code: CODE, reportedDirection: 'in' })
+  const sebebi = (y: { type: string; payload?: { reason?: string } }[]) => y.map((e) => e.payload?.reason)
+
+  it('dersleri bitmiş paket: kol dönmez, kod harcanmaz, sebep "dersler bitti"', async () => {
+    const yazilanlar: { type: string; payload?: { reason?: string } }[] = []
+    const tuketilenler: string[] = []
+    const r = await gir(fakeDeps({ presence: null, paketler: [kredili(0)] as never, yazilanlar, tuketilenler }))
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.error.code).toBe('no_active_membership')
+    expect(sebebi(yazilanlar)).toEqual(['no_credits_left'])
+    expect(tuketilenler).toEqual([])
+  })
+
+  it('sınır: bir dersi kalan girer', async () => {
+    expect((await gir(fakeDeps({ presence: null, paketler: [kredili(1)] as never }))).ok).toBe(true)
+  })
+
+  it('kalan dersi sıfır ama bugüne rezervasyonu (tutulan dersi) olan girer', async () => {
+    expect((await gir(fakeDeps({ presence: null, paketler: [kredili(0, 1)] as never }))).ok).toBe(true)
+  })
+
+  it('fitness giriş hakkı bitmiş: kol dönmez, sebep "giriş hakkı bitti"', async () => {
+    const yazilanlar: { type: string; payload?: { reason?: string } }[] = []
+    const r = await gir(fakeDeps({ presence: null, paketler: [fitness(8)] as never, yazilanlar }))
+    expect(r.ok).toBe(false)
+    expect(sebebi(yazilanlar)).toEqual(['no_entries_left'])
+  })
+
+  it('sınır: 8 hakkın 7si kullanılmışsa girer', async () => {
+    expect((await gir(fakeDeps({ presence: null, paketler: [fitness(7)] as never }))).ok).toBe(true)
+  })
+
+  it('hakkı bitmiş ama BUGÜN DERSİ OLAN girer', async () => {
+    expect((await gir(fakeDeps({ presence: null, paketler: [fitness(8)] as never, dersVar: true }))).ok).toBe(true)
+    expect((await gir(fakeDeps({ presence: null, paketler: [kredili(0)] as never, dersVar: true }))).ok).toBe(true)
+  })
+
+  it('hibrit: fitness hakkı bitmiş ama pilates dersi kalan girer', async () => {
+    expect((await gir(fakeDeps({ presence: null, paketler: [fitness(8), kredili(2)] as never }))).ok).toBe(true)
+  })
+
+  it('hakkı bitmiş olsa da ÇIKIŞ her zaman açılır', async () => {
+    const r = await crossTurnstile(fakeDeps({ presence: inside, lastCrossedAt: NOW - 60_000, paketler: [kredili(0)] as never }), CTX, {
+      memberId: MEMBER,
+      code: CODE,
+      reportedDirection: 'out',
+    })
+    expect(r.ok).toBe(true)
   })
 })

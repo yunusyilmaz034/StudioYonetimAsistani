@@ -83,7 +83,9 @@ export type TurnstileOpenedManuallyPayload = {
   readonly reason: string
 }
 /** `reason` kapalı enum: kapının hayır deme sebepleri sayılabilir olmalı, serbest metin değil. */
-export type EntryRefusalReason = 'no_active_membership'
+// OR-78 (2026-09-14): paketi olsa bile HAK kalmamışsa kapı hayır der — dersler bitti ya da fitness giriş hakkı bitti.
+// Genişletme ek bir değer: eski olayların hepsi 'no_active_membership' ve anlamları değişmiyor.
+export type EntryRefusalReason = 'no_active_membership' | 'no_credits_left' | 'no_entries_left'
 export type MemberEntryRefusedPayload = {
   readonly branchId: BranchId
   readonly deviceId: string

@@ -1730,3 +1730,26 @@ belgesinde `inShiftPlan` bayrağı, tablonun altındaki etiketlerden **yalnızca
 ekler), kayıt altında (`staff.shift_plan_membership_set`). Yeni eğitmen kendiliğinden planda görünür. Plandan
 çıkarılan kişi "Haftam" kartını da görmez; planda saati olan biri çıkarılsa bile saatleri kaybolmasın diye
 tabloda kalır.
+
+### OR-78 · Turnike, elinde HAK kalmayan üyeye kolu çevirmez — dersleri biten ve fitness hakkı biten de kapıda kalır
+
+*(2026-09-14, owner: "üyeliği olmayan, üyeliği biten kişi kapıda kalsın içeriye giremesin resepsiyona gitsin
+dimi öyleydi zaten ama teyit et")* — **[[OR-53]]'ü genişletir.** Seçenekler sunuldu; iki soruda da "kapıda
+kalsın" seçildi.
+
+**Teyitte bulunan boşluk:** OR-53 "paketi olmayan"ı tarih penceresiyle ölçüyordu. Son ders kullanılınca paketin
+durumu değişmiyor (`active` kalıyor, yalnızca `entitlement.exhausted` yazılıyor) — yani 8 dersin 8'ini bitirmiş
+ama tarihi dolmamış üye kapıdan geçiyordu. Teyit anında canlıda böyle **2 üye** vardı (başka geçerli paketleri yok).
+Limitli fitness hakkı bitince de kapı bilerek açılıyordu (v1.27: "aşım kaydedilir, kapı asla reddedilmez").
+
+**Kural (yalnızca TURNİKEDE, yalnızca GİRİŞTE):** üye girer, eğer bugün geçerli paketlerinden en az birinde
+- sınırsız erişim, **ya da** kalan ders, **ya da** bugüne tutulan (rezerve) ders, **ya da** kalan fitness girişi var;
+- **ya da** hakkı bitmiş olsa bile **bu saate denk gelen bir ders rezervasyonu** var (derse gelen kapıda kalmaz).
+
+Aksi hâlde kol dönmez, kod harcanmaz, ekran ve telefon **"resepsiyona uğrayın"** der, olay `member.entry_refused`
+sebebiyle yazılır: `no_active_membership` · `no_credits_left` (dersleri bitti) · `no_entries_left` (fitness hakkı
+bitti). Panoda "Dersleri bitmiş, turnikeden geçemedi — yenileme için arayın."
+
+**Değişmeyenler, bilerek:** çıkış hiç sormaz; resepsiyonun panelden "Turnike Giriş"i ve elle açma paket sormaz
+(insan karar verir); hibrit pakette fitness hakkı bitmiş ama pilates dersi kalan üye girer — kapı neden geldiğini
+bilemez. Kalan hak aritmetiği entitlements modülünden gelir, kapıda ikinci kez yazılmadı.

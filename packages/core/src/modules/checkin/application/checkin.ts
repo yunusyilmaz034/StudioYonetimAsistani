@@ -63,7 +63,7 @@ export interface RecordCheckInResult {
  * Bir saat: dersten önce üstünü değiştiren, ısınan, kahve içen üye hâlâ derse gelmiştir. Buse'nin
  * vakasında geliş 11:50, ders 17:00 — beş saat, yani doğru şekilde spor ziyareti sayılıyor.
  */
-const EARLY_ARRIVAL_MS = 60 * 60_000
+export const EARLY_ARRIVAL_MS = 60 * 60_000
 
 /**
  * Bir KAPI GİRİŞİ, limitli fitness üyeliğinden bir giriş harcar (v1.27).
@@ -72,8 +72,9 @@ const EARLY_ARRIVAL_MS = 60 * 60_000
  * `qr.ts` içinde yaşıyordu ve diğer iki kapı onu çağırmıyordu — Işıl bunu haftalarca elle işaretlenen
  * bir üyenin sayacının sıfırda kalmasıyla buldu. Kural bir kapıya değil, odaya ait.
  *
- * YUMUŞAK: aşım kaydedilir, kapı asla reddedilmez. Kaç girişin kaldığını söylemek ekranın işi;
- * kimseyi dışarıda bırakmak bu fonksiyonun işi değil.
+ * YUMUŞAK: aşım kaydedilir, BU FONKSİYON kimseyi reddetmez — resepsiyonun elle girişi ve kiosk hâlâ geçer.
+ * TURNİKE ise hakkı bitmiş üyeye kolu çevirmez (owner, 2026-09-14 · OR-78): o ret bu fonksiyondan ÖNCE,
+ * `crossTurnstile` içinde verilir. İki kural çelişmez: kapı karar veremez, insan verir.
  */
 async function consumeFitnessEntry(
   deps: CheckinDeps,
