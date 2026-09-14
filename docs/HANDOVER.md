@@ -11,8 +11,10 @@ _Last true as of: **2026-09-14, 00:45**._
 
 ## ⏭️ Sıradaki oturum — BURADAN BAŞLA
 
-Kod tarafında yarım iş YOK. Bekleyen iki şey, ikisi de owner'la birlikte:
+Kod tarafında yarım iş YOK. Bekleyen üç şey, üçü de owner'la birlikte:
 
+0. **Firmware v1.4 yerinde yüklenecek (14 Eylül akşamı, owner stüdyoda).** Kod `0de22d4`, derlendi, YÜKLENMEDİ.
+   Aşağıdaki "Firmware v1.4" bölümündeki sırayı yürüt; başarılı yüklemeden sonra `git tag turnike-v1.4` ve bu maddeyi sil.
 1. **Owner denemesi yapılmadı** — "deneme sonra yaparız" (14 Eylül 00:45). Aşağıdaki "Deneme adımı"
    dört maddeyi sırayla yürüt; dock konumu da bu denemeye dahil (tarayıcıda hiç bakılmadı, ölçü ekran
    görüntüsünden hesaplandı).
@@ -53,6 +55,22 @@ geçişi görürse darbe + 3 sn karşılama sonrası (~+5,6–7,5 sn) yeni kod i
 
 **Kilitlenme tekrar ederse:** önce yalnızca **turnike kartını**, düzelmezse yalnızca **ESP/röle kutusunu** kesin —
 hangisinin takıldığı böyle ayrılır. Panelden "Giriş"e basılırken röle kartında DS1 ışığı + klik var mı, bakın.
+
+### Firmware v1.4 — hazır, 14 Eylül akşamı yüklenecek (`0de22d4`, sunucu desteği push edildi)
+
+**Ne değişti:** tek TLS bağlantısı açık kalıyor · her kod isteğinde ölçüm (sürüm, RSSI, bellek, açık kalma, darbe
+sayacı, açılış sebebi — `BROWNOUT` = besleme düştü) → Ayarlar → Turnike cihazları · panelden **Yeniden başlat**
+(`device.restart_requested`, sebep zorunlu; yalnızca ESP kutusu) · gece 04:xx boş kapıda ve ağ bağlıyken 3 dk cevap
+yoksa kendiliğinden yeniden başlama · kurulum modu bilinen ağ varsa 5 dk sonra yeniden dener · darbe süresi
+`-D DARBE_MS_AYAR=…` ile denenebilir. Sunucu v1.3 ile de uyumlu (ölçüm yok, restart komutu yok sayılır).
+
+**Yükleme:** `~/Library/Python/3.9/bin/pio` BOZUK (Xcode python yolu yok) → `cd apps/turnstile && /usr/bin/python3 -m platformio run -t upload`.
+
+**Yerinde sıra:** (1) yüklemeden ÖNCE donanım: panelden Giriş'e basınca röle DS1 ışığı + klik; COM–OP-R boştayken açık
+mı; turnike kartının 12 V adaptörü (etiket akımı, yük altında voltaj); kartın ısınan yeri + havalandırma. (2) yükle.
+(3) Ayarlar → Turnike cihazları'nda iki cihazda `turnike-v1.4`, RSSI, bir `son açılış` sebebi görünmeli (`BROWNOUT` olmamalı). (4) Bir
+giriş + bir çıkış okut: kol döner, darbe sayacı 2 artar. (5) Panelden "Yeniden başlat" (sebep: deneme) → ~20 sn
+sonra ekranlar kod gösterir, açılış sebebi `SW`, Hareket Merkezi'nde olay. (6) RSSI -75'ten kötüyse modem/kablo konuş.
 
 ## 🚫 14 Eylül — hakkı biten üye turnikeden giremez ([[OR-78]])
 
