@@ -58,7 +58,7 @@ karşılaştırılır, ceza yok · rapor yalnızca yükleyen + owner). **Üç i�
 
    **Aynı gün, owner:** "resepsiyon" (ortak hesap) ve "Işıl Hoca" (owner'ın eğitmen hesabı) plandan çıkarılacak.
    İsim koda yazılmadı — personelde `inShiftPlan` bayrağı, owner tablonun altındaki etiketlerden × ile çıkarır
-   (`staff.shift_plan_membership_set`). **Deploy sonrası owner iki etikete × basmalı** (veri elle yazılmadı).
+   (`staff.shift_plan_membership_set`). ✅ Canlıda `build-2026-09-14-005` (14:00, commit `138d06c`). **Owner iki etikete × basmalı** (veri elle yazılmadı).
 
    **Deneme (iş 3):** Eğitmen hesabıyla "İzin iste" → tür Rapor → gönder. Satırda "Rapor dosyası eklenmedi"
    + "Rapor ekle" → bir fotoğraf ve bir PDF seç. Beklenen: "Rapor (1)"; açınca iki sayfa linki, PDF yeni
