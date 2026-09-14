@@ -49,7 +49,7 @@ butonu koyalım, sağında çarpı butonu kalsın … olay kaydında bu üyeye i
 - Yoklama sekmesinde **Misafirler · x/y geldi**.
 - Misafir doluluğa girmez; olayda isim yok.
 
-**Durum:** commit edildi, **deploy owner onayı bekliyor** (OR-75 ile birlikte).
+**Durum:** ✅ canlıda — `build-2026-09-14-002` trafiğin %100'ü (14 Eylül 12:38), commit `0a23089`.
 
 **Deneme:** Bugünkü bir derse "Yer ayır" → satırda Giriş/Çıkış görünür. **Giriş** → giriş kolu döner,
 satırda "Geldi HH:MM", Yoklama sekmesinde "Misafirler 1/1 geldi", Hareket Merkezi'nde "Ayrılan yerdeki
@@ -69,7 +69,7 @@ göstererek çalıştığı için bu durum hiç denenmemişti.
 - Şube kapalı görünse de çıkış engellenmez.
 - Hareket Merkezi'nde ikisi de uyarı rengiyle görünür.
 
-**Durum:** commit edildi, **deploy owner onayı bekliyor**. Canlı ölçüm (son 30 gün): 407 giriş, yalnızca
+**Durum:** ✅ canlıda — `build-2026-09-14-002` (14 Eylül 12:38), commit `c740afd`. Canlı ölçüm (son 30 gün): 407 giriş, yalnızca
 32 çıkış kaydı, 373 otomatik çıkış; yani üyeler çıkışta çoğunlukla okutmuyor.
 
 **Deneme:** Hiç girişi olmayan bir test üyesiyle **çıkış** ekranını okut → kol döner, Hareket Merkezi'nde
