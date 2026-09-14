@@ -22,6 +22,17 @@ Kod tarafında yarım iş YOK. Bekleyen şeyler, hepsi owner'la birlikte:
    o gün hiç personel turnikeden geçmediği için doğru sonuç. İlk gerçek kapanış, eğitmenler turnikeyi kullanmaya
    başladığı gece; o sabah `/mesai`da dünkü satırların son geçiş saatine kapandığına bak.
 
+## 💰 14 Eylül gecesi — test hesapları Kasa Hareketleri'nden de çıktı
+
+**Owner:** *"ışıl yılmaz'a ait şeyler kasada gözükmesin, gerçek değil hiçbiri."* Netleştirildi: kastedilen **test üyesi**
+IŞIL YILMAZ (ve `settings/projection.excludedMemberIds`teki diğerleri), ödemeyi giren owner hesabı DEĞİL — o hesap
+15 Ağu'dan beri 114 tahsilatın 92'sini girmiş, gerçek ciro.
+
+`apps/web/src/server/cash-movements.ts` artık hariç listesini okuyor (pano ve raporlar zaten okuyordu). Olay silinmedi.
+Kasanın `expected` bakiyesine dokunulmadı: o, fiziksel sayımla karşılaştırılan yazılı durum.
+**Deneme:** Kasa → Kasa hareketleri, Temmuz'u kapsayan aralık → IŞIL YILMAZ / ışıl deneme2 / YUNUS YILMAZ satırı yok;
+Hilal Taşel 8.500 ₺ ve Yağmur Yüce Yıldız 5.000 ₺ (14 Eylül) duruyor.
+
 ## 🔧 14 Eylül öğleden sonra — "hoş geldin dedi, kol dönmedi" ([[DEBT-046]])
 
 **Owner:** *"zeynep ve ilnur qr okumuş hoşgeldin demiş ama kol dönmedi"* · sonra *"artık kimseye giriş vermiyor"* ·

@@ -1,4 +1,10 @@
-import { FirestoreFinanceRepository, FirestoreMemberRepository, systemClock, type TenantContext } from '@studio/core'
+import {
+  FirestoreFinanceRepository,
+  FirestoreMemberRepository,
+  loadExcludedMemberIds,
+  systemClock,
+  type TenantContext,
+} from '@studio/core'
 
 import { adminDb } from './firebase-admin'
 
@@ -55,11 +61,19 @@ const CATEGORY_TR: Record<string, string> = {
 export async function loadCashMovements(ctx: TenantContext, fromMs: number, toMs: number): Promise<readonly CashMovement[]> {
   const db = adminDb()
   const repo = new FirestoreFinanceRepository(db)
-  const [payments, tumCikislar, members] = await Promise.all([
+  const [tumOdemeler, tumCikislar, members, excluded] = await Promise.all([
     repo.listPaymentsBetween(ctx, fromMs, toMs),
     repo.listCashOutflows(ctx),
     new FirestoreMemberRepository(db).list(ctx),
+    loadExcludedMemberIds(db, ctx.studioId),
   ])
+  // TEST HESAPLARI KASADA DA GÖRÜNMEZ (owner, 2026-09-14): *"ışıl yılmaz'a ait şeyler kasada gözükmesin,
+  // gerçek değil hiçbiri."* Pano (2026-08-27) ve raporlar (2026-09-02) aynı listeyi zaten okuyordu; Kasa
+  // Hareketleri okumuyordu. Aynı liste, aynı anlam: olay silinmez, okuma modeli saymaz.
+  //
+  // Filtre ÜYEYE göre, ödemeyi GİRENE göre değil — owner hesabı gerçek tahsilatların çoğunu giriyor.
+  // Kasanın `expected` bakiyesine dokunulmuyor: o, fiziksel sayımla karşılaştırılan yazılı durumdur.
+  const payments = excluded.size === 0 ? tumOdemeler : tumOdemeler.filter((p) => !excluded.has(p.memberId as string))
   // Çıkışlar aynı pencereye kırpılıyor: sayıları az olduğu için tarih sorgusu yerine okuyup süzmek
   // yeterli, ama EKRANDA pencereden taşan bir satır görünmemeli — toplamlar tutmazdı.
   const outflows = tumCikislar.filter((o) => Number(o.occurredAt) >= fromMs && Number(o.occurredAt) <= toMs)
