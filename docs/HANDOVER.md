@@ -69,6 +69,7 @@ biniyordu; artık sayfa başlığı ile içerik arasındaki boşlukta (`top-[64p
 **14 Eylül:** owner, *"üye detayında sağ üstteki giriş - çıkış butonlarını kaldır."* Dock üye detayında
 (`/members/<id>`) artık çizilmiyor — o sayfanın kendi Turnike Giriş/Çıkış düğmeleri var ve dock
 "Düzenle"ye biniyordu. Üye listesi ve `/members/invite` dahil diğer her ekranda duruyor.
+`a7a66fd`, ✅ canlıda: `build-2026-09-14-001` trafiğin %100'ü (14 Eylül 10:34).
 
 ### Bugün canlıya çıkanlar
 
