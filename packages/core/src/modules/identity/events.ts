@@ -221,3 +221,29 @@ export type StaffWeekPlanReturnedPayload = {
   /** Sebepsiz bir geri gönderme resepsiyona hiçbir şey söylemez (OR-72'deki red kuralıyla aynı). */
   readonly reason: string
 }
+
+// ── İZNE RAPOR DOSYASI (owner, 2026-09-14 · OR-77, karar 4) ────────────────────────────────
+//
+// *"sağlık raporu yükleyebilsin hastaysa."* "Rapor" türündeki bir izne fotoğraf ya da PDF eklenir.
+//
+// SAĞLIK VERİSİ, KVKK'da özel nitelikli. Bu yüzden:
+//   · Dosya özel Storage yolunda; istemci OKUYAMAZ, açılınca 5 dakikalık imzalı link üretilir.
+//   · Görebilen yalnızca izin sahibi ve owner. Resepsiyon ve diğer hocalar göremez.
+//   · Olayda dosya YOLU yok, içerik yok: yalnızca kimlikler ve sayfa sayısı (#6).
+//   · Kaldırmak bir düzeltmedir, sessiz silme değil (#9): sebep zorunlu.
+export const STAFF_LEAVE_DOCUMENT_ADDED = 'staff.leave_document_added'
+export const STAFF_LEAVE_DOCUMENT_REMOVED = 'staff.leave_document_removed'
+
+export type StaffLeaveDocumentAddedPayload = {
+  readonly leaveId: string
+  readonly staffUserId: string
+  readonly documentId: string
+  readonly pageCount: number
+}
+
+export type StaffLeaveDocumentRemovedPayload = {
+  readonly leaveId: string
+  readonly staffUserId: string
+  readonly documentId: string
+  readonly reason: string
+}

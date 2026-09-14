@@ -97,3 +97,17 @@ export interface StaffWeekPlan {
   readonly approvedAt: Instant | null
   readonly approvedBy: StaffUserId | null
 }
+
+/**
+ * İzne eklenmiş rapor dosyası (OR-77, karar 4). `staffLeaves/{leaveId}/documents/{id}` — iznin altında,
+ * istemcinin hiçbir kuralla okuyamadığı bir alt koleksiyonda. `pages` özel Storage yolları; bir sayfa bir
+ * fotoğraf ya da bir PDF.
+ */
+export interface StaffLeaveDocument {
+  readonly id: string
+  readonly leaveId: string
+  readonly staffUserId: StaffUserId
+  readonly pages: readonly string[]
+  readonly uploadedAt: Instant
+  readonly uploadedBy: StaffUserId
+}

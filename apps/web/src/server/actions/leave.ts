@@ -4,7 +4,11 @@ import {
   FirestoreSchedulingRepository,
   FirestoreIdentityRepository,
   FirestoreStaffLeaveRepository,
+  addLeaveDocument,
+  canSeeLeaveDocuments,
   cancelStaffLeave,
+  listLeaveDocuments,
+  removeLeaveDocument,
   decideStaffLeave,
   requestStaffLeave,
   systemClock,
@@ -14,7 +18,7 @@ import {
 import { z } from 'zod'
 
 import { requireTenantContext } from '../auth'
-import { adminDb } from '../firebase-admin'
+import { adminDb, adminStorage, storageBucketName } from '../firebase-admin'
 
 // ── İZİN / YOKLUK (owner onayı, 2026-09-11) ─────────────────────────────────────────────────
 //
@@ -105,6 +109,13 @@ export interface LeaveRow {
   readonly decisionReason: string
   /** Onay ekranının asıl bilgisi: bu aralıkta kaç ders sahipsiz kalacak. */
   readonly affectedSessions: number
+  /**
+   * Rapor dosyası sayısı (OR-77, karar 4). `null` ⇔ bu satırın raporunu GÖREMEZSİN (resepsiyon, başka hoca)
+   * ya da izin rapor değil. Sayı bile gösterilmez: bir sağlık raporunun varlığı da bir bilgidir.
+   */
+  readonly documentCount: number | null
+  /** Rapor ekleyebiliyorsan, sunucunun türettiği özel Storage öneki. Aksi hâlde `null`. */
+  readonly uploadPrefix: string | null
 }
 
 const GUN = 86_400_000
@@ -141,7 +152,90 @@ export async function listLeavesAction(): Promise<readonly LeaveRow[]> {
       status: l.status,
       decisionReason: l.decisionReason,
       affectedSessions: await etkilenenDersler(ctx, l.staffUserId, l.from as number, l.to as number),
+      documentCount: l.kind === 'rapor' && canSeeLeaveDocuments(ctx.actor, l) ? (await listLeaveDocuments(deps(), ctx, l)).length : null,
+      uploadPrefix:
+        l.kind === 'rapor' && canSeeLeaveDocuments(ctx.actor, l) && (l.status === 'pending' || l.status === 'approved')
+          ? raporOneki(String(ctx.studioId), l.id)
+          : null,
     })),
   )
   return rows.sort((a, b) => (a.status === 'pending' && b.status !== 'pending' ? -1 : a.status !== 'pending' && b.status === 'pending' ? 1 : a.fromMs - b.fromMs))
+}
+
+// ── İZNE RAPOR DOSYASI (owner, 2026-09-14 · OR-77, karar 4) ────────────────────────────────
+//
+// Sağlık verisi. Dosya istemciden özel Storage yoluna gider; burada yalnızca kaydı tutulur ve okunurken
+// 5 dakikalık imzalı link üretilir (üye belgeleriyle aynı duruş, `documents.ts`). Görme ve ekleme yetkisi
+// çekirdekte (`canSeeLeaveDocuments`): izin sahibi ve owner. Resepsiyonun rolü bu kapıdan GEÇER ama
+// kararda reddedilir — kapı "kim çalabilir", karar "kim girebilir".
+
+const OKUMA_LINKI_MS = 5 * 60_000
+const raporOneki = (studioId: string, leaveId: string) => `studios/${studioId}/staffLeaves/${leaveId}/documents/`
+
+async function imzaliLink(storagePath: string): Promise<string | null> {
+  try {
+    const [url] = await adminStorage()
+      .bucket(storageBucketName())
+      .file(storagePath)
+      .getSignedUrl({ action: 'read', expires: Date.now() + OKUMA_LINKI_MS })
+    return url
+  } catch {
+    // İmzalama kimliği yok (emülatör) — herkese açık bir link yerine hiç link.
+    return null
+  }
+}
+
+export async function addLeaveDocumentAction(input: unknown) {
+  const p = z.object({ leaveId: z.string().min(1), pages: z.array(z.string().min(1)).min(1) }).parse(input)
+  const ctx = await requireTenantContext(HERKES)
+  // YÜK TAŞIYAN KONTROL: yolu istemci seçti. Önek, DOĞRULANMIŞ stüdyo ve izinden yeniden türetilir; dışına
+  // taşan bir yol başka bir iznin — ya da başka bir stüdyonun — dosyasını gösterebilirdi.
+  const onek = raporOneki(String(ctx.studioId), p.leaveId)
+  if (p.pages.some((yol) => !yol.startsWith(onek) || yol.includes('..'))) {
+    return { ok: false as const, error: { code: 'document_empty' as const } }
+  }
+  return addLeaveDocument(deps(), ctx, { leaveId: p.leaveId, pages: p.pages })
+}
+
+export interface LeaveDocumentView {
+  readonly id: string
+  readonly uploadedAt: number
+  readonly pages: readonly { readonly url: string | null; readonly pdf: boolean }[]
+}
+
+export async function listLeaveDocumentsAction(input: unknown): Promise<readonly LeaveDocumentView[]> {
+  const p = z.object({ leaveId: z.string().min(1) }).parse(input)
+  const ctx = await requireTenantContext(HERKES)
+  const leave = await new FirestoreStaffLeaveRepository(adminDb()).getLeave(ctx, p.leaveId)
+  if (!leave) return []
+  // Yetki yoksa `listLeaveDocuments` boş döner: tek bir imzalı link bile üretilmez.
+  const docs = await listLeaveDocuments(deps(), ctx, leave)
+  return Promise.all(
+    docs.map(async (d) => ({
+      id: d.id,
+      uploadedAt: d.uploadedAt as number,
+      pages: await Promise.all(d.pages.map(async (yol) => ({ url: await imzaliLink(yol), pdf: yol.endsWith('.pdf') }))),
+    })),
+  )
+}
+
+export async function removeLeaveDocumentAction(input: unknown) {
+  const p = z.object({ leaveId: z.string().min(1), documentId: z.string().min(1), reason: z.string().trim().min(1).max(300) }).parse(input)
+  const ctx = await requireTenantContext(HERKES)
+  const res = await removeLeaveDocument(deps(), ctx, p)
+  // Olay kaynaktır; nesneler kayıt silindikten SONRA gider (en iyi çaba). Kaydı olmayan bir nesne görünmez;
+  // nesnesi olmayan bir kayıt kırık bir sayfa gösterirdi.
+  if (res.ok) {
+    await Promise.all(
+      res.value.pages.map((yol) =>
+        adminStorage()
+          .bucket(storageBucketName())
+          .file(yol)
+          .delete({ ignoreNotFound: true })
+          .catch(() => undefined),
+      ),
+    )
+    return { ok: true as const }
+  }
+  return res
 }

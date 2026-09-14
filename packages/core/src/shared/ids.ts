@@ -70,6 +70,8 @@ const PREFIX = {
   importBatch: 'imp',
   // ── Bir vardiya: başladı, belki bitti (owner, 2026-09-01) ──
   staffLeave: 'lv',
+  // OR-77 — izne eklenen rapor dosyası.
+  staffLeaveDocument: 'lvd',
   staffShift: 'shf',
 } as const
 
@@ -100,6 +102,7 @@ export const newCorrelationId = (): CorrelationId => mint(PREFIX.correlation) as
 export const newWaitlistEntryId = (): string => mint(PREFIX.waitlistEntry)
 export const newStaffShiftId = (): string => mint(PREFIX.staffShift)
 export const newStaffLeaveId = (): string => mint(PREFIX.staffLeave)
+export const newStaffLeaveDocumentId = (): string => mint(PREFIX.staffLeaveDocument)
 export const newSeatHoldId = (): string => mint(PREFIX.seatHold)
 export const newImportBatchId = (): string => mint(PREFIX.importBatch)
 export const newExerciseId = (): string => mint(PREFIX.exercise)

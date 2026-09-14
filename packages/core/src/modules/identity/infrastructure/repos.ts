@@ -19,7 +19,7 @@ import {
   type TenantContext,
 } from '../../../shared'
 import type { IdentityRepository, StaffLeaveRepository, StaffShiftRepository, StaffWeekPlanRepository } from '../application/ports'
-import type { StaffLeave, StaffMember, StaffShift, StaffWeekPlan, WeekPlanEntries } from '../domain/types'
+import type { StaffLeave, StaffLeaveDocument, StaffMember, StaffShift, StaffWeekPlan, WeekPlanEntries } from '../domain/types'
 import { staffFromFirestore, staffToFirestore } from './mappers'
 
 export class FirestoreIdentityRepository implements IdentityRepository {
@@ -213,6 +213,53 @@ export class FirestoreStaffLeaveRepository implements StaffLeaveRepository {
       )
       this.writeEvents(ctx.studioId, tx, events)
     })
+  }
+
+  // İzne rapor dosyası (OR-77, karar 4): iznin ALTINDA bir alt koleksiyon. Firestore kuralları yalnızca tek
+  // seviyeli koleksiyonları masaya açıyor; bu yol hiçbir kuralla eşleşmez, istemci okuyamaz. Okuma ve yazma
+  // yalnızca Admin SDK ile, yetkiyi soran Server Action üzerinden.
+  private belgeler(sid: StudioId, leaveId: string): CollectionReference {
+    return this.col(sid).doc(leaveId).collection('documents')
+  }
+
+  async listLeaveDocuments(ctx: TenantContext, leaveId: string): Promise<readonly StaffLeaveDocument[]> {
+    const snap = await this.belgeler(ctx.studioId, leaveId).orderBy('uploadedAt', 'asc').get()
+    return snap.docs.map((d) => this.belgeOku(leaveId, d.id, d.data()))
+  }
+
+  async getLeaveDocument(ctx: TenantContext, leaveId: string, documentId: string): Promise<StaffLeaveDocument | null> {
+    const d = await this.belgeler(ctx.studioId, leaveId).doc(documentId).get()
+    return d.exists ? this.belgeOku(leaveId, d.id, d.data() as Record<string, unknown>) : null
+  }
+
+  async saveLeaveDocument(ctx: TenantContext, document: StaffLeaveDocument, events: readonly NewEvent[]): Promise<void> {
+    await this.db.runTransaction(async (tx: Transaction) => {
+      tx.set(this.belgeler(ctx.studioId, document.leaveId).doc(document.id), {
+        staffUserId: document.staffUserId,
+        pages: document.pages,
+        uploadedAt: Timestamp.fromMillis(document.uploadedAt as number),
+        uploadedBy: document.uploadedBy,
+      })
+      this.writeEvents(ctx.studioId, tx, events)
+    })
+  }
+
+  async deleteLeaveDocument(ctx: TenantContext, leaveId: string, documentId: string, events: readonly NewEvent[]): Promise<void> {
+    await this.db.runTransaction(async (tx: Transaction) => {
+      tx.delete(this.belgeler(ctx.studioId, leaveId).doc(documentId))
+      this.writeEvents(ctx.studioId, tx, events)
+    })
+  }
+
+  private belgeOku(leaveId: string, id: string, d: Record<string, unknown>): StaffLeaveDocument {
+    return {
+      id,
+      leaveId,
+      staffUserId: d.staffUserId as StaffUserId,
+      pages: (d.pages as string[] | undefined) ?? [],
+      uploadedAt: instant((d.uploadedAt as Timestamp).toMillis()),
+      uploadedBy: d.uploadedBy as StaffUserId,
+    }
   }
 
   private oku(id: string, d: Record<string, unknown>): StaffLeave {

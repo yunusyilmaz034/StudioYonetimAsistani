@@ -49,7 +49,21 @@ karşılaştırılır, ceza yok · rapor yalnızca yükleyen + owner). **Üç i�
    kutuda sebep. Yeniden gönder → owner "Onayla" → eğitmenin "Haftam" kartında saatler. Sonra resepsiyon bir
    saati değiştirip gönderir: eğitmen onaylanana kadar **eski** saati görür. Sınır: geçen haftanın tablosu
    salt okunur; çıkış = giriş saati "Tamam"a basılamaz; izinli güne saat yazınca kırmızı uyarı.
-3. ⏳ **Rapor yükleme** — başlanmadı. "Rapor" türündeki izne dosya; üye belgelerinin özel Storage deseni.
+3. ✅ **Rapor yükleme** — kod bitti, commit edildi, deploy iş 2 ile birlikte. "Rapor" türündeki izne
+   fotoğraf ya da PDF (≤10 sayfa, sayfa ≤10 MB). Ekleyen/gören yalnızca izin sahibi + owner; resepsiyon ve
+   diğer hocalar satırda ne düğme ne sayı görür. Kayıt `staffLeaves/{id}/documents` (istemci kuralı yok),
+   dosya özel Storage yolunda, 5 dk imzalı link. Olaylar `staff.leave_document_added|removed` (yol yok).
+   **`storage.rules`'a yeni yol eklendi — Storage kuralı deploy edilmeden yükleme REDDEDİLİR.**
+   Saklama süresi yok → [[DEBT-045]].
+
+   **Deneme (iş 3):** Eğitmen hesabıyla "İzin iste" → tür Rapor → gönder. Satırda "Rapor dosyası eklenmedi"
+   + "Rapor ekle" → bir fotoğraf ve bir PDF seç. Beklenen: "Rapor (1)"; açınca iki sayfa linki, PDF yeni
+   sekmede açılır. Owner hesabında aynı satırda "Rapor (1)" görünür. **Resepsiyon hesabında o satırda rapor
+   düğmesi ya da sayısı görünmemeli.** Sınır: 11 dosya seçilirse "en fazla 10 sayfa"; bir .docx seçilirse
+   "yalnızca fotoğraf ya da PDF"; "Kaldır" sebep yazılmadan basılamaz; "İzin" türündeki satırda rapor alanı yok.
+
+**Deploy sırası (owner: "tüm işlerini bitir sonra deploy"):** `git push` (panel) + Firestore kuralı
+(`staffWeekPlans`) + Storage kuralı (`staffLeaves/.../documents`). İndeks değişikliği yok.
 
 **Deneme (iş 1):** Owner hesabıyla `/mesai` → "Bugün" kartında bugün turnikeden geçen personel ve
 geçiş saatleri. Sol oka bas → dünün listesi, başlıkta tarih. Sağ ok bugünde pasif. Tarih kutusunda

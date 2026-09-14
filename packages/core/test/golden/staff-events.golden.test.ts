@@ -18,7 +18,10 @@ import reactivated from './staff.reactivated.v1.json'
 import roleChanged from './staff.role_changed.v1.json'
 import shiftEnded from './staff.shift_ended.v1.json'
 import shiftStarted from './staff.shift_started.v1.json'
+import leaveDocumentAdded from './staff.leave_document_added.v1.json'
+import leaveDocumentRemoved from './staff.leave_document_removed.v1.json'
 import weekPlanApproved from './staff.week_plan_approved.v1.json'
+import { decideAddLeaveDocument, decideRemoveLeaveDocument } from '../../src/modules/identity/domain/leave-document'
 import weekPlanDraftSaved from './staff.week_plan_draft_saved.v1.json'
 import weekPlanReturned from './staff.week_plan_returned.v1.json'
 import weekPlanSubmitted from './staff.week_plan_submitted.v1.json'
@@ -255,5 +258,47 @@ describe('haftalık vardiya planı olayları', () => {
   it('staff.week_plan_returned — sebebiyle', () => {
     const r = decideReturnWeekPlan(ctx('owner') as never, gonderilmis().value.next, 'Pazartesi resepsiyon eksik')
     expect(r.ok && r.value.events[0]?.payload).toEqual(weekPlanReturned)
+  })
+})
+
+// ── İZNE RAPOR DOSYASI (owner, 2026-09-14 · OR-77, karar 4) ────────────────────────────────
+//
+// Sağlık verisi. Olayda dosya YOLU yok, içerik yok — kimlikler ve sayfa sayısı. Yol bir kez olaya girerse
+// silinemez; dosya silinse bile "bu kişinin raporu buradaydı" bilgisi log'da kalırdı.
+describe('rapor dosyası olayları', () => {
+  const izin = {
+    id: 'lv_1',
+    staffUserId: 'usr_1' as StaffUserId,
+    kind: 'rapor' as const,
+    from: instant(1_700_000_000_000),
+    to: instant(1_700_172_799_999),
+    note: '',
+    status: 'approved' as const,
+    requestedAt: instant(1_700_000_000_000),
+    decidedBy: null,
+    decidedAt: null,
+    decisionReason: '',
+  }
+  const belge = {
+    id: 'lvd_1',
+    leaveId: 'lv_1',
+    staffUserId: 'usr_1' as StaffUserId,
+    pages: ['studios/std_1/staffLeaves/lv_1/documents/a.jpg', 'studios/std_1/staffLeaves/lv_1/documents/b.pdf'],
+    uploadedAt: instant(1_700_000_000_000),
+    uploadedBy: 'usr_1' as StaffUserId,
+  }
+  const sahibi = { ...ctx(), actor: { type: 'trainer' as const, id: 'usr_1' as never } }
+
+  it('staff.leave_document_added — yol yok, sayfa sayısı var', () => {
+    const r = decideAddLeaveDocument(sahibi as never, izin, belge)
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.value[0]?.payload).toEqual(leaveDocumentAdded)
+    expect(JSON.stringify(r.value[0])).not.toContain('studios/')
+  })
+
+  it('staff.leave_document_removed — sebebiyle', () => {
+    const r = decideRemoveLeaveDocument(ctx() as never, izin, belge, 'Yanlış dosya')
+    expect(r.ok && r.value[0]?.payload).toEqual(leaveDocumentRemoved)
   })
 })

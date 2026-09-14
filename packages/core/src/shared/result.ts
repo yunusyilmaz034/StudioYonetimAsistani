@@ -195,6 +195,10 @@ export type DomainError =
   | { readonly code: 'week_plan_approver_required' }
   | { readonly code: 'week_plan_unchanged' }
   | { readonly code: 'week_plan_not_submitted' }
+  // OR-77 karar 4 — izne rapor dosyası: yalnızca 'rapor' türü, yalnızca izin sahibi ya da owner, en fazla on sayfa.
+  | { readonly code: 'leave_document_rapor_only' }
+  | { readonly code: 'leave_document_forbidden' }
+  | { readonly code: 'leave_document_too_many' }
   // Açık vardiya varken ikincisi açılmaz: gün sonunda hangisinin gerçek olduğu bilinemez olurdu.
   | { readonly code: 'shift_already_open' }
   | { readonly code: 'no_open_shift' }

@@ -1238,3 +1238,22 @@ arka ışığın başlatmadan SONRA yanması.
 Aylardır *"bu kart seri çıktı vermiyor"* biliniyordu ve teşhis hep ekrandan yapılıyordu. Sebep kart
 değil, **bayat port adıydı**: kabloyu çıkarıp takınca `usbmodem5C372706761` → `usbmodem1101` oldu ve
 uygulama logu aktı. Enstrüman bozuktu, kart değil — ve o körlük bu arızayı günlerce çözülemez yaptı.
+
+## DEBT-045 · Personel rapor dosyalarının saklama süresi ve silme yolu yok (2026-09-14)
+
+**Ne alındı.** OR-77 karar 4 ile "rapor" türündeki izne sağlık raporu (fotoğraf/PDF) eklenebiliyor. Dosya
+özel Storage yolunda (`studios/{sid}/staffLeaves/{leaveId}/documents/`), kaydı iznin altındaki bir alt
+koleksiyonda, istemci okuyamıyor, yalnızca izin sahibi ve owner 5 dakikalık linkle görüyor. Olayda yol yok.
+
+**Borç.** Bu dosyalar **süresiz** duruyor ve **toplu silme yolu yok**. KVKK'da sağlık verisi özel nitelikli;
+işlenme amacı (devamsızlığın belgelenmesi) sona erdiğinde silinmesi gerekir. Bugün tek yol, kişinin ya da
+owner'ın dosyayı sebebiyle tek tek kaldırması. Bir personelin kaydı silinse (ya da KVKK talebi gelse) izin
+kayıtları ve raporları kendiliğinden gitmez — üyelerdeki `member.erased` benzeri bir personel silme akışı yok.
+
+**Neden şimdi değil.** Tek stüdyo, beş personel, özellik bugün açıldı; saklama süresi hukuki bir karar
+(owner ve muhasebecisi) ve tahminle yazılmamalı. Olayda yol olmadığı için sonradan eklenecek silme işi
+geçmişe dokunmadan çalışır.
+
+**Geri ödeme tetiği (tarih değil, koşul):** bir personel işten ayrıldığında **ya da** bir personel/eski personel
+KVKK kapsamında silme talep ettiğinde **ya da** ikinci stüdyo bu özelliği açtığında. O gün: saklama süresi owner'dan
+alınır, süresi dolan raporları silen gece işi + personel ayrılışında raporları silen akış yazılır.

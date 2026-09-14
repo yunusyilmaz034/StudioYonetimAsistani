@@ -55,3 +55,14 @@ export {
 export type { StaffWeekPlanDeps, StaffWeekPlanRepository } from './application/ports'
 export type { ShiftBlock, StaffWeekPlan, WeekPlanEntries, WeekPlanStatus } from './domain/types'
 export { FirestoreStaffWeekPlanRepository } from './infrastructure/repos'
+
+// ── İzne rapor dosyası (owner, 2026-09-14 · OR-77, karar 4). Sağlık verisi: yalnızca izin sahibi ve owner
+//    görür; olayda yol yok. ──
+export { addLeaveDocument, listLeaveDocuments, removeLeaveDocument } from './application/leave'
+export {
+  LEAVE_DOCUMENT_MAX_PAGES,
+  canSeeLeaveDocuments,
+  decideAddLeaveDocument,
+  decideRemoveLeaveDocument,
+} from './domain/leave-document'
+export type { StaffLeaveDocument } from './domain/types'

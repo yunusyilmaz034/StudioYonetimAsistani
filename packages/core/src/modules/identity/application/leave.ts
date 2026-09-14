@@ -1,5 +1,6 @@
 import {
   newCorrelationId,
+  newStaffLeaveDocumentId,
   newStaffLeaveId,
   ok,
   type DomainError,
@@ -9,7 +10,8 @@ import {
   type TenantContext,
 } from '../../../shared'
 import { decideCancelLeave, decideDecideLeave, decideRequestLeave } from '../domain/decide'
-import type { StaffLeave } from '../domain/types'
+import { canSeeLeaveDocuments, decideAddLeaveDocument, decideRemoveLeaveDocument } from '../domain/leave-document'
+import type { StaffLeave, StaffLeaveDocument } from '../domain/types'
 import type { LeaveKind } from '../events'
 import type { StaffLeaveDeps } from './ports'
 
@@ -85,4 +87,61 @@ export async function cancelStaffLeave(
   if (!decided.ok) return decided
   await deps.repo.saveLeave(ctx, decided.value.next, decided.value.events)
   return ok(decided.value.next)
+}
+
+// ── İZNE RAPOR DOSYASI (owner, 2026-09-14 · OR-77, karar 4) ────────────────────────────────
+//
+// Dosya çoktan özel Storage yoluna yüklenmiştir; burası kaydı keser, kararı verir, kaydı ve olayı tek
+// işlemde yazar. Storage'a dokunmaz — kova çağıranın (Server Action) sorumluluğunda.
+
+export async function addLeaveDocument(
+  deps: StaffLeaveDeps,
+  ctx: TenantContext,
+  input: { readonly leaveId: string; readonly pages: readonly string[] },
+): Promise<Result<{ documentId: string }, DomainError>> {
+  const leave = await deps.repo.getLeave(ctx, input.leaveId)
+  if (!leave) return { ok: false, error: { code: 'operation_not_applicable' } }
+  const document: StaffLeaveDocument = {
+    id: newStaffLeaveDocumentId(),
+    leaveId: leave.id,
+    staffUserId: leave.staffUserId,
+    pages: input.pages,
+    uploadedAt: deps.clock.now(),
+    uploadedBy: ctx.actor.id as StaffUserId,
+  }
+  const decided = decideAddLeaveDocument(dctx(deps, ctx), leave, document)
+  if (!decided.ok) return decided
+  await deps.repo.saveLeaveDocument(ctx, document, decided.value)
+  return ok({ documentId: document.id })
+}
+
+/** Kaldırılan belgenin Storage yollarını döndürür; nesneleri silmek çağıranın işi. */
+export async function removeLeaveDocument(
+  deps: StaffLeaveDeps,
+  ctx: TenantContext,
+  input: { readonly leaveId: string; readonly documentId: string; readonly reason: string },
+): Promise<Result<{ pages: readonly string[] }, DomainError>> {
+  const [leave, document] = await Promise.all([
+    deps.repo.getLeave(ctx, input.leaveId),
+    deps.repo.getLeaveDocument(ctx, input.leaveId, input.documentId),
+  ])
+  if (!leave) return { ok: false, error: { code: 'operation_not_applicable' } }
+  if (!document) return { ok: false, error: { code: 'document_not_found' } }
+  const decided = decideRemoveLeaveDocument(dctx(deps, ctx), leave, document, input.reason)
+  if (!decided.ok) return decided
+  await deps.repo.deleteLeaveDocument(ctx, leave.id, document.id, decided.value)
+  return ok({ pages: document.pages })
+}
+
+/**
+ * Görme yetkisi yoksa BOŞ döner. "Rapor yok" ile "göremezsin" aynı görünür, bilerek: bir sağlık raporunun
+ * VARLIĞI da bir bilgidir ve resepsiyonun ekranına sızmamalı.
+ */
+export async function listLeaveDocuments(
+  deps: StaffLeaveDeps,
+  ctx: TenantContext,
+  leave: StaffLeave,
+): Promise<readonly StaffLeaveDocument[]> {
+  if (!canSeeLeaveDocuments(ctx.actor, leave)) return []
+  return deps.repo.listLeaveDocuments(ctx, leave.id)
 }

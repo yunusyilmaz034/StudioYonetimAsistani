@@ -334,6 +334,12 @@ export function domainErrorMessage(error: DomainError): string {
       return 'Yayındaki plana göre değişen bir şey yok; onaya gönderilecek bir değişiklik bulunmuyor.'
     case 'week_plan_not_submitted':
       return 'Bu plan onay beklemiyor. Önce onaya gönderilmesi gerekiyor.'
+    case 'leave_document_rapor_only':
+      return 'Dosya yalnızca "Rapor" türündeki izne eklenebilir.'
+    case 'leave_document_forbidden':
+      return 'Rapor dosyasını yalnızca izin sahibi ve stüdyo sahibi ekleyebilir ya da kaldırabilir.'
+    case 'leave_document_too_many':
+      return 'Bir rapora en fazla 10 sayfa eklenebilir.'
     case 'no_open_shift':
       return 'Açık bir mesain yok. Önce mesaiyi başlat.'
     // ── Program sürümü geri çekme (owner onayı, 2026-09-03) ──

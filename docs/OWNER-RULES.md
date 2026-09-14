@@ -1717,3 +1717,9 @@ onay bekliyor" hatırlatması düşer. Onaylı izinli bir güne vardiya yazılı
   olup sonradan pasife alınan kişi görünmeye devam eder.
 - **Pano hatırlatması yalnızca planı kullanmaya başlamış stüdyoda:** hiç plan belgesi yoksa panoya hiçbir şey
   düşmez — her gün "plan yok" demek gürültüdür.
+
+**Rapor dosyası (iş 3, 2026-09-14):** "Rapor" türündeki izne fotoğraf ya da **PDF** (e-Nabız raporu PDF'tir),
+en fazla 10 sayfa, sayfa başı 10 MB. Ekleyen ve gören: **izin sahibi ve owner**; resepsiyon ve diğer hocalar
+satırda ne düğme ne sayı görür — bir sağlık raporunun **varlığı** da bilgidir. Bekleyen ve onaylı izne
+eklenir (rapor çoğu zaman sonradan alınır); geri çekilmiş/reddedilmiş izne eklenmez. Kaldırmak sebep ister.
+Linkler 5 dakika yaşar. Olayda dosya yolu yok.

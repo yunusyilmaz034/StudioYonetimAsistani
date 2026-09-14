@@ -23,6 +23,19 @@ service firebase.storage {
         && request.auth.token.studioId == sid
         && request.auth.token.role in ['owner', 'receptionist', 'trainer'];
     }
-    // Anything outside a member's private prefix is denied by the absence of a rule.
+    // 2026-09-14 (OR-77) — a staff member's sick note, attached to a "rapor" leave. HEALTH DATA (KVKK special
+    // category): never client-readable; served through a 5-minute signed URL to the leave's owner and the
+    // studio owner only. Staff of THIS studio may write into its prefix; the Server Action re-checks that
+    // the uploader owns the leave (or is the owner) and the exact prefix before anything is recorded — an
+    // object with no record is invisible. Photos or a PDF, at most 10 MB.
+    match /studios/{sid}/staffLeaves/{lid}/documents/{file} {
+      allow read: if false;
+      allow write: if request.auth != null
+        && request.auth.token.studioId == sid
+        && request.auth.token.role in ['owner', 'receptionist', 'trainer']
+        && request.resource.size < 10 * 1024 * 1024
+        && (request.resource.contentType.matches('image/.*') || request.resource.contentType == 'application/pdf');
+    }
+    // Anything outside these private prefixes is denied by the absence of a rule.
   }
 }

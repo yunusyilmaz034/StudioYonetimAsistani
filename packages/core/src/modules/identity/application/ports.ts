@@ -1,5 +1,5 @@
 import type { Clock, DomainError, NewEvent, Result, StaffUserId, TenantContext } from '../../../shared'
-import type { StaffLeave, StaffMember, StaffShift, StaffWeekPlan } from '../domain/types'
+import type { StaffLeave, StaffLeaveDocument, StaffMember, StaffShift, StaffWeekPlan } from '../domain/types'
 
 // Admin SDK only (AD-15). Staff are written by the owner, from the product — and, exactly once per
 // studio, by a break-glass bootstrap script, because somebody has to be able to log in first.
@@ -49,6 +49,14 @@ export interface StaffLeaveRepository {
   /** Karar bekleyenler; owner panelinin listesi. */
   listPendingLeaves(ctx: TenantContext): Promise<readonly StaffLeave[]>
   saveLeave(ctx: TenantContext, leave: StaffLeave, events: readonly NewEvent[]): Promise<void>
+
+  // İzne rapor dosyası (OR-77, karar 4) — iznin altında, istemcinin okuyamadığı bir alt koleksiyon.
+  listLeaveDocuments(ctx: TenantContext, leaveId: string): Promise<readonly StaffLeaveDocument[]>
+  getLeaveDocument(ctx: TenantContext, leaveId: string, documentId: string): Promise<StaffLeaveDocument | null>
+  /** Kayıt ve olay TEK işlemde (#1). */
+  saveLeaveDocument(ctx: TenantContext, document: StaffLeaveDocument, events: readonly NewEvent[]): Promise<void>
+  /** Kayıt silinir, olay (sebebiyle) kalır — düzeltme, sessiz silme değil (#9). */
+  deleteLeaveDocument(ctx: TenantContext, leaveId: string, documentId: string, events: readonly NewEvent[]): Promise<void>
 }
 
 export interface StaffLeaveDeps {
