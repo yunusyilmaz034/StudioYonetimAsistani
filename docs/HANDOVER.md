@@ -66,6 +66,10 @@ Owner: *"turnike giriş çıkış butonlarını biraz daha üste al."* Dock takv
 biniyordu; artık sayfa başlığı ile içerik arasındaki boşlukta (`top-[64px]`, düğmeler bir kademe küçük).
 `f8dd75c`, canlıda (aynı build).
 
+**14 Eylül:** owner, *"üye detayında sağ üstteki giriş - çıkış butonlarını kaldır."* Dock üye detayında
+(`/members/<id>`) artık çizilmiyor — o sayfanın kendi Turnike Giriş/Çıkış düğmeleri var ve dock
+"Düzenle"ye biniyordu. Üye listesi ve `/members/invite` dahil diğer her ekranda duruyor.
+
 ### Bugün canlıya çıkanlar
 
 - Üye sayfasında **Turnike Giriş / Turnike Çıkış** (yeşil/kırmızı): `recordCheckIn`i çağırıyor, yani

@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { usePathname } from 'next/navigation'
 import { LogInIcon, LogOutIcon, Loader2Icon } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -25,7 +26,13 @@ import { listTurnstilesAction, openTurnstileAction } from '@/server/actions/turn
 
 type Cihaz = Awaited<ReturnType<typeof listTurnstilesAction>>[number]
 
+// ÜYE DETAYINDA YOK (owner, 2026-09-14): *"üye detayında sağ üstteki giriş - çıkış butonlarını
+// kaldır."* O sayfanın kendi Turnike Giriş / Turnike Çıkış düğmeleri var ve dock onun başlık
+// düğmelerine ("Düzenle") biniyordu. `/members/invite` bir üye değil, dock orada kalır.
+const UYE_DETAYI = /^\/members\/(?!invite$)[^/]+$/
+
 export function TurnstileDock() {
+  const uyeDetayi = UYE_DETAYI.test(usePathname() ?? '')
   const [cihazlar, setCihazlar] = useState<readonly Cihaz[] | null>(null)
   const [acilan, setAcilan] = useState<string | null>(null)
 
@@ -41,6 +48,7 @@ export function TurnstileDock() {
     return () => window.clearInterval(t)
   }, [])
 
+  if (uyeDetayi) return null
   // Turnikesi olmayan stüdyoda HİÇ görünmez. Basılamayacak bir düğme, ekranda yer kaplar.
   if (!cihazlar || cihazlar.length === 0) return null
 
