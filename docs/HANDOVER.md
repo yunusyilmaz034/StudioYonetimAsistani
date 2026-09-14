@@ -44,6 +44,13 @@ geçişi görürse darbe + 3 sn karşılama sonrası (~+5,6–7,5 sn) yeni kod i
 - Cihaz bir geçişi gördüğünde koda `seenAt` damgası + `[turnstile] crossing seen by device {latencyMs}` logu.
 - Reddedilen üye/personel okutmaları `[turnstile] … crossing refused {code}` ile loglanıyor (kimlik yok).
 
+**Durum:** kaçırılan-kod yaması ✅ canlıda `build-2026-09-14-007` (`7ca58a4`); 16:42:41'te ilk kez çalıştı (çıkış kolu komutla açıldı).
+
+**Aynı akşam, owner onayıyla ([[OR-79]]):** kol dönmezse üye aynı kapıyı 45 sn içinde tekrar okutur, kol **bir kez** daha açılır; yeni giriş yazılmaz, `turnstile.reopened` olayı + `checkIns.reopenedAt`. ✅ Canlıda `build-2026-09-14-008` (`4a0f597`).
+**Deneme (OR-79):** turnikeden giren üye kol dönmeden 45 sn içinde giriş kodunu tekrar okutur → kol döner, Hareket Merkezi'nde "turnike kolu yeniden açıldı"; üçüncü okutma reddedilir ("az önce kaydedildi"). Sınır: 45. saniyeden sonra normal geçiş kuralı işler.
+
+**Açık teşhis (owner ile):** "hoş geldin" yazıp bip çalıyorsa firmware darbeyi göndermiştir (sıra: darbe → bip → ekran) — internet o geçişte işini bitirmiştir. Kalan şüpheliler: röle/besleme, COM–OP-R kablosu, turnike kartı, 300 ms darbe. Sonraki arızada: röle kartında DS1 ışığı + klik var mı? Sonra firmware yüklemesi (telemetri, gece yeniden başlatma, tek istek, darbe süresi ölçümü) → [[DEBT-046]]. Owner'ın "cihaz üyeleri hafızasına alsın" önerisi: cihazın okuyucusu olmadığı için bugünkü donanımda işlemez; sıra ölçüm → kablolu ağ → gerekirse çevrimdışı okuyucu fazı (yol haritası önerisi, onay bekler).
+
 **Kilitlenme tekrar ederse:** önce yalnızca **turnike kartını**, düzelmezse yalnızca **ESP/röle kutusunu** kesin —
 hangisinin takıldığı böyle ayrılır. Panelden "Giriş"e basılırken röle kartında DS1 ışığı + klik var mı, bakın.
 
