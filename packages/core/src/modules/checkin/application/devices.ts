@@ -2,6 +2,7 @@ import { ok, type BranchId, type DeviceId, type DomainError, type Result, type T
 import {
   decideRegisterDevice,
   decideRotateDeviceSecret,
+  decideRequestDeviceRestart,
   decideSetDeviceActive,
 } from '../domain/decide'
 import type { TurnstileDevice } from '../domain/types'
@@ -58,5 +59,19 @@ export async function setDeviceActive(
   if (!device) return { ok: false, error: { code: 'operation_not_applicable' } }
   const decided = decideSetDeviceActive(decideContext(deps, ctx), device, input.active)
   if (decided.events.length > 0) await deps.repo.saveDeviceWithEvents(ctx, decided.next, decided.events)
+  return ok(undefined)
+}
+
+/** Uzaktan yeniden başlatma isteği (firmware v1.4). Olay burada yazılır; cihaza giden komutu çağıran bırakır. */
+export async function requestDeviceRestart(
+  deps: CheckinDeps,
+  ctx: TenantContext,
+  input: { deviceId: DeviceId; reason: string },
+): Promise<Result<void, DomainError>> {
+  const device = await deps.repo.getDevice(ctx, input.deviceId)
+  if (!device) return { ok: false, error: { code: 'operation_not_applicable' } }
+  const decided = decideRequestDeviceRestart(decideContext(deps, ctx), device, input.reason)
+  if (!decided.ok) return decided
+  await deps.repo.saveDeviceWithEvents(ctx, decided.value.next, decided.value.events)
   return ok(undefined)
 }

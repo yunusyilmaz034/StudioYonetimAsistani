@@ -12,7 +12,7 @@ import {
   type TenantContext,
 } from '../../../shared'
 import { decideOpenTurnstileManually, decideRedeemTurnstileCode, decideRefuseEntry } from '../domain/decide'
-import type { TurnstileCode, TurnstileDirection } from '../domain/types'
+import type { DeviceTelemetry, TurnstileCode, TurnstileDirection } from '../domain/types'
 import { decideContext } from './context'
 import type { CheckinDeps, StaffCrossingPort, StaffCrossingSummary } from './ports'
 import { available, entriesUsed, type Entitlement } from '../../entitlements'
@@ -54,6 +54,8 @@ export async function issueTurnstileCode(
   ctx: TenantContext,
   deviceId: DeviceId,
   randomDigits: string,
+  /** Firmware v1.4+ ölçümü; eski firmware göndermez (`null`). */
+  telemetry: DeviceTelemetry | null = null,
 ): Promise<Result<{ code: string; expiresAt: Instant }, DomainError>> {
   const device = await deps.repo.getDevice(ctx, deviceId)
   if (!device || !device.active) return err({ code: 'qr_invalid' })
@@ -75,7 +77,13 @@ export async function issueTurnstileCode(
   // device asks for a code every few seconds, so silence means silence.
   // `currentCode`: ekrandaki kod artık bu. Bir öncekini okutan üyeyi cihaz göremez — sunucu bunu bilsin diye
   // (2026-09-14, "hoş geldin dedi kol dönmedi").
-  await deps.repo.saveDevice(ctx, { ...device, lastSeenAt: now, currentCode: code.code })
+  await deps.repo.saveDevice(ctx, {
+    ...device,
+    lastSeenAt: now,
+    currentCode: code.code,
+    // Ölçüm ayrı bir yazım değil: cihaz kaydı zaten her kod isteğinde yazılıyor.
+    ...(telemetry ? { telemetry: { ...telemetry, at: now } } : {}),
+  })
   return ok({ code: code.code, expiresAt: code.expiresAt })
 }
 

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { CopyIcon, KeyRoundIcon, Loader2Icon, PlusIcon } from 'lucide-react'
+import { CopyIcon, KeyRoundIcon, Loader2Icon, PlusIcon, RotateCwIcon } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
@@ -13,6 +13,7 @@ import { domainErrorMessage } from '@/lib/domain-error'
 import {
   createTurnstileDeviceAction,
   listTurnstilesAction,
+  restartTurnstileAction,
   rotateTurnstileSecretAction,
   setTurnstileDeviceActiveAction,
 } from '@/server/actions/turnstile'
@@ -39,6 +40,28 @@ export function TurnstileDevicesPanel({ branchId, canManage }: { branchId: strin
   const [pairing, setPairing] = useState<{ ad: string; deger: string } | null>(null)
   const [rotating, setRotating] = useState<Cihaz | null>(null)
   const [sebep, setSebep] = useState('')
+  // Uzaktan yeniden başlatma (2026-09-14, firmware v1.4).
+  const [restarting, setRestarting] = useState<Cihaz | null>(null)
+  const [restartSebep, setRestartSebep] = useState('')
+
+  async function yenidenBaslat() {
+    if (!restarting || restartSebep.trim() === '') return
+    setBusy(true)
+    try {
+      const r = await restartTurnstileAction({ deviceId: restarting.id, reason: restartSebep.trim() })
+      if (r.ok) {
+        toast.success('Komut gönderildi. Kutu birkaç saniye içinde yeniden başlayacak (~20 sn).')
+        setRestarting(null)
+        setRestartSebep('')
+      } else toast.error(domainErrorMessage(r.error))
+    } catch {
+      toast.error('Komut gönderilemedi.')
+    }
+    setBusy(false)
+  }
+
+  /** Saniye → "3 sa 12 dk". */
+  const sure = (s: number | null) => (s === null ? '?' : s < 3600 ? `${Math.floor(s / 60)} dk` : `${Math.floor(s / 3600)} sa ${Math.floor((s % 3600) / 60)} dk`)
 
   const yukle = () => listTurnstilesAction().then(setRows).catch(() => setRows([]))
   useEffect(() => {
@@ -126,7 +149,24 @@ export function TurnstileDevicesPanel({ branchId, canManage }: { branchId: strin
                 <p className="text-xs text-muted-foreground">
                   {d.active ? gorulme(d.lastSeenAt) : 'devre dışı'} · <span className="font-mono">{d.id}</span>
                 </p>
+                {/* KUTUNUN ÖLÇÜMÜ (firmware v1.4). BROWNOUT = besleme düştü; zayıf WiFi = -75 dBm altı. */}
+                {d.telemetry ? (
+                  <p className="text-xs text-muted-foreground">
+                    {d.telemetry.fw} · WiFi {d.telemetry.rssi ?? '?'} dBm
+                    {d.telemetry.rssi !== null && d.telemetry.rssi < -75 ? <span className="text-warning"> (zayıf)</span> : null} · açık{' '}
+                    {sure(d.telemetry.uptimeS)} · {d.telemetry.pulses ?? 0} darbe · son açılış{' '}
+                    <span className={d.telemetry.resetReason === 'BROWNOUT' ? 'font-medium text-danger' : ''}>
+                      {d.telemetry.resetReason === 'BROWNOUT' ? 'besleme düştü (BROWNOUT)' : d.telemetry.resetReason || '?'}
+                    </span>
+                  </p>
+                ) : null}
               </div>
+              {d.active ? (
+                <Button variant="ghost" size="sm" disabled={busy} onClick={() => setRestarting(d)}>
+                  <RotateCwIcon />
+                  Yeniden başlat
+                </Button>
+              ) : null}
               {canManage ? (
                 <div className="flex shrink-0 gap-1">
                   <Button variant="ghost" size="sm" disabled={busy} onClick={() => setRotating(d)}>
@@ -193,6 +233,33 @@ export function TurnstileDevicesPanel({ branchId, canManage }: { branchId: strin
             <Button variant="destructive" onClick={() => void dondur()} disabled={busy || sebep.trim() === ''}>
               {busy ? <Loader2Icon className="animate-spin" /> : null}
               Döndür
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={restarting !== null} onOpenChange={(o) => (o ? null : setRestarting(null))}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Kutuyu yeniden başlat</DialogTitle>
+            <DialogDescription>
+              İki ekran tek kutuda: ikisi birlikte yeniden başlar ve kapı ~20 saniye çalışmaz. Turnikenin kendi kartını
+              yeniden başlatmaz. Firmware v1.4 ve sonrası bu komutu tanır.
+            </DialogDescription>
+          </DialogHeader>
+          <Input
+            placeholder="Sebep (zorunlu) — örn. kol tepki vermiyor"
+            value={restartSebep}
+            onChange={(e) => setRestartSebep(e.target.value)}
+            autoFocus
+          />
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setRestarting(null)} disabled={busy}>
+              Vazgeç
+            </Button>
+            <Button onClick={() => void yenidenBaslat()} disabled={busy || restartSebep.trim() === ''}>
+              {busy ? <Loader2Icon className="animate-spin" /> : null}
+              Yeniden başlat
             </Button>
           </DialogFooter>
         </DialogContent>

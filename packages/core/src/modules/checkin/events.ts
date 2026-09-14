@@ -63,6 +63,8 @@ export const DEVICE_REGISTERED = 'device.registered'
 export const DEVICE_SECRET_ROTATED = 'device.secret_rotated'
 export const DEVICE_DEACTIVATED = 'device.deactivated'
 export const DEVICE_REACTIVATED = 'device.reactivated'
+// Uzaktan yeniden başlatma (2026-09-14, firmware v1.4): kutu takıldığında elektrik kesmeden. Kim, neden — kayıtta.
+export const DEVICE_RESTART_REQUESTED = 'device.restart_requested'
 
 export type MemberCheckedInPayload = {
   readonly branchId: BranchId
@@ -132,4 +134,10 @@ export type TurnstileReopenedPayload = {
   readonly deviceId: string
   readonly direction: 'in' | 'out'
   readonly secondsSinceCrossing: number
+}
+
+export type DeviceRestartRequestedPayload = {
+  readonly deviceId: string
+  /** Neden yeniden başlatıldı — "kol dönmüyor" ile "rutin" aynı şey değil; arızanın izi burada. */
+  readonly reason: string
 }

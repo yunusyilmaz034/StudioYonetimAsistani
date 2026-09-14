@@ -43,5 +43,10 @@ void ayarYaz(const Ayar& a);
  * çalışmaya devam etmesi, montajcıya "oldu galiba" dedirtir ve o gece orada bitmez.
  *
  * `ekranaYaz` çağıranın verdiği çizim işlevi: bu dosya ekranı tanımıyor, ve tanımamalı.
+ *
+ * `zamanAsimiMs` (v1.4, 2026-09-14): 0 = sonsuza dek bekle (yeni kutu, hiç ağ yazılmamış). 0'dan büyükse ve
+ * o süre boyunca kurulum ağına KİMSE bağlanmadıysa kart yeniden başlar ve bilinen ağları yeniden dener.
+ * Sebep: elektrik kesilip gelince modem kutudan geç açılır; zaman aşımı olmasaydı çalışan bir kapı,
+ * modem 40 saniye geç kalktı diye sabaha kadar kurulum ekranında beklerdi.
  */
-void kurulumModu(void (*ekranaYaz)(const char* baslik, const char* alt1, const char* alt2));
+void kurulumModu(void (*ekranaYaz)(const char* baslik, const char* alt1, const char* alt2), uint32_t zamanAsimiMs = 0);

@@ -58,6 +58,8 @@ export interface TurnstileDevice {
    * kolu hiç açmaz. Bu alan, sunucunun "cihaz bu geçişi kaçırdı" diyebilmesi için. Eski belgelerde yok.
    */
   readonly currentCode?: string | null
+  /** Firmware v1.4'ten itibaren her kod isteğiyle gelen ölçüm (2026-09-14). Eski firmware göndermez. */
+  readonly telemetry?: DeviceTelemetry | null
   readonly name: string // "Giriş turnikesi" — for the panel, never shown to a member
   /**
    * SHA-256 of the device's secret. The secret itself is shown ONCE at pairing and never stored:
@@ -122,3 +124,18 @@ export interface TurnstileCode {
  * actually DID beats what we assumed she meant.
  */
 export type TurnstileDirection = CheckInDirection | null
+
+/**
+ * KUTUNUN KENDİ ÖLÇÜMÜ (2026-09-14, firmware v1.4). "Hoş geldin dedi, kol dönmedi" günü kör kaldığımız yer:
+ * cihazın WiFi gücü, belleği, ne kadar süredir açık olduğu, kaç darbe verdiği ve NEDEN yeniden başladığı
+ * (özellikle `BROWNOUT` — besleme düşmesi). Durum, olay değil: her kod isteğinde üzerine yazılır.
+ */
+export interface DeviceTelemetry {
+  readonly fw: string
+  readonly rssi: number | null
+  readonly heap: number | null
+  readonly uptimeS: number | null
+  readonly pulses: number | null
+  readonly resetReason: string
+  readonly at?: Instant
+}

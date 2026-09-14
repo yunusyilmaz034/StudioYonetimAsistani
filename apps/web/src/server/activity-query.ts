@@ -77,6 +77,8 @@ export const KIND_OF: Record<string, ActivityKind> = {
   'member.exit_unobserved': 'checkin',
   // OR-79 — kol yeniden açıldı (yeni giriş değil): kapı gözlemi, girişlerle aynı filtrede.
   'turnstile.reopened': 'checkin',
+  // Firmware v1.4 — kutu uzaktan yeniden başlatıldı: bir arızanın izi, operasyon filtresinde.
+  'device.restart_requested': 'operation',
 
   // ── training feedback (owner: "geri bildirimler akışta olsun") ──
   'training_feedback.left': 'feedback',

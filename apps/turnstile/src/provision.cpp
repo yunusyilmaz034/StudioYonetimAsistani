@@ -47,7 +47,7 @@ static String kacir(const String& s) {
   return o;
 }
 
-void kurulumModu(void (*ekranaYaz)(const char*, const char*, const char*)) {
+void kurulumModu(void (*ekranaYaz)(const char*, const char*, const char*), uint32_t zamanAsimiMs) {
   // Kurulum ağının adı KARTA ÖZEL: aynı binada iki kart varsa montajcı hangisine bağlandığını
   // bilmeli. MAC'in son üç baytı yeter ve ekrandaki adla birebir aynı.
   uint8_t mac[6];
@@ -121,7 +121,14 @@ void kurulumModu(void (*ekranaYaz)(const char*, const char*, const char*)) {
   });
 
   http.begin();
+  const uint32_t basla = millis();
   while (true) {
+    // Kimse bağlı değilken süre dolduysa: bu bir montaj değil, geç açılan bir modem. Yeniden dene.
+    if (zamanAsimiMs > 0 && millis() - basla > zamanAsimiMs && WiFi.softAPgetStationNum() == 0) {
+      ekranaYaz("Ag bekleniyor", "yeniden deneniyor", "");
+      delay(500);
+      ESP.restart();
+    }
     dns.processNextRequest();
     http.handleClient();
     if (kaydedildi) {

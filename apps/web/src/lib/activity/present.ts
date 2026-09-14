@@ -610,6 +610,8 @@ export function present(e: ActivityEvent): PresentedEntry {
         'Yandan geçmiş ya da girerken turnike çalışmıyor olabilir.',
         'warning',
       )
+    case 'device.restart_requested':
+      return entry('Turnike kutusu uzaktan yeniden başlatıldı.', str(p.reason), 'warning')
     case 'turnstile.reopened':
       return entry(
         `${member ?? 'Üye'} için turnike kolu yeniden açıldı.`,

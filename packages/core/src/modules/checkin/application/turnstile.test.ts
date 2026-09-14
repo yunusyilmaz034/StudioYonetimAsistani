@@ -494,3 +494,24 @@ describe('crossTurnstile — kol dönmediyse bir kez daha açılır (OR-79)', ()
     expect(kayitlar.map((e) => e.type)).toEqual(['member.exit_unobserved', 'member.checked_in'])
   })
 })
+
+describe('issueTurnstileCode — firmware v1.4 ölçümü cihaz kaydına yazılır', () => {
+  it('ölçüm geldiyse kayıtta durur; gelmediyse (eski firmware) alan hiç yazılmaz', async () => {
+    const kaydedilen: { telemetry?: unknown }[] = []
+    const deps = {
+      clock: { now: () => instant(NOW) },
+      repo: {
+        getDevice: async () => device,
+        saveTurnstileCode: async () => undefined,
+        saveDevice: async (_c: unknown, d: { telemetry?: unknown }) => {
+          kaydedilen.push(d)
+        },
+      },
+    } as unknown as CheckinDeps
+    const olcum = { fw: 'turnike-v1.4', rssi: -71, heap: 180000, uptimeS: 3600, pulses: 12, resetReason: 'BROWNOUT' }
+    await issueTurnstileCode(deps, CTX, DEVICE, '333333', olcum)
+    await issueTurnstileCode(deps, CTX, DEVICE, '444444')
+    expect(kaydedilen[0]?.telemetry).toEqual({ ...olcum, at: NOW })
+    expect('telemetry' in (kaydedilen[1] ?? {})).toBe(false)
+  })
+})

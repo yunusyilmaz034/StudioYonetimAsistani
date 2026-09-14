@@ -18,7 +18,8 @@ export { recordCheckIn, type RecordCheckInInput } from './application/checkin'
 export { openBranch, closeBranch } from './application/branch'
 export { sweepAutoCheckOut, type AutoCheckOutSummary } from './application/sweep'
 // Kapı cihazlarının yaşam döngüsü — kayıt, sır döndürme, devre dışı bırakma.
-export { registerDevice, rotateDeviceSecret, setDeviceActive } from './application/devices'
+export { registerDevice, requestDeviceRestart, rotateDeviceSecret, setDeviceActive } from './application/devices'
+export type { DeviceTelemetry } from './domain/types'
 export type { CheckinDeps, CheckinRepository, StaffCrossingPort, StaffCrossingSummary } from './application/ports'
 export { FirestoreCheckinRepository } from './infrastructure/repos'
 

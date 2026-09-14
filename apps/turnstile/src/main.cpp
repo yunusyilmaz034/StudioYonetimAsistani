@@ -22,7 +22,10 @@
 #include <HTTPClient.h>
 #include <SPI.h>
 #include <WiFi.h>
+#include <WiFiClientSecure.h>
+#include <esp_system.h>
 #include <qrcode.h>
+#include <time.h>
 
 // İKİ KİMLİK, TEK KUTU (2026-08-28; yorum 2026-09-01'de düzeltildi).
 //
@@ -109,8 +112,22 @@ static const int BUZZER_OT = BUZZER_NPN ? HIGH : LOW;
 // da aynı akşam ölçüldü. Yani `darbe()`nin röle için yaptığının aynısı: normalde yüksek empedans,
 // yalnızca iş görürken sür. HIGH hiç yazılmıyor, ve o satırın yokluğu kuralın kendisidir.
 
+// ── SÜRÜM (v1.4, 2026-09-14) ──────────────────────────────────────────────────────────────────
+//
+// Her kod isteğinde sunucuya gidiyor ve Ayarlar → Turnike cihazları'nda görünüyor. "Hangi firmware
+// yüklüydü?" sorusu bir daha tahminle cevaplanmasın diye. Yüklemeden sonra etiket: `turnike-v1.4`.
+static const char* FW_SURUM = "turnike-v1.4";
+
 // Turnike kendi süresini sayıyor (F01), bize sadece tetiklemek düşüyor.
+//
+// SAHADA DENENEBİLİR (v1.4): "hoş geldin dedi, kol dönmedi" günü 300 ms'nin turnike kartına yetip
+// yetmediğini ÖLÇMEDİK (DEBT-046). Kodu değiştirmeden başka bir değer denemek için `platformio.ini`ye
+// `-D DARBE_MS_AYAR=500` yazılır ve yeniden yüklenir.
+#ifdef DARBE_MS_AYAR
+static const uint32_t DARBE_MS = DARBE_MS_AYAR;
+#else
 static const uint32_t DARBE_MS = 300;
+#endif
 static const uint32_t SORGU_MS = 600;      // "kodum kullanıldı mı"
 static const uint32_t KARSILAMA_MS = 3000; // ekranda ismin kaldığı süre
 
@@ -194,26 +211,87 @@ static void bip(int adet) {
   }
 }
 
+// Açılıştan beri verilen darbe sayısı — sunucuya gider. "Sunucu geçti dedi" sayısıyla yan yana
+// konunca, kutunun darbeyi GERÇEKTEN verip vermediği ayrılır: sayı artıyor ve kol dönmüyorsa suç
+// rölenin ötesinde (turnike kartı, besleme), artmıyorsa kutunun içinde.
+static uint32_t darbeSayisi = 0;
+// Son kez bir kapıdan geçildiği an (millis) — gece yeniden başlatması boş bir kapıyı bekler.
+static uint32_t sonHareket = 0;
+// Son başarılı sunucu cevabı (millis) — takılmış bir ağ yığınını tanımak için.
+static uint32_t sonBasari = 0;
+
 static void darbe(int pin) {
-  Serial.printf("[turnike] role darbesi: pin %d\n", pin);
+  darbeSayisi++;
+  sonHareket = millis();
+  Serial.printf("[turnike] role darbesi #%u: pin %d, %u ms\n", (unsigned)darbeSayisi, pin, (unsigned)DARBE_MS);
   pinMode(pin, OUTPUT);
   digitalWrite(pin, LOW);   // aktif-low: tetik
   delay(DARBE_MS);
   pinMode(pin, INPUT);      // bırak — yüksek empedans, 3.3V/5V uyumsuzluğu hiç doğmuyor
 }
 
+/** Açılış sebebi — `BROWNOUT` beslemenin düştüğü, `PANIC`/`*_WDT` yazılımın çöktüğü anlamına gelir. */
+static const char* acilisSebebi() {
+  switch (esp_reset_reason()) {
+    case ESP_RST_POWERON: return "POWERON";
+    case ESP_RST_EXT: return "EXT";
+    case ESP_RST_SW: return "SW";
+    case ESP_RST_PANIC: return "PANIC";
+    case ESP_RST_INT_WDT: return "INT_WDT";
+    case ESP_RST_TASK_WDT: return "TASK_WDT";
+    case ESP_RST_WDT: return "WDT";
+    case ESP_RST_DEEPSLEEP: return "DEEPSLEEP";
+    case ESP_RST_BROWNOUT: return "BROWNOUT";
+    case ESP_RST_SDIO: return "SDIO";
+    default: return "UNKNOWN";
+  }
+}
+
+// ── BAĞLANTI AÇIK KALIR (v1.4, 2026-09-14) ─────────────────────────────────────────────────────
+//
+// v1.3 her istekte YENİ bir TLS bağlantısı kuruyordu: saniyede ~1,5 istek × iki kapı, her birinde
+// tam el sıkışma. ESP32'de bir el sıkışma yüzlerce ms ve ciddi bellek; stüdyonun interneti
+// yavaşladığı gün (14.09) cihazın geçişi görmesi 5,7 saniyeye çıktı. Artık tek bağlantı açık kalıyor
+// ve iki kapı onu sırayla kullanıyor (döngü tek görev, aynı anda iki istek hiç olmuyor).
+//
+// Sertifika DOĞRULANMIYOR — v1.3'te de doğrulanmıyordu: CA verilmeyen `HTTPClient` içeride
+// `setInsecure()` çağırıyor. Davranış değişmedi, yalnızca görünür oldu. Kutunun yetkisi zaten
+// sınırlı: kod ister, kod sorar; kapıyı açma kararı sunucuda (DEBT-046'da not).
+static WiFiClientSecure tls;
+static HTTPClient http;
+
 static String istek(Kapi& k, const char* yol, const String& govde) {
   if (WiFi.status() != WL_CONNECTED) return "";
-  HTTPClient http;
-  http.begin(String(API_BASE) + yol);
-  http.addHeader("Content-Type", "application/json");
-  http.addHeader("x-studio-id", STUDIO_ID);
-  http.addHeader("Authorization", String("Bearer ") + k.auth);
-  http.setTimeout(6000);
-  const int kod = http.POST(govde);
-  const String cevap = http.getString();
-  http.end();
-  return kod == 200 ? cevap : "";
+  // İki deneme: açık tutulan bağlantıyı sunucu ya da modem sessizce kapatmış olabilir. O zaman ilk
+  // deneme negatif kodla döner (bağlantı hatası, HTTP cevabı değil); bağlantıyı atıp bir kez temiz kurarız.
+  for (int deneme = 0; deneme < 2; deneme++) {
+    http.begin(tls, String(API_BASE) + yol);
+    http.setReuse(true);
+    http.setTimeout(6000);
+    http.setConnectTimeout(6000);
+    http.addHeader("Content-Type", "application/json");
+    http.addHeader("x-studio-id", STUDIO_ID);
+    http.addHeader("Authorization", String("Bearer ") + k.auth);
+    // Ölçüm başlıkları — sunucu yalnızca kod isteğinde kaydediyor; ötekilerde yok sayıyor.
+    http.addHeader("x-fw", FW_SURUM);
+    http.addHeader("x-rssi", String(WiFi.RSSI()));
+    http.addHeader("x-heap", String(ESP.getFreeHeap()));
+    http.addHeader("x-uptime", String(millis() / 1000));
+    http.addHeader("x-pulses", String(darbeSayisi));
+    http.addHeader("x-reset", acilisSebebi());
+    const int kod = http.POST(govde);
+    if (kod < 0) {
+      Serial.printf("[turnike:%s] baglanti hatasi %d (deneme %d)\n", k.ad, kod, deneme + 1);
+      http.end();
+      tls.stop();
+      continue;
+    }
+    const String cevap = http.getString();
+    http.end();
+    if (kod == 200) sonBasari = millis();
+    return kod == 200 ? cevap : "";
+  }
+  return "";
 }
 
 static String alanOku(const String& json, const char* alan) {
@@ -395,8 +473,17 @@ void setup() {
   // dedirtir ve o gece orada bitmez.
   if (WiFi.status() != WL_CONNECTED) {
     Serial.println("[turnike] ag yok → kurulum modu");
-    kurulumModu(kurulumEkrani);
+    // Bilinen bir ağ VARSA 5 dk'lık zaman aşımı (v1.4): elektrik gelince modem kutudan geç açılır, ve
+    // artık kutu kendini de yeniden başlatabiliyor — ikisi, ağ bir anlığına yokken çakışırsa çalışan
+    // kapı kurulum ekranında kalmasın. Hiç ağ yazılmamış yeni kutu eskisi gibi sonsuza dek bekler.
+    bool bilinenAg = false;
+    for (size_t a = 0; a < agSayisi; a++) bilinenAg = bilinenAg || ssidler[a].length() > 0;
+    kurulumModu(kurulumEkrani, bilinenAg ? 5UL * 60 * 1000 : 0);
   }
+  tls.setInsecure();  // v1.3 ile aynı davranış; bkz. `istek()`
+  // Saat yalnızca gece yeniden başlatmasının "gece mi?" sorusu için. Alınamazsa o özellik susar; kapı etkilenmez.
+  configTzTime("<+03>-3", "pool.ntp.org", "time.google.com");
+  sonBasari = millis();
   Serial.printf("[turnike] %s (%s)\n",
                 WiFi.status() == WL_CONNECTED ? WiFi.localIP().toString().c_str() : "WiFi YOK",
                 WiFi.status() == WL_CONNECTED ? WiFi.SSID().c_str() : "-");
@@ -408,6 +495,18 @@ void setup() {
 static void kapiTuru(Kapi& k) {
   if (k.kod.length() == 6) {
     const String c = istek(k, "/api/turnstile/status", String("{\"code\":\"") + k.kod + "\"}");
+    // ── UZAKTAN YENİDEN BAŞLAT (v1.4, 2026-09-14) ──────────────────────────────────────────────
+    //
+    // Owner: "devamlı elektriği kes demek sıkıntı." Resepsiyon panelden basar, olay sunucuda yazılır.
+    // Yalnızca BU kutu yeniden başlar — turnikenin kendi kartı, kendi adaptörüyle, olduğu gibi kalır.
+    // Röleler açılışta ilk iş serbest bırakıldığı için yeniden başlama kolu tetiklemez.
+    if (c.indexOf("\"restart\":{") >= 0) {
+      Serial.printf("[turnike:%s] UZAKTAN YENIDEN BASLATMA\n", k.ad);
+      for (size_t i = 0; i < KAPI_SAYISI; i++) uiBaglaniyor(kapilar[i].yuz);
+      delay(300);
+      ESP.restart();
+    }
+
     if (c.indexOf("\"crossed\":{") >= 0) {
       const String ad = alanOku(c, "firstName");
       const String kalan = alanOku(c, "kalan");
@@ -510,6 +609,31 @@ static void probTuru() {
 }
 #endif
 
+// ── KENDİLİĞİNDEN YENİDEN BAŞLAMA (v1.4, 2026-09-14) ───────────────────────────────────────────
+//
+// 14.09'da kutu gün içinde takıldı ve elektrik kesip açmak düzeltti. Sebebi henüz bilinmiyor
+// (DEBT-046); bilinene kadar kutu, bir elektrik kesintisinin yaptığını kendi yapar — ama yalnızca
+// kimsenin kapıda olmadığı bir anda:
+//
+//   · GECE: saat 04:00–04:59, en az 2 saattir açık, son 10 dakikada geçiş yok. Günde bir kez.
+//   · TAKILMA: ağ bağlı görünüyor ama 3 dakikadır tek bir başarılı cevap yok. Bu, internetin
+//     kesilmesinden farklı değil — ama kesintide de yeniden başlamanın zararı yok, faydası olabilir.
+//
+// İkisi de WiFi BAĞLIYKEN çalışır: ağ yokken yeniden başlayan kutu kurulum moduna düşerdi.
+static void kendiliginden() {
+  if (WiFi.status() != WL_CONNECTED) return;
+  const uint32_t simdi = millis();
+  if (simdi - sonBasari > 3UL * 60 * 1000) {
+    Serial.println("[turnike] 3 dk basarili cevap yok → yeniden baslatma");
+    ESP.restart();
+  }
+  struct tm t;
+  if (simdi > 2UL * 3600 * 1000 && simdi - sonHareket > 10UL * 60 * 1000 && getLocalTime(&t, 0) && t.tm_hour == 4) {
+    Serial.println("[turnike] gece yeniden baslatmasi");
+    ESP.restart();
+  }
+}
+
 void loop() {
 #ifdef PROB
   probTuru();
@@ -517,9 +641,11 @@ void loop() {
   return;
 #endif
   if (++tur % 20 == 0)
-    Serial.printf("[turnike] tur %u · calisma %u sn · heap %u · wifi %s\n", (unsigned)tur,
-                  (unsigned)(millis() / 1000), (unsigned)ESP.getFreeHeap(),
-                  WiFi.status() == WL_CONNECTED ? "ok" : "yok");
+    Serial.printf("[turnike] %s · tur %u · calisma %u sn · heap %u · wifi %s %d dBm · darbe %u · acilis %s\n",
+                  FW_SURUM, (unsigned)tur, (unsigned)(millis() / 1000), (unsigned)ESP.getFreeHeap(),
+                  WiFi.status() == WL_CONNECTED ? "ok" : "yok", (int)WiFi.RSSI(), (unsigned)darbeSayisi,
+                  acilisSebebi());
+  kendiliginden();
   for (size_t i = 0; i < KAPI_SAYISI; i++) {
     kapiTuru(kapilar[i]);
     delay(1);  // iki kapı arasında nefes: uzun çizimden sonra görev sırasını bırak

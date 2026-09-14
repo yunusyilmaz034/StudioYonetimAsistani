@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   decideAutoCheckOut,
+  decideRequestDeviceRestart,
   decideCheckIn,
   decideCloseBranch,
   decideOpenBranch,
@@ -28,6 +29,7 @@ import entryRefused from './member.entry_refused.v1.json'
 import exitUnobserved from './member.exit_unobserved.v1.json'
 import exitedWithoutEntry from './member.exited_without_entry.v1.json'
 import turnstileReopened from './turnstile.reopened.v1.json'
+import restartRequested from './device.restart_requested.v1.json'
 import { decideTurnstileReopen } from '../../src/modules/checkin/domain/reopen'
 
 const NOW = instant(1_700_000_000_000)
@@ -90,5 +92,27 @@ describe('turnstile.reopened', () => {
     const r = decideTurnstileReopen(ctx, { memberId: MEM, branchId: BR, deviceId: 'dev_giris' as DeviceId, direction: 'in' }, [son])
     expect(r?.events[0]?.payload).toEqual(turnstileReopened)
     expect(r?.checkIn.reopenedAt).toBe(NOW)
+  })
+})
+
+// Firmware v1.4 — uzaktan yeniden başlatma. Sebep zorunlu; devre dışı cihaza komut yok.
+describe('device.restart_requested', () => {
+  const cihaz = {
+    id: 'dev_1' as DeviceId,
+    studioId: 'std_1' as StudioId,
+    branchId: BR,
+    name: 'Giriş turnikesi',
+    secretHash: 'x',
+    active: true,
+    lastSeenAt: null,
+    createdAt: NOW,
+  }
+  it('payload', () => {
+    const r = decideRequestDeviceRestart(ctx, cihaz, '  Kol tepki vermiyor ')
+    expect(r.ok && r.value.events[0]?.payload).toEqual(restartRequested)
+  })
+  it('REDDEDER: sebepsiz; devre dışı cihaz', () => {
+    expect(decideRequestDeviceRestart(ctx, cihaz, ' ')).toEqual({ ok: false, error: { code: 'reason_required' } })
+    expect(decideRequestDeviceRestart(ctx, { ...cihaz, active: false }, 'x')).toEqual({ ok: false, error: { code: 'operation_not_applicable' } })
   })
 })

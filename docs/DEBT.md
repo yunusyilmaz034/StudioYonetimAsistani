@@ -1284,3 +1284,17 @@ kaçırılan-kod yaması devredeyken tekrar ederse. O gün: (a) kod yenileme sü
 cihaz önceki kodu da sorar; (b) iki kapının sorguları paralelleştirilir ya da tek istekte birleştirilir; (c) darbe
 süresi turnike kartının istediğiyle ölçülerek belirlenir; (d) kilitlenme tekrar ederse önce YALNIZCA turnike kartı,
 sonra YALNIZCA ESP/röle kutusu kesilerek hangisinin takıldığı ayrılır.
+
+**Kısmi geri ödeme — firmware v1.4 hazır, 14.09 akşamı yerinde yüklenecek** (`apps/turnstile`, sunucu desteği canlı):
+- Tek TLS bağlantısı açık tutuluyor (v1.3 her istekte yeni el sıkışma yapıyordu) — (b)'nin ucuz yarısı.
+- Ölçüm: firmware sürümü, WiFi RSSI, boş bellek, açık kalma süresi, **darbe sayacı**, **açılış sebebi** (`BROWNOUT` =
+  besleme düştü) her kod isteğinde cihaz kaydına yazılıyor; Ayarlar → Turnike cihazları'nda görünüyor. Darbe sayacı
+  "sunucu geçti dedi" sayısıyla karşılaştırılınca suçun kutuda mı turnike kartında mı olduğunu ayırır — (d).
+- Uzaktan yeniden başlatma (`device.restart_requested`, sebep zorunlu) — elektrik kesmeden. Yalnızca ESP kutusu;
+  turnike kartını yeniden başlatmaz.
+- Kendiliğinden yeniden başlama: gece 04:xx boş kapıda günde bir kez; ağ bağlıyken 3 dk başarılı cevap yoksa.
+- Darbe süresi `-D DARBE_MS_AYAR=…` ile kod değişmeden denenebilir — (c) sahada ölçülecek.
+- Kurulum modu, bilinen bir ağ varsa 5 dk sonra yeniden dener (elektrik gelince modemin geç açılması).
+- TLS sertifikası v1.3'te de doğrulanmıyordu (CA'sız `HTTPClient` içeride `setInsecure()` çağırıyor); v1.4 bunu
+  açık yazdı, davranışı değiştirmedi. Kutunun yetkisi kod istemek ve sormak; açma kararı sunucuda.
+- Açık kalan: (a) kod yenileme 25 sn / sunucu ömrü 45 sn — sunucu yamasıyla kapalı; (c) ölçüm.

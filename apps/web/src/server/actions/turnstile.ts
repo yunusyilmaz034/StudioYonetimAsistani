@@ -20,6 +20,8 @@ import {
   getHold,
   recordGuestArrival,
   recordCheckIn,
+  requestDeviceRestart,
+  type DeviceTelemetry,
   registerDevice,
   rotateDeviceSecret,
   setDeviceActive,
@@ -93,12 +95,12 @@ export async function deviceHeartbeatAuth(
 }
 
 /** The next six digits for the screen. `randomInt` is the crypto one — a guessable door is no door. */
-export async function deviceCodeAction(ctx: TenantContext, deviceId: DeviceId) {
+export async function deviceCodeAction(ctx: TenantContext, deviceId: DeviceId, telemetry: DeviceTelemetry | null = null) {
   const digits = String(randomInt(0, 1_000_000)).padStart(6, '0')
   // Ekrandan kalkacak kod (2026-09-14): cihaz yeni kod istiyorsa eskisini bir daha sormayacak. O kod kullanılmış
   // ama cihaz görmemişse, kol şimdi — bir sonraki sorguda — sunucudan açılır. Bkz. `turnstile-missed.ts`.
   const onceki = (await deps().repo.getDevice(ctx, deviceId))?.currentCode ?? null
-  const res = await issueTurnstileCode(deps(), ctx, deviceId, digits)
+  const res = await issueTurnstileCode(deps(), ctx, deviceId, digits, telemetry)
   await openIfPreviousCodeUnseen(ctx, deviceId, onceki)
   return res
 }
@@ -133,7 +135,10 @@ export async function deviceCrossingAction(ctx: TenantContext, deviceId: DeviceI
   if (!record.usedBy || !record.usedAt) {
     // Geçiş yok — ama bu kapıda az önce reddedilen biri ya da panelden verilmiş bir açma olabilir.
     const [ret, ac] = await Promise.all([sonRet(ctx, deviceId), bekleyenAcma(ctx, deviceId)])
-    return { ok: true as const, value: { crossed: null, ...(ret ? { refused: ret } : {}), ...(ac ? { open: ac } : {}) } }
+    // UZAKTAN YENİDEN BAŞLAT (2026-09-14, firmware v1.4) — aynı tek-komut kanalı. Eski firmware bu anahtarı tanımaz,
+    // yok sayar; komut okununca silindiği için bir sonraki turda tekrar gelmez.
+    if (ac?.action === 'restart') return { ok: true as const, value: { crossed: null, restart: { reason: ac.reason } } }
+    return { ok: true as const, value: { crossed: null, ...(ret ? { refused: ret } : {}), ...(ac ? { open: { reason: ac.reason } } : {}) } }
   }
 
   // GÖRÜLDÜ DAMGASI — cihaza "geçti" demeden ÖNCE (2026-09-14). Sıra önemli: cihaz bu cevaptan sonra yeni kod
@@ -169,7 +174,7 @@ export async function deviceCrossingAction(ctx: TenantContext, deviceId: DeviceI
  * Kalıcı bir kuyruk kurmadım — açılmamış bir "aç" komutu on dakika sonra çalışırsa, kapı kimsenin
  * beklemediği bir anda döner.
  */
-async function bekleyenAcma(ctx: TenantContext, deviceId: DeviceId): Promise<{ reason: string } | null> {
+async function bekleyenAcma(ctx: TenantContext, deviceId: DeviceId): Promise<{ reason: string; action: string } | null> {
   const ref = adminDb().doc(`studios/${ctx.studioId}/turnstileCommands/${deviceId}`)
   const snap = await ref.get()
   if (!snap.exists) return null
@@ -181,7 +186,7 @@ async function bekleyenAcma(ctx: TenantContext, deviceId: DeviceId): Promise<{ r
     return null
   }
   await ref.delete()
-  return { reason: String(snap.get('reason') ?? '') }
+  return { reason: String(snap.get('reason') ?? ''), action: String(snap.get('action') ?? 'open') }
 }
 
 /** Son 20 saniyede bu kapıda reddedilmiş biri var mı? Ekran bunu bir kez gösterir ve siler. */
@@ -301,7 +306,37 @@ export async function listTurnstilesAction() {
     // Hangi kapı. Ekran "Giriş"i ve "Çıkış"ı ayrı düğme olarak gösterebilsin diye — iki kapıya tek
     // düğme koymak, resepsiyona hangisinin açıldığını tahmin ettirmek olurdu.
     side: (d as { side?: 'in' | 'out' }).side ?? null,
+    // Firmware v1.4 ölçümü — WiFi gücü, açık kalma süresi, yeniden başlama sebebi. Eski firmware'de `null`.
+    telemetry: d.telemetry
+      ? {
+          fw: d.telemetry.fw,
+          rssi: d.telemetry.rssi,
+          heap: d.telemetry.heap,
+          uptimeS: d.telemetry.uptimeS,
+          pulses: d.telemetry.pulses,
+          resetReason: d.telemetry.resetReason,
+          at: d.telemetry.at === undefined ? null : Number(d.telemetry.at),
+        }
+      : null,
   }))
+}
+
+/**
+ * KUTUYU UZAKTAN YENİDEN BAŞLAT (2026-09-14, firmware v1.4).
+ *
+ * Owner: *"devamlı elektriği kes demek sıkıntı."* Resepsiyon da kullanabilir — kapıda kalan üye onun karşısında.
+ * İki ekran TEK kutuda: hangi cihaza basılırsa basılsın ikisi birlikte ~20 sn kapanır. Olay önce yazılır, komut
+ * sonra bırakılır (elle açmayla aynı sıra). v1.3 firmware komutu tanımaz ve yok sayar.
+ */
+export async function restartTurnstileAction(input: unknown) {
+  const p = z.object({ deviceId: z.string().min(1), reason: z.string().trim().min(1).max(200) }).parse(input)
+  const ctx = await requireTenantContext(OPS)
+  const res = await requestDeviceRestart(deps(), ctx, { deviceId: p.deviceId as DeviceId, reason: p.reason })
+  if (!res.ok) return { ok: false as const, error: res.error }
+  await adminDb()
+    .doc(`studios/${ctx.studioId}/turnstileCommands/${p.deviceId}`)
+    .set({ action: 'restart', at: Date.now(), by: String(ctx.actor.id), reason: p.reason })
+  return { ok: true as const }
 }
 
 // ── CİHAZ YÖNETİMİ (owner onayı, 2026-09-11 — ikinci stüdyo hazırlığı) ──────────────────────

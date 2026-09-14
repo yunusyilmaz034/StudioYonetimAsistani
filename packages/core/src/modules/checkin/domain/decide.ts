@@ -26,6 +26,7 @@ import {
   DEVICE_REACTIVATED,
   DEVICE_REGISTERED,
   DEVICE_SECRET_ROTATED,
+  DEVICE_RESTART_REQUESTED,
   MEMBER_ENTRY_REFUSED,
   MEMBER_EXIT_UNOBSERVED,
   MEMBER_EXITED_WITHOUT_ENTRY,
@@ -455,4 +456,28 @@ export function decideSetDeviceActive(
       },
     ],
   }
+}
+
+// ── UZAKTAN YENİDEN BAŞLATMA (2026-09-14, firmware v1.4) ────────────────────────────────────
+//
+// Owner: *"devamlı elektriği kes demek sıkıntı."* Kutu takıldığında resepsiyon panelden yeniden başlatır; cihaz
+// komutu her turda okuduğu kanaldan alır. Sebep zorunlu: bir yeniden başlatma bir arızanın izidir ve "neden"i
+// yazılmayan bir iz, arızayı bulmaya yaramaz. Devre dışı bir cihaz zaten sormuyor — ona komut bırakılmaz.
+export function decideRequestDeviceRestart(
+  ctx: DecideContext,
+  device: TurnstileDevice,
+  reason: string,
+): Result<{ next: TurnstileDevice; events: NewEvent[] }, DomainError> {
+  if (reason.trim() === '') return err({ code: 'reason_required' })
+  if (!device.active) return err({ code: 'operation_not_applicable' })
+  return ok({
+    next: device,
+    events: [
+      {
+        ...base(ctx, 'branch', device.id as string, device.branchId, { deviceId: device.id as string }),
+        type: DEVICE_RESTART_REQUESTED,
+        payload: { deviceId: device.id as string, reason: reason.trim() },
+      },
+    ],
+  })
 }
