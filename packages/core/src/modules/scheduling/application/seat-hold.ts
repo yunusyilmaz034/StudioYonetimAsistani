@@ -5,7 +5,7 @@ import {
   type Result,
   type TenantContext,
 } from '../../../shared'
-import { decideHoldSeat, decideReleaseSeat } from '../domain/decide'
+import { decideGuestArrival, decideHoldSeat, decideReleaseSeat } from '../domain/decide'
 import type { SeatHold } from '../domain/types'
 import { decideContext } from './service'
 import type { SchedulingDeps } from './ports'
@@ -58,6 +58,27 @@ export async function releaseSeat(
     holdId,
     decide: (session, hold) => decideReleaseSeat(dctx, session, hold),
   })
+}
+
+/**
+ * Misafir geldi (owner, 2026-09-14 · OR-76). Resepsiyon ayrılan yerin satırından "Giriş"e bastı.
+ * Kolu açmak bu fonksiyonun işi değil — o `checkin`in; çağıran ikisini bağlar, çekirdekte modüller
+ * birbirini tanımaz.
+ */
+export async function recordGuestArrival(
+  deps: SchedulingDeps,
+  ctx: TenantContext,
+  holdId: string,
+): Promise<Result<{ hold: SeatHold; arrivedNow: boolean }, DomainError>> {
+  const dctx = decideContext(deps, ctx)
+  return deps.repo.recordGuestArrival(ctx, {
+    holdId,
+    decide: (session, hold) => decideGuestArrival(dctx, session, hold, deps.studioConfig.utcOffsetMinutes),
+  })
+}
+
+export function getHold(deps: SchedulingDeps, ctx: TenantContext, holdId: string): Promise<SeatHold | null> {
+  return deps.repo.getSeatHold(ctx, holdId)
 }
 
 /** The holds a screen needs: everything still held for one session. */

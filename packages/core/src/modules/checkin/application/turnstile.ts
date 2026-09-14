@@ -272,12 +272,14 @@ export async function openTurnstileManually(
   ctx: TenantContext,
   deviceId: DeviceId,
   reason: string,
+  /** Kimin için açıldı, biliniyorsa — ör. ayrılan yerdeki misafir (OR-76). Yalnızca kimlikler (I-13). */
+  related: Readonly<Record<string, string>> = {},
 ): Promise<Result<{ deviceId: DeviceId }, DomainError>> {
   const device = await deps.repo.getDevice(ctx, deviceId)
   if (!device || !device.active) return err({ code: 'qr_invalid' })
 
   const dctx = decideContext(deps, ctx, { now: deps.clock.now(), commandId: null })
-  const decided = decideOpenTurnstileManually(dctx, deviceId, device.branchId, reason)
+  const decided = decideOpenTurnstileManually(dctx, deviceId, device.branchId, reason, related)
   if (!decided.ok) return decided
 
   // State and its event in ONE write (#1). The state here is the DEVICE — the branch's occupancy is

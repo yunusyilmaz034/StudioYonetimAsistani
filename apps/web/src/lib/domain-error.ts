@@ -138,6 +138,8 @@ export function domainErrorMessage(error: DomainError): string {
       return 'Yeri kimin için ayırdığınızı yazın.'
     case 'seat_hold_not_open':
       return 'Bu yer ayırma zaten kaldırılmış.'
+    case 'guest_arrival_not_today':
+      return 'Misafirin gelişi yalnızca dersin olduğu gün işaretlenebilir.'
     case 'reservation_not_resolved':
       return 'Yalnızca sonuçlanmış bir rezervasyon düzeltilebilir.'
     case 'outside_cancellation_window':

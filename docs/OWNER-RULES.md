@@ -1656,3 +1656,28 @@ telefonunda da "geçersiz kod" yazıyor.
 - **Son geçişten 45 sn içinde tekrar okutma uyuşmazlık değil, aynı geçiştir** — hâlâ reddedilir.
   Sınır: 44,999 sn reddedilir, 45 sn kabul edilir.
 - **Şube kapalı görünse de çıkış engellenmez.** Kapalı şube yalnızca girişi durdurur.
+
+### OR-76 · Ayrılan yerdeki misafiri resepsiyon turnikeden geçirir; geldiği o misafire bağlı yazılır
+
+*(2026-09-14, owner: "multispor ya da genel olarak yer ayırdığımız kişiler var rezervasyon ajandasında,
+bunlar da sistemde olmayabilir dolayısıyla qr okutamazlar … burada hemen turnike giriş - çıkış butonu
+koyalım, sağında çarpı butonu kalsın, buradan resepsiyon elle giriş - çıkışına izin versin ve olay
+kaydında bu üyeye ilişkilendirilsin … yoklamalar daha tutarlı olacak")*
+
+**Nasıl:**
+- Seansın **Ayrılan yerler** listesinde her satırda **Giriş / Çıkış**, sağında **X** yerinde.
+- **Giriş:** önce misafir **geldi** yazılır (`class_session.guest_arrived`, ayrılan yer belgesinde
+  `arrivedAt`), sonra giriş kolu açılır. Kayıt reddedilirse kol dönmez.
+- **Çıkış:** yalnızca çıkış kolu. Hiçbir şey sorulmaz — çıkış engellenmez ([[OR-53]], [[OR-75]]).
+- İki yönde de `turnstile.opened_manually` olayı `related`inde **bu ayrılan yeri ve dersi** taşır.
+- **Yoklama** sekmesinde "Misafirler · x/y geldi" bölümü; misafir üye listesine karışmaz.
+
+**Sınırlar, bilerek:**
+- **Olayda isim ve kart numarası YOK** (#6). İsim ayrılan yer belgesinde kalır, olay yalnızca hangi yer
+  olduğunu bilir. Misafir, bu stüdyonun kaydına girmeyi kabul etmiş biri değil.
+- **Yalnızca dersin günü.** Geçmiş bir dersin satırından bugün basılan Giriş o derse bugün gelinmiş gibi
+  yazardı; düğmeler başka günde çizilmez, sunucu da reddeder (`guest_arrival_not_today`).
+  Sınır: dersin günü stüdyonun yerel günüdür; günün ilk milisaniyesinde başlayan ders o gündür.
+- **İkinci giriş yeni "geldi" yazmaz** — ilk geliş saati kalır; kol yine döner.
+- **Doluluğa girmez.** Misafir üye değil; `member.checked_in` yazılmaz. Check-in ekranındaki "içeride"
+  sayısı misafirleri saymaz.

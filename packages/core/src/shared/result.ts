@@ -145,6 +145,8 @@ export type DomainError =
   | { readonly code: 'checkin_too_soon' }
   | { readonly code: 'seat_hold_note_required' }
   | { readonly code: 'seat_hold_not_open' }
+  // OR-76 — a guest's arrival is marked on the session's own day, never from yesterday's row.
+  | { readonly code: 'guest_arrival_not_today' }
   // ── reservations / automation (Doc 2 §8, v1.10) ──
   | { readonly code: 'auto_resolve_too_early'; readonly resolvableAt: number }
   // ── reservations / resolution from a door check-in (2026-07-27) ──

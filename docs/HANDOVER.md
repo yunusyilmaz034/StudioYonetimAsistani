@@ -20,6 +20,24 @@ Kod tarafında yarım iş YOK. Bekleyen iki şey, ikisi de owner'la birlikte:
    satırı (`closed` / `skipped` sayıları) ve `/mesai` listesinde dünkü satırların son geçiş saatine
    kapanmış olması. Hiç eğitmen turnikeden geçmediyse `closed: 0` doğru sonuçtur, arıza değil.
 
+## 🎟️ 14 Eylül — ayrılan yerdeki misafir turnikeden, ve yoklamada ([[OR-76]])
+
+Owner: *"yer ayırdığımız kişiler … sistemde olmayabilir dolayısıyla qr okutamazlar … turnike giriş - çıkış
+butonu koyalım, sağında çarpı butonu kalsın … olay kaydında bu üyeye ilişkilendirilsin."*
+
+- Seans → Rezervasyon → **Ayrılan yerler** satırında **Giriş / Çıkış** (yalnızca dersin günü) + X.
+- Giriş: `class_session.guest_arrived` + `arrivedAt`, sonra kol. Çıkış: yalnızca kol.
+- `turnstile.opened_manually` artık `related: { classSessionId, seatHoldId }` taşıyabiliyor.
+- Yoklama sekmesinde **Misafirler · x/y geldi**.
+- Misafir doluluğa girmez; olayda isim yok.
+
+**Durum:** commit edildi, **deploy owner onayı bekliyor** (OR-75 ile birlikte).
+
+**Deneme:** Bugünkü bir derse "Yer ayır" → satırda Giriş/Çıkış görünür. **Giriş** → giriş kolu döner,
+satırda "Geldi HH:MM", Yoklama sekmesinde "Misafirler 1/1 geldi", Hareket Merkezi'nde "Ayrılan yerdeki
+misafir derse geldi". Tekrar **Giriş** → kol döner, geliş saati DEĞİŞMEZ. **Çıkış** → çıkış kolu döner.
+Sınır: geçmiş bir dersin ayrılan yerinde düğmeler görünmez.
+
 ## 🚪 14 Eylül — kaydı uyuşmayan üye kapıda kalmıyor ([[OR-75]])
 
 Owner: *"qr ile giriş yapmayan biri yandan geçmiş olabilir o an enerji kesik olabilir ama çıkış yapmak

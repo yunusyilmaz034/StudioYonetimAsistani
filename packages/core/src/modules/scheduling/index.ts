@@ -70,7 +70,7 @@ export {
 } from './application/duplicate-week'
 // Seat holds for non-members (2026-07-27). `occupiedSeats` is the important export: every capacity
 // question in the system must ask it, never `bookedCount` alone.
-export { holdSeat, releaseSeat, listHolds, type HoldSeatInput } from './application/seat-hold'
+export { holdSeat, releaseSeat, listHolds, recordGuestArrival, getHold, type HoldSeatInput } from './application/seat-hold'
 export { occupiedSeats } from './domain/types'
 export type { SeatHold } from './domain/types'
 export type { SchedulingDeps, SchedulingRepository } from './application/ports'

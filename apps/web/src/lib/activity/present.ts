@@ -685,6 +685,8 @@ export function present(e: ActivityEvent): PresentedEntry {
       return entry(`Özel ders bir üyeye ayrıldı.`, member, 'default')
     case 'class_session.note_set':
       return entry(`Seansa not eklendi.`, str(p.text), 'default')
+    case 'class_session.guest_arrived':
+      return entry(`Ayrılan yerdeki misafir derse geldi.`, 'Resepsiyon turnikeden geçirdi.', 'success')
     case 'class_template.created':
       return entry(`Haftalık ders şablonu oluşturuldu.`, null, 'default')
     case 'class_template.updated':

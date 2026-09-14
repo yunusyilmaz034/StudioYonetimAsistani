@@ -1,9 +1,10 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { CreditCardIcon, Loader2Icon, TicketIcon, XIcon } from 'lucide-react'
+import { CreditCardIcon, Loader2Icon, LogInIcon, LogOutIcon, TicketIcon, XIcon } from 'lucide-react'
 import { toast } from 'sonner'
 
+import { timeLabel } from '@/components/calendar'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -21,6 +22,7 @@ import {
   releaseSeatAction,
   type SeatHoldView,
 } from '@/server/actions/seat-hold'
+import { seatHoldTurnstilePassAction } from '@/server/actions/turnstile'
 
 // Seats held for people who are NOT members (owner, 2026-07-27).
 //
@@ -45,6 +47,8 @@ export function SeatHoldsPanel({
   const [note, setNote] = useState('')
   const [cardNumber, setCardNumber] = useState('')
   const [busy, setBusy] = useState(false)
+  /** `${holdId}:${yön}` — hangi düğmenin beklediği. Biri beklerken diğerleri de kilitli. */
+  const [gecen, setGecen] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     try {
@@ -93,6 +97,33 @@ export function SeatHoldsPanel({
     }
   }
 
+  // OR-76 (owner, 2026-09-14) — misafirin telefonunda uygulama yok, QR okutamaz. Resepsiyon satırından
+  // geçirir: girişte önce "geldi" yazılır, sonra kol döner; çıkışta yalnızca kol.
+  async function gecir(h: SeatHoldView, yon: 'in' | 'out') {
+    setGecen(`${h.id}:${yon}`)
+    try {
+      const res = await seatHoldTurnstilePassAction({ holdId: h.id, direction: yon })
+      if (!res.ok) {
+        toast.error(domainErrorMessage(res.error))
+      } else {
+        const kapi = yon === 'in' ? 'Giriş' : 'Çıkış'
+        const kol =
+          res.kol === 'dondu'
+            ? `${kapi} kapısı açıldı.`
+            : res.kol === 'cihaz_yok'
+              ? `${kapi} turnikesi tanımlı değil, kol dönmedi.`
+              : 'Kapı açılamadı — cihaz çevrimdışı olabilir.'
+        const mesaj = res.arrivedNow ? `${kol} Misafir derse geldi olarak işaretlendi.` : kol
+        if (res.kol === 'acilamadi') toast.error(mesaj)
+        else toast.success(mesaj)
+        if (res.arrivedNow) await load()
+      }
+    } catch {
+      toast.error('Geçiş yapılamadı. Bağlantınızı kontrol edin.')
+    }
+    setGecen(null)
+  }
+
   return (
     <section className="space-y-3">
       <div className="flex items-center justify-between gap-3">
@@ -126,24 +157,60 @@ export function SeatHoldsPanel({
       ) : (
         <ul className="divide-y divide-border rounded-xl border border-border bg-card shadow-xs">
           {holds.map((h) => (
-            <li key={h.id} className="flex items-center justify-between gap-2 px-3 py-2.5">
-              <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-foreground">{h.note}</p>
+            <li key={h.id} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2.5">
+              <div className="min-w-0 flex-1">
+                <div className="flex min-w-0 items-center gap-2">
+                  <p className="truncate text-sm font-medium text-foreground">{h.note}</p>
+                  {h.arrivedAt !== null ? (
+                    <span className="shrink-0 rounded-full bg-success/10 px-2 py-0.5 text-xs font-medium tabular-nums text-success">
+                      Geldi {timeLabel(h.arrivedAt)}
+                    </span>
+                  ) : null}
+                </div>
                 {h.cardNumber ? (
                   <p className="mt-0.5 flex items-center gap-1 truncate text-xs text-muted-foreground">
                     <CreditCardIcon className="size-3" /> {h.cardNumber}
                   </p>
                 ) : null}
               </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="size-9 shrink-0 text-muted-foreground hover:text-danger"
-                aria-label="Yer ayırmayı kaldır"
-                onClick={() => void release(h)}
-              >
-                <XIcon className="size-4" />
-              </Button>
+              <div className="flex shrink-0 items-center gap-1">
+                {/* Yalnızca dersin günü: geçmiş bir dersin satırından bugün "geldi" yazılmasın. */}
+                {h.today ? (
+                  <>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="min-h-9 border-success/40 text-success hover:bg-success/10 hover:text-success"
+                      disabled={gecen !== null}
+                      onClick={() => void gecir(h, 'in')}
+                      aria-label={`${h.note} — turnike girişi`}
+                    >
+                      {gecen === `${h.id}:in` ? <Loader2Icon className="animate-spin" /> : <LogInIcon />}
+                      Giriş
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="min-h-9 border-danger/40 text-danger hover:bg-danger/10 hover:text-danger"
+                      disabled={gecen !== null}
+                      onClick={() => void gecir(h, 'out')}
+                      aria-label={`${h.note} — turnike çıkışı`}
+                    >
+                      {gecen === `${h.id}:out` ? <Loader2Icon className="animate-spin" /> : <LogOutIcon />}
+                      Çıkış
+                    </Button>
+                  </>
+                ) : null}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-9 shrink-0 text-muted-foreground hover:text-danger"
+                  aria-label="Yer ayırmayı kaldır"
+                  onClick={() => void release(h)}
+                >
+                  <XIcon className="size-4" />
+                </Button>
+              </div>
             </li>
           ))}
         </ul>
@@ -192,6 +259,62 @@ export function SeatHoldsPanel({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </section>
+  )
+}
+
+/**
+ * Yoklama sekmesinde ayrılan yerlerdeki misafirler (owner, 2026-09-14 · OR-76).
+ *
+ * Üye listesine KARIŞMAZ ve "Katıldı / Gelmedi" düğmesi yok: misafir üye değil, gelişi bir işaret değil
+ * bir gözlem — turnikeden geçirildiyse gelmiştir. Misafir yoksa bölüm hiç çizilmez.
+ */
+export function GuestArrivals({ sessionId }: { sessionId: string }) {
+  const [holds, setHolds] = useState<readonly SeatHoldView[] | null>(null)
+
+  useEffect(() => {
+    let gecersiz = false
+    listSeatHoldsAction({ sessionId })
+      .then((h) => {
+        if (!gecersiz) setHolds(h)
+      })
+      .catch(() => {
+        if (!gecersiz) setHolds([])
+      })
+    return () => {
+      gecersiz = true
+    }
+  }, [sessionId])
+
+  if (!holds || holds.length === 0) return null
+  const gelen = holds.filter((h) => h.arrivedAt !== null).length
+
+  return (
+    <section className="space-y-2">
+      <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+        <TicketIcon className="size-4 text-muted-foreground" />
+        Misafirler
+        <span className="text-xs font-normal tabular-nums text-muted-foreground">
+          {gelen}/{holds.length} geldi
+        </span>
+      </h3>
+      <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card shadow-xs">
+        {holds.map((h) => (
+          <li key={h.id} className="flex items-center justify-between gap-2 px-3 py-2.5">
+            <p className="min-w-0 truncate text-sm font-medium text-foreground">{h.note}</p>
+            {h.arrivedAt !== null ? (
+              <span className="shrink-0 rounded-full bg-success/10 px-2 py-0.5 text-xs font-medium tabular-nums text-success">
+                Geldi {timeLabel(h.arrivedAt)}
+              </span>
+            ) : (
+              <span className="shrink-0 text-xs text-muted-foreground">Girişi yok</span>
+            )}
+          </li>
+        ))}
+      </ul>
+      <p className="text-xs text-muted-foreground">
+        Rezervasyon sekmesinde ayrılan yerin satırından Giriş ile geçirilen misafir burada geldi görünür.
+      </p>
     </section>
   )
 }

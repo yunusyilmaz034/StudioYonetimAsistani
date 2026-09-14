@@ -5,7 +5,9 @@ import {
   FirestoreSchedulingRepository,
   FirestoreStudioHours,
   holdSeat,
+  instant,
   listHolds,
+  localDateAt,
   releaseSeat,
   systemClock,
   type ClassSessionId,
@@ -64,6 +66,10 @@ export interface SeatHoldView {
   readonly note: string
   readonly cardNumber: string | null
   readonly heldAt: number
+  /** OR-76 — ilk kez içeri alındığı an; `null` ⇔ henüz gelmedi. */
+  readonly arrivedAt: number | null
+  /** Seans bugün mü? Turnike düğmeleri yalnızca o zaman çizilir; asıl kural sunucuda. */
+  readonly today: boolean
 }
 
 /** The seats currently held for one session — who each one is for. Staff-only, by the role gate. */
@@ -71,7 +77,16 @@ export async function listSeatHoldsAction(input: unknown): Promise<readonly Seat
   const p = z.object({ sessionId: z.string().min(1) }).parse(input)
   const ctx = await requireTenantContext(DESK)
   const holds = await listHolds(deps(), ctx, p.sessionId as ClassSessionId)
+  const off = DEFAULT_STUDIO_CONFIG.utcOffsetMinutes
+  const bugun = localDateAt(instant(Date.now()), off)
   return holds
-    .map((h) => ({ id: h.id, note: h.note, cardNumber: h.cardNumber, heldAt: h.heldAt as number }))
+    .map((h) => ({
+      id: h.id,
+      note: h.note,
+      cardNumber: h.cardNumber,
+      heldAt: h.heldAt as number,
+      arrivedAt: h.arrivedAt === null ? null : (h.arrivedAt as number),
+      today: localDateAt(h.sessionStartsAt, off) === bugun,
+    }))
     .sort((a, b) => a.heldAt - b.heldAt)
 }

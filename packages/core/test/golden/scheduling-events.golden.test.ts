@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { upcastClassSessionScheduled } from '../../src/modules/scheduling/upcasters'
 import {
+  decideGuestArrival,
   decideHoldSeat,
   decideReleaseSeat,
   decideAssignSessionMember,
@@ -49,6 +50,7 @@ import capacityChanged from './class_session.capacity_changed.v1.json'
 import noteSet from './class_session.note_set.v1.json'
 import seatHeld from './class_session.seat_held.v1.json'
 import seatReleased from './class_session.seat_released.v1.json'
+import guestArrived from './class_session.guest_arrived.v1.json'
 import templateUpdated from './class_template.updated.v1.json'
 
 const ctx: DecideContext = {
@@ -206,10 +208,35 @@ describe('scheduling event payloads match golden fixtures (AD-33)', () => {
       heldBy: ctx.actor,
       releasedAt: null,
       releasedBy: null,
+      arrivedAt: null,
+      arrivedBy: null,
     }
     const r = decideReleaseSeat(ctx, { ...session, heldCount: 1 }, hold)
     expect(r.ok).toBe(true)
     if (r.ok) expect(r.value.events[0]?.payload).toEqual(seatReleased)
+  })
+  // OR-76. Misafirin adı ve kart numarası burada da YOK — yalnızca hangi yer olduğu.
+  it('class_session.guest_arrived', () => {
+    const hold = {
+      id: 'hold_1',
+      studioId: session.studioId,
+      branchId: session.branchId,
+      classSessionId: session.id,
+      note: 'Multisport — Zeynep',
+      cardNumber: 'MS-9931',
+      status: 'held' as const,
+      sessionStartsAt: session.startsAt,
+      heldAt: ctx.now,
+      heldBy: ctx.actor,
+      releasedAt: null,
+      releasedBy: null,
+      arrivedAt: null,
+      arrivedBy: null,
+    }
+    const today = { ...session, startsAt: instant(1_700_000_000_000 + 3_600_000) }
+    const r = decideGuestArrival(ctx, today, hold, 180)
+    expect(r.ok).toBe(true)
+    if (r.ok) expect(r.value.events[0]?.payload).toEqual(guestArrived)
   })
   it('class_session.cancelled', () => {
     const r = decideCancelSession(ctx, session, 'Eğitmen hasta')

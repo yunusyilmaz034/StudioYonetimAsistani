@@ -14,6 +14,11 @@ import {
   issueTurnstileCode,
   openTurnstileManually,
   instant,
+  DEFAULT_STUDIO_CONFIG,
+  FirestoreSchedulingRepository,
+  FirestoreStudioHours,
+  getHold,
+  recordGuestArrival,
   recordCheckIn,
   registerDevice,
   rotateDeviceSecret,
@@ -416,4 +421,54 @@ export async function memberTurnstilePassAction(input: unknown) {
     fitnessEntry: kayit.value.fitnessEntry,
     kolDondu: Boolean(cihaz),
   }
+}
+
+// ── AYRILAN YERDEKİ MİSAFİR TURNİKEDEN (owner, 2026-09-14 · OR-76) ─────────────────────────────
+//
+// *"yer ayırdığımız kişiler ... sistemde olmayabilir dolayısıyla qr okutamazlar ... buradan resepsiyon
+// elle giriş - çıkışına izin versin ve olay kaydında bu kişiye ilişkilendirilsin."*
+//
+// Multisport misafirinin telefonunda uygulama yok, üye kaydı yok ve OLMAMALI. Resepsiyon, dersin
+// ayrılan yerler listesindeki satırından geçirir. İki modül burada bağlanıyor, çekirdekte değil:
+//   · GİRİŞ → önce `scheduling` misafiri GELDİ diye yazar (yalnızca seansın günü), SONRA kol açılır.
+//     Kayıt reddedilirse kol dönmez: açılmış ama hesabı verilemeyen bir kapı olmasın.
+//   · ÇIKIŞ → yalnızca kol. Gün sorulmaz, hiçbir şey reddedilmez: çıkış asla engellenmez (OR-53, OR-75).
+//   · İki yönde de `turnstile.opened_manually` olayı `related`inde bu ayrılan yeri ve dersi taşır —
+//     Hareket Merkezi'nde "kim için açıldı" sorusunun cevabı. İsim olayda YOK (I-13).
+//
+// Doluluğa girmez: misafir üye değil, `member.checked_in` yazılmaz (turnike geçişi ≠ üye girişi).
+export async function seatHoldTurnstilePassAction(input: unknown) {
+  const p = z.object({ holdId: z.string().min(1), direction: z.enum(['in', 'out']) }).parse(input)
+  const ctx = await requireTenantContext(OPS)
+  const scheduling = {
+    repo: new FirestoreSchedulingRepository(adminDb()),
+    clock: systemClock,
+    studioConfig: DEFAULT_STUDIO_CONFIG,
+    hours: new FirestoreStudioHours(adminDb()),
+  }
+
+  let classSessionId: string
+  let arrivedNow = false
+  if (p.direction === 'in') {
+    const geldi = await recordGuestArrival(scheduling, ctx, p.holdId)
+    if (!geldi.ok) return { ok: false as const, error: geldi.error }
+    classSessionId = geldi.value.hold.classSessionId
+    arrivedNow = geldi.value.arrivedNow
+  } else {
+    const hold = await getHold(scheduling, ctx, p.holdId)
+    if (!hold) return { ok: false as const, error: { code: 'seat_hold_not_open' as const } }
+    classSessionId = hold.classSessionId
+  }
+
+  const cihaz = (await deps().repo.listDevices(ctx)).find((d) => d.active && (d as { side?: 'in' | 'out' }).side === p.direction)
+  if (!cihaz) return { ok: true as const, arrivedNow, kol: 'cihaz_yok' as const }
+
+  const reason = p.direction === 'in' ? 'Ayrılan yerdeki misafir girişi' : 'Ayrılan yerdeki misafir çıkışı'
+  const acildi = await openTurnstileManually(deps(), ctx, cihaz.id, reason, { classSessionId, seatHoldId: p.holdId })
+  if (!acildi.ok) return { ok: true as const, arrivedNow, kol: 'acilamadi' as const }
+  // Olay YAZILDIKTAN sonra komut — `openTurnstileAction` ile aynı sıra.
+  await adminDb()
+    .doc(`studios/${ctx.studioId}/turnstileCommands/${cihaz.id}`)
+    .set({ action: 'open', at: Date.now(), by: String(ctx.actor.id), reason })
+  return { ok: true as const, arrivedNow, kol: 'dondu' as const }
 }

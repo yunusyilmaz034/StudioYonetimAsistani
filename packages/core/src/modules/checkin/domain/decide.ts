@@ -366,11 +366,12 @@ export function decideOpenTurnstileManually(
   deviceId: DeviceId,
   branchId: BranchId,
   reason: string,
+  related: Readonly<Record<string, string>> = {},
 ): Result<NewEvent[], DomainError> {
   if (reason.trim() === '') return err({ code: 'reason_required' })
   return ok([
     {
-      ...base(ctx, 'branch', deviceId as string, branchId, {}),
+      ...base(ctx, 'branch', deviceId as string, branchId, related),
       type: TURNSTILE_OPENED_MANUALLY,
       payload: { deviceId: deviceId as string, reason },
     },

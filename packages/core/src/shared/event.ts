@@ -88,6 +88,9 @@ export interface EventRelated {
   // Plus Phase 9 (Trainer Payroll) — additive join keys (opaque ids, no PII).
   readonly compensationPlanId?: string
   readonly statementId?: string
+  // OR-76 (2026-09-14) — the non-member seat a guest crossing belongs to. The guest's name stays on
+  // the `/seatHolds` document; the log only knows which seat.
+  readonly seatHoldId?: string
 }
 
 // Small JSON: the delta plus the post-state of every number changed (AD-19).

@@ -157,6 +157,8 @@ export const KIND_OF: Record<string, ActivityKind> = {
   'class_session.trainer_changed': 'schedule',
   'class_session.assigned': 'schedule',
   'class_session.note_set': 'schedule',
+  // OR-76 — bir kapı gözlemi, takvim düzenlemesi değil: üyelerin girişleriyle aynı filtrede.
+  'class_session.guest_arrived': 'checkin',
   'class_template.created': 'schedule',
   'class_template.updated': 'schedule',
   'class_template.deactivated': 'schedule',

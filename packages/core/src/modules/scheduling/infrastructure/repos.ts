@@ -24,7 +24,7 @@ import {
 } from '../../../shared'
 import { DEFAULT_TIME_ZONE } from '../../../shared'
 import type { ClassSession, ClassTemplate, Room, SeatHold, Service, StudioSettings } from '../domain/types'
-import type { HoldSeatTxInput, ReleaseSeatTxInput, SchedulingRepository } from '../application/ports'
+import type { GuestArrivalTxInput, HoldSeatTxInput, ReleaseSeatTxInput, SchedulingRepository } from '../application/ports'
 import {
   eventToFirestore,
   roomFromFirestore,
@@ -300,6 +300,46 @@ export class FirestoreSchedulingRepository implements SchedulingRepository {
         this.writeTxEvents(sid, tx, events)
       })
       return { ok: true, value: undefined }
+    } catch (e) {
+      if (e instanceof TxAbort) return { ok: false, error: e.domainError }
+      throw e
+    }
+  }
+
+  async getSeatHold(ctx: TenantContext, holdId: string): Promise<SeatHold | null> {
+    const snap = await this.col(ctx.studioId, 'seatHolds').doc(holdId).get()
+    return snap.exists ? seatHoldFromFirestore(snap.id, snap.data() ?? {}) : null
+  }
+
+  // Misafir geldi (OR-76). Ayrılan yer belgesi ve olayı tek işlemde (#1). Oturum yalnızca OKUNUR: gün
+  // ve iptal kararı onun üzerinden verilir, ama gelmek kontenjanı değiştirmez.
+  async recordGuestArrival(
+    ctx: TenantContext,
+    input: GuestArrivalTxInput,
+  ): Promise<Result<{ hold: SeatHold; arrivedNow: boolean }, DomainError>> {
+    const sid = ctx.studioId
+    const holdRef = this.col(sid, 'seatHolds').doc(input.holdId)
+    try {
+      const value = await this.db.runTransaction(async (tx) => {
+        const holdSnap = await tx.get(holdRef)
+        if (!holdSnap.exists) throw new TxAbort({ code: 'seat_hold_not_open' })
+        const hold = seatHoldFromFirestore(input.holdId, holdSnap.data() ?? {})
+
+        const sessSnap = await tx.get(this.col(sid, 'classSessions').doc(hold.classSessionId))
+        if (!sessSnap.exists) throw new TxAbort({ code: 'seat_hold_not_open' })
+
+        const decided = input.decide(sessionFromFirestore(hold.classSessionId, sessSnap.data() ?? {}), hold)
+        if (!decided.ok) throw new TxAbort(decided.error)
+
+        const { hold: next, events } = decided.value
+        // Zaten gelmişse yazılacak bir şey yok: belge de olay da dokunulmadan kalır.
+        if (events.length > 0) {
+          tx.set(holdRef, seatHoldToFirestore(next))
+          this.writeTxEvents(sid, tx, events)
+        }
+        return { hold: next, arrivedNow: events.length > 0 }
+      })
+      return { ok: true, value }
     } catch (e) {
       if (e instanceof TxAbort) return { ok: false, error: e.domainError }
       throw e

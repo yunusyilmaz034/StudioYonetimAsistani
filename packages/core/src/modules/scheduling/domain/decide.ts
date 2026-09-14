@@ -1,5 +1,6 @@
 import {
   err,
+  localDateAt,
   ok,
   type ActorRef,
   type AggregateKind,
@@ -24,6 +25,7 @@ import {
   CLASS_SESSION_ROOM_CHANGED,
   CLASS_SESSION_SEAT_HELD,
   CLASS_SESSION_SEAT_RELEASED,
+  CLASS_SESSION_GUEST_ARRIVED,
   CLASS_SESSION_SCHEDULED,
   CLASS_SESSION_SCHEDULED_VERSION,
   STUDIO_SETTINGS_UPDATED,
@@ -647,6 +649,8 @@ export function decideHoldSeat(
     heldBy: ctx.actor,
     releasedAt: null,
     releasedBy: null,
+    arrivedAt: null,
+    arrivedBy: null,
   }
   return ok({
     hold,
@@ -680,6 +684,53 @@ export function decideReleaseSeat(
         ...base(ctx, 'classSession', session.id, session.branchId, { classSessionId: session.id }),
         type: CLASS_SESSION_SEAT_RELEASED,
         payload: { holdId: hold.id, heldCountAfter },
+      },
+    ],
+  })
+}
+
+// ── MİSAFİR GELDİ (owner, 2026-09-14 · OR-76) ────────────────────────────────────────────────
+//
+// *"yer ayırdığımız kişiler ... sistemde olmayabilir dolayısıyla qr okutamazlar ... resepsiyon elle
+// giriş - çıkışına izin versin ve olay kaydında bu kişiye ilişkilendirilsin ... yoklamalar daha tutarlı
+// olacak."*
+//
+// Resepsiyon ayrılan yerin satırından "Giriş"e basınca misafir GELDİ diye yazılır. Bu bir GÖZLEM (#11):
+// kişi kapıdan geçti. Yer ayırmak yalnızca bir niyetti; ikisi ayrı kalır ki "kaç misafir gerçekten
+// geldi" sorusu cevaplanabilsin.
+//
+//   • YALNIZCA SEANSIN GÜNÜ. Geçmiş bir dersin satırından bugün basılan "Giriş", o derse bugün gelinmiş
+//     gibi yazardı. Gün stüdyonun yerel günü; eşik yok, sayı yok (#4).
+//   • İKİNCİ GİRİŞ YENİ OLAY YAZMAZ. Arada çıkıp dönen misafir iki kez gelmiş olmaz; ilk geliş saati kalır.
+//     Kol yine döner — o bu fonksiyonun işi değil.
+//   • Kaldırılmış yer ve iptal edilmiş seans reddedilir.
+//   • İSİM YOK (#6): olayda yalnızca `holdId`. Misafirin adı ayrılan yer belgesinde, durumda kalır.
+export interface GuestArrivalOutcome {
+  readonly hold: SeatHold
+  /** Boş ⇔ misafir zaten gelmişti; yazılacak bir şey yok. */
+  readonly events: readonly NewEvent[]
+}
+
+export function decideGuestArrival(
+  ctx: DecideContext,
+  session: ClassSession,
+  hold: SeatHold,
+  utcOffsetMinutes: number,
+): Result<GuestArrivalOutcome, DomainError> {
+  if (hold.status !== 'held') return err({ code: 'seat_hold_not_open' })
+  if (session.status === 'cancelled') return err({ code: 'session_not_editable' })
+  if (localDateAt(session.startsAt, utcOffsetMinutes) !== localDateAt(ctx.now, utcOffsetMinutes)) {
+    return err({ code: 'guest_arrival_not_today' })
+  }
+  if (hold.arrivedAt !== null) return ok({ hold, events: [] })
+
+  return ok({
+    hold: { ...hold, arrivedAt: ctx.now, arrivedBy: ctx.actor },
+    events: [
+      {
+        ...base(ctx, 'classSession', session.id, session.branchId, { classSessionId: session.id, seatHoldId: hold.id }),
+        type: CLASS_SESSION_GUEST_ARRIVED,
+        payload: { holdId: hold.id },
       },
     ],
   })

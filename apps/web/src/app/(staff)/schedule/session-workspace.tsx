@@ -47,7 +47,7 @@ import type { CalendarSession, PickOption, StaffOption } from '@/server/schedule
 import { AddPastMember } from './add-past-member'
 import { BookingPanel } from './booking-panel'
 import { WaitlistPanel } from './waitlist-panel'
-import { SeatHoldsPanel } from './seat-holds-panel'
+import { GuestArrivals, SeatHoldsPanel } from './seat-holds-panel'
 import { STATUS_LABEL } from './types'
 
 const NONE = '__none__'
@@ -758,6 +758,8 @@ function AttendanceTab({ session, onMutated, canBackdate = true }: { session: Ca
         {/* An empty past class is exactly where a walk-in goes unrecorded, so the control belongs
             here too — this used to return early and there was no way to add anyone. */}
         {canBackdate ? <AddPastMember session={session} onAdded={() => { void load(); onMutated() }} /> : null}
+        {/* Rezervasyonu olmayan bir derste de misafir gelmiş olabilir (OR-76). */}
+        <GuestArrivals sessionId={session.sessionId} />
       </div>
     )
   }
@@ -824,6 +826,9 @@ function AttendanceTab({ session, onMutated, canBackdate = true }: { session: Ca
           )
         })}
       </ul>
+
+      {/* Ayrılan yerlerdeki misafirler — üye listesinin yanında, içinde değil (OR-76). */}
+      <GuestArrivals sessionId={session.sessionId} />
 
       <CorrectionDialog
         entry={correcting}

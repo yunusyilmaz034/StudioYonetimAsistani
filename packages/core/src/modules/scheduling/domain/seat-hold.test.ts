@@ -10,7 +10,7 @@ import {
   type StaffUserId,
   type StudioId,
 } from '../../../shared'
-import { decideHoldSeat, decideReleaseSeat, type DecideContext } from './decide'
+import { decideGuestArrival, decideHoldSeat, decideReleaseSeat, type DecideContext } from './decide'
 import { occupiedSeats, type ClassSession, type SeatHold, type SessionPolicySnapshot } from './types'
 
 // Holding a seat for a non-member (owner, 2026-07-27). The rules that matter are the ones that stop
@@ -79,6 +79,8 @@ const held = (over: Partial<SeatHold> = {}): SeatHold =>
     heldBy: ctx.actor,
     releasedAt: null,
     releasedBy: null,
+    arrivedAt: null,
+    arrivedBy: null,
     ...over,
   }) as SeatHold
 
@@ -184,5 +186,60 @@ describe('decideReleaseSeat', () => {
   it('never drives the counter below zero', () => {
     const r = decideReleaseSeat(ctx, session({ heldCount: 0 }), held())
     expect(r.ok && r.value.session.heldCount).toBe(0)
+  })
+})
+
+// ── MİSAFİR GELDİ (owner, 2026-09-14 · OR-76) ────────────────────────────────────────────────
+describe('decideGuestArrival', () => {
+  const OFF = 180
+  // Stüdyonun yerel gününün ilk milisaniyesi — sınır testleri buna göre.
+  const GUN_BASI = NOW - ((NOW + OFF * 60_000) % 86_400_000)
+
+  it('misafiri GELDİ yazar: belge ve tek olay, olayda isim yok', () => {
+    const r = decideGuestArrival(ctx, session(), held({ cardNumber: 'MS-9931' }), OFF)
+    expect(r.ok).toBe(true)
+    if (r.ok) {
+      expect(r.value.hold.arrivedAt).toBe(NOW)
+      expect(r.value.hold.arrivedBy).toEqual(ctx.actor)
+      expect(r.value.events.map((e) => e.type)).toEqual(['class_session.guest_arrived'])
+      expect(r.value.events[0]?.payload).toEqual({ holdId: 'hold_1' })
+      expect(r.value.events[0]?.related).toEqual({ classSessionId: 'cls_1', seatHoldId: 'hold_1' })
+      const hepsi = JSON.stringify(r.value.events[0])
+      expect(hepsi).not.toContain('Zeynep')
+      expect(hepsi).not.toContain('MS-9931')
+    }
+  })
+
+  it('ikinci giriş yeni olay yazmaz — ilk geliş saati kalır', () => {
+    const ilk = instant(NOW - 10 * 60_000)
+    const r = decideGuestArrival(ctx, session(), held({ arrivedAt: ilk, arrivedBy: ctx.actor }), OFF)
+    expect(r.ok).toBe(true)
+    if (r.ok) {
+      expect(r.value.events).toEqual([])
+      expect(r.value.hold.arrivedAt).toBe(ilk)
+    }
+  })
+
+  it('REDDEDER: kaldırılmış yer', () => {
+    const r = decideGuestArrival(ctx, session(), held({ status: 'released' }), OFF)
+    expect(r).toEqual({ ok: false, error: { code: 'seat_hold_not_open' } })
+  })
+
+  it('REDDEDER: iptal edilmiş seans', () => {
+    const r = decideGuestArrival(ctx, session({ status: 'cancelled' }), held(), OFF)
+    expect(r).toEqual({ ok: false, error: { code: 'session_not_editable' } })
+  })
+
+  it('REDDEDER: dünkü dersin satırından bugün basılan Giriş', () => {
+    const r = decideGuestArrival(ctx, session({ startsAt: instant(NOW - 24 * H) }), held(), OFF)
+    expect(r).toEqual({ ok: false, error: { code: 'guest_arrival_not_today' } })
+  })
+
+  it('sınır: günün ilk anında başlayan ders bugündür, bir milisaniye öncesi dündür', () => {
+    expect(decideGuestArrival(ctx, session({ startsAt: instant(GUN_BASI) }), held(), OFF).ok).toBe(true)
+    expect(decideGuestArrival(ctx, session({ startsAt: instant(GUN_BASI - 1) }), held(), OFF)).toEqual({
+      ok: false,
+      error: { code: 'guest_arrival_not_today' },
+    })
   })
 })

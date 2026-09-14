@@ -36,6 +36,11 @@ export const CLASS_SESSION_ASSIGNED = 'class_session.assigned'
 // type: reception holding a seat and a future partner API holding one both emit this.
 export const CLASS_SESSION_SEAT_HELD = 'class_session.seat_held'
 export const CLASS_SESSION_SEAT_RELEASED = 'class_session.seat_released'
+// The guest the seat was held for ARRIVED (owner, 2026-09-14 · OR-76). An observation (#11): reception
+// let her through. Holding a seat was only an intention, and the two stay apart so "how many Multisport
+// guests actually came" has an answer. Reception's button today, a partner check-in API tomorrow —
+// the producer is not in the type.
+export const CLASS_SESSION_GUEST_ARRIVED = 'class_session.guest_arrived'
 export const STUDIO_SETTINGS_UPDATED = 'studio.settings_updated'
 
 // `class_session.scheduled` is the only versioned-up event in scheduling:
@@ -174,4 +179,10 @@ export type ClassSessionSeatHeldPayload = {
 export type ClassSessionSeatReleasedPayload = {
   readonly holdId: string
   readonly heldCountAfter: number
+}
+
+// OR-76. No name, no card number (#6) — only which seat. A second entry for the same guest writes
+// nothing: she arrived once, and the first arrival time is the one that stays.
+export type ClassSessionGuestArrivedPayload = {
+  readonly holdId: string
 }

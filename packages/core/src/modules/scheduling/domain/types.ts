@@ -367,6 +367,9 @@ export interface SeatHold {
   readonly heldBy: ActorRef
   readonly releasedAt: Instant | null
   readonly releasedBy: ActorRef | null
+  /** İlk kez içeri alındığı an (OR-76). `null` ⇔ henüz gelmedi. Belgelerin çoğunda alan yok = null. */
+  readonly arrivedAt: Instant | null
+  readonly arrivedBy: ActorRef | null
 }
 
 /**

@@ -238,6 +238,8 @@ export function seatHoldToFirestore(h: SeatHold): DocumentData {
     heldBy: h.heldBy,
     releasedAt: h.releasedAt === null ? null : toTs(h.releasedAt),
     releasedBy: h.releasedBy,
+    arrivedAt: h.arrivedAt === null ? null : toTs(h.arrivedAt),
+    arrivedBy: h.arrivedBy,
   }
 }
 
@@ -255,5 +257,8 @@ export function seatHoldFromFirestore(id: string, d: DocumentData): SeatHold {
     heldBy: d.heldBy as SeatHold['heldBy'],
     releasedAt: d.releasedAt ? instant((d.releasedAt as Timestamp).toMillis()) : null,
     releasedBy: (d.releasedBy as SeatHold['releasedBy'] | undefined) ?? null,
+    // 2026-09-14'ten önce yazılan belgelerde alan YOK: o misafirlerin gelişi hiç işaretlenmedi.
+    arrivedAt: d.arrivedAt ? instant((d.arrivedAt as Timestamp).toMillis()) : null,
+    arrivedBy: (d.arrivedBy as SeatHold['arrivedBy'] | undefined) ?? null,
   }
 }

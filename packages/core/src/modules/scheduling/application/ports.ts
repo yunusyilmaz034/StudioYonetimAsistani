@@ -12,7 +12,7 @@ import type {
 import type { ClassSession, ClassTemplate, Room, SeatHold, Service, StudioSettings } from '../domain/types'
 import type { StudioHours } from '../domain/working-hours'
 import type { DomainError, Result } from '../../../shared'
-import type { SeatHoldOutcome } from '../domain/decide'
+import type { GuestArrivalOutcome, SeatHoldOutcome } from '../domain/decide'
 
 // Holding a seat writes the SESSION counter and the hold document together, in one transaction.
 // Split them and the counter drifts from the holds, and reception is eventually told a full class
@@ -25,6 +25,13 @@ export interface HoldSeatTxInput {
 export interface ReleaseSeatTxInput {
   readonly holdId: string
   readonly decide: (session: ClassSession, hold: SeatHold) => Result<SeatHoldOutcome, DomainError>
+}
+
+// Misafir geldi (OR-76): ayrılan yer belgesi ve olayı tek işlemde. Oturum okunur ama YAZILMAZ —
+// gelmek kontenjanı değiştirmez, yer zaten ayrılmıştı.
+export interface GuestArrivalTxInput {
+  readonly holdId: string
+  readonly decide: (session: ClassSession, hold: SeatHold) => Result<GuestArrivalOutcome, DomainError>
 }
 
 // One repository for the scheduling aggregates. Each save writes the entity + its
@@ -56,6 +63,12 @@ export interface SchedulingRepository {
   releaseSeat(ctx: TenantContext, input: ReleaseSeatTxInput): Promise<Result<void, DomainError>>
   /** Seats still held for one session — what the desk needs to see who a seat is for. */
   listSeatHolds(ctx: TenantContext, classSessionId: ClassSessionId): Promise<readonly SeatHold[]>
+  getSeatHold(ctx: TenantContext, holdId: string): Promise<SeatHold | null>
+  /** `arrivedNow: false` ⇔ zaten gelmişti, hiçbir şey yazılmadı. */
+  recordGuestArrival(
+    ctx: TenantContext,
+    input: GuestArrivalTxInput,
+  ): Promise<Result<{ hold: SeatHold; arrivedNow: boolean }, DomainError>>
 
   getSession(ctx: TenantContext, id: ClassSessionId): Promise<ClassSession | null>
   saveSession(ctx: TenantContext, session: ClassSession, events: readonly NewEvent[]): Promise<void>
