@@ -7,9 +7,19 @@ import {
   type Transaction,
 } from 'firebase-admin/firestore'
 
-import { instant, newEventId, type NewEvent, type StaffUserId, type StudioId, type TenantContext } from '../../../shared'
-import type { IdentityRepository, StaffLeaveRepository, StaffShiftRepository } from '../application/ports'
-import type { StaffLeave, StaffMember, StaffShift } from '../domain/types'
+import {
+  instant,
+  newEventId,
+  ok,
+  type DomainError,
+  type NewEvent,
+  type Result,
+  type StaffUserId,
+  type StudioId,
+  type TenantContext,
+} from '../../../shared'
+import type { IdentityRepository, StaffLeaveRepository, StaffShiftRepository, StaffWeekPlanRepository } from '../application/ports'
+import type { StaffLeave, StaffMember, StaffShift, StaffWeekPlan, WeekPlanEntries } from '../domain/types'
 import { staffFromFirestore, staffToFirestore } from './mappers'
 
 export class FirestoreIdentityRepository implements IdentityRepository {
@@ -219,6 +229,90 @@ export class FirestoreStaffLeaveRepository implements StaffLeaveRepository {
       decidedBy: (d.decidedBy ?? null) as StaffLeave['decidedBy'],
       decidedAt: d.decidedAt == null ? null : instant(ts(d.decidedAt)),
       decisionReason: String(d.decisionReason ?? ''),
+    }
+  }
+
+  private writeEvents(sid: StudioId, tx: Transaction, events: readonly NewEvent[]): void {
+    for (const e of events) {
+      tx.set(this.db.collection('studios').doc(sid).collection('events').doc(newEventId()), {
+        ...e,
+        occurredAt: Timestamp.fromMillis(e.occurredAt as number),
+        recordedAt: FieldValue.serverTimestamp(),
+      })
+    }
+  }
+}
+
+// ── HAFTALIK VARDİYA PLANI (owner, 2026-09-14 · OR-77) ─────────────────────────────────────
+//
+// `staffWeekPlans/{pazartesi}`: bir hafta, bir belge. Belge kimliği tarih olduğu için "bu haftanın
+// planı" bir sorgu değil, tek bir okuma — ve indeks gerektirmiyor.
+export class FirestoreStaffWeekPlanRepository implements StaffWeekPlanRepository {
+  constructor(private readonly db: Firestore = getFirestore()) {}
+
+  private col(sid: StudioId): CollectionReference {
+    return this.db.collection('studios').doc(sid).collection('staffWeekPlans')
+  }
+
+  async getWeekPlan(ctx: TenantContext, weekStart: string): Promise<StaffWeekPlan | null> {
+    const d = await this.col(ctx.studioId).doc(weekStart).get()
+    return d.exists ? this.oku(weekStart, d.data() as Record<string, unknown>) : null
+  }
+
+  async getWeekPlans(ctx: TenantContext, weekStarts: readonly string[]): Promise<readonly StaffWeekPlan[]> {
+    if (weekStarts.length === 0) return []
+    const snaps = await this.db.getAll(...weekStarts.map((w) => this.col(ctx.studioId).doc(w)))
+    return snaps.filter((s) => s.exists).map((s) => this.oku(s.id, s.data() as Record<string, unknown>))
+  }
+
+  async updateWeekPlan(
+    ctx: TenantContext,
+    weekStart: string,
+    decide: (current: StaffWeekPlan | null) => Result<{ readonly next: StaffWeekPlan; readonly events: readonly NewEvent[] }, DomainError>,
+  ): Promise<Result<StaffWeekPlan, DomainError>> {
+    const ref = this.col(ctx.studioId).doc(weekStart)
+    return this.db.runTransaction(async (tx: Transaction) => {
+      const snap = await tx.get(ref)
+      const current = snap.exists ? this.oku(weekStart, snap.data() as Record<string, unknown>) : null
+      const decided = decide(current)
+      if (!decided.ok) return decided
+      // Değişiklik yoksa olay da yok, yazım da yok (aynı taslağı iki kez kaydetmek bir eylem değildir).
+      if (decided.value.events.length > 0) {
+        const p = decided.value.next
+        const ts = (v: number | null) => (v === null ? null : Timestamp.fromMillis(v))
+        tx.set(ref, {
+          weekStart: p.weekStart,
+          status: p.status,
+          draft: p.draft,
+          published: p.published,
+          version: p.version,
+          returnReason: p.returnReason,
+          updatedAt: Timestamp.fromMillis(p.updatedAt as number),
+          updatedBy: p.updatedBy,
+          submittedAt: ts(p.submittedAt as number | null),
+          approvedAt: ts(p.approvedAt as number | null),
+          approvedBy: p.approvedBy,
+        })
+        this.writeEvents(ctx.studioId, tx, decided.value.events)
+      }
+      return ok(decided.value.next)
+    })
+  }
+
+  private oku(weekStart: string, d: Record<string, unknown>): StaffWeekPlan {
+    const ts = (v: unknown) => (v ? instant((v as Timestamp).toMillis()) : null)
+    return {
+      weekStart,
+      status: (d.status as StaffWeekPlan['status'] | undefined) ?? 'draft',
+      draft: (d.draft as WeekPlanEntries | undefined) ?? {},
+      published: (d.published as WeekPlanEntries | null | undefined) ?? null,
+      version: Number(d.version ?? 0),
+      returnReason: String(d.returnReason ?? ''),
+      updatedAt: ts(d.updatedAt) ?? instant(0),
+      updatedBy: (d.updatedBy as StaffUserId | null | undefined) ?? null,
+      submittedAt: ts(d.submittedAt),
+      approvedAt: ts(d.approvedAt),
+      approvedBy: (d.approvedBy as StaffUserId | null | undefined) ?? null,
     }
   }
 

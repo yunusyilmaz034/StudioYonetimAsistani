@@ -99,6 +99,9 @@ service cloud.firestore {
           // ve kendi saatini yazan biri, bir başkasınınkini yazamamalı. Karar bunu zaten reddediyor,
           // bu satır istemcinin kararı hiç atlayamamasını sağlıyor (#8).
           'staffShifts',
+          // 2026-09-14 — haftalık vardiya planı (OR-77). Taslak ile yayındaki plan aynı belgede: istemci
+          // okuyabilseydi personel onaylanmamış taslağı görürdü, yazabilseydi onayı atlardı.
+          'staffWeekPlans',
           // v1.27 — internal counters (public-form rate limits, hashed IPs). Server-only; no client read.
           'rateLimits',
           // 2026-07-30 — import batches. Each one lists the members and packages one file created,

@@ -7,6 +7,7 @@ import { deriveAdvisorItems } from '@/server/advisor-query'
 import { doorRefusalAdvisorItems } from '@/server/door-refusal-checklist'
 import { hotLeadAdvisorItems } from '@/server/lead-checklist'
 import { leaveAdvisorItems } from '@/server/leave-checklist'
+import { weekPlanAdvisorItems } from '@/server/week-plan-checklist'
 import { loadOwnerDashboard } from '@/server/owner-dashboard'
 import { onlinePaymentAdvisorItems } from '@/server/online-payment-checklist'
 import { loadSnoozedItemIds } from '@/server/checklist-snooze'
@@ -45,16 +46,17 @@ async function ekListe(
 export default async function HomePage() {
   const ctx = await requirePageAccess('/')
   const now = Date.now()
-  const [data, todayOps, hotLeads, doorRefusals, leaves, onlinePayments, snoozed] = await Promise.all([
+  const [data, todayOps, hotLeads, doorRefusals, leaves, onlinePayments, weekPlans, snoozed] = await Promise.all([
     loadOwnerDashboard(ctx, now),
     loadTodayOps(ctx, now),
     ekListe('WhatsApp lead’leri', () => hotLeadAdvisorItems(ctx)),
     ekListe('Kapıda kalanlar', () => doorRefusalAdvisorItems(ctx)),
     ekListe('İzinler', () => leaveAdvisorItems(ctx)),
     ekListe('Online ödemeler', () => onlinePaymentAdvisorItems(ctx)),
+    ekListe('Vardiya planı', () => weekPlanAdvisorItems(ctx)),
     loadSnoozedItemIds(ctx.studioId as string, now),
   ])
-  const eksik = [hotLeads, doorRefusals, leaves, onlinePayments].map((x) => x.hata).filter((x): x is string => x !== null)
+  const eksik = [hotLeads, doorRefusals, leaves, onlinePayments, weekPlans].map((x) => x.hata).filter((x): x is string => x !== null)
   // Card money FIRST — it is the one thing on this list that has already happened, and until it is
   // somewhere he looks, "did that payment arrive?" is a question only the provider's panel answers.
   // Then hot WhatsApp leads (act now), then the dashboard-derived advisor items.
@@ -62,7 +64,7 @@ export default async function HomePage() {
   // birinden daha ileridedir — ve o gün aranmazsa gitmiş sayılır.
     // Eğitmensiz kalan ders, kapıda kalan üyeden SONRA ama lead'lerden önce: biri bugünün işi, öbürü
   // bu haftanın — ama ikisi de kaçırılırsa telefonla öğrenilir.
-  const allItems = [...doorRefusals.items, ...leaves.items, ...onlinePayments.items, ...hotLeads.items, ...deriveAdvisorItems(data)]
+  const allItems = [...doorRefusals.items, ...leaves.items, ...weekPlans.items, ...onlinePayments.items, ...hotLeads.items, ...deriveAdvisorItems(data)]
   // A line already ticked off stays off for its cooldown — reception called that member, and a call is
   // not work again tomorrow (owner, 2026-09-03). Filtered HERE, before the AI narrator sees the list,
   // so the briefing at the top counts the same work the rows below show.

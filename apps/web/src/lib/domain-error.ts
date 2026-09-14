@@ -322,6 +322,18 @@ export function domainErrorMessage(error: DomainError): string {
       return 'Bitiş tarihi başlangıçtan önce olamaz.'
     case 'leave_overlaps':
       return 'Bu tarihlerde zaten bir izin kaydın var. Önce onu düzelt.'
+    case 'week_plan_invalid':
+      return 'Plandaki bir saat ya da gün geçersiz. Saatleri SS:DD biçiminde ve bu haftanın günlerine girin.'
+    case 'week_plan_past':
+      return 'Geçmiş bir haftanın planı değiştirilemez.'
+    case 'week_plan_editor_required':
+      return 'Vardiya planını yalnızca resepsiyon ve owner düzenleyebilir.'
+    case 'week_plan_approver_required':
+      return 'Vardiya planını yalnızca owner onaylayabilir ya da geri gönderebilir.'
+    case 'week_plan_unchanged':
+      return 'Yayındaki plana göre değişen bir şey yok; onaya gönderilecek bir değişiklik bulunmuyor.'
+    case 'week_plan_not_submitted':
+      return 'Bu plan onay beklemiyor. Önce onaya gönderilmesi gerekiyor.'
     case 'no_open_shift':
       return 'Açık bir mesain yok. Önce mesaiyi başlat.'
     // ── Program sürümü geri çekme (owner onayı, 2026-09-03) ──

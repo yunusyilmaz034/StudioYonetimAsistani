@@ -1,5 +1,5 @@
-import type { Clock, NewEvent, StaffUserId, TenantContext } from '../../../shared'
-import type { StaffLeave, StaffMember, StaffShift } from '../domain/types'
+import type { Clock, DomainError, NewEvent, Result, StaffUserId, TenantContext } from '../../../shared'
+import type { StaffLeave, StaffMember, StaffShift, StaffWeekPlan } from '../domain/types'
 
 // Admin SDK only (AD-15). Staff are written by the owner, from the product — and, exactly once per
 // studio, by a break-glass bootstrap script, because somebody has to be able to log in first.
@@ -60,4 +60,27 @@ export interface StaffLeaveDeps {
    * sebebidir. Bağımlılık değil, soru.
    */
   readonly affectedSessions: (ctx: TenantContext, staffUserId: StaffUserId, fromAt: number, toAt: number) => Promise<number>
+}
+
+// ── HAFTALIK VARDİYA PLANI (owner, 2026-09-14 · OR-77) ─────────────────────────────────────
+export interface StaffWeekPlanRepository {
+  getWeekPlan(ctx: TenantContext, weekStart: string): Promise<StaffWeekPlan | null>
+  /** Birkaç hafta birden (bu hafta + önümüzdeki hafta). Olmayan hafta listede yoktur. */
+  getWeekPlans(ctx: TenantContext, weekStarts: readonly string[]): Promise<readonly StaffWeekPlan[]>
+  /**
+   * Oku → karar ver → yaz, TEK işlemde. Resepsiyon kaydederken owner onaylıyorsa biri ötekinin
+   * üzerine yazmasın: onaylanan plan, onay anında okunan plandır. Olay yoksa hiçbir şey yazılmaz.
+   */
+  updateWeekPlan(
+    ctx: TenantContext,
+    weekStart: string,
+    decide: (current: StaffWeekPlan | null) => Result<{ readonly next: StaffWeekPlan; readonly events: readonly NewEvent[] }, DomainError>,
+  ): Promise<Result<StaffWeekPlan, DomainError>>
+}
+
+export interface StaffWeekPlanDeps {
+  readonly repo: StaffWeekPlanRepository
+  readonly clock: Clock
+  /** "Bu hafta geçti mi" sorusundaki GÜN stüdyonun yerel günüdür. */
+  readonly utcOffsetMinutes: number
 }

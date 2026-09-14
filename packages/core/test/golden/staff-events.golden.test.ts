@@ -18,6 +18,16 @@ import reactivated from './staff.reactivated.v1.json'
 import roleChanged from './staff.role_changed.v1.json'
 import shiftEnded from './staff.shift_ended.v1.json'
 import shiftStarted from './staff.shift_started.v1.json'
+import weekPlanApproved from './staff.week_plan_approved.v1.json'
+import weekPlanDraftSaved from './staff.week_plan_draft_saved.v1.json'
+import weekPlanReturned from './staff.week_plan_returned.v1.json'
+import weekPlanSubmitted from './staff.week_plan_submitted.v1.json'
+import {
+  decideApproveWeekPlan,
+  decideReturnWeekPlan,
+  decideSaveWeekPlanDraft,
+  decideSubmitWeekPlan,
+} from '../../src/modules/identity/domain/week-plan'
 
 // Staff — who may work here, and as what (v1.27 S1 · owner, 2026-07-13).
 //
@@ -208,5 +218,42 @@ describe('mesai olayları', () => {
     if (!r.ok) return
     expect(r.value.events[0]?.type).toBe('staff.crossed')
     expect(r.value.events[0]?.payload).toEqual(crossed)
+  })
+})
+
+// ── HAFTALIK VARDİYA PLANI (owner, 2026-09-14 · OR-77) ─────────────────────────────────────
+//
+// Plan olayları isim taşımaz (#6): opak personel kimliği, gün ve saat. Onay olayı haftanın bütün
+// saatlerini taşır — "o hafta plan neydi" sorusu belge değişse de cevaplanabilsin.
+describe('haftalık vardiya planı olayları', () => {
+  const HAFTA = '2026-09-21'
+  const CUMA = '2026-09-18'
+  const entries = {
+    usr_1: { '2026-09-21': { start: '09:00', end: '17:00' }, '2026-09-22': { start: '09:00', end: '17:00' } },
+  }
+  const taslak = () => {
+    const r = decideSaveWeekPlanDraft(ctx('receptionist') as never, null, { weekStart: HAFTA, entries }, CUMA)
+    if (!r.ok) throw new Error('taslak')
+    return r
+  }
+  const gonderilmis = () => {
+    const r = decideSubmitWeekPlan(ctx('receptionist') as never, taslak().value.next, CUMA)
+    if (!r.ok) throw new Error('gönderim')
+    return r
+  }
+
+  it('staff.week_plan_draft_saved', () => {
+    expect(taslak().value.events[0]?.payload).toEqual(weekPlanDraftSaved)
+  })
+  it('staff.week_plan_submitted', () => {
+    expect(gonderilmis().value.events[0]?.payload).toEqual(weekPlanSubmitted)
+  })
+  it('staff.week_plan_approved — haftanın bütün saatleri', () => {
+    const r = decideApproveWeekPlan(ctx('owner') as never, gonderilmis().value.next, CUMA)
+    expect(r.ok && r.value.events[0]?.payload).toEqual(weekPlanApproved)
+  })
+  it('staff.week_plan_returned — sebebiyle', () => {
+    const r = decideReturnWeekPlan(ctx('owner') as never, gonderilmis().value.next, 'Pazartesi resepsiyon eksik')
+    expect(r.ok && r.value.events[0]?.payload).toEqual(weekPlanReturned)
   })
 })

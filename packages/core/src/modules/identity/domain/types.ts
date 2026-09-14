@@ -55,3 +55,45 @@ export interface StaffLeave {
   /** Reddin sebebi. Sebepsiz bir red, çalışana hiçbir şey söylemez. */
   readonly decisionReason: string
 }
+
+// ── HAFTALIK VARDİYA PLANI (owner, 2026-09-14 · OR-77) ─────────────────────────────────────
+
+/** Bir günün planlı mesaisi, stüdyo yerel saatiyle 'HH:MM'. GÜNDE TEK BLOK (OR-77, karar 1). */
+export interface ShiftBlock {
+  readonly start: string
+  readonly end: string
+}
+
+/** personel kimliği → 'YYYY-MM-DD' → blok. Yazılmamış gün = çalışmıyor. */
+export type WeekPlanEntries = Readonly<Record<string, Readonly<Record<string, ShiftBlock>>>>
+
+/**
+ * `draft` — üzerinde çalışılıyor (yayında daha eski bir sürüm olabilir).
+ * `submitted` — owner onayı bekliyor.
+ * `published` — yayında, bekleyen değişiklik yok (`draft` ile `published` aynı).
+ */
+export type WeekPlanStatus = 'draft' | 'submitted' | 'published'
+
+/**
+ * Bir haftanın planı. Belge kimliği haftanın pazartesisi: bir hafta, bir plan.
+ *
+ * İKİ KATMAN, bilerek: resepsiyonun düzenlediği `draft` ve personelin gördüğü `published`. Hafta içi
+ * değişiklik onaylanana kadar personel yayındakini görür (OR-77, karar 2) — onaylanmamış bir saati
+ * kesinmiş gibi göstermek, gelmemesi gereken birini getirir.
+ */
+export interface StaffWeekPlan {
+  readonly weekStart: string
+  readonly status: WeekPlanStatus
+  readonly draft: WeekPlanEntries
+  /** `null` ⇔ bu hafta hiç onaylanmadı. Personel "plan henüz onaylanmadı" görür. */
+  readonly published: WeekPlanEntries | null
+  /** Kaç kez yayınlandı. */
+  readonly version: number
+  /** Owner'ın son geri gönderme sebebi; yeniden gönderilince temizlenir. */
+  readonly returnReason: string
+  readonly updatedAt: Instant
+  readonly updatedBy: StaffUserId | null
+  readonly submittedAt: Instant | null
+  readonly approvedAt: Instant | null
+  readonly approvedBy: StaffUserId | null
+}

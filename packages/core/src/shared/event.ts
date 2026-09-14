@@ -31,6 +31,9 @@ export type AggregateKind =
   | 'member'
   // v1.27 — who may work here, and as what. Additive: no existing event's `subject.kind` changes.
   | 'staff'
+  // 2026-09-14 (OR-77) — a week's shift plan. Its subject is a WEEK, not one person: the plan is approved
+  // as a whole. Additive: no existing event's `subject.kind` changes.
+  | 'staffWeekPlan'
   | 'entitlement'
   | 'product'
   | 'service'

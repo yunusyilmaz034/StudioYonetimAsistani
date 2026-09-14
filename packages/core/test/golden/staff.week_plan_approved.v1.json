@@ -1,0 +1,8 @@
+{
+  "weekStart": "2026-09-21",
+  "version": 1,
+  "blocks": [
+    { "staffUserId": "usr_1", "date": "2026-09-21", "start": "09:00", "end": "17:00" },
+    { "staffUserId": "usr_1", "date": "2026-09-22", "start": "09:00", "end": "17:00" }
+  ]
+}

@@ -1706,3 +1706,14 @@ planı · (3) "rapor" türündeki izne dosya eklemek.
 onay bekliyor" hatırlatması düşer. Onaylı izinli bir güne vardiya yazılırsa uyarı çıkar.
 
 **Büyümeye en yatkın yer** (OR-72 ile aynı): fazla mesai hesabı, takas onay zinciri, puantaj. Orada durulacak.
+
+**Ekran kararları (2026-09-14, owner onayladı — hepsi önerilen seçenek):**
+- **Haftalık tablo:** masaüstünde satırlar personel, sütunlar günler; telefonda aynı veri gün gün açılır.
+  Hücrede saat, izinli günde "İzinli/Raporlu" işareti; izinli güne saat yazılırsa kırmızı uyarı. Yayındakinden
+  farklı hücre sarı çerçeveli. "Geçen haftayı kopyala" ve "Hafta içi her güne" kısayolları.
+- **Owner beğenmezse sebep yazıp geri gönderir;** resepsiyon sebebi planın üstünde görür. Yayındaki plan değişmez.
+- **Onaylanmamış hafta:** personel "Plan henüz onaylanmadı" görür, taslağı değil. Panoda owner'a acil uyarı.
+- **Plana giren personel:** aktif resepsiyon ve eğitmenler. Owner ve kiosk hesabı listede yok; planda kaydı
+  olup sonradan pasife alınan kişi görünmeye devam eder.
+- **Pano hatırlatması yalnızca planı kullanmaya başlamış stüdyoda:** hiç plan belgesi yoksa panoya hiçbir şey
+  düşmez — her gün "plan yok" demek gürültüdür.

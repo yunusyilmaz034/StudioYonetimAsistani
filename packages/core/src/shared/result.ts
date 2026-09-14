@@ -187,6 +187,14 @@ export type DomainError =
   // iki cevabı demektir ve takvimdeki etkiyi hesaplarken hangisinin geçerli olduğu bilinemez.
   | { readonly code: 'invalid_range' }
   | { readonly code: 'leave_overlaps' }
+  // OR-77 — haftalık vardiya planı. Geçmiş hafta yazılmaz; planı resepsiyon ve owner düzenler, yalnızca
+  // owner onaylar; değişmemiş bir taslak onaya gönderilmez; onay beklemeyen plan onaylanmaz.
+  | { readonly code: 'week_plan_invalid' }
+  | { readonly code: 'week_plan_past' }
+  | { readonly code: 'week_plan_editor_required' }
+  | { readonly code: 'week_plan_approver_required' }
+  | { readonly code: 'week_plan_unchanged' }
+  | { readonly code: 'week_plan_not_submitted' }
   // Açık vardiya varken ikincisi açılmaz: gün sonunda hangisinin gerçek olduğu bilinemez olurdu.
   | { readonly code: 'shift_already_open' }
   | { readonly code: 'no_open_shift' }

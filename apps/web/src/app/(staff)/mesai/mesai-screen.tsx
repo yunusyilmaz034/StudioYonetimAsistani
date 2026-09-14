@@ -191,6 +191,40 @@ export function MesaiScreen({ view, ownerMu, bugun }: { view: ShiftView; ownerMu
         )}
       </Card>
 
+      {/* HAFTAM (owner, 2026-09-14 · OR-77): *"personel de kendi ekranında bu mesai tablosunu görüp ben
+          şu gün şu saatte gelip gitmeliyim diye bilsin."* Yalnızca YAYINDAKİ plan; taslak gösterilmez. */}
+      {view.benimHaftam ? (
+        <Card className="space-y-4 p-5">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Haftam</h2>
+          {view.benimHaftam.map((h, i) => (
+            <div key={h.weekStart} className="space-y-2">
+              <p className="text-sm font-medium text-foreground">{i === 0 ? 'Bu hafta' : 'Önümüzdeki hafta'}</p>
+              {!h.published ? (
+                <p className="rounded-lg bg-muted p-3 text-sm text-muted-foreground">Plan henüz onaylanmadı.</p>
+              ) : (
+                <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border">
+                  {h.days.map((d) => (
+                    <li
+                      key={d.date}
+                      className={`flex items-center justify-between gap-3 px-3 py-2 text-sm ${d.date === bugun ? 'bg-primary/5' : ''}`}
+                    >
+                      <span className={d.date === bugun ? 'font-semibold text-foreground' : 'text-foreground'}>{gunBasligi(d.date)}</span>
+                      {d.block ? (
+                        <span className="shrink-0 font-medium tabular-nums text-foreground">
+                          {d.block.start}–{d.block.end}
+                        </span>
+                      ) : (
+                        <span className="shrink-0 text-muted-foreground">{d.leave ? 'İzinli' : 'Çalışmıyorsun'}</span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          ))}
+        </Card>
+      ) : null}
+
       {/* İZİN, MESAİNİN YANINDA (owner onayı, 2026-09-11): ikisi de "kim ne zaman burada" sorusunun
           parçası. Ayrı bir ekrana koymak, izin isteyeni üçüncü bir yeri hatırlamaya zorlardı. */}
       <IzinPanel ownerMu={ownerMu} />
@@ -264,6 +298,15 @@ export function MesaiScreen({ view, ownerMu, bugun }: { view: ShiftView; ownerMu
                       </span>
                     ))}
                   </div>
+                  {/* PLAN İLE GERÇEKLEŞEN (OR-77): yalnızca görünür — kesinti, ceza, puantaj yok. */}
+                  {p.planned ? (
+                    <p className="text-xs tabular-nums text-muted-foreground">
+                      Plan {p.planned.start}–{p.planned.end}
+                      {p.absent ? <span className="ml-1 font-medium text-danger">· gelmedi</span> : null}
+                      {p.lateMinutes ? <span className="ml-1 font-medium text-warning">· {p.lateMinutes} dk geç</span> : null}
+                      {p.earlyMinutes ? <span className="ml-1 font-medium text-warning">· {p.earlyMinutes} dk erken çıktı</span> : null}
+                    </p>
+                  ) : null}
                   {p.crossings.length > 0 ? (
                     <ol className="flex flex-wrap gap-1.5" aria-label={`${p.displayName} turnike geçişleri`}>
                       {p.crossings.map((c, i) => (
@@ -287,9 +330,9 @@ export function MesaiScreen({ view, ownerMu, bugun }: { view: ShiftView; ownerMu
                         </li>
                       ))}
                     </ol>
-                  ) : (
+                  ) : p.shifts.length > 0 ? (
                     <p className="text-xs text-muted-foreground">Turnike geçişi yok — mesai elle açılmış.</p>
-                  )}
+                  ) : null}
                 </li>
               ))}
             </ul>

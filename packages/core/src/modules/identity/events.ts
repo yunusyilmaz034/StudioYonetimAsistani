@@ -168,3 +168,56 @@ export type StaffShiftEndedPayload = {
    *  uzunluğu, o vardiya hakkında sorulan ilk sorudur. */
   readonly minutes: number
 }
+
+// ── HAFTALIK VARDİYA PLANI (owner, 2026-09-14 · OR-77) ─────────────────────────────────────
+//
+// *"haftalık mesai planlaması olsun … cuma bu planlama yapılsın cumartesi onaylansın ve hafta hazır
+// olsun herkes bilsin, personel de kendi ekranında bu mesai tablosunu görüp ben şu gün şu saatte gelip
+// gitmeliyim diye bilsin."*
+//
+// Akış: resepsiyon TASLAK hazırlar → onaya gönderir → owner onaylar (plan YAYINA çıkar) ya da sebep
+// yazıp geri gönderir. Yayından sonraki değişiklik yine taslaktır ve yeniden onay ister; personel o
+// arada yayındaki eski saati görür.
+//
+// PLAN BİR NİYETTİR, geçiş bir gözlem (#11). İkisi ayrı kalır: plan ile turnikedeki gerçek giriş-çıkış
+// yan yana konup karşılaştırılır — ama biri ötekinin yerine yazılmaz.
+//
+// ONAY OLAYI HAFTANIN BÜTÜN SAATLERİNİ TAŞIR. "O hafta plan neydi, kim geç kaldı" sorusu altı ay sonra
+// da cevaplanabilsin: belge değişir, olay değişmez. İsim yok (#6) — yalnızca opak personel kimliği.
+export const STAFF_WEEK_PLAN_DRAFT_SAVED = 'staff.week_plan_draft_saved'
+export const STAFF_WEEK_PLAN_SUBMITTED = 'staff.week_plan_submitted'
+export const STAFF_WEEK_PLAN_APPROVED = 'staff.week_plan_approved'
+export const STAFF_WEEK_PLAN_RETURNED = 'staff.week_plan_returned'
+
+export type StaffWeekPlanDraftSavedPayload = {
+  /** Haftanın pazartesisi, 'YYYY-MM-DD' (stüdyonun yerel günü). */
+  readonly weekStart: string
+  readonly staffCount: number
+  readonly blockCount: number
+}
+
+export type StaffWeekPlanSubmittedPayload = {
+  readonly weekStart: string
+  readonly staffCount: number
+  readonly blockCount: number
+  /** Yayındaki plana göre değişen (personel, gün) hücresi. İlk gönderimde her dolu hücre değişmiştir. */
+  readonly changedDays: number
+}
+
+export type StaffWeekPlanApprovedPayload = {
+  readonly weekStart: string
+  /** Bu hafta kaçıncı kez yayınlandı. 1 = ilk onay; üstü = hafta içi değişiklik. */
+  readonly version: number
+  readonly blocks: readonly {
+    readonly staffUserId: string
+    readonly date: string
+    readonly start: string
+    readonly end: string
+  }[]
+}
+
+export type StaffWeekPlanReturnedPayload = {
+  readonly weekStart: string
+  /** Sebepsiz bir geri gönderme resepsiyona hiçbir şey söylemez (OR-72'deki red kuralıyla aynı). */
+  readonly reason: string
+}

@@ -32,3 +32,26 @@ export { requestStaffLeave, decideStaffLeave, cancelStaffLeave } from './applica
 export type { StaffLeaveDeps, StaffLeaveRepository } from './application/ports'
 export type { StaffLeave } from './domain/types'
 export { FirestoreStaffLeaveRepository } from './infrastructure/repos'
+
+// ── Haftalık vardiya planı (owner, 2026-09-14 · OR-77). Resepsiyon taslak → owner onay → yayın;
+//    personel yayındakini görür. Plan niyettir, turnike gözlemdir — ikisi yan yana karşılaştırılır. ──
+export {
+  approveWeekPlan,
+  loadWeekPlans,
+  returnWeekPlan,
+  saveWeekPlanDraft,
+  submitWeekPlan,
+} from './application/week-plan'
+export {
+  decideApproveWeekPlan,
+  decideReturnWeekPlan,
+  decideSaveWeekPlanDraft,
+  decideSubmitWeekPlan,
+  leaveDaysInWeek,
+  mondayOf,
+  planVsActual,
+  weekDates,
+} from './domain/week-plan'
+export type { StaffWeekPlanDeps, StaffWeekPlanRepository } from './application/ports'
+export type { ShiftBlock, StaffWeekPlan, WeekPlanEntries, WeekPlanStatus } from './domain/types'
+export { FirestoreStaffWeekPlanRepository } from './infrastructure/repos'

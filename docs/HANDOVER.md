@@ -28,10 +28,27 @@ karşılaştırılır, ceza yok · rapor yalnızca yükleyen + owner). **Üç i�
 1. ✅ **Günlük giriş-çıkışlar** — Mesai ekranında owner kartı: önceki/sonraki gün + tarih seçici
    (`?gun=YYYY-MM-DD`, gelecek gün yok). Her personelin vardiya aralığı ve altında o günkü **her geçiş**
    (yeşil giriş · kırmızı çıkış · gri yön bilinmiyor). Sorgu `staff.crossed` olaylarını mevcut
-   `(type ASC, recordedAt DESC)` indeksiyle, **aynı yönde** okuyor — yeni indeks yok. Commit edildi,
-   **deploy onay bekliyor**.
-2. ⏳ **Haftalık vardiya planı** — başlanmadı. Resepsiyon taslak → owner onay → yayın; personel kendi
-   ekranında görür; onaylı izinli güne vardiya uyarı verir; panoya "plan hazırlanmadı / onay bekliyor".
+   `(type ASC, recordedAt DESC)` indeksiyle, **aynı yönde** okuyor — yeni indeks yok. ✅ Canlıda
+   `build-2026-09-14-003` (commit `9d935f1`).
+2. ✅ **Haftalık vardiya planı** — kod bitti, commit edildi, **deploy owner onayı bekliyor** (panel +
+   `firestore.rules`: `staffWeekPlans` sunucuya kapalı listeye eklendi. Kural deploy edilene kadar yalnızca
+   masa rolleri — owner ve resepsiyon, zaten planın editörleri — istemci SDK ile okuyabilir; eğitmen okuyamaz).
+   - Çekirdek `identity/domain/week-plan.ts` (saf): taslak kaydet · onaya gönder · onayla · geri gönder ·
+     `leaveDaysInWeek` · `planVsActual`. Belge `staffWeekPlans/{pazartesi}`, `draft` + `published` iki katman.
+   - Olaylar: `staff.week_plan_draft_saved|submitted|approved|returned`, özne `staffWeekPlan` (yeni tür).
+   - Mesai sayfası: owner + resepsiyon için altta **Haftalık vardiya planı** tablosu (cumadan itibaren
+     önümüzdeki hafta açılır); personel için **Haftam** kartı (yalnızca yayındaki plan); owner'ın günlük
+     listesinde "Plan 09:00–17:00 · 25 dk geç · gelmedi".
+   - Pano: "Bu haftanın planı onaylanmadı" (acil) · cumadan itibaren "önümüzdeki hafta onaya gönderilmedi" ·
+     cumartesiden itibaren "onay bekliyor". Hiç plan belgesi olmayan stüdyoda sessiz.
+   - **Tarayıcıda bakılmadı**; 375/1280 px ölçüsü yapılmadı.
+
+   **Deneme (iş 2):** Resepsiyon hesabıyla `/mesai` → altta tablo → Işıl Hoca'nın pazartesi hücresi → 09:00–17:00
+   → "Hafta içi her güne" → "Onaya gönder". Beklenen: durum "Onay bekliyor", eğitmen hesabında "Haftam"da
+   hâlâ "Plan henüz onaylanmadı". Owner → "Geri gönder" sebepsiz basılamaz; sebep yaz → resepsiyonda sarı
+   kutuda sebep. Yeniden gönder → owner "Onayla" → eğitmenin "Haftam" kartında saatler. Sonra resepsiyon bir
+   saati değiştirip gönderir: eğitmen onaylanana kadar **eski** saati görür. Sınır: geçen haftanın tablosu
+   salt okunur; çıkış = giriş saati "Tamam"a basılamaz; izinli güne saat yazınca kırmızı uyarı.
 3. ⏳ **Rapor yükleme** — başlanmadı. "Rapor" türündeki izne dosya; üye belgelerinin özel Storage deseni.
 
 **Deneme (iş 1):** Owner hesabıyla `/mesai` → "Bugün" kartında bugün turnikeden geçen personel ve

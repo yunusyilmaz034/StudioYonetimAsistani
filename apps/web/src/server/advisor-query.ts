@@ -18,7 +18,8 @@ export interface AdvisorItem {
   // 'door_refused' de dışarıdan: pano okuma modelinden değil, olay kaydından geliyor.
   // 'staff_leave' — eğitmensiz kalan dersler ve karar bekleyen izinler. Pano okuma modelinden
   // değil, izin kayıtlarından geliyor.
-  readonly kind: InsightKind | 'hot_lead' | 'online_payment' | 'door_refused' | 'staff_leave'
+  // 'staff_plan' — haftalık vardiya planının EKSİĞİ (OR-77): onaylanmamış hafta, gönderilmemiş plan.
+  readonly kind: InsightKind | 'hot_lead' | 'online_payment' | 'door_refused' | 'staff_leave' | 'staff_plan'
   readonly severity: InsightSeverity
   readonly title: string
   readonly detail: string
