@@ -11,16 +11,16 @@ _Last true as of: **2026-09-14, 00:45**._
 
 ## ⏭️ Sıradaki oturum — BURADAN BAŞLA
 
-Kod tarafında yarım iş YOK. Bekleyen üç şey, üçü de owner'la birlikte:
+Kod tarafında yarım iş YOK. Bekleyen şeyler, hepsi owner'la birlikte:
 
 0. **Firmware v1.4 yerinde yüklenecek (14 Eylül akşamı, owner stüdyoda).** Kod `0de22d4`, derlendi, YÜKLENMEDİ.
    Aşağıdaki "Firmware v1.4" bölümündeki sırayı yürüt; başarılı yüklemeden sonra `git tag turnike-v1.4` ve bu maddeyi sil.
 1. **Owner denemesi yapılmadı** — "deneme sonra yaparız" (14 Eylül 00:45). Aşağıdaki "Deneme adımı"
    dört maddeyi sırayla yürüt; dock konumu da bu denemeye dahil (tarayıcıda hiç bakılmadı, ölçü ekran
    görüntüsünden hesaplandı).
-2. **İlk gece kapanışı 14 Eylül 23:00.** 15 Eylül sabahı: Cloud Functions logunda `staff shift close`
-   satırı (`closed` / `skipped` sayıları) ve `/mesai` listesinde dünkü satırların son geçiş saatine
-   kapanmış olması. Hiç eğitmen turnikeden geçmediyse `closed: 0` doğru sonuçtur, arıza değil.
+2. **İlk gece kapanışı ✅ 14 Eylül 23:00 çalıştı** (HTTP 200): `retro` ve `demo` için `closed: 0, skipped: 0` —
+   o gün hiç personel turnikeden geçmediği için doğru sonuç. İlk gerçek kapanış, eğitmenler turnikeyi kullanmaya
+   başladığı gece; o sabah `/mesai`da dünkü satırların son geçiş saatine kapandığına bak.
 
 ## 🔧 14 Eylül öğleden sonra — "hoş geldin dedi, kol dönmedi" ([[DEBT-046]])
 
