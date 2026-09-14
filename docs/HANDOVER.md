@@ -20,6 +20,24 @@ Kod tarafında yarım iş YOK. Bekleyen iki şey, ikisi de owner'la birlikte:
    satırı (`closed` / `skipped` sayıları) ve `/mesai` listesinde dünkü satırların son geçiş saatine
    kapanmış olması. Hiç eğitmen turnikeden geçmediyse `closed: 0` doğru sonuçtur, arıza değil.
 
+## 🗓️ 14 Eylül — personel: günlük geçişler, haftalık vardiya planı, rapor ([[OR-77]])
+
+Owner kararları OR-77'de (günde tek blok · onaydan sonra değişiklik = yeniden onay · plan ile turnike
+karşılaştırılır, ceza yok · rapor yalnızca yükleyen + owner). **Üç iş, sırayla:**
+
+1. ✅ **Günlük giriş-çıkışlar** — Mesai ekranında owner kartı: önceki/sonraki gün + tarih seçici
+   (`?gun=YYYY-MM-DD`, gelecek gün yok). Her personelin vardiya aralığı ve altında o günkü **her geçiş**
+   (yeşil giriş · kırmızı çıkış · gri yön bilinmiyor). Sorgu `staff.crossed` olaylarını mevcut
+   `(type ASC, recordedAt DESC)` indeksiyle, **aynı yönde** okuyor — yeni indeks yok. Commit edildi,
+   **deploy onay bekliyor**.
+2. ⏳ **Haftalık vardiya planı** — başlanmadı. Resepsiyon taslak → owner onay → yayın; personel kendi
+   ekranında görür; onaylı izinli güne vardiya uyarı verir; panoya "plan hazırlanmadı / onay bekliyor".
+3. ⏳ **Rapor yükleme** — başlanmadı. "Rapor" türündeki izne dosya; üye belgelerinin özel Storage deseni.
+
+**Deneme (iş 1):** Owner hesabıyla `/mesai` → "Bugün" kartında bugün turnikeden geçen personel ve
+geçiş saatleri. Sol oka bas → dünün listesi, başlıkta tarih. Sağ ok bugünde pasif. Tarih kutusunda
+yarın seçilemez. Sınır: elle açılmış mesaide "Turnike geçişi yok — mesai elle açılmış" yazar.
+
 ## 🎟️ 14 Eylül — ayrılan yerdeki misafir turnikeden, ve yoklamada ([[OR-76]])
 
 Owner: *"yer ayırdığımız kişiler … sistemde olmayabilir dolayısıyla qr okutamazlar … turnike giriş - çıkış

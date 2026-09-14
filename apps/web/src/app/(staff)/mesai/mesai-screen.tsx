@@ -2,9 +2,10 @@
 
 import { useCallback, useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { CameraIcon, CheckCircle2Icon, LogInIcon, LogOutIcon, XIcon } from 'lucide-react'
+import { CameraIcon, CheckCircle2Icon, ChevronLeftIcon, ChevronRightIcon, LogInIcon, LogOutIcon, XIcon } from 'lucide-react'
 import { toast } from 'sonner'
 
+import { shiftDate } from '@/components/calendar/date-utils'
 import { PageHeader } from '@/components/ui/page-header'
 import { QrScanner } from '@/components/qr-scanner'
 import { Button } from '@/components/ui/button'
@@ -41,7 +42,11 @@ const kodHatasi = (code: string | undefined): string | null => {
   }
 }
 
-export function MesaiScreen({ view, ownerMu }: { view: ShiftView; ownerMu: boolean }) {
+/** 'YYYY-MM-DD' → "14 Eylül Pazartesi". Öğlen UTC: hiçbir saat dilimi günü kaydıramaz. */
+const gunBasligi = (d: string) =>
+  new Date(`${d}T12:00:00Z`).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', weekday: 'long', timeZone: 'UTC' })
+
+export function MesaiScreen({ view, ownerMu, bugun }: { view: ShiftView; ownerMu: boolean; bugun: string }) {
   const router = useRouter()
   const [pending, start] = useTransition()
   const [busy, setBusy] = useState(false)
@@ -190,26 +195,101 @@ export function MesaiScreen({ view, ownerMu }: { view: ShiftView; ownerMu: boole
           parçası. Ayrı bir ekrana koymak, izin isteyeni üçüncü bir yeri hatırlamaya zorlardı. */}
       <IzinPanel ownerMu={ownerMu} />
 
-      {/* Günün listesi yalnızca owner'a. Bir hocanın bir başkasının saatini görmesi için sebep yok. */}
+      {/* Günün listesi yalnızca owner'a. Bir hocanın bir başkasının saatini görmesi için sebep yok.
+          GÜNLÜK GİRİŞ-ÇIKIŞLAR (owner, 2026-09-14 · OR-77): vardiya özetinin altında o günkü her geçiş.
+          Özet "kaçta geldi, kaçta gitti"yi, geçişler "arada ne oldu"yu söyler. */}
       {ownerMu ? (
         <Card className="p-5">
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">Bugün</h2>
-          {view.gun.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Bugün henüz mesai kaydı yok.</p>
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+              {view.tarih === bugun ? 'Bugün' : gunBasligi(view.tarih)}
+            </h2>
+            <div className="flex items-center gap-1">
+              <Button
+                variant="outline"
+                size="icon"
+                className="size-9"
+                aria-label="Önceki gün"
+                disabled={pending}
+                onClick={() => start(() => router.push(`/mesai?gun=${shiftDate(view.tarih, -1)}`))}
+              >
+                <ChevronLeftIcon className="size-4" />
+              </Button>
+              <input
+                type="date"
+                aria-label="Gün seç"
+                value={view.tarih}
+                max={bugun}
+                onChange={(e) => {
+                  const d = e.target.value
+                  if (d) start(() => router.push(d === bugun ? '/mesai' : `/mesai?gun=${d}`))
+                }}
+                className="h-9 rounded-md border border-border bg-background px-2 text-sm tabular-nums text-foreground"
+              />
+              <Button
+                variant="outline"
+                size="icon"
+                className="size-9"
+                aria-label="Sonraki gün"
+                // Gelecek gün yok: geçişi olmamış bir gün boş görünür ve "kimse gelmedi" diye okunur.
+                disabled={pending || view.tarih >= bugun}
+                onClick={() => {
+                  const d = shiftDate(view.tarih, 1)
+                  start(() => router.push(d === bugun ? '/mesai' : `/mesai?gun=${d}`))
+                }}
+              >
+                <ChevronRightIcon className="size-4" />
+              </Button>
+            </div>
+          </div>
+          {view.gunluk.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              {view.tarih === bugun ? 'Bugün henüz mesai kaydı yok.' : 'Bu gün mesai kaydı yok.'}
+            </p>
           ) : (
             <ul className="divide-y divide-border">
-              {view.gun.map((s) => (
-                <li key={s.id} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-0.5 py-2.5">
-                  <span className="truncate font-medium">{s.displayName}</span>
-                  <span className="shrink-0 text-sm tabular-nums text-muted-foreground">
-                    {saat(s.startedAt)} → {s.endedAt === null ? 'sürüyor' : saat(s.endedAt)}
-                    <span className="ml-2 text-xs">({sure(s.startedAt, s.endedAt)})</span>
-                    {/* Açıkken son geçiş: gece 23:00'te mesai TAM BU SAATE kapanacak. Owner bunu gün
-                        içinde görebilmeli, sabah şaşırmamalı. */}
-                    {s.endedAt === null && s.lastCrossingAt !== null ? (
-                      <span className="ml-2 text-xs">· son geçiş {saat(s.lastCrossingAt)}</span>
-                    ) : null}
-                  </span>
+              {view.gunluk.map((p) => (
+                <li key={p.staffUserId} className="space-y-1.5 py-3">
+                  <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-0.5">
+                    <span className="truncate font-medium">{p.displayName}</span>
+                    {p.shifts.map((s) => (
+                      <span key={s.id} className="shrink-0 text-sm tabular-nums text-muted-foreground">
+                        {saat(s.startedAt)} → {s.endedAt === null ? 'sürüyor' : saat(s.endedAt)}
+                        <span className="ml-2 text-xs">({sure(s.startedAt, s.endedAt)})</span>
+                        {/* Açıkken son geçiş: gece 23:00'te mesai TAM BU SAATE kapanacak. Owner bunu gün
+                            içinde görebilmeli, sabah şaşırmamalı. */}
+                        {s.endedAt === null && s.lastCrossingAt !== null ? (
+                          <span className="ml-2 text-xs">· son geçiş {saat(s.lastCrossingAt)}</span>
+                        ) : null}
+                      </span>
+                    ))}
+                  </div>
+                  {p.crossings.length > 0 ? (
+                    <ol className="flex flex-wrap gap-1.5" aria-label={`${p.displayName} turnike geçişleri`}>
+                      {p.crossings.map((c, i) => (
+                        <li
+                          key={`${c.at}-${i}`}
+                          title={c.deviceName ?? undefined}
+                          className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs tabular-nums ${
+                            c.direction === 'out'
+                              ? 'bg-danger/10 text-danger'
+                              : c.direction === 'in'
+                                ? 'bg-success/10 text-success'
+                                : 'bg-muted text-muted-foreground'
+                          }`}
+                        >
+                          {c.direction === 'out' ? (
+                            <LogOutIcon className="size-3" aria-label="çıkış" />
+                          ) : c.direction === 'in' ? (
+                            <LogInIcon className="size-3" aria-label="giriş" />
+                          ) : null}
+                          {saat(c.at)}
+                        </li>
+                      ))}
+                    </ol>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">Turnike geçişi yok — mesai elle açılmış.</p>
+                  )}
                 </li>
               ))}
             </ul>

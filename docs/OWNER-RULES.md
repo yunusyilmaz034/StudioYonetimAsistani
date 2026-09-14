@@ -1681,3 +1681,28 @@ kaydında bu üyeye ilişkilendirilsin … yoklamalar daha tutarlı olacak")*
 - **İkinci giriş yeni "geldi" yazmaz** — ilk geliş saati kalır; kol yine döner.
 - **Doluluğa girmez.** Misafir üye değil; `member.checked_in` yazılmaz. Check-in ekranındaki "içeride"
   sayısı misafirleri saymaz.
+
+### OR-77 · Haftalık vardiya planı: resepsiyon hazırlar, owner onaylar, personel görür — plan ile turnike karşılaştırılır
+
+*(2026-09-14, owner: "günlük giriş çıkışlarını mesai ekranında göreyim … haftalık mesai planlaması olsun
+… cuma bu planlama yapılsın cumartesi onaylansın ve hafta hazır olsun herkes bilsin, personelde kendi
+ekranında bu mesai tablosunu görüp ben şu gün şu saatte gelip gitmeliyim diye bilsin … sağlık raporu
+yükleyebilsin")* — seçenekler sunuldu, önerilenlerin hepsi seçildi.
+
+**Üç ayrı iş, bu sırayla:** (1) mesai ekranında seçilen günün tüm turnike geçişleri · (2) haftalık vardiya
+planı · (3) "rapor" türündeki izne dosya eklemek.
+
+**Kararlar:**
+1. **Günde tek blok.** Bir personelin bir günü tek giriş–çıkış saatidir ya da "çalışmıyor". [[OR-74]]'ün
+   "günün ilk geçişi giriş, son geçişi çıkış" kuralıyla birebir örtüşür; bölünmüş mesai yazılmaz.
+2. **Onaydan sonra değişiklik:** resepsiyon düzenler, değişen gün **yeniden owner onayı** bekler; personel
+   onaylanana kadar eski saatini görür. Kim neyi ne zaman değiştirdi kayıtta kalır.
+3. **Plan ile gerçekleşen karşılaştırılır:** "planlı 09:00 · geldi 09:25 (25 dk geç)". **Kesinti, ceza,
+   puantaj YOK** — yalnızca görünür. [[OR-58]]'in "PDKS gibi olmasın" kaygısının sınırı burası.
+4. **Sağlık raporu yalnızca yükleyen ve owner** tarafından görülür. KVKK'da özel nitelikli veri: dosya
+   dışarıya kapalı, açılınca kısa ömürlü link. Yükleme **isteğe bağlı**, sonradan eklenebilir.
+
+**Cuma / cumartesi kilit değildir.** Sistem günü zorlamaz; panoya "önümüzdeki haftanın planı hazırlanmadı /
+onay bekliyor" hatırlatması düşer. Onaylı izinli bir güne vardiya yazılırsa uyarı çıkar.
+
+**Büyümeye en yatkın yer** (OR-72 ile aynı): fazla mesai hesabı, takas onay zinciri, puantaj. Orada durulacak.
