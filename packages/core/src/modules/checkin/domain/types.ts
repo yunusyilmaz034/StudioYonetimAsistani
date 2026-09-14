@@ -47,6 +47,12 @@ export interface TurnstileDevice {
   readonly id: DeviceId
   readonly studioId: StudioId
   readonly branchId: BranchId
+  /**
+   * Şu an EKRANDA olan kod (2026-09-14). Cihaz kodu 25 sn'de bir yeniliyor ama sunucu bir kodu 45 sn geçerli
+   * sayıyor; ekrandan kalkmış bir kod okutulursa geçiş kabul edilir, cihaz ise o kodu artık sormadığı için
+   * kolu hiç açmaz. Bu alan, sunucunun "cihaz bu geçişi kaçırdı" diyebilmesi için. Eski belgelerde yok.
+   */
+  readonly currentCode?: string | null
   readonly name: string // "Giriş turnikesi" — for the panel, never shown to a member
   /**
    * SHA-256 of the device's secret. The secret itself is shown ONCE at pairing and never stored:

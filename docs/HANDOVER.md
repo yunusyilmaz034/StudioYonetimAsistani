@@ -20,6 +20,33 @@ Kod tarafında yarım iş YOK. Bekleyen iki şey, ikisi de owner'la birlikte:
    satırı (`closed` / `skipped` sayıları) ve `/mesai` listesinde dünkü satırların son geçiş saatine
    kapanmış olması. Hiç eğitmen turnikeden geçmediyse `closed: 0` doğru sonuçtur, arıza değil.
 
+## 🔧 14 Eylül öğleden sonra — "hoş geldin dedi, kol dönmedi" ([[DEBT-046]])
+
+**Owner:** *"zeynep ve ilnur qr okumuş hoşgeldin demiş ama kol dönmedi"* · sonra *"artık kimseye giriş vermiyor"* ·
+sonra *"elektriği kestik düzeldi"*.
+
+**Ölçülen (tahmin değil):** her kod geçişinden sonra cihazın bir sonraki kodu ne zaman aldığına bakıldı — cihaz
+geçişi görürse darbe + 3 sn karşılama sonrası (~+5,6–7,5 sn) yeni kod ister, görmezse 25 sn döngüsünde.
+- 18 kod geçişinin **16'sında cihaz gördü ve darbe gönderdi**; **2'sinde kaçırdı** (12:47 Elif A.Ö., 15:00 İlkim) —
+  kod ekrandan kalkmıştı (firmware 25 sn yeniliyor, sunucu 45 sn geçerli sayıyor).
+- 15:55 Zeynep Tekin, 16:08 Gamze Arduç, 16:17–16:18 Işıl'ın denemeleri: **cihaz gördü, darbe gitti, kol dönmedi.**
+  Panelden açma da tekrar tekrar basıldı. **Elektrik kesilip verilince düzeldi** → takılan şey donanım tarafında
+  (turnike kartı ya da röle/besleme; ikisi birlikte kesildiği için hangisi bilinmiyor).
+- WiFi: cihaz sorguları 15:57–16:03 arası dakikada 45–50'den **16–26'ya düştü** (stüdyo interneti yavaşladı) — ama
+  Işıl'ın 16:17–16:18 denemelerinde cihaz geçişi zamanında gördü; kolun dönmemesini WiFi açıklamıyor.
+- "İlnur" diye üye yok (3 İlknur var, hiçbirinin bugün kapı kaydı yok); 11:23–11:25'teki 10 başarısız okutmanın
+  sebebi reddedilen okutmalar loglanmadığı için **bilinemedi**.
+
+**Yapılan (sunucu, firmware'e dokunmadan):** `apps/web/src/server/turnstile-missed.ts`
+- Cihaz kaydına ekrandaki kod yazılıyor (`currentCode`).
+- Kod ekrandan kalkmışken geçiş olursa, ya da cihaz yeni kod isterken önceki kod kullanılmış ama görülmemişse → cihaza
+  AÇ komutu (resepsiyonun elle açmasıyla aynı kanal). Firmware sıralı çalıştığı için çift darbe yok.
+- Cihaz bir geçişi gördüğünde koda `seenAt` damgası + `[turnstile] crossing seen by device {latencyMs}` logu.
+- Reddedilen üye/personel okutmaları `[turnstile] … crossing refused {code}` ile loglanıyor (kimlik yok).
+
+**Kilitlenme tekrar ederse:** önce yalnızca **turnike kartını**, düzelmezse yalnızca **ESP/röle kutusunu** kesin —
+hangisinin takıldığı böyle ayrılır. Panelden "Giriş"e basılırken röle kartında DS1 ışığı + klik var mı, bakın.
+
 ## 🚫 14 Eylül — hakkı biten üye turnikeden giremez ([[OR-78]])
 
 Owner teyit istedi: *"üyeliği olmayan, üyeliği biten kişi kapıda kalsın."* Kural paketsiz/tarihi dolmuş için

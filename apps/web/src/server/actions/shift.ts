@@ -19,6 +19,7 @@ import {
 
 import { requireTenantContext } from '../auth'
 import { adminDb } from '../firebase-admin'
+import { openIfCodeLeftScreen } from '../turnstile-missed'
 
 // MESAİ — "saat kaçta girdi çıktı" (owner, 2026-09-01).
 //
@@ -61,7 +62,7 @@ export async function staffCrossTurnstileAction(input: unknown) {
   const ctx = await requireTenantContext(HERKES)
   const db = adminDb()
   const shiftDeps = deps()
-  return staffCrossTurnstile(
+  const r = await staffCrossTurnstile(
     {
       repo: new FirestoreCheckinRepository(db),
       clock: systemClock,
@@ -75,4 +76,8 @@ export async function staffCrossTurnstileAction(input: unknown) {
     ctx,
     { staffUserId: String(ctx.actor.id) as StaffUserId, code: p.data.code, reportedDirection: null },
   )
+  // Kod ekrandan kalkmışsa cihaz geçişi görmez; kolu sunucudan aç (2026-09-14, `turnstile-missed.ts`).
+  if (r.ok) await openIfCodeLeftScreen(ctx, r.value.deviceId, p.data.code)
+  else console.warn('[turnstile] staff crossing refused', { studioId: ctx.studioId, code: r.error.code })
+  return r
 }

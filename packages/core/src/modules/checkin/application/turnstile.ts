@@ -72,7 +72,9 @@ export async function issueTurnstileCode(
   await deps.repo.saveTurnstileCode(ctx, code)
   // Touching `lastSeenAt` on every mint is what makes the panel's "is the door alive" honest: the
   // device asks for a code every few seconds, so silence means silence.
-  await deps.repo.saveDevice(ctx, { ...device, lastSeenAt: now })
+  // `currentCode`: ekrandaki kod artık bu. Bir öncekini okutan üyeyi cihaz göremez — sunucu bunu bilsin diye
+  // (2026-09-14, "hoş geldin dedi kol dönmedi").
+  await deps.repo.saveDevice(ctx, { ...device, lastSeenAt: now, currentCode: code.code })
   return ok({ code: code.code, expiresAt: code.expiresAt })
 }
 

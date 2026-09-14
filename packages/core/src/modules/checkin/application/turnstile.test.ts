@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { instant, type BranchId, type DeviceId, type MemberId, type StudioId, type TenantContext } from '../../../shared'
 import type { CheckIn, Presence, TurnstileCode, TurnstileDevice } from '../domain/types'
 import type { CheckinDeps } from './ports'
-import { crossTurnstile } from './turnstile'
+import { crossTurnstile, issueTurnstileCode } from './turnstile'
 
 // WHY THIS FILE EXISTS.
 //
@@ -402,5 +402,28 @@ describe('crossTurnstile — hak bittiyse kol dönmez (OR-78)', () => {
       reportedDirection: 'out',
     })
     expect(r.ok).toBe(true)
+  })
+})
+
+// ── EKRANDAKİ KOD CİHAZ KAYDINDA (2026-09-14) ──────────────────────────────────────────────
+//
+// "Hoş geldin dedi, kol dönmedi": cihaz kodu 25 sn'de bir yeniliyor, sunucu 45 sn geçerli sayıyor. Ekrandan kalkmış
+// bir kod okutulursa cihaz onu artık sormaz. Sunucunun bunu anlayabilmesi için ekrandaki kod cihaz kaydında durmalı.
+describe('issueTurnstileCode — ekrandaki kod cihaz kaydına yazılır', () => {
+  it('yeni kod üretilince cihazın currentCode alanı o kod olur', async () => {
+    const kaydedilen: { currentCode?: string | null }[] = []
+    const deps = {
+      clock: { now: () => instant(NOW) },
+      repo: {
+        getDevice: async () => ({ ...device, currentCode: '111111' }),
+        saveTurnstileCode: async () => undefined,
+        saveDevice: async (_c: unknown, d: { currentCode?: string | null }) => {
+          kaydedilen.push(d)
+        },
+      },
+    } as unknown as CheckinDeps
+    const r = await issueTurnstileCode(deps, CTX, DEVICE, '222222')
+    expect(r.ok).toBe(true)
+    expect(kaydedilen.map((d) => d.currentCode)).toEqual(['222222'])
   })
 })

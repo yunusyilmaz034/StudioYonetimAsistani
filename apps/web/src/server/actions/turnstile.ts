@@ -36,6 +36,7 @@ import {
 
 import { adminDb } from '../firebase-admin'
 import { requireTenantContext } from '../auth'
+import { markCrossingSeen, openIfCodeLeftScreen, openIfPreviousCodeUnseen } from '../turnstile-missed'
 
 // ── TURNSTILE (v1.33) ────────────────────────────────────────────────────────────────────────
 //
@@ -94,7 +95,12 @@ export async function deviceHeartbeatAuth(
 /** The next six digits for the screen. `randomInt` is the crypto one — a guessable door is no door. */
 export async function deviceCodeAction(ctx: TenantContext, deviceId: DeviceId) {
   const digits = String(randomInt(0, 1_000_000)).padStart(6, '0')
-  return issueTurnstileCode(deps(), ctx, deviceId, digits)
+  // Ekrandan kalkacak kod (2026-09-14): cihaz yeni kod istiyorsa eskisini bir daha sormayacak. O kod kullanılmış
+  // ama cihaz görmemişse, kol şimdi — bir sonraki sorguda — sunucudan açılır. Bkz. `turnstile-missed.ts`.
+  const onceki = (await deps().repo.getDevice(ctx, deviceId))?.currentCode ?? null
+  const res = await issueTurnstileCode(deps(), ctx, deviceId, digits)
+  await openIfPreviousCodeUnseen(ctx, deviceId, onceki)
+  return res
 }
 
 /**
@@ -129,6 +135,11 @@ export async function deviceCrossingAction(ctx: TenantContext, deviceId: DeviceI
     const [ret, ac] = await Promise.all([sonRet(ctx, deviceId), bekleyenAcma(ctx, deviceId)])
     return { ok: true as const, value: { crossed: null, ...(ret ? { refused: ret } : {}), ...(ac ? { open: ac } : {}) } }
   }
+
+  // GÖRÜLDÜ DAMGASI — cihaza "geçti" demeden ÖNCE (2026-09-14). Sıra önemli: cihaz bu cevaptan sonra yeni kod
+  // isteyecek, ve yenileme anındaki "kullanılmış ama görülmemiş" kontrolü bu damgaya bakıyor. Damga cevaptan
+  // sonra yazılsaydı aynı geçiş için kol iki kez açılabilirdi. Gecikme de buradan loga düşer.
+  await markCrossingSeen(ctx, code, record.usedAt as number)
 
   // PERSONEL GEÇTİ (owner, 2026-09-13 · OR-74). Adı `/members`ten değil `/staff`ten, ve KALAN HAK
   // YOK: personelin paketi yok, "0 ders" yazmak ise kapıda yanlış bir şey söylemek olurdu. Cihaz boş
@@ -225,6 +236,12 @@ export async function crossOwnTurnstile(ctx: TenantContext, memberId: MemberId, 
     code: p.code,
     reportedDirection: p.direction ?? null,
   })
+
+  // ENSTRÜMAN (2026-09-14): reddedilen okutmalar hiçbir yere yazılmıyordu — 11:23'teki on başarısız denemenin
+  // sebebi bu yüzden bilinemedi. Kimlik yok (üye kimliği de loga girmez), yalnızca stüdyo ve hata kodu.
+  if (!res.ok) console.warn('[turnstile] member crossing refused', { studioId: ctx.studioId, code: res.error.code })
+  // Geçiş yazıldı ama okutulan kod ekrandan kalkmışsa cihaz onu görmeyecek: kolu sunucudan aç.
+  if (res.ok) await openIfCodeLeftScreen(ctx, res.value.deviceId, p.code)
 
   // ── EKRANA DA SÖYLE (owner, 2026-08-31) ────────────────────────────────────────────────────
   //

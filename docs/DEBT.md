@@ -1257,3 +1257,30 @@ geçmişe dokunmadan çalışır.
 **Geri ödeme tetiği (tarih değil, koşul):** bir personel işten ayrıldığında **ya da** bir personel/eski personel
 KVKK kapsamında silme talep ettiğinde **ya da** ikinci stüdyo bu özelliği açtığında. O gün: saklama süresi owner'dan
 alınır, süresi dolan raporları silen gece işi + personel ayrılışında raporları silen akış yazılır.
+
+## DEBT-046 · Turnike firmware'i: kod yenileme süresi, sorgu gecikmesi ve darbe süresi (2026-09-14)
+
+**Ne oldu.** Owner: *"qr okumuş hoşgeldin demiş ama kol dönmedi."* Ölçüldü (18 kodlu geçiş):
+
+1. **Kod ömrü uyuşmazlığı — 2 vaka (12:47, 15:00).** Firmware ekrandaki kodu **25 sn**'de bir yeniliyor
+   (`kodBitis = millis() + 25000`) ve yalnızca o anki kodu soruyor; sunucu bir kodu **45 sn** geçerli sayıyor
+   (`TURNSTILE_CODE_TTL_MS`). Ekrandan kalkmış kod okutulursa geçiş kabul ediliyor, telefon "hoş geldin" diyor,
+   cihaz o kodu hiç sormadığı için kola darbe gitmiyor. **Sunucu tarafında yamalandı** (`turnstile-missed.ts`):
+   kaçırılan geçişte cihaza AÇ komutu bırakılıyor.
+2. **Sorgu gecikmesi ~1–2,5 sn.** Cihaz iki kapıyı sırayla soruyor (`SORGU_MS = 600` + iki HTTP isteği); telefon
+   "hoş geldin" dediğinde kol henüz açılmamış oluyor. Üye hemen itip "olmadı" sanabiliyor. WiFi yavaşlayınca
+   (15:57–16:03 sorgu sayısı dakikada 45–50'den 16–26'ya düştü) bu süre uzuyor.
+3. **Darbe 300 ms (`DARBE_MS`), ölçülmüş bir değer değil.** Kurulum dokümanındaki yön testi 1 sn kısa devre ile
+   yapıldı. 300 ms bugün 16 kez yetti; yetmediği gösterilmedi, ama doğrulanmadı da.
+
+**Aynı gün ayrıca:** ~16:10–16:30 arası kol ne QR ne panelden döndü; cihaz geçişleri zamanında görüyor ve darbe
+gönderiyordu. **Elektriği kesip vermek düzeltti.** Hangi parçanın takıldığı (turnike kartı mı, röle/besleme mi)
+bilinmiyor — ikisi birlikte kesildi.
+
+**Neden şimdi değil.** Firmware güncellemesi karta USB ile, yerinde, Mac ile yükleniyor; uzaktan gönderilemez.
+
+**Geri ödeme tetiği (koşul):** bir sonraki yerinde firmware yüklemesinde **ya da** "hoş geldin dedi, kol dönmedi"
+kaçırılan-kod yaması devredeyken tekrar ederse. O gün: (a) kod yenileme süresi sunucu ömrüyle hizalanır ya da
+cihaz önceki kodu da sorar; (b) iki kapının sorguları paralelleştirilir ya da tek istekte birleştirilir; (c) darbe
+süresi turnike kartının istediğiyle ölçülerek belirlenir; (d) kilitlenme tekrar ederse önce YALNIZCA turnike kartı,
+sonra YALNIZCA ESP/röle kutusu kesilerek hangisinin takıldığı ayrılır.
