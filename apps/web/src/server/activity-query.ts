@@ -72,6 +72,9 @@ export const KIND_OF: Record<string, ActivityKind> = {
   'member.checked_in': 'checkin',
   'member.checked_out': 'checkin',
   'member.auto_checked_out': 'system',
+  // OR-75: kapıdaki kaçağın izi — sistem gürültüsü değil, kapının kendisi hakkında bir gözlem.
+  'member.exited_without_entry': 'checkin',
+  'member.exit_unobserved': 'checkin',
 
   // ── training feedback (owner: "geri bildirimler akışta olsun") ──
   'training_feedback.left': 'feedback',

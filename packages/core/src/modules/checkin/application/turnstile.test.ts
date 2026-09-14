@@ -63,6 +63,8 @@ function fakeDeps(opts: {
   paketler?: unknown
   /** Ret kaydı buraya düşer — kapıda kalan üye YAZILMALI (owner, 2026-09-08). */
   yazilanlar?: { type: string }[]
+  /** Geçişin kendi olayları (`applyCheckIn`) buraya düşer. */
+  kayitlar?: { type: string }[]
 }): CheckinDeps {
   const recent: CheckIn[] =
     opts.lastCrossedAt === undefined
@@ -82,7 +84,9 @@ function fakeDeps(opts: {
       getBranch: async () => ({ branchId: BRANCH, isOpen: true, capacity: 50 }),
       countPresence: async () => 3,
       listCheckInsByMember: async () => recent,
-      applyCheckIn: async () => undefined,
+      applyCheckIn: async (_c: unknown, _m: unknown, _k: unknown, _p: unknown, events: { type: string }[]) => {
+        opts.kayitlar?.push(...events)
+      },
       touchDevice: async () => undefined,
       saveDeviceWithEvents: async (_c: unknown, _d: unknown, events: { type: string }[]) => {
         opts.yazilanlar?.push(...events)
@@ -94,6 +98,43 @@ function fakeDeps(opts: {
 }
 
 const inside: Presence = { memberId: MEMBER, branchId: BRANCH, checkedInAt: instant(NOW - 15_000) }
+
+// OR-75 (owner, 2026-09-14): yandan geçmiş ya da elektrik kesikken girmiş üye çıkışta kalmıyordu —
+// kalıyordu. Bu dosyadaki "presence has lost" testi üyeyi İÇERİDE göstererek çalıştığı için asıl
+// durumu, kaydı HİÇ olmayan birinin çıkışını, bir kez bile denememişti.
+describe('crossTurnstile — kaydı uyuşmayan üye kapıda kalmaz (OR-75)', () => {
+  const tarafli = (side: 'in' | 'out', deps: CheckinDeps) => {
+    ;(deps.repo as unknown as { getDevice: () => Promise<TurnstileDevice> }).getDevice = async () => ({ ...device, side })
+    return deps
+  }
+
+  it('ÇIKIŞ ekranı, girişi hiç kaydedilmemiş üyeye kolu çevirir: kod harcanır, kayıt yazılır', async () => {
+    const tuketilenler: string[] = []
+    const kayitlar: { type: string }[] = []
+    const deps = tarafli('out', fakeDeps({ presence: null, tuketilenler, kayitlar }))
+    const r = await crossTurnstile(deps, CTX, { memberId: MEMBER, code: CODE, reportedDirection: null })
+    expect(r.ok).toBe(true)
+    if (r.ok) expect(r.value.direction).toBe('out')
+    expect(tuketilenler).toEqual([CODE])
+    expect(kayitlar.map((e) => e.type)).toEqual(['member.exited_without_entry'])
+  })
+
+  it('paketi bitmiş olsa da çıkarır', async () => {
+    const deps = tarafli('out', fakeDeps({ presence: null, paketler: [] }))
+    const r = await crossTurnstile(deps, CTX, { memberId: MEMBER, code: CODE, reportedDirection: null })
+    expect(r.ok).toBe(true)
+  })
+
+  it('GİRİŞ ekranı, çıkışı görülmemiş üyeyi yeniden içeri alır', async () => {
+    const kayitlar: { type: string }[] = []
+    const bayat: Presence = { memberId: MEMBER, branchId: BRANCH, checkedInAt: instant(NOW - 3 * 3_600_000) }
+    const deps = tarafli('in', fakeDeps({ presence: bayat, kayitlar }))
+    const r = await crossTurnstile(deps, CTX, { memberId: MEMBER, code: CODE, reportedDirection: null })
+    expect(r.ok).toBe(true)
+    if (r.ok) expect(r.value.direction).toBe('in')
+    expect(kayitlar.map((e) => e.type)).toEqual(['member.exit_unobserved', 'member.checked_in'])
+  })
+})
 
 describe('crossTurnstile — the double-scan guard actually runs', () => {
   it('refuses a second crossing seconds after the first', async () => {

@@ -604,6 +604,18 @@ export function present(e: ActivityEvent): PresentedEntry {
       return entry(`${member ?? 'Üye'} stüdyodan çıkış yaptı.`, null, 'default')
     case 'member.auto_checked_out':
       return entry(`${member ?? 'Üye'} otomatik çıkış yapıldı.`, 'Gün sonu kapanışı.', 'default')
+    case 'member.exited_without_entry':
+      return entry(
+        `${member ?? 'Üye'} turnikeden çıktı — girişi kaydedilmemişti.`,
+        'Yandan geçmiş ya da girerken turnike çalışmıyor olabilir.',
+        'warning',
+      )
+    case 'member.exit_unobserved':
+      return entry(
+        `${member ?? 'Üye'} çıkışı görülmeden ayrılmıştı; yeniden girişinde kapatıldı.`,
+        'Çıkarken okutmamış ya da yandan çıkmış olabilir.',
+        'warning',
+      )
 
     // ── operations ───────────────────────────────────────────────────────────────────────
     case 'studio_closure.planned':

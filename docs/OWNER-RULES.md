@@ -1628,3 +1628,31 @@ bilmese de günün sınırlarını doğru çiziyor — ve arada kaç kez geçild
 
 **Geçiş ile vardiya ayrı olaylar, bilerek:** geçiş bir gözlem, vardiya bir yorum. `staff.crossed`
 vardiya kimliği taşımaz — yorum kuralı yarın değişirse (öğle arası düşülsün…) geçişler yeniden okunabilir.
+
+### OR-75 · Turnikede kayıt uyuşmazlığı kolu kilitlemez; ne olduğu kendi olayıyla yazılır
+
+*(2026-09-14, owner: "qr ile giriş yapmayan biri yandan geçmiş olabilir o an enerji kesik olabilir ama
+çıkış yapmak istediğinde çıkış yapamıyor üye bunu düzeltmemiz lazım")* — **[[OR-53]]'ün "çıkış asla
+engellenmez" cümlesinin deliğini kapatır.**
+
+Çıkış ekranı "bu üye içeride görünmüyor" (`already_outside`) diye kolu çevirmiyordu. Paket kontrolü
+çıkışta zaten sorulmuyordu; ama kayıt uyuşmazlığı soruluyordu ve sonuç aynıydı: insan kapıda kalıyor,
+telefonunda da "geçersiz kod" yazıyor.
+
+**Owner iki karar verdi (seçenekler sunuldu, önerilenler seçildi):**
+
+1. **Kaydı olmayan çıkış → kol döner, ayrı olay yazılır.** `member.exited_without_entry`. Doluluk
+   oynamaz (onu hiç saymamıştık). Önce "girmiş gibi" bir giriş yazmak seçenek bile değildi: görülmeyen
+   bir girişi gözlem diye yazmak #11'i bozar. Olayın değeri: owner Hareket Merkezi'nde kaç kez yandan
+   geçildiğini görüyor.
+2. **Aynası da düzelir.** Açık ziyareti varken (yandan çıkmış) giriş ekranını okutan üye "zaten içeride"
+   diye girişte kalmaz: eski ziyaret `member.exit_unobserved` ile **süresiz** kapanır, ardından olağan
+   `member.checked_in`.
+
+**Sınırlar, bilerek:**
+- **Yalnızca bir KOL varken.** Check-in ekranının "Çıkış" düğmesi yalnızca kayıt yazar; orada
+  `already_outside` doğru cevap ve 2026-07-31'deki çift basmayı durduran şey o. Üye sayfasındaki
+  Turnike Giriş/Çıkış düğmesi, o yönde cihaz varsa turnike sayılır.
+- **Son geçişten 45 sn içinde tekrar okutma uyuşmazlık değil, aynı geçiştir** — hâlâ reddedilir.
+  Sınır: 44,999 sn reddedilir, 45 sn kabul edilir.
+- **Şube kapalı görünse de çıkış engellenmez.** Kapalı şube yalnızca girişi durdurur.

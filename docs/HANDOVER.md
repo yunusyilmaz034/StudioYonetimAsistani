@@ -20,6 +20,27 @@ Kod tarafında yarım iş YOK. Bekleyen iki şey, ikisi de owner'la birlikte:
    satırı (`closed` / `skipped` sayıları) ve `/mesai` listesinde dünkü satırların son geçiş saatine
    kapanmış olması. Hiç eğitmen turnikeden geçmediyse `closed: 0` doğru sonuçtur, arıza değil.
 
+## 🚪 14 Eylül — kaydı uyuşmayan üye kapıda kalmıyor ([[OR-75]])
+
+Owner: *"qr ile giriş yapmayan biri yandan geçmiş olabilir o an enerji kesik olabilir ama çıkış yapmak
+istediğinde çıkış yapamıyor."* Doğruydu: çıkış ekranı `already_outside` diye kolu çevirmiyordu
+(`decide.ts`), üyenin telefonunda "Geçersiz kod" yazıyordu. "presence has lost" adlı test üyeyi içeride
+göstererek çalıştığı için bu durum hiç denenmemişti.
+
+- **Kaydı olmayan çıkış:** kol döner, `member.exited_without_entry` (doluluk oynamaz, giriş uydurulmaz).
+- **Yandan çıkıp geri gelen:** giriş ekranında `member.exit_unobserved` (süresiz) + `member.checked_in`.
+- Yalnızca kol varken (`atTurnstile`); son geçişten 45 sn içinde tekrar okutma hâlâ reddedilir.
+- Şube kapalı görünse de çıkış engellenmez.
+- Hareket Merkezi'nde ikisi de uyarı rengiyle görünür.
+
+**Durum:** commit edildi, **deploy owner onayı bekliyor**. Canlı ölçüm (son 30 gün): 407 giriş, yalnızca
+32 çıkış kaydı, 373 otomatik çıkış; yani üyeler çıkışta çoğunlukla okutmuyor.
+
+**Deneme:** Hiç girişi olmayan bir test üyesiyle **çıkış** ekranını okut → kol döner, Hareket Merkezi'nde
+"turnikeden çıktı — girişi kaydedilmemişti". Aynı üye 45 sn içinde tekrar okutursa reddedilir.
+Sonra **giriş** ekranını okut, çıkmadan 1 dk sonra tekrar **giriş** okut → ikincisinde kol döner,
+"çıkışı görülmeden ayrılmıştı" satırı düşer, doluluk bir artmaz.
+
 ## 🔧 13–14 Eylül — turnike montajı, ve eğitmen mesaisi turnikeden
 
 **Eğitmen mesaisi artık turnikeden türetiliyor ([[OR-74]], [[OR-58]]'in yerine).** ✅ **CANLIDA**

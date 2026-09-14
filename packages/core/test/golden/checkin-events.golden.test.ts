@@ -25,6 +25,8 @@ import autoCheckedOut from './member.auto_checked_out.v1.json'
 import checkedIn from './member.checked_in.v1.json'
 import checkedOut from './member.checked_out.v1.json'
 import entryRefused from './member.entry_refused.v1.json'
+import exitUnobserved from './member.exit_unobserved.v1.json'
+import exitedWithoutEntry from './member.exited_without_entry.v1.json'
 
 const NOW = instant(1_700_000_000_000)
 const H = 3_600_000
@@ -65,5 +67,16 @@ describe('check-in event payloads match golden fixtures (AD-33)', () => {
   it('member.auto_checked_out', () => {
     const presence: Presence = { memberId: MEM, branchId: BR, checkedInAt: instant(NOW - 5 * H) }
     expect(decideAutoCheckOut(ctx, presence, 4)[0]?.payload).toEqual(autoCheckedOut)
+  })
+  // OR-75. İkisinde de süre YOK ve giriş uydurulmaz: görülmeyen şey yazılmaz (#11).
+  it('member.exited_without_entry', () => {
+    const r = decideCheckIn(ctx, { ...input, direction: 'out', atTurnstile: true }, null, 4, openBranch)
+    expect(r.ok && r.value.events[0]?.payload).toEqual(exitedWithoutEntry)
+    expect(r.ok && r.value.events[0]?.subject).toEqual({ kind: 'member', id: MEM })
+  })
+  it('member.exit_unobserved', () => {
+    const presence: Presence = { memberId: MEM, branchId: BR, checkedInAt: instant(NOW - 5 * H) }
+    const r = decideCheckIn(ctx, { ...input, direction: 'in', atTurnstile: true }, presence, 5, openBranch)
+    expect(r.ok && r.value.events[0]?.payload).toEqual(exitUnobserved)
   })
 })

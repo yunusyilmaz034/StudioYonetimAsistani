@@ -192,6 +192,8 @@ Every event that Phase 1 writes. Nothing else is emitted; nothing here is option
 | `member.checked_in` | `{ branchId, method, occupancyAfter }` | `method: 'reception'\|'qr'\|'device'` |
 | `member.checked_out` | `{ branchId, method, durationMinutes, occupancyAfter }` | |
 | `member.auto_checked_out` | `{ branchId, thresholdHours }` | actor: `system` (OQ-9) |
+| `member.exited_without_entry` | `{ branchId, method, occupancyAfter }` | **OR-75 (2026-09-14).** A turnstile exit for a member with no open visit (tailgated in, or entered while the door was down). The arm turns — an exit is never blocked (OR-53). Occupancy is unchanged: she was never counted. **Never** paired with a fabricated `checked_in` (#11). Only when `atTurnstile`; a reception button with no arm still refuses `already_outside`. |
+| `member.exit_unobserved` | `{ branchId, checkedInAt, occupancyAfter }` | **OR-75 (2026-09-14).** A turnstile entry while a visit is still open: she left at some point nobody saw. The old visit closes with **no duration** (the exit time is unknown), then an ordinary `member.checked_in` follows in the same transaction. A repeat within 45 s of the last crossing is a double scan, not a mismatch, and is still refused. |
 
 `member.profile_updated` records *that* the phone changed, never *to what*. The audit answer is *"reception changed her phone at 14:03"*; the value lives in `/members` and its history is not the event log's business.
 

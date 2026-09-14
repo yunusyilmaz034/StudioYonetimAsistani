@@ -124,6 +124,78 @@ describe('decideCheckIn (D5, toggle)', () => {
   })
 })
 
+// ── TURNİKEDE KAYIT UYUŞMAZLIĞI KOLU KİLİTLEMEZ (owner, 2026-09-14 · OR-75) ───────────────────
+//
+// *"qr ile giriş yapmayan biri yandan geçmiş olabilir, o an enerji kesik olabilir ama çıkış yapmak
+// istediğinde çıkış yapamıyor."*
+describe('decideCheckIn — turnikede kayıt uyuşmazlığı (OR-75)', () => {
+  const kapi = { ...input, atTurnstile: true }
+  const kapali: BranchOccupancy = { branchId: BR, isOpen: false, openedAt: null }
+  const bayat: Presence = { memberId: MEM, branchId: BR, checkedInAt: instant(NOW - 3 * H) }
+
+  it('ÇIKIŞ ekranı, girişi kaydedilmemiş üyeyi çıkarır — doluluk oynamaz, giriş uydurulmaz', () => {
+    const r = decideCheckIn(ctx, { ...kapi, direction: 'out' }, null, 4, openBranch)
+    expect(r.ok).toBe(true)
+    if (r.ok) {
+      expect(r.value.events.map((e) => e.type)).toEqual(['member.exited_without_entry'])
+      expect(r.value.events[0]?.payload).toEqual({ branchId: BR, method: 'qr', occupancyAfter: 4 })
+      expect(r.value.checkIn.direction).toBe('out')
+      expect(r.value.presenceNext).toBeNull()
+    }
+  })
+  it('kol YOKSA (check-in ekranının Çıkış düğmesi) hâlâ reddeder', () => {
+    expect(decideCheckIn(ctx, { ...input, direction: 'out' }, null, 4, openBranch)).toEqual({
+      ok: false,
+      error: { code: 'already_outside' },
+    })
+  })
+  it('az önce çıkmış birinin ikinci okutması aynı çıkıştır — iki kez yazılmaz', () => {
+    const r = decideCheckIn(ctx, { ...kapi, direction: 'out', lastCrossedAt: instant(NOW - 20_000) }, null, 4, openBranch)
+    expect(r).toEqual({ ok: false, error: { code: 'already_outside' } })
+  })
+  it('sınır: son geçişten 44 sn sonra hâlâ aynı geçiş, tam 45 sn sonra değil', () => {
+    const tekrar = (ms: number) =>
+      decideCheckIn(ctx, { ...kapi, direction: 'out', lastCrossedAt: instant(NOW - ms) }, null, 4, openBranch).ok
+    expect(tekrar(44_999)).toBe(false)
+    expect(tekrar(45_000)).toBe(true)
+  })
+  it('şube kapalı görünse de ÇIKIŞ engellenmez — kayıtlı üye de, kayıtsız üye de', () => {
+    expect(decideCheckIn(ctx, { ...kapi, direction: 'out' }, null, 0, kapali).ok).toBe(true)
+    const icerde: Presence = { memberId: MEM, branchId: BR, checkedInAt: instant(NOW - H) }
+    expect(decideCheckIn(ctx, { ...input, direction: 'out' }, icerde, 1, kapali).ok).toBe(true)
+  })
+  it('şube kapalıyken GİRİŞ turnikede de reddedilir', () => {
+    expect(decideCheckIn(ctx, { ...kapi, direction: 'in' }, null, 0, kapali)).toEqual({
+      ok: false,
+      error: { code: 'branch_not_open' },
+    })
+  })
+  it('GİRİŞ ekranı, çıkışı görülmemiş ziyareti SÜRESİZ kapatıp üyeyi yeniden içeri alır', () => {
+    const r = decideCheckIn(ctx, { ...kapi, direction: 'in' }, bayat, 5, openBranch)
+    expect(r.ok).toBe(true)
+    if (r.ok) {
+      expect(r.value.events.map((e) => e.type)).toEqual(['member.exit_unobserved', 'member.checked_in'])
+      expect(r.value.events[0]?.payload).toEqual({ branchId: BR, checkedInAt: NOW - 3 * H, occupancyAfter: 4 })
+      expect(r.value.events[1]?.payload).toEqual({ branchId: BR, method: 'qr', occupancyAfter: 5 })
+      expect(r.value.checkIn.direction).toBe('in')
+      expect(r.value.presenceNext).toEqual({ memberId: MEM, branchId: BR, checkedInAt: NOW })
+    }
+  })
+  it('az önce giren üyenin giriş ekranını tekrar okutması uyuşmazlık değil — reddedilir', () => {
+    const yeni: Presence = { memberId: MEM, branchId: BR, checkedInAt: instant(NOW - 20_000) }
+    expect(decideCheckIn(ctx, { ...kapi, direction: 'in' }, yeni, 5, openBranch)).toEqual({
+      ok: false,
+      error: { code: 'already_inside' },
+    })
+  })
+  it('kol YOKSA zaten içerideki üyeye giriş hâlâ reddedilir', () => {
+    expect(decideCheckIn(ctx, { ...input, direction: 'in' }, bayat, 5, openBranch)).toEqual({
+      ok: false,
+      error: { code: 'already_inside' },
+    })
+  })
+})
+
 describe('decideAutoCheckOut (D4, system)', () => {
   it('emits member.auto_checked_out with the threshold', () => {
     const presence: Presence = { memberId: MEM, branchId: BR, checkedInAt: instant(NOW - 5 * H) }

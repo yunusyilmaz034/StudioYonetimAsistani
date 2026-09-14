@@ -178,6 +178,9 @@ export async function crossTurnstile(
     // Ama koruma AÇIK kalıyor: ekranın tarafı bir olgu, bilinçli bir eylem değil. Kolun kendi teli
     // bağlandığında (o gerçekten bir bildirim) koruma kalkar.
     directionAsserted: input.reportedDirection !== null,
+    // KOL FİZİKSEL (owner, 2026-09-14 · OR-75): yandan geçmiş, elektrik kesikken girmiş biri
+    // "içeride görünmüyor" diye çıkışta kalmaz; kaydın uyuşmadığı kendi olayıyla yazılır.
+    atTurnstile: true,
   })
   if (!prepared.ok) return prepared
 

@@ -371,6 +371,10 @@ export async function memberTurnstilePassAction(input: unknown) {
   const p = z.object({ memberId: z.string().min(1), direction: z.enum(['in', 'out']) }).parse(input)
   const ctx = await requireTenantContext(OPS)
 
+  // O yöndeki cihaz. Cihaz yoksa kayıt yine geçerli: turnikesi olmayan bir stüdyoda da bu düğme
+  // çalışmalı — ama o zaman bir KOL yok ve kayıt uyuşmazlığı eskisi gibi reddedilir.
+  const cihaz = (await deps().repo.listDevices(ctx)).find((d) => d.active && (d as { side?: 'in' | 'out' }).side === p.direction)
+
   // 1 · KAYIT — QR yolunun kullandığı use-case'in aynısı, method'u dışında.
   const kayit = await recordCheckIn(deps(), ctx, {
     memberId: p.memberId as MemberId,
@@ -381,12 +385,12 @@ export async function memberTurnstilePassAction(input: unknown) {
     direction: p.direction,
     // Yön BİLİNÇLİ olarak bildiriliyor: resepsiyon düğmeye hangi yön için bastığını biliyor.
     directionAsserted: true,
+    // Kol dönecekse, "zaten dışarıda/içeride" üyeyi kapıda bırakmaz (OR-75).
+    atTurnstile: Boolean(cihaz),
   })
   if (!kayit.ok) return { ok: false as const, error: kayit.error }
 
-  // 2 · KOL — o yöndeki cihaza komut. Cihaz yoksa kayıt yine geçerli: turnikesi olmayan bir
-  // stüdyoda da bu düğme çalışmalı.
-  const cihaz = (await deps().repo.listDevices(ctx)).find((d) => d.active && (d as { side?: 'in' | 'out' }).side === p.direction)
+  // 2 · KOL — o yöndeki cihaza komut.
   const member = await new FirestoreMemberRepository(adminDb()).findById(ctx, p.memberId as MemberId)
   const firstName = (member?.fullName ?? '').trim().split(/\s+/)[0] ?? ''
   const kalan = await kalanOzeti(ctx, p.memberId as MemberId)

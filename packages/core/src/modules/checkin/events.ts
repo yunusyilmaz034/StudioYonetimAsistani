@@ -28,6 +28,21 @@ export const TURNSTILE_OPENED_MANUALLY = 'turnstile.opened_manually'
 // üye kimliği `subject`te, isim hiçbir yerde. Ve bu bir GÖZLEM, varsayım değil (#11) — üye
 // gerçekten okuttu ve kol gerçekten dönmedi.
 export const MEMBER_ENTRY_REFUSED = 'member.entry_refused'
+// ── KAYDI OLMAYAN ÇIKIŞ, ve KAPANMAMIŞ ZİYARET (owner, 2026-09-14 · OR-75) ─────────────────────
+//
+// *"qr ile giriş yapmayan biri yandan geçmiş olabilir, o an enerji kesik olabilir ama çıkış yapmak
+// istediğinde çıkış yapamıyor."* Çıkış ekranı "içeride görünmüyor" diye kolu çevirmiyordu: bir kayıt
+// uyuşmazlığı yüzünden birini içeride tutmak. Çıkış asla engellenmez (OR-53) — kol artık dönüyor.
+//
+// Ama görülmemiş bir girişi YAZMAK yok (#11): kimse onun girdiğini görmedi. Bu yüzden iki ayrı olay:
+//   · `member.exited_without_entry` — çıkışı GÖRÜLDÜ, girişi hiç kaydedilmemişti. Doluluk oynamaz,
+//     çünkü onu hiç saymamıştık.
+//   · `member.exit_unobserved` — açık bir ziyareti varken giriş ekranını okuttu; demek ki bir ara
+//     çıkmış ve görülmemiş. Eski ziyaret kapanır, SÜRE YAZILMAZ (çıkış anı bilinmiyor), ardından
+//     olağan `member.checked_in` gelir.
+// İkisi de kapıdaki bir kaçağın izi: owner kaç kez yandan geçildiğini buradan görür.
+export const MEMBER_EXITED_WITHOUT_ENTRY = 'member.exited_without_entry'
+export const MEMBER_EXIT_UNOBSERVED = 'member.exit_unobserved'
 // ── KAPI CİHAZLARI (owner onayı, 2026-09-11 — ikinci stüdyo hazırlığı) ──────────────────────
 //
 // İlk iki cihaz ELLE oluşturulmuştu: panelde cihaz ekleme ekranı yoktu, sır `secrets.h`e yazılıp
@@ -76,6 +91,18 @@ export type MemberEntryRefusedPayload = {
 }
 export type BranchClosedPayload = {
   readonly occupancyAtClose: number
+}
+/** `occupancyAfter` çıkıştan ÖNCEKİYLE aynı: hiç sayılmamış biri sayımdan düşülmez. */
+export type MemberExitedWithoutEntryPayload = {
+  readonly branchId: BranchId
+  readonly method: CheckInMethod
+  readonly occupancyAfter: number
+}
+/** `checkedInAt` kapanan ziyaretin başladığı an. Çıkış anı bilinmiyor, o yüzden süre YOK. */
+export type MemberExitUnobservedPayload = {
+  readonly branchId: BranchId
+  readonly checkedInAt: number
+  readonly occupancyAfter: number
 }
 
 /** Sır YOK, hash bile yok: bir olay kaydı, anahtarın kendisini taşımaz. */

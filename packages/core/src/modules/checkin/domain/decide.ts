@@ -27,6 +27,8 @@ import {
   DEVICE_REGISTERED,
   DEVICE_SECRET_ROTATED,
   MEMBER_ENTRY_REFUSED,
+  MEMBER_EXIT_UNOBSERVED,
+  MEMBER_EXITED_WITHOUT_ENTRY,
   TURNSTILE_OPENED_MANUALLY,
 } from '../events'
 import type { EntryRefusalReason } from '../events'
@@ -134,6 +136,15 @@ export interface CheckInInput {
    * seconds — see `DEBOUNCE_MS`.
    */
   readonly lastCrossedAt?: Instant
+  /**
+   * Geçiş FİZİKSEL bir koldan mı? (owner, 2026-09-14 · OR-75)
+   *
+   * Kaydın uyuşmadığı iki durumda cevap buna bağlı. Resepsiyonun check-in ekranındaki "Çıkış"
+   * düğmesi yalnızca KAYIT yazar; "zaten dışarıda" demek doğru ve 18:41'deki çift basmayı durduran
+   * şey o. Ama bir KOL reddederse insan kapıda kalır — ve kapının önündeki kişi kaydın yanlış
+   * olduğunun kanıtıdır. Turnikede uyuşmazlık kolu kilitlemez; ne olduğu kendi olayıyla yazılır.
+   */
+  readonly atTurnstile?: boolean
 }
 
 /**
@@ -158,19 +169,10 @@ export function decideCheckIn(
   currentOccupancy: number,
   branch: BranchOccupancy | null,
 ): Result<CheckInOutcome, DomainError> {
-  if (!branch?.isOpen) return err({ code: 'branch_not_open' })
-
-  // ── What was asked for, when it was asked explicitly ──────────────────────────────────────
-  if (input.direction === 'out' && presence === null) return err({ code: 'already_outside' })
-  if (input.direction === 'in' && presence !== null) return err({ code: 'already_inside' })
-
-  // ── The same crossing, twice ──────────────────────────────────────────────────────────────
-  // Refused rather than silently ignored: the caller showed somebody a confirmation, and "it was
-  // already recorded" is a different sentence from "done" — one of them is true.
-  const yonBilincli = input.directionAsserted ?? input.direction !== undefined
-  if (input.lastCrossedAt !== undefined && ctx.now - input.lastCrossedAt < DEBOUNCE_MS && !yonBilincli) {
-    return err({ code: 'checkin_too_soon' })
-  }
+  // ŞUBE KAPALI yalnızca GİRİŞİ durdurur (owner, 2026-09-14 · OR-75). Kapalı bir şubeden çıkmak
+  // isteyen biri kapanıştan sonra içeride kalmış biridir — onu tutmak bir kural değil, arızadır.
+  const yon = input.direction ?? (presence === null ? 'in' : 'out')
+  if (!branch?.isOpen && yon === 'in') return err({ code: 'branch_not_open' })
 
   const checkInBase = {
     id: input.checkInId,
@@ -182,6 +184,58 @@ export function decideCheckIn(
     actor: ctx.actor,
   }
   const related = { memberId: input.memberId }
+
+  // Son geçiş: kapı kaydı ya da açık ziyaretin başlangıcı, hangisi yeniyse. Az önce geçmiş birinin
+  // ikinci okutması, kayıt uyuşmazlığı DEĞİLDİR — aynı geçiştir ve turnikede de reddedilir.
+  const sonGecis = Math.max(input.lastCrossedAt ?? 0, presence?.checkedInAt ?? 0)
+  const azOnce = sonGecis > 0 && ctx.now - sonGecis < DEBOUNCE_MS
+
+  // ── What was asked for, when it was asked explicitly ──────────────────────────────────────
+  if (input.direction === 'out' && presence === null) {
+    if (!input.atTurnstile || azOnce) return err({ code: 'already_outside' })
+    // Girişi hiç görülmedi, çıkışı görüldü. Doluluk oynamaz: onu hiç saymamıştık.
+    return ok({
+      events: [
+        {
+          ...base(ctx, 'member', input.memberId, input.branchId, related),
+          type: MEMBER_EXITED_WITHOUT_ENTRY,
+          payload: { branchId: input.branchId, method: input.method, occupancyAfter: currentOccupancy },
+        },
+      ],
+      checkIn: { ...checkInBase, direction: 'out' },
+      presenceNext: null,
+    })
+  }
+  if (input.direction === 'in' && presence !== null) {
+    if (!input.atTurnstile || azOnce) return err({ code: 'already_inside' })
+    // Açık ziyaret kapanır ama SÜRESİZ: çıkış anını kimse görmedi, ve uydurulmuş bir süre ortalama
+    // ziyaret süresini sessizce bozar. Sonra olağan giriş.
+    const bosaldiktan = Math.max(0, currentOccupancy - 1)
+    return ok({
+      events: [
+        {
+          ...base(ctx, 'member', input.memberId, input.branchId, related),
+          type: MEMBER_EXIT_UNOBSERVED,
+          payload: { branchId: input.branchId, checkedInAt: presence.checkedInAt, occupancyAfter: bosaldiktan },
+        },
+        {
+          ...base(ctx, 'member', input.memberId, input.branchId, related),
+          type: MEMBER_CHECKED_IN,
+          payload: { branchId: input.branchId, method: input.method, occupancyAfter: bosaldiktan + 1 },
+        },
+      ],
+      checkIn: { ...checkInBase, direction: 'in' },
+      presenceNext: { memberId: input.memberId, branchId: input.branchId, checkedInAt: ctx.now },
+    })
+  }
+
+  // ── The same crossing, twice ──────────────────────────────────────────────────────────────
+  // Refused rather than silently ignored: the caller showed somebody a confirmation, and "it was
+  // already recorded" is a different sentence from "done" — one of them is true.
+  const yonBilincli = input.directionAsserted ?? input.direction !== undefined
+  if (input.lastCrossedAt !== undefined && ctx.now - input.lastCrossedAt < DEBOUNCE_MS && !yonBilincli) {
+    return err({ code: 'checkin_too_soon' })
+  }
 
   if (presence === null) {
     const occupancyAfter = currentOccupancy + 1
