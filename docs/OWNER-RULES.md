@@ -1767,3 +1767,24 @@ yoklama, paket hakkı etkilenmez. Olay `turnstile.reopened { deviceId, direction
 **Bilinen bedel (owner kabul etti):** üye aynı telefonla ikinci açılışta bir kişiyi daha sokabilir. Bu yüzden **bir
 kez** ve kayıt altında: Hareket Merkezi'nde uyarı rengiyle görünür. Resepsiyonun elle geçirmesinden sonra yeniden
 açma yok (orada resepsiyon zaten kapıda).
+
+**OR-80 · Every ad campaign is its own sales period.** (2026-09-15)
+*"Satış hunisini aslında her reklam döneminde yenilemek gerekir … 15 eylül reklamından gelenler diye ayraç
+olsun, eski konuşmaları getirmesine gerek yok, en altta eski konuşmaları getir deyince getirsin."*
+
+- The **owner** starts a period from Satış Hunisi (label + start day). Reception does not see the button.
+- The funnel shows only the current period's leads. Older leads are **not touched and not marked lost**; they
+  load on demand ("Eski adayları getir") and can still be advanced from there.
+- The WhatsApp list (Sohbetler and WP Hattı) has three groups: first contact in this period ("… reklamından
+  gelenler"), **known contacts who wrote in this period** (never hidden — the line is also the members' line),
+  and older conversations on demand.
+- First period: "15 Eylül reklamı", from 2026-09-15 00:00 TRT.
+
+**OR-81 · The AI explains ad prices up front; the card/cash gap is bank commission.** (2026-09-15)
+The 15 September Instagram ad shows the **cash/transfer** price for Fitness 3 and 6 months, Reformer 8 and PT 8,
+but the **card** price (22.000 ₺) for Fitness 12 months. The ad stays as it is (owner chose B); the AI says so in
+its **first price sentence** and gives the card amount from live data. A customer paying cash/transfer gets the
+cash price from the panel. Asked why card costs more: *bank commissions*. Asked for more detail: call
+0533 199 41 23. Hibrit packages have no campaign but the AI may still suggest them, prices from live data only.
+The "prices valid until 15 September" sentence was removed.
+

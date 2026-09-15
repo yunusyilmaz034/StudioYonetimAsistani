@@ -26,6 +26,27 @@ Kod tarafında yarım iş YOK. Bekleyen şeyler, hepsi owner'la birlikte:
    o gün hiç personel turnikeden geçmediği için doğru sonuç. İlk gerçek kapanış, eğitmenler turnikeyi kullanmaya
    başladığı gece; o sabah `/mesai`da dünkü satırların son geçiş saatine kapandığına bak.
 
+## 📣 15 Eylül öğleden sonra — reklam dönemi, AI fiyat metni, sayı kutuları
+
+**Canlıya çıkanlar** (push `df0ce95`; panel build'i ve `whatsappWebhook` deploy'u başlatıldı — trafik doğrulaması aşağıda):
+- **Reklam dönemi ([[OR-80]])** `61cfd62`: `ad_period.started`, `/adPeriods` (server-only, kurallar yayında). Huni yalnızca
+  dönemin adayları; Sohbetler/WP Hattı üç ayraç; webhook yeni sohbete `firstAt` yazıyor. İlk dönem **açıldı**:
+  `adp_2026_09_15` "15 Eylül reklamı" (script `tools/migration/start-ad-period-2026-09-15.ts`, aktör migration).
+  15 Eylül 00:00'dan beri **0 aday / 0 sohbet** — reklam yayında olmasına rağmen.
+- **AI metni ([[OR-81]])**: `settings/ai` kampanya/SSS/örnekler güncellendi (10:58Z; yedek scratchpad'de değil, eski hâli
+  olay yok — metin panelden okunabilir). Reklam fiyatları önden açıklanıyor, nakit/kart farkı = banka komisyonu,
+  hibrit rakamları metinden çıktı, "15 Eylül'e kadar geçerli" cümlesi kalktı.
+- **Sayı kutuları** `22fcbc6` + `df0ce95`: bütün `type="number"` alanlar düz metin kutusu (`components/ui/number-input.tsx`);
+  silme çalışıyor. **TL alanlarında "." binlik ayraç, "," kuruş** — "1.500" = 1500 TL; "12.5" yazan 125 TL alır.
+- Katalog: owner test paketini pasife aldı, PT 16 Ders → özel ders, Hibrit 2 Aylık → 60 gün.
+
+**⚠️ AÇIK — reklamın WhatsApp numarası AI hattı değil.** Reklam "WhatsApp 0533 199 41 23" diyor; owner teyit etti:
+AI başka numarada. Reklamdan yazanlara **AI cevap vermiyor** ve bu sohbetler panelde **görünmüyor** (webhook yalnızca
+AI hattını görür). AI hattına 14 Eylül 22:46'dan beri mesaj yok. Owner'ın kararı bekleniyor: reklamın WhatsApp
+butonunu AI hattına çevirmek mi, 0533'teki mesajları elle cevaplamak mı.
+
+**Bilinen:** webhook metin dışı mesajları (ses, görsel, düğme) sessizce atlıyor — iz bırakmadan 200 dönüyor.
+
 ## 💰 14 Eylül gecesi — test hesapları Kasa Hareketleri'nden de çıktı
 
 **Owner:** *"ışıl yılmaz'a ait şeyler kasada gözükmesin, gerçek değil hiçbiri."* Netleştirildi: kastedilen **test üyesi**
