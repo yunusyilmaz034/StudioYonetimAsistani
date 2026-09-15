@@ -51,7 +51,7 @@ linkleri `853d273` → `build-2026-09-15-003` (rollout izleniyor):
 - **Gizem Eşin "ben almadım" (14 Eyl 20:00):** **mobil uygulamadan** alınmış — 15:28:08 uygulama açıldı, 15:28:11 ajanda,
   15:28:47.071 `POST /api/member/book`; rezervasyon **kendi üye hesabından** 14.09 15:28:47'de alınmış (aktör
   üye, personel değil), onay bildirimi 15:28:48'de iletilmiş; yoklama alınmamış, 15.09 03:00 sistem "katıldı varsayıldı"
-  ve kredi düştü. Turnike kaydı yok (bu üye hiç okutmuyor). 15 Eyl 20:00'ı da kendisi 08:16'da almış. Karar owner'da.
+  ve kredi düştü. Turnike kaydı yok (bu üye hiç okutmuyor). 15 Eyl 20:00'ı da kendisi 08:16'da almış. Owner: üye 14 Eylül'e **gelmemiş**, yine "ben yapmadım" diyor. **Kredi iadesi/yoklama düzeltmesi Işıl'ın kararına bırakıldı — dokunma** (15 Eylül akşamı).
 
 - **AI ilk mesaj ([[OR-83]])** `6448461`: "bilgi alabilir miyim" → aynı mesajda paketler + fiyat + kampanya, sonda isim.
   `whatsappWebhook` deploy edildi (functions, push'tan bağımsız); `settings/ai.examples` 15:28Z güncellendi.
