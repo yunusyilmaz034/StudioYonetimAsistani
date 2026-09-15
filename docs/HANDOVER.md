@@ -63,6 +63,12 @@ linkleri `853d273` → `build-2026-09-15-003` (rollout izleniyor):
   + sebep; kredi 48, fiyat 30.000 ₺ aynı). Paket formu artık kategori değişince satılmış paketleri eşitlemeyi teklif ediyor.
   Taramada 16 hibrit "uyuşmazlık" çıktı — sorun DEĞİL (hibrit bileşenleri kendi kategorisinde ayrı paket).
 
+- **Check-in ekranı + raporu** (15 Eylül gece): `/checkin` üstte bugünün canlı rakamları (giriş · farklı üye · çıkış · içeride ·
+  turnike/QR/resepsiyon), altta "Bugün check-in yapanlar" (kişi başına satır), 30 sn'de bir yenilenir. Raporlar'da
+  "Check-in raporu (günlük / haftalık / aylık)": dönem × üye, giriş sayısı, ilk/son giriş, giriş yolu; test hesapları hariç,
+  hafta Pazartesi başlar, sınırlar TRT. Yeni sorgu `listCheckInsBetween` (tek alan aralığı — indeks gerekmez).
+  **Deneme:** Raporlar → Check-in raporu (haftalık) → Son 30 gün → bu hafta satırında bugün girenler görünmeli.
+
 **Numara (owner düzeltti, 15 Eylül):** aktif reklam **AI hattına** gidiyor (0533'ten farklı bir numara). 0533 199 41 23
 stüdyonun telefonu; AI mevcut üyelerin satış dışı sorularını oraya yönlendiriyor (`whoBlock` + bilgi kartı İLETİŞİM).
 Görselde 0533 yazması reklamı yönlendirmiyor. **Açık gözlem:** AI hattına 14 Eyl 22:46'dan beri yeni mesaj yok;

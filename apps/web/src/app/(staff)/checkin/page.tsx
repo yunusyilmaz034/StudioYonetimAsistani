@@ -13,6 +13,8 @@ export default async function CheckinPage() {
   return (
     <CheckinScreen
       state={state}
+      // Bugünün listesi için TÜM üyelerin adı: bugün giren bir üyenin paketi az önce bitmiş olabilir.
+      names={Object.fromEntries(members.map((m) => [m.id, m.fullName]))}
       members={members
         .filter((m) => m.status === 'active')
         .map((m) => ({ id: m.id, fullName: m.fullName, phone: m.phone }))}

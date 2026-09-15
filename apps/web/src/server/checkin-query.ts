@@ -7,6 +7,8 @@ import {
   type TenantContext,
 } from '@studio/core'
 
+import { studioDayStart } from '@/lib/ranges'
+
 import { adminDb } from './firebase-admin'
 
 export interface InsideMember {
@@ -19,12 +21,33 @@ export interface ExpectedMember {
   readonly memberName: string
   readonly sessionStartsAt: number
 }
+// ── BUGÜNÜN CANLI RAKAMLARI (owner, 2026-09-15) ──────────────────────────────────────────────
+// *"Bu ekranda bugün canlı rakamlar, bir de altta bugün check-in yapanlar olsun."* Tek okuma: şubenin bugünkü
+// check-in kayıtları (`listCheckInsForDay`, stüdyo günü 00:00'dan). Kişi başına tek satır — aynı üyenin gün içindeki
+// ikinci girişi ayrı satır değil, sayıdır.
+export interface TodayRow {
+  readonly memberId: string
+  readonly firstIn: number | null // null ⇒ bugün yalnızca çıkışı var (girişi kayıtsız, OR-75)
+  readonly lastOut: number | null
+  readonly entries: number
+  readonly via: readonly string[] // 'device' | 'qr' | 'reception'
+}
+export interface TodayStats {
+  readonly entries: number
+  readonly uniqueMembers: number
+  readonly exits: number
+  readonly byMethod: { readonly device: number; readonly qr: number; readonly reception: number }
+  readonly rows: readonly TodayRow[]
+}
+const EMPTY_TODAY: TodayStats = { entries: 0, uniqueMembers: 0, exits: 0, byMethod: { device: 0, qr: 0, reception: 0 }, rows: [] }
+
 export interface CheckinState {
   readonly branchId: string | null
   readonly isOpen: boolean
   readonly occupancy: number
   readonly inside: readonly InsideMember[]
   readonly expectedSoon: readonly ExpectedMember[]
+  readonly today: TodayStats
 }
 
 // v1.27 S4 — what a studio gets before its owner has opened the settings screen. The window itself
@@ -38,7 +61,7 @@ const DEFAULT_SOON_MINUTES = 15
 export async function loadCheckinState(ctx: TenantContext, nowMs: number): Promise<CheckinState> {
   const branchId = (ctx.branchIds[0] ?? null) as BranchId | null
   if (!branchId) {
-    return { branchId: null, isOpen: false, occupancy: 0, inside: [], expectedSoon: [] }
+    return { branchId: null, isOpen: false, occupancy: 0, inside: [], expectedSoon: [], today: EMPTY_TODAY }
   }
   const db = adminDb()
   const checkinRepo = new FirestoreCheckinRepository(db)
@@ -46,10 +69,11 @@ export async function loadCheckinState(ctx: TenantContext, nowMs: number): Promi
   const settings = await new FirestoreSchedulingRepository(db).getStudioSettings(ctx)
   const soonMs = (settings?.qr?.checkInWindowMinutes ?? DEFAULT_SOON_MINUTES) * 60_000
 
-  const [branch, inside, upcoming] = await Promise.all([
+  const [branch, inside, upcoming, todays] = await Promise.all([
     checkinRepo.getBranch(ctx, branchId),
     checkinRepo.listPresence(ctx, branchId),
     new FirestoreReservationRepository(db).listBySessionStartRange(ctx, instant(nowMs), instant(nowMs + soonMs)),
+    checkinRepo.listCheckInsForDay(ctx, branchId, instant(studioDayStart(nowMs))),
   ])
 
   const insideIds = new Set(inside.map((p) => p.memberId))
@@ -64,6 +88,7 @@ export async function loadCheckinState(ctx: TenantContext, nowMs: number): Promi
     .sort((a, b) => a.sessionStartsAt - b.sessionStartsAt)
 
   return {
+    today: summarizeToday(todays),
     branchId,
     isOpen: branch?.isOpen ?? false,
     occupancy: inside.length,
@@ -72,4 +97,30 @@ export async function loadCheckinState(ctx: TenantContext, nowMs: number): Promi
       .sort((a, b) => b.checkedInAt - a.checkedInAt),
     expectedSoon,
   }
+}
+
+function summarizeToday(todays: readonly { memberId: string; direction: string; method: string; occurredAt: number }[]): TodayStats {
+  const sorted = [...todays].sort((a, b) => a.occurredAt - b.occurredAt)
+  const byMember = new Map<string, { firstIn: number | null; lastOut: number | null; entries: number; via: Set<string> }>()
+  const byMethod = { device: 0, qr: 0, reception: 0 }
+  let entries = 0
+  let exits = 0
+  for (const c of sorted) {
+    const row = byMember.get(c.memberId) ?? { firstIn: null, lastOut: null, entries: 0, via: new Set<string>() }
+    if (c.direction === 'in') {
+      entries++
+      row.entries++
+      row.firstIn ??= c.occurredAt
+      row.via.add(c.method)
+      if (c.method === 'device' || c.method === 'qr' || c.method === 'reception') byMethod[c.method]++
+    } else {
+      exits++
+      row.lastOut = c.occurredAt
+    }
+    byMember.set(c.memberId, row)
+  }
+  const rows = [...byMember]
+    .map(([memberId, r]) => ({ memberId, firstIn: r.firstIn, lastOut: r.lastOut, entries: r.entries, via: [...r.via] }))
+    .sort((a, b) => (b.firstIn ?? b.lastOut ?? 0) - (a.firstIn ?? a.lastOut ?? 0))
+  return { entries, uniqueMembers: rows.filter((r) => r.entries > 0).length, exits, byMethod, rows }
 }

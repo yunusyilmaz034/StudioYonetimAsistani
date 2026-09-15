@@ -3,6 +3,7 @@ import {
   money,
   saleBalanceDue,
   type CashDrawer,
+  type CheckIn,
   type ClassSession,
   type DailyReadModel,
   type Entitlement,
@@ -603,5 +604,75 @@ export function buildDebts(sales: readonly Sale[], members: readonly Member[], n
       open.length === 0
         ? 'Açık bakiye yok — herkesin hesabı kapalı.'
         : `${kisi} üye · ${open.length} açık satış · ${tl(toplam)} bekliyor · en eskisi ${enEski} gündür.`,
+  }
+}
+
+// ── Check-in (owner, 2026-09-15) ────────────────────────────────────────────────────────────
+//
+// *"Raporlar ekranında check-in yapanlar günlük, haftalık, aylık şeklinde rapor alınabilsin."* Satır = bir dönem ×
+// bir üye: o dönemde kaç kez girdi, ilk ve son girişi, hangi yoldan. Yalnızca GİRİŞLER sayılır; çıkış bir ziyaret
+// değildir. Dönemler stüdyo saatiyle (UTC+3) ve hafta Pazartesi başlar — Türkiye'de haftanın okunduğu gibi.
+export type CheckinGrain = 'day' | 'week' | 'month'
+
+const TR_MS = 3 * 3_600_000
+const GUN_MS = 86_400_000
+const AYLAR = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık']
+const VIA: Record<string, string> = { device: 'Turnike', qr: 'QR', reception: 'Resepsiyon' }
+const iki = (n: number) => String(n).padStart(2, '0')
+/** Stüdyo gününün "yerel" başlangıcı — UTC alanları doğrudan İstanbul tarihini verir. */
+const yerelGun = (ms: number) => Math.floor((ms + TR_MS) / GUN_MS) * GUN_MS
+const gunAy = (yerel: number) => {
+  const d = new Date(yerel)
+  return `${iki(d.getUTCDate())}.${iki(d.getUTCMonth() + 1)}`
+}
+
+export function checkinPeriodOf(ms: number, grain: CheckinGrain): { key: number; label: string } {
+  const gun = yerelGun(ms)
+  const d = new Date(gun)
+  if (grain === 'day') return { key: gun, label: `${gunAy(gun)}.${d.getUTCFullYear()}` }
+  if (grain === 'week') {
+    const pazartesi = gun - ((d.getUTCDay() + 6) % 7) * GUN_MS
+    const pazar = pazartesi + 6 * GUN_MS
+    return { key: pazartesi, label: `${gunAy(pazartesi)}–${gunAy(pazar)}.${new Date(pazar).getUTCFullYear()}` }
+  }
+  return { key: Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1), label: `${AYLAR[d.getUTCMonth()]} ${d.getUTCFullYear()}` }
+}
+
+export function buildCheckins(checkIns: readonly CheckIn[], members: readonly Member[], grain: CheckinGrain): Report {
+  const name = new Map(members.map((m) => [m.id as string, m.fullName]))
+  const girisler = [...checkIns].filter((c) => c.direction === 'in').sort((a, b) => a.occurredAt - b.occurredAt)
+  const acc = new Map<string, { key: number; label: string; memberId: string; count: number; first: number; last: number; via: Set<string> }>()
+  for (const c of girisler) {
+    const p = checkinPeriodOf(c.occurredAt, grain)
+    const k = `${p.key}|${c.memberId as string}`
+    const row = acc.get(k) ?? { key: p.key, label: p.label, memberId: c.memberId as string, count: 0, first: c.occurredAt, last: c.occurredAt, via: new Set<string>() }
+    row.count++
+    row.last = c.occurredAt
+    row.via.add(c.method)
+    acc.set(k, row)
+  }
+  const satirlar = [...acc.values()].sort(
+    (a, b) => a.key - b.key || b.count - a.count || (name.get(a.memberId) ?? '').localeCompare(name.get(b.memberId) ?? '', 'tr'),
+  )
+  const donem = new Set(satirlar.map((s) => s.key)).size
+  const uye = new Set(girisler.map((c) => c.memberId as string)).size
+  const birim = grain === 'day' ? 'gün' : grain === 'week' ? 'hafta' : 'ay'
+  return {
+    table: {
+      name: `check-in-raporu-${grain === 'day' ? 'gunluk' : grain === 'week' ? 'haftalik' : 'aylik'}`,
+      columns: ['Dönem', 'Üye', 'Giriş sayısı', 'İlk giriş', 'Son giriş', 'Giriş yolu'],
+      rows: satirlar.map((s) => [
+        s.label,
+        name.get(s.memberId) ?? 'Silinmiş üye',
+        s.count,
+        date(s.first),
+        date(s.last),
+        [...s.via].map((v) => VIA[v] ?? v).join(' · '),
+      ]),
+    },
+    summary:
+      girisler.length === 0
+        ? 'Bu aralıkta check-in yok.'
+        : `${girisler.length} giriş · ${uye} farklı üye · ${donem} ${birim} · ${birim} başına ortalama ${Math.round(girisler.length / donem)} giriş`,
   }
 }

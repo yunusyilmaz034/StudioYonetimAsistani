@@ -19,6 +19,11 @@ export type ReportId =
   | 'sales'
   | 'collections'
   | 'reservations'
+  // 2026-09-15 — check-in yapanlar, üç zaman diliminde. Ayrı rapor, çünkü ekranın tek bir aralık seçicisi var:
+  // gruplamayı ayrı bir düğmeyle değil, raporu seçerek seçmek ekranı değiştirmeden yeter.
+  | 'checkins_daily'
+  | 'checkins_weekly'
+  | 'checkins_monthly'
   | 'trainer'
   | 'dayend'
   | 'debts'
@@ -75,6 +80,24 @@ export const REPORTS: readonly ReportSpec[] = [
     id: 'reservations',
     label: 'Rezervasyon raporu',
     question: 'Bu dönemde kim hangi derse geldi, kim gelmedi?',
+    time: 'range',
+  },
+  {
+    id: 'checkins_daily',
+    label: 'Check-in raporu (günlük)',
+    question: 'Her gün kim geldi, kaç kez?',
+    time: 'range',
+  },
+  {
+    id: 'checkins_weekly',
+    label: 'Check-in raporu (haftalık)',
+    question: 'Her hafta (Pazartesi–Pazar) kim geldi, kaç kez?',
+    time: 'range',
+  },
+  {
+    id: 'checkins_monthly',
+    label: 'Check-in raporu (aylık)',
+    question: 'Her ay kim geldi, kaç kez?',
     time: 'range',
   },
   {

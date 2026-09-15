@@ -4,6 +4,7 @@ import {
   debtByEntitlement,
   loadExcludedMemberIds,
   type TenantContext,
+  FirestoreCheckinRepository,
   FirestoreEntitlementRepository,
   FirestoreFinanceRepository,
   FirestoreIdentityRepository,
@@ -19,6 +20,7 @@ import { z } from 'zod'
 
 import {
   buildCash,
+  buildCheckins,
   buildCollections,
   buildDayEnd,
   buildMembership,
@@ -77,7 +79,7 @@ async function haricTut<T extends { readonly memberId?: unknown; readonly id?: u
 export async function loadReportAction(input: unknown): Promise<ReportResult> {
   const p = z
     .object({
-      id: z.enum(['membership', 'sales', 'collections', 'reservations', 'trainer', 'dayend', 'debts', 'cash']),
+      id: z.enum(['membership', 'sales', 'collections', 'reservations', 'checkins_daily', 'checkins_weekly', 'checkins_monthly', 'trainer', 'dayend', 'debts', 'cash']),
       fromMs: z.number(),
       toMs: z.number(),
     })
@@ -122,6 +124,18 @@ export async function loadReportAction(input: unknown): Promise<ReportResult> {
         new FirestoreIdentityRepository(db).listStaff(ctx),
       ])
       return { id: p.id, ...buildCollections(payments, members, drawers, staff) }
+    }
+
+    case 'checkins_daily':
+    case 'checkins_weekly':
+    case 'checkins_monthly': {
+      const grain = p.id === 'checkins_daily' ? 'day' : p.id === 'checkins_weekly' ? 'week' : 'month'
+      const [checkIns, members] = await Promise.all([
+        new FirestoreCheckinRepository(db).listCheckInsBetween(ctx, p.fromMs, p.toMs),
+        new FirestoreMemberRepository(db).list(ctx),
+      ])
+      // Test hesapları raporlarda görünmez (2026-09-02) — check-in raporunda da.
+      return { id: p.id, ...buildCheckins(await haricTut(ctx, checkIns, 'memberId'), members, grain) }
     }
 
     case 'reservations': {

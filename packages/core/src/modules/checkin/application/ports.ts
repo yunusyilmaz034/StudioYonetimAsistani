@@ -15,6 +15,8 @@ export interface CheckinRepository {
   listStalePresence(ctx: TenantContext, checkedInBefore: Instant): Promise<readonly Presence[]>
   // Dashboard (v1.16): the branch's check-ins since a day boundary (the log read).
   listCheckInsForDay(ctx: TenantContext, branchId: BranchId, since: Instant): Promise<readonly CheckIn[]>
+  // Check-in raporu (2026-09-15): bir aralıktaki bütün check-in'ler, eskiden yeniye.
+  listCheckInsBetween(ctx: TenantContext, fromMs: number, toMs: number): Promise<readonly CheckIn[]>
   // Member Workspace (v1.18): one member's check-in history since a bound, newest first.
   listCheckInsByMember(ctx: TenantContext, memberId: MemberId, since: Instant): Promise<readonly CheckIn[]>
   // OR-79: kol yeniden açıldı — geçiş kaydına damga ve olay, TEK işlemde (#1).

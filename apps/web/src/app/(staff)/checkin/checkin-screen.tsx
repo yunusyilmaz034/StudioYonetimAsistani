@@ -1,7 +1,7 @@
 'use client'
 
 import { foldTr } from '@/lib/fold-tr'
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { CameraIcon, LogInIcon, LogOutIcon, PrinterIcon, SearchIcon, UsersIcon } from 'lucide-react'
 import { toast } from 'sonner'
@@ -39,12 +39,29 @@ const durationLabel = (since: number) => {
   return min < 60 ? `${min} dk` : `${Math.floor(min / 60)} sa ${min % 60} dk`
 }
 
-export function CheckinScreen({ state, members }: { state: CheckinState; members: readonly MemberLite[] }) {
+const VIA_TR: Record<string, string> = { device: 'Turnike', qr: 'QR', reception: 'Resepsiyon' }
+
+export function CheckinScreen({
+  state,
+  members,
+  names,
+}: {
+  state: CheckinState
+  members: readonly MemberLite[]
+  names: Record<string, string>
+}) {
   const router = useRouter()
   const [scannerOn, setScannerOn] = useState(false)
   const [query, setQuery] = useState('')
   const [busy, setBusy] = useState(false)
   const debounce = useRef<Map<string, number>>(new Map())
+
+  // CANLI (owner, 2026-09-15): turnikeden geçenler bu ekrana kimse dokunmadan düşsün. Sunucu bileşeni yeniden okunur;
+  // arama kutusu ve kamera durumu istemcide olduğu için bozulmaz.
+  useEffect(() => {
+    const iv = window.setInterval(() => router.refresh(), 30_000)
+    return () => window.clearInterval(iv)
+  }, [router])
 
   const nameOf = useMemo(() => new Map(members.map((m) => [m.id, m.fullName])), [members])
   const insideIds = useMemo(() => new Set(state.inside.map((i) => i.memberId)), [state.inside])
@@ -177,6 +194,25 @@ export function CheckinScreen({ state, members }: { state: CheckinState; members
       {/* Kapıda biri varken resepsiyon zaten bu ekranda. Düğmenin yeri burası. */}
       <TurnstileOpen />
 
+      {/* BUGÜN — canlı rakamlar (owner, 2026-09-15). Şube kapalıyken de görünür: günün özeti kapanıştan sonra da sorulur. */}
+      <section aria-label="Bugün" className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+        {[
+          { label: 'Bugün giriş', value: String(state.today.entries) },
+          { label: 'Farklı üye', value: String(state.today.uniqueMembers) },
+          { label: 'Çıkış', value: String(state.today.exits) },
+          { label: 'Şu an içeride', value: String(state.occupancy) },
+          {
+            label: 'Turnike · QR · Resepsiyon',
+            value: `${state.today.byMethod.device} · ${state.today.byMethod.qr} · ${state.today.byMethod.reception}`,
+          },
+        ].map((k) => (
+          <div key={k.label} className="rounded-xl border border-border bg-card p-3">
+            <p className="text-xs text-muted-foreground">{k.label}</p>
+            <p className="mt-0.5 text-xl font-semibold tabular-nums text-foreground">{k.value}</p>
+          </div>
+        ))}
+      </section>
+
       {!state.isOpen ? (
         <div className="rounded-xl border border-warning/30 bg-warning/10 p-4 text-sm text-warning">
           Şube kapalı. Giriş/çıkış almak için önce şubeyi açın.
@@ -267,6 +303,30 @@ export function CheckinScreen({ state, members }: { state: CheckinState; members
           </section>
         </div>
       )}
+
+      {/* BUGÜN CHECK-IN YAPANLAR (owner, 2026-09-15) — kişi başına bir satır, en son gelen en üstte. */}
+      <section className="space-y-2">
+        <h3 className="text-sm font-medium">Bugün check-in yapanlar ({state.today.uniqueMembers})</h3>
+        {state.today.rows.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Bugün henüz giriş yok.</p>
+        ) : (
+          <ul className="divide-y divide-border rounded-xl border border-border">
+            {state.today.rows.map((r) => (
+              <li key={r.memberId} className="flex items-center justify-between gap-3 p-2.5">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium">{names[r.memberId] ?? nameOf.get(r.memberId) ?? 'Üye'}</p>
+                  <p className="text-xs tabular-nums text-muted-foreground">
+                    {r.firstIn !== null ? `Giriş ${timeLabel(r.firstIn)}` : 'Girişi kayıtsız'}
+                    {insideIds.has(r.memberId) ? ' · içeride' : r.lastOut !== null ? ` · Çıkış ${timeLabel(r.lastOut)}` : ''}
+                    {r.entries > 1 ? ` · ${r.entries} giriş` : ''}
+                  </p>
+                </div>
+                <span className="shrink-0 text-xs text-muted-foreground">{r.via.map((v) => VIA_TR[v] ?? v).join(' · ')}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
     </main>
   )
 }

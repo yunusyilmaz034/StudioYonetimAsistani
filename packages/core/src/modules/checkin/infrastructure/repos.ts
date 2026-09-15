@@ -157,6 +157,16 @@ export class FirestoreCheckinRepository implements CheckinRepository {
     return snap.docs.map((doc) => checkInFromFirestore(doc.id as CheckInId, doc.data()))
   }
 
+  // Check-in raporu (2026-09-15). Tek alanda aralık + aynı alanda sıralama: otomatik tek alan indeksi yeter.
+  async listCheckInsBetween(ctx: TenantContext, fromMs: number, toMs: number): Promise<readonly CheckIn[]> {
+    const snap = await this.col(ctx.studioId, 'checkIns')
+      .where('occurredAt', '>=', Timestamp.fromMillis(fromMs))
+      .where('occurredAt', '<=', Timestamp.fromMillis(toMs))
+      .orderBy('occurredAt', 'asc')
+      .get()
+    return snap.docs.map((doc) => checkInFromFirestore(doc.id as CheckInId, doc.data()))
+  }
+
   // Member Workspace (v1.18): one member's check-in history since a bound, newest first.
   // Served by the `checkIns (memberId, occurredAt)` composite index.
   async listCheckInsByMember(ctx: TenantContext, memberId: MemberId, since: Instant): Promise<readonly CheckIn[]> {
