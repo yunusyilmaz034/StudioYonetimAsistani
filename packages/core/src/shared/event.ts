@@ -62,6 +62,8 @@ export type AggregateKind =
   | 'paytr_collection'
   // v1.27 (Doc 27) — the member WALLET: one stored-value account per member. Additive.
   | 'wallet'
+  // 2026-09-15 — a sales ad period (reklam dönemi). Additive: no existing event's `subject.kind` changes.
+  | 'adPeriod'
 
 export interface PolicyRef {
   readonly policyId: PolicyId

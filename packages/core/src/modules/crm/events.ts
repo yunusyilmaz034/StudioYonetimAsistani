@@ -15,6 +15,8 @@ export const OFFER_SENT = 'offer.sent'
 export const OFFER_ACCEPTED = 'offer.accepted'
 export const OFFER_REJECTED = 'offer.rejected'
 export const MEMBER_CHURNED = 'member.churned'
+// 2026-09-15 — yeni reklam dönemi başladı; huni ve WhatsApp listesi bu andan itibaren ayrılır.
+export const AD_PERIOD_STARTED = 'ad_period.started'
 
 export type LeadCapturedPayload = {
   readonly source: LeadSource
@@ -67,4 +69,11 @@ export type MemberChurnedPayload = {
   readonly reason: ChurnReason
   readonly note: string
   readonly membershipDays: number // how long we kept her — the number churn analysis is about
+}
+
+export type AdPeriodStartedPayload = {
+  readonly label: string
+  readonly startedAt: Instant
+  /** Bir önceki dönemin başlangıcı — dönemler arası karşılaştırma olaydan okunabilsin. `null` = ilk dönem. */
+  readonly previousStartedAt: Instant | null
 }

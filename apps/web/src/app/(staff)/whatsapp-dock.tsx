@@ -6,15 +6,17 @@ import { toast } from 'sonner'
 
 import {
   getConversationAction,
-  listConversationsAction,
+  listInboxAction,
   markConversationSeenAction,
   replyConversationAction,
   setConversationStatusAction,
   type ConvDetail,
-  type ConvSummary,
+  type Inbox,
+  type InboxItem,
 } from '@/server/actions/conversations'
 
 import { mesajZamani } from '@/lib/mesaj-zamani'
+import { InboxSectionList, OlderConversationsButton, inboxSections, useOlderConversations } from '@/components/inbox-sections'
 const POLL_MS = 4000
 
 // "WP Hattı" — the floating operator dock. It lives in the staff layout, so it SURVIVES page navigation
@@ -31,7 +33,10 @@ const POLL_MS = 4000
 //   ⚠️ hata      — a customer is sitting unanswered and nobody would know; an alarm, not a notice
 export function WhatsAppDock() {
   const [open, setOpen] = useState(false)
-  const [convs, setConvs] = useState<readonly ConvSummary[]>([])
+  const [convs, setConvs] = useState<readonly InboxItem[]>([])
+  // Reklam dönemi ayraçları (owner, 2026-09-15) — bkz. `listInboxAction`.
+  const [period, setPeriod] = useState<Inbox['period']>(null)
+  const eski = useOlderConversations(period)
   const [selected, setSelected] = useState<string | null>(null)
   const [detail, setDetail] = useState<ConvDetail | null>(null)
   const [text, setText] = useState('')
@@ -51,8 +56,10 @@ export function WhatsAppDock() {
 
   const poll = useCallback(async () => {
     try {
-      const list = await listConversationsAction()
+      const inbox = await listInboxAction()
+      const list = inbox.items
       setConvs(list)
+      setPeriod(inbox.period)
       // First load baselines what's already waiting (no toast storm for history); after that, a NEW
       // needsAttention conversation triggers the green handoff alert + auto-opens the dock.
       if (!baselined.current) {
@@ -210,11 +217,13 @@ export function WhatsAppDock() {
 
       {!selected ? (
         <div className="min-h-0 flex-1 overflow-y-auto">
-          {convs.length === 0 ? (
-            <p className="p-4 text-sm text-muted-foreground">Henüz sohbet yok.</p>
+          {convs.length === 0 && !eski.older?.length ? (
+            <p className="p-4 text-sm text-muted-foreground">{period ? 'Bu dönemde henüz sohbet yok.' : 'Henüz sohbet yok.'}</p>
           ) : (
             <ul className="divide-y divide-border">
-              {convs.map((c) => (
+              <InboxSectionList
+                sections={inboxSections(convs, eski.older, period)}
+                renderRow={(c) => (
                 <li key={c.phone}>
                   <button type="button" onClick={() => setSelected(c.phone)} className="flex w-full items-start gap-2 px-3 py-2 text-left hover:bg-muted/40">
                     <span className={`mt-1 size-2 shrink-0 rounded-full ${c.needsAttention ? 'bg-emerald-500' : c.status === 'human' ? 'bg-amber-500' : 'bg-muted-foreground/40'}`} />
@@ -228,9 +237,11 @@ export function WhatsAppDock() {
                     {c.status === 'human' ? <UserRoundIcon className="mt-0.5 size-3.5 shrink-0 text-amber-500" /> : <BotIcon className="mt-0.5 size-3.5 shrink-0 text-muted-foreground/50" />}
                   </button>
                 </li>
-              ))}
+                )}
+              />
             </ul>
           )}
+          {period ? <OlderConversationsButton state={eski} /> : null}
         </div>
       ) : (
         <>

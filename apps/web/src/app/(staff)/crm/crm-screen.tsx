@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { Loader2Icon, PhoneIcon, PlusIcon, UserPlusIcon } from 'lucide-react'
+import { HistoryIcon, Loader2Icon, MegaphoneIcon, PhoneIcon, PlusIcon, UserPlusIcon } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Badge } from '@/components/ui/badge'
@@ -23,13 +23,16 @@ import { domainErrorMessage } from '@/lib/domain-error'
 import {
   captureLeadAction,
   convertLeadToMemberAction,
-  listLeadsAction,
+  listOlderLeadsAction,
+  loadFunnelAction,
   logInteractionAction,
   loseLeadAction,
   moveLeadAction,
+  startAdPeriodAction,
 } from '@/server/actions/crm'
 
-type Lead = Awaited<ReturnType<typeof listLeadsAction>>[number]
+type Funnel = Awaited<ReturnType<typeof loadFunnelAction>>
+type Lead = Funnel['leads'][number]
 
 // Sütun adları, owner'ın A kararı (2026-09-01). Her biri SIRADAKİ ADIMI söylüyor — "sıcak/ılık"
 // gibi bir ilgi ölçüsü değil. Bir etiket ne yapılacağını söylemiyorsa, ona bakan kişi kararı yine
@@ -63,15 +66,55 @@ const LOST_REASONS: Record<string, string> = {
 
 // The pipeline. Four open stages, and two ways out: won (an explicit conversion) or lost (with a
 // reason — the enum makes the loss analysable, the note makes it true).
-export function CrmScreen({ initial }: { initial: readonly Lead[] }) {
-  const [leads, setLeads] = useState<readonly Lead[]>(initial)
+export function CrmScreen({ initial }: { initial: Funnel }) {
+  const [leads, setLeads] = useState<readonly Lead[]>(initial.leads)
+  const [period, setPeriod] = useState(initial.period)
+  // Eski adaylar yalnızca istenince yüklenir (owner, 2026-09-15). `null` = henüz istenmedi.
+  const [older, setOlder] = useState<readonly Lead[] | null>(null)
+  const [olderDone, setOlderDone] = useState(false)
+  const [olderBusy, setOlderBusy] = useState(false)
+  const [startingPeriod, setStartingPeriod] = useState(false)
   const [capturing, setCapturing] = useState(false)
   const [losing, setLosing] = useState<Lead | null>(null)
   const [interacting, setInteracting] = useState<Lead | null>(null)
   const [pending, start] = useTransition()
 
   const router = useRouter()
-  const reload = () => start(async () => setLeads(await listLeadsAction()))
+  const reload = () =>
+    start(async () => {
+      const f = await loadFunnelAction()
+      setLeads(f.leads)
+      setPeriod(f.period)
+      // Açılmış eski liste de tazelenir: oradan ilerletilen bir aday eski yerinde kalmasın.
+      if (older !== null && f.period) setOlder(await listOlderLeadsAction({ before: f.period.startedAt }))
+    })
+
+  const loadOlder = async () => {
+    if (!period) return
+    setOlderBusy(true)
+    try {
+      const before = older && older.length > 0 ? older[older.length - 1]!.createdAt : period.startedAt
+      const page = await listOlderLeadsAction({ before })
+      setOlder([...(older ?? []), ...page])
+      if (page.length < 100) setOlderDone(true)
+    } catch {
+      toast.error('Eski adaylar yüklenemedi.')
+    }
+    setOlderBusy(false)
+  }
+
+  const cardProps = {
+    pending,
+    onInteract: (l: Lead) => setInteracting(l),
+    onLose: (l: Lead) => setLosing(l),
+    onConvert: (l: Lead) => void convert(l),
+    onMove: (l: Lead) =>
+      start(async () => {
+        const res = await moveLeadAction({ leadId: l.id, stage: nextStage(l.stage)! })
+        if (res.ok) reload()
+        else toast.error(domainErrorMessage(res.error))
+      }),
+  }
 
   const convert = async (lead: Lead) => {
     const res = await convertLeadToMemberAction({ leadId: lead.id })
@@ -94,12 +137,24 @@ export function CrmScreen({ initial }: { initial: readonly Lead[] }) {
     <main className="mx-auto max-w-6xl space-y-6 p-4 sm:p-6 lg:p-8">
       <PageHeader
         title="Satış Hunisi"
-        description={`${open.length} açık aday · dönüşüm %${conversion}`}
+        description={
+          period
+            ? `${period.label} · ${formatDateTime(period.startedAt).slice(0, 10)} tarihinden beri · ${open.length} açık aday · dönüşüm %${conversion}`
+            : `${open.length} açık aday · dönüşüm %${conversion}`
+        }
         actions={
-          <Button onClick={() => setCapturing(true)}>
-            <PlusIcon />
-            Yeni Aday
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            {initial.canStartPeriod ? (
+              <Button variant="outline" onClick={() => setStartingPeriod(true)}>
+                <MegaphoneIcon />
+                Yeni reklam dönemi
+              </Button>
+            ) : null}
+            <Button onClick={() => setCapturing(true)}>
+              <PlusIcon />
+              Yeni Aday
+            </Button>
+          </div>
         }
       />
 
@@ -118,55 +173,7 @@ export function CrmScreen({ initial }: { initial: readonly Lead[] }) {
                     Aday yok
                   </p>
                 ) : (
-                  rows.map((l) => (
-                    <article key={l.id} className="space-y-2 rounded-xl border border-border bg-card p-3 shadow-sm">
-                      <div>
-                        <p className="truncate text-sm font-medium text-foreground">{l.fullName}</p>
-                        <p className="truncate text-xs tabular-nums text-muted-foreground">{l.phone}</p>
-                      </div>
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        <Badge className="bg-muted text-muted-foreground">{SOURCES[l.source] ?? l.source}</Badge>
-                        <span className="text-[0.6875rem] tabular-nums text-muted-foreground">
-                          {formatDateTime(l.createdAt).slice(0, 10)}
-                        </span>
-                      </div>
-                      {l.note ? <p className="truncate text-xs text-muted-foreground">{l.note}</p> : null}
-
-                      <div className="flex flex-wrap gap-1">
-                        <Button size="sm" variant="ghost" onClick={() => setInteracting(l)}>
-                          <PhoneIcon />
-                          Görüşme
-                        </Button>
-                        {nextStage(l.stage) ? (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            disabled={pending}
-                            onClick={() =>
-                              start(async () => {
-                                const res = await moveLeadAction({ leadId: l.id, stage: nextStage(l.stage)! })
-                                if (res.ok) reload()
-                                else toast.error(domainErrorMessage(res.error))
-                              })
-                            }
-                          >
-                            İlerlet
-                          </Button>
-                        ) : null}
-                        {/* One press. The lead already holds her name and her phone; asking reception
-                            to retype them into another screen is asking her to forget the second half
-                            — which is exactly what happened: this used to link to a query parameter
-                            nothing read (Alpha Review). */}
-                        <Button size="sm" variant="outline" onClick={() => void convert(l)}>
-                          <UserPlusIcon />
-                          Üye Yap
-                        </Button>
-                        <Button size="sm" variant="ghost" onClick={() => setLosing(l)}>
-                          Kaybedildi
-                        </Button>
-                      </div>
-                    </article>
-                  ))
+                  rows.map((l) => <LeadCard key={l.id} l={l} {...cardProps} />)
                 )}
               </div>
             </section>
@@ -190,6 +197,48 @@ export function CrmScreen({ initial }: { initial: readonly Lead[] }) {
         </section>
       ) : null}
 
+      {/* ESKİ ADAYLAR (owner, 2026-09-15): dönemden önce gelenler silinmedi, kaybedildi de sayılmadı —
+          yalnızca bu dönemin hunisinden ayrıldı. İstenince buradan görünür ve yine ilerletilebilir. */}
+      {period ? (
+        <section className="space-y-2">
+          {older !== null ? (
+            <>
+              <h2 className="text-sm font-semibold text-foreground">
+                {period.label} öncesi adaylar <span className="text-xs tabular-nums text-muted-foreground">{older.length}</span>
+              </h2>
+              {older.length === 0 ? (
+                <p className="rounded-xl border border-dashed border-border px-3 py-4 text-center text-xs text-muted-foreground">Eski aday yok</p>
+              ) : (
+                <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+                  {older.map((l) => (
+                    <LeadCard key={l.id} l={l} {...cardProps} showStage />
+                  ))}
+                </div>
+              )}
+            </>
+          ) : null}
+          {!olderDone ? (
+            <div className="flex justify-center">
+              <Button variant="outline" disabled={olderBusy} onClick={() => void loadOlder()}>
+                {olderBusy ? <Loader2Icon className="animate-spin" /> : <HistoryIcon />}
+                {older === null ? 'Eski adayları getir' : 'Daha eski adayları getir'}
+              </Button>
+            </div>
+          ) : null}
+        </section>
+      ) : null}
+
+      <StartPeriodDialog
+        open={startingPeriod}
+        onClose={() => setStartingPeriod(false)}
+        onDone={() => {
+          setStartingPeriod(false)
+          setOlder(null)
+          setOlderDone(false)
+          reload()
+        }}
+      />
+
       <CaptureDialog open={capturing} onClose={() => setCapturing(false)} onDone={() => { setCapturing(false); reload() }} />
 
       <LoseDialog
@@ -210,6 +259,127 @@ export function CrmScreen({ initial }: { initial: readonly Lead[] }) {
         }}
       />
     </main>
+  )
+}
+
+const STAGE_LABEL: Record<string, string> = {
+  ...Object.fromEntries(STAGES.map((st) => [st.id, st.label])),
+  won: 'Üye oldu',
+  lost: 'Kaybedildi',
+}
+
+function LeadCard({
+  l,
+  pending,
+  showStage = false,
+  onInteract,
+  onMove,
+  onConvert,
+  onLose,
+}: {
+  l: Lead
+  pending: boolean
+  showStage?: boolean
+  onInteract: (l: Lead) => void
+  onMove: (l: Lead) => void
+  onConvert: (l: Lead) => void
+  onLose: (l: Lead) => void
+}) {
+  const acik = ['new', 'contacted', 'offer', 'visit_booked'].includes(l.stage)
+  return (
+    <article className="space-y-2 rounded-xl border border-border bg-card p-3 shadow-sm">
+      <div>
+        <p className="truncate text-sm font-medium text-foreground">{l.fullName}</p>
+        <p className="truncate text-xs tabular-nums text-muted-foreground">{l.phone}</p>
+      </div>
+      <div className="flex flex-wrap items-center gap-1.5">
+        {showStage ? <Badge className="bg-primary/10 text-primary">{STAGE_LABEL[l.stage] ?? l.stage}</Badge> : null}
+        <Badge className="bg-muted text-muted-foreground">{SOURCES[l.source] ?? l.source}</Badge>
+        <span className="text-[0.6875rem] tabular-nums text-muted-foreground">{formatDateTime(l.createdAt).slice(0, 10)}</span>
+      </div>
+      {l.note ? <p className="truncate text-xs text-muted-foreground">{l.note}</p> : null}
+
+      {acik ? (
+        <div className="flex flex-wrap gap-1">
+          <Button size="sm" variant="ghost" onClick={() => onInteract(l)}>
+            <PhoneIcon />
+            Görüşme
+          </Button>
+          {nextStage(l.stage) ? (
+            <Button size="sm" variant="outline" disabled={pending} onClick={() => onMove(l)}>
+              İlerlet
+            </Button>
+          ) : null}
+          {/* One press. The lead already holds her name and her phone; asking reception to retype them
+              into another screen is asking her to forget the second half (Alpha Review). */}
+          <Button size="sm" variant="outline" onClick={() => onConvert(l)}>
+            <UserPlusIcon />
+            Üye Yap
+          </Button>
+          <Button size="sm" variant="ghost" onClick={() => onLose(l)}>
+            Kaybedildi
+          </Button>
+        </div>
+      ) : null}
+    </article>
+  )
+}
+
+/** İstanbul günü → o günün 00:00'ı (UTC+3, stüdyonun saat dilimi). */
+const gunBasi = (ymd: string): number => new Date(`${ymd}T00:00:00+03:00`).getTime()
+const AYLAR = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık']
+
+function StartPeriodDialog({ open, onClose, onDone }: { open: boolean; onClose: () => void; onDone: () => void }) {
+  const bugun = new Date(Date.now() + 3 * 3_600_000).toISOString().slice(0, 10)
+  const [gun, setGun] = useState(bugun)
+  const [label, setLabel] = useState('')
+  const [busy, setBusy] = useState(false)
+  const oneri = (() => {
+    const [, m, d] = gun.split('-').map(Number)
+    return m && d ? `${d} ${AYLAR[m - 1]} reklamı` : ''
+  })()
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => (o ? null : onClose())}>
+      <DialogContent className="gap-3 sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Yeni reklam dönemi</DialogTitle>
+          <DialogDescription>
+            Huni bu günden itibaren gelen adaylarla yeniden başlar; WhatsApp listesinde bu dönemde gelenler ayrı görünür.
+            Eski adaylar silinmez ve kaybedildi sayılmaz — &quot;Eski adayları getir&quot; ile görünür.
+          </DialogDescription>
+        </DialogHeader>
+        <label className="space-y-1 text-sm">
+          <span className="font-medium">Reklamın başladığı gün</span>
+          <Input type="date" value={gun} max={bugun} onChange={(e) => setGun(e.target.value)} />
+        </label>
+        <label className="space-y-1 text-sm">
+          <span className="font-medium">Dönemin adı</span>
+          <Input placeholder={oneri} value={label} onChange={(e) => setLabel(e.target.value)} maxLength={60} />
+        </label>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={busy}>
+            Vazgeç
+          </Button>
+          <Button
+            disabled={busy || !gun}
+            onClick={async () => {
+              setBusy(true)
+              const res = await startAdPeriodAction({ label: label.trim() || oneri, startedAt: gunBasi(gun) })
+              setBusy(false)
+              if (res.ok) {
+                toast.success('Yeni reklam dönemi başladı.')
+                setLabel('')
+                onDone()
+              } else toast.error(domainErrorMessage(res.error))
+            }}
+          >
+            {busy ? <Loader2Icon className="animate-spin" /> : <MegaphoneIcon />}
+            Dönemi başlat
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }
 

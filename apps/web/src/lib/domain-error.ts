@@ -178,6 +178,12 @@ export function domainErrorMessage(error: DomainError): string {
       return 'Kupon geçersiz veya süresi dolmuş.'
     case 'lead_not_open':
       return 'Bu aday kaydı artık açık değil.'
+    case 'ad_period_label_required':
+      return 'Reklam dönemine bir ad verin (en fazla 60 karakter).'
+    case 'ad_period_in_future':
+      return 'Reklam dönemi ileri bir tarihte başlatılamaz — reklam yayına girince başlatın.'
+    case 'ad_period_not_after_current':
+      return 'Yeni dönem, şu anki reklam döneminden sonra başlamalı.'
     // ── notifications (v1.25) ──
     case 'template_not_found':
       return 'Bildirim şablonu bulunamadı.'

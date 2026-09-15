@@ -11,6 +11,7 @@ import {
   decideMoveStage,
   decideRejectOffer,
   decideSendOffer,
+  decideStartAdPeriod,
   FirestoreCrmRepository,
   FirestoreMemberRepository,
   instant,
@@ -18,6 +19,7 @@ import {
   newOperationId,
   registerMember,
   systemClock,
+  type AdPeriod,
   type Interaction,
   type Lead,
   type MemberId,
@@ -82,20 +84,70 @@ export async function captureLeadAction(input: unknown) {
   return { ok: true as const, value: { leadId: lead.id } }
 }
 
+const leadRow = (l: Lead) => ({
+  id: l.id,
+  fullName: l.fullName,
+  phone: l.phone,
+  source: l.source,
+  stage: l.stage,
+  createdAt: l.createdAt as number,
+  lostReason: l.lostReason,
+  convertedMemberId: l.convertedMemberId as string | null,
+  note: l.note,
+})
+
 export async function listLeadsAction() {
   const ctx = await requireTenantContext(OPS)
   const leads = await repo().listLeads(ctx)
-  return leads.map((l) => ({
-    id: l.id,
-    fullName: l.fullName,
-    phone: l.phone,
-    source: l.source,
-    stage: l.stage,
-    createdAt: l.createdAt as number,
-    lostReason: l.lostReason,
-    convertedMemberId: l.convertedMemberId as string | null,
-    note: l.note,
-  }))
+  return leads.map(leadRow)
+}
+
+// ── REKLAM DÖNEMİ (owner, 2026-09-15) ────────────────────────────────────────────────────────
+//
+// *"Satış hunisini her reklam döneminde yenilemek gerekir."* Huni yalnızca şu anki dönemin adaylarını
+// gösterir; eskiler silinmez, kaybedildi sayılmaz, "Eski adayları getir" ile görünür (owner kararı).
+// Dönem yoksa huni eskisi gibi hepsini gösterir.
+const OWNER = ['owner', 'platform_admin'] as const
+
+export async function loadFunnelAction() {
+  const ctx = await requireTenantContext(OPS)
+  const r = repo()
+  const period = await r.getCurrentAdPeriod(ctx)
+  const leads = period ? await r.listLeadsSince(ctx, period.startedAt) : await r.listLeads(ctx)
+  return {
+    period: period ? { label: period.label, startedAt: period.startedAt as number } : null,
+    leads: leads.map(leadRow),
+    // Dönemi başlatmak owner'ın kararı (owner, 2026-09-15); resepsiyon düğmeyi görmez.
+    canStartPeriod: ctx.role === 'owner' || ctx.actor.type === 'platform_admin',
+  }
+}
+
+/** Dönemden önceki adaylar, sayfa sayfa (yeniden eskiye, 100'er). */
+export async function listOlderLeadsAction(input: unknown) {
+  const p = z.object({ before: z.number().int().positive() }).parse(input)
+  const ctx = await requireTenantContext(OPS)
+  return (await repo().listLeadsBefore(ctx, p.before, 100)).map(leadRow)
+}
+
+export async function startAdPeriodAction(input: unknown) {
+  const p = z.object({ label: z.string(), startedAt: z.number().int().positive() }).parse(input)
+  const ctx = await requireTenantContext(OWNER)
+  const r = repo()
+  const current = await r.getCurrentAdPeriod(ctx)
+  const c = dctx(ctx)
+  const period: AdPeriod = {
+    id: `adp_${c.correlationId.slice(4)}`,
+    studioId: ctx.studioId,
+    label: p.label,
+    startedAt: instant(p.startedAt),
+    createdAt: c.now,
+    createdBy: ctx.actor,
+  }
+  const decided = decideStartAdPeriod(c, period, current)
+  if (!decided.ok) return decided
+  await r.saveAdPeriod(ctx, decided.value.next, decided.value.events)
+  revalidatePath('/crm')
+  return { ok: true as const, value: undefined }
 }
 
 export async function moveLeadAction(input: unknown) {

@@ -1,10 +1,18 @@
 import type { Clock, MemberId, NewEvent, TenantContext } from '../../../shared'
-import type { Interaction, Lead, Offer } from '../domain/types'
+import type { AdPeriod, Interaction, Lead, Offer } from '../domain/types'
 
 export interface CrmRepository {
   getLead(ctx: TenantContext, id: string): Promise<Lead | null>
   listLeads(ctx: TenantContext): Promise<readonly Lead[]>
   saveLead(ctx: TenantContext, lead: Lead, events: readonly NewEvent[]): Promise<void>
+  /** Reklam dönemi (2026-09-15): yalnızca `createdAt >= since` olan adaylar, yeniden eskiye. */
+  listLeadsSince(ctx: TenantContext, since: number): Promise<readonly Lead[]>
+  /** "Eski adayları getir": `createdAt < before`, yeniden eskiye, en çok `limit`. */
+  listLeadsBefore(ctx: TenantContext, before: number, limit: number): Promise<readonly Lead[]>
+
+  /** Şu anki reklam dönemi = en son başlayan. Hiç yoksa `null` (huni eskisi gibi hepsini gösterir). */
+  getCurrentAdPeriod(ctx: TenantContext): Promise<AdPeriod | null>
+  saveAdPeriod(ctx: TenantContext, period: AdPeriod, events: readonly NewEvent[]): Promise<void>
 
   listInteractions(
     ctx: TenantContext,

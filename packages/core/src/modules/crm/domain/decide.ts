@@ -19,13 +19,14 @@ import {
   LEAD_CONVERTED,
   LEAD_LOST,
   LEAD_STAGE_CHANGED,
+  AD_PERIOD_STARTED,
   MEMBER_CHURNED,
   OFFER_ACCEPTED,
   OFFER_CREATED,
   OFFER_REJECTED,
   OFFER_SENT,
 } from '../events'
-import { offerTotal, type ChurnReason, type Interaction, type Lead, type LeadStage, type LostReason, type Offer } from './types'
+import { offerTotal, type AdPeriod, type ChurnReason, type Interaction, type Lead, type LeadStage, type LostReason, type Offer } from './types'
 
 export interface DecideContext {
   readonly studioId: StudioId
@@ -267,6 +268,36 @@ export function decideChurn(
           note,
           membershipDays: Math.max(0, Math.floor((ctx.now - joinedAt) / DAY)),
         },
+      },
+    ],
+  })
+}
+
+// ── REKLAM DÖNEMİ BAŞLAT (owner, 2026-09-15) ─────────────────────────────────────────────────
+//
+// Üç ret, üçü de ölçümü korumak için:
+//   · ad yok — "dönem" adı listede ayraç olarak görünüyor; adsız bir ayraç neyi ayırdığını söylemez.
+//   · gelecekte başlıyor — henüz başlamamış bir reklamın "gelenleri" boş bir liste olur ve bugünkü
+//     sohbetleri eski dönemin altına iter. Reklam yayına girince başlatılır. (1 gün tolerans: saat dilimi.)
+//   · bir önceki dönemden önce ya da aynı anda — dönemler geriye gitmez; geriye giden bir dönem,
+//     zaten okunmuş bir dönemin rakamlarını sessizce değiştirir.
+export function decideStartAdPeriod(
+  ctx: DecideContext,
+  period: AdPeriod,
+  current: AdPeriod | null,
+): Result<Outcome<AdPeriod>, DomainError> {
+  const label = period.label.trim()
+  if (label === '' || label.length > 60) return err({ code: 'ad_period_label_required' })
+  if (period.startedAt > ctx.now + DAY) return err({ code: 'ad_period_in_future' })
+  if (current && period.startedAt <= current.startedAt) return err({ code: 'ad_period_not_after_current' })
+  const next: AdPeriod = { ...period, label }
+  return ok({
+    next,
+    events: [
+      {
+        ...base(ctx, 'adPeriod', next.id),
+        type: AD_PERIOD_STARTED,
+        payload: { label, startedAt: next.startedAt, previousStartedAt: current?.startedAt ?? null },
       },
     ],
   })

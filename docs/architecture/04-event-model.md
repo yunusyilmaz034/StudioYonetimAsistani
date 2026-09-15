@@ -324,6 +324,12 @@ The catalogue is data, and data that moves money is data with an audit trail.
 
 `product.updated` carries `changedFields` **and** the new `price`, breaking the `member.profile_updated` convention (AD-25) on purpose: a price is not PII, and revenue analysis needs the number. Names and categories are not carried — those are read from `/products`.
 
+### CRM — reklam dönemi (2026-09-15)
+
+| Type | Payload | Notes |
+|---|---|---|
+| `ad_period.started` | `{ label, startedAt, previousStartedAt }` | Owner starts a new sales ad period (*"15 Eylül reklamı"*). The funnel and the WhatsApp list split at `startedAt`. A **filter, not a closing**: older leads are not touched and not marked lost. Refused: empty/over-60 label, start more than a day in the future, start not after the current period. Subject kind `adPeriod`; state in `/adPeriods` (server-only). |
+
 ### Policy, platform, migration
 
 | Type | Payload |

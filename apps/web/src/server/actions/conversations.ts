@@ -1,6 +1,6 @@
 'use server'
 
-import { sendWhatsAppText, type MetaWhatsAppConfig } from '@studio/core'
+import { FirestoreCrmRepository, sendWhatsAppText, type MetaWhatsAppConfig } from '@studio/core'
 import { z } from 'zod'
 
 import { requireTenantContext } from '../auth'
@@ -60,6 +60,75 @@ export async function listConversationsAction(): Promise<readonly ConvSummary[]>
   const ctx = await requireTenantContext(OPS)
   const snap = await adminDb().collection(`studios/${ctx.studioId}/conversations`).orderBy('lastAt', 'desc').limit(100).get()
   return snap.docs.map((d) => summarize(d.data()))
+}
+
+// ── REKLAM DÖNEMİ AYRACI (owner, 2026-09-15) ──────────────────────────────────────────────────
+//
+// *"15 Eylül reklamından gelenler diye ayraç olsun, eski konuşmaları getirmesine gerek yok, en altta
+// eski konuşmaları getir deyince getirsin."* Hat üyelerin de hattı (ders iptali, şifre), o yüzden
+// owner kararıyla dönemde yazan ESKİ tanıdıklar gizlenmez — ayrı ayraçta durur:
+//
+//   new    — dönem başladıktan sonra İLK KEZ yazanlar ("15 Eylül reklamından gelenler")
+//   known  — önceden tanıdığımız, bu dönemde yazmış olanlar
+//   older  — dönemde hiç yazmamış eski konuşmalar; yalnızca "Eski konuşmaları getir" ile
+//
+// İlk temas: `firstAt` (webhook 2026-09-15'ten beri yazıyor) ya da bu dönemde açılmış bir aday kaydı
+// ya da en eski saklı mesaj. Webhook sohbet başına son 24 mesajı tutuyor; bu kadar uzun bir sohbetin
+// ilk mesajı düşmüş olabilir — o yüzden eşiğe yaklaşan ve `firstAt`ı olmayan sohbet "yeni" SAYILMAZ.
+export type InboxGroup = 'new' | 'known' | 'older'
+export interface InboxItem extends ConvSummary {
+  readonly group: InboxGroup
+}
+export interface Inbox {
+  readonly period: { readonly label: string; readonly startedAt: number } | null
+  readonly items: readonly InboxItem[]
+}
+const HISTORY_TRUST = 20
+const OLDER_PAGE = 50
+
+function firstContact(c: Record<string, unknown>): number | null {
+  if (typeof c.firstAt === 'number') return c.firstAt
+  const msgs = (c.messages as ConvMsg[] | undefined) ?? []
+  if (msgs.length >= HISTORY_TRUST) return null
+  return msgs[0]?.at ?? null
+}
+
+export async function listInboxAction(): Promise<Inbox> {
+  const ctx = await requireTenantContext(OPS)
+  const col = adminDb().collection(`studios/${ctx.studioId}/conversations`)
+  const crm = new FirestoreCrmRepository(adminDb())
+  const period = await crm.getCurrentAdPeriod(ctx)
+  if (!period) {
+    const snap = await col.orderBy('lastAt', 'desc').limit(100).get()
+    return { period: null, items: snap.docs.map((d) => ({ ...summarize(d.data()), group: 'known' as const })) }
+  }
+  const start = period.startedAt as number
+  // Tek alanlı aralık + aynı alanda sıralama: otomatik indeks yeter.
+  const [snap, yeniAdaylar] = await Promise.all([
+    col.where('lastAt', '>=', start).orderBy('lastAt', 'desc').limit(300).get(),
+    crm.listLeadsSince(ctx, start),
+  ])
+  const yeniTelefon = new Set(yeniAdaylar.map((l) => l.phone))
+  const items = snap.docs.map((d) => {
+    const c = d.data()
+    const ilk = firstContact(c)
+    const yeni = yeniTelefon.has(String(c.phone ?? d.id)) || (ilk !== null && ilk >= start)
+    return { ...summarize(c), group: yeni ? ('new' as const) : ('known' as const) }
+  })
+  return { period: { label: period.label, startedAt: start }, items }
+}
+
+/** Dönemde yazmamış eski konuşmalar, sayfa sayfa (`lastAt < before`, yeniden eskiye). */
+export async function listOlderConversationsAction(input: unknown): Promise<readonly InboxItem[]> {
+  const p = z.object({ before: z.number().int().positive() }).parse(input)
+  const ctx = await requireTenantContext(OPS)
+  const snap = await adminDb()
+    .collection(`studios/${ctx.studioId}/conversations`)
+    .where('lastAt', '<', p.before)
+    .orderBy('lastAt', 'desc')
+    .limit(OLDER_PAGE)
+    .get()
+  return snap.docs.map((d) => ({ ...summarize(d.data()), group: 'older' as const }))
 }
 
 export async function getConversationAction(input: unknown): Promise<ConvDetail | null> {

@@ -56,6 +56,9 @@ interface Msg {
 interface Conversation {
   phone: string
   name: string
+  // İLK TEMAS (2026-09-15) — reklam dönemi ayracı bununla ayırıyor. Mesaj geçmişi 24 ile sınırlı olduğu için
+  // en eski mesaj ilk temas değildir. Bu tarihten önce açılmış belgelerde yok.
+  firstAt?: number
   status: 'ai' | 'human'
   needsAttention: boolean
   // WHY the desk is being called. Two very different events used to share one flag and one alert:
@@ -458,7 +461,7 @@ async function processMessage(sid: string, from: string, name: string, text: str
   const ref = database.doc(`studios/${sid}/conversations/${from}`)
   const snap = await ref.get()
   const isNew = !snap.exists
-  const conv = (snap.data() as Conversation | undefined) ?? { phone: from, name, status: 'ai', needsAttention: false, lastAt: 0, seenIds: [], messages: [] }
+  const conv = (snap.data() as Conversation | undefined) ?? { phone: from, name, status: 'ai', needsAttention: false, lastAt: 0, firstAt: Date.now(), seenIds: [], messages: [] }
   if (conv.seenIds.includes(msgId)) return // idempotent: Meta retries the same message id
 
   // WHO is writing, before anything else is decided — it changes both what the assistant says and

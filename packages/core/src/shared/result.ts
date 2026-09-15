@@ -70,6 +70,10 @@ export type DomainError =
   | { readonly code: 'plan_total_mismatch' }
   | { readonly code: 'coupon_invalid' }
   | { readonly code: 'lead_not_open' }
+  // 2026-09-15 — reklam dönemi
+  | { readonly code: 'ad_period_label_required' }
+  | { readonly code: 'ad_period_in_future' }
+  | { readonly code: 'ad_period_not_after_current' }
   // ── notifications (v1.25) ──
   | { readonly code: 'template_not_found' }
   | { readonly code: 'template_params_missing'; readonly missing: readonly string[] }

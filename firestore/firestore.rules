@@ -59,6 +59,8 @@ service cloud.firestore {
       function serverOnly(col) {
         return col in [
           'events', 'commands',
+          // 2026-09-15 — reklam dönemleri; panel Server Action üzerinden okur.
+          'adPeriods',
           'payrollStatements', 'compensationPlans', 'payrollAdjustments',
           'measurements', 'progressPhotos', 'programs', 'trainingFeedback',
           // v1.31 — the member's own workout log: sets, weights and a note she writes for her

@@ -7,6 +7,7 @@
 // No PII in the log (#6): a lead's name and phone live in /leads; the event carries her SOURCE,
 // which is the analysable part — and the part that must survive her erasure.
 export type {
+  AdPeriod,
   ChurnReason,
   Interaction,
   InteractionKind,
@@ -31,6 +32,7 @@ export {
   decideMoveStage,
   decideRejectOffer,
   decideSendOffer,
+  decideStartAdPeriod,
 } from './domain/decide'
 export type { CrmDeps, CrmRepository } from './application/ports'
 export { FirestoreCrmRepository } from './infrastructure/repos'

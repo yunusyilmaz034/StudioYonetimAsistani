@@ -8,15 +8,17 @@ import { toast } from 'sonner'
 import { PageHeader } from '@/components/ui/page-header'
 import {
   getConversationAction,
-  listConversationsAction,
+  listInboxAction,
   replyConversationAction,
   setConversationStatusAction,
   type ConvDetail,
-  type ConvSummary,
+  type Inbox,
+  type InboxItem,
   type Temp,
 } from '@/server/actions/conversations'
 
 import { mesajZamani } from '@/lib/mesaj-zamani'
+import { InboxSectionList, OlderConversationsButton, inboxSections, useOlderConversations } from '@/components/inbox-sections'
 const POLL_MS = 5000
 
 const TEMP_DOT: Record<Temp, string> = { sıcak: 'bg-rose-500', ılık: 'bg-amber-500', soğuk: 'bg-slate-400' }
@@ -25,7 +27,9 @@ const TEMP_LABEL: Record<Temp, string> = { sıcak: '🔴 Sıcak', ılık: '🟡 
 type Filter = 'all' | 'hot' | 'waiting' | 'human'
 
 export function ConversationsScreen() {
-  const [convs, setConvs] = useState<readonly ConvSummary[]>([])
+  const [convs, setConvs] = useState<readonly InboxItem[]>([])
+  const [period, setPeriod] = useState<Inbox['period']>(null)
+  const eski = useOlderConversations(period)
   const [filter, setFilter] = useState<Filter>('all')
   const [selected, setSelected] = useState<string | null>(null)
   const [detail, setDetail] = useState<ConvDetail | null>(null)
@@ -42,7 +46,9 @@ export function ConversationsScreen() {
 
   const poll = useCallback(async () => {
     try {
-      setConvs(await listConversationsAction())
+      const inbox = await listInboxAction()
+      setConvs(inbox.items)
+      setPeriod(inbox.period)
     } catch {
       /* keep last */
     }
@@ -76,9 +82,10 @@ export function ConversationsScreen() {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight })
   }, [detail?.messages.length])
 
-  const shown = convs.filter((c) =>
-    filter === 'hot' ? c.temp === 'sıcak' : filter === 'waiting' ? c.needsAttention : filter === 'human' ? c.status === 'human' : true,
-  )
+  const filtre = (c: InboxItem) =>
+    filter === 'hot' ? c.temp === 'sıcak' : filter === 'waiting' ? c.needsAttention : filter === 'human' ? c.status === 'human' : true
+  const sections = inboxSections(convs, eski.older, period)
+  const shown = sections.flatMap((x) => x.rows).filter(filtre)
 
   async function send() {
     if (!selected || !text.trim()) return
@@ -127,7 +134,10 @@ export function ConversationsScreen() {
           {shown.length === 0 ? (
             <li className="p-4 text-sm text-muted-foreground">Sohbet yok.</li>
           ) : (
-            shown.map((c) => (
+            <InboxSectionList
+              sections={sections}
+              filter={filtre}
+              renderRow={(c) => (
               <li key={c.phone}>
                 <button type="button" onClick={() => setSelected(c.phone)} className={`flex w-full items-start gap-2 px-3 py-2.5 text-left hover:bg-muted/40 ${selected === c.phone ? 'bg-muted/50' : ''}`}>
                   <span className={`mt-1 size-2 shrink-0 rounded-full ${c.temp ? TEMP_DOT[c.temp] : 'bg-muted-foreground/30'}`} />
@@ -142,8 +152,14 @@ export function ConversationsScreen() {
                   {c.status === 'human' ? <UserRoundIcon className="mt-0.5 size-3.5 shrink-0 text-amber-500" /> : <BotIcon className="mt-0.5 size-3.5 shrink-0 text-muted-foreground/40" />}
                 </button>
               </li>
-            ))
+              )}
+            />
           )}
+          {period ? (
+            <li>
+              <OlderConversationsButton state={eski} />
+            </li>
+          ) : null}
         </ul>
 
         {/* thread */}

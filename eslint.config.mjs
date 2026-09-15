@@ -37,6 +37,10 @@ export default tseslint.config(
       // eslint, and lockfile) and is NOT part of the root `pnpm check` gate — the owner validates and
       // runs it with `expo`. Linting RN/JSX here with the web config would only produce noise.
       'apps/mobile/**',
+      // `.claude/**` holds Claude Code's temporary git worktrees — full copies of the repo (with their own
+      // node_modules and apps/mobile). Linting them lints the repo twice and fails on files the
+      // ignores above already exclude.
+      '.claude/**',
     ],
   },
 

@@ -114,3 +114,19 @@ export type ChurnReason =
 
 export const offerTotal = (lines: readonly OfferLine[]): number =>
   lines.reduce((n, l) => n + l.unitPrice.amount * l.quantity, 0)
+
+// ── REKLAM DÖNEMİ (owner, 2026-09-15) ───────────────────────────────────────────────────────
+//
+// *"Satış hunisini her reklam döneminde yenilemek gerekir."* Huni bir reklamın ne getirdiğini
+// ölçmek için var; eski dönemin açık adaylarıyla karışınca yeni reklamın dönüşümü okunmaz olur.
+//
+// Dönem bir FİLTREDİR, bir kapanış değil: eski adaylara dokunulmaz, "kaybedildi" sayılmaz
+// (owner kararı). Başlatmak bir karar olduğu için olaydır; aday belgeleri değişmez.
+export interface AdPeriod {
+  readonly id: string
+  readonly studioId: StudioId
+  readonly label: string // "15 Eylül reklamı" — owner'ın kendi adı, PII değil
+  readonly startedAt: Instant // dönemin başladığı an; huni ve sohbetler bu andan itibaren ayrılır
+  readonly createdAt: Instant
+  readonly createdBy: ActorRef
+}

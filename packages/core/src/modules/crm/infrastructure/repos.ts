@@ -16,7 +16,7 @@ import {
   type TenantContext,
 } from '../../../shared'
 import type { CrmRepository } from '../application/ports'
-import type { Interaction, Lead, Offer } from '../domain/types'
+import type { AdPeriod, Interaction, Lead, Offer } from '../domain/types'
 
 const ts = (ms: number): Timestamp => Timestamp.fromMillis(ms)
 const ms = (v: unknown): number => (v instanceof Timestamp ? v.toMillis() : typeof v === 'number' ? v : 0)
@@ -77,6 +77,31 @@ export class FirestoreCrmRepository implements CrmRepository {
     const snap = await this.col(ctx.studioId, 'leads').get()
     return snap.docs.map((d) => leadFrom(d.id, d.data())).sort((a, b) => b.createdAt - a.createdAt)
   }
+  // Tek alanlı aralık + aynı alanda sıralama: otomatik tek alan indeksi yeter, bileşik indeks gerekmez.
+  async listLeadsSince(ctx: TenantContext, since: number): Promise<readonly Lead[]> {
+    const snap = await this.col(ctx.studioId, 'leads').where('createdAt', '>=', ts(since)).orderBy('createdAt', 'desc').get()
+    return snap.docs.map((d) => leadFrom(d.id, d.data()))
+  }
+  async listLeadsBefore(ctx: TenantContext, before: number, limit: number): Promise<readonly Lead[]> {
+    const snap = await this.col(ctx.studioId, 'leads').where('createdAt', '<', ts(before)).orderBy('createdAt', 'desc').limit(limit).get()
+    return snap.docs.map((d) => leadFrom(d.id, d.data()))
+  }
+
+  async getCurrentAdPeriod(ctx: TenantContext): Promise<AdPeriod | null> {
+    const snap = await this.col(ctx.studioId, 'adPeriods').orderBy('startedAt', 'desc').limit(1).get()
+    const doc = snap.docs[0]
+    if (!doc) return null
+    const d = doc.data()
+    return { ...(d as AdPeriod), id: doc.id, startedAt: instant(ms(d.startedAt)), createdAt: instant(ms(d.createdAt)) }
+  }
+  async saveAdPeriod(ctx: TenantContext, period: AdPeriod, events: readonly NewEvent[]): Promise<void> {
+    const sid = ctx.studioId
+    await this.db.runTransaction(async (tx) => {
+      tx.set(this.col(sid, 'adPeriods').doc(period.id), { ...period, startedAt: ts(period.startedAt), createdAt: ts(period.createdAt) })
+      this.writeEvents(sid, tx, events)
+    })
+  }
+
   async saveLead(ctx: TenantContext, lead: Lead, events: readonly NewEvent[]): Promise<void> {
     const sid = ctx.studioId
     await this.db.runTransaction(async (tx) => {

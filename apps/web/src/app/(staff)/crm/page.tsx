@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 
 import { requirePageAccess } from '@/server/auth'
-import { listLeadsAction } from '@/server/actions/crm'
+import { loadFunnelAction } from '@/server/actions/crm'
 
 import { CrmScreen } from './crm-screen'
 
@@ -10,6 +10,6 @@ import { CrmScreen } from './crm-screen'
 export default async function CrmPage() {
   const ctx = await requirePageAccess('/crm')
   if (!ctx) redirect('/login')
-  const leads = await listLeadsAction()
-  return <CrmScreen initial={leads} />
+  const funnel = await loadFunnelAction()
+  return <CrmScreen initial={funnel} />
 }
