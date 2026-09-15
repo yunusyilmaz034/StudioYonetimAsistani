@@ -1788,3 +1788,10 @@ cash price from the panel. Asked why card costs more: *bank commissions*. Asked 
 0533 199 41 23. Hibrit packages have no campaign but the AI may still suggest them, prices from live data only.
 The "prices valid until 15 September" sentence was removed.
 
+**OR-82 · Members do not see their past reservations.** (2026-09-15)
+*"Geçmiş rezervasyonların gün ve saati bize gözüksün, üyeye gözükmesin."* The member app and the web portal
+show **upcoming** reservations only; the server returns `past: []` (the store build reads the same answer, so it
+closed without a release). The panel keeps the full record with day, time and cancellations. Trigger: a member
+disputed a class booked from her own account after seeing it in her past list — the history is discussed with
+the studio, not argued from the member's screen. Replaces the 2026-09-01 "which statuses appear in the past" rule.
+

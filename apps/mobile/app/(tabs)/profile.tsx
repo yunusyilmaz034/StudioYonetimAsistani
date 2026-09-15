@@ -192,7 +192,7 @@ export default function Ben() {
           <SectionHeader>Hesap</SectionHeader>
           <PremiumCard>
             <LinkRow icon="mail-outline" label="Mesajlarım" onPress={() => router.push('/messages')} />
-            <LinkRow icon="time-outline" label="Geçmiş rezervasyonlarım" onPress={() => router.push('/reservations')} />
+            <LinkRow icon="time-outline" label="Rezervasyonlarım" onPress={() => router.push('/reservations')} />
             <LinkRow icon="wallet-outline" label="Cüzdanım" onPress={() => router.push('/wallet')} />
             <LinkRow icon="call-outline" label="İletişim" onPress={() => router.push('/contact')} last />
           </PremiumCard>

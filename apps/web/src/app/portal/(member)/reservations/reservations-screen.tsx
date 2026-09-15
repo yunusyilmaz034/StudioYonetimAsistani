@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Loader2Icon, ChevronRightIcon } from 'lucide-react'
+import { Loader2Icon } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Badge } from '@/components/ui/badge'
@@ -33,22 +33,10 @@ const dayTime = (ms: number) =>
     timeZone: TZ,
   })
 
-const STATUS: Record<string, { label: string; className: string }> = {
-  booked: { label: 'Rezerve', className: 'bg-primary-soft text-primary' },
-  attended: { label: 'Katıldınız', className: 'bg-success/10 text-success' },
-  no_show: { label: 'Gelmediniz', className: 'bg-danger/10 text-danger' },
-  cancelled: { label: 'İptal', className: 'bg-muted text-muted-foreground' },
-  // OR-30 — never "Geç iptal" on a member surface. To her it was a cancellation; the late/normal
-  // split is the studio's accounting, and showing it invites the question it cannot answer.
-  late_cancelled: { label: 'İptal edildi', className: 'bg-muted text-muted-foreground' },
-}
-
 export function PortalReservationsScreen({
   upcoming,
-  past,
 }: {
   upcoming: readonly PortalReservation[]
-  past: readonly PortalReservation[]
 }) {
   const router = useRouter()
   const [confirming, setConfirming] = useState<PortalReservation | null>(null)
@@ -122,38 +110,7 @@ export function PortalReservationsScreen({
         )}
       </Section>
 
-      {/* PF-43 (owner, 2026-07-29) — the past is COLLAPSED by default.
-          An active reservation is a decision (I am there on Tuesday); a past one is a record.
-          Listing them together made the member sort one from the other on every open. The list is
-          unchanged, only wrapped, and the count sits on the summary so nothing feels hidden. */}
-      <Section title="Geçmiş">
-        {past.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Geçmiş rezervasyonunuz yok.</p>
-        ) : (
-          <details className="group">
-            <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 text-sm font-medium text-foreground">
-              <ChevronRightIcon className="size-4 transition-transform group-open:rotate-90" />
-              Geçmiş rezervasyonlar ({past.length})
-            </summary>
-            <div className="mt-3">
-          <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card shadow-sm">
-            {past.map((r) => {
-              const st = STATUS[r.status] ?? { label: r.status, className: 'bg-muted text-muted-foreground' }
-              return (
-                <li key={r.reservationId} className="flex items-center justify-between gap-3 px-3 py-2.5">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium text-foreground">{r.serviceName}</p>
-                    <p className="truncate text-xs capitalize text-muted-foreground">{dayTime(r.startsAt)}</p>
-                  </div>
-                  <Badge className={`shrink-0 ${st.className}`}>{st.label}</Badge>
-                </li>
-              )
-            })}
-              </ul>
-            </div>
-          </details>
-        )}
-      </Section>
+      {/* Geçmiş listesi üyeye gösterilmiyor (owner, 2026-09-15) — bkz. `loadPortalReservations`. */}
 
       <Dialog open={confirming !== null} onOpenChange={(o) => (o ? null : setConfirming(null))}>
         <DialogContent>

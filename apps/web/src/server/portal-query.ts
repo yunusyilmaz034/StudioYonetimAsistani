@@ -336,32 +336,20 @@ export async function loadPortalReservations(
 
   const upcomingRaw = relevant.filter((r) => r.status === 'booked' && r.sessionStartsAt > nowMs)
 
-  // ── "GEÇMİŞ" NE DEMEK (owner, 2026-09-01) ─────────────────────────────────────────────────
+  // ── ÜYE GEÇMİŞİNİ GÖRMEZ (owner, 2026-09-15) ─────────────────────────────────────────────
   //
-  // Burası bir OLUMSUZLUKLA tanımlanmıştı: *"yaklaşan rezervasyon olmayan her şey."* Öyle bir tanım
-  // ne dışarıda bırakacağını söylemez, sadece süpürür — ve iptalleri, geç iptalleri, hepsini içeri
-  // aldı. Sonuç üyenin ekranında iki ayrı yanlış olarak göründü: iptal ettiği ders "geçmişim"de
-  // duruyordu, ve 3 Eylül'e ait iptal edilmiş bir kayıt, aynı güne yeniden aldığı dersin KOPYASI
-  // gibi okunuyordu. Owner: *"geçmişte iptali hiç gösterme."*
+  // *"Geçmiş rezervasyonların gün ve saati bize gözüksün, üyeye gözükmesin."* Owner kararı: üye tarafında
+  // geçmiş listesi HİÇ yok — yalnızca yaklaşan dersler. Tetikleyen vaka: bir üye uygulamadaki geçmiş
+  // listesinde gördüğü, kendi hesabından alınmış bir dersi "ben almadım" diye itiraz etti. Geçmişin
+  // tartışması stüdyoyla yapılır; panel (`member-workspace-query.ts`) gün, saat ve iptalleriyle tam
+  // kaydı göstermeye devam eder.
   //
-  // Artık OLUMLU tanımlı: geçmiş, **başına gerçekten gelenler**. Katıldığı ders, gelmediği ders, ve
-  // henüz sonuçlanmamış ama saati geçmiş ders. İptal ettiği bir ders başına gelmedi — o, olmayan
-  // bir şeyin kaydı.
-  //
-  // `late_cancelled` de dışarıda, ve bu bilinçli: üye için o da bir iptaldir. Kredisinin nereye
-  // gittiğini merak ederse cevabı stüdyodan alır — ekranında "gitmediğin dersler" listesi tutmak
-  // ondan daha kötü.
-  //
-  // YALNIZCA ÜYE TARAFI. Panel kendi sorgusunu kullanır ve iptalleri "İptalleri göster (2 gizli)"
-  // ile açıkça sunar — resepsiyonun neyin iptal edildiğini görmesi gerekir, üyenin gerekmez.
-  const GECMISTE_GORUNENLER: readonly string[] = ['attended', 'no_show', 'booked']
-  const pastRaw = relevant
-    .filter((r) => r.sessionStartsAt <= nowMs && GECMISTE_GORUNENLER.includes(r.status))
-    .slice(0, PORTAL_LIMITS.pastReservations)
-
+  // Sunucuda boş dönüyor, istemcide gizlenmiyor: mağazadaki uygulama sürümü de bu cevabı okuyor ve
+  // yeni bir sürüm beklemeden aynı anda kapanıyor. Alan geriye uyum için duruyor (eski uygulama `past`
+  // bekliyor). 2026-09-01'deki "hangi durumlar geçmişte görünür" kuralının yerini bu aldı.
   const sessions = await loadSessions(
     ctx,
-    [...upcomingRaw, ...pastRaw].map((r) => r.classSessionId),
+    upcomingRaw.map((r) => r.classSessionId),
   )
   const map = (rs: typeof relevant) =>
     rs.flatMap((r) => {
@@ -371,7 +359,7 @@ export async function loadPortalReservations(
 
   return {
     upcoming: map(upcomingRaw).sort((a, b) => a.startsAt - b.startsAt),
-    past: map(pastRaw),
+    past: [],
   }
 }
 

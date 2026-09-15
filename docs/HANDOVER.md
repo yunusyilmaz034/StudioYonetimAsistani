@@ -45,6 +45,13 @@ linkleri `853d273` → `build-2026-09-15-003` (rollout izleniyor):
   iOS `id6792723951` (App Store'da 1.7.3), Android `com.pilatesfitnessbyisil.member`. Link yoksa akış eskisi gibi.
 - **AI SSS "Uygulamanız var mı"** güncellendi: "hazırlanıyor" yerine iki mağaza linki + davetle şifre.
 
+- **Üye geçmiş rezervasyonları gizlendi ([[OR-82]])**: sunucu `past: []`; web portalda bölüm kalktı; mağazadaki
+  uygulamada ajanda bölümü hemen kayboluyor, **Profil → Rezervasyonlarım ekranında "Geçmiş kaydın yok" yazısı yeni
+  mobil sürüme kadar kalır** (kod düzeltildi, menü adı "Rezervasyonlarım" — sürüm çıkınca).
+- **Gizem Eşin "ben almadım" (14 Eyl 20:00):** rezervasyon **kendi üye hesabından** 14.09 15:28:47'de alınmış (aktör
+  üye, personel değil), onay bildirimi 15:28:48'de iletilmiş; yoklama alınmamış, 15.09 03:00 sistem "katıldı varsayıldı"
+  ve kredi düştü. Turnike kaydı yok (bu üye hiç okutmuyor). 15 Eyl 20:00'ı da kendisi 08:16'da almış. Karar owner'da.
+
 **⚠️ AÇIK — reklamın WhatsApp numarası AI hattı değil.** Reklam "WhatsApp 0533 199 41 23" diyor; owner teyit etti:
 AI başka numarada. Reklamdan yazanlara **AI cevap vermiyor** ve bu sohbetler panelde **görünmüyor** (webhook yalnızca
 AI hattını görür). AI hattına 14 Eylül 22:46'dan beri mesaj yok. Owner'ın kararı bekleniyor: reklamın WhatsApp
