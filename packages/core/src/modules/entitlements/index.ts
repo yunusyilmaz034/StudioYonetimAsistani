@@ -58,6 +58,8 @@ export { adjustCredits, adjustEntries, type AdjustCreditsInput, type AdjustEntri
 export {
   assignSubscription,
   amendEntitlement,
+  countEntitlementsOffProduct,
+  syncEntitlementsToProduct,
   reactivateEntitlement,
   type AssignSubscriptionInput,
   type AmendEntitlementInput,

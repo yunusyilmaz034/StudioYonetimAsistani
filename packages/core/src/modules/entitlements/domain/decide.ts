@@ -1088,3 +1088,50 @@ export function decideUnfreeze(
     ],
   })
 }
+
+// ── PAKETİ ÜRÜNLE EŞİTLE (owner, 2026-09-15) ────────────────────────────────────────────────
+//
+// "PT PİLATES 6 AY" 17:54'te pilates grup kategorisiyle oluşturuldu, 18:03'te iki üyeye satıldı, 18:21'de
+// kategorisi PT'ye düzeltildi. Satış anındaki kopya bilerek dondurulur (bir katalog düzenlemesi kimsenin
+// aldığını değiştirmemeli) — ama burada değişen "aldığı şey" değil, ürünün YANLIŞ GİRİLMİŞ kategorisi. İki
+// üye PT seansına alınamadı: kategori duvarı kopyaya bakıyor.
+//
+// Yalnızca kapsama alanları eşitlenir: `category` ve `serviceIds`. Kredi, fiyat, süre, ödeme, isim DOKUNULMAZ.
+// Yalnızca AYNI ürün, hibrit olmayan, aktif ya da dondurulmuş paket. Sebep zorunlu; kayıt mevcut
+// `entitlement.amended` (değişiklikler + sebep) — yeni olay türü değil, çünkü bu bir düzeltmedir.
+export function decideSyncSnapshotToProduct(
+  ctx: DecideContext,
+  ent: Entitlement,
+  product: {
+    readonly productId: Entitlement['productSnapshot']['productId']
+    readonly category: Entitlement['productSnapshot']['category']
+    readonly serviceIds?: Entitlement['productSnapshot']['serviceIds']
+  },
+  reason: string,
+): Result<LedgerOutcome, DomainError> {
+  if (reason.trim().length === 0) return err({ code: 'reason_required' })
+  if (product.productId !== ent.productSnapshot.productId) return err({ code: 'operation_not_applicable' })
+  const components = (ent.productSnapshot as { components?: readonly unknown[] }).components
+  if (components && components.length > 0) return err({ code: 'operation_not_applicable' })
+  if (ent.status !== 'active' && ent.status !== 'frozen') return err({ code: 'operation_not_applicable' })
+
+  const changes: Record<string, { from: unknown; to: unknown }> = {}
+  let snapshot = ent.productSnapshot
+  if (product.category !== snapshot.category) {
+    changes.category = { from: snapshot.category, to: product.category }
+    snapshot = { ...snapshot, category: product.category }
+  }
+  const eskiHizmet = [...(snapshot.serviceIds ?? [])].sort()
+  const yeniHizmet = [...(product.serviceIds ?? [])].sort()
+  if (eskiHizmet.join('|') !== yeniHizmet.join('|')) {
+    changes.serviceIds = { from: snapshot.serviceIds ?? [], to: product.serviceIds ?? [] }
+    snapshot = { ...snapshot, serviceIds: product.serviceIds ?? [] }
+  }
+  const changedFields = Object.keys(changes)
+  if (changedFields.length === 0) return ok({ next: ent, events: [] })
+  const next: Entitlement = { ...ent, productSnapshot: snapshot }
+  return ok({
+    next,
+    events: [{ ...base(ctx, next, relOf(next)), type: ENTITLEMENT_AMENDED, payload: { changedFields, changes, reason: reason.trim() } }],
+  })
+}

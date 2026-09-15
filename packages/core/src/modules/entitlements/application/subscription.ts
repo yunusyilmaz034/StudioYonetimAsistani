@@ -13,6 +13,7 @@ import {
 import {
   decideAdjust,
   decideAmend,
+  decideSyncSnapshotToProduct,
   decidePurchase,
   decideReactivate,
   decideRecordPayment,
@@ -157,4 +158,43 @@ export async function reactivateEntitlement(
   if (!outcome.ok) return outcome
   await deps.repo.saveEntitlement(ctx, outcome.value.next, outcome.value.events)
   return { ok: true, value: undefined }
+}
+
+// ── PAKETİ ÜRÜNLE EŞİTLE (owner, 2026-09-15) — bkz. `decideSyncSnapshotToProduct`. ─────────────────
+export interface ProductCoverage {
+  readonly productId: Entitlement['productSnapshot']['productId']
+  readonly category: Entitlement['productSnapshot']['category']
+  readonly serviceIds?: Entitlement['productSnapshot']['serviceIds']
+}
+
+async function coverageTargets(deps: EntitlementsDeps, ctx: TenantContext, product: ProductCoverage): Promise<readonly Entitlement[]> {
+  const [active, frozen] = await Promise.all([deps.repo.listActive(ctx), deps.repo.listFrozen(ctx)])
+  return [...active, ...frozen].filter((e) => e.productSnapshot.productId === product.productId)
+}
+
+/** Ürünün bugünkü kapsamından (kategori/hizmet) sapmış kaç satılmış paket var — form uyarısı için. */
+export async function countEntitlementsOffProduct(deps: EntitlementsDeps, ctx: TenantContext, product: ProductCoverage): Promise<number> {
+  const targets = await coverageTargets(deps, ctx, product)
+  const probe = decideContext(deps, ctx)
+  return targets.filter((e) => {
+    const r = decideSyncSnapshotToProduct(probe, e, product, 'sayım')
+    return r.ok && r.value.events.length > 0
+  }).length
+}
+
+export async function syncEntitlementsToProduct(
+  deps: EntitlementsDeps,
+  ctx: TenantContext,
+  input: { readonly product: ProductCoverage; readonly reason: string },
+): Promise<Result<{ synced: number }, DomainError>> {
+  if (input.reason.trim().length === 0) return { ok: false, error: { code: 'reason_required' } }
+  const targets = await coverageTargets(deps, ctx, input.product)
+  let synced = 0
+  for (const e of targets) {
+    const outcome = decideSyncSnapshotToProduct(decideContext(deps, ctx), e, input.product, input.reason)
+    if (!outcome.ok || outcome.value.events.length === 0) continue // hibrit ya da zaten eşit: dokunulmaz
+    await deps.repo.saveEntitlement(ctx, outcome.value.next, outcome.value.events)
+    synced++
+  }
+  return { ok: true, value: { synced } }
 }

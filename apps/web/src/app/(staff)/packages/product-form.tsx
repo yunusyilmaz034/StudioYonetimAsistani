@@ -6,13 +6,14 @@ import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { NumberInput, NumericTextInput, OptionalNumberInput } from '@/components/ui/number-input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { domainErrorMessage } from '@/lib/domain-error'
 import { saveErrorMessage } from '@/lib/stale-deployment'
-import { createProductAction, updateProductAction } from '@/server/actions/catalog'
+import { createProductAction, productOffSyncCountAction, syncProductEntitlementsAction, updateProductAction } from '@/server/actions/catalog'
 import type { ProductView, ServiceOption } from '@/server/catalog-query'
 
 export const CATEGORY_LABEL: Record<string, string> = {
@@ -50,6 +51,9 @@ export function ProductForm({
 }) {
   const [name, setName] = useState(product?.name ?? '')
   const [category, setCategory] = useState(product?.category ?? 'pilates_group')
+  // Kategori değişince satılmış paketleri eşitleme teklifi (owner, 2026-09-15).
+  const [syncOffer, setSyncOffer] = useState<{ count: number; from: string; to: string } | null>(null)
+  const [syncing, setSyncing] = useState(false)
   // Fitness is free-entry; an unlimited cancellation right there is meaningless (owner, 2026-07-29).
   const isFitness = category === 'fitness'
   const [type, setType] = useState<'credit' | 'period'>(product?.type ?? 'credit')
@@ -140,6 +144,16 @@ export function ProductForm({
         : await createProductAction(fields)
       if (res.ok) {
         toast.success(product ? 'Paket güncellendi.' : 'Paket oluşturuldu.')
+        // KATEGORİ SONRADAN DEĞİŞTİYSE (owner, 2026-09-15): satılmış paketlerin kopyası eski kategoride kalır ve
+        // üyeleri yeni kategorinin derslerine alınamaz. Varsa sor; yoksa eskisi gibi kapan.
+        if (product && !isBundle && category !== product.category) {
+          const n = await productOffSyncCountAction({ productId: product.id }).catch(() => 0)
+          if (n > 0) {
+            setSyncOffer({ count: n, from: product.category, to: category })
+            setLoading(false)
+            return
+          }
+        }
         onDone()
       } else {
         setError(domainErrorMessage(res.error))
@@ -151,7 +165,49 @@ export function ProductForm({
     }
   }
 
+  const KATEGORI_TR: Record<string, string> = { pilates_group: 'Pilates (grup)', fitness: 'Fitness', private: 'PT / Özel ders' }
+
+  async function syncSold() {
+    if (!product || !syncOffer) return
+    setSyncing(true)
+    try {
+      const r = await syncProductEntitlementsAction({
+        productId: product.id,
+        reason: `Ürün kategorisi ${KATEGORI_TR[syncOffer.from] ?? syncOffer.from} → ${KATEGORI_TR[syncOffer.to] ?? syncOffer.to} olarak düzeltildi; satılmış paketler ürünle eşitlendi.`,
+      })
+      if (r.ok) toast.success(`${r.value.synced} satılmış paket ürünle eşitlendi.`)
+      else toast.error(domainErrorMessage(r.error))
+    } catch (e) {
+      toast.error(saveErrorMessage(e))
+    }
+    setSyncing(false)
+    setSyncOffer(null)
+    onDone()
+  }
+
   return (
+    <>
+    <Dialog open={syncOffer !== null} onOpenChange={(o) => (o ? null : (setSyncOffer(null), onDone()))}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Satılmış paketler eski kategoride</DialogTitle>
+          <DialogDescription>
+            Bu üründen {syncOffer?.count} aktif paket, satış anındaki haliyle{' '}
+            <b>{syncOffer ? (KATEGORI_TR[syncOffer.from] ?? syncOffer.from) : ''}</b> kategorisinde duruyor. Eşitlenmezse bu üyeler{' '}
+            <b>{syncOffer ? (KATEGORI_TR[syncOffer.to] ?? syncOffer.to) : ''}</b> derslerine alınamaz. Eşitleme yalnızca kategoriyi ve kapsadığı
+            dersleri değiştirir — kredi, fiyat, süre ve ödeme aynı kalır; her paketin geçmişine sebebiyle yazılır.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button type="button" variant="outline" disabled={syncing} onClick={() => { setSyncOffer(null); onDone() }}>
+            Şimdilik hayır
+          </Button>
+          <Button type="button" disabled={syncing} onClick={() => void syncSold()}>
+            {syncing ? <Loader2Icon className="animate-spin" /> : null} Paketleri eşitle
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
     <form onSubmit={onSubmit} className="space-y-4">
       <Field id="p-name" label="Paket adı">
         <Input id="p-name" required value={name} onChange={(e) => setName(e.target.value)} placeholder="Reformer 8 Ders" />
@@ -436,5 +492,6 @@ export function ProductForm({
         {product ? 'Değişiklikleri Kaydet' : 'Paketi Oluştur'}
       </Button>
     </form>
+    </>
   )
 }

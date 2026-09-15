@@ -1,11 +1,15 @@
 'use server'
 
 import {
+  countEntitlementsOffProduct,
   createProduct,
   FirestoreCatalogRepository,
+  FirestoreEntitlementRepository,
+  syncEntitlementsToProduct,
   systemClock,
   updateProduct,
   type CatalogDeps,
+  type EntitlementsDeps,
   type Category,
   type ProductComponent,
   type ProductId,
@@ -95,4 +99,33 @@ export async function updateProductAction(input: unknown) {
     productId: p.productId as ProductId,
     active: p.active,
   })
+}
+
+// ── SATILMIŞ PAKETLERİ ÜRÜNLE EŞİTLE (owner, 2026-09-15) ───────────────────────────────────────
+//
+// "PT PİLATES 6 AY" satıştan 18 dakika sonra PT kategorisine düzeltildi; satılmış iki paketin kopyası eski
+// kategoride kaldı ve üyeler PT seansına alınamadı. Paket formu kategori değişince bu sayıyı sorar ve owner
+// onaylarsa eşitler. Kredi, fiyat, süre dokunulmaz — bkz. `decideSyncSnapshotToProduct`.
+function entDeps(): EntitlementsDeps {
+  return { repo: new FirestoreEntitlementRepository(adminDb()), clock: systemClock }
+}
+
+async function coverageOf(ctx: Awaited<ReturnType<typeof requireTenantContext>>, productId: string) {
+  const product = await deps().repo.getProduct(ctx, productId as ProductId)
+  return product ? { productId: product.id, category: product.category, serviceIds: product.serviceIds } : null
+}
+
+export async function productOffSyncCountAction(input: unknown): Promise<number> {
+  const p = z.object({ productId: z.string().min(1) }).parse(input)
+  const ctx = await requireTenantContext(DEFS)
+  const coverage = await coverageOf(ctx, p.productId)
+  return coverage ? countEntitlementsOffProduct(entDeps(), ctx, coverage) : 0
+}
+
+export async function syncProductEntitlementsAction(input: unknown) {
+  const p = z.object({ productId: z.string().min(1), reason: z.string().trim().min(1).max(300) }).parse(input)
+  const ctx = await requireTenantContext(DEFS)
+  const coverage = await coverageOf(ctx, p.productId)
+  if (!coverage) return { ok: false as const, error: { code: 'operation_not_applicable' as const } }
+  return syncEntitlementsToProduct(entDeps(), ctx, { product: coverage, reason: p.reason })
 }
