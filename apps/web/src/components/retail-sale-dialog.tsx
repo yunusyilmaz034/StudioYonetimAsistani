@@ -8,6 +8,7 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { NumberInput } from '@/components/ui/number-input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { domainErrorMessage } from '@/lib/domain-error'
 import { listBookingMembersAction, type BookingMember } from '@/server/actions/booking'
@@ -148,12 +149,11 @@ export function RetailSaleDialog({
                       {p.name} · {tl(p.priceInKurus)}
                       {p.trackStock ? <span className="text-xs text-muted-foreground"> (stok {p.stock})</span> : null}
                     </span>
-                    <Input
-                      type="number"
+                    <NumberInput
                       min={0}
                       className="w-16"
                       value={qty[p.id] ?? 0}
-                      onChange={(e) => setQty((s) => ({ ...s, [p.id]: Math.max(0, Number(e.target.value) || 0) }))}
+                      onValueChange={(n) => setQty((s) => ({ ...s, [p.id]: n }))}
                     />
                   </li>
                 ))}

@@ -14,7 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
+import { NumberInput } from '@/components/ui/number-input'
 import { Metric, MetricStrip } from '@/components/ui/metric'
 import { PageHeader } from '@/components/ui/page-header'
 import { Section } from '@/components/ui/section'
@@ -122,11 +122,10 @@ export function BulkWizard() {
               </Select>
             </Field>
             <Field label={actionKind === 'extend_days' ? 'Gün' : 'Kredi'}>
-              <Input
-                type="number"
+              <NumberInput
                 min={1}
                 value={amount}
-                onChange={(e) => setAmount(Math.max(1, Number(e.target.value) || 1))}
+                onValueChange={setAmount}
               />
             </Field>
           </div>

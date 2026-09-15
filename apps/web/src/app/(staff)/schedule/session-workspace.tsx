@@ -18,6 +18,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { NumberInput } from '@/components/ui/number-input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -475,11 +476,10 @@ function InfoTab({
           ) : null}
 
           {action === 'capacity' ? (
-            <Input
-              type="number"
+            <NumberInput
               min={1}
               value={capacity}
-              onChange={(e) => setCapacity(Math.max(1, Number(e.target.value) || 1))}
+              onValueChange={setCapacity}
             />
           ) : null}
 

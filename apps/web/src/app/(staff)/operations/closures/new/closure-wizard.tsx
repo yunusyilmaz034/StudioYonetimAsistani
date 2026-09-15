@@ -16,6 +16,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { NumberInput } from '@/components/ui/number-input'
 import { Metric, MetricStrip } from '@/components/ui/metric'
 import { PageHeader } from '@/components/ui/page-header'
 import { Section } from '@/components/ui/section'
@@ -160,11 +161,10 @@ export function ClosureWizard({
             </Field>
 
             <Field label="Paket uzatma (gün) — sizin kararınız">
-              <Input
-                type="number"
+              <NumberInput
                 min={0}
                 value={extensionDays}
-                onChange={(e) => setExtensionDays(Math.max(0, Number(e.target.value) || 0))}
+                onValueChange={setExtensionDays}
               />
             </Field>
           </div>

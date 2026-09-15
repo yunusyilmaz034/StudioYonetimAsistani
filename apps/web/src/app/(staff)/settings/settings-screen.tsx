@@ -9,6 +9,7 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { NumericTextInput } from '@/components/ui/number-input'
 import { PageHeader } from '@/components/ui/page-header'
 import { Section } from '@/components/ui/section'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -502,10 +503,9 @@ export function SettingsScreen({
             missing={cancelHours.trim() === ''}
             hint="Bu süreden sonra yapılan iptal krediyi yakar. Sadece BUNDAN SONRA oluşturulan dersleri etkiler — mevcut dersler kendi penceresini taşır."
           >
-            <Input
-              type="number"
+            <NumericTextInput
               value={cancelHours}
-              onChange={(e) => setCancelHours(e.target.value)}
+              onValueChange={setCancelHours}
             />
           </Field>
           <Field
@@ -513,10 +513,9 @@ export function SettingsScreen({
             missing={duration.trim() === ''}
             hint="Ders oluşturma formu bununla açılır."
           >
-            <Input
-              type="number"
+            <NumericTextInput
               value={duration}
-              onChange={(e) => setDuration(e.target.value)}
+              onValueChange={setDuration}
             />
           </Field>
           <Field
@@ -524,10 +523,9 @@ export function SettingsScreen({
             missing={lowCredit.trim() === ''}
             hint="Bu sayının altına düşen üye panoda görünür."
           >
-            <Input
-              type="number"
+            <NumericTextInput
               value={lowCredit}
-              onChange={(e) => setLowCredit(e.target.value)}
+              onValueChange={setLowCredit}
             />
           </Field>
           <Field
@@ -535,10 +533,9 @@ export function SettingsScreen({
             missing={ceiling.trim() === ''}
             hint="Bu oranın üstündeki indirimi yalnızca sahip onaylayabilir."
           >
-            <Input
-              type="number"
+            <NumericTextInput
               value={ceiling}
-              onChange={(e) => setCeiling(e.target.value)}
+              onValueChange={setCeiling}
             />
           </Field>
         </div>
@@ -566,16 +563,15 @@ export function SettingsScreen({
             label="Token ömrü (saniye)"
             hint="Kısa olması güvenliktir: ekran görüntüsü bu süre içinde ölür."
           >
-            <Input type="number" value={ttl} onChange={(e) => setTtl(e.target.value)} />
+            <NumericTextInput value={ttl} onValueChange={setTtl} />
           </Field>
           <Field
             label="Check-in penceresi (dk)"
             hint="Dersine bu kadar kalmış ama henüz gelmemiş üye, check-in ekranında “beklenen” olarak görünür."
           >
-            <Input
-              type="number"
+            <NumericTextInput
               value={checkInWindow}
-              onChange={(e) => setCheckInWindow(e.target.value)}
+              onValueChange={setCheckInWindow}
             />
           </Field>
         </div>
@@ -591,18 +587,18 @@ export function SettingsScreen({
             label="Stüdyo kapasitesi (kişi)"
             hint="Boş bırakılırsa doluluk seviyesi hesaplanmaz. Aynı anda içeride olabilecek üye sayısı."
           >
-            <Input type="number" value={capacity} onChange={(e) => setCapacity(e.target.value)} />
+            <NumericTextInput value={capacity} onValueChange={setCapacity} />
           </Field>
         </div>
         <div className="mt-4 grid gap-4 sm:grid-cols-3">
           <Field label="Orta eşiği (%)" hint="Kapasitenin bu oranından sonra “Orta”.">
-            <Input type="number" value={moderatePct} onChange={(e) => setModeratePct(e.target.value)} />
+            <NumericTextInput value={moderatePct} onValueChange={setModeratePct} />
           </Field>
           <Field label="Yoğun eşiği (%)" hint="Bu orandan sonra “Yoğun”.">
-            <Input type="number" value={busyPct} onChange={(e) => setBusyPct(e.target.value)} />
+            <NumericTextInput value={busyPct} onValueChange={setBusyPct} />
           </Field>
           <Field label="Çok yoğun eşiği (%)" hint="Bu orandan sonra “Çok yoğun”.">
-            <Input type="number" value={veryBusyPct} onChange={(e) => setVeryBusyPct(e.target.value)} />
+            <NumericTextInput value={veryBusyPct} onValueChange={setVeryBusyPct} />
           </Field>
         </div>
         <p className="mt-2 text-sm text-muted-foreground">
@@ -638,11 +634,10 @@ export function SettingsScreen({
                     <option value="percent">Yüzde %</option>
                     <option value="fixed">Sabit ₺</option>
                   </select>
-                  <Input
-                    type="number"
-                    min={0}
+                  <NumericTextInput
+                    decimal
                     value={r.value}
-                    onChange={(e) => setSurcharge((s) => ({ ...s, [key]: { ...s[key], value: e.target.value } }) as Record<SCat, SRow>)}
+                    onValueChange={(v) => setSurcharge((s) => ({ ...s, [key]: { ...s[key], value: v } }) as Record<SCat, SRow>)}
                   />
                 </div>
               )
@@ -653,7 +648,7 @@ export function SettingsScreen({
             </p>
           </div>
           <Field label="En fazla taksit" hint="Ödeme sırasında sunulacak en yüksek taksit sayısı (1 = tek çekim).">
-            <Input type="number" min={1} max={12} value={maxInstallments} onChange={(e) => setMaxInstallments(e.target.value)} />
+            <NumericTextInput value={maxInstallments} onValueChange={setMaxInstallments} />
           </Field>
         </div>
       </Section>
@@ -690,16 +685,16 @@ export function SettingsScreen({
             label="Sessiz saat başlangıcı"
             hint="Bu saatten sonra ACİL olmayan bildirim beklemeye alınır."
           >
-            <Input type="number" value={quietFrom} onChange={(e) => setQuietFrom(e.target.value)} />
+            <NumericTextInput value={quietFrom} onValueChange={setQuietFrom} />
           </Field>
           <Field label="Sessiz saat bitişi" hint="Bekleyen bildirimler bu saatte gönderilir.">
-            <Input type="number" value={quietTo} onChange={(e) => setQuietTo(e.target.value)} />
+            <NumericTextInput value={quietTo} onValueChange={setQuietTo} />
           </Field>
           <Field
             label="Günlük bildirim tavanı"
             hint="Bir hata yüzünden üyelere yüzlerce mesaj gitmesini engelleyen tavan."
           >
-            <Input type="number" value={dailyLimit} onChange={(e) => setDailyLimit(e.target.value)} />
+            <NumericTextInput value={dailyLimit} onValueChange={setDailyLimit} />
           </Field>
         </div>
 
@@ -766,12 +761,9 @@ export function SettingsScreen({
           </label>
           {reminderEnabled ? (
             <Field label="Kaç dakika önce gönderilsin" hint="Ders başlangıcından bu kadar dakika önce hatırlatılır (varsayılan 60).">
-              <Input
-                type="number"
-                min={5}
-                max={1440}
+              <NumericTextInput
                 value={reminderOffset}
-                onChange={(e) => setReminderOffset(e.target.value)}
+                onValueChange={setReminderOffset}
               />
             </Field>
           ) : null}

@@ -8,6 +8,7 @@ import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { NumberInput, OptionalNumberInput } from '@/components/ui/number-input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { DAY_TYPE_LABEL, isClosedType, type DayMark } from '@/lib/calendar-days'
 import { domainErrorMessage } from '@/lib/domain-error'
@@ -316,25 +317,20 @@ export function SessionForm({
           <Input id="s-time" type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} required />
         </Field>
         <Field id="s-dur" label="Süre (dk)">
-          <Input
+          <NumberInput
             id="s-dur"
-            type="number"
             min={1}
             value={durationMinutes}
-            onChange={(e) => setDurationMinutes(Math.max(1, Number(e.target.value) || 1))}
+            onValueChange={setDurationMinutes}
           />
         </Field>
         <Field id="s-cap" label={isPt ? 'Kapasite (PT: 1–2)' : 'Kapasite'}>
-          <Input
+          <NumberInput
             id="s-cap"
-            type="number"
             min={1}
             max={isPt ? PT_MAX_CAPACITY : undefined}
             value={capacity}
-            onChange={(e) => {
-              const n = Math.max(1, Number(e.target.value) || 1)
-              setCapacity(isPt ? Math.min(n, PT_MAX_CAPACITY) : n)
-            }}
+            onValueChange={setCapacity}
           />
           {isPt ? (
             <p className="mt-1.5 text-xs text-muted-foreground">1 = birebir PT · 2 = partner PT</p>
@@ -486,13 +482,12 @@ export function SessionForm({
                 </Select>
               </Field>
               <Field id="s-guest-week" label="Haftalık hak (0 = sınırsız)">
-                <Input
+                <NumberInput
                   id="s-guest-week"
-                  type="number"
                   min={0}
                   max={7}
                   value={guestWeekly}
-                  onChange={(e) => setGuestWeekly(Math.max(0, Math.min(7, Number(e.target.value) || 0)))}
+                  onValueChange={setGuestWeekly}
                 />
               </Field>
               <p className="text-xs text-muted-foreground sm:col-span-2">
@@ -505,13 +500,12 @@ export function SessionForm({
       ) : null}
 
       <Field id="s-cancel" label="İptal süresi (saat, opsiyonel)">
-        <Input
+        <OptionalNumberInput
           id="s-cancel"
-          type="number"
           min={0}
           placeholder="Varsayılan"
-          value={cancelWindow ?? ''}
-          onChange={(e) => setCancelWindow(e.target.value === '' ? null : Math.max(0, Number(e.target.value) || 0))}
+          value={cancelWindow}
+          onValueChange={setCancelWindow}
         />
         <p className="mt-1.5 text-xs text-muted-foreground">
           Boş bırakılırsa dersin, o da yoksa stüdyonun varsayılanı kullanılır. Seans oluşturulurken

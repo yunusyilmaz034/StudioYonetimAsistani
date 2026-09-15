@@ -19,6 +19,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { NumberInput } from '@/components/ui/number-input'
 import { Section } from '@/components/ui/section'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
@@ -612,12 +613,11 @@ function LimitField({
           </SelectContent>
         </Select>
         {mode === 'value' ? (
-          <Input
-            type="number"
+          <NumberInput
             min={min}
             className="w-20"
             value={value}
-            onChange={(e) => setValue(Math.max(min, Number(e.target.value) || min))}
+            onValueChange={setValue}
           />
         ) : null}
       </div>

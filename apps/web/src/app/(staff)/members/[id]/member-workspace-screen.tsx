@@ -42,6 +42,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { NumericTextInput } from '@/components/ui/number-input'
 import { Metric, MetricStrip } from '@/components/ui/metric'
 import { Section } from '@/components/ui/section'
 import {
@@ -1036,7 +1037,7 @@ function QuickBookSheet({
                 <button type="button" onClick={() => { setDur('package'); setPreview(null) }} className={`rounded-full px-3 py-1.5 text-sm font-medium ${dur === 'package' ? 'bg-accent text-accent-foreground' : 'bg-muted text-muted-foreground'}`}>Paket kredisi yettiğince</button>
                 <button type="button" onClick={() => { setDur('weeks'); setPreview(null) }} className={`rounded-full px-3 py-1.5 text-sm font-medium ${dur === 'weeks' ? 'bg-accent text-accent-foreground' : 'bg-muted text-muted-foreground'}`}>Hafta sayısı</button>
                 {dur === 'weeks' ? (
-                  <input type="number" min={1} max={52} value={weeksInput} onChange={(e) => { setWeeksInput(e.target.value); setPreview(null) }} className="w-20 rounded-md border bg-background px-2 py-1.5 text-sm" />
+                  <NumericTextInput value={weeksInput} onValueChange={(v) => { setWeeksInput(v); setPreview(null) }} className="w-20 rounded-md border bg-background px-2 py-1.5 text-sm" />
                 ) : null}
               </div>
               <p className="text-xs text-muted-foreground">Krediler / geçerlilik bitince otomatik durur — rezervasyon kuralları uygulanır.</p>

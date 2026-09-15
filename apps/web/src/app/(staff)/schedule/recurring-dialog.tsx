@@ -15,7 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
+import { NumberInput } from '@/components/ui/number-input'
 import { CLOSED_DAY_TYPES, DAY_TYPE_LABEL, type DayMark } from '@/lib/calendar-days'
 import { domainErrorMessage } from '@/lib/domain-error'
 import { listCalendarDaysAction } from '@/server/actions/calendar'
@@ -137,14 +137,13 @@ export function RecurringDialog({
                 {w} hafta
               </Button>
             ))}
-            <Input
-              type="number"
+            <NumberInput
               min={1}
               max={26}
               className="w-24"
               value={weeks}
-              onChange={(e) => {
-                setWeeks(Math.min(26, Math.max(1, Number(e.target.value) || 1)))
+              onValueChange={(n) => {
+                setWeeks(n)
                 setPlan(null)
               }}
             />

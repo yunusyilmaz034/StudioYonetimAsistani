@@ -14,6 +14,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { NumericTextInput } from '@/components/ui/number-input'
 import {
   Select,
   SelectContent,
@@ -498,19 +499,15 @@ function ServiceDialog({ onClose, onDone }: { onClose: () => void; onDone: () =>
             </p>
           </div>
 
-          <Input
-            type="number"
-            min={0}
+          <NumericTextInput
             placeholder="İptal penceresi (saat) — boş bırakırsanız stüdyo varsayılanı"
             value={windowHours}
-            onChange={(e) => setWindowHours(e.target.value)}
+            onValueChange={setWindowHours}
           />
-          <Input
-            type="number"
-            min={0}
+          <NumericTextInput
             placeholder="En fazla kaç gün önceden rezervasyon"
             value={maxDays}
-            onChange={(e) => setMaxDays(e.target.value)}
+            onValueChange={setMaxDays}
           />
 
           <label className="flex items-center gap-2 text-sm">
@@ -583,12 +580,10 @@ function RoomDialog({
             value={name}
             onChange={(e) => setName(e.target.value)}
           />
-          <Input
-            type="number"
-            min={1}
+          <NumericTextInput
             placeholder="Kapasite"
             value={capacity}
-            onChange={(e) => setCapacity(e.target.value)}
+            onValueChange={setCapacity}
           />
         </div>
 
@@ -846,19 +841,15 @@ function ServiceEditDialog({
             Hangi paketin bu dersi açtığı buna bağlı; sonradan değiştirmek, üyelerin çoktan rezervasyon
             yaptığı dersleri başka bir duvarın arkasına taşırdı.
           </p>
-          <Input
-            type="number"
-            min={0}
+          <NumericTextInput
             placeholder="İptal penceresi (saat) — boş bırakırsanız stüdyo varsayılanı"
             value={windowHours}
-            onChange={(e) => setWindowHours(e.target.value)}
+            onValueChange={setWindowHours}
           />
-          <Input
-            type="number"
-            min={0}
+          <NumericTextInput
             placeholder="En fazla kaç gün önceden rezervasyon"
             value={maxDays}
-            onChange={(e) => setMaxDays(e.target.value)}
+            onValueChange={setMaxDays}
           />
           <label className="flex cursor-pointer items-start gap-2 text-sm">
             <input
@@ -920,7 +911,7 @@ function RoomEditDialog({ room, onClose, onDone }: { room: RoomRow; onClose: () 
         </DialogHeader>
         <div className="space-y-3">
           <Input placeholder="Ad" value={name} onChange={(e) => setName(e.target.value)} />
-          <Input type="number" min={1} placeholder="Kapasite" value={capacity} onChange={(e) => setCapacity(e.target.value)} />
+          <NumericTextInput placeholder="Kapasite" value={capacity} onValueChange={setCapacity} />
           <p className="text-xs text-muted-foreground">
             Kapasiteyi düşürmek, o salonda <strong>zaten açılmış</strong> derslerin kontenjanını
             değiştirmez — onları tek tek düzenlemen gerekir.

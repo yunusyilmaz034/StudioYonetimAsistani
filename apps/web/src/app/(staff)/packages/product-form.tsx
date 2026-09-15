@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
+import { NumberInput, NumericTextInput, OptionalNumberInput } from '@/components/ui/number-input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { domainErrorMessage } from '@/lib/domain-error'
@@ -193,12 +194,11 @@ export function ProductForm({
                     ))}
                   </SelectContent>
                 </Select>
-                <Input
-                  type="number"
+                <NumberInput
                   min={1}
                   className="w-24"
                   value={c.count}
-                  onChange={(e) => setComponent(i, { count: Math.max(1, Number(e.target.value) || 1) })}
+                  onValueChange={(n) => setComponent(i, { count: n })}
                 />
                 <span className="w-12 text-sm text-muted-foreground">{c.category === 'fitness' ? 'giriş' : 'kredi'}</span>
                 {components.length > 1 ? (
@@ -255,11 +255,11 @@ export function ProductForm({
           </>
         ) : null}
         <Field id="p-dur" label="Süre (gün)">
-          <Input id="p-dur" type="number" min={1} value={durationDays} onChange={(e) => setDurationDays(Math.max(1, Number(e.target.value) || 1))} />
+          <NumberInput id="p-dur" min={1} value={durationDays} onValueChange={setDurationDays} />
         </Field>
         {isBundle ? null : type === 'credit' ? (
           <Field id="p-credit" label="Kredi (ders)">
-            <Input id="p-credit" type="number" min={1} value={creditCount} onChange={(e) => setCreditCount(Math.max(1, Number(e.target.value) || 1))} />
+            <NumberInput id="p-credit" min={1} value={creditCount} onValueChange={setCreditCount} />
           </Field>
         ) : (
           <Field id="p-unlim" label="Erişim">
@@ -267,55 +267,50 @@ export function ProductForm({
           </Field>
         )}
         <Field id="p-price" label="Kart fiyatı (TL)">
-          <Input id="p-price" type="number" min={0} step="0.01" required value={priceTl} onChange={(e) => setPriceTl(e.target.value)} />
+          <NumericTextInput decimal id="p-price" required value={priceTl} onValueChange={setPriceTl} />
         </Field>
         {/* Deliberately optional. A studio with one price never fills it in and nothing changes;
             filling it in is what makes the member app say "kart ile X · stüdyoda nakit Y". */}
         <Field id="p-cash" label="Nakit fiyatı (TL) — boşsa kart fiyatıyla aynı">
-          <Input
+          <NumericTextInput
+            decimal
             id="p-cash"
-            type="number"
-            min={0}
-            step="0.01"
             placeholder="—"
             value={cashTl}
-            onChange={(e) => setCashTl(e.target.value)}
+            onValueChange={setCashTl}
           />
         </Field>
         <Field id="p-freeze" label="Dondurma hakkı (gün)">
-          <Input id="p-freeze" type="number" min={0} value={freezeDays} onChange={(e) => setFreezeDays(Math.max(0, Number(e.target.value) || 0))} />
+          <NumberInput id="p-freeze" min={0} value={freezeDays} onValueChange={setFreezeDays} />
         </Field>
         <Field id="p-daily" label="Günlük rez. limiti">
-          <Input
+          <OptionalNumberInput
             id="p-daily"
-            type="number"
             min={1}
             placeholder="Sınırsız"
-            value={dailyLimit ?? ''}
-            onChange={(e) => setDailyLimit(e.target.value ? Math.max(1, Number(e.target.value)) : null)}
+            value={dailyLimit}
+            onValueChange={setDailyLimit}
           />
           <p className="mt-1 text-xs text-muted-foreground">Boş = sınırsız. Üye aynı gün en fazla bu kadar aktif rezervasyon yapar.</p>
         </Field>
         <Field id="p-active-limit" label="Aktif rez. limiti">
-          <Input
+          <OptionalNumberInput
             id="p-active-limit"
-            type="number"
             min={1}
             placeholder="Sınırsız"
-            value={activeLimit ?? ''}
-            onChange={(e) => setActiveLimit(e.target.value ? Math.max(1, Number(e.target.value)) : null)}
+            value={activeLimit}
+            onValueChange={setActiveLimit}
           />
           <p className="mt-1 text-xs text-muted-foreground">Boş = sınırsız. Aynı anda açık toplam rezervasyon tavanı.</p>
         </Field>
         {!isBundle && type === 'period' ? (
           <Field id="p-entry" label="Giriş hakkı">
-            <Input
+            <OptionalNumberInput
               id="p-entry"
-              type="number"
               min={1}
               placeholder="Sınırsız"
-              value={entryAllowance ?? ''}
-              onChange={(e) => setEntryAllowance(e.target.value ? Math.max(1, Number(e.target.value)) : null)}
+              value={entryAllowance}
+              onValueChange={setEntryAllowance}
             />
             <p className="mt-1 text-xs text-muted-foreground">Boş = sınırsız katılım. Bir sayı girilirse fitness serbest-girişte bu kadar giriş hakkı olur (yumuşak — dolunca resepsiyon uyarılır, kapıda engellenmez).</p>
           </Field>
@@ -338,12 +333,11 @@ export function ProductForm({
           ) : (
             <div className="mt-2">
               <Field id="p-cancel" label="İptal hakkı adedi">
-                <Input
+                <NumberInput
                   id="p-cancel"
-                  type="number"
                   min={0}
                   value={cancelCount}
-                  onChange={(e) => setCancelCount(Math.max(0, Number(e.target.value) || 0))}
+                  onValueChange={setCancelCount}
                 />
                 <p className="mt-1 text-xs text-muted-foreground">
                   Pencere içinde ücretsiz iptal sayısı. Hak bitince iptal reddedilir. <strong>0</strong> = hiç ücretsiz iptal yok (boştan farklıdır).

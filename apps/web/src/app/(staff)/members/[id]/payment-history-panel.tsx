@@ -7,7 +7,7 @@ import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
+import { NumericTextInput } from '@/components/ui/number-input'
 import { Textarea } from '@/components/ui/textarea'
 import { domainErrorMessage } from '@/lib/domain-error'
 import {
@@ -111,7 +111,7 @@ function RefundDialog({ row, onClose, onDone }: { row: PaymentIntentRow; onClose
         <div className="space-y-3">
           <label className="flex flex-col gap-1 text-sm">
             Tutar (TL)
-            <Input type="number" min={0} step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} />
+            <NumericTextInput decimal value={amount} onValueChange={setAmount} />
           </label>
           <Textarea placeholder="Sebep (zorunlu)" value={reason} onChange={(e) => setReason(e.target.value)} />
         </div>

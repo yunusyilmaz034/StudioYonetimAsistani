@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/dialog'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Input } from '@/components/ui/input'
+import { NumberInput } from '@/components/ui/number-input'
 import { PageHeader } from '@/components/ui/page-header'
 import { Section } from '@/components/ui/section'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -322,11 +323,10 @@ function TemplateDialog({
                           </option>
                         ))}
                       </select>
-                      <Input
-                        type="number"
+                      <NumberInput
                         min={1}
                         value={it.sets}
-                        onChange={(e) => setItem(di, xi, { sets: Math.max(1, Number(e.target.value) || 1) })}
+                        onValueChange={(n) => setItem(di, xi, { sets: n })}
                         className="w-14"
                         aria-label="set"
                       />

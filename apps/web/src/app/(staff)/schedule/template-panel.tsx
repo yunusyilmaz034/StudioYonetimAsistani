@@ -15,6 +15,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { NumberInput } from '@/components/ui/number-input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Textarea } from '@/components/ui/textarea'
@@ -312,10 +313,10 @@ export function TemplatePanel({
                   <Input type="time" value={form.startTime} onChange={(e) => setForm({ ...form, startTime: e.target.value })} />
                 </Labeled>
                 <Labeled label="Süre (dk)">
-                  <Input type="number" min={1} value={form.durationMinutes} onChange={(e) => setForm({ ...form, durationMinutes: Math.max(1, Number(e.target.value) || 1) })} />
+                  <NumberInput min={1} value={form.durationMinutes} onValueChange={(n) => setForm({ ...form, durationMinutes: n })} />
                 </Labeled>
                 <Labeled label="Kapasite">
-                  <Input type="number" min={1} value={form.capacity} onChange={(e) => setForm({ ...form, capacity: Math.max(1, Number(e.target.value) || 1) })} />
+                  <NumberInput min={1} value={form.capacity} onValueChange={(n) => setForm({ ...form, capacity: n })} />
                 </Labeled>
                 <Labeled label="Başlangıç">
                   <Input type="date" value={form.validFrom} onChange={(e) => setForm({ ...form, validFrom: e.target.value })} />
@@ -383,7 +384,7 @@ export function TemplatePanel({
               {generating ? `${DOW[generating.dayOfWeek]} ${generating.startTime}` : ''} · kaç hafta ileri üretilsin?
             </DialogDescription>
           </DialogHeader>
-          <Input type="number" min={1} max={52} value={weeks} onChange={(e) => setWeeks(Math.min(52, Math.max(1, Number(e.target.value) || 1)))} />
+          <NumberInput min={1} max={52} value={weeks} onValueChange={setWeeks} />
           <DialogFooter>
             <Button variant="outline" onClick={() => setGenerating(null)} disabled={busy}>
               Vazgeç

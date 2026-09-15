@@ -32,6 +32,7 @@ import {
 } from '@/components/ui/dialog'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Input } from '@/components/ui/input'
+import { NumberInput, NumericTextInput } from '@/components/ui/number-input'
 import { Section } from '@/components/ui/section'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet'
@@ -1509,22 +1510,20 @@ function MeasurementDialog({
             {METRIC_ROWS.map((r) => (
               <div key={r.kg} className="grid grid-cols-[7rem_1fr_1fr] items-center gap-2">
                 <span className="text-sm text-foreground">{r.label}</span>
-                <Input
-                  type="number"
-                  inputMode="decimal"
+                <NumericTextInput
+                  decimal
                   placeholder="kg"
                   aria-label={`${r.label} kg`}
                   value={metrics[r.kg] ?? ''}
-                  onChange={(e) => setMetrics((m) => ({ ...m, [r.kg]: e.target.value }))}
+                  onValueChange={(v) => setMetrics((m) => ({ ...m, [r.kg]: v }))}
                 />
                 {r.pct ? (
-                  <Input
-                    type="number"
-                    inputMode="decimal"
+                  <NumericTextInput
+                    decimal
                     placeholder="%"
                     aria-label={`${r.label} yüzde`}
                     value={metrics[r.pct] ?? ''}
-                    onChange={(e) => setMetrics((m) => ({ ...m, [r.pct!]: e.target.value }))}
+                    onValueChange={(v) => setMetrics((m) => ({ ...m, [r.pct!]: v }))}
                   />
                 ) : (
                   <span />
@@ -1543,11 +1542,10 @@ function MeasurementDialog({
                   placeholder="Bölge (ör. Bel)"
                   className="h-9"
                 />
-                <Input
-                  type="number"
-                  inputMode="decimal"
+                <NumericTextInput
+                  decimal
                   value={r.value}
-                  onChange={(e) => setCirc((c) => c.map((x, j) => (j === i ? { ...x, value: e.target.value } : x)))}
+                  onValueChange={(v) => setCirc((c) => c.map((x, j) => (j === i ? { ...x, value: v } : x)))}
                   placeholder="cm"
                   className="h-9 w-24"
                 />
@@ -1853,11 +1851,9 @@ function NumField({ label, value, onChange }: { label: string; value: number; on
   return (
     <label className="flex flex-col gap-0.5 text-xs">
       <span className="text-muted-foreground">{label}</span>
-      <Input
-        type="number"
-        inputMode="numeric"
+      <NumberInput
         value={value}
-        onChange={(e) => onChange(Math.max(0, Number(e.target.value) || 0))}
+        onValueChange={onChange}
         className="h-8"
       />
     </label>

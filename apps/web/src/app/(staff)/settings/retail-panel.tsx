@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { NumericTextInput } from '@/components/ui/number-input'
 import { Section } from '@/components/ui/section'
 import {
   deactivateRetailProductAction,
@@ -151,11 +152,11 @@ function RetailEditor({ initial, onClose, onSaved }: { initial: RetailProductRow
           <div className="grid grid-cols-2 gap-2">
             <label className="flex flex-col gap-1 text-xs text-muted-foreground">
               Fiyat (TL)
-              <Input type="number" min={0} step="0.01" value={priceTl} onChange={(e) => setPriceTl(e.target.value)} />
+              <NumericTextInput decimal value={priceTl} onValueChange={setPriceTl} />
             </label>
             <label className="flex flex-col gap-1 text-xs text-muted-foreground">
               KDV %
-              <Input type="number" min={0} max={100} value={tax} onChange={(e) => setTax(e.target.value)} />
+              <NumericTextInput value={tax} onValueChange={setTax} />
             </label>
           </div>
           <label className="flex items-center gap-2 text-sm font-medium">
@@ -165,7 +166,7 @@ function RetailEditor({ initial, onClose, onSaved }: { initial: RetailProductRow
           {trackStock ? (
             <label className="flex flex-col gap-1 text-xs text-muted-foreground">
               Stok adedi
-              <Input type="number" min={0} value={stock} onChange={(e) => setStock(e.target.value)} />
+              <NumericTextInput value={stock} onValueChange={setStock} />
             </label>
           ) : null}
         </div>

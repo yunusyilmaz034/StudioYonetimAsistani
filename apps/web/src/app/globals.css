@@ -323,6 +323,17 @@
   html {
     @apply font-sans;
   }
+  /* Numeric fields are plain text boxes (components/ui/number-input.tsx). Safety net: should a
+     raw <input type="number"> slip back in, it still shows no spinner arrows. */
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type="number"] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+  }
 }
 
 /* ── PRINT (v1.27 S3 — the receipt) ─────────────────────────────────────────────────────────

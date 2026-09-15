@@ -23,6 +23,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { NumberInput, NumericTextInput } from '@/components/ui/number-input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { domainErrorMessage } from '@/lib/domain-error'
@@ -563,13 +564,10 @@ function SubscriptionRow({ sub, siblings, products, onChanged, isOwner = false, 
                 <label className="mb-1 block text-sm font-medium" htmlFor="fz-days">
                   Kaç gün dondurulacak?
                 </label>
-                <Input
+                <NumericTextInput
                   id="fz-days"
-                  type="number"
-                  min={1}
-                  max={canOverride ? 365 : freezeSub.freezeDaysRemaining ?? 1}
                   value={freezeDays}
-                  onChange={(e) => setFreezeDays(e.target.value)}
+                  onValueChange={setFreezeDays}
                   placeholder={`en fazla ${freezeSub.freezeDaysRemaining}`}
                   autoFocus
                 />
@@ -1110,14 +1108,11 @@ function AssignForm({
             {product!.components!.map((c, i) => (
               <div key={i} className="flex items-center gap-2">
                 <span className="w-28 text-sm text-muted-foreground">{BUNDLE_CAT[c.category] ?? c.category}</span>
-                <Input
-                  type="number"
+                <NumberInput
                   min={0}
                   className="w-24"
                   value={componentCounts[i] ?? 0}
-                  onChange={(e) =>
-                    setComponentCounts((cs) => cs.map((x, idx) => (idx === i ? Math.max(0, Number(e.target.value) || 0) : x)))
-                  }
+                  onValueChange={(n) => setComponentCounts((cs) => cs.map((x, idx) => (idx === i ? n : x)))}
                 />
                 <span className="text-sm text-muted-foreground">{c.creditCount != null ? 'kredi' : 'giriş'}</span>
               </div>
@@ -1128,12 +1123,10 @@ function AssignForm({
             {/* Freely editable (owner): a raw string so reception can clear and retype any number.
                 Before touch, shows the package default; after touch, shows exactly what's typed (may be
                 empty). Empty still SAVES as the package default (never an accidental 0). */}
-            <Input
-              type="number"
-              min={0}
+            <NumericTextInput
               value={creditTouched ? creditInput : effectiveCredit}
-              onChange={(e) => {
-                setCreditInput(e.target.value)
+              onValueChange={(v) => {
+                setCreditInput(v)
                 setCreditTouched(true)
               }}
             />
@@ -1142,7 +1135,7 @@ function AssignForm({
         <Labeled label="Paket tutarı (TL)">
           {/* Fixed to the package price (owner): reception records how much was COLLECTED, never edits
               what the package costs. A different agreed price is a discount decision, not a data-entry one. */}
-          <Input type="number" value={effectivePrice} disabled readOnly />
+          <Input value={effectivePrice} disabled readOnly />
         </Labeled>
         {/* İNDİRİM — owner only (owner, 2026-08-06: "indirimi sadece owner ve Işıl verebilsin").
             Recorded as a DISCOUNT on the sale, not as a lower price and not as a debt: collecting
@@ -1151,12 +1144,10 @@ function AssignForm({
             and followed the member around the panel. */}
         {isOwner ? (
           <Labeled label="İndirim (TL)">
-            <Input
-              type="number"
-              min={0}
-              step="0.01"
+            <NumericTextInput
+              decimal
               value={discountTl}
-              onChange={(e) => setDiscountTl(e.target.value)}
+              onValueChange={setDiscountTl}
               placeholder="0"
             />
             {discountKurus > 0 ? (
@@ -1191,13 +1182,11 @@ function AssignForm({
           </Labeled>
         ) : null}
         <Labeled label={isPaytr ? 'Tahsil edilecek tutar (TL)' : 'Tahsilat (TL)'}>
-          <Input
-            type="number"
-            min={0}
-            step="0.01"
+          <NumericTextInput
+            decimal
             value={effectiveCollected}
-            onChange={(e) => {
-              setCollectedTl(e.target.value)
+            onValueChange={(v) => {
+              setCollectedTl(v)
               setCollectedTouched(true)
             }}
             placeholder="0"
@@ -1484,7 +1473,7 @@ function MoneyBlock({ sub, memberId, branchId, isOwner = false, onDone }: { sub:
         <div className="space-y-2 rounded-lg border border-border bg-background p-2">
           <div className="grid grid-cols-2 gap-2">
             <Labeled label="Geri alınacak (TL)">
-              <Input type="number" min={0} step="0.01" value={corrTl} onChange={(e) => setCorrTl(e.target.value)} />
+              <NumericTextInput decimal value={corrTl} onValueChange={setCorrTl} />
             </Labeled>
             <Labeled label="Sebep">
               <Select value={corrReason} onValueChange={(v) => setCorrReason((v ?? 'wrong_amount') as CorrReason)}>
@@ -1527,7 +1516,7 @@ function MoneyBlock({ sub, memberId, branchId, isOwner = false, onDone }: { sub:
           <div className="space-y-2 pt-1">
             <div className="grid grid-cols-2 gap-2">
               <Labeled label="Tahsilat (TL)">
-                <Input type="number" min={0} step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} />
+                <NumericTextInput decimal value={amount} onValueChange={setAmount} />
               </Labeled>
               <Labeled label="Yöntem">
                 <Select value={method} onValueChange={(v) => setMethod((v ?? 'cash') as typeof method)}>
@@ -1555,7 +1544,7 @@ function MoneyBlock({ sub, memberId, branchId, isOwner = false, onDone }: { sub:
           <div className="space-y-2 pt-1">
             <div className="grid grid-cols-2 gap-2">
               <Labeled label="İndirim (TL)">
-                <Input type="number" min={0} step="0.01" value={discTl} onChange={(e) => setDiscTl(e.target.value)} />
+                <NumericTextInput decimal value={discTl} onValueChange={setDiscTl} />
               </Labeled>
               <Labeled label="Sebep">
                 <Select value={discReason} onValueChange={(v) => setDiscReason(v ?? 'gift')}>
@@ -1678,7 +1667,7 @@ function AmendDialog({ sub, siblings, memberId, branchId, isOwner = false, onClo
           />
         </Labeled>
         <Labeled label="Paket tutarı (TL)">
-          <Input type="number" min={0} step="0.01" value={priceTl} onChange={(e) => setPriceTl(e.target.value)} />
+          <NumericTextInput decimal value={priceTl} onValueChange={setPriceTl} />
         </Labeled>
       </div>
       {!endPinned && originalDurationDays && originalDurationDays > 0 ? (
@@ -1806,11 +1795,9 @@ function ContentDialog({ items, onClose, onDone }: { items: readonly Subscriptio
         {editable.map((s) => (
           <div key={s.id} className="flex items-center gap-2">
             {multi ? <span className="w-24 shrink-0 text-sm text-muted-foreground">{BUNDLE_CAT[s.category] ?? s.category}</span> : null}
-            <Input
-              type="number"
-              min={0}
+            <NumericTextInput
               value={values[s.id] ?? ''}
-              onChange={(e) => setValues((v) => ({ ...v, [s.id]: e.target.value }))}
+              onValueChange={(next) => setValues((v) => ({ ...v, [s.id]: next }))}
             />
             <span className="w-12 shrink-0 text-sm text-muted-foreground">{unitOf(s)}</span>
           </div>
