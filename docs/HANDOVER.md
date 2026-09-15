@@ -13,8 +13,8 @@ _Last true as of: **2026-09-14, 00:45**._
 
 Kod tarafında yarım iş YOK. Bekleyen şeyler, hepsi owner'la birlikte:
 
-0. **Firmware v1.4 yerinde yüklenecek (14 Eylül akşamı, owner stüdyoda).** Kod `0de22d4`, derlendi, YÜKLENMEDİ.
-   Aşağıdaki "Firmware v1.4" bölümündeki sırayı yürüt; başarılı yüklemeden sonra `git tag turnike-v1.4` ve bu maddeyi sil.
+0. **Firmware v1.4 YÜKLENDİ (15 Eylül 09:20, etiket `turnike-v1.4`).** Açılış logu: WiFi -68 dBm, heap 248 KB, iki ekran kod aldı.
+   Kalan yerinde denemeler: bir giriş + bir çıkış (darbe sayacı +2), panelden "Yeniden başlat", F01 geçiş süresi, arka arkaya iki kişi.
 1. **Owner denemesi yapılmadı** — "deneme sonra yaparız" (14 Eylül 00:45). Aşağıdaki "Deneme adımı"
    dört maddeyi sırayla yürüt; dock konumu da bu denemeye dahil (tarayıcıda hiç bakılmadı, ölçü ekran
    görüntüsünden hesaplandı).
@@ -67,7 +67,7 @@ geçişi görürse darbe + 3 sn karşılama sonrası (~+5,6–7,5 sn) yeni kod i
 **Kilitlenme tekrar ederse:** önce yalnızca **turnike kartını**, düzelmezse yalnızca **ESP/röle kutusunu** kesin —
 hangisinin takıldığı böyle ayrılır. Panelden "Giriş"e basılırken röle kartında DS1 ışığı + klik var mı, bakın.
 
-### Firmware v1.4 — hazır, 14 Eylül akşamı yüklenecek (`0de22d4`, sunucu desteği push edildi)
+### Firmware v1.4 — ✅ yüklendi 15 Eylül 09:20 (`0de22d4`, etiket `turnike-v1.4`)
 
 **Ne değişti:** tek TLS bağlantısı açık kalıyor · her kod isteğinde ölçüm (sürüm, RSSI, bellek, açık kalma, darbe
 sayacı, açılış sebebi — `BROWNOUT` = besleme düştü) → Ayarlar → Turnike cihazları · panelden **Yeniden başlat**
