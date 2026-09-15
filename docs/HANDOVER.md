@@ -57,6 +57,12 @@ linkleri `853d273` → `build-2026-09-15-003` (rollout izleniyor):
   `whatsappWebhook` deploy edildi (functions, push'tan bağımsız); `settings/ai.examples` 15:28Z güncellendi.
   **Deneme:** üye OLMAYAN bir telefondan AI hattına "Bilgi alabilir miyim?" yaz → ilk cevapta paket satırları ve rakamlar.
 
+- **PT paketi PT seansına alınamıyordu** `cdc9203`: "PT PİLATES 6 AY" 17:54'te pilates grup kategorisiyle oluşturuldu, 18:03'te
+  HALE HAZAL ATİLA ve İLAYDA BENARDETE'ye satıldı, 18:21'de PT'ye düzeltildi — satış kopyası eski kategoride kaldı. Owner onayıyla
+  iki paket `decideSyncSnapshotToProduct` ile eşitlendi (script `tools/migration/sync-pt-pilates-2026-09-15.ts`, `entitlement.amended`
+  + sebep; kredi 48, fiyat 30.000 ₺ aynı). Paket formu artık kategori değişince satılmış paketleri eşitlemeyi teklif ediyor.
+  Taramada 16 hibrit "uyuşmazlık" çıktı — sorun DEĞİL (hibrit bileşenleri kendi kategorisinde ayrı paket).
+
 **Numara (owner düzeltti, 15 Eylül):** aktif reklam **AI hattına** gidiyor (0533'ten farklı bir numara). 0533 199 41 23
 stüdyonun telefonu; AI mevcut üyelerin satış dışı sorularını oraya yönlendiriyor (`whoBlock` + bilgi kartı İLETİŞİM).
 Görselde 0533 yazması reklamı yönlendirmiyor. **Açık gözlem:** AI hattına 14 Eyl 22:46'dan beri yeni mesaj yok;
