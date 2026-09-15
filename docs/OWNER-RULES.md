@@ -1795,3 +1795,10 @@ closed without a release). The panel keeps the full record with day, time and ca
 disputed a class booked from her own account after seeing it in her past list — the history is discussed with
 the studio, not argued from the member's screen. Replaces the 2026-09-01 "which statuses appear in the past" rule.
 
+**OR-83 · "Bilgi alabilir miyim?" gets the packages in the first reply.** (2026-09-15)
+An ad lead wrote *"Bilgi alabilir miyim?"* and the assistant only greeted and asked her name. Owner: *"direk paketler
+hakkında bilgi versin."* Like a price question (02.09), a topic-less info request is answered in the SAME message:
+package groups with live prices (cash and card together when they differ), the current campaign first, then "which
+one interests you?" and a short name question. A plain greeting is not covered. Rule in `whatsapp-webhook.ts` (no
+product names or prices in source); the studio's own example in `settings/ai.examples` matches it.
+

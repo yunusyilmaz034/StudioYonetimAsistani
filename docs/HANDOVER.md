@@ -53,10 +53,14 @@ linkleri `853d273` → `build-2026-09-15-003` (rollout izleniyor):
   üye, personel değil), onay bildirimi 15:28:48'de iletilmiş; yoklama alınmamış, 15.09 03:00 sistem "katıldı varsayıldı"
   ve kredi düştü. Turnike kaydı yok (bu üye hiç okutmuyor). 15 Eyl 20:00'ı da kendisi 08:16'da almış. Karar owner'da.
 
+- **AI ilk mesaj ([[OR-83]])** `6448461`: "bilgi alabilir miyim" → aynı mesajda paketler + fiyat + kampanya, sonda isim.
+  `whatsappWebhook` deploy edildi (functions, push'tan bağımsız); `settings/ai.examples` 15:28Z güncellendi.
+  **Deneme:** üye OLMAYAN bir telefondan AI hattına "Bilgi alabilir miyim?" yaz → ilk cevapta paket satırları ve rakamlar.
+
 **Numara (owner düzeltti, 15 Eylül):** aktif reklam **AI hattına** gidiyor (0533'ten farklı bir numara). 0533 199 41 23
 stüdyonun telefonu; AI mevcut üyelerin satış dışı sorularını oraya yönlendiriyor (`whoBlock` + bilgi kartı İLETİŞİM).
 Görselde 0533 yazması reklamı yönlendirmiyor. **Açık gözlem:** AI hattına 14 Eyl 22:46'dan beri yeni mesaj yok;
-webhook 15 Eylül'de 36 POST aldı (07:00'de 16 — büyük ihtimalle okundu bildirimleri), hiçbiri sohbet yazmadı.
+webhook 15 Eylül sabahı sohbet yazmadı (07:00'de 16 POST — büyük ihtimalle okundu bildirimleri); 17:56'da reklamdan ilk mesaj geldi (Nilgün Çay) — hat çalışıyor.
 Webhook metin dışı mesajları iz bırakmadan atlıyor — reklamdan gelen ilk mesaj metin değilse görünmez; tür loglanmıyor.
 
 **Bilinen:** webhook metin dışı mesajları (ses, görsel, düğme) sessizce atlıyor — iz bırakmadan 200 dönüyor.
