@@ -15,6 +15,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { NumericTextInput } from '@/components/ui/number-input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { formatDateTime } from '@/lib/datetime'
 import { domainErrorMessage } from '@/lib/domain-error'
@@ -402,12 +403,11 @@ function CollectDialog({
         </DialogHeader>
 
         <div className="space-y-3">
-          <Input
-            type="text"
-            inputMode="decimal"
+          <NumericTextInput
+            money
             placeholder="Tutar (₺)"
             value={amount}
-            onChange={(e) => setAmount(e.target.value)}
+            onValueChange={setAmount}
             autoFocus
           />
           <Select value={method} onValueChange={(v) => setMethod(v ?? 'cash')}>

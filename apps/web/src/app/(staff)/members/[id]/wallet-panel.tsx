@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 import { formatKurus, type StoredWallet } from '@studio/core/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { NumericTextInput } from '@/components/ui/number-input'
 import { Section } from '@/components/ui/section'
 import { domainErrorMessage } from '@/lib/domain-error'
 import { PaytrCheckoutDialog, type PaytrCheckout } from '@/components/paytr-checkout'
@@ -138,7 +139,7 @@ export function WalletPanel({ memberId, memberPhone = null }: { memberId: string
         <div className="space-y-2">
           <div className="flex flex-wrap items-end gap-2">
             <div className="w-32">
-              <Input inputMode="decimal" placeholder="Tutar (TL)" value={amount} onChange={(e) => setAmount(e.target.value)} />
+              <NumericTextInput money placeholder="Tutar (TL)" value={amount} onValueChange={setAmount} />
             </div>
             <div className="flex gap-1">
               {SOURCES.map((s) => (
@@ -197,7 +198,7 @@ export function WalletPanel({ memberId, memberPhone = null }: { memberId: string
                 <button type="button" onClick={() => setAdjDir('credit')} className={`rounded-full px-3 py-1.5 text-sm font-medium ${adjDir === 'credit' ? 'bg-emerald-600 text-white' : 'bg-muted text-muted-foreground'}`}>Ekle</button>
                 <button type="button" onClick={() => setAdjDir('debit')} className={`rounded-full px-3 py-1.5 text-sm font-medium ${adjDir === 'debit' ? 'bg-destructive text-white' : 'bg-muted text-muted-foreground'}`}>Düş</button>
               </div>
-              <div className="w-28"><Input inputMode="decimal" placeholder="Tutar (TL)" value={adjAmount} onChange={(e) => setAdjAmount(e.target.value)} /></div>
+              <div className="w-28"><NumericTextInput money placeholder="Tutar (TL)" value={adjAmount} onValueChange={setAdjAmount} /></div>
               <select value={adjReason} onChange={(e) => setAdjReason(e.target.value as typeof adjReason)} className="rounded-md border bg-background px-2 py-2 text-sm">
                 {REASONS.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
               </select>

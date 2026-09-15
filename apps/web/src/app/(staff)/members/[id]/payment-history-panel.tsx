@@ -111,7 +111,7 @@ function RefundDialog({ row, onClose, onDone }: { row: PaymentIntentRow; onClose
         <div className="space-y-3">
           <label className="flex flex-col gap-1 text-sm">
             Tutar (TL)
-            <NumericTextInput decimal value={amount} onValueChange={setAmount} />
+            <NumericTextInput money value={amount} onValueChange={setAmount} />
           </label>
           <Textarea placeholder="Sebep (zorunlu)" value={reason} onChange={(e) => setReason(e.target.value)} />
         </div>

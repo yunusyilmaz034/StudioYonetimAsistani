@@ -267,13 +267,13 @@ export function ProductForm({
           </Field>
         )}
         <Field id="p-price" label="Kart fiyatı (TL)">
-          <NumericTextInput decimal id="p-price" required value={priceTl} onValueChange={setPriceTl} />
+          <NumericTextInput money id="p-price" required value={priceTl} onValueChange={setPriceTl} />
         </Field>
         {/* Deliberately optional. A studio with one price never fills it in and nothing changes;
             filling it in is what makes the member app say "kart ile X · stüdyoda nakit Y". */}
         <Field id="p-cash" label="Nakit fiyatı (TL) — boşsa kart fiyatıyla aynı">
           <NumericTextInput
-            decimal
+            money
             id="p-cash"
             placeholder="—"
             value={cashTl}

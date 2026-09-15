@@ -23,6 +23,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { NumericTextInput } from '@/components/ui/number-input'
 import { PageHeader } from '@/components/ui/page-header'
 import { Section } from '@/components/ui/section'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -306,7 +307,7 @@ function AdjustmentForm({ trainerId, periodKey, onSaved }: { trainerId: string; 
             ))}
           </SelectContent>
         </Select>
-        <Input inputMode="decimal" placeholder="Tutar ₺" value={lira} onChange={(e) => setLira(e.target.value)} className="w-28" />
+        <NumericTextInput money placeholder="Tutar ₺" value={lira} onValueChange={setLira} className="w-28" />
         {signed !== null && signed !== 0 ? (
           <span className={`text-sm tabular-nums ${signed < 0 ? 'text-warning' : 'text-success'}`}>{formatKurus(signed)}</span>
         ) : null}
@@ -428,7 +429,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 function MoneyField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
   return (
     <Field label={label}>
-      <Input inputMode="decimal" placeholder="₺" value={value} onChange={(e) => onChange(e.target.value)} />
+      <NumericTextInput money placeholder="₺" value={value} onValueChange={onChange} />
     </Field>
   )
 }

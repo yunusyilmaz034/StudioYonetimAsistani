@@ -8,6 +8,7 @@ import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { NumericTextInput } from '@/components/ui/number-input'
 import { PageHeader } from '@/components/ui/page-header'
 import { Section } from '@/components/ui/section'
 import { domainErrorMessage } from '@/lib/domain-error'
@@ -107,7 +108,7 @@ export function PaymentLinksScreen({
             </div>
             <div className="space-y-1.5">
               <label className="text-sm font-medium">Tutar (₺)</label>
-              <Input inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="9000" />
+              <NumericTextInput money value={amount} onValueChange={setAmount} placeholder="9000" />
             </div>
             <div className="space-y-1.5">
               <label className="text-sm font-medium">Taksit</label>

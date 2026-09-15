@@ -1145,7 +1145,7 @@ function AssignForm({
         {isOwner ? (
           <Labeled label="İndirim (TL)">
             <NumericTextInput
-              decimal
+              money
               value={discountTl}
               onValueChange={setDiscountTl}
               placeholder="0"
@@ -1183,7 +1183,7 @@ function AssignForm({
         ) : null}
         <Labeled label={isPaytr ? 'Tahsil edilecek tutar (TL)' : 'Tahsilat (TL)'}>
           <NumericTextInput
-            decimal
+            money
             value={effectiveCollected}
             onValueChange={(v) => {
               setCollectedTl(v)
@@ -1473,7 +1473,7 @@ function MoneyBlock({ sub, memberId, branchId, isOwner = false, onDone }: { sub:
         <div className="space-y-2 rounded-lg border border-border bg-background p-2">
           <div className="grid grid-cols-2 gap-2">
             <Labeled label="Geri alınacak (TL)">
-              <NumericTextInput decimal value={corrTl} onValueChange={setCorrTl} />
+              <NumericTextInput money value={corrTl} onValueChange={setCorrTl} />
             </Labeled>
             <Labeled label="Sebep">
               <Select value={corrReason} onValueChange={(v) => setCorrReason((v ?? 'wrong_amount') as CorrReason)}>
@@ -1516,7 +1516,7 @@ function MoneyBlock({ sub, memberId, branchId, isOwner = false, onDone }: { sub:
           <div className="space-y-2 pt-1">
             <div className="grid grid-cols-2 gap-2">
               <Labeled label="Tahsilat (TL)">
-                <NumericTextInput decimal value={amount} onValueChange={setAmount} />
+                <NumericTextInput money value={amount} onValueChange={setAmount} />
               </Labeled>
               <Labeled label="Yöntem">
                 <Select value={method} onValueChange={(v) => setMethod((v ?? 'cash') as typeof method)}>
@@ -1544,7 +1544,7 @@ function MoneyBlock({ sub, memberId, branchId, isOwner = false, onDone }: { sub:
           <div className="space-y-2 pt-1">
             <div className="grid grid-cols-2 gap-2">
               <Labeled label="İndirim (TL)">
-                <NumericTextInput decimal value={discTl} onValueChange={setDiscTl} />
+                <NumericTextInput money value={discTl} onValueChange={setDiscTl} />
               </Labeled>
               <Labeled label="Sebep">
                 <Select value={discReason} onValueChange={(v) => setDiscReason(v ?? 'gift')}>
@@ -1667,7 +1667,7 @@ function AmendDialog({ sub, siblings, memberId, branchId, isOwner = false, onClo
           />
         </Labeled>
         <Labeled label="Paket tutarı (TL)">
-          <NumericTextInput decimal value={priceTl} onValueChange={setPriceTl} />
+          <NumericTextInput money value={priceTl} onValueChange={setPriceTl} />
         </Labeled>
       </div>
       {!endPinned && originalDurationDays && originalDurationDays > 0 ? (

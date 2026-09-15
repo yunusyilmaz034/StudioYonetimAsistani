@@ -152,7 +152,7 @@ function RetailEditor({ initial, onClose, onSaved }: { initial: RetailProductRow
           <div className="grid grid-cols-2 gap-2">
             <label className="flex flex-col gap-1 text-xs text-muted-foreground">
               Fiyat (TL)
-              <NumericTextInput decimal value={priceTl} onValueChange={setPriceTl} />
+              <NumericTextInput money value={priceTl} onValueChange={setPriceTl} />
             </label>
             <label className="flex flex-col gap-1 text-xs text-muted-foreground">
               KDV %

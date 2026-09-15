@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { NumericTextInput } from '@/components/ui/number-input'
 import { domainErrorMessage } from '@/lib/domain-error'
 import { isStaleDeployment, STALE_DEPLOYMENT_MESSAGE } from '@/lib/stale-deployment'
 import { listDrawersAction, withdrawCashAction } from '@/server/actions/finance'
@@ -287,7 +288,7 @@ function WithdrawDialog({ onClose, onDone }: { onClose: () => void; onDone: () =
 
             <div className="space-y-1.5">
               <label className="text-sm font-medium">Tutar (₺)</label>
-              <Input inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0" />
+              <NumericTextInput money value={amount} onValueChange={setAmount} placeholder="0" />
               {secili ? (
                 <p className={`text-xs ${yetersiz ? 'text-danger' : 'text-muted-foreground'}`}>
                   {secili.name} kasasında görünen: {tl(secili.expected)}

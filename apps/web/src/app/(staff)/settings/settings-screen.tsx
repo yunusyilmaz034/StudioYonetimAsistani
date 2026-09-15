@@ -635,7 +635,8 @@ export function SettingsScreen({
                     <option value="fixed">Sabit ₺</option>
                   </select>
                   <NumericTextInput
-                    decimal
+                    money={r.mode === 'fixed'}
+                    decimal={r.mode === 'percent'}
                     value={r.value}
                     onValueChange={(v) => setSurcharge((s) => ({ ...s, [key]: { ...s[key], value: v } }) as Record<SCat, SRow>)}
                   />

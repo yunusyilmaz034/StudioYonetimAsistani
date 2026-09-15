@@ -15,6 +15,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { NumericTextInput } from '@/components/ui/number-input'
 import { PageHeader } from '@/components/ui/page-header'
 import { Section } from '@/components/ui/section'
 import { MovementsPanel } from './movements-panel'
@@ -230,12 +231,11 @@ function AmountDialog({
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
 
-        <Input
-          type="text"
-          inputMode="decimal"
+        <NumericTextInput
+          money
           placeholder={label}
           value={amount}
-          onChange={(e) => setAmount(e.target.value)}
+          onValueChange={setAmount}
           autoFocus
         />
 
