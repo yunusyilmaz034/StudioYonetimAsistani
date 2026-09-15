@@ -20,6 +20,7 @@ import {
 import { requireTenantContext } from '../auth'
 import { adminDb } from '../firebase-admin'
 import { openIfCodeLeftScreen } from '../turnstile-missed'
+import { showRefusalOnScreen } from '../turnstile-refusal'
 
 // MESAİ — "saat kaçta girdi çıktı" (owner, 2026-09-01).
 //
@@ -78,6 +79,10 @@ export async function staffCrossTurnstileAction(input: unknown) {
   )
   // Kod ekrandan kalkmışsa cihaz geçişi görmez; kolu sunucudan aç (2026-09-14, `turnstile-missed.ts`).
   if (r.ok) await openIfCodeLeftScreen(ctx, r.value.deviceId, p.data.code)
-  else console.warn('[turnstile] staff crossing refused', { studioId: ctx.studioId, code: r.error.code })
+  else {
+    console.warn('[turnstile] staff crossing refused', { studioId: ctx.studioId, code: r.error.code })
+    // Personelin reddi de ekranda görünür (2026-09-15) — "az önce geçtiniz" en çok mesai giriş/çıkışında olur.
+    await showRefusalOnScreen(ctx, p.data.code, r.error.code)
+  }
   return r
 }

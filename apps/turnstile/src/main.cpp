@@ -116,7 +116,7 @@ static const int BUZZER_OT = BUZZER_NPN ? HIGH : LOW;
 //
 // Her kod isteğinde sunucuya gidiyor ve Ayarlar → Turnike cihazları'nda görünüyor. "Hangi firmware
 // yüklüydü?" sorusu bir daha tahminle cevaplanmasın diye. Yüklemeden sonra etiket: `turnike-v1.4`.
-static const char* FW_SURUM = "turnike-v1.4";
+static const char* FW_SURUM = "turnike-v1.5";
 
 // Turnike kendi süresini sayıyor (F01), bize sadece tetiklemek düşüyor.
 //
@@ -491,6 +491,22 @@ void setup() {
   for (size_t i = 0; i < KAPI_SAYISI; i++) kodYenile(kapilar[i]);
 }
 
+/**
+ * Karşılama/ret ekranından sonra hâlâ geçerli olan QR'ı geri çiz (v1.5). Kod o arada dolmuşsa yenisini al —
+ * süresi geçmiş bir QR'ı yeniden çizmek, üyeyi çalışmayan bir koda okutturur.
+ */
+static void qrGeriCiz(Kapi& k) {
+  if (k.kod.length() == 6 && millis() < k.kodBitis) {
+#ifdef TESHIS
+    teshisCiz(k, k.kod.c_str());
+#else
+    uiHazir(k.yuz, k.kod);
+#endif
+  } else {
+    kodYenile(k);
+  }
+}
+
 /** Bir kapının bir turu: kodu kullanıldı mı, kullanıldıysa kolu çevir ve karşıla. */
 static void kapiTuru(Kapi& k) {
   if (k.kod.length() == 6) {
@@ -546,7 +562,10 @@ static void kapiTuru(Kapi& k) {
       // söylüyor — bilmediğimiz bir şeyi yazmak, yazmamaktan kötüdür.
       uiBasarili(k.yuz, "", "");
       delay(KARSILAMA_MS);
-      // Kod harcanmadı: ekrandaki QR hâlâ geçerli ve bir üye onu okutabilir.
+      // Kod harcanmadı: ekrandaki QR hâlâ geçerli ve bir üye onu okutabilir — o yüzden QR'ı GERİ ÇİZ.
+      // v1.4'e kadar çizilmiyordu: karşılama bir sonraki kod yenilemesine (25 sn'ye kadar) ekranda kaldı
+      // ve o sürede kimse okutamadı (owner, 15.09: "hoşgeldiniz çok uzun kaldı").
+      qrGeriCiz(k);
       return;
     }
 
@@ -558,7 +577,8 @@ static void kapiTuru(Kapi& k) {
     // Kod da yenilenmiyor: sunucu reddederken kodu harcamadı, üye resepsiyona uğrayıp paketini
     // yeniletince aynı ekranı okutabilmeli. Yenilesek, çalışan bir kodu boşuna çöpe atardık.
     if (c.indexOf("\"refused\":{") >= 0) {
-      Serial.printf("[turnike:%s] RET: %s (paket yok)\n", k.ad, alanOku(c, "firstName").c_str());
+      const String sebep = alanOku(c, "reason");
+      Serial.printf("[turnike:%s] RET: %s\n", k.ad, sebep.c_str());
       bip(2);  // karşılamadan FARKLI bir ses: üye ekrana bakmadan da bir şeyin olmadığını anlar
 
       // TEKNİK SEBEP EKRANA YAZILMIYOR (owner şartı). Sunucu "no_active_membership" diyor;
@@ -567,8 +587,19 @@ static void kapiTuru(Kapi& k) {
       //
       // İsim de yazılmıyor: kırmızı bir ekranın üstündeki kendi adı, üyeyi kalabalıkta teşhir
       // ediyor. Kim olduğunu zaten biliyor; bilmediği şey ne yapacağı.
-      uiReddedildi(k.yuz, tr("Giriş Yapılamadı").c_str(), tr("Lütfen resepsiyona uğrayın").c_str());
+      //
+      // AZ ÖNCE GEÇTİNİZ (v1.5, owner 15.09): aynı kişi 45 sn içinde tekrar okutunca sunucu reddediyor.
+      // Buna "resepsiyona uğrayın" demek yanlış yere yollamak olur — üyenin yapacağı tek şey beklemek.
+      // Başlık kapının yönünden: çıkış kapısında "Giriş Yapılamadı" yazmak kafa karıştırır.
+      if (sebep == "checkin_too_soon") {
+        uiReddedildi(k.yuz, tr("Az Önce Geçtiniz").c_str(), tr("Biraz sonra tekrar deneyin").c_str());
+      } else {
+        const bool giris = k.yuz.mod == Mod::Giris;
+        uiReddedildi(k.yuz, tr(giris ? "Giriş Yapılamadı" : "Çıkış Yapılamadı").c_str(),
+                     tr("Lütfen resepsiyona uğrayın").c_str());
+      }
       delay(KARSILAMA_MS);
+      qrGeriCiz(k);  // ret de ekranda asılı kalmasın — kod harcanmadı, QR hâlâ geçerli
       return;
     }
   }

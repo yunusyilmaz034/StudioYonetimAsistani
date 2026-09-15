@@ -39,6 +39,7 @@ import {
 import { adminDb } from '../firebase-admin'
 import { requireTenantContext } from '../auth'
 import { markCrossingSeen, openIfCodeLeftScreen, openIfPreviousCodeUnseen } from '../turnstile-missed'
+import { SCREEN_REFUSALS, showRefusalOnScreen } from '../turnstile-refusal'
 
 // ── TURNSTILE (v1.33) ────────────────────────────────────────────────────────────────────────
 //
@@ -190,7 +191,7 @@ async function bekleyenAcma(ctx: TenantContext, deviceId: DeviceId): Promise<{ r
 }
 
 /** Son 20 saniyede bu kapıda reddedilmiş biri var mı? Ekran bunu bir kez gösterir ve siler. */
-async function sonRet(ctx: TenantContext, deviceId: DeviceId): Promise<{ firstName: string } | null> {
+async function sonRet(ctx: TenantContext, deviceId: DeviceId): Promise<{ firstName: string; reason: string } | null> {
   const ref = adminDb().doc(`studios/${ctx.studioId}/turnstileRefusals/${deviceId}`)
   const snap = await ref.get()
   if (!snap.exists) return null
@@ -199,7 +200,8 @@ async function sonRet(ctx: TenantContext, deviceId: DeviceId): Promise<{ firstNa
   if (Date.now() - at > 20_000) return null
   // OKUNDU ⇒ SİL. Aksi halde ekran aynı reddi her turda tekrar gösterir ve kimse geçemez.
   await ref.delete()
-  return { firstName: String(snap.get('firstName') ?? '') }
+  // `reason` cihaz mesajı seçiyor (v1.5): "az önce geçtiniz" ile "resepsiyona uğrayın" aynı şey değil.
+  return { firstName: String(snap.get('firstName') ?? ''), reason: String(snap.get('reason') ?? 'no_active_membership') }
 }
 
 /**
@@ -248,29 +250,10 @@ export async function crossOwnTurnstile(ctx: TenantContext, memberId: MemberId, 
   // Geçiş yazıldı ama okutulan kod ekrandan kalkmışsa cihaz onu görmeyecek: kolu sunucudan aç.
   if (res.ok) await openIfCodeLeftScreen(ctx, res.value.deviceId, p.code)
 
-  // ── EKRANA DA SÖYLE (owner, 2026-08-31) ────────────────────────────────────────────────────
-  //
-  // Bir ret KODU HARCAMAZ — bilerek, çünkü üye paketini yeniletip aynı ekranı okutabilmeli. Ama
-  // ekran geçişleri "kod kullanıldı mı?" diye sorarak öğreniyor; harcanmamış bir kod, ekran için
-  // hiç olmamış bir okutma demek. Yani kapıda üye "resepsiyona uğrayın" yazısını GÖREMEZDİ,
-  // yalnızca telefonu uyarırdı — turnikenin sessizce açılmaması, bozuk sanılırdı.
-  //
-  // Kodun kendisine alan eklemek yerine cihaz başına TEK bir "son ret" kaydı: ret geçici bir
-  // arayüz sinyalidir, kodun kimliğinin parçası değil. Üzerine yazılır, indeks istemez, kodun
-  // yaşam döngüsüne dokunmaz.
-  if (!res.ok && res.error.code === 'no_active_membership') {
-    const rec = await deps().repo.getTurnstileCode(ctx, p.code)
-    if (rec) {
-      const member = await new FirestoreMemberRepository(adminDb()).findById(ctx, memberId)
-      await adminDb()
-        .doc(`studios/${ctx.studioId}/turnstileRefusals/${rec.deviceId}`)
-        .set({
-          // Ad, ekranda karşılamada olduğu gibi yalnızca ilk isim: koridorda yabancılar geçiyor.
-          firstName: (member?.fullName ?? '').trim().split(/\s+/)[0] ?? '',
-          reason: 'no_active_membership',
-          at: Date.now(),
-        })
-    }
+  // ── EKRANA DA SÖYLE (owner, 2026-08-31; 2026-09-15 bütün anlamlı retler) ─ bkz. `turnstile-refusal.ts`
+  if (!res.ok && (SCREEN_REFUSALS as readonly string[]).includes(res.error.code)) {
+    const member = await new FirestoreMemberRepository(adminDb()).findById(ctx, memberId)
+    await showRefusalOnScreen(ctx, p.code, res.error.code, (member?.fullName ?? '').trim().split(/\s+/)[0] ?? '')
   }
   return res
 }
