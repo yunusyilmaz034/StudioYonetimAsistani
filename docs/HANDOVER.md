@@ -13,8 +13,12 @@ _Last true as of: **2026-09-14, 00:45**._
 
 Kod tarafında yarım iş YOK. Bekleyen şeyler, hepsi owner'la birlikte:
 
-0. **Firmware v1.4 YÜKLENDİ (15 Eylül 09:20, etiket `turnike-v1.4`).** Açılış logu: WiFi -68 dBm, heap 248 KB, iki ekran kod aldı.
-   Kalan yerinde denemeler: bir giriş + bir çıkış (darbe sayacı +2), panelden "Yeniden başlat", F01 geçiş süresi, arka arkaya iki kişi.
+0. **Turnike firmware v1.5 sahada (15 Eylül 09:33, etiket `turnike-v1.5`, sunucu `build-2026-09-15-001`).** Denendi ✅: giriş/çıkış,
+   karşılamadan 3 sn sonra QR geri geliyor, çıkıştan <45 sn sonra girişte ekranda "Az Önce Geçtiniz". Kutuda WiFi -73/-76 dBm (masada -68) — zayıf.
+   Kalan yerinde denemeler: panelden "Yeniden başlat", F01 geçiş süresi, arka arkaya iki kişi.
+   **Bobin ısınması (owner, 15 Eylül):** kolun olduğu yerdeki solenoid sıcak; elektrik kesilince kol düşüyor → turnike kolu akımla kilitli
+   tutuyor, bobin sürekli enerjide. Bizim darbe sayacı geçiş sayısıyla birebir (4,5 dk'da 3) — ısı turnikenin kendi devresinden. Isı arttıkça
+   "kol dönmedi" artıyorsa sebep büyük ihtimalle zayıflayan bobin. Owner gözlüyor; bobin ve adaptör etiket voltajı istendi.
 1. **Owner denemesi yapılmadı** — "deneme sonra yaparız" (14 Eylül 00:45). Aşağıdaki "Deneme adımı"
    dört maddeyi sırayla yürüt; dock konumu da bu denemeye dahil (tarayıcıda hiç bakılmadı, ölçü ekran
    görüntüsünden hesaplandı).
@@ -66,6 +70,16 @@ geçişi görürse darbe + 3 sn karşılama sonrası (~+5,6–7,5 sn) yeni kod i
 
 **Kilitlenme tekrar ederse:** önce yalnızca **turnike kartını**, düzelmezse yalnızca **ESP/röle kutusunu** kesin —
 hangisinin takıldığı böyle ayrılır. Panelden "Giriş"e basılırken röle kartında DS1 ışığı + klik var mı, bakın.
+
+### Firmware v1.5 — 15 Eylül sabahı, sahada bulunan iki hata
+
+- **Karşılama asılı kalıyordu:** sunucudan komutla açmada (`"open"`) ve retten sonra QR yeniden çizilmiyordu; yazı bir sonraki kod
+  yenilemesine (25 sn'ye kadar) ekranda kaldı, o sürede kimse okutamadı. v1.3'ten beri vardı. `qrGeriCiz()`.
+- **Retler sessizdi:** cihaz yalnızca `no_active_membership`i gösteriyordu. Owner çıkıştan 39 sn sonra giriş okuttu → `checkin_too_soon`,
+  ekran hiçbir şey yapmadı, "giriş QR'ı çıkış yapıyor" sanıldı. Artık `apps/web/src/server/turnstile-refusal.ts` dört reddi (paket yok,
+  ders/giriş hakkı bitti, az önce geçti) sebebiyle yazıyor — üye ve personel; firmware sebebe göre mesaj seçiyor.
+- **Deploy tuzağı:** `build-2026-09-15-001` READY oldu ama App Hosting ROLLOUT OLUŞTURMADI; trafik 10+ dk eski sürümde kaldı.
+  Elle başlatıldı (`POST …/rollouts?rolloutId=…` body `{build}`). "Build SUCCESS" deploy demek değil — trafik dağılımına bak.
 
 ### Firmware v1.4 — ✅ yüklendi 15 Eylül 09:20 (`0de22d4`, etiket `turnike-v1.4`)
 
