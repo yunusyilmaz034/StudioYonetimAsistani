@@ -48,14 +48,16 @@ linkleri `853d273` → `build-2026-09-15-003` (rollout izleniyor):
 - **Üye geçmiş rezervasyonları gizlendi ([[OR-82]])**: sunucu `past: []`; web portalda bölüm kalktı; mağazadaki
   uygulamada ajanda bölümü hemen kayboluyor, **Profil → Rezervasyonlarım ekranında "Geçmiş kaydın yok" yazısı yeni
   mobil sürüme kadar kalır** (kod düzeltildi, menü adı "Rezervasyonlarım" — sürüm çıkınca).
-- **Gizem Eşin "ben almadım" (14 Eyl 20:00):** rezervasyon **kendi üye hesabından** 14.09 15:28:47'de alınmış (aktör
+- **Gizem Eşin "ben almadım" (14 Eyl 20:00):** **mobil uygulamadan** alınmış — 15:28:08 uygulama açıldı, 15:28:11 ajanda,
+  15:28:47.071 `POST /api/member/book`; rezervasyon **kendi üye hesabından** 14.09 15:28:47'de alınmış (aktör
   üye, personel değil), onay bildirimi 15:28:48'de iletilmiş; yoklama alınmamış, 15.09 03:00 sistem "katıldı varsayıldı"
   ve kredi düştü. Turnike kaydı yok (bu üye hiç okutmuyor). 15 Eyl 20:00'ı da kendisi 08:16'da almış. Karar owner'da.
 
-**⚠️ AÇIK — reklamın WhatsApp numarası AI hattı değil.** Reklam "WhatsApp 0533 199 41 23" diyor; owner teyit etti:
-AI başka numarada. Reklamdan yazanlara **AI cevap vermiyor** ve bu sohbetler panelde **görünmüyor** (webhook yalnızca
-AI hattını görür). AI hattına 14 Eylül 22:46'dan beri mesaj yok. Owner'ın kararı bekleniyor: reklamın WhatsApp
-butonunu AI hattına çevirmek mi, 0533'teki mesajları elle cevaplamak mı.
+**Numara (owner düzeltti, 15 Eylül):** aktif reklam **AI hattına** gidiyor (0533'ten farklı bir numara). 0533 199 41 23
+stüdyonun telefonu; AI mevcut üyelerin satış dışı sorularını oraya yönlendiriyor (`whoBlock` + bilgi kartı İLETİŞİM).
+Görselde 0533 yazması reklamı yönlendirmiyor. **Açık gözlem:** AI hattına 14 Eyl 22:46'dan beri yeni mesaj yok;
+webhook 15 Eylül'de 36 POST aldı (07:00'de 16 — büyük ihtimalle okundu bildirimleri), hiçbiri sohbet yazmadı.
+Webhook metin dışı mesajları iz bırakmadan atlıyor — reklamdan gelen ilk mesaj metin değilse görünmez; tür loglanmıyor.
 
 **Bilinen:** webhook metin dışı mesajları (ses, görsel, düğme) sessizce atlıyor — iz bırakmadan 200 dönüyor.
 
