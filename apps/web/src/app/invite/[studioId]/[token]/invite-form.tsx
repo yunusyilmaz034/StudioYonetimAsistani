@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Loader2Icon } from 'lucide-react'
+import { Loader2Icon, SmartphoneIcon } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -31,7 +31,8 @@ const REFRESHING = 'Panel güncellendi, sayfa yenileniyor…'
 
 export function InviteForm({ studioId, token }: { studioId: string; token: string }) {
   const router = useRouter()
-  const [state, setState] = useState<'loading' | 'ready' | 'invalid'>('loading')
+  const [state, setState] = useState<'loading' | 'ready' | 'invalid' | 'done'>('loading')
+  const [storeLinks, setStoreLinks] = useState<{ ios: string; android: string } | null>(null)
   const [name, setName] = useState('')
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
@@ -43,6 +44,7 @@ export function InviteForm({ studioId, token }: { studioId: string; token: strin
       .then((r) => {
         if (r.ok) {
           setName(r.value.displayName)
+          setStoreLinks(r.value.storeLinks)
           setState('ready')
         } else {
           setState('invalid')
@@ -68,7 +70,9 @@ export function InviteForm({ studioId, token }: { studioId: string; token: strin
     try {
       const res = await activateMemberAction({ studioId, token, password })
       if (res.ok) {
-        router.replace(`/portal/login?s=${encodeURIComponent(studioId)}&welcome=1`)
+        // Mağaza linki varsa önce onları göster (owner, 2026-09-15); yoksa eskisi gibi doğrudan giriş.
+        if (storeLinks) setState('done')
+        else router.replace(`/portal/login?s=${encodeURIComponent(studioId)}&welcome=1`)
       } else {
         setError(domainErrorMessage(res.error))
         setBusy(false)
@@ -89,6 +93,47 @@ export function InviteForm({ studioId, token }: { studioId: string; token: strin
       <p className="flex items-center gap-2 text-sm text-muted-foreground">
         <Loader2Icon className="size-4 animate-spin" /> Yükleniyor…
       </p>
+    )
+  }
+
+  if (state === 'done' && storeLinks) {
+    // Üyenin telefonuna uyan mağaza ÖNCE — iPhone'daki birine önce Google Play'i göstermek bir yanlış dokunuş bekler.
+    const ua = typeof navigator === 'undefined' ? '' : navigator.userAgent
+    const iosFirst = !/android/i.test(ua)
+    const buttons = [
+      storeLinks.ios ? { key: 'ios', href: storeLinks.ios, label: 'App Store’dan indir', sub: 'iPhone' } : null,
+      storeLinks.android ? { key: 'android', href: storeLinks.android, label: 'Google Play’den indir', sub: 'Android' } : null,
+    ].filter((b): b is { key: string; href: string; label: string; sub: string } => b !== null)
+    if (!iosFirst) buttons.reverse()
+    return (
+      <Card className="w-full max-w-sm">
+        <CardHeader>
+          <CardTitle className="text-h1">Şifreniz belirlendi 🎉</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            Rezervasyon, kalan ders hakkınız ve programınız için uygulamamızı indirin. Girişte telefon numaranızı ve az
+            önce belirlediğiniz şifreyi kullanacaksınız.
+          </p>
+          {buttons.map((b, i) => (
+            <Button
+              key={b.key}
+              className="min-h-11 w-full"
+              variant={i === 0 ? 'default' : 'outline'}
+              render={<a href={b.href} target="_blank" rel="noopener noreferrer" />}
+            >
+              <SmartphoneIcon /> {b.label} <span className="text-xs opacity-70">· {b.sub}</span>
+            </Button>
+          ))}
+          <Button
+            variant="ghost"
+            className="min-h-11 w-full"
+            onClick={() => router.replace(`/portal/login?s=${encodeURIComponent(studioId)}&welcome=1`)}
+          >
+            Uygulamayı indirmeden web’den devam et
+          </Button>
+        </CardContent>
+      </Card>
     )
   }
 

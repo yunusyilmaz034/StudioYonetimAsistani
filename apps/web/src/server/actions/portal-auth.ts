@@ -1,6 +1,7 @@
 'use server'
 
 import { createHash, randomBytes } from 'node:crypto'
+import { getStoreLinksPublic } from './mobile-settings'
 
 import {
   completeActivation,
@@ -99,7 +100,9 @@ export async function openInviteAction(input: unknown) {
   if (!member || member.status !== 'active') {
     return { ok: false as const, error: { code: 'invite_invalid' as const } }
   }
-  return { ok: true as const, value: { displayName: member.fullName.split(' ')[0] ?? '' } }
+  // Mağaza linkleri şifre belirlendikten sonra gösterilir (owner, 2026-09-15); sayfa zaten bu cevabı bekliyor.
+  const storeLinks = await getStoreLinksPublic(ctx.studioId)
+  return { ok: true as const, value: { displayName: member.fullName.split(' ')[0] ?? '', storeLinks } }
 }
 
 // ── Public: set the password and activate ─────────────────────────────────────────────────

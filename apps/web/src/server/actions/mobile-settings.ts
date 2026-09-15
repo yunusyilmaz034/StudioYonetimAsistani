@@ -39,14 +39,23 @@ export interface MobileCampaign {
   readonly ctaUrl: string // link or wa.me/... opened on tap
 }
 
+// MAĞAZA LİNKLERİ (owner, 2026-09-15): *"üye davet linki oluşturunca şifre belirledikten sonra ios ve android
+// uygulama market linklerini göstersek olmaz mı."* Stüdyo başına veri — her white-label uygulamanın kendi mağaza
+// sayfası var, koda yazılmaz. Boş alan ⇒ o düğme gösterilmez; ikisi de boşsa davet akışı eskisi gibi girişe gider.
+export interface MobileStoreLinks {
+  readonly ios: string
+  readonly android: string
+}
+
 export interface MobileSettings {
   readonly banner: MobileBanner | null // legacy single banner — kept so an old app build still reads one
   readonly banners: readonly MobileBanner[] // the carousel (what the panel edits and the app renders)
   readonly branding: MobileBranding | null
   readonly campaign: MobileCampaign | null
+  readonly storeLinks: MobileStoreLinks | null
 }
 
-const DEFAULT: MobileSettings = { banner: null, banners: [], branding: null, campaign: null }
+const DEFAULT: MobileSettings = { banner: null, banners: [], branding: null, campaign: null, storeLinks: null }
 
 export async function getMobileSettingsAction(): Promise<MobileSettings> {
   const ctx = await requireTenantContext(OPS)
@@ -108,6 +117,28 @@ export async function setMobileBrandingAction(input: unknown) {
   const ctx = await requireTenantContext(OWNER)
   await adminDb().doc(`studios/${ctx.studioId}/settings/mobile`).set({ branding: p }, { merge: true })
   return { ok: true as const }
+}
+
+// Yalnızca gerçek mağaza adresleri kabul edilir: davet sayfası herkese açık ve buradaki link üyeye "resmi uygulama"
+// diye gösteriliyor — yanlış yazılmış ya da başka bir yere giden bir adres o güveni kullanır.
+const iosUrl = z.string().trim().regex(/^https:\/\/apps\.apple\.com\//, 'App Store adresi apps.apple.com ile başlamalı').or(z.literal(''))
+const androidUrl = z.string().trim().regex(/^https:\/\/play\.google\.com\/store\/apps\/details\?id=/, 'Google Play adresi play.google.com/store/apps/details?id= ile başlamalı').or(z.literal(''))
+
+export async function setMobileStoreLinksAction(input: unknown) {
+  const parsed = z.object({ ios: iosUrl, android: androidUrl }).safeParse(input)
+  if (!parsed.success) return { ok: false as const, error: { code: 'invalid_store_link' as const, message: parsed.error.issues[0]?.message ?? '' } }
+  const ctx = await requireTenantContext(OWNER)
+  await adminDb().doc(`studios/${ctx.studioId}/settings/mobile`).set({ storeLinks: parsed.data }, { merge: true })
+  return { ok: true as const }
+}
+
+/** PUBLIC (davet sayfası, girişten önce) — yalnızca iki mağaza adresi. */
+export async function getStoreLinksPublic(studioId: string): Promise<MobileStoreLinks | null> {
+  const snap = await adminDb().doc(`studios/${studioId}/settings/mobile`).get()
+  const raw = snap.get('storeLinks') as Partial<MobileStoreLinks> | undefined
+  const ios = typeof raw?.ios === 'string' ? raw.ios : ''
+  const android = typeof raw?.android === 'string' ? raw.android : ''
+  return ios || android ? { ios, android } : null
 }
 
 // Upload an image (banner / campaign / logo) instead of pasting a URL. Stored in Storage with a

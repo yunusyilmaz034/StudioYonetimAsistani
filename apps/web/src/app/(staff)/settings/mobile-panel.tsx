@@ -11,7 +11,7 @@ import { Section } from '@/components/ui/section'
 import { Textarea } from '@/components/ui/textarea'
 import { MediaPicker } from '@/components/media-picker'
 import { ImageCropDialog, type CropTransform } from '@/components/image-crop-dialog'
-import { getMobileSettingsAction, setMobileBannersAction, setMobileBrandingAction, setMobileCampaignAction, uploadMobileImageAction } from '@/server/actions/mobile-settings'
+import { getMobileSettingsAction, setMobileBannersAction, setMobileBrandingAction, setMobileCampaignAction, setMobileStoreLinksAction, uploadMobileImageAction } from '@/server/actions/mobile-settings'
 
 // The frames the phone actually renders, measured from the app rather than guessed. The home banner
 // card is `screen − 40pt` wide with a 148pt floor, which on the widest device is 400×160pt — 2.5:1,
@@ -94,6 +94,10 @@ export function MobilePanel({ canEdit }: { canEdit: boolean }) {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [savingBrand, setSavingBrand] = useState(false)
+  // Mağaza linkleri (owner, 2026-09-15) — davet sayfası şifre belirlendikten sonra bunları gösterir.
+  const [storeIos, setStoreIos] = useState('')
+  const [storeAndroid, setStoreAndroid] = useState('')
+  const [savingStore, setSavingStore] = useState(false)
 
   useEffect(() => {
     getMobileSettingsAction()
@@ -112,6 +116,7 @@ export function MobilePanel({ canEdit }: { canEdit: boolean }) {
           })),
         )
         if (s.branding) { setAppName(s.branding.appName); setLogoUrl(s.branding.logoUrl) }
+        if (s.storeLinks) { setStoreIos(s.storeLinks.ios); setStoreAndroid(s.storeLinks.android) }
         if (s.campaign) { setCampActive(s.campaign.active); setCampImage(s.campaign.imageUrl); setCampSource(s.campaign.imageSourceUrl ?? ''); setCampCrop(s.campaign.imageCrop); setCampTitle(s.campaign.title); setCampCta(s.campaign.ctaLabel); setCampUrl(s.campaign.ctaUrl) }
       })
       .catch(() => {})
@@ -168,6 +173,18 @@ export function MobilePanel({ canEdit }: { canEdit: boolean }) {
     setSavingBrand(false)
   }
 
+  async function saveStoreLinks() {
+    setSavingStore(true)
+    try {
+      const r = await setMobileStoreLinksAction({ ios: storeIos.trim(), android: storeAndroid.trim() })
+      if (r.ok) toast.success('Mağaza linkleri kaydedildi.')
+      else toast.error(r.error.message || 'Link geçersiz.')
+    } catch {
+      toast.error('Kaydedilemedi. Sayfayı yenileyip tekrar deneyin.')
+    }
+    setSavingStore(false)
+  }
+
   async function saveBanners() {
     const bad = banners.find((b) => b.active && (b.title.trim().length === 0 || b.body.trim().length === 0))
     if (bad) {
@@ -221,6 +238,27 @@ export function MobilePanel({ canEdit }: { canEdit: boolean }) {
           {canEdit ? (
             <Button onClick={() => void saveBranding()} disabled={savingBrand}>
               {savingBrand ? <Loader2Icon className="animate-spin" /> : null} Markayı Kaydet
+            </Button>
+          ) : null}
+        </div>
+      </Section>
+
+      <Section
+        title="Mağaza linkleri"
+        hint="Üye davet bağlantısından şifresini belirleyen üyeye bu linkler gösterilir; telefonuna uygun mağaza önce gelir. Boş bırakılan mağazanın düğmesi görünmez, ikisi de boşsa üye doğrudan web girişine gider."
+      >
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">App Store (iPhone)</label>
+            <Input value={storeIos} onChange={(e) => setStoreIos(e.target.value)} placeholder="https://apps.apple.com/tr/app/…" disabled={!canEdit} />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">Google Play (Android)</label>
+            <Input value={storeAndroid} onChange={(e) => setStoreAndroid(e.target.value)} placeholder="https://play.google.com/store/apps/details?id=…" disabled={!canEdit} />
+          </div>
+          {canEdit ? (
+            <Button onClick={() => void saveStoreLinks()} disabled={savingStore}>
+              {savingStore ? <Loader2Icon className="animate-spin" /> : null} Linkleri Kaydet
             </Button>
           ) : null}
         </div>
