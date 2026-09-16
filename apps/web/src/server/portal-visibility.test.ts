@@ -75,19 +75,22 @@ function ent(
 // The visibility rule, exactly as `loadPortalAgenda` applies it.
 const sees = (
   entitlements: readonly Entitlement[],
-  session: { category: Category; serviceId: ServiceId; assignedMemberId: MemberId | null },
+  session: { category: Category; serviceId: ServiceId; assignedMemberIds: readonly MemberId[] },
 ): boolean => {
-  const assigned = session.assignedMemberId
-  if (assigned !== null && assigned !== ME) return false // D13 — someone else's PT slot
+  // D13 — someone else's private slot. A düet names several members and every one of them sees it.
+  const assigned = session.assignedMemberIds
+  if (assigned.length > 0 && !assigned.includes(ME)) return false
   return entitlements.some((e) => isEligibleForService(e, session.category, session.serviceId, AT))
 }
 
-const reformerClass = { category: 'pilates_group' as Category, serviceId: SVC_REFORMER, assignedMemberId: null }
-const matClass = { category: 'pilates_group' as Category, serviceId: SVC_MAT, assignedMemberId: null }
-const fitnessClass = { category: 'fitness' as Category, serviceId: SVC_FITNESS, assignedMemberId: null }
-const openPt = { category: 'private' as Category, serviceId: SVC_PT, assignedMemberId: null }
-const myPt = { category: 'private' as Category, serviceId: SVC_PT, assignedMemberId: ME }
-const herPt = { category: 'private' as Category, serviceId: SVC_PT, assignedMemberId: SOMEONE_ELSE }
+const reformerClass = { category: 'pilates_group' as Category, serviceId: SVC_REFORMER, assignedMemberIds: [] }
+const matClass = { category: 'pilates_group' as Category, serviceId: SVC_MAT, assignedMemberIds: [] }
+const fitnessClass = { category: 'fitness' as Category, serviceId: SVC_FITNESS, assignedMemberIds: [] }
+const openPt = { category: 'private' as Category, serviceId: SVC_PT, assignedMemberIds: [] }
+const myPt = { category: 'private' as Category, serviceId: SVC_PT, assignedMemberIds: [ME]}
+const herPt = { category: 'private' as Category, serviceId: SVC_PT, assignedMemberIds: [SOMEONE_ELSE]}
+// Düet (owner, 2026-09-16) — one private session reserved for two people.
+const duet = { category: 'private' as Category, serviceId: SVC_PT, assignedMemberIds: [SOMEONE_ELSE, ME] }
 
 describe('portal agenda visibility (Batch 7)', () => {
   it('a FITNESS member does not see pilates at all', () => {
@@ -127,6 +130,10 @@ describe('portal agenda visibility (Batch 7)', () => {
 
   it('a PT slot reserved for SOMEONE ELSE is invisible — even with a valid PT package', () => {
     expect(sees([ent('private', [SVC_PT])], herPt)).toBe(false)
+  })
+
+  it('a DÜET is visible to every member it names, not only the first', () => {
+    expect(sees([ent('private', [SVC_PT])], duet)).toBe(true)
   })
 
   it('a member with no PT package sees no PT at all', () => {

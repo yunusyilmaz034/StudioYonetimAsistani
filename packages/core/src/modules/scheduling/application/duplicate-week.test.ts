@@ -29,7 +29,7 @@ function makeSession(o: Partial<ClassSession> = {}): ClassSession {
     roomId: 'rom_1' as RoomId,
     trainerId: null,
     templateId: null,
-    assignedMemberId: null,
+    assignedMemberIds: [],
     category: 'pilates_group',
     startsAt: instant(SRC),
     endsAt: instant(SRC + 3_600_000),

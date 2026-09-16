@@ -264,7 +264,7 @@ export async function seedDemoData(trainerUid: string | null): Promise<void> {
   const ptAssigned = await session(
     svcPt, roomFitness, localDateStr(now + DAY), '09:00', 50, 1, trainerId, trainerName,
   )
-  ok(await assignSessionMember(schedDeps(), ctx, { sessionId: ptAssigned, memberId: ayse }), 'reserve PT for Ayşe')
+  ok(await assignSessionMember(schedDeps(), ctx, { sessionId: ptAssigned, memberIds: [ayse] }), 'reserve PT for Ayşe')
   await session(svcPt, roomFitness, localDateStr(now + DAY), '11:00', 50, 2, trainerId, trainerName)
   const up1 = await session(svcReformer, roomReformer, localDateStr(now + DAY), '18:00', 50, 8, trainerId, trainerName)
   const up2 = await session(svcReformer, roomReformer, localDateStr(now + 2 * DAY), '10:00', 50, 8, trainerId, trainerName)

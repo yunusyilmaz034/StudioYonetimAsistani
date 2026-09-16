@@ -33,7 +33,7 @@ const session = (over: Partial<ClassSession> = {}): ClassSession =>
     trainerId: null,
     templateId: null,
     category: 'pilates_group',
-    assignedMemberId: null,
+    assignedMemberIds: [],
     startsAt: instant(NOW + DAY),
     endsAt: instant(NOW + DAY + 3_600_000),
     capacity: 8,

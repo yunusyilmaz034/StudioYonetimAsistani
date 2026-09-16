@@ -217,9 +217,10 @@ export async function loadPortalAgenda(
     if (s.status !== 'scheduled') continue
     if (s.startsAt <= nowMs) continue
 
-    // D13 — a PT slot reserved for someone else is invisible to her. An OPEN slot is not.
-    const assigned = s.assignedMemberId ?? null
-    if (assigned !== null && assigned !== memberId) continue
+    // D13 — a PT slot reserved for someone else is invisible to her. An OPEN slot is not, and a
+    // düet is visible to EVERY member it names.
+    const assigned = s.assignedMemberIds ?? []
+    if (assigned.length > 0 && !assigned.includes(memberId)) continue
 
     // D12 — the union of what her packages cover, judged at the session's start time.
     const eligible = entitlements.filter((e) =>
@@ -239,7 +240,7 @@ export async function loadPortalAgenda(
       capacity: s.capacity,
       bookedCount: occupiedSeats(s),
       cancellationWindowHours: s.policySnapshot.cancellationWindowHours,
-      isAssignedToMe: assigned === memberId,
+      isAssignedToMe: assigned.includes(memberId),
       alreadyBooked: bookedSessionIds.has(s.id),
       blockedReason: blockedReason(s, eligible),
       cost: bookingCost(s, eligible),

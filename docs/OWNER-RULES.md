@@ -1845,3 +1845,13 @@ the panel now preselects **nothing**: the staff member picks "kredi yansın" or 
 button stays disabled until she does. Refunding against the policy also requires a written **reason** — it is a
 correction, and a correction without a reason is an untraceable one ([[OR-86]] is the same instinct at the door). The
 policy itself did not change; only the panel stopped answering on reception's behalf.
+
+**OR-89 · Bir özel dersin kaç kişilik olduğuna owner karar verir, ve düet iki isme birden ayrılır.** (2026-09-16)
+Owner: *"düet derslerimiz var, isme özel ders açabiliyoruz, 1 isim ekleyebiliyoruz ama 2. isme izin vermiyor"* →
+**"özel derste kişi sayısını serbest bırakmak (2 kişi de, 3 kişi de açılabilir)"**. İki engel vardı: PT'nin en çok iki
+kişilik olabileceğini söyleyen kural ve dersin **tek** bir üyeye kilitlenmesi. İkisi de kalktı. Artık bir özel ders kaç
+koltuksa o kadar isme ayrılabilir; tek kural aritmetik — **isim sayısı koltuk sayısını aşamaz**. Düetin iki üyesi de
+dersi kendi uygulamasında görür ve rezerve edebilir; başkası göremez. Rezervasyon alınmışken **isim eklenebilir**
+(düet böyle dolar), ama **çıkarılamaz**: çıkarılan kişi rezervasyonu yapan olabilir, önce rezervasyon iptal edilmeli.
+Kayıt tarafında `assignedMemberId` çoğullaştı (`class_session.scheduled` v6 + upcaster); eski dersler tek isimli
+hâllerinden okunmaya devam ediyor, hiçbir kayıt geriye dönük değiştirilmedi.

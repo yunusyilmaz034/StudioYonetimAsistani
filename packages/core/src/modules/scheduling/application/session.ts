@@ -60,7 +60,7 @@ function buildSession(params: {
   startsAt: Instant
   endsAt: Instant
   capacity: number
-  assignedMemberId: MemberId | null
+  assignedMemberIds: readonly MemberId[]
   policySnapshot: SessionPolicySnapshot
   admission?: SessionAdmission
   contentLabel?: string
@@ -75,7 +75,7 @@ function buildSession(params: {
     trainerId: params.trainerId,
     templateId: params.templateId,
     category: service.category,
-    assignedMemberId: params.assignedMemberId,
+    assignedMemberIds: params.assignedMemberIds,
     startsAt: params.startsAt,
     endsAt: params.endsAt,
     capacity: params.capacity,
@@ -135,8 +135,9 @@ export interface ScheduleSessionInput {
   readonly startTime: string // 'HH:MM' local
   readonly durationMinutes: number
   readonly capacity: number
-  // D13 — only meaningful for a private session; null everywhere else.
-  readonly assignedMemberId?: MemberId | null
+  // D13 — only meaningful for a private session; empty everywhere else. Several names make a
+  // düet (owner, 2026-09-16).
+  readonly assignedMemberIds?: readonly MemberId[]
   // D14 — level 1 of the chain: this session's own override. Omitted/null ⇒ inherit.
   readonly cancellationWindowHours?: number | null
   // Fit Paket — who this session admits. Omitted ⇒ `defaultAdmission(service.category)`, which is
@@ -176,7 +177,7 @@ export async function scheduleSession(
     capacity: input.capacity,
     ...(input.admission ? { admission: input.admission } : {}),
     ...(input.contentLabel?.trim() ? { contentLabel: input.contentLabel.trim() } : {}),
-    assignedMemberId: input.assignedMemberId ?? null,
+    assignedMemberIds: input.assignedMemberIds ?? [],
     policySnapshot: snapshot.value,
   })
   // AG-1 — the studio's hours are LOADED here and handed to the decider. One extra read on a path
@@ -246,7 +247,7 @@ export async function generateSessions(
       endsAt,
       capacity: template.capacity,
       // A template generates studio inventory, never a slot already owned by a member (D13).
-      assignedMemberId: null,
+      assignedMemberIds: [],
       policySnapshot: snapshot.value,
     })
     const decided = decideScheduleSession(dctx, session, room, studioHours)
@@ -332,20 +333,19 @@ export async function changeTrainer(
   return { ok: true, value: undefined }
 }
 
-// D13 — assign a private session to a member, re-assign it, or release it back to studio
-// inventory (`memberId: null`). All guards are in the decider (private only, not started,
-// no reservations yet).
+// D13 — reserve a private session for one or more members (düet), change who they are, or
+// release it back to studio inventory (an empty list). All guards are in the decider.
 export async function assignSessionMember(
   deps: SchedulingDeps,
   ctx: TenantContext,
-  input: { sessionId: ClassSessionId; memberId: MemberId | null },
+  input: { sessionId: ClassSessionId; memberIds: readonly MemberId[] },
 ): Promise<Result<void, DomainError>> {
   const current = await deps.repo.getSession(ctx, input.sessionId)
   if (!current) throw new Error(`Session not found: ${input.sessionId}`)
-  const events = decideAssignSessionMember(decideContext(deps, ctx), current, input.memberId)
+  const events = decideAssignSessionMember(decideContext(deps, ctx), current, input.memberIds)
   if (!events.ok) return events
   if (events.value.length === 0) return { ok: true, value: undefined }
-  await deps.repo.saveSession(ctx, { ...current, assignedMemberId: input.memberId }, events.value)
+  await deps.repo.saveSession(ctx, { ...current, assignedMemberIds: input.memberIds }, events.value)
   return { ok: true, value: undefined }
 }
 

@@ -66,7 +66,7 @@ function makeSession(o: Partial<ClassSession> = {}): ClassSession {
     roomId: 'rom_1' as RoomId,
     trainerId: null,
     templateId: null,
-    assignedMemberId: null,
+    assignedMemberIds: [],
     category: 'pilates_group',
     startsAt: instant(1_000_000),
     endsAt: instant(1_000_000 + 3_600_000),
@@ -288,52 +288,77 @@ describe('decideUpdateTemplate', () => {
 // ── D13 — PT ownership ────────────────────────────────────────────────────────
 describe('decideAssignSessionMember (D13)', () => {
   const pt = (over: Partial<ClassSession> = {}) =>
-    makeSession({ category: 'private', assignedMemberId: null, capacity: 1, startsAt: FUTURE, ...over })
+    makeSession({ category: 'private', assignedMemberIds: [], capacity: 1, startsAt: FUTURE, ...over })
   const MEM = 'mem_1' as MemberId
 
+  const MEM2 = 'mem_2' as MemberId
+
   it('assigns a private session to a member', () => {
-    const r = decideAssignSessionMember(ctx, pt(), MEM)
+    const r = decideAssignSessionMember(ctx, pt(), [MEM])
     expect(r.ok).toBe(true)
     if (r.ok) {
       expect(r.value[0]?.type).toBe('class_session.assigned')
-      expect(r.value[0]?.payload).toEqual({ from: null, to: MEM })
+      expect(r.value[0]?.payload).toEqual({ from: [], to: [MEM] })
     }
   })
 
-  it('releases an assigned session back to studio inventory (to: null)', () => {
-    const r = decideAssignSessionMember(ctx, pt({ assignedMemberId: MEM }), null)
+  it('reserves a DÜET for two members (owner, 2026-09-16)', () => {
+    const r = decideAssignSessionMember(ctx, pt({ capacity: 2 }), [MEM, MEM2])
     expect(r.ok).toBe(true)
-    if (r.ok) expect(r.value[0]?.payload).toEqual({ from: MEM, to: null })
+    if (r.ok) expect(r.value[0]?.payload).toEqual({ from: [], to: [MEM, MEM2] })
+  })
+
+  it('refuses more names than seats — a promised place that does not exist', () => {
+    const r = decideAssignSessionMember(ctx, pt({ capacity: 1 }), [MEM, MEM2])
+    expect(r).toEqual({
+      ok: false,
+      error: { code: 'assignment_exceeds_capacity', assignedCount: 2, capacity: 1 },
+    })
+  })
+
+  it('releases an assigned session back to studio inventory (an empty list)', () => {
+    const r = decideAssignSessionMember(ctx, pt({ assignedMemberIds: [MEM] }), [])
+    expect(r.ok).toBe(true)
+    if (r.ok) expect(r.value[0]?.payload).toEqual({ from: [MEM], to: [] })
   })
 
   it('is idempotent — re-assigning the same member emits nothing', () => {
-    const r = decideAssignSessionMember(ctx, pt({ assignedMemberId: MEM }), MEM)
+    const r = decideAssignSessionMember(ctx, pt({ assignedMemberIds: [MEM]}), [MEM])
     expect(r).toEqual({ ok: true, value: [] })
   })
 
   it('refuses to assign a member to a GROUP class', () => {
-    const r = decideAssignSessionMember(ctx, makeSession({ category: 'pilates_group', startsAt: FUTURE }), MEM)
+    const r = decideAssignSessionMember(ctx, makeSession({ category: 'pilates_group', startsAt: FUTURE }), [MEM])
     expect(r.ok).toBe(false)
     if (!r.ok) expect(r.error.code).toBe('assignment_requires_private_session')
   })
 
-  it('refuses to re-assign a slot that already has a reservation', () => {
-    // Re-assigning would leave a booking belonging to a member who no longer owns the session.
-    // Cancel the reservation first — that is an explicit act with its own credit effect.
-    const r = decideAssignSessionMember(ctx, pt({ assignedMemberId: MEM, bookedCount: 1 }), 'mem_2' as MemberId)
+  it('ADDS a second name while the first member is booked — that is how a düet fills', () => {
+    const r = decideAssignSessionMember(
+      ctx,
+      pt({ assignedMemberIds: [MEM], capacity: 2, bookedCount: 1 }),
+      [MEM, MEM2],
+    )
+    expect(r.ok).toBe(true)
+  })
+
+  it('refuses to REMOVE a name from a slot that already has a reservation', () => {
+    // The booked member may be the very name being removed, and her booking would outlive her
+    // claim to the seat. Cancel the reservation first — an explicit act with its own credit effect.
+    const r = decideAssignSessionMember(ctx, pt({ assignedMemberIds: [MEM], bookedCount: 1 }), [MEM2])
     expect(r.ok).toBe(false)
     if (!r.ok) expect(r.error.code).toBe('session_has_reservations')
   })
 
   it('refuses to assign a session that has already started (I-26)', () => {
-    const r = decideAssignSessionMember(ctx, pt({ startsAt: instant(1_000_000) }), MEM)
+    const r = decideAssignSessionMember(ctx, pt({ startsAt: instant(1_000_000) }), [MEM])
     expect(r.ok).toBe(false)
     if (!r.ok) expect(r.error.code).toBe('session_not_editable')
   })
 })
 
-// ── D13 — the PT capacity band (owner, 2026-07-12) ────────────────────────────
-describe('PT capacity band (D13): 1 = one-on-one, 2 = partner, 3+ = a group class', () => {
+// ── Düet (owner, 2026-09-16) — a private session's head count is the owner's call ─────────────
+describe('private session head count: 1 = birebir, 2 = düet, more if the owner sells it', () => {
   const bigRoom: Room = { ...room, capacity: 12 }
 
   it('creates a one-on-one PT (capacity 1)', () => {
@@ -341,36 +366,59 @@ describe('PT capacity band (D13): 1 = one-on-one, 2 = partner, 3+ = a group clas
     expect(r.ok).toBe(true)
   })
 
-  it('creates a PARTNER PT (capacity 2) — ownership is independent of capacity', () => {
-    const r = schedule(makeSession({ category: 'private', capacity: 2, assignedMemberId: 'mem_1' as MemberId }),
+  it('creates a DÜET (capacity 2) reserved for one member — ownership is independent of capacity', () => {
+    const r = schedule(makeSession({ category: 'private', capacity: 2, assignedMemberIds: ['mem_1' as MemberId]}),
       bigRoom,
     )
     expect(r.ok).toBe(true)
   })
 
-  it('refuses a PT with capacity 3 — that is a group class, not a PT', () => {
+  it('allows a private session with capacity 3 — the old two-person band is gone', () => {
     const r = schedule(makeSession({ category: 'private', capacity: 3 }), bigRoom)
+    expect(r.ok).toBe(true)
+  })
+
+  it('refuses a private session that names more members than it seats', () => {
+    const r = schedule(
+      makeSession({
+        category: 'private',
+        capacity: 1,
+        assignedMemberIds: ['mem_1' as MemberId, 'mem_2' as MemberId],
+      }),
+      bigRoom,
+    )
     expect(r).toEqual({
       ok: false,
-      error: { code: 'pt_capacity_exceeded', maxCapacity: 2, capacity: 3 },
+      error: { code: 'assignment_exceeds_capacity', assignedCount: 2, capacity: 1 },
     })
   })
 
-  it('the band does not apply to group classes', () => {
+  it('group classes are unaffected', () => {
     const r = schedule(makeSession({ category: 'pilates_group', capacity: 8 }), bigRoom)
     expect(r.ok).toBe(true)
   })
 
-  it('refuses RAISING a PT session past 2 later on — the rule is not only at creation', () => {
+  it('RAISES a private session past 2 later on — a düet may become a trio', () => {
     const pt = makeSession({ category: 'private', capacity: 2, startsAt: FUTURE })
-    const r = decideChangeCapacity(ctx, pt, bigRoom, 3, 'Partner ekleniyor')
-    expect(r.ok).toBe(false)
-    if (!r.ok) expect(r.error.code).toBe('pt_capacity_exceeded')
+    const r = decideChangeCapacity(ctx, pt, bigRoom, 3, 'Üçüncü kişi ekleniyor')
+    expect(r.ok).toBe(true)
   })
 
-  it('allows changing a PT between 1 and 2', () => {
+  it('refuses to drop seats below the names already promised a place', () => {
+    const pt = makeSession({
+      category: 'private',
+      capacity: 2,
+      startsAt: FUTURE,
+      assignedMemberIds: ['mem_1' as MemberId, 'mem_2' as MemberId],
+    })
+    const r = decideChangeCapacity(ctx, pt, bigRoom, 1, 'Düet bozuldu')
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.error.code).toBe('assignment_exceeds_capacity')
+  })
+
+  it('allows changing a private session between 1 and 2', () => {
     const pt = makeSession({ category: 'private', capacity: 1, startsAt: FUTURE })
-    const r = decideChangeCapacity(ctx, pt, bigRoom, 2, 'Partner PT oldu')
+    const r = decideChangeCapacity(ctx, pt, bigRoom, 2, 'Düet oldu')
     expect(r.ok).toBe(true)
   })
 })
@@ -378,12 +426,12 @@ describe('PT capacity band (D13): 1 = one-on-one, 2 = partner, 3+ = a group clas
 // D13 — assignment AT CREATION (the owner's second business model).
 describe('assignment at session creation (D13)', () => {
   it('creates a PT slot already reserved for a member', () => {
-    const r = schedule(makeSession({ category: 'private', capacity: 1, assignedMemberId: 'mem_1' as MemberId }),
+    const r = schedule(makeSession({ category: 'private', capacity: 1, assignedMemberIds: ['mem_1' as MemberId]}),
       room,
     )
     expect(r.ok).toBe(true)
     if (r.ok) {
-      expect(r.value[0]?.payload).toMatchObject({ assignedMemberId: 'mem_1' })
+      expect(r.value[0]?.payload).toMatchObject({ assignedMemberIds: ['mem_1']})
       expect(r.value[0]?.related).toMatchObject({ memberId: 'mem_1' })
     }
   })
@@ -391,11 +439,11 @@ describe('assignment at session creation (D13)', () => {
   it('creates an OPEN PT slot by default (assignedMemberId null)', () => {
     const r = schedule(makeSession({ category: 'private', capacity: 1 }), room)
     expect(r.ok).toBe(true)
-    if (r.ok) expect(r.value[0]?.payload).toMatchObject({ assignedMemberId: null })
+    if (r.ok) expect(r.value[0]?.payload).toMatchObject({ assignedMemberIds: [] })
   })
 
   it('refuses assigning a member to a GROUP class at creation', () => {
-    const r = schedule(makeSession({ category: 'pilates_group', assignedMemberId: 'mem_1' as MemberId }),
+    const r = schedule(makeSession({ category: 'pilates_group', assignedMemberIds: ['mem_1' as MemberId]}),
       room,
     )
     expect(r.ok).toBe(false)

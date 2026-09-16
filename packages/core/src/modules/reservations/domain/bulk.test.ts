@@ -62,7 +62,7 @@ const session = (over: Partial<ClassSession> = {}): ClassSession => ({
   roomId: null,
   trainerId: null,
   templateId: null,
-  assignedMemberId: null,
+  assignedMemberIds: [],
   category: 'pilates_group',
   startsAt: instant(NOW + 24 * H), // tomorrow — comfortably outside the 6h window
   endsAt: instant(NOW + 25 * H),

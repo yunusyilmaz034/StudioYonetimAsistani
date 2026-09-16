@@ -44,6 +44,7 @@ import sessionScheduledV2 from './class_session.scheduled.v2.json'
 import sessionScheduledV3 from './class_session.scheduled.v3.json'
 import sessionScheduledV4 from './class_session.scheduled.v4.json'
 import sessionScheduledV5 from './class_session.scheduled.v5.json'
+import sessionScheduledV6 from './class_session.scheduled.v6.json'
 import roomChanged from './class_session.room_changed.v1.json'
 import rescheduled from './class_session.rescheduled.v1.json'
 import capacityChanged from './class_session.capacity_changed.v1.json'
@@ -91,7 +92,7 @@ const session: ClassSession = {
   startsAt: instant(1_000_000),
   endsAt: instant(4_600_000),
   capacity: 8,
-  assignedMemberId: null,
+  assignedMemberIds: [],
   status: 'scheduled',
   cancellation: null,
   policyRef: { serviceId: 'svc_1' as ServiceId, version: 2 },
@@ -126,8 +127,8 @@ describe('scheduling event payloads match golden fixtures (AD-33)', () => {
     )
     expect(r.ok).toBe(true)
     if (r.ok) {
-      expect(r.value[0]?.payload).toEqual(sessionScheduledV5)
-      expect(r.value[0]?.version).toBe(5)
+      expect(r.value[0]?.payload).toEqual(sessionScheduledV6)
+      expect(r.value[0]?.version).toBe(6)
     }
   })
   it('a session that declares no admission is written as admitting its own category', () => {
@@ -137,51 +138,64 @@ describe('scheduling event payloads match golden fixtures (AD-33)', () => {
     expect(r.ok).toBe(true)
     if (r.ok) expect(r.value[0]?.payload).toMatchObject({ admission: { categories: ['pilates_group'] }, contentLabel: null })
   })
-  it('v1 upcasts to v4 — "unassigned" is a FACT about v1; the window is "not recorded"', () => {
+  // Every pre-v6 fixture names at most one member; today's shape carries a list. `asList` states
+  // that translation once, so each case below can say what it is really about.
+  const asList = <T extends { assignedMemberId: string | null }>({ assignedMemberId, ...rest }: T) => ({
+    ...rest,
+    assignedMemberIds: assignedMemberId ? [assignedMemberId] : [],
+  })
+
+  it('v1 upcasts to v6 — "unassigned" is a FACT about v1; the window is "not recorded"', () => {
     // An upcaster may only supply what the old shape MEANT. v1 had no assignment (it was studio
-    // inventory → null, a fact) and did not record the window (→ null, meaning *not recorded*,
-    // NOT "no window"). Deriving the window from today's settings would be a lie: those settings
-    // may have changed since. The session DOCUMENT still holds the real number.
+    // inventory → an empty list, a fact) and did not record the window (→ null, meaning *not
+    // recorded*, NOT "no window"). Deriving the window from today's settings would be a lie: those
+    // settings may have changed since. The session DOCUMENT still holds the real number.
     expect(upcastClassSessionScheduled(sessionScheduledV1, 1)).toEqual({
-      ...sessionScheduledV3,
+      ...asList(sessionScheduledV3),
       cancellationWindowHours: null,
       cancellationWindowSource: null,
       admission: { categories: [sessionScheduledV3.category] },
       contentLabel: null,
     })
   })
-  it('v2 upcasts to v4 — the assignment survives, the window stays "not recorded"', () => {
+  it('v2 upcasts to v6 — the assignment survives as a one-name list, the window stays "not recorded"', () => {
     expect(upcastClassSessionScheduled(sessionScheduledV2, 2)).toEqual({
-      ...sessionScheduledV3,
+      ...asList(sessionScheduledV3),
       cancellationWindowHours: null,
       cancellationWindowSource: null,
       admission: { categories: [sessionScheduledV3.category] },
       contentLabel: null,
     })
   })
-  it('v3 upcasts to v4 — admitting its OWN category is what v3 meant, not a guess', () => {
+  it('v3 upcasts to v6 — admitting its OWN category is what v3 meant, not a guess', () => {
     // The other kind of upcast. Unlike the window, this value IS recoverable: every v3 session
     // admitted exactly one category and capped nothing. Stating it is not inventing it.
     expect(upcastClassSessionScheduled(sessionScheduledV3, 3)).toEqual({
-      ...sessionScheduledV3,
+      ...asList(sessionScheduledV3),
       admission: { categories: [sessionScheduledV3.category] },
       contentLabel: null,
     })
   })
-  it('v4 upcasts to v5 — no label because the idea did not exist, not because it was lost', () => {
-    expect(upcastClassSessionScheduled(sessionScheduledV4, 4)).toEqual({ ...sessionScheduledV4, contentLabel: null })
+  it('v4 upcasts to v6 — no label because the idea did not exist, not because it was lost', () => {
+    expect(upcastClassSessionScheduled(sessionScheduledV4, 4)).toEqual({
+      ...asList(sessionScheduledV4),
+      contentLabel: null,
+    })
   })
-  it('upcasting a v5 event is the identity', () => {
-    expect(upcastClassSessionScheduled(sessionScheduledV5, 5)).toEqual(sessionScheduledV5)
+  it('v5 upcasts to v6 — one name becomes a list of one, which is what v5 MEANT', () => {
+    expect(upcastClassSessionScheduled(sessionScheduledV5, 5)).toEqual(asList(sessionScheduledV5))
+  })
+  it('upcasting a v6 event is the identity', () => {
+    expect(upcastClassSessionScheduled(sessionScheduledV6, 6)).toEqual(sessionScheduledV6)
   })
   it('class_session.assigned', () => {
     const r = decideAssignSessionMember(
       ctx,
-      { ...session, category: 'private', assignedMemberId: null, startsAt: instant(1_800_000_000_000) },
-      'mem_1' as MemberId,
+      { ...session, category: 'private', assignedMemberIds: [], startsAt: instant(1_800_000_000_000) },
+      ['mem_1' as MemberId],
     )
     expect(r.ok).toBe(true)
-    if (r.ok) expect(r.value[0]?.payload).toEqual({ from: null, to: 'mem_1' })
+    if (r.ok) expect(r.value[0]?.payload).toEqual({ from: [], to: ['mem_1'] })
   })
   // The guest's name and card number are NOT here, and the fixture is what makes that permanent:
   // she is a third party who never agreed to be in this studio's log (#6, I-13).

@@ -584,12 +584,14 @@ function PtAssignment({
     }
   }
 
-  async function assign(memberId: string | null) {
+  // The whole list is sent every time: assignment is a STATE, not a stream of add/remove verbs,
+  // and the decider compares the two lists to decide what changed.
+  async function assign(memberIds: readonly string[], done: string) {
     setBusy(true)
     try {
-      const res = await assignSessionMemberAction({ sessionId: session.sessionId, memberId })
+      const res = await assignSessionMemberAction({ sessionId: session.sessionId, memberIds })
       if (res.ok) {
-        toast.success(memberId ? 'Seans üyeye atandı.' : 'Atama kaldırıldı.')
+        toast.success(done)
         setOpen(false)
         onMutated()
       } else {
@@ -601,9 +603,13 @@ function PtAssignment({
     setBusy(false)
   }
 
+  const assigned = session.assignedMemberIds
   const q = foldTr(query.trim())
+  // Someone already named is not offered again.
   const filtered = (members ?? []).filter(
-    (m) => q === '' || foldTr(m.fullName).includes(q) || m.phone.includes(q),
+    (m) =>
+      !assigned.includes(m.id) &&
+      (q === '' || foldTr(m.fullName).includes(q) || m.phone.includes(q)),
   )
 
   return (
@@ -611,11 +617,17 @@ function PtAssignment({
       <h3 className="text-[0.6875rem] font-medium tracking-wide uppercase text-muted-foreground">PT ataması</h3>
       <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card p-3 shadow-xs">
         <div className="min-w-0">
-          {session.assignedMemberName ? (
+          {assigned.length > 0 ? (
             <>
-              <p className="truncate text-sm font-medium text-foreground">{session.assignedMemberName}</p>
+              <p className="truncate text-sm font-medium text-foreground">
+                {session.assignedMemberNames.length > 0
+                  ? session.assignedMemberNames.join(' · ')
+                  : `${assigned.length} üye`}
+              </p>
               <p className="text-xs text-muted-foreground">
-                Bu seans yalnızca bu üyeye ayrılmış. Başka üye göremez ve rezerve edemez.
+                {assigned.length > 1
+                  ? 'Bu seans yalnızca bu üyelere ayrılmış (düet). Başka üye göremez ve rezerve edemez.'
+                  : 'Bu seans yalnızca bu üyeye ayrılmış. Başka üye göremez ve rezerve edemez.'}
               </p>
             </>
           ) : (
@@ -629,14 +641,17 @@ function PtAssignment({
         </div>
         {editable ? (
           <div className="flex shrink-0 gap-2">
-            {session.assignedMemberId ? (
-              <Button variant="ghost" size="sm" disabled={busy} onClick={() => assign(null)}>
+            {assigned.length > 0 ? (
+              <Button variant="ghost" size="sm" disabled={busy} onClick={() => assign([], 'Atama kaldırıldı.')}>
                 Kaldır
               </Button>
             ) : null}
-            <Button variant="outline" size="sm" disabled={busy} onClick={openPicker}>
-              {session.assignedMemberId ? 'Değiştir' : 'Üyeye Ayır'}
-            </Button>
+            {/* A full session stops offering more names; seats are the ceiling (the decider agrees). */}
+            {assigned.length < session.capacity ? (
+              <Button variant="outline" size="sm" disabled={busy} onClick={openPicker}>
+                {assigned.length > 0 ? 'Üye Ekle' : 'Üyeye Ayır'}
+              </Button>
+            ) : null}
           </div>
         ) : null}
       </div>
@@ -644,10 +659,11 @@ function PtAssignment({
       <Dialog open={open} onOpenChange={(o) => (o ? null : setOpen(false))}>
         <DialogContent className="max-h-[80vh] gap-3 overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>PT seansını üyeye ata</DialogTitle>
+            <DialogTitle>{assigned.length > 0 ? 'Seansa üye ekle' : 'Özel seansı üyeye ata'}</DialogTitle>
             <DialogDescription>
-              Seans yalnızca bu üyeye ayrılır: sadece o görür ve sadece o rezerve edilebilir.
-              Atamayı kaldırırsanız seans yeniden açık PT slotuna döner.
+              Seans yalnızca seçilen üyelere ayrılır: sadece onlar görür ve sadece onlar rezerve
+              edilebilir. Düet için ikinci ismi de ekleyin; atamayı kaldırırsanız seans yeniden açık
+              slota döner.
             </DialogDescription>
           </DialogHeader>
           <Input placeholder="Üye ara…" value={query} onChange={(e) => setQuery(e.target.value)} autoFocus />
@@ -662,7 +678,7 @@ function PtAssignment({
                   <button
                     type="button"
                     disabled={busy}
-                    onClick={() => assign(m.id)}
+                    onClick={() => assign([...assigned, m.id], 'Seans üyeye ayrıldı.')}
                     className="flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left text-sm transition-colors hover:bg-primary-soft/40 disabled:opacity-50"
                   >
                     <span className="truncate font-medium text-foreground">{m.fullName}</span>

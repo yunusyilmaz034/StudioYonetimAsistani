@@ -106,8 +106,9 @@ export type DomainError =
   | { readonly code: 'session_not_assigned_to_member' }
   | { readonly code: 'assignment_requires_private_session' }
   | { readonly code: 'session_has_reservations' }
-  // D13 — PT is 1-on-1 or partner (max 2). Three or more is a group class, not a PT.
-  | { readonly code: 'pt_capacity_exceeded'; readonly maxCapacity: number; readonly capacity: number }
+  // Düet (owner, 2026-09-16) — a private session may name as many members as it has seats, and
+  // no more. The old "PT seats at most two" band is gone; head count is the owner's decision.
+  | { readonly code: 'assignment_exceeds_capacity'; readonly assignedCount: number; readonly capacity: number }
   // D13 — reserving a PT slot FOR a member only makes sense if she could actually book it:
   // an active package that covers this service, with credit left. Re-checked server-side.
   | { readonly code: 'member_not_eligible_for_service' }

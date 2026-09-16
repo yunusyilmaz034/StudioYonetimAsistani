@@ -1,3 +1,4 @@
+import type { MemberId } from '../../shared/ids'
 import { defaultAdmission } from './domain/types'
 import type { ClassSessionScheduledPayload } from './events'
 
@@ -25,44 +26,43 @@ import type { ClassSessionScheduledPayload } from './events'
 //     its own — and capped nothing. That is not a guess about missing data; it is what the shape
 //     MEANT, the same way `assignedMemberId: null` was what v1 meant. So the upcaster states it.
 
-type ClassSessionScheduledV1 = Omit<
-  ClassSessionScheduledPayload,
-  'assignedMemberId' | 'cancellationWindowHours' | 'cancellationWindowSource' | 'admission'
->
-type ClassSessionScheduledV2 = Omit<
-  ClassSessionScheduledPayload,
-  'cancellationWindowHours' | 'cancellationWindowSource' | 'admission'
->
-type ClassSessionScheduledV3 = Omit<ClassSessionScheduledPayload, 'admission' | 'contentLabel'>
-type ClassSessionScheduledV4 = Omit<ClassSessionScheduledPayload, 'contentLabel'>
+//   v5 → v6 (düet, 2026-09-16): the "what it MEANT" kind again. A v5 session could name at most
+//     ONE member, so its list is exactly that name — or empty when it named nobody. Nothing is
+//     invented: a one-name slot and a one-element list are the same fact written twice.
+
+/** Every pre-v6 shape, which carried a single `assignedMemberId`. */
+type LegacyScheduled = Omit<ClassSessionScheduledPayload, 'assignedMemberIds'> & {
+  readonly assignedMemberId: MemberId | null
+}
 
 export function upcastClassSessionScheduled(
   payload: Record<string, unknown>,
   version: number,
 ): ClassSessionScheduledPayload {
-  if (version >= 5) return payload as unknown as ClassSessionScheduledPayload
+  if (version >= 6) return payload as unknown as ClassSessionScheduledPayload
+
+  // One name (or none) becomes a list of one (or none) — for EVERY older version, so the rest of
+  // this function never has to think about the single-member shape again.
+  const { assignedMemberId, ...rest } = payload as unknown as LegacyScheduled
+  const v5: ClassSessionScheduledPayload = {
+    ...(rest as Omit<ClassSessionScheduledPayload, 'assignedMemberIds'>),
+    assignedMemberIds: assignedMemberId ? [assignedMemberId] : [],
+  }
+  if (version === 5) return v5
 
   //   v4 → v5: the third kind again — a v4 session had no content label because the idea did not
   //     exist, so its service name was the whole answer. `null` states that; it does not guess.
-  if (version === 4) {
-    return { ...(payload as unknown as ClassSessionScheduledV4), contentLabel: null }
-  }
+  if (version === 4) return { ...v5, contentLabel: null }
 
   if (version === 3) {
-    const v3 = payload as unknown as ClassSessionScheduledV3
-    return { ...v3, admission: defaultAdmission(v3.category), contentLabel: null }
+    return { ...v5, admission: defaultAdmission(v5.category), contentLabel: null }
   }
 
-  const withAssignment: ClassSessionScheduledV2 =
-    version >= 2
-      ? (payload as unknown as ClassSessionScheduledV2)
-      : { ...(payload as unknown as ClassSessionScheduledV1), assignedMemberId: null }
-
   return {
-    ...withAssignment,
+    ...v5,
     cancellationWindowHours: null, // not recorded by v1/v2 — and not inventable
     cancellationWindowSource: null,
-    admission: defaultAdmission(withAssignment.category),
+    admission: defaultAdmission(v5.category),
     contentLabel: null,
   }
 }

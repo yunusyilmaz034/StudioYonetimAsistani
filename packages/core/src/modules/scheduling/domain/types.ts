@@ -301,20 +301,23 @@ export interface ClassSession {
   // D13 (v1.21, final — owner 2026-07-12) — PT ownership is MODELLED, never inferred from
   // whether a reservation happens to exist. Only meaningful when category === 'private':
   //
-  //   • null → an OPEN PT slot. This is the default and it is NOT "unavailable" or "hidden":
-  //            any member whose package covers the PT service sees it and may book it, under
-  //            the ordinary capacity and eligibility rules. Booking it does NOT assign it —
-  //            the field stays null. Fullness is governed by `capacity`, never by this field
-  //            (a future partner/duo PT may have capacity 2).
+  //   • [] → an OPEN PT slot. This is the default and it is NOT "unavailable" or "hidden":
+  //          any member whose package covers the PT service sees it and may book it, under
+  //          the ordinary capacity and eligibility rules. Booking it does NOT assign it —
+  //          the list stays empty. Fullness is governed by `capacity`, never by this field.
   //
-  //   • set  → a RESERVED slot: it belongs to that member. Only she sees it and only she may
-  //            be booked into it (I-9.9) — even a member with a valid PT package cannot.
-  //            Clearing it turns the slot back into an open one.
+  //   • set → a RESERVED slot: it belongs to the members named here. Only they see it and only
+  //          they may be booked into it (I-9.9) — even a member with a valid PT package cannot.
+  //          Emptying the list turns the slot back into an open one.
   //
-  // Ownership is INDEPENDENT of capacity. There is deliberately no `capacity === 1` rule.
-  // Sessions created before D13 have no field ⇒ read as null ⇒ an open PT slot, which is
-  // exactly what they were. Never backfilled.
-  readonly assignedMemberId: MemberId | null
+  // MANY names, not one (owner, 2026-09-16): a düet is one private session reserved for two
+  // people, and the owner may seat three if she says so. The only ceiling is `capacity` — more
+  // names than seats would promise a place that does not exist.
+  //
+  // Sessions created before D13 have no field ⇒ read as [] ⇒ an open PT slot, which is exactly
+  // what they were. A session written before the list existed carries ONE name, and the mapper
+  // reads it as a one-element list. Never backfilled.
+  readonly assignedMemberIds: readonly MemberId[]
   readonly startsAt: Instant
   readonly endsAt: Instant
   readonly capacity: number

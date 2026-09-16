@@ -5,7 +5,6 @@ import {
   type ActorRef,
   type AggregateKind,
   type BranchId,
-  type Category,
   type CorrelationId,
   type DomainError,
   type EventRelated,
@@ -88,12 +87,12 @@ function base(
   }
 }
 
-// D13 — the PT capacity band. Ownership is independent of capacity (a reserved slot may be a
-// partner PT), but a PRIVATE session may never seat more than two.
-const PT_MAX_CAPACITY = 2
-function ptCapacity_(category: Category, capacity: number): Result<never, DomainError> | null {
-  return category === 'private' && capacity > PT_MAX_CAPACITY
-    ? err({ code: 'pt_capacity_exceeded', maxCapacity: PT_MAX_CAPACITY, capacity })
+// Düet (owner, 2026-09-16) — a private session's head count is the OWNER's call: 1 is one-on-one,
+// 2 is a düet, more is whatever she sells. The old two-person ceiling is deliberately gone. The
+// only rule left is arithmetic: a session may never name more members than it has seats.
+function assignmentFits_(assigned: readonly unknown[], capacity: number): Result<never, DomainError> | null {
+  return assigned.length > capacity
+    ? err({ code: 'assignment_exceeds_capacity', assignedCount: assigned.length, capacity })
     : null
 }
 
@@ -290,29 +289,30 @@ export function decideScheduleSession(
   }
   // D13 — a member may only be assigned to a PRIVATE session. Assigning one to a group class
   // would mean "this Reformer class belongs to Elif", which is not a thing.
-  if (session.assignedMemberId !== null && session.category !== 'private') {
+  if (session.assignedMemberIds.length > 0 && session.category !== 'private') {
     return err({ code: 'assignment_requires_private_session' })
   }
-  // D13 (owner, 2026-07-12) — PT is 1-on-1 (capacity 1) or partner PT (capacity 2). Three or
-  // more is a group class wearing a PT label, and it would be sold, staffed and priced wrong.
-  // The band is enforced HERE, not in the form: a rule that only exists in the UI is not a rule.
-  const ptBand = ptCapacity_(session.category, session.capacity)
-  if (ptBand) return ptBand
+  const tooMany = assignmentFits_(session.assignedMemberIds, session.capacity)
+  if (tooMany) return tooMany
+  // The event's `related.memberId` is a single field, so it is only meaningful when the session
+  // belongs to exactly one person. A düet relates to nobody in particular — the payload carries
+  // both names, and that is where the truth lives.
+  const soleAssignee = session.assignedMemberIds.length === 1 ? session.assignedMemberIds[0] : undefined
   return ok([
     {
       ...base(ctx, 'classSession', session.id, session.branchId, {
         classSessionId: session.id,
         ...(session.trainerId ? { trainerId: session.trainerId } : {}),
-        ...(session.assignedMemberId ? { memberId: session.assignedMemberId } : {}),
+        ...(soleAssignee ? { memberId: soleAssignee } : {}),
       }),
       type: CLASS_SESSION_SCHEDULED,
-      version: CLASS_SESSION_SCHEDULED_VERSION, // v2 — carries assignedMemberId (D13)
+      version: CLASS_SESSION_SCHEDULED_VERSION, // v6 — carries assignedMemberIds (düet)
       payload: {
         serviceId: session.serviceId,
         branchId: session.branchId,
         roomId: session.roomId,
         trainerId: session.trainerId,
-        assignedMemberId: session.assignedMemberId,
+        assignedMemberIds: session.assignedMemberIds,
         category: session.category,
         startsAt: session.startsAt,
         endsAt: session.endsAt,
@@ -419,31 +419,38 @@ export function decideUpdateStudioSettings(
   ])
 }
 
-// D13 — assign a private session to a member, re-assign it, or release it back to studio
-// inventory (`to: null`).
+// D13 — reserve a private session for one or more members, change who they are, or release it
+// back to studio inventory (an empty list).
 //
-// Guarded by `bookedCount === 0`: once someone is booked into the slot, re-assigning it would
-// silently leave a reservation belonging to a member who no longer owns the session. Cancel the
-// reservation first — that is an explicit act, with its own event, and its own credit effect.
+// ADDING a name while someone is booked is allowed, and it has to be: that is exactly how a düet
+// fills — the first person books, then the second name is added. REMOVING one is not, because the
+// booked member may be the very name being removed, and her reservation would outlive her claim
+// to the seat. Cancel the reservation first: an explicit act, with its own event and credit effect.
 export function decideAssignSessionMember(
   ctx: DecideContext,
   session: ClassSession,
-  to: MemberId | null,
+  to: readonly MemberId[],
 ): Result<NewEvent[], DomainError> {
   if (session.category !== 'private') return err({ code: 'assignment_requires_private_session' })
   if (session.status !== 'scheduled' || session.startsAt <= ctx.now) {
     return err({ code: 'session_not_editable' })
   }
-  if (session.assignedMemberId === to) return ok([]) // idempotent
-  if (session.bookedCount > 0) return err({ code: 'session_has_reservations' })
+  const from = session.assignedMemberIds
+  const same = from.length === to.length && from.every((id) => to.includes(id))
+  if (same) return ok([]) // idempotent
+  const tooMany = assignmentFits_(to, session.capacity)
+  if (tooMany) return tooMany
+  const removed = from.filter((id) => !to.includes(id))
+  if (removed.length > 0 && session.bookedCount > 0) return err({ code: 'session_has_reservations' })
+  const sole = to.length === 1 ? to[0] : undefined
   return ok([
     {
       ...base(ctx, 'classSession', session.id, session.branchId, {
         classSessionId: session.id,
-        ...(to ? { memberId: to } : {}),
+        ...(sole ? { memberId: sole } : {}),
       }),
       type: CLASS_SESSION_ASSIGNED,
-      payload: { from: session.assignedMemberId, to },
+      payload: { from, to },
     },
   ])
 }
@@ -571,8 +578,10 @@ export function decideChangeCapacity(
   if (started) return started
   const bad = reason_(reason)
   if (bad) return bad
-  const ptBand = ptCapacity_(session.category, toCapacity)
-  if (ptBand) return ptBand
+  // Seats may not fall below the names already promised a place, for the same reason they may
+  // not fall below the bookings.
+  const tooMany = assignmentFits_(session.assignedMemberIds, toCapacity)
+  if (tooMany) return tooMany
   if (toCapacity < session.bookedCount) {
     return err({ code: 'capacity_below_booked', bookedCount: session.bookedCount })
   }

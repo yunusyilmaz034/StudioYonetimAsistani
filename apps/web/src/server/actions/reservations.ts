@@ -283,8 +283,9 @@ export async function listMoveTargetsAction(input: unknown): Promise<readonly Mo
         s.category === reservation.sessionCategory &&
         (current ? s.serviceId === current.serviceId : true) &&
         s.bookedCount < s.capacity &&
-        // An assigned PT slot belongs to someone; only its owner may be moved into it (I-9.9).
-        (s.assignedMemberId == null || s.assignedMemberId === reservation.memberId),
+        // An assigned PT slot belongs to the members it names; only one of them may be moved
+        // into it (I-9.9).
+        (s.assignedMemberIds.length === 0 || s.assignedMemberIds.includes(reservation.memberId)),
     )
     .sort((a, b) => a.startsAt - b.startsAt)
     .slice(0, 40)

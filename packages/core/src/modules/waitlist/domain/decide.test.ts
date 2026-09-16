@@ -43,7 +43,7 @@ const full = (over: Partial<ClassSession> = {}): ClassSession => ({
   roomId: 'rom_1' as RoomId,
   trainerId: null,
   templateId: null,
-  assignedMemberId: null,
+  assignedMemberIds: [],
   category: 'pilates_group',
   startsAt: instant(NOW + 24 * H),
   endsAt: instant(NOW + 25 * H),

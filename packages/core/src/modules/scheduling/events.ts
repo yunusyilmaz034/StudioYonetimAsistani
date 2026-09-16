@@ -53,8 +53,11 @@ export const STUDIO_SETTINGS_UPDATED = 'studio.settings_updated'
 //   v5 (Fit Paket, 2026-08-20) adds `contentLabel` — what this occurrence actually is when the
 //      service is a container ("Fit Paket" → CrossFit / Pilates Mat). `null` on anything older,
 //      and that is a fact too: the concept did not exist, so the service name WAS the answer.
+//   v6 (düet, 2026-09-16) turns `assignedMemberId` into `assignedMemberIds`. A private session
+//      may be reserved for SEVERAL named members. A v5 event named at most one, so its list is
+//      exactly that one name (or empty) — a fact about v5, not a guess.
 // Every other type is still v1.
-export const CLASS_SESSION_SCHEDULED_VERSION = 5
+export const CLASS_SESSION_SCHEDULED_VERSION = 6
 
 export type ServiceCreatedPayload = {
   readonly name: string
@@ -95,7 +98,8 @@ export type ClassSessionScheduledPayload = {
   readonly branchId: BranchId
   readonly roomId: RoomId | null
   readonly trainerId: StaffUserId | null
-  readonly assignedMemberId: MemberId | null
+  // v6 — the members this session is reserved for. Empty ⇒ an open slot.
+  readonly assignedMemberIds: readonly MemberId[]
   readonly category: Category
   readonly startsAt: Instant
   readonly endsAt: Instant
@@ -118,11 +122,11 @@ export type StudioSettingsUpdatedPayload = {
   readonly previousDefaultCancellationWindowHours: number | null
 }
 
-// D13 — assignment changed after the session was created (assigned, re-assigned, or released
-// back to studio inventory). `to: null` is a release.
+// D13 — assignment changed after the session was created (assigned, re-assigned, a name added
+// to a düet, or released back to studio inventory). An empty `to` is a release.
 export type ClassSessionAssignedPayload = {
-  readonly from: MemberId | null
-  readonly to: MemberId | null
+  readonly from: readonly MemberId[]
+  readonly to: readonly MemberId[]
 }
 export type ClassSessionCancelledPayload = {
   readonly reason: string

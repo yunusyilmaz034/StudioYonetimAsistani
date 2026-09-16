@@ -57,7 +57,7 @@ const session = (over: Partial<ClassSession> = {}, p: SessionPolicySnapshot = po
   roomId: null,
   trainerId: null,
   templateId: null,
-  assignedMemberId: null,
+  assignedMemberIds: [],
   category: 'pilates_group',
   startsAt: instant(NOW - 2 * H),
   endsAt: instant(NOW - H),

@@ -28,7 +28,7 @@ const sess = (): ClassSession => ({
   roomId: 'rom_1' as RoomId,
   trainerId: null,
   templateId: null,
-  assignedMemberId: null,
+  assignedMemberIds: [],
   category: 'pilates_group',
   startsAt: instant(NOW + 2 * D),
   endsAt: instant(NOW + 2 * D + 3_600_000),

@@ -69,7 +69,7 @@ function session(over: Partial<ClassSession> = {}, pol: SessionPolicySnapshot = 
     roomId: 'rom_1' as RoomId,
     trainerId: null,
     templateId: null,
-    assignedMemberId: null,
+    assignedMemberIds: [],
     category: 'pilates_group',
     startsAt: instant(NOW + 24 * H),
     endsAt: instant(NOW + 25 * H),
@@ -277,8 +277,8 @@ describe('decideBooking (I-9)', () => {
   })
 
   // ── D13 / I-9.9 — PT ownership ────────────────────────────────────────────────
-  const ptSession = (assignedMemberId: MemberId | null) =>
-    session({ category: 'private', assignedMemberId })
+  const ptSession = (...assignedMemberIds: readonly MemberId[]) =>
+    session({ category: 'private', assignedMemberIds })
   const ptEnt = () =>
     creditEnt({
       productSnapshot: {
@@ -307,18 +307,18 @@ describe('decideBooking (I-9)', () => {
 
   it('an OPEN PT slot (unassigned) is bookable by any eligible member — it is not hidden', () => {
     // D13 final (owner): null does NOT mean "unavailable". It is the default, and it is open.
-    const r = book(ptSession(null), ptEnt(), bookInput, false)
+    const r = book(ptSession(), ptEnt(), bookInput, false)
     expect(r.ok).toBe(true)
   })
 
-  it('booking an OPEN PT slot does NOT assign it — the field stays null', () => {
+  it('booking an OPEN PT slot does NOT assign it — the list stays empty', () => {
     // Ownership is never acquired by booking. A second member may still take the next seat if
-    // capacity allows (a future partner/duo PT has capacity 2).
-    const open = ptSession(null)
+    // capacity allows — that is exactly how an open düet fills.
+    const open = ptSession()
     const r = book(open, ptEnt(), bookInput, false)
     expect(r.ok).toBe(true)
     if (r.ok) {
-      expect(open.assignedMemberId).toBeNull() // the decider produced no assignment
+      expect(open.assignedMemberIds).toEqual([]) // the decider produced no assignment
       expect(r.value.events.every((e) => e.type !== 'class_session.assigned')).toBe(true)
       expect(r.value.reservation.classSessionId).toBe('cls_1')
     }
@@ -326,9 +326,9 @@ describe('decideBooking (I-9)', () => {
 
   it('an OPEN PT slot fills by CAPACITY, not by ownership', () => {
     // capacity 2, one seat taken → still bookable. Nothing about assignment is consulted.
-    const duo = session({ category: 'private', assignedMemberId: null, capacity: 2, bookedCount: 1 })
+    const duo = session({ category: 'private', assignedMemberIds: [], capacity: 2, bookedCount: 1 })
     expect(book(duo, ptEnt(), bookInput, false).ok).toBe(true)
-    const full = session({ category: 'private', assignedMemberId: null, capacity: 2, bookedCount: 2 })
+    const full = session({ category: 'private', assignedMemberIds: [], capacity: 2, bookedCount: 2 })
     expect(book(full, ptEnt(), bookInput, false)).toEqual({
       ok: false,
       error: { code: 'class_full', capacity: 2 },
@@ -338,11 +338,11 @@ describe('decideBooking (I-9)', () => {
   it('reception may book an eligible member into an OPEN PT slot (ctx.actor is reception)', () => {
     // The refusal is by MEMBER, not by actor — and an open slot has no member to refuse for.
     expect(ctx.actor.type).toBe('receptionist')
-    expect(book(ptSession(null), ptEnt(), bookInput, false).ok).toBe(true)
+    expect(book(ptSession(), ptEnt(), bookInput, false).ok).toBe(true)
   })
 
   it('the ownership refusal precedes the capacity check — a full slot that is not hers still says so', () => {
-    const full = session({ category: 'private', assignedMemberId: 'mem_2' as MemberId, bookedCount: 8 })
+    const full = session({ category: 'private', assignedMemberIds: ['mem_2' as MemberId], bookedCount: 8 })
     expect(book(full, ptEnt(), bookInput, false)).toEqual({
       ok: false,
       error: { code: 'session_not_assigned_to_member' },
@@ -685,7 +685,7 @@ describe('decideMove', () => {
     ['a full target class', () => target({ bookedCount: 8, capacity: 8 }), {}, false, 'class_full'],
     ['a cancelled target class', () => target({ status: 'cancelled' }), {}, false, 'session_not_bookable'],
     ['a target in the past', () => target({ startsAt: instant(NOW - H), endsAt: instant(NOW) }), {}, false, 'session_not_bookable'],
-    ["another member's PT slot", () => target({ assignedMemberId: 'mem_9' as MemberId }), {}, false, 'session_not_assigned_to_member'],
+    ["another member's PT slot", () => target({ assignedMemberIds: ['mem_9' as MemberId]}), {}, false, 'session_not_assigned_to_member'],
     ['a target in another category', () => target({ category: 'fitness' }), {}, false, 'category_mismatch'],
     ['a target the package expires before', () => target(), { validUntil: instant(NOW + H) }, false, 'entitlement_expires_before_session'],
     ['a class she is already booked into', () => target(), {}, true, 'already_booked'],

@@ -116,6 +116,14 @@ linkleri `853d273` → `build-2026-09-15-003` (rollout izleniyor):
     açık kalan sayfa yeni deploy'dan sonra kendi Server Action'ını bulamıyor ("Failed to find Server Action"). Sohbetler
     ve WhatsApp dock'u artık bunu tanıyıp "yeni sürüm var, sayfa yenileniyor" deyip 1,2 sn sonra kendini yeniliyor
     (`isStaleDeployment`). Deploy'dan sonra "yenile" demeyi bu iki ekran için unutabilirsin, diğerleri hâlâ elle.
+  - **Düet / özel ders kişi sayısı ([[OR-89]])** (16 Eylül akşamı, HENÜZ DEPLOY EDİLMEDİ): özel derste kapasite
+    serbest (2, 3, …) ve ders **birden fazla isme** ayrılabiliyor. `ClassSession.assignedMemberId` →
+    `assignedMemberIds`; `class_session.scheduled` **v6** + upcaster (v5'in tek ismi tek elemanlı liste olur);
+    `class_session.assigned` artık iki liste taşıyor (`from`/`to`). Eski seans belgeleri tekil alandan okunuyor
+    (`sessionFromFirestore`), hiçbir şey geriye dönük yazılmadı. Kaldırılan kural: `pt_capacity_exceeded`
+    (PT en fazla 2 kişi) → yerine `assignment_exceeds_capacity` (isim sayısı > koltuk).
+    **Deneme:** Ders Ajandası → Yeni Seans → PT → Kapasite 2 → "Belirli üyelere ayır" → iki isim seç → kaydet;
+    sonra seansı aç, "PT ataması" kutusunda iki isim görünmeli ve üçüncü isim ancak kapasite artınca eklenebilmeli.
 
 **Numara (owner düzeltti, 15 Eylül):** aktif reklam **AI hattına** gidiyor (0533'ten farklı bir numara). 0533 199 41 23
 stüdyonun telefonu; AI mevcut üyelerin satış dışı sorularını oraya yönlendiriyor (`whoBlock` + bilgi kartı İLETİŞİM).

@@ -19,9 +19,9 @@ import { listEligibleMembersForServiceAction, scheduleSessionAction } from '@/se
 import type { ScheduleData } from '@/server/schedule-query'
 
 const NONE = '__none__'
-// D13 — the PT capacity band (owner): 1 = one-on-one, 2 = partner PT. Three or more is a group
-// class. The DOMAIN enforces this (`pt_capacity_exceeded`); the form just avoids the round-trip.
-const PT_MAX_CAPACITY = 2
+// Düet (owner, 2026-09-16) — a private session's head count is the owner's call: 1 is one-on-one,
+// 2 is a düet, more if she sells it that way. No band here and none in the domain; the only rule
+// is that a session may not name more members than it has seats.
 
 function Field({ id, label, children }: { id: string; label: string; children: React.ReactNode }) {
   return (
@@ -51,9 +51,10 @@ export function SessionForm({
   const [durationMinutes, setDurationMinutes] = useState(60)
   const [capacity, setCapacity] = useState(8)
   // D13 — PT assignment, chosen at creation. 'open' is the DEFAULT business model: any member
-  // with a PT package sees the slot and may book it. 'member' reserves it for one person.
+  // with a PT package sees the slot and may book it. 'member' reserves it for the named people —
+  // one for a birebir PT, two for a düet (owner, 2026-09-16).
   const [ptMode, setPtMode] = useState<'open' | 'member'>('open')
-  const [ptMemberId, setPtMemberId] = useState<string | null>(null)
+  const [ptMemberIds, setPtMemberIds] = useState<readonly string[]>([])
   const [members, setMembers] = useState<readonly BookingMember[] | null>(null)
   const [memberQuery, setMemberQuery] = useState('')
   // D14 — level 1 of the cancellation chain. Empty ⇒ inherit the service, then the studio.
@@ -90,16 +91,15 @@ export function SessionForm({
   const selectedService = data.services.find((s) => s.id === serviceId) ?? null
   const isPt = selectedService?.category === 'private'
 
-  // Switching to a PT service pulls capacity into the 1–2 band (default 1: one-on-one);
-  // switching away restores a group-sized default. The domain enforces the band regardless —
-  // this only spares the owner a pointless refusal.
+  // Switching to a private service proposes one-on-one (the common case) but nothing forces it:
+  // the owner types 2 for a düet, or more. Switching away restores a group-sized default.
   useEffect(() => {
     if (isPt) {
-      setCapacity((c) => (c >= 1 && c <= PT_MAX_CAPACITY ? c : 1))
+      setCapacity((c) => (c <= 4 ? c : 1))
     } else {
       setPtMode('open')
-      setPtMemberId(null)
-      setCapacity((c) => (c === 1 || c === 2 ? 8 : c))
+      setPtMemberIds([])
+      setCapacity((c) => (c <= 4 ? 8 : c))
     }
   }, [isPt])
 
@@ -111,7 +111,7 @@ export function SessionForm({
     if (ptMode !== 'member' || !serviceId) return
     let alive = true
     setMembers(null)
-    setPtMemberId(null)
+    setPtMemberIds([])
     listEligibleMembersForServiceAction({ serviceId, startsAt: startsAtMs })
       .then((m) => alive && setMembers(m))
       .catch(() => {
@@ -187,7 +187,10 @@ export function SessionForm({
   const filteredMembers = (members ?? []).filter(
     (m) => q === '' || foldTr(m.fullName).includes(q) || m.phone.includes(q),
   )
-  const chosenMember = (members ?? []).find((m) => m.id === ptMemberId) ?? null
+  // The names already chosen, in the order they were picked. The search list below hides them.
+  const chosenMembers = ptMemberIds
+    .map((id) => (members ?? []).find((m) => m.id === id))
+    .filter((m): m is BookingMember => m !== undefined)
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -195,7 +198,7 @@ export function SessionForm({
       setError('Bir ders seçin.')
       return
     }
-    if (isPt && ptMode === 'member' && !ptMemberId) {
+    if (isPt && ptMode === 'member' && ptMemberIds.length === 0) {
       setError('Seansı ayırmak istediğiniz üyeyi seçin.')
       return
     }
@@ -214,7 +217,7 @@ export function SessionForm({
         startTime,
         durationMinutes,
         capacity,
-        assignedMemberId: isPt && ptMode === 'member' ? ptMemberId : null,
+        assignedMemberIds: isPt && ptMode === 'member' ? ptMemberIds : [],
         cancellationWindowHours: cancelWindow,
         ...(contentLabel.trim() ? { contentLabel: contentLabel.trim() } : {}),
         ...(openToOthers && selectedService && guestCategory !== selectedService.category
@@ -324,16 +327,10 @@ export function SessionForm({
             onValueChange={setDurationMinutes}
           />
         </Field>
-        <Field id="s-cap" label={isPt ? 'Kapasite (PT: 1–2)' : 'Kapasite'}>
-          <NumberInput
-            id="s-cap"
-            min={1}
-            max={isPt ? PT_MAX_CAPACITY : undefined}
-            value={capacity}
-            onValueChange={setCapacity}
-          />
+        <Field id="s-cap" label="Kapasite">
+          <NumberInput id="s-cap" min={1} value={capacity} onValueChange={setCapacity} />
           {isPt ? (
-            <p className="mt-1.5 text-xs text-muted-foreground">1 = birebir PT · 2 = partner PT</p>
+            <p className="mt-1.5 text-xs text-muted-foreground">1 = birebir · 2 = düet · daha fazlası da olabilir</p>
           ) : null}
         </Field>
       </div>
@@ -353,7 +350,7 @@ export function SessionForm({
               checked={ptMode === 'open'}
               onChange={() => {
                 setPtMode('open')
-                setPtMemberId(null)
+                setPtMemberIds([])
               }}
             />
             <span className="min-w-0">
@@ -373,22 +370,41 @@ export function SessionForm({
               onChange={() => setPtMode('member')}
             />
             <span className="min-w-0">
-              <span className="block text-sm font-medium text-foreground">Belirli üyeye ayır</span>
+              <span className="block text-sm font-medium text-foreground">Belirli üyelere ayır</span>
               <span className="block text-xs text-muted-foreground">
-                Yalnızca seçilen üye bu seansı görebilir ve rezerve edebilir.
+                Yalnızca seçilen üyeler bu seansı görebilir ve rezerve edebilir. Düet için iki isim seçin.
               </span>
             </span>
           </label>
 
           {ptMode === 'member' ? (
             <div className="space-y-2 pl-6">
-              {chosenMember ? (
-                <div className="flex items-center justify-between gap-2 rounded-lg border border-border bg-surface px-3 py-2">
-                  <span className="truncate text-sm font-medium text-foreground">{chosenMember.fullName}</span>
-                  <Button type="button" variant="ghost" size="sm" onClick={() => setPtMemberId(null)}>
-                    Değiştir
-                  </Button>
-                </div>
+              {chosenMembers.length > 0 ? (
+                <ul className="space-y-1.5">
+                  {chosenMembers.map((m) => (
+                    <li
+                      key={m.id}
+                      className="flex items-center justify-between gap-2 rounded-lg border border-border bg-surface px-3 py-2"
+                    >
+                      <span className="truncate text-sm font-medium text-foreground">{m.fullName}</span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setPtMemberIds((ids) => ids.filter((id) => id !== m.id))}
+                      >
+                        Çıkar
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+              {/* Seats are the ceiling, exactly as the domain says. A full list stops asking for
+                  more names instead of letting the server refuse them. */}
+              {ptMemberIds.length >= capacity ? (
+                <p className="text-xs text-muted-foreground">
+                  {capacity} kişilik seans dolu. Daha fazla isim için kapasiteyi artırın.
+                </p>
               ) : (
                 <>
                   <Input
@@ -404,7 +420,7 @@ export function SessionForm({
                         <li key={m.id}>
                           <button
                             type="button"
-                            onClick={() => setPtMemberId(m.id)}
+                            onClick={() => setPtMemberIds((ids) => (ids.includes(m.id) ? ids : [...ids, m.id]))}
                             className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm transition-colors hover:bg-primary-soft/40"
                           >
                             <span className="truncate font-medium text-foreground">{m.fullName}</span>

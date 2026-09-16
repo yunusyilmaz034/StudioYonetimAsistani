@@ -88,9 +88,9 @@ export function domainErrorMessage(error: DomainError): string {
     case 'product_requires_service':
       return 'Paketin kapsadığı en az bir ders seçilmelidir.'
     case 'session_not_assigned_to_member':
-      return 'Bu PT seansı başka bir üyeye ayrılmış. Yalnızca ayrıldığı üye rezerve edilebilir.'
-    case 'pt_capacity_exceeded':
-      return `PT seansı en fazla ${error.maxCapacity} kişilik olabilir (birebir veya partner PT). Daha kalabalık bir ders grup dersi olarak açılmalıdır.`
+      return 'Bu özel ders başka üyelere ayrılmış. Yalnızca ayrıldığı üyeler rezerve edilebilir.'
+    case 'assignment_exceeds_capacity':
+      return `Bu seansta ${error.capacity} kişilik yer var, ${error.assignedCount} üye ayrılmak isteniyor. Önce kapasiteyi artırın.`
     case 'member_not_eligible_for_service':
       return 'Bu üyenin bu PT hizmetini kapsayan aktif bir paketi yok. Önce uygun bir paket tanımlayın.'
     case 'assignment_requires_private_session':

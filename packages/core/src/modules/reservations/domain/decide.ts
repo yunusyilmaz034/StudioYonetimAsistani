@@ -213,10 +213,11 @@ export function decideBooking(
   // ordinary rules allow, and booking it does NOT assign it. Capacity governs fullness, not
   // this field.
   //
-  // `?? null` on purpose: a session document written before D13 has no field at all, and a
-  // MISSING assignment means OPEN — never "assigned to nobody-in-particular".
-  const assignedTo = session.assignedMemberId ?? null
-  if (assignedTo !== null && assignedTo !== input.memberId) {
+  // `?? []` on purpose: a session document written before D13 has no field at all, and a
+  // MISSING assignment means OPEN — never "assigned to nobody-in-particular". A düet names
+  // several members; the seat is hers if she is one of them.
+  const assignedTo = session.assignedMemberIds ?? []
+  if (assignedTo.length > 0 && !assignedTo.includes(input.memberId)) {
     return err({ code: 'session_not_assigned_to_member' })
   }
   // I-9.2
@@ -393,8 +394,8 @@ export function decideMove(
   // The TARGET must satisfy every booking precondition (I-9) — a move is not a back door around
   // the category wall, the service wall, PT ownership or a full class.
   if (to.status !== 'scheduled' || to.startsAt <= ctx.now) return err({ code: 'session_not_bookable' })
-  const assignedTo = to.assignedMemberId ?? null
-  if (assignedTo !== null && assignedTo !== reservation.memberId) {
+  const assignedTo = to.assignedMemberIds ?? []
+  if (assignedTo.length > 0 && !assignedTo.includes(reservation.memberId)) {
     return err({ code: 'session_not_assigned_to_member' })
   }
   if (occupiedSeats(to) >= to.capacity) return err({ code: 'class_full', capacity: to.capacity })

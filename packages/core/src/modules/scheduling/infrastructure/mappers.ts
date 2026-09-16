@@ -135,7 +135,7 @@ export function sessionToFirestore(s: ClassSession): DocumentData {
     trainerId: s.trainerId,
     templateId: s.templateId,
     category: s.category,
-    assignedMemberId: s.assignedMemberId,
+    assignedMemberIds: s.assignedMemberIds,
     startsAt: toTs(s.startsAt),
     endsAt: toTs(s.endsAt),
     capacity: s.capacity,
@@ -184,9 +184,12 @@ export function sessionFromFirestore(id: ClassSessionId, d: DocumentData): Class
     trainerId: (d.trainerId as StaffUserId | null) ?? null,
     templateId: (d.templateId as ClassTemplateId | null) ?? null,
     category: d.category as Category,
-    // D13 — pre-D13 sessions have no field: they were unassigned studio inventory, and that
-    // is exactly what `null` means. Never backfilled.
-    assignedMemberId: (d.assignedMemberId as MemberId | null) ?? null,
+    // D13 — pre-D13 sessions have no field: they were unassigned studio inventory, and that is
+    // exactly what an empty list means. Sessions written before the düet change carry a single
+    // `assignedMemberId`, which reads as a one-element list. Neither is ever backfilled.
+    assignedMemberIds:
+      (d.assignedMemberIds as MemberId[] | undefined) ??
+      (d.assignedMemberId ? [d.assignedMemberId as MemberId] : []),
     startsAt: fromTs(d.startsAt as Timestamp),
     endsAt: fromTs(d.endsAt as Timestamp),
     capacity: d.capacity as number,

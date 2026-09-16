@@ -229,8 +229,9 @@ export async function scheduleSessionAction(input: unknown) {
       startTime: time,
       durationMinutes: z.number().int().min(1),
       capacity: z.number().int().min(1),
-      // D13 — assign at CREATION: null ⇒ an open PT slot (the default business model).
-      assignedMemberId: z.string().nullable().optional(),
+      // D13 — assign at CREATION: empty ⇒ an open PT slot (the default business model).
+      // Several names make a düet (owner, 2026-09-16); the decider refuses more names than seats.
+      assignedMemberIds: z.array(nonEmpty).max(20).optional(),
       // D14 — level 1 of the chain. Omitted ⇒ inherit the service, then the studio.
       cancellationWindowHours: z.number().int().min(0).max(720).nullable().optional(),
       // Fit Paket (2026-08-20) — who this session admits, and any per-category weekly cap.
@@ -247,12 +248,12 @@ export async function scheduleSessionAction(input: unknown) {
     })
     .parse(input)
   const ctx = await requireTenantContext(OPS)
-  // D13 — the client's memberId is never trusted on its own: re-verify eligibility here.
-  if (p.assignedMemberId) {
+  // D13 — the client's member ids are never trusted on their own: re-verify EACH one here.
+  for (const memberId of p.assignedMemberIds ?? []) {
     const bad = await assertEligible(
       ctx,
       p.serviceId as ServiceId,
-      p.assignedMemberId as MemberId,
+      memberId as MemberId,
       sessionStartMs(p.date, p.startTime),
     )
     if (bad) return { ok: false as const, error: bad }
@@ -264,7 +265,7 @@ export async function scheduleSessionAction(input: unknown) {
     // "explicitly undefined" stay different things — which is the whole point of the default.
     ...(admission ? { admission: admission as SessionAdmission } : {}),
     ...(contentLabel ? { contentLabel } : {}),
-    assignedMemberId: (p.assignedMemberId ?? null) as MemberId | null,
+    assignedMemberIds: (p.assignedMemberIds ?? []) as MemberId[],
     cancellationWindowHours: p.cancellationWindowHours ?? null,
     serviceId: p.serviceId as ServiceId,
     branchId: p.branchId as BranchId,
@@ -402,25 +403,28 @@ export async function getStudioDefaultsAction(): Promise<{
   }
 }
 
-// D13 — assign a PT (private) session to a member, or release it (memberId: null). All the
-// guards live in the decider: private only, not started, no reservations yet.
+// D13 — reserve a PT (private) session for one or more members (düet), or release it (an empty
+// list). All the guards live in the decider: private only, not started, names ≤ seats, and no
+// removal while someone is booked.
 export async function assignSessionMemberAction(input: unknown) {
-  const p = z.object({ sessionId: nonEmpty, memberId: z.string().nullable() }).parse(input)
+  const p = z.object({ sessionId: nonEmpty, memberIds: z.array(nonEmpty).max(20) }).parse(input)
   const ctx = await requireTenantContext(OPS)
   // D13 — reserving a slot FOR someone only makes sense if she could actually book it.
-  if (p.memberId) {
+  if (p.memberIds.length > 0) {
     const session = await new FirestoreSchedulingRepository(adminDb()).getSession(
       ctx,
       p.sessionId as ClassSessionId,
     )
     if (session) {
-      const bad = await assertEligible(ctx, session.serviceId, p.memberId as MemberId, session.startsAt)
-      if (bad) return { ok: false as const, error: bad }
+      for (const memberId of p.memberIds) {
+        const bad = await assertEligible(ctx, session.serviceId, memberId as MemberId, session.startsAt)
+        if (bad) return { ok: false as const, error: bad }
+      }
     }
   }
   return assignSessionMember(deps(), ctx, {
     sessionId: p.sessionId as ClassSessionId,
-    memberId: (p.memberId ?? null) as MemberId | null,
+    memberIds: p.memberIds as MemberId[],
   })
 }
 

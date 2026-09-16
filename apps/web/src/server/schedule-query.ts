@@ -28,9 +28,10 @@ export interface CalendarSession {
   readonly branchId: string
   readonly branchName: string
   readonly category: string
-  // D13 — PT ownership: the member this private slot belongs to (null = studio inventory).
-  readonly assignedMemberId: string | null
-  readonly assignedMemberName: string | null
+  // D13 — PT ownership: the members this private slot belongs to (empty = studio inventory).
+  // Several names are a düet (owner, 2026-09-16).
+  readonly assignedMemberIds: readonly string[]
+  readonly assignedMemberNames: readonly string[]
   readonly startsAt: number
   readonly endsAt: number
   readonly capacity: number
@@ -138,7 +139,7 @@ export async function loadSchedule(ctx: TenantContext, dateStr: string): Promise
 
   // D13 — names for assigned PT slots. One extra read, and ONLY when a PT slot is actually
   // assigned in this window; a month with no PT costs nothing.
-  const assignedIds = new Set(sessions.map((s) => s.assignedMemberId).filter((id): id is MemberId => id !== null))
+  const assignedIds = new Set(sessions.flatMap((s) => s.assignedMemberIds as MemberId[]))
   const memberNames = new Map<string, string>()
   if (assignedIds.size > 0) {
     for (const m of await listMembers(ctx)) {
@@ -159,8 +160,12 @@ export async function loadSchedule(ctx: TenantContext, dateStr: string): Promise
       branchId: s.branchId,
       branchName: s.branchName,
       category: s.category,
-      assignedMemberId: s.assignedMemberId,
-      assignedMemberName: s.assignedMemberId ? (memberNames.get(s.assignedMemberId) ?? null) : null,
+      assignedMemberIds: s.assignedMemberIds,
+      // A name we cannot resolve is dropped rather than rendered as a gap: the panel shows who it
+      // knows, and the id list above stays the authority on who owns the slot.
+      assignedMemberNames: s.assignedMemberIds
+        .map((id) => memberNames.get(id))
+        .filter((n): n is string => n !== undefined),
       startsAt: s.startsAt,
       endsAt: s.endsAt,
       capacity: s.capacity,
