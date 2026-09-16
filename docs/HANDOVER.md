@@ -93,6 +93,12 @@ linkleri `853d273` → `build-2026-09-15-003` (rollout izleniyor):
     bütün olayları `occurredAt` sırasına göre oynatır — bugün en son dolar. 16 Eylül'de ilk çalıştırma gRPC hatasıyla
     yarıda kaldı (bugün 26.000 ₺'de kaldı, owner "bunlar niye 0" diye sordu), ikincisi ~1,5 saat sürdü. Gündüz
     çalıştırma; çalıştıracaksan owner'a "rakamlar bitene kadar eksik görünecek" de.
+    **16 Eylül 17:20'de temiz bitti** (22.556 olay) ve rakamlar üç kaynaktan doğrulandı: bugünün olayları,
+    `sales`/`payments` belgeleri ve günlük özet. Pano 117.970 ₺ satış / 108.350 ₺ tahsilat; satış belgelerinin
+    iptalsiz toplamı 118.050 ₺. **Aradaki 80 ₺ hata değil:** dün açılıp bugün iptal edilen dört 20 ₺'lik satışı
+    projeksiyon BUGÜNDEN düşer (geçmiş günün toplamını yeniden yazmamak için — `daily.ts` `sale.cancelled`),
+    rapor ise onları bugünün satışı saymaz. Öğlen görülen 94.550 ₺ / 72.050 ₺ de doğruydu: o, 11:02'ye kadarki
+    toplamdı; 12:24 (18.000 ₺) ve 12:27 (5.500 ₺) satışlarıyla bugünkü hâline ulaştı.
   - **Test hesapları borçlu görünmüyor ([[OR-84]] ailesi):** Borçlular ve Tahsilat raporları artık `excludedMemberIds`
     listesini okuyor (owner: *"Işıl Yılmaz'ı test kullanıcısı gibi davran"*).
   - **Hareket Merkezi ([[OR-87]]):** işleme göre tek satır + açılır ayrıntı; ödeme/tahsilat satırlarında üye adı ve
