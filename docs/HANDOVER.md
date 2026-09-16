@@ -79,6 +79,11 @@ linkleri `853d273` → `build-2026-09-15-003` (rollout izleniyor):
   reddediyor — `decideUpdateProduct` artık yokluğu `null` yazıyor. (3) `whatsappWebhook` eşleyici düzeltmesinden ÖNCE
   deploy edilirse bayrağı okuyamaz: fonksiyon düzeltmeden SONRA yeniden yüklendi.
 
+- **AI satış dili ([[OR-85]])** (16 Eylül 12:02, `settings/ai`): PT hiç spor yapmamışa ÖNCE önerilir (yol haritası +
+  güvenli adaptasyon), PT'de fitness–pilates ayrımı yok (avantaj olarak anlatılır), "hoca var mı" sorusuna fitness /
+  pilates / PT üçlü karşılaştırması. "PT PİLATES 6 AY" her yerde kapalı (AI · public · üye satışı); PT 8 ve PT 16 açık.
+  **Deneme:** AI hattına "hiç spor yapmadım, nereden başlamalıyım" yaz → PT önerisi + gerekçesi + hedef sorusu gelmeli.
+
 **Numara (owner düzeltti, 15 Eylül):** aktif reklam **AI hattına** gidiyor (0533'ten farklı bir numara). 0533 199 41 23
 stüdyonun telefonu; AI mevcut üyelerin satış dışı sorularını oraya yönlendiriyor (`whoBlock` + bilgi kartı İLETİŞİM).
 Görselde 0533 yazması reklamı yönlendirmiyor. **Açık gözlem:** AI hattına 14 Eyl 22:46'dan beri yeni mesaj yok;

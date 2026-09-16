@@ -1809,3 +1809,14 @@ the catalogue and reception keeps selling them, but the WhatsApp assistant never
 instruction: a product's **"AI bu paketin fiyatını verebilir"** switch (Paketler → paket formu) keeps the package out of
 the live facts the model reads. Default is on; an older setup script that does not know the field leaves it as it is.
 
+**OR-85 · PT is the beginner's entry, and it is not split by discipline.** (2026-09-16)
+Owner: a PT package is **not** labelled fitness or pilates — *"kişinin hedefi ve sağlığına en uygun hangisiyse onunla
+başlar, gerekirse hibrit devam ediyoruz"* — and that is sold as an advantage: there is no wrong package to pick. Someone
+who has **never trained** or has been away a long time is offered PT first, with the reason said out loud: a road map
+built with her trainer, and a body that adapts to the movements safely. Said once, never pushed.
+
+The three-way answer when she asks whether fitness has a trainer: **fitness** — first-day measurement, a programme built
+for her goal, loaded into the app with video for every movement, feedback through the app, trainers on the floor to ask
+any time, periodic weight and measurement follow-up; **reformer pilates** — every class led by a trainer, groups of up to
+8, her own reformer; **PT** — entirely hers, the whole session with her trainer. In `settings/ai` (basics + the trainer
+FAQ), not in code. PT 8 and PT 16 stay quotable by the AI; only PT PİLATES 6 AY is desk-only ([[OR-84]]).
