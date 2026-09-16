@@ -79,6 +79,11 @@ function prepare(snap: PatronSnapshot): { block: string; detokenize: (s: string)
     `- Bugün doluluk: ${op.occupancyBooked}/${op.occupancyCapacity}`,
     `- Boş seans: önümüzdeki 48 saatte ${op.emptyNext48h}, 7 günde ${op.emptyNext7d}`,
     '',
+    'YOĞUNLUK (son 30 gün, gerçek kayıtlar):',
+    `- Günlere göre giriş: ${op.busyDays.map((d) => `${d.day} ${d.checkIns}`).join(' · ') || '—'}`,
+    `- Günlere göre satış: ${op.busyDays.filter((d) => d.salesKurus > 0).map((d) => `${d.day} ${tl(d.salesKurus)}`).join(' · ') || '—'}`,
+    `- En dolu saatler (rezervasyon): ${op.busyHours.map((h) => `${h.hour} ${h.booked}`).join(' · ') || '—'}`,
+    '',
     'WHATSAPP LEAD (son 30 gün):',
     `- Yazan: ${snap.leads.wrote}, konuşmaya devam eden: ${snap.leads.engaged}, sıcak: ${snap.leads.hot}`,
   ].join('\n')

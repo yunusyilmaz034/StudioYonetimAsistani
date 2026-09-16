@@ -1823,3 +1823,17 @@ for her goal, loaded into the app with video for every movement, feedback throug
 any time, periodic weight and measurement follow-up; **reformer pilates** — every class led by a trainer, groups of up to
 8, her own reformer; **PT** — entirely hers, the whole session with her trainer. In `settings/ai` (basics + the trainer
 FAQ), not in code. PT 8 and PT 16 stay quotable by the AI; only PT PİLATES 6 AY is desk-only ([[OR-84]]).
+
+**OR-86 · A balance older than a week is reception's job, at the door.** (2026-09-16)
+Owner: *"1 haftadan fazladır borçlu olanlar dashboard'daki iş listesine eklensin; pilates rezervasyonu varsa şu gün şu
+saatte gelecek, resepsiyon tahsilata baksın; QR ile içeride görülürse özellikle uyarı gelsin — bu kişi bir haftadan uzun
+süredir borçlu, tahsilat için uygunluk sor."* The checklist row now carries the member's **next booked class** and says
+plainly when she is **inside right now**; a QR check-in raises a warning at reception that does not auto-dismiss. The
+reads happen only for balances at or over seven days — the threshold the insight rules already call "attention".
+
+**OR-87 · Every dashboard tile opens its own screen, and a sale's events read as one line.** (2026-09-16)
+*"Hepsi aynı ekranı aynı filtrelerle açıyor, anlaşılmıyor."* Sales → the sales report, collections → Kasa, open balance
+and pending payments → Borçlular. In Hareket Merkezi the events of ONE operation (sale · payment · allocation, same
+second) collapse into a single line that opens on press; grouping is by operation id, never by member — the same
+member's two sales are two decisions. Payment lines now name the member, and the name links to her page.
+

@@ -188,6 +188,11 @@ export function projectDaily(
           ? { productSales: { productId: id(event.payload.productId)!, amountKurus: kurus(event.payload.total) } }
           : {}),
       }
+    case 'sale.discounted':
+      // İNDİRİM SATIŞI DÜŞÜRÜR (owner, 2026-09-16). 16 Eylül'de iki satış 18.800 ₺ açılıp hemen 16.000 ₺'ye indirildi;
+      // panoda "anlaşılan tutar" 100.150 ₺ dedi, gün sonu raporu (satış belgelerinden okuyor) 94.550 ₺. Fark tam olarak
+      // iki indirimin toplamıydı: projeksiyon bu olayı hiç işlemiyordu. `totalAfter - totalBefore` negatiftir.
+      return one({ salesKurus: kurus(event.payload.totalAfter) - kurus(event.payload.totalBefore) })
     case 'sale.cancelled': {
       // NET revenue: subtracted on the day it is cancelled, never rewriting a past day's total —
       // a dashboard that edits history disagrees with a report someone already printed.

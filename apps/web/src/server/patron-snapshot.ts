@@ -2,6 +2,7 @@ import 'server-only'
 
 import { FirestoreProjectionRepository, type TenantContext } from '@studio/core'
 
+import { loadAnalyticsAction } from './actions/analytics'
 import { adminDb } from './firebase-admin'
 import { loadOwnerDashboard } from './owner-dashboard'
 
@@ -55,6 +56,12 @@ export interface PatronSnapshot {
     readonly occupancyCapacity: number
     readonly emptyNext48h: number
     readonly emptyNext7d: number
+    // ── YOĞUNLUK VE SATIŞ DAĞILIMI (owner, 2026-09-16) ────────────────────────────────────────
+    // *"Hangi günler daha yoğun, yoğun saatler ne, hangi günlerde daha çok satış yapılıyor?"* Son 30 günün
+    // GERÇEK kayıtlarından: giriş sayısı check-in'den, saat yoğunluğu dolu rezervasyondan, satış günlük
+    // özetten. Asistan sayı uydurmaz — yalnızca burada verdiğimiz rakamları yorumlar.
+    readonly busyDays: readonly { readonly day: string; readonly checkIns: number; readonly salesKurus: number }[]
+    readonly busyHours: readonly { readonly hour: string; readonly booked: number }[]
   }
   readonly leads: {
     readonly wrote: number
@@ -83,15 +90,35 @@ export async function loadPatronSnapshot(ctx: TenantContext): Promise<PatronSnap
   const prevMonthEnd = localDate(prevMonthEndMs)
 
   const projRepo = new FirestoreProjectionRepository(adminDb())
-  const [dash, monthDaily, prevDaily, leads] = await Promise.all([
+  const [dash, monthDaily, prevDaily, leads, analytics] = await Promise.all([
     loadOwnerDashboard(ctx, now),
     projRepo.listDaily(ctx, monthStart, today),
     projRepo.listDaily(ctx, prevMonthStart, prevMonthEnd),
     loadLeadSignal(ctx.studioId, now),
+    loadAnalyticsAction({ fromMs: now - 30 * DAY, toMs: now }),
   ])
 
   const emptyNext48h = dash.emptySessions.filter((s) => s.hoursAway <= 48).length
   const emptyNext7d = dash.emptySessions.length
+
+  // Son 30 günün günlük özetleri: haftanın gününe göre toplanır. Tek okuma, sınırlı aralık.
+  const last30 = await projRepo.listDaily(ctx, localDate(now - 30 * DAY), today)
+  const GUN_ADI = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi']
+  const gunler = new Map<string, { checkIns: number; salesKurus: number }>()
+  for (const d of last30) {
+    // `date` stüdyo günü ('YYYY-MM-DD'); UTC olarak okumak haftanın gününü kaydırmaz.
+    const ad = GUN_ADI[new Date(`${d.date}T00:00:00Z`).getUTCDay()] ?? d.date
+    const acc = gunler.get(ad) ?? { checkIns: 0, salesKurus: 0 }
+    gunler.set(ad, { checkIns: acc.checkIns + d.checkIns, salesKurus: acc.salesKurus + d.salesKurus })
+  }
+  const busyDays = [...gunler.entries()]
+    .map(([day, v]) => ({ day, ...v }))
+    .sort((a, b) => b.checkIns - a.checkIns)
+  const busyHours = Object.entries(analytics.byHour)
+    .map(([hour, v]) => ({ hour: `${hour}:00`, booked: v.booked }))
+    .filter((h) => h.booked > 0)
+    .sort((a, b) => b.booked - a.booked)
+    .slice(0, 6)
 
   const ref = (id: string, name: string, detail: string): PatronNamedRef => ({ id, name, detail })
 
@@ -123,6 +150,8 @@ export async function loadPatronSnapshot(ctx: TenantContext): Promise<PatronSnap
       occupancyCapacity: dash.occupancy.capacity,
       emptyNext48h,
       emptyNext7d,
+      busyDays,
+      busyHours,
     },
     leads,
     audiences: {

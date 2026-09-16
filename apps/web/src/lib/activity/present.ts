@@ -431,14 +431,16 @@ export function present(e: ActivityEvent): PresentedEntry {
     case 'sale.settled':
       return entry(`${of_(member)} ${money(p.total)} tutarındaki satışı tamamen tahsil edildi.`, null, 'success')
     case 'payment.received':
+      // ÜYE ADI CÜMLEDE (owner, 2026-09-16): *"kim bunlar diye tıklanamıyor, detay yok."* Olay adı taşımaz (#6);
+      // ad okuma anında `related.memberId`den çözülüyor ve satır üyeye bağlanıyor.
       return entry(
-        `${money(p.amount)} tahsilat alındı.`,
+        `${of_(member)} ${money(p.amount)} tahsilatı alındı.`,
         [methodTr(p.method), str(p.drawerId) ? 'kasaya işlendi' : null].filter(Boolean).join(' · '),
         'success',
       )
     case 'payment.voided':
       return entry(
-        `${money(p.amount)} tutarındaki tahsilat iptal edildi (void).`,
+        `${of_(member)} ${money(p.amount)} tutarındaki tahsilatı iptal edildi (void).`,
         str(p.reason),
         'danger',
       )
@@ -446,7 +448,7 @@ export function present(e: ActivityEvent): PresentedEntry {
       return entry(`${money(p.amount)} iade edildi.`, [methodTr(p.method), str(p.reason)].filter(Boolean).join(' · '), 'warning')
     case 'allocation.applied':
       return entry(
-        `${money(p.amount)} ödeme, satışa mahsup edildi.`,
+        `${of_(member)} ${money(p.amount)} ödemesi satışa mahsup edildi.`,
         `kalan borç: ${money(p.saleBalanceAfter)}`,
         'default',
       )

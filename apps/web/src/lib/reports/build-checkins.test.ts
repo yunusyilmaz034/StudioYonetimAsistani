@@ -38,12 +38,24 @@ describe('buildCheckins', () => {
   ]
   it('günlük: dönem × üye, yalnızca girişler sayılır, en çok gelen önce', () => {
     const r = buildCheckins(kayitlar, members, 'day')
+    expect(r.table.columns).toEqual(['Dönem', 'Üye', 'Giriş sayısı', 'Giriş', 'Çıkış', 'Giriş yolu'])
     expect(r.table.rows.map((x) => [x[0], x[1], x[2], x[5]])).toEqual([
       ['14.09.2026', 'AYŞE YILMAZ', 2, 'Turnike · QR'],
       ['15.09.2026', 'AYŞE YILMAZ', 1, 'Turnike'],
       ['15.09.2026', 'BUSE KAYA', 1, 'Resepsiyon'],
     ])
     expect(r.summary).toBe('4 giriş · 2 farklı üye · 2 gün · gün başına ortalama 2 giriş')
+  })
+
+  // GİRİŞ VE ÇIKIŞ (owner, 2026-09-16): "ne zaman geldi, ne zaman gitti". Çıkışı olmayan üyede hücre boş kalır —
+  // uydurulmuş bir saat, olmayan bir kayıttan kötüdür.
+  it('giriş sütunu ilk girişi, çıkış sütunu son çıkışı gösterir; çıkış yoksa — kalır', () => {
+    const r = buildCheckins(kayitlar, members, 'day')
+    const ayse14 = r.table.rows[0]!
+    expect(String(ayse14[3])).toContain('09:00') // 06:00Z = 09:00 TRT, ilk giriş
+    expect(String(ayse14[4])).toContain('10:00') // 07:00Z = 10:00 TRT, çıkış
+    const buse = r.table.rows.find((x) => x[1] === 'BUSE KAYA')!
+    expect(buse[4]).toBe('—') // çıkış okutmamış
   })
   it('haftalık: aynı haftadaki girişler tek satırda toplanır', () => {
     const r = buildCheckins(kayitlar, members, 'week')

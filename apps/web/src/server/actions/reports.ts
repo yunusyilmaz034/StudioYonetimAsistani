@@ -123,7 +123,7 @@ export async function loadReportAction(input: unknown): Promise<ReportResult> {
         finance.listDrawers(ctx),
         new FirestoreIdentityRepository(db).listStaff(ctx),
       ])
-      return { id: p.id, ...buildCollections(payments, members, drawers, staff) }
+      return { id: p.id, ...buildCollections(await haricTut(ctx, payments, 'memberId'), members, drawers, staff) }
     }
 
     case 'checkins_daily':
@@ -194,7 +194,9 @@ export async function loadReportAction(input: unknown): Promise<ReportResult> {
         finance.listOpenSales(ctx),
         new FirestoreMemberRepository(db).list(ctx),
       ])
-      return { id: p.id, ...buildDebts(open, members, Date.now()) }
+      // TEST HESAPLARI BORÇLU DEĞİLDİR (owner, 2026-09-16): *"Işıl Yılmaz'ı test kullanıcısı gibi davran, borçlu
+      // falan değil."* Hesap zaten `settings/projection.excludedMemberIds` içindeydi; bu rapor listeyi okumuyordu.
+      return { id: p.id, ...buildDebts(await haricTut(ctx, open, 'memberId'), members, Date.now()) }
     }
 
     case 'cash': {

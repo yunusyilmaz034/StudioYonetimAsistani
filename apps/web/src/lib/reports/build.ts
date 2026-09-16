@@ -640,33 +640,45 @@ export function checkinPeriodOf(ms: number, grain: CheckinGrain): { key: number;
 
 export function buildCheckins(checkIns: readonly CheckIn[], members: readonly Member[], grain: CheckinGrain): Report {
   const name = new Map(members.map((m) => [m.id as string, m.fullName]))
-  const girisler = [...checkIns].filter((c) => c.direction === 'in').sort((a, b) => a.occurredAt - b.occurredAt)
-  const acc = new Map<string, { key: number; label: string; memberId: string; count: number; first: number; last: number; via: Set<string> }>()
-  for (const c of girisler) {
+  // GİRİŞ VE ÇIKIŞ (owner, 2026-09-16): "ilk giriş / son giriş" değil — üyenin O DÖNEMDEKİ ilk girişi ve son çıkışı.
+  // Turnike çıkışı da okutuyor; iki sütun birlikte "ne zaman geldi, ne zaman gitti" sorusunu cevaplıyor. Çıkış yoksa
+  // (kapıyı okutmadan çıkmış ya da hâlâ içeride) hücre boş kalır — uydurulmuş bir saat, olmayan bir kayıttan kötüdür.
+  const sirali = [...checkIns].sort((a, b) => a.occurredAt - b.occurredAt)
+  const acc = new Map<
+    string,
+    { key: number; label: string; memberId: string; count: number; first: number | null; lastOut: number | null; via: Set<string> }
+  >()
+  for (const c of sirali) {
     const p = checkinPeriodOf(c.occurredAt, grain)
     const k = `${p.key}|${c.memberId as string}`
-    const row = acc.get(k) ?? { key: p.key, label: p.label, memberId: c.memberId as string, count: 0, first: c.occurredAt, last: c.occurredAt, via: new Set<string>() }
-    row.count++
-    row.last = c.occurredAt
-    row.via.add(c.method)
+    const row =
+      acc.get(k) ?? { key: p.key, label: p.label, memberId: c.memberId as string, count: 0, first: null, lastOut: null, via: new Set<string>() }
+    if (c.direction === 'in') {
+      row.count++
+      row.first ??= c.occurredAt
+      row.via.add(c.method)
+    } else {
+      row.lastOut = c.occurredAt
+    }
     acc.set(k, row)
   }
   const satirlar = [...acc.values()].sort(
     (a, b) => a.key - b.key || b.count - a.count || (name.get(a.memberId) ?? '').localeCompare(name.get(b.memberId) ?? '', 'tr'),
   )
+  const girisler = sirali.filter((c) => c.direction === 'in')
   const donem = new Set(satirlar.map((s) => s.key)).size
   const uye = new Set(girisler.map((c) => c.memberId as string)).size
   const birim = grain === 'day' ? 'gün' : grain === 'week' ? 'hafta' : 'ay'
   return {
     table: {
       name: `check-in-raporu-${grain === 'day' ? 'gunluk' : grain === 'week' ? 'haftalik' : 'aylik'}`,
-      columns: ['Dönem', 'Üye', 'Giriş sayısı', 'İlk giriş', 'Son giriş', 'Giriş yolu'],
+      columns: ['Dönem', 'Üye', 'Giriş sayısı', 'Giriş', 'Çıkış', 'Giriş yolu'],
       rows: satirlar.map((s) => [
         s.label,
         name.get(s.memberId) ?? 'Silinmiş üye',
         s.count,
-        date(s.first),
-        date(s.last),
+        s.first === null ? '—' : date(s.first),
+        s.lastOut === null ? '—' : date(s.lastOut),
         [...s.via].map((v) => VIA[v] ?? v).join(' · '),
       ]),
     },

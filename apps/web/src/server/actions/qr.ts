@@ -1,6 +1,8 @@
 'use server'
 
 import {
+  FirestoreFinanceRepository,
+  saleBalanceDue,
   FirestoreCheckinRepository,
   FirestoreEntitlementRepository,
   FirestoreMemberRepository,
@@ -169,7 +171,33 @@ export async function checkInByQrAction(input: unknown) {
   // than her scanning the wall.
   const attendance =
     res.value.direction === 'in' ? await resolveAttendanceForCheckIn(ctx, claims.memberId as MemberId) : null
-  return { ok: true as const, value: { memberId: claims.memberId, memberName: member.fullName, direction: res.value.direction, entry, attendance } }
+  // KAPIDA BORÇ UYARISI (owner, 2026-09-16): *"QR ile içeride olduğu görülürse resepsiyona uyarı gelsin — bu kişi
+  // bir haftadan uzun süredir borçlu, tahsilat için uygunluk sor."* Yalnızca GİRİŞTE ve yalnızca bir haftayı geçmiş
+  // borçta; çıkarken ya da yeni bir satışta kimseyi kapıda tutmuyoruz. Tek okuma, üyenin kendi satışları.
+  const borc = res.value.direction === 'in' ? await gecikmisBorc(ctx, claims.memberId as MemberId) : null
+  return { ok: true as const, value: { memberId: claims.memberId, memberName: member.fullName, direction: res.value.direction, entry, attendance, borc } }
+}
+
+const HAFTA_MS = 7 * 86_400_000
+
+/** Bir haftayı geçmiş açık bakiye — kapıdaki uyarı için. Yoksa `null`. */
+async function gecikmisBorc(
+  ctx: TenantContext,
+  memberId: MemberId,
+): Promise<{ dueKurus: number; daysOpen: number } | null> {
+  const sales = await new FirestoreFinanceRepository(adminDb()).listSalesByMember(ctx, memberId)
+  const now = Date.now()
+  let due = 0
+  let oldest = 0
+  for (const s of sales) {
+    const kalan = saleBalanceDue(s)
+    if (kalan <= 0) continue
+    const gun = Math.floor((now - (s.soldAt as number)) / 86_400_000)
+    if (now - (s.soldAt as number) < HAFTA_MS) continue
+    due += kalan
+    oldest = Math.max(oldest, gun)
+  }
+  return due > 0 ? { dueKurus: due, daysOpen: oldest } : null
 }
 
 // The branch her QR is minted for. A member has no branch claim, so it comes from her record.

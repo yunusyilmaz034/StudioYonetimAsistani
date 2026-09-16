@@ -85,6 +85,20 @@ linkleri `853d273` → `build-2026-09-15-003` (rollout izleniyor):
   fitness–pilates ayrımı yok (avantaj), "hoca var mı" sorusuna fitness / pilates / PT üçlü karşılaştırması. "PT PİLATES 6 AY" her yerde kapalı (AI · public · üye satışı); PT 8 ve PT 16 açık.
   **Deneme:** AI hattına "hiç spor yapmadım, nereden başlamalıyım" yaz → PT önerisi + gerekçesi + hedef sorusu gelmeli.
 
+- **16 Eylül öğleden sonra — pano/rapor doğruluğu ve işaretler:**
+  - **Pano "anlaşılan tutar" YANLIŞTI:** günlük özet `sale.discounted` olayını hiç işlemiyordu; 16 Eylül'de iki satış
+    18.800 → 16.000 ₺'ye indirilince pano 100.150 ₺, gün sonu raporu 94.550 ₺ dedi. Projeksiyon düzeltildi (+test) ve
+    `pnpm projections:rebuild retro` ile geçmiş yeniden kuruldu. "Kasaya giren" (72.050 ₺) baştan doğruydu.
+  - **Test hesapları borçlu görünmüyor ([[OR-84]] ailesi):** Borçlular ve Tahsilat raporları artık `excludedMemberIds`
+    listesini okuyor (owner: *"Işıl Yılmaz'ı test kullanıcısı gibi davran"*).
+  - **Hareket Merkezi ([[OR-87]]):** işleme göre tek satır + açılır ayrıntı; ödeme/tahsilat satırlarında üye adı ve
+    üyeye bağlantı. Pano kutucukları kendi ekranlarına gidiyor.
+  - **Borç uyarısı ([[OR-86]]):** iş listesi satırında yaklaşan ders ve "şu an içeride"; QR girişinde resepsiyona
+    kapanmayan uyarı.
+  - **Check-in raporu:** "İlk giriş / Son giriş" yerine **Giriş / Çıkış**; çıkış okutulmamışsa "—".
+  - **Patron Asistanı:** son 30 günün yoğun günleri (giriş sayısı), yoğun saatleri (dolu rezervasyon) ve günlere göre
+    satış dağılımı artık veride — asistan bunları yorumlayabilir, rakam uydurmaz.
+
 **Numara (owner düzeltti, 15 Eylül):** aktif reklam **AI hattına** gidiyor (0533'ten farklı bir numara). 0533 199 41 23
 stüdyonun telefonu; AI mevcut üyelerin satış dışı sorularını oraya yönlendiriyor (`whoBlock` + bilgi kartı İLETİŞİM).
 Görselde 0533 yazması reklamı yönlendirmiyor. **Açık gözlem:** AI hattına 14 Eyl 22:46'dan beri yeni mesaj yok;

@@ -108,6 +108,20 @@ describe('projectDaily (v1.23)', () => {
     expect(migrated.counters).toEqual({ salesKurus: 500_000 })
   })
 
+  // İNDİRİM SATIŞTAN DÜŞER (owner, 2026-09-16). 16 Eylül'de iki satış 18.800 ₺ açılıp hemen 16.000 ₺'ye indirildi;
+  // pano 100.150 ₺, gün sonu raporu 94.550 ₺ dedi ve fark tam olarak iki indirimin toplamıydı — bu olay hiç
+  // işlenmiyordu. Satış = ANLAŞILAN tutar; indirimden sonra anlaşılan tutar düşmüştür.
+  it('sale.discounted, indirim kadar satışı düşürür', () => {
+    const inc = projectDaily(
+      ev('sale.discounted', 11.0, {
+        totalBefore: { amount: 1_880_000, currency: 'TRY' },
+        totalAfter: { amount: 1_600_000, currency: 'TRY' },
+      }),
+      OFFSET,
+    )
+    expect(inc.counters).toEqual({ salesKurus: -280_000 })
+  })
+
   it('most of the catalogue moves no counter — a dashboard is not an archive', () => {
     expect(projectDaily(ev('product.updated', 9.0), OFFSET).counters).toEqual({})
     expect(projectDaily(ev('studio_calendar.day_marked', 9.0), OFFSET).counters).toEqual({})

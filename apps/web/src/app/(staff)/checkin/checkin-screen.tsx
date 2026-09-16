@@ -79,6 +79,14 @@ export function CheckinScreen({
         const res = await checkInByQrAction({ token, branchId: state.branchId })
         if (res.ok) {
           toast.success(`${res.value.memberName} — giriş kaydedildi.`)
+          // BİR HAFTAYI GEÇMİŞ BORÇ, KAPIDA SÖYLENİR (owner, 2026-09-16). Üye şu an burada: tahsilat konuşmak için
+          // en iyi an bu. Uyarı KENDİLİĞİNDEN KAPANMAZ — beş saniyede kaybolan bir uyarı, görülmemiş uyarıdır.
+          if (res.value.borc) {
+            toast.warning(
+              `${res.value.memberName} · ${(res.value.borc.dueKurus / 100).toLocaleString('tr-TR')} ₺ borç, ${res.value.borc.daysOpen} gündür açık — tahsilat için uygunluğunu sorun.`,
+              { duration: Infinity },
+            )
+          }
           setTimeout(() => router.refresh(), 800)
         } else {
           toast.error(domainErrorMessage(res.error))

@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
 import {
   ArrowRightLeftIcon,
@@ -77,7 +78,16 @@ export function ActivityRow({
           <span>{showDate ? formatDateTime(event.occurredAt) : formatTimeWithSeconds(event.occurredAt)}</span>
           <span className="font-medium text-foreground">{event.actorName}</span>
         </p>
-        <p className="text-sm font-medium text-foreground">{p.title}</p>
+        {/* Ada tıklayınca üyeye git (owner, 2026-09-16) — "kim bu" sorusu satırın kendisinden cevaplanır. */}
+        {event.memberId ? (
+          <p className="text-sm font-medium text-foreground">
+            <Link href={`/members/${event.memberId}`} className="hover:underline">
+              {p.title}
+            </Link>
+          </p>
+        ) : (
+          <p className="text-sm font-medium text-foreground">{p.title}</p>
+        )}
         {p.detail ? <p className="text-xs text-muted-foreground">{p.detail}</p> : null}
       </div>
 
@@ -91,6 +101,62 @@ export function ActivityRow({
         </Link>
       ) : null}
     </article>
+  )
+}
+
+// ── TEK İŞLEM, TEK SATIR (owner, 2026-09-16) ────────────────────────────────────────────────
+//
+// Bir satış aynı saniyede üç olay yazıyor: satış · tahsilat · mahsup. Owner: *"aynı isme ait işlemler peş peşe
+// yapıldıysa gruplansın, bu şekilde anlaşılmıyor."* Ölçüt İŞLEM NUMARASI (`operationId`) — "aynı üye" değil:
+// aynı üyenin iki ayrı satışı iki ayrı karardır ve tek satırda toplanırsa biri gizlenir.
+//
+// Gruplanan satır KAPALI gelir ve açılınca üç olayı da AYNEN gösterir; hiçbir hareket listeden kaybolmaz.
+function groupByOperation(list: readonly ActivityEvent[]): ActivityEvent[][] {
+  const out: ActivityEvent[][] = []
+  for (const e of list) {
+    const prev = out[out.length - 1]
+    if (prev && e.operationId && prev[0]!.operationId === e.operationId) prev.push(e)
+    else out.push([e])
+  }
+  return out
+}
+
+/** Bir işlemin bütün hareketleri: özet satır + açılınca tek tek olaylar. */
+function OperationGroup({ events, showOperation }: { events: readonly ActivityEvent[]; showOperation: boolean }) {
+  const [open, setOpen] = useState(false)
+  const first = events[0]!
+  const p = present(first)
+  const Icon = ICON[p.kind] ?? BanIcon
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-start gap-3 px-3 py-3 text-left transition-colors hover:bg-primary-soft/30"
+      >
+        <span className={`mt-0.5 grid size-7 shrink-0 place-items-center rounded-lg ${TONE[p.tone] ?? TONE.default}`}>
+          <Icon className="size-3.5" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="flex flex-wrap items-baseline gap-x-2 text-xs tabular-nums text-muted-foreground">
+            <span>{formatTimeWithSeconds(first.occurredAt)}</span>
+            <span className="font-medium text-foreground">{first.actorName}</span>
+          </span>
+          <span className="block text-sm font-medium text-foreground">{p.title}</span>
+          <span className="block text-xs text-muted-foreground">{events.length} hareket · {open ? 'gizle' : 'ayrıntıyı aç'}</span>
+        </span>
+        {showOperation && first.operationId ? (
+          <span className="mt-0.5 shrink-0 font-mono text-[0.6875rem] text-muted-foreground/80">{first.operationId.slice(-6)}</span>
+        ) : null}
+      </button>
+      {open ? (
+        <div className="divide-y divide-border border-t border-border bg-muted/20">
+          {events.map((e) => (
+            <ActivityRow key={e.eventId} event={e} showDate={false} showOperation={false} />
+          ))}
+        </div>
+      ) : null}
+    </div>
   )
 }
 
@@ -122,9 +188,13 @@ export function ActivityList({
         <section key={day} className="space-y-1.5">
           <h3 className="px-1 text-xs font-semibold tabular-nums text-muted-foreground">{day}</h3>
           <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card shadow-sm">
-            {list.map((e) => (
-              <ActivityRow key={e.eventId} event={e} showDate={false} showOperation={showOperation} />
-            ))}
+            {groupByOperation(list).map((g) =>
+              g.length === 1 ? (
+                <ActivityRow key={g[0]!.eventId} event={g[0]!} showDate={false} showOperation={showOperation} />
+              ) : (
+                <OperationGroup key={g[0]!.eventId} events={g} showOperation={showOperation} />
+              ),
+            )}
           </div>
         </section>
       ))}

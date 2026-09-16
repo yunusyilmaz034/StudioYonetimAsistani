@@ -1,5 +1,19 @@
-import { DEFAULT_INSIGHT_CONFIG, deriveInsights, type Insight, type InsightFacts, type InsightSeverity, type InsightKind } from '@studio/core'
+import {
+  DEFAULT_INSIGHT_CONFIG,
+  deriveInsights,
+  FirestoreCheckinRepository,
+  FirestoreReservationRepository,
+  type BranchId,
+  type Insight,
+  type InsightFacts,
+  type InsightSeverity,
+  type InsightKind,
+  type MemberId,
+} from '@studio/core'
 import type { TenantContext } from '@studio/core'
+
+import { formatDateTime } from '@/lib/datetime'
+import { adminDb } from './firebase-admin'
 
 import { formatKurus } from '@/lib/payroll-labels'
 
@@ -35,7 +49,13 @@ export interface AdvisorItem {
   readonly groupNote?: string
 }
 
-function present(insight: Insight, memberName: Map<string, string>, sessionName: Map<string, string>): AdvisorItem {
+function present(
+  insight: Insight,
+  memberName: Map<string, string>,
+  sessionName: Map<string, string>,
+  upcoming: ReadonlyMap<string, string>,
+  inside: ReadonlySet<string>,
+): AdvisorItem {
   const m = insight.metrics
   const memberId = insight.refs.memberId
   const name = (memberId && memberName.get(memberId)) || (insight.refs.sessionId && sessionName.get(insight.refs.sessionId)) || 'Bilinmeyen'
@@ -44,17 +64,30 @@ function present(insight: Insight, memberName: Map<string, string>, sessionName:
   const subject = subjectId ? { id: subjectId, name } : null
 
   switch (insight.kind) {
-    case 'outstanding_balance':
+    case 'outstanding_balance': {
+      // BİR HAFTAYI GEÇEN BORÇ, RESEPSİYONUN İŞİDİR (owner, 2026-09-16). Satır artık üyenin YAKLAŞAN dersini de
+      // söylüyor: *"pilates rezervasyonu varsa şu gün şu saatte gelecek, resepsiyon tahsilata baksın."* Ders bilgisi
+      // okuma anında rezervasyonlardan geliyor; içgörü kuralı PII taşımaz (#6), cümle burada kuruluyor.
+      const gun = m.daysOpen ?? 0
+      const ders = upcoming.get(memberId ?? '')
+      const icerde = inside.has(memberId ?? '')
       return {
         id: insight.id,
         kind: insight.kind,
         severity: insight.severity,
         subject,
         title: `${name} — ${formatKurus(m.dueKurus ?? 0)} açık bakiye`,
-        detail: `${m.daysOpen ?? 0} gündür ödenmedi. Tahsilat için üyeyi açın.`,
+        detail: [
+          `${gun} gündür ödenmedi.`,
+          icerde ? 'ŞU AN İÇERİDE — tahsilat için uygunluğunu sorun.' : ders ? `${ders} dersine gelecek; o gün tahsilata bakın.` : null,
+          !icerde && !ders ? 'Tahsilat için üyeyi açın.' : null,
+        ]
+          .filter(Boolean)
+          .join(' '),
         href: memberHref,
         actionLabel: 'Tahsilat / üyeyi aç',
       }
+    }
     case 'expiring_with_credits': {
       // The line says the number of lessons FIRST, because that is the part with a deadline. A
       // renewal can happen next week; these credits cannot.
@@ -158,7 +191,13 @@ function present(insight: Insight, memberName: Map<string, string>, sessionName:
 // The pure mapping — takes an ALREADY-loaded dashboard and returns the ranked advisor items. Split out
 // so a caller that already holds the snapshot (the dashboard page, the AI checklist) doesn't pay for a
 // second read.
-export function deriveAdvisorItems(dash: OwnerDashboard): readonly AdvisorItem[] {
+export function deriveAdvisorItems(
+  dash: OwnerDashboard,
+  // Borçlu satırına yazılan iki ek (owner, 2026-09-16): üyenin YAKLAŞAN dersi ve şu an içeride olup olmadığı.
+  // Okuma çağıranın işi; bu fonksiyon saf kalır ve testte iki boş koleksiyonla çağrılır.
+  upcoming: ReadonlyMap<string, string> = new Map(),
+  inside: ReadonlySet<string> = new Set(),
+): readonly AdvisorItem[] {
   // Names are resolved HERE, never in the domain (the insight is PII-free). The dashboard rows carry
   // them, so no extra read is needed.
   const memberName = new Map<string, string>()
@@ -194,9 +233,34 @@ export function deriveAdvisorItems(dash: OwnerDashboard): readonly AdvisorItem[]
   }
 
   // deriveInsights returns the ranked order (urgent → attention → info); preserve it.
-  return deriveInsights(facts, DEFAULT_INSIGHT_CONFIG).map((i) => present(i, memberName, sessionName))
+  return deriveInsights(facts, DEFAULT_INSIGHT_CONFIG).map((i) => present(i, memberName, sessionName, upcoming, inside))
 }
 
 export async function loadAdvisor(ctx: TenantContext): Promise<readonly AdvisorItem[]> {
-  return deriveAdvisorItems(await loadOwnerDashboard(ctx, Date.now()))
+  const nowMs = Date.now()
+  const dash = await loadOwnerDashboard(ctx, nowMs)
+
+  // BİR HAFTAYI GEÇMİŞ BORÇ (owner, 2026-09-16): *"pilates rezervasyonu varsa şu gün gelecek, resepsiyon tahsilata
+  // baksın; QR ile içeride görülürse uyarı gelsin."* Okuma YALNIZCA bu listeyle sınırlı — bir haftayı geçmemiş
+  // borçlular için tek bir sorgu bile atılmaz.
+  const HAFTA = 7
+  const takipte = dash.pendingPayments.filter((r) => r.daysOpen >= HAFTA)
+  const upcoming = new Map<string, string>()
+  const inside = new Set<string>()
+  if (takipte.length > 0) {
+    const branchId = (ctx.branchIds[0] ?? null) as BranchId | null
+    const rezRepo = new FirestoreReservationRepository(adminDb())
+    const [presence, ...bookings] = await Promise.all([
+      branchId ? new FirestoreCheckinRepository(adminDb()).listPresence(ctx, branchId) : Promise.resolve([]),
+      ...takipte.map((r) => rezRepo.listByMember(ctx, r.id as MemberId)),
+    ])
+    for (const p of presence) inside.add(p.memberId as string)
+    takipte.forEach((r, i) => {
+      const next = [...(bookings[i] ?? [])]
+        .filter((x) => x.status === 'booked' && x.sessionStartsAt > nowMs)
+        .sort((a, b) => a.sessionStartsAt - b.sessionStartsAt)[0]
+      if (next) upcoming.set(r.id, formatDateTime(next.sessionStartsAt))
+    })
+  }
+  return deriveAdvisorItems(dash, upcoming, inside)
 }

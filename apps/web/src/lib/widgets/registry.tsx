@@ -181,7 +181,9 @@ const todaySales: Widget<{ salesKurus: number }> = {
   id: 'today.sales',
   title: 'Bugünkü satış',
   kind: 'metric',
-  href: () => '/activity?kinds=membership&range=today',
+  // HER RAKAM KENDİ EKRANINA (owner, 2026-09-16): "hepsi aynı ekranı aynı filtrelerle açıyor, anlaşılmıyor."
+  // Satış → satış raporu (bugün): kim, ne aldı, ne kadarı tahsil edildi — rakamın ayrıntısı budur.
+  href: () => '/reports?r=sales&range=today',
   select: (s) => ({ salesKurus: s.today.salesKurus }),
   present: (d) => ({
     headline:
@@ -209,7 +211,8 @@ const todayCollected: Widget<{ collectedKurus: number }> = {
   id: 'today.collected',
   title: 'Bugünkü tahsilat',
   kind: 'metric',
-  href: () => '/activity?kinds=payment&range=today',
+  // Tahsilat → Kasa: paranın nereye girdiği, hangi yöntemle. Gün sonu sayımı da aynı ekranda.
+  href: () => '/finance',
   select: (s) => ({ collectedKurus: s.today.collectedKurus }),
   present: (d) => ({
     headline:
@@ -233,7 +236,8 @@ const openBalance: Widget<{ balanceKurus: number }> = {
   id: 'today.balance',
   title: 'Açık bakiye',
   kind: 'metric',
-  href: () => '/activity?kinds=payment&range=today',
+  // Açık bakiye → Borçlular raporu: kim, ne kadar, kaç gündür. Tahsilat konuşması buradan başlar.
+  href: () => '/reports?r=debts',
   select: (s) => ({ balanceKurus: s.balanceDueKurus }),
   present: (d) => ({
     headline:
@@ -520,7 +524,7 @@ const pendingPayments: Widget<DashboardSnapshot['pendingPayments']> = {
   id: 'finance.pending',
   title: 'Bekleyen ödemeler',
   kind: 'list',
-  href: () => '/insights/finance.pending',
+  href: () => '/reports?r=debts',
   table: (s): ExportableTable => ({
     name: 'bekleyen-odemeler',
     columns: ['Üye', 'Satış tarihi', 'Toplam (₺)', 'Kalan (₺)', 'Gün'],
