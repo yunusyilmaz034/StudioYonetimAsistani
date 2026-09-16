@@ -1809,11 +1809,14 @@ the catalogue and reception keeps selling them, but the WhatsApp assistant never
 instruction: a product's **"AI bu paketin fiyatını verebilir"** switch (Paketler → paket formu) keeps the package out of
 the live facts the model reads. Default is on; an older setup script that does not know the field leaves it as it is.
 
-**OR-85 · PT is the beginner's entry, and it is not split by discipline.** (2026-09-16)
+**OR-85 · PT is offered on a ladder, not to everyone, and it is not split by discipline.** (2026-09-16)
 Owner: a PT package is **not** labelled fitness or pilates — *"kişinin hedefi ve sağlığına en uygun hangisiyse onunla
-başlar, gerekirse hibrit devam ediyoruz"* — and that is sold as an advantage: there is no wrong package to pick. Someone
-who has **never trained** or has been away a long time is offered PT first, with the reason said out loud: a road map
-built with her trainer, and a body that adapts to the movements safely. Said once, never pushed.
+başlar, gerekirse hibrit devam ediyoruz"* — and that is sold as an advantage: there is no wrong package to pick. The default sales priority stays the **current campaign** (12-month fitness). PT is not offered to everyone from the
+start. When someone names a **weight-loss goal or a health complaint**, the assistant first asks whether she has trained
+before, then walks a ladder, one package at a time: **never trained / long break → PT** (road map with her trainer, a body
+that adapts safely); **has trained → 12-month fitness**; **time or budget does not fit → hybrid**; **and only if she asks →
+the rest**. PT is also the answer to *"başımızda hoca var mı"* — anyone asking for one-to-one attention. Said once, never
+pushed; health details go to a human.
 
 The three-way answer when she asks whether fitness has a trainer: **fitness** — first-day measurement, a programme built
 for her goal, loaded into the app with video for every movement, feedback through the app, trainers on the floor to ask
