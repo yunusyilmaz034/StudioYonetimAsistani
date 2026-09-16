@@ -32,6 +32,9 @@ export function productToFirestore(p: Product): DocumentData {
     active: p.active,
     onlineSellable: p.onlineSellable,
     memberSellable: p.memberSellable,
+    // 2026-09-16 — AI fiyat verebilir mi. Belgede YOKSA açık sayılır; bu yüzden hep yazılır: bir alanın yokluğu ile
+    // owner'ın kapatması aynı şey olmasın.
+    aiQuotable: p.aiQuotable ?? true,
     updatedAt: FieldValue.serverTimestamp(),
   }
 }
@@ -63,6 +66,8 @@ export function productFromFirestore(id: ProductId, d: DocumentData): Product {
     onlineSellable: d.onlineSellable === true,
     // Absent ⇒ false: nothing becomes member-sellable because the field did not exist yet.
     memberSellable: d.memberSellable === true,
+    // Yokluk AÇIK: alan eklenmeden önce yazılmış her ürünün fiyatını AI vermeye devam eder.
+    aiQuotable: d.aiQuotable !== false,
   }
 }
 
