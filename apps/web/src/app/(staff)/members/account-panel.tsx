@@ -70,6 +70,9 @@ export function AccountPanel({
   const [account, setAccount] = useState<Account | null>(null)
   const [drawers, setDrawers] = useState<readonly Drawer[]>([])
   const [collecting, setCollecting] = useState(false)
+  // Tahsilat for ONE sale (owner, 2026-09-16). The dialog is the same one; what changes is that the
+  // money is aimed at this sale instead of the member's oldest debt.
+  const [collectingSale, setCollectingSale] = useState<{ id: string; due: number } | null>(null)
   const [cancelling, setCancelling] = useState<{ id: string; lines: readonly string[] } | null>(null)
   const [voiding, setVoiding] = useState<{ id: string; amount: number } | null>(null)
   const [refunding, setRefunding] = useState<{ id: string; amount: number } | null>(null)
@@ -145,6 +148,13 @@ export function AccountPanel({
                     {isOwner && s.status !== 'cancelled' ? (
                       <Button variant="ghost" size="sm" onClick={() => setCancelling(s)}>
                         İptal
+                      </Button>
+                    ) : null}
+                    {/* Borcu olan satırın kendi tahsilatı: tutar hazır gelir, para bu satışa gider,
+                        tam karşılarsa satış "Tahsil edildi"ye döner. */}
+                    {s.status !== 'cancelled' && s.total - s.paid > 0 ? (
+                      <Button size="sm" onClick={() => setCollectingSale({ id: s.id, due: s.total - s.paid })}>
+                        Tahsilat Al
                       </Button>
                     ) : null}
                   </div>
@@ -245,6 +255,21 @@ export function AccountPanel({
         }}
       />
 
+      <CollectDialog
+        open={collectingSale !== null}
+        memberId={memberId}
+        branchId={branchId}
+        drawers={drawers}
+        walletKurus={account.walletKurus}
+        suggested={collectingSale?.due ?? 0}
+        saleId={collectingSale?.id ?? null}
+        onClose={() => setCollectingSale(null)}
+        onDone={() => {
+          setCollectingSale(null)
+          void load()
+        }}
+      />
+
       <ReasonDialog
         open={cancelling !== null}
         title="Satışı iptal et"
@@ -331,6 +356,7 @@ function CollectDialog({
   drawers,
   walletKurus,
   suggested,
+  saleId = null,
   onClose,
   onDone,
 }: {
@@ -340,6 +366,8 @@ function CollectDialog({
   drawers: readonly Drawer[]
   walletKurus: number
   suggested: number
+  /** Given ⇒ the money settles THIS sale and nothing else (OR-37). Null ⇒ oldest debt first. */
+  saleId?: string | null
   onClose: () => void
   onDone: () => void
 }) {
@@ -375,12 +403,15 @@ function CollectDialog({
         method,
         drawerId: needsDrawer ? drawerId : null,
         note: note.trim() || null,
+        ...(saleId ? { saleId } : {}),
       })
       if (res.ok) {
         toast.success(
           res.value.unallocated > 0
             ? `Tahsilat alındı. ${tl(res.value.unallocated)} üyenin alacağı olarak duruyor.`
-            : 'Tahsilat alındı ve borca mahsup edildi.',
+            : saleId
+              ? 'Tahsilat alındı, bu satışın borcuna işlendi.'
+              : 'Tahsilat alındı ve borca mahsup edildi.',
         )
         onDone()
       } else {

@@ -146,6 +146,11 @@ export async function collectAction(input: unknown) {
       // taşımıyordu. Sonucu: kafe borcu açık, üyenin cüzdanında para, ve ikisini birleştiren
       // hiçbir düğme yok. Bu ay dördüncü kez aynı şekil: mekanizma var, çağıran yer kullanmıyor.
       method: z.enum(['cash', 'bank_transfer', 'credit_card', 'pos', 'online', 'gift_card', 'wallet']),
+      // TEK BİR BORCA TAHSİLAT (owner, 2026-09-16): *"borçlu olan hareketin sağına bir de tahsilat al
+      // butonu koy, direk bu borca ilişkin ödemeyi al."* Verildiğinde para YALNIZCA bu satışa gider —
+      // çekirdek onu alamıyorsa reddeder, sessizce en eski borca kaymaz (OR-37). Boş bırakılırsa
+      // eskisi gibi "bakiyesine yaz": en eski borç önce.
+      saleId: z.string().nullable().optional(),
       receivedAtMs: z.number().optional(),
       drawerId: z.string().nullable().default(null),
       giftCardCode: z.string().nullable().default(null),
@@ -173,6 +178,11 @@ export async function collectAction(input: unknown) {
         drawerId: p.drawerId,
         giftCardCode: p.giftCardCode,
         note: p.note, // the note is NOT logged: free text is where PII hides
+        // The amount is the CAP, not the promise: if the sale owes less, the rest stays unallocated
+        // and shows as the member's credit — the truth, rather than a silent overpayment.
+        ...(p.saleId
+          ? { allocateTo: [{ saleId: p.saleId, amount: money(p.amountKurus), allocationId: `pay_${opId.slice(4)}_a0` }] }
+          : {}),
         // Desk collection: use the kasa if open, else record truthfully drawerless (no block).
         allowNoDrawer: true,
       }),

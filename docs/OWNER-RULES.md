@@ -1855,3 +1855,12 @@ dersi kendi uygulamasında görür ve rezerve edebilir; başkası göremez. Reze
 (düet böyle dolar), ama **çıkarılamaz**: çıkarılan kişi rezervasyonu yapan olabilir, önce rezervasyon iptal edilmeli.
 Kayıt tarafında `assignedMemberId` çoğullaştı (`class_session.scheduled` v6 + upcaster); eski dersler tek isimli
 hâllerinden okunmaya devam ediyor, hiçbir kayıt geriye dönük değiştirilmedi.
+
+**OR-90 · Borçlu satırın kendi tahsilat düğmesi vardır, ve o para o borca gider.** (2026-09-16)
+Owner: *"satışlarda borçlu olan hareketin sağına, iptalin yanına bir de tahsilat al butonu koy; direk bu borca ilişkin
+ödemeyi al ve borcundan düş, tam borç karşılıysa bu parçayı kapat."* Üye cari hesabında **kalanı olan** her satış
+satırında "Tahsilat Al" düğmesi çıkar: diyalog o satışın kalan tutarıyla açılır ve tahsilat **yalnızca o satışa**
+mahsup edilir — tam karşılarsa satış "Tahsil edildi"ye döner. Üstteki genel "Tahsilat Al" düğmesi eskisi gibi
+çalışmaya devam eder: hedef verilmediğinde para **en eski borçtan** başlayarak dağılır. Hedefli tahsilat, hedefi
+alamıyorsa reddedilir; sessizce başka bir borca kaymaz ([[OR-37]] — bir paket linkinin başka bir satışı kapatması
+tam olarak bu yüzden yasak). Satış borçtan azını istiyorsa fazlası üyenin alacağı olarak durur, uydurulmaz.

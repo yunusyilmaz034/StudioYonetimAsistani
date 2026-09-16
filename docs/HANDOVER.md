@@ -124,6 +124,12 @@ linkleri `853d273` → `build-2026-09-15-003` (rollout izleniyor):
     (PT en fazla 2 kişi) → yerine `assignment_exceeds_capacity` (isim sayısı > koltuk).
     **Deneme:** Ders Ajandası → Yeni Seans → PT → Kapasite 2 → "Belirli üyelere ayır" → iki isim seç → kaydet;
     sonra seansı aç, "PT ataması" kutusunda iki isim görünmeli ve üçüncü isim ancak kapasite artınca eklenebilmeli.
+  - **Borçlu satıra tahsilat ([[OR-90]])** (16 Eylül akşamı, HENÜZ DEPLOY EDİLMEDİ): üye → Ödemeler'de kalanı olan
+    satış satırında "Tahsilat Al"; diyalog kalan tutarla açılır, para `collectAction`'a `saleId` ile gider ve
+    çekirdeğin `allocateTo` yolunu kullanır (hedef satış alınamıyorsa REDDEDİLİR — sessiz kayma yok, [[OR-37]]).
+    Üstteki genel düğme değişmedi (en eski borç önce).
+    **Deneme:** iki açık borcu olan bir üyede YENİ tarihli satırın "Tahsilat Al"ına bas, kalanı öde → o satır
+    "Tahsil edildi" olmalı, ESKİ borç aynen açık kalmalı.
 
 **Numara (owner düzeltti, 15 Eylül):** aktif reklam **AI hattına** gidiyor (0533'ten farklı bir numara). 0533 199 41 23
 stüdyonun telefonu; AI mevcut üyelerin satış dışı sorularını oraya yönlendiriyor (`whoBlock` + bilgi kartı İLETİŞİM).
