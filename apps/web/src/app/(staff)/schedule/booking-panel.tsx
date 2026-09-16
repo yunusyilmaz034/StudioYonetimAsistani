@@ -74,7 +74,10 @@ export function BookingPanel({ session, onMutated, canBackdate = true }: { sessi
   const [cancelling, setCancelling] = useState<RosterMember | null>(null)
   // KREDİYE İNSAN KARAR VERİR (owner, 2026-09-10). Varsayılan İADE: kaza ile kredi yakmak, kaza ile
   // iade etmekten pahalıdır — biri üyeyi kızdırır ve telefonla çözülür, öbürü bir kredidir.
-  const [iade, setIade] = useState(true)
+  // SEÇİM ZORUNLU, VARSAYILAN YOK (owner, 2026-09-16). Düğme "iade" seçili geliyordu ve geç iptalde soruyu
+  // sormuş sayılıyorduk: resepsiyon onaylıyor, kredi sessizce iade oluyor, kayda sebep düşmüyordu. Bugün tam olarak
+  // bu oldu — 3,4 saat kala iptal, politika "yansın" derken kredi iade edildi ve sebep boş kaldı.
+  const [iade, setIade] = useState<boolean | null>(null)
   const [krediSebep, setKrediSebep] = useState('')
   const [noting, setNoting] = useState<RosterMember | null>(null)
   const [noteText, setNoteText] = useState('')
@@ -183,12 +186,12 @@ export function BookingPanel({ session, onMutated, canBackdate = true }: { sessi
       const res = await cancelReservationAction({
         reservationId: cancelling.reservationId,
         ...(lateCancel ? { creditDecision: iade ? ('refund' as const) : ('consume' as const) } : {}),
-        ...(lateCancel && iade && krediSebep.trim() ? { reason: krediSebep.trim() } : {}),
+        ...(lateCancel && iade ? { reason: krediSebep.trim() } : {}),
       })
       if (res.ok) {
         toast.success(replace ? 'İptal edildi — doğru üyeyi seçin.' : 'Rezervasyon iptal edildi.')
         setCancelling(null)
-        setIade(true)
+        setIade(null)
         setKrediSebep('')
         await loadRoster()
         onMutated()
@@ -441,18 +444,21 @@ export function BookingPanel({ session, onMutated, canBackdate = true }: { sessi
                 Geç iptal: derse {Math.max(0, Math.floor(hoursUntil))} saatten az kaldı. Kredi ne olsun?
               </p>
               <div className="grid grid-cols-2 gap-2">
-                <Button type="button" size="sm" variant={iade ? 'default' : 'outline'} onClick={() => setIade(true)}>
+                <Button type="button" size="sm" variant={iade === true ? 'default' : 'outline'} onClick={() => setIade(true)}>
                   Krediyi iade et
                 </Button>
-                <Button type="button" size="sm" variant={iade ? 'outline' : 'default'} onClick={() => setIade(false)}>
+                <Button type="button" size="sm" variant={iade === false ? 'default' : 'outline'} onClick={() => setIade(false)}>
                   Krediyi yak
                 </Button>
               </div>
               {/* Sebep YALNIZCA sapmada isteniyor: politikanın dediğini yapmak bir müdahale değildir
                   ve her iptalde gerekçe yazdırmak, gerekçeyi anlamsızlaştırır. */}
-              {iade ? (
+              {iade === null ? (
+                <p className="text-xs text-warning">Devam etmek için kredinin ne olacağını seçin.</p>
+              ) : null}
+              {iade === true ? (
                 <Input
-                  placeholder="Neden iade ediliyor? (kayda geçer)"
+                  placeholder="Neden iade ediliyor? (zorunlu — kayda geçer)"
                   value={krediSebep}
                   onChange={(e) => setKrediSebep(e.target.value)}
                 />
@@ -465,10 +471,10 @@ export function BookingPanel({ session, onMutated, canBackdate = true }: { sessi
           )}
           <DialogFooter className="sm:flex-col sm:gap-2">
             {/* "Wrong member" — cancel and immediately pick the correct one, without leaving. */}
-            <Button variant="outline" onClick={() => void confirmCancel(true)} disabled={busy}>
+            <Button variant="outline" onClick={() => void confirmCancel(true)} disabled={busy || (lateCancel && (iade === null || (iade === true && krediSebep.trim() === '')))}>
               İptal Et ve Üye Değiştir
             </Button>
-            <Button variant="destructive" onClick={() => void confirmCancel()} disabled={busy}>
+            <Button variant="destructive" onClick={() => void confirmCancel()} disabled={busy || (lateCancel && (iade === null || (iade === true && krediSebep.trim() === '')))}>
               {busy ? <Loader2Icon className="animate-spin" /> : null}
               Rezervasyonu İptal Et
             </Button>
