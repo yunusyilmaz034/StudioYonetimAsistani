@@ -18,6 +18,7 @@ import {
 } from '@/server/actions/conversations'
 
 import { mesajZamani } from '@/lib/mesaj-zamani'
+import { isStaleDeployment, STALE_DEPLOYMENT_MESSAGE } from '@/lib/stale-deployment'
 import { InboxSectionList, OlderConversationsButton, inboxSections, useOlderConversations } from '@/components/inbox-sections'
 const POLL_MS = 5000
 
@@ -49,7 +50,14 @@ export function ConversationsScreen() {
       const inbox = await listInboxAction()
       setConvs(inbox.items)
       setPeriod(inbox.period)
-    } catch {
+    } catch (e) {
+      // ESKİ SEKME (owner, 2026-09-16): panel gün içinde güncellendiğinde açık sekme artık var olmayan bir Server
+      // Action'ı çağırıyor. Sessizce eski listeyi tutmak, resepsiyona "sohbetler gelmiyor" dedirtiyordu.
+      if (isStaleDeployment(e)) {
+        toast.message(STALE_DEPLOYMENT_MESSAGE)
+        window.setTimeout(() => window.location.reload(), 1200)
+        return
+      }
       /* keep last */
     }
   }, [])
@@ -66,7 +74,12 @@ export function ConversationsScreen() {
       try {
         const d = await getConversationAction({ phone: selected })
         if (alive) setDetail(d)
-      } catch {
+      } catch (e) {
+        if (isStaleDeployment(e)) {
+          toast.message(STALE_DEPLOYMENT_MESSAGE)
+          window.setTimeout(() => window.location.reload(), 1200)
+          return
+        }
         /* keep */
       }
     }

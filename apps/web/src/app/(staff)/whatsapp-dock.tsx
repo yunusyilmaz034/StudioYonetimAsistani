@@ -16,6 +16,7 @@ import {
 } from '@/server/actions/conversations'
 
 import { mesajZamani } from '@/lib/mesaj-zamani'
+import { isStaleDeployment, STALE_DEPLOYMENT_MESSAGE } from '@/lib/stale-deployment'
 import { InboxSectionList, OlderConversationsButton, inboxSections, useOlderConversations } from '@/components/inbox-sections'
 const POLL_MS = 4000
 
@@ -126,7 +127,15 @@ export function WhatsAppDock() {
         // `null` = sohbet bulunamadı. Bu da bir hata: boş bir pencere, kullanıcıya sistemin
         // çalıştığını ama konuşmanın olmadığını düşündürüyor.
         setYuklemeHatasi(d === null)
-      } catch {
+      } catch (e) {
+        // ESKİ SEKME, BOZUK SOHBET DEĞİL (owner, 2026-09-16). Panel gün içinde güncellendiğinde açık kalan sekme
+        // artık var olmayan bir Server Action'ı çağırıyor ve kutu "Sohbet yüklenemedi" diyordu — resepsiyon bunu
+        // arıza sanıyor. Panelin geri kalanında olduğu gibi burada da sayfa kendini yeniliyor.
+        if (isStaleDeployment(e)) {
+          if (alive) toast.message(STALE_DEPLOYMENT_MESSAGE)
+          window.setTimeout(() => window.location.reload(), 1200)
+          return
+        }
         // Sessizce yutmuyoruz. Eski içerik duruyorsa kalsın, ama hiç içerik yoksa söyle.
         if (alive) {
           setYuklemeHatasi(true)
