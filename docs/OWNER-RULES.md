@@ -1837,3 +1837,11 @@ and pending payments → Borçlular. In Hareket Merkezi the events of ONE operat
 second) collapse into a single line that opens on press; grouping is by operation id, never by member — the same
 member's two sales are two decisions. Payment lines now name the member, and the name links to her page.
 
+
+**OR-88 · A late cancellation does not decide the credit for you, and going against the policy needs a reason.** (2026-09-16)
+Owner, after a 18:30 booking was cancelled late and the credit refunded without anyone being asked: *"krediyi iade
+etmesinde sorun yok öyle kalsın ama sormadı ne yapayım diye — yansın mı kalsın mı diye sorsun."* Inside the late window
+the panel now preselects **nothing**: the staff member picks "kredi yansın" or "kredi iade" deliberately, and the cancel
+button stays disabled until she does. Refunding against the policy also requires a written **reason** — it is a
+correction, and a correction without a reason is an untraceable one ([[OR-86]] is the same instinct at the door). The
+policy itself did not change; only the panel stopped answering on reception's behalf.

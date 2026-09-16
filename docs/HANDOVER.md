@@ -7,7 +7,7 @@ explains the moment.
 Keep it current the way the code is kept current: when the state changes, this changes in the same
 commit. A handover document that lags is worse than none, because it is believed.
 
-_Last true as of: **2026-09-14, 00:45**._
+_Last true as of: **2026-09-16, 17:15**._
 
 ## ⏭️ Sıradaki oturum — BURADAN BAŞLA
 
@@ -89,6 +89,10 @@ linkleri `853d273` → `build-2026-09-15-003` (rollout izleniyor):
   - **Pano "anlaşılan tutar" YANLIŞTI:** günlük özet `sale.discounted` olayını hiç işlemiyordu; 16 Eylül'de iki satış
     18.800 → 16.000 ₺'ye indirilince pano 100.150 ₺, gün sonu raporu 94.550 ₺ dedi. Projeksiyon düzeltildi (+test) ve
     `pnpm projections:rebuild retro` ile geçmiş yeniden kuruldu. "Kasaya giren" (72.050 ₺) baştan doğruydu.
+    **Yeniden kurma uzun sürüyor ve ARADA PANO SIFIR GÖSTERİR:** komut önce `readModels/daily/days` altını siler, sonra
+    bütün olayları `occurredAt` sırasına göre oynatır — bugün en son dolar. 16 Eylül'de ilk çalıştırma gRPC hatasıyla
+    yarıda kaldı (bugün 26.000 ₺'de kaldı, owner "bunlar niye 0" diye sordu), ikincisi ~1,5 saat sürdü. Gündüz
+    çalıştırma; çalıştıracaksan owner'a "rakamlar bitene kadar eksik görünecek" de.
   - **Test hesapları borçlu görünmüyor ([[OR-84]] ailesi):** Borçlular ve Tahsilat raporları artık `excludedMemberIds`
     listesini okuyor (owner: *"Işıl Yılmaz'ı test kullanıcısı gibi davran"*).
   - **Hareket Merkezi ([[OR-87]]):** işleme göre tek satır + açılır ayrıntı; ödeme/tahsilat satırlarında üye adı ve
@@ -98,6 +102,14 @@ linkleri `853d273` → `build-2026-09-15-003` (rollout izleniyor):
   - **Check-in raporu:** "İlk giriş / Son giriş" yerine **Giriş / Çıkış**; çıkış okutulmamışsa "—".
   - **Patron Asistanı:** son 30 günün yoğun günleri (giriş sayısı), yoğun saatleri (dolu rezervasyon) ve günlere göre
     satış dağılımı artık veride — asistan bunları yorumlayabilir, rakam uydurmaz.
+  - **Geç iptal ([[OR-88]])** `a7933df`: iptal penceresi geçmişse panel artık kredi için HİÇBİR ŞEY seçmiyor; personel
+    "kredi yansın / iade" der, seçmeden iptal düğmesi basılmıyor, politikaya rağmen iade edilecekse sebep zorunlu.
+    Gülçin Bozkurt'un 18:30 dersi bunun için düzeltildi — kredi iadesi yerinde, sorulmaması yanlıştı.
+    **Deneme:** başlamasına 6 saatten az kalan bir rezervasyonu iptal etmeyi dene → iki seçenek de boş, düğme kapalı.
+  - **"Sohbetler yüklenemiyor"** `9b3e421` (16:19, `build-2026-09-16-011`): sebep hata değil, **eski sekme** —
+    açık kalan sayfa yeni deploy'dan sonra kendi Server Action'ını bulamıyor ("Failed to find Server Action"). Sohbetler
+    ve WhatsApp dock'u artık bunu tanıyıp "yeni sürüm var, sayfa yenileniyor" deyip 1,2 sn sonra kendini yeniliyor
+    (`isStaleDeployment`). Deploy'dan sonra "yenile" demeyi bu iki ekran için unutabilirsin, diğerleri hâlâ elle.
 
 **Numara (owner düzeltti, 15 Eylül):** aktif reklam **AI hattına** gidiyor (0533'ten farklı bir numara). 0533 199 41 23
 stüdyonun telefonu; AI mevcut üyelerin satış dışı sorularını oraya yönlendiriyor (`whoBlock` + bilgi kartı İLETİŞİM).
