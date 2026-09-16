@@ -107,11 +107,19 @@ export function decideUpdateProduct(ctx: DecideContext, current: Product, next: 
       : [...changes, { field: 'components', from: current.components ?? null, to: next.components ?? null }]
 
   if (tum.length === 0) return []
+  // TANIMSIZ DEĞER OLAY KAYDINA GİREMEZ (2026-09-16). `aiQuotable` gibi SONRADAN eklenen isteğe bağlı bir alanı ilk kez
+  // değiştirdiğinde "eski değer" `undefined` oluyor ve Firestore bunu reddediyor — yani ilk kapatma denemesi hataya
+  // düşüyordu. Yokluk `null` olarak yazılır: "o zaman bu alan yoktu" cümlesi, kaydın kendisinde durur.
+  const yazilabilir = tum.map((c) => ({
+    ...c,
+    from: c.from === undefined ? null : c.from,
+    to: c.to === undefined ? null : c.to,
+  }))
   return [
     {
       ...base(ctx, next.id),
       type: PRODUCT_UPDATED,
-      payload: { changedFields: changedFieldNames(tum), changes: tum },
+      payload: { changedFields: changedFieldNames(yazilabilir), changes: yazilabilir },
     },
   ]
 }

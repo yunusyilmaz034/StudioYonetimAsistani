@@ -76,3 +76,19 @@ describe('decideUpdateProduct', () => {
     })
   })
 })
+
+// SONRADAN EKLENEN İSTEĞE BAĞLI ALAN (2026-09-16): `aiQuotable` ilk kez kapatıldığında "eski değer" yoktur.
+// `undefined` Firestore'a yazılamaz — olay reddedilir ve owner'ın ilk kapatma denemesi hataya düşerdi.
+describe('decideUpdateProduct — yokluk null yazılır', () => {
+  it('ilk kez kapatmada from: null; değişiklik kaydında hiç undefined yok', () => {
+    const [event] = decideUpdateProduct(ctx, product(), product({ aiQuotable: false }))
+    const payload = event?.payload as { changedFields: string[]; changes: { field: string; from: unknown; to: unknown }[] }
+    expect(payload.changedFields).toEqual(['aiQuotable'])
+    expect(payload.changes).toEqual([{ field: 'aiQuotable', from: null, to: false }])
+    expect(JSON.stringify(payload).includes('undefined')).toBe(false)
+  })
+  it('tekrar açıldığında iki değer de yazılır', () => {
+    const [event] = decideUpdateProduct(ctx, product({ aiQuotable: false }), product({ aiQuotable: true }))
+    expect((event?.payload as { changes: unknown[] }).changes).toEqual([{ field: 'aiQuotable', from: false, to: true }])
+  })
+})
