@@ -140,10 +140,11 @@ export function UyelikForm({
                 <span className="block text-xs text-muted-foreground">{it.durationDays} gün geçerli</span>
               </span>
               <span className="shrink-0 text-right">
+                {/* TEK FİYAT (owner, 2026-09-16): *"tek fiyat kk olsun, kk vs demeyelim; o da kk
+                    fiyatları gelsin, onda da kk demesin."* Online satışta geçerli olan tek rakam
+                    budur; nakit fiyat stüdyonun işi, bu sayfanın değil. İki rakam göstermek,
+                    reklamda bir fiyat görüp burada başkasını bulmak demekti. */}
                 <span className="block text-base font-semibold tabular-nums text-foreground">{tl(it.totalKurus)}</span>
-                {it.cashKurus != null && it.cashKurus !== it.totalKurus ? (
-                  <span className="block text-[11px] text-muted-foreground">stüdyoda nakit {tl(it.cashKurus)}</span>
-                ) : null}
               </span>
             </button>
           )
@@ -202,12 +203,12 @@ export function UyelikForm({
         {busy ? <Loader2Icon className="animate-spin" /> : null}
         {selected ? `${tl(selected.totalKurus)} Öde ve Üyeliği Satın Al` : 'Öde'}
       </Button>
-      {/* Buying here is buying by card, so the figure above is the card price. Some packages carry a
-          different cash price (owner, 2026-08-18) — the card names it rather than letting her find
-          out at the desk. The vade farkı is the payment institution's; the studio sets no rate. */}
+      {/* ONE price, and it is never labelled (owner, 2026-09-16). The instalment sentence states the
+          REAL limit — 3, not 6 — because a promise this page cannot keep is worse than no promise.
+          The vade farkı is the payment institution's; the studio sets no rate. */}
       <p className="text-center text-xs leading-relaxed text-muted-foreground">
-        Buradan yapılan ödemeler kredi kartıyla alınır; gösterilen tutar kredi kartı tutarıdır. Taksit
-        seçeneğine göre vade farkı oluşabilir, net tutarı ödeme ekranında görürsünüz.
+        3 taksite kadar ödeyebilirsiniz; taksitli ödemelerde vade farkı uygulanır. Net tutarı ödeme
+        ekranında görürsünüz.
         <br />
         Ödeme sonrası üyeliğin hemen aktif olur; giriş bağlantısını WhatsApp&apos;tan göndeririz.
       </p>
