@@ -241,7 +241,11 @@ export function CheckinScreen({
                 return (
                   <li key={m.id} className="flex items-center justify-between gap-2 p-2">
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-medium">{m.fullName}</p>
+                      {/* Ada tıklayınca üyeye git (owner, 2026-09-16). Kapıdaki soru çoğu zaman "bu kim, paketi ne
+                          durumda" — aramayı ikinci kez yapmak resepsiyonun elindeki kişiyi bekletiyordu. */}
+                      <Link href={`/members/${m.id}`} className="block truncate text-sm font-medium hover:underline">
+                        {m.fullName}
+                      </Link>
                       <p className="text-xs text-muted-foreground">{m.phone}</p>
                     </div>
                     <Button
@@ -270,7 +274,9 @@ export function CheckinScreen({
                   {state.inside.map((i) => (
                     <li key={i.memberId} className="flex items-center justify-between gap-2 p-2.5">
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-medium">{nameOf.get(i.memberId) ?? i.memberId}</p>
+                        <Link href={`/members/${i.memberId}`} className="block truncate text-sm font-medium hover:underline">
+                          {nameOf.get(i.memberId) ?? i.memberId}
+                        </Link>
                         <p className="text-xs text-muted-foreground">
                           {timeLabel(i.checkedInAt)} · {durationLabel(i.checkedInAt)}
                         </p>
@@ -314,7 +320,9 @@ export function CheckinScreen({
             {state.today.rows.map((r) => (
               <li key={r.memberId} className="flex items-center justify-between gap-3 p-2.5">
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-medium">{names[r.memberId] ?? nameOf.get(r.memberId) ?? 'Üye'}</p>
+                  <Link href={`/members/${r.memberId}`} className="block truncate text-sm font-medium hover:underline">
+                    {names[r.memberId] ?? nameOf.get(r.memberId) ?? 'Üye'}
+                  </Link>
                   <p className="text-xs tabular-nums text-muted-foreground">
                     {r.firstIn !== null ? `Giriş ${timeLabel(r.firstIn)}` : 'Girişi kayıtsız'}
                     {insideIds.has(r.memberId) ? ' · içeride' : r.lastOut !== null ? ` · Çıkış ${timeLabel(r.lastOut)}` : ''}
