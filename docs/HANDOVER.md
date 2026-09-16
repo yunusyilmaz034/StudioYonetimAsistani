@@ -73,6 +73,11 @@ linkleri `853d273` → `build-2026-09-15-003` (rollout izleniyor):
   kapalı paketi listeye hiç almıyor. Fitness 1 Aylık ve 2 Aylık kapatıldı (script `tools/migration/ai-hide-fitness-short-2026-09-16.ts`,
   `product.updated` + değişiklik kaydı). Alan İSTEĞE BAĞLI: eski kurulum script'leri güncellerken mevcut değeri korur.
   **Deneme:** AI hattına "fitness fiyatları" yaz → yalnızca 3, 6 ve 12 aylık gelmeli.
+  **TUZAK (aynı gece, iki kez):** (1) `productToFirestore`/`productFromFirestore` alanları TEK TEK sayıyor — yeni alan
+  tip kontrolünden geçti, panel "kaydedildi" dedi, alan yazılmadı. Artık gidiş-dönüş testi var (`mappers.test.ts`).
+  (2) Sonradan eklenen isteğe bağlı bir alanın İLK değişiminde denetim kaydı `from: undefined` taşıyor ve Firestore
+  reddediyor — `decideUpdateProduct` artık yokluğu `null` yazıyor. (3) `whatsappWebhook` eşleyici düzeltmesinden ÖNCE
+  deploy edilirse bayrağı okuyamaz: fonksiyon düzeltmeden SONRA yeniden yüklendi.
 
 **Numara (owner düzeltti, 15 Eylül):** aktif reklam **AI hattına** gidiyor (0533'ten farklı bir numara). 0533 199 41 23
 stüdyonun telefonu; AI mevcut üyelerin satış dışı sorularını oraya yönlendiriyor (`whoBlock` + bilgi kartı İLETİŞİM).
