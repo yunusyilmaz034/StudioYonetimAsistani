@@ -59,6 +59,8 @@ const fields = z.object({
   description: z.string(),
   onlineSellable: z.boolean().default(false),
   memberSellable: z.boolean().default(false),
+  // Yokluğu AÇIK: bu alan eklenmeden önceki her ürün eskisi gibi AI tarafından fiyatlanabilir.
+  aiQuotable: z.boolean().default(true),
 })
 
 function toFields(p: z.infer<typeof fields>) {
@@ -84,6 +86,7 @@ function toFields(p: z.infer<typeof fields>) {
     // only exists in the UI is a rule anyone can post around.
     onlineSellable: p.category === 'private' ? false : p.onlineSellable,
     memberSellable: p.category === 'private' ? false : p.memberSellable,
+    aiQuotable: p.aiQuotable,
   }
 }
 

@@ -69,6 +69,11 @@ linkleri `853d273` → `build-2026-09-15-003` (rollout izleniyor):
   hafta Pazartesi başlar, sınırlar TRT. Yeni sorgu `listCheckInsBetween` (tek alan aralığı — indeks gerekmez).
   **Deneme:** Raporlar → Check-in raporu (haftalık) → Son 30 gün → bu hafta satırında bugün girenler görünmeli.
 
+- **AI'a kapalı paket ([[OR-84]])** (16 Eylül gece): ürüne `aiQuotable` alanı + paket formunda kutu; webhook `liveFacts`
+  kapalı paketi listeye hiç almıyor. Fitness 1 Aylık ve 2 Aylık kapatıldı (script `tools/migration/ai-hide-fitness-short-2026-09-16.ts`,
+  `product.updated` + değişiklik kaydı). Alan İSTEĞE BAĞLI: eski kurulum script'leri güncellerken mevcut değeri korur.
+  **Deneme:** AI hattına "fitness fiyatları" yaz → yalnızca 3, 6 ve 12 aylık gelmeli.
+
 **Numara (owner düzeltti, 15 Eylül):** aktif reklam **AI hattına** gidiyor (0533'ten farklı bir numara). 0533 199 41 23
 stüdyonun telefonu; AI mevcut üyelerin satış dışı sorularını oraya yönlendiriyor (`whoBlock` + bilgi kartı İLETİŞİM).
 Görselde 0533 yazması reklamı yönlendirmiyor. **Açık gözlem:** AI hattına 14 Eyl 22:46'dan beri yeni mesaj yok;

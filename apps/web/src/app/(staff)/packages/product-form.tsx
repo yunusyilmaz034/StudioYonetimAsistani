@@ -92,6 +92,8 @@ export function ProductForm({
   // Never available for PT/private (coordination-heavy); the toggle is hidden there.
   const [onlineSellable, setOnlineSellable] = useState(product?.onlineSellable ?? false)
   const [memberSellable, setMemberSellable] = useState(product?.memberSellable ?? false)
+  // AI fiyat verebilir mi (owner, 2026-09-16). Varsayılan AÇIK — kapatmak bilinçli bir karardır.
+  const [aiQuotable, setAiQuotable] = useState(product?.aiQuotable ?? true)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -137,6 +139,7 @@ export function ProductForm({
       description: description.trim(),
       onlineSellable,
       memberSellable,
+      aiQuotable,
     }
     try {
       const res = product
@@ -473,6 +476,21 @@ export function ProductForm({
           </label>
         </div>
       ) : null}
+
+      {/* AI RESEPSİYONİST (owner, 2026-09-16): *"AI fitness 1 aylık paket vermesin, o stüdyoda resepsiyona özgü."*
+          Kapalı paket AI'ın gördüğü listeye hiç girmez; satış kanallarından bağımsızdır ve PT dahil her pakette vardır. */}
+      <div className="space-y-2 rounded-lg border border-border p-3">
+        <p className="text-xs font-medium tracking-wide uppercase text-muted-foreground">WhatsApp AI</p>
+        <label className="flex items-start gap-2 text-sm">
+          <Checkbox className="mt-0.5" checked={aiQuotable} onCheckedChange={(v) => setAiQuotable(v === true)} />
+          <span>
+            AI bu paketin fiyatını verebilir
+            <span className="block text-xs text-muted-foreground">
+              Kapatırsan AI bu paketi hiç görmez: fiyatını söylemez, önermez, adını anmaz. Resepsiyona özgü paketler için.
+            </span>
+          </span>
+        </label>
+      </div>
 
       {product ? (
         <label className="flex items-center gap-2 text-sm">

@@ -1802,3 +1802,10 @@ package groups with live prices (cash and card together when they differ), the c
 one interests you?" and a short name question. A plain greeting is not covered. Rule in `whatsapp-webhook.ts` (no
 product names or prices in source); the studio's own example in `settings/ai.examples` matches it.
 
+**OR-84 · Some packages are the desk's, and the AI never quotes them.** (2026-09-16)
+*"AI fitness 1 aylık paket vermesin, o stüdyoda resepsiyona özgü, bundan hiç bahsetmesin; fitness 3 aylık, 6 aylık ve
+12 aylık olarak fiyat verebilir."* Fitness 1 and 2 months (owner confirmed the second) are **desk-only**: they stay in
+the catalogue and reception keeps selling them, but the WhatsApp assistant never sees them. Enforced by data, not by an
+instruction: a product's **"AI bu paketin fiyatını verebilir"** switch (Paketler → paket formu) keeps the package out of
+the live facts the model reads. Default is on; an older setup script that does not know the field leaves it as it is.
+

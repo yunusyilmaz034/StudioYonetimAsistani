@@ -31,6 +31,13 @@ export interface ProductFields {
   readonly description: string
   readonly onlineSellable: boolean // online üyelik satışı — public satış sayfasında görünür mü
   readonly memberSellable: boolean // üyelere satışa açık — giriş yapmış üye uygulamadan/portaldan alabilir mi
+  /**
+   * WhatsApp AI bu paketin fiyatını verebilir mi (2026-09-16). Kapalıysa paket AI'ın gördüğü listeye hiç girmez.
+   *
+   * İSTEĞE BAĞLI, ve bu bilinçli: alan eklenmeden yazılmış kurulum/göç script'leri bu alanı taşımıyor. Verilmediğinde
+   * güncelleme ürünün MEVCUT değerini korur — yoksa böyle bir script, owner'ın kapattığı bir paketi sessizce açardı.
+   */
+  readonly aiQuotable?: boolean
 }
 
 // D12 — a package must name the services it covers. Without this, "covers nothing" and
@@ -47,7 +54,7 @@ export async function createProduct(
 ): Promise<Result<{ productId: ProductId }, DomainError>> {
   const invalid = requiresService(input)
   if (invalid) return { ok: false, error: invalid }
-  const product: Product = { id: newProductId(), studioId: ctx.studioId, active: true, ...input }
+  const product: Product = { id: newProductId(), studioId: ctx.studioId, active: true, ...input, aiQuotable: input.aiQuotable ?? true }
   await deps.repo.saveProduct(ctx, product, decideCreateProduct(decideContext(deps, ctx), product))
   return { ok: true, value: { productId: product.id } }
 }
@@ -86,6 +93,7 @@ export async function updateProduct(
     active: input.active,
     onlineSellable: input.onlineSellable,
     memberSellable: input.memberSellable,
+    aiQuotable: input.aiQuotable ?? current.aiQuotable ?? true,
   }
   const events = decideUpdateProduct(decideContext(deps, ctx), current, next)
   if (events.length === 0) return { ok: true, value: undefined }

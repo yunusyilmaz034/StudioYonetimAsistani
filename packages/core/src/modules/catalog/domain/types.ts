@@ -62,6 +62,16 @@ export interface Product {
   // representative face for display/surcharge; the real grants come from `components`. `null`/empty ⇒ a
   // normal single-category product. Absent on products created before this existed.
   readonly components: readonly ProductComponent[] | null
+  /**
+   * WhatsApp AI resepsiyonisti bu paketin fiyatını verebilir mi? (owner, 2026-09-16)
+   *
+   * *"AI fitness 1 aylık paket vermesin, o stüdyoda resepsiyona özgü."* Bazı paketler kapıda, yüz yüze konuşulan
+   * paketlerdir; listede dururlar, satılırlar, ama uzaktan fiyat verilmez. Kapalıysa paket AI'ın gördüğü CANLI
+   * VERİ listesine HİÇ girmez — "bahsetme" talimatı yerine listeden çıkarmak, unutulabilecek tek yeri kapatır.
+   *
+   * Yokluğu AÇIK demektir: bu alan var olmadan önce satılan her ürün eskisi gibi davranır.
+   */
+  readonly aiQuotable?: boolean
   readonly description: string
   readonly active: boolean
   // Online üyelik satışı: TRUE ⇒ this package appears on the public sales page and a customer may buy it

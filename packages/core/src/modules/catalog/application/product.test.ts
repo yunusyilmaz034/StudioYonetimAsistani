@@ -30,7 +30,7 @@ const FIELDS = {
   activeReservationLimit: null, entryAllowance: null,
   components: null,
   description: '',
-  onlineSellable: false, memberSellable: false,
+  onlineSellable: false, memberSellable: false, aiQuotable: true,
 }
 
 function deps(existing?: Product): { deps: CatalogDeps; saved: Product[] } {

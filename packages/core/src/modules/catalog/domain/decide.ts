@@ -53,6 +53,8 @@ export function decideCreateProduct(ctx: DecideContext, p: Product): NewEvent[] 
         // Only stamped when opted in — an off product's payload stays byte-for-byte unchanged (golden).
         ...(p.onlineSellable ? { onlineSellable: true } : {}),
         ...(p.memberSellable ? { memberSellable: true } : {}),
+        // Yalnızca KAPALIYKEN damgalanır — açık (varsayılan) ürünün payload'ı bayt bayt aynı kalır (golden).
+        ...(p.aiQuotable === false ? { aiQuotable: false } : {}),
       },
     },
   ]
@@ -63,6 +65,9 @@ export function decideCreateProduct(ctx: DecideContext, p: Product): NewEvent[] 
 // that changed nothing is not an event, it is a click.
 const PRODUCT_FIELDS = [
   'name',
+  // 2026-09-16 — AI fiyat verebilir mi. Değişimi kayda geçer: bir paketin uzaktan fiyatı kesilmiş olması,
+  // sonradan "neden kimse sormuyor" diye bakan birinin bilmesi gereken bir şeydir.
+  'aiQuotable',
   'category',
   'type',
   'durationDays',

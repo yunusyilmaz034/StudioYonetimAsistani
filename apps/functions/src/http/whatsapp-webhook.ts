@@ -108,7 +108,11 @@ function ctxOf(sid: string): TenantContext {
 async function liveFacts(database: Firestore, ctx: TenantContext): Promise<string> {
   const parts: string[] = []
   try {
-    const products = (await new FirestoreCatalogRepository(database).listProducts(ctx)).filter((p: Product) => p.active)
+    // AI FİYAT VEREMEYEN PAKET (owner, 2026-09-16): owner bir paketi "resepsiyona özgü" işaretlerse o paket buraya
+    // HİÇ girmez. Modelin görmediği bir fiyatı söyleyemez — "bahsetme" talimatı unutulabilir, olmayan veri unutulmaz.
+    const products = (await new FirestoreCatalogRepository(database).listProducts(ctx)).filter(
+      (p: Product) => p.active && p.aiQuotable !== false,
+    )
     const surchargeCfg = (await database.doc(`studios/${ctx.studioId}/settings/studio`).get()).get('paymentSurcharge') as
       | CardSurchargeConfig
       | undefined
