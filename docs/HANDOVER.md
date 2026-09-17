@@ -161,9 +161,15 @@ göstermiyordu. Silindi; `firebase.json`'da **302** ile `panel…/uyelik?s=retro
 tarayıcılar 301'i sonsuza dek hatırlar, site bir gün kendi sayfasını isterse geri dönüş zor olur). Site haritasından da
 çıkarıldı. Yeniden yayınlarken `firebase.json`'daki bu redirect bloğunu KORU, yoksa yönlendirme kaybolur ve adres 404 olur.
 
+**Hibrit 3 Aylık'ın karşılaştırması ✅ güncellendi** (17 Eylül, owner onayı): *"tek tek alındığında ₺23.500"* →
+**₺21.500**. Hesap, KART fiyatlarıyla ve elle: paketin içeriği 24 pilates dersi + 12 fitness girişi; tek tek alınsa
+**Reformer Pilates 24 Ders 12.000 ₺ + Fitness 3 Aylık 9.500 ₺**. Avantaj 2.700 ₺. Fitness tarafı birebir değil —
+3 Aylık SINIRSIZ giriş verir, paket 12 giriş — yani karşılaştırma müşterinin aleyhine değil, mütevazı tarafta duruyor;
+abartmamak bilinçli. **Bu rakam canlı veriden gelmiyor, HTML'e gömülü:** katalogda Reformer 24 Ders ya da Fitness
+3 Aylık fiyatı değişirse burası elle güncellenmeli, yoksa sessizce yanlışa döner.
+
 **Açık iş:** Ayarlar'daki `maxInstallments` **6** — ödeme linklerinde müşteriye "6 taksite kadar" diye gösteriliyor.
-Owner 3'e çekecek (veri, kod değil). Ayrıca Hibrit 3 Aylık kartındaki *"tek tek alındığında ₺23.500 tutar"*
-karşılaştırması nakit fiyatlara göre yazılmış olabilir — owner'a soruldu, karar bekliyor.
+Owner 3'e çekecek (veri, kod değil).
 
 **Numara (owner düzeltti, 15 Eylül):** aktif reklam **AI hattına** gidiyor (0533'ten farklı bir numara). 0533 199 41 23
 stüdyonun telefonu; AI mevcut üyelerin satış dışı sorularını oraya yönlendiriyor (`whoBlock` + bilgi kartı İLETİŞİM).
