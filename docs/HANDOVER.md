@@ -153,9 +153,13 @@ curl -s https://pilatesfitnessbyisil-web.web.app -o index.html      # + img/*, a
 firebase hosting:channel:deploy onizleme --project studio-yonetim-prod --expires 7d
 firebase deploy --only hosting --project studio-yonetim-prod
 ```
-Alt sayfalar: `/reformer-pilates`, `/ozel-ders`, `/hamile-pilates`, `/kadinlara-ozel-fitness`, `/uyelik` (19 Ağustos'tan
-kalma DONMUŞ kopya — panelin güncel `/uyelik`'i değil). **Tuzak:** yeniden yayın tüm dizini değiştirir; bağlantısı
-görünmeyen `robots.txt`/`sitemap.xml` gibi dosyaları da indirmezsen SİLİNİR.
+Alt sayfalar: `/reformer-pilates`, `/ozel-ders`, `/hamile-pilates`, `/kadinlara-ozel-fitness`. **Tuzak:** yeniden
+yayın tüm dizini değiştirir; bağlantısı görünmeyen `robots.txt`/`sitemap.xml` gibi dosyaları da indirmezsen SİLİNİR.
+
+**`/uyelik` artık sitenin sayfası değil** (17 Eylül): 19 Ağustos'tan kalma donmuş kopyaydı ve panelin güncel sayfasını
+göstermiyordu. Silindi; `firebase.json`'da **302** ile `panel…/uyelik?s=retro`'ya yönleniyor (kalıcı 301 değil —
+tarayıcılar 301'i sonsuza dek hatırlar, site bir gün kendi sayfasını isterse geri dönüş zor olur). Site haritasından da
+çıkarıldı. Yeniden yayınlarken `firebase.json`'daki bu redirect bloğunu KORU, yoksa yönlendirme kaybolur ve adres 404 olur.
 
 **Açık iş:** Ayarlar'daki `maxInstallments` **6** — ödeme linklerinde müşteriye "6 taksite kadar" diye gösteriliyor.
 Owner 3'e çekecek (veri, kod değil). Ayrıca Hibrit 3 Aylık kartındaki *"tek tek alındığında ₺23.500 tutar"*
