@@ -168,8 +168,14 @@ tarayıcılar 301'i sonsuza dek hatırlar, site bir gün kendi sayfasını ister
 abartmamak bilinçli. **Bu rakam canlı veriden gelmiyor, HTML'e gömülü:** katalogda Reformer 24 Ders ya da Fitness
 3 Aylık fiyatı değişirse burası elle güncellenmeli, yoksa sessizce yanlışa döner.
 
-**Açık iş:** Ayarlar'daki `maxInstallments` **6** — ödeme linklerinde müşteriye "6 taksite kadar" diye gösteriliyor.
-Owner 3'e çekecek (veri, kod değil).
+**Taksit ayarı ✅ kapandı** (17 Eylül): owner Ayarlar'dan `maxInstallments`'ı **3**'e çekti (veriden doğrulandı).
+Artık ödeme linkleri de sitenin ve `/uyelik`'in söylediğiyle aynı şeyi söylüyor.
+
+**Gün sonu raporu artık aralığın SON gününü alıyor** (17 Eylül): owner "Son 30 gün"de **19 Ağustos'un** raporunu görüp
+*"hesaplar patlıyor"* dedi. Rakamlar yanlış değildi, YANLIŞ GÜNÜN rakamlarıydı — `dayend` bilerek aralığın İLK gününü
+alıyordu. Rapor tek gün olarak kalıyor (kasa mutabakatı toplanamaz; bir ayı "Gün sonu" başlıklı sayfada toplamak onu
+kasayla karşılaştırılamaz hâle getirir), ama artık son güne bakıyor: "Bugün"/"Dün" aynı, uzun aralık en güncel kapanışa
+düşüyor. `reports.ts`'te `startOfDayMs` (TRT 00:00'a çeker) + katalogdaki açıklama metni.
 
 **Numara (owner düzeltti, 15 Eylül):** aktif reklam **AI hattına** gidiyor (0533'ten farklı bir numara). 0533 199 41 23
 stüdyonun telefonu; AI mevcut üyelerin satış dışı sorularını oraya yönlendiriyor (`whoBlock` + bilgi kartı İLETİŞİM).

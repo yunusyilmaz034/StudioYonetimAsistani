@@ -137,6 +137,6 @@ export const REPORTS: readonly ReportSpec[] = [
 
 export const TIME_NOTE: Record<ReportSpec['time'], string> = {
   range: 'Seçilen tarih aralığındaki kayıtlar.',
-  day: 'Seçilen aralığın ilk günü — gün sonu tek bir günün raporudur.',
+  day: 'Seçilen aralığın SON günü — gün sonu tek bir günün raporudur, toplanmaz.',
   state: 'Bu rapor tarih aralığından etkilenmez: bugünkü üyelik durumunu gösterir.',
 }

@@ -53,6 +53,14 @@ const OWNER = ['owner'] as const
 // which is why S2 stored the IANA zone rather than a number.
 const OFFSET = 180
 
+// The TRT midnight that starts the day `ms` falls in. The day-end report is a single day, so the
+// range's end has to be pulled back to its own 00:00 — otherwise "Son 30 gün" would ask for a
+// 30-day window starting at today's noon and read nothing.
+function startOfDayMs(ms: number): number {
+  const shifted = ms + OFFSET * 60_000
+  return shifted - (shifted % 86_400_000) - OFFSET * 60_000
+}
+
 export interface ReportResult extends Report {
   readonly id: ReportId
 }
@@ -171,10 +179,12 @@ export async function loadReportAction(input: unknown): Promise<ReportResult> {
     }
 
     case 'dayend': {
-      // ONE day: the first of whatever range she picked. The screen says so out loud — quietly summing
-      // a month into a page headed "Gün sonu" is how a day-end report stops being reconcilable
-      // against the till.
-      const dayStart = p.fromMs
+      // ONE day, and it is the LAST of whatever range she picked (owner, 2026-09-17). Summing a month
+      // into a page headed "Gün sonu" would stop it being reconcilable against the till, so the report
+      // stays single-day — but taking the range's FIRST day meant "Son 30 gün" answered with a day a
+      // month ago, which reads as broken arithmetic. The last day is the one she is actually asking
+      // about: "Bugün" and "Dün" are unchanged, and a longer range lands on the most recent close.
+      const dayStart = startOfDayMs(p.toMs)
       const dayEndMs = dayStart + 86_400_000 - 1
       const label = localDateAt(instant(dayStart), OFFSET) as string
       const finance = new FirestoreFinanceRepository(db)
