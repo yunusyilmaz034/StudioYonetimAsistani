@@ -171,6 +171,17 @@ abartmamak bilinçli. **Bu rakam canlı veriden gelmiyor, HTML'e gömülü:** ka
 **Taksit ayarı ✅ kapandı** (17 Eylül): owner Ayarlar'dan `maxInstallments`'ı **3**'e çekti (veriden doğrulandı).
 Artık ödeme linkleri de sitenin ve `/uyelik`'in söylediğiyle aynı şeyi söylüyor.
 
+**Serbest kalem satışı ✅ ([[OR-95]], 17 Eylül):** Cari Hesap → "Satış Ekle" (açıklama + tutar + isteğe bağlı
+tahsilat). `sellAction` zaten `productId: null` kabul ediyordu; eksik olan ekrandı.
+**Sinem Aktay'ın kaydı düzeltildi** (`tools/migration/sinem-aktay-tamamlama-2026-09-17.ts`): 6.750 ₺'lik
+satışsız tahsilat iptal edildi, aynı tutar "6 aylık fitness paketi 12 aya tamamlama farkı" adıyla satış +
+tahsilat olarak yeniden yazıldı. Kasa etkisi sıfır. **Ders:** `sell` yalnızca KENDİ aldığı ödemeyi mahsup eder;
+"eldeki mahsupsuz parayı yeni satışa bağla" diye bir yol YOK. Aynı durum tekrar ederse çözüm bu betiğin yaptığı şey.
+
+**AI artık ders iptaline karışmıyor ✅ ([[OR-94]], 17 Eylül):** `settings/ai.neverDo` + `policies` güncellendi
+(6 saat kuralı iç bilgi, tek cevap 0533). `settings/ai` OLAY YAZMIYOR — önceki hâl yalnızca oturumun geçici
+klasöründe yedeklendi (`ai-yedek-2026-09-17.json`), kalıcı geçmişi yok.
+
 **Günde 1 pilates rezervasyonu ✅ ([[OR-92]], 17 Eylül):** kural zaten vardı, veri boştu. 9 pakete (4 reformer +
 5 hibrit) `dailyReservationLimit = 1` yazıldı; canlıdan doğrulandı (PT 8 Ders'le birlikte 10 paket). Kod değişmedi.
 

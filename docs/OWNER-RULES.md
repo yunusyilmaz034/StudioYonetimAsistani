@@ -1891,3 +1891,21 @@ edenler"** kutusu (son 30 gün, çoktan aza) ve Raporlar'da **"Kırmızı liste 
 bugün iptal edilen ders gelecek haftaya ait olabilir. Geç iptal ayrı sütundur: dersi bir gün önce bırakmakla başlamasına
 iki saat kala bırakmak stüdyoya aynı şeyi yapmaz. Üç ve üzeri iptal panoda uyarı rengine döner; liste bir CEZA değil,
 konuşma başlatma listesidir.
+
+**OR-94 · Ders iptali/erteleme AI'ın işi değildir — kural bile söylemez.** (2026-09-17)
+Bir üye *"7'deki dersimi 8'e alabilir miyiz"* diye yazdı; AI *"maalesef ders iptallerimiz 6 saate kadardır"* dedi.
+Owner: *"bu gibi durumlarda iptal yok 6 saate kadar; bir de AI buna karışmasın, 0533 199 41 23 numaralı telefondan
+ulaşın desin."* Altı saat kuralı **iç bilgidir**: resepsiyon uygular ve gerektiğinde esnetir. AI'ın kuralı okuması,
+stüdyonun jest yapabileceği bir yerde kapıyı kapatıyor — üstelik AI o esnekliğe karar veremez. `settings/ai`
+(`neverDo` + `policies`) güncellendi: iptal/erteleme/saat değiştirme konusuna hiç girilmez, tek cevap kısa bir
+anlayış cümlesi + telefon. Yönlendirme zaten `escalation`'da vardı; eksik olan, AI'ın süreyi ezbere söylemesini
+yasaklamaktı.
+
+**OR-95 · Katalogda karşılığı olmayan satış: serbest kalem.** (2026-09-17)
+Owner 6 aylık bir paketi 12 aya tamamlayıp 6.750 ₺ aldı ve bunu sisteme yazacak yer yoktu. Katalogda "tamamlama"
+ürünü AÇILMADI: fark her seferinde başka bir sayıdır (ne zaman alındığına, kart mı nakit mi olduğuna göre) ve her
+istisna için ürün açmak fiyat listesini çöplüğe çevirir. Üye → Cari Hesap'ta **"Satış Ekle"**: açıklama + tutar,
+tahsilat aynı işlemde alınır ya da borç olarak bırakılır. Paket farkı, ek hizmet, telafi — hepsi buradan.
+**Bilinen sınır:** mahsup edilmemiş bir ödeme, sonradan açılan satışa KENDİLİĞİNDEN bağlanmaz. Panelin bunu vaat
+eden cümlesi düzeltildi; para zaten alınmışsa doğru yol o tahsilatı iptal edip satışı tahsilatıyla yeniden yazmaktır
+(kasa etkisi sıfır, kayıt tek harekete iner).
