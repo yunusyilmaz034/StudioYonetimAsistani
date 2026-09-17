@@ -521,6 +521,46 @@ const upcomingOperations: Widget<DashboardSnapshot['upcomingOperations']> = {
     ),
 }
 
+// KIRMIZI LİSTE (owner, 2026-09-17) — son 30 günde en çok rezervasyon iptal edenler. Bir iptal olay
+// değildir, ALIŞKANLIK olabilir: aynı isim her hafta yerini boş bırakıyorsa o koltuk başkasının hakkıydı.
+// Sayı 30 günün toplamı; satırın kendisi bugün/7 gün kırılımını da taşır ki "bu hafta yine mi" sorusu
+// listeye bakılarak cevaplanabilsin.
+const redList: Widget<DashboardSnapshot['cancellationLeaders']> = {
+  id: 'members.cancellations',
+  title: 'Kırmızı liste — en çok iptal edenler',
+  kind: 'list',
+  href: () => '/reports?r=cancellations',
+  table: (s): ExportableTable => ({
+    name: 'kirmizi-liste',
+    columns: ['Üye', 'Bugün', 'Son 7 gün', 'Son 30 gün', 'Geç iptal', 'Son iptal'],
+    rows: s.cancellationLeaders.map((r) => [r.name, r.today, r.week, r.month, r.late, formatDateTime(r.lastAt)]),
+  }),
+  select: (s) => s.cancellationLeaders,
+  present: (rows) => {
+    const cok = rows.filter((r) => r.month >= 3)
+    return {
+      headline:
+        rows.length === 0
+          ? 'Son 30 günde iptal yok.'
+          : cok.length > 0
+            ? `${cok.length} üye son 30 günde 3 veya daha fazla ders iptal etti.`
+            : `Son 30 günde ${rows.length} üye ders iptal etti.`,
+      detail: rows[0] ? `En çok: ${rows[0].name} — ${rows[0].month} iptal.` : undefined,
+      tone: cok.length > 0 ? 'warning' : 'default',
+      needsAttention: cok.length > 0,
+    }
+  },
+  render: (rows) => (
+    <MemberLines
+      rows={rows}
+      right={(r: DashboardSnapshot['cancellationLeaders'][number]) =>
+        `${r.month} iptal${r.today > 0 ? ' · bugün 1+' : ''}`
+      }
+      empty="Son 30 günde iptal yok."
+    />
+  ),
+}
+
 // v1.24 — money the studio is owed. Selling without collecting is legal here; it must never be
 // invisible.
 const pendingPayments: Widget<DashboardSnapshot['pendingPayments']> = {
@@ -669,6 +709,7 @@ export const WIDGETS: readonly AnyWidget[] = [
   activeMembers,
   emptySessions,
   pendingPayments,
+  redList,
   unreconciledPaytr,
   openDrawers,
   lowCredit,

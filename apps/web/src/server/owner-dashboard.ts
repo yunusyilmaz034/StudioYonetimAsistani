@@ -10,6 +10,7 @@ import {
   FirestoreOperationsRepository,
   FirestorePaytrCollectionRepository,
   FirestoreProjectionRepository,
+  FirestoreReservationRepository,
   FirestoreSchedulingRepository,
   FirestoreWaitlistRepository,
   instant,
@@ -116,6 +117,20 @@ export interface PendingPaymentRow extends MemberRef {
   readonly daysOpen: number
 }
 
+// KIRMIZI LİSTE (owner, 2026-09-17) — *"devamlı iptal edenler diye bir liste olsa güzel olur."*
+// Sayım penceresi 30 GÜN (owner'ın kendi seçimi); `today` ve `week` aynı pencerenin içinden okunur, ayrı
+// sorgu değildir. İptal ANINA göre sayılır (`resolvedAt`), dersin tarihine göre değil: bugün iptal edilen
+// bir ders gelecek haftaya ait olabilir ve "bu ay kaç kez iptal etti" sorusunun cevabı iptal anıdır.
+export interface CancellationRow extends MemberRef {
+  readonly today: number
+  readonly week: number
+  readonly month: number
+  // Geç iptal: kredisi yanan iptal. Ayrı sayılıyor çünkü ikisi aynı davranış değil — dersi bir gün
+  // önce bırakmakla, başlamasına iki saat kala bırakmak stüdyoya farklı şeyler yapar.
+  readonly late: number
+  readonly lastAt: number
+}
+
 // Phase 2 — a member with an active package who has stopped coming (the behavioural churn signal).
 export interface DormantRow extends MemberRef {
   readonly lastActivityAt: number // max(lastCheckIn, lastAttendance, joinedAt)
@@ -178,6 +193,8 @@ export interface OwnerDashboard {
   // v1.24 — money the studio is owed, and kasalar left open. Both are questions about NOW, so both
   // are bounded state queries; a counter cannot know that a drawer is still open.
   readonly pendingPayments: readonly PendingPaymentRow[]
+  // Son 30 günün en çok iptal edenleri, çoktan aza.
+  readonly cancellationLeaders: readonly CancellationRow[]
   readonly openDrawers: readonly OpenDrawerRow[]
   // PF-37 — shareable-link payments that arrived but are not yet attributed to a member.
   readonly unreconciledCollections: readonly UnreconciledCollectionRow[]
@@ -217,6 +234,7 @@ export async function loadOwnerDashboard(
     drawers,
     feed,
     collections,
+    cancelled,
   ] = await Promise.all([
       new FirestoreProjectionRepository(db).getDaily(ctx, date),
       new FirestoreMemberRepository(db).list(ctx),
@@ -237,6 +255,12 @@ export async function loadOwnerDashboard(
       // payments, memberships and member notifications — no 'system' plumbing (PF-31).
       loadFeed(ctx, { kinds: FEED_KINDS }),
       new FirestorePaytrCollectionRepository(db).listUnreconciled(ctx), // PF-37
+      // Kırmızı liste: 30 günlük pencere, tek okuma. `status + resolvedAt` index'iyle sınırlı.
+      new FirestoreReservationRepository(db).listCancelledResolvedBetween(
+        ctx,
+        instant(nowMs - 30 * DAY_MS),
+        instant(nowMs),
+      ),
     ])
 
   // TEST HESAPLARI PANODA DA GÖRÜNMEZ (owner, 2026-08-27).
@@ -400,6 +424,30 @@ export async function loadOwnerDashboard(
     }))
     .sort((a, b) => b.daysOpen - a.daysOpen)
 
+  // ── KIRMIZI LİSTE ────────────────────────────────────────────────────────────────────────
+  // Test hesapları burada da yok (excluded), ve adı çözülemeyen bir üye listeye girmez: kırmızı liste
+  // bir DAVRANIŞ listesidir, kime ait olduğu belli olmayan bir satır orada iş göremez.
+  const iptalAcc = new Map<string, { today: number; week: number; month: number; late: number; lastAt: number }>()
+  for (const r of cancelled) {
+    const mid = r.memberId as string
+    if (excluded.has(mid)) continue
+    const at = (r.resolvedAt ?? 0) as number
+    if (at === 0) continue
+    const row = iptalAcc.get(mid) ?? { today: 0, week: 0, month: 0, late: 0, lastAt: 0 }
+    row.month++
+    if (at >= dayStart) row.today++
+    if (at >= nowMs - 7 * DAY_MS) row.week++
+    // Kredisi yanan iptal = geç iptal. `released` zamanında bırakılmıştır, `none` ise krediyle
+    // ilgisi olmayan bir iptaldir (süresi dolmuş paket gibi).
+    if (r.creditEffect === 'consumed') row.late++
+    if (at > row.lastAt) row.lastAt = at
+    iptalAcc.set(mid, row)
+  }
+  const cancellationLeaders: CancellationRow[] = [...iptalAcc.entries()]
+    .map(([id, v]) => ({ id, name: nameOf(id), ...v }))
+    .filter((r) => r.name !== 'Silinmiş üye')
+    .sort((a, b) => b.month - a.month || b.late - a.late || b.lastAt - a.lastAt)
+
   const openDrawers: OpenDrawerRow[] = drawers
     .filter((d) => d.status === 'open')
     .map((d) => ({
@@ -473,6 +521,7 @@ export async function loadOwnerDashboard(
     emptySessions,
     upcomingOperations,
     pendingPayments,
+    cancellationLeaders,
     openDrawers,
     unreconciledCollections: collections.map((c) => ({
       id: c.id,

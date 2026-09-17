@@ -638,6 +638,60 @@ export function checkinPeriodOf(ms: number, grain: CheckinGrain): { key: number;
   return { key: Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1), label: `${AYLAR[d.getUTCMonth()]} ${d.getUTCFullYear()}` }
 }
 
+// KIRMIZI LİSTE (owner, 2026-09-17) — kim, kaç kez iptal etti.
+//
+// Sayım İPTAL ANINA göre (`resolvedAt`), dersin saatine göre DEĞİL: bugün iptal edilen bir ders
+// gelecek haftaya ait olabilir, ve "bu ay kaç kez iptal etti" sorusunun cevabı iptal anıdır.
+//
+// "Bugün" ve "son 7 gün" sütunları seçilen aralıktan bağımsızdır — `now`'a göre hesaplanır. Aralık
+// neyin SAYILDIĞINI belirler (varsayılan 30 gün), bu iki sütun ise "yine mi" sorusunu cevaplar.
+export function buildCancellations(
+  cancelled: readonly Reservation[],
+  members: readonly Member[],
+  now: number,
+): Report {
+  const name = new Map(members.map((m) => [m.id as string, m.fullName]))
+  const DAY = 86_400_000
+  const gunBasi = now - (now % DAY) // kaba gün başı; sütun "bugün mü" ayrımı için yeterli
+  const acc = new Map<string, { today: number; week: number; total: number; late: number; last: number }>()
+  for (const r of cancelled) {
+    const at = (r.resolvedAt ?? 0) as number
+    if (at === 0) continue
+    const id = r.memberId as string
+    const row = acc.get(id) ?? { today: 0, week: 0, total: 0, late: 0, last: 0 }
+    row.total++
+    if (at >= gunBasi) row.today++
+    if (at >= now - 7 * DAY) row.week++
+    // Kredisi yanan iptal = geç iptal. Ayrı sütun, çünkü ikisi aynı davranış değil.
+    if (r.creditEffect === 'consumed') row.late++
+    if (at > row.last) row.last = at
+    acc.set(id, row)
+  }
+  const satirlar = [...acc.entries()].sort(
+    (a, b) => b[1].total - a[1].total || b[1].late - a[1].late || b[1].last - a[1].last,
+  )
+  const cokIptal = satirlar.filter(([, v]) => v.total >= 3).length
+  return {
+    table: {
+      name: 'kirmizi-liste',
+      columns: ['Üye', 'Bugün', 'Son 7 gün', 'Dönem toplamı', 'Geç iptal', 'Son iptal'],
+      rows: satirlar.map(([id, v]) => [
+        name.get(id) ?? 'Silinmiş üye',
+        v.today,
+        v.week,
+        v.total,
+        v.late,
+        date(v.last),
+      ]),
+    },
+    summary:
+      satirlar.length === 0
+        ? 'Bu dönemde iptal yok.'
+        : `${satirlar.length} üye toplam ${satirlar.reduce((n, [, v]) => n + v.total, 0)} ders iptal etti` +
+          (cokIptal > 0 ? ` — ${cokIptal} üye 3 veya daha fazla.` : '.'),
+  }
+}
+
 export function buildCheckins(checkIns: readonly CheckIn[], members: readonly Member[], grain: CheckinGrain): Report {
   const name = new Map(members.map((m) => [m.id as string, m.fullName]))
   // GİRİŞ VE ÇIKIŞ (owner, 2026-09-16): "ilk giriş / son giriş" değil — üyenin O DÖNEMDEKİ ilk girişi ve son çıkışı.

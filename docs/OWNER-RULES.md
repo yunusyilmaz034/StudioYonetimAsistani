@@ -1873,3 +1873,21 @@ iki rakam göstermek, müşterinin aklına küçük olanı yazıp kasada büyü�
 **Taksit:** genel kural **3 taksite kadar, vade farkı uygulanır**; 12 Aylık Fitness'ta kampanya gereği **peşin fiyatına
 3 taksit** (vade farkı yok). Sitede yazan "6 taksite kadar" yanlıştı ve kaldırıldı — tutulamayacak söz, sözsüzlükten
 kötüdür. Panel ayarındaki `maxInstallments` hâlâ 6; ödeme linkleri onu okuyor, owner 3'e çekecek.
+
+**OR-92 · Bir üye pilatese günde bir kez rezervasyon yapar.** (2026-09-17)
+Owner: *"pilatese bugün hem 19 hem de 20'ye rezervasyon yapan olmuş, günde 1 randevu yapılsın."* Kontenjan sekiz
+kişilik ve ikinci koltuk başka bir üyenin hakkıydı. Kural KOD DEĞİL VERİ: `dailyReservationLimit` Package Rules
+2.0'dan beri rezervasyon kararında uygulanıyordu, ama paketlerde boş bırakılmıştı — yalnızca PT 8 Ders'te 1 yazılıydı.
+Dört reformer paketi ve pilates içeren beş hibrit pakete **1** yazıldı (`tools/migration/daily-reservation-limit-2026-09-17.ts`).
+Kapsam owner'ın cümlesi kadar: *"reformer da hibritin pilatesinde de"*. **Hibritte fitness etkilenmez** — fitness tarafı
+rezervasyon değil GİRİŞ hakkıdır (ajandada fitness seansı yoktur; rezervasyon yalnızca pilates ve PT içindir).
+Geçmişe dönük iptal yok: kural yeni rezervasyonu bağlar, bugün alınmış çift kayıtlar durur.
+
+**OR-93 · Kırmızı liste: sürekli iptal edenler görünür olur.** (2026-09-17)
+Owner: *"bir yerde devamlı iptal edenler diye kırmızı liste adında bir şey olsa güzel olur… günlük, 1 hafta ve 30 gün
+şeklinde en çok iptal edenleri bir listede görelim ve 30 gün boyunca sayalım."* Panoda **"Kırmızı liste — en çok iptal
+edenler"** kutusu (son 30 gün, çoktan aza) ve Raporlar'da **"Kırmızı liste (iptaller)"** raporu: üye × bugün · son 7 gün
+· dönem toplamı · **geç iptal** · son iptal. Sayım **iptal anına** göredir (`resolvedAt`), dersin saatine göre değil —
+bugün iptal edilen ders gelecek haftaya ait olabilir. Geç iptal ayrı sütundur: dersi bir gün önce bırakmakla başlamasına
+iki saat kala bırakmak stüdyoya aynı şeyi yapmaz. Üç ve üzeri iptal panoda uyarı rengine döner; liste bir CEZA değil,
+konuşma başlatma listesidir.

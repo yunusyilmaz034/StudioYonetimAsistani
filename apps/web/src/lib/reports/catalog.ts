@@ -25,6 +25,8 @@ export type ReportId =
   | 'checkins_weekly'
   | 'checkins_monthly'
   | 'trainer'
+  // 2026-09-17 — kırmızı liste: kim, kaç kez iptal etti (bugün / 7 gün / 30 gün).
+  | 'cancellations'
   | 'dayend'
   | 'debts'
   | 'cash'
@@ -126,6 +128,12 @@ export const REPORTS: readonly ReportSpec[] = [
     // TARİHTEN ETKİLENMEZ: borç bir DÖNEM değil, BUGÜNKÜ DURUMDUR. Tarih aralığına bağlasaydık
     // "son 7 gün" seçen biri eski borçları görmez ve borcun kapandığını sanırdı.
     time: 'state',
+  },
+  {
+    id: 'cancellations',
+    label: 'Kırmızı liste (iptaller)',
+    question: 'Kim sürekli iptal ediyor — bugün, bu hafta, bu ay kaç kez?',
+    time: 'range',
   },
   {
     id: 'cash',

@@ -175,6 +175,15 @@ class FakeRepo implements ReservationRepository {
   ): Promise<readonly Reservation[]> {
     return [...this.reservations.values()].filter((r) => r.sessionStartsAt >= from && r.sessionStartsAt < to)
   }
+  async listCancelledResolvedBetween(
+    _c: TenantContext,
+    from: Instant,
+    to: Instant,
+  ): Promise<readonly Reservation[]> {
+    return [...this.reservations.values()].filter(
+      (r) => r.status === 'cancelled' && (r.resolvedAt ?? 0) >= from && (r.resolvedAt ?? 0) < to,
+    )
+  }
   async listBySession(_c: TenantContext, id: string): Promise<readonly Reservation[]> {
     return [...this.reservations.values()].filter((r) => r.classSessionId === id)
   }

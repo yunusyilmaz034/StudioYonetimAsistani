@@ -112,6 +112,14 @@ export interface ReservationRepository {
   ): Promise<readonly Reservation[]>
   // The booking roster read: every reservation for one session (any status).
   listBySession(ctx: TenantContext, classSessionId: ClassSessionId): Promise<readonly Reservation[]>
+  // KIRMIZI LİSTE (owner, 2026-09-17): iptaller, İPTAL ANINA göre. `resolvedAt` iptalin yazıldığı
+  // andır ve `sessionStartsAt` ile aynı şey DEĞİLDİR — bugün iptal edilen ders gelecek haftaya ait
+  // olabilir. "Bu ay kaç kez iptal etti" sorusunun cevabı iptal anıdır.
+  listCancelledResolvedBetween(
+    ctx: TenantContext,
+    fromInclusive: Instant,
+    toExclusive: Instant,
+  ): Promise<readonly Reservation[]>
   // The Member Workspace read (v1.18): a member's reservations (any status), newest
   // session first. Bounded/split (upcoming + last-N past) by the caller.
   listByMember(ctx: TenantContext, memberId: MemberId): Promise<readonly Reservation[]>

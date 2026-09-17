@@ -247,6 +247,28 @@ export class FirestoreReservationRepository implements ReservationRepository {
     return snap.docs.map((doc) => reservationFromFirestore(doc.id as ReservationId, doc.data()))
   }
 
+  /**
+   * KIRMIZI LİSTE (owner, 2026-09-17) — iptal edilmiş rezervasyonlar, İPTAL ANINA göre.
+   *
+   * `status + resolvedAt` bileşik index'i ile. `orderBy` yönü index yönüyle KASTEN aynı: ters yön
+   * prod'da "requires an index" ile patlar ve emülatör bunu göstermez (bu tuzağa bir kez düşüldü).
+   *
+   * Pencere çağıranın işi; pano 30 gün, rapor seçilen aralık kadar okur.
+   */
+  async listCancelledResolvedBetween(
+    ctx: TenantContext,
+    fromInclusive: Instant,
+    toExclusive: Instant,
+  ): Promise<readonly Reservation[]> {
+    const snap = await this.col(ctx.studioId, 'reservations')
+      .where('status', '==', 'cancelled')
+      .where('resolvedAt', '>=', Timestamp.fromMillis(fromInclusive))
+      .where('resolvedAt', '<', Timestamp.fromMillis(toExclusive))
+      .orderBy('resolvedAt', 'asc')
+      .get()
+    return snap.docs.map((doc) => reservationFromFirestore(doc.id as ReservationId, doc.data()))
+  }
+
   // Member Workspace (v1.18): one member's reservations, newest session first. Served
   // by the existing `reservations (memberId, sessionStartsAt)` composite index; the
   // caller splits upcoming vs. past and applies the past bound.

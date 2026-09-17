@@ -20,6 +20,7 @@ import { z } from 'zod'
 
 import {
   buildCash,
+  buildCancellations,
   buildCheckins,
   buildCollections,
   buildDayEnd,
@@ -87,7 +88,7 @@ async function haricTut<T extends { readonly memberId?: unknown; readonly id?: u
 export async function loadReportAction(input: unknown): Promise<ReportResult> {
   const p = z
     .object({
-      id: z.enum(['membership', 'sales', 'collections', 'reservations', 'checkins_daily', 'checkins_weekly', 'checkins_monthly', 'trainer', 'dayend', 'debts', 'cash']),
+      id: z.enum(['membership', 'sales', 'collections', 'reservations', 'checkins_daily', 'checkins_weekly', 'checkins_monthly', 'trainer', 'cancellations', 'dayend', 'debts', 'cash']),
       fromMs: z.number(),
       toMs: z.number(),
     })
@@ -132,6 +133,22 @@ export async function loadReportAction(input: unknown): Promise<ReportResult> {
         new FirestoreIdentityRepository(db).listStaff(ctx),
       ])
       return { id: p.id, ...buildCollections(await haricTut(ctx, payments, 'memberId'), members, drawers, staff) }
+    }
+
+    case 'cancellations': {
+      // Kırmızı liste: iptaller İPTAL ANINA göre, seçilen aralıkta. Test hesapları burada da yok.
+      const [cancelled, members] = await Promise.all([
+        new FirestoreReservationRepository(db).listCancelledResolvedBetween(
+          ctx,
+          instant(p.fromMs),
+          instant(p.toMs),
+        ),
+        new FirestoreMemberRepository(db).list(ctx),
+      ])
+      return {
+        id: p.id,
+        ...buildCancellations(await haricTut(ctx, cancelled, 'memberId'), members, Date.now()),
+      }
     }
 
     case 'checkins_daily':

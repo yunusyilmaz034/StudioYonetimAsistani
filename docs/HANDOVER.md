@@ -171,6 +171,15 @@ abartmamak bilinçli. **Bu rakam canlı veriden gelmiyor, HTML'e gömülü:** ka
 **Taksit ayarı ✅ kapandı** (17 Eylül): owner Ayarlar'dan `maxInstallments`'ı **3**'e çekti (veriden doğrulandı).
 Artık ödeme linkleri de sitenin ve `/uyelik`'in söylediğiyle aynı şeyi söylüyor.
 
+**Günde 1 pilates rezervasyonu ✅ ([[OR-92]], 17 Eylül):** kural zaten vardı, veri boştu. 9 pakete (4 reformer +
+5 hibrit) `dailyReservationLimit = 1` yazıldı; canlıdan doğrulandı (PT 8 Ders'le birlikte 10 paket). Kod değişmedi.
+
+**Kırmızı liste ✅ ([[OR-93]], 17 Eylül, HENÜZ DEPLOY EDİLMEDİ):** pano kutusu + Raporlar'da yeni rapor.
+Veri yolu: `reservations` → `listCancelledResolvedBetween` (yeni repo metodu) → **`reservations (status, resolvedAt)`
+bileşik indeksi** (firestore/firestore.indexes.json'a eklendi ve AYRICA yayınlandı — indeks olmadan sorgu prod'da
+"requires an index" ile patlar, emülatör bunu göstermez). Pano 30 günlük tek okuma yapar; bugün/7 gün aynı pencereden
+sayılır, ayrı sorgu değildir. Test hesapları hem panoda hem raporda dışlanır.
+
 **Panodaki "Açık bakiye" artık BİRİKMİŞ borç** (17 Eylül): owner satış olmayan bir günde kutuyu **0 ₺** görürken
 hemen altındaki "Bekleyen ödemeler" listesi 8.000 / 7.800 / 2.000 … sıralıyordu. Sebep: `balanceDueKurus` bugünün
 `salesKurus − collectedKurus`'uydu — yani "bugün ne oldu"yu ölçüyordu, oysa açık bakiye "bize ne kadar borçlular"
