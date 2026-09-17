@@ -1864,3 +1864,12 @@ mahsup edilir — tam karşılarsa satış "Tahsil edildi"ye döner. Üstteki ge
 çalışmaya devam eder: hedef verilmediğinde para **en eski borçtan** başlayarak dağılır. Hedefli tahsilat, hedefi
 alamıyorsa reddedilir; sessizce başka bir borca kaymaz ([[OR-37]] — bir paket linkinin başka bir satışı kapatması
 tam olarak bu yüzden yasak). Satış borçtan azını istiyorsa fazlası üyenin alacağı olarak durur, uydurulmaz.
+
+**OR-91 · Herkese açık her yerde TEK fiyat yazar, o da kart fiyatıdır ve "kredi kartı" denmez.** (2026-09-16)
+Owner, reklamdan gelen bir müşterinin sitede 8.500 ₺ görüp panelde 9.500 ₺ ile karşılaşması üzerine: *"tek fiyat kk
+olsun, kk vs demeyelim; o da kk fiyatları gelsin, onda da kk demesin."* Tanıtım sitesi ve `/uyelik` sayfası artık paket
+başına **tek rakam** gösteriyor — kart fiyatı, etiketsiz. Nakit fiyat stüdyonun içindeki iştir; herkese açık sayfada
+iki rakam göstermek, müşterinin aklına küçük olanı yazıp kasada büyüğünü bulması demekti ([[OR-81]]'in devamı).
+**Taksit:** genel kural **3 taksite kadar, vade farkı uygulanır**; 12 Aylık Fitness'ta kampanya gereği **peşin fiyatına
+3 taksit** (vade farkı yok). Sitede yazan "6 taksite kadar" yanlıştı ve kaldırıldı — tutulamayacak söz, sözsüzlükten
+kötüdür. Panel ayarındaki `maxInstallments` hâlâ 6; ödeme linkleri onu okuyor, owner 3'e çekecek.

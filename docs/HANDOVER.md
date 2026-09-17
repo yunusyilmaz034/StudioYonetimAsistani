@@ -131,6 +131,36 @@ linkleri `853d273` → `build-2026-09-15-003` (rollout izleniyor):
     **Deneme:** iki açık borcu olan bir üyede YENİ tarihli satırın "Tahsilat Al"ına bas, kalanı öde → o satır
     "Tahsil edildi" olmalı, ESKİ borç aynen açık kalmalı.
 
+## 💸 16 Eylül gecesi — herkese açık fiyatlarda tek rakam ([[OR-91]])
+
+Owner bir müşterinin ekran görüntüsünü gönderdi: reklamdan gelen kişi **8.500 ₺** görmüş, panelde **9.500 ₺** var.
+Sebep tek sayfa değil, İKİ ayrı yüzey:
+- **Tanıtım sitesi** `pilatesbyisil.com` = `pilatesfitnessbyisil.com` (aynı dosya, iki alan adı). Firebase Hosting
+  sitesi **`pilatesfitnessbyisil-web`**, **kaynağı bu depoda YOK** — en son 19 Ağustos'ta elle yayınlanmış.
+  Fiyatlar HTML'e gömülü; sayfa açılırken `panel…/api/public/products?s=retro`'dan okuyup üzerine yazan küçük bir
+  script var. O script nakit≠kart ise NAKİT rakamı büyük yazıyordu; "6 taksite kadar" ise tamamen sitenin kendi metniydi.
+- **`/uyelik`** (panelin sayfası): kart fiyatı büyük, altında "stüdyoda nakit …". Aynı paket iki sayfada iki farklı
+  rakamla duruyordu.
+
+**Yapılan:** her ikisinde de tek fiyat (kart), etiketsiz. Sitede ayrıca nakit yazılmış üç kart düzeltildi
+(Hibrit 1F+1P 4.500→5.000, Hibrit 3 Aylık 18.000→18.800, PT 8 Ders 12.000→13.200) ve taksit cümlesi gerçeğe çekildi.
+
+**SİTEYİ NASIL DÜZENLERSİN (kaynağı yok, bu yüzden yazıyorum):** canlıdan indir → düzenle → önce PREVIEW kanalına çık,
+owner baksın → sonra canlı.
+```
+curl -s https://pilatesfitnessbyisil-web.web.app -o index.html      # + img/*, alt sayfalar, robots.txt, sitemap.xml
+# firebase.json: {"hosting":{"site":"pilatesfitnessbyisil-web","public":".","cleanUrls":true}}
+firebase hosting:channel:deploy onizleme --project studio-yonetim-prod --expires 7d
+firebase deploy --only hosting --project studio-yonetim-prod
+```
+Alt sayfalar: `/reformer-pilates`, `/ozel-ders`, `/hamile-pilates`, `/kadinlara-ozel-fitness`, `/uyelik` (19 Ağustos'tan
+kalma DONMUŞ kopya — panelin güncel `/uyelik`'i değil). **Tuzak:** yeniden yayın tüm dizini değiştirir; bağlantısı
+görünmeyen `robots.txt`/`sitemap.xml` gibi dosyaları da indirmezsen SİLİNİR.
+
+**Açık iş:** Ayarlar'daki `maxInstallments` **6** — ödeme linklerinde müşteriye "6 taksite kadar" diye gösteriliyor.
+Owner 3'e çekecek (veri, kod değil). Ayrıca Hibrit 3 Aylık kartındaki *"tek tek alındığında ₺23.500 tutar"*
+karşılaştırması nakit fiyatlara göre yazılmış olabilir — owner'a soruldu, karar bekliyor.
+
 **Numara (owner düzeltti, 15 Eylül):** aktif reklam **AI hattına** gidiyor (0533'ten farklı bir numara). 0533 199 41 23
 stüdyonun telefonu; AI mevcut üyelerin satış dışı sorularını oraya yönlendiriyor (`whoBlock` + bilgi kartı İLETİŞİM).
 Görselde 0533 yazması reklamı yönlendirmiyor. **Açık gözlem:** AI hattına 14 Eyl 22:46'dan beri yeni mesaj yok;
