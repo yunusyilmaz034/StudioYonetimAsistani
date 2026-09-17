@@ -609,14 +609,13 @@ export function buildDebts(sales: readonly Sale[], members: readonly Member[], n
 
 // ── Check-in (owner, 2026-09-15) ────────────────────────────────────────────────────────────
 //
-// *"Raporlar ekranında check-in yapanlar günlük, haftalık, aylık şeklinde rapor alınabilsin."* Satır = bir dönem ×
-// bir üye: o dönemde kaç kez girdi, ilk ve son girişi, hangi yoldan. Yalnızca GİRİŞLER sayılır; çıkış bir ziyaret
-// değildir. Dönemler stüdyo saatiyle (UTC+3) ve hafta Pazartesi başlar — Türkiye'de haftanın okunduğu gibi.
-export type CheckinGrain = 'day' | 'week' | 'month'
+// Üç ayrı rapor (günlük/haftalık/aylık) vardı; owner 17 Eylül'de kaldırttı: *"üstteki check-in günlük haftalık
+// aylık olmasına gerek yok, altta filtre var zaten."* Haklıydı — aralık seçicisi zaten dönemi belirliyordu.
+// TEK rapor: satır = bir üye, seçilen aralıkta kaç kez girdi, ilk girişi ve son çıkışı, hangi yoldan. Yalnızca
+// GİRİŞLER sayılır; çıkış bir ziyaret değildir. Gün sınırı stüdyo saatiyle (UTC+3).
 
 const TR_MS = 3 * 3_600_000
 const GUN_MS = 86_400_000
-const AYLAR = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık']
 const VIA: Record<string, string> = { device: 'Turnike', qr: 'QR', reception: 'Resepsiyon' }
 const iki = (n: number) => String(n).padStart(2, '0')
 /** Stüdyo gününün "yerel" başlangıcı — UTC alanları doğrudan İstanbul tarihini verir. */
@@ -626,17 +625,6 @@ const gunAy = (yerel: number) => {
   return `${iki(d.getUTCDate())}.${iki(d.getUTCMonth() + 1)}`
 }
 
-export function checkinPeriodOf(ms: number, grain: CheckinGrain): { key: number; label: string } {
-  const gun = yerelGun(ms)
-  const d = new Date(gun)
-  if (grain === 'day') return { key: gun, label: `${gunAy(gun)}.${d.getUTCFullYear()}` }
-  if (grain === 'week') {
-    const pazartesi = gun - ((d.getUTCDay() + 6) % 7) * GUN_MS
-    const pazar = pazartesi + 6 * GUN_MS
-    return { key: pazartesi, label: `${gunAy(pazartesi)}–${gunAy(pazar)}.${new Date(pazar).getUTCFullYear()}` }
-  }
-  return { key: Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1), label: `${AYLAR[d.getUTCMonth()]} ${d.getUTCFullYear()}` }
-}
 
 // KIRMIZI LİSTE (owner, 2026-09-17) — kim, kaç kez iptal etti.
 //
@@ -692,43 +680,44 @@ export function buildCancellations(
   }
 }
 
-export function buildCheckins(checkIns: readonly CheckIn[], members: readonly Member[], grain: CheckinGrain): Report {
+export function buildCheckins(checkIns: readonly CheckIn[], members: readonly Member[]): Report {
   const name = new Map(members.map((m) => [m.id as string, m.fullName]))
-  // GİRİŞ VE ÇIKIŞ (owner, 2026-09-16): "ilk giriş / son giriş" değil — üyenin O DÖNEMDEKİ ilk girişi ve son çıkışı.
-  // Turnike çıkışı da okutuyor; iki sütun birlikte "ne zaman geldi, ne zaman gitti" sorusunu cevaplıyor. Çıkış yoksa
-  // (kapıyı okutmadan çıkmış ya da hâlâ içeride) hücre boş kalır — uydurulmuş bir saat, olmayan bir kayıttan kötüdür.
   const sirali = [...checkIns].sort((a, b) => a.occurredAt - b.occurredAt)
   const acc = new Map<
     string,
-    { key: number; label: string; memberId: string; count: number; first: number | null; lastOut: number | null; via: Set<string> }
+    { memberId: string; count: number; first: number | null; lastOut: number | null; via: Set<string> }
   >()
+  const gunluk = new Map<number, number>()
   for (const c of sirali) {
-    const p = checkinPeriodOf(c.occurredAt, grain)
-    const k = `${p.key}|${c.memberId as string}`
-    const row =
-      acc.get(k) ?? { key: p.key, label: p.label, memberId: c.memberId as string, count: 0, first: null, lastOut: null, via: new Set<string>() }
+    const id = c.memberId as string
+    const row = acc.get(id) ?? { memberId: id, count: 0, first: null, lastOut: null, via: new Set<string>() }
     if (c.direction === 'in') {
       row.count++
       row.first ??= c.occurredAt
       row.via.add(c.method)
+      const g = yerelGun(c.occurredAt)
+      gunluk.set(g, (gunluk.get(g) ?? 0) + 1)
     } else {
       row.lastOut = c.occurredAt
     }
-    acc.set(k, row)
+    acc.set(id, row)
   }
   const satirlar = [...acc.values()].sort(
-    (a, b) => a.key - b.key || b.count - a.count || (name.get(a.memberId) ?? '').localeCompare(name.get(b.memberId) ?? '', 'tr'),
+    (a, b) => b.count - a.count || (name.get(a.memberId) ?? '').localeCompare(name.get(b.memberId) ?? '', 'tr'),
   )
   const girisler = sirali.filter((c) => c.direction === 'in')
-  const donem = new Set(satirlar.map((s) => s.key)).size
-  const uye = new Set(girisler.map((c) => c.memberId as string)).size
-  const birim = grain === 'day' ? 'gün' : grain === 'week' ? 'hafta' : 'ay'
+  // GÜN GÜN TOPLAM (owner, 2026-09-17): *"dün 15, bugün 10, 2 gün içinde 25 gibi."* Aralığın toplamı
+  // tek başına "yoğun muyduk" sorusunu cevaplamıyor; hangi günün kalabalık olduğu cevaplıyor.
+  // Uzun aralıkta cümle okunmaz hale gelmesin diye ilk 14 gün yazılır, gerisi sayıyla özetlenir.
+  const gunler = [...gunluk.entries()].sort((a, b) => a[0] - b[0])
+  const gosterilen = gunler.slice(0, 14).map(([g, n]) => `${gunAy(g)}: ${n}`)
+  const kalan = gunler.length - gosterilen.length
+  const dagilim = gunler.length === 0 ? '' : `${gosterilen.join(' · ')}${kalan > 0 ? ` · +${kalan} gün daha` : ''}`
   return {
     table: {
-      name: `check-in-raporu-${grain === 'day' ? 'gunluk' : grain === 'week' ? 'haftalik' : 'aylik'}`,
-      columns: ['Dönem', 'Üye', 'Giriş sayısı', 'Giriş', 'Çıkış', 'Giriş yolu'],
+      name: 'check-in-raporu',
+      columns: ['Üye', 'Giriş sayısı', 'İlk giriş', 'Son çıkış', 'Giriş yolu'],
       rows: satirlar.map((s) => [
-        s.label,
         name.get(s.memberId) ?? 'Silinmiş üye',
         s.count,
         s.first === null ? '—' : date(s.first),
@@ -739,6 +728,7 @@ export function buildCheckins(checkIns: readonly CheckIn[], members: readonly Me
     summary:
       girisler.length === 0
         ? 'Bu aralıkta check-in yok.'
-        : `${girisler.length} giriş · ${uye} farklı üye · ${donem} ${birim} · ${birim} başına ortalama ${Math.round(girisler.length / donem)} giriş`,
+        : `${girisler.length} giriş · ${new Set(girisler.map((c) => c.memberId as string)).size} farklı üye · ` +
+          `${gunler.length} gün — ${dagilim}`,
   }
 }

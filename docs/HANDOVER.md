@@ -171,6 +171,10 @@ abartmamak bilinçli. **Bu rakam canlı veriden gelmiyor, HTML'e gömülü:** ka
 **Taksit ayarı ✅ kapandı** (17 Eylül): owner Ayarlar'dan `maxInstallments`'ı **3**'e çekti (veriden doğrulandı).
 Artık ödeme linkleri de sitenin ve `/uyelik`'in söylediğiyle aynı şeyi söylüyor.
 
+**Check-in raporu tek rapora indi ✅ ([[OR-96]], 17 Eylül):** `checkins_daily|weekly|monthly` → tek `checkins`.
+`buildCheckins` artık grain almıyor, satır = üye; özette gün gün giriş dağılımı var. `checkinPeriodOf`/`CheckinGrain`
+silindi (tek kullanıcısı bu rapordu).
+
 **Serbest kalem satışı ✅ ([[OR-95]], 17 Eylül):** Cari Hesap → "Satış Ekle" (açıklama + tutar + isteğe bağlı
 tahsilat). `sellAction` zaten `productId: null` kabul ediyordu; eksik olan ekrandı.
 **Sinem Aktay'ın kaydı düzeltildi** (`tools/migration/sinem-aktay-tamamlama-2026-09-17.ts`): 6.750 ₺'lik

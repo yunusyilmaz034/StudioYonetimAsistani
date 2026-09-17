@@ -88,7 +88,7 @@ async function haricTut<T extends { readonly memberId?: unknown; readonly id?: u
 export async function loadReportAction(input: unknown): Promise<ReportResult> {
   const p = z
     .object({
-      id: z.enum(['membership', 'sales', 'collections', 'reservations', 'checkins_daily', 'checkins_weekly', 'checkins_monthly', 'trainer', 'cancellations', 'dayend', 'debts', 'cash']),
+      id: z.enum(['membership', 'sales', 'collections', 'reservations', 'checkins', 'trainer', 'cancellations', 'dayend', 'debts', 'cash']),
       fromMs: z.number(),
       toMs: z.number(),
     })
@@ -151,16 +151,13 @@ export async function loadReportAction(input: unknown): Promise<ReportResult> {
       }
     }
 
-    case 'checkins_daily':
-    case 'checkins_weekly':
-    case 'checkins_monthly': {
-      const grain = p.id === 'checkins_daily' ? 'day' : p.id === 'checkins_weekly' ? 'week' : 'month'
+    case 'checkins': {
       const [checkIns, members] = await Promise.all([
         new FirestoreCheckinRepository(db).listCheckInsBetween(ctx, p.fromMs, p.toMs),
         new FirestoreMemberRepository(db).list(ctx),
       ])
       // Test hesapları raporlarda görünmez (2026-09-02) — check-in raporunda da.
-      return { id: p.id, ...buildCheckins(await haricTut(ctx, checkIns, 'memberId'), members, grain) }
+      return { id: p.id, ...buildCheckins(await haricTut(ctx, checkIns, 'memberId'), members) }
     }
 
     case 'reservations': {

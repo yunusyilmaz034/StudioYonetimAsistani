@@ -1909,3 +1909,11 @@ tahsilat aynı işlemde alınır ya da borç olarak bırakılır. Paket farkı, 
 **Bilinen sınır:** mahsup edilmemiş bir ödeme, sonradan açılan satışa KENDİLİĞİNDEN bağlanmaz. Panelin bunu vaat
 eden cümlesi düzeltildi; para zaten alınmışsa doğru yol o tahsilatı iptal edip satışı tahsilatıyla yeniden yazmaktır
 (kasa etkisi sıfır, kayıt tek harekete iner).
+
+**OR-96 · Tek check-in raporu, ve gün gün kaç giriş olduğu.** (2026-09-17)
+Owner: *"üstteki check-in günlük haftalık aylık olmasına gerek yok, altta filtre var zaten."* Üç rapor aynı soruyu üç
+kez soruyordu; dönemi zaten tarih aralığı seçicisi belirliyor. Tek **"Check-in raporu"** kaldı: satır = bir üye,
+seçilen aralıkta kaç kez girdi, ilk girişi, son çıkışı, hangi yoldan. "Dönem" sütunu kalktı.
+Ve ikinci istek: *"gün gün toplam kaç giriş olmuş o da olmalı — dün 15, bugün 10, 2 gün içinde 25 gibi."* Özet satırı
+artık toplamın yanında **günlük dağılımı** da yazıyor (14 günden uzun aralıkta ilk 14 gün + "+N gün daha"), çünkü
+"kaç kişi geldi" ile "hangi gün kalabalıktık" ayrı sorulardır ve ikincisini yalnızca kırılım cevaplar.
