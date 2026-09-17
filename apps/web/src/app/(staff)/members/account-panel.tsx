@@ -21,6 +21,7 @@ import { formatDateTime } from '@/lib/datetime'
 import { domainErrorMessage } from '@/lib/domain-error'
 import {
   collectAction,
+  sellAction,
   listDrawersAction,
   memberAccountAction,
   refundAction,
@@ -73,6 +74,9 @@ export function AccountPanel({
   // Tahsilat for ONE sale (owner, 2026-09-16). The dialog is the same one; what changes is that the
   // money is aimed at this sale instead of the member's oldest debt.
   const [collectingSale, setCollectingSale] = useState<{ id: string; due: number } | null>(null)
+  // SERBEST KALEM (owner, 2026-09-17): katalogda karşılığı olmayan bir satış — paket yükseltme farkı,
+  // ek hizmet, telafi. Katalog fiyat listesidir; her istisna için ürün açmak onu çöplüğe çevirir.
+  const [selling, setSelling] = useState(false)
   const [cancelling, setCancelling] = useState<{ id: string; lines: readonly string[] } | null>(null)
   const [voiding, setVoiding] = useState<{ id: string; amount: number } | null>(null)
   const [refunding, setRefunding] = useState<{ id: string; amount: number } | null>(null)
@@ -116,8 +120,9 @@ export function AccountPanel({
 
       {account.unallocatedKurus > 0 ? (
         <p className="rounded-lg border border-info/30 bg-info/5 px-3 py-2 text-sm text-info">
-          Üyenin {tl(account.unallocatedKurus)} tutarında mahsup edilmemiş ödemesi var — yeni satışta
-          otomatik kullanılabilir.
+          Üyenin {tl(account.unallocatedKurus)} tutarında mahsup edilmemiş ödemesi var — bir satışa
+          bağlanmamış para. Karşılığı olan satış yoksa bu tutarı <strong>iptal edip</strong> satışı
+          tahsilatıyla birlikte yazın; yeni satış bu parayı kendiliğinden kullanmaz.
         </p>
       ) : null}
 
@@ -125,6 +130,10 @@ export function AccountPanel({
         <Button size="sm" onClick={() => setCollecting(true)}>
           <PlusIcon />
           Tahsilat Al
+        </Button>
+        <Button size="sm" variant="outline" onClick={() => setSelling(true)}>
+          <PlusIcon />
+          Satış Ekle
         </Button>
       </div>
 
@@ -241,6 +250,18 @@ export function AccountPanel({
         </div>
       ) : null}
 
+      <SaleDialog
+        open={selling}
+        memberId={memberId}
+        branchId={branchId}
+        drawers={drawers}
+        onClose={() => setSelling(false)}
+        onDone={() => {
+          setSelling(false)
+          void load()
+        }}
+      />
+
       <CollectDialog
         open={collecting}
         memberId={memberId}
@@ -346,6 +367,135 @@ function Figure({
       <p className="text-xs text-muted-foreground">{label}</p>
       <p className={`text-h2 font-semibold tabular-nums ${cls}`}>{value}</p>
     </div>
+  )
+}
+
+// SERBEST KALEM SATIŞI (owner, 2026-09-17) — *"6 aylık paketi 12 aya tamamladık, 6.750 aldık, bunu
+// sisteme nasıl gireceğiz?"*. Katalogda böyle bir ürün yok ve olmamalı: fark her seferinde başka bir
+// sayı (ne zaman alındığına, karta mı nakde mi göre). Açıklama + tutar yazılır, satış olur.
+//
+// Tahsilat AYNI işlemde alınır ve satışa mahsup edilir. "Şimdi tahsil etme" seçilirse satış borç olarak
+// kalır ve üye borçlular listesine düşer — para alınmadan satış yazmak da meşru bir iştir.
+function SaleDialog({
+  open,
+  memberId,
+  branchId,
+  drawers,
+  onClose,
+  onDone,
+}: {
+  open: boolean
+  memberId: string
+  branchId: string
+  drawers: readonly Drawer[]
+  onClose: () => void
+  onDone: () => void
+}) {
+  const [description, setDescription] = useState('')
+  const [amount, setAmount] = useState('')
+  // 'none' = satışı borç olarak yaz. Diğerleri tahsilatın yöntemi.
+  const [method, setMethod] = useState('cash')
+  const [drawerId, setDrawerId] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+
+  useEffect(() => {
+    if (open) {
+      setDescription('')
+      setAmount('')
+      setMethod('cash')
+      setDrawerId(drawers.find((d) => d.status === 'open' && d.kind === 'cash')?.id ?? null)
+    }
+  }, [open, drawers])
+
+  const needsDrawer = method === 'cash' || method === 'pos'
+  const openDrawers = drawers.filter((d) => d.status === 'open')
+  const kurus = Math.round(Number(amount.replace(',', '.')) * 100)
+  const gecerli = description.trim().length > 0 && kurus > 0
+
+  async function submit() {
+    setBusy(true)
+    try {
+      const res = await sellAction({
+        memberId,
+        branchId,
+        lines: [{ productId: null, description: description.trim(), quantity: 1, unitPriceKurus: kurus }],
+        payment:
+          method === 'none'
+            ? null
+            : {
+                amountKurus: kurus,
+                method,
+                drawerId: needsDrawer ? drawerId : null,
+              },
+      })
+      if (res.ok) {
+        toast.success(method === 'none' ? 'Satış eklendi (borç olarak).' : 'Satış eklendi ve tahsil edildi.')
+        onDone()
+      } else {
+        toast.error(domainErrorMessage(res.error))
+      }
+    } catch {
+      toast.error('Satış kaydedilemedi.')
+    }
+    setBusy(false)
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => (o ? null : onClose())}>
+      <DialogContent className="gap-3 sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Satış ekle</DialogTitle>
+          <DialogDescription>
+            Katalogda karşılığı olmayan bir satış: paket farkı, ek hizmet, telafi. Açıklama üyenin
+            hesabında ve raporlarda bu haliyle görünür.
+          </DialogDescription>
+        </DialogHeader>
+        <Input
+          placeholder="Açıklama (ör. 6 aylıktan 12 aya tamamlama)"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          autoFocus
+        />
+        <NumericTextInput money value={amount} onValueChange={setAmount} placeholder="Tutar (TL)" />
+        <Select value={method} onValueChange={(v) => setMethod(v ?? 'cash')}>
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {Object.entries(METHOD)
+              .filter(([id]) => id !== 'wallet')
+              .map(([id, label]) => (
+                <SelectItem key={id} value={id}>
+                  {label}
+                </SelectItem>
+              ))}
+            <SelectItem value="none">Şimdi tahsil etme (borç yaz)</SelectItem>
+          </SelectContent>
+        </Select>
+        {needsDrawer ? (
+          <Select value={drawerId ?? ''} onValueChange={(v) => setDrawerId(v || null)}>
+            <SelectTrigger>
+              <SelectValue placeholder="Kasa seçin" />
+            </SelectTrigger>
+            <SelectContent>
+              {openDrawers.map((d) => (
+                <SelectItem key={d.id} value={d.id}>
+                  {d.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : null}
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={busy}>
+            Vazgeç
+          </Button>
+          <Button onClick={() => void submit()} disabled={busy || !gecerli}>
+            {busy ? <Loader2Icon className="animate-spin" /> : null} Satışı kaydet
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }
 
