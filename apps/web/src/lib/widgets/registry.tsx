@@ -239,18 +239,21 @@ const openBalance: Widget<{ balanceKurus: number }> = {
   // Açık bakiye → Borçlular raporu: kim, ne kadar, kaç gündür. Tahsilat konuşması buradan başlar.
   href: () => '/reports?r=debts',
   select: (s) => ({ balanceKurus: s.balanceDueKurus }),
+  // Birikmiş borç, bugünün farkı DEĞİL (owner, 2026-09-17): satış olmayan bir günde kutu 0 yazarken
+  // hemen altındaki "Bekleyen ödemeler" listesi borçları sıralıyordu. Aynı panonun iki yeri aynı
+  // soruya iki cevap veremez — ikisi de artık aynı satırlardan besleniyor.
   present: (d) => ({
     headline:
       d.balanceKurus > 0
-        ? `Bugünkü satışların ${tl(d.balanceKurus)}’si henüz tahsil edilmedi.`
-        : 'Bugünkü satışların tamamı tahsil edildi.',
+        ? `Üyelerin toplam ${tl(d.balanceKurus)} tutarında ödenmemiş borcu var.`
+        : 'Ödenmemiş borç yok.',
     tone: d.balanceKurus > 0 ? 'warning' : 'success',
     needsAttention: d.balanceKurus > 0,
   }),
   render: (d) => (
     <MetricFace
       value={tl(d.balanceKurus)}
-      hint="satış − tahsilat"
+      hint="tahsil edilmemiş"
       icon={CoinsIcon}
       tone={d.balanceKurus > 0 ? 'warning' : 'default'}
     />

@@ -171,6 +171,13 @@ abartmamak bilinçli. **Bu rakam canlı veriden gelmiyor, HTML'e gömülü:** ka
 **Taksit ayarı ✅ kapandı** (17 Eylül): owner Ayarlar'dan `maxInstallments`'ı **3**'e çekti (veriden doğrulandı).
 Artık ödeme linkleri de sitenin ve `/uyelik`'in söylediğiyle aynı şeyi söylüyor.
 
+**Panodaki "Açık bakiye" artık BİRİKMİŞ borç** (17 Eylül): owner satış olmayan bir günde kutuyu **0 ₺** görürken
+hemen altındaki "Bekleyen ödemeler" listesi 8.000 / 7.800 / 2.000 … sıralıyordu. Sebep: `balanceDueKurus` bugünün
+`salesKurus − collectedKurus`'uydu — yani "bugün ne oldu"yu ölçüyordu, oysa açık bakiye "bize ne kadar borçlular"
+sorusudur. Artık `pendingPayments`'ın kalan toplamı: **aynı satırlar, aynı sayı** — panonun iki yeri aynı soruya iki
+cevap veremez. Liste kırpılmıyor (yalnızca sıralanıyor) ve test hesapları `openSales` üzerinde zaten dışlanmış
+durumda. Kutu metni de düzeldi ("satış − tahsilat" → "tahsil edilmemiş").
+
 **Gün sonu raporu artık aralığın SON gününü alıyor** (17 Eylül): owner "Son 30 gün"de **19 Ağustos'un** raporunu görüp
 *"hesaplar patlıyor"* dedi. Rakamlar yanlış değildi, YANLIŞ GÜNÜN rakamlarıydı — `dayend` bilerek aralığın İLK gününü
 alıyordu. Rapor tek gün olarak kalıyor (kasa mutabakatı toplanamaz; bir ayı "Gün sonu" başlıklı sayfada toplamak onu

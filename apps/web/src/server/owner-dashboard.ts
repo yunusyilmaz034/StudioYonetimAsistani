@@ -158,7 +158,10 @@ export interface OwnerDashboard {
 
   readonly activeMembers: number // owner D-2: active record AND a valid, active package
   readonly newMembers30d: number
-  readonly balanceDueKurus: number // owner D-1: satış − tahsilat, for the day
+  // AÇIK BAKİYE = BİRİKMİŞ BORÇ, bir günün farkı değil (owner, 2026-09-17). Eskiden bugünün satışı
+  // eksi bugünün tahsilatıydı: satış olmayan bir günde 0 yazıyordu, aynı panoda "Bekleyen ödemeler"
+  // 18.360 ₺ listelerken. Açık bakiye "bugün ne oldu" değil, "bize ne kadar borçlular" sorusudur.
+  readonly balanceDueKurus: number
 
   // owner D-3: summed booked / summed capacity — NEVER the average of per-session percentages
   readonly occupancy: OccupancyRow
@@ -451,7 +454,9 @@ export async function loadOwnerDashboard(
     projectionLagsBehind: newest > 0 && newest - today.lastEventAt > 5 * 60_000,
     activeMembers,
     newMembers30d,
-    balanceDueKurus: today.salesKurus - today.collectedKurus,
+    // Aynı satırlardan, aynı sayı: liste ile kutu asla ayrı şey söyleyemez. `pendingPayments`
+  // kırpılmıyor (yalnızca sıralanıyor) ve test hesapları `openSales` üzerinde zaten dışlandı.
+    balanceDueKurus: pendingPayments.reduce((n, r) => n + r.dueKurus, 0),
     occupancy,
     occupancyByCategory: occupancyByCategory as Readonly<Record<Category, OccupancyRow>>,
     expiringSoon,
