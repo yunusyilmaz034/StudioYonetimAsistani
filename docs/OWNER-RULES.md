@@ -1948,3 +1948,18 @@ atar; ekran kurulu kaldığı için hiçbir yükleme yeniden çalışmıyordu. B
 dolu dersi boş gösterir. `useFetch` artık öne dönüşte tazeliyor — son yüklemeden 60 sn geçtiyse, **gün değiştiyse
 süreye bakmadan**. Tazeleme sessiz: `loading` yakılmaz, yoksa uygulamaya her dönüşte ekran iskelete düşer. Ajandada
 seçili gün de haftadan çıkmışsa bugüne döner. Kanca 13 ekranın ortak yükleyicisi olduğu için düzeltme hepsini kapsar.
+
+**OR-100 · Üyeye yalnızca İPTAL bildirimi gider.** (2026-09-18)
+Owner kendi telefonunda arka arkaya *"Ödeme Onayı · Ödeme Onayı · Abonelik Eklendi"* gördü ve kesti:
+*"hiçbir şeyden iptal haricinde bildirim gönderme."* Bir paket satışı üyeye üç mesaj birden düşürüyordu; stüdyonun
+sesi, üyenin gerçekten önemsediği mesajın yanında değersizleşir.
+**Susan:** üyeye (`member`) ve derse kayıtlı herkese (`roster`) giden bildirimlerin tamamı — ödeme alındı, paket
+tanımlandı, kredi azaldı/bitti, paket bitiyor/doldu, rezervasyon onayı/taşındı, ders hatırlatma, cüzdan, taksit,
+iade, program yayınlandı, geri bildirim yanıtlandı.
+**Susmayan:** **iptal** — hem üyenin rezervasyon iptali (`booking_cancelled`) hem stüdyonun ders iptali
+(`session_cancelled`). İptali duyurmamak üyeyi kapalı kapıya göndermektir.
+**Dokunulmayan:** sahibe/resepsiyona giden arıza uyarıları (kasa farkı, işlem hatası, sistem hatası, iletilemeyen
+bildirim). Onlar müşteriye değil stüdyoya gider; susturulmaları arızayı görünmez yapardı ve owner'ın cümlesi
+müşteriye giden gürültü hakkındaydı.
+Kural tablosu **silinmedi**, bir izin listesiyle süzülüyor (`on-event-notify.ts`): fikir değişirse tek satırda geri
+açılır ve o zamana kadar hangi bildirimlerin var olduğu kayıtta kalır.

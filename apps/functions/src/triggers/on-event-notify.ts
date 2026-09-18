@@ -169,8 +169,26 @@ interface EventLike {
   readonly occurredAt: number
 }
 
+// ── ÜYEYE YALNIZCA İPTAL BİLDİRİMİ GİDER (owner, 2026-09-18) ────────────────────────────────
+//
+// *"Hiçbir şeyden iptal haricinde bildirim gönderme."* Owner kendi telefonunda arka arkaya
+// "Ödeme Onayı", "Ödeme Onayı", "Abonelik Eklendi" gördü: üye bir paket alırken üç mesaj birden
+// düşüyordu. Stüdyonun sesi, üyenin ilgilendiği tek şeyin yanında değersizleşir.
+//
+// SUSAN: üyeye (`member`) ve derse kayıtlı herkese (`roster`) giden bildirimlerin TAMAMI.
+// SUSMAYAN: iptal — hem üyenin rezervasyonunun iptali hem stüdyonun dersi iptal etmesi. Bir ders
+// iptal edildiğinde haber vermemek, üyeyi kapalı kapıya göndermektir.
+// DOKUNULMAYAN: sahibe ve resepsiyona giden arıza uyarıları (kasa farkı, işlem hatası, sistem
+// hatası, iletilemeyen bildirim). Onlar müşteriye değil stüdyoya gider ve susturulmaları arızayı
+// görünmez yapar — owner'ın cümlesi müşteriye giden gürültü hakkındaydı.
+//
+// Kural tablosu SİLİNMEDİ: fikir değişirse bu liste tek satırda geri açılır ve o zamana kadar
+// hangi bildirimlerin var olduğu kayıtta kalır.
+const UYEYE_IZINLI = new Set(['booking_cancelled', 'session_cancelled'])
+const uyeyeGider = (to: string): boolean => to === 'member' || to === 'roster'
+
 export async function notifyForEvent(studioId: StudioId, event: EventLike): Promise<number> {
-  const rules = rulesFor(event.type)
+  const rules = rulesFor(event.type).filter((r) => !uyeyeGider(r.to) || UYEYE_IZINLI.has(r.template))
   if (rules.length === 0) return 0
 
   const [settings, brand] = await Promise.all([studioNotificationSettings(studioId), studioBrand(studioId)])
