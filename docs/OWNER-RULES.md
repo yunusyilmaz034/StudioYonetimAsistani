@@ -2015,3 +2015,12 @@ olan üye o dersin kategorisi için gelmiştir; rezervasyonu olmayan giriş serb
 stüdyoda reformer ve PT rezervasyonsuz kullanılamaz, sınırsız fitness ise hiç rezervasyon yapmaz. İptal edilen
 rezervasyon sayılmaz: iptal ettiği dersin kategorisi, o gün kapıdan geçmesinin sebebi olamaz. Sayım **kişi başınadır**
 (aynı üyenin ikinci girişi ayrı bir "kim geldi" değildir), bu yüzden üç rakamın toplamı "Farklı üye"ye eşittir.
+
+**OR-105 · Panodaki tik notu O GÜNE aittir; kalıcı yeri adayın/üyenin kendi kaydıdır.** (2026-09-19)
+Owner: *"Bugün ilgilenmen gerekenlerde doldurulan notları nerden görüyorum?"* — 18 Eylül'de on not yazılmıştı
+("pazartesi gelecek", "arandı bakmadı dönüş yapmadı", "konuşuldu arkadaşını bekliyor…"), ertesi sabah pano yeni günle
+sıfırdan doldu ve notlar görünmez oldu. Notlar kaybolmamıştı: `checklistDone/{gün}` içinde o günün kaydı olarak,
+ayrıca adayın **arama kaydı** (`interactions`) olarak duruyordu — ama ikincisini görmenin tek yolu Canlı akış'tı.
+**Kural:** günlük not günlüktür, kalıcı not sorulduğu yerde durur. Satış Hunisi'ndeki aday kartı artık son görüşmeyi
+ve tarihini gösterir (huni başına TEK okuma; boş metinli kayıt atlanır — kartta boş satır, notun kaybolduğunu
+düşündürür). Üye tarafında karşılığı zaten vardı: "iptal edecek" notu üyenin kendi **Not** alanına işleniyor ([[OR-98]]).

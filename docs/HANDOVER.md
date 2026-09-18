@@ -171,7 +171,13 @@ abartmamak bilinçli. **Bu rakam canlı veriden gelmiyor, HTML'e gömülü:** ka
 **Taksit ayarı ✅ kapandı** (17 Eylül): owner Ayarlar'dan `maxInstallments`'ı **3**'e çekti (veriden doğrulandı).
 Artık ödeme linkleri de sitenin ve `/uyelik`'in söylediğiyle aynı şeyi söylüyor.
 
-## 🧮 18 Eylül gecesi — hibrit kendi çipinde, check-in kimin ne için geldiğini sayıyor
+## 🧮 18–19 Eylül gecesi — hibrit kendi çipinde, check-in kimin ne için geldiğini sayıyor, notlar adayın kartında
+
+**Aday kartında son görüşme ✅ ([[OR-105]], 19 Eylül):** owner panoda dünkü notları arayınca ortaya çıktı — tik notu
+`checklistDone/{gün}` belgesinde, yani o güne ait; ertesi sabah listeyle birlikte gidiyor. Kalıcı kopya
+`interactions`'ta duruyordu ama yalnızca Canlı akış'tan okunabiliyordu. `listRecentInteractions(ctx, limit)`
+(core CRM repo, yeni) huni başına **tek** okuma yapıyor; `loadFunnelAction`/`listLeadsAction`/`listOlderLeadsAction`
+aday → son not haritasını kurup `leadRow`'a veriyor; kart tarih + metin gösteriyor.
 
 **Hibrit artık Pilates/Fitness çiplerinde sayılmıyor ✅ ([[OR-103]]):** `lib/members/filters.ts` → `badgesFor`
 kategori listesini kurarken demet bileşenlerini (`isBundle`) dışarıda bırakıyor. Tek satırlık değişiklik ama
