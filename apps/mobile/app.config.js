@@ -78,7 +78,7 @@ module.exports = () => ({
     // ana sayfa yüklenirken çöküyordu — owner'ın tarifi birebir buydu.
     //
     // Bu sürümün tek işi o satırı erken çıkışın ÜSTÜNE almak. Başka hiçbir şey değişmedi.
-    version: '1.7.3',
+    version: '1.7.4',
     // ── OTA GÜNCELLEME (owner onayı, 2026-09-11) ──────────────────────────────────────────────
     //
     // Bugüne kadar bir KELİME düzeltmesi bile mağaza turu istiyordu: build, inceleme, yayılma, ve

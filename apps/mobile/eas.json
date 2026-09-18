@@ -21,7 +21,8 @@
       "autoIncrement": true,
       "env": {
         "STUDIO": "retro"
-      }
+      },
+      "channel": "production"
     }
   },
   "submit": {
