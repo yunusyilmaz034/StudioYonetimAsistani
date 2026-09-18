@@ -1917,3 +1917,15 @@ seçilen aralıkta kaç kez girdi, ilk girişi, son çıkışı, hangi yoldan. "
 Ve ikinci istek: *"gün gün toplam kaç giriş olmuş o da olmalı — dün 15, bugün 10, 2 gün içinde 25 gibi."* Özet satırı
 artık toplamın yanında **günlük dağılımı** da yazıyor (14 günden uzun aralıkta ilk 14 gün + "+N gün daha"), çünkü
 "kaç kişi geldi" ile "hangi gün kalabalıktık" ayrı sorulardır ve ikincisini yalnızca kırılım cevaplar.
+
+**OR-97 · Reklam yayındayken çalışan hatta dokunulmaz.** (2026-09-18)
+WhatsApp'a düğmeli/menülü ilk karşılama (Cloud API `interactive`) konuşuldu ve owner **istemedi**:
+*"neyse ya hiçbir şey yapmayalım, reklam zamanındayız, şimdi operasyonel risk almayalım, böyle kalsın."*
+Karar teknik değil zamanlamayla ilgili — iş küçüktü, ama reklam akarken AI hattındaki her değişiklik canlı bir satış
+kanalını riske atar. **Gerekçe kayıtta kalsın ki ileride sıfırdan tartışılmasın:** düğmeler eklenecekse gönderme ve
+`button_reply` yanıtını OKUMA birlikte yapılmalı — webhook bugün `type !== 'text'` olan her mesajı iz bırakmadan
+atıyor (`whatsapp-webhook.ts`), yani yarım kurulum "düğmeye bastım, kimse cevap vermedi" demektir. Tasarım da
+kararlaştırılmıştı: düğmeler yalnızca İLK temasta, AI'ın normal cevabının ardından tek mesaj (üç düğme —
+fiyatlar · nasıl başlarım · üyeyim işlemim var; üçüncüsü AI'a hiç uğramadan 0533'e yönlendirir).
+0850 numarasına geçiş de aynı sebeple ertelendi: teknik engel yok (WhatsApp numara türüne bakmaz), ama numara
+değişince sohbet geçmişi taşınmaz ve reklamdaki numara değişir.
