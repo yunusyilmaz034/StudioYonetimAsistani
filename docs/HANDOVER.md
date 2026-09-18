@@ -171,7 +171,27 @@ abartmamak bilinçli. **Bu rakam canlı veriden gelmiyor, HTML'e gömülü:** ka
 **Taksit ayarı ✅ kapandı** (17 Eylül): owner Ayarlar'dan `maxInstallments`'ı **3**'e çekti (veriden doğrulandı).
 Artık ödeme linkleri de sitenin ve `/uyelik`'in söylediğiyle aynı şeyi söylüyor.
 
-**Mobil: öne dönünce tazeleme ✅ ([[OR-99]], 18 Eylül, HENÜZ YAYINLANMADI):** `useFetch` + `agenda.tsx`.
+## 📱 Mobil 1.7.4 — 18 Eylül: OTA yolu AÇILDI
+
+**Android ✅ Play üretimde** (versionCode 17, `COMPLETED`), sürüm notu yazıldı ve `pnpm android:notes`
+ile DOĞRULANDI — üç sürümdür boş kalan "Yenilikler" alanı bu kez dolu.
+**iOS:** build hazır (v1.7.4, build 16), App Store'a **owner gönderiyor**.
+IPA: `https://expo.dev/artifacts/eas/lqTRF9Av26kcddkM4znolhcyvCP1V3acp5giIkwCbLc.ipa`
+
+**Bu sürümün asıl işi görünmeyen kısımda: `eas.json` production profiline `channel: "production"`
+eklendi.** Önceki build'lerin HİÇBİRİ bir güncelleme kanalına bağlı değildi (`channel: None`), yani
+`app.config.js`'teki `updates.url` boşa bakıyordu: `eas update` çalıştırılsa yayın oluşur, telefonlara
+İNMEZDİ — sessiz arıza. 1.7.4 ile `production` kanalı ve branch'i oluştu (11:07). **Bundan sonra JS
+düzeltmeleri `eas update --branch production` ile dakikalar içinde iner**; mağaza yalnızca yerel kod
+(native) değişince gerekir. `runtimeVersion: appVersion` olduğu için bir güncelleme yalnızca AYNI
+sürüm numarasındaki build'e iner — 1.7.4'e yayınlanan güncelleme 1.7.3'teki üyeye gitmez.
+
+**Taşıdıkları:** ajanda tazeleme ([[OR-99]]) · geçmiş rezervasyonların gizlenmesi ([[OR-82]]).
+
+**TUZAK:** `eas submit` non-interactive modda arşiv kaynağı ister — `--id <build-id>` vermeden
+"You need to specify the archive source" ile düşer.
+
+**Mobil: öne dönünce tazeleme ✅ ([[OR-99]], 18 Eylül, YAYINDA — Android):** `useFetch` + `agenda.tsx`.
 **Yayın yolu OTA** (`expo-updates` kurulu, `app.config.js` → `u.expo.dev/...`): mağaza sürümü beklemeden iner.
 `eas update --branch production` ile çıkar. **Bu makinede `apps/mobile/node_modules` kurulu DEĞİL** (react-native yok),
 o yüzden mobil typecheck çalıştırılamadı — değişiklik iki dosyada ve küçük, ama yayından önce kurulum yapıp
