@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
@@ -80,6 +80,13 @@ export default function Ajanda() {
     }
     return out
   }, [sessions, upcoming])
+
+  // SEÇİLİ GÜN DÜNDE KALMASIN (owner, 2026-09-18). Üye uygulamayı kapatmıyor, arka plana atıyor:
+  // dün "Salı"yı seçip bıraktıysa, bugün öne geldiğinde o gün artık haftanın içinde değildir ve ekran
+  // boş bir güne bakar. Veri tazelenince seçim de tazelenir — bugüne düşer.
+  useEffect(() => {
+    if (sel && !week.some((d) => d.key === sel)) setSel(null)
+  }, [week, sel])
 
   const active = sel ?? week[0]?.key ?? ''
   const daySessions = useMemo(

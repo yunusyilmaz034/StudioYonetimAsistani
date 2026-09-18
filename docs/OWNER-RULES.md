@@ -1940,3 +1940,11 @@ kadar satırın altında görünüyor. Tarih verilirse satır o sabaha kadar lis
 **"İptal edecek" notu ayrıca ÜYENİN KENDİ KAYDINA işlenir** (owner'ın isteği): borç kapanınca takip notu anlamını
 yitirir, ama "ayrılmak istiyor" üyenin geçmişidir ve orada kalmalıdır. Mevcut not ezilmez, tarih ve personel adıyla
 üstüne eklenir.
+
+**OR-99 · Uygulama öne geldiğinde veriyi tazeler; gün dönmüşse koşulsuz.** (2026-09-18)
+Owner: *"uygulama açıldı, dün ajandaya baktı, arka plana aldı, bir gün sonra açtı — yenilenme olmadığı için eski
+ajandayı görüyor, 'boşmuş' diyor ama dolu çıkıyor, alamıyorum diye bizi arıyor."* Üye uygulamayı kapatmaz, arka plana
+atar; ekran kurulu kaldığı için hiçbir yükleme yeniden çalışmıyordu. Bu bir hata mesajı değil, **yanlış bir gerçeklik**:
+dolu dersi boş gösterir. `useFetch` artık öne dönüşte tazeliyor — son yüklemeden 60 sn geçtiyse, **gün değiştiyse
+süreye bakmadan**. Tazeleme sessiz: `loading` yakılmaz, yoksa uygulamaya her dönüşte ekran iskelete düşer. Ajandada
+seçili gün de haftadan çıkmışsa bugüne döner. Kanca 13 ekranın ortak yükleyicisi olduğu için düzeltme hepsini kapsar.

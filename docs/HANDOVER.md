@@ -171,6 +171,16 @@ abartmamak bilinçli. **Bu rakam canlı veriden gelmiyor, HTML'e gömülü:** ka
 **Taksit ayarı ✅ kapandı** (17 Eylül): owner Ayarlar'dan `maxInstallments`'ı **3**'e çekti (veriden doğrulandı).
 Artık ödeme linkleri de sitenin ve `/uyelik`'in söylediğiyle aynı şeyi söylüyor.
 
+**Mobil: öne dönünce tazeleme ✅ ([[OR-99]], 18 Eylül, HENÜZ YAYINLANMADI):** `useFetch` + `agenda.tsx`.
+**Yayın yolu OTA** (`expo-updates` kurulu, `app.config.js` → `u.expo.dev/...`): mağaza sürümü beklemeden iner.
+`eas update --branch production` ile çıkar. **Bu makinede `apps/mobile/node_modules` kurulu DEĞİL** (react-native yok),
+o yüzden mobil typecheck çalıştırılamadı — değişiklik iki dosyada ve küçük, ama yayından önce kurulum yapıp
+`pnpm --filter mobile typecheck` çalıştırmak gerekir.
+
+**Takip notu ✅ ([[OR-98]], 18 Eylül, HENÜZ DEPLOY EDİLMEDİ):** borç satırında tik → "ne dedi" diyaloğu.
+Not `studios/{sid}/followUps/{memberId}` belgesinde; okuma `server/follow-ups.ts`'te (döngüsel bağımlılığı kırmak
+için ayrı modül: `advisor-query` ve `actions/checklist` ikisi de oraya bakar, birbirine değil).
+
 **Check-in raporu tek rapora indi ✅ ([[OR-96]], 17 Eylül):** `checkins_daily|weekly|monthly` → tek `checkins`.
 `buildCheckins` artık grain almıyor, satır = üye; özette gün gün giriş dağılımı var. `checkinPeriodOf`/`CheckinGrain`
 silindi (tek kullanıcısı bu rapordu).
