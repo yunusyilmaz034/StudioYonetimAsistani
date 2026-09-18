@@ -1961,5 +1961,9 @@ iade, program yayınlandı, geri bildirim yanıtlandı.
 **Dokunulmayan:** sahibe/resepsiyona giden arıza uyarıları (kasa farkı, işlem hatası, sistem hatası, iletilemeyen
 bildirim). Onlar müşteriye değil stüdyoya gider; susturulmaları arızayı görünmez yapardı ve owner'ın cümlesi
 müşteriye giden gürültü hakkındaydı.
+**Ve iptal bildirimi de WhatsApp'a/e-postaya GİTMEZ** (owner, aynı gün): *"sadece iptal ederse bildirim gitsin,
+wp'a gerek yok, maile de."* Üyeye giden bildirimler `forceChannels` ile **yalnızca `in_app` + `push`**'a indirildi:
+telefonda uygulamanın bildirimi çıkar, uygulamada kaydı durur. Stüdyonun WhatsApp hattı satış ve gerçek konuşma
+içindir; oraya düşen otomatik mesaj, üyenin okuduğu tek kanalı gürültüye çevirir.
 Kural tablosu **silinmedi**, bir izin listesiyle süzülüyor (`on-event-notify.ts`): fikir değişirse tek satırda geri
 açılır ve o zamana kadar hangi bildirimlerin var olduğu kayıtta kalır.

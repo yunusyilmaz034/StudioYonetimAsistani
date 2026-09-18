@@ -187,6 +187,13 @@ interface EventLike {
 const UYEYE_IZINLI = new Set(['booking_cancelled', 'session_cancelled'])
 const uyeyeGider = (to: string): boolean => to === 'member' || to === 'roster'
 
+// İPTAL BİLDİRİMİ WHATSAPP'A VE MAİLE GİTMEZ (owner, 2026-09-18): *"sadece iptal ederse bildirim
+// gitsin, wp'a gerek yok, maile de."* Üyenin telefonunda uygulamanın bildirimi çıkar ve uygulamada
+// kaydı durur; stüdyonun WhatsApp hattı ise satış ve gerçek konuşma içindir — oraya düşen otomatik
+// mesaj, üyenin okuduğu tek kanalı gürültüye çevirir. `in_app` üyenin kendi kaydı (mesaj değil),
+// `push` telefon bildirimi. E-posta ve WhatsApp bilinçli olarak dışarıda.
+const UYE_IPTAL_KANALLARI = ['in_app', 'push'] as const
+
 export async function notifyForEvent(studioId: StudioId, event: EventLike): Promise<number> {
   const rules = rulesFor(event.type).filter((r) => !uyeyeGider(r.to) || UYEYE_IZINLI.has(r.template))
   if (rules.length === 0) return 0
@@ -223,6 +230,8 @@ export async function notifyForEvent(studioId: StudioId, event: EventLike): Prom
         templateId: rule.template,
         recipient,
         params,
+        // Üyeye giden tek bildirim türü iptaldir ve o da yalnızca uygulamadan gider.
+        ...(uyeyeGider(rule.to) ? { forceChannels: [...UYE_IPTAL_KANALLARI] } : {}),
       })
       if (res.ok && res.value.created) created++
       if (!res.ok) {
