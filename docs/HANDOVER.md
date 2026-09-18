@@ -175,8 +175,10 @@ Artık ödeme linkleri de sitenin ve `/uyelik`'in söylediğiyle aynı şeyi sö
 
 **Android ✅ Play üretimde** (versionCode 17, `COMPLETED`), sürüm notu yazıldı ve `pnpm android:notes`
 ile DOĞRULANDI — üç sürümdür boş kalan "Yenilikler" alanı bu kez dolu.
-**iOS:** build hazır (v1.7.4, build 16), App Store'a **owner gönderiyor**.
-IPA: `https://expo.dev/artifacts/eas/lqTRF9Av26kcddkM4znolhcyvCP1V3acp5giIkwCbLc.ipa`
+**iOS ✅ App Store Connect'e YÜKLENDİ** (v1.7.4, build 16, 18 Eylül 15:0x). Apple işlemesi 5–10 dk;
+sonrasında **owner incelemeye sunar** (yayınlama kararı onun). TestFlight:
+`https://appstoreconnect.apple.com/apps/6792723951/testflight/ios`
+App Store sürüm notu Play'dekiyle aynı metin — oraya ELLE yapıştırılır (`eas submit` not yazmaz).
 
 **Bu sürümün asıl işi görünmeyen kısımda: `eas.json` production profiline `channel: "production"`
 eklendi.** Önceki build'lerin HİÇBİRİ bir güncelleme kanalına bağlı değildi (`channel: None`), yani
