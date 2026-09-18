@@ -32,8 +32,17 @@ describe('üye tarafı rezervasyonlar — geçmiş yok', () => {
     expect(code).not.toContain('pastRaw')
   })
 
-  it('yaklaşan listesi dokunulmadan duruyor', () => {
-    expect(code).toContain("r.status === 'booked' && r.sessionStartsAt > nowMs")
+  it('yaklaşan listesi yalnızca GELECEK dersleri gösteriyor', () => {
+    // Filtrenin şekli 18 Eylül'de değişti (aşağıdaki teste bak) ama korunan şey aynı: geçmiş ders
+    // üyeye gösterilmez. Zaman koşulu her iki okuma yolunda da duruyor.
+    expect(code.match(/r\.sessionStartsAt > nowMs/g)?.length ?? 0).toBeGreaterThanOrEqual(2)
+  })
+
+  // GELMEYECEK İŞARETİ ÜYEDEN GİZLİ (owner, 2026-09-18): *"rezervasyonu düşmeyecek, her şey olağan
+  // akışında gözükecek."* Resepsiyon koltuğu boşaltmak için "gelmedi" işaretler; üyenin ekranında
+  // rezervasyonu yerinde kalır. Silinmiş görünse, kredisinin peşine düşmek için haklı bir zemini olurdu.
+  it('gelmedi işaretlenen rezervasyon üyenin listesinden DÜŞMÜYOR', () => {
+    expect(code.match(/r\.status === 'no_show'/g)?.length ?? 0).toBeGreaterThanOrEqual(2)
   })
 
   it('web portalı geçmiş bölümünü çizmiyor', () => {

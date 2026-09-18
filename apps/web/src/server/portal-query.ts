@@ -115,8 +115,13 @@ export async function loadPortalDashboard(
   ])
   if (!member) throw new Error('member not found')
 
+  // GELMEYECEK İŞARETİ ÜYEDEN GİZLİDİR (owner, 2026-09-18): *"rezervasyonu düşmeyecek, her şey olağan
+  // akışında gözükecek; bunu sadece panelde biz görecez."* Resepsiyon koltuğu boşaltmak için "gelmedi"
+  // işaretler — bu YÖNETİMSEL bir karardır. Üyenin ekranında rezervasyonu yerinde durur; hakkı yanmıştır
+  // ve bunu paket kartında görür, ama rezervasyonunun silindiğini görmez. Silinmiş görünse, kredisinin
+  // peşine düşmek için haklı bir zemini olurdu.
   const upcomingRes = reservations
-    .filter((r) => r.status === 'booked' && r.sessionStartsAt > nowMs)
+    .filter((r) => (r.status === 'booked' || r.status === 'no_show') && r.sessionStartsAt > nowMs)
     .sort((a, b) => a.sessionStartsAt - b.sessionStartsAt)
     .slice(0, 5)
 
@@ -209,7 +214,9 @@ export async function loadPortalAgenda(
   ])
 
   const bookedSessionIds = new Set(
-    reservations.filter((r) => r.status === 'booked').map((r) => r.classSessionId as string),
+    // "Zaten kayıtlısın" bilgisi de gelmeyecek işaretini kapsar: üye aynı derse ikinci kez rezervasyon
+    // yapmaya çalışmamalı, yoksa kendi hakkını ikinci kez yakar.
+    reservations.filter((r) => r.status === 'booked' || r.status === 'no_show').map((r) => r.classSessionId as string),
   )
 
   const visible: PortalSession[] = []
@@ -335,7 +342,8 @@ export async function loadPortalReservations(
   const reservations = await new FirestoreReservationRepository(db).listByMember(ctx, memberId)
   const relevant = [...reservations].sort((a, b) => b.sessionStartsAt - a.sessionStartsAt)
 
-  const upcomingRaw = relevant.filter((r) => r.status === 'booked' && r.sessionStartsAt > nowMs)
+  // Aynı kural mobil ajandada da geçerli (owner, 2026-09-18) — bkz. yukarıdaki not.
+  const upcomingRaw = relevant.filter((r) => (r.status === 'booked' || r.status === 'no_show') && r.sessionStartsAt > nowMs)
 
   // ── ÜYE GEÇMİŞİNİ GÖRMEZ (owner, 2026-09-15) ─────────────────────────────────────────────
   //

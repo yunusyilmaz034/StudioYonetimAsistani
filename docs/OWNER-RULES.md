@@ -1971,7 +1971,7 @@ içindir; oraya düşen otomatik mesaj, üyenin okuduğu tek kanalı gürültüy
 Kural tablosu **silinmedi**, bir izin listesiyle süzülüyor (`on-event-notify.ts`): fikir değişirse tek satırda geri
 açılır ve o zamana kadar hangi bildirimlerin var olduğu kayıtta kalır.
 
-**OR-101 · "Gelmeyecek" bir iptal değildir: koltuk boşalır, hak yanar, kayıt durur.** (2026-09-18)
+**OR-101 · "Gelmeyecek" bir iptal değildir: koltuk boşalır, hak yanar, kayıt durur — ve ÜYE BUNU GÖRMEZ.** (2026-09-18)
 Owner: *"bazen gelmeyen kişi oluyor, orada boşluk oluyor ama sistem bilmiyor; kontenjan düzenlenerek yeni üye
 atayabilelim."* Ardından, kritik cümle: *"yanacak evet, üye derse gelememiş bu bizim problemimiz değil — ama
 rezervasyon düşmüş gözükmemeli sakın, sonra kredisinin peşine düşerler."*
@@ -1982,6 +1982,14 @@ ve ders **henüz başlamamışsa koltuk boşalır** — resepsiyon yerine başka
 no-show koltuğa DOKUNMAZ: o dersin doluluğu artık bir kayıttır, geçmişe dönük düşürmek raporu bozar.
 **Üyeye bildirim gitmez** — no-show'un bildirim kuralı yoktur ([[OR-100]] ile zaten yalnızca iptal ve paket bildirimi
 gidiyor). Rezervasyon satırındaki düğme yalnızca ders başlamadan görünür; onay kutusu hakkın yanacağını söyler.
+
+**BU YÖNETİMSEL BİR İŞARETTİR, ÜYEYE GÖRÜNMEZ** (owner, aynı gün, netleştirme): *"üye rezervasyonunu kendi ekranında
+görsün, her şey olağan akışında gözüksün; bunu sadece panelde biz görecez."* Üyenin uygulamasında rezervasyonu
+**yerinde durur** — yaklaşan listesinden DÜŞMEZ (`portal-query`: `booked` VEYA `no_show`). Hakkı yanmıştır ve bunu
+paket kartındaki kredi sayısında görür, ama rezervasyonunun silindiğini görmez: silinmiş görünse, kredisinin peşine
+düşmek için haklı bir zemini olurdu. Aynı derse ikinci kez rezervasyon yapması da engellenir (kendi hakkını ikinci
+kez yakmasın). Koltuk boşaldığı için yerine atanan yeni üye NORMAL akışta ilerler: kredisi düşer, rezervasyonu her
+yerde görünür.
 
 **OR-102 · Duraklatılmış üyenin de paketi görünür.** (2026-09-18)
 Owner: *"duraklatılmış üyelerin paket bilgileri neden yok? Başlangıç ve bitiş olsun, kalan kredi falan olsun."*
