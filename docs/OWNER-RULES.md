@@ -1970,3 +1970,23 @@ telefonda uygulamanın bildirimi çıkar, uygulamada kaydı durur. Stüdyonun Wh
 içindir; oraya düşen otomatik mesaj, üyenin okuduğu tek kanalı gürültüye çevirir.
 Kural tablosu **silinmedi**, bir izin listesiyle süzülüyor (`on-event-notify.ts`): fikir değişirse tek satırda geri
 açılır ve o zamana kadar hangi bildirimlerin var olduğu kayıtta kalır.
+
+**OR-101 · "Gelmeyecek" bir iptal değildir: koltuk boşalır, hak yanar, kayıt durur.** (2026-09-18)
+Owner: *"bazen gelmeyen kişi oluyor, orada boşluk oluyor ama sistem bilmiyor; kontenjan düzenlenerek yeni üye
+atayabilelim."* Ardından, kritik cümle: *"yanacak evet, üye derse gelememiş bu bizim problemimiz değil — ama
+rezervasyon düşmüş gözükmemeli sakın, sonra kredisinin peşine düşerler."*
+Çözüm **kapasite artırmak değil**: Reformer Salonu sekiz reformerli, dokuzuncu kişiye alet yok. Çözüm **iptal de
+değil**: iptal, üyeye "rezervasyonum silindi, kredim geri gelsin" demek için haklı bir zemin verir.
+Doğru model **gelmedi (no-show)**: rezervasyon kaydı YERİNDE kalır, hak politikaya göre yanar (Reformer'da yanar),
+ve ders **henüz başlamamışsa koltuk boşalır** — resepsiyon yerine başkasını alır. Ders başladıktan sonra işaretlenen
+no-show koltuğa DOKUNMAZ: o dersin doluluğu artık bir kayıttır, geçmişe dönük düşürmek raporu bozar.
+**Üyeye bildirim gitmez** — no-show'un bildirim kuralı yoktur ([[OR-100]] ile zaten yalnızca iptal ve paket bildirimi
+gidiyor). Rezervasyon satırındaki düğme yalnızca ders başlamadan görünür; onay kutusu hakkın yanacağını söyler.
+
+**OR-102 · Duraklatılmış üyenin de paketi görünür.** (2026-09-18)
+Owner: *"duraklatılmış üyelerin paket bilgileri neden yok? Başlangıç ve bitiş olsun, kalan kredi falan olsun."*
+Üye listesi yalnızca AKTİF paketi okuyordu; paketi bitmiş üyede okuyacak bir şey bulamayınca bütün sütunlar "—"
+kalıyordu — oysa geri kazanma listesinin sorduğu şey tam da budur: ne almıştı, ne zaman bitti, üstünde kaç ders kaldı.
+Artık aktif paket yoksa **en son sona eren** paket gösteriliyor. Aktif paket her zaman kazanır (varken bitmişi
+göstermek üyeyi olduğundan kötü gösterir). "Kalan gün" bitmiş pakette yazılmaz: "0 gün" ile "bugün bitiyor" aynı şey
+değildir ve ikisini aynı hücrede göstermek okuyanı yanıltır — tarihler zaten bitişi söyler.

@@ -60,6 +60,11 @@ export interface ResolveDecision {
   readonly reservation: Reservation
   readonly nextEntitlement: Entitlement | null // null ⇔ period entitlement, no ledger write
   readonly events: readonly NewEvent[]
+  // GELMEYECEK (owner, 2026-09-18) — bir çözümleme NORMALDE koltuğa dokunmaz: ders yapılmıştır,
+  // kim geldi kim gelmedi sonradan yazılır ve dolulukları geçmişe dönük değiştirmek raporu bozar.
+  // TEK istisna: ders HENÜZ BAŞLAMAMIŞKEN "gelmeyecek" denmesi. O an koltuk gerçekten boştur ve
+  // resepsiyon yerine başkasını alabilmelidir. Alan yoksa sayaç olduğu gibi kalır.
+  readonly bookedCountAfter?: number
 }
 
 export interface ResolveTxInput {

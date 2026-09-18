@@ -72,7 +72,7 @@ export async function listMemberRows(ctx: TenantContext, nowMs: number): Promise
   const byMember = new Map<string, MemberFacts['packages'][number][]>()
   // The PRIMARY active package per member: the active entitlement expiring LAST (keeps her active
   // longest). Its name + dates + credits feed the list columns; a period package has no credit count.
-  const primary = new Map<string, { name: string; from: number; until: number; credits: number | null }>()
+  const primary = new Map<string, { name: string; from: number; until: number; credits: number | null; active: boolean }>()
   for (const e of entitlements) {
     const list = byMember.get(e.memberId as string) ?? []
     list.push({
@@ -88,17 +88,28 @@ export async function listMemberRows(ctx: TenantContext, nowMs: number): Promise
     })
     byMember.set(e.memberId as string, list)
 
-    if (e.status === 'active') {
-      const until = Number(e.validUntil)
-      const cur = primary.get(e.memberId as string)
-      if (!cur || until > cur.until) {
-        primary.set(e.memberId as string, {
-          name: e.productSnapshot.name,
-          from: Number(e.validFrom),
-          until,
-          credits: e.credits ? available(e.credits) : null,
-        })
-      }
+    // ── DURAKLATILMIŞ ÜYENİN DE PAKETİ GÖRÜNÜR (owner, 2026-09-18) ────────────────────────
+    //
+    // *"Duraklatılmış üyelerin paket bilgileri neden yok? Başlangıç ve bitiş olsun, kalan kredi
+    // falan olsun."* Satır yalnızca AKTİF paketi okuyordu; paketi bitmiş üyede okuyacak bir şey
+    // bulamayınca bütün sütunlar "—" kalıyordu. Oysa geri kazanma listesinin sorduğu şey tam da
+    // budur: ne almıştı, ne zaman bitti, üstünde kaç ders kaldı.
+    //
+    // Seçim sırası: AKTİF paket her zaman kazanır (üye aktifse onun bilgisi gösterilir); aktif yoksa
+    // EN SON SONA EREN paket gösterilir. İkisi karışmaz, çünkü aktif bir paket varken bitmiş bir
+    // paketi göstermek üyeyi olduğundan kötü gösterir.
+    const until = Number(e.validUntil)
+    const cur = primary.get(e.memberId as string)
+    const aktif = e.status === 'active'
+    const daha_iyi = !cur || (aktif && !cur.active) || (aktif === cur.active && until > cur.until)
+    if (daha_iyi) {
+      primary.set(e.memberId as string, {
+        name: e.productSnapshot.name,
+        from: Number(e.validFrom),
+        until,
+        credits: e.credits ? available(e.credits) : null,
+        active: aktif,
+      })
     }
   }
 
@@ -127,7 +138,9 @@ export async function listMemberRows(ctx: TenantContext, nowMs: number): Promise
       activePackageName: pk?.name ?? null,
       activeFrom: pk?.from ?? null,
       activeUntil: pk?.until ?? null,
-      remainingDays: pk ? Math.max(0, Math.ceil((pk.until - nowMs) / 86_400_000)) : null,
+      // Bitmiş pakette kalan gün YAZILMAZ (null): "0 gün" ile "bugün bitiyor" aynı şey değil ve
+      // ikisini aynı hücrede göstermek okuyanı yanıltır. Tarihler zaten bitişi söylüyor.
+      remainingDays: pk && pk.active ? Math.max(0, Math.ceil((pk.until - nowMs) / 86_400_000)) : null,
       creditsAvailable: pk?.credits ?? null,
       balanceDueKurus: debt.get(m.id as string)?.amount ?? 0,
     }

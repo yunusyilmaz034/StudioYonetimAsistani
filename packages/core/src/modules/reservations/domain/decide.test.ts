@@ -456,6 +456,19 @@ describe('decideAttendance (manual, source trainer)', () => {
       expect(r.value.events[0]?.payload).toEqual({ source: 'trainer', minutesAfterStart: 60, creditEffect: 'consumed' })
     }
   })
+  // GELMEYECEK (owner, 2026-09-18): ders BAŞLAMADAN işaretlenirse koltuk boşalır — resepsiyon yerine
+  // başkasını alabilsin. Ders başladıktan sonraki no-show sayaca DOKUNMAZ: o dersin doluluğu artık bir
+  // kayıttır ve geçmişe dönük düşürmek raporu bozar.
+  it('ders BAŞLAMADAN gelmeyecek denirse koltuk boşalır', () => {
+    const r = decideAttendance(ctx, bookedReservation(), session({ startsAt: instant(NOW + 2 * H), bookedCount: 8 }), 'no_show')
+    expect(r.ok).toBe(true)
+    if (r.ok) expect(r.value.bookedCountAfter).toBe(7)
+  })
+  it('ders BAŞLADIKTAN sonra gelmedi denirse koltuk sayısı değişmez', () => {
+    const r = decideAttendance(ctx, bookedReservation(), session({ startsAt: instant(NOW - H), bookedCount: 8 }), 'no_show')
+    expect(r.ok).toBe(true)
+    if (r.ok) expect(r.value.bookedCountAfter).toBeUndefined()
+  })
   it('no_show burns per policy (here: does not)', () => {
     const r = decideAttendance(ctx, bookedReservation(), session(), 'no_show')
     expect(r.ok).toBe(true)

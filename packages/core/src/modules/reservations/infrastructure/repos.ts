@@ -114,7 +114,10 @@ export class FirestoreReservationRepository implements ReservationRepository {
 
         const { reservation: next, nextEntitlement, bookedCountAfter, events } = decided.value
         tx.set(reservationRef, reservationToFirestore(next))
-        tx.update(sessionRef, { bookedCount: bookedCountAfter })
+        // Koltuk sayısı YALNIZCA karar öyle diyorsa değişir. Eskiden bu satır her çözümlemede
+        // `bookedCount: undefined` yazıyordu — Firestore onu atladığı için zarar görünmedi, ama
+        // niyeti olmayan bir yazma sessizce duruyordu. Artık niyet açık.
+        if (typeof bookedCountAfter === 'number') tx.update(sessionRef, { bookedCount: bookedCountAfter })
         if (nextEntitlement) tx.set(entRef, entitlementToFirestore(nextEntitlement))
         this.writeEvents(sid, tx, events)
       })

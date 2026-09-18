@@ -77,6 +77,9 @@ export interface DecideContext {
 export type ReservationOutcome = {
   readonly reservation: Reservation
   readonly events: readonly NewEvent[]
+  // Ders başlamadan "gelmeyecek" dendiğinde koltuk boşalır (owner, 2026-09-18). Diğer her
+  // çözümlemede yok: yapılmış bir dersin doluluğunu geçmişe dönük düşürmek raporu bozar.
+  readonly bookedCountAfter?: number
   // Plus Phase 3 — set by a cancellation that SPENT a free-cancellation allowance, so the application
   // knows to append the entitlement's `cancellation_charged` ledger move in the same transaction.
   readonly allowanceConsumed?: boolean
@@ -635,8 +638,14 @@ export function decideAttendance(
   }
   const effect: CreditEffect = !heldACredit ? 'none' : policy.noShowConsumesCredit ? 'consumed' : 'released'
   const next = resolveAttendance(ctx, reservation, 'no_show', effect, 'trainer')
+  // GELMEYECEK — ders HENÜZ BAŞLAMAMIŞ (owner, 2026-09-18): *"gelmeyen kişi oluyor, orada boşluk
+  // oluyor ama sistem bilmiyor; kontenjan düzenlenerek yeni üye atayabilelim."* Koltuk o an
+  // gerçekten boştur, ve sayaç bunu söylemezse yeni üye giremez. Ders başladıktan sonra işaretlenen
+  // no-show sayaca DOKUNMAZ: o dersin doluluğu artık bir kayıttır, düşürmek raporu bozar.
+  const erken = ctx.now < session.startsAt
   return ok({
     reservation: next.reservation,
+    ...(erken ? { bookedCountAfter: Math.max(0, session.bookedCount - 1) } : {}),
     events: [
       {
         ...base(ctx, next.reservation),

@@ -1,6 +1,8 @@
 'use client'
 
 import { foldTr } from '@/lib/fold-tr'
+import { markAttendanceCommand } from '@/lib/commands'
+import { isStaleDeployment, STALE_DEPLOYMENT_MESSAGE } from '@/lib/stale-deployment'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import {
@@ -13,6 +15,7 @@ import {
   RepeatIcon,
   SearchIcon,
   StickyNoteIcon,
+  UserXIcon,
   XIcon,
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -227,6 +230,24 @@ export function BookingPanel({ session, onMutated, canBackdate = true }: { sessi
     setBusy(false)
   }
 
+  // "Gelmeyecek" işaretlenen rezervasyon — çift dokunuşu önler.
+  const [noShowing, setNoShowing] = useState<string | null>(null)
+
+  async function gelmeyecek(r: { reservationId: string; memberName: string }) {
+    if (!confirm(`${r.memberName} gelmeyecek olarak işaretlenecek: yeri boşalır ve ders hakkı yanar. Onaylıyor musunuz?`)) return
+    setNoShowing(r.reservationId)
+    try {
+      await markAttendanceCommand({ reservationId: r.reservationId as never, outcome: 'no_show' })
+      // Komut yolu: yazma anında değil, tetikleyici uyguladığında görünür. Kısa bir bekleme sonrası
+      // listeyi tazeliyoruz; gecikirse resepsiyon zaten yenileyebilir.
+      toast.success('Gelmeyecek olarak işaretlendi — yer boşaldı.')
+      setTimeout(() => void loadRoster(), 1200)
+    } catch (e) {
+      toast.error(isStaleDeployment(e) ? STALE_DEPLOYMENT_MESSAGE : 'İşaretlenemedi.')
+    }
+    setNoShowing(null)
+  }
+
   const hoursUntil = (session.startsAt - Date.now()) / 3_600_000
   const lateCancel = hoursUntil < session.cancellationWindowHours && session.lateCancellationConsumesCredit
 
@@ -333,6 +354,23 @@ export function BookingPanel({ session, onMutated, canBackdate = true }: { sessi
                     <Button variant="ghost" size="icon-sm" aria-label="Başka seansa taşı" onClick={() => setMoving(r)}>
                       <ArrowRightLeftIcon />
                     </Button>
+                    {/* GELMEYECEK (owner, 2026-09-18) — *"gelmeyen kişi oluyor, orada boşluk oluyor ama
+                        sistem bilmiyor."* İptal DEĞİL: kayıt duruyor, hak yanıyor, koltuk boşalıyor.
+                        İptal etseydik üye "rezervasyonum silindi, kredim geri gelsin" derdi ve haklı
+                        olurdu; "gelmedi" ise olanı yazar. Üyeye bildirim gitmez (no-show'un bildirim
+                        kuralı yok) ve ders başlamışsa düğme çıkmaz — o an artık yoklamanın işidir. */}
+                    {r.status === 'booked' && session.startsAt > Date.now() ? (
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label="Gelmeyecek — yeri boşalt"
+                        title="Gelmeyecek — yeri boşalt (hakkı yanar)"
+                        disabled={noShowing === r.reservationId}
+                        onClick={() => void gelmeyecek(r)}
+                      >
+                        <UserXIcon />
+                      </Button>
+                    ) : null}
                     <Button variant="ghost" size="icon-sm" aria-label="İptal et" onClick={() => setCancelling(r)}>
                       <XIcon />
                     </Button>

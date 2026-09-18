@@ -49,8 +49,11 @@ export async function markAttendance(
 
       const effect = marked.value.reservation.creditEffect
       const baseEvents = marked.value.events
+      // Koltuk kararı domainden gelir; uygulama onu taşır, yeniden hesaplamaz.
+      const koltuk =
+        marked.value.bookedCountAfter !== undefined ? { bookedCountAfter: marked.value.bookedCountAfter } : {}
       if (entitlement.credits === null || effect === 'none') {
-        return ok({ reservation: marked.value.reservation, nextEntitlement: null, events: baseEvents })
+        return ok({ reservation: marked.value.reservation, nextEntitlement: null, events: baseEvents, ...koltuk })
       }
       const ledger =
         effect === 'consumed'
@@ -61,6 +64,7 @@ export async function markAttendance(
         reservation: marked.value.reservation,
         nextEntitlement: ledger.value.next,
         events: [...baseEvents, ...ledger.value.events],
+        ...koltuk,
       })
     },
   })
