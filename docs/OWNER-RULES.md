@@ -1958,6 +1958,9 @@ tanımlandı, kredi azaldı/bitti, paket bitiyor/doldu, rezervasyon onayı/taş�
 iade, program yayınlandı, geri bildirim yanıtlandı.
 **Susmayan:** **iptal** — hem üyenin rezervasyon iptali (`booking_cancelled`) hem stüdyonun ders iptali
 (`session_cancelled`). İptali duyurmamak üyeyi kapalı kapıya göndermektir.
+**Ve paket tanımlandı** (`package_created`, owner aynı gün): *"paket eklendi diye bildirim gitsin ama tutar
+gitmesin."* Şablon zaten tutar taşımıyor — *"{paket} üyeliğiniz tanımlandı"*. Parayı söyleyen bildirim
+`payment_received`'dı ve kapalı kalıyor: üyenin bilmek istediği şey hakkının başladığıdır, ne ödediği değil.
 **Dokunulmayan:** sahibe/resepsiyona giden arıza uyarıları (kasa farkı, işlem hatası, sistem hatası, iletilemeyen
 bildirim). Onlar müşteriye değil stüdyoya gider; susturulmaları arızayı görünmez yapardı ve owner'ın cümlesi
 müşteriye giden gürültü hakkındaydı.

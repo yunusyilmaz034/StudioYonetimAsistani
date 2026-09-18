@@ -184,7 +184,11 @@ interface EventLike {
 //
 // Kural tablosu SİLİNMEDİ: fikir değişirse bu liste tek satırda geri açılır ve o zamana kadar
 // hangi bildirimlerin var olduğu kayıtta kalır.
-const UYEYE_IZINLI = new Set(['booking_cancelled', 'session_cancelled'])
+// `package_created` de izinli (owner, 2026-09-18): *"paket eklendi diye bildirim gitsin ama tutar
+// gitmesin."* Şablon zaten tutar taşımıyor — yalnızca üyenin adı ve paketin adı ("Fitness - 2 Aylık
+// üyeliğiniz tanımlandı"). Parayı söyleyen bildirim `payment_received`'dı ve o kapalı kalıyor:
+// üyenin bilmek istediği şey hakkının başladığıdır, ne ödediği değil — onu zaten biliyor.
+const UYEYE_IZINLI = new Set(['booking_cancelled', 'session_cancelled', 'package_created'])
 const uyeyeGider = (to: string): boolean => to === 'member' || to === 'roster'
 
 // İPTAL BİLDİRİMİ WHATSAPP'A VE MAİLE GİTMEZ (owner, 2026-09-18): *"sadece iptal ederse bildirim
