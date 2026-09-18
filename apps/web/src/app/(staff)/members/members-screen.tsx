@@ -39,6 +39,36 @@ const DELETED_LABEL = 'Silindi'
 // Compact list formatters (PF — package glance columns).
 const dm = (ms: number) => new Date(ms).toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit' })
 const tlTRY = (kurus: number) => `${(kurus / 100).toLocaleString('tr-TR')} ₺`
+// ── SÜTUN, BAKILAN FİLTREYİ İZLER (owner, 2026-09-19) ────────────────────────────────────────
+//
+// *"Pilates'te fitness paketi gördüm; hem fitness hem pilates varsa burada pilates desin."* Filtre
+// doğru üyeyi buluyordu — o üyenin AYRICA pilates paketi var — ama Paket sütunu her zaman "en geç
+// biten" paketi yazıyordu, çünkü satır tek bir birincil paket taşıyordu. Kategori filtresi açıkken
+// satır artık o kategorinin paketini gösterir: aynı kategoride birden fazlaysa aktif olan kazanır.
+// Filtre kategori değilse (Tümü, Borçlu, Bitecek…) hiçbir şey değişmez — orada "en geç biten" doğru
+// cevaptır, çünkü üyeyi en uzun süre aktif tutan pakettir.
+const FILTRE_KATEGORI: Partial<Record<MemberFilter, string>> = {
+  pilates: 'pilates_group',
+  fitness: 'fitness',
+  pt: 'private',
+}
+const paketeGore = (m: MemberRow, f: MemberFilter): MemberRow => {
+  const kategori = FILTRE_KATEGORI[f]
+  if (!kategori) return m
+  const eslesen = m.packages.filter((p) => p.category === kategori)
+  const sec = eslesen.find((p) => p.active) ?? eslesen[0]
+  return sec
+    ? {
+        ...m,
+        activePackageName: sec.name,
+        activeFrom: sec.from,
+        activeUntil: sec.until,
+        remainingDays: sec.remainingDays,
+        creditsAvailable: sec.credits,
+      }
+    : m
+}
+
 const dateRange = (m: MemberRow) => (m.activeFrom != null && m.activeUntil != null ? `${dm(m.activeFrom)} – ${dm(m.activeUntil)}` : '—')
 const daysLeft = (m: MemberRow) => (m.remainingDays != null ? `${m.remainingDays} gün` : '—')
 // null credits on an ACTIVE (period) package reads "Sınırsız"; no active package reads "—".
@@ -100,9 +130,9 @@ export function MembersScreen({
         (digits.length > 0 && m.phoneNormalized.includes(digits))
       )
     })
-    return [...rows].sort((a, b) =>
-      sort === 'newest' ? b.joinedAt - a.joinedAt : a.fullName.localeCompare(b.fullName, 'tr'),
-    )
+    return [...rows]
+      .sort((a, b) => (sort === 'newest' ? b.joinedAt - a.joinedAt : a.fullName.localeCompare(b.fullName, 'tr')))
+      .map((m) => paketeGore(m, filter))
   }, [members, query, filter, sort])
 
   // Paginate the (already filtered) list to 10 a page. Reset to page 1 whenever the search or filter

@@ -2024,3 +2024,11 @@ ayrıca adayın **arama kaydı** (`interactions`) olarak duruyordu — ama ikinc
 **Kural:** günlük not günlüktür, kalıcı not sorulduğu yerde durur. Satış Hunisi'ndeki aday kartı artık son görüşmeyi
 ve tarihini gösterir (huni başına TEK okuma; boş metinli kayıt atlanır — kartta boş satır, notun kaybolduğunu
 düşündürür). Üye tarafında karşılığı zaten vardı: "iptal edecek" notu üyenin kendi **Not** alanına işleniyor ([[OR-98]]).
+
+**OR-106 · Paket sütunu, bakılan filtreyi izler.** (2026-09-19)
+Owner: *"Pilates'te fitness paketi gördüm ya; hem fitness hem pilates varsa burada pilates desin, niye fitness diyor?"*
+Filtre doğru üyeyi buluyordu — o üyenin ayrıca pilates paketi var — ama satır tek bir **birincil** paket taşıyordu ve o
+her zaman "en geç biten"di ([[OR-102]]). Kategori filtresi (Pilates · Fitness · PT) açıkken satır artık **o kategorinin**
+paketini, tarihlerini, kalan gününü ve kredisini gösterir; aynı kategoride birden fazla paket varsa aktif olan kazanır.
+Kategori dışı filtrelerde (Tümü, Borçlu, Bitecek…) davranış değişmez: orada "en geç biten" doğru cevaptır, çünkü üyeyi
+en uzun süre aktif tutan pakettir. **İlke:** ekran hangi soruyla açıldığını bilir, ve sütun o sorunun cevabını yazar.

@@ -173,6 +173,12 @@ Artık ödeme linkleri de sitenin ve `/uyelik`'in söylediğiyle aynı şeyi sö
 
 ## 🧮 18–19 Eylül gecesi — hibrit kendi çipinde, check-in kimin ne için geldiğini sayıyor, notlar adayın kartında
 
+**Paket sütunu bakılan filtreyi izliyor ✅ ([[OR-106]], 19 Eylül):** owner "Pilates" filtresinde *"Fitness - 3 Aylık"*
+yazan satırlar gördü. Filtre doğruydu (o üyelerin ayrıca pilates paketi var), sütun yanlıştı: satır tek bir birincil
+paket taşıyordu ve o hep "en geç biten"di. `MemberRow.packages` (canlı paketler, sütunları dolduracak kadarıyla) +
+`paketeGore(m, filter)` — kategori filtresi açıkken satır o kategorinin paketini gösterir, aynı kategoride birden
+fazlaysa aktif olan kazanır. Kategori dışı filtrelerde davranış aynı.
+
 **Aday kartında son görüşme ✅ ([[OR-105]], 19 Eylül):** owner panoda dünkü notları arayınca ortaya çıktı — tik notu
 `checklistDone/{gün}` belgesinde, yani o güne ait; ertesi sabah listeyle birlikte gidiyor. Kalıcı kopya
 `interactions`'ta duruyordu ama yalnızca Canlı akış'tan okunabiliyordu. `listRecentInteractions(ctx, limit)`

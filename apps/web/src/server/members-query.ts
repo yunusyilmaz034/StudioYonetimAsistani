@@ -39,6 +39,23 @@ export interface MemberRow {
   readonly remainingDays: number | null
   readonly creditsAvailable: number | null // null ⇒ a period package (no credit count) or no package
   readonly balanceDueKurus: number
+  /**
+   * Üyenin CANLI paketleri (aktif veya dondurulmuş), listenin sütunlarını doldurabilecek kadarıyla.
+   *
+   * Neden birincil pakete ek olarak bu var: hem fitness hem pilates paketi olan üye, "Pilates"
+   * filtresindeyken satırında *"Fitness - 3 Aylık"* yazıyordu — filtre doğru üyeyi buluyordu ama
+   * sütun hep en geç biten paketi gösteriyordu (owner, 2026-09-19). Ekran, hangi filtreyle bakıldığını
+   * bilir; sunucu ona seçebileceği paketleri verir.
+   */
+  readonly packages: readonly {
+    readonly name: string
+    readonly from: number
+    readonly until: number
+    readonly credits: number | null
+    readonly category: string | null
+    readonly active: boolean
+    readonly remainingDays: number | null
+  }[]
 }
 
 /**
@@ -70,6 +87,8 @@ export async function listMemberRows(ctx: TenantContext, nowMs: number): Promise
   const bundleProductIds = new Set(products.filter((p) => (p.components?.length ?? 0) > 0).map((p) => p.id as string))
 
   const byMember = new Map<string, MemberFacts['packages'][number][]>()
+  // Sütunları dolduracak kadarıyla canlı paketler — kategori filtresi seçiliyken ekran buradan seçer.
+  const detay = new Map<string, MemberRow['packages'][number][]>()
   // The PRIMARY active package per member: the active entitlement expiring LAST (keeps her active
   // longest). Its name + dates + credits feed the list columns; a period package has no credit count.
   const primary = new Map<string, { name: string; from: number; until: number; credits: number | null; active: boolean }>()
@@ -87,6 +106,21 @@ export async function listMemberRows(ctx: TenantContext, nowMs: number): Promise
       isBundle: bundleProductIds.has(e.productSnapshot.productId as string),
     })
     byMember.set(e.memberId as string, list)
+
+    if (e.status === 'active' || e.status === 'frozen') {
+      const d = detay.get(e.memberId as string) ?? []
+      const bitis = Number(e.validUntil)
+      d.push({
+        name: e.productSnapshot.name,
+        from: Number(e.validFrom),
+        until: bitis,
+        credits: e.credits ? available(e.credits) : null,
+        category: e.productSnapshot.category ?? null,
+        active: e.status === 'active',
+        remainingDays: e.status === 'active' ? Math.max(0, Math.ceil((bitis - nowMs) / 86_400_000)) : null,
+      })
+      detay.set(e.memberId as string, d)
+    }
 
     // ── DURAKLATILMIŞ ÜYENİN DE PAKETİ GÖRÜNÜR (owner, 2026-09-18) ────────────────────────
     //
@@ -143,6 +177,7 @@ export async function listMemberRows(ctx: TenantContext, nowMs: number): Promise
       remainingDays: pk && pk.active ? Math.max(0, Math.ceil((pk.until - nowMs) / 86_400_000)) : null,
       creditsAvailable: pk?.credits ?? null,
       balanceDueKurus: debt.get(m.id as string)?.amount ?? 0,
+      packages: detay.get(id) ?? [],
     }
   })
 }
