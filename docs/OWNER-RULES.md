@@ -1929,3 +1929,14 @@ kararlaştırılmıştı: düğmeler yalnızca İLK temasta, AI'ın normal cevab
 fiyatlar · nasıl başlarım · üyeyim işlemim var; üçüncüsü AI'a hiç uğramadan 0533'e yönlendirir).
 0850 numarasına geçiş de aynı sebeple ertelendi: teknik engel yok (WhatsApp numara türüne bakmaz), ama numara
 değişince sohbet geçmişi taşınmaz ve reklamdaki numara değişir.
+
+**OR-98 · Borçlu satırında tik, "ne dedi" diye sorar; not üyeye bağlı kalır.** (2026-09-18)
+Owner: *"burada da tıklayınca not olsun — ödeme yapacak şu gün falan diye, ya da iptal edecek."* İş listesindeki borç
+satırı tek dokunuşla "tamamlandı" oluyordu; oysa dört ayrı sonuç var ve hepsi ayrı iş: **para alındı** (satır kapanır),
+**bir güne sözlendi** (satır o güne kadar susar, not durur), **üye ayrılmak istiyor**, **ulaşılamadı**. Not artık günlük
+tik kaydında değil — o atılabilir sayılıyor ve sabah siliniyor — **üyeye bağlı** kendi kaydında duruyor, borç kapanana
+kadar satırın altında görünüyor. Tarih verilirse satır o sabaha kadar listeden düşer: *"22'sinde ödeyecek"* diyen birini
+19'unda tekrar aramak tahsilat değil tacizdir; tarih geçince satır notuyla birlikte geri gelir.
+**"İptal edecek" notu ayrıca ÜYENİN KENDİ KAYDINA işlenir** (owner'ın isteği): borç kapanınca takip notu anlamını
+yitirir, ama "ayrılmak istiyor" üyenin geçmişidir ve orada kalmalıdır. Mevcut not ezilmez, tarih ve personel adıyla
+üstüne eklenir.

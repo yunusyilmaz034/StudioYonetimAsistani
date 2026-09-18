@@ -4,7 +4,10 @@ import { FirestoreCrmRepository } from '@studio/core'
 import { FieldValue } from 'firebase-admin/firestore'
 import { z } from 'zod'
 
+import { FirestoreMemberRepository, systemClock, updateMember, type MemberId } from '@studio/core'
+
 import { requireTenantContext } from '../auth'
+import { followUpDoc, listFollowUps, type FollowUpEntry, type FollowUpKind } from '../follow-ups'
 import { adminDb } from '../firebase-admin'
 import { narrateChecklist, type DailyChecklist } from '../ai/anthropic'
 import { loadAiSettings } from './ai-settings'
@@ -190,4 +193,85 @@ export async function recordLeadCallAction(input: unknown) {
   }
 
   return setChecklistDoneAction({ dayKey: p.dayKey, items: [{ id: p.itemId, kind: 'hot_lead' }], done: true, note: text })
+}
+
+// ── TAKİP NOTU (owner, 2026-09-18) ──────────────────────────────────────────────────────────
+//
+// *"Tıklayınca not olsun — ödeme yapacak şu gün falan diye, ya da iptal edecek."*
+//
+// Bu, tik notunun aksine ATILABİLİR DEĞİLDİR ve o yüzden günlük tik belgesinde yaşayamaz. "22 Eylül'de
+// ödeyecek" bilgisi yarın lazım; bugünün belgesiyle birlikte silinirse hiç yazılmamış sayılır. Bu
+// yüzden ÜYEYE bağlı, kendi belgesinde durur: borç kapanana kadar satırın altında görünür.
+//
+// `dueAt` (tekrar sor) satırı o güne kadar SUSTURUR. Sebebi tahsilatın kendisi: "22'sinde ödeyecek"
+// diyen birini 19'unda tekrar aramak, listeyi okunmaz ve resepsiyonu rahatsız edici yapar. Soğuma
+// (`checklist-snooze`) tiklerden türer ve sabittir (7 gün); bu ise KİŞİNİN VERDİĞİ tarihtir.
+//
+// `iptal` ayrı bir tür, çünkü ayrı bir gerçek: para değil, üyenin gideceği bilgisi. Owner'ın isteğiyle
+// üyenin KENDİ kaydına da işlenir — takip notu borç kapanınca anlamını yitirir, "ayrılmak istiyor"
+// ise üyenin geçmişine aittir ve orada kalmalıdır.
+export async function listFollowUpsAction(): Promise<readonly FollowUpEntry[]> {
+  const ctx = await requireTenantContext(OPS)
+  return listFollowUps(ctx.studioId as string)
+}
+
+export async function setFollowUpAction(input: {
+  memberId: string
+  kind: FollowUpKind
+  note: string
+  /** 'YYYY-MM-DD' — "şu gün ödeyecek". Boş ⇒ satır susturulmaz, not yalnızca görünür. */
+  dueDate?: string | null
+}): Promise<readonly FollowUpEntry[]> {
+  const p = z
+    .object({
+      memberId: z.string().min(1),
+      kind: z.enum(['odeyecek', 'iptal', 'ulasilamadi']),
+      note: z.string().max(280).default(''),
+      dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+    })
+    .parse(input)
+  const ctx = await requireTenantContext(OPS)
+  const studioId = ctx.studioId as string
+  const uid = ctx.actor.id as string
+  const staff = await adminDb().collection('studios').doc(studioId).collection('staff').doc(uid).get()
+  const byName = (staff.data()?.displayName as string | undefined)?.trim() || uid
+  // Gün sonu değil gün BAŞI + 1 gün: "22'sinde ödeyecek" dendiğinde satır 23'ü sabahı geri gelir,
+  // yani sözün tutulup tutulmadığı ertesi gün sorulur. TRT gününün başlangıcı (UTC+3).
+  const dueAt = p.dueDate ? Date.parse(`${p.dueDate}T00:00:00Z`) - 180 * 60_000 + 86_400_000 : null
+
+  await followUpDoc(studioId, p.memberId).set({
+    kind: p.kind,
+    note: p.note.trim().slice(0, 280),
+    ...(dueAt ? { dueAt } : { dueAt: FieldValue.delete() }),
+    byName,
+    at: Date.now(),
+  }, { merge: true })
+
+  // AYRILMA NİYETİ ÜYENİN KENDİ KAYDINA DA YAZILIR (owner, 2026-09-18). Borç kapanınca takip notu
+  // anlamını yitirir; "iptal edecek" ise üyenin geçmişidir. Mevcut not EZİLMEZ, üstüne eklenir.
+  if (p.kind === 'iptal') {
+    const repo = new FirestoreMemberRepository(adminDb())
+    const m = await repo.findById(ctx, p.memberId as MemberId)
+    if (m) {
+      const damga = new Date().toLocaleDateString('tr-TR', { timeZone: 'Europe/Istanbul' })
+      const satir = `${damga} — iptal etmek istiyor${p.note.trim() ? `: ${p.note.trim()}` : ''} (${byName})`
+      await updateMember({ repo, clock: systemClock }, ctx, {
+        memberId: m.id,
+        fullName: m.fullName,
+        phone: m.phone,
+        homeBranchId: m.homeBranchId,
+        email: m.email,
+        birthDate: m.birthDate,
+        notes: m.notes ? `${m.notes}\n${satir}` : satir,
+        emergencyContact: m.emergencyContact,
+      })
+    }
+  }
+  return listFollowUpsAction()
+}
+
+export async function clearFollowUpAction(memberId: string): Promise<readonly FollowUpEntry[]> {
+  const ctx = await requireTenantContext(OPS)
+  await followUpDoc(ctx.studioId as string, memberId).delete()
+  return listFollowUpsAction()
 }

@@ -17,6 +17,7 @@ import { adminDb } from './firebase-admin'
 
 import { formatKurus } from '@/lib/payroll-labels'
 
+import { listFollowUps } from './follow-ups'
 import { loadOwnerDashboard, type OwnerDashboard } from './owner-dashboard'
 
 // AI Insights L1 — the advisor's read. It maps the owner dashboard (a single bounded read; NO new
@@ -47,6 +48,10 @@ export interface AdvisorItem {
   // çekilmiş gibi okunuyordu. Aynı `kind`'daki satırların hepsi aynı notu taşır; ekran bir kez,
   // listenin altında yazar.
   readonly groupNote?: string
+  // TAKİP NOTU (owner, 2026-09-18) — *"ödeme yapacak şu gün falan diye, ya da iptal edecek."* Satırın
+  // altında görünür ve borç kapanana kadar durur. `dueAt` geçmemişse satır listeye hiç girmez:
+  // "22'sinde ödeyecek" diyen birini 19'unda tekrar aramak tahsilat değil, taciz.
+  readonly followUp?: { readonly note: string; readonly byName: string; readonly dueAt: number | null; readonly kind: string }
 }
 
 function present(
@@ -55,6 +60,7 @@ function present(
   sessionName: Map<string, string>,
   upcoming: ReadonlyMap<string, string>,
   inside: ReadonlySet<string>,
+  followUps: ReadonlyMap<string, { note: string; byName: string; dueAt: number | null; kind: string }> = new Map(),
 ): AdvisorItem {
   const m = insight.metrics
   const memberId = insight.refs.memberId
@@ -71,11 +77,13 @@ function present(
       const gun = m.daysOpen ?? 0
       const ders = upcoming.get(memberId ?? '')
       const icerde = inside.has(memberId ?? '')
+      const takip = memberId ? followUps.get(memberId) : undefined
       return {
         id: insight.id,
         kind: insight.kind,
         severity: insight.severity,
         subject,
+        ...(takip ? { followUp: takip } : {}),
         title: `${name} — ${formatKurus(m.dueKurus ?? 0)} açık bakiye`,
         detail: [
           `${gun} gündür ödenmedi.`,
@@ -197,6 +205,8 @@ export function deriveAdvisorItems(
   // Okuma çağıranın işi; bu fonksiyon saf kalır ve testte iki boş koleksiyonla çağrılır.
   upcoming: ReadonlyMap<string, string> = new Map(),
   inside: ReadonlySet<string> = new Set(),
+  // Takip notları (owner, 2026-09-18): üye → "ne dedi". Okuma yine çağıranın işi, fonksiyon saf kalır.
+  followUps: ReadonlyMap<string, { note: string; byName: string; dueAt: number | null; kind: string }> = new Map(),
 ): readonly AdvisorItem[] {
   // Names are resolved HERE, never in the domain (the insight is PII-free). The dashboard rows carry
   // them, so no extra read is needed.
@@ -233,7 +243,7 @@ export function deriveAdvisorItems(
   }
 
   // deriveInsights returns the ranked order (urgent → attention → info); preserve it.
-  return deriveInsights(facts, DEFAULT_INSIGHT_CONFIG).map((i) => present(i, memberName, sessionName, upcoming, inside))
+  return deriveInsights(facts, DEFAULT_INSIGHT_CONFIG).map((i) => present(i, memberName, sessionName, upcoming, inside, followUps))
 }
 
 export async function loadAdvisor(ctx: TenantContext): Promise<readonly AdvisorItem[]> {
@@ -262,5 +272,16 @@ export async function loadAdvisor(ctx: TenantContext): Promise<readonly AdvisorI
       if (next) upcoming.set(r.id, formatDateTime(next.sessionStartsAt))
     })
   }
-  return deriveAdvisorItems(dash, upcoming, inside)
+  // Takip notları: az sayıda belge (yalnızca not bırakılmış üyeler), tek okuma.
+  const notlar = await listFollowUps(ctx.studioId as string)
+  const followUps = new Map(
+    notlar.map((f) => [f.memberId, { note: f.note, byName: f.byName, dueAt: f.dueAt, kind: f.kind }] as const),
+  )
+  const items = deriveAdvisorItems(dash, upcoming, inside, followUps)
+  // SÖZ VERİLEN GÜNE KADAR SUSTUR. Not duruyor, satır yok: liste bugün YAPILACAK işi gösterir ve
+  // "22'sinde ödeyecek" bugünün işi değildir. Tarih geçince satır notuyla birlikte geri gelir.
+  return items.filter((it) => {
+    const due = it.followUp?.dueAt
+    return !due || due <= nowMs
+  })
 }

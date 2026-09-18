@@ -2,13 +2,20 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { CheckIcon, ChevronDownIcon, ChevronRightIcon, SparklesIcon } from 'lucide-react'
 
 import { Section } from '@/components/ui/section'
 import type { InsightSeverity } from '@studio/core'
 import type { AdvisorItem } from '@/server/advisor-query'
-import { getChecklistDoneAction, narrateChecklistAction, recordLeadCallAction, setChecklistDoneAction } from '@/server/actions/checklist'
+import {
+  getChecklistDoneAction,
+  narrateChecklistAction,
+  recordLeadCallAction,
+  setChecklistDoneAction,
+  setFollowUpAction,
+} from '@/server/actions/checklist'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -23,6 +30,8 @@ interface Row {
   href: string
   /** Grubun altına bir kez yazılan özet — satırın değil, grubun. */
   groupNote?: string
+  /** Takip notu (owner, 2026-09-18): "22'sinde ödeyecek", "iptal edecek". Borç kapanana kadar durur. */
+  followUp?: { note: string; byName: string; dueAt: number | null; kind: string }
 }
 
 const ring = (s: InsightSeverity) =>
@@ -65,6 +74,7 @@ export function DailyChecklist({ items, snoozedCount = 0 }: { items: readonly Ad
       severity: it.severity,
       href: it.href,
       ...(it.groupNote ? { groupNote: it.groupNote } : {}),
+      ...(it.followUp ? { followUp: it.followUp } : {}),
     })),
   )
   // itemId → who closed it. Server-held (owner, 2026-08-05): the desk ticks and everyone sees it,
@@ -76,6 +86,11 @@ export function DailyChecklist({ items, snoozedCount = 0 }: { items: readonly Ad
   const [notes, setNotes] = useState<Map<string, string>>(new Map())
   // Hangi lead satırı için arama sonucu soruluyor.
   const [calling, setCalling] = useState<Row | null>(null)
+  // Hangi borç satırı için takip notu soruluyor (owner, 2026-09-18).
+  const [followingUp, setFollowingUp] = useState<Row | null>(null)
+  // Takip notu kaydedilince liste sunucudan yeniden okunur: notu yazan satır, söz verilen güne kadar
+  // listeden düşer. İstemcide tahmin etmek yerine sunucuya sormak — kuralın tek yeri orası.
+  const router = useRouter()
   const [openGroups, setOpenGroups] = useState<Set<string>>(new Set())
 
   const dayKey = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Istanbul' })
@@ -149,6 +164,12 @@ export function DailyChecklist({ items, snoozedCount = 0 }: { items: readonly Ad
     const row = rows.find((r) => r.id === id)
     if (row?.kind === 'hot_lead' && !done.has(id)) {
       setCalling(row)
+      return
+    }
+    // BORÇ SATIRINDA TİK, ÖNCE "NE DEDİ" DİYE SORAR (owner, 2026-09-18). Tahsilat tek dokunuşla
+    // "tamam" olmuyor: para ya alındı, ya bir güne sözlendi, ya da kişi ayrılmak istiyor. Üçü ayrı iş.
+    if (row?.kind === 'outstanding_balance' && !done.has(id)) {
+      setFollowingUp(row)
       return
     }
     markDone([id])
@@ -281,6 +302,21 @@ export function DailyChecklist({ items, snoozedCount = 0 }: { items: readonly Ad
           </button>
         </p>
       ) : null}
+      {followingUp ? (
+        <DebtFollowUpDialog
+          row={followingUp}
+          onClose={() => setFollowingUp(null)}
+          onDone={() => {
+            setFollowingUp(null)
+            router.refresh()
+          }}
+          onCollected={(id) => {
+            setFollowingUp(null)
+            markDone([id])
+          }}
+        />
+      ) : null}
+
       {calling ? (
         <LeadCallDialog
           row={calling}
@@ -329,10 +365,116 @@ function TaskRow({ r, onCheck, nested, doneBy = null, note = null }: { r: Row; o
           {/* Who closed it — the point of moving these off one machine (owner, 2026-08-05). */}
           {done && doneBy ? <span className="ml-1 text-xs text-success">· {doneBy}</span> : null}
           {note ? <span className="ml-1 text-xs text-primary">· {note}</span> : null}
+          {/* Takip notu: tik notundan farkı KALICI olması — borç kapanana kadar her gün burada. */}
+          {r.followUp ? (
+            <span className="mt-0.5 block text-xs text-warning">
+              📌 {r.followUp.note || (r.followUp.kind === 'iptal' ? 'İptal etmek istiyor' : 'Takipte')}
+              <span className="text-muted-foreground">
+                {' · '}
+                {r.followUp.byName}
+                {r.followUp.dueAt ? ` · ${new Date(r.followUp.dueAt - 86_400_000).toLocaleDateString('tr-TR')} dedi` : ''}
+              </span>
+            </span>
+          ) : null}
         </span>
         <ChevronRightIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
       </Link>
     </li>
+  )
+}
+
+// ── TAHSİLAT TAKİBİ (owner, 2026-09-18) ─────────────────────────────────────────────────────
+//
+// *"Tıklayınca not olsun — ödeme yapacak şu gün falan diye, ya da iptal edecek."*
+//
+// Dört çıkış var ve hepsi ayrı iş: para ALINDI (satır kapanır), bir güne SÖZLENDİ (satır o güne
+// kadar susar, not durur), üye AYRILMAK istiyor (not üyenin kendi kaydına da yazılır), ya da
+// ULAŞILAMADI (not durur, satır yarın yine gelir). Tek bir "tamamlandı" tiki bu dördünü aynı
+// torbaya koyuyordu ve ertesi gün kimse ne konuşulduğunu hatırlamıyordu.
+function DebtFollowUpDialog({
+  row,
+  onClose,
+  onDone,
+  onCollected,
+}: {
+  row: Row
+  onClose: () => void
+  onDone: () => void
+  onCollected: (id: string) => void
+}) {
+  const [note, setNote] = useState(row.followUp?.note ?? '')
+  const [dueDate, setDueDate] = useState('')
+  const [busy, setBusy] = useState(false)
+  // Satır kimliği: `outstanding_balance__{memberId}__{saleId}`.
+  const memberId = row.id.split('__')[1] ?? ''
+
+  async function kaydet(kind: 'odeyecek' | 'iptal' | 'ulasilamadi') {
+    if (!memberId) {
+      toast.error('Üye bulunamadı.')
+      return
+    }
+    setBusy(true)
+    try {
+      await setFollowUpAction({ memberId, kind, note, ...(kind === 'odeyecek' && dueDate ? { dueDate } : {}) })
+      toast.success(kind === 'iptal' ? 'Not kaydedildi ve üyenin kaydına işlendi.' : 'Takip notu kaydedildi.')
+      onDone()
+    } catch (e) {
+      toast.error(isStaleDeployment(e) ? STALE_DEPLOYMENT_MESSAGE : 'Kaydedilemedi.')
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Tahsilat takibi</DialogTitle>
+          <DialogDescription className="truncate">{row.headline}</DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium">Not</label>
+          <Input
+            autoFocus
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder="ör. maaşını alınca ödeyecek · eşiyle konuşacak"
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium">Ne zaman ödeyecek? (isteğe bağlı)</label>
+          <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+          <p className="text-xs text-muted-foreground">
+            Tarih girerseniz bu satır o güne kadar listede çıkmaz; notunuz yerinde durur. Tarih geçince geri gelir.
+          </p>
+        </div>
+
+        <div className="grid gap-2 sm:grid-cols-3">
+          <Button variant="outline" disabled={busy} onClick={() => void kaydet('ulasilamadi')}>
+            Ulaşılamadı
+          </Button>
+          <Button variant="outline" disabled={busy} onClick={() => void kaydet('iptal')}>
+            İptal edecek
+          </Button>
+          <Button disabled={busy} onClick={() => void kaydet('odeyecek')}>
+            Ödeyecek
+          </Button>
+        </div>
+
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => onCollected(row.id)}
+          className="text-xs text-success underline underline-offset-2 disabled:opacity-50"
+        >
+          Parayı aldım — bu işi kapat
+        </button>
+        <p className="text-xs text-muted-foreground">
+          &ldquo;İptal edecek&rdquo; notu üyenin kendi kaydına da yazılır; borç kapansa bile orada kalır.
+        </p>
+      </DialogContent>
+    </Dialog>
   )
 }
 
