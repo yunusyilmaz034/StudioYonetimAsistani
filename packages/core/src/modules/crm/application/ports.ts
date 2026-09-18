@@ -18,6 +18,13 @@ export interface CrmRepository {
     ctx: TenantContext,
     of: { leadId?: string; memberId?: MemberId },
   ): Promise<readonly Interaction[]>
+  /**
+   * EN SON GÖRÜŞMELER, yeniden eskiye — huninin "bu adayla en son ne konuşuldu" sorusu için.
+   *
+   * Aday başına ayrı sorgu değil TEK sorgu: kırk adaylık bir huni kırk okuma etmez. Çağıran, dönen
+   * listede her aday için ilk gördüğü kaydı alır (liste zaten yeniden eskiye sıralıdır).
+   */
+  listRecentInteractions(ctx: TenantContext, limit: number): Promise<readonly Interaction[]>
   saveInteraction(ctx: TenantContext, i: Interaction, events: readonly NewEvent[]): Promise<void>
 
   getOffer(ctx: TenantContext, id: string): Promise<Offer | null>

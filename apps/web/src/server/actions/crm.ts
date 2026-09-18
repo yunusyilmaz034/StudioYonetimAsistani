@@ -84,7 +84,18 @@ export async function captureLeadAction(input: unknown) {
   return { ok: true as const, value: { leadId: lead.id } }
 }
 
-const leadRow = (l: Lead) => ({
+// ── ADAYIN KARTINDA SON GÖRÜŞME (owner, 2026-09-19) ──────────────────────────────────────────
+//
+// *"Bugün ilgilenmen gerekenlerde doldurulan notları nerden görüyorum?"* — Panodaki tik notu O GÜNE
+// aittir ve ertesi sabah listeyle birlikte gider; kalıcı kopyası zaten adayın arama kaydına yazılıyordu,
+// ama onu görmenin tek yolu Canlı akış'tı. Not, sorulduğu yerde durmalı: adayın kartında.
+export interface SonGorusme {
+  readonly text: string
+  readonly at: number
+  readonly outcome: string
+}
+
+const leadRow = (l: Lead, lastNote: SonGorusme | null = null) => ({
   id: l.id,
   fullName: l.fullName,
   phone: l.phone,
@@ -94,12 +105,32 @@ const leadRow = (l: Lead) => ({
   lostReason: l.lostReason,
   convertedMemberId: l.convertedMemberId as string | null,
   note: l.note,
+  lastNote,
 })
+
+/**
+ * Aday → en son görüşme notu. TEK okuma: kırk adaylık bir huni kırk sorgu etmez.
+ *
+ * Boş metinli kayıt atlanır — "not yok" ile "boş not" aynı şey değildir ve kartta boş bir satır
+ * göstermek, notun kaybolduğunu düşündürür.
+ */
+const sonGorusmeler = (kayitlar: readonly Interaction[]): Map<string, SonGorusme> => {
+  const m = new Map<string, SonGorusme>()
+  for (const i of kayitlar) {
+    const metin = i.text.trim()
+    if (!i.leadId || !metin || m.has(i.leadId)) continue
+    m.set(i.leadId, { text: metin, at: i.at as number, outcome: i.outcome ?? '' })
+  }
+  return m
+}
+const SON_GORUSME_OKUMA = 300
 
 export async function listLeadsAction() {
   const ctx = await requireTenantContext(OPS)
-  const leads = await repo().listLeads(ctx)
-  return leads.map(leadRow)
+  const r = repo()
+  const [leads, kayitlar] = await Promise.all([r.listLeads(ctx), r.listRecentInteractions(ctx, SON_GORUSME_OKUMA)])
+  const son = sonGorusmeler(kayitlar)
+  return leads.map((l) => leadRow(l, son.get(l.id) ?? null))
 }
 
 // ── REKLAM DÖNEMİ (owner, 2026-09-15) ────────────────────────────────────────────────────────
@@ -113,10 +144,14 @@ export async function loadFunnelAction() {
   const ctx = await requireTenantContext(OPS)
   const r = repo()
   const period = await r.getCurrentAdPeriod(ctx)
-  const leads = period ? await r.listLeadsSince(ctx, period.startedAt) : await r.listLeads(ctx)
+  const [leads, kayitlar] = await Promise.all([
+    period ? r.listLeadsSince(ctx, period.startedAt) : r.listLeads(ctx),
+    r.listRecentInteractions(ctx, SON_GORUSME_OKUMA),
+  ])
+  const son = sonGorusmeler(kayitlar)
   return {
     period: period ? { label: period.label, startedAt: period.startedAt as number } : null,
-    leads: leads.map(leadRow),
+    leads: leads.map((l) => leadRow(l, son.get(l.id) ?? null)),
     // Dönemi başlatmak owner'ın kararı (owner, 2026-09-15); resepsiyon düğmeyi görmez.
     canStartPeriod: ctx.role === 'owner' || ctx.actor.type === 'platform_admin',
   }
@@ -126,7 +161,13 @@ export async function loadFunnelAction() {
 export async function listOlderLeadsAction(input: unknown) {
   const p = z.object({ before: z.number().int().positive() }).parse(input)
   const ctx = await requireTenantContext(OPS)
-  return (await repo().listLeadsBefore(ctx, p.before, 100)).map(leadRow)
+  const r = repo()
+  const [leads, kayitlar] = await Promise.all([
+    r.listLeadsBefore(ctx, p.before, 100),
+    r.listRecentInteractions(ctx, SON_GORUSME_OKUMA),
+  ])
+  const son = sonGorusmeler(kayitlar)
+  return leads.map((l) => leadRow(l, son.get(l.id) ?? null))
 }
 
 export async function startAdPeriodAction(input: unknown) {

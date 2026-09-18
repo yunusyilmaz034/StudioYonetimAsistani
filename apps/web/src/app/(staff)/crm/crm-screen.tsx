@@ -298,6 +298,14 @@ function LeadCard({
         <span className="text-[0.6875rem] tabular-nums text-muted-foreground">{formatDateTime(l.createdAt).slice(0, 10)}</span>
       </div>
       {l.note ? <p className="truncate text-xs text-muted-foreground">{l.note}</p> : null}
+      {/* SON GÖRÜŞME (owner, 2026-09-19): panodaki tik notu o güne aittir ve ertesi sabah listeyle
+          birlikte gider. Kalıcı olan bu: adayla en son ne konuşulduğu, sorulduğu yerde. */}
+      {l.lastNote ? (
+        <p className="text-xs text-primary">
+          <span className="tabular-nums text-muted-foreground">{formatDateTime(l.lastNote.at).slice(0, 10)}</span>{' '}
+          {l.lastNote.text}
+        </p>
+      ) : null}
 
       {acik ? (
         <div className="flex flex-wrap gap-1">

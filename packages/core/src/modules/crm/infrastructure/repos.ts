@@ -120,6 +120,11 @@ export class FirestoreCrmRepository implements CrmRepository {
     const snap = await q.get()
     return snap.docs.map((d) => interactionFrom(d.id, d.data())).sort((a, b) => b.at - a.at)
   }
+  async listRecentInteractions(ctx: TenantContext, limit: number): Promise<readonly Interaction[]> {
+    const snap = await this.col(ctx.studioId, 'interactions').orderBy('at', 'desc').limit(limit).get()
+    return snap.docs.map((d) => interactionFrom(d.id, d.data()))
+  }
+
   async saveInteraction(ctx: TenantContext, i: Interaction, events: readonly NewEvent[]): Promise<void> {
     const sid = ctx.studioId
     await this.db.runTransaction(async (tx) => {
