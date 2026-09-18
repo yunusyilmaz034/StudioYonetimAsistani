@@ -59,7 +59,21 @@ export async function endShiftAction() {
 // adına kapıdan geçip onun mesaisini açabilirdi.
 export async function staffCrossTurnstileAction(input: unknown) {
   const p = z.object({ code: z.string().trim().regex(/^\d{6}$/) }).safeParse(input)
-  if (!p.success) return { ok: false as const, error: { code: 'qr_invalid' as const } }
+  if (!p.success) {
+    // GÖRÜLEMEYEN ARIZA (owner, 2026-09-18 — Buse Hoca'nın çıkışı): burası "Bu bir turnike kodu değil"
+    // diyip SESSİZCE dönüyordu. Ekranda hata vardı, sunucuda hiçbir iz yoktu; okunan şeyin ne olduğunu
+    // kimse öğrenemedi ve arıza "bir kez oldu" diye geçiştirildi.
+    //
+    // Kodun KENDİSİ loglanmaz (kapıyı açan bir sırdır); loglanan şey ŞEKLİ: kaç karakter, rakam mı.
+    // "14 karakter, rakam değil" cümlesi kamera bir URL okuduğunu söyler; "5 karakter" ise yarım okuma.
+    const ham = typeof (input as { code?: unknown })?.code === 'string' ? ((input as { code: string }).code ?? '').trim() : ''
+    console.warn('[turnstile] staff code rejected before server', {
+      uzunluk: ham.length,
+      sadeceRakam: /^\d*$/.test(ham),
+      bosMu: ham.length === 0,
+    })
+    return { ok: false as const, error: { code: 'qr_invalid' as const } }
+  }
   const ctx = await requireTenantContext(HERKES)
   const db = adminDb()
   const shiftDeps = deps()
