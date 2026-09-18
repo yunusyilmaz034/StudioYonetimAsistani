@@ -203,12 +203,18 @@ export function CheckinScreen({
       <TurnstileOpen />
 
       {/* BUGÜN — canlı rakamlar (owner, 2026-09-15). Şube kapalıyken de görünür: günün özeti kapanıştan sonra da sorulur. */}
-      <section aria-label="Bugün" className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+      <section aria-label="Bugün" className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
         {[
           { label: 'Bugün giriş', value: String(state.today.entries) },
           { label: 'Farklı üye', value: String(state.today.uniqueMembers) },
           { label: 'Çıkış', value: String(state.today.exits) },
           { label: 'Şu an içeride', value: String(state.occupancy) },
+          {
+            // Owner, 2026-09-18: *"Kaç tanesi fitness, kaç tanesi pilates için gelmiş diye sayı versene."*
+            // Kişi başına tek sayım — bu üç rakamın toplamı "Farklı üye"dir.
+            label: 'Pilates · Fitness · PT',
+            value: `${state.today.byPurpose.pilates} · ${state.today.byPurpose.fitness} · ${state.today.byPurpose.pt}`,
+          },
           {
             label: 'Turnike · QR · Resepsiyon',
             value: `${state.today.byMethod.device} · ${state.today.byMethod.qr} · ${state.today.byMethod.reception}`,

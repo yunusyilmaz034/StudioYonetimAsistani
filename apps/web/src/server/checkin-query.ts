@@ -7,7 +7,7 @@ import {
   type TenantContext,
 } from '@studio/core'
 
-import { studioDayStart } from '@/lib/ranges'
+import { DAY_MS, studioDayStart } from '@/lib/ranges'
 
 import { adminDb } from './firebase-admin'
 
@@ -37,9 +37,18 @@ export interface TodayStats {
   readonly uniqueMembers: number
   readonly exits: number
   readonly byMethod: { readonly device: number; readonly qr: number; readonly reception: number }
+  /** Bugün giren ÜYELERİN ne için geldiği (kişi başına tek sayım). Toplamı `uniqueMembers`'a eşittir. */
+  readonly byPurpose: { readonly pilates: number; readonly fitness: number; readonly pt: number }
   readonly rows: readonly TodayRow[]
 }
-const EMPTY_TODAY: TodayStats = { entries: 0, uniqueMembers: 0, exits: 0, byMethod: { device: 0, qr: 0, reception: 0 }, rows: [] }
+const EMPTY_TODAY: TodayStats = {
+  entries: 0,
+  uniqueMembers: 0,
+  exits: 0,
+  byMethod: { device: 0, qr: 0, reception: 0 },
+  byPurpose: { pilates: 0, fitness: 0, pt: 0 },
+  rows: [],
+}
 
 export interface CheckinState {
   readonly branchId: string | null
@@ -69,12 +78,29 @@ export async function loadCheckinState(ctx: TenantContext, nowMs: number): Promi
   const settings = await new FirestoreSchedulingRepository(db).getStudioSettings(ctx)
   const soonMs = (settings?.qr?.checkInWindowMinutes ?? DEFAULT_SOON_MINUTES) * 60_000
 
-  const [branch, inside, upcoming, todays] = await Promise.all([
+  const reservationRepo = new FirestoreReservationRepository(db)
+  const dayStart = studioDayStart(nowMs)
+  const [branch, inside, upcoming, todays, dayReservations] = await Promise.all([
     checkinRepo.getBranch(ctx, branchId),
     checkinRepo.listPresence(ctx, branchId),
-    new FirestoreReservationRepository(db).listBySessionStartRange(ctx, instant(nowMs), instant(nowMs + soonMs)),
-    checkinRepo.listCheckInsForDay(ctx, branchId, instant(studioDayStart(nowMs))),
+    reservationRepo.listBySessionStartRange(ctx, instant(nowMs), instant(nowMs + soonMs)),
+    checkinRepo.listCheckInsForDay(ctx, branchId, instant(dayStart)),
+    reservationRepo.listBySessionStartRange(ctx, instant(dayStart), instant(dayStart + DAY_MS)),
   ])
+
+  // ── BUGÜN KİM NE İÇİN GELDİ (owner, 2026-09-18) ────────────────────────────────────────────
+  //
+  // Bir check-in kaydı "neden geldiğini" bilmez — kapıdan geçiş, dersin kendisi değildir. O yüzden
+  // amacı REZERVASYON söyler: bugün rezervasyonu olan üye o dersin kategorisi için gelmiştir.
+  // Rezervasyonu olmayan giriş serbest kullanımdır, yani fitness: bu stüdyoda reformer ve PT
+  // rezervasyonsuz kullanılamaz, sınırsız fitness ise hiç rezervasyon yapmaz.
+  //
+  // İPTAL SAYILMAZ: iptal ettiği dersin kategorisi, o gün kapıdan geçmesinin sebebi olamaz.
+  const amac = new Map<string, string>()
+  for (const r of dayReservations) {
+    if (r.status === 'cancelled') continue
+    if (!amac.has(r.memberId)) amac.set(r.memberId, r.sessionCategory)
+  }
 
   const insideIds = new Set(inside.map((p) => p.memberId))
   const expectedSoon = upcoming
@@ -88,7 +114,7 @@ export async function loadCheckinState(ctx: TenantContext, nowMs: number): Promi
     .sort((a, b) => a.sessionStartsAt - b.sessionStartsAt)
 
   return {
-    today: summarizeToday(todays),
+    today: summarizeToday(todays, amac),
     branchId,
     isOpen: branch?.isOpen ?? false,
     occupancy: inside.length,
@@ -99,7 +125,10 @@ export async function loadCheckinState(ctx: TenantContext, nowMs: number): Promi
   }
 }
 
-function summarizeToday(todays: readonly { memberId: string; direction: string; method: string; occurredAt: number }[]): TodayStats {
+function summarizeToday(
+  todays: readonly { memberId: string; direction: string; method: string; occurredAt: number }[],
+  amac: ReadonlyMap<string, string> = new Map(),
+): TodayStats {
   const sorted = [...todays].sort((a, b) => a.occurredAt - b.occurredAt)
   const byMember = new Map<string, { firstIn: number | null; lastOut: number | null; entries: number; via: Set<string> }>()
   const byMethod = { device: 0, qr: 0, reception: 0 }
@@ -122,5 +151,14 @@ function summarizeToday(todays: readonly { memberId: string; direction: string; 
   const rows = [...byMember]
     .map(([memberId, r]) => ({ memberId, firstIn: r.firstIn, lastOut: r.lastOut, entries: r.entries, via: [...r.via] }))
     .sort((a, b) => (b.firstIn ?? b.lastOut ?? 0) - (a.firstIn ?? a.lastOut ?? 0))
-  return { entries, uniqueMembers: rows.filter((r) => r.entries > 0).length, exits, byMethod, rows }
+  // Kişi başına tek sayım: aynı üyenin ikinci girişi ayrı bir "kim geldi" değildir. Rezervasyonu
+  // olmayan giriş fitness sayılır (yukarıdaki gerekçe).
+  const byPurpose = { pilates: 0, fitness: 0, pt: 0 }
+  for (const r of rows.filter((r) => r.entries > 0)) {
+    const k = amac.get(r.memberId)
+    if (k === 'pilates_group') byPurpose.pilates++
+    else if (k === 'private') byPurpose.pt++
+    else byPurpose.fitness++
+  }
+  return { entries, uniqueMembers: rows.filter((r) => r.entries > 0).length, exits, byMethod, byPurpose, rows }
 }

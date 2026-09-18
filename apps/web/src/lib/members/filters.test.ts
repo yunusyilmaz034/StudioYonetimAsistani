@@ -104,6 +104,43 @@ describe('üye listesi filtreleri', () => {
     expect(hybrid.hybrid).toBe(true)
     expect(plain.hybrid).toBe(false)
   })
+
+  // Owner, 2026-09-18: *"Üye filtrelerinde hibriti de Pilates'te sayıyor, hâlbuki Pilates ile hibrit
+  // farklı paketler."* A demet grants a pilates part and a fitness part, so the member was landing in
+  // all three chips at once and the counts stopped adding up.
+  it('a hybrid member is hibrit ONLY — not pilates, not fitness', () => {
+    const b = badgesFor(
+      facts({
+        packages: [
+          { status: 'active', validUntil: NOW + 30 * DAY, creditsAvailable: 8, category: 'pilates_group', isBundle: true },
+          { status: 'active', validUntil: NOW + 30 * DAY, creditsAvailable: null, category: 'fitness', isBundle: true },
+        ],
+      }),
+      NOW,
+    )
+    expect(b.hybrid).toBe(true)
+    expect(b.categories).toEqual([])
+    expect(matches('hybrid', b)).toBe(true)
+    expect(matches('pilates', b)).toBe(false)
+    expect(matches('fitness', b)).toBe(false)
+  })
+
+  // ...and buying a plain package alongside a demet still puts her in that package's chip. The rule is
+  // about what the bundle grants, not about the member.
+  it('a plain package next to a bundle still counts in its own chip', () => {
+    const b = badgesFor(
+      facts({
+        packages: [
+          { status: 'active', validUntil: NOW + 30 * DAY, creditsAvailable: 8, category: 'fitness', isBundle: true },
+          { status: 'active', validUntil: NOW + 30 * DAY, creditsAvailable: 8, category: 'pilates_group' },
+        ],
+      }),
+      NOW,
+    )
+    expect(matches('hybrid', b)).toBe(true)
+    expect(matches('pilates', b)).toBe(true)
+    expect(matches('fitness', b)).toBe(false)
+  })
 })
 
 // ── "Tümü" is every member the studio still has (owner, 2026-07-31) ─────────────────────────

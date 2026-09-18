@@ -1998,3 +1998,20 @@ kalıyordu — oysa geri kazanma listesinin sorduğu şey tam da budur: ne almı
 Artık aktif paket yoksa **en son sona eren** paket gösteriliyor. Aktif paket her zaman kazanır (varken bitmişi
 göstermek üyeyi olduğundan kötü gösterir). "Kalan gün" bitmiş pakette yazılmaz: "0 gün" ile "bugün bitiyor" aynı şey
 değildir ve ikisini aynı hücrede göstermek okuyanı yanıltır — tarihler zaten bitişi söyler.
+
+**OR-103 · Hibrit, Pilates de Fitness de değildir: üçüncü bir paket türüdür.** (2026-09-18)
+Owner: *"Üye filtrelerinde hibriti de Pilates'te sayıyor, hâlbuki Pilates ile hibrit farklı paketler; aynı şekilde
+Fitness'ta da hibrit var — buradaki ayrımı sağla."* Bir demet teknik olarak bir pilates + bir fitness bileşeni verir,
+ve kod bunu doğru okuyordu: aynı üye üç çipte birden çıkıyordu (Pilates 80 · Fitness 117 · Hibrit 18, toplamı üye
+sayısını aşıyor). Ama stüdyonun dilinde **"Pilates üyesi" pilates paketi SATIN ALMIŞ kişidir**; hibrit üye kendi
+adıyla anılan üçüncü şeydir. Demet bileşenleri artık kategori filtrelerine girmez — çiplerin üstündeki rakam
+toplanabilir olmalıdır, çünkü o rakam ekranın bütün varlık sebebidir. Demetin YANINDA ayrıca düz bir paket almışsa
+o paketin çipinde görünmeye devam eder: kural demetin verdiği şeyle ilgilidir, üyeyle değil.
+
+**OR-104 · Check-in ekranı bugün kimin NE İÇİN geldiğini de sayar.** (2026-09-18)
+Owner: *"Kaç tanesi fitness, kaç tanesi pilates için gelmiş diye sayı versene."* Bir check-in kaydı niyeti bilmez —
+kapıdan geçiş dersin kendisi değildir (Doc 2: check-in ≠ attendance). Amacı **rezervasyon** söyler: o gün rezervasyonu
+olan üye o dersin kategorisi için gelmiştir; rezervasyonu olmayan giriş serbest kullanımdır, yani fitness — bu
+stüdyoda reformer ve PT rezervasyonsuz kullanılamaz, sınırsız fitness ise hiç rezervasyon yapmaz. İptal edilen
+rezervasyon sayılmaz: iptal ettiği dersin kategorisi, o gün kapıdan geçmesinin sebebi olamaz. Sayım **kişi başınadır**
+(aynı üyenin ikinci girişi ayrı bir "kim geldi" değildir), bu yüzden üç rakamın toplamı "Farklı üye"ye eşittir.

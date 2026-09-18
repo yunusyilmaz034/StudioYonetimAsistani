@@ -7,7 +7,7 @@ explains the moment.
 Keep it current the way the code is kept current: when the state changes, this changes in the same
 commit. A handover document that lags is worse than none, because it is believed.
 
-_Last true as of: **2026-09-16, 17:15**._
+_Last true as of: **2026-09-19, 00:05**._
 
 ## ⏭️ Sıradaki oturum — BURADAN BAŞLA
 
@@ -171,6 +171,24 @@ abartmamak bilinçli. **Bu rakam canlı veriden gelmiyor, HTML'e gömülü:** ka
 **Taksit ayarı ✅ kapandı** (17 Eylül): owner Ayarlar'dan `maxInstallments`'ı **3**'e çekti (veriden doğrulandı).
 Artık ödeme linkleri de sitenin ve `/uyelik`'in söylediğiyle aynı şeyi söylüyor.
 
+## 🧮 18 Eylül gecesi — hibrit kendi çipinde, check-in kimin ne için geldiğini sayıyor
+
+**Hibrit artık Pilates/Fitness çiplerinde sayılmıyor ✅ ([[OR-103]]):** `lib/members/filters.ts` → `badgesFor`
+kategori listesini kurarken demet bileşenlerini (`isBundle`) dışarıda bırakıyor. Tek satırlık değişiklik ama
+sayıları toplanabilir yapan şey bu: owner "Pilates 80 · Fitness 117 · Hibrit 18" toplamının 242 üyeyi aşmasını
+fark etti. Demetin yanında düz paketi olan üye o çipte kalmaya devam eder (test edildi, iki yeni vaka).
+
+**Check-in ekranında "Pilates · Fitness · PT" kutusu ✅ ([[OR-104]]):** `checkin-query.ts` bugünün rezervasyonlarını
+da okuyor (`listBySessionStartRange`, stüdyo günü) ve üye → kategori haritası kuruyor; rezervasyonsuz giriş fitness
+sayılıyor. Kişi başına tek sayım, toplamı "Farklı üye"ye eşit. **Ek okuma maliyeti:** günde bir aralık sorgusu.
+
+**Buse Hoca'nın 18 Eylül mesaisi düzeltildi ✅:** turnike çıkış kodunu okuyamadı, gece süpürgesi vardiyayı son
+geçişe (09:09) kapatmıştı — kayıt "1 dakika çalışmış" diyordu. `tools/migration/buse-hoca-mesai-cikis-2026-09-18.ts`
+(aktör `platform_admin`, sebep yazılı) 21:08 çıkışıyla yeni bir `staff.shift_ended` yazdı: **09:09 → 21:08, 718 dk**.
+Eski olay silinmedi. `lastCrossingAt` olduğu gibi bırakıldı — turnike o an gerçekten bir şey görmedi ve görmediğini
+yazmak, görmüş gibi yazmaktan iyidir (#11). **Panelde vardiya düzeltme ekranı YOK**; aynı durum tekrarlarsa yol yine
+bu betiktir.
+
 ## 📱 Mobil 1.7.4 — 18 Eylül: OTA yolu AÇILDI
 
 **Android ✅ Play üretimde** (versionCode 17, `COMPLETED`), sürüm notu yazıldı ve `pnpm android:notes`
@@ -199,7 +217,10 @@ sürüm numarasındaki build'e iner — 1.7.4'e yayınlanan güncelleme 1.7.3'te
 o yüzden mobil typecheck çalıştırılamadı — değişiklik iki dosyada ve küçük, ama yayından önce kurulum yapıp
 `pnpm --filter mobile typecheck` çalıştırmak gerekir.
 
-**Takip notu ✅ ([[OR-98]], 18 Eylül, HENÜZ DEPLOY EDİLMEDİ):** borç satırında tik → "ne dedi" diyaloğu.
+**Takip notu ✅ ([[OR-98]], 18 Eylül, YAYINDA — backend 23:40):** borç satırında tik → "ne dedi" diyaloğu.
+Not, panoda o üyenin satırının altında **📌** ile durur (grup satırını açınca görünür — "20 açık bakiye · tahsilat"
+kapalıyken notlar da kapalıdır); "iptal edecek" seçilirse ayrıca üyenin kendi kaydındaki **Not** alanına işlenir
+(üye profili → Not). Merkezî bir "bütün takip notları" listesi henüz YOK.
 Not `studios/{sid}/followUps/{memberId}` belgesinde; okuma `server/follow-ups.ts`'te (döngüsel bağımlılığı kırmak
 için ayrı modül: `advisor-query` ve `actions/checklist` ikisi de oraya bakar, birbirine değil).
 

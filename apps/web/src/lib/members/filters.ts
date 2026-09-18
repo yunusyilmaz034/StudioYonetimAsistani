@@ -127,7 +127,26 @@ export function badgesFor(m: MemberFacts, nowMs: number): MemberBadges {
     // bought, she is coming back, and her membership is paused — not finished. "Donmuş" remains its
     // own filter, so nothing about her situation is lost by calling her active.
     state: memberStateOf(m.status, live.length),
-    categories: [...new Set(live.map((p) => p.category).filter((c): c is string => Boolean(c)))],
+    // ── HİBRİT, PİLATES DE FİTNESS DE DEĞİLDİR (owner, 2026-09-18) ──────────────────────────
+    //
+    // *"Üye filtrelerinde hibriti de Pilates'te sayıyor, hâlbuki Pilates ile hibrit farklı paketler;
+    // aynı şekilde Fitness'ta da hibrit var — buradaki ayrımı sağla."*
+    //
+    // Bir demet teknik olarak bir pilates + bir fitness bileşeni GRANT eder, ve kod bunu doğru
+    // okuyordu: hibrit üye her iki çipte birden çıkıyordu. Ama stüdyonun dilinde "Pilates üyesi"
+    // pilates paketi SATIN ALMIŞ kişidir; hibrit üye üçüncü bir şeydir ve kendi çipi vardır. Aynı
+    // kişiyi üç listede birden saymak, çiplerin üstündeki rakamı toplanamaz hale getirir — oysa o
+    // rakam bu ekranın bütün varlık sebebi.
+    //
+    // Demet bileşenleri bu yüzden kategori listesine girmez; hibrit ayrımı `hybrid` bayrağının işi.
+    categories: [
+      ...new Set(
+        live
+          .filter((p) => p.isBundle !== true)
+          .map((p) => p.category)
+          .filter((c): c is string => Boolean(c)),
+      ),
+    ],
     // A package still inside its window, ending soon. A frozen one is NOT expiring — that is the
     // whole point of freezing it, and telling reception to chase a frozen member would undo it.
     expiring: active.some((p) => p.validUntil > nowMs && p.validUntil - nowMs <= EXPIRING_WINDOW_MS),
