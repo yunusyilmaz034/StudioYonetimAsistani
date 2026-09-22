@@ -184,9 +184,24 @@ render'da düşen sayfa beyaz ekrandı).
 
 **B. Soğuk başlatma → 12.3 sn.** `minInstances: 1` build config'inde VARDI ama Cloud Run'a uygulanmamıştı
 (`minScale: 0`). 22 Eylül 13:5x'te elle uygulandı; doğrulandı (`minScale: 1`). Isınmış istek 0.07 sn, p90 0.24 sn —
-sistem yavaş değil, uyanması yavaştı. **TUZAK: App Hosting rollout'u bu ayarı geri alabilir** — her deploy sonrası
-`gcloud run services describe studio-yonetim --region europe-west4` ile `minScale` bak; 0'a düştüyse
-`gcloud run services update studio-yonetim --region europe-west4 --min-instances=1`.
+sistem yavaş değil, uyanması yavaştı.
+
+**TUZAK — KANITLANDI, ihtimal değil:** aynı gün 13:55'teki rollout (`build-2026-09-22-002`) ayarı **sıfırladı**
+(`minScale: 0`), elle tekrar uygulandı. Yani App Hosting her deploy'da `apphosting.yaml`'ın minInstances'ını
+YOK SAYAN bir Cloud Run şablonu yazıyor. **Her deploy sonrası zorunlu kontrol:**
+```bash
+gcloud run services describe studio-yonetim --region europe-west4 --project studio-yonetim-prod \
+  --format='value(spec.template.metadata.annotations["autoscaling.knative.dev/minScale"])'   # 1 olmalı
+gcloud run services update studio-yonetim --region europe-west4 --project studio-yonetim-prod --min-instances=1
+```
+Kalıcı çözüm bulunana kadar bu, deploy yordamının parçasıdır — atlanırsa resepsiyon ertesi sabah yine 12 saniye bekler.
+
+**Bizim hatamız değil, bilinen bir App Hosting arızası:** firebase-tools **#10775** ("minInstances is captured in
+build config but never applied to the live Cloud Run revision — minScale stays 0", 8 Tem 2026) ve **#10606**
+("minInstances doesn't apply to App Hosting deployment pipeline", 17 Haz 2026). İkisi de *kapalı/çözüldü* görünüyor,
+ama 22 Eylül'deki rollout ayarı yine sıfırladı — yani düzeltme bizim backend'imizde etkili DEĞİL. Aynı ailede
+#10956 (monorepo'da `runConfig` sessizce düşüyor, bellek 512Mi'ye dönüyor) — bizim `memoryMiB: 512` zaten varsayılana
+eşit olduğu için orada fark görünmüyor; **bellek artırılırsa o da uygulanmayabilir**, deploy sonrası kontrol edilmeli.
 
 **Açık kalan:** `/engagement` 66 sn sürmüştü (owner-only; `engagementSuggestionsAction` bütün `engagementLog`
 koleksiyonunu okuyor). Resepsiyonu etkilemiyor, ama bir gün sınırlanmalı.
