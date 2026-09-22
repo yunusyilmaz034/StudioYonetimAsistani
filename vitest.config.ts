@@ -24,6 +24,11 @@ export default defineConfig({
     include: [
       'packages/core/**/*.test.ts',
       'apps/web/src/**/*.test.ts',
+      // `apps/functions/src` — the PURE decisions that live beside a scheduled job (e.g. "should the
+      // min-instances floor be repaired?"). The emulator suite is `apps/functions/test/integration`
+      // and stays out of this run; a rule with a judgement in it belongs in the fast layer, next to
+      // the code it governs, rather than being denied a test because of the folder it sits in.
+      'apps/functions/src/**/*.test.ts',
       // The migration's pure rules moved into `members/domain/import.ts` (v1.27 S5) — the owner's
       // import screen must run EXACTLY them, and two validators are two answers to "may this row
       // enter production?". `tools/migration` is a door now, not an implementation, and has no tests

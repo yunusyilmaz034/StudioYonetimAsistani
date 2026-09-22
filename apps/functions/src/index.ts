@@ -19,6 +19,7 @@ import { runClassReminderSweep } from './scheduled/class-reminders'
 import { runExpirySweep } from './scheduled/expire-credits'
 import { runInfrastructureWatch } from './scheduled/infrastructure-alarm'
 import { runFastHealthChecks, runNightlyHealthChecks } from './scheduled/health'
+import { runMinInstancesGuard } from './scheduled/min-instances-guard'
 import { runNotificationRetrySweep } from './scheduled/notification-retry'
 import { runPaymentReconcileSweep } from './scheduled/reconcile-payments'
 import { runReminderSweep } from './scheduled/reminders'
@@ -167,6 +168,16 @@ export const infrastructureWatch = onSchedule(
     await runInfrastructureWatch(Date.now())
   },
 )
+
+// ── The floor that keeps falling out (owner, 2026-09-22 · OR-108) ───────────────────────────
+// App Hosting writes `minInstances: 1` into the build config and then deploys a Cloud Run revision
+// with `minScale: 0` — three deploys in one afternoon, three resets. Scaled to zero, the panel's
+// first request costs reception twelve seconds; warm, it costs 0.07. Every half hour: a deploy can
+// land at any time of day, and the cost of missing one is a morning of "sistem çok yavaş".
+// It repairs an explicit zero and nothing else — a higher number is somebody's deliberate act.
+export const minInstancesGuard = onSchedule({ schedule: 'every 30 minutes' }, async () => {
+  await runMinInstancesGuard()
+})
 
 // Ders Hatırlatmaları — a pilates class starts in ~1 hour: emit `class_reminder.due` so the notifier
 // tells the member (WhatsApp + in-app). Every 15 minutes, because "1 hour before" needs a fine grain

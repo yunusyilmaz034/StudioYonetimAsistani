@@ -2056,8 +2056,11 @@ hata sınırı (`(staff)/error.tsx`) eklendi: render sırasında düşen sayfa a
 **2. Soğuk sunucu.** `apphosting.yaml`'da 14 Ağustos'tan beri `minInstances: 1` yazıyordu ve App Hosting bunu BUILD
 yapılandırmasına kaydediyordu — ama Cloud Run servisine uygulamamıştı (`minScale: 0`). Sonuç: boştan dönen ilk istek
 12.3 saniye; ısınmış istek 0.07 saniye. 22 Eylül'de Cloud Run'a elle uygulandı (`gcloud run services update
---min-instances=1`). **Dikkat:** bu ayar App Hosting'in sonraki rollout'unda ezilebilir — her deploy sonrası
-`autoscaling.knative.dev/minScale` kontrol edilmeli, 0'a düştüyse tekrar uygulanmalı.
+--min-instances=1`). **Ayar her rollout'ta siliniyor** — 22 Eylül'de üç deploy, üç sıfırlama. Bu yüzden elle
+kontrol bırakılmadı: **`minInstancesGuard`** (Cloud Function, yarım saatte bir) sıfırı görüp 1'e geri koyuyor.
+Yalnızca **açık bir sıfırı** onarır — daha yüksek bir değer birinin bilinçli kararıdır ve otomasyon insanın kararını
+geri almaz; okuma başarısızsa hiçbir şey yapmaz. Her onarım loga `minInstances: floor was 0 after a rollout` diye
+düşer, ve o satırların sayısı yukarı akış hatasının (firebase-tools #10775 · #10606) hâlâ sürdüğünün kanıtıdır.
 
 **OR-109 · Çift-okuma koruması AYNI YÖNE bakar; girip hemen çıkmak bir tekrar değildir.** (2026-09-22)
 Owner: *"Turnike çıkış QR okutuyorsun, ötüyor ama kol dönmüyor."* Koruma son geçişe bakıyordu, o geçişin YÖNÜNE

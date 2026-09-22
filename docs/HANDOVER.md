@@ -207,7 +207,13 @@ gcloud run services describe studio-yonetim --region europe-west4 --project stud
   --format='value(spec.template.metadata.annotations["autoscaling.knative.dev/minScale"])'   # 1 olmalı
 gcloud run services update studio-yonetim --region europe-west4 --project studio-yonetim-prod --min-instances=1
 ```
-Kalıcı çözüm bulunana kadar bu, deploy yordamının parçasıdır — atlanırsa resepsiyon ertesi sabah yine 12 saniye bekler.
+**ARTIK OTOMATİK (22 Eylül akşamı, owner: *"olur otomatiğe bağla"*):** `minInstancesGuard` — yarım saatte bir çalışan
+Cloud Function (`apps/functions/src/scheduled/min-instances-guard.ts`). Cloud Run v2 API'sini metadata sunucusundan
+aldığı token'la okuyor; `template.scaling.minInstanceCount === 0` ise servisi **oku-değiştir-yaz** (etag ile, tam
+nesne — `updateMask=template` bütün şablonu ezerdi) ile 1'e çekiyor. Sadece açık sıfırı onarır: daha yüksek değer
+birinin kararıdır, `undefined` ise API şekli değişmiştir ve dokunmaz. Servis hesabı `roles/editor` taşıdığı için ek
+IAM gerekmedi. Karar saf ve testli (`needsRepair`). Yine de elle kontrol komutu yukarıda duruyor — koruyucu da
+sessizce ölebilir; log satırı `minInstances: floor intact` / `… was 0 after a rollout` diye görünür.
 
 **Bizim hatamız değil, bilinen bir App Hosting arızası:** firebase-tools **#10775** ("minInstances is captured in
 build config but never applied to the live Cloud Run revision — minScale stays 0", 8 Tem 2026) ve **#10606**
