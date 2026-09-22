@@ -5,6 +5,7 @@ import { DoorOpenIcon, Loader2Icon } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
+import { isStaleDeployment, STALE_DEPLOYMENT_MESSAGE } from '@/lib/stale-deployment'
 import { listTurnstilesAction, openTurnstileAction } from '@/server/actions/turnstile'
 
 // PANELDEN KAPIYI AÇ (owner, 2026-09-01).
@@ -34,7 +35,20 @@ export function TurnstileOpen() {
     const oku = () =>
       void listTurnstilesAction()
         .then((d) => setCihazlar(d.filter((x) => x.active)))
-        .catch(() => setCihazlar([]))
+        .catch((e: unknown) => {
+          // ESKİ SEKME, ÇEVRİMDIŞI KAPI DEĞİL (owner, 2026-09-22) — *"resepsiyon sistem donuyor diyor."*
+          //
+          // Bu yoklama yarım dakikada bir çalışıyor ve panele bir sürüm çıktığında açık kalan sekmenin
+          // çağırdığı Server Action artık sunucuda yok. Hatayı yutup `[]` yazmak, kapıları ÇEVRİMDIŞI
+          // gösteriyordu: resepsiyon turnikeyi açamıyor, ekran tepki vermiyor, "dondu" diyor — oysa
+          // panel çalışıyor, elindeki kopya eski. 19 Eylül akşamı bu dakikada iki kez, saatlerce oldu.
+          if (isStaleDeployment(e)) {
+            toast.message(STALE_DEPLOYMENT_MESSAGE)
+            window.setTimeout(() => window.location.reload(), 1200)
+            return
+          }
+          setCihazlar([])
+        })
     oku()
     // Yarım dakikada bir tazeleniyor: "çevrimdışı" yazısı bir kez çizilip donarsa, yanlış olduğu
     // anda da orada durur — ve bu ekran bütün gün açık kalıyor.

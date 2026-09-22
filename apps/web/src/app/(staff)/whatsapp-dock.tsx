@@ -100,8 +100,15 @@ export function WhatsAppDock() {
           if (!c.needsAttention) seen.current.delete(c.phone)
         }
       }
-    } catch {
-      /* transient — keep the last list */
+    } catch (e) {
+      // Dört saniyede bir çalışan yoklama: geçici bir ağ hatasında son listeyi korumak DOĞRU, ama
+      // sekme bir sürüm geride kaldıysa bu hata geçici değildir — kendiliğinden düzelmez ve kutu
+      // sessizce ölür (owner, 2026-09-22: *"sistem donuyor"*). O tek durumda sayfayı yeniliyoruz.
+      if (isStaleDeployment(e)) {
+        toast.message(STALE_DEPLOYMENT_MESSAGE)
+        window.setTimeout(() => window.location.reload(), 1200)
+      }
+      /* diğer her şey geçici — son liste ekranda kalsın */
     }
   }, [])
 

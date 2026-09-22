@@ -6,6 +6,7 @@ import { LogInIcon, LogOutIcon, Loader2Icon } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
+import { isStaleDeployment, STALE_DEPLOYMENT_MESSAGE } from '@/lib/stale-deployment'
 import { listTurnstilesAction, openTurnstileAction } from '@/server/actions/turnstile'
 
 // ── TURNİKE, HER EKRANIN SAĞ ÜSTÜNDE (owner, 2026-09-13) ────────────────────────────────────
@@ -40,7 +41,17 @@ export function TurnstileDock() {
     const oku = () =>
       void listTurnstilesAction()
         .then((d) => setCihazlar(d.filter((x) => x.active)))
-        .catch(() => setCihazlar([]))
+        .catch((e: unknown) => {
+          // Aynı sebep, her ekranda (owner, 2026-09-22): dock bütün gün açık duruyor ve dakikada bir
+          // sunucuya soruyor. Sürüm çıktığında bu çağrı düşer; hatayı yutmak kapıyı "çevrimdışı"
+          // gösterir ve resepsiyon paneli arızalı sanır. Sekme eskiyse söyle ve yenile.
+          if (isStaleDeployment(e)) {
+            toast.message(STALE_DEPLOYMENT_MESSAGE)
+            window.setTimeout(() => window.location.reload(), 1200)
+            return
+          }
+          setCihazlar([])
+        })
     oku()
     // Yarım dakikada bir: "çevrimdışı" bilgisi bir kez çizilip donarsa yanlış olduğu anda da orada
     // durur — ve bu panel bütün gün açık kalıyor.

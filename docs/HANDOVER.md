@@ -171,6 +171,26 @@ abartmamak bilinçli. **Bu rakam canlı veriden gelmiyor, HTML'e gömülü:** ka
 **Taksit ayarı ✅ kapandı** (17 Eylül): owner Ayarlar'dan `maxInstallments`'ı **3**'e çekti (veriden doğrulandı).
 Artık ödeme linkleri de sitenin ve `/uyelik`'in söylediğiyle aynı şeyi söylüyor.
 
+## 🧊 22 Eylül — "sistem donuyor / yavaş" teşhis edildi ([[OR-108]])
+
+**İki ayrı arıza, ikisi de ölçüldü (tahmin değil, Cloud Logging).**
+
+**A. Eski sekme → sessiz ölüm.** Sürüm çıkınca açık sekmenin Server Action id'leri geçersiz oluyor
+("Failed to find Server Action"). Turnike yoklamaları hatayı yutup kapıyı "çevrimdışı" gösteriyordu.
+Kanıt: 19.09 17:36–21:13 kesintisiz dk/2 hata; 22.09 13:10 deploy'u sonrası 13:20–13:37 arası 100+.
+Düzeltme: `turnstile-open.tsx` + `components/turnstile-dock.tsx` + `whatsapp-dock.tsx` ana yoklaması artık
+`isStaleDeployment` ile tanıyıp yeniliyor; **yeni** `(staff)/error.tsx` hata sınırı eklendi (panelde hiç yoktu —
+render'da düşen sayfa beyaz ekrandı).
+
+**B. Soğuk başlatma → 12.3 sn.** `minInstances: 1` build config'inde VARDI ama Cloud Run'a uygulanmamıştı
+(`minScale: 0`). 22 Eylül 13:5x'te elle uygulandı; doğrulandı (`minScale: 1`). Isınmış istek 0.07 sn, p90 0.24 sn —
+sistem yavaş değil, uyanması yavaştı. **TUZAK: App Hosting rollout'u bu ayarı geri alabilir** — her deploy sonrası
+`gcloud run services describe studio-yonetim --region europe-west4` ile `minScale` bak; 0'a düştüyse
+`gcloud run services update studio-yonetim --region europe-west4 --min-instances=1`.
+
+**Açık kalan:** `/engagement` 66 sn sürmüştü (owner-only; `engagementSuggestionsAction` bütün `engagementLog`
+koleksiyonunu okuyor). Resepsiyonu etkilemiyor, ama bir gün sınırlanmalı.
+
 ## 🗒️ 22 Eylül — panodaki notlar artık bir raporda ([[OR-107]])
 
 **Raporlar → "Notlar"** (`time: 'range'`, owner-only alan). Veri yolu: `checklistDone/{YYYY-MM-DD}` belgeleri gün gün

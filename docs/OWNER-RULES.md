@@ -2040,3 +2040,21 @@ Artık aralıktaki bütün notlar tek raporda: tarih · yazan · iş · ilgili k
 donduruluyor** (`TickedItem.title`), çünkü satır yarın yeniden kurulamaz — kimlikten geriye isim çözmek yalnızca
 konuyu verir, işi vermez; başlığı olmayan eski kayıtlarda iş TÜRÜ yazılır. Notu olmayan tik rapora girmez: bu rapor
 "ne yazıldı"yı sorar, "ne tiklendi"yi değil. Okuma aralık kadar gündür, en çok 120 gün.
+
+**OR-108 · "Sistem donuyor" iki ayrı arızaydı: eski sekme ve soğuk sunucu.** (2026-09-22)
+Owner: *"Resepsiyon sistem bazen donuyor, arada çok yavaş diyor; bende öyle problem olmuyor."* Fark, sekmeyi bütün
+gün açık bırakmaktı.
+
+**1. Eski sekme.** Panele sürüm çıktığında açık sekmenin çağırdığı Server Action sunucuda yok olur. Turnike
+yoklamaları (check-in ekranı 30 sn, her sayfadaki dock 60 sn) bu hatayı YUTUP kapıları *"çevrimdışı"* gösteriyordu:
+resepsiyon turnikeyi açamıyor, ekran tepki vermiyor — gördüğü şey "donma". Log kanıtı: 19 Eylül 17:36–21:13 arası
+kesintisiz dakikada iki hata; 22 Eylül 13:10 deploy'undan sonra 13:20–13:37 arası 100+ hata. **Kural:** bir sekmenin
+sürüm geride kalması GEÇİCİ BİR AĞ HATASI DEĞİLDİR — kendiliğinden düzelmez. Yoklama da olsa, kaydetme de olsa
+tek doğru davranış `isStaleDeployment` ile tanıyıp kullanıcıya söylemek ve sayfayı yenilemektir. Panele ayrıca bir
+hata sınırı (`(staff)/error.tsx`) eklendi: render sırasında düşen sayfa artık boş ekran değil, sebebini söyleyen ekran.
+
+**2. Soğuk sunucu.** `apphosting.yaml`'da 14 Ağustos'tan beri `minInstances: 1` yazıyordu ve App Hosting bunu BUILD
+yapılandırmasına kaydediyordu — ama Cloud Run servisine uygulamamıştı (`minScale: 0`). Sonuç: boştan dönen ilk istek
+12.3 saniye; ısınmış istek 0.07 saniye. 22 Eylül'de Cloud Run'a elle uygulandı (`gcloud run services update
+--min-instances=1`). **Dikkat:** bu ayar App Hosting'in sonraki rollout'unda ezilebilir — her deploy sonrası
+`autoscaling.knative.dev/minScale` kontrol edilmeli, 0'a düştüyse tekrar uygulanmalı.
