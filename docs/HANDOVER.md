@@ -7,7 +7,7 @@ explains the moment.
 Keep it current the way the code is kept current: when the state changes, this changes in the same
 commit. A handover document that lags is worse than none, because it is believed.
 
-_Last true as of: **2026-09-19, 00:05**._
+_Last true as of: **2026-09-22, 13:15**._
 
 ## ⏭️ Sıradaki oturum — BURADAN BAŞLA
 
@@ -170,6 +170,18 @@ abartmamak bilinçli. **Bu rakam canlı veriden gelmiyor, HTML'e gömülü:** ka
 
 **Taksit ayarı ✅ kapandı** (17 Eylül): owner Ayarlar'dan `maxInstallments`'ı **3**'e çekti (veriden doğrulandı).
 Artık ödeme linkleri de sitenin ve `/uyelik`'in söylediğiyle aynı şeyi söylüyor.
+
+## 🗒️ 22 Eylül — panodaki notlar artık bir raporda ([[OR-107]])
+
+**Raporlar → "Notlar"** (`time: 'range'`, owner-only alan). Veri yolu: `checklistDone/{YYYY-MM-DD}` belgeleri gün gün
+okunur (aralık kadar, en çok 120 gün), `items` düzleştirilir, **notu olan** tikler satır olur. "İlgili" sütunu
+`wa:{telefon}` için `conversations/{telefon}`'dan, `{tür}__{memberId}…` için üye kaydından çözülür; çözülemezse boş
+kalır (uydurma ad, boş hücreden kötüdür).
+
+**Tik artık başlığı da yazıyor:** `TickedItem.title` (pano satırının o anki `headline`'ı). Sebep: satır ertesi gün
+yeniden türetiliyor ve "Bilgi alıyor: Ayşenur Taş · 5 gündür sessiz" bir daha kurulamıyor. **22 Eylül öncesi
+kayıtlarda başlık YOK** — o satırlarda iş türü görünür (WhatsApp adayı, Açık bakiye, …). Tik notunun kendisi hâlâ
+`checklistDone`'da; lead notları ayrıca `interactions`'a yazılmaya devam ediyor ([[OR-105]]).
 
 ## 🧮 18–19 Eylül gecesi — hibrit kendi çipinde, check-in kimin ne için geldiğini sayıyor, notlar adayın kartında
 

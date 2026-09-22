@@ -33,6 +33,14 @@ import { adminDb } from './firebase-admin'
 export interface TickedItem {
   readonly id: string
   readonly kind: string
+  /**
+   * İşin O ANDAKİ başlığı — not raporunun "hangi iş" sütunu (owner, 2026-09-22).
+   *
+   * Tik anında yazılır, çünkü satırın kendisi yarın yok: pano her sabah yeniden türetiliyor ve
+   * "Bilgi alıyor: Ayşenur Taş · 5 gündür sessiz" bir daha kurulamıyor. Kimlikten geriye doğru
+   * isim çözmek ise yalnızca konuyu verir, işi vermez.
+   */
+  readonly title?: string
 }
 
 export const CHECKLIST_COOLDOWN_DAYS: Readonly<Record<string, number>> = {

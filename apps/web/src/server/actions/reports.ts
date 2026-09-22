@@ -25,7 +25,9 @@ import {
   buildCollections,
   buildDayEnd,
   buildMembership,
+  buildNotes,
   buildReservations,
+  type NotSatiri,
   buildSales,
   buildTrainer,
   type Report,
@@ -34,6 +36,7 @@ import {
 import type { ReportId } from '@/lib/reports/catalog'
 
 import { requireTenantContext } from '../auth'
+import { kindOfItemId } from '../checklist-snooze'
 import { adminDb } from '../firebase-admin'
 
 // THE REPORTS (v1.27 S6) — one action, one read per report, `ExportableTable` out.
@@ -88,7 +91,7 @@ async function haricTut<T extends { readonly memberId?: unknown; readonly id?: u
 export async function loadReportAction(input: unknown): Promise<ReportResult> {
   const p = z
     .object({
-      id: z.enum(['membership', 'sales', 'collections', 'reservations', 'checkins', 'trainer', 'cancellations', 'dayend', 'debts', 'cash']),
+      id: z.enum(['membership', 'sales', 'collections', 'reservations', 'checkins', 'trainer', 'cancellations', 'dayend', 'debts', 'cash', 'notes']),
       fromMs: z.number(),
       toMs: z.number(),
     })
@@ -133,6 +136,66 @@ export async function loadReportAction(input: unknown): Promise<ReportResult> {
         new FirestoreIdentityRepository(db).listStaff(ctx),
       ])
       return { id: p.id, ...buildCollections(await haricTut(ctx, payments, 'memberId'), members, drawers, staff) }
+    }
+
+    case 'notes': {
+      // Notlar gün gün duruyor (`checklistDone/{YYYY-MM-DD}`), çünkü tik de gün günlük. Aralık kadar
+      // belge okunur — bir ayın notları bir yılı okutmaz. Üst sınır 120 gün: "Tümü" seçen biri
+      // stüdyonun bütün geçmişini tek sorguda çekmesin.
+      const gunKey = (ms: number) => new Date(ms).toLocaleDateString('en-CA', { timeZone: 'Europe/Istanbul' })
+      const gunler: string[] = []
+      for (let t = startOfDayMs(p.fromMs); t <= p.toMs && gunler.length < 120; t += 86_400_000) gunler.push(gunKey(t))
+      const kok = db.collection('studios').doc(ctx.studioId as string)
+      const snaps = gunler.length === 0 ? [] : await db.getAll(...gunler.map((g) => kok.collection('checklistDone').doc(g)))
+
+      type Ham = { at: number; byName: string; kind: string; title: string; note: string; itemId: string }
+      const ham: Ham[] = []
+      for (const snap of snaps) {
+        const items = (snap.data()?.items ?? {}) as Record<
+          string,
+          { byName?: string; at?: number; note?: string; title?: string } | undefined
+        >
+        for (const [itemId, v] of Object.entries(items)) {
+          const not = String(v?.note ?? '').trim()
+          // Notu olmayan tik burada işi yok: bu rapor "ne yazıldı"yı sorar, "ne tiklendi"yi değil.
+          if (!not) continue
+          ham.push({
+            at: Number(v?.at ?? 0),
+            byName: String(v?.byName ?? '—'),
+            kind: kindOfItemId(itemId) ?? 'info',
+            title: String(v?.title ?? ''),
+            note: not,
+            itemId,
+          })
+        }
+      }
+
+      // İLGİLİ KİM: `wa:{telefon}` sohbetten, `{tür}__{memberId}…` üye kaydından çözülür. Çözülemeyen
+      // kimlik boş bırakılır — uydurulmuş bir ad, boş bir hücreden kötüdür.
+      const telefonlar = [...new Set(ham.filter((h) => h.itemId.startsWith('wa:')).map((h) => h.itemId.slice(3)))]
+      const [members, sohbetler] = await Promise.all([
+        new FirestoreMemberRepository(db).list(ctx),
+        telefonlar.length === 0
+          ? Promise.resolve([])
+          : db.getAll(...telefonlar.map((t) => kok.collection('conversations').doc(t))),
+      ])
+      const adres = new Map(telefonlar.map((t, i) => [t, String(sohbetler[i]?.data()?.name ?? '').trim() || t]))
+      const uyeAdi = new Map(members.map((m) => [m.id as string, m.fullName]))
+      const konu = (itemId: string): string => {
+        if (itemId.startsWith('wa:')) return adres.get(itemId.slice(3)) ?? itemId.slice(3)
+        const parcalar = itemId.split('__')
+        return parcalar.length > 1 ? (uyeAdi.get(parcalar[1] ?? '') ?? '') : ''
+      }
+
+      const satirlar: NotSatiri[] = ham.map((h) => ({
+        at: h.at,
+        byName: h.byName,
+        kind: h.kind,
+        subject: konu(h.itemId),
+        title: h.title,
+        note: h.note,
+      }))
+      return { id: p.id, ...buildNotes(satirlar) }
     }
 
     case 'cancellations': {

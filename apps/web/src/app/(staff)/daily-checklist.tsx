@@ -149,7 +149,17 @@ export function DailyChecklist({ items, snoozedCount = 0 }: { items: readonly Ad
     // `kind` rides along because the server decides from it whether the tick lasts the day or the
     // week — a call made to a drifting member is not work again tomorrow (owner, 2026-09-03).
     const kindOf = new Map(rows.map((r) => [r.id, r.kind]))
-    void setChecklistDoneAction({ dayKey, items: ids.map((id) => ({ id, kind: kindOf.get(id) ?? 'info' })), done: !willUndo })
+    // Başlık da gider: Notlar raporu "hangi iş" sütununu buradan yazar, çünkü satır yarın yeniden
+    // kurulamaz (owner, 2026-09-22).
+    const titleOf = new Map(rows.map((r) => [r.id, r.headline]))
+    void setChecklistDoneAction({
+      dayKey,
+      items: ids.map((id) => {
+        const baslik = titleOf.get(id)
+        return { id, kind: kindOf.get(id) ?? 'info', ...(baslik ? { title: baslik } : {}) }
+      }),
+      done: !willUndo,
+    })
       .then((rows) => {
         setDone(new Map(rows.map((r) => [r.itemId, r.byName])))
         setNotes(new Map(rows.flatMap((r) => (r.note ? [[r.itemId, r.note] as const] : []))))

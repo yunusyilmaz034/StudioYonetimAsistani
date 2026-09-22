@@ -28,6 +28,9 @@ export type ReportId =
   | 'dayend'
   | 'debts'
   | 'cash'
+  // Panodaki işlere tikle birlikte bırakılan notlar (owner, 2026-09-22). Not o günün belgesinde
+  // duruyordu ve pano ertesi sabah yeniden kurulduğu için bakılacak yeri yoktu.
+  | 'notes'
   // PF-40 (2026-07-27) — what used to be the separate `/analytics` screen. It was never a different
   // KIND of thing: the same date range over the same events, drawn instead of listed. Two screens
   // meant two date pickers and two export buttons for one question, and a menu in which "Raporlar"
@@ -125,6 +128,12 @@ export const REPORTS: readonly ReportSpec[] = [
     id: 'cash',
     label: 'Kasa raporu',
     question: 'Kasa ne zaman açıldı, ne sayıldı, fark var mı?',
+    time: 'range',
+  },
+  {
+    id: 'notes',
+    label: 'Notlar',
+    question: 'Panodaki işlere kim, ne zaman, ne not düştü?',
     time: 'range',
   },
 ]

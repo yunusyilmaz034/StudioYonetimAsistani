@@ -2032,3 +2032,11 @@ her zaman "en geç biten"di ([[OR-102]]). Kategori filtresi (Pilates · Fitness 
 paketini, tarihlerini, kalan gününü ve kredisini gösterir; aynı kategoride birden fazla paket varsa aktif olan kazanır.
 Kategori dışı filtrelerde (Tümü, Borçlu, Bitecek…) davranış değişmez: orada "en geç biten" doğru cevaptır, çünkü üyeyi
 en uzun süre aktif tutan pakettir. **İlke:** ekran hangi soruyla açıldığını bilir, ve sütun o sorunun cevabını yazar.
+
+**OR-107 · Panoya yazılan notların bir adresi vardır: Raporlar → Notlar.** (2026-09-22)
+Owner: *"Şuradaki işlere not ekliyorlar, bunu bir ekran yap da görelim bir yerde."* Tik notu o günün belgesinde
+(`checklistDone/{gün}`) duruyor ve pano her sabah yeniden kurulduğu için ertesi gün görünmüyordu ([[OR-105]]).
+Artık aralıktaki bütün notlar tek raporda: tarih · yazan · iş · ilgili kişi · not. **İşin başlığı tik anında
+donduruluyor** (`TickedItem.title`), çünkü satır yarın yeniden kurulamaz — kimlikten geriye isim çözmek yalnızca
+konuyu verir, işi vermez; başlığı olmayan eski kayıtlarda iş TÜRÜ yazılır. Notu olmayan tik rapora girmez: bu rapor
+"ne yazıldı"yı sorar, "ne tiklendi"yi değil. Okuma aralık kadar gündür, en çok 120 gün.

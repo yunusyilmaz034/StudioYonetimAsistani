@@ -127,7 +127,14 @@ export async function setChecklistDoneAction(input: {
   const patch: Record<string, unknown> = {}
   for (const it of input.items) {
     patch[`items.${it.id}`] = input.done
-      ? { byName, at: now, ...(input.note?.trim() ? { note: input.note.trim().slice(0, 200) } : {}) }
+      ? {
+          byName,
+          at: now,
+          // Başlık tikle birlikte donar: satır yarın yeniden kurulamaz, ama not raporu "hangi işti"
+          // sorusuna cevap vermek zorunda.
+          ...(it.title?.trim() ? { title: it.title.trim().slice(0, 160) } : {}),
+          ...(input.note?.trim() ? { note: input.note.trim().slice(0, 200) } : {}),
+        }
       : FieldValue.delete()
   }
   await ref.set({}, { merge: true })

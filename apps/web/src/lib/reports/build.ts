@@ -732,3 +732,61 @@ export function buildCheckins(checkIns: readonly CheckIn[], members: readonly Me
           `${gunler.length} gün — ${dagilim}`,
   }
 }
+
+// ── NOTLAR (owner, 2026-09-22) ───────────────────────────────────────────────────────────────
+//
+// *"Şuradaki işlere not ekliyorlar, bunu bir ekran yap da görelim bir yerde."*
+//
+// Panoda bir işe tik atarken bırakılan not O GÜNÜN belgesinde duruyor (`checklistDone/{gün}`) ve
+// ertesi sabah pano yeniden kurulduğu için görünmez oluyordu — not kaybolmuyordu, bakılacak yeri
+// yoktu. Burası o yer: aralıktaki bütün notlar, en yeniden eskiye, kim yazmış ve hangi işe.
+//
+// Satırın "iş" sütunu tik anında donmuş başlıktan gelir; eski kayıtlarda başlık yoksa iş TÜRÜ yazılır,
+// çünkü "—" yazmak notu sahipsiz bırakır.
+export interface NotSatiri {
+  readonly at: number
+  readonly byName: string
+  readonly kind: string
+  readonly subject: string
+  readonly title: string
+  readonly note: string
+}
+
+const NOT_TURU: Record<string, string> = {
+  hot_lead: 'WhatsApp adayı',
+  outstanding_balance: 'Açık bakiye',
+  low_credit: 'Ders hakkı azaldı',
+  dormant_member: 'Uzaklaşan üye',
+  expiring_with_credits: 'Hakkı yanmak üzere',
+  expiring_soon: 'Paketi doluyor',
+  door_refused: 'Kapıda kalan',
+  leave_pending: 'İzin kararı',
+  leave_uncovered: 'Eğitmensiz ders',
+  online_payment: 'Kartla ödeme',
+  staff_plan: 'Vardiya planı',
+}
+
+export function buildNotes(rows: readonly NotSatiri[]): Report {
+  const sirali = [...rows].sort((a, b) => b.at - a.at)
+  const kisiler = new Set(sirali.map((r) => r.byName))
+  const gunler = new Set(sirali.map((r) => new Date(r.at).toLocaleDateString('tr-TR', { timeZone: 'Europe/Istanbul' })))
+  return {
+    table: {
+      name: 'notlar',
+      columns: ['Tarih', 'Yazan', 'İş', 'İlgili', 'Not'],
+      rows: sirali.map((r) => [
+        date(r.at),
+        r.byName,
+        // Tik anında donmuş başlık işi olduğu gibi söyler ("Bilgi alıyor: Ayşenur Taş · 5 gündür
+        // sessiz"); eski kayıtlarda başlık yok, o zaman tür yazılır — "—" notu sahipsiz bırakırdı.
+        r.title || NOT_TURU[r.kind] || r.kind,
+        r.subject || '—',
+        r.note,
+      ]),
+    },
+    summary:
+      sirali.length === 0
+        ? 'Bu aralıkta not yazılmamış.'
+        : `${sirali.length} not · ${gunler.size} gün · ${kisiler.size} kişi yazdı (${[...kisiler].join(', ')}).`,
+  }
+}
