@@ -303,7 +303,7 @@ describe('scheduling event payloads match golden fixtures (AD-33)', () => {
     if (r.ok) expect(r.value.length).toBe(0)
   })
   it('class_session.capacity_changed', () => {
-    const r = decideChangeCapacity(ctx, futureSession, room2, 10, 'Talep arttı')
+    const r = decideChangeCapacity(ctx, futureSession, 10, 'Talep arttı')
     expect(r.ok).toBe(true)
     if (r.ok) expect(r.value[0]?.payload).toEqual(capacityChanged)
   })

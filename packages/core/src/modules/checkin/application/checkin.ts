@@ -148,7 +148,18 @@ export async function prepareCheckIn(
     // and the query is bounded so it cannot grow into a scan of her whole year.
     deps.repo.listCheckInsByMember(ctx, input.memberId, instant(now - 5 * 60_000)),
   ])
-  const lastCrossedAt = recent[0]?.occurredAt
+  // ── ÇİFT-OKUMA KORUMASI YÖN BAZLI (owner, 2026-09-22) ──────────────────────────────────────
+  //
+  // *"Çıkış QR okutuyorsun, ötüyor ama kol dönmüyor."* Koruma son geçişe bakıyordu, o geçişin YÖNÜNE
+  // değil: 17:00:41'de giriş yapan owner 17:00:56 ve 17:01:25'te çıkış okuttu, ikisi de
+  // `checkin_too_soon` ile reddedildi, kod harcanmadı ve kol dönmedi. OR-79'un "bir kez daha aç"
+  // kuralı da kurtarmıyor, çünkü o AYNI yönde tekrar okutmayı arıyor.
+  //
+  // "Aynı geçiş iki kez" demek, aynı KAPIYI iki kez okutmak demektir. Girip hemen çıkmak isteyen
+  // biri tekrar değil, ikinci bir harekettir — ve kapıda 45 saniye bekletilecek bir sebebi yoktur.
+  // Yön bilinmiyorsa (resepsiyonun elle kaydı) eski davranış sürer: son geçiş, yönü ne olursa olsun.
+  const ayniYon = input.direction === undefined ? recent : recent.filter((c) => c.direction === input.direction)
+  const lastCrossedAt = ayniYon[0]?.occurredAt
 
   const decided = decideCheckIn(
     dctx,

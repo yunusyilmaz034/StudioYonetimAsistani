@@ -570,23 +570,35 @@ export function decideChangeRoom(
 export function decideChangeCapacity(
   ctx: DecideContext,
   session: ClassSession,
-  room: Room | null,
   toCapacity: number,
   reason: string,
 ): Result<NewEvent[], DomainError> {
-  const started = editable_(ctx, session)
-  if (started) return started
+  // ── KONTENJAN ADMİNİNDİR (owner, 2026-09-22) ─────────────────────────────────────────────
+  //
+  // *"Kontenjanı elle yükseltebilelim, değiştirebilelim. Stüdyonun kapasitesi seni ilgilendirmez,
+  // default neyse o kalsın ama admin değiştirmek isterse yapsın, itiraz etmesin."*
+  //
+  // İki itiraz kalkıyor:
+  //
+  //   • **Ders başlamış olması.** Diğer düzenlemeler (eğitmen, salon, saat) için "başlamış ders
+  //     düzenlenmez" doğrudur — olmuş bir şeyi değiştirmek olur. Kontenjan öyle değil: masaya gelen
+  //     dokuzuncu kişi zaten DERS BİTTİKTEN sonra ekleniyor ("Sonradan üye ekle"), ve kontenjan
+  //     kapalıysa o kişi sisteme hiç giremiyor. İptal edilmiş seans hâlâ dışarıda: iptal edilmiş
+  //     bir dersin kontenjanı yoktur.
+  //   • **Oda kapasitesi tavanı.** Odanın kaç makinesi olduğunu stüdyo bilir, sistem değil; bir
+  //     gün bir makine daha koyarlar, bir gün iki kişi aynı aleti paylaşır. Varsayılan hâlâ odanın
+  //     kapasitesi — seans o sayıyla kurulur; ama admin başka bir sayı yazmak istediğinde sistem
+  //     onun yerine karar vermez.
+  //
+  // KALAN İKİ SINIR ITIRAZ DEĞİL, TUTARLILIK: kontenjan ne mevcut rezervasyon sayısının, ne de yeri
+  // söz verilmiş isimlerin altına düşebilir. Orada "hayır" demek bir tercih değil, veriyi bozmamak.
+  if (session.status !== 'scheduled') return err({ code: 'session_not_editable' })
   const bad = reason_(reason)
   if (bad) return bad
-  // Seats may not fall below the names already promised a place, for the same reason they may
-  // not fall below the bookings.
   const tooMany = assignmentFits_(session.assignedMemberIds, toCapacity)
   if (tooMany) return tooMany
   if (toCapacity < session.bookedCount) {
     return err({ code: 'capacity_below_booked', bookedCount: session.bookedCount })
-  }
-  if (room && toCapacity > room.capacity) {
-    return err({ code: 'session_capacity_exceeds_room', capacity: toCapacity, roomCapacity: room.capacity })
   }
   if (toCapacity === session.capacity) return ok([]) // no-op
   return ok([

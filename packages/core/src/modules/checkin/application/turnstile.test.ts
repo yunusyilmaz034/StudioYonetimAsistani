@@ -58,6 +58,8 @@ const CANLI_PAKET = [
 function fakeDeps(opts: {
   presence: Presence | null
   lastCrossedAt?: number
+  /** Son geçişin YÖNÜ — koruma artık yön bazlı (owner, 2026-09-22). Varsayılan 'in'. */
+  sonYon?: 'in' | 'out'
   tuketilenler?: string[]
   /** Varsayılan: canlı bir paketi var. `[]` ⇒ paketi yok, kol dönmemeli. */
   paketler?: unknown
@@ -68,10 +70,13 @@ function fakeDeps(opts: {
   /** Üyenin bu saate denk gelen bir ders rezervasyonu var mı (OR-78). */
   dersVar?: boolean
 }): CheckinDeps {
+  // Yön de yazılıyor: koruma 2026-09-22'den beri AYNI YÖNDEKİ son geçişe bakıyor (owner) — yönü
+  // olmayan bir geçmiş kaydı gerçekte hiç yoktur, `direction` her check-in'in zorunlu alanıdır.
+  // Varsayılan 'in': bu kurgudaki senaryoların hepsi "girdi, sonra tekrar okuttu".
   const recent: CheckIn[] =
     opts.lastCrossedAt === undefined
       ? []
-      : ([{ occurredAt: instant(opts.lastCrossedAt) }] as unknown as CheckIn[])
+      : ([{ occurredAt: instant(opts.lastCrossedAt), direction: opts.sonYon ?? 'in' }] as unknown as CheckIn[])
 
   return {
     clock: { now: () => instant(NOW) },
@@ -140,16 +145,31 @@ describe('crossTurnstile — kaydı uyuşmayan üye kapıda kalmaz (OR-75)', () 
 })
 
 describe('crossTurnstile — the double-scan guard actually runs', () => {
-  it('refuses a second crossing seconds after the first', async () => {
+  it('refuses a second crossing seconds after the first, on the SAME door', async () => {
     // The exact case the owner hit: scan, then the screen rotates and the still-open camera fires
     // again. Under the old code this recorded an exit fifteen seconds after the entry.
-    const r = await crossTurnstile(fakeDeps({ presence: inside, lastCrossedAt: NOW - 15_000 }), CTX, {
+    // Aynı yön (owner, 2026-09-22): koruma artık yalnızca aynı kapının tekrarına bakar.
+    const r = await crossTurnstile(fakeDeps({ presence: inside, lastCrossedAt: NOW - 15_000, sonYon: 'out' }), CTX, {
       memberId: MEMBER,
       code: CODE,
       reportedDirection: null,
     })
     expect(r.ok).toBe(false)
     if (!r.ok) expect(r.error.code).toBe('checkin_too_soon')
+  })
+
+  // ── GİRDİ, HEMEN ÇIKIYOR (owner, 2026-09-22 · OR-109) ──────────────────────────────────────
+  // *"Çıkış QR okutuyorsun, ötüyor ama kol dönmüyor."* Girişten 15 saniye sonra çıkış okutan üye
+  // 45 saniye kapıda kalıyordu: koruma son geçişe bakıyor, yönüne bakmıyordu. Girip çıkmak bir
+  // tekrar değil, ikinci bir harekettir.
+  it('lets her leave right after entering — the other direction is not a repeat', async () => {
+    const r = await crossTurnstile(fakeDeps({ presence: inside, lastCrossedAt: NOW - 15_000, sonYon: 'in' }), CTX, {
+      memberId: MEMBER,
+      code: CODE,
+      reportedDirection: null,
+    })
+    expect(r.ok).toBe(true)
+    if (r.ok) expect(r.value.direction).toBe('out')
   })
 
   it('lets her out once the window has passed', async () => {
@@ -200,7 +220,8 @@ describe('crossTurnstile — the double-scan guard actually runs', () => {
     // The distinction this rests on: reception pressing "Çıkış" is an act and waives the guard; a
     // screen bolted to a wall is a fact and does not. Conflating them is what disabled `side`.
     const cikis: TurnstileDevice = { ...device, side: 'out' }
-    const deps = fakeDeps({ presence: inside, lastCrossedAt: NOW - 15_000 })
+    // Son geçiş de ÇIKIŞ: koruma aynı kapının tekrarına bakar (OR-109).
+    const deps = fakeDeps({ presence: inside, lastCrossedAt: NOW - 15_000, sonYon: 'out' })
     ;(deps.repo as unknown as { getDevice: () => Promise<TurnstileDevice> }).getDevice = async () => cikis
     const r = await crossTurnstile(deps, CTX, { memberId: MEMBER, code: CODE, reportedDirection: null })
     expect(r.ok).toBe(false)
@@ -213,7 +234,7 @@ describe('crossTurnstile — the double-scan guard actually runs', () => {
     // said "Hoş geldin" — while the member's app said the code was invalid and nothing was recorded.
     // A door that opens with no record is how occupancy drifts where nobody is looking.
     const tuketilenler: string[] = []
-    const r = await crossTurnstile(fakeDeps({ presence: inside, lastCrossedAt: NOW - 15_000, tuketilenler }), CTX, {
+    const r = await crossTurnstile(fakeDeps({ presence: inside, lastCrossedAt: NOW - 15_000, sonYon: 'out', tuketilenler }), CTX, {
       memberId: MEMBER,
       code: CODE,
       reportedDirection: null,

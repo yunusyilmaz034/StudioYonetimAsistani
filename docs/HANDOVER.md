@@ -7,7 +7,7 @@ explains the moment.
 Keep it current the way the code is kept current: when the state changes, this changes in the same
 commit. A handover document that lags is worse than none, because it is believed.
 
-_Last true as of: **2026-09-22, 13:15**._
+_Last true as of: **2026-09-22, 17:20**._
 
 ## ⏭️ Sıradaki oturum — BURADAN BAŞLA
 
@@ -170,6 +170,19 @@ abartmamak bilinçli. **Bu rakam canlı veriden gelmiyor, HTML'e gömülü:** ka
 
 **Taksit ayarı ✅ kapandı** (17 Eylül): owner Ayarlar'dan `maxInstallments`'ı **3**'e çekti (veriden doğrulandı).
 Artık ödeme linkleri de sitenin ve `/uyelik`'in söylediğiyle aynı şeyi söylüyor.
+
+## 🚪 22 Eylül akşamı — turnike "kol dönmüyor" ve kontenjan kilidi ([[OR-109]], [[OR-110]])
+
+**Turnike: sebep donanım DEĞİLDİ.** Işıl 17:00:41'de giriş yaptı, 17:00:56 ve 17:01:25'te çıkış okuttu — ikisi de
+`checkin_too_soon`. Çift-okuma koruması son geçişin YÖNÜNE bakmıyordu (`lastCrossedAt = recent[0]`), ve OR-79 reopen
+de yön farklı olduğu için devreye girmiyordu. Düzeltme `checkin/application/checkin.ts`: pencere artık **aynı
+yöndeki** son geçişe uygulanıyor. Cihaz telemetrisi bu teşhisi verdi: `devices/{id}.telemetry.pulses` sayacı darbe
+gönderilip gönderilmediğini söylüyor (gönderildiyse sorun donanımda, gönderilmediyse bizde) — bir sonraki "kol
+dönmedi" vakasında ilk bakılacak yer burası.
+
+**Kontenjan artık admin kararı.** `decideChangeCapacity` oda kapasitesini ve "başlamış ders" kilidini kontrol
+etmiyor; `room` parametresi imzadan kaldırıldı. Panelde de geçmiş seansta **yalnızca "Kapasite"** düğmesi görünüyor
+(eğitmen/salon/saat kapalı kalıyor) — `session-workspace.tsx`, `kontenjanAcik`. İptal edilmiş seans hâlâ dışarıda.
 
 ## 🧊 22 Eylül — "sistem donuyor / yavaş" teşhis edildi ([[OR-108]])
 

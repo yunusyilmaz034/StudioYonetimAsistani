@@ -226,6 +226,13 @@ function InfoTab({
   const { record } = useUndo()
 
   const editable = session.status === 'scheduled' && session.startsAt > Date.now()
+  // ── KONTENJAN GEÇMİŞ DERSTE DE AÇIK (owner, 2026-09-22) ──────────────────────────────────
+  //
+  // *"Geçmişte olsa ne olursa olsun kontenjan artırabilelim, buradan."* Eğitmen/salon/saat için
+  // "başlamış ders düzenlenemez" doğru: olmuş bir şeyi değiştirmek olur. Kontenjan öyle değil —
+  // dokuzuncu kişi masaya DERS BİTTİKTEN sonra geliyor ("Sonradan üye ekle") ve kontenjan kapalıyken
+  // o kişi sisteme hiç giremiyor. İptal edilmiş seans dışarıda: iptal edilmiş dersin kontenjanı yok.
+  const kontenjanAcik = session.status === 'scheduled'
 
   function open(a: Manage) {
     setReason('')
@@ -372,9 +379,23 @@ function InfoTab({
           </Button>
         </div>
       ) : (
-        <p className="rounded-lg bg-muted p-3 text-sm text-muted-foreground">
-          Başlamış, tamamlanmış veya iptal edilmiş seans düzenlenemez.
-        </p>
+        <div className="space-y-2">
+          {kontenjanAcik ? (
+            <>
+              <h3 className="text-[0.6875rem] font-medium tracking-wide uppercase text-muted-foreground">
+                Seans yönetimi
+              </h3>
+              <Button variant="outline" className="min-h-11 w-full" onClick={() => open('capacity')}>
+                Kapasite
+              </Button>
+            </>
+          ) : null}
+          <p className="rounded-lg bg-muted p-3 text-sm text-muted-foreground">
+            {kontenjanAcik
+              ? 'Ders başladı: eğitmen, salon ve saat artık değiştirilemez. Kontenjan değiştirilebilir — sonradan katılan biri için yeri açın.'
+              : 'İptal edilmiş seans düzenlenemez.'}
+          </p>
+        </div>
       )}
 
       <Dialog open={action !== null} onOpenChange={(o) => (o ? null : setAction(null))}>

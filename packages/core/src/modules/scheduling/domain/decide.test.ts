@@ -206,28 +206,41 @@ describe('decideChangeRoom (AD-48)', () => {
 
 describe('decideChangeCapacity', () => {
   it('changes capacity on a future session', () => {
-    const r = decideChangeCapacity(ctx, makeSession({ startsAt: FUTURE }), room, 6, 'Talep düştü')
+    const r = decideChangeCapacity(ctx, makeSession({ startsAt: FUTURE }), 6, 'Talep düştü')
     expect(r.ok).toBe(true)
     if (r.ok) expect(r.value[0]?.payload).toMatchObject({ fromCapacity: 8, toCapacity: 6 })
   })
   it('refuses dropping below the booked count', () => {
-    const r = decideChangeCapacity(ctx, makeSession({ startsAt: FUTURE, bookedCount: 5 }), room, 4, 'x')
+    const r = decideChangeCapacity(ctx, makeSession({ startsAt: FUTURE, bookedCount: 5 }), 4, 'x')
     expect(r.ok).toBe(false)
     if (!r.ok) expect(r.error.code).toBe('capacity_below_booked')
   })
-  it('refuses exceeding the room capacity (AD-48)', () => {
-    const r = decideChangeCapacity(ctx, makeSession({ startsAt: FUTURE }), room, 9, 'x') // room capacity 8
-    expect(r.ok).toBe(false)
-    if (!r.ok) expect(r.error.code).toBe('session_capacity_exceeds_room')
+  // Owner, 2026-09-22: *"Stüdyonun kapasitesi seni ilgilendirmez — admin değiştirmek isterse yapsın,
+  // itiraz etmesin."* Odanın kaç makinesi olduğunu stüdyo bilir; varsayılan hâlâ odanın kapasitesi.
+  it('lets the admin go above the room capacity', () => {
+    const r = decideChangeCapacity(ctx, makeSession({ startsAt: FUTURE }), 9, 'x') // room capacity 8
+    expect(r.ok).toBe(true)
+    if (r.ok) expect(r.value[0]?.payload).toMatchObject({ fromCapacity: 8, toCapacity: 9 })
   })
   it('is a no-op when capacity is unchanged', () => {
-    const r = decideChangeCapacity(ctx, makeSession({ startsAt: FUTURE, capacity: 8 }), room, 8, 'x')
+    const r = decideChangeCapacity(ctx, makeSession({ startsAt: FUTURE, capacity: 8 }), 8, 'x')
     expect(r.ok && r.value).toHaveLength(0)
   })
-  it('refuses editing a started session', () => {
-    const r = decideChangeCapacity(ctx, makeSession({ startsAt: instant(1_000_000) }), room, 6, 'x')
+  // Dokuzuncu kişi DERS BİTTİKTEN sonra masaya geliyor ("Sonradan üye ekle"); kontenjan kapalıysa o
+  // kişi sisteme hiç giremiyor. Eğitmen/salon/saat için "başlamış ders düzenlenmez" doğru kalır.
+  it('allows raising capacity on a session that has already started', () => {
+    const r = decideChangeCapacity(ctx, makeSession({ startsAt: instant(1_000_000) }), 9, 'Sonradan üye eklendi')
+    expect(r.ok).toBe(true)
+  })
+  it('still refuses a cancelled session — a cancelled class has no capacity', () => {
+    const r = decideChangeCapacity(ctx, makeSession({ startsAt: FUTURE, status: 'cancelled' }), 9, 'x')
     expect(r.ok).toBe(false)
     if (!r.ok) expect(r.error.code).toBe('session_not_editable')
+  })
+  it('still refuses dropping below the booked count — that is consistency, not an opinion', () => {
+    const r = decideChangeCapacity(ctx, makeSession({ startsAt: instant(1_000_000), bookedCount: 8 }), 7, 'x')
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.error.code).toBe('capacity_below_booked')
   })
 })
 
@@ -400,7 +413,7 @@ describe('private session head count: 1 = birebir, 2 = düet, more if the owner 
 
   it('RAISES a private session past 2 later on — a düet may become a trio', () => {
     const pt = makeSession({ category: 'private', capacity: 2, startsAt: FUTURE })
-    const r = decideChangeCapacity(ctx, pt, bigRoom, 3, 'Üçüncü kişi ekleniyor')
+    const r = decideChangeCapacity(ctx, pt, 3, 'Üçüncü kişi ekleniyor')
     expect(r.ok).toBe(true)
   })
 
@@ -411,14 +424,14 @@ describe('private session head count: 1 = birebir, 2 = düet, more if the owner 
       startsAt: FUTURE,
       assignedMemberIds: ['mem_1' as MemberId, 'mem_2' as MemberId],
     })
-    const r = decideChangeCapacity(ctx, pt, bigRoom, 1, 'Düet bozuldu')
+    const r = decideChangeCapacity(ctx, pt, 1, 'Düet bozuldu')
     expect(r.ok).toBe(false)
     if (!r.ok) expect(r.error.code).toBe('assignment_exceeds_capacity')
   })
 
   it('allows changing a private session between 1 and 2', () => {
     const pt = makeSession({ category: 'private', capacity: 1, startsAt: FUTURE })
-    const r = decideChangeCapacity(ctx, pt, bigRoom, 2, 'Düet oldu')
+    const r = decideChangeCapacity(ctx, pt, 2, 'Düet oldu')
     expect(r.ok).toBe(true)
   })
 })

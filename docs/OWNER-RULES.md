@@ -2058,3 +2058,21 @@ yapılandırmasına kaydediyordu — ama Cloud Run servisine uygulamamıştı (`
 12.3 saniye; ısınmış istek 0.07 saniye. 22 Eylül'de Cloud Run'a elle uygulandı (`gcloud run services update
 --min-instances=1`). **Dikkat:** bu ayar App Hosting'in sonraki rollout'unda ezilebilir — her deploy sonrası
 `autoscaling.knative.dev/minScale` kontrol edilmeli, 0'a düştüyse tekrar uygulanmalı.
+
+**OR-109 · Çift-okuma koruması AYNI YÖNE bakar; girip hemen çıkmak bir tekrar değildir.** (2026-09-22)
+Owner: *"Turnike çıkış QR okutuyorsun, ötüyor ama kol dönmüyor."* Koruma son geçişe bakıyordu, o geçişin YÖNÜNE
+değil — 17:00:41'de giriş yapan owner 17:00:56 ve 17:01:25'te çıkış okuttu, ikisi de `checkin_too_soon` ile
+reddedildi, kod harcanmadı, kol dönmedi. OR-79'un "kol dönmediyse bir kez daha aç" kuralı da kurtarmıyordu: o kural
+AYNI yönde tekrar okutmayı arar. Artık 45 saniyelik pencere yalnızca **aynı yöndeki** son geçişe uygulanır; aynı
+kapıyı iki kez okutmak hâlâ reddedilir. Yön bilinmiyorsa (resepsiyonun elle kaydı) eski davranış sürer.
+**Ders:** "aynı geçiş iki kez" demek, aynı KAPIYI iki kez okutmak demektir — girip çıkmak iki ayrı harekettir.
+
+**OR-110 · Kontenjan adminindir: geçmiş derste de değişir, oda kapasitesi tavan değildir.** (2026-09-22)
+Owner: *"Kontenjanı elle yükseltebilelim… stüdyonun kapasitesi seni ilgilendirmez, default neyse o kalsın ama admin
+değiştirmek isterse yapsın, itiraz etmesin. Bunu kesinlikle yap!"* ve *"geçmişte olsa ne olursa olsun kontenjan
+artırabilelim."* İki itiraz kaldırıldı: **(1)** "başlamış ders düzenlenemez" artık kontenjanı kapsamıyor — dokuzuncu
+kişi masaya ders bittikten sonra geliyor ("Sonradan üye ekle") ve kontenjan kapalıyken sisteme hiç giremiyordu;
+**(2)** oda kapasitesi tavanı kalktı — odanın kaç makinesi olduğunu stüdyo bilir, varsayılan hâlâ odadan gelir.
+Eğitmen · salon · saat için "başlamış ders düzenlenemez" aynen duruyor: olmuş bir şeyi değiştirmek olurdu.
+**Kalan iki sınır itiraz değil, tutarlılık:** kontenjan ne mevcut rezervasyon sayısının ne de yeri söz verilmiş
+isimlerin altına düşebilir, ve iptal edilmiş seansın kontenjanı yoktur.

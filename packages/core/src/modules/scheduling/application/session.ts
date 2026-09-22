@@ -379,8 +379,9 @@ export async function changeCapacity(
 ): Promise<Result<void, DomainError>> {
   const current = await deps.repo.getSession(ctx, input.sessionId)
   if (!current) throw new Error(`Session not found: ${input.sessionId}`)
-  const room = current.roomId ? await deps.repo.getRoom(ctx, current.roomId) : null
-  const events = decideChangeCapacity(decideContext(deps, ctx), current, room, input.capacity, input.reason)
+  // Oda ARTIK OKUNMUYOR (owner, 2026-09-22): kontenjan tavanı odanın kapasitesi değil, adminin
+  // kararı. Odanın kaç makinesi olduğunu stüdyo bilir; varsayılan hâlâ oda kapasitesinden gelir.
+  const events = decideChangeCapacity(decideContext(deps, ctx), current, input.capacity, input.reason)
   if (!events.ok) return events
   if (events.value.length === 0) return { ok: true, value: undefined }
   await deps.repo.saveSession(ctx, { ...current, capacity: input.capacity }, events.value)
