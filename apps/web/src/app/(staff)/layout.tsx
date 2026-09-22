@@ -5,6 +5,7 @@ import { AppShell } from '@/components/app-nav'
 import { PwaSetup } from '@/components/pwa-setup'
 import { ReportButton } from '@/components/report-button'
 import { TurnstileDock } from '@/components/turnstile-dock'
+import { VersionWatch } from '@/components/version-watch'
 import { ThemeStyle } from '@/components/theme-style'
 import { Toaster } from '@/components/ui/sonner'
 import { UndoProvider } from '@/lib/undo'
@@ -63,6 +64,11 @@ export default async function StaffLayout({ children }: { children: ReactNode })
     <AppShell role={ctx.role} studioName={studioName}>
       <ThemeStyle theme={theme} />
       <Toaster />
+      {/* BU SEKME ESKİDİ Mİ? (owner, 2026-09-22) — gün içinde çıkan bir deploy, açık kalan sekmedeki
+          Server Action'ları sunucuda bırakmaz: üye kaydı ve paket satışı "Kaydedilemedi" der, ve
+          tekrar denemek asla çalışmaz. Çalışan revizyonun adı sayfaya gömülüyor; bileşen onu
+          sunucudakiyle karşılaştırıyor. Arka plandaki sekme sessizce yenilenir, öndeki sorar. */}
+      <VersionWatch current={process.env.K_REVISION ?? 'dev'} />
       {/* PF-36 — desk-only: a green/red toast when a member checks in (from the kiosk or the desk).
           Owner + reception; NOT trainer (she never sees the members list), NOT kiosk (its own overlay). */}
       {ctx.role === 'owner' || ctx.role === 'receptionist' ? <CheckInToaster studioId={ctx.studioId} /> : null}

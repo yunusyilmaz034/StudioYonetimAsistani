@@ -2085,3 +2085,14 @@ kişi masaya ders bittikten sonra geliyor ("Sonradan üye ekle") ve kontenjan ka
 Eğitmen · salon · saat için "başlamış ders düzenlenemez" aynen duruyor: olmuş bir şeyi değiştirmek olurdu.
 **Kalan iki sınır itiraz değil, tutarlılık:** kontenjan ne mevcut rezervasyon sayısının ne de yeri söz verilmiş
 isimlerin altına düşebilir, ve iptal edilmiş seansın kontenjanı yoktur.
+
+**OR-111 · Panel kendi sürümünü bilir; eski sekme kayıt yapamadığını SÖYLER.** (2026-09-22)
+Işıl: *"Çok sıkıntı yaşıyoruz. İki bilgisayarda aynı."* Sabahtan açık iki sekme, gün içinde üç deploy — üye kaydı ve
+paket satışı *"Kaydedilemedi. Lütfen tekrar deneyin."* diyordu. Cümle, yapılabilecek TEK yanlış şeyi öneriyordu:
+17:58–17:59 arasında saniyede bir 404, hiçbiri sunucuya ulaşmadı; tekrar denemek sekme yenilenene kadar asla çalışmaz.
+**Teşhis metne bakarak yapılamaz:** Next'in istemciye verdiği hata, sunucunun logladığı "Failed to find Server Action"
+değil — `isStaleDeployment` bu yüzden tutmadı. Artık karşılaştırma var: çalışan revizyonun adı sayfaya gömülüyor,
+`/api/version` sunucunun o anki adını veriyor. **Arka plandaki sekme sessizce yenilenir** (kimse bir şey yazmıyor,
+kaybedilecek bir şey yok), **öndeki sekme sorar** — yarım doldurulmuş bir üye formunu ayağının altından çekmek,
+çözdüğünden büyük bir sorun yaratır. Sekmeye dönüldüğü anda da kontrol edilir; gün içi açık kalan sekmenin en
+kritik anı odur.

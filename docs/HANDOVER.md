@@ -171,6 +171,22 @@ abartmamak bilinçli. **Bu rakam canlı veriden gelmiyor, HTML'e gömülü:** ka
 **Taksit ayarı ✅ kapandı** (17 Eylül): owner Ayarlar'dan `maxInstallments`'ı **3**'e çekti (veriden doğrulandı).
 Artık ödeme linkleri de sitenin ve `/uyelik`'in söylediğiyle aynı şeyi söylüyor.
 
+## 🔄 22 Eylül 18:00 — "kaydedilemedi": eski sekme, ve artık panel bunu kendisi anlıyor ([[OR-111]])
+
+**Olay:** Işıl'ın iki bilgisayarında üye kaydı ve paket satışı kaydedilmedi (*"çok sıkıntı yaşıyoruz"*). Sebep
+arıza değil, **bayat sekme**: gün içinde üç deploy çıktı, sekmelerdeki Server Action id'leri sunucuda yok.
+Log: 17:58–17:59 arası saniyede bir `Failed to find Server Action` + `404 POST /`, referer panonun kendisi
+(4 sn'de bir çalışan WhatsApp dock yoklaması). **Çözüm o an: Ctrl+Shift+R.**
+
+**Neden metin tanıma yetmedi:** `lib/stale-deployment.ts` hata METNİNE bakıyor; Next'in İSTEMCİYE verdiği mesaj,
+sunucunun logladığı mesaj değil. O yüzden form "Kaydedilemedi. Lütfen tekrar deneyin." dedi — tekrar denemek ise
+sekme yenilenene kadar asla çalışmaz.
+
+**Kalıcı:** `app/api/version` (çalışan revizyonu `K_REVISION`'dan döndürür, `no-store`) + `components/version-watch.tsx`
+(layout'a bağlı, sayfaya gömülen ad ile karşılaştırır). Dakikada bir ve **sekmeye her dönüşte** kontrol eder;
+arka plandaki sekmeyi sessizce yeniler, öndekine üstte turuncu şerit + "Şimdi yenile" gösterir. Yerelde `K_REVISION`
+yoktur → `'dev'` → hiç çalışmaz.
+
 ## 🚪 22 Eylül akşamı — turnike "kol dönmüyor" ve kontenjan kilidi ([[OR-109]], [[OR-110]])
 
 **Turnike: sebep donanım DEĞİLDİ.** Işıl 17:00:41'de giriş yaptı, 17:00:56 ve 17:01:25'te çıkış okuttu — ikisi de
