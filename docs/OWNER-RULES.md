@@ -2058,8 +2058,11 @@ yapılandırmasına kaydediyordu — ama Cloud Run servisine uygulamamıştı (`
 12.3 saniye; ısınmış istek 0.07 saniye. 22 Eylül'de Cloud Run'a elle uygulandı (`gcloud run services update
 --min-instances=1`). **Ayar her rollout'ta siliniyor** — 22 Eylül'de üç deploy, üç sıfırlama. Bu yüzden elle
 kontrol bırakılmadı: **`minInstancesGuard`** (Cloud Function, yarım saatte bir) sıfırı görüp 1'e geri koyuyor.
-Yalnızca **açık bir sıfırı** onarır — daha yüksek bir değer birinin bilinçli kararıdır ve otomasyon insanın kararını
-geri almaz; okuma başarısızsa hiçbir şey yapmaz. Her onarım loga `minInstances: floor was 0 after a rollout` diye
+**Sıfır bir YOKLUK olarak görünür:** Cloud Run kat sıfırken `minInstanceCount` alanını hiç döndürmüyor, ve koruyucunun
+ilk sürümü "tam 0 mı?" diye sorduğu için tam da var olma sebebi olan durumda sessiz kalıyordu — canlı serviste kat
+bilerek sıfırlanıp denenerek yakalandı. Artık okunabilen bir `scaling` nesnesinde kat yoksa sıfır sayılır. Daha yüksek
+bir değer birinin bilinçli kararıdır ve otomasyon insanın kararını geri almaz; `scaling` hiç yoksa (API şekli
+değişmiştir) hiçbir şey yapmaz. Her onarım loga `minInstances: floor was 0 after a rollout` diye
 düşer, ve o satırların sayısı yukarı akış hatasının (firebase-tools #10775 · #10606) hâlâ sürdüğünün kanıtıdır.
 
 **OR-109 · Çift-okuma koruması AYNI YÖNE bakar; girip hemen çıkmak bir tekrar değildir.** (2026-09-22)

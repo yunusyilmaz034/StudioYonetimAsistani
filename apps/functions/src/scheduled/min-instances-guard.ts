@@ -43,13 +43,25 @@ export const PANEL_SERVICE = {
 /**
  * PURE — the whole decision, and the only part worth testing.
  *
- * Repair ONLY an explicit zero. A higher number is somebody's deliberate act (a load test, a busy
- * weekend) and stamping it back down to one would undo a human. An absent value means the read
- * failed or the shape changed; guessing from a shape we did not understand is how an automation
- * starts editing production for reasons nobody can reconstruct.
+ * ── ZERO IS AN ABSENCE, NOT A ZERO (measured 2026-09-22, before this shipped) ──
+ *
+ * The first version asked "is the value exactly 0?" and would never have fired: Cloud Run OMITS
+ * `minInstanceCount` when it is zero, so a scaled-to-sleep service reads `{"maxInstanceCount": 2}`
+ * and the field is simply missing. Treating a missing field as "unknown, do nothing" made the guard
+ * silent in precisely the situation it exists for. It was caught by setting the floor to 0 on the
+ * live service on purpose and watching the guard do nothing.
+ *
+ * So: a `scaling` object we can read, with no floor in it, IS a floor of zero. What still means
+ * "do nothing" is the absence of the `scaling` object itself — that is the API having a different
+ * shape than we understood, and an automation that edits production on a shape it cannot read is
+ * how you get changes nobody can reconstruct.
+ *
+ * A HIGHER number is left alone: somebody raised it on purpose (a load test, a busy weekend), and
+ * stamping a human's deliberate act back down is worse than not running at all.
  */
-export function needsRepair(current: number | undefined, wanted: number): boolean {
-  return current === 0 && wanted > 0
+export function needsRepair(scaling: { minInstanceCount?: number } | undefined, wanted: number): boolean {
+  if (!scaling) return false
+  return (scaling.minInstanceCount ?? 0) === 0 && wanted > 0
 }
 
 async function accessToken(): Promise<string | null> {
@@ -102,8 +114,10 @@ export async function runMinInstancesGuard(): Promise<
     return { outcome: 'unavailable', found: undefined }
   }
 
-  const found = service.template?.scaling?.minInstanceCount
-  if (!needsRepair(found, PANEL_SERVICE.wanted)) {
+  // Alan yoksa sıfırdır (yukarıdaki ölçüm): log da öyle yazsın, yoksa "found: undefined" satırı
+  // okuyanı "değeri bilmiyoruz" sanmaya iter — oysa biliyoruz, sıfır.
+  const found = service.template?.scaling ? (service.template.scaling.minInstanceCount ?? 0) : undefined
+  if (!needsRepair(service.template?.scaling, PANEL_SERVICE.wanted)) {
     logger.info('minInstances: floor intact', { found })
     return { outcome: 'ok', found }
   }

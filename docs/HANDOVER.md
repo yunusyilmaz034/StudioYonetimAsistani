@@ -210,8 +210,14 @@ gcloud run services update studio-yonetim --region europe-west4 --project studio
 **ARTIK OTOMATİK (22 Eylül akşamı, owner: *"olur otomatiğe bağla"*):** `minInstancesGuard` — yarım saatte bir çalışan
 Cloud Function (`apps/functions/src/scheduled/min-instances-guard.ts`). Cloud Run v2 API'sini metadata sunucusundan
 aldığı token'la okuyor; `template.scaling.minInstanceCount === 0` ise servisi **oku-değiştir-yaz** (etag ile, tam
-nesne — `updateMask=template` bütün şablonu ezerdi) ile 1'e çekiyor. Sadece açık sıfırı onarır: daha yüksek değer
-birinin kararıdır, `undefined` ise API şekli değişmiştir ve dokunmaz. Servis hesabı `roles/editor` taşıdığı için ek
+nesne — `updateMask=template` bütün şablonu ezerdi) ile 1'e çekiyor.
+
+**SIFIR BİR YOKLUKTUR — ilk sürüm bu yüzden hiç çalışmayacaktı.** Cloud Run `minInstanceCount` alanını sıfırken
+**hiç döndürmüyor**: uyuyan servis `{"maxInstanceCount": 2}` diye okunuyor. Koruyucu "değer tam olarak 0 mı?" diye
+sorduğu için tam da var olma sebebi olan durumda sessiz kalıyordu. Canlı serviste kat bilerek 0 yapılıp koruyucu
+tetiklenerek yakalandı (17:36) — okuma izni çalışıyordu, yazma yolu hiç denenmemişti. Artık: `scaling` nesnesi
+okunabiliyor ama içinde kat yoksa **sıfır sayılır**; dokunmama hâli yalnızca `scaling` nesnesinin hiç olmamasıdır
+(API şekli değişmiş demektir). Daha yüksek bir değer birinin bilinçli kararıdır, aşağı çekilmez. Servis hesabı `roles/editor` taşıdığı için ek
 IAM gerekmedi. Karar saf ve testli (`needsRepair`). Yine de elle kontrol komutu yukarıda duruyor — koruyucu da
 sessizce ölebilir; log satırı `minInstances: floor intact` / `… was 0 after a rollout` diye görünür.
 
