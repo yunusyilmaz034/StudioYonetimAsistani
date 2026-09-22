@@ -217,7 +217,14 @@ nesne — `updateMask=template` bütün şablonu ezerdi) ile 1'e çekiyor.
 sorduğu için tam da var olma sebebi olan durumda sessiz kalıyordu. Canlı serviste kat bilerek 0 yapılıp koruyucu
 tetiklenerek yakalandı (17:36) — okuma izni çalışıyordu, yazma yolu hiç denenmemişti. Artık: `scaling` nesnesi
 okunabiliyor ama içinde kat yoksa **sıfır sayılır**; dokunmama hâli yalnızca `scaling` nesnesinin hiç olmamasıdır
-(API şekli değişmiş demektir). Daha yüksek bir değer birinin bilinçli kararıdır, aşağı çekilmez. Servis hesabı `roles/editor` taşıdığı için ek
+(API şekli değişmiş demektir). Daha yüksek bir değer birinin bilinçli kararıdır, aşağı çekilmez.
+
+**KORUYUCU SIFIRLAMAYI ÖNLEMEZ, ONU ATLATIR.** Canlı kanıt (22 Eylül 17:40): koruyucu katı 1'e çekip kendi Cloud Run
+revizyonunu yarattı (`studio-yonetim-00621-9w5`), **22 saniye sonra** App Hosting'in rollout'u `build-2026-09-22-005`
+ile üzerine yazdı ve kat yine 0 oldu. Yani deploy ile koruyucunun bir sonraki turu arasında panelin hâlâ uyuyabildiği
+bir pencere var; tur bu yüzden 10 dakikaya çekildi. Koruyucunun yarattığı revizyon trafik almaz (App Hosting kendi
+revizyonuna %100 verir), zararsızdır. **Deploy eden kişi için pratik sonuç:** gündüz deploydan sonra kat en geç 10
+dakika içinde geri gelir; o aralıkta tek bir istek 12 saniye bekleyebilir. Acele varsa elle komut yukarıda. Servis hesabı `roles/editor` taşıdığı için ek
 IAM gerekmedi. Karar saf ve testli (`needsRepair`). Yine de elle kontrol komutu yukarıda duruyor — koruyucu da
 sessizce ölebilir; log satırı `minInstances: floor intact` / `… was 0 after a rollout` diye görünür.
 

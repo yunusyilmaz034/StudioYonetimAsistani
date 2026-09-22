@@ -2057,7 +2057,10 @@ hata sınırı (`(staff)/error.tsx`) eklendi: render sırasında düşen sayfa a
 yapılandırmasına kaydediyordu — ama Cloud Run servisine uygulamamıştı (`minScale: 0`). Sonuç: boştan dönen ilk istek
 12.3 saniye; ısınmış istek 0.07 saniye. 22 Eylül'de Cloud Run'a elle uygulandı (`gcloud run services update
 --min-instances=1`). **Ayar her rollout'ta siliniyor** — 22 Eylül'de üç deploy, üç sıfırlama. Bu yüzden elle
-kontrol bırakılmadı: **`minInstancesGuard`** (Cloud Function, yarım saatte bir) sıfırı görüp 1'e geri koyuyor.
+kontrol bırakılmadı: **`minInstancesGuard`** (Cloud Function, **10 dakikada bir**) sıfırı görüp 1'e geri koyuyor.
+**Koruyucu sıfırlamayı ÖNLEMEZ, onu atlatır:** canlı ölçümde koruyucu katı 1'e çekti, App Hosting'in rollout'u 22
+saniye sonra üzerine yazdı. Yani deploy ile koruyucunun bir sonraki turu arasında panelin uyuyabildiği kısa bir
+pencere kalır — gündüz deploydan sonra tek bir isteğin 12 saniye beklemesi hâlâ mümkün, ama akşam boyu sürmesi değil.
 **Sıfır bir YOKLUK olarak görünür:** Cloud Run kat sıfırken `minInstanceCount` alanını hiç döndürmüyor, ve koruyucunun
 ilk sürümü "tam 0 mı?" diye sorduğu için tam da var olma sebebi olan durumda sessiz kalıyordu — canlı serviste kat
 bilerek sıfırlanıp denenerek yakalandı. Artık okunabilen bir `scaling` nesnesinde kat yoksa sıfır sayılır. Daha yüksek

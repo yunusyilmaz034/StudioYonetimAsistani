@@ -174,8 +174,14 @@ export const infrastructureWatch = onSchedule(
 // with `minScale: 0` — three deploys in one afternoon, three resets. Scaled to zero, the panel's
 // first request costs reception twelve seconds; warm, it costs 0.07. Every half hour: a deploy can
 // land at any time of day, and the cost of missing one is a morning of "sistem çok yavaş".
-// It repairs an explicit zero and nothing else — a higher number is somebody's deliberate act.
-export const minInstancesGuard = onSchedule({ schedule: 'every 30 minutes' }, async () => {
+// It repairs a zero and nothing else — a higher number is somebody's deliberate act.
+//
+// THE GUARD CANNOT PREVENT THE RESET, ONLY OUTLIVE IT (measured 2026-09-22): the repair was written
+// at 17:40:56 and App Hosting's own rollout overwrote it 22 seconds later. So this is a floor that
+// comes back, not one that never leaves — and the window between a deploy and the next run is the
+// only time the panel can still fall asleep. Ten minutes keeps that window short enough that a
+// single person might wait once; thirty was long enough to cover a whole quiet evening.
+export const minInstancesGuard = onSchedule({ schedule: 'every 10 minutes' }, async () => {
   await runMinInstancesGuard()
 })
 
