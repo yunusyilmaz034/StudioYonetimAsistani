@@ -171,6 +171,21 @@ abartmamak bilinçli. **Bu rakam canlı veriden gelmiyor, HTML'e gömülü:** ka
 **Taksit ayarı ✅ kapandı** (17 Eylül): owner Ayarlar'dan `maxInstallments`'ı **3**'e çekti (veriden doğrulandı).
 Artık ödeme linkleri de sitenin ve `/uyelik`'in söylediğiyle aynı şeyi söylüyor.
 
+## 📷 22 Eylül 19:10 — giriş okutan üye, farkında olmadan çıkış da okutuyor ([[OR-112]])
+
+**Owner'ın tahmini, kayıtla doğrulandı:** 19:10:16 giriş → 19:10:27 ÇIKIŞ, aynı üye, 11 saniye, ikisi de `device`.
+Kamera giriş kodunu okuduktan sonra AÇIK kalıyor; iki kapı yan yana olduğu için çıkış ekranının kodu da kameraya
+giriyor ve okunuyor. `handled` kilidi (2,5 sn) buna karşı değil — o aynı karenin tekrarına karşı.
+**Düzeltme:** `apps/mobile/app/(tabs)/qr.tsx` — başarılı geçişte `onDone()` ile "Kodum" sekmesine dönülür, kamera
+kapanır. Web portalı bunu zaten yapıyordu. Mobil typecheck temiz; **OTA ile çıkar** (1.7.4, kanal `production`).
+
+**Bu vakayı mümkün kılan şey bizim aynı gün yaptığımız değişiklikti** ([[OR-109]]): yön bazlı koruma öncesinde
+girişten 45 sn içindeki çıkış reddediliyordu. Koruma doğru, eksik olan kameraydı.
+
+**"Çıkışı olmayanlar" — owner'ın ikinci tahmini (*"hata alıp yandan çıktı"*) DOĞRULANMADI:** 18:00'den sonra tek bir
+ret logu yok. 19:00 dersindeki 7 kişinin çıkışı yoktu çünkü ders 19:45'e kadar sürüyordu. Geriye 14:01'de giren bir
+üye kalıyor. Cihazlar 19:12'de yeniden başlatılmış (ikisi de POWERON) — fiş çekilmiş.
+
 ## 🔄 22 Eylül 18:00 — "kaydedilemedi": eski sekme, ve artık panel bunu kendisi anlıyor ([[OR-111]])
 
 **Olay:** Işıl'ın iki bilgisayarında üye kaydı ve paket satışı kaydedilmedi (*"çok sıkıntı yaşıyoruz"*). Sebep

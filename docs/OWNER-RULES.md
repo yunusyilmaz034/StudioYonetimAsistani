@@ -2096,3 +2096,15 @@ değil — `isStaleDeployment` bu yüzden tutmadı. Artık karşılaştırma var
 kaybedilecek bir şey yok), **öndeki sekme sorar** — yarım doldurulmuş bir üye formunu ayağının altından çekmek,
 çözdüğünden büyük bir sorun yaratır. Sekmeye dönüldüğü anda da kontrol edilir; gün içi açık kalan sekmenin en
 kritik anı odur.
+
+**OR-112 · Başarılı bir okumadan sonra kamera kapanır — ikinci okuma bir KARAR olmalıdır.** (2026-09-22)
+Owner: *"Üyeler giriş QR okuttuktan sonra kamera açık kalıyor ya, ellerinde o ara çıkışı da mı okutuyorlar?"*
+Kayıt doğruladı: **19:10:16 giriş, 19:10:27 çıkış — aynı üye, on bir saniye, ikisi de turnikeden.** İki kapı yan
+yana; giriş kodunu okutup içeri yürüyen üyenin elindeki telefon, çıkış ekranının kodunu da görüyor ve kamera onu
+sormadan okuyor. Üye içeride, sistem onu dışarıda sanıyor.
+Mevcut `handled` kilidi bunu engellemiyordu: o kilit AYNI karenin saniyede birkaç kez çözülmesine karşı ve 2,5
+saniyede açılıyor — on bir saniye sonrası onun için meşru bir yeni okumadır, ve teknik olarak öyle de (kod farklı,
+kapı farklı). **Kural:** bir geçiş kaydedildiği anda kamera kapanır; tekrar okutmak isteyen "Tara"ya basar, ki bu
+bir insan kararıdır. Web portalı bunu zaten yapıyordu (`setScanning(false)`), mobil uygulama yapmıyordu.
+**Bu, 45 saniyelik çift-okuma korumasının yerini tutar değil, tamamlayıcısıdır** ([[OR-109]]): koruma aynı kapının
+tekrarına bakar, bu ise iki ayrı kapının birbirini takip etmesine.

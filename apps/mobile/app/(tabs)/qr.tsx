@@ -60,13 +60,28 @@ export default function Qr() {
           </View>
         </FadeInUp>
       ) : (
-        <Scanner />
+        <Scanner onDone={() => setTab('show')} />
       )}
     </Screen>
   )
 }
 
-function Scanner() {
+// ── BAŞARILI OKUMADAN SONRA KAMERA KAPANIR (owner, 2026-09-22) ──────────────────────────────
+//
+// *"Üyeler giriş QR okuttuktan sonra kamera açık kalıyor ya, ellerinde o ara çıkışı da mı
+// okutuyorlar?"* — ve kayıt bunu doğruladı: 19:10:16 giriş, 19:10:27 ÇIKIŞ, aynı üye, on bir
+// saniye. İki kapı yan yana; giriş kodunu okutup içeri yürüyen üyenin elindeki telefon, çıkış
+// ekranının kodunu da görüyor ve kamera onu sormadan okuyor.
+//
+// `handled` kilidi bunu engellemiyordu: o, AYNI karenin saniyede birkaç kez çözülmesine karşı ve
+// 2,5 saniye sonra açılıyor. On bir saniye sonrası onun için yeni bir okumadır — ve teknik olarak
+// öyle de: kod gerçekten farklı, kapı gerçekten öteki. Kararı veren kimse yok, sadece açık bir
+// kamera var.
+//
+// Web portalı bu sorunu yaşamıyor çünkü başarılı bir okumada kamerayı kapatıyor. Mobil uygulama
+// kapatmıyordu; şimdi kapatıyor — okuma bitti, sekme "Kodum"a döner, kamera kapanır. Üye tekrar
+// okutmak isterse "Tara"ya basar, ki bu bir karardır.
+function Scanner({ onDone }: { onDone: () => void }) {
   const p = usePalette()
   const [perm, requestPerm] = useCameraPermissions()
   const [busy, setBusy] = useState(false)
