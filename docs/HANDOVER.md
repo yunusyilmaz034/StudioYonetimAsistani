@@ -171,6 +171,26 @@ abartmamak bilinçli. **Bu rakam canlı veriden gelmiyor, HTML'e gömülü:** ka
 **Taksit ayarı ✅ kapandı** (17 Eylül): owner Ayarlar'dan `maxInstallments`'ı **3**'e çekti (veriden doğrulandı).
 Artık ödeme linkleri de sitenin ve `/uyelik`'in söylediğiyle aynı şeyi söylüyor.
 
+## 🔌 23 Eylül — RÖLE KABLOSUNDA TEMASSIZLIK (owner'ın sahada bulduğu şey)
+
+**Owner, 22 Eylül akşamı:** *"Turnikenin röle kısmında, turnikeye giren kabloda bir temassızlık var sanırım;
+akşam düzelttim ama sıcak silikon yapacağım oraya, sabitlemek için."*
+
+**Bu, 14 Eylül'den beri açık duran teşhisin fiziksel karşılığı.** O gün şu yazılmıştı: *"bip çalıyorsa firmware
+darbeyi göndermiştir; kalan şüpheliler röle/besleme, COM–OP-R kablosu, turnike kartı."* Darbe sayacı her zaman
+artıyordu (yazılım işini yapıyordu), kol dönmüyordu — gevşek bir kablo tam olarak bunu üretir: temas kesikken
+darbe hiçbir yere varmaz, ve hiçbir logda iz bırakmaz. **Sıcak silikonla sabitlendikten sonra "kol dönmedi"
+vakalarının sıklığı izlenmeli:** devam ederse şüpheli turnike kartı ve bobin, biterse sebep buydu.
+
+**Aynı sabahın vakası — 11:35, Ayşegül Yılmaz.** Kayıt: kod ekrandan kalkmışken okutuldu → sunucu kurtarma komutu
+gönderdi (`crossing on a code no longer on screen; opened by command`) → kol **ikinci okutmada** açıldı ve
+`reopenedAt` damgalandı ([[OR-79]] çalıştı). Girişi doğru yazıldı, kredisi etkilenmedi; kapıda bir kez takıldı.
+Cihaz o geçişi **5,7 saniye** gecikmeyle gördü.
+
+**Sinyal zayıflıyor:** RSSI 22 Eylül −74/−75 → 23 Eylül **−78 / −82 dBm**. Bugünkü 21 geçişin ortancası 717 ms ama
+üçü 2 sn'yi, ikisi 5 sn'yi aştı (en kötü 11,1 sn). Gecikme büyüdükçe "okuttum, kol geç döndü / dönmedi" şikâyeti
+artar — kablo düzelse bile bu ayrı bir eksen ve ölçülmeye devam etmeli.
+
 ## 📷 22 Eylül 19:10 — giriş okutan üye, farkında olmadan çıkış da okutuyor ([[OR-112]])
 
 **Owner'ın tahmini, kayıtla doğrulandı:** 19:10:16 giriş → 19:10:27 ÇIKIŞ, aynı üye, 11 saniye, ikisi de `device`.
