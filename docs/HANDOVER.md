@@ -192,7 +192,13 @@ kolun dönmediğini görüyor.
 `WiFi.setSleep(false)` yoktu: ESP32 varsayılanı modem uykusudur, radyo router'ın DTIM aralığında uyanır ve arada
 gelen paket bekler. Pille çalışan bir cihaz için doğru, prize takılı ve 600 ms'de bir soru soran bir kapı için
 yanlış. Satır eklendi (commit'te), **ama uzaktan firmware güncelleme YOK** (`ArduinoOTA`/`httpUpdate` yok) — kartlara
-USB ile `pio run -t upload` gerekiyor, yani sahada, iki kutu için ayrı ayrı.
+USB ile `pio run -t upload` gerekiyor, yani sahada — ama **TEK KART**, iki değil.
+
+**SAHADA TEK ESP32-S3 VAR (ölçüldü, 23 Eylül).** `-D IKI_KAPI` ile tek kart iki ILI9341 ekranını ayrı CS pinleriyle
+(10 giriş · 9 çıkış) ve iki röleyi (5 · 4) birden sürüyor; sunucuda iki ayrı cihaz kaydı olarak görünüyor
+(`dev_01M14FV…` çıkış, `dev_8f0a11…` giriş). Kanıt: iki kaydın `uptimeS` farkı sabit değil, **işaret değiştiriyor**
+(+15, −11, −11 sn) — bu aynı kartın iki ayrı istek anında `millis()` yazmasıdır; iki kart olsaydı fark tek yönlü
+olurdu. `heap` de ikisinde birebir aynı (248040). Daha önce bu belgede "iki kutu" yazıyordu, yanlıştı.
 
 **Sıra:** (1) bu satırı kartlara yükle — tek satır, en çok şikâyet üreten davranışı hedefliyor; (2) turnikeye yakın
 bir erişim noktası — −75 dBm sınırda, −80'e inince paket kaybı başlıyor; (3) uzun vadede kablolu ağ (14 Eylül'de de
