@@ -171,6 +171,34 @@ abartmamak bilinçli. **Bu rakam canlı veriden gelmiyor, HTML'e gömülü:** ka
 **Taksit ayarı ✅ kapandı** (17 Eylül): owner Ayarlar'dan `maxInstallments`'ı **3**'e çekti (veriden doğrulandı).
 Artık ödeme linkleri de sitenin ve `/uyelik`'in söylediğiyle aynı şeyi söylüyor.
 
+## 📶 23 Eylül — "internet mi, sinyal mi?" ÖLÇÜLDÜ: sinyal
+
+Owner sordu, ikisi ayrı ayrı ölçüldü:
+
+| Ne | Ölçüm | Yorum |
+|---|---|---|
+| Sunucunun cevap süresi | 1500 istekte **ortanca 61 ms**, p90 74 ms, en kötü 743 ms | Sorun DEĞİL |
+| Cihazın sorgu aralığı (firmware `SORGU_MS`) | **600 ms** | Beklenen |
+| Gerçekleşen aralık | ortanca 0,78 sn · p90 0,91 sn | Normalde sağlıklı |
+| Sorun anlarında (11:32–11:35) | **3,4 · 3,6 · 3,8 · 5,0 · 6,3 · 6,8 sn sessizlik** | 600 ms'de sorması gereken cihaz saniyelerce susuyor |
+| Sinyal (RSSI) | 22 Eylül −74/−75 → 23 Eylül sabah −78/−82 → öğlen −75/−76 | Zayıf bantta dalgalanıyor |
+
+**Sonuç: internet hattı değil, WiFi.** Sunucu 61 ms'de cevap veriyor; cihaz ise sinyal zayıfladığında 5–7 saniye
+hiç soru soramıyor. "Crossing seen" gecikmeleri (11,1 sn ve 5,7 sn) bu sessizliklerle birebir örtüşüyor —
+11:35:22'den sonraki 6,3 sn sessizlik, 11:35:29'daki 5,7 sn'lik gecikmenin ta kendisi. Üye o aralıkta okutunca
+kolun dönmediğini görüyor.
+
+**BULUNDU — firmware'de güç tasarrufu KAPATILMAMIŞ.** `main.cpp`'de `WiFi.mode(WIFI_STA)` var ama
+`WiFi.setSleep(false)` yoktu: ESP32 varsayılanı modem uykusudur, radyo router'ın DTIM aralığında uyanır ve arada
+gelen paket bekler. Pille çalışan bir cihaz için doğru, prize takılı ve 600 ms'de bir soru soran bir kapı için
+yanlış. Satır eklendi (commit'te), **ama uzaktan firmware güncelleme YOK** (`ArduinoOTA`/`httpUpdate` yok) — kartlara
+USB ile `pio run -t upload` gerekiyor, yani sahada, iki kutu için ayrı ayrı.
+
+**Sıra:** (1) bu satırı kartlara yükle — tek satır, en çok şikâyet üreten davranışı hedefliyor; (2) turnikeye yakın
+bir erişim noktası — −75 dBm sınırda, −80'e inince paket kaybı başlıyor; (3) uzun vadede kablolu ağ (14 Eylül'de de
+önerilmişti). **Sonraki arızada ilk bakılacak yer:** cihaz isteklerinin arasındaki boşluk (600 ms olmalı) — saniyeler
+varsa sebep radyo, `crossing seen latencyMs` de onunla birlikte büyür.
+
 ## 🔌 23 Eylül — RÖLE KABLOSUNDA TEMASSIZLIK (owner'ın sahada bulduğu şey)
 
 **Owner, 22 Eylül akşamı:** *"Turnikenin röle kısmında, turnikeye giren kabloda bir temassızlık var sanırım;

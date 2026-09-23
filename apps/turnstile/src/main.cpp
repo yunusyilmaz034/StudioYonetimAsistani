@@ -442,6 +442,21 @@ void setup() {
 #endif
 
   WiFi.mode(WIFI_STA);
+  // ── GÜÇ TASARRUFU KAPALI (owner, 2026-09-23) ───────────────────────────────────────────────
+  //
+  // ESP32 varsayılan olarak modem uykusuna girer: radyo, router'ın DTIM aralığında uyanır ve
+  // arada gelen paketler beklemeye alınır. Pille çalışan bir cihaz için doğru; prize takılı ve
+  // 600 ms'de bir "kodum kullanıldı mı?" diye soran bir kapı için yanlış.
+  //
+  // ÖLÇÜLDÜ (23 Eylül): sunucu 61 ms'de cevap veriyor, cihaz 600 ms'de bir sormalı — ama sorun
+  // anlarında art arda 3,4 / 3,6 / 3,8 / 5,0 / 6,3 / 6,8 saniyelik sessizlikler var. O sessizlikler
+  // geçiş gecikmeleriyle birebir örtüşüyor: 11:35:22'den sonraki 6,3 sn sessizlik, 11:35:29'daki
+  // 5,7 sn'lik "cihaz geçişi geç gördü" kaydının ta kendisi. Üye o aralıkta okutuyor, kol dönmüyor,
+  // ve haklı olarak "turnike bozuk" diyor.
+  //
+  // Zayıf sinyal (−75…−82 dBm) bunu büyütür ama sebebi değildir: uyku, zaten geç gelen paketi
+  // bir DTIM daha bekletir. Tek satır, ve kapının en çok şikâyet üreten davranışını hedefler.
+  WiFi.setSleep(false);
   String ssidler[] = {
       kayit.ssid,          // kurulumda telefondan girilen ağ — varsa ilk o denenir
       String(WIFI_SSID),
