@@ -45,11 +45,24 @@ export function MetricFace({
   hint,
   icon: Icon,
   tone = 'default',
+  size = 'display',
 }: {
   value: string
   hint?: string
   icon: LucideIcon
   tone?: Presentation['tone']
+  /**
+   * ── AYNI BOYUTTAKİ İKİ PARA, GÖZÜ ALDATIR (owner, 2026-09-24) ─────────────────────────────
+   *
+   * *"Anlaşılan tutar kafa karıştırıyor… kasaya girenden daha ufak olsun, aynı olunca göz
+   * aldanıyor."* Yan yana duran iki para rakamı aynı puntoyla yazılınca göz ikisini aynı şey
+   * sanıyor — oysa biri BUGÜN SATILAN (tahsil edilmemiş olabilir), öbürü BUGÜN KASAYA GİREN
+   * (dünkü borçların ödemesi olabilir). İkisinin eşit olması da beklenmez.
+   *
+   * Hiyerarşi anlamı taşır: kasaya giren para günün asıl rakamıdır ve `display` kalır; satış bir
+   * kademe iner. Varsayılan `display`, yani bu satırı eklemeyen kutular olduğu gibi kalır.
+   */
+  size?: 'display' | 'h1'
 }) {
   const toneClass: Record<string, string> = {
     default: 'text-foreground',
@@ -61,8 +74,14 @@ export function MetricFace({
   return (
     <div className="flex items-start justify-between gap-2">
       <div className="min-w-0">
-        {/* Editorial serif gauge numeral (Doc 33) — the dashboard's headline numbers. */}
-        <p className={`font-heading text-display font-medium tabular-nums ${toneClass[tone]}`}>{value}</p>
+        {/* Editorial serif gauge numeral (Doc 33) — the dashboard's headline numbers.
+            Sınıf SABİT eşlemeden geliyor: `text-${size}` gibi kurulan bir ad Tailwind'in tarayıcısına
+            görünmez ve üretimde sessizce boş çıkar. */}
+        <p
+          className={`font-heading ${size === 'h1' ? 'text-h1' : 'text-display'} font-medium tabular-nums ${toneClass[tone]}`}
+        >
+          {value}
+        </p>
         {hint ? <p className="truncate text-xs text-muted-foreground">{hint}</p> : null}
       </div>
       <Icon className="size-4 shrink-0 text-muted-foreground/70" />
@@ -203,6 +222,9 @@ const todaySales: Widget<{ salesKurus: number }> = {
       hint={d.salesKurus < 0 ? 'net · iptaller düşülmüş' : 'anlaşılan tutar'}
       icon={PackageIcon}
       tone={signTone(d.salesKurus)}
+      // Kasaya girenden bir kademe küçük (owner, 2026-09-24): iki para yan yana aynı puntoyla
+      // durunca göz ikisini aynı sayı sanıyor.
+      size="h1"
     />
   ),
 }
