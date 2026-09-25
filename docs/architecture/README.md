@@ -132,7 +132,7 @@ Superseded decisions are struck through and point at what replaced them.
 | # | Decision |
 |---|---|
 | **AD-47** | `Service` is a configurable entity; `category` stays a closed enum on top of it (keeps the category wall). |
-| **AD-48** | `Room` is a first-class branch-scoped entity; session capacity ≤ room capacity. |
+| **AD-48** *(revised 2026-09-25)* | `Room` is a first-class branch-scoped entity; its capacity SEEDS a session's head count but never caps it (OR-110, OR-114). Branch scoping still binds. |
 | **AD-49** | `SchedulingPolicy` is embedded on the Service, versioned, snapshotted onto each session (D3). |
 | **AD-50** | Weekly templates generate sessions **eagerly and idempotently** per `(templateId, date)`. |
 | **AD-51** | Definitions: owner + platform_admin. Sessions: + receptionist. Trainer authz seam via `session.trainerId`. |

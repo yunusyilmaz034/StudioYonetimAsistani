@@ -225,6 +225,29 @@ Cihaz o geçişi **5,7 saniye** gecikmeyle gördü.
 üçü 2 sn'yi, ikisi 5 sn'yi aştı (en kötü 11,1 sn). Gecikme büyüdükçe "okuttum, kol geç döndü / dönmedi" şikâyeti
 artar — kablo düzelse bile bu ayrı bir eksen ve ölçülmeye devam etmeli.
 
+## 🚪 25 Eylül — kamera kazasının TERS yönü, PT'de üç kişi, ve iki gün boş çalışan koruyucu
+
+**1) Ters kapı artık saniyeler içinde okutulamıyor ([[OR-113]]).** Owner gözüyle gördü: üye çıktı, aynı anda girişi de
+okundu. Kayıt: **12:42:22 çıkış → 12:42:26 giriş**, dört saniye. Bir gün önce tersi olmuştu (girişten 11 sn sonra
+çıkış). `OPPOSITE_DEBOUNCE_MS = 15_000`: aynı kapı 45 sn, ters kapı 15 sn. `decideCheckIn` yeni `lastOppositeAt`
+girdisiyle karar veriyor; application katmanı ters yöndeki son geçişi ayrıca hesaplıyor. Resepsiyonun elle kaydı muaf
+(`directionAsserted`). **Testte tuzak:** `direction` vermek tek başına "insan beyan etti" sayılıyor — turnike akışını
+sınayan test `directionAsserted: false` vermeli, yoksa koruma atlanır ve test yanlış yere yeşil yanar.
+
+**2) PT/düet seansı üç kişiyle açılabiliyor ([[OR-114]]).** Ekrandaki kapasite alanı serbestti ama domain reddediyordu:
+Düet Salonu 2, PT Salonu 1 kişilik. Oda kapasitesi kontrolü **üç yerden** kalktı (`decideScheduleSession`,
+`decideChangeRoom`, ve dün `decideChangeCapacity`). Kalan retler: başka şubenin odası, kapalı salon. **I-23 ve AD-48
+gevşetildi** — gerekçeleri `11-scheduling-foundation.md` ve `architecture/README.md` içinde revize edildi.
+`session_capacity_exceeds_room` artık hiç üretilmediği için union'dan ve Türkçe mesaj tablosundan silindi.
+
+**3) minInstances koruyucusu 24–25 Eylül arası hiçbir şey yapmadı.** Ayrıntısı OR-108 bölümünde: her tur 409 ile
+reddedilmiş, sebep `template.revision`'ın geri gönderilmesiydi. Düzeltildi ve yayınlandı; **ilk GERÇEK onarımı
+(App Hosting rollout'unun bıraktığı adla) hâlâ görülmedi** — izleniyor. Görülene kadar "çalışıyor" denmemeli.
+
+**4) Turnike uyku düzeltmesi yüklendi ve ölçüldü.** Kart 12:45'te USB ile programlandı (tek kart, iki kapı).
+Sonuç: istek aralığı p90 **0,91 → 0,79 sn**, saniyelerce süren sessizlikler **1 taneye** indi (önce her sorun anında
+3,4–6,8 sn). Sinyal de o an −72/−75'e çıkmıştı. Kalan tek 6,6 sn'lik boşluk izlenmeli.
+
 ## 📷 22 Eylül 19:10 — giriş okutan üye, farkında olmadan çıkış da okutuyor ([[OR-112]])
 
 **Owner'ın tahmini, kayıtla doğrulandı:** 19:10:16 giriş → 19:10:27 ÇIKIŞ, aynı üye, 11 saniye, ikisi de `device`.

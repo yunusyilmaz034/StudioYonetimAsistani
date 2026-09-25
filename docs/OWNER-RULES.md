@@ -2108,3 +2108,22 @@ kapı farklı). **Kural:** bir geçiş kaydedildiği anda kamera kapanır; tekra
 bir insan kararıdır. Web portalı bunu zaten yapıyordu (`setScanning(false)`), mobil uygulama yapmıyordu.
 **Bu, 45 saniyelik çift-okuma korumasının yerini tutar değil, tamamlayıcısıdır** ([[OR-109]]): koruma aynı kapının
 tekrarına bakar, bu ise iki ayrı kapının birbirini takip etmesine.
+
+**OR-113 · Ters kapı saniyeler içinde okutulamaz: o bir insan değil, açık kalmış bir kameradır.** (2026-09-25)
+Owner: *"Gözümle görüp şahit oldum, çıkış yaptı bu üye — kamerası açıktı, girişte de yaptı aynı anda. Zaten anlık
+çıkış yapan kişi giriş niye yapsın, di mi?"* Kayıt onu doğruladı: **12:42:22 çıkış, 12:42:26 giriş** — dört saniye,
+aynı üye, iki ayrı kapı; üye dışarıdayken sistem onu içeride sandı. Bir gün önce aynı şeyin tersi olmuştu: girişten
+**11 saniye** sonra çıkış.
+Yön bazlı koruma ([[OR-109]]) ters kapıyı BİLEREK serbest bırakmıştı — girip hemen çıkmak meşrudur ve owner haklı
+olarak "kapıda bekliyorum" demişti. Meşru olmayan, bunun saniyeler içinde olması. **Kural:** aynı kapı 45 saniye,
+**ters kapı 15 saniye**. On beş, iki ölçümün arasına düşen tek aralık: kamera kazası 4–11 saniyede oluyor, kapıdan
+geçip dönüp öbür kapıya varmak bundan uzun sürüyor. Resepsiyonun elle yazdığı kayıt muaf — orada yönü söyleyen bir
+insan var. Telefon tarafındaki kalıcı çözüm ayrıca yapıldı ([[OR-112]]): okuma biter bitmez kamera kapanıyor.
+
+**OR-114 · Odanın kapasitesi bir VARSAYILANDIR, tavan değil — seans açarken de.** (2026-09-25)
+Owner: *"Düet derse 2 kişi de bazen 3 de ekleyebiliyoruz; adıyla uyumlu değil ama PT dersi açarken 3 de yapılabilsin."*
+Düet Salonu 2, PT Salonu 1 kişilik tanımlıydı ve bu sayılar **seans açmayı engelliyordu**: ekrandaki kapasite alanı
+serbest olsa da domain reddediyordu. Kontenjan kararı bir gün önce adminin olmuştu ([[OR-110]]); aynı şeyin seans
+AÇILIRKEN ve salon DEĞİŞTİRİLİRKEN geçerli olmaması tutarsızlıktı. Artık üç yerde de oda kapasitesi kontrol edilmiyor.
+**Kalan iki ret tercih değil, veri hatasıdır:** başka şubenin odası, ve kapalı salon. Bu değişiklik **I-23 invariant'ını
+ve AD-48'i gevşetir**; gerekçe `docs/architecture/11-scheduling-foundation.md` içinde yazılıdır.

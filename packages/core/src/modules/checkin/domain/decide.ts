@@ -138,6 +138,19 @@ export interface CheckInInput {
    */
   readonly lastCrossedAt?: Instant
   /**
+   * TERS YÖNDEKİ son geçiş (owner, 2026-09-25).
+   *
+   * *"Gözümle gördüm, çıkış yaptı — kamerası açıktı, girişi de aynı anda okuttu. Zaten anlık çıkış
+   * yapan kişi giriş niye yapsın?"* Kayıt: **12:42:22 çıkış, 12:42:26 giriş** — dört saniye, aynı
+   * üye, iki ayrı kapı. Bir insan çıkış turnikesinden geçip dönüp giriş turnikesinden geçemez;
+   * geçen şey, elde açık kalan bir kameranın ikinci ekranı da okumasıdır.
+   *
+   * Yön bazlı koruma ([[OR-109]]) ters kapıyı bilerek serbest bırakmıştı, çünkü girip hemen çıkmak
+   * meşrudur. Meşru olmayan, bunun SANİYELER içinde olması. Bu yüzden ters yön için ayrı ve çok
+   * daha kısa bir pencere var: aynı kapı 45 sn, ters kapı `OPPOSITE_DEBOUNCE_MS`.
+   */
+  readonly lastOppositeAt?: Instant
+  /**
    * Geçiş FİZİKSEL bir koldan mı? (owner, 2026-09-14 · OR-75)
    *
    * Kaydın uyuşmadığı iki durumda cevap buna bağlı. Resepsiyonun check-in ekranındaki "Çıkış"
@@ -156,6 +169,18 @@ export interface CheckInInput {
  * produce a pair of events seconds apart, and under a plain toggle the second one undoes the first.
  */
 export const DEBOUNCE_MS = 45_000
+
+/**
+ * Ters kapı için pencere — aynı kapınınkinden üç kat kısa (owner, 2026-09-25).
+ *
+ * İki ölçülmüş kamera kazası: 24 Eylül 19:10'da girişten **11 sn** sonra çıkış, 25 Eylül 12:42'de
+ * çıkıştan **4 sn** sonra giriş. İkisi de elde açık kalan kameranın öbür ekranı okumasıydı.
+ *
+ * On beş saniye, ikisinin arasına düşen tek aralık: kamera kazası 4–11 saniyede oluyor, kapıdan
+ * geçip dönüp öbür kapıya varmak ise bundan uzun sürüyor. Daha kısası kazayı kaçırır, daha uzunu
+ * girip hemen çıkmak isteyen üyeyi kapıda bekletir — ki onu düzeltmek OR-109'un işiydi.
+ */
+export const OPPOSITE_DEBOUNCE_MS = 15_000
 
 export interface CheckInOutcome {
   readonly events: readonly NewEvent[]
@@ -235,6 +260,16 @@ export function decideCheckIn(
   // already recorded" is a different sentence from "done" — one of them is true.
   const yonBilincli = input.directionAsserted ?? input.direction !== undefined
   if (input.lastCrossedAt !== undefined && ctx.now - input.lastCrossedAt < DEBOUNCE_MS && !yonBilincli) {
+    return err({ code: 'checkin_too_soon' })
+  }
+  // Ters kapı, çok daha kısa pencere: saniyeler içinde iki ayrı kapıdan geçmek bir insanın yaptığı
+  // şey değil, açık kalmış bir kameranın yaptığı şeydir (owner, 2026-09-25). Resepsiyonun elle
+  // yazdığı kayıt bundan muaf — orada yönü söyleyen bir insan var.
+  if (
+    input.lastOppositeAt !== undefined &&
+    ctx.now - input.lastOppositeAt < OPPOSITE_DEBOUNCE_MS &&
+    !yonBilincli
+  ) {
     return err({ code: 'checkin_too_soon' })
   }
 

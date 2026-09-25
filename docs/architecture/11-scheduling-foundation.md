@@ -127,7 +127,7 @@ with no model change. Enforced in the Server Action (AD-46 pattern), not in rule
 | # | Invariant |
 |---|---|
 | **I-22** | `ClassSession.category` equals the Service's category at creation (the wall's source, snapshot). A Service's `category` is immutable. |
-| **I-23** | If `roomId` is set, `session.capacity ≤ room.capacity` and `session.branchId == room.branchId`. |
+| **I-23** *(gevşetildi 2026-09-25, [[OR-114]])* | If `roomId` is set, `session.branchId == room.branchId`. **The capacity half is gone:** a room's capacity is a DEFAULT the desk starts from, not a ceiling it may not cross. Düet Salonu is 2 and the PT room is 1, and those numbers were refusing sessions the studio actually sells — *"PT dersi açarken 3 de yapılabilsin"*. Branch still holds: a room in another branch is a data error, not a choice. |
 | **I-24** | Every `ClassSession` stamps the Service's `policyVersion` and a `policySnapshot` at creation (D3). |
 | **I-25** | A template generates sessions only within `[validFrom, validUntil]`; generation is idempotent per `(templateId, date)`. |
 | **I-26** *(v1.12)* | A **started or completed** session may never be edited — trainer, room, and capacity changes apply only to a not-yet-started, still-`scheduled` session (`startsAt > now`). This keeps event history, attendance, and future financial records consistent with what the session actually was. Cancellation is a separate act, not an edit. |
@@ -149,7 +149,7 @@ against (v1.8).
 | # | Decision | Rejected | Rationale |
 |---|---|---|---|
 | **AD-47** | `Service` is a configurable entity; `category` stays a closed enum on top of it | Replace the enum with free-form services | Keeps the category wall (I-9.7, AD-41) type-safe while making services data. |
-| **AD-48** | `Room` is a first-class branch-scoped entity; session capacity ≤ room capacity | Capacity only on the session | Rooms are real physical limits and the seed for future room bookings. |
+| **AD-48** *(revised 2026-09-25)* | `Room` is a first-class branch-scoped entity; its capacity SEEDS a session's head count but never caps it | Capacity as a hard ceiling (original); capacity only on the session | A room's label is what the studio wrote down once; the head count is what it sells today. The owner raised a düet to three and the ceiling said no — twice, in two different screens ([[OR-110]], [[OR-114]]). Branch scoping and the room-booking seam are untouched. |
 | **AD-49** | `SchedulingPolicy` is embedded on the Service, versioned, and snapshotted onto each session | A separate policy collection / product-only policy | Policy lives with what it governs; the session carries the rules it was created under (D3), no historical lookup. |
 | **AD-50** | Weekly templates generate sessions **eagerly and idempotently** | Virtual/lazy sessions | Sessions must be concrete rows for reservations, occupancy, and the calendar to read. |
 | **AD-51** | Definitions: owner + platform_admin. Sessions: + receptionist. Trainer: none now, `session.trainerId` is the future seam | Give reception full scheduling; or build trainer authz now | Matches daily ops; the seam costs nothing and avoids a future migration. |

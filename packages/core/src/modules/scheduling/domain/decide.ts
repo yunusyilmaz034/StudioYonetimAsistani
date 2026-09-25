@@ -277,16 +277,18 @@ export function decideScheduleSession(
       : err({ code: 'outside_working_hours', open: hours.hours!.open, close: hours.hours!.close })
   }
 
-  if (room) {
-    if (room.branchId !== session.branchId) return err({ code: 'branch_mismatch' })
-    if (session.capacity > room.capacity) {
-      return err({
-        code: 'session_capacity_exceeds_room',
-        capacity: session.capacity,
-        roomCapacity: room.capacity,
-      })
-    }
-  }
+  // ── ODA KAPASİTESİ VARSAYILANDIR, TAVAN DEĞİL (owner, 2026-09-24 · 2026-09-25) ─────────────
+  //
+  // *"Düet derse 2 kişi de bazen 3 de ekleyebiliyoruz; adıyla uyumlu değil ama PT dersi açarken 3 de
+  // yapılabilsin."* Düet Salonu 2, PT Salonu 1 kişilik tanımlı — ve bu sayılar seans açmayı
+  // ENGELLİYORDU. Kontenjan kararı dün adminin oldu ([[OR-110]]); aynı şeyin seans AÇILIRKEN de
+  // geçerli olmaması tutarsızlıktı: bir gün üç kişilik PT satarlarsa odanın etiketinde yazan sayı
+  // onlara "hayır" diyemez.
+  //
+  // ŞUBE KONTROLÜ KALIYOR: başka şubenin odasında ders açmak bir tercih değil, veri hatasıdır.
+  // I-23 ve AD-48 bu yüzden gevşetildi — gerekçe `docs/architecture/11-scheduling-foundation.md`
+  // ve OR-110/OR-113'te yazılı.
+  if (room && room.branchId !== session.branchId) return err({ code: 'branch_mismatch' })
   // D13 — a member may only be assigned to a PRIVATE session. Assigning one to a group class
   // would mean "this Reformer class belongs to Elif", which is not a thing.
   if (session.assignedMemberIds.length > 0 && session.category !== 'private') {
@@ -548,13 +550,8 @@ export function decideChangeRoom(
   if (toRoom) {
     if (!toRoom.active) return err({ code: 'room_not_active' })
     if (toRoom.branchId !== session.branchId) return err({ code: 'branch_mismatch' })
-    if (session.capacity > toRoom.capacity) {
-      return err({
-        code: 'session_capacity_exceeds_room',
-        capacity: session.capacity,
-        roomCapacity: toRoom.capacity,
-      })
-    }
+    // Kapasite tavanı burada da kalktı (owner, 2026-09-25): seansı başka salona taşımak kontenjan
+    // kararını geri almaz. Kapalı salon ve yanlış şube hâlâ reddedilir — ikisi tercih değil, hata.
   }
   return ok([
     {

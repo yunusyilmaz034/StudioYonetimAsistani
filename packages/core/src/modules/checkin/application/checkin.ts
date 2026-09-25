@@ -160,6 +160,10 @@ export async function prepareCheckIn(
   // Yön bilinmiyorsa (resepsiyonun elle kaydı) eski davranış sürer: son geçiş, yönü ne olursa olsun.
   const ayniYon = input.direction === undefined ? recent : recent.filter((c) => c.direction === input.direction)
   const lastCrossedAt = ayniYon[0]?.occurredAt
+  // Ters kapıdaki son geçiş, kendi (çok daha kısa) penceresiyle değerlendirilsin (owner, 2026-09-25):
+  // çıkıştan dört saniye sonra gelen giriş bir hareket değil, açık kalmış bir kameradır.
+  const tersYon = input.direction === undefined ? [] : recent.filter((c) => c.direction !== input.direction)
+  const lastOppositeAt = tersYon[0]?.occurredAt
 
   const decided = decideCheckIn(
     dctx,
@@ -173,6 +177,7 @@ export async function prepareCheckIn(
       ...(input.directionAsserted !== undefined ? { directionAsserted: input.directionAsserted } : {}),
       ...(input.atTurnstile !== undefined ? { atTurnstile: input.atTurnstile } : {}),
       ...(lastCrossedAt !== undefined ? { lastCrossedAt } : {}),
+      ...(lastOppositeAt !== undefined ? { lastOppositeAt } : {}),
     },
     presence,
     occupancy,

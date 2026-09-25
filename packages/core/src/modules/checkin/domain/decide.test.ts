@@ -96,6 +96,31 @@ describe('decideCheckIn (D5, toggle)', () => {
     const r = decideCheckIn(ctx, { ...input, lastCrossedAt: instant(NOW - 20_000) }, presence, 5, openBranch)
     expect(r).toEqual({ ok: false, error: { code: 'checkin_too_soon' } })
   })
+  // ── TERS KAPI, ÇOK DAHA KISA PENCERE (owner, 2026-09-25 · OR-113) ─────────────────────────
+  // *"Gözümle gördüm, çıkış yaptı — kamerası açıktı, girişi de aynı anda okuttu."* Kayıt:
+  // 12:42:22 çıkış, 12:42:26 giriş. Dört saniyede iki ayrı kapıdan geçen bir insan yok.
+  it('refuses the opposite door within seconds — that is a camera, not a person', () => {
+    const r = decideCheckIn(
+      ctx,
+      { ...input, direction: 'in', directionAsserted: false, lastOppositeAt: instant(NOW - 4_000) },
+      null,
+      5,
+      openBranch,
+    )
+    expect(r).toEqual({ ok: false, error: { code: 'checkin_too_soon' } })
+  })
+  // Ama girip hemen çıkmak meşrudur (OR-109) — yalnızca SANİYELER içinde olması değil.
+  it('allows the opposite door once its own window has passed', () => {
+    const presence: Presence = { memberId: MEM, branchId: BR, checkedInAt: instant(NOW - 20_000) }
+    const r = decideCheckIn(
+      ctx,
+      { ...input, direction: 'out', directionAsserted: false, lastOppositeAt: instant(NOW - 20_000) },
+      presence,
+      5,
+      openBranch,
+    )
+    expect(r.ok).toBe(true)
+  })
   it('allows a toggle once the window has passed', () => {
     const presence: Presence = { memberId: MEM, branchId: BR, checkedInAt: instant(NOW - 60_000) }
     const r = decideCheckIn(ctx, { ...input, lastCrossedAt: instant(NOW - 46_000) }, presence, 5, openBranch)

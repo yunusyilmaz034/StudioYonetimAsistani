@@ -18,8 +18,6 @@ export function domainErrorMessage(error: DomainError): string {
       return 'En az bir sayfa yükleyin.'
     case 'document_not_found':
       return 'Belge bulunamadı.'
-    case 'session_capacity_exceeds_room':
-      return `Kapasite salon kapasitesini (${error.roomCapacity}) aşamaz.`
     case 'branch_mismatch':
       return 'Seçilen salon bu şubeye ait değil.'
     case 'invalid_time_range':

@@ -105,10 +105,18 @@ describe('decideScheduleSession', () => {
     }
   })
 
-  it('refuses capacity above the room (I-23)', () => {
-    const r = schedule(makeSession({ capacity: 9 }), room)
-    expect(r.ok).toBe(false)
-    if (!r.ok) expect(r.error.code).toBe('session_capacity_exceeds_room')
+  // Owner, 2026-09-25: *"PT dersi açarken 3 de yapılabilsin."* Düet Salonu 2, PT Salonu 1 kişilik
+  // tanımlı ve bu sayılar seans açmayı engelliyordu. Kontenjan adminin kararı (OR-110/OR-113);
+  // odanın etiketi bir varsayılandır, tavan değil. I-23 ve AD-48 bu yüzden gevşetildi.
+  it('lets a session exceed the room capacity — the desk decides the head count', () => {
+    const r = schedule(makeSession({ capacity: 9 }), room) // oda 8
+    expect(r.ok).toBe(true)
+  })
+
+  it('a three-person session in the one-person PT room is allowed (düet/üçlü)', () => {
+    const ptRoom: Room = { ...room, id: 'rom_pt' as RoomId, name: 'Özel PT Salonu', capacity: 1 }
+    const r = schedule(makeSession({ category: 'private', capacity: 3 }), ptRoom)
+    expect(r.ok).toBe(true)
   })
 
   it('refuses a room in another branch (I-23)', () => {
@@ -179,11 +187,11 @@ describe('decideChangeRoom (AD-48)', () => {
     expect(r.ok).toBe(true)
     if (r.ok) expect(r.value[0]?.payload).toMatchObject({ toRoomId: null })
   })
-  it('refuses a room too small for the session capacity (AD-48)', () => {
+  // Seansı başka salona taşımak kontenjan kararını geri almaz (owner, 2026-09-25).
+  it('moves into a smaller room without touching the head count', () => {
     const small: Room = { ...room, id: 'rom_3' as RoomId, capacity: 4 }
     const r = decideChangeRoom(ctx, makeSession({ startsAt: FUTURE, capacity: 8 }), small, 'x')
-    expect(r.ok).toBe(false)
-    if (!r.ok) expect(r.error.code).toBe('session_capacity_exceeds_room')
+    expect(r.ok).toBe(true)
   })
   it('refuses a room in another branch', () => {
     const other: Room = { ...room, id: 'rom_4' as RoomId, branchId: 'brn_2' as BranchId }
