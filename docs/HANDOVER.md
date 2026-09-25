@@ -304,6 +304,15 @@ tetiklenerek yakalandı (17:36) — okuma izni çalışıyordu, yazma yolu hiç 
 okunabiliyor ama içinde kat yoksa **sıfır sayılır**; dokunmama hâli yalnızca `scaling` nesnesinin hiç olmamasıdır
 (API şekli değişmiş demektir). Daha yüksek bir değer birinin bilinçli kararıdır, aşağı çekilmez.
 
+**KORUYUCU 24–25 EYLÜL ARASI HİÇ ÇALIŞMADI (ölçüldü 25 Eylül 12:40).** Her tur Cloud Run tarafından **409** ile
+reddedilmiş: *"Revision named 'studio-yonetim-build-…' with different configuration already exists."* Sebep kodun
+kendisiydi — servis okunup AYNEN geri yazılıyordu, yani `template.revision` (çalışan revizyonun adı) da geri
+gönderiliyordu ve Cloud Run aynı ada farklı yapılandırma yazdırmıyor. **24.09 03:26'dan 25.09 12:36'ya kadar
+200+ başarısız deneme**, tek bir onarım yok; bu süre boyunca kat elle konulduğu anlar dışında 0'da kaldı.
+Düzeltme: PATCH gövdesinden `revision` çıkarılıyor, adı Cloud Run üretiyor.
+**Ders:** elle yapılan tek seferlik doğrulama yetmedi — o denemede şablonda o ad yoktu. Otomasyonun GERÇEK
+koşulda (App Hosting rollout'unun bıraktığı adla) en az bir kez onarım yaptığı görülmeden "çalışıyor" denmemeli.
+
 **KORUYUCU SIFIRLAMAYI ÖNLEMEZ, ONU ATLATIR.** Canlı kanıt (22 Eylül 17:40): koruyucu katı 1'e çekip kendi Cloud Run
 revizyonunu yarattı (`studio-yonetim-00621-9w5`), **22 saniye sonra** App Hosting'in rollout'u `build-2026-09-22-005`
 ile üzerine yazdı ve kat yine 0 oldu. Yani deploy ile koruyucunun bir sonraki turu arasında panelin hâlâ uyuyabildiği

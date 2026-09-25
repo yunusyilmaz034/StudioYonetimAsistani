@@ -80,7 +80,16 @@ async function accessToken(): Promise<string | null> {
 
 interface RunService {
   readonly etag?: string
-  template?: { scaling?: { minInstanceCount?: number; maxInstanceCount?: number } }
+  template?: {
+    /**
+     * The revision NAME Cloud Run gave the running revision. Read-only in practice: sending it back
+     * with any changed field is rejected with 409 "Revision named … with different configuration
+     * already exists" — which is exactly what this guard did, silently, every ten minutes for three
+     * days (23–25 September). It must be stripped before the write so Cloud Run mints a new name.
+     */
+    revision?: string
+    scaling?: { minInstanceCount?: number; maxInstanceCount?: number }
+  }
 }
 
 /**
@@ -124,9 +133,21 @@ export async function runMinInstancesGuard(): Promise<
 
   // Read-modify-write, whole object, with the etag we just read: if a deploy lands between the read
   // and the write, the etag stops us from overwriting it and the next run picks it up.
+  // ── REVİZYON ADI GERİ GÖNDERİLMEZ (ölçüldü 25 Eylül) ──────────────────────────────────────
+  //
+  // Servisi okuyup aynen geri yazmak, `template.revision` alanını da geri göndermek demekti; Cloud
+  // Run buna 409 ile cevap veriyor: *"Revision named 'studio-yonetim-build-…' with different
+  // configuration already exists."* Yani onarım her seferinde REDDEDİLDİ — sessizce, on dakikada
+  // bir. Elle yaptığım denemede çalışmıştı, çünkü o an servisin şablonunda bu ad yoktu; gerçek
+  // rollout'ların bıraktığı adla hiç denenmemişti.
+  //
+  // Ad silinince Cloud Run yenisini kendisi üretir. Geri kalan her alan olduğu gibi gider — amaç
+  // hâlâ "tek bir sayıyı değiştir", şablonu yeniden yazmak değil.
+  const sablon = { ...(service.template ?? {}) }
+  delete sablon.revision
   const next = {
     ...service,
-    template: { ...service.template, scaling: { ...service.template?.scaling, minInstanceCount: PANEL_SERVICE.wanted } },
+    template: { ...sablon, scaling: { ...sablon.scaling, minInstanceCount: PANEL_SERVICE.wanted } },
   }
   try {
     const res = await fetch(base, {
