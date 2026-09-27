@@ -225,6 +225,31 @@ Cihaz o geçişi **5,7 saniye** gecikmeyle gördü.
 üçü 2 sn'yi, ikisi 5 sn'yi aştı (en kötü 11,1 sn). Gecikme büyüdükçe "okuttum, kol geç döndü / dönmedi" şikâyeti
 artar — kablo düzelse bile bu ayrı bir eksen ve ölçülmeye devam etmeli.
 
+## 🔒 27 Eylül — GitHub'ı kesen şey fatura değil, TİCARET KONTROLÜ
+
+4 Eylül'den beri Actions hiç çalışmıyordu ve üç haftadır "fatura sorunu" sanılıyordu. Değilmiş.
+
+**Kanıt zinciri:** hesap **ücretsiz** planda, borç yok. Etkilenen depo **herkese açık** — orada Actions'ın
+fatura zorunluluğu zaten yok, yani fatura hipotezi tek başına çürüyor. Son 100 iş akışı koşusunun
+**tamamı 2–5 saniye içinde**, tek bir adım bile çalışmadan ve **hiç log üretmeden** düşmüş: işler bir
+runner'a hiç dağıtılmıyor. Yanında özel depolar ve ücretli servisler de kapalı. Bu tablo kota değil,
+**hesap seviyesinde kısıtlama** tablosu.
+
+GitHub'ın kendi yardım asistanı da bağımsız olarak aynı sonucu verdi: *"Trade control review is needed for
+the billing restriction"* — ve faturalama belgelerinin bu kısıtı **kendi kendine kaldırmanın bir yolunu
+sunmadığını** yazdı. Türkiye, GitHub'ın kendi "GitHub and Trade Controls" politikasında kısıtlı bölge
+olarak **listelenmiyor**; yani itiraz edilecek bir işaretleme bu.
+
+**27 Eylül 22:24'te destek talebi gönderildi** (Faturalama → General billing and payments → "Hatalar,
+sorunlar; ... Eylemler iş akışı sorunları"). Metin: hesap adı, ücretsiz plan/borç yok, herkese açık depo,
+100/100 koşunun logsuz ölümü, Türkiye'nin kısıtlı bölge olmadığı, ve kimlik/ikamet belgesi sunma teklifi.
+**Talep numarası owner'dan gelince buraya yazılacak.**
+
+**Bu beklerken tutan şey:** yedekler alındı (ana depo 13 MB, on beş deponun tamamı 65 MB — ikisi zaten boş)
+ve bu makinenin dışına çıkarılması owner'da. Deploy tarafı GitHub'a **bağlı**: App Hosting build'i depodan
+alıyor, yani hesap tamamen kilitlenirse yayın da durur. (Daha önce bu konuda owner'a "deploy GitHub'dan
+bağımsız" dedim — yanlıştı, düzeltildi.)
+
 ## 📉 27 Eylül — "dönüşüm %0" yanlıştı: huni üye olanları göremiyordu ([[OR-115]])
 
 **Ölçüm:** 15 Eylül reklam döneminin 74 adayı; telefonu üye kaydına denk gelen **2** aday (Betül Gürsoy,
@@ -873,9 +898,9 @@ yeniden çözülür.
 ### Owner'ın kararını bekleyenler
 
 1. **"Elden" nakit miydi?** Bugünkü ikinci su kart yazıldı; nakitse ödeme iptal edilip nakde çevrilir.
-2. **GitHub CI ödemesi** — işler 4 Eylül'den beri hiç başlamıyor (*"account is locked due to a billing
-   issue"*). E-posta atıldı, cevap gelmedi. Şu an `main`'i tutan tek şey yerelde çalıştırılan
-   `pnpm check`; ağ sıfır.
+2. **GitHub CI** — işler 4 Eylül'den beri hiç başlamıyor. Sebebi fatura değil, **ticaret kontrolü
+   kısıtlaması** çıktı; 27 Eylül akşamı destek talebi açıldı (aşağıdaki 27 Eylül bölümü). Şu an
+   `main`'i tutan tek şey yerelde çalıştırılan `pnpm check`; ağ sıfır.
 3. **Buzzer** — BC337 alındı, takılmadı; 12 V'a geçilmedi ([[DEBT-038]]). Askıda.
 4. **Turnike montajı** ve ilk geçiş testleri.
 5. Owner'ın *"bir işim daha olacak"* dediği, henüz anlatılmamış iş.
