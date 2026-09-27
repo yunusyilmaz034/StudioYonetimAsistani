@@ -240,6 +240,18 @@ Aynı dönemde 51 yeni üye açılmış ama bunların yalnızca 2'si huni adayı
 **Telefon anahtarı:** `90` + son on hane — aday telefonu elle girildiği için `5…`, `05…`, `+90…` gelebiliyor;
 ham rakamı olduğu gibi kullanmak `05…` kayıtlarını kaçırırdı.
 
+**Aynı akşam genişletildi (owner):** *"Hangi aşamada olursa olsun sistemde kayıt olmuşsa her şekilde dönüşüme yaz ve
+üye oldu diye etiketle."* İlk sürüm yalnızca dönemin AÇIK adaylarını eşleştiriyordu; `listLeadsAction` ve
+`listOlderLeadsAction` da aynı sorguyu yapıyor artık, ve **kaybedilenler listesi** de yeşil "Üye oldu" rozeti taşıyor.
+Telefon anahtarı tek fonksiyona (`telefonAnahtari`) indirildi: haritayı KURAN ile SORAN iki ayrı kopya kullanıyordu ve
+bir gün ayrışsalardı harita dolu görünüp sorgu hep boş dönerdi — ekranda "eşleşme yok" ile "eşleşme aranmadı" aynı
+görünür, yani sessiz bir hata olurdu.
+
+**Koruyucu artık dört kez tek başına çalıştı.** 25 Eylül 13:04→13:11 (7 dk), 26 Eylül 14:04→14:10 (6 dk),
+27 Eylül 21:55→22:01 (6 dk) ve 27 Eylül 22:13→22:21 (8 dk). Dördü de gerçek rollout sonrası, elle dokunulmadan.
+Canlı sürüm `studio-yonetim-build-2026-09-27-003`, kat 1. Deploy ile bir sonraki tur arasındaki pencere hâlâ
+kapanmıyor (bkz. OR-108) — ama o pencere artık en fazla on dakika.
+
 ## 🚪 25 Eylül — kamera kazasının TERS yönü, PT'de üç kişi, ve iki gün boş çalışan koruyucu
 
 **1) Ters kapı artık saniyeler içinde okutulamıyor ([[OR-113]]).** Owner gözüyle gördü: üye çıktı, aynı anda girişi de
