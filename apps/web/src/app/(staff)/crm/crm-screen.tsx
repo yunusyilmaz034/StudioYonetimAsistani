@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { HistoryIcon, Loader2Icon, MegaphoneIcon, PhoneIcon, PlusIcon, UserPlusIcon } from 'lucide-react'
 import { toast } from 'sonner'
@@ -129,9 +130,26 @@ export function CrmScreen({ initial }: { initial: Funnel }) {
   }
 
   const open = leads.filter((l) => ['new', 'contacted', 'offer', 'visit_booked'].includes(l.stage))
-  const won = leads.filter((l) => l.stage === 'won')
+  // Başlıktaki sayı, ÜYE OLMUŞ adayları saymaz — "74 açık aday" derken ikisi çoktan üye olmuştu.
+  // Ama kartları sütunlardan ÇIKARMIYORUZ: resepsiyon o kartı görmeden huniyi kapatamaz, ve
+  // gözden kaybolan bir aday hiç kapanmaz.
+  const acikSayi = open.filter((l) => l.memberIdByPhone === null).length
   const lost = leads.filter((l) => l.stage === 'lost')
-  const conversion = won.length + lost.length > 0 ? Math.round((won.length / (won.length + lost.length)) * 100) : 0
+  // ── DÖNÜŞÜM: ÜYE OLAN ÷ BÜTÜN ADAYLAR (owner, 2026-09-27) ─────────────────────────────────
+  //
+  // *"Dönüş %0 değildir ya, illa kaydolan yok mu soranlarda?"* Değildi: 74 adayın ikisi üye olmuştu.
+  // İki ayrı kusur vardı ve ikisi birlikte rakamı sıfıra kilitliyordu.
+  //
+  //   1. Eski formül `kazanılan ÷ (kazanılan + kaybedilen)` idi — 74 AÇIK adayı hiç saymıyordu.
+  //      "Dönüşüm" bir reklamın sorusudur: kaç kişi sordu, kaçı üye oldu. Payda bütün adaylardır.
+  //   2. `stage === 'won'` hiç yazılmıyordu, çünkü resepsiyon üyeyi Üyeler ekranından açıyor ve
+  //      huninin "Üye Yap" düğmesine hiç basılmıyor. Kayıt doğru, aday kapanmıyor.
+  //
+  // O yüzden "üye oldu" artık iki kaynaktan okunuyor: huninin kendi işareti VEYA adayın telefonunun
+  // bir üyeye denk gelmesi (`memberIdByPhone`, sunucuda `members_by_phone` üzerinden). İkincisi
+  // kimse bir düğmeye basmasa da doğruyu söyler.
+  const won = leads.filter((l) => l.stage === 'won' || l.memberIdByPhone !== null)
+  const conversion = leads.length > 0 ? Math.round((won.length / leads.length) * 100) : 0
 
   return (
     <main className="mx-auto max-w-6xl space-y-6 p-4 sm:p-6 lg:p-8">
@@ -139,8 +157,8 @@ export function CrmScreen({ initial }: { initial: Funnel }) {
         title="Satış Hunisi"
         description={
           period
-            ? `${period.label} · ${formatDateTime(period.startedAt).slice(0, 10)} tarihinden beri · ${open.length} açık aday · dönüşüm %${conversion}`
-            : `${open.length} açık aday · dönüşüm %${conversion}`
+            ? `${period.label} · ${formatDateTime(period.startedAt).slice(0, 10)} tarihinden beri · ${acikSayi} açık aday · dönüşüm %${conversion}`
+            : `${acikSayi} açık aday · dönüşüm %${conversion}`
         }
         actions={
           <div className="flex flex-wrap gap-2">
@@ -297,6 +315,17 @@ function LeadCard({
         <Badge className="bg-muted text-muted-foreground">{SOURCES[l.source] ?? l.source}</Badge>
         <span className="text-[0.6875rem] tabular-nums text-muted-foreground">{formatDateTime(l.createdAt).slice(0, 10)}</span>
       </div>
+      {/* ZATEN ÜYE (owner, 2026-09-27): telefonu bir üyeye denk geliyor ama huni kartı hâlâ açık —
+          çünkü kayıt Üyeler ekranından yapıldı. Rakamı düzeltmek yetmez; resepsiyon bu kartı görüp
+          kapatabilmeli, yoksa aday sonsuza kadar huninin içinde durur. */}
+      {l.memberIdByPhone ? (
+        <Link
+          href={`/members/${l.memberIdByPhone}`}
+          className="inline-flex items-center gap-1 rounded-md bg-success/10 px-2 py-0.5 text-xs font-medium text-success hover:bg-success/20"
+        >
+          ✓ Üye oldu — kaydı aç
+        </Link>
+      ) : null}
       {l.note ? <p className="truncate text-xs text-muted-foreground">{l.note}</p> : null}
       {/* SON GÖRÜŞME (owner, 2026-09-19): panodaki tik notu o güne aittir ve ertesi sabah listeyle
           birlikte gider. Kalıcı olan bu: adayla en son ne konuşulduğu, sorulduğu yerde. */}

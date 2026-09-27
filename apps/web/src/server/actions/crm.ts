@@ -95,7 +95,46 @@ export interface SonGorusme {
   readonly outcome: string
 }
 
-const leadRow = (l: Lead, lastNote: SonGorusme | null = null) => ({
+// ── "DÖNÜŞÜM %0" OLAMAZ (owner, 2026-09-27) ──────────────────────────────────────────────────
+//
+// *"Satış hunisinde üye olanlar… dönüş %0 değildir ya, illa kaydolan yok mu soranlarda?"* Haklıydı.
+// 15 Eylül döneminin 74 adayından ikisinin telefonu ÜYE olmuş (Betül Gürsoy, Fatma Karagülle) — ama
+// ikisi de huni kartında hâlâ "Randevulu" görünüyordu ve `convertedMemberId` boştu.
+//
+// Sebep akışta: resepsiyon üyeyi Üyeler ekranından açıyor, huninin "Üye Yap" düğmesinden değil.
+// Kayıt doğru, aday kapanmıyor. Bunu ne resepsiyona alışkanlık değiştirterek ne de bir eğitimle
+// çözemeyiz — kayıt zaten doğru yerde yapılıyor. Çözüm, huninin aynı gerçeği KENDİSİNİN görmesi:
+// üye kayıtlarında telefon benzersizdir ve `members_by_phone` o eşleşmeyi zaten tutar (AD-40).
+//
+// TEK OKUMA: adayların telefonları toplanır, tek `getAll` ile sorulur. Bir aday üye olmuşsa kartı
+// bunu söyler ve dönüşüm oranı onu sayar — kimse bir düğmeye basmasa bile.
+const uyeOlanlar = async (
+  studioId: string,
+  leads: readonly Lead[],
+): Promise<Map<string, string>> => {
+  // `members_by_phone` anahtarı `90` + on hanedir (AD-40, `normalizePhone`). Aday telefonu elle
+  // girildiği için `5…`, `05…`, `+90 5…` gibi gelebilir — son on haneyi alıp önüne `90` koymak
+  // üçünü de aynı anahtara indirir. Ham rakamları olduğu gibi kullanmak `05…` kayıtlarını kaçırırdı.
+  const anahtar = (telefon: string): string => {
+    const rakam = telefon.replace(/\D/g, '')
+    return rakam.length >= 10 ? `90${rakam.slice(-10)}` : ''
+  }
+  const tekil = [...new Set(leads.map((l) => anahtar(l.phone)).filter((k) => k.length >= 10))]
+  if (tekil.length === 0) return new Map()
+  const kok = adminDb().collection('studios').doc(studioId).collection('members_by_phone')
+  const snaps = await adminDb().getAll(...tekil.map((k) => kok.doc(k)))
+  const bulunan = new Map<string, string>()
+  snaps.forEach((s, i) => {
+    const mid = s.exists ? (s.data()?.memberId as string | undefined) : undefined
+    const k = tekil[i]
+    if (mid && k) bulunan.set(k, mid)
+  })
+  return bulunan
+}
+
+const leadRow = (l: Lead, lastNote: SonGorusme | null = null, uyeId: string | null = null) => ({
+  /** Bu adayın telefonu bir ÜYEYE ait mi? Huni kapanmasa bile dönüşüm budur (owner, 2026-09-27). */
+  memberIdByPhone: uyeId,
   id: l.id,
   fullName: l.fullName,
   phone: l.phone,
@@ -149,9 +188,15 @@ export async function loadFunnelAction() {
     r.listRecentInteractions(ctx, SON_GORUSME_OKUMA),
   ])
   const son = sonGorusmeler(kayitlar)
+  // Telefonu üyeye denk gelen adaylar — huni kapanmamış olsa bile dönüşüm budur (owner, 2026-09-27).
+  const uyeler = await uyeOlanlar(ctx.studioId as string, leads)
+  const anahtarla = (t: string) => {
+    const r = t.replace(/\D/g, '')
+    return r.length >= 10 ? `90${r.slice(-10)}` : ''
+  }
   return {
     period: period ? { label: period.label, startedAt: period.startedAt as number } : null,
-    leads: leads.map((l) => leadRow(l, son.get(l.id) ?? null)),
+    leads: leads.map((l) => leadRow(l, son.get(l.id) ?? null, uyeler.get(anahtarla(l.phone)) ?? null)),
     // Dönemi başlatmak owner'ın kararı (owner, 2026-09-15); resepsiyon düğmeyi görmez.
     canStartPeriod: ctx.role === 'owner' || ctx.actor.type === 'platform_admin',
   }

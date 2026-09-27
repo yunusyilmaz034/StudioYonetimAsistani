@@ -2127,3 +2127,16 @@ serbest olsa da domain reddediyordu. Kontenjan kararı bir gün önce adminin ol
 AÇILIRKEN ve salon DEĞİŞTİRİLİRKEN geçerli olmaması tutarsızlıktı. Artık üç yerde de oda kapasitesi kontrol edilmiyor.
 **Kalan iki ret tercih değil, veri hatasıdır:** başka şubenin odası, ve kapalı salon. Bu değişiklik **I-23 invariant'ını
 ve AD-48'i gevşetir**; gerekçe `docs/architecture/11-scheduling-foundation.md` içinde yazılıdır.
+
+**OR-115 · Dönüşüm = üye olan ÷ bütün adaylar; ve "üye oldu"yu huni kendisi görür.** (2026-09-27)
+Owner: *"Satış hunisinde üye olanlar… dönüş %0 değildir ya, illa kaydolan yok mu soranlarda?"* Değildi. Ölçüm:
+15 Eylül döneminin **74 adayından ikisinin telefonu üye kaydına denk geliyordu** (Betül Gürsoy, Fatma Karagülle) —
+yani gerçek dönüşüm %3'tü, %0 değil. İki ayrı kusur rakamı sıfıra kilitlemişti:
+**(1) Formül** `kazanılan ÷ (kazanılan + kaybedilen)` idi — 74 açık adayı paydaya hiç almıyordu. "Dönüşüm" bir
+reklamın sorusudur: kaç kişi sordu, kaçı üye oldu. Payda bütün adaylardır.
+**(2) Akış** — `stage = 'won'` hiç yazılmıyor, çünkü resepsiyon üyeyi Üyeler ekranından açıyor, huninin "Üye Yap"
+düğmesinden değil. Kayıt doğru yapılıyor; kapanmayan şey aday.
+**Kural:** huni, üye olmayı İKİ kaynaktan okur — kendi işareti VEYA adayın telefonunun bir üyeye denk gelmesi
+(`members_by_phone`, AD-40'ın zaten tuttuğu benzersizlik indeksi; huni başına tek `getAll`). Kimse bir düğmeye
+basmasa bile rakam doğruyu söyler. **Kart görünür kalır** ve üstünde "Üye oldu — kaydı aç" rozeti taşır: sayıyı
+düzeltmek yetmez, resepsiyon o kartı görmeden huniyi kapatamaz. Başlıktaki "açık aday" sayısı üye olanları saymaz.

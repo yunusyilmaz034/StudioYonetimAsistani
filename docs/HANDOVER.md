@@ -225,6 +225,21 @@ Cihaz o geçişi **5,7 saniye** gecikmeyle gördü.
 üçü 2 sn'yi, ikisi 5 sn'yi aştı (en kötü 11,1 sn). Gecikme büyüdükçe "okuttum, kol geç döndü / dönmedi" şikâyeti
 artar — kablo düzelse bile bu ayrı bir eksen ve ölçülmeye devam etmeli.
 
+## 📉 27 Eylül — "dönüşüm %0" yanlıştı: huni üye olanları göremiyordu ([[OR-115]])
+
+**Ölçüm:** 15 Eylül reklam döneminin 74 adayı; telefonu üye kaydına denk gelen **2** aday (Betül Gürsoy,
+Fatma Karagülle) — ikisi de huni kartında hâlâ "Randevulu", `convertedMemberId` boş. Gerçek dönüşüm **%3**.
+Aynı dönemde 51 yeni üye açılmış ama bunların yalnızca 2'si huni adayı: kalanlar reklamdan gelmemiş.
+
+**İki kusur:** formül `won/(won+lost)` idi (74 açık adayı saymıyordu) **ve** `won` hiç yazılmıyordu, çünkü
+"Üye Yap" düğmesi kullanılmıyor — kayıt Üyeler ekranından açılıyor.
+
+**Düzeltme:** `loadFunnelAction` adayların telefonlarını `members_by_phone` üzerinden TEK `getAll` ile soruyor
+(`memberIdByPhone`). Dönüşüm = (huni işareti VEYA telefon eşleşmesi) ÷ bütün adaylar. Kart, üye olmuşsa yeşil
+"Üye oldu — kaydı aç" rozetiyle görünmeye devam ediyor; başlıktaki "açık aday" sayısı onları saymıyor.
+**Telefon anahtarı:** `90` + son on hane — aday telefonu elle girildiği için `5…`, `05…`, `+90…` gelebiliyor;
+ham rakamı olduğu gibi kullanmak `05…` kayıtlarını kaçırırdı.
+
 ## 🚪 25 Eylül — kamera kazasının TERS yönü, PT'de üç kişi, ve iki gün boş çalışan koruyucu
 
 **1) Ters kapı artık saniyeler içinde okutulamıyor ([[OR-113]]).** Owner gözüyle gördü: üye çıktı, aynı anda girişi de
