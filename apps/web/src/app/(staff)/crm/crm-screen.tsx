@@ -206,6 +206,17 @@ export function CrmScreen({ initial }: { initial: Funnel }) {
             {lost.slice(0, 10).map((l) => (
               <li key={l.id} className="flex items-center justify-between gap-2 px-3 py-2.5 text-sm">
                 <span className="truncate font-medium text-foreground">{l.fullName}</span>
+                {/* KAYBEDİLDİ SANILAN ÜYE (owner, 2026-09-27): *"hangi aşamada olursa olsun sistemde
+                    kayıt olmuşsa üye oldu diye etiketle."* Kaybedildi işaretlenip sonra üye olan biri,
+                    listede kayıp görünmeye devam ederse hem rakam hem hafıza yanlış kalır. */}
+                {l.memberIdByPhone ? (
+                  <Link
+                    href={`/members/${l.memberIdByPhone}`}
+                    className="ml-auto shrink-0 rounded-md bg-success/10 px-2 py-0.5 text-xs font-medium text-success hover:bg-success/20"
+                  >
+                    ✓ Üye oldu
+                  </Link>
+                ) : null}
                 <span className="shrink-0 text-xs text-muted-foreground">
                   {l.lostReason ? (LOST_REASONS[l.lostReason] ?? l.lostReason) : '—'}
                 </span>

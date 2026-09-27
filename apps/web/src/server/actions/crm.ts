@@ -108,18 +108,24 @@ export interface SonGorusme {
 //
 // TEK OKUMA: adayların telefonları toplanır, tek `getAll` ile sorulur. Bir aday üye olmuşsa kartı
 // bunu söyler ve dönüşüm oranı onu sayar — kimse bir düğmeye basmasa bile.
+/**
+ * `members_by_phone` anahtarı `90` + on hanedir (AD-40, `normalizePhone`). Aday telefonu elle
+ * girildiği için `5…`, `05…`, `+90 5…` gibi gelebilir — son on haneyi alıp önüne `90` koymak üçünü
+ * de aynı anahtara indirir. Ham rakamları olduğu gibi kullanmak `05…` kayıtlarını kaçırırdı.
+ *
+ * TEK YERDE: eşleşmeyi kuran ile soranın aynı kuralı kullanması şart, yoksa harita dolu görünür ve
+ * sorgu hep boş döner — sessizce, kimse fark etmeden.
+ */
+const telefonAnahtari = (telefon: string): string => {
+  const rakam = telefon.replace(/\D/g, '')
+  return rakam.length >= 10 ? `90${rakam.slice(-10)}` : ''
+}
+
 const uyeOlanlar = async (
   studioId: string,
   leads: readonly Lead[],
 ): Promise<Map<string, string>> => {
-  // `members_by_phone` anahtarı `90` + on hanedir (AD-40, `normalizePhone`). Aday telefonu elle
-  // girildiği için `5…`, `05…`, `+90 5…` gibi gelebilir — son on haneyi alıp önüne `90` koymak
-  // üçünü de aynı anahtara indirir. Ham rakamları olduğu gibi kullanmak `05…` kayıtlarını kaçırırdı.
-  const anahtar = (telefon: string): string => {
-    const rakam = telefon.replace(/\D/g, '')
-    return rakam.length >= 10 ? `90${rakam.slice(-10)}` : ''
-  }
-  const tekil = [...new Set(leads.map((l) => anahtar(l.phone)).filter((k) => k.length >= 10))]
+  const tekil = [...new Set(leads.map((l) => telefonAnahtari(l.phone)).filter((k) => k.length >= 10))]
   if (tekil.length === 0) return new Map()
   const kok = adminDb().collection('studios').doc(studioId).collection('members_by_phone')
   const snaps = await adminDb().getAll(...tekil.map((k) => kok.doc(k)))
@@ -169,7 +175,10 @@ export async function listLeadsAction() {
   const r = repo()
   const [leads, kayitlar] = await Promise.all([r.listLeads(ctx), r.listRecentInteractions(ctx, SON_GORUSME_OKUMA)])
   const son = sonGorusmeler(kayitlar)
-  return leads.map((l) => leadRow(l, son.get(l.id) ?? null))
+  // Üye olmuş aday HER listede öyle görünür (owner, 2026-09-27): *"hangi aşamada olursa olsun
+  // sistemde kayıt olmuşsa her şekilde dönüşüme yaz ve üye oldu diye etiketle."*
+  const uyeler = await uyeOlanlar(ctx.studioId as string, leads)
+  return leads.map((l) => leadRow(l, son.get(l.id) ?? null, uyeler.get(telefonAnahtari(l.phone)) ?? null))
 }
 
 // ── REKLAM DÖNEMİ (owner, 2026-09-15) ────────────────────────────────────────────────────────
@@ -190,13 +199,9 @@ export async function loadFunnelAction() {
   const son = sonGorusmeler(kayitlar)
   // Telefonu üyeye denk gelen adaylar — huni kapanmamış olsa bile dönüşüm budur (owner, 2026-09-27).
   const uyeler = await uyeOlanlar(ctx.studioId as string, leads)
-  const anahtarla = (t: string) => {
-    const r = t.replace(/\D/g, '')
-    return r.length >= 10 ? `90${r.slice(-10)}` : ''
-  }
   return {
     period: period ? { label: period.label, startedAt: period.startedAt as number } : null,
-    leads: leads.map((l) => leadRow(l, son.get(l.id) ?? null, uyeler.get(anahtarla(l.phone)) ?? null)),
+    leads: leads.map((l) => leadRow(l, son.get(l.id) ?? null, uyeler.get(telefonAnahtari(l.phone)) ?? null)),
     // Dönemi başlatmak owner'ın kararı (owner, 2026-09-15); resepsiyon düğmeyi görmez.
     canStartPeriod: ctx.role === 'owner' || ctx.actor.type === 'platform_admin',
   }
@@ -212,7 +217,9 @@ export async function listOlderLeadsAction(input: unknown) {
     r.listRecentInteractions(ctx, SON_GORUSME_OKUMA),
   ])
   const son = sonGorusmeler(kayitlar)
-  return leads.map((l) => leadRow(l, son.get(l.id) ?? null))
+  // Eski dönemin adayı da üye olmuş olabilir — rozeti orada da taşısın (owner, 2026-09-27).
+  const uyeler = await uyeOlanlar(ctx.studioId as string, leads)
+  return leads.map((l) => leadRow(l, son.get(l.id) ?? null, uyeler.get(telefonAnahtari(l.phone)) ?? null))
 }
 
 export async function startAdPeriodAction(input: unknown) {

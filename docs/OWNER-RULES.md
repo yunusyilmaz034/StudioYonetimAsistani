@@ -2140,3 +2140,10 @@ düğmesinden değil. Kayıt doğru yapılıyor; kapanmayan şey aday.
 (`members_by_phone`, AD-40'ın zaten tuttuğu benzersizlik indeksi; huni başına tek `getAll`). Kimse bir düğmeye
 basmasa bile rakam doğruyu söyler. **Kart görünür kalır** ve üstünde "Üye oldu — kaydı aç" rozeti taşır: sayıyı
 düzeltmek yetmez, resepsiyon o kartı görmeden huniyi kapatamaz. Başlıktaki "açık aday" sayısı üye olanları saymaz.
+
+**GENİŞLETİLDİ (owner, aynı gün):** *"Hangi aşamada olursa olsun sistemde kayıt olmuşsa her şekilde bunu dönüşüme
+yaz ve üye oldu diye etiketle."* Eşleşme artık **üç listede birden** çalışıyor: dönemin açık adayları, **kaybedilenler**
+ve **eski dönem adayları**. Kaybedildi işaretlenip sonra üye olan biri listede kayıp görünmeye devam ederse hem rakam
+hem hafıza yanlış kalır — o satır da yeşil "Üye oldu" rozetini taşır. Telefon anahtarı (`90` + son on hane) tek bir
+yerde yaşıyor: eşleşmeyi KURAN ile SORAN aynı kuralı kullanmazsa harita dolu görünür, sorgu hep boş döner ve bunu
+kimse fark etmez.
