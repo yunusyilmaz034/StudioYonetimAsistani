@@ -243,7 +243,7 @@ olarak **listelenmiyor**; yani itiraz edilecek bir işaretleme bu.
 **27 Eylül 22:24'te destek talebi gönderildi** (Faturalama → General billing and payments → "Hatalar,
 sorunlar; ... Eylemler iş akışı sorunları"). Metin: hesap adı, ücretsiz plan/borç yok, herkese açık depo,
 100/100 koşunun logsuz ölümü, Türkiye'nin kısıtlı bölge olmadığı, ve kimlik/ikamet belgesi sunma teklifi.
-**Talep numarası owner'dan gelince buraya yazılacak.**
+**Talep no `#4799172`** — 27 Eylül 22:24, durum *Açık*, öncelik Normal, konu *"Account flagged under trade controls — Türkiye is not a restricted region"*. Takip: help.github.com/support/tickets
 
 **Bu beklerken tutan şey:** yedekler alındı (ana depo 13 MB, on beş deponun tamamı 65 MB — ikisi zaten boş)
 ve bu makinenin dışına çıkarılması owner'da. Deploy tarafı GitHub'a **bağlı**: App Hosting build'i depodan
