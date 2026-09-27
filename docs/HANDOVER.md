@@ -234,6 +234,11 @@ girdisiyle karar veriyor; application katmanı ters yöndeki son geçişi ayrıc
 (`directionAsserted`). **Testte tuzak:** `direction` vermek tek başına "insan beyan etti" sayılıyor — turnike akışını
 sınayan test `directionAsserted: false` vermeli, yoksa koruma atlanır ve test yanlış yere yeşil yanar.
 
+**SAHADA DOĞRULANDI (27 Eylül):** kural 25 Eylül 13:00'da indi; **25.09 13:22 – 26.09 16:40 arası 96 geçişte
+kısa ters geçiş SIFIR.** Öncesinde iki gün içinde iki tane vardı (11 sn ve 4 sn). Telefon tarafındaki kamera
+düzeltmesiyle ([[OR-112]]) birlikte, bu sınıf hata şimdilik kapandı — tekrar görülürse ilk bakılacak yer
+`OPPOSITE_DEBOUNCE_MS` değil, güncellemeyi almamış bir telefon olur.
+
 **2) PT/düet seansı üç kişiyle açılabiliyor ([[OR-114]]).** Ekrandaki kapasite alanı serbestti ama domain reddediyordu:
 Düet Salonu 2, PT Salonu 1 kişilik. Oda kapasitesi kontrolü **üç yerden** kalktı (`decideScheduleSession`,
 `decideChangeRoom`, ve dün `decideChangeCapacity`). Kalan retler: başka şubenin odası, kapalı salon. **I-23 ve AD-48
@@ -241,8 +246,9 @@ gevşetildi** — gerekçeleri `11-scheduling-foundation.md` ve `architecture/RE
 `session_capacity_exceeds_room` artık hiç üretilmediği için union'dan ve Türkçe mesaj tablosundan silindi.
 
 **3) minInstances koruyucusu 24–25 Eylül arası hiçbir şey yapmadı.** Ayrıntısı OR-108 bölümünde: her tur 409 ile
-reddedilmiş, sebep `template.revision`'ın geri gönderilmesiydi. Düzeltildi ve yayınlandı; **ilk GERÇEK onarımı
-(App Hosting rollout'unun bıraktığı adla) hâlâ görülmedi** — izleniyor. Görülene kadar "çalışıyor" denmemeli.
+reddedilmiş, sebep `template.revision`'ın geri gönderilmesiydi. Düzeltildi, yayınlandı ve **KANITLANDI**: 25 Eylül 13:04'te
+App Hosting rollout'u katı sıfırladı, **13:11'de koruyucu kendi kendine geri koydu** — gerçek koşulda, elle
+müdahale olmadan, 7 dakikada. Aranan kanıt buydu.
 
 **4) Turnike uyku düzeltmesi yüklendi ve ölçüldü.** Kart 12:45'te USB ile programlandı (tek kart, iki kapı).
 Sonuç: istek aralığı p90 **0,91 → 0,79 sn**, saniyelerce süren sessizlikler **1 taneye** indi (önce her sorun anında
