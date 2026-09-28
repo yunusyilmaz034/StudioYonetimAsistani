@@ -78,7 +78,15 @@ module.exports = () => ({
     // ana sayfa yüklenirken çöküyordu — owner'ın tarifi birebir buydu.
     //
     // Bu sürümün tek işi o satırı erken çıkışın ÜSTÜNE almak. Başka hiçbir şey değişmedi.
-    version: '1.7.4',
+    //
+    // 1.8.0 (2026-09-28) — DÖNGÜ MODU (Faz 3.2). Yeni bir ekran geldiği için yama değil MINOR.
+    //
+    // Numaranın ayrılmasının ikinci ve asıl sebebi şu: 1.7.4 hâlâ App Store Connect'te owner'ın
+    // incelemeye sunmasını bekliyor. Aynı numarayla ikinci bir build yüklemek o kuyruğu bulandırır,
+    // ve `runtimeVersion: appVersion` olduğu için 1.7.4'e çıkılacak bir OTA düzeltmesi bu test
+    // build'ine de inerdi. Ayrı numara = ayrı OTA kanalı: TestFlight'taki deneme, üyelerin
+    // sürümünden ve onun güncellemelerinden yalıtık kalır.
+    version: '1.8.0',
     // ── OTA GÜNCELLEME (owner onayı, 2026-09-11) ──────────────────────────────────────────────
     //
     // Bugüne kadar bir KELİME düzeltmesi bile mağaza turu istiyordu: build, inceleme, yayılma, ve
