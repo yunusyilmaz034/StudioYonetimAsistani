@@ -41,8 +41,7 @@ export interface MarkAttendanceCommandInput {
 // it locally); it does NOT wait for the trigger to apply it. The caller observes the
 // outcome by reading the reservation, not this promise.
 export async function markAttendanceCommand(input: MarkAttendanceCommandInput): Promise<void> {
-  const user = clientAuth().currentUser
-  if (!user) throw new Error('Not authenticated')
+  const user = await signedInUser()
 
   const { studioId, role, platformAdmin } = (await user.getIdTokenResult()).claims as {
     studioId?: string
@@ -75,8 +74,7 @@ export async function checkInCommand(input: {
   /** Reception's labelled buttons say which; a QR scan leaves it out and keeps the toggle. */
   direction?: 'in' | 'out'
 }): Promise<void> {
-  const user = clientAuth().currentUser
-  if (!user) throw new Error('Not authenticated')
+  const user = await signedInUser()
 
   const { studioId, role, branchIds, platformAdmin } = (await user.getIdTokenResult()).claims as {
     studioId?: string
@@ -105,6 +103,31 @@ export async function checkInCommand(input: {
     occurredAt: Timestamp.fromMillis(Date.now()),
     createdAt: serverTimestamp(),
   })
+}
+
+// THE SIGNED-IN USER, AFTER THE SDK HAS FINISHED LOOKING FOR ONE.
+//
+// ── What happened (2026-09-28, reception could not check anyone out) ─────────────────────────
+//
+// Both commands used to read `clientAuth().currentUser` the instant they were called, and threw
+// "Not authenticated" when it was null — which reception read as *"Oturumunuz düşmüş. Sayfayı
+// yenileyip tekrar giriş yapın."* Her session had not dropped at all. `currentUser` is null for the
+// first few hundred milliseconds of EVERY page load, while the SDK restores the session from
+// IndexedDB; it is a race, not a logout. Press "Çıkış" inside that window and the write is refused;
+// press it again a second later and it works. That is exactly the shape of the complaint — "birkaç
+// defa yapınca düzeliyor" — and it was reported for two different members on the same morning.
+//
+// The window opens more often than it sounds: the panel reloads itself after every deployment
+// (`version-watch`) and after a stale-tab failure, and reception starts pressing immediately.
+//
+// `authStateReady()` resolves once restoration has finished, so a null user after it means the
+// session really is gone — and only then is the message true.
+async function signedInUser() {
+  const auth = clientAuth()
+  await auth.authStateReady()
+  const user = auth.currentUser
+  if (!user) throw new Error('Not authenticated')
+  return user
 }
 
 // The marking principal — never `system` (non-negotiable #5). Mirrors the server's

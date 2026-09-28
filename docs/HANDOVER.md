@@ -225,6 +225,28 @@ Cihaz o geçişi **5,7 saniye** gecikmeyle gördü.
 üçü 2 sn'yi, ikisi 5 sn'yi aştı (en kötü 11,1 sn). Gecikme büyüdükçe "okuttum, kol geç döndü / dönmedi" şikâyeti
 artar — kablo düzelse bile bu ayrı bir eksen ve ölçülmeye devam etmeli.
 
+## 🔑 28 Eylül — "oturum düştü" diyen şey oturum değildi, YARIŞTI
+
+Owner: *"Çıkış yaptırmak istediğimizde hep oturum düştü diye uyarı veriyor, birkaç defa yapınca
+düzeliyor; sabah da Gülnur'a aynısını yaptık."* Oturumun düşmediği ilk bakışta belli: **düşseydi
+tekrar denemek işe yaramazdı**, yeniden giriş gerekirdi.
+
+**Gerçek sebep.** `checkInCommand` çağrıldığı anda `clientAuth().currentUser`'ı okuyup null ise
+`Not authenticated` fırlatıyordu, ve ekran bunu *"Oturumunuz düşmüş. Sayfayı yenileyip tekrar giriş
+yapın."* diye gösteriyordu. Ama `currentUser`, **her sayfa yüklenişinin ilk birkaç yüz milisaniyesinde
+null'dır** — SDK oturumu IndexedDB'den geri yüklerken. Bu bir çıkış değil, bir yarış. O pencerede
+"Çıkış"a basarsan ret, bir saniye sonra basarsan kabul. Şikâyetin şekli birebir bu.
+
+**Pencere sandığından sık açılıyor:** panel her deploy'dan sonra kendini yeniliyor (`version-watch`),
+eski sekme hatasında da yeniliyor — ve resepsiyon yenilenmeyi beklemeden basıyor.
+
+**Düzeltme:** `auth.authStateReady()` bekleniyor, sonra `currentUser` okunuyor (`signedInUser()`).
+Bundan sonra null gelirse oturum gerçekten yoktur — yani mesaj ancak o zaman doğru söyler. Aynı
+düzeltme yoklama komutunu da kapsıyor; o ekranda da aynı yarış vardı, sadece kimse denk gelmemişti.
+
+**Ders:** bir hata mesajı arızayı ADLANDIRIYORSA, adının doğruluğu da test edilmelidir. "Oturum düştü"
+üç haftadır yanlış yere baktırıyordu; resepsiyon her seferinde yeniden giriş yapmayı denedi.
+
 ## 🔒 27 Eylül — GitHub'ı kesen şey fatura değil, TİCARET KONTROLÜ
 
 4 Eylül'den beri Actions hiç çalışmıyordu ve üç haftadır "fatura sorunu" sanılıyordu. Değilmiş.
