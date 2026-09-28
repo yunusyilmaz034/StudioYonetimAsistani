@@ -85,6 +85,7 @@ export default function RootLayout() {
             <Stack.Screen name="program/[id]" options={{ headerShown: true, title: 'Program' }} />
             <Stack.Screen name="profile-edit" options={{ headerShown: true, title: 'Bilgilerimi Düzenle', presentation: 'modal' }} />
             <Stack.Screen name="contact" options={{ headerShown: true, title: 'İletişim' }} />
+            <Stack.Screen name="cycle" options={{ headerShown: true, title: 'Döngü Modu' }} />
             <Stack.Screen name="banner" options={{ headerShown: true, title: '' }} />
           </Stack>
         </AuthProvider>

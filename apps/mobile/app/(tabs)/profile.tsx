@@ -194,6 +194,9 @@ export default function Ben() {
             <LinkRow icon="mail-outline" label="Mesajlarım" onPress={() => router.push('/messages')} />
             <LinkRow icon="time-outline" label="Rezervasyonlarım" onPress={() => router.push('/reservations')} />
             <LinkRow icon="wallet-outline" label="Cüzdanım" onPress={() => router.push('/wallet')} />
+            {/* Döngü modu (Faz 3.2). Reached from here rather than from a tab: it is hers, it is
+                optional, and a woman who does not want it should not have it on her tab bar. */}
+            <LinkRow icon="flower-outline" label="Döngü modu" onPress={() => router.push('/cycle')} />
             <LinkRow icon="call-outline" label="İletişim" onPress={() => router.push('/contact')} last />
           </PremiumCard>
         </View>

@@ -554,3 +554,233 @@ export function weeklyVisitCounts(visitInstants: readonly number[], nowMs: numbe
   }
   return buckets.some((n) => n > 0) ? buckets : null
 }
+
+// ── DÖNGÜ MODU (Faz 3.2) ─────────────────────────────────────────────────────────────────────
+//
+// THIS IS NOT A WIRE CONTRACT. Nothing below ever crosses the network, and that is the feature.
+//
+// The roadmap's binding rule for the women's-health module is: *"Üyenin bedenine ait veri
+// telefonunda kalır."* Cycle data is special-category health data under KVKK, and the cheapest way
+// to be safe with it is to never hold it: it lives in the phone's own storage, the studio cannot
+// read it, it is not in any backup of ours, and if the database leaked tomorrow it would not be in
+// it. The app fetches Işıl's class programme from the server and merges the two ON THE PHONE.
+//
+// It lives in `client.ts` anyway because this is the only module the standalone Expo app can import
+// (`@studio/core/client`, a Metro alias) — and putting it here is what lets `pnpm check` test it.
+// Logic that decides what a woman is told about her own body does not belong in an untested file.
+//
+// WHAT IT DOES NOT DO: prescribe. "Train hard in the follicular phase, go easy in the luteal phase"
+// has weak and contested evidence, so the app never says it. It shows her HER OWN pattern —
+// collected from the one-tap "how did that class feel" she gives after a session — and lets her
+// draw the conclusion. That claim cannot be wrong, because it is her own data.
+
+export type CyclePhase = 'menstrual' | 'follicular' | 'ovulatory' | 'luteal'
+/** One tap after a class. Deliberately three coarse buckets: a 1–10 scale is not answered honestly. */
+export type SessionFeel = 'hard' | 'normal' | 'good'
+export type CycleConfidence = 'none' | 'low' | 'good'
+
+export const CYCLE_DEFAULT_LENGTH = 28
+/** Outside this band a gap is not a cycle: it is a double entry, a skipped month, or a typo. */
+export const CYCLE_MIN_LENGTH = 21
+export const CYCLE_MAX_LENGTH = 45
+/** How many days the bleed is assumed to last when she has not said otherwise. */
+export const CYCLE_PERIOD_DAYS = 5
+/** Past this, the last entry is history rather than a current cycle — the app asks instead of guessing. */
+export const CYCLE_STALE_DAYS = 60
+
+export interface CycleReading {
+  /** 1 on the first day of bleeding. */
+  readonly dayOfCycle: number
+  readonly phase: CyclePhase
+  readonly averageLength: number
+  /** LocalDate, or null when there is not enough history to predict anything. */
+  readonly nextExpectedStart: string | null
+  readonly daysUntilNext: number | null
+  readonly confidence: CycleConfidence
+}
+
+const DAY_MS = 86_400_000
+
+/** LocalDate → whole days since the epoch, or null if it is not a date. */
+function dayNumber(localDate: string): number | null {
+  const ms = Date.parse(`${localDate}T00:00:00Z`)
+  return Number.isNaN(ms) ? null : Math.round(ms / DAY_MS)
+}
+
+function localDate(dayNo: number): string {
+  return new Date(dayNo * DAY_MS).toISOString().slice(0, 10)
+}
+
+/** Valid, de-duplicated, oldest first. Input order is not trusted: she may log a forgotten month. */
+function cleanStarts(periodStarts: readonly string[]): readonly number[] {
+  const seen = new Set<number>()
+  for (const s of periodStarts) {
+    const n = dayNumber(s)
+    if (n !== null) seen.add(n)
+  }
+  return [...seen].sort((a, b) => a - b)
+}
+
+/**
+ * The gaps between her logged starts that are actually cycles.
+ *
+ * Two kinds of noise are filtered, and they need different treatment:
+ *
+ *  • **A second tap a few days later** ("did I log it?") is not the start of a cycle at all, so it is
+ *    skipped WITHOUT becoming the new anchor. Letting it anchor would split one 28-day gap into 3 and
+ *    25 — and 25 is plausible enough to be believed, which is how a clean cycle becomes a wrong one.
+ *  • **A gap far too long** is a month she did not log. The gap is not counted, but the later entry
+ *    IS a real start, so it becomes the anchor for what follows.
+ */
+function usableGaps(starts: readonly number[]): readonly number[] {
+  const gaps: number[] = []
+  let anchor = starts[0]
+  if (anchor === undefined) return gaps
+  for (let i = 1; i < starts.length; i += 1) {
+    const gap = (starts[i] as number) - anchor
+    if (gap < CYCLE_MIN_LENGTH) continue // a re-log of the same period; the anchor stands
+    if (gap <= CYCLE_MAX_LENGTH) gaps.push(gap)
+    anchor = starts[i] as number
+  }
+  return gaps
+}
+
+/**
+ * Her average cycle length from the gaps between logged starts, ignoring implausible ones.
+ *
+ * Null when no gap is usable — the caller then falls back to {@link CYCLE_DEFAULT_LENGTH} and says
+ * so through `confidence`, rather than presenting twenty-eight as something she was measured to have.
+ */
+export function averageCycleLength(periodStarts: readonly string[]): number | null {
+  const gaps = usableGaps(cleanStarts(periodStarts))
+  if (gaps.length === 0) return null
+  return Math.round(gaps.reduce((a, b) => a + b, 0) / gaps.length)
+}
+
+function phaseOf(dayOfCycle: number, averageLength: number): CyclePhase {
+  if (dayOfCycle <= CYCLE_PERIOD_DAYS) return 'menstrual'
+  // Ovulation is timed from the END of the cycle, not the start: the luteal phase is the stable
+  // fourteen-ish days, and it is the follicular phase that stretches when a cycle runs long.
+  const ovulation = averageLength - 14
+  if (dayOfCycle >= ovulation - 2 && dayOfCycle <= ovulation + 1) return 'ovulatory'
+  return dayOfCycle < ovulation ? 'follicular' : 'luteal'
+}
+
+/**
+ * Where she is today, or null when there is nothing honest to say — no entry at all, only entries in
+ * the future, or a last entry so old that it describes a different season of her life.
+ */
+export function cycleReading(periodStarts: readonly string[], today: string): CycleReading | null {
+  const starts = cleanStarts(periodStarts)
+  const now = dayNumber(today)
+  if (now === null) return null
+
+  const past = starts.filter((d) => d <= now)
+  const last = past[past.length - 1]
+  if (last === undefined) return null
+
+  const dayOfCycle = now - last + 1
+  if (dayOfCycle > CYCLE_STALE_DAYS) return null
+
+  const measured = averageCycleLength(periodStarts)
+  const averageLength = measured ?? CYCLE_DEFAULT_LENGTH
+
+  // Two readings can agree by luck; three that agree are a pattern. And a woman whose cycles swing
+  // by more than four days is not served by a confident prediction — she is served by being told
+  // the prediction is loose, which is what `low` renders as.
+  const gaps = usableGaps(starts)
+  const spread = gaps.length > 0 ? Math.max(...gaps) - Math.min(...gaps) : Infinity
+  const confidence: CycleConfidence = measured === null ? 'none' : gaps.length >= 2 && spread <= 4 ? 'good' : 'low'
+
+  const nextStartDay = confidence === 'none' ? null : last + averageLength
+  return {
+    dayOfCycle,
+    phase: phaseOf(dayOfCycle, averageLength),
+    averageLength,
+    nextExpectedStart: nextStartDay === null ? null : localDate(nextStartDay),
+    daysUntilNext: nextStartDay === null ? null : nextStartDay - now,
+    confidence,
+  }
+}
+
+/** One class, as she rated it. `date` is the day of the class (LocalDate). */
+export interface FeelEntry {
+  readonly date: string
+  readonly feel: SessionFeel
+}
+
+export interface FeelPattern {
+  readonly phase: CyclePhase
+  /** 0…1 — how often classes in that phase were marked hard. */
+  readonly hardRate: number
+  /** How many rated classes fell in that phase. Shown, so she can judge the claim herself. */
+  readonly samples: number
+  /** Whether she is in that phase right now — the only case where the app volunteers the pattern. */
+  readonly isNow: boolean
+}
+
+/** Below these, a "pattern" is noise wearing a sentence. */
+export const FEEL_MIN_TOTAL = 6
+export const FEEL_MIN_PHASE_SAMPLES = 3
+const FEEL_MIN_RATE = 0.5
+const FEEL_MIN_EDGE = 0.25
+
+/**
+ * The one thing the app is allowed to claim: *"in the last months you marked classes hard mostly in
+ * this part of your cycle."*
+ *
+ * Null unless the claim survives four checks — enough ratings overall, enough in the phase itself,
+ * a majority of them hard, and clearly harder than the rest of her cycle. Silence is the default
+ * because a woman told a confident falsehood about her own body deletes the app, and she is right to.
+ */
+export function feelPattern(
+  periodStarts: readonly string[],
+  feels: readonly FeelEntry[],
+  today: string,
+): FeelPattern | null {
+  const starts = cleanStarts(periodStarts)
+  if (starts.length === 0) return null
+  const averageLength = averageCycleLength(periodStarts) ?? CYCLE_DEFAULT_LENGTH
+
+  const tally = new Map<CyclePhase, { hard: number; total: number }>()
+  let total = 0
+  for (const entry of feels) {
+    const day = dayNumber(entry.date)
+    if (day === null) continue
+    // The cycle a class belongs to is the one that had already started when she took it.
+    let start: number | undefined
+    for (const s of starts) if (s <= day) start = s
+    if (start === undefined) continue
+    const dayOfCycle = day - start + 1
+    if (dayOfCycle > CYCLE_STALE_DAYS) continue // a class logged in a gap she never filled in
+    const phase = phaseOf(dayOfCycle, averageLength)
+    const cell = tally.get(phase) ?? { hard: 0, total: 0 }
+    cell.total += 1
+    if (entry.feel === 'hard') cell.hard += 1
+    tally.set(phase, cell)
+    total += 1
+  }
+  if (total < FEEL_MIN_TOTAL) return null
+
+  let best: { phase: CyclePhase; rate: number; samples: number } | null = null
+  for (const [phase, cell] of tally) {
+    if (cell.total < FEEL_MIN_PHASE_SAMPLES) continue
+    const rate = cell.hard / cell.total
+    if (best === null || rate > best.rate) best = { phase, rate, samples: cell.total }
+  }
+  if (best === null || best.rate < FEEL_MIN_RATE) return null
+
+  let restHard = 0
+  let restTotal = 0
+  for (const [phase, cell] of tally) {
+    if (phase === best.phase) continue
+    restHard += cell.hard
+    restTotal += cell.total
+  }
+  // With nothing to compare against, "you find these hard" is a fact about her, not about her cycle.
+  if (restTotal === 0) return null
+  if (best.rate - restHard / restTotal < FEEL_MIN_EDGE) return null
+
+  const now = cycleReading(periodStarts, today)
+  return { phase: best.phase, hardRate: best.rate, samples: best.samples, isNow: now?.phase === best.phase }
+}

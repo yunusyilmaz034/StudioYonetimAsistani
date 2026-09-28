@@ -4,11 +4,12 @@ import { router } from 'expo-router'
 import Animated, { useAnimatedStyle, useSharedValue, withDelay, withTiming, Easing } from 'react-native-reanimated'
 import { useEffect, useMemo, useState } from 'react'
 
-import { compareMeasurements } from '@studio/core/client'
+import { compareMeasurements, cycleReading } from '@studio/core/client'
 import type { HomeBanner } from '@/lib/api'
 import { api } from '@/lib/api'
 import { dateTime, formatKurus, shortDate } from '@/lib/format'
 import { motivationLine } from '@/lib/motivation'
+import { PHASE_LABEL, loadCycle, today as cycleToday, type CycleStore } from '@/lib/cycle'
 import { useFetch } from '@/lib/useFetch'
 import { FadeInUp, PressableScale, ProgressBar } from '@/components/motion'
 import { Body, Card, Empty, Eyebrow, Figure, GradientFill, Pill, Screen, ScreenSkeleton, TopStrip } from '@/components/ui'
@@ -90,6 +91,14 @@ export default function Home() {
   // Bu dosya kuralı zaten biliyordu — yukarıda `workout` için "`useFetch` her zaman çalışır, bir
   // hook…" diye yazıyor. Kural yazılıydı, uygulanmadı: yeni bir hook her zaman BURANIN ÜSTÜNE.
   const [cafeBusy, setCafeBusy] = useState(false)
+  // Döngü modu (Faz 3.2) — read from the phone, never fetched. `null` until the read returns, which
+  // is why the block below renders nothing rather than a placeholder: a member who never enabled it
+  // must not see it flash.
+  const [cycle, setCycle] = useState<CycleStore | null>(null)
+  useEffect(() => {
+    void loadCycle().then(setCycle)
+  }, [])
+  const cycleNow = cycle?.consent ? cycleReading(cycle.starts, cycleToday()) : null
 
   if (dash.loading && !dash.data) return <ScreenSkeleton />
   const d = dash.data
@@ -358,6 +367,26 @@ export default function Home() {
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: space(3) }}>
                 <Ionicons name="barbell-outline" size={19} color={p.primary} />
                 <Txt role="h3" style={{ flex: 1 }}>{workoutLine}</Txt>
+                <Ionicons name="chevron-forward" size={16} color={p.textMuted} />
+              </View>
+            </PremiumCard>
+          </View>
+        </FadeInUp>
+      ) : null}
+
+      {/* DÖNGÜ — only for a member who turned it on, and only ever as a door (Faz 3.2). The figure
+          itself is read from the phone's own storage; nothing about it is fetched, and nothing about
+          it is sent. A member who has not enabled it sees no trace that the feature exists. */}
+      {cycle?.consent ? (
+        <FadeInUp index={4}>
+          <View>
+            <SectionHeader>Döngün</SectionHeader>
+            <PremiumCard onPress={() => router.push('/cycle')}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space(3) }}>
+                <Ionicons name="flower-outline" size={19} color={p.primary} />
+                <Txt role="h3" style={{ flex: 1 }}>
+                  {cycleNow ? `${cycleNow.dayOfCycle}. gün · ${PHASE_LABEL[cycleNow.phase]}` : 'Reglin başladığı günü işaretle'}
+                </Txt>
                 <Ionicons name="chevron-forward" size={16} color={p.textMuted} />
               </View>
             </PremiumCard>

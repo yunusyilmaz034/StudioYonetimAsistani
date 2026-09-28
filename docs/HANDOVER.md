@@ -225,6 +225,30 @@ Cihaz o geçişi **5,7 saniye** gecikmeyle gördü.
 üçü 2 sn'yi, ikisi 5 sn'yi aştı (en kötü 11,1 sn). Gecikme büyüdükçe "okuttum, kol geç döndü / dönmedi" şikâyeti
 artar — kablo düzelse bile bu ayrı bir eksen ve ölçülmeye devam etmeli.
 
+## 🩸 28 Eylül — Döngü modu, `feat/cycle-mode` dalında (main'e KARIŞMADI)
+
+Owner: *"kadınlara özel bir uygulama haline getirme fikrimiz vardı... anket yok, bunu faz 2'de
+yapalım, feature branch'te başla bitir, main'e bulaştırma şu anda."*
+
+Fikir yeni değildi: **ROADMAP Faz 3.2 zaten owner onaylı** (2026-08-23) ve kesişen mimari kuralını
+da kendisi taşıyordu — *"üyenin bedenine ait veri telefonunda kalır."* Kodu yazmadan önce roadmap
+okundu; yoksa sunucu tarafında saklamaya gidiyordum, ve bu kuralı çiğneyecekti.
+
+**Ne yapıldı:** ayrıntısı ROADMAP 3.2 bölümünde. Özet: saf mantık + 19 test `client.ts`'te,
+depolama telefonda (AsyncStorage), ekran `apps/mobile/app/cycle.tsx`, giriş "Ben" sekmesinden.
+
+**Sunucuda hiçbir şey değişmedi** — API yok, Firestore yok, kural yok, panel yok. Bu bir eksiklik
+değil, özelliğin kendisi: stüdyo göremediği için kadın yazıyor. Görebildiğini düşündüğü an özellik
+boş bir ekrana döner.
+
+**Bunun bedeli, bilerek kabul edildi:** owner "kaç üye açtı" sayısını göremeyecek. Telemetri
+koymadık, çünkü panel sayabiliyorsa panelden listelenmesi de istenebilir. Ölçmek gerekirse yolu
+ayrı ve sağlık verisi olmayan bir yol olmalı (öneriden gelen rezervasyonun kaynağını etiketlemek).
+
+**Dal main'e girmedi.** `pnpm check` yeşil (121 dosya / 1471 test), `apps/mobile` typecheck temiz.
+Mobil tarafın canlıya inmesi ayrıca EAS build/OTA ister — yani bu dal birleşse bile üyeye bugün
+inmez.
+
 ## 🔑 28 Eylül — "oturum düştü" diyen şey oturum değildi, YARIŞTI
 
 Owner: *"Çıkış yaptırmak istediğimizde hep oturum düştü diye uyarı veriyor, birkaç defa yapınca

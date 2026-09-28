@@ -152,6 +152,30 @@ söylüyor" hissinin doğru versiyonu.
 Uygulama Işıl'ın programını sunucudan alır, döngü bilgisini telefonda tutar, **ikisini telefonda
 birleştirir.** Sunucu kimin ne zaman regl olduğunu hiç bilmez.
 
+**Yapıldı — 28 Eylül 2026, `feat/cycle-mode` dalında (main'e karışmadı).**
+Owner: *"anket yok, bunu faz 2'de yapalım, feature branch'te başla bitir."*
+
+- **Saf mantık `packages/core/src/client.ts` içinde** (`cycleReading`, `averageCycleLength`,
+  `feelPattern`) + 19 testi. Oraya konmasının sebebi: telefon yalnızca `@studio/core/client`'ı
+  import edebiliyor, ve orası `pnpm check`'in gördüğü tek ortak yüzey. Bir kadına kendi bedeni
+  hakkında ne söyleneceğine karar veren mantık test edilmeyen bir dosyada duramaz.
+- **Veri telefondan hiç çıkmıyor** (`apps/mobile/src/lib/cycle.ts`, AsyncStorage). Sunucuda,
+  panelde, güvenlik kurallarında, API'de **tek satır değişmedi** — fazın kesişen kuralı buydu.
+  Kaç üyenin açtığını sayan bir telemetri bile yok: panel sayabiliyorsa, panelden listelenmesi de
+  istenebilir.
+- **Ekran:** `apps/mobile/app/cycle.tsx`. Ayrı açık rıza kapısı (KVKK özel nitelikli veri; üyeliğin
+  şartı değil) → bugünkü gün + faz + tahmin → "bugün başladı" → **kendi örüntüsü** → son 7 günün
+  dersleri için tek dokunuşluk "nasıldı" → kayıt listesi → "kapat ve sil".
+- **Reçete yok, örüntü var.** Uygulamanın yaptığı TEK iddia onun kendi işaretlemelerinden çıkıyor
+  ve dört eşiği birden geçmeden susuyor: en az 6 değerlendirme, o fazda en az 3, %50'den fazlası
+  "zor", ve döngünün geri kalanından en az 25 puan yüksek. Kaç ders üzerinden konuştuğu ekranda
+  yazıyor — kendi bedeni hakkındaki bir iddiayı kendisi denetleyebilmeli.
+- **Tuzak, testle yakalandı:** "geçen ay kaydettim mi?" diye ikinci kez basılan bir kayıt, 28
+  günlük bir aralığı 3 + 25'e bölüyordu; 25 makul göründüğü için de sessizce inanılıyordu. Artık
+  21 günden yakın kayıt çapa olmuyor.
+- **Kalan (bilerek):** eğitmene giden isteğe bağlı "bugün hafif tutalım" etiketi · menopoz kolu ·
+  şifreli yedek (telefon değişirse kayıtlar gider, ekran bunu kendisi söylüyor).
+
 ### 3.3 · 📏 Ölçüm zaman tüneli
 
 Stüdyo **zaten her ay** yağ-kas ölçüyor ve bu hiçbir yerde gösterilmiyor. Yeni veri toplamıyoruz,
