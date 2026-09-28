@@ -52,6 +52,11 @@ export interface AdvisorItem {
   // altında görünür ve borç kapanana kadar durur. `dueAt` geçmemişse satır listeye hiç girmez:
   // "22'sinde ödeyecek" diyen birini 19'unda tekrar aramak tahsilat değil, taciz.
   readonly followUp?: { readonly note: string; readonly byName: string; readonly dueAt: number | null; readonly kind: string }
+  // GEÇEN SEFER NE KONUŞULDU (owner, 2026-09-28) — soğuması bittiği için listeye DÖNEN bir satırın
+  // yanında, kapatılırken yazılmış son not. Tik notu bugünün ekranında zaten görünüyordu ama yalnızca
+  // o gün; üç gün sonra satır geri geldiğinde masa aynı konuşmaya sıfırdan başlıyordu. `followUp`'tan
+  // farkı: o kalıcı bir SÖZ ("22'sinde ödeyecek"), bu ise geçmiş bir TEMASIN kaydı.
+  readonly lastNote?: { readonly text: string; readonly byName: string; readonly at: number }
 }
 
 function present(

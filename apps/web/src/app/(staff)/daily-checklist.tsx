@@ -32,6 +32,8 @@ interface Row {
   groupNote?: string
   /** Takip notu (owner, 2026-09-18): "22'sinde ödeyecek", "iptal edecek". Borç kapanana kadar durur. */
   followUp?: { note: string; byName: string; dueAt: number | null; kind: string }
+  /** Soğumasını doldurup geri dönen satırın hafızası: en son kapatılırken yazılan not (2026-09-28). */
+  lastNote?: { text: string; byName: string; at: number }
 }
 
 const ring = (s: InsightSeverity) =>
@@ -75,6 +77,7 @@ export function DailyChecklist({ items, snoozedCount = 0 }: { items: readonly Ad
       href: it.href,
       ...(it.groupNote ? { groupNote: it.groupNote } : {}),
       ...(it.followUp ? { followUp: it.followUp } : {}),
+      ...(it.lastNote ? { lastNote: it.lastNote } : {}),
     })),
   )
   // itemId → who closed it. Server-held (owner, 2026-08-05): the desk ticks and everyone sees it,
@@ -119,13 +122,19 @@ export function DailyChecklist({ items, snoozedCount = 0 }: { items: readonly Ad
         // and append any new items (deterministically phrased) so the list is never stale within a slot.
         const currentIds = new Set(items.map((i) => i.id))
         const kindOf = new Map(items.map((i) => [i.id, i.kind]))
+        // The AI rephrases the row but knows nothing about what was said on the phone last week —
+        // that note is ours, so it is re-attached by id rather than travelling through the model.
+        const lastNoteOf = new Map(items.flatMap((i) => (i.lastNote ? [[i.id, i.lastNote] as const] : [])))
         const aiRows = res.items
           .filter((it) => currentIds.has(it.id))
-          .map((it) => ({ id: it.id, kind: kindOf.get(it.id) ?? 'info', headline: it.headline, note: it.note, severity: it.severity, href: it.href }))
+          .map((it) => {
+            const ln = lastNoteOf.get(it.id)
+            return { id: it.id, kind: kindOf.get(it.id) ?? 'info', headline: it.headline, note: it.note, severity: it.severity, href: it.href, ...(ln ? { lastNote: ln } : {}) }
+          })
         const aiIds = new Set(res.items.map((it) => it.id))
         const newRows = items
           .filter((it) => !aiIds.has(it.id))
-          .map((it) => ({ id: it.id, kind: it.kind, headline: it.title, note: it.detail, severity: it.severity, href: it.href }))
+          .map((it) => ({ id: it.id, kind: it.kind, headline: it.title, note: it.detail, severity: it.severity, href: it.href, ...(it.lastNote ? { lastNote: it.lastNote } : {}) }))
         setRows([...aiRows, ...newRows])
       })
       .catch(() => {})
@@ -299,7 +308,8 @@ export function DailyChecklist({ items, snoozedCount = 0 }: { items: readonly Ad
           (owner, 2026-09-03) */}
       {snoozedCount > 0 ? (
         <p className="mt-2 text-xs text-muted-foreground">
-          {snoozedCount} iş bu hafta arandığı için listede değil — hâlâ gerekiyorsa bir hafta sonra geri gelir.
+          {snoozedCount} iş yakın zamanda kapatıldığı için listede değil — hâlâ gerekiyorsa birkaç gün içinde
+          geri gelir, o günkü notuyla birlikte.
         </p>
       ) : null}
 
@@ -375,6 +385,15 @@ function TaskRow({ r, onCheck, nested, doneBy = null, note = null }: { r: Row; o
           {/* Who closed it — the point of moving these off one machine (owner, 2026-08-05). */}
           {done && doneBy ? <span className="ml-1 text-xs text-success">· {doneBy}</span> : null}
           {note ? <span className="ml-1 text-xs text-primary">· {note}</span> : null}
+          {/* GEÇEN SEFER NE KONUŞULDU (owner, 2026-09-28). Bugünün tik notu yukarıdaki pembe satır;
+              bu ise ÖNCEKİ kapanışın notu, satır soğumasını doldurup geri döndüğünde. İkisi aynı anda
+              görünmez — bugün tiklenen bir satır zaten dün kapatılmış olamaz. */}
+          {!done && r.lastNote ? (
+            <span className="mt-0.5 block text-xs text-muted-foreground">
+              ↩ {new Date(r.lastNote.at).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' })}: {r.lastNote.text}
+              {r.lastNote.byName ? ` · ${r.lastNote.byName}` : ''}
+            </span>
+          ) : null}
           {/* Takip notu: tik notundan farkı KALICI olması — borç kapanana kadar her gün burada. */}
           {r.followUp ? (
             <span className="mt-0.5 block text-xs text-warning">

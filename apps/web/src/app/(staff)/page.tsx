@@ -10,7 +10,7 @@ import { leaveAdvisorItems } from '@/server/leave-checklist'
 import { weekPlanAdvisorItems } from '@/server/week-plan-checklist'
 import { loadOwnerDashboard } from '@/server/owner-dashboard'
 import { onlinePaymentAdvisorItems } from '@/server/online-payment-checklist'
-import { loadSnoozedItemIds } from '@/server/checklist-snooze'
+import { loadRecentNotes, loadSnoozedItemIds } from '@/server/checklist-snooze'
 import { loadTodayOps } from '@/server/today-ops'
 
 import { DashboardScreen } from './dashboard-screen'
@@ -46,7 +46,7 @@ async function ekListe(
 export default async function HomePage() {
   const ctx = await requirePageAccess('/')
   const now = Date.now()
-  const [data, todayOps, hotLeads, doorRefusals, leaves, onlinePayments, weekPlans, snoozed] = await Promise.all([
+  const [data, todayOps, hotLeads, doorRefusals, leaves, onlinePayments, weekPlans, snoozed, sonNotlar] = await Promise.all([
     loadOwnerDashboard(ctx, now),
     loadTodayOps(ctx, now),
     ekListe('WhatsApp lead’leri', () => hotLeadAdvisorItems(ctx)),
@@ -55,6 +55,8 @@ export default async function HomePage() {
     ekListe('Online ödemeler', () => onlinePaymentAdvisorItems(ctx)),
     ekListe('Vardiya planı', () => weekPlanAdvisorItems(ctx)),
     loadSnoozedItemIds(ctx.studioId as string, now),
+    // Aynı pencereden okunan ikinci şey: geri dönen satırın son kapanış notu (owner, 2026-09-28).
+    loadRecentNotes(ctx.studioId as string, now),
   ])
   const eksik = [hotLeads, doorRefusals, leaves, onlinePayments, weekPlans].map((x) => x.hata).filter((x): x is string => x !== null)
   // Card money FIRST — it is the one thing on this list that has already happened, and until it is
@@ -68,7 +70,14 @@ export default async function HomePage() {
   // A line already ticked off stays off for its cooldown — reception called that member, and a call is
   // not work again tomorrow (owner, 2026-09-03). Filtered HERE, before the AI narrator sees the list,
   // so the briefing at the top counts the same work the rows below show.
-  const advisorItems = allItems.filter((it) => !snoozed.has(it.id))
+  // Soğuması dolup GERİ DÖNEN satır, en son kapatılırken yazılan notu yanında getirir: masa aynı
+  // konuşmaya sıfırdan başlamasın (owner, 2026-09-28). Bugün tiklenenlerin notu zaten ekranda.
+  const advisorItems = allItems
+    .filter((it) => !snoozed.has(it.id))
+    .map((it) => {
+      const not = sonNotlar.get(it.id)
+      return not ? { ...it, lastNote: not } : it
+    })
   const snoozedCount = allItems.length - advisorItems.length
   return (
     <DashboardScreen

@@ -92,9 +92,16 @@ export async function hotLeadAdvisorItems(ctx: TenantContext): Promise<readonly 
         href: `/conversations?phone=${encodeURIComponent(phone)}`,
         actionLabel: 'Sohbeti aç',
       },
-      // Operatör bekleyen en üstte; sonra aşama sırası; eşitlikte en uzun süredir susan önde,
-      // çünkü kaybetmeye en yakın olan odur.
-      sira: (waiting ? -1 : ONCELIK[asama!]) * 1000 - Math.min(gun, 999),
+      // ÖNCE EN GÜNCEL (owner, 2026-09-28): *"en güncel wp lead'ler gelsin, eskiler öne geçmiş."*
+      //
+      // Eski sıra en uzun süredir susanı öne alıyordu — gerekçesi "kaybetmeye en yakın olan odur"du.
+      // Sahadaki cevap bunun tersi çıktı: on gündür susan biri zaten kaybedilmiştir, üç gün önce
+      // fiyat sormuş biri hâlâ karar aşamasındadır. Listenin başı, dönüşün gerçekten işe yarayacağı
+      // yer olmalı.
+      //
+      // Tek istisna operatör bekleyen: o, süre meselesi değil — karşıda cevap bekleyen bir insan var.
+      // Aşama artık yalnızca eşitlik bozucu: aynı gün yazmış iki kişiden randevulu olan önce gelir.
+      sira: waiting ? -1 : Math.min(gun, 999) * 10 + ONCELIK[asama!],
     })
   }
 

@@ -54,7 +54,14 @@ export const CHECKLIST_COOLDOWN_DAYS: Readonly<Record<string, number>> = {
   // Yenileme bir satış konuşmasıdır; üst üste günlerde tekrarı satışı değil rahatsızlığı artırır.
   low_credit: 7,
   // owner, 2026-09-04: *"tiklendiyse bir daha çıkmasın."* Aranmış bir lead ertesi gün yeniden aranmaz.
-  hot_lead: 7,
+  //
+  // YEDİ GÜN DEĞİL ÜÇ (owner, 2026-09-28): *"not ekleyip kapattıklarımız 2-3 gün gelmesin, buraya
+  // gelince notlarla beraber gelsin."* Cümlenin ikinci yarısı belirleyici — lead'in geri GELMESİNİ
+  // bekliyor. Bir haftalık sessizlik, karar aşamasındaki birini unutulmaya bırakacak kadar uzun;
+  // üç gün, aranan birinin cevap vermesi için yeterli ama kaybetmeye yetecek kadar uzun değil.
+  // Geri geldiğinde yanında kapatılırken yazılan not da geliyor (`loadRecentNotes`), yoksa aynı
+  // konuşma sıfırdan başlar.
+  hot_lead: 3,
   // ÜÇ gün, yedi değil — arkada bir SON TARİH var. Paket dolmadan önceki son hatırlatma meşrudur;
   // bir haftalık soğuma onu yutardı, ve yanan hak geri gelmiyor.
   expiring_with_credits: 3,
@@ -113,5 +120,50 @@ export async function loadSnoozedItemIds(studioId: string, now: number): Promise
     // Bir satır fazla göstermek sıkıcıdır; panonun hiç açılmaması arıza. Okuma başarısızsa masa
     // işi yeniden görür.
     return new Set()
+  }
+}
+
+/** Bir işin en son kapatılışında yazılan not — kim, ne zaman, ne dedi. */
+export interface SonNot {
+  readonly text: string
+  readonly byName: string
+  readonly at: number
+}
+
+/**
+ * GERİ DÖNEN SATIRIN HAFIZASI (owner, 2026-09-28).
+ *
+ * *"Not ekleyip kapattıklarımız 2-3 gün gelmesin, buraya gelince notlarla beraber gelsin."*
+ *
+ * Tik notu bugüne kadar yalnızca YAZILDIĞI GÜN görünüyordu: ertesi sabahki ekran bugünün tik
+ * kaydını okur, dünküne bakmazdı. Satır soğumasını doldurup geri geldiğinde masa aynı lead'e
+ * *"bir dönüş yapın"* diye bakıyor, üç gün önce onunla ne konuşulduğunu bilmiyordu — ve o bilgi
+ * kayıp değildi, bir belge ötedeydi.
+ *
+ * Aynı pencereyi (`MAX_GUN`) okur, aynı belgeleri okur — soğuma zaten oradan türetiliyor. En yeni
+ * gün başta olduğu için ilk bulunan not en günceldir.
+ */
+export async function loadRecentNotes(studioId: string, now: number): Promise<ReadonlyMap<string, SonNot>> {
+  try {
+    const db = adminDb()
+    const gunler: string[] = []
+    for (let i = 1; i <= MAX_GUN; i++) gunler.push(studioDay(now - i * GUN_MS))
+    const refs = gunler.map((g) => db.collection('studios').doc(studioId).collection('checklistDone').doc(g))
+    const snaps = await db.getAll(...refs)
+
+    const out = new Map<string, SonNot>()
+    for (const snap of snaps) {
+      const items = (snap.data()?.items ?? {}) as Record<string, { at?: number; note?: string; byName?: string } | undefined>
+      for (const [itemId, v] of Object.entries(items)) {
+        const text = String(v?.note ?? '').trim()
+        const at = Number(v?.at ?? 0)
+        // İlk bulunan kazanır: gün listesi en yeniden eskiye doğru.
+        if (text && at > 0 && !out.has(itemId)) out.set(itemId, { text, byName: String(v?.byName ?? ''), at })
+      }
+    }
+    return out
+  } catch {
+    // Not gösterememek satırı bozmaz — satır yine listede, yalnızca hafızası olmadan.
+    return new Map()
   }
 }

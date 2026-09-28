@@ -58,6 +58,14 @@ describe('checklist soğuması', () => {
     expect(isSnoozedNow('garip-kimlik', at, T('2026-09-04T09:00:00+03:00'))).toBe(false)
   })
 
+  // owner, 2026-09-28: *"2-3 gün gelmesin, gelince notlarla beraber gelsin."* Geri gelmesini
+  // BEKLİYOR — yani soğuma bir unutturma değil, bir aralık. Yedi gün o aralığı kaçırıyordu.
+  it('lead üç gün susar, dördüncü gün geri gelir', () => {
+    expect(CHECKLIST_COOLDOWN_DAYS.hot_lead).toBe(3)
+    expect(isSnoozedNow(LEAD, at, at + 2 * 86_400_000)).toBe(true)
+    expect(isSnoozedNow(LEAD, at, at + 3 * 86_400_000 + 1)).toBe(false)
+  })
+
   it('son tarihi olan işler daha kısa soğur — yanan hak geri gelmiyor', () => {
     expect(CHECKLIST_COOLDOWN_DAYS.expiring_with_credits).toBe(3)
     expect(CHECKLIST_COOLDOWN_DAYS.expiring_soon).toBe(3)
