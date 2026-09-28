@@ -225,6 +225,44 @@ Cihaz o geçişi **5,7 saniye** gecikmeyle gördü.
 üçü 2 sn'yi, ikisi 5 sn'yi aştı (en kötü 11,1 sn). Gecikme büyüdükçe "okuttum, kol geç döndü / dönmedi" şikâyeti
 artar — kablo düzelse bile bu ayrı bir eksen ve ölçülmeye devam etmeli.
 
+## 📋 28 Eylül akşamı — kapatılan lead üç gün sonra, NOTUYLA geri geliyor
+
+Owner: *"Not ekleyip kapattıklarımız 2-3 gün gelmesin, buraya gelince notlarla beraber gelsin. Bir de
+en güncel WP lead'ler gelsin, eskiler öne geçmiş."*
+
+**İlk şüphem yanlıştı ve kaydediyorum:** `wa:` kimliğinin soğuma mekanizmasına bağlı olmadığını, yani
+lead'lerin hiç susmadığını sandım. Kod okununca `kindOfItemId` zaten `wa:` → `hot_lead` çeviriyordu ve
+soğuma yedi gündü. Yani var olmayan bir hatayı bildirecektim; cümlenin ikinci yarısı ("gelince notlarla
+beraber gelsin") asıl boşluğu gösterdi — owner satırın GERİ GELMESİNİ bekliyor.
+
+**1) Soğuma 7 → 3 gün.** Karar aşamasındaki birini bir hafta unutmak, onu kaybetmek demek.
+
+**2) Geri dönen satır hafızasını taşıyor (`loadRecentNotes`).** Tik notu bugüne kadar yalnızca
+yazıldığı gün görünüyordu: ertesi sabahki ekran bugünün tik kaydını okur, dünküne bakmazdı. Bilgi
+kayıp değildi — bir belge ötedeydi. Artık soğumanın okuduğu AYNI pencereden son not da okunuyor ve
+satırın altında tarihi ve yazanıyla duruyor.
+
+**3) Sıra ters çevrildi.** Eski kural "en uzun süredir susan önde"ydi, gerekçesi *"kaybetmeye en yakın
+olan odur"*. Saha bunun tersini söylüyor: on gündür susan zaten kaybedilmiş, üç gün önce fiyat sormuş
+kişi hâlâ karar veriyor. **Aşama (randevu > fiyat > bilgi) artık yalnızca eşitlik bozucu** — aynı gün
+yazmış iki kişiden randevulu olan önce gelir. Operatör bekleyen satır hâlâ en üstte: o süre meselesi
+değil, karşıda bekleyen bir insan.
+
+Bu üçüncüsü bir yargı kararıydı; owner aşamanın yine baskın olmasını isterse tek satırlık geri dönüş.
+
+**Not:** `bilgi` aşamasındaki ve 3 günden yeni lead panoya hiç çıkmıyor (`SESSIZ_GUN`) — dün yazana
+"dönüş yapın" demek erken. O kural korundu.
+
+## 🔥 28 Eylül — Firebase Hosting'in "isteğe bağlı site" duyurusu bizi ETKİLEMİYOR
+
+15 Ekim'den sonra OLUŞTURULAN yeni projelerde varsayılan Hosting sitesi otomatik açılmayacak. Bizim
+projemiz ve dört sitemiz (`pilatesfitnessbyisil-web`, `retroasistan`, `studyoasistan`, varsayılan)
+çoktan var; var olan siteye `firebase deploy --only hosting` eskisi gibi çalışıyor. Panel zaten
+Hosting'de değil — App Hosting üzerinden Cloud Run'a gidiyor. **Aksiyon gerekmiyor.**
+
+Tek teorik risk: ileride her müşteriye AYRI Firebase projesi açan bir betik yazarsak, o betiğin siteyi
+kendisinin oluşturması gerekir. Kararımız o değil — yeni müşteri, aynı projede yeni `studioId`.
+
 ## 🔑 28 Eylül — "oturum düştü" diyen şey oturum değildi, YARIŞTI
 
 Owner: *"Çıkış yaptırmak istediğimizde hep oturum düştü diye uyarı veriyor, birkaç defa yapınca
