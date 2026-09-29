@@ -246,6 +246,33 @@ Cihaz o geçişi **5,7 saniye** gecikmeyle gördü.
 üçü 2 sn'yi, ikisi 5 sn'yi aştı (en kötü 11,1 sn). Gecikme büyüdükçe "okuttum, kol geç döndü / dönmedi" şikâyeti
 artar — kablo düzelse bile bu ayrı bir eksen ve ölçülmeye devam etmeli.
 
+## 📉 29 Eylül — Cloud Alerting'in bildirdiği `onEventCreated` hatası: iki işlem, tek belge
+
+Owner bir Google Cloud uyarı e-postası iletti: `onEventCreated` 28 Eylül 13:47'de (TRT) ERROR
+yazmış. **Alarm doğru çalışmış** — kurulma sebebi tam olarak buydu.
+
+Loga bakınca bizim sarmalayıcı mesajımız çıktı (*"projection failed — rebuild will heal it"*), ama
+altındaki gerçek hata şu: **`ABORTED — cross-transaction contention`** (Firestore kodu 10).
+
+**Sebep yapısal:** o günün BÜTÜN olayları — giriş, rezervasyon, ödeme — tek bir `days/{tarih}`
+belgesine yazıyor. Yoğun bir dakikada iki işlem çakışıyor, Firestore birini iptal ediyor, ve SDK'nın
+varsayılan deneme sayısı tükenince hata "geçici değil" diye sınıflandırılıp fırlatılıyor.
+
+**Ne kayboldu, ne kaybolmadı:** olay kaydı sağlam — tetikleyici onu yutmuyor, catch yalnızca
+projeksiyonu sarıyor. Kaybolan şey o olayın **günlük sayaca eklenmesi**: panodaki bir sayı bir eksik
+kalıyor ve `pnpm projections:rebuild` çalışana kadar öyle duruyor.
+
+**Ölçüldü:** 7 günde **5 hata**, buna karşılık tek bir günde **~6.400 çağrı**. Yani nadir, ama
+sessiz — ve alarm olmasa hiç görülmeyecekti.
+
+**Düzeltme:** `applyOnce` işlemine `maxAttempts: 8`. Burada tekrar denemek GÜVENLİ, çünkü işlem
+zaten tam olarak bir kez uygulanacak şekilde kurulu: `applied/{eventId}` işaretçisi varsa sayaç hiç
+oynatılmıyor. Tekrar denemek bir sayıyı iki kez artıramaz.
+
+**Açık kalan karar (owner):** 27–29 Eylül'de kaçan 5 artış hâlâ eksik. `pnpm projections:rebuild`
+olay kaydını yeniden oynatıp iyileştirir — üretimde bir yazma işlemi olduğu için owner onayıyla
+yapılacak.
+
 ## 🧪 29 Eylül — kırık entegrasyon testlerinin sebebi TAKVİMDİ, kod değil
 
 Dört aktarım testi 4 Eylül'den beri kırıktı ve "aktarım bozuldu" gibi görünüyordu. Sebep şuydu:

@@ -49,16 +49,34 @@ export class FirestoreProjectionRepository implements ProjectionRepository {
     const dayRef = this.col(ctx.studioId).doc(inc.date)
     const markerRef = dayRef.collection('applied').doc(eventId)
 
-    return this.db.runTransaction(async (tx) => {
-      const [daySnap, markerSnap] = await Promise.all([tx.get(dayRef), tx.get(markerRef)])
-      if (markerSnap.exists) return false // a redelivery — the counter has already moved
+    return this.db.runTransaction(
+      async (tx) => {
+        const [daySnap, markerSnap] = await Promise.all([tx.get(dayRef), tx.get(markerRef)])
+        if (markerSnap.exists) return false // a redelivery — the counter has already moved
 
-      const current = daySnap.exists ? fromDoc(inc.date, daySnap.data() ?? {}) : emptyDaily(inc.date)
-      const next = applyIncrement(current, inc, recordedAt)
-      tx.set(dayRef, next)
-      tx.set(markerRef, { at: recordedAt })
-      return true
-    })
+        const current = daySnap.exists ? fromDoc(inc.date, daySnap.data() ?? {}) : emptyDaily(inc.date)
+        const next = applyIncrement(current, inc, recordedAt)
+        tx.set(dayRef, next)
+        tx.set(markerRef, { at: recordedAt })
+        return true
+      },
+      // ── AYNI BELGEYE YAZAN İKİ İŞLEM (production, 2026-09-27…29) ──────────────────────────
+      //
+      // Cloud Alerting üç gün üst üste `onEventCreated` hatası bildirdi ve altındaki gerçek hata
+      // hep aynıydı: `ABORTED — cross-transaction contention`. Sebebi yapısal: o günün BÜTÜN
+      // olayları (giriş, rezervasyon, ödeme) tek bir `days/{tarih}` belgesine yazıyor. Yoğun bir
+      // dakikada ikisi çakışıyor, Firestore birini iptal ediyor, ve varsayılan deneme sayısı
+      // tükenince SDK bunu "geçici değil" diye sınıflandırıp fırlatıyor.
+      //
+      // Kaybolan şey olay değil — olay yazıldı, tetikleyici onu yutmuyor. Kaybolan, o olayın
+      // günlük sayaca EKLENMESİ: panodaki bir sayı bir eksik kalıyor ve `pnpm projections:rebuild`
+      // çalışana kadar öyle duruyor. Haftada 5 kez, günde ~6.400 çağrıya karşılık.
+      //
+      // Daha fazla denemek burada GÜVENLİ, çünkü işlem zaten tam olarak bir kez uygulanacak
+      // şekilde kurulu: `applied/{eventId}` işaretçisi varsa sayaç hiç oynatılmıyor. Yani tekrar
+      // denemek bir sayıyı iki kez artıramaz — çakışmayı beklemekten başka bir şey yapmaz.
+      { maxAttempts: 8 },
+    )
   }
 
   async clearAll(ctx: TenantContext): Promise<void> {
