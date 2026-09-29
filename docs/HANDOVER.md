@@ -243,8 +243,14 @@ biten bir pakettir; fixture de onu öyle kurmalı. **Tarihi sabitleyen fixture, 
 **Sağlık testi (`projection_lag`) aynı turda kendiliğinden geçti — DÜZELTİLMEDİ.** Muhtemel sebep
 bir yarış: emülatörde gerçek projektör tetikleyicisi canlı, test olayı yazdığı anda tetikleyici
 aynı günün filigranını güncelleyip testin kurduğu 90 dakikalık gecikmeyi siliyor olabilir. Öyleyse
-test bazen geçer bazen kalır, ve "geçti" güven vermez. Arka arkaya turlarla ölçülüyor; kanıtlanırsa
-testi tetikleyiciden yalıtmak gerekecek.
+test bazen geçer bazen kalır, ve "geçti" güven vermez.
+
+**Ölçüldü: arka arkaya ÜÇ turun üçü de 45/45 yeşil.** Yani yarış hipotezi KANITLANMADI — bu koşullarda
+hata yeniden üretilemiyor. Elimdeki dürüst cümle şu: tek bir turda kaldı, sonraki üç turda geçti, ve
+sebebini bilmiyorum. Düzeltmiş gibi yapmıyorum; yeniden üretilemeyen bir arızaya kurgu bir düzeltme
+yazmak, gerçek sebebi kapatmak olurdu. **İzleme maddesi:** bu test bir daha kalırsa o turun logu
+saklanacak ve tetikleyiciden yalıtma (ayrı stüdyo kimliği ya da filigranı olaydan SONRA yazma)
+yapılacak.
 
 ## 🤝 29 Eylül — stüdyonun verdiği söz artık bir iş satırı ([[OR-116]])
 
