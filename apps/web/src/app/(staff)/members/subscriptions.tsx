@@ -1393,12 +1393,24 @@ function MoneyBlock({ sub, memberId, branchId, isOwner = false, onDone, surcharg
         method,
         drawerId: method === 'bank_transfer' ? null : openCash?.id ?? null,
         note: null,
+        // PARA, ÜSTÜNDE DURDUĞUN PAKETE YAZILIR (owner onayı, 2026-09-29).
+        //
+        // Burası `saleId` göndermiyordu, ve `collect` o zaman EN ESKİ borçtan mahsup ediyor. Yani
+        // iki açık paketi olan bir üyede B paketinin kutusundan tahsilat alınca para A'ya gidiyordu:
+        // ekran "tahsil edildi" diyor, B'nin borcu duruyor, ve kimse yanlış bir şey yapmamış
+        // görünüyor. Cari Hesap'taki satır düğmesi bunu zaten doğru yapıyordu; bu kutu yapmıyordu.
+        //
+        // `saleId` yoksa (satışı olmayan aktarılmış paket) eski davranış sürüyor — uydurulacak bir
+        // satış yok, ve en eski borçtan mahsup en azından bilinen bir kural.
+        ...(sub.saleId ? { saleId: sub.saleId } : {}),
       })
       if (res.ok) {
         toast.success(
           res.value.unallocated > 0
             ? `Tahsilat alındı. ${tl(res.value.unallocated)} üyenin alacağı olarak duruyor.`
-            : 'Tahsilat alındı ve borca mahsup edildi.',
+            : sub.saleId
+              ? 'Tahsilat alındı, bu paketin borcuna işlendi.'
+              : 'Tahsilat alındı ve borca mahsup edildi.',
         )
         onDone()
       } else {

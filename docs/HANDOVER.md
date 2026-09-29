@@ -298,10 +298,12 @@ fazla tahsilat meşru da olabilir.
 Hâlâ açık, ama bugünün işi değil: `Sale` bir fiyat esası taşımıyor. Taşısaydı bu kontrol UI'da değil
 domainde olurdu. Şema değişikliği owner kararı ([[CLAUDE.md]] — event/şema owner'ın).
 
-**Yan bulgu, düzeltilmedi:** paket kartındaki tahsilat `saleId` göndermiyor (`subscriptions.tsx`
-`collect()`), yani tahsilat **en eski borçtan** mahsup ediliyor. İki açık paketi olan bir üyede B
-paketinin üstünde tahsilat alıp para A'ya gidebilir. Cari Hesap'taki satır-bazlı düğme `saleId`
-gönderiyor, bu göndermiyor.
+**Yan bulgu — aynı gün düzeltildi (owner onayı).** Paket kartındaki tahsilat `saleId`
+göndermiyordu, yani para **en eski borçtan** mahsup ediliyordu: iki açık paketi olan bir üyede B
+paketinin kutusundan tahsilat alınca para A'ya gidiyor, ekran "tahsil edildi" diyor, B'nin borcu
+duruyor ve kimse yanlış bir şey yapmamış görünüyordu. Cari Hesap'taki satır düğmesi bunu zaten
+doğru yapıyordu. Artık para üstünde durulan pakete yazılıyor; `saleId` yoksa (satışı olmayan
+aktarılmış paket) eski davranış sürüyor — uydurulacak bir satış yok.
 
 ## 📉 29 Eylül — Cloud Alerting'in bildirdiği `onEventCreated` hatası: iki işlem, tek belge
 
