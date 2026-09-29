@@ -101,6 +101,20 @@ const base = {
   existing: [],
 }
 
+// BİTİŞ TARİHİ BUGÜNE GÖRE HESAPLANIR (2026-09-29).
+//
+// Burada sabit `BITIS` yazıyordu. Testler yazıldığında o tarih gelecekteydi; takvim onu
+// geçince `validFrom` (verilmediğinde BUGÜN) `validUntil`'den büyük oldu ve satırların HEPSİ daha
+// işleme girmeden elendi. Dört test birden kırıldı, kodda tek satır değişmeden — ve kırılma
+// "aktarım bozuldu" gibi göründü.
+//
+// Tarihi sabitleyen bir fixture, bir gün patlamak üzere kurulmuş bir fixture'dır. Aktarılan paket
+// GELECEKTE biten bir pakettir; test de onu öyle kurmalı.
+const BITIS = (() => {
+  const d = new Date(Date.now() + 90 * 86_400_000)
+  return `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}.${d.getFullYear()}`
+})()
+
 async function wipe(): Promise<void> {
   for (const col of ['members', 'members_by_phone', 'entitlements', 'events', 'importBatches', 'reservations']) {
     const snap = await db().collection(`studios/${SID}/${col}`).get()
@@ -181,7 +195,7 @@ describe('aktarım sihirbazı — gerçek veritabanı', () => {
       mapping: PACKAGE_MAP,
       rows: [
         ['Ad', 'Tel', 'Paket', 'Kalan', 'Bitiş'],
-        ['AYŞE YILMAZ', '05321111111', 'Reformer Pilates - 8 Ders', '5', '19.08.2026'],
+        ['AYŞE YILMAZ', '05321111111', 'Reformer Pilates - 8 Ders', '5', BITIS],
       ],
     })
 
@@ -222,7 +236,7 @@ describe('aktarım sihirbazı — gerçek veritabanı', () => {
       mapping: PACKAGE_MAP,
       rows: [
         ['Ad', 'Tel', 'Paket', 'Kalan', 'Bitiş'],
-        ['AYŞE YILMAZ', '05321111111', 'Reformer Pilates - 8 Ders', '5', '19.08.2026'],
+        ['AYŞE YILMAZ', '05321111111', 'Reformer Pilates - 8 Ders', '5', BITIS],
       ],
     })
 
@@ -312,7 +326,7 @@ describe('aktarım — elle girilen telefon', () => {
       mapping: { ...PACKAGE_MAP, phone: null },
       rows: [
         ['Ad', 'Tel', 'Paket', 'Kalan', 'Bitiş'],
-        ['GİZEM BATMAZ', '', 'Reformer Pilates - 8 Ders', '5', '19.08.2026'],
+        ['GİZEM BATMAZ', '', 'Reformer Pilates - 8 Ders', '5', BITIS],
       ],
       resolutions: [{ line: 2, memberId: null, skip: false, phone: '0532 111 11 11' }],
     })
@@ -334,7 +348,7 @@ describe('aktarım — elle girilen telefon', () => {
       kind: 'member_packages',
       fileName: 'fitness.xlsx',
       mapping: { ...PACKAGE_MAP, phone: null },
-      rows: [['Ad', 'Tel', 'Paket', 'Kalan', 'Bitiş'], ['GİZEM', '', 'Reformer Pilates - 8 Ders', '5', '19.08.2026']],
+      rows: [['Ad', 'Tel', 'Paket', 'Kalan', 'Bitiş'], ['GİZEM', '', 'Reformer Pilates - 8 Ders', '5', BITIS]],
       resolutions: [{ line: 2, memberId: null, skip: false, phone: '123' }],
     })
 
