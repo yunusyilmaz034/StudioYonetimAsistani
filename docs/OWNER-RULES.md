@@ -2147,3 +2147,14 @@ ve **eski dönem adayları**. Kaybedildi işaretlenip sonra üye olan biri liste
 hem hafıza yanlış kalır — o satır da yeşil "Üye oldu" rozetini taşır. Telefon anahtarı (`90` + son on hane) tek bir
 yerde yaşıyor: eşleşmeyi KURAN ile SORAN aynı kuralı kullanmazsa harita dolu görünür, sorgu hep boş döner ve bunu
 kimse fark etmez.
+
+**OR-116 · Stüdyonun verdiği söz, bir iş satırıdır — kimse hatırlamak zorunda kalmasın.** (2026-09-29)
+Owner bir sohbet gösterdi: üye *"bana uygulama için kod yollamadınız, o yüzden randevu alamadım"* yazmış, AI
+*"hemen kontrol edip size dönelim"* demiş, ve **o söz hiçbir yere düşmemiş.** Panoda satırı yok, "bekleyen"
+filtresinde yok. İki elek birden kaçırıyordu: lead listesi `stage` ya da `needsAttention` ister (yazan kişi ÜYE,
+satış hunisinde değil), "bekleyen" filtresi de yalnızca `needsAttention`a bakar — AI devretmediği için o da yok.
+**Kural:** bir sohbetin son sözü BİZDEYSE ve bir dönüş vaadi taşıyorsa, o bir iştir ve panoda görünür. Karar okuma
+anında veriliyor (`awaiting-us.ts`), AI'a yeni bir işaret yazdırılarak değil: model işbirliğine bağlı bir kayıt,
+tutulmamış bir sözü yakalamak için fazla kırılgan, ve yalnızca bugünden sonrasını kapsardı. Okuma tarafı geçmişe
+dönük çalışır. **Sıra lead'lerin tersi — en uzun bekleyen önde:** lead bir fırsattır, tazesi değerlidir; tutulmamış
+bir söz borçtur, eskisi daha çok zarar verir ([[OR-115]] ile karıştırılmasın).
