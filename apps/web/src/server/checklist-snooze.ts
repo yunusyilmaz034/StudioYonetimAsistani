@@ -62,6 +62,10 @@ export const CHECKLIST_COOLDOWN_DAYS: Readonly<Record<string, number>> = {
   // Geri geldiğinde yanında kapatılırken yazılan not da geliyor (`loadRecentNotes`), yoksa aynı
   // konuşma sıfırdan başlar.
   hot_lead: 3,
+  // BİR gün: tik "döndüm" demektir, ama dönüş panelden değil telefondan yapıldıysa sohbetin son
+  // sözü hâlâ bizde kalır ve satır kendiliğinden kapanmaz. Bir gün susar, ertesi gün hâlâ
+  // duruyorsa yeniden sorar — verilmiş bir söz bir haftalık sessizliği kaldırmaz.
+  awaiting_us: 1,
   // ÜÇ gün, yedi değil — arkada bir SON TARİH var. Paket dolmadan önceki son hatırlatma meşrudur;
   // bir haftalık soğuma onu yutardı, ve yanan hak geri gelmiyor.
   expiring_with_credits: 3,

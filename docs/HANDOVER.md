@@ -225,6 +225,44 @@ Cihaz o geçişi **5,7 saniye** gecikmeyle gördü.
 üçü 2 sn'yi, ikisi 5 sn'yi aştı (en kötü 11,1 sn). Gecikme büyüdükçe "okuttum, kol geç döndü / dönmedi" şikâyeti
 artar — kablo düzelse bile bu ayrı bir eksen ve ölçülmeye devam etmeli.
 
+## 🤝 29 Eylül — stüdyonun verdiği söz artık bir iş satırı ([[OR-116]])
+
+Owner bir sohbet gösterdi: üye *"bana uygulama için kod yollamadınız, o yüzden randevu alamadım"*
+yazmış, AI *"hemen kontrol edip size dönelim"* demiş, ve **o söz hiçbir yere düşmemiş.** Panoda
+satırı yok, sohbet ekranının "bekleyen" filtresinde de yok.
+
+**Neden görünmüyordu — iki elek birden kaçırıyor:**
+- `hot_lead` listesi `stage` ya da `needsAttention` ister. Yazan kişi ÜYE, satış hunisinde değil;
+  AI da `[[DEVRET]]` yazmadığı için işaret konmamış.
+- "Bekleyen" filtresi yalnızca `needsAttention`a bakıyor.
+
+Yani sistem, stüdyo adına bir söz verdi ve o sözü tutacak kimseyi uyarmadı. **En kötü sessizlik
+türü:** kimse hata almıyor, kimse haberdar değil, müşteri bekliyor.
+
+**Çözüm okuma tarafında (`awaiting-us.ts`), yazma tarafında değil.** İlk düşündüğüm AI'a yeni bir
+işaret yazdırmaktı (`[[DONUS]]`); vazgeçtim. Üç sebep: modelin işbirliğine bağlı olurdu; prompt bu
+cümleler konusunda kendi içinde zaten çelişiyor (bir yerde *"ASLA 'kontrol edip döneriz' deme"*,
+başka bir yerde *"'kontrol edip size döneceğiz' de"*); ve yalnızca bugünden sonrasını kapsardı.
+Okuma anında karar vermek şemayı değiştirmiyor, fonksiyon dağıtımı istemiyor ve **geçmişe dönük**
+çalışıyor — dün verilmiş sözler de bugün listeye düşüyor.
+
+**Kural:** sohbetin son sözü BİZDEYSE (`role: 'assistant'`) ve bir dönüş vaadi taşıyorsa, iştir.
+Kalıplar uydurma değil — prompt'un kendisi bu cümleleri sayıyor, bir kısmını yasaklayarak, bir
+kısmını emrederek. Üç eleme: biri devralmışsa (`status: 'human'`) sus · zaten `needsAttention`
+varsa sus (aynı iş iki kez listelenmez) · son söz müşterideyse bu başka bir iştir.
+
+**Sıra lead'lerin TERSİ, bilerek:** en uzun bekleyen önde. Lead bir fırsattır, tazesi değerlidir;
+tutulmamış bir söz borçtur, eskisi daha çok zarar verir. 24 saati geçen söz `urgent`.
+
+İlk yarım saat listelenmiyor — o aralık dock'un işi, sohbet zaten resepsiyonun ekranında akıyor.
+Tik soğuması **1 gün**: dönüş panelden değil telefondan yapıldıysa sohbetin son sözü bizde kalır ve
+satır kendiliğinden kapanmaz, ertesi gün yeniden sorar.
+
+**Yan bulgu, henüz düzeltilmedi:** `attentionReason: 'unanswered'` iki union'da da tanımlı değil;
+dock onu `else` dalına düşürüp *"🟢 Operatör devri geliyor"* diye 5 saniyede kaybolan bir başarı
+tostu gösteriyor — oysa o, cevapsız kalmış bir müşteri. Ayrıca webhook'un "AI cevap vermedi" çıkışı
+`needsAttention`ı sebep yazmadan set ediyor, yani önceki turdan kalma sebep orada kalabiliyor.
+
 ## 📋 28 Eylül akşamı — kapatılan lead üç gün sonra, NOTUYLA geri geliyor
 
 Owner: *"Not ekleyip kapattıklarımız 2-3 gün gelmesin, buraya gelince notlarla beraber gelsin. Bir de
