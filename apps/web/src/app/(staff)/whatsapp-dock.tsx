@@ -83,6 +83,14 @@ export function WhatsAppDock() {
                 duration: Infinity,
                 className: 'border-2 border-warning bg-warning/10 font-semibold',
               })
+            } else if (c.attentionReason === 'unanswered') {
+              // CEVAPSIZ MÜŞTERİ — devir değil, bekleyen biri (owner, 2026-09-29). Bu satır eskiden
+              // aşağıdaki yeşil "devir geliyor" dalına düşüyordu, çünkü `unanswered` sebebi hiçbir
+              // tip tanımında yoktu. Bekleyen bir müşteriye başarı bildirimi göstermek, masaya
+              // yapacak bir şey olmadığını söylemektir — üstelik beş saniyede kayboluyordu.
+              toast.error(`⏳ Cevap bekliyor · ${c.name || c.phone.slice(-4)} · asistan yanıtlamadı`, {
+                duration: Infinity,
+              })
             } else {
               toast.success(`🟢 Operatör devri geliyor · ${c.name || c.phone.slice(-4)}`, { duration: 5000 })
             }

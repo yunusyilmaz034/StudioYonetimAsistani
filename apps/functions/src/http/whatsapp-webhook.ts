@@ -65,8 +65,14 @@ interface Conversation {
   //   'handoff'   — the assistant decided a human should answer (normal, expected, a good sign)
   //   'ai_failed' — the assistant produced nothing (a fault: on 2026-07-25 three customers were left
   //                 on read this way, and the desk had no way to tell it apart from a handoff)
+  //   'unanswered' — a customer wrote and NOBODY is going to answer automatically (the switch is
+  //                 off, a human already holds the conversation, or the keys are missing). It was
+  //                 already being written by the panel and by a migration, but it was missing from
+  //                 this union and from the panel's — so the dock fell through to its default branch
+  //                 and announced a waiting customer as the cheerful green "operator handover
+  //                 incoming", gone in five seconds (owner, 2026-09-29).
   // Same badge, different sentence — because the response to each is different.
-  attentionReason?: 'handoff' | 'ai_failed' | 'hot_lead'
+  attentionReason?: 'handoff' | 'ai_failed' | 'hot_lead' | 'unanswered'
   lastAt: number
   seenIds: string[]
   messages: Msg[]
@@ -524,6 +530,11 @@ async function processMessage(sid: string, from: string, name: string, text: str
   // keys are present. Otherwise the message is just stored + flagged for the desk.
   if (!active || conv.status === 'human' || !apiKey || !token || !phoneId || !aiDoc) {
     conv.needsAttention = true
+    // SEBEBİ DE YAZ. Burası eskiden yalnızca bayrağı kaldırıyordu, ve `conv` bir önceki turdan
+    // okunmuş belge olduğu için ESKİ sebep (ör. 'hot_lead') olduğu gibi kalıyordu: masa, cevapsız
+    // bekleyen bir müşteriyi "satışa hazır" diye görebiliyordu. Bayrağın sebebi bayrakla birlikte
+    // yazılır.
+    conv.attentionReason = 'unanswered'
     await ref.set(conv, { merge: true })
     logger.info('[wa-webhook] stored, no auto-reply', { sid, active, status: conv.status })
     return

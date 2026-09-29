@@ -258,10 +258,20 @@ tutulmamış bir söz borçtur, eskisi daha çok zarar verir. 24 saati geçen s�
 Tik soğuması **1 gün**: dönüş panelden değil telefondan yapıldıysa sohbetin son sözü bizde kalır ve
 satır kendiliğinden kapanmaz, ertesi gün yeniden sorar.
 
-**Yan bulgu, henüz düzeltilmedi:** `attentionReason: 'unanswered'` iki union'da da tanımlı değil;
-dock onu `else` dalına düşürüp *"🟢 Operatör devri geliyor"* diye 5 saniyede kaybolan bir başarı
-tostu gösteriyor — oysa o, cevapsız kalmış bir müşteri. Ayrıca webhook'un "AI cevap vermedi" çıkışı
-`needsAttention`ı sebep yazmadan set ediyor, yani önceki turdan kalma sebep orada kalabiliyor.
+**Yan bulgu, AYNI GÜN düzeltildi (owner: *"şu unanswered bildirim hatasını da düzelt"*).**
+`attentionReason: 'unanswered'` panel ve bir migration tarafından ZATEN yazılıyordu ama iki union'da
+da tanımlı değildi; dock onu `else` dalına düşürüp *"🟢 Operatör devri geliyor"* diye **5 saniyede
+kaybolan yeşil bir başarı tostu** gösteriyordu — oysa o, cevapsız kalmış bir müşteri. Artık kendi
+dalı var: kırmızı, kaybolmayan, *"⏳ Cevap bekliyor · asistan yanıtlamadı"*.
+
+İkinci yarısı daha sinsiydi: webhook'un "otomatik cevap yok" çıkışı (`whatsappActive` kapalı, sohbet
+zaten insanda, ya da anahtarlar eksik) `needsAttention`ı **sebep yazmadan** set ediyordu. `conv` bir
+önceki turdan okunmuş belge olduğu için eski sebep olduğu gibi kalıyordu: cevapsız bekleyen bir
+müşteri masaya *"🔥 SATIŞA HAZIR"* diye görünebiliyordu. Bayrağın sebebi artık bayrakla birlikte
+yazılıyor.
+
+**Bu düzeltme `apps/functions` içinde — App Hosting onu taşımaz, ayrı `firebase deploy --only
+functions` gerekir.**
 
 ## 📋 28 Eylül akşamı — kapatılan lead üç gün sonra, NOTUYLA geri geliyor
 
