@@ -246,6 +246,41 @@ Cihaz o geçişi **5,7 saniye** gecikmeyle gördü.
 üçü 2 sn'yi, ikisi 5 sn'yi aştı (en kötü 11,1 sn). Gecikme büyüdükçe "okuttum, kol geç döndü / dönmedi" şikâyeti
 artar — kablo düzelse bile bu ayrı bir eksen ve ölçülmeye devam etmeli.
 
+## 💳 29 Eylül — nakit fiyatına kurulan satış, kartla tahsil edilince 1.000 ₺ "alacak" doğurdu
+
+Owner: *"Burcu Akça daha önce nakit verecek diye nakit demişler ama KK ile ödeme almışlar bugün.
+8.500 değil, KK ile 9.500 tahsil ettik. Şu an nakit göründüğü için 1.000 TL alacaklı görünüyor ama
+doğrusu alacak falan yok."*
+
+**Ölçüldü (tahmin değil):** satış 15 Eylül'de **8.500 ₺** (nakit fiyatı) kurulmuş ve `settled`;
+ödeme bugün 11:55'te **9.500 ₺ · kredi kartı**. Ödemenin 8.500'ü satışa tahsis edilmiş, **1.000 ₺
+boşta** kalmış — panelde "üye alacağı" diye görünen şey buydu.
+
+**Bu, 4 Eylül'de kapatılan kart-farkı hatasının tekrarı DEĞİL.** Orada satış kart farkını hiç
+içermiyordu. Burada satış doğru kurulmuştu — *nakit için*. Değişen şey **ödeme yöntemiydi**, ve
+yöntem satıştan sonra değişince satış kendini güncellemiyor.
+
+**Neden iptal + yeniden kurma:** kapanmış bir satışın tutarını yerinde artıran bir işlem yok
+(`finance.ts`: sell · collect · voidPayment · refund · cancelSale · discountSale — **indirim var,
+zam yok**, ve bu doğru). Boştaki tutarı sonradan yeni bir satışa bağlayan yol da yok: tahsis yalnızca
+ödeme alınırken kuruluyor. Katalogda "kart farkı" ürünü yok ve AD-41 gereği uydurulmadı.
+
+**Yapıldı** (`tools/migration/fix-burcu-akca-kart-farki-2026-09-29.ts`, owner onayı): ödeme iptal →
+satış iptal → ikisi de 9.500'den yeniden kuruldu → aboneliğin anlaşılan tutarı 9.500. **Ödemenin
+tarihi korundu** (ciro nakit esaslı, `receivedAt`). Kasa etkilenmedi: kasa şartı yalnızca `cash` ve
+`pos` için işliyor, bu bir kart ödemesi.
+
+**Doğrulandı** kaydın kendisinden: eski satış `cancelled`, eski ödeme `voided`, yeni satış 9.500
+`settled` ve AYNI aboneliğe bağlı, boşta para yok.
+
+**Bilinen yan etki:** satış bugün yeniden kurulduğu için *satışın* tarihi 15 Eylül'den 29 Eylül'e
+kaydı. Ciro tarihi ödemeye bağlı olduğundan rakamlar doğru; kayan şey yalnızca "satış ne zaman
+yazıldı".
+
+**AÇIK İŞ — owner: *"bir daha olmasın."*** Yapısal boşluk şu: satış bir fiyat esasına göre kurulup
+sonra başka yöntemle tahsil edilince kimse sormuyor. Tahsilat akışına "yöntem değişti, fiyatı
+güncelleyeyim mi?" adımı eklenecek. Akış haritası çıkarılıyor.
+
 ## 📉 29 Eylül — Cloud Alerting'in bildirdiği `onEventCreated` hatası: iki işlem, tek belge
 
 Owner bir Google Cloud uyarı e-postası iletti: `onEventCreated` 28 Eylül 13:47'de (TRT) ERROR
