@@ -7,11 +7,32 @@ explains the moment.
 Keep it current the way the code is kept current: when the state changes, this changes in the same
 commit. A handover document that lags is worse than none, because it is believed.
 
-_Last true as of: **2026-09-22, 17:20**._
+_Last true as of: **2026-09-29, 11:10**._
 
 ## ⏭️ Sıradaki oturum — BURADAN BAŞLA
 
-Kod tarafında yarım iş YOK. Bekleyen şeyler, hepsi owner'la birlikte:
+**Kod tarafında yarım iş YOK.** Canlı: panel `build-2026-09-29-00x` (kat 1), fonksiyonlar 29 Eylül
+11:0x'te dağıtıldı. `pnpm check` 1462 test yeşil; **entegrasyon takımı 4 Eylül'den beri ilk kez
+45/45** (aktarım fixture'larının tarihi düzeltildi).
+
+**Owner'da bekleyenler:**
+1. **GitHub itirazı — tek kritik iş bu.** `#4804152` açıldı ve **ikametgâh belgesi eklendi**
+   (29 Eylül 11:04, e-Devlet PDF'i + açıklayıcı cümle). İlk talep `#4799172` de açık duruyor.
+   Talebi KAPATMA. Cevap gelmezse bir hafta sonra aynı talebe nazik hatırlatma — üçüncü talep açma,
+   kuyruğu böler. Actions 4 Eylül'den beri ölü; push ve App Hosting derlemesi çalışıyor, yani deploy
+   durmuyor — ama hesap tamamen kilitlenirse yayın da durur.
+2. **TestFlight 1.8.0** — döngü modu denenecek. Özellikle: "kapat ve verilerimi sil" dedikten sonra
+   ana sayfadaki satırın TAMAMEN kaybolması, ve panelde bu verinin hiçbir izinin olmaması.
+3. **`feat/cycle-mode` dalı main'e karışmadı** — owner denedikten sonra birleştirme kararı.
+4. **Yedekler makineden çıkarılacak** — 16 paketin hepsi doğrulandı (13 MB + 65 MB), sadece taşınmayı
+   bekliyor.
+
+**İzleme maddeleri (arıza değil, henüz):**
+- `health.test.ts` → `projection_lag` bir turda kaldı, sonraki üç turda geçti. Yeniden üretilemedi,
+  düzeltilmedi. Bir daha kalırsa o turun logunu SAKLA.
+- Turnike: uyku düzeltmesinden (25 Eylül) beri şikâyet yok. WiFi hâlâ zayıf (−71…−80 dBm).
+
+### Eylül ortasından kalan, o tarihten beri DOĞRULANMAMIŞ maddeler
 
 0. **Turnike firmware v1.5 sahada (15 Eylül 09:33, etiket `turnike-v1.5`, sunucu `build-2026-09-15-001`).** Denendi ✅: giriş/çıkış,
    karşılamadan 3 sn sonra QR geri geliyor, çıkıştan <45 sn sonra girişte ekranda "Az Önce Geçtiniz". Kutuda WiFi -73/-76 dBm (masada -68) — zayıf.
