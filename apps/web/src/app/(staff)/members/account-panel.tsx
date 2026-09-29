@@ -604,6 +604,26 @@ function CollectDialog({
             </SelectContent>
           </Select>
 
+          {/* KART FARKI SESSİZCE "ÜYE ALACAĞI"NA DÖNÜŞÜYORDU (owner, 2026-09-29) ───────────────
+              Bir paket nakit fiyatından satılıp sonra kartla tahsil edilince, resepsiyon kart
+              tutarını buraya yazıyor: fazlası hiçbir satışa tahsis edilemiyor ve panelde ÜYENİN
+              ALACAĞI olarak duruyor. Burcu Akça'da 1.000 ₺ böyle kaldı ve elle onarıldı.
+              Tahsilat tarafı bunu KENDİ BAŞINA çözemez — ürünü de fiyat ayarını da görmüyor — ama
+              rakam gözün önündeyken söyleyebilir. Fazla tahsilat meşru da olabilir (peşin kapatma),
+              o yüzden engel değil, uyarı. */}
+          {(() => {
+            const girilen = Math.round(Number(amount.replace(',', '.')) * 100)
+            const fazla = Number.isFinite(girilen) ? girilen - suggested : 0
+            if (method === 'cash' || suggested <= 0 || fazla <= 0) return null
+            return (
+              <p className="rounded-lg border border-warning/30 bg-warning/5 px-3 py-2 text-xs text-warning">
+                Girdiğin tutar kalan borçtan <strong>{tl(fazla)}</strong> fazla. Fazlası satışa
+                yazılmaz, üyenin alacağı olarak kalır. <strong>Kart farkıysa</strong> önce paketin
+                fiyatını kart fiyatına güncelle (Paketler → Düzenle), sonra tahsil et.
+              </p>
+            )
+          })()}
+
           {needsDrawer ? (
             openDrawers.length === 0 ? (
               <p className="rounded-lg border border-warning/30 bg-warning/5 px-3 py-2 text-sm text-warning">

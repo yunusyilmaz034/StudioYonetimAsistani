@@ -225,7 +225,7 @@ export function SubscriptionsPanel({ memberId, memberPhone = null, products, sur
       ) : (
         <div className="space-y-2">
           {toCards(active).map((c) => (
-            <SubscriptionRow key={c.primary.id} sub={c.primary} siblings={c.components} products={products} onChanged={load} isOwner={isOwner} memberId={memberId} branchId={branchId} />
+            <SubscriptionRow key={c.primary.id} sub={c.primary} siblings={c.components} products={products} onChanged={load} isOwner={isOwner} memberId={memberId} branchId={branchId} surchargeByProduct={surchargeByProduct} />
           ))}
           {past.length > 0 ? (
             <div className="space-y-2 pt-1">
@@ -237,7 +237,7 @@ export function SubscriptionsPanel({ memberId, memberPhone = null, products, sur
                 {showPast ? 'Pasif paketleri gizle' : `Pasif paketleri göster (${past.length})`}
               </button>
               {showPast
-                ? toCards(past).map((c) => <SubscriptionRow key={c.primary.id} sub={c.primary} siblings={c.components} products={products} onChanged={load} isOwner={isOwner} memberId={memberId} branchId={branchId} />)
+                ? toCards(past).map((c) => <SubscriptionRow key={c.primary.id} sub={c.primary} siblings={c.components} products={products} onChanged={load} isOwner={isOwner} memberId={memberId} branchId={branchId} surchargeByProduct={surchargeByProduct} />)
                 : null}
             </div>
           ) : null}
@@ -247,7 +247,7 @@ export function SubscriptionsPanel({ memberId, memberPhone = null, products, sur
   )
 }
 
-function SubscriptionRow({ sub, siblings, products, onChanged, isOwner = false, memberId, branchId }: { sub: SubscriptionView; siblings: readonly SubscriptionView[]; products: readonly ProductView[]; onChanged: () => void; isOwner?: boolean; memberId: string; branchId: string }) {
+function SubscriptionRow({ sub, siblings, products, onChanged, isOwner = false, memberId, branchId, surchargeByProduct = {} }: { sub: SubscriptionView; siblings: readonly SubscriptionView[]; products: readonly ProductView[]; onChanged: () => void; isOwner?: boolean; memberId: string; branchId: string; surchargeByProduct?: Record<string, number> }) {
   const [open, setOpen] = useState(false)
   const [historyOpen, setHistoryOpen] = useState(false)
   const [dialog, setDialog] = useState<'amend' | 'credit' | 'status' | null>(null)
@@ -856,7 +856,7 @@ function SubscriptionRow({ sub, siblings, products, onChanged, isOwner = false, 
         </div>
       ) : null}
 
-      {dialog === 'amend' ? <AmendDialog sub={sub} siblings={siblings} memberId={memberId} branchId={branchId} isOwner={isOwner} onClose={() => setDialog(null)} onDone={() => { setDialog(null); onChanged() }} /> : null}
+      {dialog === 'amend' ? <AmendDialog sub={sub} siblings={siblings} memberId={memberId} branchId={branchId} isOwner={isOwner} surchargeByProduct={surchargeByProduct} onClose={() => setDialog(null)} onDone={() => { setDialog(null); onChanged() }} /> : null}
       {dialog === 'credit' ? <ContentDialog items={siblings} onClose={() => setDialog(null)} onDone={() => { setDialog(null); onChanged() }} /> : null}
       {dialog === 'status' ? <StatusDialog sub={sub} siblings={siblings} onClose={() => setDialog(null)} onDone={() => { setDialog(null); onChanged() }} /> : null}
     </div>
@@ -1352,7 +1352,7 @@ function ReasonDialogShell({
 
 // Editing a package changes DATES and PRICE. It does not take money.
 //
-function MoneyBlock({ sub, memberId, branchId, isOwner = false, onDone }: { sub: SubscriptionView; memberId: string; branchId: string; isOwner?: boolean; onDone: () => void }) {
+function MoneyBlock({ sub, memberId, branchId, isOwner = false, onDone, surchargeByProduct = {} }: { sub: SubscriptionView; memberId: string; branchId: string; isOwner?: boolean; onDone: () => void; surchargeByProduct?: Record<string, number> }) {
   const due = sub.balanceDueKurus
   const [open, setOpen] = useState(false)
   // İNDİRİM, satıştan sonra (owner, 2026-08-07). The other half of OR-32: the sale-time field could
@@ -1531,6 +1531,56 @@ function MoneyBlock({ sub, memberId, branchId, isOwner = false, onDone }: { sub:
                 </Select>
               </Labeled>
             </div>
+            {/* ── NAKİT FİYATINA KURULMUŞ PAKET, KARTLA TAHSİLAT (owner, 2026-09-29) ──────────
+                Burcu Akça: paket 15 Eylül'de "nakit vereceğim" denildiği için 8.500 ₺'den kuruldu,
+                para 29 Eylül'de kartla ve 9.500 ₺ olarak alındı. Tahsis edilebilen 8.500; kalan
+                1.000 ₺ hiçbir satışa yazılamayıp ÜYENİN ALACAĞI olarak durdu, ve bunu kimse fark
+                etmedi. Elle onarıldı (`fix-burcu-akca-kart-farki-2026-09-29`).
+
+                Kapanmış bir satışın tutarını yerinde artıran bir işlem YOK — indirim var, zam yok,
+                ve bu doğru. O yüzden doğru sıra şudur: ÖNCE paketin fiyatını kart fiyatına çek,
+                SONRA tahsil et. Düğme bunu yapıyor; tutarı kendiliğinden şişirmiyor, çünkü fazla
+                tutar tam da bu hatanın kendisi.
+
+                Otomatik değil, çünkü fark her zaman geçerli değil: üye pazarlık etmiş, indirim
+                almış ya da fiyat zaten kart fiyatından kurulmuş olabilir. Karar masanın. */}
+            {method !== 'cash' && (surchargeByProduct[sub.productId] ?? 0) > 0 ? (
+              <div className="space-y-2 rounded-lg border border-warning/30 bg-warning/5 px-3 py-2">
+                <p className="text-xs text-warning">
+                  Bu paketin tutarı <strong>{tl(sub.priceAgreedKurus)}</strong>. Kart/havale farkı{' '}
+                  <strong>+{tl(surchargeByProduct[sub.productId] ?? 0)}</strong> — fiyat nakit
+                  esasına göre kurulduysa, kart tutarını buraya yazmak farkı satışa yazmaz; fark
+                  üyenin alacağı olarak kalır.
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={busy}
+                  onClick={async () => {
+                    setBusy(true)
+                    try {
+                      const yeni = sub.priceAgreedKurus + (surchargeByProduct[sub.productId] ?? 0)
+                      const res = await amendSubscriptionAction({
+                        entitlementId: sub.id,
+                        priceAgreedKurus: yeni,
+                        reason: 'Kart/havale farkı eklendi — tahsilat nakit dışı yöntemle alınıyor.',
+                      })
+                      if (res.ok) {
+                        toast.success(`Paket tutarı ${tl(yeni)} oldu. Şimdi tahsil edebilirsin.`)
+                        onDone()
+                      } else {
+                        toast.error(domainErrorMessage(res.error))
+                      }
+                    } catch (e) {
+                      toast.error(saveErrorMessage(e))
+                    }
+                    setBusy(false)
+                  }}
+                >
+                  Paket tutarına kart farkını ekle (+{tl(surchargeByProduct[sub.productId] ?? 0)})
+                </Button>
+              </div>
+            ) : null}
             <div className="flex gap-2">
               <Button variant="outline" size="sm" className="flex-1" onClick={() => setOpen(false)} disabled={busy}>
                 Vazgeç
@@ -1608,7 +1658,7 @@ function MoneyBlock({ sub, memberId, branchId, isOwner = false, onDone }: { sub:
 // money model, invisible to the till, the reports and the cari hesap. Money is taken in ONE place now,
 // the Cari Hesap tab, where it lands in the ledger and in the kasa. Two ways to record a payment are
 // two answers to "has she paid?", and reception would have had no way to know which one was believed.
-function AmendDialog({ sub, siblings, memberId, branchId, isOwner = false, onClose, onDone }: { sub: SubscriptionView; siblings: readonly SubscriptionView[]; memberId: string; branchId: string; isOwner?: boolean; onClose: () => void; onDone: () => void }) {
+function AmendDialog({ sub, siblings, memberId, branchId, isOwner = false, onClose, onDone, surchargeByProduct = {} }: { sub: SubscriptionView; siblings: readonly SubscriptionView[]; memberId: string; branchId: string; isOwner?: boolean; onClose: () => void; onDone: () => void; surchargeByProduct?: Record<string, number> }) {
   const [validFrom, setValidFrom] = useState(toDateInput(sub.validFrom))
   const [validUntil, setValidUntil] = useState(toDateInput(sub.validUntil))
   // The package's original length in days, taken from what it was sold as. While reception hasn't
@@ -1699,7 +1749,7 @@ function AmendDialog({ sub, siblings, memberId, branchId, isOwner = false, onClo
           what is owed and a collection records money that arrived. One button doing both is how they
           get confused again. Same action, same drawer rules and same allocation as Cari Hesap — this
           is a second door to one room, not a second room. */}
-      <MoneyBlock sub={sub} memberId={memberId} branchId={branchId} isOwner={isOwner} onDone={onDone} />
+      <MoneyBlock sub={sub} memberId={memberId} branchId={branchId} isOwner={isOwner} onDone={onDone} surchargeByProduct={surchargeByProduct} />
     </ReasonDialogShell>
   )
 }

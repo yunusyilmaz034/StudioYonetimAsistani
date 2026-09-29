@@ -277,9 +277,31 @@ tarihi korundu** (ciro nakit esaslı, `receivedAt`). Kasa etkilenmedi: kasa şar
 kaydı. Ciro tarihi ödemeye bağlı olduğundan rakamlar doğru; kayan şey yalnızca "satış ne zaman
 yazıldı".
 
-**AÇIK İŞ — owner: *"bir daha olmasın."*** Yapısal boşluk şu: satış bir fiyat esasına göre kurulup
-sonra başka yöntemle tahsil edilince kimse sormuyor. Tahsilat akışına "yöntem değişti, fiyatı
-güncelleyeyim mi?" adımı eklenecek. Akış haritası çıkarılıyor.
+**"Bir daha olmasın" — aynı gün yapıldı (owner onayı).** Akış haritası çıkarıldı ve boşluk
+doğrulandı: `collect` ürünü de fiyat ayarını da hiç okumuyor, `Sale` üzerinde "hangi fiyat esasına
+göre kuruldu" diye bir alan yok, ve panelde bu uyuşmazlığı fark eden tek bir yer bile yoktu.
+
+İki nokta kapatıldı:
+
+**1) Paket kartındaki tahsilat kutusu** (`subscriptions.tsx` · `MoneyBlock`): yöntem nakit dışıysa ve
+o ürünün kart farkı varsa, kutu paketin tutarını ve farkı yazıyor, yanına da **"Paket tutarına kart
+farkını ekle (+X ₺)"** düğmesi koyuyor. Düğme `amendSubscriptionAction` ile fiyatı yükseltiyor —
+**tutarı kendiliğinden şişirmiyor**, çünkü fazla tutar hatanın kendisi. Doğru sıra: önce fiyat, sonra
+tahsilat. Otomatik değil: fark her zaman geçerli değil (pazarlık, indirim, ya da zaten kart
+fiyatından kurulmuş paket), karar masanın.
+
+**2) Cari Hesap tahsilat kutusu** (`account-panel.tsx`): girilen tutar kalan borcu aşıyorsa ve yöntem
+nakit değilse, **kaç lira fazla olduğunu** ve fazlanın satışa yazılmayıp üye alacağı olarak
+kalacağını söylüyor. Orada ürün bilgisi yok, o yüzden düzeltme değil uyarı — ve engel değil, çünkü
+fazla tahsilat meşru da olabilir.
+
+Hâlâ açık, ama bugünün işi değil: `Sale` bir fiyat esası taşımıyor. Taşısaydı bu kontrol UI'da değil
+domainde olurdu. Şema değişikliği owner kararı ([[CLAUDE.md]] — event/şema owner'ın).
+
+**Yan bulgu, düzeltilmedi:** paket kartındaki tahsilat `saleId` göndermiyor (`subscriptions.tsx`
+`collect()`), yani tahsilat **en eski borçtan** mahsup ediliyor. İki açık paketi olan bir üyede B
+paketinin üstünde tahsilat alıp para A'ya gidebilir. Cari Hesap'taki satır-bazlı düğme `saleId`
+gönderiyor, bu göndermiyor.
 
 ## 📉 29 Eylül — Cloud Alerting'in bildirdiği `onEventCreated` hatası: iki işlem, tek belge
 
