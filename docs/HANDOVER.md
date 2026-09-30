@@ -571,11 +571,14 @@ Telefon anahtarı tek fonksiyona (`telefonAnahtari`) indirildi: haritayı KURAN 
 bir gün ayrışsalardı harita dolu görünüp sorgu hep boş dönerdi — ekranda "eşleşme yok" ile "eşleşme aranmadı" aynı
 görünür, yani sessiz bir hata olurdu.
 
-**Koruyucu artık beş kez tek başına çalıştı.** 25 Eylül 13:04→13:11 (7 dk), 26 Eylül 14:04→14:10 (6 dk),
-27 Eylül 21:55→22:01 (6 dk), 27 Eylül 22:13→22:21 (8 dk) ve 28 Eylül 20:36→20:40 (4 dk). Beşi de gerçek
-rollout sonrası, elle dokunulmadan.
-Canlı sürüm `studio-yonetim-build-2026-09-28-004` (commit `d7517bd` — oturum yarışı düzeltmesi +
-lead listesi), kat 1. Deploy ile bir sonraki tur arasındaki pencere hâlâ
+**Koruyucu artık altı kez tek başına çalıştı.** 25 Eylül 13:04→13:11 (7 dk), 26 Eylül 14:04→14:10 (6 dk),
+27 Eylül 21:55→22:01 (6 dk), 27 Eylül 22:13→22:21 (8 dk), 28 Eylül 20:36→20:40 (4 dk) ve
+**30 Eylül 17:45→17:50 (5 dk)**. Altısı da gerçek rollout sonrası, elle dokunulmadan.
+
+**30 Eylül'ün kendisi ayrı bir kanıt:** o gün arka arkaya altı rollout çıktı (rapor filtresi, PIN, kapsam
+genişlemesi, geri alma). Her biri katı sıfırladı ve her seferinde kat 1'e dönmüş olarak ölçüldü — yalnızca
+sonuncusunun süresi kronometreyle tutuldu. Koruyucu artık istisna değil, arka plan.
+Canlı sürüm `studio-yonetim-build-2026-09-30-006` (dar rapor PIN'i), kat 1. Deploy ile bir sonraki tur arasındaki pencere hâlâ
 kapanmıyor (bkz. OR-108) — ama o pencere artık en fazla on dakika.
 
 ## 🚪 25 Eylül — kamera kazasının TERS yönü, PT'de üç kişi, ve iki gün boş çalışan koruyucu
