@@ -19,6 +19,8 @@ import {
 } from '@studio/core'
 import { z } from 'zod'
 
+import { reportsUnlocked } from '../report-pin'
+
 import {
   buildCash,
   buildCancellations,
@@ -102,6 +104,11 @@ export async function loadReportAction(input: unknown): Promise<ReportResult> {
     })
     .parse(input)
   const ctx = await requireTenantContext(OWNER)
+  // EKRANI GİZLEYİP VERİYİ GÖNDERMEK PERDE OLUR (owner, 2026-09-30). Sayfa PIN sorarken bu işlem
+  // sormasaydı, rapor verisi hâlâ tek bir istekle çekilebilirdi — kilit ekranda değil, veride.
+  if (!(await reportsUnlocked(String(ctx.studioId), String(ctx.actor.id)))) {
+    throw new Error('reports_locked')
+  }
   const db = adminDb()
 
   switch (p.id) {

@@ -2158,3 +2158,20 @@ anında veriliyor (`awaiting-us.ts`), AI'a yeni bir işaret yazdırılarak deği
 tutulmamış bir sözü yakalamak için fazla kırılgan, ve yalnızca bugünden sonrasını kapsardı. Okuma tarafı geçmişe
 dönük çalışır. **Sıra lead'lerin tersi — en uzun bekleyen önde:** lead bir fırsattır, tazesi değerlidir; tutulmamış
 bir söz borçtur, eskisi daha çok zarar verir ([[OR-115]] ile karıştırılmasın).
+
+
+**OR-117 · Rapor ekranı bir PIN ile açılır; PIN gösterilmez, yalnızca değiştirilir.** (2026-09-30)
+Owner: *"Satış raporları ekranını şifreli açmamız mümkün mü? Bu rol admin açık bırakıyor, resepsiyondaki biri de
+görebiliyor, görmesini istemiyorum."* Önce ÖLÇÜLDÜ: resepsiyonun kendi hesabı `/reports`'u zaten açamıyor — hem
+`permissions.ts` hem `loadReportAction` owner şartı koyuyor. Yani korunan şey rol değil, **açık bırakılmış owner
+oturumu**. Doğru araç bu yüzden ikinci bir kapı.
+**Kural:** rapor ekranı ve rapor VERİSİ altı haneli bir PIN ister; kilit on beş dakika açık kalır. Kilit hem sayfada
+hem `loadReportAction` içinde aranır — ekranı gizleyip veriyi göndermek perde olurdu.
+**PIN panelde HİÇBİR YERDE gösterilmez.** Ayarlar → Genel'de yalnızca "değiştir" vardır ve mevcut PIN bir bilgi değil,
+bir KANITTIR: bilen değiştirebilir. Owner'ın gerekçesi: *"eskisini söylemesin, böylece gizlilik sağlanmış olur; biri
+değiştirirse zaten bilgi okunmuş anlamına gelir, o ayrı bir mesele."* Değişiklik owner'ın e-postasına bildirilir ve
+kaydı tutulur (ne zaman, kim — **PIN'in kendisi ne loga ne e-postaya yazılır**).
+**Bu iş bir AÇIK kapattı:** PIN'in doğal yeri `settings` görünüyordu, ama `firestore.rules`'un son kuralı `desk()`e
+(owner + resepsiyon) bütün koleksiyonları okutuyor ve `settings` sunucuya-özel listede değildi — yani resepsiyonun
+oturumu PIN özetini veritabanından okuyabilirdi ve altı hane saniyeler içinde denenirdi. Sır artık `secrets`
+koleksiyonunda ve o koleksiyon listeye eklendi. Özet HMAC ile alınıyor (alan ayrımlı), düz sha256 ile değil.

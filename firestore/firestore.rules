@@ -73,6 +73,12 @@ service cloud.firestore {
           // yani buradan bir link üretilemez; yine de kimin daveti beklediği personelin bilmesi
           // gereken bir şey değil ve bir kapının yanındaki kayıt her zaman en dar erişimi hak eder.
           'staffInvites',
+          // 2026-09-30 — rapor PIN'inin ÖZETİ ve değişiklik kaydı. Buraya kadar olan her şey gibi
+          // Server Action üzerinden okunuyor. Kritik: bu koleksiyon açılmadan önce PIN'in doğal yeri
+          // `settings` görünüyordu — ve `settings` bu listede DEĞİL, yani resepsiyonun oturumu onu
+          // istemci SDK'sıyla doğrudan okuyabiliyor. Altı haneli bir PIN'in özeti okunabiliyorsa PIN
+          // yok demektir. Sır, onu görmemesi gereken kişinin erişemediği bir koleksiyonda durur.
+          'secrets',
           // PF-37 — payment links + unattributed PAYTR collections (buyer PII). Server-only; the
           // staff app reads them through Server Actions on the Admin SDK, never the client SDK.
           'paytrLinks', 'paytrCollections',

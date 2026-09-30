@@ -18,6 +18,7 @@ import { cn } from '@/lib/utils'
 import { DefinitionsPanel } from './definitions-panel'
 import { MobilePanel } from './mobile-panel'
 import { AiSettingsPanel } from './ai-settings-panel'
+import { ReportPinPanel } from './report-pin-panel'
 import { ThemeScreen } from './theme/theme-screen'
 import { domainErrorMessage } from '@/lib/domain-error'
 import type { StudioTheme } from '@/lib/theme/presets'
@@ -318,6 +319,10 @@ export function SettingsScreen({
         </TabsList>
 
         <TabsContent value="genel" className="space-y-6">
+          {/* Rapor PIN'i — en üstte, çünkü bir güvenlik ayarının aranması gereken bir ayar olmaması
+              gerekir. PIN gösterilmez, yalnızca değiştirilir (owner, 2026-09-30). */}
+          <ReportPinPanel canEdit={canManage} />
+
           {/* ── Şirket ────────────────────────────────────────────────────────────────────────── */}
           <Section title="Şirket bilgileri" hint="Makbuzda, e-postada ve ileride e-faturada görünecek olanlar.">
         <div className="grid gap-4 sm:grid-cols-2">

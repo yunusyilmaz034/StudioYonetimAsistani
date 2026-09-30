@@ -246,6 +246,30 @@ Cihaz o geçişi **5,7 saniye** gecikmeyle gördü.
 üçü 2 sn'yi, ikisi 5 sn'yi aştı (en kötü 11,1 sn). Gecikme büyüdükçe "okuttum, kol geç döndü / dönmedi" şikâyeti
 artar — kablo düzelse bile bu ayrı bir eksen ve ölçülmeye devam etmeli.
 
+## 🔐 30 Eylül — raporlar artık PIN ile açılıyor ([[OR-117]])
+
+Owner raporları resepsiyondan saklamak istedi. **Ölçüm önce geldi ve isteği yeniden tanımladı:** resepsiyonun kendi
+hesabı `/reports`'u zaten açamıyor. Korunan şey rol değil, **açık bırakılmış owner oturumu** — makinenin başına geçen
+kişi. Doğru araç bu yüzden bir PIN.
+
+**Kurulan:** altı haneli PIN, on beş dakikalık kilit. Kilit hem sayfada hem `loadReportAction` içinde aranıyor —
+ekranı gizleyip veriyi göndermek perde olurdu. Ayarlar → Genel'de yalnızca "değiştir" var; PIN hiçbir yerde
+gösterilmiyor. Değişiklik e-postayla bildiriliyor ve kaydı tutuluyor; **PIN ne loga ne e-postaya yazılıyor.**
+
+**Bu iş bir güvenlik açığı kapattı ve bunu ayrıca not etmek gerek.** PIN'in doğal yeri `settings` görünüyordu.
+`firestore.rules`'un son kuralı `desk()`e — yani owner + RESEPSİYON — bütün koleksiyonları okutuyor ve `settings` o
+listede değildi. PIN özeti oraya konsaydı, tam da engellemek istediğimiz kişi onu istemci SDK'sıyla okur ve altı
+haneyi saniyeler içinde denerdi. Yeni bir `secrets` koleksiyonu açıldı ve sunucuya-özel listeye eklendi. Özet HMAC
+(alan ayrımlı), düz sha256 değil — altı hane bir sözlük kadar küçüktür.
+
+**Açılış PIN'i owner'ın verdiği değer.** Belgeye önceden YAZILMIYOR: yazılsaydı "hiç değiştirilmedi" ile
+"değiştirildi ve tesadüfen aynı" ayırt edilemezdi. Değiştirilmediği sürece hem kilit ekranı hem ayarlar kartı
+bunu uyarı olarak söylüyor — değeri asla.
+
+**⚠️ Kurallar ayrı dağıtılır:** `firestore.rules` App Hosting derlemesiyle gitmez, `firebase deploy --only
+firestore:rules` gerekir. Bu yapılmazsa panel yeni davranışı gösterir ama `secrets` koleksiyonu hâlâ resepsiyona
+okunur durumda kalır.
+
 ## 📊 30 Eylül — satış raporu paket dağılımına göre süzülüyor
 
 Owner: *"Pilates 01.09–30.09 arası ne kadar satış olmuş, aynı şekilde fitness, hibrit ve pt. Önemli
