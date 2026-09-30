@@ -24,6 +24,21 @@ import { loadReportAction, type ReportResult } from '@/server/actions/reports'
 // in the drawer; that is the whole requirement, and a PDF library to satisfy it would be a dependency
 // bought for nothing.
 
+// PAKET DAĞILIMI — dördüncü değer bir KATEGORİ, bir toplam değil (owner, 2026-09-30).
+//
+// Hibrit ayrı duruyor ve içindeki pilates/fitness bileşenleri o kategorilere DAĞITILMIYOR. Aynı
+// kural üye filtrelerinde de var ([[OR-105]]): bir satışı iki kategoride birden saymak, kategori
+// rakamlarını birbirine eklenemez hale getirir — "pilates + fitness + hibrit" toplamı satış
+// sayısını aşar ve hangi rakamın doğru olduğu sorulamaz olur.
+const KATEGORILER = [
+  { id: 'hepsi', label: 'Tümü' },
+  { id: 'pilates', label: 'Pilates' },
+  { id: 'fitness', label: 'Fitness' },
+  { id: 'hibrit', label: 'Hibrit' },
+  { id: 'pt', label: 'PT' },
+] as const
+type KategoriId = (typeof KATEGORILER)[number]['id']
+
 export function ReportsScreen() {
   // `?r=` picks the report on arrival — how `/analytics` sends its old visitors to the trend. An
   // unknown value falls back to the day-end rather than rendering nothing.
@@ -42,6 +57,11 @@ export function ReportsScreen() {
   // İPTALLER: varsayılan KAPALI (owner, 2026-09-05). Zaten toplamlara girmiyorlardı; listede
   // durmaları "89 satış" başlığının altını her seferinde saydırıyordu.
   const [iptalleriGoster, setIptalleriGoster] = useState(false)
+  // PAKET DAĞILIMINA GÖRE SATIŞ (owner, 2026-09-30): *"pilates 01.09–30.09 arası ne kadar satış
+  // olmuş, aynı şekilde fitness, hibrit ve pt."* Sunucuya gidiyor, istemcide süzülmüyor — çünkü
+  // özet cümlesindeki toplamlar da seçilen kategoriye ait olmalı; süzülen tabloyla toplanmayan bir
+  // başlık, okuyana yanlış rakam söyler.
+  const [kategori, setKategori] = useState<KategoriId>('hepsi')
 
   const spec = REPORTS.find((r) => r.id === id)!
 
@@ -61,7 +81,14 @@ export function ReportsScreen() {
       setError(null)
       try {
         const range = resolveRange(rangeId, Date.now(), custom)
-        const res = await loadReportAction({ id, fromMs: range.fromMs, toMs: range.toMs })
+        const res = await loadReportAction({
+          id,
+          fromMs: range.fromMs,
+          toMs: range.toMs,
+          // Yalnızca satış raporunda anlamlı; ötekiler için gönderilmiyor ki sunucu tarafında
+          // "neden burada kategori var" diye bir soru hiç doğmasın.
+          ...(id === 'sales' && kategori !== 'hepsi' ? { kategori } : {}),
+        })
         if (!cancelled) setResult(res)
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : 'Rapor yüklenemedi.')
@@ -73,7 +100,7 @@ export function ReportsScreen() {
     return () => {
       cancelled = true
     }
-  }, [id, rangeId, custom, charts])
+  }, [id, rangeId, custom, charts, kategori])
 
   const table = charts ? trendTable : result?.table
 
@@ -169,6 +196,33 @@ export function ReportsScreen() {
         ) : null}
         <p className="text-xs text-muted-foreground">{TIME_NOTE[spec.time]}</p>
       </div>
+
+      {/* PAKET DAĞILIMI — yalnızca satış raporunda. Tarih aralığının hemen altında, çünkü owner'ın
+          sorusu ikisi birlikte: "pilates, 1–30 Eylül arası ne kadar sattı?" */}
+      {id === 'sales' ? (
+        <div className="space-y-2 print:hidden">
+          <div className="flex flex-wrap gap-2">
+            {KATEGORILER.map((k) => (
+              <button
+                key={k.id}
+                type="button"
+                onClick={() => setKategori(k.id)}
+                className={`min-h-10 rounded-lg border px-3 text-sm transition-colors ${
+                  k.id === kategori
+                    ? 'border-primary bg-primary-soft font-medium text-primary'
+                    : 'border-border text-muted-foreground hover:bg-muted hover:text-foreground'
+                }`}
+              >
+                {k.label}
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Hibrit kendi başına bir kategoridir; içindeki pilates ve fitness bileşenleri o
+            kategorilere eklenmez.
+          </p>
+        </div>
+      ) : null}
 
       {error ? (
         <div className="rounded-xl border border-danger/30 bg-danger/5 p-4 text-sm text-danger">

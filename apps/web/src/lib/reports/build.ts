@@ -221,6 +221,17 @@ export function buildSales(
   sales: readonly Sale[],
   members: readonly Member[],
   staff: readonly StaffMember[],
+  /**
+   * satışId → paket kategorisi etiketi (owner, 2026-09-30).
+   *
+   * Kategori satışın ÜSTÜNDE yazmıyor: satır yalnızca `productId` taşıyor, kategori katalogda.
+   * O yüzden eşleme sunucuda kuruluyor ve buraya hazır geliyor — bu fonksiyon saf kalsın diye.
+   *
+   * **HİBRİT KENDİ BAŞINA BİR KATEGORİDİR.** İçindeki pilates ve fitness bileşenleri o kategorilere
+   * DAĞITILMAZ ([[OR-105]] ile aynı kural, üye filtrelerinde de böyle): aynı satışı iki kategoride
+   * birden saymak, kategori toplamlarını birbirine eklenemez hale getirir.
+   */
+  kategori: ReadonlyMap<string, string> = new Map(),
 ): Report {
   const names = nameOf(members)
   const who = actorName(staff)
@@ -230,6 +241,7 @@ export function buildSales(
     date(s.soldAt),
     names.get(s.memberId as string) ?? '(silinmiş üye)',
     s.lines.map((l) => `${l.description} × ${l.quantity}`).join(' + '),
+    kategori.get(s.id as string) ?? '—',
     lira(s.gross),
     lira(kurus(s.gross) - kurus(s.total)),
     lira(s.total),
@@ -251,6 +263,7 @@ export function buildSales(
         'Tarih',
         'Üye',
         'Ürünler',
+        'Kategori',
         'Brüt (₺)',
         'İndirim (₺)',
         'Net (₺)',

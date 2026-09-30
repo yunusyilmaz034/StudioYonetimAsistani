@@ -68,11 +68,14 @@ describe('satış raporu', () => {
   it('money reaches the cell as a NUMBER in lira — a formatted string would break the owner’s SUM()', () => {
     const { table } = buildSales([sale({ paid: TRY(100_00) })], members, staff)
     const row = table.rows[0]!
-    expect(row[3]).toBe(300) // brüt
-    expect(row[5]).toBe(300) // net
-    expect(row[6]).toBe(100) // tahsil edilen
-    expect(row[7]).toBe(200) // kalan — selling without collecting is legal; it must never be invisible
-    expect(typeof row[7]).toBe('number')
+    // Sütunlar 2026-09-30'da bir kaydı — 'Kategori', 'Ürünler'in hemen yanına girdi (owner: paket
+    // dağılımına göre satış). Para sütunları birer sağa kaydı; indeksler burada, ekran ise sütunu
+    // ADIYLA buluyor, o yüzden tek güncellenecek yer burası.
+    expect(row[4]).toBe(300) // brüt
+    expect(row[6]).toBe(300) // net
+    expect(row[7]).toBe(100) // tahsil edilen
+    expect(row[8]).toBe(200) // kalan — selling without collecting is legal; it must never be invisible
+    expect(typeof row[8]).toBe('number')
   })
 
   it('a cancelled sale is LISTED but is not in the totals', () => {
@@ -89,7 +92,7 @@ describe('satış raporu', () => {
 
   it('names the person who sold it, never a raw uid', () => {
     const { table } = buildSales([sale({})], members, staff)
-    expect(table.rows[0]![9]).toBe('Reyhan')
+    expect(table.rows[0]![10]).toBe('Reyhan')
   })
 
   it('an erased member’s sale still appears — the money is a record the studio must keep', () => {

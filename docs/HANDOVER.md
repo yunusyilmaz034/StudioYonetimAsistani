@@ -246,6 +246,31 @@ Cihaz o geçişi **5,7 saniye** gecikmeyle gördü.
 üçü 2 sn'yi, ikisi 5 sn'yi aştı (en kötü 11,1 sn). Gecikme büyüdükçe "okuttum, kol geç döndü / dönmedi" şikâyeti
 artar — kablo düzelse bile bu ayrı bir eksen ve ölçülmeye devam etmeli.
 
+## 📊 30 Eylül — satış raporu paket dağılımına göre süzülüyor
+
+Owner: *"Pilates 01.09–30.09 arası ne kadar satış olmuş, aynı şekilde fitness, hibrit ve pt. Önemli
+hatırlatma: hibriti tek ele al, içindeki pilates ve fitness'ı diğerlerine ekleme, o kendi başına bir
+paket."*
+
+**Yapıldı:** satış raporuna `Kategori` sütunu ve tarih aralığının altına **Tümü · Pilates · Fitness ·
+Hibrit · PT** düğmeleri. Süzme **sunucuda**: özet cümlesindeki "kaç satış, ne kadar anlaşıldı, ne
+kadar tahsil edildi" rakamları da seçilen kategoriye ait. İstemcide süzseydik tablo daralır, başlık
+olduğu gibi kalırdı — okuyana yanlış rakam söyler.
+
+**Hibrit kuralı koda geçti.** Demet olup olmadığı KATALOGDAN okunuyor (bileşeni var mı), adından
+değil — ve demetin kendi `category` alanı yanıltıcı, ürün formu onu `pilates_group` yazıyor. Bileşenler
+pilates/fitness kovalarına dağıtılmıyor. Aynı kural üye filtrelerinde zaten vardı ([[OR-105]]).
+
+**İki kenar durum, sessizce yutulmadı:** tek satışta iki kategori varsa `Karışık` yazıyor (birini
+seçmek o satışı diğerinin toplamından düşürmek olurdu); katalogda bulunamayan satır (perakende, elle
+yazılmış satış) `—` kalıyor ve hiçbir kategoriye sayılmıyor.
+
+**Sütun düzeni değişti:** `Kategori`, `Ürünler`in yanına girdi, para sütunları birer sağa kaydı.
+Ekran sütunu ADIYLA buluyor, o yüzden tek güncellenen yer `build.test.ts` indeksleri oldu.
+
+**Kategori satışın üstünde yazmıyor** — satır yalnızca `productId` taşıyor, kategori katalogda. O
+yüzden eşleme sunucuda kuruluyor ve `buildSales`a hazır geliyor; o fonksiyon saf kaldı.
+
 ## 💳 29 Eylül — nakit fiyatına kurulan satış, kartla tahsil edilince 1.000 ₺ "alacak" doğurdu
 
 Owner: *"Burcu Akça daha önce nakit verecek diye nakit demişler ama KK ile ödeme almışlar bugün.

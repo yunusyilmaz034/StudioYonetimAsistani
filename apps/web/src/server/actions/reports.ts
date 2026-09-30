@@ -4,6 +4,7 @@ import {
   debtByEntitlement,
   loadExcludedMemberIds,
   type TenantContext,
+  FirestoreCatalogRepository,
   FirestoreCheckinRepository,
   FirestoreEntitlementRepository,
   FirestoreFinanceRepository,
@@ -94,6 +95,10 @@ export async function loadReportAction(input: unknown): Promise<ReportResult> {
       id: z.enum(['membership', 'sales', 'collections', 'reservations', 'checkins', 'trainer', 'cancellations', 'dayend', 'debts', 'cash', 'notes']),
       fromMs: z.number(),
       toMs: z.number(),
+      // Satış raporunun paket dağılımı (owner, 2026-09-30). Süzme SUNUCUDA yapılıyor: özet
+      // cümlesindeki toplamlar da seçilen kategoriye ait olmalı. İstemcide süzülseydi tablo
+      // daralır, başlıktaki "ne kadar satış" rakamı olduğu gibi kalırdı — okuyana yanlış söyler.
+      kategori: z.enum(['pilates', 'fitness', 'hibrit', 'pt']).optional(),
     })
     .parse(input)
   const ctx = await requireTenantContext(OWNER)
@@ -119,12 +124,40 @@ export async function loadReportAction(input: unknown): Promise<ReportResult> {
 
     case 'sales': {
       const finance = new FirestoreFinanceRepository(db)
-      const [sales, members, staff] = await Promise.all([
+      // Katalog da okunuyor: kategori satışın üstünde YAZMIYOR, satır yalnızca `productId` taşıyor.
+      // Katalog stüdyo başına birkaç düzine belge — sınırlı ve tek seferlik bir okuma. Abonelikler
+      // üzerinden gitmek aralıksız bir okuma olurdu; satır sayısı dönemle büyürdü.
+      const [sales, members, staff, products] = await Promise.all([
         finance.listSalesBetween(ctx, p.fromMs, p.toMs),
         new FirestoreMemberRepository(db).list(ctx),
         new FirestoreIdentityRepository(db).listStaff(ctx),
+        new FirestoreCatalogRepository(db).listProducts(ctx),
       ])
-      return { id: p.id, ...buildSales(await haricTut(ctx, sales, 'memberId'), members, staff) }
+
+      // HİBRİT, PİLATES DE FİTNESS DE DEĞİLDİR (owner, 2026-09-30 · aynı kural [[OR-105]]).
+      // Bir demet ürünü kendi başına bir kategoridir; bileşenleri pilates/fitness kovalarına
+      // DAĞITILMAZ. Demet olup olmadığı KATALOGDAN okunuyor (bileşeni var mı), adından değil —
+      // ve demetin kendi `category` alanı yanıltıcıdır (ürün formu onu `pilates_group` yazıyor).
+      const demet = new Set(products.filter((x) => (x.components?.length ?? 0) > 0).map((x) => x.id as string))
+      const katalogKat = new Map(products.map((x) => [x.id as string, x.category as string]))
+      const ETIKET: Record<string, string> = { pilates_group: 'Pilates', fitness: 'Fitness', private: 'PT' }
+
+      const etiketle = (lines: readonly { readonly productId: unknown }[]): string => {
+        const ids = lines.map((l) => (l.productId ? String(l.productId) : '')).filter(Boolean)
+        if (ids.some((x) => demet.has(x))) return 'Hibrit'
+        const kats = [...new Set(ids.map((x) => katalogKat.get(x)).filter((x): x is string => Boolean(x)))]
+        // Tek satışta iki kategori varsa "Karışık" yazıyor — birini seçmek, o satışı diğerinin
+        // toplamından sessizce düşürmek olurdu. Katalogda bulunamayan satır (perakende, elle
+        // yazılmış satış) kategorisiz kalır ve hiçbir kategoriye sayılmaz.
+        if (kats.length === 0) return '—'
+        return kats.length > 1 ? 'Karışık' : (ETIKET[kats[0] as string] ?? (kats[0] as string))
+      }
+
+      const hepsi = await haricTut(ctx, sales, 'memberId')
+      const kategori = new Map(hepsi.map((s) => [s.id as string, etiketle(s.lines)]))
+      const SECIM: Record<string, string> = { pilates: 'Pilates', fitness: 'Fitness', hibrit: 'Hibrit', pt: 'PT' }
+      const secilen = p.kategori ? hepsi.filter((s) => kategori.get(s.id as string) === SECIM[p.kategori!]) : hepsi
+      return { id: p.id, ...buildSales(secilen, members, staff, kategori) }
     }
 
     case 'collections': {
