@@ -272,9 +272,10 @@ okuyabilir. Onayıyla dördü de kilitlendi (sayfa + veri işlemi), ve Genel Gö
 para kutuları PIN açılana kadar gizleniyor — yerine sebebi yazılıyor, çünkü sebebi söylenmeyen bir eksiklik arıza
 gibi okunur. **Resepsiyonun panosu değişmedi.**
 
-**Aynı gün daraltıldı:** owner *"günlük tahsilatlar gözüksün"* dedi ve sınır netleşti — gizlenen şey günün İŞİ değil,
-işletmenin DURUMU. `today.collected` listeden çıktı; gizli kalanlar ciro (`today.sales`), açık bakiye
-(`today.balance`), bekleyen ödemeler, mutabakatsız POS ve kasa kutusu.
+**Aynı gün iki kez daraltıldı, ve sonunda kural kendini yazdı.** Önce *"günlük tahsilatlar gözüksün, resepsiyon
+olduğu günü görsün"*, sonra *"bugünkü ciroyu görsün pinsiz"*. Sınır: **"bugün ne oldu" görünür, "işletme nerede
+duruyor" gizli.** `today.collected` ve `today.sales` listeden çıktı — günün rakamları zaten resepsiyonun panosunda.
+Gizli kalanlar birikmiş olanlar: açık bakiye (`today.balance`), bekleyen ödemeler, mutabakatsız POS, kasa kutusu.
 
 `/analytics` ayrıca bir şey gerektirmedi: o rota zaten `/reports?r=trend`'e yönlendiriyor, yani kilidin arkasında.
 

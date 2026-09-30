@@ -63,10 +63,13 @@ export function DashboardScreen({
   // PARA KUTULARI, PIN AÇILANA KADAR YOK ([[OR-117]]). Kilit raporlarla sınırlı kalsaydı, masanın
   // başına geçen kişi aynı rakamları bu ekranın en üstünde okurdu — ciro, tahsilat, açık bakiye.
   // Gizlenen kutunun yerine bir cümle konuyor: sebebi söylenmeyen bir eksiklik, arıza gibi okunur.
-  // GÜNLÜK TAHSİLAT GİZLENMİYOR (owner, 2026-09-30): *"Dashboard'daki günlük tahsilatlar gözüksün,
-  // o sorun değil, resepsiyon olduğu günü görsün."* Bugün kasaya ne girdiği masanın günlük işidir —
-  // gizlenmesi gereken, İŞLETMENİN durumu: ciro, açık bakiye, bekleyen ödemeler.
-  const PARA = new Set(['today.sales', 'today.balance', 'finance.pending', 'finance.unreconciled_paytr', 'finance.drawers'])
+  // SINIR: "BUGÜN NE OLDU" GÖRÜNÜR, "İŞLETME NEREDE DURUYOR" GİZLİ (owner, 2026-09-30).
+  //
+  // İki adımda buraya geldi: önce *"günlük tahsilatlar gözüksün, resepsiyon olduğu günü görsün"*,
+  // sonra *"bugünkü ciroyu görsün pinsiz"*. Ortaya çıkan kural tesadüf değil — günün rakamları
+  // masanın kendi işidir ve zaten resepsiyonun panosunda duruyor. PIN'in koruduğu şey BİRİKMİŞ
+  // olan: kimin ne kadar borcu var, ne kadarı bekliyor, kasada ne duruyor.
+  const PARA = new Set(['today.balance', 'finance.pending', 'finance.unreconciled_paytr', 'finance.drawers'])
   const presented = WIDGETS.filter((w) => !(paraGizli && PARA.has(w.id))).map((w) => ({ w, p: w.present(data) }))
   const metrics = presented.filter((x) => x.w.kind === 'metric')
   // PF-41 — a list with nothing in it does not earn a card. Six cards, three of them saying "there

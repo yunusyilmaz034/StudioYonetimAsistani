@@ -2177,9 +2177,11 @@ ekranlarından ve **Genel Görünüm'ün para kutularından** yine okur. Owner: 
 artık PIN istiyor — hem sayfa hem veri işlemi. Genel Görünüm kilitlenmiyor (orası resepsiyonun da ana ekranı);
 **yalnızca OWNER oturumunda** para kutuları PIN açılana kadar gizleniyor ve yerine sebebi yazılıyor. Resepsiyonun
 panosu değişmedi: parayı o alıyor, kasayı o sayıyor.
-**İstisna (owner, aynı gün): GÜNLÜK TAHSİLAT gizlenmiyor** — *"dashboard'daki günlük tahsilatlar gözüksün, o sorun
-değil, resepsiyon olduğu günü görsün."* Sınır burada netleşti: gizlenen şey günün İŞİ değil, işletmenin DURUMU —
-ciro, açık bakiye, bekleyen ödemeler, mutabakatsız POS. Bugün kasaya ne girdiği masanın kendi işidir.
+**SINIR, iki adımda netleşti (owner, aynı gün):** önce *"dashboard'daki günlük tahsilatlar gözüksün, o sorun değil,
+resepsiyon olduğu günü görsün"*, sonra *"bugünkü ciroyu görsün pinsiz"*. Ortaya çıkan kural şu: **"bugün ne oldu"
+görünür, "işletme nerede duruyor" gizli.** Günün rakamları (bugünkü satış, bugünkü tahsilat, giriş, doluluk) masanın
+kendi işidir ve zaten resepsiyonun panosunda durur. PIN'in koruduğu şey BİRİKMİŞ olandır: açık bakiye, bekleyen
+ödemeler, mutabakatsız POS, kasa.
 
 **Bu iş bir AÇIK kapattı:** PIN'in doğal yeri `settings` görünüyordu, ama `firestore.rules`'un son kuralı `desk()`e
 (owner + resepsiyon) bütün koleksiyonları okutuyor ve `settings` sunucuya-özel listede değildi — yani resepsiyonun
