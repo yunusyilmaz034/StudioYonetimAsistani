@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { PATRON_ACTIONS, type PatronActionKind, type PatronAnswer, type PatronBriefing, type ResolvedPatronAction } from '@/lib/patron/actions'
 
 import { requireTenantContext } from '../auth'
+import { requireUnlocked } from '../report-pin'
 import { adminDb } from '../firebase-admin'
 import { askPatron, patronBriefing, patronConfigured } from '../ai/patron'
 import { loadPatronSnapshot, type PatronSnapshot } from '../patron-snapshot'
@@ -51,6 +52,8 @@ function fallbackActions(snap: PatronSnapshot): PatronActionKind[] {
 export async function askPatronAction(input: unknown): Promise<PatronAnswer> {
   const p = z.object({ question: z.string().trim().min(1).max(500) }).parse(input)
   const ctx = await requireTenantContext(OWNER)
+  // Bu ekran rakamlarla KONUŞUYOR: tek bir soru ciroyu da borcu da döker ([[OR-117]]).
+  await requireUnlocked(String(ctx.studioId), String(ctx.actor.id))
   const snap = await loadPatronSnapshot(ctx)
 
   if (!patronConfigured()) {
@@ -85,6 +88,7 @@ function weekKey(now: number): string {
 
 export async function patronBriefingAction(): Promise<PatronBriefing> {
   const ctx = await requireTenantContext(OWNER)
+  await requireUnlocked(String(ctx.studioId), String(ctx.actor.id)) // [[OR-117]]
   const now = Date.now()
   const key = weekKey(now)
   const ref = adminDb().doc(`studios/${ctx.studioId}/settings/patronBriefing`)

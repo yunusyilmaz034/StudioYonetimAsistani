@@ -3,6 +3,7 @@
 import { z } from 'zod'
 
 import { requireTenantContext } from '../auth'
+import { requireUnlocked } from '../report-pin'
 import { adminDb } from '../firebase-admin'
 import type { Temp } from './conversations'
 
@@ -36,6 +37,7 @@ export interface AiReport {
 export async function aiReportAction(input: unknown): Promise<AiReport> {
   const p = z.object({ days: z.number().int().min(0).max(365).default(30) }).parse(input)
   const ctx = await requireTenantContext(OWNER)
+  await requireUnlocked(String(ctx.studioId), String(ctx.actor.id)) // [[OR-117]]
   const now = Date.now()
   const since = p.days > 0 ? now - p.days * DAY : 0
 

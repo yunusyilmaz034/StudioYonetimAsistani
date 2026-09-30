@@ -4,7 +4,8 @@ import { redirect } from 'next/navigation'
 import { requirePageAccess } from '@/server/auth'
 import { reportPinIsDefault, reportsUnlocked } from '@/server/report-pin'
 
-import { ReportPinGate } from './pin-gate'
+import { ReportPinGate } from '@/components/report-pin-gate'
+
 import { ReportsScreen } from './reports-screen'
 
 // The reports (v1.27 S6; the trend joined them in PF-40). Owner-only: reception does not get finance

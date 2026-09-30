@@ -266,6 +266,14 @@ haneyi saniyeler içinde denerdi. Yeni bir `secrets` koleksiyonu açıldı ve su
 "değiştirildi ve tesadüfen aynı" ayırt edilemezdi. Değiştirilmediği sürece hem kilit ekranı hem ayarlar kartı
 bunu uyarı olarak söylüyor — değeri asla.
 
+**Aynı gün genişletildi.** Owner'a şu bulgu iletildi: PIN yalnızca raporları korursa, açık oturumun başındaki kişi
+parayı **Analiz · AI Rapor · Patron Asistanı · Bordro** ekranlarından ve **Genel Görünüm'ün para kutularından** yine
+okuyabilir. Onayıyla dördü de kilitlendi (sayfa + veri işlemi), ve Genel Görünüm'de **yalnızca owner oturumunda**
+para kutuları PIN açılana kadar gizleniyor — yerine sebebi yazılıyor, çünkü sebebi söylenmeyen bir eksiklik arıza
+gibi okunur. **Resepsiyonun panosu değişmedi.**
+
+`/analytics` ayrıca bir şey gerektirmedi: o rota zaten `/reports?r=trend`'e yönlendiriyor, yani kilidin arkasında.
+
 **⚠️ Kurallar ayrı dağıtılır:** `firestore.rules` App Hosting derlemesiyle gitmez, `firebase deploy --only
 firestore:rules` gerekir. Bu yapılmazsa panel yeni davranışı gösterir ama `secrets` koleksiyonu hâlâ resepsiyona
 okunur durumda kalır.

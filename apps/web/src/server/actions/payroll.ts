@@ -15,6 +15,7 @@ import {
 import { z } from 'zod'
 
 import { requireTenantContext } from '../auth'
+import { requireUnlocked } from '../report-pin'
 import { adminDb } from '../firebase-admin'
 import { loadStatementDraft, listPayrollTrainers, periodKeyFor, type StatementLoad } from '../payroll-query'
 
@@ -59,11 +60,15 @@ export async function getPlanAction(input: unknown) {
 
 export async function listPlansAction() {
   const ctx = await requireTenantContext(OWNER)
+  // Maaş, stüdyonun en özel rakamı ([[OR-117]]). Sayfa kilidi ayrıca bakıyor; bu, sayfayı atlayan
+  // bir çağrı için.
+  await requireUnlocked(String(ctx.studioId), String(ctx.actor.id))
   return new FirestorePayrollRepository(adminDb()).listPlans(ctx)
 }
 
 export async function listTrainersAction() {
   const ctx = await requireTenantContext(OWNER)
+  await requireUnlocked(String(ctx.studioId), String(ctx.actor.id)) // [[OR-117]]
   return listPayrollTrainers(ctx)
 }
 

@@ -12,6 +12,7 @@ import { weekPlanAdvisorItems } from '@/server/week-plan-checklist'
 import { loadOwnerDashboard } from '@/server/owner-dashboard'
 import { onlinePaymentAdvisorItems } from '@/server/online-payment-checklist'
 import { loadRecentNotes, loadSnoozedItemIds } from '@/server/checklist-snooze'
+import { reportsUnlocked } from '@/server/report-pin'
 import { loadTodayOps } from '@/server/today-ops'
 
 import { DashboardScreen } from './dashboard-screen'
@@ -92,6 +93,9 @@ export default async function HomePage() {
       eksikListeler={eksik}
       role={ctx.role}
       roleLabel={roleLabel(ctx.role)}
+      // Owner oturumunda para kutuları PIN açılana kadar gizli ([[OR-117]]). Resepsiyon etkilenmez:
+      // korunan şey rol değil, açık bırakılmış owner oturumu.
+      paraGizli={ctx.role === 'owner' && !(await reportsUnlocked(String(ctx.studioId), String(ctx.actor.id)))}
     />
   )
 }

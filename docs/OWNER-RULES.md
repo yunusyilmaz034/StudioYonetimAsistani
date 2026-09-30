@@ -2171,6 +2171,13 @@ hem `loadReportAction` içinde aranır — ekranı gizleyip veriyi göndermek pe
 bir KANITTIR: bilen değiştirebilir. Owner'ın gerekçesi: *"eskisini söylemesin, böylece gizlilik sağlanmış olur; biri
 değiştirirse zaten bilgi okunmuş anlamına gelir, o ayrı bir mesele."* Değişiklik owner'ın e-postasına bildirilir ve
 kaydı tutulur (ne zaman, kim — **PIN'in kendisi ne loga ne e-postaya yazılır**).
+**GENİŞLETİLDİ (owner, aynı gün): kilit raporlarla sınırlı değil.** Ölçüldükten sonra owner'a şu söylendi: PIN
+yalnızca `/reports`'u korursa, aynı açık oturumun başındaki kişi parayı **Analiz, AI Rapor, Patron Asistanı, Bordro**
+ekranlarından ve **Genel Görünüm'ün para kutularından** yine okur. Owner: *"aynen katılıyorum, sana yap."* Dördü de
+artık PIN istiyor — hem sayfa hem veri işlemi. Genel Görünüm kilitlenmiyor (orası resepsiyonun da ana ekranı);
+**yalnızca OWNER oturumunda** para kutuları PIN açılana kadar gizleniyor ve yerine sebebi yazılıyor. Resepsiyonun
+panosu değişmedi: parayı o alıyor, kasayı o sayıyor.
+
 **Bu iş bir AÇIK kapattı:** PIN'in doğal yeri `settings` görünüyordu, ama `firestore.rules`'un son kuralı `desk()`e
 (owner + resepsiyon) bütün koleksiyonları okutuyor ve `settings` sunucuya-özel listede değildi — yani resepsiyonun
 oturumu PIN özetini veritabanından okuyabilirdi ve altı hane saniyeler içinde denenirdi. Sır artık `secrets`

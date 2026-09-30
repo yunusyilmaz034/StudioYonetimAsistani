@@ -35,10 +35,18 @@ export function DashboardScreen({
   eksikListeler = [],
   role,
   roleLabel,
+  paraGizli = false,
 }: {
   data: OwnerDashboard
   todayOps: TodayOps
   advisorItems: readonly AdvisorItem[]
+  /**
+   * Para kutuları PIN açılana kadar gizli mi ([[OR-117]], owner 2026-09-30).
+   *
+   * Yalnızca OWNER oturumu için true olur: korunan şey rol değil, açık bırakılmış oturum.
+   * Resepsiyonun panosu değişmiyor — parayı o alıyor, kasayı o sayıyor.
+   */
+  paraGizli?: boolean
   /** Tikleneli bir hafta olmamış, bu yüzden listede olmayan iş sayısı. Sıfırsa hiç yazılmaz. */
   snoozedCount?: number
   /** Alınamayan ek listeler. Boş liste ile 'liste gelmedi' aynı şey değildir; ekran ayırıyor. */
@@ -52,7 +60,18 @@ export function DashboardScreen({
   const canOpen = (href: string): boolean =>
     href.startsWith('/insights') ? canSee(role, '/analytics') : true
 
-  const presented = WIDGETS.map((w) => ({ w, p: w.present(data) }))
+  // PARA KUTULARI, PIN AÇILANA KADAR YOK ([[OR-117]]). Kilit raporlarla sınırlı kalsaydı, masanın
+  // başına geçen kişi aynı rakamları bu ekranın en üstünde okurdu — ciro, tahsilat, açık bakiye.
+  // Gizlenen kutunun yerine bir cümle konuyor: sebebi söylenmeyen bir eksiklik, arıza gibi okunur.
+  const PARA = new Set([
+    'today.sales',
+    'today.collected',
+    'today.balance',
+    'finance.pending',
+    'finance.unreconciled_paytr',
+    'finance.drawers',
+  ])
+  const presented = WIDGETS.filter((w) => !(paraGizli && PARA.has(w.id))).map((w) => ({ w, p: w.present(data) }))
   const metrics = presented.filter((x) => x.w.kind === 'metric')
   // PF-41 — a list with nothing in it does not earn a card. Six cards, three of them saying "there
   // is no such thing", is a screen that reports the ABSENCE of work as if it were work. A widget
@@ -142,6 +161,13 @@ export function DashboardScreen({
             )
           })}
         </div>
+        {/* Sebebi söylenmeyen bir eksiklik arıza gibi okunur: kutuların nereye gittiği yazılıyor
+            ([[OR-117]]). PIN'in kendisi burada da geçmiyor. */}
+        {paraGizli ? (
+          <p className="mt-2 text-xs text-muted-foreground">
+            Para kutuları gizli. Raporlar ekranında PIN girdiğinde on beş dakika boyunca burada da görünür.
+          </p>
+        ) : null}
       </Section>
 
       <Section title="İzlenecekler">
