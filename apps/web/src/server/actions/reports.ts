@@ -19,7 +19,7 @@ import {
 } from '@studio/core'
 import { z } from 'zod'
 
-import { reportsUnlocked } from '../report-pin'
+import { reportPinIsDefault, reportsUnlocked } from '../report-pin'
 
 import {
   buildCash,
@@ -70,6 +70,15 @@ function startOfDayMs(ms: number): number {
 
 export interface ReportResult extends Report {
   readonly id: ReportId
+  /**
+   * Bu rapor PIN'li ve kilit kapalı ([[OR-117]]). Tablo boş gelir; ekran PIN sorar.
+   *
+   * Hata FIRLATMAK yerine alan dönmenin sebebi: Next üretimde Server Action hatalarının mesajını
+   * gizleyip yerine bir digest koyuyor, yani "kilitli mi, bozuk mu" ayrımı istemcide okunamazdı.
+   */
+  readonly locked?: boolean
+  /** PIN hiç değiştirilmemişse ekran bunu uyarı olarak söyler — değerini asla. */
+  readonly varsayilanPin?: boolean
 }
 
 /**
@@ -104,10 +113,28 @@ export async function loadReportAction(input: unknown): Promise<ReportResult> {
     })
     .parse(input)
   const ctx = await requireTenantContext(OWNER)
-  // EKRANI GİZLEYİP VERİYİ GÖNDERMEK PERDE OLUR (owner, 2026-09-30). Sayfa PIN sorarken bu işlem
-  // sormasaydı, rapor verisi hâlâ tek bir istekle çekilebilirdi — kilit ekranda değil, veride.
-  if (!(await reportsUnlocked(String(ctx.studioId), String(ctx.actor.id)))) {
-    throw new Error('reports_locked')
+
+  // ── PIN'Lİ DÖRT RAPOR (owner, 2026-09-30 · [[OR-117]]) ────────────────────────────────────
+  //
+  // *"Sadece raporların içindeki satış raporu, tahsilat raporu, gün sonu raporu ve kasa raporunu
+  // kapat, PIN'li yap; başka hiçbir yere dokunma."*
+  //
+  // Dördünün ortak yanı paranın TOPLAMI: ne sattık, ne tahsil ettik, gün nasıl kapandı, kasada ne
+  // var. Ötekiler (üyelik, rezervasyon, check-in, eğitmen, borçlular, iptaller, notlar) operasyon
+  // — eskisi gibi açılıyor.
+  //
+  // Kilit FIRLATMIYOR, `locked` diye dönüyor: Next üretimde Server Action hatalarının mesajını
+  // gizleyip yerine bir digest koyuyor, yani "kilitli mi yoksa gerçekten bozuk mu" ayrımı
+  // istemcide mesajdan okunamazdı. Dönen bir alan her ortamda aynı şeyi söyler.
+  const PINLI = new Set(['sales', 'collections', 'dayend', 'cash'])
+  if (PINLI.has(p.id) && !(await reportsUnlocked(String(ctx.studioId), String(ctx.actor.id)))) {
+    return {
+      id: p.id,
+      locked: true,
+      varsayilanPin: await reportPinIsDefault(String(ctx.studioId)),
+      table: { name: '', columns: [], rows: [] },
+      summary: '',
+    }
   }
   const db = adminDb()
 

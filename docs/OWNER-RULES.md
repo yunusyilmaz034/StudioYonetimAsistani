@@ -2165,24 +2165,18 @@ Owner: *"Satış raporları ekranını şifreli açmamız mümkün mü? Bu rol a
 görebiliyor, görmesini istemiyorum."* Önce ÖLÇÜLDÜ: resepsiyonun kendi hesabı `/reports`'u zaten açamıyor — hem
 `permissions.ts` hem `loadReportAction` owner şartı koyuyor. Yani korunan şey rol değil, **açık bırakılmış owner
 oturumu**. Doğru araç bu yüzden ikinci bir kapı.
-**Kural:** rapor ekranı ve rapor VERİSİ altı haneli bir PIN ister; kilit on beş dakika açık kalır. Kilit hem sayfada
-hem `loadReportAction` içinde aranır — ekranı gizleyip veriyi göndermek perde olurdu.
+**Kural:** **dört rapor** altı haneli bir PIN ister — **satış · tahsilat · gün sonu · kasa**. Kilit on beş dakika
+açık kalır. Ortak yanları paranın TOPLAMI: ne sattık, ne tahsil ettik, gün nasıl kapandı, kasada ne var. Ötekiler
+(üyelik, rezervasyon, check-in, eğitmen, borçlular, iptaller, notlar) operasyondur ve eskisi gibi açılır.
+Kilit ekranda değil VERİDEDİR: `loadReportAction` rapor bazında sorar, ekran yalnızca sonucu gösterir.
+**Kapsam bilinçli olarak dar.** Önce kilit bütün rapor ekranına, sonra Analiz/AI Rapor/Patron/Bordro'ya ve panodaki
+para kutularına yayılmıştı; owner geri aldırdı: *"sadece raporların içindeki satış, tahsilat, gün sonu ve kasa
+raporunu kapat, başka hiçbir yere dokunma."* Bir güvenlik özelliğinin doğru ölçüsü, korunanın değeri kadar
+korunmayanın maliyetidir — her ekranı kilitlemek, sahibinin kendi panelini kullanamaz hale gelmesidir.
 **PIN panelde HİÇBİR YERDE gösterilmez.** Ayarlar → Genel'de yalnızca "değiştir" vardır ve mevcut PIN bir bilgi değil,
 bir KANITTIR: bilen değiştirebilir. Owner'ın gerekçesi: *"eskisini söylemesin, böylece gizlilik sağlanmış olur; biri
 değiştirirse zaten bilgi okunmuş anlamına gelir, o ayrı bir mesele."* Değişiklik owner'ın e-postasına bildirilir ve
 kaydı tutulur (ne zaman, kim — **PIN'in kendisi ne loga ne e-postaya yazılır**).
-**GENİŞLETİLDİ (owner, aynı gün): kilit raporlarla sınırlı değil.** Ölçüldükten sonra owner'a şu söylendi: PIN
-yalnızca `/reports`'u korursa, aynı açık oturumun başındaki kişi parayı **Analiz, AI Rapor, Patron Asistanı, Bordro**
-ekranlarından ve **Genel Görünüm'ün para kutularından** yine okur. Owner: *"aynen katılıyorum, sana yap."* Dördü de
-artık PIN istiyor — hem sayfa hem veri işlemi. Genel Görünüm kilitlenmiyor (orası resepsiyonun da ana ekranı);
-**yalnızca OWNER oturumunda** para kutuları PIN açılana kadar gizleniyor ve yerine sebebi yazılıyor. Resepsiyonun
-panosu değişmedi: parayı o alıyor, kasayı o sayıyor.
-**SINIR, iki adımda netleşti (owner, aynı gün):** önce *"dashboard'daki günlük tahsilatlar gözüksün, o sorun değil,
-resepsiyon olduğu günü görsün"*, sonra *"bugünkü ciroyu görsün pinsiz"*. Ortaya çıkan kural şu: **"bugün ne oldu"
-görünür, "işletme nerede duruyor" gizli.** Günün rakamları (bugünkü satış, bugünkü tahsilat, giriş, doluluk) masanın
-kendi işidir ve zaten resepsiyonun panosunda durur. PIN'in koruduğu şey BİRİKMİŞ olandır: açık bakiye, bekleyen
-ödemeler, mutabakatsız POS, kasa.
-
 **Bu iş bir AÇIK kapattı:** PIN'in doğal yeri `settings` görünüyordu, ama `firestore.rules`'un son kuralı `desk()`e
 (owner + resepsiyon) bütün koleksiyonları okutuyor ve `settings` sunucuya-özel listede değildi — yani resepsiyonun
 oturumu PIN özetini veritabanından okuyabilirdi ve altı hane saniyeler içinde denenirdi. Sır artık `secrets`

@@ -111,19 +111,6 @@ export async function lockReports(): Promise<void> {
   ;(await cookies()).delete(COOKIE)
 }
 
-/**
- * Kilidi ARAYAN kapı — sayfanın değil, VERİNİN önünde (owner, 2026-09-30).
- *
- * Sayfayı kilitleyip veriyi açık bırakmak perde olur: ekran PIN sorarken aynı veri tek bir istekle
- * çekilebilir. Bu yüzden PIN'li her ekranın kendi okuma işlemi de bunu çağırıyor.
- *
- * Fırlatıyor, `false` döndürmüyor: her çağıranın kontrol etmeyi hatırlaması gereken bir dönüş
- * değeri, bir gün unutulacak bir dönüş değeridir.
- */
-export async function requireUnlocked(studioId: string, uid: string): Promise<void> {
-  if (!(await reportsUnlocked(studioId, uid))) throw new Error('reports_locked')
-}
-
 // ── Değiştirme, ve değiştirildiğinin KAYDI ──────────────────────────────────────────────────
 //
 // Owner: *"değişince bunu mail olarak at, logu tutulsun."* İkisi birden yapılıyor — biri anlık

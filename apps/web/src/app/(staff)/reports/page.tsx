@@ -2,9 +2,6 @@ import { Suspense } from 'react'
 import { redirect } from 'next/navigation'
 
 import { requirePageAccess } from '@/server/auth'
-import { reportPinIsDefault, reportsUnlocked } from '@/server/report-pin'
-
-import { ReportPinGate } from '@/components/report-pin-gate'
 
 import { ReportsScreen } from './reports-screen'
 
@@ -16,12 +13,9 @@ import { ReportsScreen } from './reports-screen'
 export default async function ReportsPage() {
   const ctx = await requirePageAccess('/reports')
   if (!ctx) redirect('/login')
-  // İKİNCİ KAPI (owner, 2026-09-30). Rol kapısı kimin girebileceğini söyler; bu kapı, açık
-  // bırakılmış bir oturumun başına geçen kişiyi durdurur. Sunucuda sorulur — ekranı gizleyip
-  // veriyi göndermek perde olurdu, o yüzden `loadReportAction` da aynı kilidi arıyor.
-  if (!(await reportsUnlocked(String(ctx.studioId), String(ctx.actor.id)))) {
-    return <ReportPinGate varsayilan={await reportPinIsDefault(String(ctx.studioId))} />
-  }
+  // PIN sayfanın DEĞİL, dört raporun önünde (owner, 2026-09-30 · [[OR-117]]): satış, tahsilat,
+  // gün sonu, kasa. Ekranın kendisi ve öteki raporlar eskisi gibi açılır — kilidi `loadReportAction`
+  // rapor bazında arıyor.
   return (
     <Suspense fallback={null}>
       <ReportsScreen />

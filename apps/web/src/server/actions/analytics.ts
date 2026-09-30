@@ -10,7 +10,6 @@ import {
 import { z } from 'zod'
 
 import { requireTenantContext } from '../auth'
-import { requireUnlocked } from '../report-pin'
 import { adminDb } from '../firebase-admin'
 
 // D25 — analytics. Every number comes from the daily read model or from the sessions themselves;
@@ -45,8 +44,6 @@ export async function loadAnalyticsAction(input: unknown): Promise<AnalyticsSeri
     })
     .parse(input)
   const ctx = await requireTenantContext(OWNER)
-  // Rapor PIN'i ([[OR-117]]) — ekranı kilitleyip veriyi açık bırakmak perde olurdu.
-  await requireUnlocked(String(ctx.studioId), String(ctx.actor.id))
   const db = adminDb()
 
   const fromMs = p.fromMs

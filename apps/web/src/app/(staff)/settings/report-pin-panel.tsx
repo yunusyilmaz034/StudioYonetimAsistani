@@ -59,8 +59,8 @@ export function ReportPinPanel({ canEdit }: { canEdit: boolean }) {
         <h3 className="text-sm font-medium">Rapor PIN&apos;i</h3>
       </div>
       <p className="mt-1 text-sm text-muted-foreground">
-        Raporlar ekranı bu PIN ile açılır. Oturumun açık kalsa bile, ekranı açan kişinin sen olduğunu
-        doğrular. PIN burada gösterilmez — yalnızca değiştirilir.
+        Satış, tahsilat, gün sonu ve kasa raporları bu PIN ile açılır. Oturumun açık kalsa bile, o
+        raporları açan kişinin sen olduğunu doğrular. PIN burada gösterilmez — yalnızca değiştirilir.
       </p>
 
       {varsayilan ? (

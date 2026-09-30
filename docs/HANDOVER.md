@@ -252,9 +252,17 @@ Owner raporları resepsiyondan saklamak istedi. **Ölçüm önce geldi ve isteğ
 hesabı `/reports`'u zaten açamıyor. Korunan şey rol değil, **açık bırakılmış owner oturumu** — makinenin başına geçen
 kişi. Doğru araç bu yüzden bir PIN.
 
-**Kurulan:** altı haneli PIN, on beş dakikalık kilit. Kilit hem sayfada hem `loadReportAction` içinde aranıyor —
-ekranı gizleyip veriyi göndermek perde olurdu. Ayarlar → Genel'de yalnızca "değiştir" var; PIN hiçbir yerde
-gösterilmiyor. Değişiklik e-postayla bildiriliyor ve kaydı tutuluyor; **PIN ne loga ne e-postaya yazılıyor.**
+**Kurulan:** altı haneli PIN, on beş dakikalık kilit, **dört rapora özel** — satış · tahsilat · gün sonu · kasa.
+Kilit `loadReportAction` içinde rapor bazında aranıyor; ekranın kendisi, öteki raporlar, tarih aralığı ve kategori
+düğmeleri eskisi gibi açılıyor. Ayarlar → Genel'de yalnızca "değiştir" var; PIN hiçbir yerde gösterilmiyor.
+Değişiklik e-postayla bildiriliyor ve kaydı tutuluyor; **PIN ne loga ne e-postaya yazılıyor.**
+
+**Kapsam bir kez genişleyip geri alındı — ve bu kayıt duruyor.** Ara sürümde kilit bütün rapor ekranına, sonra
+Analiz/AI Rapor/Patron/Bordro'ya ve panodaki para kutularına yayılmıştı. Owner: *"sadece raporların içindeki satış,
+tahsilat, gün sonu ve kasa raporunu kapat, başka hiçbir yere dokunma, eskisi gibi yap."* Üç commit `git revert` ile
+geri alındı; PIN altyapısı, ayarlar kartı ve `secrets` kural düzeltmesi yerinde kaldı. **Ders:** bir güvenlik
+özelliğinin ölçüsünü korunanın değeri değil, korunmayanın maliyeti belirler — sahibinin kendi panelini
+kullanamaz hale geldiği bir kilit, çözdüğünden fazlasını bozar.
 
 **Bu iş bir güvenlik açığı kapattı ve bunu ayrıca not etmek gerek.** PIN'in doğal yeri `settings` görünüyordu.
 `firestore.rules`'un son kuralı `desk()`e — yani owner + RESEPSİYON — bütün koleksiyonları okutuyor ve `settings` o
@@ -265,19 +273,6 @@ haneyi saniyeler içinde denerdi. Yeni bir `secrets` koleksiyonu açıldı ve su
 **Açılış PIN'i owner'ın verdiği değer.** Belgeye önceden YAZILMIYOR: yazılsaydı "hiç değiştirilmedi" ile
 "değiştirildi ve tesadüfen aynı" ayırt edilemezdi. Değiştirilmediği sürece hem kilit ekranı hem ayarlar kartı
 bunu uyarı olarak söylüyor — değeri asla.
-
-**Aynı gün genişletildi.** Owner'a şu bulgu iletildi: PIN yalnızca raporları korursa, açık oturumun başındaki kişi
-parayı **Analiz · AI Rapor · Patron Asistanı · Bordro** ekranlarından ve **Genel Görünüm'ün para kutularından** yine
-okuyabilir. Onayıyla dördü de kilitlendi (sayfa + veri işlemi), ve Genel Görünüm'de **yalnızca owner oturumunda**
-para kutuları PIN açılana kadar gizleniyor — yerine sebebi yazılıyor, çünkü sebebi söylenmeyen bir eksiklik arıza
-gibi okunur. **Resepsiyonun panosu değişmedi.**
-
-**Aynı gün iki kez daraltıldı, ve sonunda kural kendini yazdı.** Önce *"günlük tahsilatlar gözüksün, resepsiyon
-olduğu günü görsün"*, sonra *"bugünkü ciroyu görsün pinsiz"*. Sınır: **"bugün ne oldu" görünür, "işletme nerede
-duruyor" gizli.** `today.collected` ve `today.sales` listeden çıktı — günün rakamları zaten resepsiyonun panosunda.
-Gizli kalanlar birikmiş olanlar: açık bakiye (`today.balance`), bekleyen ödemeler, mutabakatsız POS, kasa kutusu.
-
-`/analytics` ayrıca bir şey gerektirmedi: o rota zaten `/reports?r=trend`'e yönlendiriyor, yani kilidin arkasında.
 
 **⚠️ Kurallar ayrı dağıtılır:** `firestore.rules` App Hosting derlemesiyle gitmez, `firebase deploy --only
 firestore:rules` gerekir. Bu yapılmazsa panel yeni davranışı gösterir ama `secrets` koleksiyonu hâlâ resepsiyona

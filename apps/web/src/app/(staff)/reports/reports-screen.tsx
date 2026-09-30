@@ -14,6 +14,8 @@ import { RANGES, resolveRange, type RangeId } from '@/lib/ranges'
 import type { ExportableTable } from '@/lib/widgets/contract'
 import { loadReportAction, type ReportResult } from '@/server/actions/reports'
 
+import { ReportPinGate } from './pin-gate'
+
 // THE REPORTS SCREEN (v1.27 S6) — one screen, seven reports, one range, one export.
 //
 // The summary sentence is the point of the page. A report is a wall of rows; the sentence above it is
@@ -102,7 +104,9 @@ export function ReportsScreen() {
     }
   }, [id, rangeId, custom, charts, kategori])
 
-  const table = charts ? trendTable : result?.table
+  // Kilitli raporun tablosu YOK: boş tablo "bu aralıkta kayıt yok" diye okunurdu, oysa kayıt
+  // olabilir — sadece gösterilmiyor. Yanlış cümle, eksik cümleden kötüdür ([[OR-117]]).
+  const table = charts ? trendTable : result?.locked ? null : result?.table
 
   // İPTAL SATIRLARI — hangi sütunda olduğu SÜTUN ADINDAN bulunuyor, sabit bir indeksten değil:
   // raporlar farklı sütun düzenlerine sahip ve birine sütun eklendiğinde sabit bir indeks sessizce
@@ -230,8 +234,13 @@ export function ReportsScreen() {
         </div>
       ) : null}
 
+      {/* PIN'Lİ RAPOR, KİLİT KAPALI ([[OR-117]]). Ekranın geri kalanı yerinde: rapor düğmeleri,
+          tarih aralığı, kategori. Kilitlenen yalnızca bu dört raporun İÇERİĞİ — açınca aynı
+          sayfada, aynı seçimlerle devam eder. */}
+      {result?.locked ? <ReportPinGate varsayilan={result.varsayilanPin === true} /> : null}
+
       {/* The sentence. This is what she reads; the table is what she checks it against. */}
-      {result ? (
+      {result && !result.locked ? (
         <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
           <p className="text-xs text-muted-foreground print:text-sm">{spec.label}</p>
           <p className="mt-1 text-base font-medium">{result.summary}</p>
