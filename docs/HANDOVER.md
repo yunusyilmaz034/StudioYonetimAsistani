@@ -257,6 +257,11 @@ Kilit `loadReportAction` içinde rapor bazında aranıyor; ekranın kendisi, öt
 düğmeleri eskisi gibi açılıyor. Ayarlar → Genel'de yalnızca "değiştir" var; PIN hiçbir yerde gösterilmiyor.
 Değişiklik e-postayla bildiriliyor ve kaydı tutuluyor; **PIN ne loga ne e-postaya yazılıyor.**
 
+**SAHADA DOĞRULANDI (owner, 30 Eylül akşamı, sürüm `-006`).** Owner gizli sekmede denedi ve iki yönü de
+raporladı: **Satış raporu PIN sordu**; **Rezervasyon raporu sormadan açıldı**; PIN girildikten sonra **Tahsilat,
+Gün sonu ve Kasa** aynı pencerede sormadan açıldı. Yani kilit hem çalışıyor hem de yalnızca istenen dört raporda —
+asıl risk fazla kilitlemekti ve o da ölçüldü.
+
 **Kapsam bir kez genişleyip geri alındı — ve bu kayıt duruyor.** Ara sürümde kilit bütün rapor ekranına, sonra
 Analiz/AI Rapor/Patron/Bordro'ya ve panodaki para kutularına yayılmıştı. Owner: *"sadece raporların içindeki satış,
 tahsilat, gün sonu ve kasa raporunu kapat, başka hiçbir yere dokunma, eskisi gibi yap."* Üç commit `git revert` ile
