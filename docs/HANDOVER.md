@@ -246,6 +246,28 @@ Cihaz o geçişi **5,7 saniye** gecikmeyle gördü.
 üçü 2 sn'yi, ikisi 5 sn'yi aştı (en kötü 11,1 sn). Gecikme büyüdükçe "okuttum, kol geç döndü / dönmedi" şikâyeti
 artar — kablo düzelse bile bu ayrı bir eksen ve ölçülmeye devam etmeli.
 
+## 🗓️ 1 Ekim — iki ödeme yanlış güne yazılmıştı
+
+Owner: *"Duygu Üzülmez bugün ödeme yaptı ama sistemde daha önce görünüyor, onu bugüne al. Melisa Gök dün KK ile
+ödeme yaptı fakat bugünde görünüyor."*
+
+**Melisa Gök — YAPILDI** (`fix-melisa-gok-odeme-tarihi-2026-10-01.ts`). Ödeme 13.000 ₺ · kredi kartı · 1 Ekim
+16:09 kayıtlıydı; para 30 Eylül'de girmiş. Ödeme iptal → satış iptal → ikisi de **30 Eylül 16:09** ile yeniden
+kuruldu. 200 ₺ hediye indirimi birebir taşındı (brüt 13.200 → net 13.000): indirimi düşürüp net fiyattan satmak,
+verilen şeyi kayıttan silerdi. **Kasa etkisi yok** — kart ödemesi, `drawerId: null`, ve `voidPayment` kasa deltasını
+yalnızca `cash`/`pos` için yazıyor. Doğrulandı: eski kayıtlar `cancelled`/`voided`, yeni ödeme 30 Eylül, tahsis tam.
+
+**Bilinen ve kabul edilen yan etki:** `SellInput`'ta satış tarihi alanı YOK — `soldAt` her zaman saatten geliyor.
+Yani yeniden kurulan satış "1 Ekim 22:54" görünüyor. Ciro nakit esaslı (`receivedAt`) olduğu için rakamlar doğru;
+kayan tek şey satışın yazılma anı. Burcu Akça vakasında da aynısı olmuştu. Elle `soldAt` yazmak seçenek değil
+(üretim verisi elle düzenlenmez) — gerçek çözüm `sell`'in bir satış anı kabul etmesi olurdu, ve bu artık iki vakada
+karşımıza çıktı.
+
+**Duygu Üzülmez — BEKLİYOR, bilerek.** Ödemesi 11.000 ₺ **NAKİT**, 16 Eylül, ve bir kasaya bağlı; aynı tarihli
+satışı kapatıyor. Bugüne almak iki günün kasa toplamını birden değiştirir: 16 Eylül 11.000 ₺ kaybeder (o gün
+kapatılıp sayılmıştı), bugün kazanır. Ayrıca iki okuma mümkün ve ikisi farklı düzeltme gerektiriyor — satışı
+16 Eylül'de yapıp bugün mü ödedi, yoksa kaydın tamamı mı yanlış güne yazıldı. Owner'a soruldu.
+
 ## 🔐 30 Eylül — raporlar artık PIN ile açılıyor ([[OR-117]])
 
 Owner raporları resepsiyondan saklamak istedi. **Ölçüm önce geldi ve isteği yeniden tanımladı:** resepsiyonun kendi
