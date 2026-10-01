@@ -263,10 +263,28 @@ kayan tek şey satışın yazılma anı. Burcu Akça vakasında da aynısı olmu
 (üretim verisi elle düzenlenmez) — gerçek çözüm `sell`'in bir satış anı kabul etmesi olurdu, ve bu artık iki vakada
 karşımıza çıktı.
 
-**Duygu Üzülmez — BEKLİYOR, bilerek.** Ödemesi 11.000 ₺ **NAKİT**, 16 Eylül, ve bir kasaya bağlı; aynı tarihli
-satışı kapatıyor. Bugüne almak iki günün kasa toplamını birden değiştirir: 16 Eylül 11.000 ₺ kaybeder (o gün
-kapatılıp sayılmıştı), bugün kazanır. Ayrıca iki okuma mümkün ve ikisi farklı düzeltme gerektiriyor — satışı
-16 Eylül'de yapıp bugün mü ödedi, yoksa kaydın tamamı mı yanlış güne yazıldı. Owner'a soruldu.
+**Duygu Üzülmez — YAPILDI** (`fix-duygu-uzulmez-odeme-tarihi-2026-10-01.ts`), ama **farklı bir yolla**. Soruldu ve
+owner netleştirdi: *"1 a"* — paket 16 Eylül'de alındı, parası bugün ödendi. Yani satış DOĞRU tarihte; yanlış olan
+yalnızca tahsilatın günü.
+
+**Melisa'nın yolu burada yanlış olurdu.** Satışı yeniden kursaydım `soldAt` saatten gelir ve satış 16 Eylül'den bu
+geceye kayardı — bir yanlışı düzeltirken ikincisini yazmak. Onun yerine: ödeme iptal edildi, **aynı satışa** bugün
+tarihli yeni bir nakit tahsilat yazıldı (`allocateTo` ile hedef açıkça verildi; boş bırakılsaydı "en eski borç"
+kuralı işler ve para başka bir satışa gidebilirdi — [[OR-37]]).
+
+**Kasa etkisi owner'a önceden soruldu ve onaylandı** (*"evet, doğru"*): 11.000 ₺ nakit, 16 Eylül'ün gün sonundan
+çıkıp bugünkünün içine girdi. 16 Eylül kapatılmış ve sayılmış bir gündü; bilerek değiştirildi.
+
+**Kasa BAKİYESİ ise net sıfır değişti ve bu ölçüldü** (önce 0, sonra 0): `voidPayment` nakit ödemenin kasasından
+−11.000 yazıyor, `collect` aynı kasaya +11.000. Kasa belgesi günler arasında yeniden kullanıldığı için bugünün
+sayımı bozulmuyor — raporlar tarihe bakar, bakiyeye değil.
+
+**Doğrulandı** kayıttan: eski ödeme `voided`, tahsisi sıfır; yeni ödeme 1 Ekim tarihli, 11.000 ₺ tahsis edilmiş;
+**satış hâlâ 16 Eylül 14:01, `settled`.**
+
+**İki vakanın ortak dersi:** `sell` bir satış anı kabul etmiyor. Melisa'da bunun bedeli ödendi (satış bu geceye
+kaydı), Duygu'da ise yolu değiştirmek zorunda bıraktı. Üçüncü kez karşımıza çıkarsa `SellInput`'a `soldAt`
+eklemek doğru iş olur.
 
 ## 🔐 30 Eylül — raporlar artık PIN ile açılıyor ([[OR-117]])
 
