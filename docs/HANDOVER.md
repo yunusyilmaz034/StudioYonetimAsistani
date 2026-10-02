@@ -11,8 +11,8 @@ _Last true as of: **2026-10-01, 23:10**._
 
 ## ⏭️ Sıradaki oturum — BURADAN BAŞLA
 
-**Kod tarafında yarım iş YOK.** Canlı: panel `build-2026-10-01-002`. `pnpm check` 1462 test yeşil;
-entegrasyon takımı 45/45 (30 Eylül'den beri temiz).
+**Kod tarafında yarım iş YOK.** Canlı: panel `build-2026-10-02-003` (2 Ekim 21:30, kat 1). `pnpm check`
+1462 test yeşil; **entegrasyon takımı 7 dosya / 46 test** — rezervasyon yolunun uçtan uca testi bugün eklendi.
 
 **Owner'da bekleyenler:**
 1. **GitHub itirazı** — `#4804152` ikametgâh belgesiyle açık (29 Eylül 11:04), ilk talep `#4799172` de duruyor.
@@ -245,6 +245,25 @@ Cihaz o geçişi **5,7 saniye** gecikmeyle gördü.
 **Sinyal zayıflıyor:** RSSI 22 Eylül −74/−75 → 23 Eylül **−78 / −82 dBm**. Bugünkü 21 geçişin ortancası 717 ms ama
 üçü 2 sn'yi, ikisi 5 sn'yi aştı (en kötü 11,1 sn). Gecikme büyüdükçe "okuttum, kol geç döndü / dönmedi" şikâyeti
 artar — kablo düzelse bile bu ayrı bir eksen ve ölçülmeye devam etmeli.
+
+## 🚀 2 Ekim gecesi — bugün çıkanlar canlıda
+
+Canlı sürüm **`studio-yonetim-build-2026-10-02-003`**, 21:30'da trafiği aldı; kat 21:40'ta geri kondu
+(koruyucunun sekizinci onarımı, 10 dk). Ölçüldü, varsayılmadı.
+
+Bugün inenler: Notlar raporunda **telefon sütunu** · pano lead listesinin **kampanyaya** bağlanması ve
+üç gün kuralının kalkması · **yanan hakla rezervasyon** düzeltmesi (bir aydır ölüydü) ve onun uçtan uca
+testi.
+
+**Fonksiyonlar yeniden dağıtılmadı, bilerek:** düzeltme `packages/core` içinde ama o yolu kullanan şey
+panelin Server Action'ı. Zamanlanmış işler ve tetikleyiciler bu koda dokunmuyor, dolayısıyla
+`firebase deploy --only functions` gerekmedi.
+
+**Owner'ın kararını bekleyen iş:** kredisi HİÇ olmayan üyeye "yine de rezerve et" diyebilmek. Tasarım
+hazır (rezervasyon olur, kredi hiç hareket etmez, ayrı bir olay + ZORUNLU sebep — geç iptaldeki
+`reservation.credit_decided` emsali). Beklenen tek cevap: bu yetki yalnızca owner'da mı olsun, yoksa
+resepsiyon da mı kullanabilsin? Kuralı esnetme yetkisi kuralın kendisinden güçlüdür; sorulmadan
+verilmiyor.
 
 ## 🧨 2 Ekim — "yanan hakla ders rezerve et" özelliği bir aydır HİÇ çalışmıyormuş
 
@@ -701,9 +720,9 @@ Telefon anahtarı tek fonksiyona (`telefonAnahtari`) indirildi: haritayı KURAN 
 bir gün ayrışsalardı harita dolu görünüp sorgu hep boş dönerdi — ekranda "eşleşme yok" ile "eşleşme aranmadı" aynı
 görünür, yani sessiz bir hata olurdu.
 
-**Koruyucu artık yedi kez tek başına çalıştı.** 25 Eylül 13:04→13:11 (7 dk), 26 Eylül 14:04→14:10 (6 dk),
+**Koruyucu artık sekiz kez tek başına çalıştı.** 25 Eylül 13:04→13:11 (7 dk), 26 Eylül 14:04→14:10 (6 dk),
 27 Eylül 21:55→22:01 (6 dk), 27 Eylül 22:13→22:21 (8 dk), 28 Eylül 20:36→20:40 (4 dk) ,
-**30 Eylül 17:45→17:50 (5 dk)** ve **1 Ekim 23:10→23:32 (22 dk)**. Yedisi de gerçek rollout sonrası, elle
+**30 Eylül 17:45→17:50 (5 dk)** , **1 Ekim 23:10→23:32 (22 dk)** ve **2 Ekim 21:30→21:40 (10 dk)**. Yedisi de gerçek rollout sonrası, elle
 dokunulmadan. Sonuncusu her zamankinden yavaştı çünkü iki push arka arkaya geldi — koruyucunun turu arada kaldı,
 kendi döngüsü bozulmadı.
 
