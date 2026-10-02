@@ -1,4 +1,4 @@
-import type { TenantContext } from '@studio/core'
+import { FirestoreCrmRepository, type TenantContext } from '@studio/core'
 
 import { adminDb } from './firebase-admin'
 import type { AdvisorItem } from './advisor-query'
@@ -48,7 +48,24 @@ const BASLIK: Record<Asama, string> = {
 const ONCELIK: Record<Asama, number> = { randevu: 0, fiyat: 1, bilgi: 2 }
 
 export async function hotLeadAdvisorItems(ctx: TenantContext): Promise<readonly AdvisorItem[]> {
-  const snap = await adminDb().collection(`studios/${ctx.studioId}/conversations`).orderBy('lastAt', 'desc').limit(50).get()
+  const col = adminDb().collection(`studios/${ctx.studioId}/conversations`)
+
+  // ── SON KAMPANYA, HEPSİ (owner, 2026-10-02) ───────────────────────────────────────────────
+  //
+  // *"Tüm WP lead'ler gelsin, en son başlatılan reklam kampanyası buraya gelsin, eski kampanyalar
+  // gelmesin, en güncel olanlar en başa."*
+  //
+  // Eskiden sınır "en son 50 sohbet"ti — bu ne bir kampanyadır ne de bir liste: sohbet trafiği
+  // arttıkça pencere daralıyor, kampanyanın ilk günlerinde yazanlar sessizce düşüyordu. Artık sınır
+  // DÖNEMİN KENDİSİ: panodaki liste, Sohbetler ekranının ve satış hunisinin baktığı aynı reklam
+  // dönemine bakıyor (`getCurrentAdPeriod` — en son başlayan dönem; bir dönem ancak bir sonrakinin
+  // başlamasıyla biter).
+  //
+  // Dönem tanımlı değilse eski davranış sürüyor: uydurma bir sınır koymaktansa en son 50 sohbet.
+  const period = await new FirestoreCrmRepository(adminDb()).getCurrentAdPeriod(ctx)
+  const snap = period
+    ? await col.where('lastAt', '>=', period.startedAt as number).orderBy('lastAt', 'desc').limit(300).get()
+    : await col.orderBy('lastAt', 'desc').limit(50).get()
   const now = Date.now()
   const rows: { item: AdvisorItem; sira: number }[] = []
 
@@ -63,9 +80,14 @@ export async function hotLeadAdvisorItems(ctx: TenantContext): Promise<readonly 
     const gun = Math.floor((now - Number(c.lastAt ?? now)) / GUN_MS)
     const sessiz = gun >= SESSIZ_GUN
 
-    // "Bilgi alıyor" olan ve daha yeni yazmış biri panoya çıkmaz. Panonun işi her sohbeti listelemek
-    // değil, BUGÜN dokunulması gerekenleri söylemek — her şeyi gösteren liste hiçbir şey söylemez.
-    if (!waiting && asama === 'bilgi' && !sessiz) continue
+    // ÜÇ GÜN KURALI KALKTI (owner, 2026-10-02: *"hepsi gelsin, üç gün kuralı da kalksın"*).
+    //
+    // Eskiden "bilgi alıyor" aşamasındaki ve son üç gün içinde yazmış biri panoya hiç çıkmıyordu —
+    // gerekçesi "dün yazana dönüş yapın demek erken"di. Owner kampanyanın TAMAMINI görmek istiyor:
+    // kimin aranacağına kendisi karar veriyor, liste ona karar verdirmiyor.
+    //
+    // `sessiz` yine hesaplanıyor ama artık yalnızca ETİKET için ("5 gündür sessiz"); bir şeyi
+    // listeden düşürmüyor. Kaç gündür sessiz olduğu hâlâ sıralamanın anahtarı.
 
     const baslik = waiting
       ? `${name} — operatör bekliyor (WhatsApp)`

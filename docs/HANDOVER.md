@@ -246,6 +246,31 @@ Cihaz o geçişi **5,7 saniye** gecikmeyle gördü.
 üçü 2 sn'yi, ikisi 5 sn'yi aştı (en kötü 11,1 sn). Gecikme büyüdükçe "okuttum, kol geç döndü / dönmedi" şikâyeti
 artar — kablo düzelse bile bu ayrı bir eksen ve ölçülmeye devam etmeli.
 
+## 📣 2 Ekim — pano lead listesi artık KAMPANYAYA bakıyor, "son 50 sohbet"e değil
+
+Owner: *"Genel görünümdeki WP lead altına tüm WP lead'ler gelsin… en son başlatılan reklam kampanyası
+buraya gelsin, eski kampanyalar gelmesin, en güncelden sırala."* Ve soruldu, cevabı net: *"hepsi
+gelsin, üç gün kuralı da kalksın."*
+
+**İki kural değişti:**
+
+1. **Sınır artık reklam dönemi.** Eskiden "en son 50 sohbet" okunuyordu — bu ne bir kampanyadır ne de
+   bir liste: sohbet trafiği arttıkça pencere daralıyor, kampanyanın ilk günlerinde yazanlar sessizce
+   düşüyordu. Artık `getCurrentAdPeriod` okunuyor ve `lastAt >= dönem başlangıcı` olanlar geliyor
+   (limit 300). Pano, Sohbetler ekranının ve satış hunisinin baktığı AYNI döneme bakıyor. Dönem
+   tanımlı değilse eski davranış sürüyor — uydurma bir sınır koymaktansa en son 50.
+2. **Üç gün kuralı kalktı.** "Bilgi alıyor" aşamasındaki ve son üç gün içinde yazmış kişi artık
+   listede. Eski gerekçe ("dün yazana dönüş yapın demek erken") owner'ın kararıyla düştü: kimin
+   aranacağına o karar veriyor, liste ona karar verdirmiyor. `sessiz` hâlâ hesaplanıyor ama yalnızca
+   ETİKET ve SIRALAMA için.
+
+Değişmeyenler: aşaması olmayan ve kimsenin beklemediği sohbet yine listelenmiyor (o bir lead değil);
+sıralama en güncelden eskiye; tiklenen satır 3 gün susuyor ve notuyla geri geliyor.
+
+**Bilinen açık, bu değişiklikle büyüdü:** webhook, tanınan bir ÜYE için lead yaratmıyor ama `stage`
+yazmaya devam ediyor — yani bir üyenin sohbeti panoda lead gibi görünebilir. Üç gün filtresi bunu
+kısmen örtüyordu. Düzeltmesi lead listesine bir üye kontrolü eklemek; owner'a sorulacak.
+
 ## 📒 2 Ekim — Notlar raporunda telefon sütunu, ve dünkü betiğin bıraktığı iz
 
 Owner: *"Raporlarda notlara bir de telefon kolonu ekle."* Sebebi açık: notu okuyan kişinin bir sonraki
