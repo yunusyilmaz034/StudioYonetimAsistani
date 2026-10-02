@@ -257,8 +257,24 @@ export function decideBooking(
     }
   }
   // I-9.5
+  //
+  // ── YANAN HAK, HARCANABİLİR HAKTIR (2026-10-02) ──────────────────────────────────────────
+  //
+  // Burada bir boşluk vardı ve özelliği sessizce öldürüyordu. Süre dolarken `decideExpire` kalan
+  // hakların TAMAMINI `expired` kovasına yakıyor, yani süresi dolmuş her pakette `available` tam
+  // olarak 0. Bayrak iki kapıyı (aktif değil · paket dersten önce bitiyor) açıyordu ama hemen
+  // buradaki kredi kapısı kapalı kalıyordu: ret kalkmıyor, yalnızca adı `insufficient_credits`
+  // oluyordu. Üretimde ölçüldü — yanan hakkı olan 33 paketin 33'ünde de `available = 0`.
+  //
+  // Bayrak açıkken bakılacak sayı, "elinde duran hak" değil "geri verilebilir hak"tır: çağıran
+  // katman birazdan `expired` kovasından BİR tanesini kayıtlı bir düzeltmeyle geri verecek ve onu
+  // harcayacak. Burada o biri varmış gibi bakılır; yoksa ret yine gelir ("hiç dersi kalmadan
+  // süresi dolmuş paket" testi bunu koruyor).
+  //
+  // Kova tüketilmiyor, yalnızca SAYILIYOR. Defteri hareket ettiren tek yer yine çağıran katman.
   const avail = availableOf(entitlement)
-  if (avail !== null && avail < 1) return err({ code: 'insufficient_credits', available: avail })
+  const yanan = expiredHonoured ? (entitlement.credits?.expired ?? 0) : 0
+  if (avail !== null && avail + yanan < 1) return err({ code: 'insufficient_credits', available: avail })
   // I-9.6
   if (memberHasBookedThisSession) return err({ code: 'already_booked' })
   // I-9.7 — the category wall. THE authoritative copy: `isEligibleForService` answers the same

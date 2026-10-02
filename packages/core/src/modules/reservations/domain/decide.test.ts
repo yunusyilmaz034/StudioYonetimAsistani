@@ -1315,12 +1315,18 @@ describe('süresi dolmuş paketin yanan hakkı (owner, 2026-09-01)', () => {
   // *"Paket süresi biten üyenin kredisi kalınca Işıl süre vermeden direkt bir ders rezerve etmek
   // istiyor."* Süre eklemek paketi bir ay daha açar; bir ders saydırmak yalnızca o dersi verir. Masa
   // ikincisini istiyor, ve bu ayrı bir kapı — gevşetilmiş bir kural değil.
+  // ── BU KURGU BİR HATAYI ÖRTÜYORDU (2026-10-02) ──────────────────────────────────────────
+  //
+  // Eski hali `restored: 3` taşıyordu, yani available 3 çıkıyordu — gerçekte HİÇ oluşmayacak bir
+  // defter. `decideExpire` süre dolarken kalan hakkın tamamını yakar ve available tam olarak 0
+  // olur (üretimde ölçüldü: yanan hakkı olan 33 paketin 33'ünde de 0). Test yeşil görünürken
+  // özellik canlıda ölüydü: bayrak iki kapıyı açıyor, kredi kapısı kapalı kalıyordu.
+  //
+  // Artık kurgu gerçeğin aynısı: 3 ders yandı, available 0, geri verilecek hak `expired` kovasında.
   const bitmis = () =>
     creditEnt({
       status: 'expired',
-      // Süre dolarken kalan 3 ders yakıldı: available 0. Geri verme çağıran katmanda, kayıtlı bir
-      // düzeltmeyle olur; burada test edilen şey KARARIN kapıyı açıp açmadığı.
-      credits: { granted: 8, held: 0, consumed: 5, restored: 3, revoked: 0, expired: 3 },
+      credits: { granted: 8, held: 0, consumed: 5, restored: 0, revoked: 0, expired: 3 },
       validUntil: instant(NOW - 86_400_000), // dün bitti
     })
 

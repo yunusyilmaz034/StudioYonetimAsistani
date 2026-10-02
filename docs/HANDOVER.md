@@ -246,6 +246,37 @@ Cihaz o geçişi **5,7 saniye** gecikmeyle gördü.
 üçü 2 sn'yi, ikisi 5 sn'yi aştı (en kötü 11,1 sn). Gecikme büyüdükçe "okuttum, kol geç döndü / dönmedi" şikâyeti
 artar — kablo düzelse bile bu ayrı bir eksen ve ölçülmeye devam etmeli.
 
+## 🧨 2 Ekim — "yanan hakla ders rezerve et" özelliği bir aydır HİÇ çalışmıyormuş
+
+Owner yeni bir şey istedi: *"Paketin tarihi bittiyse kredisi varsa kredisi bu derse istinaden
+düşsün."* Haritayı çıkarınca ortaya çıktı ki bu özellik **1 Eylül'de yapılmış ve onaylanmış** —
+diyaloğu (`expired-credit-dialog.tsx`), eylemi, telafi kaydı, hatta altı domain testi var.
+**Çalışan tek şey yoktu.**
+
+**İki ayrı kopukluk, ikisi de sessiz:**
+
+1. **Bayrak karar fonksiyonuna hiç geçmiyordu.** `bookReservation`, `decideBooking`'e yalnızca
+   `{ reservationId, memberId, memberSnapshot }` veriyordu; `honourExpiredCredit` yoldaydı ama
+   argümana konmamıştı. Karar bayrağı göremeyince süresi dolmuş paketi `entitlement_not_active` ile
+   reddediyor, bir alttaki "yanan hakkı geri ver" dalına hiç ulaşılamıyordu.
+2. **Bayrak geçse bile kredi kapısı kapalıydı.** `decideExpire` süre dolarken kalan hakkın TAMAMINI
+   `expired` kovasına yakıyor, yani süresi dolmuş her pakette `available` tam olarak 0. Bayrak iki
+   kapıyı açıyordu ama `insufficient_credits` yerinde duruyordu — ret kalkmıyor, adı değişiyordu.
+
+**Ölçüldü, tahmin edilmedi:** üretimde yanan hakkı olan 33 paketin **33'ünde de `available = 0`**.
+
+**Testler neden yakalamadı — asıl ders bu.** Domain testi yeşildi ve öyle kalacaktı, çünkü kurgusu
+`restored: 3` taşıyordu: gerçekte hiç oluşmayacak bir defter. Yani test, özelliğin çalıştığını değil,
+kendi kurgusunun çalıştığını kanıtlıyordu. Fixture gerçeğine çevrildi (expired 3, restored 0) ve
+"hiç dersi kalmadan süresi dolmuş paket yine reddedilir" testi aynen duruyor.
+
+**Düzeltildi:** bayrak artık `decideBooking`'e geçiyor; bayrak açıkken kredi kapısı "elinde duran
+hak" yerine **geri verilebilir hakka** bakıyor (`available + expired`). Kova tüketilmiyor, yalnızca
+sayılıyor — defteri hareket ettiren tek yer yine çağıran katman, kayıtlı bir `correction` ile.
+
+**Açık kalan:** bu hata iki KATMAN ARASINDA yaşıyordu ve ikisinin de kendi testi yeşildi. Rezervasyon
+yolunun uçtan uca (emülatörlü) bir testi yok; olsaydı bir ay önce yakalanırdı.
+
 ## 📣 2 Ekim — pano lead listesi artık KAMPANYAYA bakıyor, "son 50 sohbet"e değil
 
 Owner: *"Genel görünümdeki WP lead altına tüm WP lead'ler gelsin… en son başlatılan reklam kampanyası

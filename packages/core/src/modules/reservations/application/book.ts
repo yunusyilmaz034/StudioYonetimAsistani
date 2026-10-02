@@ -112,7 +112,24 @@ export async function bookReservation(
         dctx,
         session,
         entitlement,
-        { reservationId, memberId: input.memberId, memberSnapshot: input.memberSnapshot },
+        {
+          reservationId,
+          memberId: input.memberId,
+          memberSnapshot: input.memberSnapshot,
+          // ── BAYRAK BURAYA GEÇMİYORDU (2026-10-02) ────────────────────────────────────────
+          //
+          // "Yanan hakla bir ders rezerve et" özelliği eksiksiz görünüyordu: diyaloğu, eylemi,
+          // telafi kaydı, hatta domain testi. Çalışmayan tek şey vardı — bayrak `decideBooking`'e
+          // HİÇ verilmiyordu. Karar fonksiyonu bayrağı göremeyince süresi dolmuş paketi
+          // `entitlement_not_active` ile reddediyor, ve aşağıdaki "yanan hakkı geri ver" dalına
+          // hiç ulaşılamıyordu. Resepsiyonun gördüğü tek şey "Rezervasyon yapılamadı" idi.
+          //
+          // Ders: domain testi geçen bir özellik, UÇTAN UCA çalışan bir özellik değildir. Burada
+          // iki katman arasındaki tek bir argüman eksikti ve ikisinin de kendi testi yeşildi.
+          ...(input.honourExpiredCredit !== undefined
+            ? { honourExpiredCredit: input.honourExpiredCredit }
+            : {}),
+        },
         memberHasBooked,
         hours,
         {
