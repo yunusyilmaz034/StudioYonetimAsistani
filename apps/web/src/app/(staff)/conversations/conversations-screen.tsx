@@ -184,6 +184,17 @@ export function ConversationsScreen() {
               <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-2">
                 <div className="min-w-0">
                   <p className="truncate text-sm font-semibold text-foreground">{detail.name || detail.phone}</p>
+                  {/* TELEFON, HER ZAMAN GÖRÜNÜR (owner, 2026-10-02: *"sohbetleri gördüm ama telefon
+                      numarasını göremedim, ekle lütfen"*).
+                      Numara buraya kadar hep geliyordu ama yalnızca AD BOŞSA yazılıyordu — yani adı
+                      bilinen herkeste gizliydi. Oysa bu ekranda numaraya en çok ihtiyaç duyulan an,
+                      kimin olduğunu bildiğin an: arayacaksın. `tel:` ile veriliyor, böylece okunacak
+                      bir metin değil, basılacak bir düğme. */}
+                  {detail.phone ? (
+                    <a href={`tel:${detail.phone}`} className="text-xs font-medium text-primary hover:underline">
+                      {detail.phone}
+                    </a>
+                  ) : null}
                   <p className="text-xs text-muted-foreground">
                     {detail.temp ? `${TEMP_LABEL[detail.temp]} · ` : ''}
                     {detail.reason || (detail.status === 'human' ? 'Sen yönetiyorsun' : 'AI yönetiyor')}
