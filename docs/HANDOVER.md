@@ -11,11 +11,11 @@ _Last true as of: **2026-10-02, 22:25**._
 
 ## ⏭️ Sıradaki oturum — BURADAN BAŞLA
 
-**Kod tarafında yarım iş YOK.** Canlı: panel **`build-2026-10-02-008`** (2 Ekim 22:30, %100 trafik ÖLÇÜLDÜ).
-`pnpm check` **1474 test yeşil**; **entegrasyon takımı 8 dosya / 48 test** — "engele rağmen rezervasyon" uçtan uca,
-gerçek veritabanının üstünde doğrulandı ([[OR-118]]).
-**AÇIK SORU, aşağıda:** `minInstances` katının doğrulama komutu yanlış yere bakıyormuş; kat gerçekten işliyor mu
-henüz bilinmiyor.
+**Kod tarafında yarım iş YOK.** Özelliği taşıyan deploy: **`build-2026-10-02-008`** (2 Ekim 22:30, %100 trafik
+ölçüldü). Sonraki doküman push'ları numarayı ilerletiyor — **canlı numara bu belgeden değil, Cloud Run'dan okunur**
+(komut aşağıda). `pnpm check` **1474 test yeşil**; **entegrasyon takımı 8 dosya / 48 test** — "engele rağmen
+rezervasyon" uçtan uca, gerçek veritabanının üstünde doğrulandı ([[OR-118]]).
+**`minInstances` katı DOĞRULANDI** (2 Ekim 23:20, kap sayısıyla) — aşağıdaki bölüm.
 
 **Owner'da bekleyenler:**
 1. **GitHub itirazı** — `#4804152` ikametgâh belgesiyle açık (29 Eylül 11:04), ilk talep `#4799172` de duruyor.
@@ -249,45 +249,53 @@ Cihaz o geçişi **5,7 saniye** gecikmeyle gördü.
 üçü 2 sn'yi, ikisi 5 sn'yi aştı (en kötü 11,1 sn). Gecikme büyüdükçe "okuttum, kol geç döndü / dönmedi" şikâyeti
 artar — kablo düzelse bile bu ayrı bir eksen ve ölçülmeye devam etmeli.
 
-## 🧯 2 Ekim gecesi — `minInstances` katı: ÖLÇÜM ALETİ YANLIŞ YERE BAKIYORDU, kat sorusu AÇIK
+## 🧯 2 Ekim gecesi — kat ÇALIŞIYOR; yanlış olan ÖLÇÜM ALETİMDİ ([[OR-108]] hâlâ kapalı)
 
-Bu akşamki deploy'u doğrularken çıktı ve **bir özellik hatası değil, bir ölçüm hatası.** Bu belgenin yukarısında
-(satır ~892) katı doğrulamak için önerilen komut **servisin spec'ini** okuyor:
-`spec.template.metadata.annotations["autoscaling.knative.dev/minScale"]` → **1 diyor, yani her şey yolunda görünüyor.**
-Oysa ölçülen şudur:
+**Bu bölüm bir önceki hâlinin düzeltmesidir.** `0e47ad0` commit'inde "katın doğrulama komutu yanlış yere bakıyor,
+guard'ın sekiz onarımı sorgusuz kabul edilmiş olabilir" yazdım. **Bu YANLIŞTI ve geri alıyorum.** Guard çalışıyor,
+onarımlar gerçek. Yanlış olan benim seçtiğim ölçüm aletiydi.
 
-| | annotation `minScale` | %100 trafik |
+**ÖLÇÜM (2 Ekim 22:55–23:18, stüdyo kapalı, trafik yok).** Hizmet veren revizyonun gerçek kap sayısı, 24 dakikanın
+**her dakikasında 1** (`active` + `idle` toplamı). Sıfıra indiği dakika **yok** → kat etkili.
+
+**MEKANİZMA, ve aletin neden yanılttığı.** Etkili kat **SERVİS** seviyesindedir; revizyonun kendi annotation'ı onu
+yansıtmaz:
+
+| Nereye bakılır | Değer | Anlamı |
 |---|---|---|
-| `build-2026-10-02-008` (App Hosting rollout'u) | **0** | **evet** |
-| `studio-yonetim-00704-slq` (guard'ın onarımı) | **1** | hayır |
+| v2 `service.template.scaling.minInstanceCount` | **1** | ✅ ETKİLİ KAT — guard bunu korur |
+| hizmet veren revizyonun `autoscaling.knative.dev/minScale` | **0** | ❌ YANILTICI — etkili katı göstermez |
+| `container/instance_count` (sessiz aralıkta) | **1** | ✅ YER GERÇEĞİ — tek kesin cevap |
 
-Aynı desen 005/00699, 007/00702'de de birebir var. `spec.traffic` %100'ü App Hosting revizyonuna **adıyla
-sabitlemiş** ve içinde `latestRevision: true` girdisi **yok** — guard servisi yamalayıp `template.revision`'ı
-sildiğinde Cloud Run kat 1'li yeni bir revizyon üretiyor, ama trafik sabit olduğu için o revizyon hiç hizmet
-vermiyor. Yani guard'ın `minInstances: floor was 0 after a rollout — restored` satırı **"servis spec'i yamalandı"**
-demek; **"hizmet veren kabın katı var"** demek değil. Sekiz "onarım" bu yüzden sorgusuz kabul edilmiş.
+Yani App Hosting revizyonu annotation'ında 0 taşırken Cloud Run servis seviyesindeki 1'i uyguluyor. Guard'ın
+`floor was 0 after a rollout — restored` satırı GERÇEK bir onarımdır: rollout servis seviyesindeki katı düşürüyor,
+guard geri koyuyor. Yan ürün olarak kat 1'li bir `studio-yonetim-000NNN-xxx` revizyonu doğuyor ve **trafik almasına
+gerek yok** — kat zaten hizmet veren revizyona uygulanıyor. Bu geceki zincir baştan sona ölçüldü:
+`build-…-009` rollout 19:44Z → guard onarım 19:50Z (`00706-xb7`, kat 1) → 20:00Z ve 20:10Z `floor intact`
+→ 19:55–20:18Z boyunca kap sayısı 1.
 
-**AMA "kat hiç işlemiyor" henüz KANITLANMADI** ve bu yüzden burada iddia olarak yazılmıyor. Çelişen iki sinyal var:
-`build-2026-10-02-004` kendi annotation'ında **0** olmasına rağmen 18:37Z'de tam o revizyonda
-`MANUAL_OR_CUSTOMER_MIN_INSTANCE` sebebiyle bir kap başlamış. Kap sayısı metriği de henüz kesmiyor: `008` yalnızca
-beş dakikalık ve rollout'tan sıcak; eski revizyonlar trafiği kaybettikten sonra birkaç dakika bir kap tutup
-raporlamayı bırakıyor — bu normal boşaltma, kat değil.
+**DERS, ve bu belgeye yazılma sebebi:** yanlış alet, emin bir yanlış sonuç üretti ve o sonuç commit'lenip push'landı.
+Üç okuma birbirine benziyor ama üçü aynı şeyi söylemiyor; "kat işliyor mu" sorusunun cevabı **hiçbir annotation
+değil, ayakta kaç kap olduğudur.**
 
-**ALET ARTIK DOĞRU (önce enstrümanı tamir et).** `gcloud monitoring time-series` bu gcloud sürümünde YOK; doğru
-ölçüm Monitoring REST API'si ve sorusu "annotation ne diyor" değil, **"kaç kap ayakta"**:
+**DOĞRU KOMUTLAR.** Canlı sürüm (`gcloud monitoring time-series` bu gcloud sürümünde YOK, Monitoring REST kullanılır):
 
+```bash
+# 1) Canlı sürüm — deploy'un tek dürüst kanıtı (OR-17)
+gcloud run services describe studio-yonetim --region europe-west4 --project studio-yonetim-prod \
+  --format=json | python3 -c "import json,sys; print([t for t in json.load(sys.stdin)['status']['traffic'] if t.get('percent')])"
+
+# 2) Etkili kat — SERVİS seviyesi (revizyonun annotation'ına BAKMA)
+gcloud run services describe studio-yonetim --region europe-west4 --project studio-yonetim-prod \
+  --format='value(spec.template.metadata.annotations["autoscaling.knative.dev/minScale"])'   # 1 olmalı
+
+# 3) Kat gerçekten işliyor mu — SESSİZ bir aralıkta kap sayısı (yer gerçeği)
+#    GET https://monitoring.googleapis.com/v3/projects/studio-yonetim-prod/timeSeries
+#      ?filter=metric.type="run.googleapis.com/container/instance_count"
+#              AND resource.labels.revision_name="<%100 trafik alan revizyon>"
+#      &interval.startTime=<-25dk>&interval.endTime=<şimdi>
+#    active+idle toplamı her dakika >=1 ise kat işliyor.
 ```
-GET https://monitoring.googleapis.com/v3/projects/studio-yonetim-prod/timeSeries
-  ?filter=metric.type="run.googleapis.com/container/instance_count"
-          AND resource.labels.revision_name="<%100 trafik alan revizyon>"
-  &interval.startTime=<-25dk>&interval.endTime=<şimdi>
-```
-
-Hizmet veren revizyon **sessiz bir aralık boyunca** toplam 0 kaba iniyorsa kat işlemiyor. Aynı sorunun kullanıcıya
-görünen hâli: sessiz bir geceden sonraki İLK istek — Eylül'de belirti 12,3 saniyeydi (aşağıdaki OR-108 bölümü).
-
-**YAPILMADI, bilerek:** trafiği `--to-latest`e çevirmek ya da guard'a trafik taşıtmak bir **üretim yönlendirme
-değişikliği**; owner'ın bu geceki onayı rezervasyon özelliği içindi. Ölçüm bitince karar onun.
 
 ## 🙋 2 Ekim — engele rağmen rezervasyon: uyarı çıkıyor, karar masada ([[OR-118]])
 
