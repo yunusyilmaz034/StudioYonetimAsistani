@@ -246,6 +246,33 @@ Cihaz o geçişi **5,7 saniye** gecikmeyle gördü.
 üçü 2 sn'yi, ikisi 5 sn'yi aştı (en kötü 11,1 sn). Gecikme büyüdükçe "okuttum, kol geç döndü / dönmedi" şikâyeti
 artar — kablo düzelse bile bu ayrı bir eksen ve ölçülmeye devam etmeli.
 
+## 💬 2 Ekim — Sohbetler ekranı: telefon göründü, kalıcı not geldi
+
+Owner: *"Sohbetleri gördüm ama telefon numarasını göremedim, ekle lütfen"* ve *"kalıcı not için ayrı
+bir yer koy."*
+
+**Telefon.** Numara ekrana kadar hep geliyordu ama yalnızca **ad boşsa** yazılıyordu — yani adı bilinen
+herkeste gizliydi. Oysa bu ekranda numaraya en çok ihtiyaç duyulan an, kimin olduğunu bildiğin an:
+arayacaksın. `tel:` bağlantısı olarak konuldu; okunacak bir metin değil, basılacak bir düğme.
+
+**Kalıcı not — neden AYRI bir yer.** Bugüne kadar bir lead hakkında yazılan tek not panodaki TİK
+NOTUydu ve o bilerek geçici: tiki geri alınca not da siliniyor, çünkü işi "bu işi kapattım, şöyle
+oldu" demek. Masanın tutmak istediği başka bir şey var: kişinin kendisi hakkında kalıcı bir cümle
+("fiyatı yüksek buldu, Ocak'ta tekrar ara").
+
+**Sohbet belgesinin üstünde bir alan DEĞİL, ayrı koleksiyon** (`conversationNotes/{telefon}`). Sebep:
+webhook her gelen mesajda sohbeti bellekteki nesnesiyle baştan yazıyor; bilmediği bir alan bugün
+hayatta kalır ama bir sonraki düzenlemede sessizce düşebilir. **Notun kaderi, onu hiç tanımayan bir
+fonksiyonun dikkatine bağlı olmamalı.** Telefona göre anahtarlandı — lead'lerin çoğunun üye kaydı yok.
+
+**Kurallara eklendi ve dağıtıldı:** `conversationNotes` artık `serverOnly()` listesinde. İçinde
+stüdyonun o kişi hakkındaki kendi değerlendirmesi var — masanın yazdığı, müşterinin görmediği cümle.
+
+**İki küçük karar, ikisi de bilerek:** ekle/düzenle/sil tek kapıdan geçiyor, **boş metin siler** (iki
+ayrı eylem, iki yetki kontrolü ve iki kez unutulabilecek bir kural demekti); ve not **beş saniyelik
+yoklamaya bağlanmadı** — bağlansaydı masadaki kişi yazarken kutusu her beş saniyede bir üstüne
+yazılırdı. Not yalnızca sohbet değişince ve kaydettikten sonra okunuyor.
+
 ## 🚀 2 Ekim gecesi — bugün çıkanlar canlıda
 
 Canlı sürüm **`studio-yonetim-build-2026-10-02-003`**, 21:30'da trafiği aldı; kat 21:40'ta geri kondu

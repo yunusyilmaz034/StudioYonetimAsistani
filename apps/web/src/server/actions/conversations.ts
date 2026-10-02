@@ -214,3 +214,62 @@ export async function markConversationSeenAction(input: unknown) {
   await ref.set({ needsAttention: false }, { merge: true })
   return { ok: true as const, stillWaiting: false }
 }
+
+// ── SOHBETE İLİŞTİRİLEN KALICI NOT (owner, 2026-10-02) ──────────────────────────────────────
+//
+// *"Kalıcı not için ayrı bir yer koy."* Sebebi şu: bugüne kadar bir lead hakkında yazılan tek not,
+// panodaki TİK NOTUydu ve o bilerek geçici — tiki geri alınca not da siliniyor, çünkü o notun işi
+// "bu işi kapattım, şöyle oldu" demek. Oysa masanın tutmak istediği başka bir şey var: kişinin
+// kendisi hakkında kalıcı bir cümle ("fiyatı yüksek buldu, Ocak'ta tekrar ara").
+//
+// AYRI KOLEKSİYON, sohbet belgesinin üstünde bir alan DEĞİL. Webhook her gelen mesajda sohbeti
+// bellekteki nesnesiyle baştan yazıyor (`ref.set(conv, { merge: true })`); bilmediği bir alan bugün
+// hayatta kalır ama bir sonraki düzenlemede sessizce düşebilir. Notun kaderi, onu hiç tanımayan bir
+// fonksiyonun dikkatine bağlı olmamalı.
+//
+// Telefona göre anahtarlanıyor: sohbetin kimliği de o. Üye kaydı olsun olmasın çalışır — ki
+// lead'lerin çoğunun üye kaydı yok.
+const noteRef = (studioId: string, phone: string) =>
+  adminDb().doc(`studios/${studioId}/conversationNotes/${phone}`)
+
+export interface ConversationNote {
+  readonly text: string
+  readonly byName: string
+  readonly at: number
+}
+
+export async function conversationNoteAction(input: unknown): Promise<ConversationNote | null> {
+  const p = z.object({ phone: nonEmpty }).parse(input)
+  const ctx = await requireTenantContext(OPS)
+  const snap = await noteRef(String(ctx.studioId), p.phone).get()
+  const d = snap.data()
+  if (!d || typeof d.text !== 'string' || d.text.trim() === '') return null
+  return { text: String(d.text), byName: String(d.byName ?? ''), at: Number(d.at ?? 0) }
+}
+
+/**
+ * Notu yaz, değiştir ya da sil — hepsi tek kapı.
+ *
+ * Boş metin SİLER. Ayrı bir "sil" eylemi yazmadım: iki eylem, iki yetki kontrolü ve iki kez
+ * unutulabilecek bir kural demek. Kullanıcının yaptığı şey zaten tek: kutuyu boşaltıp kaydetmek.
+ */
+export async function setConversationNoteAction(input: unknown): Promise<{ ok: true }> {
+  const p = z.object({ phone: nonEmpty, text: z.string().trim().max(1000) }).parse(input)
+  const ctx = await requireTenantContext(OPS)
+  const ref = noteRef(String(ctx.studioId), p.phone)
+  if (p.text === '') {
+    await ref.delete()
+    return { ok: true as const }
+  }
+  // Kim yazdı: masada birden fazla kişi var ve "bunu kim yazmış" sorusu notun kendisi kadar işe
+  // yarıyor. Ad çözülemezse boş kalır — uydurulmuş bir ad, boş bir alandan kötüdür.
+  let byName = ''
+  try {
+    const staff = await adminDb().doc(`studios/${ctx.studioId}/staff/${String(ctx.actor.id)}`).get()
+    byName = String(staff.data()?.displayName ?? '')
+  } catch {
+    /* ad olmadan da yazılır */
+  }
+  await ref.set({ text: p.text, byName, at: Date.now(), by: String(ctx.actor.id) }, { merge: true })
+  return { ok: true as const }
+}

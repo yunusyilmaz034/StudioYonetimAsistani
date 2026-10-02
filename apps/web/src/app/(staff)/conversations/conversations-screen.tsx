@@ -14,6 +14,9 @@ import {
   type ConvDetail,
   type Inbox,
   type InboxItem,
+  conversationNoteAction,
+  setConversationNoteAction,
+  type ConversationNote,
   type Temp,
 } from '@/server/actions/conversations'
 
@@ -36,6 +39,12 @@ export function ConversationsScreen() {
   const [detail, setDetail] = useState<ConvDetail | null>(null)
   const [text, setText] = useState('')
   const [busy, setBusy] = useState(false)
+  // KALICI NOT (owner, 2026-10-02). Tik notundan ayrı: o "bu işi kapattım" der ve tik geri alınınca
+  // silinir; bu ise kişinin kendisi hakkında kalan cümledir ("fiyatı yüksek buldu, Ocak'ta ara").
+  const [note, setNote] = useState<ConversationNote | null>(null)
+  const [noteDraft, setNoteDraft] = useState('')
+  const [noteOpen, setNoteOpen] = useState(false)
+  const [noteBusy, setNoteBusy] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
   const params = useSearchParams()
 
@@ -88,6 +97,32 @@ export function ConversationsScreen() {
     return () => {
       alive = false
       clearInterval(iv)
+    }
+  }, [selected])
+
+  // NOT, YOKLAMAYA BAĞLANMAZ — bilerek ayrı bir etki. Sohbet detayı beş saniyede bir tazeleniyor;
+  // not da onunla gelseydi, masadaki kişi yazarken kutusu her beş saniyede bir üstüne yazılırdı.
+  // Not yalnızca sohbet DEĞİŞTİĞİNDE okunur, bir de kaydedildikten sonra.
+  useEffect(() => {
+    if (!selected) {
+      setNote(null)
+      setNoteDraft('')
+      setNoteOpen(false)
+      return
+    }
+    let alive = true
+    void conversationNoteAction({ phone: selected })
+      .then((n) => {
+        if (!alive) return
+        setNote(n)
+        setNoteDraft(n?.text ?? '')
+        setNoteOpen(false)
+      })
+      .catch(() => {
+        /* notu gösterememek sohbeti bozmaz */
+      })
+    return () => {
+      alive = false
     }
   }, [selected])
 
@@ -206,6 +241,76 @@ export function ConversationsScreen() {
                   <button type="button" onClick={() => void handOff('human')} className="shrink-0 rounded-lg border border-border px-2.5 py-1 text-xs font-medium text-amber-600 hover:bg-muted/40">Devral</button>
                 )}
               </div>
+              {/* ── KALICI NOT (owner, 2026-10-02) ──────────────────────────────────────────
+                  Sohbetin üstünde, mesajların dışında: bu, konuşmanın bir parçası değil, stüdyonun
+                  o kişi hakkında kendine yazdığı not. Yazılmamışsa yalnızca bir bağlantı duruyor —
+                  boş bir kutu her sohbette göz yorar. */}
+              <div className="border-b border-border px-4 py-2">
+                {noteOpen ? (
+                  <div className="space-y-2">
+                    <textarea
+                      value={noteDraft}
+                      onChange={(e) => setNoteDraft(e.target.value)}
+                      rows={2}
+                      maxLength={1000}
+                      autoFocus
+                      placeholder="Bu kişi hakkında not — ör. “fiyatı yüksek buldu, Ocak’ta tekrar ara”"
+                      className="w-full resize-none rounded-lg border border-border bg-background px-2.5 py-1.5 text-sm outline-none focus:border-primary"
+                    />
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        disabled={noteBusy}
+                        onClick={async () => {
+                          if (!selected) return
+                          setNoteBusy(true)
+                          try {
+                            // Boş metin SİLER — ayrı bir "sil" düğmesi yok: kullanıcının yaptığı şey
+                            // zaten tek, kutuyu boşaltıp kaydetmek.
+                            await setConversationNoteAction({ phone: selected, text: noteDraft.trim() })
+                            setNote(await conversationNoteAction({ phone: selected }))
+                            setNoteOpen(false)
+                            toast.success(noteDraft.trim() === '' ? 'Not silindi.' : 'Not kaydedildi.')
+                          } catch (e) {
+                            toast.error(isStaleDeployment(e) ? STALE_DEPLOYMENT_MESSAGE : 'Not kaydedilemedi.')
+                          }
+                          setNoteBusy(false)
+                        }}
+                        className="rounded-lg bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground disabled:opacity-50"
+                      >
+                        Kaydet
+                      </button>
+                      <button
+                        type="button"
+                        disabled={noteBusy}
+                        onClick={() => {
+                          setNoteDraft(note?.text ?? '')
+                          setNoteOpen(false)
+                        }}
+                        className="rounded-lg border border-border px-2.5 py-1 text-xs text-muted-foreground hover:bg-muted/40"
+                      >
+                        Vazgeç
+                      </button>
+                      {noteDraft.trim() !== '' ? (
+                        <span className="text-[11px] text-muted-foreground">Kutuyu boşaltıp kaydedersen not silinir.</span>
+                      ) : null}
+                    </div>
+                  </div>
+                ) : note ? (
+                  <button type="button" onClick={() => setNoteOpen(true)} className="w-full text-left">
+                    <span className="block whitespace-pre-wrap text-xs text-foreground">📌 {note.text}</span>
+                    <span className="mt-0.5 block text-[11px] text-muted-foreground">
+                      {note.byName ? `${note.byName} · ` : ''}
+                      {mesajZamani(note.at)} · düzenlemek için tıkla
+                    </span>
+                  </button>
+                ) : (
+                  <button type="button" onClick={() => setNoteOpen(true)} className="text-xs text-muted-foreground hover:text-foreground">
+                    + Not ekle
+                  </button>
+                )}
+              </div>
+
               <div ref={scrollRef} className="min-h-0 flex-1 space-y-2 overflow-y-auto bg-muted/20 p-4">
                 {detail.messages.map((m, i) => (
                   <div key={i} className={`flex ${m.role === 'user' ? 'justify-start' : 'justify-end'}`}>
