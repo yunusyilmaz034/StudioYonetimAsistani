@@ -763,6 +763,14 @@ export interface NotSatiri {
   readonly subject: string
   readonly title: string
   readonly note: string
+  /**
+   * İlgili kişinin telefonu (owner, 2026-10-02: *"notlara bir de telefon kolonu ekle"*).
+   *
+   * Notu okuyan kişinin bir sonraki hareketi genellikle o kişiyi ARAMAK. Ad tek başına bunu
+   * yaptırmıyor: masadaki kişi numarayı başka bir ekranda aramak zorunda kalıyordu. Çözülemeyen
+   * kayıtta boş kalır — uydurulmuş bir numara, boş hücreden kötüdür.
+   */
+  readonly phone: string
 }
 
 const NOT_TURU: Record<string, string> = {
@@ -786,7 +794,7 @@ export function buildNotes(rows: readonly NotSatiri[]): Report {
   return {
     table: {
       name: 'notlar',
-      columns: ['Tarih', 'Yazan', 'İş', 'İlgili', 'Not'],
+      columns: ['Tarih', 'Yazan', 'İş', 'İlgili', 'Telefon', 'Not'],
       rows: sirali.map((r) => [
         date(r.at),
         r.byName,
@@ -794,6 +802,8 @@ export function buildNotes(rows: readonly NotSatiri[]): Report {
         // sessiz"); eski kayıtlarda başlık yok, o zaman tür yazılır — "—" notu sahipsiz bırakırdı.
         r.title || NOT_TURU[r.kind] || r.kind,
         r.subject || '—',
+        // Telefon, adın hemen yanında: notu okuyan kişinin bir sonraki hareketi aramak.
+        r.phone || '—',
         r.note,
       ]),
     },

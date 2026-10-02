@@ -118,7 +118,19 @@ async function main(): Promise<void> {
       },
     ],
     // İndirim birebir taşınıyor — 200 ₺ hediye. Net fiyattan satmak, verilen şeyi kayıttan silerdi.
-    discounts: [{ reason: 'gift', amount: money(VAKA.indirimKurus), note: '', couponCode: null, referredByMemberId: null }],
+    // `grantedBy` ZORUNLU ve ilk çalıştırmada unutulmuştu: `pnpm tsx` tip kontrolü yapmıyor, hata
+    // ancak `pnpm check`te çıktı — betik o sırada çoktan çalışmıştı. Ders: bir break-glass betiği
+    // yazıldığı gibi değil, GATE'ten geçtikten sonra çalıştırılır.
+    discounts: [
+      {
+        reason: 'gift',
+        amount: money(VAKA.indirimKurus),
+        note: '',
+        couponCode: null,
+        referredByMemberId: null,
+        grantedBy: { type: 'platform_admin', id: `migration:${RUN}` } as never,
+      },
+    ],
     discountCeilingPercent: null,
     payment: {
       paymentId: `pay_${RUN}`,

@@ -248,6 +248,14 @@ export async function loadReportAction(input: unknown): Promise<ReportResult> {
       ])
       const adres = new Map(telefonlar.map((t, i) => [t, String(sohbetler[i]?.data()?.name ?? '').trim() || t]))
       const uyeAdi = new Map(members.map((m) => [m.id as string, m.fullName]))
+      const uyeTel = new Map(members.map((m) => [m.id as string, String(m.phone)]))
+      // TELEFON (owner, 2026-10-02). İki kaynak, ikisi de elimizde: `wa:` kaydında numara kimliğin
+      // KENDİSİ, üye kaydında ise üyenin telefonu. Çözülemeyen satır boş kalır.
+      const telefon = (itemId: string): string => {
+        if (itemId.startsWith('wa:')) return itemId.slice(3)
+        const parcalar = itemId.split('__')
+        return parcalar.length > 1 ? (uyeTel.get(parcalar[1] ?? '') ?? '') : ''
+      }
       const konu = (itemId: string): string => {
         if (itemId.startsWith('wa:')) return adres.get(itemId.slice(3)) ?? itemId.slice(3)
         const parcalar = itemId.split('__')
@@ -259,6 +267,7 @@ export async function loadReportAction(input: unknown): Promise<ReportResult> {
         byName: h.byName,
         kind: h.kind,
         subject: konu(h.itemId),
+        phone: telefon(h.itemId),
         title: h.title,
         note: h.note,
       }))

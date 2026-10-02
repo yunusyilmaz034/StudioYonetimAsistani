@@ -246,6 +246,28 @@ Cihaz o geçişi **5,7 saniye** gecikmeyle gördü.
 üçü 2 sn'yi, ikisi 5 sn'yi aştı (en kötü 11,1 sn). Gecikme büyüdükçe "okuttum, kol geç döndü / dönmedi" şikâyeti
 artar — kablo düzelse bile bu ayrı bir eksen ve ölçülmeye devam etmeli.
 
+## 📒 2 Ekim — Notlar raporunda telefon sütunu, ve dünkü betiğin bıraktığı iz
+
+Owner: *"Raporlarda notlara bir de telefon kolonu ekle."* Sebebi açık: notu okuyan kişinin bir sonraki
+hareketi genellikle o kişiyi ARAMAK, ve ad tek başına bunu yaptırmıyordu — numara başka bir ekranda
+aranıyordu.
+
+**Yapıldı.** `Notlar` raporu artık `Tarih · Yazan · İş · İlgili · Telefon · Not`. İki kaynak, ikisi de
+zaten elimizdeydi: `wa:{telefon}` kaydında numara **kimliğin kendisi**, `{tür}__{memberId}` kaydında
+üyenin telefonu. Çözülemeyen satır `—` kalıyor — uydurulmuş bir numara, boş hücreden kötüdür.
+
+**Dünkü Melisa betiğinin bıraktığı iz — kayda geçiyor.** Betik `pnpm tsx` ile çalıştırıldı ve `tsx`
+TİP KONTROLÜ YAPMIYOR. Bugün `pnpm check` hatayı gösterdi: `Discount.grantedBy` zorunlu, betikte
+yoktu. Yani yeniden kurulan satışın indirim satırında **"indirimi kim verdi" bilgisi yok**. Para
+doğru (brüt 13.200 · net 13.000 · ödenen 13.000), eksik olan yalnızca atıf.
+
+**Veri DÜZELTİLMEDİ, bilerek:** düzeltmek üçüncü bir iptal + yeniden kurma turu demek, o da satışın
+tarihini ikinci kez bu güne kaydırırdı. Bir atıf alanı için doğru bir satışı yeniden kurmak, kötü
+takas. Betik düzeltildi ki bir dahaki sefere doğru yazsın.
+
+**Ders, ve bu daha pahalıya patlayabilirdi:** bir break-glass betiği yazıldığı gibi değil, **`pnpm
+check`ten geçtikten sonra** çalıştırılır. `tsx` çalıştırır ama doğrulamaz.
+
 ## 🗓️ 1 Ekim — iki ödeme yanlış güne yazılmıştı
 
 Owner: *"Duygu Üzülmez bugün ödeme yaptı ama sistemde daha önce görünüyor, onu bugüne al. Melisa Gök dün KK ile
@@ -616,9 +638,11 @@ Telefon anahtarı tek fonksiyona (`telefonAnahtari`) indirildi: haritayı KURAN 
 bir gün ayrışsalardı harita dolu görünüp sorgu hep boş dönerdi — ekranda "eşleşme yok" ile "eşleşme aranmadı" aynı
 görünür, yani sessiz bir hata olurdu.
 
-**Koruyucu artık altı kez tek başına çalıştı.** 25 Eylül 13:04→13:11 (7 dk), 26 Eylül 14:04→14:10 (6 dk),
-27 Eylül 21:55→22:01 (6 dk), 27 Eylül 22:13→22:21 (8 dk), 28 Eylül 20:36→20:40 (4 dk) ve
-**30 Eylül 17:45→17:50 (5 dk)**. Altısı da gerçek rollout sonrası, elle dokunulmadan.
+**Koruyucu artık yedi kez tek başına çalıştı.** 25 Eylül 13:04→13:11 (7 dk), 26 Eylül 14:04→14:10 (6 dk),
+27 Eylül 21:55→22:01 (6 dk), 27 Eylül 22:13→22:21 (8 dk), 28 Eylül 20:36→20:40 (4 dk) ,
+**30 Eylül 17:45→17:50 (5 dk)** ve **1 Ekim 23:10→23:32 (22 dk)**. Yedisi de gerçek rollout sonrası, elle
+dokunulmadan. Sonuncusu her zamankinden yavaştı çünkü iki push arka arkaya geldi — koruyucunun turu arada kaldı,
+kendi döngüsü bozulmadı.
 
 **30 Eylül'ün kendisi ayrı bir kanıt:** o gün arka arkaya altı rollout çıktı (rapor filtresi, PIN, kapsam
 genişlemesi, geri alma). Her biri katı sıfırladı ve her seferinde kat 1'e dönmüş olarak ölçüldü — yalnızca
