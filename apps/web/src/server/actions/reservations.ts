@@ -2,6 +2,7 @@
 
 import {
   applyRecurring,
+  available,
   bookPastAttended,
   bookReservation,
   cancelReservation,
@@ -44,6 +45,14 @@ import { reservationPolicyPort } from '../reservation-policy'
 // already records WHO did it, which is what makes widening it safe rather than merely convenient.
 const OPS = ['owner', 'receptionist', 'trainer', 'platform_admin'] as const
 
+// ── ENGELE RAĞMEN REZERVASYON: PATRON + RESEPSİYON (owner, 2026-10-02) ──────────────────────
+//
+// *"1 bende ve resepisyonda olsun."* Eğitmen ajandanın geri kalanını tutuyor (yukarıdaki DESK
+// kararı), ama stüdyonun kendi kuralını esnetme yetkisi onda değil. `OPS`u burada kullanmak,
+// ajandayı genişletmiş olmanın yan etkisi olarak bu yetkiyi de sessizce genişletmek olurdu —
+// backdating'de aynı sebeple aynı çizgi çekildi.
+const EXEMPT = ['owner', 'receptionist', 'platform_admin'] as const
+
 const nonEmpty = z.string().min(1)
 
 export async function bookReservationAction(input: unknown) {
@@ -56,9 +65,16 @@ export async function bookReservationAction(input: unknown) {
       // verildiğinde anlamlı: masa hangi paketi kastettiğini söyler, sistem kendiliğinden süresi
       // dolmuş bir pakete düşmez.
       honourExpiredCredit: z.boolean().optional(),
+      // ENGELE RAĞMEN REZERVE ET (owner, 2026-10-02). Sebep boşsa izin hiç açılmaz, ve yanan hak
+      // bayrağı gibi yalnızca `entitlementId` AÇIKÇA verildiğinde anlamlı: istisna da bir pakete
+      // yazılır, çünkü rezervasyon kredi defterine bağlı olmayı sürdürür.
+      creditExemptionReason: z.string().optional(),
     })
     .parse(input)
-  const ctx = await requireTenantContext(OPS)
+  const istisnaSebep = (p.creditExemptionReason ?? '').trim()
+  const istisna = istisnaSebep.length > 0 && Boolean(p.entitlementId)
+  // Yetki, istenen işe göre: istisna isteyen bir eğitmen buradan geçemez (yetkisizlik hatası alır).
+  const ctx = await requireTenantContext(istisna ? EXEMPT : OPS)
   const db = adminDb()
   // Sessiz bir yedeğe dönüşmesin: bayrak yalnızca AÇIKÇA gösterilen bir paketle geçerlidir.
   // Otomatik seçim yolunda kullanılabilseydi, süresi dolmuş paketler zamanla normal bir kaynak
@@ -91,6 +107,7 @@ export async function bookReservationAction(input: unknown) {
       memberId: p.memberId as MemberId,
       memberSnapshot,
       ...(yananHak ? { honourExpiredCredit: true } : {}),
+      ...(istisna ? { creditExemption: { reason: istisnaSebep } } : {}),
     },
   )
 }
@@ -151,6 +168,65 @@ export interface ExpiredCreditOption {
   readonly validUntil: number
   /** Süre dolarken YANAN ders sayısı — "kalan kredi" değil. */
   readonly yananHak: number
+}
+
+// ── ENGELE RAĞMEN REZERVASYON: HANGİ PAKETİN ÜSTÜNE (owner, 2026-10-02) ─────────────────────
+//
+// İstisna da bir pakete yazılır; "paketsiz rezervasyon" diye bir şey yok. Rezervasyonun bir
+// `entitlementId`si olması mimarinin taşıyıcı duvarı — iptal, yoklama, kredi iadesi ve I-17'nin
+// tamamı onun üstünde duruyor. Bu yüzden masa hangi paketin üstüne yazdığını söyler.
+//
+// `cancelled` ve `frozen` listelenmez: domain onları izinle bile açmıyor (iptal alınmış bir karar,
+// dondurma ise stüdyonun o günleri geri ödediği kasıtlı bir askı — DEBT-037), ve göstermek
+// tıklanınca reddedilecek bir seçenek sunmak olurdu.
+export async function exemptionOptionsAction(input: unknown) {
+  const p = z.object({ memberId: nonEmpty, sessionId: nonEmpty }).parse(input)
+  const ctx = await requireTenantContext(EXEMPT)
+  const db = adminDb()
+
+  const [session, hepsi] = await Promise.all([
+    new FirestoreSchedulingRepository(db).getSession(ctx, p.sessionId as ClassSessionId),
+    new FirestoreEntitlementRepository(db).listByMember(ctx, p.memberId as MemberId),
+  ])
+  if (!session) return [] as readonly ExemptionOption[]
+
+  const admits = session.admission?.categories ?? [session.category]
+
+  const secenekler: ExemptionOption[] = hepsi
+    .filter((e) => e.status === 'active' || e.status === 'expired')
+    // KATEGORİ DUVARI İZİNLE AŞILMIYOR: pilates dersini fitness paketine yazmak bir istisna değil,
+    // yanlış kayıttır — ve raporların tamamı bu ayrımın üstünde duruyor. Domain de reddediyor.
+    .filter((e) => admits.includes(e.productSnapshot.category))
+    .map((e) => {
+      const kalan = e.credits ? available(e.credits) : null
+      const yanan = e.credits?.expired ?? 0
+      return {
+        entitlementId: e.id as string,
+        productName: e.productSnapshot.name,
+        status: e.status === 'active' ? ('active' as const) : ('expired' as const),
+        validUntil: e.validUntil as number,
+        kalanKredi: kalan,
+        // Alınacak hak var mı: ya elinde duran kredi, ya süre dolarken yanan hak. Owner'ın kuralı
+        // (*"kredisi varsa düşsün her zaman"* / *"kredisi 0 ise eksiye gitmesin"*) ekranda bu satır.
+        krediDusecek: kalan !== null && kalan + (e.status === 'expired' ? yanan : 0) >= 1,
+      }
+    })
+    .sort((a, b) =>
+      a.status === b.status ? b.validUntil - a.validUntil : a.status === 'active' ? -1 : 1,
+    )
+
+  return secenekler as readonly ExemptionOption[]
+}
+
+export interface ExemptionOption {
+  readonly entitlementId: string
+  readonly productName: string
+  readonly status: 'active' | 'expired'
+  readonly validUntil: number
+  /** null ⇔ süreli paket (kredi saymaz). */
+  readonly kalanKredi: number | null
+  /** Bu rezervasyonda defterden bir hak alınacak mı — ekran bunu açıkça yazıyor. */
+  readonly krediDusecek: boolean
 }
 
 // ── GEÇMİŞ DERSE ÜYE EKLEME (owner, 2026-08-02) ──────────────────────────────────────────────

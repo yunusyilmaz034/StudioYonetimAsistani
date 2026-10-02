@@ -7,12 +7,12 @@ explains the moment.
 Keep it current the way the code is kept current: when the state changes, this changes in the same
 commit. A handover document that lags is worse than none, because it is believed.
 
-_Last true as of: **2026-10-01, 23:10**._
+_Last true as of: **2026-10-02, 22:25**._
 
 ## ⏭️ Sıradaki oturum — BURADAN BAŞLA
 
-**Kod tarafında yarım iş YOK.** Canlı: panel `build-2026-10-02-003` (2 Ekim 21:30, kat 1). `pnpm check`
-1462 test yeşil; **entegrasyon takımı 7 dosya / 46 test** — rezervasyon yolunun uçtan uca testi bugün eklendi.
+**Kod tarafında yarım iş YOK.** `pnpm check` **1474 test yeşil**; **entegrasyon takımı 8 dosya / 48 test** —
+"engele rağmen rezervasyon" uçtan uca, gerçek veritabanının üstünde doğrulandı ([[OR-118]]).
 
 **Owner'da bekleyenler:**
 1. **GitHub itirazı** — `#4804152` ikametgâh belgesiyle açık (29 Eylül 11:04), ilk talep `#4799172` de duruyor.
@@ -245,6 +245,43 @@ Cihaz o geçişi **5,7 saniye** gecikmeyle gördü.
 **Sinyal zayıflıyor:** RSSI 22 Eylül −74/−75 → 23 Eylül **−78 / −82 dBm**. Bugünkü 21 geçişin ortancası 717 ms ama
 üçü 2 sn'yi, ikisi 5 sn'yi aştı (en kötü 11,1 sn). Gecikme büyüdükçe "okuttum, kol geç döndü / dönmedi" şikâyeti
 artar — kablo düzelse bile bu ayrı bir eksen ve ölçülmeye devam etmeli.
+
+## 🙋 2 Ekim — engele rağmen rezervasyon: uyarı çıkıyor, karar masada ([[OR-118]])
+
+Owner: *"Üyenin paketinin tarihi bitiyor, biz bitse de inisiyatif kullanıp süre dışındaki bir yere rezervasyon
+yapmak istiyoruz… paketi yok ya da başka engeli varsa uyarı olarak çıkarsın, yine de 'kabul et rezervasyon yap'
+derse yapsın. Kredisi 0 ise eksiye gitmesin, ya da paketin tarihi bittiyse kredisi varsa kredisi bu derse istinaden
+düşsün, üye de bunu görsün."* Netleştirmeleri: **(1b)** kredi 0'da deftere dokunulmaz, **(2)** kredi varsa her zaman
+düşer ve *"uyarı vermesi yeterli, bir engel koyma"*, yetki **patron + resepsiyon**.
+
+**Ne yapıldı.** `decideBooking` artık `creditExemption: { reason }` alıyor. Sebep boşsa izin HİÇ açılmaz
+(`reason_required`). Aşılabilir korumalar `ExemptableGuard` ile **kapalı bir liste**; takılan ilk koruma kaydedilip
+geçiliyor ve rezervasyonun yanına **`reservation.credit_exempted`** olayı yazılıyor (hangi koruma aşıldı · kredi
+düştü mü · o anki bakiye · paketin durumu · sebep). Engel gerçekten aşılmadıysa olay yazılmıyor — aynı karar bir
+müdahale değil. Kredi kararı tek satıra indi: **alınacak hak varsa alınır, yoksa sayaçlar hiç oynamaz.** İzinsiz
+yolda bu ifade eskisinin birebir aynısı, yani normal rezervasyonun davranışı zerre değişmedi.
+
+**Ekranda.** İki rezervasyon kapısı da (ders paneli · hızlı rezervasyon) artık aynı yoldan geçiyor ve tıkandığında
+masaya sırayla iki soru soruyor: **önce yanan hak** ([[OR-54]] — daha azını yapar, üyenin kendi hakkını
+kullandırır), **sonra inisiyatif**. Uyarı kutusu engeli adıyla söylüyor, her paketin yanında *"1 ders düşecek"* ya da
+*"kredi düşmeyecek"* etiketi tıklamadan önce görünüyor, sebep alanı zorunlu. Yetkisi olmayan (eğitmen) istisna
+seçeneğini hiç görmüyor — server action `EXEMPT` listesiyle ayrı: `OPS`u kullanmak, ajandayı genişletmiş olmanın yan
+etkisi olarak bu yetkiyi de sessizce genişletmek olurdu.
+
+**Yanda düzelen bir şey:** yanan hakla rezervasyonda olaya `creditsAvailableAfter: -1` yazılıyordu — defterde hiç var
+olmamış bir bakiye. Çağıran katman yanan haktan birini geri verip tuttuğu için doğru sayı 0; artık 0 yazıyor.
+
+**Kanıt.** 13 yeni domain testi (yarısı izni DOĞRULUYOR, yarısı SINIRLIYOR), golden fixture
+`reservation.credit_exempted.v1.json`, ve **gerçek veritabanının üstünde iki emülatör testi** — çünkü aynı
+özelliğin bir önceki hâli altı domain testiyle yeşil görünürken canlıda bir kez bile çalışmamıştı ve iki kopukluk da
+katmanların ARASINDAydı. Emülatör testi `creditEffect` iddiasıyla yetinmiyor, **sayaçlara bakıyor:** kredisi 0'da
+`held`/`consumed`/`restored` hiç oynamıyor ve `available` 0'da kalıyor (eksiye gitmiyor); süresi dolmuş pakette
+`restored 1 / held 1 / expired 3` ve paket diriltilmiyor.
+
+**BİLİNÇLİ OLARAK YAPILMAYAN:** *"paketi yok"* hâli. Rezervasyon her zaman bir pakete bağlı (`entitlementId`
+zorunlu, `repo.book` paket belgesi yoksa atıyor) ve iptal/yoklama/kredi iadesi/I-17 o bağın üstünde duruyor.
+Paketsiz rezervasyon, kredi defterinin taşıyıcı duvarını değiştirmek demek — owner'a sorulacak ayrı bir karar.
+Owner'ın anlattığı iki somut durum paketin üstüne yazılarak çözülüyor.
 
 ## 💬 2 Ekim — Sohbetler ekranı: telefon göründü, kalıcı not geldi
 

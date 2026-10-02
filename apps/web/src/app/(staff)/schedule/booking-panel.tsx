@@ -42,13 +42,13 @@ import {
   type RosterMember,
 } from '@/server/actions/booking'
 import {
-  bookReservationAction,
   cancelReservationAction,
   setReservationNoteAction,
   type ExpiredCreditOption,
 } from '@/server/actions/reservations'
 
-import { ExpiredCreditDialog, bookOrOfferExpiredCredit } from '@/components/expired-credit-dialog'
+import { CreditExemptionDialog } from '@/components/credit-exemption-dialog'
+import { ExpiredCreditDialog, bookOrOfferExpiredCredit, type BookOutcome } from '@/components/expired-credit-dialog'
 import type { CalendarSession } from '@/server/schedule-query'
 
 import { MoveReservationDialog } from './move-reservation-dialog'
@@ -74,6 +74,8 @@ export function BookingPanel({ session, onMutated, canBackdate = true }: { sessi
   const [statusLoading, setStatusLoading] = useState(false)
   const [busy, setBusy] = useState(false)
   const [yananSecenekler, setYananSecenekler] = useState<readonly ExpiredCreditOption[] | null>(null)
+  // ENGELE RAĞMEN REZERVASYON (owner, 2026-10-02). Uyarıyı ve sebebi diyalog topluyor.
+  const [istisna, setIstisna] = useState<Extract<BookOutcome, { kind: 'exempt' }> | null>(null)
   const [cancelling, setCancelling] = useState<RosterMember | null>(null)
   // KREDİYE İNSAN KARAR VERİR (owner, 2026-09-10). Varsayılan İADE: kaza ile kredi yakmak, kaza ile
   // iade etmekten pahalıdır — biri üyeyi kızdırır ve telefonla çözülür, öbürü bir kredidir.
@@ -148,20 +150,16 @@ export function BookingPanel({ session, onMutated, canBackdate = true }: { sessi
     if (!picked) return
     setBusy(true)
     try {
-      // Masanın seçtiği paket varsa onunla; yoksa normal yol, ve tıkanırsa yanan hak sorulur.
-      const res = status?.entitlementId
-        ? await bookReservationAction({ memberId: picked.id, sessionId: session.sessionId, entitlementId: status.entitlementId })
-        : await (async () => {
-            const r = await bookOrOfferExpiredCredit(picked.id, session.sessionId)
-            if (r.kind === 'choose') {
-              setYananSecenekler(r.options)
-              return { ok: true as const, _sorulacak: true }
-            }
-            return r.kind === 'ok' ? ({ ok: true as const }) : ({ ok: false as const, error: r.error })
-          })()
-      if ('_sorulacak' in res) {
+      // Masanın seçtiği paket varsa onunla, yoksa otomatik seçimle — ama HER İKİ hâlde de aynı
+      // yoldan. Engel (paketin süresi, kredi, günlük/haftalık hak) seçili pakette de çıkıyor, ve
+      // çıktığında masaya sorulacak soru aynı. Eskiden seçili paket yolu doğrudan gidiyor ve
+      // tıkandığında yalnızca "Rezervasyon yapılamadı" diyordu.
+      const r = await bookOrOfferExpiredCredit(picked.id, session.sessionId, status?.entitlementId ?? null)
+      if (r.kind === 'choose' || r.kind === 'exempt') {
         // Diyalog açıldı; sonucu o bildirecek.
-      } else if (res.ok) {
+        if (r.kind === 'choose') setYananSecenekler(r.options)
+        else setIstisna(r)
+      } else if (r.kind === 'ok') {
         toast.success(`${picked.fullName} rezerve edildi.`)
         setPicked(null)
         setStatus(null)
@@ -170,7 +168,7 @@ export function BookingPanel({ session, onMutated, canBackdate = true }: { sessi
         await loadRoster()
         onMutated()
       } else {
-        toast.error(domainErrorMessage(res.error as never))
+        toast.error(domainErrorMessage(r.error as never))
       }
     } catch {
       toast.error('Rezervasyon tamamlanamadı.')
@@ -269,6 +267,25 @@ export function BookingPanel({ session, onMutated, canBackdate = true }: { sessi
             void loadRoster().then(onMutated)
           }}
           onClose={() => setYananSecenekler(null)}
+        />
+      ) : null}
+      {istisna && picked ? (
+        <CreditExemptionDialog
+          memberId={picked.id}
+          sessionId={session.sessionId}
+          memberName={picked.fullName}
+          options={istisna.options}
+          refusal={istisna.error}
+          onDone={() => {
+            toast.success(`${picked.fullName} rezerve edildi (inisiyatif).`)
+            setIstisna(null)
+            setPicked(null)
+            setStatus(null)
+            setAdding(false)
+            setQuery('')
+            void loadRoster().then(onMutated)
+          }}
+          onClose={() => setIstisna(null)}
         />
       ) : null}
       <div className="flex items-center justify-between gap-3">

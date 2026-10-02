@@ -37,11 +37,13 @@ import {
   RESERVATION_BOOKED,
   RESERVATION_CANCELLED,
   RESERVATION_CREDIT_DECIDED,
+  RESERVATION_CREDIT_EXEMPTED,
   RESERVATION_CORRECTED,
   RESERVATION_LATE_CANCELLED,
   RESERVATION_MOVED,
   RESERVATION_NO_SHOW,
   RESERVATION_NOTE_SET,
+  type ExemptableGuard,
 } from '../events'
 import type { CreditEffect, Reservation, ReservationStatus } from './types'
 
@@ -167,6 +169,23 @@ export interface BookInput {
    * bir yer açmak olurdu.
    */
   readonly honourExpiredCredit?: boolean
+  /**
+   * ENGELE RAĞMEN REZERVE ET (owner, 2026-10-02).
+   *
+   * *"Üyenin paketinin tarihi bitiyor, biz bitse de inisiyatif kullanıp süre dışındaki bir yere
+   * rezervasyon yapmak istiyoruz. Paketi yok ya da başka engeli varsa uyarı olarak çıkarsın, yine
+   * de 'kabul et rezervasyon yap' derse rezervasyon yapsın."*
+   *
+   * Backdating ve yanan hak ile aynı kalıp — opt-in bir bayrak, gevşetilmiş bir kural değil:
+   * bilmeyen bir çağıran kazara istisna yapamaz, ve üye kendi uygulamasından buraya asla gelmez.
+   *
+   * Üç şeyle çevrili:
+   *   · SEBEP ZORUNLU. Boş sebep izni hiç açmaz (#9: istisna yazılır, sessizce geçilmez).
+   *   · AŞILABİLİR KORUMALAR KAPALI BİR LİSTE (`ExemptableGuard`). Stüdyonun kendi kuralları
+   *     aşılabilir; kontenjan, kategori duvarı, mükerrer rezervasyon ve geçmiş ders aşılamaz.
+   *   · AŞILAN KORUMA DEFTERE YAZILIR. `reservation.credit_exempted`, sebebiyle birlikte.
+   */
+  readonly creditExemption?: { readonly reason: string }
 }
 
 export function decideBooking(
@@ -229,6 +248,24 @@ export function decideBooking(
   if (occupiedSeats(session) >= session.capacity) {
     return err({ code: 'class_full', capacity: session.capacity })
   }
+  // ── ENGELE RAĞMEN REZERVE ET (owner, 2026-10-02) ───────────────────────────────────────────
+  //
+  // Sebep boşsa izin HİÇ açılmaz. Kayda geçmeyen bir istisna, istisna değil sessiz bir kural
+  // ihlalidir (#9); ve "ayda kaç kez esnettik, neden" sorusunun cevabı tam olarak bu metinde.
+  const exemption = input.creditExemption
+  if (exemption !== undefined && exemption.reason.trim().length === 0) {
+    return err({ code: 'reason_required' })
+  }
+  const exempt = exemption !== undefined
+  let steppedPast: ExemptableGuard | null = null
+  // Takılan koruma: izin varsa SEBEBİYLE kaydedilip geçilir, izin yoksa kendi reddini döndürür.
+  // İlk takılan saklanır — "neyi aştık" sorusunun en dürüst cevabı, en erken durduran kuraldır.
+  const engel = (e: Extract<DomainError, { readonly code: ExemptableGuard }>): DomainError | null => {
+    if (!exempt) return e
+    steppedPast ??= e.code
+    return null
+  }
+
   // ── I-9.3 / I-9.4 — ve SÜRESİ DOLMUŞ PAKETİN YANAN HAKKI (owner, 2026-09-01) ────────────────
   //
   // Owner'ın anlattığı durum: üye paketini bitiremedi, süre doldu, geriye kullanılmamış dersler
@@ -248,13 +285,23 @@ export function decideBooking(
   // Kredinin kendisi burada hareket etmez: yanan hak, çağıran katmanda kayıtlı bir DÜZELTME ile
   // geri verilir, sonra normal yolundan tutulur. Defter iki hareketi de sebebiyle taşır.
   const expiredHonoured = input.honourExpiredCredit === true && entitlement.status === 'expired'
-  if (!expiredHonoured) {
-    // I-9.3
+  // İzin, süresi DOLMUŞ paketin kapısını da açar — ama yalnızca onun. `cancelled` bilerek geri
+  // alınmış bir karardır ve onu izinle açmak, alınmış bir kararı kazara bozmak olurdu; `frozen` ise
+  // TARİHLİ ve KASITLI bir askıya alma — stüdyo o günleri üyeye geri ödüyor. Dondurma penceresinin
+  // içinde ders yapmak zaten kapatılmamış bir açık (DEBT-037); izinle açmak onu genişletmek olurdu.
+  // Doğru araç dondurmayı bitirmek ya da kısaltmak, içine rezervasyon yazmak değil.
+  const expiredExempt = exempt && entitlement.status === 'expired'
+  if (!expiredHonoured && !expiredExempt) {
+    // I-9.3 — `cancelled` ve `frozen` her hâlde buraya düşer: izin bu ikisini açmaz.
     if (entitlement.status !== 'active') return err({ code: 'entitlement_not_active' })
-    // I-9.4
+    // I-9.4 — aktif ama dersten ÖNCE bitiyor: owner'ın "süre dışındaki bir yere rezervasyon"u
+    // tam olarak bu, ve izinle aşılır.
     if (session.startsAt > entitlement.validUntil) {
-      return err({ code: 'entitlement_expires_before_session' })
+      const e = engel({ code: 'entitlement_expires_before_session' })
+      if (e) return err(e)
     }
+  } else if (expiredExempt && !expiredHonoured) {
+    steppedPast ??= 'entitlement_not_active'
   }
   // I-9.5
   //
@@ -273,8 +320,11 @@ export function decideBooking(
   //
   // Kova tüketilmiyor, yalnızca SAYILIYOR. Defteri hareket ettiren tek yer yine çağıran katman.
   const avail = availableOf(entitlement)
-  const yanan = expiredHonoured ? (entitlement.credits?.expired ?? 0) : 0
-  if (avail !== null && avail + yanan < 1) return err({ code: 'insufficient_credits', available: avail })
+  const yanan = expiredHonoured || expiredExempt ? (entitlement.credits?.expired ?? 0) : 0
+  if (avail !== null && avail + yanan < 1) {
+    const e = engel({ code: 'insufficient_credits', available: avail })
+    if (e) return err(e)
+  }
   // I-9.6
   if (memberHasBookedThisSession) return err({ code: 'already_booked' })
   // I-9.7 — the category wall. THE authoritative copy: `isEligibleForService` answers the same
@@ -301,17 +351,30 @@ export function decideBooking(
 
   // ── Package Rules 2.0 (Plus Phase 3). The effective (studio→package→member) policy, enforced HERE
   //    so every write path is judged the same. Each refusal names the rule that stopped it. ──
+  // Hepsi stüdyonun KENDİ koyduğu kurallar, ve hepsi inisiyatifle aşılabilir: owner'ın
+  // *"başka engeli varsa uyarı olarak çıkarsın, yine de yap derse yapsın"* dediği engeller bunlar.
   if (limits) {
     const p = limits.policy
-    if (!weekdayAllowed(p.allowedWeekdays, limits.sessionWeekday)) return err({ code: 'day_not_allowed' })
-    if (!timeAllowed(p.allowedHourRanges, limits.sessionStartMinutes)) return err({ code: 'time_not_allowed' })
+    if (!weekdayAllowed(p.allowedWeekdays, limits.sessionWeekday)) {
+      const e = engel({ code: 'day_not_allowed' })
+      if (e) return err(e)
+    }
+    if (!timeAllowed(p.allowedHourRanges, limits.sessionStartMinutes)) {
+      const e = engel({ code: 'time_not_allowed' })
+      if (e) return err(e)
+    }
     // Plus Phase 4 — trainer restriction. A session with no trainer cannot satisfy a whitelist.
-    if (!trainerAllowed(p.allowedTrainerIds, session.trainerId ?? null)) return err({ code: 'trainer_not_allowed' })
+    if (!trainerAllowed(p.allowedTrainerIds, session.trainerId ?? null)) {
+      const e = engel({ code: 'trainer_not_allowed' })
+      if (e) return err(e)
+    }
     if (p.dailyReservationLimit !== null && limits.memberDayReservationCount >= p.dailyReservationLimit) {
-      return err({ code: 'daily_reservation_limit_reached', limit: p.dailyReservationLimit })
+      const e = engel({ code: 'daily_reservation_limit_reached', limit: p.dailyReservationLimit })
+      if (e) return err(e)
     }
     if (p.activeReservationLimit !== null && limits.memberActiveReservationCount >= p.activeReservationLimit) {
-      return err({ code: 'active_reservation_limit_reached', limit: p.activeReservationLimit })
+      const e = engel({ code: 'active_reservation_limit_reached', limit: p.activeReservationLimit })
+      if (e) return err(e)
     }
   }
 
@@ -326,12 +389,26 @@ export function decideBooking(
   // retroactively refuse a booking that was legal when it was made.
   const quota = session.admission?.weeklyQuotaByCategory?.[entitlement.productSnapshot.category]
   if (quota != null && quota > 0 && (limits?.memberWeekServiceCount ?? 0) >= quota) {
-    return err({ code: 'weekly_quota_reached', limit: quota })
+    const e = engel({ code: 'weekly_quota_reached', limit: quota })
+    if (e) return err(e)
   }
 
+  // ── İSTİSNADA DEFTERE DOKUNULMAZ — AMA ALINACAK HAK VARSA ALINIR (owner, 2026-10-02) ───────
+  //
+  // *"Kredisi 0 ise eksiye gitmesin"* ve *"paketin tarihi bittiyse kredisi varsa kredisi bu derse
+  // istinaden düşsün."* İki cümle tek kurala çıkıyor: alınacak bir hak varsa alınır, yoksa sayaçlar
+  // hiç oynamaz. Eksi bakiye diye bir şey olmuyor — I-1 onu zaten kabul etmezdi.
+  //
+  // İzinsiz yolda bu ifade `isCredit`in birebir aynısı: yukarıdaki kredi kapısı `avail + yanan >= 1`
+  // olmayan her durumu çoktan reddetti. Normal rezervasyonun davranışı zerre değişmiyor.
   const isCredit = entitlement.credits !== null
-  const creditEffect: CreditEffect = isCredit ? 'held' : 'none'
-  const creditsAvailableAfter = avail === null ? null : avail - 1
+  const krediAlinir = isCredit && avail !== null && avail + yanan >= 1
+  const creditEffect: CreditEffect = krediAlinir ? 'held' : 'none'
+  // Yanan haktan ödenecekse çağıran katman birazdan `expired` kovasından BİR tanesini kayıtlı bir
+  // düzeltmeyle geri verip onu tutacak. Olaya yazılan sayı o iki hareketin SONUCU olmalı: `-1`
+  // yazmak, defterde hiç var olmamış bir bakiyeyi kayda geçirmek olurdu.
+  const geriVerilen = avail !== null && avail < 1 && yanan >= 1 ? 1 : 0
+  const creditsAvailableAfter = avail === null ? null : krediAlinir ? avail + geriVerilen - 1 : avail
 
   const reservation: Reservation = {
     id: input.reservationId,
@@ -369,6 +446,24 @@ export function decideBooking(
           bookedCountAfter: session.bookedCount + 1,
         },
       },
+      // Bir koruma GERÇEKTEN aşıldıysa ayrıca yazılır. İzin açıkken rezervasyon zaten kurallara
+      // uygunsa müdahale yoktur, olay da yok — `reservation.credit_decided`teki aynı ayrım:
+      // her rezervasyona bir istisna olayı eklemek, gerçek istisnaları gürültüde kaybederdi.
+      ...(exemption && steppedPast
+        ? [
+            {
+              ...base(ctx, reservation),
+              type: RESERVATION_CREDIT_EXEMPTED,
+              payload: {
+                steppedPast,
+                creditEffect,
+                creditsAvailable: avail,
+                entitlementStatus: entitlement.status,
+                reason: exemption.reason.trim(),
+              },
+            },
+          ]
+        : []),
     ],
   })
 }

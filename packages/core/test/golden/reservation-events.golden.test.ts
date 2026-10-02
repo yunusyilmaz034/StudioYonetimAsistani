@@ -37,6 +37,7 @@ import booked from './reservation.booked.v1.json'
 import cancelled from './reservation.cancelled.v1.json'
 import corrected from './reservation.corrected.v1.json'
 import creditDecided from './reservation.credit_decided.v1.json'
+import creditExempted from './reservation.credit_exempted.v1.json'
 import lateCancelled from './reservation.late_cancelled.v1.json'
 import moved from './reservation.moved.v1.json'
 import noShow from './reservation.no_show.v1.json'
@@ -164,6 +165,30 @@ describe('reservation event payloads match golden fixtures (AD-33)', () => {
     })
     const e = r.ok ? r.value.events.find((x) => x.type === 'reservation.credit_decided') : null
     expect(e?.payload).toEqual(creditDecided)
+  })
+  // Masa bir korumayı bilerek aştı: kredisi bitmiş AKTİF bir pakete rezervasyon. Aşılan koruma
+  // `insufficient_credits`, ve istisnada deftere dokunulmadığı için etki `none` — owner'ın
+  // *"kredisi 0 ise eksiye gitmesin"* kuralı payload'da bu şekilde görünüyor.
+  it('reservation.credit_exempted', () => {
+    const bitti: Entitlement = {
+      ...held(0),
+      credits: { granted: 8, held: 0, consumed: 8, restored: 0, revoked: 0, expired: 0 },
+    }
+    const r = decideBooking(
+      ctx,
+      session(),
+      bitti,
+      {
+        reservationId: 'res_1' as ReservationId,
+        memberId: 'mem_1' as MemberId,
+        memberSnapshot: SNAP,
+        creditExemption: { reason: 'Son dersini telafi ediyor, patron onayladı' },
+      },
+      false,
+      OPEN_ALWAYS,
+    )
+    const e = r.ok ? r.value.events.find((x) => x.type === 'reservation.credit_exempted') : null
+    expect(e?.payload).toEqual(creditExempted)
   })
   it('reservation.late_cancelled', () => {
     expect(payload(decideCancellation(ctx, res(), session(instant(NOW + 3 * H))))).toEqual(lateCancelled)

@@ -1,4 +1,5 @@
 import type { EntitlementId, Instant } from '../../shared'
+import type { EntitlementStatus } from '../entitlements'
 import type { CreditEffect, ReservationStatus } from './domain/types'
 
 // Reservation events (Doc 4 §"Reservation"). No PII (I-13) — the roster's
@@ -31,6 +32,29 @@ export const RESERVATION_LATE_CANCELLED = 'reservation.late_cancelled'
 //
 // PII yok (#6): üye kimliği zarfta, sebep serbest metin ama isim yazmak resepsiyonun tercihidir.
 export const RESERVATION_CREDIT_DECIDED = 'reservation.credit_decided'
+// ── ENGELE RAĞMEN REZERVE ETTİK (owner, 2026-10-02) ─────────────────────────────────────────
+//
+// *"Üyenin paketinin tarihi bitiyor, biz bitse de inisiyatif kullanıp süre dışındaki bir yere
+// rezervasyon yapmak istiyoruz. Paketi yok ya da başka engeli varsa uyarı olarak çıkarsın, yine de
+// 'kabul et rezervasyon yap' derse yapsın."*
+//
+// Bu olayın varlık sebebi, rezervasyonun kendisinin bunu SÖYLEYEMEMESİ. `reservation.booked`
+// kurallara uygun bir rezervasyonla, kural esnetilerek yapılmış bir rezervasyonu birbirinden
+// ayırt etmez; ikisi de aynı satırdır. Ayırt edilemezse "kendi kuralımızı ayda kaç kez esnetiyoruz,
+// ve neden" sorusu sonradan hiç cevaplanamaz — oysa bu sorunun cevabı, kuralın kendisinin doğru
+// kurulup kurulmadığını söyleyen tek şey.
+//
+// `steppedPast` olmadan bu olay "istisna yapıldı" der ve bu tek başına işe yaramaz: asıl bilgi
+// HANGİ korumanın aşıldığı. Süresi dolmuş paket ile haftalık hakkın dolması aynı şey değildir.
+//
+// YENİ BİR OLAY TÜRÜ, alan eklemesi değil — `reservation.credit_decided`teki desen. `booked`
+// olduğu gibi duruyor, sürümü artmıyor, upcaster gerekmiyor.
+//
+// YALNIZCA gerçekten bir koruma aşıldığında yazılıyor. İzin açıkken rezervasyon zaten kurallara
+// uygunsa müdahale yok, olay da yok.
+//
+// PII yok (#6): üye kimliği zarfta; `reason` serbest metin ve oraya ne yazıldığı masanın tercihi.
+export const RESERVATION_CREDIT_EXEMPTED = 'reservation.credit_exempted'
 export const RESERVATION_ATTENDED = 'reservation.attended'
 export const RESERVATION_NO_SHOW = 'reservation.no_show'
 export const RESERVATION_AUTO_RESOLVED = 'reservation.auto_resolved'
@@ -121,5 +145,40 @@ export type ReservationCreditDecidedPayload = {
   readonly decision: 'refund' | 'consume'
   readonly policyWouldHave: 'refund' | 'consume'
   readonly hoursBeforeStart: number
+  readonly reason: string
+}
+
+/**
+ * Hangi korumalar inisiyatifle aşılabilir.
+ *
+ * Kapalı bir liste, ve kapalı olması işin yarısı: aşılabilir olanlar stüdyonun KENDİ koyduğu
+ * kurallardır (paketin süresi, kredi, günlük/haftalık hak, gün/saat/eğitmen kısıtı) — hepsi
+ * bilinçli olarak geri alınabilir. Kontenjan, kategori duvarı, mükerrer rezervasyon ve geçmiş ders
+ * bu listede YOK: biri odada olmayan bir aleti, biri yanlış odayı, biri aynı kişiyi iki kez, biri
+ * olmamış bir dersi yazmak olurdu. Onlar kural değil, fizik.
+ */
+export type ExemptableGuard =
+  | 'entitlement_not_active'
+  | 'entitlement_expires_before_session'
+  | 'insufficient_credits'
+  | 'day_not_allowed'
+  | 'time_not_allowed'
+  | 'trainer_not_allowed'
+  | 'daily_reservation_limit_reached'
+  | 'active_reservation_limit_reached'
+  | 'weekly_quota_reached'
+
+/**
+ * Masa bir korumayı bilerek aştı ve rezervasyonu yine yaptı (owner, 2026-10-02).
+ *
+ * `creditEffect` burada kritik ve iki değer alır, ikisi de owner'ın kuralı:
+ *   `'held'` — alınacak bir hak vardı, alındı (*"kredisi varsa düşsün her zaman"*).
+ *   `'none'` — alınacak hak yoktu, deftere DOKUNULMADI (*"kredisi 0 ise eksiye gitmesin"*).
+ */
+export type ReservationCreditExemptedPayload = {
+  readonly steppedPast: ExemptableGuard
+  readonly creditEffect: CreditEffect
+  readonly creditsAvailable: number | null // istisna ANINDAKİ bakiye; null ⇔ süreli paket
+  readonly entitlementStatus: EntitlementStatus
   readonly reason: string
 }

@@ -7,7 +7,9 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import {
   bookReservationAction,
+  exemptionOptionsAction,
   expiredCreditOptionsAction,
+  type ExemptionOption,
   type ExpiredCreditOption,
 } from '@/server/actions/reservations'
 
@@ -31,23 +33,70 @@ export type BookOutcome =
   | { readonly kind: 'error'; readonly error: unknown }
   /** Yanan hak seçenekleri var: çağıran `<ExpiredCreditDialog>` gösterir. */
   | { readonly kind: 'choose'; readonly options: readonly ExpiredCreditOption[] }
+  /** Aşılabilir bir engel var: çağıran `<CreditExemptionDialog>` gösterir (owner, 2026-10-02). */
+  | { readonly kind: 'exempt'; readonly error: unknown; readonly options: readonly ExemptionOption[] }
 
-/** Rezervasyonu normal yolundan dener; tıkanırsa yanmış hak seçeneklerini sorar. */
-export async function bookOrOfferExpiredCredit(memberId: string, sessionId: string): Promise<BookOutcome> {
-  const res = await bookReservationAction({ memberId, sessionId })
+// Yanmış hakla çözülen engeller: "bu dersi ödeyecek paket yok" ailesi. Dolu ders, kategori
+// uyuşmazlığı ya da mükerrer rezervasyon başka şeylerdir ve yanmış hakla çözülmezler.
+const YANAN_HAK_AILESI = new Set(['no_bookable_entitlement', 'entitlement_not_active', 'insufficient_credits'])
+
+// ── İNİSİYATİFLE AŞILABİLİR ENGELLER (owner, 2026-10-02) ────────────────────────────────────
+//
+// Hepsi stüdyonun KENDİ koyduğu kurallar: paketin süresi, kredi, günlük/haftalık hak, gün/saat/
+// eğitmen kısıtı. Listede olmayanlar bilerek yok — `class_full` odadaki alet sayısı,
+// `category_mismatch` yanlış oda, `already_booked` aynı kişiyi iki kez yazmak, geçmiş ders ise
+// kendi kapısından (backdating) geçiyor. Domain de bu listeyi `ExemptableGuard` olarak tutuyor;
+// ikisi birlikte genişler.
+const ISTISNA_EDILEBILIR = new Set([
+  'no_bookable_entitlement',
+  'entitlement_not_active',
+  'entitlement_expires_before_session',
+  'insufficient_credits',
+  'day_not_allowed',
+  'time_not_allowed',
+  'trainer_not_allowed',
+  'daily_reservation_limit_reached',
+  'active_reservation_limit_reached',
+  'weekly_quota_reached',
+])
+
+/**
+ * Rezervasyonu normal yolundan dener; tıkanırsa masaya sırayla iki soru sorar.
+ *
+ * SIRA ÖNEMLİ: önce yanan hak (owner, 2026-09-01), sonra inisiyatifli istisna (2026-10-02). Çünkü
+ * ilki DAHA AZINI yapıyor — üyenin kendi yanmış hakkından bir ders saydırmak, kuralı esnetmek
+ * değil hakkını kullandırmaktır. İstisna, gerçekten alınacak hak kalmadığında devreye girer.
+ */
+export async function bookOrOfferExpiredCredit(
+  memberId: string,
+  sessionId: string,
+  // Masa paketi açıkça seçtiyse onunla denenir. Engel (süre, kredi, günlük/haftalık hak) seçili
+  // pakette de çıkabiliyor, ve çıktığında sorulacak soru aynı.
+  entitlementId?: string | null,
+): Promise<BookOutcome> {
+  const res = await bookReservationAction({
+    memberId,
+    sessionId,
+    ...(entitlementId ? { entitlementId } : {}),
+  })
   if (res.ok) return { kind: 'ok' }
+  const code = (res.error as { code?: string } | undefined)?.code ?? ''
 
-  // Yalnızca "ödeyecek paket bulunamadı" ailesinde sor. Dolu ders, kategori uyuşmazlığı ya da
-  // mükerrer rezervasyon başka şeylerdir ve yanmış hakla çözülmezler — orada sormak, kullanıcıyı
-  // işe yaramayacak bir seçime davet etmek olur.
-  const code = (res.error as { code?: string } | undefined)?.code
-  if (code !== 'no_bookable_entitlement' && code !== 'entitlement_not_active' && code !== 'insufficient_credits') {
-    return { kind: 'error', error: res.error }
+  if (YANAN_HAK_AILESI.has(code)) {
+    const { aktifVar, secenekler } = await expiredCreditOptionsAction({ memberId, sessionId })
+    if (!aktifVar && secenekler.length > 0) return { kind: 'choose', options: secenekler }
   }
 
-  const { aktifVar, secenekler } = await expiredCreditOptionsAction({ memberId, sessionId })
-  if (aktifVar || secenekler.length === 0) return { kind: 'error', error: res.error }
-  return { kind: 'choose', options: secenekler }
+  if (ISTISNA_EDILEBILIR.has(code)) {
+    try {
+      const options = await exemptionOptionsAction({ memberId, sessionId })
+      if (options.length > 0) return { kind: 'exempt', error: res.error, options }
+    } catch {
+      // Yetkisi olmayan (eğitmen) buraya düşer ve engelin kendi mesajını görür — owner'ın
+      // *"1 bende ve resepisyonda olsun"* kuralı, sessizce yutulan bir hata değil.
+    }
+  }
+  return { kind: 'error', error: res.error }
 }
 
 const gun = (ms: number) => new Date(ms).toLocaleDateString('tr-TR', { timeZone: 'Europe/Istanbul' })

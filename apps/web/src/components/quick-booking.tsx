@@ -9,7 +9,8 @@ import { domainErrorMessage } from '@/lib/domain-error'
 import { getBookingStatusAction, listUpcomingSessionsAction, type BookingStatus, type UpcomingSession } from '@/server/actions/booking'
 import type { ExpiredCreditOption } from '@/server/actions/reservations'
 
-import { ExpiredCreditDialog, bookOrOfferExpiredCredit } from './expired-credit-dialog'
+import { CreditExemptionDialog } from './credit-exemption-dialog'
+import { ExpiredCreditDialog, bookOrOfferExpiredCredit, type BookOutcome } from './expired-credit-dialog'
 import { searchMembersAction, type MemberHit } from '@/server/actions/search'
 import { cn } from '@/lib/utils'
 
@@ -34,6 +35,8 @@ export function QuickBooking() {
   const [sq, setSq] = useState('')
   const [status, setStatus] = useState<BookingStatus | null>(null)
   const [yananSecenekler, setYananSecenekler] = useState<readonly ExpiredCreditOption[] | null>(null)
+  // ENGELE RAĞMEN REZERVASYON (owner, 2026-10-02).
+  const [istisna, setIstisna] = useState<Extract<BookOutcome, { kind: 'exempt' }> | null>(null)
   const [chosen, setChosen] = useState<UpcomingSession | null>(null)
   const [busy, setBusy] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -134,6 +137,9 @@ export function QuickBooking() {
     } else if (r.kind === 'choose') {
       // Aktif paketi yok ama süresi dolmuş paketinde yanan hakkı var — masaya sor.
       setYananSecenekler(r.options)
+    } else if (r.kind === 'exempt') {
+      // Aşılabilir bir engel var — uyar, sebebini al, kararı masaya bırak.
+      setIstisna(r)
     } else {
       toast.error(domainErrorMessage(r.error as never))
     }
@@ -157,6 +163,22 @@ export function QuickBooking() {
             router.refresh()
           }}
           onClose={() => setYananSecenekler(null)}
+        />
+      ) : null}
+      {istisna && member && chosen ? (
+        <CreditExemptionDialog
+          memberId={member.id}
+          sessionId={chosen.sessionId}
+          memberName={member.fullName}
+          options={istisna.options}
+          refusal={istisna.error}
+          onDone={() => {
+            toast.success(`${member.fullName} · ${chosen.serviceName} rezervasyonu oluşturuldu (inisiyatif).`)
+            setIstisna(null)
+            setOpen(false)
+            router.refresh()
+          }}
+          onClose={() => setIstisna(null)}
         />
       ) : null}
       <div className="flex max-h-[80vh] w-full max-w-lg flex-col overflow-hidden rounded-xl border border-border bg-popover shadow-lg">

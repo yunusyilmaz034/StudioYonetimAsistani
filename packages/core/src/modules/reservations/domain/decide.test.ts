@@ -1385,6 +1385,124 @@ describe('süresi dolmuş paketin yanan hakkı (owner, 2026-09-01)', () => {
   })
 })
 
+// ── ENGELE RAĞMEN REZERVASYON (owner, 2026-10-02) ──────────────────────────────────────────
+//
+// *"Üyenin paketinin tarihi bitiyor, biz bitse de inisiyatif kullanıp süre dışındaki bir yere
+// rezervasyon yapmak istiyoruz. Paketi yok ya da başka engeli varsa uyarı olarak çıkarsın, yine de
+// 'kabul et rezervasyon yap' derse rezervasyon yapsın. Kredisi 0 ise eksiye gitmesin, ya da paketin
+// tarihi bittiyse kredisi varsa kredisi bu derse istinaden düşsün."*
+//
+// Bu testlerin yarısı izni DOĞRULUYOR, yarısı izni SINIRLIYOR. İkincisi daha önemli: "engele rağmen
+// yap" özelliğinin asıl riski, zamanla "her şeye rağmen yap"a dönüşmesi.
+describe('engele rağmen rezervasyon — inisiyatif', () => {
+  const SEBEP = 'Paket dün bitti, telafi dersi için patron onayı verdi'
+  const izinli = { ...bookInput, creditExemption: { reason: SEBEP } }
+
+  // Kredisi bitmiş AKTİF paket — owner'ın "kredisi 0" durumu.
+  const kredisizAktif = () =>
+    creditEnt({ credits: { granted: 8, held: 0, consumed: 8, restored: 0, revoked: 0, expired: 0 } })
+
+  // Süresi dolmuş, içinde YANAN hak kalmış paket — owner'ın "kredisi varsa düşsün" durumu.
+  const yanikli = () =>
+    creditEnt({
+      status: 'expired',
+      credits: { granted: 8, held: 0, consumed: 5, restored: 0, revoked: 0, expired: 3 },
+      validUntil: instant(NOW - D),
+    })
+
+  it('izin olmadan reddeder — varsayılan davranış zerre değişmedi', () => {
+    const r = book(session(), kredisizAktif(), bookInput, false)
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.error.code).toBe('insufficient_credits')
+  })
+
+  it('SEBEP BOŞSA izin hiç açılmaz', () => {
+    // Kayda geçmeyen bir istisna, istisna değil sessiz bir kural ihlalidir (#9).
+    const r = book(session(), kredisizAktif(), { ...bookInput, creditExemption: { reason: '   ' } }, false)
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.error.code).toBe('reason_required')
+  })
+
+  it('kredisi 0: rezervasyon açılır ve DEFTERE DOKUNULMAZ', () => {
+    const r = book(session(), kredisizAktif(), izinli, false)
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.value.reservation.creditEffect).toBe('none')
+    // Eksiye gitmiyor: owner'ın *"kredisi 0 ise eksiye gitmesin"* kuralı, ve I-1 zaten kabul etmezdi.
+    expect((r.value.events[0]?.payload as { creditsAvailableAfter: number | null }).creditsAvailableAfter).toBe(0)
+  })
+
+  it('süresi dolmuş ama yanan hakkı var: kredi DÜŞER', () => {
+    const r = book(session(), yanikli(), izinli, false)
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.value.reservation.creditEffect).toBe('held')
+    // Çağıran katman yanan haktan BİR tanesini kayıtlı düzeltmeyle geri verip tutacak; olaya
+    // yazılan sayı o iki hareketin sonucu: 0, `-1` değil.
+    expect((r.value.events[0]?.payload as { creditsAvailableAfter: number | null }).creditsAvailableAfter).toBe(0)
+  })
+
+  it('aşılan korumayı sebebiyle birlikte deftere yazar', () => {
+    const r = book(session(), kredisizAktif(), izinli, false)
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.value.events.find((x) => x.type === 'reservation.credit_exempted')?.payload).toEqual({
+      steppedPast: 'insufficient_credits',
+      creditEffect: 'none',
+      creditsAvailable: 0,
+      entitlementStatus: 'active',
+      reason: SEBEP,
+    })
+  })
+
+  it('süresi dolmuş pakette aşılan koruma "aktif değil" olarak yazılır', () => {
+    const r = book(session(), yanikli(), izinli, false)
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    const e = r.value.events.find((x) => x.type === 'reservation.credit_exempted')
+    expect((e?.payload as { steppedPast: string }).steppedPast).toBe('entitlement_not_active')
+  })
+
+  it('engel YOKSA istisna olayı yazılmaz — izin açık olsa bile', () => {
+    // Aynı karar bir müdahale değildir. Her rezervasyona istisna olayı eklemek, gerçek
+    // istisnaları gürültüde kaybetmek olurdu.
+    const r = book(session(), creditEnt(), izinli, false)
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.value.events.some((x) => x.type === 'reservation.credit_exempted')).toBe(false)
+    expect(r.value.reservation.creditEffect).toBe('held')
+  })
+
+  // ── İZİNLE BİLE AÇILMAYANLAR: izin bir "her şeye izin" değil ──────────────────────────────
+  it('İPTAL EDİLMİŞ paketi izinle bile açmaz', () => {
+    // İptal bilinçli bir karardı; izinle açmak alınmış bir kararı kazara bozmak olurdu.
+    const r = book(session(), creditEnt({ status: 'cancelled' }), izinli, false)
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.error.code).toBe('entitlement_not_active')
+  })
+
+  it('kontenjan izinle aşılmaz', () => {
+    // Kural değil fizik: odadaki alet sayısı kadar kişi girer.
+    const r = book(session({ capacity: 1, bookedCount: 1 }), kredisizAktif(), izinli, false)
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.error.code).toBe('class_full')
+  })
+
+  it('kategori duvarı izinle yıkılmaz', () => {
+    // Pilates dersini fitness paketine yazmak istisna değil, yanlış kayıt — ve raporların
+    // tamamı bu ayrımın üstünde duruyor.
+    const r = book(session({ category: 'fitness' }), kredisizAktif(), izinli, false)
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.error.code).toBe('category_mismatch')
+  })
+
+  it('mükerrer rezervasyon izinle bile olmaz', () => {
+    const r = book(session(), kredisizAktif(), izinli, true)
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.error.code).toBe('already_booked')
+  })
+})
+
 // ── KREDİYE İNSAN KARAR VERİR (owner, 2026-09-10) ──────────────────────────────────────────
 //
 // *"Admin rezervasyon iptal edeceği zaman her zaman sistem sorsun: kredi iade edelim mi yoksa

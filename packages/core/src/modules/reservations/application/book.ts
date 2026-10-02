@@ -12,7 +12,7 @@ import {
   type ReservationId,
   type TenantContext,
 } from '../../../shared'
-import { decideAdjust, decideHold } from '../../entitlements'
+import { available, decideAdjust, decideHold } from '../../entitlements'
 import type { MemberSnapshot } from '../../members'
 import type { ServiceId } from '../../../shared'
 import type { Reservation } from '../domain/types'
@@ -69,6 +69,14 @@ export interface BookReservationInput {
    * Üye kendi uygulamasından buraya asla gelmez; gelseydi "süre doldu" diye bir şey kalmazdı.
    */
   readonly honourExpiredCredit?: boolean
+  /**
+   * Engele rağmen rezerve et (owner, 2026-10-02) — sebebi zorunlu, deftere yazılır.
+   *
+   * Yalnızca masanın açtığı bir kapı ve yalnızca `entitlementId` ile AÇIKÇA gösterilen paket için.
+   * Hangi korumaların aşılabildiği `ExemptableGuard`ta kapalı bir liste; kontenjan, kategori
+   * duvarı, mükerrer rezervasyon ve geçmiş ders o listede yok.
+   */
+  readonly creditExemption?: { readonly reason: string }
 }
 
 // Booking = a synchronous, trusted Server-Action write (AD-35): it allocates a
@@ -129,6 +137,7 @@ export async function bookReservation(
           ...(input.honourExpiredCredit !== undefined
             ? { honourExpiredCredit: input.honourExpiredCredit }
             : {}),
+          ...(input.creditExemption !== undefined ? { creditExemption: input.creditExemption } : {}),
         },
         memberHasBooked,
         hours,
@@ -143,8 +152,12 @@ export async function bookReservation(
       )
       if (!booked.ok) return booked
 
-      // Period entitlements hold nothing; credit entitlements hold one (E1).
-      if (entitlement.credits === null) {
+      // DEFTER HAREKET ETMİYOR. İki sebepten biriyle: süreli paket hiçbir şey tutmaz (E1), ya da
+      // inisiyatifli istisnada alınacak hak yoktur (owner: *"kredisi 0 ise eksiye gitmesin"*).
+      //
+      // Kararın kendisi domain'de verildi ve burada yalnızca UYGULANIYOR. Aynı aritmetiği ikinci
+      // bir yerde tekrar etmek, ikisinin bir gün ayrışması demekti — ve ayrıştığında sessizce.
+      if (entitlement.credits === null || booked.value.reservation.creditEffect === 'none') {
         return ok({
           reservation: booked.value.reservation,
           nextEntitlement: entitlement,
@@ -165,13 +178,19 @@ export async function bookReservation(
       // Üyenin kalan yanık dersleri YANIK KALIR. Bir ders için bir hak; paket dirilmez.
       let ent = entitlement
       const oncekiOlaylar = [...booked.value.events]
-      if (input.honourExpiredCredit && entitlement.status === 'expired') {
+      // BAYRAĞA DEĞİL DEFTERE BAKIYOR (2026-10-02). Buraya gelindiyse bir hak alınacak; `available`
+      // boşsa o hakkın tek kaynağı `expired` kovasıdır. Koşulu bayrakla yazmak, aynı durumu açan
+      // ikinci kapı (inisiyatifli istisna) eklendiğinde sessizce atlanması demekti — defterin
+      // kendisini sormak, hangi kapıdan girildiğini sormaktan daha dar ve daha doğru.
+      if (available(entitlement.credits) < 1 && entitlement.status === 'expired' && entitlement.credits.expired >= 1) {
         const geriVer = decideAdjust(
           dctx,
           entitlement,
           1,
           'correction',
-          'Süresi dolmuş pakette yanan hak, bir ders için kullanıldı (resepsiyon kararı).',
+          input.creditExemption
+            ? `Engele rağmen rezervasyon: ${input.creditExemption.reason.trim()}`
+            : 'Süresi dolmuş pakette yanan hak, bir ders için kullanıldı (resepsiyon kararı).',
         )
         if (!geriVer.ok) return geriVer
         ent = geriVer.value.next

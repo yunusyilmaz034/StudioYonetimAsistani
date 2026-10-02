@@ -2181,3 +2181,32 @@ kaydı tutulur (ne zaman, kim — **PIN'in kendisi ne loga ne e-postaya yazılı
 (owner + resepsiyon) bütün koleksiyonları okutuyor ve `settings` sunucuya-özel listede değildi — yani resepsiyonun
 oturumu PIN özetini veritabanından okuyabilirdi ve altı hane saniyeler içinde denenirdi. Sır artık `secrets`
 koleksiyonunda ve o koleksiyon listeye eklendi. Özet HMAC ile alınıyor (alan ayrımlı), düz sha256 ile değil.
+
+
+**OR-118 · Engel bir uyarıdır, duvar değil — ama her istisna sebebiyle birlikte yazılır.** (2026-10-02)
+Owner: *"Üyenin paketinin tarihi bitiyor, biz bitse de inisiyatif kullanıp süre dışındaki bir yere rezervasyon
+yapmak istiyoruz. Paketi yok ya da başka engeli varsa uyarı olarak çıkarsın, yine de 'kabul et rezervasyon yap'
+derse rezervasyon yapsın."*
+**İki kural, owner'ın kendi netleştirmesiyle:**
+1. **Kredisi 0 ise defter HİÇ oynamaz.** Eksiye gitmez (*"1 b olsun"*). Rezervasyon açılır, sayaçlara dokunulmaz.
+2. **Paketin süresi bittiyse ama kredisi varsa, kredi HER ZAMAN düşer** ve *"uyarı vermesi yeterli, bir engel koyma."*
+**Yetki patron + resepsiyon** (*"1 bende ve resepisyonda olsun"*) — eğitmen ajandanın geri kalanını tutuyor ama
+stüdyonun kendi kuralını esnetme yetkisi onda değil. Backdating'de çekilen aynı çizgi.
+**AŞILABİLİRLER KAPALI BİR LİSTE** (`ExemptableGuard`): paketin süresi, paketin aktif olmaması, kredi, günlük/aktif
+rezervasyon limiti, haftalık hak, gün/saat/eğitmen kısıtı. Hepsinin ortak yanı: bunları stüdyo KENDİ koydu, o yüzden
+bilinçli olarak geri alabilir.
+**AŞILAMAYANLAR, ve sebepleri:** kontenjan (odadaki alet sayısı — kural değil fizik), kategori duvarı (pilates dersini
+fitness paketine yazmak istisna değil yanlış kayıttır ve raporların tamamı bu ayrımın üstünde durur), mükerrer
+rezervasyon (aynı kişiyi iki kez yazmak), geçmiş ders (kendi kapısı var — backdating), iptal edilmiş paket (alınmış bir
+karardı), dondurulmuş paket (tarihli ve kasıtlı bir askı; stüdyo o günleri geri ödüyor — dondurma penceresine ders
+yazmak zaten kapatılmamış bir açık, [[DEBT-037]], izinle açmak onu genişletmek olurdu). *"Engele rağmen yap"* özelliğinin asıl riski,
+zamanla *"her şeye rağmen yap"*a dönüşmesi; bu yüzden listenin kapalı olması işin yarısı.
+**SEBEP ZORUNLU ve AYRI BİR OLAYA YAZILIR** (`reservation.credit_exempted`): hangi koruma aşıldı, kredi düştü mü,
+o anki bakiye ne, ve neden. `reservation.booked` kurallara uygun bir rezervasyonla esnetilerek yapılmış olanı ayırt
+etmez — ayırt edilemezse *"kendi kuralımızı ayda kaç kez esnetiyoruz, neden"* sorusu sonradan hiç cevaplanamaz, oysa
+bu sorunun cevabı kuralın kendisinin doğru kurulup kurulmadığını söyleyen tek şey. Engel gerçekten aşılmadıysa olay
+yazılmaz: aynı karar bir müdahale değildir.
+**BİR ŞEY BİLİNÇLİ OLARAK YAPILMADI:** *"paketi yok"* hâli, yani üyenin hiç paketi olmaması. Rezervasyon her zaman bir
+pakete bağlıdır (`entitlementId` zorunlu) ve iptal, yoklama, kredi iadesi, I-17'nin tamamı o bağın üstünde duruyor.
+Paketsiz rezervasyon, kredi defterinin taşıyıcı duvarını değiştirmek demek — ayrı bir karar, owner'a soruldu. Pratikte
+owner'ın anlattığı iki somut durum (süresi dolmuş paket · kredisi 0) paketin üstüne yazılarak çözülüyor.
