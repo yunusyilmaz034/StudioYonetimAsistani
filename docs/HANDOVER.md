@@ -274,8 +274,15 @@ kendi kurgusunun çalıştığını kanıtlıyordu. Fixture gerçeğine çevrild
 hak" yerine **geri verilebilir hakka** bakıyor (`available + expired`). Kova tüketilmiyor, yalnızca
 sayılıyor — defteri hareket ettiren tek yer yine çağıran katman, kayıtlı bir `correction` ile.
 
-**Açık kalan:** bu hata iki KATMAN ARASINDA yaşıyordu ve ikisinin de kendi testi yeşildi. Rezervasyon
-yolunun uçtan uca (emülatörlü) bir testi yok; olsaydı bir ay önce yakalanırdı.
+**Açık kapatıldı: artık uçtan uca testi var** (`apps/functions/test/integration/expired-credit-booking.test.ts`).
+Gerçek veritabanının üstünde: paket 100 gün önce alınıp 90 günlük veriliyor, `expireEntitlement` ile
+gerçekten süresi doldurulup `available = 0` olduğu DOĞRULANIYOR, sonra bayraksız rezervasyon reddediliyor
+ve bayrakla kabul ediliyor. Defter de kontrol ediliyor: `restored 1`, `held 1`, `consumed 0`, `expired`
+kovası **dokunulmadan 3**, paket hâlâ `expired` — bir ders için bir hak, paket dirilmiyor.
+
+Emülatör takımı artık **7 dosya / 46 test**. Bu test olsaydı hata bir ay önce yakalanırdı; şimdi
+yazıldı çünkü aynı sınıftan bir kopukluk (iki katman arası, ikisinin de kendi testi yeşil) başka
+yerlerde de olabilir.
 
 ## 📣 2 Ekim — pano lead listesi artık KAMPANYAYA bakıyor, "son 50 sohbet"e değil
 
