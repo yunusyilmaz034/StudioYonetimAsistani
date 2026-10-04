@@ -297,6 +297,42 @@ gcloud run services describe studio-yonetim --region europe-west4 --project stud
 #    active+idle toplamı her dakika >=1 ise kat işliyor.
 ```
 
+## 💸 4 Ekim — PAYTR ödemesi alındı, sistem SESSİZCE attı (Merve Parladı · düzeltildi)
+
+Owner: *"merve parladı bugün paytr üzerinden ödemesini yaptı ama borcu düşmedi, tam ödeme aldık
+aslında paytr panelde gördük."*
+
+**Sebep, ölçüldü.** Ödeme linkinin intent'i, ödeme gelmeden ÖNCE süresi dolmuştu
+(`pin_3b39bd221191479bb1e7` · `status: expired` · `failureReason: timeout`). PAYTR 4 Ekim
+07:03:34Z'de `success` diye çağırdı, imza **doğrulandı** — sonra `decideCallbackResult`un ilk
+kuralı ("intent zaten terminal") hiçbir şey yazmadan döndü. **Hiçbir log satırı da bırakmadı:**
+ne "intent yok" uyarısı, ne "completion failed" hatası. Loglarda `received` → `verified` var,
+sonrası sessizlik. Para PAYTR'da, bizde kayıt yok.
+
+**Koddaki break-glass ucu burada İŞLEMEZ** — o da aynı `completePaidIntent`i çağırıyor ve aynı ilk
+kurala takılıyor. Bu yüzden düzeltme kayıtlı bir telafi olarak, tarihli betikle yapıldı
+(`tools/migration/fix-merve-parladi-paytr-tahsilat-2026-10-04.ts`).
+
+**Tutar 14.000 ₺, 15.401,54 ₺ DEĞİL.** PAYTR 1.540.154 kuruş çekti; satışın değeri 1.400.000.
+Fark bankanın taksit komisyonu, müşterinin ödediği şey — stüdyoya hiç gelmiyor, ciro değil.
+Callback'in kendi kuralı da aynısını söylüyor ("the Payment recorded downstream stays
+`intent.amount`").
+
+**Tarih tahmin edilmedi:** `receivedAt` = callback'in geldiği gerçek an (10:03 TRT). Burcu, Melisa
+ve Duygu vakalarının üçü de yanlış tarihten çıktı; tarih cironun hangi güne yazıldığını belirler.
+**Ödeme kimliği** callback'in kullanacağının birebir aynısı (`pay_${providerRef.slice(0,20)}`), yani
+PAYTR aynı bildirimi tekrar gönderse ikinci bir tahsilat doğmaz.
+
+**Owner'ın şartı — *"sakın üyeyi alacaklı bırakma"* — betiğe KORUMA olarak girdi:** satışın paketi
+yoksa betik uygulamayı reddediyor, çünkü o hâlde borcu sıfırlamak ödenen hizmeti vermez. Ölçüldü:
+aktif `Fitness - 6 Aylık` paketi var (06.10.2026 → 04.04.2027). Sonuç: satış **`settled`**,
+14.000 / 14.000 ₺ — ne borçlu ne alacaklı.
+
+**AÇIK RİSK, owner'a soruldu:** bu, süresi dolmuş HER linkte tekrar eder — para alınır, kayıt
+düşmez, log bile tutulmaz. Teklif: doğrulanmış bir ödeme terminal bir intent'e düştüğünde sessizce
+dönmek yerine **bağırmak** (`logger.error`) ve `manual_review`a düşürmek. Sessizliğin kendisi bu
+vakanın bulunmasını tesadüfe bıraktı.
+
 ## 🧱 4 Ekim — "adminin dediğini her türlü yap": izin listesi genişledi ([[OR-118]])
 
 Owner: *"bu tür şeylerde adminin dediğini her türlü yap, logla sadece — bu esnekliğimizi azaltıyor."*
@@ -316,6 +352,14 @@ gösteriyordu, yani domain'in artık kabul ettiği seçenekleri saklıyordu. Her
 (`member-workspace-screen.tsx`) istisna diyaloğuna hiç bağlanmamıştı.** Ders paneli ve hızlı rezervasyon uyarıyı
 açarken, aynı rezervasyon üye kartından sessizce "açılamadı" diyordu. Üç kapı vardı, ikisini bağlamıştım. Ders:
 bir özelliği "canlıda" demek, kullanıcının gerçekten kullandığı kapıda çalıştığını görmek demektir.
+
+**ÜÇÜNCÜ ÖLÇÜM (4 Ekim, `build-2026-10-04-001` rollout'u) — döngü baştan sona görüldü.** Rollout
+servis katını **11:24'te 0'a düşürdü**, guard **11:30'da 1'e geri koydu**; kendi on dakikalık turunun
+içinde. Yani bir deploy'dan hemen sonra katı 0 görmek **NORMAL** ve kendi kendine düzeliyor.
+
+**Bu yüzden deploy sonrası yapılacak doğru şey, guard'ın turunu BEKLEMEKTİR** — elle
+`gcloud run services update --min-instances=1` çalıştırmak değil: o ayrıca yeni bir revizyon doğurur
+ve açık sekmeleri kırar, yani olmayan bir arızayı "düzeltirken" gerçek bir kesinti üretir.
 
 ## 🙋 2 Ekim — engele rağmen rezervasyon: uyarı çıkıyor, karar masada ([[OR-118]])
 
