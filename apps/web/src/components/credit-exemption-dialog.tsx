@@ -26,10 +26,24 @@ import { bookReservationAction, type ExemptionOption } from '@/server/actions/re
 // yazar, ve sebebi ZORUNLU tutar. Sebep alanı nezaket değil — istisnanın tek kalıcı izi o, ve
 // olmadığı gün "kuralımızı neden esnettik" sorusu cevapsız kalıyor (#9).
 //
-// Ne YAPMADIĞI da önemli: kontenjanı, kategori duvarını, mükerrer rezervasyonu ve geçmiş dersi
-// aşmaz. Onlar stüdyonun koyduğu kurallar değil, odanın fiziği — domain de izinle bile açmıyor.
+// GENİŞLETİLDİ (owner, 2026-10-04): *"bu tür şeylerde adminin dediğini her türlü yap, logla sadece
+// — bu esnekliğimizi azaltıyor."* Artık kontenjan, kategori duvarı, hizmet kapsamı ve paketin
+// durumu (iptal/dondurulmuş dahil) da aşılabiliyor. Her satır paketin DURUMUNU yazıyor, çünkü
+// masanın neyin üstüne yazdığını görmeden seçmesi esneklik değil körlük olurdu.
+//
+// Hâlâ aşılmayan iki şey var ve ikisi de esneklik değil kayıt hatası olurdu: aynı kişiyi aynı derse
+// iki kez yazmak (`already_booked`), ve geçmiş ders — onun kendi kapısı var (backdating, OR-24).
 
 const gun = (ms: number) => new Date(ms).toLocaleDateString('tr-TR', { timeZone: 'Europe/Istanbul' })
+
+// Paketin durumu ekranda ADIYLA yazılı. İzin artık iptal edilmiş ve dondurulmuş paketleri de açıyor
+// (owner, 2026-10-04); masanın neyin üstüne yazdığını görmeden seçmesi esneklik değil körlük olurdu.
+const DURUM: Record<ExemptionOption['status'], string> = {
+  active: 'Aktif',
+  expired: 'Süresi doldu',
+  cancelled: 'İPTAL EDİLMİŞ',
+  frozen: 'DONDURULMUŞ',
+}
 
 export function CreditExemptionDialog({
   memberId,
@@ -71,8 +85,8 @@ export function CreditExemptionDialog({
         creditExemptionReason: sebep.trim(),
       })
       if (res.ok) onDone()
-      // Burada da reddedilebilir, ve bu doğru: kontenjan, kategori duvarı ve mükerrer rezervasyon
-      // izinle AÇILMIYOR. Engelin kendi mesajını gösteriyoruz, "bir şeyler ters gitti" demiyoruz.
+      // Burada da reddedilebilir: mükerrer rezervasyon ve geçmiş ders izinle açılmıyor. Engelin
+      // kendi mesajını gösteriyoruz, "bir şeyler ters gitti" demiyoruz.
       else setHata(domainErrorMessage(res.error as never))
     } catch {
       setHata('İşlem tamamlanamadı. Sayfayı yenileyip tekrar deneyin.')
@@ -118,7 +132,7 @@ export function CreditExemptionDialog({
               <div className="min-w-0">
                 <div className="truncate text-sm font-medium text-foreground">{o.productName}</div>
                 <div className="text-xs text-muted-foreground">
-                  {o.status === 'active' ? 'Aktif' : 'Süresi doldu'} · {gun(o.validUntil)}
+                  {DURUM[o.status]} · {gun(o.validUntil)}
                   {o.kalanKredi !== null ? ` · ${o.kalanKredi} kredi` : ' · süreli paket'}
                 </div>
               </div>

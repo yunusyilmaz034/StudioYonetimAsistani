@@ -151,16 +151,29 @@ export type ReservationCreditDecidedPayload = {
 /**
  * Hangi korumalar inisiyatifle aşılabilir.
  *
- * Kapalı bir liste, ve kapalı olması işin yarısı: aşılabilir olanlar stüdyonun KENDİ koyduğu
- * kurallardır (paketin süresi, kredi, günlük/haftalık hak, gün/saat/eğitmen kısıtı) — hepsi
- * bilinçli olarak geri alınabilir. Kontenjan, kategori duvarı, mükerrer rezervasyon ve geçmiş ders
- * bu listede YOK: biri odada olmayan bir aleti, biri yanlış odayı, biri aynı kişiyi iki kez, biri
- * olmamış bir dersi yazmak olurdu. Onlar kural değil, fizik.
+ * ── GENİŞLETİLDİ (owner, 2026-10-04) ──────────────────────────────────────────────────────
+ *
+ * *"Bu tür şeylerde adminin dediğini her türlü yap, logla sadece — bu esnekliğimizi azaltıyor."*
+ *
+ * İlk hâlinde liste yalnızca "stüdyonun kendi koyduğu kurallar"ı kapsıyordu; kontenjan, kategori
+ * duvarı ve hizmet kapsamı "kural değil fizik" diye dışarıda bırakılmıştı. Owner bunu geri aldı ve
+ * gerekçesi doğru: odadaki aleti, odayı ve paketi bilen kişi masadaki insan, ve her reddin bedeli
+ * onun telefonla çözmek zorunda kaldığı bir iş. Sistem bu kararın YERİNE geçmiyor; KAYDINI tutuyor.
+ *
+ * Listede hâlâ OLMAYAN iki şey var ve ikisi de "esneklik" değil kayıt hatası olurdu:
+ *   · `already_booked` — aynı kişiyi aynı derse iki kez yazmak. Yoklamada iki satır, iki kredi
+ *     tutması; esnetilen bir kural değil, çift kayıt.
+ *   · geçmiş ders (`session_not_bookable` / `session_too_old`) — onun KENDİ kapısı var
+ *     (backdating, 30 gün, OR-24) ve o kapı krediyi doğru tarihten harcıyor.
+ * `session_not_assigned_to_member` de dışarıda: o, adı yazılı başka bir üyenin özel dersi.
  */
 export type ExemptableGuard =
   | 'entitlement_not_active'
   | 'entitlement_expires_before_session'
   | 'insufficient_credits'
+  | 'class_full'
+  | 'category_mismatch'
+  | 'service_not_covered'
   | 'day_not_allowed'
   | 'time_not_allowed'
   | 'trainer_not_allowed'

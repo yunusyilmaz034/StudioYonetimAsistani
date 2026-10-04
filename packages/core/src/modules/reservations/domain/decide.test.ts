@@ -1473,27 +1473,44 @@ describe('engele rağmen rezervasyon — inisiyatif', () => {
     expect(r.value.reservation.creditEffect).toBe('held')
   })
 
-  // ── İZİNLE BİLE AÇILMAYANLAR: izin bir "her şeye izin" değil ──────────────────────────────
-  it('İPTAL EDİLMİŞ paketi izinle bile açmaz', () => {
-    // İptal bilinçli bir karardı; izinle açmak alınmış bir kararı kazara bozmak olurdu.
+  // ── GENİŞLETİLDİ (owner, 2026-10-04): "adminin dediğini her türlü yap, logla sadece" ──────
+  it('İPTAL EDİLMİŞ paketi de izinle açar ve durumunu kaydeder', () => {
     const r = book(session(), creditEnt({ status: 'cancelled' }), izinli, false)
-    expect(r.ok).toBe(false)
-    if (!r.ok) expect(r.error.code).toBe('entitlement_not_active')
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    const e = r.value.events.find((x) => x.type === 'reservation.credit_exempted')
+    expect((e?.payload as { steppedPast: string; entitlementStatus: string }).steppedPast).toBe('entitlement_not_active')
+    expect((e?.payload as { entitlementStatus: string }).entitlementStatus).toBe('cancelled')
   })
 
-  it('kontenjan izinle aşılmaz', () => {
-    // Kural değil fizik: odadaki alet sayısı kadar kişi girer.
+  it('DONDURULMUŞ paketi de izinle açar', () => {
+    const r = book(session(), creditEnt({ status: 'frozen' }), izinli, false)
+    expect(r.ok).toBe(true)
+  })
+
+  it('kontenjanı izinle aşar — odadaki aleti bilen masadaki insan', () => {
     const r = book(session({ capacity: 1, bookedCount: 1 }), kredisizAktif(), izinli, false)
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    const e = r.value.events.find((x) => x.type === 'reservation.credit_exempted')
+    expect((e?.payload as { steppedPast: string }).steppedPast).toBe('class_full')
+  })
+
+  it('kategori duvarını izinle aşar — ama hangi duvarı aştığı kayda geçer', () => {
+    // Paketin kredisi OLMALI: olaya İLK takılan koruma yazılıyor, ve kredi kapısı kategori
+    // duvarından önce geliyor. Kredisi 0 bir paketle bu test `insufficient_credits` görür —
+    // ki o da doğru davranıştır, sadece bu testin ölçtüğü şey değil.
+    const r = book(session({ category: 'fitness' }), creditEnt(), izinli, false)
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    const e = r.value.events.find((x) => x.type === 'reservation.credit_exempted')
+    expect((e?.payload as { steppedPast: string }).steppedPast).toBe('category_mismatch')
+  })
+
+  it('kontenjan izinSİZ hâlâ kapalı — varsayılan davranış değişmedi', () => {
+    const r = book(session({ capacity: 1, bookedCount: 1 }), kredisizAktif(), bookInput, false)
     expect(r.ok).toBe(false)
     if (!r.ok) expect(r.error.code).toBe('class_full')
-  })
-
-  it('kategori duvarı izinle yıkılmaz', () => {
-    // Pilates dersini fitness paketine yazmak istisna değil, yanlış kayıt — ve raporların
-    // tamamı bu ayrımın üstünde duruyor.
-    const r = book(session({ category: 'fitness' }), kredisizAktif(), izinli, false)
-    expect(r.ok).toBe(false)
-    if (!r.ok) expect(r.error.code).toBe('category_mismatch')
   })
 
   it('mükerrer rezervasyon izinle bile olmaz', () => {

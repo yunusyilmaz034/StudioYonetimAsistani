@@ -297,6 +297,26 @@ gcloud run services describe studio-yonetim --region europe-west4 --project stud
 #    active+idle toplamı her dakika >=1 ise kat işliyor.
 ```
 
+## 🧱 4 Ekim — "adminin dediğini her türlü yap": izin listesi genişledi ([[OR-118]])
+
+Owner: *"bu tür şeylerde adminin dediğini her türlü yap, logla sadece — bu esnekliğimizi azaltıyor."*
+
+2 Ekim'de çıkan istisnayı fazla dar kurmuşum: kontenjan, kategori duvarı ve hizmet kapsamını "kural değil fizik" diye
+aşılamazlar arasına koymuş, paketin durumunu da yalnızca `expired` için açmıştım. Üçü de açıldı. `ExemptableGuard`
+artık kontenjanı, kategori duvarını ve hizmet kapsamını da içeriyor; paketin durumu ne olursa olsun (iptal edilmiş ·
+dondurulmuş dahil) izin kapıyı açıyor ve hangi durumdaki pakete yazıldığı olaya düşüyor.
+
+**Aşılmayan iki şey kaldı** ve ikisi de esneklik değil kayıt hatası olurdu: aynı kişiyi aynı derse iki kez yazmak, ve
+geçmiş ders (kendi kapısı var — backdating). Adı yazılı başka bir üyenin özel dersi de dışarıda.
+
+**Seçenek listesindeki iki süzgeç kalktı.** Ekran yalnızca aktif/süresi dolmuş ve kategorisi uyan paketleri
+gösteriyordu, yani domain'in artık kabul ettiği seçenekleri saklıyordu. Her satır paketin DURUMUNU yazıyor.
+
+**VE ASIL HATA BURADAYDI:** owner "yine olmadı" dediğinde sebebi ölçtüm — **üye kartındaki rezervasyon yolu
+(`member-workspace-screen.tsx`) istisna diyaloğuna hiç bağlanmamıştı.** Ders paneli ve hızlı rezervasyon uyarıyı
+açarken, aynı rezervasyon üye kartından sessizce "açılamadı" diyordu. Üç kapı vardı, ikisini bağlamıştım. Ders:
+bir özelliği "canlıda" demek, kullanıcının gerçekten kullandığı kapıda çalıştığını görmek demektir.
+
 ## 🙋 2 Ekim — engele rağmen rezervasyon: uyarı çıkıyor, karar masada ([[OR-118]])
 
 Owner: *"Üyenin paketinin tarihi bitiyor, biz bitse de inisiyatif kullanıp süre dışındaki bir yere rezervasyon

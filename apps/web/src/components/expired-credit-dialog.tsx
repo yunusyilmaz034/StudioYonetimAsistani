@@ -52,6 +52,10 @@ const ISTISNA_EDILEBILIR = new Set([
   'entitlement_not_active',
   'entitlement_expires_before_session',
   'insufficient_credits',
+  // GENİŞLETİLDİ (owner, 2026-10-04): *"adminin dediğini her türlü yap, logla sadece."*
+  'class_full',
+  'category_mismatch',
+  'service_not_covered',
   'day_not_allowed',
   'time_not_allowed',
   'trainer_not_allowed',

@@ -2210,3 +2210,19 @@ yazılmaz: aynı karar bir müdahale değildir.
 pakete bağlıdır (`entitlementId` zorunlu) ve iptal, yoklama, kredi iadesi, I-17'nin tamamı o bağın üstünde duruyor.
 Paketsiz rezervasyon, kredi defterinin taşıyıcı duvarını değiştirmek demek — ayrı bir karar, owner'a soruldu. Pratikte
 owner'ın anlattığı iki somut durum (süresi dolmuş paket · kredisi 0) paketin üstüne yazılarak çözülüyor.
+
+**GENİŞLETİLDİ (owner, 2026-10-04) — listeyi ben fazla dar kurmuşum.** *"Bu tür şeylerde adminin dediğini her türlü
+yap, logla sadece — bu esnekliğimizi azaltıyor."* İlk hâlde kontenjan, kategori duvarı ve hizmet kapsamı "kural değil
+fizik" diye aşılamazlar arasındaydı; paketin durumu da yalnızca `expired` için açılıyordu. Owner üçünü de geri aldı ve
+gerekçesi doğru: odadaki aleti, odayı ve paketi bilen kişi masadaki insandır, ve her reddin bedeli onun telefonla
+çözmek zorunda kaldığı bir iştir. Sistem o kararın YERİNE geçmiyor, **kaydını tutuyor** — hangi koruma aşıldı, hangi
+durumdaki paketin üstüne yazıldı, kim ve neden.
+**Artık aşılabilenler:** kontenjan · kategori duvarı · hizmet kapsamı · paketin durumu (iptal edilmiş ve dondurulmuş
+dahil) · paketin süresi · kredi · günlük/aktif limit · haftalık hak · gün/saat/eğitmen kısıtı.
+**Hâlâ aşılmayan iki şey**, ve ikisi de esneklik değil KAYIT HATASI olurdu: aynı kişiyi aynı derse iki kez yazmak
+(`already_booked` — yoklamada iki satır, iki kredi tutması), ve geçmiş ders (`session_not_bookable` / `session_too_old`)
+— onun kendi kapısı var (backdating, 30 gün, [[OR-24]]) ve o kapı krediyi doğru tarihten harcıyor. Adı yazılı başka bir
+üyenin özel dersi (`session_not_assigned_to_member`) de dışarıda: o esneklik değil, başkasının yerini almak olurdu.
+**Seçenek listesi de süzülmüyor artık.** Ekran eskiden yalnızca aktif/süresi dolmuş ve kategorisi uyan paketleri
+gösteriyordu — domain'in kabul ettiği seçenekleri ekrandan saklamak demekti. Tıklanamayan bir esneklik, esneklik
+değildir. Her satır paketin **durumunu** ve kredi etkisini ("1 ders düşecek" / "kredi düşmeyecek") tıklamadan önce yazar.

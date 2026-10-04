@@ -77,7 +77,9 @@ import {
   listUpcomingSessionsAction,
   type UpcomingSession,
 } from '@/server/actions/booking'
-import { applyRecurringMultiAction, bookReservationAction, cancelReservationAction, previewRecurringMultiAction } from '@/server/actions/reservations'
+import { applyRecurringMultiAction, cancelReservationAction, previewRecurringMultiAction } from '@/server/actions/reservations'
+import { CreditExemptionDialog } from '@/components/credit-exemption-dialog'
+import { ExpiredCreditDialog, bookOrOfferExpiredCredit, type BookOutcome } from '@/components/expired-credit-dialog'
 import { memberTurnstilePassAction } from '@/server/actions/turnstile'
 
 import { MemberForm } from '../member-form'
@@ -1092,11 +1094,14 @@ const SELECT_CLASS = 'rounded-lg border border-border bg-background px-3 py-2 te
 function OnceBookingPanel({
   sessions,
   memberId,
+  memberName = 'Üye',
   onBooked,
   onClose,
 }: {
   sessions: readonly UpcomingSession[]
   memberId: string
+  /** Diyalog metinlerinde görünür; verilmezse nötr bir etiket kullanılır. */
+  memberName?: string
   onBooked: () => void
   onClose: () => void
 }) {
@@ -1105,12 +1110,18 @@ function OnceBookingPanel({
   const [sel, setSel] = useState<Set<string>>(new Set())
   const [phase, setPhase] = useState<'pick' | 'preview'>('pick')
   const [busy, setBusy] = useState(false)
+  // Masaya sorulacak bir şey çıktıysa (yanan hak ya da inisiyatifli istisna) onu burada tutuyoruz.
+  const [sorulan, setSorulan] = useState<{
+    readonly session: UpcomingSession
+    readonly outcome: Extract<BookOutcome, { kind: 'exempt' | 'choose' }>
+  } | null>(null)
 
   const daySessions = sessions.filter((s) => dayKeyOf(s.startsAt) === day)
   const selected = sessions.filter((s) => sel.has(s.sessionId)).sort((a, b) => a.startsAt - b.startsAt)
 
   const toggle = (s: UpcomingSession) => {
-    if (s.bookedCount >= s.capacity) return // full — visible but not selectable
+    // DOLU DERS DE SEÇİLEBİLİR (owner, 2026-10-04). Kontenjan artık izinle aşılabiliyor; burada
+    // seçimi engellemek, domain'in kabul ettiği bir işi ekranda imkânsız kılmak olurdu.
     setSel((prev) => {
       const n = new Set(prev)
       if (n.has(s.sessionId)) n.delete(s.sessionId)
@@ -1119,22 +1130,39 @@ function OnceBookingPanel({
     })
   }
 
+  // ── ÜÇÜNCÜ KAPI DA BAĞLANDI (owner, 2026-10-04: *"yine olmadı"*) ──────────────────────────
+  //
+  // Burada `bookReservationAction` DOĞRUDAN çağrılıyordu: ders paneli ve hızlı rezervasyon
+  // tıkandığında masaya uyarı diyaloğu açarken, aynı rezervasyon üye kartından sessizce
+  // "açılamadı" diyordu. Üç rezervasyon kapısı var, ikisi bağlıydı — ve owner'ın kullandığı
+  // kapı bağlı olmayandı. Bir özelliğin "canlıda" olması, kullanıcının girdiği kapıda
+  // çalıştığının görülmesidir.
   async function confirm() {
     setBusy(true)
     let ok = 0
     let fail = 0
+    const sorulacaklar: { session: UpcomingSession; outcome: Extract<BookOutcome, { kind: 'exempt' | 'choose' }> }[] = []
     for (const s of selected) {
       try {
-        const res = await bookReservationAction({ memberId, sessionId: s.sessionId })
-        if (res.ok) ok++
+        const r = await bookOrOfferExpiredCredit(memberId, s.sessionId)
+        if (r.kind === 'ok') ok++
+        else if (r.kind === 'exempt' || r.kind === 'choose') sorulacaklar.push({ session: s, outcome: r })
         else fail++
       } catch {
         fail++
       }
     }
     setBusy(false)
-    if (ok > 0) toast.success(`${ok} rezervasyon oluşturuldu${fail > 0 ? `, ${fail} açılamadı` : ''}.`)
-    else toast.error('Rezervasyon açılamadı (kredi / kategori / dolu olabilir).')
+    if (ok > 0) toast.success(`${ok} rezervasyon oluşturuldu.`)
+    // Sorulacak bir şey varsa SORULUR. Burada hata mesajı atmak, masaya sorulacak soruyu yutmak
+    // olurdu — ve tam olarak bu yüzden "yine olmadı" diye geri döndü.
+    if (sorulacaklar.length > 0) {
+      setSorulan(sorulacaklar[0]!)
+      onBooked()
+      return
+    }
+    if (ok === 0) toast.error('Rezervasyon açılamadı.')
+    else if (fail > 0) toast.error(`${fail} seans açılamadı.`)
     onBooked()
     if (fail === 0) onClose()
     else {
@@ -1143,9 +1171,44 @@ function OnceBookingPanel({
     }
   }
 
+  // İki diyalog da her iki görünümde (seçim · önizleme) render edilebilsin diye tek yerde kuruldu.
+  const dialoglar = (() => {
+    if (!sorulan) return null
+    const { session: ds, outcome } = sorulan
+    const bitti = () => {
+      toast.success(`${dayLabelOf(ds.startsAt)} ${timeOf(ds.startsAt)} rezerve edildi.`)
+      setSorulan(null)
+      setSel(new Set())
+      setPhase('pick')
+      onBooked()
+    }
+    const kapat = () => setSorulan(null)
+    return outcome.kind === 'exempt' ? (
+      <CreditExemptionDialog
+        memberId={memberId}
+        sessionId={ds.sessionId}
+        memberName={memberName}
+        options={outcome.options}
+        refusal={outcome.error}
+        onDone={bitti}
+        onClose={kapat}
+      />
+    ) : (
+      <ExpiredCreditDialog
+        memberId={memberId}
+        sessionId={ds.sessionId}
+        memberName={memberName}
+        options={outcome.options}
+        onDone={bitti}
+        onClose={kapat}
+      />
+    )
+  })()
+
   if (phase === 'preview') {
     return (
       <div className="space-y-3">
+        {dialoglar}
         <p className="text-sm font-medium text-foreground">{selected.length} seans onaya hazır</p>
         <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card shadow-xs">
           {selected.map((s) => (
@@ -1181,6 +1244,7 @@ function OnceBookingPanel({
     // min-w-0: as a flex item of the (flex-col) sheet, the default min-width:auto would let the wide day
     // strip stretch the panel instead of scrolling. min-w-0 lets the row's overflow-x-auto actually scroll.
     <div className="min-w-0 space-y-3">
+      {dialoglar}
       {/* Days across the top — pick one, its sessions appear below. Scrolls sideways when they overflow.
           On a mouse (desktop) a vertical wheel does nothing to a horizontal strip, so it read as stuck —
           translate wheel-Y into scroll-X so the days slide with the wheel too (trackpad/touch already do). */}

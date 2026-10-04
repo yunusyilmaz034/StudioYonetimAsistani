@@ -190,20 +190,17 @@ export async function exemptionOptionsAction(input: unknown) {
   ])
   if (!session) return [] as readonly ExemptionOption[]
 
-  const admits = session.admission?.categories ?? [session.category]
-
   const secenekler: ExemptionOption[] = hepsi
-    .filter((e) => e.status === 'active' || e.status === 'expired')
-    // KATEGORİ DUVARI İZİNLE AŞILMIYOR: pilates dersini fitness paketine yazmak bir istisna değil,
-    // yanlış kayıttır — ve raporların tamamı bu ayrımın üstünde duruyor. Domain de reddediyor.
-    .filter((e) => admits.includes(e.productSnapshot.category))
+    // GENİŞLETİLDİ (owner, 2026-10-04): her durumdaki paket listelenir (iptal/dondurulmuş dahil) ve
+    // kategori duvarı da aşılabildiği için kategoriye göre SÜZÜLMEZ. Masa hangi paketin üstüne
+    // yazdığını görerek seçiyor; ekran her satırda kategoriyi ve durumu yazıyor.
     .map((e) => {
       const kalan = e.credits ? available(e.credits) : null
       const yanan = e.credits?.expired ?? 0
       return {
         entitlementId: e.id as string,
         productName: e.productSnapshot.name,
-        status: e.status === 'active' ? ('active' as const) : ('expired' as const),
+        status: e.status,
         validUntil: e.validUntil as number,
         kalanKredi: kalan,
         // Alınacak hak var mı: ya elinde duran kredi, ya süre dolarken yanan hak. Owner'ın kuralı
@@ -221,7 +218,8 @@ export async function exemptionOptionsAction(input: unknown) {
 export interface ExemptionOption {
   readonly entitlementId: string
   readonly productName: string
-  readonly status: 'active' | 'expired'
+  /** Paketin kendi durumu — izin dördünü de açabiliyor, o yüzden ekranda yazılı olması şart. */
+  readonly status: 'active' | 'expired' | 'cancelled' | 'frozen'
   readonly validUntil: number
   /** null ⇔ süreli paket (kredi saymaz). */
   readonly kalanKredi: number | null

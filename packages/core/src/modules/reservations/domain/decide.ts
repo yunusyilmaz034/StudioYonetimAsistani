@@ -242,12 +242,6 @@ export function decideBooking(
   if (assignedTo.length > 0 && !assignedTo.includes(input.memberId)) {
     return err({ code: 'session_not_assigned_to_member' })
   }
-  // I-9.2
-  // Held seats count as taken: a Multisport guest reception promised a place to occupies the room
-  // just as much as a member does (2026-07-27).
-  if (occupiedSeats(session) >= session.capacity) {
-    return err({ code: 'class_full', capacity: session.capacity })
-  }
   // ── ENGELE RAĞMEN REZERVE ET (owner, 2026-10-02) ───────────────────────────────────────────
   //
   // Sebep boşsa izin HİÇ açılmaz. Kayda geçmeyen bir istisna, istisna değil sessiz bir kural
@@ -266,6 +260,16 @@ export function decideBooking(
     return null
   }
 
+  // I-9.2
+  // Held seats count as taken: a Multisport guest reception promised a place to occupies the room
+  // just as much as a member does (2026-07-27).
+  //
+  // İZİNLE AŞILABİLİR (owner, 2026-10-04). Odadaki alet sayısını bilen masadaki insan; bir kişiyi
+  // daha sığdırıp sığdıramayacağına o karar verir. Sistem kararın yerine geçmez, kaydını tutar.
+  if (occupiedSeats(session) >= session.capacity) {
+    const e = engel({ code: 'class_full', capacity: session.capacity })
+    if (e) return err(e)
+  }
   // ── I-9.3 / I-9.4 — ve SÜRESİ DOLMUŞ PAKETİN YANAN HAKKI (owner, 2026-09-01) ────────────────
   //
   // Owner'ın anlattığı durum: üye paketini bitiremedi, süre doldu, geriye kullanılmamış dersler
@@ -285,14 +289,17 @@ export function decideBooking(
   // Kredinin kendisi burada hareket etmez: yanan hak, çağıran katmanda kayıtlı bir DÜZELTME ile
   // geri verilir, sonra normal yolundan tutulur. Defter iki hareketi de sebebiyle taşır.
   const expiredHonoured = input.honourExpiredCredit === true && entitlement.status === 'expired'
-  // İzin, süresi DOLMUŞ paketin kapısını da açar — ama yalnızca onun. `cancelled` bilerek geri
-  // alınmış bir karardır ve onu izinle açmak, alınmış bir kararı kazara bozmak olurdu; `frozen` ise
-  // TARİHLİ ve KASITLI bir askıya alma — stüdyo o günleri üyeye geri ödüyor. Dondurma penceresinin
-  // içinde ders yapmak zaten kapatılmamış bir açık (DEBT-037); izinle açmak onu genişletmek olurdu.
-  // Doğru araç dondurmayı bitirmek ya da kısaltmak, içine rezervasyon yazmak değil.
+  // Yanan hak ARİTMETİĞİ yalnızca süresi dolmuş pakette çalışır (aşağıdaki `yanan`): iptal edilmiş
+  // ya da dondurulmuş bir pakette "yakılmış hak" diye bir kova yok.
   const expiredExempt = exempt && entitlement.status === 'expired'
-  if (!expiredHonoured && !expiredExempt) {
-    // I-9.3 — `cancelled` ve `frozen` her hâlde buraya düşer: izin bu ikisini açmaz.
+  // GENİŞLETİLDİ (owner, 2026-10-04): izin artık paketin durumu ne olursa olsun kapıyı açıyor —
+  // iptal edilmiş ve dondurulmuş dahil. Eskiden yalnızca `expired` açılıyordu, gerekçesi de
+  // "alınmış bir kararı kazara bozma"ydı; owner bunu geri aldı: *"adminin dediğini her türlü yap,
+  // logla sadece."* Kazara bozulma riski kaydın kendisiyle karşılanıyor — hangi durumdaki pakete
+  // yazıldığı `entitlementStatus` olarak olaya düşüyor.
+  const statusExempt = exempt
+  if (!expiredHonoured && !statusExempt) {
+    // I-9.3
     if (entitlement.status !== 'active') return err({ code: 'entitlement_not_active' })
     // I-9.4 — aktif ama dersten ÖNCE bitiyor: owner'ın "süre dışındaki bir yere rezervasyon"u
     // tam olarak bu, ve izinle aşılır.
@@ -300,7 +307,7 @@ export function decideBooking(
       const e = engel({ code: 'entitlement_expires_before_session' })
       if (e) return err(e)
     }
-  } else if (expiredExempt && !expiredHonoured) {
+  } else if (statusExempt && !expiredHonoured && entitlement.status !== 'active') {
     steppedPast ??= 'entitlement_not_active'
   }
   // I-9.5
@@ -331,13 +338,18 @@ export function decideBooking(
   // question for the UI, and the two must widen together or the screen offers a booking this
   // function then refuses. Widened, not removed — a session names who it admits, and the default
   // (nothing declared) is its own category, which is the equality this used to be.
+  //
+  // İZİNLE AŞILABİLİR (owner, 2026-10-04). Bedeli var ve kayda geçiyor: kategori, raporların paket
+  // dağılımını ayırdığı şey, ve bir pilates dersini fitness paketine yazmak o dağılımı kirletir.
+  // Owner'ın tercihi bilinçli — esnekliğin bedeli, izlenebilir bir kayıt.
   const admits = session.admission?.categories ?? [session.category]
   if (!admits.includes(entitlement.productSnapshot.category)) {
-    return err({
+    const e = engel({
       code: 'category_mismatch',
       sessionCategory: session.category,
       entitlementCategory: entitlement.productSnapshot.category,
     })
+    if (e) return err(e)
   }
   // I-9.8 — the service wall (D12, v1.21). Eligibility is the explicit service list the
   // package was sold with. A snapshot with NO list is a pre-D12 purchase: it keeps its
@@ -346,7 +358,8 @@ export function decideBooking(
   // and an explicit per-session grant outranks the list a package was sold against. See
   // `isEligibleForService` for why the alternative — rewriting fifty frozen snapshots — is worse.
   if (session.admission == null && !coversService(entitlement.productSnapshot, session.serviceId)) {
-    return err({ code: 'service_not_covered', sessionServiceId: session.serviceId })
+    const e = engel({ code: 'service_not_covered', sessionServiceId: session.serviceId })
+    if (e) return err(e)
   }
 
   // ── Package Rules 2.0 (Plus Phase 3). The effective (studio→package→member) policy, enforced HERE
