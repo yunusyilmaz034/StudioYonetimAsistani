@@ -16,6 +16,7 @@ import {
   issueMemberInvite,
   money,
   newCorrelationId,
+  PAID_AFTER_TERMINAL,
   notify,
   paytrProvider,
   receiveCollection,
@@ -267,6 +268,18 @@ async function completePaidIntent(
   const decided = decideCallbackResult(dctx(ctx), intent, verdict)
   if (!decided.ok) return
   await new FirestorePaymentIntentRepository(database).saveIntent(ctx, decided.value.next, decided.value.events)
+  // Sessizliği kapatan satır (owner, 2026-10-04). Merve Parladı vakasında buraya kadar her şey
+  // yolundaydı ve HİÇBİR log yoktu; fark edilmesi tesadüfe kalmıştı.
+  if (decided.value.next.failureReason === PAID_AFTER_TERMINAL) {
+    logger.error('paytr-callback: PARA ALINDI, LİNK KAPANMIŞTI — insan bakmalı', {
+      alert: 'paid_after_terminal',
+      intent: intent.id,
+      ref: intent.providerRef,
+      intentStatus: intent.status,
+      expectedKurus: intent.amount.amount,
+      memberId: intent.memberId,
+    })
+  }
   if (!decided.value.completed) return
 
   // ── ONLINE SATIŞ stops here (owner, 2026-08-05). ──

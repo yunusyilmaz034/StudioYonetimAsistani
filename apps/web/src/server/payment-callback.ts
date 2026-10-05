@@ -25,6 +25,7 @@ import {
   money,
   newCorrelationId,
   notify,
+  PAID_AFTER_TERMINAL,
   receiveCollection,
   sellPackage,
   systemClock,
@@ -307,6 +308,18 @@ export async function completePaidIntent(ctx: TenantContext, intent: PaymentInte
   const decided = decideCallbackResult(dctx(ctx), intent, verdict)
   if (!decided.ok) return
   await intentRepo().saveIntent(ctx, decided.value.next, decided.value.events)
+  // Mirror of the Cloud Function branch (DEBT-PAYTR-CALLBACK). PAYTR bu kopyayı çağırmıyor ama iki
+  // kopya adım adım aynı kalmalı — Merve vakasının bedeli tam olarak "biri değişti, öbürü kaldı".
+  if (decided.value.next.failureReason === PAID_AFTER_TERMINAL) {
+    console.error('[paytr-callback] PARA ALINDI, LİNK KAPANMIŞTI — insan bakmalı', {
+      alert: 'paid_after_terminal',
+      intent: intent.id,
+      ref: intent.providerRef,
+      intentStatus: intent.status,
+      expectedKurus: intent.amount.amount,
+      memberId: intent.memberId,
+    })
+  }
   if (!decided.value.completed) return
 
   // ── ONLINE SATIŞ stops here (owner, 2026-08-05). ──

@@ -103,13 +103,53 @@ export function decideSessionCreated(
 // intent changes nothing and emits nothing — the whole point of the intent existing (spec §9). The
 // amount is checked by the ADAPTER before this; here we defend once more that a success matches the
 // intent's amount (a provider that confirms the wrong amount is a discrepancy, not a grant).
+/**
+ * Doğrulanmış bir ödeme, KAPANMIŞ bir intent'e düştü: para alındı, bizde kayıt yok.
+ *
+ * `amount_mismatch`ten ayrı tutuluyor çünkü yapılacak iş farklı: orada eksik ödeme var, burada
+ * tamamlanmamış bir kayıt. Çağıran katman bu işareti görünce log'a HATA yazıyor.
+ */
+export const PAID_AFTER_TERMINAL = 'paid_after_terminal'
+
 export function decideCallbackResult(
   ctx: DecideContext,
   intent: PaymentIntent,
   verdict: CallbackVerdict,
 ): Result<IntentOutcome & { readonly completed: boolean }, DomainError> {
-  // Already resolved — a duplicate/late callback. No-op, and that is success (the provider gets "OK").
+  // ── PARA ALINDI, LİNK KAPANMIŞTI (owner, 2026-10-04: *"emniyeti yap"*) ────────────────────
+  //
+  // Bu dal iki FARKLI şeye hizmet ediyor ve ikisi karıştırılamaz:
+  //
+  //   · `paid` bir intent'e gelen TEKRAR bildirimi — normal. PAYTR 720 kez deneyebiliyor; burada
+  //     alarm çalmak her gün yalancı alarm demekti. Sessiz no-op doğru olan.
+  //   · Hiç tamamlanmamış (`expired`/`cancelled`/`failed`) bir intent'e gelen DOĞRULANMIŞ BAŞARI —
+  //     kart çekilmiş, bizde kayıt yok. Merve Parladı (4 Ekim) tam olarak buydu: link ödeme
+  //     gelmeden süresi dolmuş, PAYTR "success" demiş, imza doğrulanmış, ve buradan sessizce
+  //     dönülmüş. Loglarda `received` → `verified` var, sonrası yok — fark edilmesi tesadüfe kaldı.
+  //
+  // DURUM TERMİNAL KALIYOR, `manual_review`a TAŞINMIYOR — bilerek. `manual_review` terminal değil,
+  // yani PAYTR'ın bir sonraki denemesi akışa yeniden girip otomatik tamamlardı; ve ödeme yazma yolu
+  // `tx.set` kullanıyor (`create` değil), yani aynı ödeme kimliği ikinci kez yazılabilir. Çifte
+  // tahsilat riskini açmak, sessizliği kapatmaktan pahalıdır.
+  //
+  // OLAY BİR KEZ yazılıyor: işaret `failureReason`da duruyorsa tekrarı yazılmıyor — yoksa 720
+  // deneme 720 olay ve 720 alarm demekti. Çözüm insanda: break-glass ya da tarihli telafi betiği.
   if (isTerminalPaymentStatus(intent.status) || intent.status === 'refunded' || intent.status === 'partially_refunded') {
+    const hicOdenmemis = intent.status !== 'paid'
+    if (verdict.ok && hicOdenmemis && intent.failureReason !== PAID_AFTER_TERMINAL) {
+      const next: PaymentIntent = { ...intent, failureReason: PAID_AFTER_TERMINAL, updatedAt: ctx.now }
+      return ok({
+        next,
+        events: [
+          {
+            ...base(ctx, next),
+            type: PAYMENT_INTENT_FLAGGED,
+            payload: { providerRef: intent.providerRef, reason: PAID_AFTER_TERMINAL, at: ctx.now },
+          },
+        ],
+        completed: false,
+      })
+    }
     return ok({ next: intent, events: [], completed: false })
   }
   if (verdict.providerRef !== intent.providerRef) {

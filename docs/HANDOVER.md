@@ -333,6 +333,31 @@ düşmez, log bile tutulmaz. Teklif: doğrulanmış bir ödeme terminal bir inte
 dönmek yerine **bağırmak** (`logger.error`) ve `manual_review`a düşürmek. Sessizliğin kendisi bu
 vakanın bulunmasını tesadüfe bıraktı.
 
+## 🔔 5 Ekim — kapanmış linke gelen ödeme artık BAĞIRIYOR (owner: *"emniyeti yap"*)
+
+Merve Parladı vakasının kök sebebi kapandı. `decideCallbackResult`un ilk dalı iki farklı şeye
+hizmet ediyordu ve ikisi aynı sessiz `return`'e gidiyordu:
+
+| Gelen | Eskiden | Şimdi |
+|---|---|---|
+| `paid` intent'e tekrar bildirimi (PAYTR 720× dener) | sessiz no-op | **sessiz no-op** — yalancı alarm yok |
+| `expired`/`cancelled`/`failed` intent'e DOĞRULANMIŞ başarı | sessiz no-op | `failureReason: paid_after_terminal` + `payment_intent.flagged` + **`logger.error`** |
+
+**Durum bilerek TERMİNAL bırakılıyor, `manual_review`a taşınmıyor.** Sebep ölçüldü: `manual_review`
+terminal değil, yani PAYTR'ın sonraki denemesi akışa yeniden girip otomatik tamamlardı — ve ödeme
+yazma yolu `tx.set` kullanıyor (`create` değil), yani **aynı ödeme kimliği ikinci kez yazılabilir**.
+Çifte tahsilat riskini açmak, sessizliği kapatmaktan pahalı. Çözüm insanda kalıyor.
+
+**Olay BİR KEZ yazılıyor:** işaret `failureReason`da duruyorsa tekrarı yazılmıyor. Yoksa 720 deneme
+720 olay ve 720 alarm demekti.
+
+**DEPLOY AYRI:** bu kod `apps/functions`ta (PAYTR'ın gerçekten çağırdığı kopya). `main`'e push onu
+canlıya ALMIYOR — App Hosting ile Cloud Functions ayrı deploy ediliyor. Push edip functions'ı
+deploy etmemek, emniyeti ölü kod bırakır.
+
+**Hâlâ açık olan:** koddaki break-glass ucu terminal bir intent'i settle EDEMİYOR (o da aynı
+`completePaidIntent`i çağırıyor). Merve tarihli betikle düzeltildi; bir dahaki vakada da yol bu.
+
 ## 🧱 4 Ekim — "adminin dediğini her türlü yap": izin listesi genişledi ([[OR-118]])
 
 Owner: *"bu tür şeylerde adminin dediğini her türlü yap, logla sadece — bu esnekliğimizi azaltıyor."*

@@ -13,6 +13,7 @@ export type {
 export { isTerminalPaymentStatus } from './domain/types'
 export * from './events'
 export {
+  PAID_AFTER_TERMINAL,
   decideCallbackResult,
   decideCancel as decideCancelPaymentIntent,
   decideCreateIntent as decideCreatePaymentIntent,

@@ -7,7 +7,7 @@ import {
   type MemberId,
   type StudioId,
 } from '../../../shared'
-import { decideCallbackResult, decideFulfilIntent, type DecideContext } from './decide'
+import { decideCallbackResult, decideFulfilIntent, PAID_AFTER_TERMINAL, type DecideContext } from './decide'
 import type { PaymentIntent } from './types'
 
 const NOW = instant(1_700_000_000_000)
@@ -162,5 +162,59 @@ describe('decideFulfilIntent — reception turns a paid online purchase into a m
     expect(json).not.toContain('Ayşe')
     expect(json).not.toContain('905551112233')
     expect(json).not.toContain('ayse@example.com')
+  })
+})
+
+// ── PARA ALINDI, LİNK KAPANMIŞTI (owner, 2026-10-04: *"emniyeti yap"*) ──────────────────────
+//
+// Merve Parladı: link ödeme gelmeden süresi doldu, PAYTR "success" dedi, imza doğrulandı, ve kod
+// buradan SESSİZCE döndü — tek bir log satırı bile yok. Para PAYTR'da, bizde kayıt yok.
+describe('kapanmış intent\'e gelen doğrulanmış ödeme', () => {
+  const kapanmis = (over: Partial<PaymentIntent> = {}): PaymentIntent =>
+    ({ ...awaiting(), status: 'expired', failureReason: 'timeout', ...over }) as PaymentIntent
+  const basari = (intent: PaymentIntent) =>
+    decideCallbackResult(ctx, intent, { ok: true, providerRef: 'ref_1', paidAmount: money(1_540_154) })
+
+  it('İŞARETLER ve sebebini yazar', () => {
+    const r = basari(kapanmis())
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.value.next.failureReason).toBe(PAID_AFTER_TERMINAL)
+    expect(r.value.events).toHaveLength(1)
+    expect(r.value.events[0]?.type).toBe('payment_intent.flagged')
+  })
+
+  it('durumu TERMİNAL bırakır — manual_review\'a taşımaz', () => {
+    // `manual_review` terminal değil: PAYTR'ın sonraki denemesi akışa yeniden girip otomatik
+    // tamamlardı, ve ödeme `tx.set` ile yazıldığı için aynı kimlik ikinci kez yazılabilir.
+    const r = basari(kapanmis())
+    expect(r.ok).toBe(true)
+    if (r.ok) expect(r.value.next.status).toBe('expired')
+  })
+
+  it('ASLA tamamlamaz — paket/tahsilat kendiliğinden verilmez', () => {
+    const r = basari(kapanmis())
+    expect(r.ok).toBe(true)
+    if (r.ok) expect(r.value.completed).toBe(false)
+  })
+
+  it('İKİNCİ kez olay yazmaz: 720 deneme, tek alarm', () => {
+    const r = basari(kapanmis({ failureReason: PAID_AFTER_TERMINAL }))
+    expect(r.ok).toBe(true)
+    if (r.ok) expect(r.value.events).toHaveLength(0)
+  })
+
+  it('ÖDENMİŞ intent\'e gelen tekrar bildirimi sessiz kalır — yalancı alarm yok', () => {
+    const r = basari(kapanmis({ status: 'paid', failureReason: null }))
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.value.events).toHaveLength(0)
+    expect(r.value.next.failureReason).toBeNull()
+  })
+
+  it('BAŞARISIZ bildirim kapanmış intent\'i işaretlemez — alınmış para yok', () => {
+    const r = decideCallbackResult(ctx, kapanmis(), { ok: false, providerRef: 'ref_1', reason: 'failed' })
+    expect(r.ok).toBe(true)
+    if (r.ok) expect(r.value.events).toHaveLength(0)
   })
 })
