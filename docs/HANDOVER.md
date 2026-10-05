@@ -7,32 +7,59 @@ explains the moment.
 Keep it current the way the code is kept current: when the state changes, this changes in the same
 commit. A handover document that lags is worse than none, because it is believed.
 
-_Last true as of: **2026-10-02, 22:25**._
+_Last true as of: **2026-10-05, 16:40**._
 
 ## ⏭️ Sıradaki oturum — BURADAN BAŞLA
 
-**Kod tarafında yarım iş YOK.** Özelliği taşıyan deploy: **`build-2026-10-02-008`** (2 Ekim 22:30, %100 trafik
-ölçüldü). Sonraki doküman push'ları numarayı ilerletiyor — **canlı numara bu belgeden değil, Cloud Run'dan okunur**
-(komut aşağıda). `pnpm check` **1474 test yeşil**; **entegrasyon takımı 8 dosya / 48 test** — "engele rağmen
-rezervasyon" uçtan uca, gerçek veritabanının üstünde doğrulandı ([[OR-118]]).
-**`minInstances` katı DOĞRULANDI** (2 Ekim 23:20, kap sayısıyla) — aşağıdaki bölüm.
+**Kod tarafında yarım iş YOK.** Canlı (ÖLÇÜLDÜ): panel **`build-2026-10-05-001`** · %100 trafik · 5 Ekim 12:33;
+servis katı **1**. Cloud Function **`paytrcallback-00036-kup`** (5 Ekim, PAYTR emniyeti burada). Canlı numarayı bu
+belgeden değil **Cloud Run'dan** oku — her push onu ilerletiyor; komutlar aşağıdaki kat bölümünde.
+`pnpm check` yeşil, **1482 birim test**; entegrasyon takımı **8 dosya / 48 test**.
+
+**Son üç günde çıkanlar (hepsi canlıda):**
+- **Engele rağmen rezervasyon** ([[OR-118]]) — uyarı çıkar, sebep zorunlu, karar masada. 4 Ekim'de owner'ın
+  *"adminin dediğini her türlü yap, logla sadece"* talimatıyla **genişletildi**: kontenjan, kategori duvarı, hizmet
+  kapsamı ve paketin durumu (iptal/dondurulmuş dahil) da aşılabiliyor. Aşılmayan ikisi: aynı kişiyi aynı derse iki
+  kez yazmak, ve geçmiş ders (kendi kapısı var — backdating).
+- **Üçüncü rezervasyon kapısı bağlandı** — üye kartı. İki kapıyı bağlamış, owner'ın kullandığını bağlamamıştım;
+  *"yine olmadı"*nın sebebi buydu.
+- **Merve Parladı tahsilatı** — kapanmış linke gelen ödeme kayda geçirildi; satış `settled`, 14.000/14.000 ₺.
+- **PAYTR emniyeti** — kapanmış intent'e düşen doğrulanmış ödeme artık işaretlenir, olay yazar ve **loga hata
+  basar**. Ödenmiş intent'e gelen tekrar bildirimleri sessiz (PAYTR 720× dener); alarm bir kez çalar.
 
 **Owner'da bekleyenler:**
-1. **GitHub itirazı** — `#4804152` ikametgâh belgesiyle açık (29 Eylül 11:04), ilk talep `#4799172` de duruyor.
-   Talebi KAPATMA. Bir hafta ses çıkmazsa aynı talebe nazik hatırlatma; üçüncü talep açma.
-   Actions 4 Eylül'den beri ölü — push ve App Hosting derlemesi çalışıyor, yani deploy durmuyor.
-2. **TestFlight 1.8.0** — döngü modu denenecek. Özellikle: "kapat ve verilerimi sil" dedikten sonra ana
-   sayfadaki satırın TAMAMEN kaybolması, ve panelde bu verinin hiçbir izinin olmaması.
-3. **`feat/cycle-mode` dalı main'e karışmadı** — owner denedikten sonra birleştirme kararı.
-4. **Yedekler makineden çıkarılacak** — 16 paket doğrulandı (13 MB + 65 MB), taşınmayı bekliyor.
-5. **Rapor PIN'i hâlâ açılış değerinde.** Owner: *"pin kalsın, sorun değil, bi ara değiştiririm."* Değişene
-   kadar kilit ekranı ve ayarlar kartı bunu uyarı olarak söylüyor; açılış değeri oturum kaydında yazılı.
+1. **Hale Ertürk denemesi YAPILMADI** — panelde yenile → üye kartı → rezervasyon. Ölçüm, o dersin istisnayla
+   **kabul** edildiğini gösteriyor; eksik olan sadece owner'ın ekranda görmesi.
+2. **İki karar:** `already_booked` ve geçmiş ders de izinle açılsın mı? (Bilerek kapalı bıraktım: ikisi esneklik
+   değil kayıt hatası olurdu.) Ve **hiç paketi olmayan üyeye** istisna olsun mu? (Rezervasyon her zaman bir
+   pakete bağlı; paketsiz rezervasyon kredi defterinin taşıyıcı duvarını değiştirmek demek.)
+3. **GitHub itirazı** — `#4804152` (29 Eylül 11:04) ve `#4799172` açık; 5 Ekim'de **6 gün** sessizlik. Talebi
+   KAPATMA, **üçüncü talep AÇMA**. 7. günde aynı talebe hatırlatma: hazır metin oturum kaydında. Yeni kanıt
+   ölçüldü — son koşuda (`37188314723`, 4 Ekim 08:15) üç iş de **2 saniyede, adım yürütmeden** reddedildi; yani
+   kod hatası değil, kısıt sürüyor. Aynı commit'in App Hosting rollout'u **başarılı**: deploy çalışıyor.
+4. **TestFlight 1.8.0** — döngü modu denenecek. Özellikle: "kapat ve verilerimi sil" sonrası ana sayfadaki satırın
+   TAMAMEN kaybolması ve panelde hiç iz olmaması.
+5. **`feat/cycle-mode` main'e karışmadı** — owner denedikten sonra birleştirme kararı.
+6. **Yedekler makineden çıkarılacak** — 16 paket doğrulandı (13 MB + 65 MB).
+7. **Rapor PIN'i hâlâ açılış değerinde** (*"bi ara değiştiririm"*). Kilit ekranı ve ayarlar kartı bunu uyarıyor.
+8. **Bug report taslağı** — bir tane kuyrukta (kat ölçümünde yanlış alete bakıp emin bir yanlış sonucu dokümana
+   yazmam). Gönderilmedi; owner `/feedback` ile görür/siler. Rahatsız ediyorsa bir daha taslak oluşturulmayacak.
+
+**Yerelde bekleyen push YOK** — `7e1b575`e kadar her şey push'landı. (Bu günlük girdisi hariç; owner Hale'yi
+denerken ikinci bir rollout sekmesini kırmasın diye bekletiliyor.)
 
 **İzleme maddeleri (arıza değil, henüz):**
 - `health.test.ts` → `projection_lag` bir turda kaldı, sonraki üç turda geçti. Yeniden üretilemedi,
   düzeltilmedi. Bir daha kalırsa o turun logunu SAKLA.
 - **`sell` bir satış anı kabul etmiyor** (`SellInput`'ta `soldAt` yok). 29 Eylül'de Burcu, 1 Ekim'de Melisa
   vakasında bedeli ödendi; Duygu'da yolu değiştirmek zorunda bıraktı. Üçüncüde eklenmeli.
+- **Break-glass terminal bir intent'i settle EDEMİYOR** (5 Ekim'de ölçüldü): o da `completePaidIntent`i çağırıyor
+  ve aynı "intent zaten terminal" dalına takılıyor. Merve tarihli betikle düzeltildi; bir dahaki vakada da yol bu.
+  Gerçek çözüm break-glass'ın bu dalı bilinçli olarak aşması.
+- **`collect` ödemeyi `tx.set` ile yazıyor, `create` değil** (5 Ekim'de ölçüldü) ve `decideReceivePayment` mevcut
+  ödemeyi hiç görmüyor — yani **aynı ödeme kimliği ikinci kez yazılabilir**. Mükerrer tahsilat koruması
+  kimlik seçiminin disiplinine bağlı (callback deterministik kimlik üretiyor, betikler de aynısını kullanmalı).
+  PAYTR emniyeti bu yüzden intent'i `manual_review`a taşımıyor.
 - Turnike: uyku düzeltmesinden (25 Eylül) beri şikâyet yok. WiFi hâlâ zayıf (−71…−80 dBm).
 
 ### Eylül ortasından kalan, o tarihten beri DOĞRULANMAMIŞ maddeler
