@@ -180,6 +180,18 @@ export type ExemptableGuard =
   | 'daily_reservation_limit_reached'
   | 'active_reservation_limit_reached'
   | 'weekly_quota_reached'
+  // GENİŞLETİLDİ (owner, 2026-10-06: *"3 evet olsun"*). İkisi de 4 Ekim'de bilerek dışarıda
+  // bırakılmıştı; owner ikisini de açtırdı.
+  //
+  //   · `already_booked` — aynı kişiyi aynı derse iki kez yazmak. Yoklamada iki satır ve iki kredi
+  //     tutması demek; masanın bunu bilerek yapması gerekir, ve artık yapabiliyor.
+  //   · `session_not_bookable` — YALNIZCA "ders geçmişte" dalı için. İptal edilmiş bir ders ve
+  //     backdate yolunun "henüz olmamış ders" kontrolü izinle AÇILMIYOR: olmamış bir derse
+  //     rezervasyon yazmak esneklik değil, uydurma kayıt olurdu. Geçmiş ders için doğru kapı hâlâ
+  //     backdating (paketin o gün yürüdüğünü doğrular, krediyi doğru tarihten harcar); bu izin,
+  //     owner'ın istediği kaba araç ve kayda geçiyor.
+  | 'already_booked'
+  | 'session_not_bookable'
 
 /**
  * Masa bir korumayı bilerek aştı ve rezervasyonu yine yaptı (owner, 2026-10-02).

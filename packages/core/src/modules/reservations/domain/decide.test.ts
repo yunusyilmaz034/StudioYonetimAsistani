@@ -1513,10 +1513,46 @@ describe('engele rağmen rezervasyon — inisiyatif', () => {
     if (!r.ok) expect(r.error.code).toBe('class_full')
   })
 
-  it('mükerrer rezervasyon izinle bile olmaz', () => {
-    const r = book(session(), kredisizAktif(), izinli, true)
+  // ── GENİŞLETİLDİ (owner, 2026-10-06: "3 evet olsun") ──────────────────────────────────────
+  it('mükerrer rezervasyonu da izinle açar ve kaydeder', () => {
+    const r = book(session(), creditEnt(), izinli, true)
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    const e = r.value.events.find((x) => x.type === 'reservation.credit_exempted')
+    expect((e?.payload as { steppedPast: string }).steppedPast).toBe('already_booked')
+  })
+
+  it('mükerrer rezervasyon izinSİZ hâlâ kapalı', () => {
+    const r = book(session(), creditEnt(), bookInput, true)
     expect(r.ok).toBe(false)
     if (!r.ok) expect(r.error.code).toBe('already_booked')
+  })
+
+  it('GEÇMİŞ dersi izinle açar', () => {
+    const gecmis = session({ startsAt: instant(NOW - 48 * H), endsAt: instant(NOW - 47 * H) })
+    const r = book(gecmis, creditEnt(), izinli, false)
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    const e = r.value.events.find((x) => x.type === 'reservation.credit_exempted')
+    expect((e?.payload as { steppedPast: string }).steppedPast).toBe('session_not_bookable')
+  })
+
+  it('geçmiş ders izinSİZ hâlâ kapalı', () => {
+    const r = book(
+      session({ startsAt: instant(NOW - 48 * H), endsAt: instant(NOW - 47 * H) }),
+      creditEnt(),
+      bookInput,
+      false,
+    )
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.error.code).toBe('session_not_bookable')
+  })
+
+  it('İPTAL EDİLMİŞ dersi izinle bile açmaz — olmamış bir derse rezervasyon yazılmaz', () => {
+    const iptal = session({ status: 'cancelled' })
+    const r = book(iptal, creditEnt(), izinli, false)
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.error.code).toBe('session_not_bookable')
   })
 })
 

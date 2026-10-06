@@ -765,3 +765,24 @@ describe('decideCorrectDiscount', () => {
     expect(r.value.next.status).toBe('settled')
   })
 })
+
+// ── SATIŞ ANI (owner, 2026-10-06: *"4 ekle"*) ────────────────────────────────────────────────
+//
+// Dört vakada bedeli ödendi: Burcu (29 Eylül) · Melisa (1 Ekim) · Duygu (1 Ekim) · Esra (6 Ekim).
+// Geriye dönük bir düzeltme kurarken ÖDEMENİN tarihi verilebiliyordu — ciro nakit esaslı olduğu
+// için rapor doğru çıkıyordu — ama satışın kendi tarihi "şimdi" kalıyordu: düzeltilmiş bir satış,
+// yapıldığı günü değil DÜZELTİLDİĞİ günü gösteriyordu.
+describe('decideCreateSale — satış anı', () => {
+  it('verilmezse saatten alınır — mevcut davranış birebir aynı', () => {
+    const r = decideCreateSale(ctx(), saleInput())
+    expect(r.ok).toBe(true)
+    if (r.ok) expect(r.value.next.soldAt).toBe(NOW)
+  })
+
+  it('verilirse O an kullanılır', () => {
+    const gercekAn = instant(NOW - 36 * DAY)
+    const r = decideCreateSale(ctx(), saleInput({ soldAt: gercekAn }))
+    expect(r.ok).toBe(true)
+    if (r.ok) expect(r.value.next.soldAt).toBe(gercekAn)
+  })
+})

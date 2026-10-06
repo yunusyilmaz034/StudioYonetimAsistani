@@ -95,6 +95,12 @@ export interface SellInput {
   // OP-2 — set when this sale is part of a larger act (a package sale grants the entitlement and
   // records the money under ONE operation id, so the Activity Center reads it as one sentence).
   readonly operationId?: OperationId
+  /**
+   * Satışın GERÇEK anı (owner, 2026-10-06). Verilmezse saatten alınır — mevcut çağıranların
+   * hiçbiri değişmiyor. Geriye dönük düzeltme betikleri bunu verir; dört vakada eksikliği
+   * hissedildi (Burcu · Melisa · Duygu · Esra).
+   */
+  readonly soldAt?: Instant
 }
 
 export async function sell(
@@ -112,6 +118,7 @@ export async function sell(
     lines: input.lines,
     discounts: input.discounts,
     discountCeilingPercent: input.discountCeilingPercent,
+    ...(input.soldAt !== undefined ? { soldAt: input.soldAt } : {}),
   })
   if (!created.ok) return created
 

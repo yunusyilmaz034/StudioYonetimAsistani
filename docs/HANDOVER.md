@@ -34,9 +34,9 @@ belgeden değil **Cloud Run'dan** oku — her push onu ilerletiyor; komutlar aş
 **Owner'da bekleyenler:**
 1. **Hale Ertürk denemesi YAPILMADI** — panelde yenile → üye kartı → rezervasyon. Ölçüm, o dersin istisnayla
    **kabul** edildiğini gösteriyor; eksik olan sadece owner'ın ekranda görmesi.
-2. **İki karar:** `already_booked` ve geçmiş ders de izinle açılsın mı? (Bilerek kapalı bıraktım: ikisi esneklik
-   değil kayıt hatası olurdu.) Ve **hiç paketi olmayan üyeye** istisna olsun mu? (Rezervasyon her zaman bir
-   pakete bağlı; paketsiz rezervasyon kredi defterinin taşıyıcı duvarını değiştirmek demek.)
+2. **Paketsiz üyeye istisna** — owner 6 Ekim'de "evet" dedi, AMA bu bir bayrak değil: rezervasyon her zaman bir
+   pakete bağlı (`entitlementId` zorunlu, `repo.book` paket yoksa atıyor) ve iptal/yoklama/kredi iadesi/I-17 o
+   bağın üstünde duruyor. Ayrı planlanıp getirilecek. (`already_booked` + geçmiş ders 6 Ekim gecesi ÇIKTI.)
 3. **GitHub itirazı** — `#4804152` (29 Eylül 11:04) ve `#4799172` açık. **6 Ekim'de 7. gün doldu**; hatırlatma
    metni owner'a verildi, **yapıştırması bekleniyor**. Talebi KAPATMA, **üçüncü talep AÇMA**. Ölçülen kanıt:
    son koşuda (`37188314723`, 4 Ekim 08:15) üç iş de **2 saniyede, adım yürütmeden** reddedildi — kod hatası
@@ -59,8 +59,8 @@ emniyeti 5 Ekim'de çıktı; firestore kuralları bu turda değişmedi.
 **İzleme maddeleri (arıza değil, henüz):**
 - `health.test.ts` → `projection_lag` bir turda kaldı, sonraki üç turda geçti. Yeniden üretilemedi,
   düzeltilmedi. Bir daha kalırsa o turun logunu SAKLA.
-- **`sell` bir satış anı kabul etmiyor** (`SellInput`'ta `soldAt` yok). 29 Eylül'de Burcu, 1 Ekim'de Melisa
-  vakasında bedeli ödendi; Duygu'da yolu değiştirmek zorunda bıraktı. Üçüncüde eklenmeli.
+- ✅ **`SellInput.soldAt` 6 Ekim gecesi EKLENDİ** — dört vakadan sonra (Burcu · Melisa · Duygu · Esra). Opsiyonel:
+  verilmezse saat. Bundan sonraki geriye dönük düzeltmeler satışın gerçek tarihini de yazabilir.
 - **Break-glass terminal bir intent'i settle EDEMİYOR** (5 Ekim'de ölçüldü): o da `completePaidIntent`i çağırıyor
   ve aynı "intent zaten terminal" dalına takılıyor. Merve tarihli betikle düzeltildi; bir dahaki vakada da yol bu.
   Gerçek çözüm break-glass'ın bu dalı bilinçli olarak aşması.
@@ -367,6 +367,34 @@ aktif `Fitness - 6 Aylık` paketi var (06.10.2026 → 04.04.2027). Sonuç: satı
 düşmez, log bile tutulmaz. Teklif: doğrulanmış bir ödeme terminal bir intent'e düştüğünde sessizce
 dönmek yerine **bağırmak** (`logger.error`) ve `manual_review`a düşürmek. Sessizliğin kendisi bu
 vakanın bulunmasını tesadüfe bıraktı.
+
+## 🔓 6 Ekim gecesi — izin listesi tamamlandı, ve `soldAt` borcu ÖDENDİ
+
+Owner: *"3 evet olsun 4 ekle deployları yap."*
+
+**İzin listesine iki koruma daha eklendi** ([[OR-118]]):
+- **`already_booked`** — aynı kişiyi aynı derse iki kez yazmak. Bedeli var ve masanın bilmesi
+  gerekir (yoklamada iki satır, iki kredi tutması); artık bilerek yapılabiliyor ve olay hangi
+  korumanın aşıldığını yazdığı için "kazara" ile "bilerek" sonradan ayırt edilebiliyor.
+- **Geçmiş ders** — ama YALNIZCA o dal. `session_not_bookable` kodu üç ayrı şeyi birden söylüyor
+  (iptal edilmiş ders · backdate yolunda henüz olmamış ders · geçmiş ders); hepsini açmak **iptal
+  edilmiş derse** rezervasyon yazmayı da açardı, ki o esneklik değil uydurma kayıt olurdu. O iki
+  dal sert ret olarak duruyor. Geçmiş ders için doğru kapı hâlâ **backdating** (paketin o gün
+  yürüdüğünü doğrular, krediyi doğru tarihten harcar); bu izin owner'ın istediği kaba araç.
+
+İzin bloğu bu yüzden `decideBooking`'in en başına taşındı — geçmiş ders kontrolü ondan önce
+geliyordu, yani `engel()` henüz tanımlı değildi.
+
+**`SellInput.soldAt` eklendi — dört vakanın borcu kapandı.** Burcu · Melisa · Duygu · Esra. Ödemenin
+`receivedAt`i verilebiliyordu (ciro nakit esaslı, rapor doğruydu) ama satışın kendi tarihi "şimdi"
+kalıyordu: düzeltilmiş satış, yapıldığı günü değil düzeltildiği günü gösteriyordu. Alan OPSİYONEL —
+verilmezse `ctx.now`, yani mevcut çağıranların hiçbiri değişmedi; decider saf kaldı, tarih artık
+çağıranın verdiği bir girdi. İki sınır testi: verilmezse saat, verilirse o an.
+
+**AÇIK VE YARINA KALDI:** *hiç paketi olmayan üyeye istisna.* Owner "evet" dedi ama bu bir bayrak
+değil: `Reservation.entitlementId` zorunlu, `repo.book` paket belgesi yoksa atıyor, ve iptal /
+yoklama / kredi iadesi / I-17'nin tamamı o bağın üstünde duruyor. Kredi defterinin taşıyıcı duvarını
+değiştirmek demek — ayrı planlanıp getirilecek, gece üstünkörü deploy edilmedi.
 
 ## 🧾 6 Ekim — Esra Tepe: 24 Ders iptal, 8 Ders kaldı, kullanılan 3 ders üyede
 

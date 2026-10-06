@@ -200,6 +200,24 @@ export function decideBooking(
   // Plus Phase 3 — the resolved package/member limits + the member's counts. Absent ⇒ unrestricted.
   limits?: BookingLimits,
 ): Result<ReservationOutcome, DomainError> {
+  // ── ENGELE RAĞMEN REZERVE ET (owner, 2026-10-02) ───────────────────────────────────────────
+  //
+  // Sebep boşsa izin HİÇ açılmaz. Kayda geçmeyen bir istisna, istisna değil sessiz bir kural
+  // ihlalidir (#9); ve "ayda kaç kez esnettik, neden" sorusunun cevabı tam olarak bu metinde.
+  const exemption = input.creditExemption
+  if (exemption !== undefined && exemption.reason.trim().length === 0) {
+    return err({ code: 'reason_required' })
+  }
+  const exempt = exemption !== undefined
+  let steppedPast: ExemptableGuard | null = null
+  // Takılan koruma: izin varsa SEBEBİYLE kaydedilip geçilir, izin yoksa kendi reddini döndürür.
+  // İlk takılan saklanır — "neyi aştık" sorusunun en dürüst cevabı, en erken durduran kuraldır.
+  const engel = (e: Extract<DomainError, { readonly code: ExemptableGuard }>): DomainError | null => {
+    if (!exempt) return e
+    steppedPast ??= e.code
+    return null
+  }
+
   // I-9.1 — a cancelled session is never bookable, backdated or not: nobody attended a class that
   // did not happen (the same reasoning that guards the nightly sweep).
   if (session.status !== 'scheduled') return err({ code: 'session_not_bookable' })
@@ -217,7 +235,11 @@ export function decideBooking(
       return err({ code: 'entitlement_started_after_session' })
     }
   } else if (session.startsAt <= ctx.now) {
-    return err({ code: 'session_not_bookable' })
+    // GEÇMİŞ DERS İZİNLE AŞILABİLİR (owner, 2026-10-06). Doğru kapı hâlâ BACKDATING: o yol paketin
+    // o gün yürüdüğünü doğrular ve krediyi doğru tarihten harcar. Bu izin, owner'ın istediği kaba
+    // araç — ve kaba olduğu için kayda geçiyor.
+    const e = engel({ code: 'session_not_bookable' })
+    if (e) return err(e)
   }
   // Opening hours are a rule about SCHEDULING, and they are checked here because the hours may have
   // changed since the class was created. A class that already happened is its own evidence that the
@@ -242,24 +264,6 @@ export function decideBooking(
   if (assignedTo.length > 0 && !assignedTo.includes(input.memberId)) {
     return err({ code: 'session_not_assigned_to_member' })
   }
-  // ── ENGELE RAĞMEN REZERVE ET (owner, 2026-10-02) ───────────────────────────────────────────
-  //
-  // Sebep boşsa izin HİÇ açılmaz. Kayda geçmeyen bir istisna, istisna değil sessiz bir kural
-  // ihlalidir (#9); ve "ayda kaç kez esnettik, neden" sorusunun cevabı tam olarak bu metinde.
-  const exemption = input.creditExemption
-  if (exemption !== undefined && exemption.reason.trim().length === 0) {
-    return err({ code: 'reason_required' })
-  }
-  const exempt = exemption !== undefined
-  let steppedPast: ExemptableGuard | null = null
-  // Takılan koruma: izin varsa SEBEBİYLE kaydedilip geçilir, izin yoksa kendi reddini döndürür.
-  // İlk takılan saklanır — "neyi aştık" sorusunun en dürüst cevabı, en erken durduran kuraldır.
-  const engel = (e: Extract<DomainError, { readonly code: ExemptableGuard }>): DomainError | null => {
-    if (!exempt) return e
-    steppedPast ??= e.code
-    return null
-  }
-
   // I-9.2
   // Held seats count as taken: a Multisport guest reception promised a place to occupies the room
   // just as much as a member does (2026-07-27).
@@ -333,7 +337,13 @@ export function decideBooking(
     if (e) return err(e)
   }
   // I-9.6
-  if (memberHasBookedThisSession) return err({ code: 'already_booked' })
+  // İZİNLE AŞILABİLİR (owner, 2026-10-06). Bedeli var ve masanın bilmesi gerekir: aynı kişi aynı
+  // derste iki satır olur ve iki kredi tutar. Owner bilerek açtırdı; olay hangi korumanın aşıldığını
+  // yazıyor, yani "kazara iki kez yazılmış" ile "bilerek yazılmış" sonradan ayırt edilebiliyor.
+  if (memberHasBookedThisSession) {
+    const e = engel({ code: 'already_booked' })
+    if (e) return err(e)
+  }
   // I-9.7 — the category wall. THE authoritative copy: `isEligibleForService` answers the same
   // question for the UI, and the two must widen together or the screen offers a booking this
   // function then refuses. Widened, not removed — a session names who it admits, and the default

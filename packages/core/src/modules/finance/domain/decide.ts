@@ -114,6 +114,21 @@ export interface CreateSaleInput {
   readonly lines: readonly SaleLine[]
   readonly discounts: readonly Discount[]
   readonly discountCeilingPercent: number | null // studio settings (owner, decision 4) — data, not code
+  /**
+   * SATIŞ ANI (owner, 2026-10-06: *"4 ekle"*).
+   *
+   * Verilmezse `ctx.now` — yani bugüne kadarki davranış birebir aynı kalıyor. Geriye dönük bir
+   * düzeltme kurarken ise satışın GERÇEK anı verilir.
+   *
+   * Bu alanın yokluğu DÖRT kez bedel ödetti: Burcu (29 Eylül), Melisa (1 Ekim), Duygu (1 Ekim),
+   * Esra (6 Ekim). Her seferinde ödemenin `receivedAt`i doğru tarihe yazılabiliyordu — ciro nakit
+   * esaslı olduğu için rapor doğru çıkıyordu — ama satışın kendi tarihi "şimdi" kalıyordu. Yani
+   * düzeltilmiş bir satış, yapıldığı günü değil düzeltildiği günü gösteriyordu.
+   *
+   * Clock'un yerine geçmiyor, yalnızca ÜSTÜNE YAZILABİLİR kılıyor: `decideCreateSale` saf kalıyor,
+   * tarih çağıranın verdiği bir girdi oluyor.
+   */
+  readonly soldAt?: Instant
 }
 
 export function decideCreateSale(
@@ -154,7 +169,7 @@ export function decideCreateSale(
     paid: zeroMoney(),
     status: 'open',
     soldBy: ctx.actor, // attribution, captured from the first sale (Doc 26 §2)
-    soldAt: ctx.now,
+    soldAt: input.soldAt ?? ctx.now,
     cancelledAt: null,
     cancelReason: null,
   }
