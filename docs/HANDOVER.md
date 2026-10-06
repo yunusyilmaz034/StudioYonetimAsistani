@@ -7,7 +7,7 @@ explains the moment.
 Keep it current the way the code is kept current: when the state changes, this changes in the same
 commit. A handover document that lags is worse than none, because it is believed.
 
-_Last true as of: **2026-10-05, 16:40**._
+_Last true as of: **2026-10-06, gece**._
 
 ## ⏭️ Sıradaki oturum — BURADAN BAŞLA
 
@@ -26,6 +26,10 @@ belgeden değil **Cloud Run'dan** oku — her push onu ilerletiyor; komutlar aş
 - **Merve Parladı tahsilatı** — kapanmış linke gelen ödeme kayda geçirildi; satış `settled`, 14.000/14.000 ₺.
 - **PAYTR emniyeti** — kapanmış intent'e düşen doğrulanmış ödeme artık işaretlenir, olay yazar ve **loga hata
   basar**. Ödenmiş intent'e gelen tekrar bildirimleri sessiz (PAYTR 720× dener); alarm bir kez çalar.
+  Cloud Function **5 Ekim'de deploy edildi** (`paytrcallback-00036-kup`) — `main`'e push bunu canlıya almıyor.
+- **Esra Tepe düzeltmesi** (6 Ekim) — 24 Ders iptal, 8 Ders kaldı: satış `settled` 4.200/4.200 ₺ (ciro 31.08),
+  kredi KALAN 5 (= 8 − kullanılan 3), paket adı 8 Ders'e çekildi, süre ve rezervasyonlar dokunulmadı.
+  Ayrıntı ve iki bilerek-dokunulmayan alan aşağıdaki 6 Ekim bölümünde.
 
 **Owner'da bekleyenler:**
 1. **Hale Ertürk denemesi YAPILMADI** — panelde yenile → üye kartı → rezervasyon. Ölçüm, o dersin istisnayla
@@ -33,10 +37,10 @@ belgeden değil **Cloud Run'dan** oku — her push onu ilerletiyor; komutlar aş
 2. **İki karar:** `already_booked` ve geçmiş ders de izinle açılsın mı? (Bilerek kapalı bıraktım: ikisi esneklik
    değil kayıt hatası olurdu.) Ve **hiç paketi olmayan üyeye** istisna olsun mu? (Rezervasyon her zaman bir
    pakete bağlı; paketsiz rezervasyon kredi defterinin taşıyıcı duvarını değiştirmek demek.)
-3. **GitHub itirazı** — `#4804152` (29 Eylül 11:04) ve `#4799172` açık; 5 Ekim'de **6 gün** sessizlik. Talebi
-   KAPATMA, **üçüncü talep AÇMA**. 7. günde aynı talebe hatırlatma: hazır metin oturum kaydında. Yeni kanıt
-   ölçüldü — son koşuda (`37188314723`, 4 Ekim 08:15) üç iş de **2 saniyede, adım yürütmeden** reddedildi; yani
-   kod hatası değil, kısıt sürüyor. Aynı commit'in App Hosting rollout'u **başarılı**: deploy çalışıyor.
+3. **GitHub itirazı** — `#4804152` (29 Eylül 11:04) ve `#4799172` açık. **6 Ekim'de 7. gün doldu**; hatırlatma
+   metni owner'a verildi, **yapıştırması bekleniyor**. Talebi KAPATMA, **üçüncü talep AÇMA**. Ölçülen kanıt:
+   son koşuda (`37188314723`, 4 Ekim 08:15) üç iş de **2 saniyede, adım yürütmeden** reddedildi — kod hatası
+   değil, kısıt sürüyor. Aynı commit'in App Hosting rollout'u **başarılı**: deploy çalışıyor.
 4. **TestFlight 1.8.0** — döngü modu denenecek. Özellikle: "kapat ve verilerimi sil" sonrası ana sayfadaki satırın
    TAMAMEN kaybolması ve panelde hiç iz olmaması.
 5. **`feat/cycle-mode` main'e karışmadı** — owner denedikten sonra birleştirme kararı.
@@ -45,8 +49,12 @@ belgeden değil **Cloud Run'dan** oku — her push onu ilerletiyor; komutlar aş
 8. **Bug report taslağı** — bir tane kuyrukta (kat ölçümünde yanlış alete bakıp emin bir yanlış sonucu dokümana
    yazmam). Gönderilmedi; owner `/feedback` ile görür/siler. Rahatsız ediyorsa bir daha taslak oluşturulmayacak.
 
-**Yerelde bekleyen push YOK** — `7e1b575`e kadar her şey push'landı. (Bu günlük girdisi hariç; owner Hale'yi
-denerken ikinci bir rollout sekmesini kırmasın diye bekletiliyor.)
+**Yerelde bekleyen push YOK.** 6 Ekim gecesi owner'ın onayıyla ("push ve deploy et") dört commit birlikte
+gönderildi: 5 Ekim durum bloğu, Esra'nın para/kredi düzeltmesi, Esra'nın etiket düzeltmesi ve bu girdi.
+**Deploy:** `main`'e push App Hosting rollout'unu kendiliğinden başlatıyor; doğrulaması Cloud Run trafik
+dağılımından yapıldı (OR-17). Bu commit'lerin hiçbiri web/functions kodu değiştirmiyor — doküman ve düzeltme
+betikleri; yani rollout davranışsal bir değişiklik taşımıyor. Cloud Functions ayrı deploy ediliyor ve PAYTR
+emniyeti 5 Ekim'de çıktı; firestore kuralları bu turda değişmedi.
 
 **İzleme maddeleri (arıza değil, henüz):**
 - `health.test.ts` → `projection_lag` bir turda kaldı, sonraki üç turda geçti. Yeniden üretilemedi,
