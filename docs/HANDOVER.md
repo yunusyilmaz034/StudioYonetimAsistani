@@ -360,6 +360,57 @@ düşmez, log bile tutulmaz. Teklif: doğrulanmış bir ödeme terminal bir inte
 dönmek yerine **bağırmak** (`logger.error`) ve `manual_review`a düşürmek. Sessizliğin kendisi bu
 vakanın bulunmasını tesadüfe bıraktı.
 
+## 🧾 6 Ekim — Esra Tepe: 24 Ders iptal, 8 Ders kaldı, kullanılan 3 ders üyede
+
+Owner: *"24 ders iptal olup 8 ders olacak ama bugüne kadar kullandığı kredileri geri vermiyoruz,
+onları 8 dersten düşeceğiz, var olan rezervasyonlarını ellemeyeceğiz… ne borçlu ne alacaklı."* +
+*"31-08 olarak yine başlatacaksın paketi."*
+
+**Tablo anlatılandan FARKLIYDI, ölçüm gösterdi.** 31 Ağustos'ta tam TERS düzeltme yapılmış:
+resepsiyon 8 Ders / 4.200 ₺ yazmış, **11.000 ₺ havale geldiği varsayılarak** 24 Ders / 11.000 ₺
+kurulmuş. 6.800 ₺ farkı owner'a sordum — cevap: **"11.000 ₺ hiç gelmedi."** Gerçek tahsilat 4.200 ₺.
+
+**PARA.** 11.000 ₺ ödeme + 24 Ders satışı iptal; 8 Ders / 4.200 ₺ satışı ve tahsilatı **gerçek
+tarihiyle** (31.08.2026 19:24:51) yeniden kuruldu → satış `settled`, 4.200 / 4.200 ₺, bakiye **0**.
+Ürün ve tutar iptal edilmiş kaydın KENDİSİNDEN okundu, tahmin edilmedi.
+
+**KREDİ — ve bu kararın özü: yeni paket AÇILMADI.** Yeni bir 8'lik pakette kullanılmış 3 dersi
+dürüst yazmanın yolu yok: idari azaltma `revoked`a düşer, `consumed` ise *"bir ders bunu aldı"*
+demektir. Rebuild, defteri yalan söylemeye zorlardı. Mevcut paketten 16 kredi geri alındı:
+
+```
+granted 8 + restored 16 − consumed 3 − revoked 16 = KALAN 5      ( = 8 − kullanılan 3 )
+```
+
+`consumed 3` üç dersin gerçekten aldığını, `revoked 16` 31 Ağustos'ta yanlışla eklenen 16'nın geri
+alındığını söyler. Paketin kimliği, 31.08 başlangıcı ve 7 rezervasyonun tamamı dokunulmadan kaldı —
+betik **açık rezervasyon olmadığını ölçerek** doğruluyor (3 attended, 4 cancelled, **0 booked**).
+
+**ETİKET.** Anlık görüntü 31 Ağustos düzeltmesinden "24 Ders" kalmıştı; owner *"etiketi de düzelt"*
+dedi. `productSnapshot` (ürün · ad · kredi 24→8 · liste fiyatı) ve `priceAgreed` (11.000→4.200 ₺)
+düzeltildi. **Yeni olay türü eklenmedi:** `entitlement.amended` zaten jenerik bir düzeltme olayı
+(from→to + zorunlu sebep, AD-22), yani kalıcı şema eklemesi, golden fixture ve upcaster gerekmedi.
+
+**İKİ ALANA BİLEREK DOKUNULMADI**, gerekçesi olayın içinde yazılı:
+- **Süre 90 gün kaldı** (31.08 → 29.11). 8 Ders ürünü **30 günlük**; eşitlemek paketi 30.09'da
+  bitmiş sayar ve üyenin **kalan 5 kredisini yakardı**. Etiketi düzeltmek, üyeye ders kaybettirmek
+  değildir — ve `validUntil` ile `validForDays: 90` böylece tutarlı kalıyor.
+- **`dailyReservationLimit` null kaldı.** 8 Ders ürününde 1; etiket düzeltmesinin yan etkisi olarak
+  üyeye yeni bir kısıt getirmek, istenmeyen bir kural değişikliği olurdu.
+
+**İLERİSİ İÇİN İKİ NOT:**
+1. **Üst düzey `productId`/`policyRef` 31 Ağustos'tan beri 8 Ders'i gösteriyordu; geride kalan tek
+   şey `productSnapshot`tı.** Bir ürün düzeltmesinden sonra snapshot'ın ayrı kalıp kalmadığı
+   KONTROL EDİLMELİ — ekran ve raporlar snapshot'ı okuyor.
+2. **`SellInput`'ta `soldAt` yok — bu DÖRDÜNCÜ vaka** (Burcu · Melisa · Duygu · Esra). Ciro
+   ödemenin tarihinden doğru yazılıyor ama satışın "satış anı" bugün görünüyor. Bu belgede
+   "üçüncüde eklenmeli" yazıyordu; artık geciken bir borç.
+
+**KENDİ HATAM, kayda geçsin:** önce "snapshot'ı düzelten desteklenen bir işlem yok" dedim, sonra
+`decideSyncSnapshotToProduct`u bulup bunu geri aldım, sonra kaynağını okuyunca ilk cevabın doğru
+olduğu çıktı — o fonksiyon farklı bir `productId`yi `operation_not_applicable` ile reddediyor ve
+yalnızca `category`/`serviceIds` eşitliyor. **Ders: dosya adına göre değil, DAVRANIŞA göre ara.**
+
 ## 🔔 5 Ekim — kapanmış linke gelen ödeme artık BAĞIRIYOR (owner: *"emniyeti yap"*)
 
 Merve Parladı vakasının kök sebebi kapandı. `decideCallbackResult`un ilk dalı iki farklı şeye
