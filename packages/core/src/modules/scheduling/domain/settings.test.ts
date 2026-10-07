@@ -24,6 +24,7 @@ const ctx = {
 
 const settings = (over: Partial<StudioSettings> = {}): StudioSettings => ({
   studioId: 'std_1' as StudioId,
+  workingTime: null,
   defaultCancellationWindowHours: 6,
   lowCreditThreshold: 2,
   discountCeilingPercent: 20,

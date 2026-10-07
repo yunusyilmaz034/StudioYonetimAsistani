@@ -95,7 +95,7 @@ export {
   type TemplateWeek,
   type WeekParity,
 } from './domain/shift-template'
-export { dakika, gecerliSaat } from './domain/week-plan'
+export { dakika, gecerliSaat } from './domain/time-of-day'
 
 // ── Ara dinlenmesi ve haftalık çizelge (owner, 2026-10-06/07) ───────────────────────────────
 export type { BreakSource } from './events'

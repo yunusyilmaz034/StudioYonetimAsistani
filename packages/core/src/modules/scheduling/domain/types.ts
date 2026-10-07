@@ -103,6 +103,27 @@ export interface StudioSettings {
    *  DATA, never a literal: a studio turns it on/off and picks the lead time without a deploy. `null` ⇒
    *  never configured (off). Fitness has no fixed time, so it is never automatic — sent by hand instead. */
   readonly classReminder: ClassReminderSettings | null
+  /**
+   * ÇALIŞMA SÜRESİ SINIRLARI (owner, 2026-10-06/07 · OR-119). DATA, never a literal — the whole point:
+   * OR-72 refused to write an HR system because *"İş Kanunu'nu koda gömer ve her yıl çürür."* Here the
+   * law lives in the settings document, so a change costs an edit and not a deploy.
+   *
+   * Shape MIRRORS `identity`'s `WorkingTimeLimits` rather than importing it — the same reason
+   * `notifications` and `fitness` are mirrored: one struct is not worth moving `scheduling` behind
+   * another module in the dependency graph. The two must change together.
+   *
+   * `null` ⇒ never configured; the week-plan validation then has no numbers and refuses rather than
+   * inventing any.
+   */
+  readonly workingTime: WorkingTimeLimitsConfig | null
+}
+
+/** Mirror of `identity`'s `WorkingTimeLimits` (OR-119). Minutes, integers — never float hours. */
+export interface WorkingTimeLimitsConfig {
+  readonly legalNormalWeeklyMaxMinutes: number
+  readonly dailyNetMaxMinutes: number
+  /** Artan `uptoNetMinutes`; son kademe `null` taşır ("bundan yukarısı"). */
+  readonly breakTiers: readonly { readonly uptoNetMinutes: number | null; readonly minBreakMinutes: number }[]
 }
 
 // The automatic class-reminder rule. Read by the scheduled sweep (`class-reminders.ts`). Off by default;

@@ -138,6 +138,9 @@ export async function updateStudioSettingsAction(input: unknown) {
   const next: StudioSettings = {
     studioId: ctx.studioId,
     timeZone: current?.timeZone ?? DEFAULT_TIME_ZONE,
+    // ÇALIŞMA SÜRESİ SINIRLARI (OR-119) formda YOK — saklanıyor ve plan doğrulaması kullanıyor.
+    // Buraya `null` yazmak, herhangi bir ayarı kaydetmenin limitleri sessizce silmesi demek olurdu.
+    workingTime: current?.workingTime ?? null,
     // Normalise the optional maps link to null (never an explicit `undefined`, which
     // exactOptionalPropertyTypes rejects on an optional `string | null` field).
     company: p.company ? { ...p.company, mapsUrl: p.company.mapsUrl ?? null } : null,

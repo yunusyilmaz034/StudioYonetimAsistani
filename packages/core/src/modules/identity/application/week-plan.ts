@@ -14,6 +14,7 @@ import {
   decideSubmitWeekPlan,
 } from '../domain/week-plan'
 import type { StaffWeekPlan, WeekPlanEntries } from '../domain/types'
+import type { WorkingTimeLimits } from '../domain/working-time'
 import type { StaffWeekPlanDeps } from './ports'
 
 // ── HAFTALIK VARDİYA PLANI — use-case'ler (owner, 2026-09-14 · OR-77) ──────────────────────
@@ -43,13 +44,23 @@ const gecersiz = (weekStart: string): Result<never, DomainError> | null =>
 export function saveWeekPlanDraft(
   deps: StaffWeekPlanDeps,
   ctx: TenantContext,
-  input: { readonly weekStart: string; readonly entries: WeekPlanEntries },
+  input: {
+    readonly weekStart: string
+    readonly entries: WeekPlanEntries
+    /**
+     * OR-119 çalışma süresi limitleri — stüdyo ayarlarından gelir (`settings.workingTime`), çağıran
+     * okur. `null` geçmek "yapılandırılmamış" demektir ve sınamayı kapatır; bu yüzden ZORUNLU alan.
+     */
+    readonly limits: WorkingTimeLimits | null
+  },
 ): Promise<Result<StaffWeekPlan, DomainError>> {
   const red = gecersiz(input.weekStart)
   if (red) return Promise.resolve(red)
   const c = dctx(deps, ctx)
   const today = bugun(deps)
-  return deps.repo.updateWeekPlan(ctx, input.weekStart, (current) => decideSaveWeekPlanDraft(c, current, input, today))
+  return deps.repo.updateWeekPlan(ctx, input.weekStart, (current) =>
+    decideSaveWeekPlanDraft(c, current, input, today, input.limits),
+  )
 }
 
 export function submitWeekPlan(deps: StaffWeekPlanDeps, ctx: TenantContext, weekStart: string): Promise<Result<StaffWeekPlan, DomainError>> {

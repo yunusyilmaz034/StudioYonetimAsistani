@@ -146,6 +146,18 @@ export async function seedDemoData(trainerUid: string | null): Promise<void> {
       discountCeilingPercent: 20,
       defaultSessionDurationMinutes: 50,
       timeZone: 'Europe/Istanbul',
+      // ÇALIŞMA SÜRESİ SINIRLARI (OR-119) — stüdyonun KURULUM değerleri, Ayarlar'dan düzenlenebilir.
+      // `null` bırakmak "plan doğrulaması kapalı" demek olurdu; yeni bir stüdyonun sessizce sınırsız
+      // plan kaydedebilmesi özelliğin varlık sebebini ortadan kaldırır.
+      workingTime: {
+        legalNormalWeeklyMaxMinutes: 2700, // 45:00 — TAVAN, hedef değil
+        dailyNetMaxMinutes: 660, // 11:00 net
+        breakTiers: [
+          { uptoNetMinutes: 240, minBreakMinutes: 15 },
+          { uptoNetMinutes: 450, minBreakMinutes: 30 },
+          { uptoNetMinutes: null, minBreakMinutes: 60 },
+        ],
+      },
       company: {
         legalName: 'Demo Pilates ve Fitness Ltd. Şti.',
         displayName: 'Demo Stüdyo',

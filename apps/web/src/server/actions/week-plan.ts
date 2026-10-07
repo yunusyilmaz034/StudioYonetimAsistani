@@ -3,6 +3,7 @@
 import {
   DEFAULT_STUDIO_CONFIG,
   FirestoreIdentityRepository,
+  FirestoreSchedulingRepository,
   FirestoreStaffLeaveRepository,
   FirestoreStaffWeekPlanRepository,
   approveWeekPlan,
@@ -45,7 +46,18 @@ const deps = () => ({ repo: new FirestoreStaffWeekPlanRepository(adminDb()), clo
 const TARIH = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
 const ENTRIES = z.record(
   z.string().min(1).max(128),
-  z.record(TARIH, z.object({ start: z.string().regex(/^\d{2}:\d{2}$/), end: z.string().regex(/^\d{2}:\d{2}$/) })),
+  z.record(
+    TARIH,
+    z.object({
+      start: z.string().regex(/^\d{2}:\d{2}$/),
+      end: z.string().regex(/^\d{2}:\d{2}$/),
+      /**
+       * PLANLANAN ara dinlenmesi, dakika (OR-119). Opsiyonel: eski planlarda hiç yok ve "mola
+       * planlanmamış" ile "0 mola planlanmış" aynı şey değil. Üst sınır bir günün kendisi.
+       */
+      breakMinutes: z.number().int().min(0).max(1440).optional(),
+    }),
+  ),
 )
 
 export interface WeekPlanStaff {
@@ -132,7 +144,29 @@ export async function loadWeekPlanEditorAction(input: unknown): Promise<WeekPlan
 export async function saveWeekPlanDraftAction(input: unknown) {
   const p = z.object({ weekStart: TARIH, entries: ENTRIES }).parse(input)
   const ctx = await requireTenantContext(DUZENLEYEN)
-  const r = await saveWeekPlanDraft(deps(), ctx, { weekStart: p.weekStart, entries: p.entries })
+  // ÇALIŞMA SÜRESİ SINIRLARI (OR-119): sayılar ayar belgesinden geliyor, koddan değil (#4).
+  // Hiç yapılandırılmamışsa `null` — sınama yapılmaz; olmayan bir kuralı uydurmaktansa susar.
+  const ayarlar = await new FirestoreSchedulingRepository(adminDb()).getStudioSettings(ctx)
+  // `breakMinutes` gelmediyse anahtarı HİÇ koymuyoruz, `undefined` koymuyoruz: "mola yazılmamış" ile
+  // "0 mola planlanmış" aynı şey değil ve bütün doğrulama bu ayrımın üstünde duruyor.
+  const entries: WeekPlanEntries = Object.fromEntries(
+    Object.entries(p.entries).map(([uid, gunler]) => [
+      uid,
+      Object.fromEntries(
+        Object.entries(gunler).map(([gun, b]) => [
+          gun,
+          b.breakMinutes === undefined
+            ? { start: b.start, end: b.end }
+            : { start: b.start, end: b.end, breakMinutes: b.breakMinutes },
+        ]),
+      ),
+    ]),
+  )
+  const r = await saveWeekPlanDraft(deps(), ctx, {
+    weekStart: p.weekStart,
+    entries,
+    limits: ayarlar?.workingTime ?? null,
+  })
   return r.ok ? { ok: true as const } : r
 }
 

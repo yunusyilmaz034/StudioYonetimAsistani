@@ -130,6 +130,18 @@ function openingSettings(args: Args): StudioSettings {
     discountCeilingPercent: 20,
     defaultSessionDurationMinutes: 50,
     timeZone: args.timeZone,
+    // ÇALIŞMA SÜRESİ SINIRLARI (OR-119) — stüdyonun KURULUM değerleri, Ayarlar'dan düzenlenebilir.
+    // `null` bırakmak "plan doğrulaması kapalı" demek olurdu; yeni bir stüdyonun sessizce sınırsız
+    // plan kaydedebilmesi özelliğin varlık sebebini ortadan kaldırır.
+    workingTime: {
+      legalNormalWeeklyMaxMinutes: 2700, // 45:00 — TAVAN, hedef değil
+      dailyNetMaxMinutes: 660, // 11:00 net
+      breakTiers: [
+        { uptoNetMinutes: 240, minBreakMinutes: 15 },
+        { uptoNetMinutes: 450, minBreakMinutes: 30 },
+        { uptoNetMinutes: null, minBreakMinutes: 60 },
+      ],
+    },
     company: {
       legalName: args.studioName,
       displayName: args.studioName,

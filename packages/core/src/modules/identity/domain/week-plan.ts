@@ -21,6 +21,8 @@ import {
 } from '../events'
 import type { DecideContext } from './decide'
 import type { ShiftBlock, StaffLeave, StaffWeekPlan, WeekPlanEntries } from './types'
+import { validatePlannedWeek, type PlannedDay, type WorkingTimeLimits } from './working-time'
+import { SAAT, dakika } from './time-of-day'
 
 // ── HAFTALIK VARDİYA PLANI — kurallar (owner, 2026-09-14 · OR-77) ──────────────────────────
 //
@@ -39,7 +41,7 @@ import type { ShiftBlock, StaffLeave, StaffWeekPlan, WeekPlanEntries } from './t
 const GUN = 86_400_000
 /** 1970-01-05 bir pazartesiydi. Haftanın günü tarihten, `Date` olmadan hesaplanır. */
 const BIR_PAZARTESI = '1970-01-05'
-const SAAT = /^([01]\d|2[0-3]):([0-5]\d)$/
+
 const TARIH = /^\d{4}-\d{2}-\d{2}$/
 
 /** 'YYYY-MM-DD' günün haftasının pazartesisi. */
@@ -53,19 +55,6 @@ export function weekDates(weekStart: string): readonly string[] {
   return Array.from({ length: 7 }, (_, i) => addLocalDays(weekStart, i))
 }
 
-/**
- * 'HH:MM' → gün içindeki dakika. Geçersizse `NaN` — çağıran bunu kontrol eder.
- *
- * DIŞA VERİLDİ (2026-10-07): çalışma süresi hesabı da aynı ayrıştırmaya ihtiyaç duyuyor ve ikinci
- * bir kopya, iki farklı "10:00 kaç dakikadır" cevabı demek olurdu.
- */
-export const dakika = (hhmm: string): number => {
-  const m = SAAT.exec(hhmm)
-  return m ? Number(m[1]) * 60 + Number(m[2]) : Number.NaN
-}
-
-/** 'HH:MM' biçim denetimi — çalışma süresi hesabı da bunu kullanıyor. */
-export const gecerliSaat = (hhmm: string): boolean => SAAT.test(hhmm)
 
 const duzenleyebilir = (ctx: DecideContext) =>
   ctx.actor.type === 'owner' || ctx.actor.type === 'receptionist' || ctx.actor.type === 'platform_admin'
@@ -81,7 +70,20 @@ function normalize(entries: WeekPlanEntries): WeekPlanEntries {
     const gunler = entries[sid] ?? {}
     const tarihler = Object.keys(gunler).sort()
     if (tarihler.length === 0) continue
-    out[sid] = Object.fromEntries(tarihler.map((d) => [d, { start: gunler[d]!.start, end: gunler[d]!.end }]))
+    out[sid] = Object.fromEntries(
+      tarihler.map((d) => {
+        const b = gunler[d]!
+        // PLANLANAN mola korunuyor (OR-119). Alan YOKSA anahtar hiç yazılmıyor — "mola planlanmamış"
+        // ile "0 mola planlanmış" aynı şey değil, ve bu ayrım tipte de duruyor. Bu satır molayı
+        // düşürüyordu: plan kaydedilse molalar hiç saklanmazdı ve doğrulama brütü net sanırdı.
+        return [
+          d,
+          b.breakMinutes === undefined
+            ? { start: b.start, end: b.end }
+            : { start: b.start, end: b.end, breakMinutes: b.breakMinutes },
+        ]
+      }),
+    )
   }
   return out
 }
@@ -91,7 +93,9 @@ const esit = (a: WeekPlanEntries, b: WeekPlanEntries) => JSON.stringify(normaliz
 function hucreler(e: WeekPlanEntries | null): Map<string, string> {
   const m = new Map<string, string>()
   for (const [sid, gunler] of Object.entries(e ?? {})) {
-    for (const [d, b] of Object.entries(gunler)) m.set(`${sid}|${d}`, `${b.start}-${b.end}`)
+    // Mola imzanın PARÇASI: yalnızca molayı değiştirmek de değişikliktir. Dışarıda bırakılsaydı
+    // mola düzeltmesi "0 gün değişti" diye sayılır ve olay yanlış bir sayı taşırdı.
+    for (const [d, b] of Object.entries(gunler)) m.set(`${sid}|${d}`, `${b.start}-${b.end}+${b.breakMinutes ?? '-'}`)
   }
   return m
 }
@@ -110,6 +114,35 @@ function degisenGun(draft: WeekPlanEntries, published: WeekPlanEntries | null): 
   return n
 }
 
+/**
+ * ÇALIŞMA SÜRESİ SINIRLARI (owner, 2026-10-06/07 · OR-119): haftalık 45:00 net tavan, günlük 11:00,
+ * ve net çalışmaya göre minimum ara dinlenmesi. Her personel için AYRI ayrı sınanıyor.
+ *
+ * `breakMinutes` YAZILMAMIŞ bir gün: o gün mola-minimumu denetiminden muaf ama haftalık toplama
+ * `net = brüt` olarak sayılıyor. İkisi de bilinçli — "mola planlanmamış" ile "0 mola planlanmış" aynı
+ * şey değil, ve sayım bu yüzden BLOKE etme yönünde hata yapıyor: molası yazılmamış 5×11 saatlik bir
+ * hafta 55:00 net çıkar ve reddedilir. Doğru cevap bu; resepsiyonun molaları yazması gerekiyor.
+ *
+ * Limit yoksa sınanmıyor: olmayan bir kuralı uydurmak, yanlış bir kuralı uygulamaktan kötüdür.
+ */
+function sinirlariSina(
+  entries: WeekPlanEntries,
+  limits: WorkingTimeLimits | null,
+): Result<null, DomainError> {
+  if (!limits) return ok(null)
+  for (const gunler of Object.values(entries)) {
+    const gunListesi: PlannedDay[] = Object.values(gunler).map((b) => ({
+      start: b.start,
+      end: b.end,
+      breakMinutes: b.breakMinutes ?? 0,
+    }))
+    if (gunListesi.length === 0) continue
+    const r = validatePlannedWeek(gunListesi, limits)
+    if (!r.ok) return r
+  }
+  return ok(null)
+}
+
 /** Planın biçimi ve günleri. Geçerliyse normalize edilmiş kopyayı döndürür. */
 export function validateWeekPlanEntries(weekStart: string, entries: WeekPlanEntries): Result<WeekPlanEntries, DomainError> {
   if (!TARIH.test(weekStart) || instantFromLocalDate(weekStart, 0) === null || mondayOf(weekStart) !== weekStart) {
@@ -123,6 +156,12 @@ export function validateWeekPlanEntries(weekStart: string, entries: WeekPlanEntr
       if (!SAAT.test(b.start) || !SAAT.test(b.end)) return err({ code: 'week_plan_invalid' })
       // Eşit saat de reddedilir: 09:00–09:00 bir mesai değil, bir yazım hatasıdır.
       if (dakika(b.end) <= dakika(b.start)) return err({ code: 'invalid_time_range' })
+      // PLANLANAN mola (OR-119): tamsayı dakika, negatif olamaz, ve bloğun KENDİSİNDEN kısa olmalı.
+      // Mesaiye eşit ya da ondan uzun bir mola bir plan değil, bir yazım hatasıdır.
+      if (b.breakMinutes !== undefined) {
+        if (!Number.isInteger(b.breakMinutes) || b.breakMinutes < 0) return err({ code: 'week_plan_invalid' })
+        if (b.breakMinutes >= dakika(b.end) - dakika(b.start)) return err({ code: 'invalid_time_range' })
+      }
     }
   }
   return ok(normalize(entries))
@@ -165,11 +204,20 @@ export function decideSaveWeekPlanDraft(
   current: StaffWeekPlan | null,
   input: { readonly weekStart: string; readonly entries: WeekPlanEntries },
   today: string,
+  /**
+   * OR-119 limitleri. `null` ⇒ hiç yapılandırılmamış, sınama yapılmaz. ZORUNLU parametre (opsiyonel
+   * değil) çünkü bir çağıranın limitleri geçirmeyi UNUTMASI, sınamanın sessizce kapanması demek.
+   */
+  limits: WorkingTimeLimits | null,
 ): Karar {
   if (!duzenleyebilir(ctx)) return err({ code: 'week_plan_editor_required' })
   const gecerli = validateWeekPlanEntries(input.weekStart, input.entries)
   if (!gecerli.ok) return gecerli
   if (gecmis(input.weekStart, today)) return err({ code: 'week_plan_past' })
+  // Değişmemiş bir planı ikinci kez kaydetmek NO-OP sayılır — ama sınırların ÖNÜNDE değil: yasa dışı
+  // bir plan ne kabul edilir ne de "kaydedildi" diye sessizce onaylanır.
+  const sinir = sinirlariSina(gecerli.value, limits)
+  if (!sinir.ok) return sinir
 
   // Aynı taslağı ikinci kez kaydetmek bir eylem değildir; hiç planı olmayan haftaya boş kaydetmek de.
   if (current ? esit(current.draft, gecerli.value) : sayim(gecerli.value).blockCount === 0) {

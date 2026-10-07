@@ -371,6 +371,27 @@ export function decideUpdateStudioSettings(
   if (next.qr && (next.qr.tokenTtlSeconds <= 0 || next.qr.checkInWindowMinutes < 0)) {
     return err({ code: 'invalid_time_range' })
   }
+  // ÇALIŞMA SÜRESİ SINIRLARI (OR-119): sayılar veriden geliyor, ama saçma sayı da veri olabilir.
+  // Kademeler ARTAN olmalı ve sonu "bundan yukarısı" (`null`) ile kapanmalı — kapanmazsa bir net
+  // çalışma hiçbir kademeye düşmez ve minimum mola sessizce 0 olur.
+  const wt = next.workingTime
+  if (wt) {
+    if (wt.legalNormalWeeklyMaxMinutes <= 0 || wt.dailyNetMaxMinutes <= 0) return err({ code: 'invalid_time_range' })
+    if (wt.breakTiers.length === 0) return err({ code: 'working_time_limits_missing' })
+    let onceki = -1
+    for (const [i, t] of wt.breakTiers.entries()) {
+      if (t.minBreakMinutes < 0) return err({ code: 'invalid_time_range' })
+      const son = i === wt.breakTiers.length - 1
+      if (t.uptoNetMinutes === null) {
+        if (!son) return err({ code: 'working_time_limits_missing' })
+      } else {
+        if (son) return err({ code: 'working_time_limits_missing' })
+        if (t.uptoNetMinutes <= onceki) return err({ code: 'working_time_limits_missing' })
+        onceki = t.uptoNetMinutes
+      }
+    }
+  }
+
   for (const day of Object.values(next.workingHours ?? {})) {
     // A day that closes before it opens is not a short day; it is a typo that would silently make
     // every hour of it invalid.
@@ -405,9 +426,22 @@ export function decideUpdateStudioSettings(
     // persisted and why editing only these in the form did nothing.
     { key: 'fitness', a: current?.fitness ?? null, b: next.fitness },
     { key: 'paymentSurcharge', a: current?.paymentSurcharge ?? null, b: next.paymentSurcharge },
+    // OR-119 — çalışma süresi sınırları. `config` kovasında çünkü bir NESNE (skaler diff'i çalışmaz).
+    { key: 'workingTime', a: current?.workingTime ?? null, b: next.workingTime },
   ]
   for (const { key, a, b } of config) {
     if (JSON.stringify(a) !== JSON.stringify(b)) changedFields.push(key)
+  }
+
+  // ── TEK İSTİSNA: `workingTime`ın DEĞERLERİ de loglanıyor (OR-119) ──────────────────────────
+  //
+  // `company`/`qr` değerleri loglanmıyor çünkü PII ve log kalıcı. Burada o sebep tutmuyor: bunlar
+  // sayı, ve bir KURAL — "hangi limitler altında reddedildi" sorusunun cevabı. Ayar belgesi yalnızca
+  // BUGÜNKÜ değeri tutuyor; değerleri loglamazsak geçmiş bir ret hiç yeniden kurulamaz, ve bu özelliğin
+  // varlık sebebi denetlenebilirlikti.
+  if (changedFields.includes('workingTime')) {
+    values.workingTime = next.workingTime
+    values.previousWorkingTime = current?.workingTime ?? null
   }
 
   if (changedFields.length === 0) return ok([]) // idempotent: saving an unchanged form is not an act

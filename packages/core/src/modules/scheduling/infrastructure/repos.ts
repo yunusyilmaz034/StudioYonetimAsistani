@@ -98,6 +98,9 @@ export class FirestoreSchedulingRepository implements SchedulingRepository {
       notifications: (d.notifications as StudioSettings['notifications'] | undefined) ?? null,
       fitness: (d.fitness as StudioSettings['fitness'] | undefined) ?? null,
       paymentSurcharge: (d.paymentSurcharge as StudioSettings['paymentSurcharge'] | undefined) ?? null,
+      // OR-119 — çalışma süresi sınırları. Yapılandırılmamış stüdyoda `null`: plan doğrulaması o
+      // zaman hiçbir sayı bilmediği için sınamaz, uydurmaz.
+      workingTime: (d.workingTime as StudioSettings['workingTime'] | undefined) ?? null,
       showCancelledSessions: (d.showCancelledSessions as boolean | undefined) ?? null,
       classReminder: (d.classReminder as StudioSettings['classReminder'] | undefined) ?? null,
     }

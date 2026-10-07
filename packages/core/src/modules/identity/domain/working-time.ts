@@ -1,5 +1,5 @@
 import { err, ok, type DomainError, type Result } from '../../../shared'
-import { dakika, gecerliSaat } from './week-plan'
+import { dakika, gecerliSaat } from './time-of-day'
 
 // ── ÇALIŞMA SÜRESİ VE ARA DİNLENMESİ (owner, 2026-10-06/07) ─────────────────────────────────
 //
