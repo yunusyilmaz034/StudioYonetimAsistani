@@ -6,11 +6,14 @@ import {
   FirestoreCheckinRepository,
   FirestoreEntitlementRepository,
   FirestoreReservationRepository,
+  FirestoreStaffBreakRepository,
   FirestoreStaffShiftRepository,
   commitStaffCrossing,
+  endBreak,
   endShift,
   prepareStaffCrossing,
   staffCrossTurnstile,
+  startBreak,
   startShift,
   systemClock,
   type BranchId,
@@ -46,6 +49,30 @@ export async function startShiftAction(input: { branchId?: string | null } = {})
 export async function endShiftAction() {
   const ctx = await requireTenantContext(HERKES)
   return endShift(deps(), ctx, { staffUserId: String(ctx.actor.id) as StaffUserId })
+}
+
+// ── ARA DİNLENMESİ (owner, 2026-10-06/07 · OR-119) ──────────────────────────────────────────
+//
+// Mola personelin KENDİ panelinden başlatılıp bitirilir — turnikeden değil (owner §10). Fiziksel
+// giriş/çıkış ile mola iki ayrı kavram: kapıdan geçmek bir gözlem, molaya çıkmak bir karar.
+//
+// Aktör yine oturumun kendisi; `staffUserId` istemciden HİÇ alınmıyor. Vardiyada bu kuralın sebebi
+// neyse molada da aynı: bir başkasının molasını yazabilen biri, onun çalışma süresini de yazar.
+//
+// Sayaç tarayıcıda dönüyor, buraya saniyede bir yazılmıyor (owner §11): sunucu yalnızca başlangıcı
+// ve bitişi biliyor, aradaki her saniyeyi istemci `startedAt`ten hesaplıyor.
+const molaDeps = () => ({ repo: new FirestoreStaffBreakRepository(adminDb()), clock: systemClock })
+
+export async function startBreakAction() {
+  const ctx = await requireTenantContext(HERKES)
+  return startBreak(molaDeps(), new FirestoreStaffShiftRepository(adminDb()), ctx, {
+    staffUserId: String(ctx.actor.id) as StaffUserId,
+  })
+}
+
+export async function endBreakAction() {
+  const ctx = await requireTenantContext(HERKES)
+  return endBreak(molaDeps(), ctx, { staffUserId: String(ctx.actor.id) as StaffUserId })
 }
 
 // ── TURNİKEDEN MESAİ (owner, 2026-09-13 · OR-74) ────────────────────────────────────────────

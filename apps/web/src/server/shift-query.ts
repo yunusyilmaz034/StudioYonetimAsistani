@@ -1,6 +1,8 @@
 import 'server-only'
 
 import {
+  dayTotals,
+  FirestoreStaffBreakRepository,
   DEFAULT_STUDIO_CONFIG,
   FirestoreCheckinRepository,
   FirestoreIdentityRepository,
@@ -73,8 +75,29 @@ export interface MyWeek {
   readonly days: readonly { readonly date: string; readonly block: ShiftBlock | null; readonly leave: string | null }[]
 }
 
+/**
+ * BUGÜNÜN MOLA DURUMU (owner, 2026-10-06/07 · OR-119).
+ *
+ * Sunucu yalnızca üç şey veriyor: kapanmış molaların toplamı, açık molanın başlangıcı ve planlı
+ * sayılar. Aradaki her saniyeyi tarayıcı `startedAt`ten hesaplıyor — backend'e saniyede bir yazmak
+ * da, saniyede bir okumak da gereksiz (owner §11).
+ */
+export interface MolaDurumu {
+  /** Açık mola varsa başlangıcı; sayaç bundan hesaplanır. `null` ⇒ çalışıyor. */
+  readonly acikBaslangic: number | null
+  /** Bugün KAPANMIŞ molaların toplamı (dk). Açık mola buna dahil DEĞİL — onu istemci ekliyor. */
+  readonly kapanmisDk: number
+  /** Bugünün YAYINDAKİ planından mola (dk). `null` ⇒ plan yok ya da plan bu alandan önce onaylandı. */
+  readonly planliDk: number | null
+  /** Planlanan net çalışma (dk) ve planlı çıkış saati ('HH:MM'). Plan yoksa null. */
+  readonly planNetDk: number | null
+  readonly planCikis: string | null
+}
+
 export interface ShiftView {
   readonly benimAcik: ShiftRow | null
+  /** Bugünün mola durumu — personelin kendi kartı için. */
+  readonly molam: MolaDurumu
   /** Listenin günü, 'YYYY-MM-DD' (stüdyonun yerel günü). */
   readonly tarih: string
   /**
@@ -105,7 +128,9 @@ export async function loadShiftView(ctx: TenantContext, dateStr: string): Promis
   const buHafta = mondayOf(bugun)
   const haftalarim = [buHafta, addLocalDays(buHafta, 7)]
   const planDeps = { repo: new FirestoreStaffWeekPlanRepository(db), clock: systemClock, utcOffsetMinutes: OFF }
-  const [acik, gunlukler, gecisler, personel, cihazlar, planlar, izinlerim] = await Promise.all([
+  const molalar = new FirestoreStaffBreakRepository(db)
+  const [bugunBas, bugunBit] = studioDayRange(bugun)
+  const [acik, gunlukler, gecisler, personel, cihazlar, planlar, izinlerim, acikMola, bugunMolalar] = await Promise.all([
     shifts.getOpenShift(ctx, ben),
     // Gün listesi yalnızca owner için okunuyor: göstermeyeceğimiz bir şeyi okumak, sızıntının
     // en ucuz hâlidir.
@@ -132,6 +157,10 @@ export async function loadShiftView(ctx: TenantContext, dateStr: string): Promis
     // değil, en fazla üç doğrudan okuma; indeks gerekmiyor.
     loadWeekPlans(planDeps, ctx, ownerMu ? [mondayOf(dateStr)] : haftalarim),
     ownerMu ? Promise.resolve([]) : new FirestoreStaffLeaveRepository(db).listLiveLeavesOf(ctx, ben),
+    molalar.getOpenBreak(ctx, ben),
+    // BUGÜNÜN molaları — kartın "kullanılan" sayısı. Aralık sorgusu tek alan üzerinde, bileşik
+    // index istemiyor.
+    molalar.listBreaksBetween(ctx, bugunBas, bugunBit),
   ])
 
   const ad = new Map(personel.map((s) => [String(s.id), s.displayName]))
@@ -217,8 +246,24 @@ export async function loadShiftView(ctx: TenantContext, dateStr: string): Promis
         }
       })
 
+  // BUGÜNÜN PLANI: mola sayıları her zaman bugüne ait, owner başka bir günü gezse de — kart
+  // "BUGÜN" diyor. Yayındaki plan; taslak personele gösterilmez (OR-77).
+  const bugunBlok = planlar.find((p) => p.weekStart === buHafta)?.published?.[String(ben)]?.[bugun] ?? null
+  const planliMolaDk = bugunBlok?.breakMinutes ?? null
+  const planToplam = bugunBlok ? dayTotals({ start: bugunBlok.start, end: bugunBlok.end, breakMinutes: planliMolaDk ?? 0 }) : null
+  const molam: MolaDurumu = {
+    acikBaslangic: acikMola ? (acikMola.startedAt as number) : null,
+    kapanmisDk: bugunMolalar
+      .filter((m) => String(m.staffUserId) === String(ben) && m.endedAt !== null)
+      .reduce((a, m) => a + Math.max(0, Math.floor(((m.endedAt as number) - (m.startedAt as number)) / 60_000)), 0),
+    planliDk: planliMolaDk,
+    planNetDk: planToplam?.netMinutes ?? null,
+    planCikis: bugunBlok?.end ?? null,
+  }
+
   return {
     benimAcik: acik ? satir(acik) : null,
+    molam,
     tarih: dateStr,
     gunluk,
     benimHaftam,

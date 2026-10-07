@@ -1,8 +1,8 @@
 'use client'
 
-import { useCallback, useRef, useState, useTransition } from 'react'
+import { useCallback, useEffect, useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { CameraIcon, CheckCircle2Icon, ChevronLeftIcon, ChevronRightIcon, LogInIcon, LogOutIcon, XIcon } from 'lucide-react'
+import { CameraIcon, CheckCircle2Icon, ChevronLeftIcon, ChevronRightIcon, CoffeeIcon, LogInIcon, LogOutIcon, PlayIcon, XIcon } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { shiftDate } from '@/components/calendar/date-utils'
@@ -11,7 +11,7 @@ import { QrScanner } from '@/components/qr-scanner'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { domainErrorMessage } from '@/lib/domain-error'
-import { endShiftAction, staffCrossTurnstileAction, startShiftAction } from '@/server/actions/shift'
+import { endBreakAction, endShiftAction, staffCrossTurnstileAction, startBreakAction, startShiftAction } from '@/server/actions/shift'
 import { IzinPanel } from './izin-panel'
 import type { ShiftView } from '@/server/shift-query'
 
@@ -26,6 +26,16 @@ const saat = (ms: number) => new Date(ms).toLocaleTimeString('tr-TR', { hour: '2
 const sure = (bas: number, bit: number | null): string => {
   const dk = Math.max(0, Math.floor(((bit ?? Date.now()) - bas) / 60_000))
   return dk < 60 ? `${dk} dk` : `${Math.floor(dk / 60)} sa ${dk % 60} dk`
+}
+
+/** Dakika → `SS:DD`. Plan ve toplam sayılar böyle okunuyor. */
+const ssdd = (dk: number) => `${Math.floor(Math.max(0, dk) / 60)}:${String(Math.max(0, dk) % 60).padStart(2, '0')}`
+
+/** Milisaniye → `SS:DD:SS`. Yalnızca CANLI mola sayacı için — saniye orada anlamlı. */
+const sayac = (ms: number) => {
+  const t = Math.max(0, Math.floor(ms / 1000))
+  const s2 = (n: number) => String(n).padStart(2, '0')
+  return `${s2(Math.floor(t / 3600))}:${s2(Math.floor((t % 3600) / 60))}:${s2(t % 60)}`
 }
 
 /** Kod hataları üye ekranı için yazılmış ("üyeden kodu yenilemesini isteyin"); burada okutan kişi kendisi. */
@@ -55,6 +65,46 @@ export function MesaiScreen({ view, ownerMu, bugun }: { view: ShiftView; ownerMu
   // jsQR aynı kareyi saniyede birkaç kez çözüyor; ilk istek dönmeden ikincisi gitmesin.
   const busyRef = useRef(false)
   const acik = view.benimAcik
+  const molam = view.molam
+
+  // ── CANLI SAYAÇ (owner §11) ────────────────────────────────────────────────────────────────
+  //
+  // Saniye TARAYICIDA dönüyor; sunucuya saniyede bir ne yazılıyor ne okunuyor. Sunucudan gelen tek
+  // şey başlangıç zamanları — geri kalanı buradan hesaplanıyor. Açık mesai yoksa sayaç hiç dönmüyor:
+  // sayacak bir şey olmadığında her saniye yeniden render etmek bedava değil.
+  const [simdi, setSimdi] = useState<number>(() => Date.now())
+  useEffect(() => {
+    if (!acik) return
+    const iv = window.setInterval(() => setSimdi(Date.now()), 1000)
+    return () => window.clearInterval(iv)
+  }, [acik])
+
+  const molada = molam.acikBaslangic !== null
+  const acikMolaMs = molada ? Math.max(0, simdi - molam.acikBaslangic!) : 0
+  const kullanilanDk = molam.kapanmisDk + Math.floor(acikMolaMs / 60_000)
+  const bulunmaDk = acik ? Math.max(0, Math.floor((simdi - acik.startedAt) / 60_000)) : 0
+  // Mola çalışma süresine EKLENMEZ (owner §4): net = bulunma − mola, ve eksiye düşmez.
+  const netDk = Math.max(0, bulunmaDk - kullanilanDk)
+  const kalanPlanliDk = molam.planliDk === null ? null : Math.max(0, molam.planliDk - kullanilanDk)
+  const planDisiDk = molam.planliDk === null ? 0 : Math.max(0, kullanilanDk - molam.planliDk)
+
+  /** Molanın kendi çalıştırıcısı: vardiyanın toast metinleri ("Mesai başladı") moladakiyle aynı değil. */
+  async function molaCalistir(f: () => Promise<{ ok: boolean; error?: unknown }>, basarili: string) {
+    setBusy(true)
+    try {
+      const res = await f()
+      if (res.ok) {
+        toast.success(basarili)
+        start(() => router.refresh())
+      } else {
+        toast.error(domainErrorMessage(res.error as Parameters<typeof domainErrorMessage>[0]))
+      }
+    } catch {
+      toast.error('İşlem yapılamadı. Bağlantınızı kontrol edin.')
+    } finally {
+      setBusy(false)
+    }
+  }
 
   async function calistir(f: () => Promise<{ ok: boolean; error?: unknown }>) {
     setBusy(true)
@@ -189,6 +239,83 @@ export function MesaiScreen({ view, ownerMu, bugun }: { view: ShiftView; ownerMu
             {acik ? 'Mesaiyi bitir' : 'Mesaiye başla'}
           </Button>
         )}
+
+        {/* ── ARA DİNLENMESİ (owner, 2026-10-06/07 · OR-119) ──────────────────────────────────
+            Turnike dalının DIŞINDA, bilerek: mola fiziksel giriş/çıkıştan ayrı bir kavram ve
+            personelin kendi panelinden yönetiliyor (owner §10). Kapıdan geçmek bir gözlem,
+            molaya çıkmak bir karar. */}
+        <div className="space-y-3 border-t border-border pt-4">
+          {molada ? (
+            <div className="space-y-1">
+              <p className="text-sm font-medium text-warning">MOLADASIN</p>
+              <p className="text-3xl font-semibold tabular-nums" aria-live="off">
+                {sayac(acikMolaMs)}
+              </p>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              {acik ? 'Çalışıyorsun.' : 'Mola için açık bir mesain olması gerekiyor.'}
+            </p>
+          )}
+
+          {acik ? (
+            <dl className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
+              <dt className="text-muted-foreground">Gerçek net çalışma</dt>
+              <dd className="text-right font-medium tabular-nums">{ssdd(netDk)}</dd>
+
+              <dt className="text-muted-foreground">Kullanılan mola</dt>
+              <dd className="text-right font-medium tabular-nums">
+                {ssdd(kullanilanDk)}
+                {molam.planliDk !== null ? <span className="text-muted-foreground"> / {ssdd(molam.planliDk)}</span> : null}
+              </dd>
+
+              {/* "Plan yok" ile "0 saat plan" aynı şey DEĞİL — biri bilgi eksikliği, öbürü bir karar. */}
+              <dt className="text-muted-foreground">Kalan planlı mola</dt>
+              <dd className="text-right font-medium tabular-nums">
+                {kalanPlanliDk === null ? <span className="text-muted-foreground">plan yok</span> : ssdd(kalanPlanliDk)}
+              </dd>
+
+              {planDisiDk > 0 ? (
+                <>
+                  <dt className="text-warning">Plan dışı mola</dt>
+                  <dd className="text-right font-medium tabular-nums text-warning">+{ssdd(planDisiDk)}</dd>
+                </>
+              ) : null}
+
+              {molam.planNetDk !== null ? (
+                <>
+                  <dt className="text-muted-foreground">Planlanan net çalışma</dt>
+                  <dd className="text-right tabular-nums text-muted-foreground">{ssdd(molam.planNetDk)}</dd>
+                </>
+              ) : null}
+
+              {molam.planCikis !== null ? (
+                <>
+                  <dt className="text-muted-foreground">Planlanan çıkış</dt>
+                  <dd className="text-right tabular-nums text-muted-foreground">{molam.planCikis}</dd>
+                </>
+              ) : null}
+            </dl>
+          ) : null}
+
+          {/* Planlı süre dolsa da düğme KİLİTLENMİYOR (owner §5): gerçeği gizlemek için olay
+              oluşmasını engellemek, ihlali kayıttan silmek olurdu. Fazlası "plan dışı" yazılıyor. */}
+          <Button
+            size="lg"
+            className="min-h-12 w-full"
+            variant={molada ? 'default' : 'outline'}
+            disabled={busy || pending || !acik}
+            onClick={() =>
+              void molaCalistir(
+                molada ? endBreakAction : startBreakAction,
+                molada ? 'Mola bitti. Kolay gelsin!' : 'Mola başladı.',
+              )
+            }
+          >
+            {molada ? <PlayIcon className="size-5" /> : <CoffeeIcon className="size-5" />}
+            {molada ? 'Molayı bitir' : 'Molaya başla'}
+          </Button>
+        </div>
       </Card>
 
       {/* HAFTAM (owner, 2026-09-14 · OR-77): *"personel de kendi ekranında bu mesai tablosunu görüp ben
