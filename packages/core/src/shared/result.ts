@@ -206,6 +206,18 @@ export type DomainError =
   // Açık vardiya varken ikincisi açılmaz: gün sonunda hangisinin gerçek olduğu bilinemez olurdu.
   | { readonly code: 'shift_already_open' }
   | { readonly code: 'no_open_shift' }
+  // ── Çalışma süresi ve ara dinlenmesi (owner, 2026-10-06/07) ──
+  // Sayılar payload'da taşınıyor: mesaj "45 saati aşıyor" demekle yetinmez, KAÇ olduğunu söyler.
+  // Limitler veride durduğu için `allowedMinutes` de verinin kendisinden gelir, koddan değil.
+  | { readonly code: 'working_time_limits_missing' }
+  | { readonly code: 'weekly_normal_work_exceeded'; readonly netMinutes: number; readonly allowedMinutes: number }
+  | { readonly code: 'daily_net_work_exceeded'; readonly netMinutes: number; readonly allowedMinutes: number }
+  | {
+      readonly code: 'break_below_minimum'
+      readonly netMinutes: number
+      readonly breakMinutes: number
+      readonly requiredMinutes: number
+    }
   // ── freeze (v1.27 S3 · owner, 2026-07-13 · closes DEBT-009) ──
   | { readonly code: 'freeze_not_allowed' }
   | { readonly code: 'freeze_budget_exhausted' }

@@ -2,6 +2,10 @@ import type { DomainError } from '@studio/core'
 
 // Every DomainError code maps to exactly one Turkish message, in one file (Doc 6
 // §7). The domain layer never contains a Turkish string.
+/** Dakika → `SS:DD`. Çalışma süresi mesajları saat ve dakikayı birlikte söyler. */
+const sure = (dakika: number): string =>
+  `${Math.floor(Math.max(0, dakika) / 60)}:${String(Math.max(0, dakika) % 60).padStart(2, '0')}`
+
 export function domainErrorMessage(error: DomainError): string {
   switch (error.code) {
     case 'invalid_phone':
@@ -347,6 +351,15 @@ export function domainErrorMessage(error: DomainError): string {
       return 'Bir rapora en fazla 10 sayfa eklenebilir.'
     case 'no_open_shift':
       return 'Açık bir mesain yok. Önce mesaiyi başlat.'
+    // ── Çalışma süresi (owner, 2026-10-06/07) ──
+    case 'working_time_limits_missing':
+      return 'Çalışma süresi sınırları tanımlı değil. Ayarlar → Genel bölümünden girilmesi gerekiyor.'
+    case 'weekly_normal_work_exceeded':
+      return `Bu plan haftalık normal çalışma süresini aşıyor. Planlanan net süre: ${sure(error.netMinutes)} · İzin verilen: ${sure(error.allowedMinutes)}.`
+    case 'daily_net_work_exceeded':
+      return `Günlük net çalışma sınırı aşılıyor. Planlanan: ${sure(error.netMinutes)} · İzin verilen: ${sure(error.allowedMinutes)}.`
+    case 'break_below_minimum':
+      return `${sure(error.netMinutes)} net çalışma için en az ${sure(error.requiredMinutes)} ara dinlenmesi gerekir; planlanan ${sure(error.breakMinutes)}.`
     // ── Program sürümü geri çekme (owner onayı, 2026-09-03) ──
     case 'program_version_not_found':
       return 'Bu sürüm bulunamadı. Sayfayı yenileyip tekrar deneyin.'

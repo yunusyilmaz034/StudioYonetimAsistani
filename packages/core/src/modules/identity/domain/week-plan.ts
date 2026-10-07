@@ -53,10 +53,19 @@ export function weekDates(weekStart: string): readonly string[] {
   return Array.from({ length: 7 }, (_, i) => addLocalDays(weekStart, i))
 }
 
-const dakika = (hhmm: string): number => {
+/**
+ * 'HH:MM' → gün içindeki dakika. Geçersizse `NaN` — çağıran bunu kontrol eder.
+ *
+ * DIŞA VERİLDİ (2026-10-07): çalışma süresi hesabı da aynı ayrıştırmaya ihtiyaç duyuyor ve ikinci
+ * bir kopya, iki farklı "10:00 kaç dakikadır" cevabı demek olurdu.
+ */
+export const dakika = (hhmm: string): number => {
   const m = SAAT.exec(hhmm)
   return m ? Number(m[1]) * 60 + Number(m[2]) : Number.NaN
 }
+
+/** 'HH:MM' biçim denetimi — çalışma süresi hesabı da bunu kullanıyor. */
+export const gecerliSaat = (hhmm: string): boolean => SAAT.test(hhmm)
 
 const duzenleyebilir = (ctx: DecideContext) =>
   ctx.actor.type === 'owner' || ctx.actor.type === 'receptionist' || ctx.actor.type === 'platform_admin'

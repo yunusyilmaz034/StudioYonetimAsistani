@@ -70,3 +70,29 @@ export type { StaffLeaveDocument } from './domain/types'
 // Vardiya planında görünmek (owner, 2026-09-14 · OR-77): kimin planlanacağı bir rol değil, owner'ın kararı.
 export { setShiftPlanMembership } from './application/staff'
 export { decideSetShiftPlanMembership } from './domain/decide'
+
+// ── Çalışma süresi, ara dinlenmesi ve A/B hafta döngüsü (owner, 2026-10-06/07) ──────────────
+//    SAF ve SAYISIZ: limitler `WorkingTimeLimits` olarak dışarıdan geçer (#4). Şablon ÜRETİR,
+//    onaylanmış haftalık plan KARAR VERİR.
+export {
+  compareDay,
+  dayTotals,
+  minimumBreakMinutes,
+  netWorkMinutes,
+  validatePlannedWeek,
+  type BreakTier,
+  type DayComparison,
+  type DayTotals,
+  type PlannedDay,
+  type WeekTotals,
+  type WorkingTimeLimits,
+} from './domain/working-time'
+export {
+  templateWeekDays,
+  weekParityAt,
+  type IsoWeekday,
+  type ShiftTemplate,
+  type TemplateWeek,
+  type WeekParity,
+} from './domain/shift-template'
+export { dakika, gecerliSaat } from './domain/week-plan'
