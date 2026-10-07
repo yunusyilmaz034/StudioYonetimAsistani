@@ -110,7 +110,13 @@ export {
   type RetroEntryWindow,
   type StartBreakInput,
 } from './domain/break'
-export { decideGenerateTimesheet, decideSignTimesheet } from './domain/timesheet'
+export {
+  buildTimesheetSnapshot,
+  decideGenerateTimesheet,
+  decideSignTimesheet,
+  sameTimesheetContent,
+  type TimesheetSnapshot,
+} from './domain/timesheet'
 export {
   closeOpenBreakWithShift,
   correctBreak,

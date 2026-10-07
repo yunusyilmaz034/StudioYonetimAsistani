@@ -426,10 +426,31 @@ süpürgesi zaten oraya kapatacak). Eğitmenin kendi kartı ise hâlâ şimdiye 
 ekran farklı net gösterebilir — owner'a söylendi, karar bekliyor. **(2)** Geçmiş bir günde açık kalmış mola
 SAYILMIYOR, "kapanmamış, sayılmadı" diye yazılıyor (#11).
 
-**Kalanlar (yarım iş).** Gece kapanış fonksiyonu (`closeOpenBreakWithShift`) henüz zamanlanmış işe bağlanmadı —
-23:00'da açık kalan mola şimdilik açık kalır. `/mesai` mola bölümüne, plan hücresinin yeni mola alanına ve Faz 5
-satırlarına **375 px'te hiç bakılmadı**. Şablon kalıcılığı ("şablondan doldur") ayrı adım. Günlük/haftalık
-rapor + basılacak çizelge (Faz 6) ve düzeltme/imza ekranları (Faz 7) yazılmadı.
+**Faz 6 — haftalık rapor ve basılacak çizelge (7 Ekim gecesi, commit edildi, DEPLOY EDİLMEDİ, tarayıcıda HİÇ
+AÇILMADI — `next build` geçiyor).** Yeni ekran `/mesai/cizelge` (patron + resepsiyon; eğitmen `/mesai`ya döner),
+`/mesai`nın altındaki bağlantıdan açılıyor. Kişi başına yedi gün: plan · bulunma · mola · net · plan dışı · plandan
+az/fazla, ve hafta toplamı. **"Çizelgeleri üret"** o haftanın kâğıtlarını DONDURUR (`staffTimesheets`,
+`staff.timesheet_generated`); **"Yazdır"** `/mesai/cizelge/yazdir` — A4 tablo + iki imza yeri — KAYITLI sürümü
+basar, canlı hesabı asla. Kayıt sonradan değiştiyse ekran söyler; yeniden üretmek yeni sürüm verir, eskisi durur.
+- **Hesap tek yerde:** `buildTimesheetSnapshot` (saf, `domain/timesheet.ts`, 14 test). Vardiya BAŞLADIĞI yerel
+  güne yazılır; kapanmamış vardiya son geçişe kadar, geçişi yoksa 0; açık mola sayılmaz; mola vardiyasının gününe
+  aittir; planı olmayan günde kıyas yoktur. Snapshot istemciden ALINMAZ — sunucu kayıttan hesaplar.
+- **Bulunan hata:** "aynı içerik yeniden üretilmez" kuralı `JSON.stringify(nesne)` ile karşılaştırıyordu; depodan
+  dönen belgenin anahtar sırası farklı olabildiği için kural canlıda hiç tutmayabilirdi ve her basış yeni sürüm
+  üretirdi. Karşılaştırma artık alanları sabit sırayla yazıyor (`sameTimesheetContent`), testi var.
+- **Gece işi bağlandı:** `close-staff-shifts` artık kapanan vardiyanın açık molasını da kapatıyor (`auto_closed`).
+  **Functions deploy'u gerekiyor** — yapılana kadar 23:00'da açık kalan mola açık kalır. Mola kapanışı vardiyadan
+  ayrı işlem; arada ölürse `staff break close failed` HATA logu basar (o mola ertesi gece kapanmaz, elle düzeltilir).
+- **Owner'ın söylemesi gerekenler:** (1) Pazardan önce üretim KİLİTLİ DEĞİL, yalnızca uyarıyor — kilit istenirse
+  bu bir ret kuralıdır ve `decideGenerateTimesheet`'e girer. (2) Kâğıtta imza BEYAN METNİ yok, yalnızca imza
+  yerleri; metin hukuki bir cümle ve owner'dan gelmeli. (3) Üretim masadan düğmeyle; pazar gecesi otomatik
+  üretim yok (karar fonksiyonu `system` aktörünü zaten reddediyor).
+
+**Kalanlar (yarım iş).** `/mesai` mola bölümüne, plan hücresinin mola alanına, Faz 5 satırlarına ve Faz 6
+ekranlarına **375 px'te hiç bakılmadı**; kâğıt gerçek bir yazıcıdan hiç çıkmadı. Şablon kalıcılığı ("şablondan
+doldur") ayrı adım. **Faz 7 yazılmadı:** masadan mola düzeltme ekranı (`correctBreak` hazır), personelin geriye
+dönük mola girişi ekranı (`enterBreakRetroactively` hazır), ve imzanın işaretlenmesi (`signTimesheet` hazır) —
+üçünün de çekirdeği var, eylemi ve ekranı yok.
 
 **Pınar Aslan (7 Ekim, yalnızca tanı — veri yazılmadı).** Işıl "2 kredi görünüyor, 1 olmalı" dedi. Defter tutarlı:
 16 − 2 (iptal edilen 8'likte yapılan 10.08 ve 13.08 dersleri) − 14 harcanan + **2 (23.09 19:02, Işıl'ın kendi

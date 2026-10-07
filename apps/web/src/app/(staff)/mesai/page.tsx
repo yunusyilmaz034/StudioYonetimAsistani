@@ -1,3 +1,5 @@
+import Link from 'next/link'
+
 import { addLocalDays, daysBetween, mondayOf } from '@studio/core'
 
 import { requirePageAccess } from '@/server/auth'
@@ -40,7 +42,16 @@ export default async function MesaiPage({ searchParams }: { searchParams: Promis
         ownerMu={ctx.actor.type === 'owner' || ctx.actor.type === 'platform_admin'}
       />
       {planlayan ? (
-        <section className="mx-auto max-w-6xl px-4 pb-8 sm:px-6">
+        <section className="mx-auto max-w-6xl space-y-4 px-4 pb-8 sm:px-6">
+          {/* HAFTALIK ÇİZELGE (OR-119 · Faz 6): plan ile gerçekleşen, ve imzalanacak kâğıt. Ayrı ekran —
+              yedi günlük rapor bu sayfanın altına eklenseydi, mesai düğmesi üç ekran aşağıda kalırdı. */}
+          <Link
+            href="/mesai/cizelge"
+            className="flex min-h-11 items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3 text-sm font-medium text-foreground hover:bg-muted"
+          >
+            <span>Haftalık çizelge: çalışma ve mola süreleri</span>
+            <span aria-hidden className="text-muted-foreground">→</span>
+          </Link>
           <WeekPlanPanel initialWeek={planHaftasi} />
         </section>
       ) : null}
