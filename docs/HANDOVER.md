@@ -469,6 +469,13 @@ kullanım Işıl'ın masasında olacak. Şablon kalıcılığı ("şablondan dol
 - **İş mantığı ekranda/eylemde, testsiz:** saat→an çevirisi (`yerelAn`, gece yarısı kaydırması) `actions/shift.ts`te
   ve birim testi yok. İlk hata oradan çıkarsa çekirdeğe taşınıp testlenmeli.
 
+**Nihal Pestil (7 Ekim 21:24 — CANLI VERİ YAZILDI, owner talimatı).** Fitness 3 Aylık (8.500 ₺, hiç ödenmemiş,
+16.09'da başlamış) iptal edildi; yerine **Fitness 6 Aylık, 16.09.2026 → 15.03.2027**, anlaşılan 12.750 ₺ (liste
+14.000), **12.500 ₺ nakit bugünün kasasına**, 250 ₺ borç açık. Masanın kendi use-case'leriyle, sırayla:
+`cancelSale` → `cancelEntitlement` → `sellPackage`. İndirim olayı YOK — fiyat, masadaki "anlaşılan tutar"
+alanıyla aynı yoldan yazıldı. Işıl'ın 3 Aylık'ta elle uzattığı bitiş (20.12, +5 gün) yeni pakete TAŞINMADI: yeni
+paket ürünün kendi 180 gününü alıyor. `tools/migration/fix-nihal-pestil-6aylik-2026-10-07.ts` (+ `tani-…`).
+
 **Pınar Aslan (7 Ekim, yalnızca tanı — veri yazılmadı).** Işıl "2 kredi görünüyor, 1 olmalı" dedi. Defter tutarlı:
 16 − 2 (iptal edilen 8'likte yapılan 10.08 ve 13.08 dersleri) − 14 harcanan + **2 (23.09 19:02, Işıl'ın kendi
 "Düzeltme"si)** = 2. +2'nin neyin karşılığı olduğu notta yazmıyor; 1 mi 2 mi doğru, Işıl'dan cevap bekleniyor.
