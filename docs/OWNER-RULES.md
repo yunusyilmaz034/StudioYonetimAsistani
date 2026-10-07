@@ -2302,6 +2302,10 @@ stüdyo yasal varsayılanlarla açılıyor** (`null` "doğrulama kapalı" demek 
 **değerlerini de** loglar — `company`/`qr` PII olduğu için loglanmıyordu, bunlar sayı ve bir KURAL: ayar belgesi
 yalnızca bugünkü değeri tutuyor, değerler loglanmazsa geçmiş bir ret hiç yeniden kurulamaz.
 
+**İstemci bileşeni çekirdeğin BARREL'ından değer almaz** (7 Ekim, canlı build bu yüzden çöktü). `'use client'`
+bir dosyada `@studio/core`'dan DEĞER import etmek `firebase-admin`i tarayıcı paketine sokuyor ve `next build`
+düşüyor; `pnpm check` bunu göremez. Kapı `@studio/core/client` (AD-71). `pnpm lint` artık bunu tarıyor.
+
 **Testleri yazmak, canlıda duran üç hata ortaya çıkardı** ve üçü de aynı aileden — mola alanı taşınmıyordu:
 `normalize` her bloğu `{start, end}` olarak yeniden kurup `breakMinutes`'ı **düşürüyordu** (kaydedilen plan molayı
 hiç taşımazdı, doğrulama brütü net sanırdı); hücre imzası `start-end` olduğu için **yalnızca molayı değiştirmek

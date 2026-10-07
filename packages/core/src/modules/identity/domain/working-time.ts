@@ -1,4 +1,12 @@
 import { err, ok, type DomainError, type Result } from '../../../shared'
+// MOLA KADEMESİ `@studio/core/client`te duruyor, burada değil: istemci bileşeni de aynı cevabı
+// vermek zorunda ve barrel'dan DEĞER almak `firebase-admin`i tarayıcı paketine sokuyor (7 Ekim'de
+// canlı build'i bu durdurdu). Kademeyi panelde yeniden yazmak ikinci bir cevap olurdu.
+import { minimumBreakMinutes, type BreakTier } from '../../../client'
+
+export { minimumBreakMinutes }
+export type { BreakTier }
+
 import { dakika, gecerliSaat } from './time-of-day'
 
 // ── ÇALIŞMA SÜRESİ VE ARA DİNLENMESİ (owner, 2026-10-06/07) ─────────────────────────────────
@@ -23,11 +31,6 @@ import { dakika, gecerliSaat } from './time-of-day'
 // 60 dk, Cumartesi molası tam 30 dk. Bir karşılaştırma bile "kesin küçük" yazılsa sistem stüdyonun
 // kendi varsayılan çizelgesini reddederdi. O yüzden hepsi `<=` ve `>=`.
 
-/** Net çalışma süresine göre en az ne kadar ara dinlenmesi gerekir. `uptoNetMinutes: null` = en üst kademe. */
-export interface BreakTier {
-  readonly uptoNetMinutes: number | null
-  readonly minBreakMinutes: number
-}
 
 /**
  * Stüdyonun çalışma süresi sınırları. VERİ — koda yazılmaz.
@@ -73,20 +76,6 @@ export interface WeekTotals {
 export const netWorkMinutes = (presenceMinutes: number, breakMinutes: number): number =>
   Math.max(0, presenceMinutes - breakMinutes)
 
-/**
- * Bu net çalışma için gereken en az ara dinlenmesi.
- *
- * Eşik NET çalışmaya bakar (owner, 2026-10-06). Brüt bulunmaya bakmak farklı bir cevap verebilir:
- * brüt 8:00 + 60 dk mola = net 7:00 → nette "30 dk" kademesi, brütte "60 dk" kademesi.
- */
-export function minimumBreakMinutes(netMinutes: number, tiers: readonly BreakTier[]): number {
-  for (const t of tiers) {
-    if (t.uptoNetMinutes === null || netMinutes <= t.uptoNetMinutes) return t.minBreakMinutes
-  }
-  // Kademe listesi en üst kademeyi (`null`) taşımıyorsa bilinen bir minimum yok: 0 demek, olmayan
-  // bir kuralı uydurmaktan iyidir. Doğrulama yine de kademelerin eksikliğini reddeder.
-  return 0
-}
 
 /** Bir günün brüt/mola/net süresi. Saat biçimi geçersizse ya da çıkış girişten sonra değilse `null`. */
 export function dayTotals(day: PlannedDay): DayTotals | null {

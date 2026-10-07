@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { AlertTriangleIcon, ChevronLeftIcon, ChevronRightIcon, CopyIcon, Loader2Icon, PlusIcon, XIcon } from 'lucide-react'
 import { toast } from 'sonner'
 
-import { minimumBreakMinutes } from '@studio/core'
+import { minimumBreakMinutes } from '@studio/core/client'
 import type { DomainError, ShiftBlock, WeekPlanEntries } from '@studio/core'
 
 import { shiftDate } from '@/components/calendar/date-utils'

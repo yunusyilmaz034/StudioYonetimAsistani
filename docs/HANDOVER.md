@@ -50,8 +50,9 @@ belgeden değil **Cloud Run'dan** oku — her push onu ilerletiyor; komutlar aş
 8. **Bug report taslağı** — bir tane kuyrukta (kat ölçümünde yanlış alete bakıp emin bir yanlış sonucu dokümana
    yazmam). Gönderilmedi; owner `/feedback` ile görür/siler. Rahatsız ediyorsa bir daha taslak oluşturulmayacak.
 
-**7 Ekim'de iki push yapıldı** (owner'ın *"push ve dpoly"* onayıyla): mola/çizelge domain+kalıcılık+ekran dörtlüsü,
-ardından plan doğrulaması. Rollout'lar Cloud Run trafik dağılımından doğrulanıyor; ikincisi bu yazılırken yolda.
+**7 Ekim'de üç push yapıldı**, ve **üçüncüsünün build'i ÇÖKTÜ** (`build-2026-10-07-003`, FAILED) — ayrıntı aşağıdaki
+7 Ekim bölümünde. Canlıda `build-2026-10-07-002` duruyor: Faz 4'ün çekirdeği (plan reddi, mola düğmesi) **canlıda**,
+panelin mola alanı **değil**. Düzeltme yapıldı ve `next build` ile yerelde doğrulandı.
 
 **Yerelde bekleyen push YOK (6 Ekim durumu).** 6 Ekim gecesi owner'ın onayıyla ("push ve deploy et") dört commit birlikte
 gönderildi: 5 Ekim durum bloğu, Esra'nın para/kredi düzeltmesi, Esra'nın etiket düzeltmesi ve bu girdi.
@@ -401,6 +402,19 @@ Yeni gözcü sorgu başarısız olursa **satır basıyor**; susan bir ölçüm a
 **Bilerek yapılmayanlar.** Mola için QR mekanizması yok (owner açıkça yasakladı; mevcut QR/personel giriş sistemine
 dokunulmadı). Otomatik ücret kesintisi yok ve yapısal olarak da yok: bordro DERS ve SATIŞtan hesaplanıyor, bu
 özellik bordronun tükettiği hiçbir girdiyi üretmiyor.
+
+**CANLI BUILD'İ DURDURAN HATA — ve kapının onu neden göremediği.** `week-plan-panel.tsx` bir `'use client'` dosyası
+ve oraya `@studio/core` **barrel**'ından bir DEĞER import ettim (`minimumBreakMinutes`). Tip import'ları derlemede
+silinir; değer import'u gerçek modül grafiği kurar ve barrel `members/infrastructure/purge.ts` üzerinden
+`firebase-admin`i çekiyor. `next build` *"Can't resolve 'fs' / 'net'"* diye düştü, rollout **FAILED**, ve
+HANDOVER'ın zaten yazdığı ikinci tuzak devreye girdi: **başarısız rollout sonraki push'ların otomatik deploy'unu
+durdurur**. Dosyada bugüne kadar yalnızca `import type` olmasının sebebi tam buydu.
+
+`pnpm check` bunu yakalayamaz — `tsc --noEmit` ≠ `next build`. Doğru kapı `@studio/core/client` (AD-71): kasten
+self-contained. `minimumBreakMinutes` oraya **taşındı** (panelde yeniden yazmak "bu süre için kaç dakika mola"
+sorusuna ikinci bir cevap olurdu). Koruma olarak `pnpm lint`e `tools/lint/client-boundary.mjs` eklendi:
+`'use client'` dosyalarında barrel DEĞER import'u arar. **Kasten bozularak denendi** — yakalıyor. `next build`
+kapıya konmadı: Doc 10 *"iki dakika süren bir kapı atlanan kapıdır"* diyor.
 
 **Kalanlar (yarım iş).** Gece kapanış fonksiyonu (`closeOpenBreakWithShift`) henüz zamanlanmış işe bağlanmadı —
 23:00'da açık kalan mola şimdilik açık kalır. `/mesai` mola bölümüne ve plan hücresinin yeni mola alanına

@@ -63,6 +63,16 @@ export default tseslint.config(
     },
   },
 
+  // ── Node tooling scripts (tools/**). ──
+  // `tools/lint/client-boundary.mjs` runs in Node as part of `pnpm lint`; without this it trips
+  // `no-undef` on `console`/`process`. Same reason as the `.cjs` block above, different module system.
+  {
+    files: ['tools/**/*.{mjs,js}'],
+    languageOptions: {
+      globals: { console: 'readonly', process: 'readonly', __dirname: 'readonly', URL: 'readonly' },
+    },
+  },
+
   // ── AD-17: no collection-group queries anywhere. ──
   {
     files: ['**/*.ts', '**/*.tsx'],

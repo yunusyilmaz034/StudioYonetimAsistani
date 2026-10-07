@@ -554,3 +554,34 @@ export function weeklyVisitCounts(visitInstants: readonly number[], nowMs: numbe
   }
   return buckets.some((n) => n > 0) ? buckets : null
 }
+
+// ── ARA DİNLENMESİ KADEMELERİ (OR-119) ──────────────────────────────────────────────────────
+//
+// Burada, çünkü SORUYU İKİ TARAF DA SORUYOR: plan doğrulaması (sunucu, `identity/domain/working-time`)
+// ve haftalık plan editörü (istemci bileşeni, resepsiyon yazarken ipucu görüyor). İkinci bir kopya
+// "bu süre için en az kaç dakika mola" sorusuna iki ayrı cevap demek olurdu.
+//
+// Dosyanın kuralına uyuyor: saf, bağımlılıksız, sayı BİLMİYOR — kademeler `StudioSettings`ten veri
+// olarak geliyor (#4). 7 Ekim'de bu fonksiyonu barrel üzerinden istemciye almak canlı build'i
+// durdurdu (`firebase-admin` → `Can't resolve 'fs'`); yeri burası.
+
+/** Net çalışma süresine göre en az ne kadar ara dinlenmesi gerekir. `uptoNetMinutes: null` = en üst kademe. */
+export interface BreakTier {
+  readonly uptoNetMinutes: number | null
+  readonly minBreakMinutes: number
+}
+
+/**
+ * Bu net çalışma için gereken en az ara dinlenmesi.
+ *
+ * Eşik NET çalışmaya bakar (owner, 2026-10-06). Brüt bulunmaya bakmak farklı bir cevap verebilir:
+ * brüt 8:00 + 60 dk mola = net 7:00 → nette "30 dk" kademesi, brütte "60 dk" kademesi.
+ */
+export function minimumBreakMinutes(netMinutes: number, tiers: readonly BreakTier[]): number {
+  for (const t of tiers) {
+    if (t.uptoNetMinutes === null || netMinutes <= t.uptoNetMinutes) return t.minBreakMinutes
+  }
+  // Kademe listesi en üst kademeyi (`null`) taşımıyorsa bilinen bir minimum yok: 0 demek, olmayan
+  // bir kuralı uydurmaktan iyidir. Doğrulama yine de kademelerin eksikliğini reddeder.
+  return 0
+}
