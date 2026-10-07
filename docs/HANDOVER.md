@@ -446,11 +446,24 @@ basar, canlı hesabı asla. Kayıt sonradan değiştiyse ekran söyler; yeniden 
   el yazısıyla "okudum" notu için boş bir kutu ve iki imza yeri var. (3) Üretim masadan düğmeyle; pazar gecesi otomatik
   üretim yok (karar fonksiyonu `system` aktörünü zaten reddediyor).
 
-**Kalanlar (yarım iş).** `/mesai` mola bölümüne, plan hücresinin mola alanına, Faz 5 satırlarına ve Faz 6
-ekranlarına **375 px'te hiç bakılmadı**; kâğıt gerçek bir yazıcıdan hiç çıkmadı. Şablon kalıcılığı ("şablondan
-doldur") ayrı adım. **Faz 7 yazılmadı:** masadan mola düzeltme ekranı (`correctBreak` hazır), personelin geriye
-dönük mola girişi ekranı (`enterBreakRetroactively` hazır), ve imzanın işaretlenmesi (`signTimesheet` hazır) —
-üçünün de çekirdeği var, eylemi ve ekranı yok.
+**Faz 7 — düzeltme, geriye dönük giriş, imza (7 Ekim gecesi).** Üçünün çekirdeği hazırdı; eylemleri ve ekranları
+yazıldı. **(1) Unutulan mola:** eğitmenin `/mesai` kartında "Unuttuğum molayı ekle" — bu haftanın kendi
+vardiyalarından birini ve iki saati seçer (`enterBreakRetroAction`). Pazar düğme YOK (pencere kapalı).
+**(2) Masadan düzeltme:** `/mesai/cizelge`de her günün molaları tek tek görünür; dokununca saat + ZORUNLU sebep
+(`correctBreakAction`). Açık kalmış mola da buradan, bitişi yazılarak kapatılır. **(3) İmza:** kartta "İmza alındı
+olarak işaretle", iki adımlı onayla (`signTimesheetAction`) — geri alınamaz.
+- **İstemci SAAT gönderir, an değil:** hangi günün o saati olduğunu ve saat dilimini sunucu belirler.
+- **Dokunulmayan uç gönderilmez:** ekran dakikaya yuvarlıyor; 13:00:37'de başlamış molanın başlangıcı, yalnızca
+  bitişi düzelten biri yüzünden 37 saniye kaymaz.
+- **Bilerek eksik:** masadan düzeltmede çakışma ve "vardiyanın içinde mi" denetimi YOK (`decideCorrectBreak`
+  yalnızca yetki, sebep ve bitiş > başlangıç bakıyor). Eklemek bir ret kuralıdır — owner'ın kararı.
+- **Owner kararı (7 Ekim):** pazardan önce çizelge üretimi KİLİTLENMEZ, yalnızca uyarır.
+
+**Kalanlar.** OR-119'un yedi fazı kodda tamam. `/mesai` mola bölümüne, plan hücresinin mola alanına ve Faz 5–7
+ekranlarının hiçbirine **tarayıcıda / 375 px'te bakılmadı**; kâğıt gerçek bir yazıcıdan hiç çıkmadı — ilk gerçek
+kullanım Işıl'ın masasında olacak. Şablon kalıcılığı ("şablondan doldur") ayrı adım.
+- **İş mantığı ekranda/eylemde, testsiz:** saat→an çevirisi (`yerelAn`, gece yarısı kaydırması) `actions/shift.ts`te
+  ve birim testi yok. İlk hata oradan çıkarsa çekirdeğe taşınıp testlenmeli.
 
 **Pınar Aslan (7 Ekim, yalnızca tanı — veri yazılmadı).** Işıl "2 kredi görünüyor, 1 olmalı" dedi. Defter tutarlı:
 16 − 2 (iptal edilen 8'likte yapılan 10.08 ve 13.08 dersleri) − 14 harcanan + **2 (23.09 19:02, Işıl'ın kendi

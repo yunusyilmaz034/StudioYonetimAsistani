@@ -10,10 +10,19 @@ import { PageHeader } from '@/components/ui/page-header'
 import { QrScanner } from '@/components/qr-scanner'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
 import { domainErrorMessage } from '@/lib/domain-error'
-import { endBreakAction, endShiftAction, staffCrossTurnstileAction, startBreakAction, startShiftAction } from '@/server/actions/shift'
+import {
+  endBreakAction,
+  endShiftAction,
+  enterBreakRetroAction,
+  staffCrossTurnstileAction,
+  startBreakAction,
+  startShiftAction,
+} from '@/server/actions/shift'
 import { IzinPanel } from './izin-panel'
-import type { ShiftView, StaffDayRow } from '@/server/shift-query'
+import type { RetroShift, ShiftView, StaffDayRow } from '@/server/shift-query'
 
 // Tek ekran. Turnikesi olan stüdyoda tek bir eylem var — kapıdaki kodu okut — ve mesai ondan
 // türetiliyor (OR-74). Turnikesi olmayan stüdyoda eski iki düğme duruyor: başlat / bitir.
@@ -79,6 +88,7 @@ export function MesaiScreen({ view, ownerMu, bugun }: { view: ShiftView; ownerMu
   const [busy, setBusy] = useState(false)
   const [scanning, setScanning] = useState(false)
   const [sonuc, setSonuc] = useState<{ ok: boolean; text: string } | null>(null)
+  const [retroAcik, setRetroAcik] = useState(false)
   // jsQR aynı kareyi saniyede birkaç kez çözüyor; ilk istek dönmeden ikincisi gitmesin.
   const busyRef = useRef(false)
   const acik = view.benimAcik
@@ -366,8 +376,29 @@ export function MesaiScreen({ view, ownerMu, bugun }: { view: ShiftView; ownerMu
             {molada ? <PlayIcon className="size-5" /> : <CoffeeIcon className="size-5" />}
             {molada ? 'Molayı bitir' : 'Molaya başla'}
           </Button>
+
+          {/* UNUTULAN MOLA (OR-119): molaya basmayı unutan kişi eksik molasını KENDİSİ ekler —
+              yalnızca bu hafta, cumartesi gecesine kadar. Pazar pencere kapalıdır ve düğme yoktur.
+              Ekleme: kaydedilmiş bir molayı değiştirmez; o, masanın işi. */}
+          {view.retroVardiyalar && view.retroVardiyalar.length > 0 ? (
+            <Button variant="ghost" className="min-h-11 w-full" disabled={busy || pending} onClick={() => setRetroAcik(true)}>
+              Unuttuğum molayı ekle
+            </Button>
+          ) : null}
         </div>
       </Card>
+
+      {view.retroVardiyalar ? (
+        <RetroMolaDialog
+          acik={retroAcik}
+          vardiyalar={view.retroVardiyalar}
+          onKapat={() => setRetroAcik(false)}
+          onEklendi={() => {
+            setRetroAcik(false)
+            start(() => router.refresh())
+          }}
+        />
+      ) : null}
 
       {/* HAFTAM (owner, 2026-09-14 · OR-77): *"personel de kendi ekranında bu mesai tablosunu görüp ben
           şu gün şu saatte gelip gitmeliyim diye bilsin."* Yalnızca YAYINDAKİ plan; taslak gösterilmez. */}
@@ -555,5 +586,100 @@ export function MesaiScreen({ view, ownerMu, bugun }: { view: ShiftView; ownerMu
         </Card>
       ) : null}
     </main>
+  )
+}
+
+/**
+ * Unutulan molanın girişi. Kişi GÜNÜ (vardiyayı) ve iki saati söyler; hangi anın kastedildiğini,
+ * pencereyi, çakışmayı ve molanın vardiyanın içinde olup olmadığını sunucu ve karar belirler.
+ * Kayıt "sonradan girildi" diye işaretlenir ve çizelgede ayrı görünür (#11) — ekran bunu baştan söyler.
+ */
+function RetroMolaDialog({
+  acik,
+  vardiyalar,
+  onKapat,
+  onEklendi,
+}: {
+  acik: boolean
+  vardiyalar: readonly RetroShift[]
+  onKapat: () => void
+  onEklendi: () => void
+}) {
+  const [shiftId, setShiftId] = useState(vardiyalar[0]?.id ?? '')
+  const [bas, setBas] = useState('')
+  const [bit, setBit] = useState('')
+  const [busy, setBusy] = useState(false)
+  const eksik = shiftId === '' || bas === '' || bit === '' || bas === bit
+
+  async function ekle() {
+    setBusy(true)
+    try {
+      const res = await enterBreakRetroAction({ shiftId, startTime: bas, endTime: bit })
+      if (res.ok) {
+        toast.success('Mola eklendi.')
+        setBas('')
+        setBit('')
+        onEklendi()
+      } else {
+        const code = (res.error as { code?: string }).code
+        toast.error(
+          code === 'invalid_time_range'
+            ? 'Mola, o günkü mesainin giriş ve çıkış saatleri arasında olmalı.'
+            : code === 'no_open_shift'
+              ? 'Bu gün için mesai kaydın bulunamadı.'
+              : domainErrorMessage(res.error as Parameters<typeof domainErrorMessage>[0]),
+        )
+      }
+    } catch {
+      toast.error('Mola eklenemedi. Bağlantınızı kontrol edin.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Dialog open={acik} onOpenChange={(o) => !o && onKapat()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Unuttuğum molayı ekle</DialogTitle>
+          <DialogDescription>
+            Yalnızca bu hafta için, cumartesi gecesine kadar. Kayıt “sonradan girildi” olarak işaretlenir ve
+            eklendikten sonra değiştirilemez; yanlışsa resepsiyona söyle.
+          </DialogDescription>
+        </DialogHeader>
+        <label className="flex flex-col gap-1 text-sm">
+          Hangi gün
+          <select
+            value={shiftId}
+            onChange={(e) => setShiftId(e.target.value)}
+            className="h-11 rounded-md border border-border bg-background px-2 text-sm text-foreground"
+          >
+            {vardiyalar.map((v) => (
+              <option key={v.id} value={v.id}>
+                {gunBasligi(v.date)} · {saat(v.startedAt)}–{v.bitis === null ? 'sürüyor' : saat(v.bitis)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <div className="grid grid-cols-2 gap-3">
+          <label className="flex flex-col gap-1 text-sm">
+            Mola başlangıcı
+            <Input type="time" value={bas} onChange={(e) => setBas(e.target.value)} />
+          </label>
+          <label className="flex flex-col gap-1 text-sm">
+            Mola bitişi
+            <Input type="time" value={bit} onChange={(e) => setBit(e.target.value)} />
+          </label>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onKapat} disabled={busy}>
+            Vazgeç
+          </Button>
+          <Button disabled={busy || eksik} onClick={() => void ekle()}>
+            Ekle
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }

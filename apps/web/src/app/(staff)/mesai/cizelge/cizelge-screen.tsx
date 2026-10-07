@@ -3,15 +3,19 @@
 import { useState, useTransition } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { AlertTriangleIcon, ChevronLeftIcon, ChevronRightIcon, FileTextIcon, PrinterIcon } from 'lucide-react'
+import { AlertTriangleIcon, CheckIcon, ChevronLeftIcon, ChevronRightIcon, FileTextIcon, PencilIcon, PrinterIcon } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { PageHeader } from '@/components/ui/page-header'
 import { domainErrorMessage } from '@/lib/domain-error'
-import { generateWeekTimesheetsAction } from '@/server/actions/timesheet'
-import type { SheetContent, TimesheetRow, TimesheetWeekView } from '@/server/timesheet-query'
+import { correctBreakAction } from '@/server/actions/shift'
+import { generateWeekTimesheetsAction, signTimesheetAction } from '@/server/actions/timesheet'
+import type { BreakRow, SheetContent, TimesheetRow, TimesheetWeekView } from '@/server/timesheet-query'
 
 import { anYazi, gunKisa, haftaEtiketi, ssdd } from './format'
 
@@ -122,15 +126,48 @@ export function CizelgeScreen({
           <p className="text-sm text-muted-foreground">Bu hafta planlanan ya da mesai kaydı olan personel yok.</p>
         </Card>
       ) : (
-        view.rows.map((r) => <KisiKarti key={r.staffUserId} row={r} weekStart={view.weekStart} />)
+        view.rows.map((r) => (
+          <KisiKarti key={r.staffUserId} row={r} weekStart={view.weekStart} onDegisti={() => start(() => router.refresh())} />
+        ))
       )}
     </main>
   )
 }
 
-function KisiKarti({ row, weekStart }: { row: TimesheetRow; weekStart: string }) {
+const saat = (ms: number) => new Date(ms).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Istanbul' })
+
+const KAYNAK: Record<BreakRow['source'], string | null> = {
+  live: null,
+  retro_entry: 'sonradan girildi',
+  auto_closed: 'otomatik kapatıldı',
+}
+
+function KisiKarti({ row, weekStart, onDegisti }: { row: TimesheetRow; weekStart: string; onDegisti: () => void }) {
   const s = row.canli
   const k = row.kayitli
+  const [duzeltilen, setDuzeltilen] = useState<BreakRow | null>(null)
+  // İMZA GERİ ALINAMAZ; o yüzden tek dokunuşla değil, iki adımda. Yanlış işaretlenmiş bir imzanın
+  // çaresi yeni bir sürüm üretmek olurdu — bir parmak kayması için fazla pahalı.
+  const [imzaOnay, setImzaOnay] = useState(false)
+  const [busy, setBusy] = useState(false)
+
+  async function imzala() {
+    setBusy(true)
+    try {
+      const res = await signTimesheetAction({ weekStart, staffUserId: row.staffUserId })
+      if (res.ok) {
+        toast.success(`${row.displayName}: imza alındı olarak işaretlendi.`)
+        setImzaOnay(false)
+        onDegisti()
+      } else {
+        toast.error(domainErrorMessage(res.error as Parameters<typeof domainErrorMessage>[0]))
+      }
+    } catch {
+      toast.error('İşaretlenemedi. Bağlantınızı kontrol edin.')
+    } finally {
+      setBusy(false)
+    }
+  }
   return (
     <Card className="space-y-3 p-5">
       <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-2">
@@ -174,7 +211,48 @@ function KisiKarti({ row, weekStart }: { row: TimesheetRow; weekStart: string })
         </p>
       ) : null}
 
-      <GunListesi sheet={s} />
+      <GunListesi sheet={s} molalar={row.molalar} onDuzelt={setDuzeltilen} />
+
+      {/* ISLAK İMZA (OR-119 · Faz 7): kâğıt dosyada, burada yalnızca ALINDIĞI işaretlenir — böylece
+          "hangi hafta imzalanmadı" sorulabilir. İşaret kayıtlı en yeni sürüme konur. */}
+      {k !== null && k.signedAt === null ? (
+        imzaOnay ? (
+          <div className="space-y-2 rounded-lg bg-muted p-3">
+            <p className="text-sm text-foreground">
+              Sürüm {k.version} kâğıdı {row.displayName} tarafından imzalandı mı? Bu işaret geri alınamaz.
+            </p>
+            {!row.guncel ? (
+              <p className="text-xs font-medium text-warning">
+                Dikkat: kayıt bu sürümden sonra değişti. İmzalanan kâğıt güncel sayıları göstermiyor olabilir.
+              </p>
+            ) : null}
+            <div className="flex flex-wrap gap-2">
+              <Button className="min-h-11" disabled={busy} onClick={() => void imzala()}>
+                <CheckIcon className="size-4" />
+                Evet, imzalandı
+              </Button>
+              <Button variant="outline" className="min-h-11" disabled={busy} onClick={() => setImzaOnay(false)}>
+                Vazgeç
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <Button variant="outline" className="min-h-11 w-full" onClick={() => setImzaOnay(true)}>
+            <CheckIcon className="size-4" />
+            İmza alındı olarak işaretle
+          </Button>
+        )
+      ) : null}
+
+      <MolaDuzeltDialog
+        mola={duzeltilen}
+        kisi={row.displayName}
+        onKapat={() => setDuzeltilen(null)}
+        onDuzeltildi={() => {
+          setDuzeltilen(null)
+          onDegisti()
+        }}
+      />
 
       <dl className="grid grid-cols-2 gap-x-4 gap-y-1.5 border-t border-border pt-3 text-sm">
         <dt className="text-muted-foreground">Gerçekleşen net çalışma</dt>
@@ -203,11 +281,20 @@ function KisiKarti({ row, weekStart }: { row: TimesheetRow; weekStart: string })
   )
 }
 
-function GunListesi({ sheet }: { sheet: SheetContent }) {
+function GunListesi({
+  sheet,
+  molalar,
+  onDuzelt,
+}: {
+  sheet: SheetContent
+  molalar: readonly BreakRow[]
+  onDuzelt: (m: BreakRow) => void
+}) {
   return (
     <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border">
       {sheet.days.map((d) => {
         const hareket = d.actualPresenceMinutes > 0 || d.actualBreakMinutes > 0
+        const gununMolalari = molalar.filter((m) => m.date === d.date)
         return (
           <li key={d.date} className="space-y-0.5 px-3 py-2 text-sm">
             <div className="flex items-baseline justify-between gap-3">
@@ -231,6 +318,28 @@ function GunListesi({ sheet }: { sheet: SheetContent }) {
             ) : d.planned ? (
               <p className="text-xs text-muted-foreground">Mesai kaydı yok.</p>
             ) : null}
+            {/* TEK TEK MOLALAR — masanın düzeltebildiği şey. Her biri kendi kaydı; düzeltme sebep ister
+                ve öncesi/sonrası kayda geçer. Açık kalmış mola da buradan kapatılır. */}
+            {gununMolalari.length > 0 ? (
+              <ul className="flex flex-wrap gap-1.5 pt-1">
+                {gununMolalari.map((m) => (
+                  <li key={m.id}>
+                    <button
+                      type="button"
+                      onClick={() => onDuzelt(m)}
+                      aria-label={`Molayı düzelt: ${saat(m.startedAt)}–${m.endedAt === null ? 'açık' : saat(m.endedAt)}`}
+                      className={`inline-flex min-h-9 items-center gap-1.5 rounded-full px-3 text-xs tabular-nums ${
+                        m.endedAt === null ? 'bg-warning/10 font-medium text-warning' : 'bg-muted text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      {saat(m.startedAt)}–{m.endedAt === null ? 'açık' : saat(m.endedAt)}
+                      {KAYNAK[m.source] ? <span>· {KAYNAK[m.source]}</span> : null}
+                      <PencilIcon className="size-3" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
             {/* NASIL KAYDEDİLDİĞİ ayrı görünür (#11): o an basılan mola ile sonradan beyan edilen ya da
                 gece kapatılan mola aynı şey değil. */}
             {d.retroEntryCount > 0 || d.autoClosedCount > 0 ? (
@@ -243,5 +352,113 @@ function GunListesi({ sheet }: { sheet: SheetContent }) {
         )
       })}
     </ul>
+  )
+}
+
+/**
+ * Masadan mola düzeltmesi (OR-119): patron ve resepsiyon, SEBEP ZORUNLU. Saat değişir, gün
+ * değişmez — hangi günün o saati olduğunu sunucu molanın kendisinden biliyor.
+ *
+ * Çizelge üretildiyse düzeltme onu DEĞİŞTİRMEZ: kart "kayıt sonradan değişti" der ve yeniden
+ * üretmek yeni, imzasız bir sürüm verir.
+ */
+function MolaDuzeltDialog({
+  mola,
+  kisi,
+  onKapat,
+  onDuzeltildi,
+}: {
+  mola: BreakRow | null
+  kisi: string
+  onKapat: () => void
+  onDuzeltildi: () => void
+}) {
+  return (
+    <Dialog open={mola !== null} onOpenChange={(o) => !o && onKapat()}>
+      {/* İçerik molaya göre ANAHTARLANIYOR: başka bir mola açıldığında alanlar öncekinin saatleriyle kalmasın. */}
+      {mola ? <MolaDuzeltIcerik key={mola.id} mola={mola} kisi={kisi} onKapat={onKapat} onDuzeltildi={onDuzeltildi} /> : null}
+    </Dialog>
+  )
+}
+
+function MolaDuzeltIcerik({
+  mola,
+  kisi,
+  onKapat,
+  onDuzeltildi,
+}: {
+  mola: BreakRow
+  kisi: string
+  onKapat: () => void
+  onDuzeltildi: () => void
+}) {
+  const ilkBas = saat(mola.startedAt)
+  const ilkBit = mola.endedAt === null ? '' : saat(mola.endedAt)
+  const [bas, setBas] = useState(ilkBas)
+  const [bit, setBit] = useState(ilkBit)
+  const [sebep, setSebep] = useState('')
+  const [busy, setBusy] = useState(false)
+  const degisti = bas !== ilkBas || bit !== ilkBit
+  // Kapanmış bir mola buradan yeniden AÇILAMAZ: bitişi silmek, gözlenmiş bir bitişi yok saymak olurdu.
+  const eksik = bas === '' || (mola.endedAt !== null && bit === '')
+
+  async function kaydet() {
+    setBusy(true)
+    try {
+      const res = await correctBreakAction({ breakId: mola.id, startTime: bas, endTime: bit === '' ? null : bit, reason: sebep.trim() })
+      if (res.ok) {
+        toast.success('Mola düzeltildi.')
+        onDuzeltildi()
+      } else {
+        const code = (res.error as { code?: string }).code
+        toast.error(
+          code === 'invalid_time_range'
+            ? 'Bitiş saati başlangıçtan sonra olmalı.'
+            : code === 'no_open_break'
+              ? 'Bu mola kaydı bulunamadı. Sayfayı yenileyin.'
+              : domainErrorMessage(res.error as Parameters<typeof domainErrorMessage>[0]),
+        )
+      }
+    } catch {
+      toast.error('Düzeltilemedi. Bağlantınızı kontrol edin.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <DialogContent>
+      <DialogHeader>
+        <DialogTitle>Molayı düzelt</DialogTitle>
+        <DialogDescription>
+          {kisi} · {gunKisa(mola.date)}. Eski ve yeni saat, kimin ve neden değiştirdiği kayda geçer.
+        </DialogDescription>
+      </DialogHeader>
+      <div className="grid grid-cols-2 gap-3">
+        <label className="flex flex-col gap-1 text-sm">
+          Başlangıç
+          <Input type="time" value={bas} onChange={(e) => setBas(e.target.value)} />
+        </label>
+        <label className="flex flex-col gap-1 text-sm">
+          Bitiş
+          <Input type="time" value={bit} onChange={(e) => setBit(e.target.value)} />
+        </label>
+      </div>
+      {mola.endedAt === null ? (
+        <p className="text-xs text-muted-foreground">Bu mola açık kalmış. Bitiş saatini yazarsanız kapanır.</p>
+      ) : null}
+      <label className="flex flex-col gap-1 text-sm">
+        Sebep
+        <Textarea value={sebep} onChange={(e) => setSebep(e.target.value)} placeholder="Ör. Molayı bitirmeyi unutmuş, 14:00'te dönmüştü" maxLength={300} />
+      </label>
+      <DialogFooter>
+        <Button variant="outline" onClick={onKapat} disabled={busy}>
+          Vazgeç
+        </Button>
+        <Button disabled={busy || eksik || !degisti || sebep.trim() === ''} onClick={() => void kaydet()}>
+          Kaydet
+        </Button>
+      </DialogFooter>
+    </DialogContent>
   )
 }

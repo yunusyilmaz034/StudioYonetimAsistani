@@ -8,9 +8,17 @@ import {
   FirestoreReservationRepository,
   FirestoreStaffBreakRepository,
   FirestoreStaffShiftRepository,
+  DEFAULT_STUDIO_CONFIG,
+  addLocalDays,
   commitStaffCrossing,
+  correctBreak,
   endBreak,
   endShift,
+  enterBreakRetroactively,
+  instant,
+  instantFromLocalDate,
+  localDateAt,
+  mondayOf,
   prepareStaffCrossing,
   staffCrossTurnstile,
   startBreak,
@@ -73,6 +81,96 @@ export async function startBreakAction() {
 export async function endBreakAction() {
   const ctx = await requireTenantContext(HERKES)
   return endBreak(molaDeps(), ctx, { staffUserId: String(ctx.actor.id) as StaffUserId })
+}
+
+// ── UNUTULAN MOLA VE MASADAN DÜZELTME (OR-119 · Faz 7) ──────────────────────────────────────
+//
+// İstemci SAAT gönderiyor ('HH:MM'), an değil: hangi günün o saati olduğunu ve stüdyonun saat
+// dilimini sunucu biliyor. Tarayıcının kendi saat dilimiyle hesaplanmış bir an, başka bir ülkeden
+// açılan bir telefonda molayı üç saat kaydırırdı.
+const OFF = DEFAULT_STUDIO_CONFIG.utcOffsetMinutes
+const SAAT = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/)
+const yerelAn = (date: string, hhmm: string): number => {
+  const [sa, dk] = hhmm.split(':').map(Number) as [number, number]
+  return (instantFromLocalDate(date, OFF) as number) + (sa * 60 + dk) * 60_000
+}
+
+/**
+ * Molaya basmayı unutan personel eksik molasını KENDİSİ ekler — yalnızca bu hafta, pazartesiden
+ * cumartesi gecesine kadar. Ekleme: kaydedilmiş bir molaya dokunmaz. Pencere, çakışma ve "vardiyanın
+ * içinde mi" denetimi kararda (`decideEnterBreakRetroactively`); burada yalnızca saat ana çevriliyor.
+ *
+ * Saat VARDİYANIN başladığı güne yazılır; vardiya başlangıcından önceye düşüyorsa ertesi gündür
+ * (gece yarısını geçen mesai). Bitiş başlangıçtan önceyse o da ertesi güne geçer.
+ */
+export async function enterBreakRetroAction(input: unknown) {
+  const p = z.object({ shiftId: z.string().min(1).max(128), startTime: SAAT, endTime: SAAT }).safeParse(input)
+  if (!p.success) return { ok: false as const, error: { code: 'invalid_time_range' as const } }
+  const ctx = await requireTenantContext(HERKES)
+  const db = adminDb()
+  const vardiyaRepo = new FirestoreStaffShiftRepository(db)
+  const ben = String(ctx.actor.id) as StaffUserId
+  const pazartesi = mondayOf(localDateAt(instant(Date.now()), OFF) as string)
+  const haftaBasi = instantFromLocalDate(pazartesi, OFF) as number
+  const haftaSonu = instantFromLocalDate(addLocalDays(pazartesi, 7), OFF) as number
+  // Vardiya istemcinin gönderdiği kimlikten değil, KENDİ haftamın vardiyaları arasından bulunuyor.
+  const vardiya = (await vardiyaRepo.listShifts(ctx, haftaBasi, haftaSonu - 1)).find(
+    (v) => v.id === p.data.shiftId && String(v.staffUserId) === String(ben),
+  )
+  if (!vardiya) return { ok: false as const, error: { code: 'no_open_shift' as const } }
+
+  const gun = localDateAt(vardiya.startedAt, OFF) as string
+  let bas = yerelAn(gun, p.data.startTime)
+  if (bas < (vardiya.startedAt as number)) bas += 86_400_000
+  let bit = yerelAn(gun, p.data.endTime)
+  while (bit <= bas) bit += 86_400_000
+  return enterBreakRetroactively(molaDeps(), vardiyaRepo, ctx, {
+    staffUserId: ben,
+    shiftId: vardiya.id,
+    startedAt: instant(bas),
+    endedAt: instant(bit),
+  })
+}
+
+/**
+ * Masadan mola düzeltmesi: patron ve resepsiyon, SEBEP ZORUNLU, öncesi ve sonrası kayda geçer.
+ * Yetki ve sebep kararda (`decideCorrectBreak`). Açık kalmış bir mola da buradan kapatılır: bitiş
+ * saati yazılır.
+ *
+ * Her saat, molanın o ucunun ZATEN bulunduğu yerel güne yazılır — düzeltme saati değiştirir, günü
+ * değil. Açık bir molanın bitişi başlangıcının gününe yazılır.
+ */
+export async function correctBreakAction(input: unknown) {
+  const p = z
+    .object({
+      breakId: z.string().min(1).max(128),
+      startTime: SAAT,
+      endTime: SAAT.nullable(),
+      reason: z.string().trim().max(300),
+    })
+    .safeParse(input)
+  if (!p.success) return { ok: false as const, error: { code: 'invalid_time_range' as const } }
+  const ctx = await requireTenantContext(['owner', 'receptionist', 'platform_admin'])
+  const deps = molaDeps()
+  const mola = await deps.repo.getBreak(ctx, p.data.breakId)
+  if (!mola) return { ok: false as const, error: { code: 'no_open_break' as const } }
+  const basGun = localDateAt(mola.startedAt, OFF) as string
+  const bitGun = mola.endedAt === null ? basGun : (localDateAt(mola.endedAt, OFF) as string)
+  // DOKUNULMAYAN UÇ GÖNDERİLMİYOR. Ekran saati dakikaya yuvarlanmış gösteriyor; 13:00:37'de başlamış
+  // bir molanın "13:00" yazan alanını olduğu gibi geri göndermek başlangıcı 37 saniye geri çeker ve
+  // yalnızca bitişi düzelten biri, farkında olmadan başlangıcı da "düzeltmiş" olurdu.
+  const yerelSaat = (at: number): string => {
+    const dk = Math.floor((((at + OFF * 60_000) % 86_400_000) + 86_400_000) % 86_400_000 / 60_000)
+    return `${String(Math.floor(dk / 60)).padStart(2, '0')}:${String(dk % 60).padStart(2, '0')}`
+  }
+  const basDegisti = p.data.startTime !== yerelSaat(mola.startedAt as number)
+  const bitDegisti = p.data.endTime !== null && (mola.endedAt === null || p.data.endTime !== yerelSaat(mola.endedAt as number))
+  return correctBreak(deps, ctx, {
+    breakId: mola.id,
+    ...(basDegisti ? { startedAt: instant(yerelAn(basGun, p.data.startTime)) } : {}),
+    ...(bitDegisti ? { endedAt: instant(yerelAn(bitGun, p.data.endTime!)) } : {}),
+    reason: p.data.reason,
+  })
 }
 
 // ── TURNİKEDEN MESAİ (owner, 2026-09-13 · OR-74) ────────────────────────────────────────────

@@ -125,7 +125,22 @@ export interface MolaDurumu {
   readonly disaridaBitis: number | null
 }
 
+/** Unutulan molanın eklenebileceği vardiya — personelin kendi bu haftaki vardiyalarından biri. */
+export interface RetroShift {
+  readonly id: string
+  /** Vardiyanın başladığı yerel gün. */
+  readonly date: string
+  readonly startedAt: number
+  /** Kapanış ya da son geçiş. `null` ⇒ hâlâ açık ve geçişi yok. */
+  readonly bitis: number | null
+}
+
 export interface ShiftView {
+  /**
+   * GERİYE DÖNÜK MOLA GİRİŞİ (OR-119): bu haftanın kendi vardiyaları. `null` ⇒ pencere kapalı
+   * (pazar — çizelge üretiliyor, hafta kapandı) ve düğme hiç gösterilmez.
+   */
+  readonly retroVardiyalar: readonly RetroShift[] | null
   readonly benimAcik: ShiftRow | null
   /** Bugünün mola durumu — personelin kendi kartı için. */
   readonly molam: MolaDurumu
@@ -199,6 +214,20 @@ export async function loadShiftView(ctx: TenantContext, dateStr: string): Promis
     ownerMu && dateStr !== bugun ? molalar.listBreaksBetween(ctx, fromMs, toMs) : Promise.resolve([]),
   ])
   const gunMolalar = dateStr === bugun ? bugunMolalar : gecmisGunMolalar
+
+  // Pazar pencere kapalı: karar zaten reddederdi, o yüzden okunmuyor da.
+  const pazarMi = bugun === addLocalDays(buHafta, 6)
+  const retroVardiyalar: RetroShift[] | null = pazarMi
+    ? null
+    : (await shifts.listShifts(ctx, studioDayRange(buHafta)[0], bugunBit))
+        .filter((v) => String(v.staffUserId) === String(ben))
+        .map((v) => ({
+          id: v.id,
+          date: localDateAt(v.startedAt, OFF) as string,
+          startedAt: Number(v.startedAt),
+          bitis: v.endedAt !== null ? Number(v.endedAt) : v.lastCrossingAt !== null ? Number(v.lastCrossingAt) : null,
+        }))
+        .sort((a, b) => b.startedAt - a.startedAt)
 
   // KENDİ SON GEÇİŞİM (OR-119). Yalnızca açık mesaim varsa soruluyor, ve owner bugünü geziyorsa
   // yukarıdaki okuma yeniden kullanılıyor. Aynı sorgu, aynı index (`type ASC, recordedAt DESC`) —
@@ -390,6 +419,7 @@ export async function loadShiftView(ctx: TenantContext, dateStr: string): Promis
   }
 
   return {
+    retroVardiyalar,
     benimAcik: acik ? satir(acik) : null,
     molam,
     tarih: dateStr,

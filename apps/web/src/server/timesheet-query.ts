@@ -55,6 +55,17 @@ export interface SavedSheet extends SheetContent {
   readonly signedAt: number | null
 }
 
+/** Tek bir mola kaydı — masanın düzeltebileceği şey (OR-119 · Faz 7). */
+export interface BreakRow {
+  readonly id: string
+  /** VARDİYASININ günü: çizelgede hangi satıra yazıldıysa orada görünür. */
+  readonly date: string
+  readonly startedAt: number
+  /** `null` ⇒ açık kalmış. Masa bitişini yazarak kapatabilir. */
+  readonly endedAt: number | null
+  readonly source: 'live' | 'retro_entry' | 'auto_closed'
+}
+
 export interface TimesheetRow {
   readonly staffUserId: string
   readonly displayName: string
@@ -65,6 +76,8 @@ export interface TimesheetRow {
   readonly acikMola: boolean
   /** Bu haftada kapanmamış vardiya var: son geçişine kadar sayıldı. */
   readonly acikVardiya: boolean
+  /** Haftanın bütün molaları, saat sırasıyla — açık kalanlar dahil. */
+  readonly molalar: readonly BreakRow[]
   readonly kayitli: SavedSheet | null
   /** Kayıtlı çizelge canlı hesapla AYNI kâğıt mı. Kayıt yoksa `false`. */
   readonly guncel: boolean
@@ -120,6 +133,7 @@ export async function buildWeekSnapshots(ctx: TenantContext, weekStart: string) 
   const yayinda = planlar.find((p) => p.weekStart === weekStart)?.published ?? null
   const hareketli = new Set(vardiyalar.map((v) => String(v.staffUserId)))
   const vardiyaKimligi = new Set(vardiyalar.map((v) => v.id))
+  const vardiyaGunu = new Map(vardiyalar.map((v) => [v.id, localDateAt(v.startedAt, OFF) as string]))
 
   const kisiler = personel
     .filter((s) => (s.active && s.inShiftPlan !== false) || hareketli.has(String(s.id)))
@@ -139,6 +153,17 @@ export async function buildWeekSnapshots(ctx: TenantContext, weekStart: string) 
         snapshot,
         acikMola: molalar.some((m) => String(m.staffUserId) === id && m.endedAt === null && vardiyaKimligi.has(m.shiftId)),
         acikVardiya: vardiyalar.some((v) => String(v.staffUserId) === id && v.endedAt === null),
+        molalar: molalar
+          .filter((m) => String(m.staffUserId) === id && vardiyaGunu.has(m.shiftId))
+          .map(
+            (m): BreakRow => ({
+              id: m.id,
+              date: vardiyaGunu.get(m.shiftId)!,
+              startedAt: m.startedAt as number,
+              endedAt: m.endedAt === null ? null : (m.endedAt as number),
+              source: m.source,
+            }),
+          ),
         bos: snapshot.plannedNetMinutes === 0 && !hareketli.has(id),
       }
     })
@@ -166,6 +191,7 @@ export async function loadTimesheetWeek(ctx: TenantContext, weekStart: string): 
         canli: icerik(k.snapshot),
         acikMola: k.acikMola,
         acikVardiya: k.acikVardiya,
+        molalar: k.molalar,
         kayitli: kayit
           ? {
               ...icerik(kayit),
