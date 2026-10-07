@@ -105,7 +105,8 @@ export function MesaiScreen({ view, ownerMu, bugun }: { view: ShiftView; ownerMu
 
   const molada = molam.acikBaslangic !== null
   const acikMolaMs = molada ? Math.max(0, simdi - molam.acikBaslangic!) : 0
-  const bulunmaDk = acik ? Math.max(0, Math.floor((simdi - acik.startedAt) / 60_000)) : 0
+  // Son geçiş çıkışsa süre orada durur — yöneticinin listesi de aynısını yapıyor (owner, 2026-10-07).
+  const bulunmaDk = acik ? Math.max(0, Math.floor(((molam.disaridaBitis ?? simdi) - acik.startedAt) / 60_000)) : 0
   const { kullanilanDk, netDk, kalanPlanliDk, planDisiDk } = molaHesabi(bulunmaDk, molam.kapanmisDk, acikMolaMs, molam.planliDk)
 
   /**
@@ -300,7 +301,11 @@ export function MesaiScreen({ view, ownerMu, bugun }: { view: ShiftView; ownerMu
             </div>
           ) : (
             <p className="text-sm text-muted-foreground">
-              {acik ? 'Çalışıyorsun.' : 'Mola için açık bir mesain olması gerekiyor.'}
+              {!acik
+                ? 'Mola için açık bir mesain olması gerekiyor.'
+                : molam.disaridaBitis !== null
+                  ? `Son geçişin çıkış yönünde; süren ${saat(molam.disaridaBitis)}'de durdu. Yeniden girince devam eder.`
+                  : 'Çalışıyorsun.'}
             </p>
           )}
 

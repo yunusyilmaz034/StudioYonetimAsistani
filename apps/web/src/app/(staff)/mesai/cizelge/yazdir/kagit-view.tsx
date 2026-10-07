@@ -16,8 +16,9 @@ import { anYazi, gunKisa, haftaEtiketi, ssdd } from '../format'
 //
 // `@media print` uygulamanın geri kalanını siliyor (`globals.css`); yazıcıdan çıkan yalnızca bu.
 //
-// İMZA METNİ YOK, bilerek: "okudum, doğrudur" gibi bir beyan hukuki bir cümledir ve onu yazılım
-// uyduramaz. Kâğıtta yalnızca imza yerleri var.
+// BEYAN METNİ BASILMIYOR, yeri bırakılıyor (owner, 2026-10-07: *"imza ve okudum için boşluk bırak"*).
+// "Okudum" notunu personel KENDİ EL YAZISIYLA yazar; basılı bir cümlenin altına atılan imza ile
+// elle yazılmış bir not aynı şey değil.
 
 const BOS = '—'
 
@@ -110,13 +111,19 @@ export function KagitView({ kagit }: { kagit: TimesheetPaper }) {
           {otomatik > 0 ? <p>** {otomatik} mola, gün sonunda açık kaldığı için sistem tarafından kapatılmıştır.</p> : null}
         </div>
 
-        <section className="mt-10 grid grid-cols-2 gap-8 text-sm">
-          {['Personel', 'İşyeri yetkilisi'].map((kim) => (
-            <div key={kim} className="space-y-8">
-              <p className="font-semibold">{kim}</p>
-              <p className="border-t border-black pt-1">Ad soyad · imza · tarih</p>
-            </div>
-          ))}
+        <section className="mt-8 grid grid-cols-2 gap-8 text-sm">
+          <div className="space-y-2">
+            <p className="font-semibold">Personel</p>
+            <p className="text-xs">El yazısı ile not:</p>
+            <div className="h-20 border border-black" />
+            <div className="h-14" />
+            <p className="border-t border-black pt-1">Ad soyad · imza · tarih</p>
+          </div>
+          <div className="flex flex-col justify-end space-y-2">
+            <p className="font-semibold">İşyeri yetkilisi</p>
+            <div className="h-14" />
+            <p className="border-t border-black pt-1">Ad soyad · imza · tarih</p>
+          </div>
         </section>
       </div>
     </main>

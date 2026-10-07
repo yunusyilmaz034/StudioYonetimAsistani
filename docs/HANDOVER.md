@@ -422,8 +422,8 @@ Owner'ın `/mesai` gün listesinde her satırda artık durum rozeti (Çalışıy
 başlangıç zamanlarını veriyor (`bulunmaKapaliDk` + `bulunmaAcikBaslangic`), dakikayı tarayıcı sayıyor; net/mola
 hesabı eğitmenin kendi kartıyla **aynı fonksiyondan** (`molaHesabi`) geçiyor ki iki ekran iki cevap vermesin.
 İki bilinçli karar: **(1) "Dışarıda"** — vardiya açık ama son geçiş çıkış yönündeyse net o geçişte durur (gece
-süpürgesi zaten oraya kapatacak). Eğitmenin kendi kartı ise hâlâ şimdiye kadar sayıyor; çıkmış biri için iki
-ekran farklı net gösterebilir — owner'a söylendi, karar bekliyor. **(2)** Geçmiş bir günde açık kalmış mola
+süpürgesi zaten oraya kapatacak). Owner "eşitle" dedi: eğitmenin kendi kartı da artık son geçiş çıkışsa orada
+duruyor (`molam.disaridaBitis`) ve bunu yazıyor. **(2)** Geçmiş bir günde açık kalmış mola
 SAYILMIYOR, "kapanmamış, sayılmadı" diye yazılıyor (#11).
 
 **Faz 6 — haftalık rapor ve basılacak çizelge (7 Ekim gecesi, commit edildi, DEPLOY EDİLMEDİ, tarayıcıda HİÇ
@@ -442,8 +442,8 @@ basar, canlı hesabı asla. Kayıt sonradan değiştiyse ekran söyler; yeniden 
   **Functions deploy'u gerekiyor** — yapılana kadar 23:00'da açık kalan mola açık kalır. Mola kapanışı vardiyadan
   ayrı işlem; arada ölürse `staff break close failed` HATA logu basar (o mola ertesi gece kapanmaz, elle düzeltilir).
 - **Owner'ın söylemesi gerekenler:** (1) Pazardan önce üretim KİLİTLİ DEĞİL, yalnızca uyarıyor — kilit istenirse
-  bu bir ret kuralıdır ve `decideGenerateTimesheet`'e girer. (2) Kâğıtta imza BEYAN METNİ yok, yalnızca imza
-  yerleri; metin hukuki bir cümle ve owner'dan gelmeli. (3) Üretim masadan düğmeyle; pazar gecesi otomatik
+  bu bir ret kuralıdır ve `decideGenerateTimesheet`'e girer. (2) KARARLANDI: kâğıtta basılı beyan metni yok; personelin
+  el yazısıyla "okudum" notu için boş bir kutu ve iki imza yeri var. (3) Üretim masadan düğmeyle; pazar gecesi otomatik
   üretim yok (karar fonksiyonu `system` aktörünü zaten reddediyor).
 
 **Kalanlar (yarım iş).** `/mesai` mola bölümüne, plan hücresinin mola alanına, Faz 5 satırlarına ve Faz 6

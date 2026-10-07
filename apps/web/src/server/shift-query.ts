@@ -116,6 +116,13 @@ export interface MolaDurumu {
   /** Planlanan net çalışma (dk) ve planlı çıkış saati ('HH:MM'). Plan yoksa null. */
   readonly planNetDk: number | null
   readonly planCikis: string | null
+  /**
+   * Vardiya açık ama son turnike geçişi ÇIKIŞ yönünde: bulunma süresi o geçişte durur (owner,
+   * 2026-10-07: yöneticinin listesiyle EŞİTLENDİ — aynı kişi için iki ekran iki ayrı net
+   * göstermesin). Gece süpürgesi vardiyayı zaten tam bu ana kapatacak. `null` ⇒ içeride, ya da
+   * yön bilinmiyor; o zaman süre şimdiye kadar sayılır.
+   */
+  readonly disaridaBitis: number | null
 }
 
 export interface ShiftView {
@@ -192,6 +199,38 @@ export async function loadShiftView(ctx: TenantContext, dateStr: string): Promis
     ownerMu && dateStr !== bugun ? molalar.listBreaksBetween(ctx, fromMs, toMs) : Promise.resolve([]),
   ])
   const gunMolalar = dateStr === bugun ? bugunMolalar : gecmisGunMolalar
+
+  // KENDİ SON GEÇİŞİM (OR-119). Yalnızca açık mesaim varsa soruluyor, ve owner bugünü geziyorsa
+  // yukarıdaki okuma yeniden kullanılıyor. Aynı sorgu, aynı index (`type ASC, recordedAt DESC`) —
+  // personele göre süzmek yeni bir bileşik index isterdi, ve o index emülatörde değil yalnızca
+  // canlıda eksik çıkardı. Başkasının geçişi buradan DIŞARI ÇIKMIYOR: tek bir an türetiliyor.
+  const bugunGecisler =
+    acik === null
+      ? []
+      : ownerMu && dateStr === bugun
+        ? gecisler
+        : await db
+            .collection('studios')
+            .doc(ctx.studioId)
+            .collection('events')
+            .where('type', '==', 'staff.crossed')
+            .where('recordedAt', '>=', Timestamp.fromMillis(bugunBas))
+            .where('recordedAt', '<', Timestamp.fromMillis(bugunBit))
+            .orderBy('recordedAt', 'desc')
+            .limit(500)
+            .get()
+            .then((q) => q.docs)
+  const gecisAni = (d: (typeof gecisler)[number]): number => {
+    const z = d.get('occurredAt') as Timestamp | number | null
+    return z instanceof Timestamp ? z.toMillis() : Number(z ?? 0)
+  }
+  const sonGecisim = bugunGecisler
+    .filter((d) => String(d.get('payload.staffUserId') ?? '') === String(ben))
+    .sort((a, b) => gecisAni(b) - gecisAni(a))[0]
+  const disaridaBitis =
+    acik !== null && sonGecisim && sonGecisim.get('payload.direction') === 'out'
+      ? Math.max(gecisAni(sonGecisim), Number(acik.startedAt))
+      : null
 
   // ── MOLA ALANLARI (OR-119) ─────────────────────────────────────────────────────────────────
   //
@@ -347,6 +386,7 @@ export async function loadShiftView(ctx: TenantContext, dateStr: string): Promis
     planliDk: planliMolaDk,
     planNetDk: planToplam?.netMinutes ?? null,
     planCikis: bugunBlok?.end ?? null,
+    disaridaBitis,
   }
 
   return {
