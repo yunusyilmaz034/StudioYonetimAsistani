@@ -416,7 +416,7 @@ sorusuna ikinci bir cevap olurdu). Koruma olarak `pnpm lint`e `tools/lint/client
 `'use client'` dosyalarında barrel DEĞER import'u arar. **Kasten bozularak denendi** — yakalıyor. `next build`
 kapıya konmadı: Doc 10 *"iki dakika süren bir kapı atlanan kapıdır"* diyor.
 
-**Faz 5 — yönetici canlı durumu (7 Ekim akşamı, commit edildi, DEPLOY EDİLMEDİ, tarayıcıda HİÇ AÇILMADI).**
+**Faz 5 — yönetici canlı durumu (7 Ekim akşamı — CANLIDA, tarayıcıda HİÇ AÇILMADI).**
 Owner'ın `/mesai` gün listesinde her satırda artık durum rozeti (Çalışıyor · Molada + canlı sayaç · Dışarıda ·
 Çıktı — yalnızca bugün) ve `Net 5:12 / 8:00 · Mola 0:45 / 1:00 · plan dışı +0:15` satırı var. Sunucu yalnızca
 başlangıç zamanlarını veriyor (`bulunmaKapaliDk` + `bulunmaAcikBaslangic`), dakikayı tarayıcı sayıyor; net/mola
@@ -426,8 +426,7 @@ süpürgesi zaten oraya kapatacak). Owner "eşitle" dedi: eğitmenin kendi kart�
 duruyor (`molam.disaridaBitis`) ve bunu yazıyor. **(2)** Geçmiş bir günde açık kalmış mola
 SAYILMIYOR, "kapanmamış, sayılmadı" diye yazılıyor (#11).
 
-**Faz 6 — haftalık rapor ve basılacak çizelge (7 Ekim gecesi, commit edildi, DEPLOY EDİLMEDİ, tarayıcıda HİÇ
-AÇILMADI — `next build` geçiyor).** Yeni ekran `/mesai/cizelge` (patron + resepsiyon; eğitmen `/mesai`ya döner),
+**Faz 6 — haftalık rapor ve basılacak çizelge (7 Ekim gecesi — CANLIDA, tarayıcıda HİÇ AÇILMADI).** Yeni ekran `/mesai/cizelge` (patron + resepsiyon; eğitmen `/mesai`ya döner),
 `/mesai`nın altındaki bağlantıdan açılıyor. Kişi başına yedi gün: plan · bulunma · mola · net · plan dışı · plandan
 az/fazla, ve hafta toplamı. **"Çizelgeleri üret"** o haftanın kâğıtlarını DONDURUR (`staffTimesheets`,
 `staff.timesheet_generated`); **"Yazdır"** `/mesai/cizelge/yazdir` — A4 tablo + iki imza yeri — KAYITLI sürümü
@@ -439,7 +438,8 @@ basar, canlı hesabı asla. Kayıt sonradan değiştiyse ekran söyler; yeniden 
   dönen belgenin anahtar sırası farklı olabildiği için kural canlıda hiç tutmayabilirdi ve her basış yeni sürüm
   üretirdi. Karşılaştırma artık alanları sabit sırayla yazıyor (`sameTimesheetContent`), testi var.
 - **Gece işi bağlandı:** `close-staff-shifts` artık kapanan vardiyanın açık molasını da kapatıyor (`auto_closed`).
-  **Functions deploy'u gerekiyor** — yapılana kadar 23:00'da açık kalan mola açık kalır. Mola kapanışı vardiyadan
+  `staffShiftClose` 7 Ekim 20:17'de deploy edildi; **ilk gerçek çalıştırma 7 Ekim 23:00** — 8 Ekim sabahı
+  logda `breaksClosed` alanına ve çizelgede "otomatik kapatıldı" yazan molaya bak. Mola kapanışı vardiyadan
   ayrı işlem; arada ölürse `staff break close failed` HATA logu basar (o mola ertesi gece kapanmaz, elle düzeltilir).
 - **Owner'ın söylemesi gerekenler:** (1) Pazardan önce üretim KİLİTLİ DEĞİL, yalnızca uyarıyor — kilit istenirse
   bu bir ret kuralıdır ve `decideGenerateTimesheet`'e girer. (2) KARARLANDI: kâğıtta basılı beyan metni yok; personelin
@@ -458,6 +458,10 @@ olarak işaretle", iki adımlı onayla (`signTimesheetAction`) — geri alınama
 - **Bilerek eksik:** masadan düzeltmede çakışma ve "vardiyanın içinde mi" denetimi YOK (`decideCorrectBreak`
   yalnızca yetki, sebep ve bitiş > başlangıç bakıyor). Eklemek bir ret kuralıdır — owner'ın kararı.
 - **Owner kararı (7 Ekim):** pazardan önce çizelge üretimi KİLİTLENMEZ, yalnızca uyarır.
+
+**DEPLOY (7 Ekim 20:23):** Faz 5–7 tek push'la (`e4e18d5`) canlıda — Cloud Run %100
+`studio-yonetim-build-2026-10-07-005`. Stüdyo AÇIKKEN deploy edildi (owner "deploy et" dedi); Işıl'a "yenile"
+denmesi gerekiyor. Canlıdaki ekranlar açılıp doğrulanmadı.
 
 **Kalanlar.** OR-119'un yedi fazı kodda tamam. `/mesai` mola bölümüne, plan hücresinin mola alanına ve Faz 5–7
 ekranlarının hiçbirine **tarayıcıda / 375 px'te bakılmadı**; kâğıt gerçek bir yazıcıdan hiç çıkmadı — ilk gerçek
