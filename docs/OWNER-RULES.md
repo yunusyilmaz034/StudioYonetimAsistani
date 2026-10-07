@@ -1707,6 +1707,11 @@ onay bekliyor" hatırlatması düşer. Onaylı izinli bir güne vardiya yazılı
 
 **Büyümeye en yatkın yer** (OR-72 ile aynı): fazla mesai hesabı, takas onay zinciri, puantaj. Orada durulacak.
 
+> ⚠️ **KARAR 3'ÜN "PUANTAJ YOK" YARISININ YERİNE [[OR-119]] GEÇTİ (2026-10-07).** Owner çizgiyi bilerek
+> taşıdı: planlanan/gerçek net çalışma, ara dinlenmesi ve plan dışı mola artık kaydediliyor ve
+> raporlanıyor. **Kesinti ve ceza hâlâ YOK** — karar 3'ün o yarısı aynen duruyor. Yukarısı neden
+> böyle başladığımızın kaydı olarak kalıyor.
+
 **Ekran kararları (2026-09-14, owner onayladı — hepsi önerilen seçenek):**
 - **Haftalık tablo:** masaüstünde satırlar personel, sütunlar günler; telefonda aynı veri gün gün açılır.
   Hücrede saat, izinli günde "İzinli/Raporlu" işareti; izinli güne saat yazılırsa kırmızı uyarı. Yayındakinden
@@ -2226,3 +2231,57 @@ dahil) · paketin süresi · kredi · günlük/aktif limit · haftalık hak · g
 **Seçenek listesi de süzülmüyor artık.** Ekran eskiden yalnızca aktif/süresi dolmuş ve kategorisi uyan paketleri
 gösteriyordu — domain'in kabul ettiği seçenekleri ekrandan saklamak demekti. Tıklanamayan bir esneklik, esneklik
 değildir. Her satır paketin **durumunu** ve kredi etkisini ("1 ders düşecek" / "kredi düşmeyecek") tıklamadan önce yazar.
+
+
+**OR-119 · Çalışma süresi ve ara dinlenmesi kaydediliyor: kesinti yok, kayıt var — ve sayılar KODDA DEĞİL.** (2026-10-07)
+Owner: *"Tam zamanlı eğitmenlerin çalışma ve ara dinlenme sürelerini doğru ve denetlenebilir şekilde takip etmek
+istiyoruz… Bu özellik bir bordro veya otomatik ücret kesme sistemi değildir."*
+**[[OR-77]] karar 3'ün "puantaj YOK" yarısını geçersiz kılar; "kesinti/ceza YOK" yarısını KORUR.**
+
+**Kurallar, ve hiçbiri koda yazılı değil.** Haftalık normal çalışma en çok **45:00 net**, günlük net en çok
+**11:00**, ara dinlenmesi NET çalışmaya göre en az **15 / 30 / 60 dk** (≤4:00 · >4:00–≤7:30 · >7:30). Üçü de
+`StudioSettings`te **sürümlü veri** — çünkü OR-72 bir İK yazılımını reddederken sebebini yazmıştı: *"İş
+Kanunu'nu koda gömer ve her yıl çürür."* Sayılar veride durursa kanun değişince kod değişmez.
+**Bütün sınırlar KAPSAYICI** (`≤45`, `≤11`, `≥min`): owner'ın kendi şablonları üç sınırın tam üstünde duruyor,
+bir karşılaştırma "kesin küçük" olsa sistem stüdyonun kendi çizelgesini reddederdi.
+**Süre tamsayı DAKİKA**, float saat değil — `45.000000001 > 45` çıkar.
+
+**45 saat bir TAVAN, hedef değil.** Sistem kimseyi 45'e tamamlamaya çalışmaz. Sözleşme süresi
+(`contractWeeklyMinutes`, örn. 40:00) ayrı bir kavramdır ve planı **REDDETMEZ** — raporda bir satırdır. Reddeden
+tek şey yasal tavandır; sözleşmeyi ret sebebi yapmak 45 saati yeniden bir zorunluluğa çevirirdi.
+
+**A/B hafta döngüsü.** Cumartesisiz (A) ve cumartesili (B) haftalar sırayla. Parite saklanan bir sayaçtan değil
+**çapa tarihinden** hesaplanır: sayaç olsaydı bir hafta atlandığında döngü sessizce kayardı. Hesap ay ve yıl
+görmez, iki pazartesi arasındaki gün farkının paritesini alır. **Çapa değiştirilemez** — değişirse geçmiş
+haftaların paritesi kayar ve imzalanmış çizelgelerle sistem çelişir; döngü kaydırılacaksa yeni şablon açılır.
+**Şablon ÜRETİR, onaylanmış plan KARAR VERİR:** şablon yalnızca taslağı doldurur, böylece "bu hafta kaçta?"
+sorusunun tek cevabı olur ve OR-77'nin resepsiyon → owner → yayın zinciri korunur.
+
+**Mola, işyerinde bulunmak değildir.** `PRESENT + WORKING` ile `PRESENT + ON_BREAK` iki ayrı durumdur; mola
+çalışma süresine EKLENMEZ. Planlı mola tek parça olmak zorunda değil, her mola ayrı kayıttır. Planlı süre aşılırsa
+**sistem engellemez**: `Planlanan 03:00 · Gerçekleşen 03:27 · Plan dışı +00:27` olarak kaydeder. Gerçeği gizlemek
+için olay oluşmasını engellemek, ihlali kayıttan silmek olurdu.
+**Vardiyası olmayan mola REDDEDİLİR:** molanın düşüleceği bir çalışma süresi yoksa kayıt yetim kalır.
+
+**`source` ve bu pazarlık konusu değil (#11).** Her mola nasıl kaydedildiğini taşır: `live` (o an basıldı —
+GÖZLEM) · `retro_entry` (sonradan beyan edildi) · `auto_closed` (23:00 vardiyayı kapatırken kapattı, gözlenmiş
+bitiş yok). Üçü sonsuza kadar ayırt edilebilir kalır ve rapor üçünü ayrı gösterir. Bir kez karışırsa *"bu mola
+gerçekten o saatte mi tutuldu"* sorusu hiç cevaplanamaz.
+
+**Geriye dönük giriş: EKLEME, düzeltme değil.** Personel molaya basmayı unuttuysa **pazartesi–cumartesi
+23:59** arası, **yalnızca o hafta** ve **yalnızca kendisi** eksik molayı ekler; kaydedilmiş bir molayı
+**değiştiremez ve silemez**. Olayın `occurredAt`i beyan edilen saattir, beyanın yapıldığı an değil (D2).
+
+**Pazar çizelge üretilir, pazartesi ıslak imzayla imzalanır.** Çizelge **DONMUŞ bir snapshot** taşır ve her sürüm
+**kendi belgesidir**: imzalanan kâğıt ile kayıt sonsuza kadar birebir kalmalı. Yeniden hesaplanan bir çizelge,
+sonradan yapılan bir düzeltmeyle kâğıdın söylediğini sessizce değiştirirdi. Düzeltme `version`'ı artırır, **yeni
+bir kâğıt** üretir ve **imzasız başlar** (önceki imza yeni kâğıdı kapsamaz); eski sürüm silinmez (#9). Aynı içerik
+yeniden üretilmez — imzalanacak kâğıdı çoğaltmak hiçbir şey söylemez. İmzanın alındığı sistemde işaretlenir
+(kâğıdın kendisi dışarıda), böylece *"hangi hafta imzalanmadı"* sorusu cevaplanabilir.
+
+**Düzeltme yetkisi masada:** patron ve resepsiyon, **sebep zorunlu**, öncesi/sonrası kayda geçer. Personel kendi
+geçmiş molasına dokunamaz. Değişen bir şey yoksa olay yazılmaz — aynı değer bir düzeltme değildir.
+
+**Bu bir bordro DEĞİL ve yapısal olarak da değil:** bordro gerçekleşen DERS ve atfedilmiş SATIŞtan hesaplanıyor,
+çalışma saatinden değil. Yeni özellik bordronun tükettiği hiçbir girdiyi üretmiyor. **Büyümeye en yatkın yer:**
+saat bazlı bir kazanç satırı ya da fazla molanın bordro düzeltmesine bağlanması. Orada durulacak.

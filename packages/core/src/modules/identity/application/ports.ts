@@ -1,5 +1,5 @@
 import type { Clock, DomainError, NewEvent, Result, StaffUserId, TenantContext } from '../../../shared'
-import type { StaffLeave, StaffLeaveDocument, StaffMember, StaffShift, StaffWeekPlan } from '../domain/types'
+import type { StaffBreak, StaffLeave, StaffLeaveDocument, StaffMember, StaffShift, StaffWeekPlan, WeeklyTimesheet } from '../domain/types'
 
 // Admin SDK only (AD-15). Staff are written by the owner, from the product — and, exactly once per
 // studio, by a break-glass bootstrap script, because somebody has to be able to log in first.
@@ -91,4 +91,40 @@ export interface StaffWeekPlanDeps {
   readonly clock: Clock
   /** "Bu hafta geçti mi" sorusundaki GÜN stüdyonun yerel günüdür. */
   readonly utcOffsetMinutes: number
+}
+
+// ── ARA DİNLENMESİ (owner, 2026-10-06/07) ───────────────────────────────────────────────────
+export interface StaffBreakRepository {
+  /** Bu kişinin AÇIK molası — yoksa null. Kararın tek girdisi. */
+  getOpenBreak(ctx: TenantContext, staffUserId: StaffUserId): Promise<StaffBreak | null>
+  /** Bir vardiyanın bütün molaları. Çakışma denetiminin ve günlük toplamın girdisi. */
+  listBreaksOfShift(ctx: TenantContext, shiftId: string): Promise<readonly StaffBreak[]>
+  /** Bir aralıktaki molalar — haftalık çizelgenin girdisi. */
+  listBreaksBetween(ctx: TenantContext, fromAt: number, toAt: number): Promise<readonly StaffBreak[]>
+  getBreak(ctx: TenantContext, id: string): Promise<StaffBreak | null>
+  /** Belge ve olay(lar) TEK işlemde (#1). */
+  saveBreak(ctx: TenantContext, brk: StaffBreak, events: readonly NewEvent[]): Promise<void>
+}
+
+export interface StaffBreakDeps {
+  readonly repo: StaffBreakRepository
+  readonly clock: Clock
+  /** Geriye dönük giriş penceresi stüdyo yerel haftasıdır; yoksa varsayılan yapılandırma. */
+  readonly utcOffsetMinutes?: number
+}
+
+// ── HAFTALIK ÇİZELGE (owner, 2026-10-07) ────────────────────────────────────────────────────
+//
+// HER SÜRÜM KENDİ BELGESİ: `{hafta}_{personel}_v{n}`. Tek belgede sürümlemek, imzalanmış bir
+// çizelgenin üstüne yazmak olurdu — oysa düzeltme yeni bir kâğıt üretir ve eskisi DURUR (#9).
+export interface StaffTimesheetRepository {
+  /** En yüksek sürüm — "şu an geçerli kâğıt". Yoksa null. */
+  getLatestTimesheet(ctx: TenantContext, weekStart: string, staffUserId: StaffUserId): Promise<WeeklyTimesheet | null>
+  getTimesheet(ctx: TenantContext, weekStart: string, staffUserId: StaffUserId, version: number): Promise<WeeklyTimesheet | null>
+  saveTimesheet(ctx: TenantContext, sheet: WeeklyTimesheet, events: readonly NewEvent[]): Promise<void>
+}
+
+export interface StaffTimesheetDeps {
+  readonly repo: StaffTimesheetRepository
+  readonly clock: Clock
 }

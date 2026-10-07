@@ -115,6 +115,10 @@ service cloud.firestore {
           // 2026-09-14 — haftalık vardiya planı (OR-77). Taslak ile yayındaki plan aynı belgede: istemci
           // okuyabilseydi personel onaylanmamış taslağı görürdü, yazabilseydi onayı atlardı.
           'staffWeekPlans',
+          // 2026-10-07 — mola ve haftalık çizelge. Molayı personel kendi panelinden yazıyor ama
+          // KARAR sunucuda: istemci yazabilseydi başkasının molasını ya da kapanmış bir haftayı
+          // yazabilirdi. Çizelge ıslak imzayla imzalanıyor; istemcinin ona hiç dokunmaması gerekir.
+          'staffBreaks', 'staffTimesheets',
           // v1.27 — internal counters (public-form rate limits, hashed IPs). Server-only; no client read.
           'rateLimits',
           // 2026-07-30 — import batches. Each one lists the members and packages one file created,

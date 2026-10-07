@@ -111,4 +111,20 @@ export {
   type StartBreakInput,
 } from './domain/break'
 export { decideGenerateTimesheet, decideSignTimesheet } from './domain/timesheet'
+export {
+  closeOpenBreakWithShift,
+  correctBreak,
+  endBreak,
+  enterBreakRetroactively,
+  retroEntryWindow,
+  startBreak,
+} from './application/break'
+export { generateTimesheet, signTimesheet } from './application/timesheet'
+export type {
+  StaffBreakDeps,
+  StaffBreakRepository,
+  StaffTimesheetDeps,
+  StaffTimesheetRepository,
+} from './application/ports'
+export { FirestoreStaffBreakRepository, FirestoreStaffTimesheetRepository } from './infrastructure/repos'
 

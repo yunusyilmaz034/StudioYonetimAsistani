@@ -18,8 +18,24 @@ import {
   type StudioId,
   type TenantContext,
 } from '../../../shared'
-import type { IdentityRepository, StaffLeaveRepository, StaffShiftRepository, StaffWeekPlanRepository } from '../application/ports'
-import type { StaffLeave, StaffLeaveDocument, StaffMember, StaffShift, StaffWeekPlan, WeekPlanEntries } from '../domain/types'
+import type {
+  IdentityRepository,
+  StaffBreakRepository,
+  StaffLeaveRepository,
+  StaffShiftRepository,
+  StaffTimesheetRepository,
+  StaffWeekPlanRepository,
+} from '../application/ports'
+import type {
+  StaffBreak,
+  StaffLeave,
+  StaffLeaveDocument,
+  StaffMember,
+  StaffShift,
+  StaffWeekPlan,
+  WeeklyTimesheet,
+  WeekPlanEntries,
+} from '../domain/types'
 import { staffFromFirestore, staffToFirestore } from './mappers'
 
 export class FirestoreIdentityRepository implements IdentityRepository {
@@ -371,5 +387,165 @@ export class FirestoreStaffWeekPlanRepository implements StaffWeekPlanRepository
         recordedAt: FieldValue.serverTimestamp(),
       })
     }
+  }
+}
+
+// ── ARA DİNLENMESİ (owner, 2026-10-06/07) ───────────────────────────────────────────────────
+export class FirestoreStaffBreakRepository implements StaffBreakRepository {
+  constructor(private readonly db: Firestore = getFirestore()) {}
+
+  private col(sid: StudioId): CollectionReference {
+    return this.db.collection('studios').doc(sid).collection('staffBreaks')
+  }
+
+  async getOpenBreak(ctx: TenantContext, staffUserId: StaffUserId): Promise<StaffBreak | null> {
+    const snap = await this.col(ctx.studioId)
+      .where('staffUserId', '==', staffUserId)
+      .where('endedAt', '==', null)
+      .limit(1)
+      .get()
+    const d = snap.docs[0]
+    return d ? this.oku(d.id, d.data()) : null
+  }
+
+  async listBreaksOfShift(ctx: TenantContext, shiftId: string): Promise<readonly StaffBreak[]> {
+    // Tek alanlı eşitlik — bileşik index istemez.
+    const snap = await this.col(ctx.studioId).where('shiftId', '==', shiftId).get()
+    return snap.docs.map((d) => this.oku(d.id, d.data())).sort((a, b) => (a.startedAt as number) - (b.startedAt as number))
+  }
+
+  async listBreaksBetween(ctx: TenantContext, fromAt: number, toAt: number): Promise<readonly StaffBreak[]> {
+    const snap = await this.col(ctx.studioId)
+      .where('startedAt', '>=', Timestamp.fromMillis(fromAt))
+      .where('startedAt', '<=', Timestamp.fromMillis(toAt))
+      .orderBy('startedAt', 'asc')
+      .get()
+    return snap.docs.map((d) => this.oku(d.id, d.data()))
+  }
+
+  async getBreak(ctx: TenantContext, id: string): Promise<StaffBreak | null> {
+    const d = await this.col(ctx.studioId).doc(id).get()
+    return d.exists ? this.oku(d.id, d.data() ?? {}) : null
+  }
+
+  async saveBreak(ctx: TenantContext, brk: StaffBreak, events: readonly NewEvent[]): Promise<void> {
+    await this.db.runTransaction(async (tx: Transaction) => {
+      tx.set(
+        this.col(ctx.studioId).doc(brk.id),
+        {
+          staffUserId: brk.staffUserId,
+          shiftId: brk.shiftId,
+          startedAt: Timestamp.fromMillis(brk.startedAt as number),
+          endedAt: brk.endedAt === null ? null : Timestamp.fromMillis(brk.endedAt as number),
+          source: brk.source,
+        },
+        { merge: true },
+      )
+      writeIdentityEvents(this.db, ctx.studioId, tx, events)
+    })
+  }
+
+  private oku(id: string, d: Record<string, unknown>): StaffBreak {
+    const ts = (v: unknown): number => (v as Timestamp).toMillis()
+    return {
+      id,
+      staffUserId: d.staffUserId as StaffUserId,
+      shiftId: d.shiftId as string,
+      startedAt: instant(ts(d.startedAt)),
+      endedAt: d.endedAt == null ? null : instant(ts(d.endedAt)),
+      source: (d.source ?? 'live') as StaffBreak['source'],
+    }
+  }
+}
+
+// ── HAFTALIK ÇİZELGE (owner, 2026-10-07) ────────────────────────────────────────────────────
+export class FirestoreStaffTimesheetRepository implements StaffTimesheetRepository {
+  constructor(private readonly db: Firestore = getFirestore()) {}
+
+  private col(sid: StudioId): CollectionReference {
+    return this.db.collection('studios').doc(sid).collection('staffTimesheets')
+  }
+
+  /** Belge kimliği sürümü TAŞIR: her kâğıt kendi belgesi, üstüne yazılmaz. */
+  private id(weekStart: string, staffUserId: StaffUserId, version: number): string {
+    return `${weekStart}_${staffUserId}_v${version}`
+  }
+
+  async getLatestTimesheet(
+    ctx: TenantContext,
+    weekStart: string,
+    staffUserId: StaffUserId,
+  ): Promise<WeeklyTimesheet | null> {
+    const snap = await this.col(ctx.studioId)
+      .where('weekStart', '==', weekStart)
+      .where('staffUserId', '==', staffUserId)
+      .orderBy('version', 'desc')
+      .limit(1)
+      .get()
+    const d = snap.docs[0]
+    return d ? this.oku(d.data()) : null
+  }
+
+  async getTimesheet(
+    ctx: TenantContext,
+    weekStart: string,
+    staffUserId: StaffUserId,
+    version: number,
+  ): Promise<WeeklyTimesheet | null> {
+    const d = await this.col(ctx.studioId).doc(this.id(weekStart, staffUserId, version)).get()
+    return d.exists ? this.oku(d.data() ?? {}) : null
+  }
+
+  async saveTimesheet(ctx: TenantContext, sheet: WeeklyTimesheet, events: readonly NewEvent[]): Promise<void> {
+    await this.db.runTransaction(async (tx: Transaction) => {
+      tx.set(
+        this.col(ctx.studioId).doc(this.id(sheet.weekStart, sheet.staffUserId, sheet.version)),
+        {
+          weekStart: sheet.weekStart,
+          staffUserId: sheet.staffUserId,
+          version: sheet.version,
+          generatedAt: Timestamp.fromMillis(sheet.generatedAt as number),
+          generatedBy: sheet.generatedBy,
+          days: sheet.days,
+          plannedNetMinutes: sheet.plannedNetMinutes,
+          actualNetMinutes: sheet.actualNetMinutes,
+          actualBreakMinutes: sheet.actualBreakMinutes,
+          excessBreakMinutes: sheet.excessBreakMinutes,
+          signedAt: sheet.signedAt === null ? null : Timestamp.fromMillis(sheet.signedAt as number),
+          signedBy: sheet.signedBy,
+        },
+        { merge: true },
+      )
+      writeIdentityEvents(this.db, ctx.studioId, tx, events)
+    })
+  }
+
+  private oku(d: Record<string, unknown>): WeeklyTimesheet {
+    const ts = (v: unknown): number => (v as Timestamp).toMillis()
+    return {
+      weekStart: d.weekStart as string,
+      staffUserId: d.staffUserId as StaffUserId,
+      version: Number(d.version ?? 1),
+      generatedAt: instant(ts(d.generatedAt)),
+      generatedBy: (d.generatedBy ?? null) as WeeklyTimesheet['generatedBy'],
+      days: (d.days ?? []) as WeeklyTimesheet['days'],
+      plannedNetMinutes: Number(d.plannedNetMinutes ?? 0),
+      actualNetMinutes: Number(d.actualNetMinutes ?? 0),
+      actualBreakMinutes: Number(d.actualBreakMinutes ?? 0),
+      excessBreakMinutes: Number(d.excessBreakMinutes ?? 0),
+      signedAt: d.signedAt == null ? null : instant(ts(d.signedAt)),
+      signedBy: (d.signedBy ?? null) as WeeklyTimesheet['signedBy'],
+    }
+  }
+}
+
+/** Olay yazma, sınıflar arası paylaşılan tek kopya — her repo kendi kopyasını taşımasın. */
+function writeIdentityEvents(db: Firestore, sid: StudioId, tx: Transaction, events: readonly NewEvent[]): void {
+  for (const e of events) {
+    tx.set(db.collection('studios').doc(sid).collection('events').doc(newEventId()), {
+      ...e,
+      occurredAt: Timestamp.fromMillis(e.occurredAt as number),
+      recordedAt: FieldValue.serverTimestamp(),
+    })
   }
 }

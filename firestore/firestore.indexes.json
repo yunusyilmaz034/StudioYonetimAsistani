@@ -299,6 +299,38 @@
       ]
     },
     {
+      "collectionGroup": "staffBreaks",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "staffUserId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "endedAt",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "staffTimesheets",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "weekStart",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "staffUserId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "version",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
       "collectionGroup": "staffShifts",
       "queryScope": "COLLECTION",
       "fields": [
