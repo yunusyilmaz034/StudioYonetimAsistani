@@ -96,3 +96,19 @@ export {
   type WeekParity,
 } from './domain/shift-template'
 export { dakika, gecerliSaat } from './domain/week-plan'
+
+// ── Ara dinlenmesi ve haftalık çizelge (owner, 2026-10-06/07) ───────────────────────────────
+export type { BreakSource } from './events'
+export type { EmploymentType, StaffBreak, TimesheetDay, WeeklyTimesheet } from './domain/types'
+export {
+  decideCloseBreakWithShift,
+  decideCorrectBreak,
+  decideEndBreak,
+  decideEnterBreakRetroactively,
+  decideStartBreak,
+  type RetroBreakInput,
+  type RetroEntryWindow,
+  type StartBreakInput,
+} from './domain/break'
+export { decideGenerateTimesheet, decideSignTimesheet } from './domain/timesheet'
+

@@ -1,0 +1,9 @@
+{
+  "breakId": "brk_1",
+  "staffUserId": "usr_1",
+  "changedFields": ["endedAt"],
+  "changes": {
+    "endedAt": { "from": 1700005400000, "to": 1700006000000 }
+  },
+  "reason": "Turnikeyi okutamadı, çıkış saati elle düzeltildi"
+}

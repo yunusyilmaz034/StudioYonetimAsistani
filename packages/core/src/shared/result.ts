@@ -210,6 +210,16 @@ export type DomainError =
   // Sayılar payload'da taşınıyor: mesaj "45 saati aşıyor" demekle yetinmez, KAÇ olduğunu söyler.
   // Limitler veride durduğu için `allowedMinutes` de verinin kendisinden gelir, koddan değil.
   | { readonly code: 'working_time_limits_missing' }
+  // Ara dinlenmesi (owner, 2026-10-06/07)
+  | { readonly code: 'break_already_open' }
+  | { readonly code: 'no_open_break' }
+  | { readonly code: 'break_overlaps' }
+  // Geriye dönük giriş penceresi: pazartesi–cumartesi 23:59, yalnızca o hafta (owner, 2026-10-07).
+  | { readonly code: 'retro_entry_window_closed' }
+  | { readonly code: 'break_correction_forbidden' }
+  // Haftalık çizelge ve ıslak imza
+  | { readonly code: 'timesheet_already_signed' }
+  | { readonly code: 'timesheet_unchanged' }
   | { readonly code: 'weekly_normal_work_exceeded'; readonly netMinutes: number; readonly allowedMinutes: number }
   | { readonly code: 'daily_net_work_exceeded'; readonly netMinutes: number; readonly allowedMinutes: number }
   | {

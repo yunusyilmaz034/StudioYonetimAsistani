@@ -25,6 +25,18 @@ import leaveDocumentRemoved from './staff.leave_document_removed.v1.json'
 import weekPlanApproved from './staff.week_plan_approved.v1.json'
 import { decideAddLeaveDocument, decideRemoveLeaveDocument } from '../../src/modules/identity/domain/leave-document'
 import weekPlanDraftSaved from './staff.week_plan_draft_saved.v1.json'
+import breakCorrected from './staff.break_corrected.v1.json'
+import breakEnded from './staff.break_ended.v1.json'
+import breakStarted from './staff.break_started.v1.json'
+import timesheetGenerated from './staff.timesheet_generated.v1.json'
+import timesheetSigned from './staff.timesheet_signed.v1.json'
+import {
+  decideCorrectBreak,
+  decideEndBreak,
+  decideStartBreak,
+} from '../../src/modules/identity/domain/break'
+import { decideGenerateTimesheet, decideSignTimesheet } from '../../src/modules/identity/domain/timesheet'
+import type { StaffBreak, StaffShift, TimesheetDay, WeeklyTimesheet } from '../../src/modules/identity/domain/types'
 import weekPlanReturned from './staff.week_plan_returned.v1.json'
 import weekPlanSubmitted from './staff.week_plan_submitted.v1.json'
 import {
@@ -324,5 +336,123 @@ describe('vardiya planında görünmek', () => {
     expect(r.ok && r.value.events).toEqual([])
     const geri = decideSetShiftPlanMembership(ctx(), staff({ inShiftPlan: false }), true)
     expect(geri.ok && geri.value.events[0]?.payload).toEqual({ staffUserId: 'usr_1', included: true })
+  })
+})
+
+// ── ARA DİNLENMESİ VE HAFTALIK ÇİZELGE (owner, 2026-10-06/07) ───────────────────────────────
+//
+// Aynı kural: opak kimlik ve dakika. Yükte isim yok (#6).
+//
+// `source` yükün parçası, çünkü #11 onu gerektiriyor: sonradan girilen bir mola o an basılmış bir
+// moladan ayırt edilebilir kalmalı. Olaydan düşerse ayrım sonsuza kadar kaybolur.
+describe('mola ve çizelge olayları', () => {
+  const BEN = 'usr_1' as StaffUserId
+  const T0 = 1_700_000_000_000
+  const molaCtx = (now: number) => ({
+    studioId: 'std_1' as StudioId,
+    actor: { type: 'receptionist' as const, id: BEN as never },
+    now: instant(now),
+    correlationId: 'cor_1' as CorrelationId,
+    source: 'reception_web' as const,
+  })
+
+  const vardiya: StaffShift = {
+    id: 'shf_1',
+    staffUserId: BEN,
+    branchId: null,
+    startedAt: instant(T0),
+    endedAt: null,
+    lastCrossingAt: null,
+  }
+
+  it('staff.break_started', () => {
+    const r = decideStartBreak(
+      molaCtx(T0 + 3_600_000),
+      { staffUserId: BEN, shiftId: 'shf_1', breakId: 'brk_1' },
+      vardiya,
+      null,
+    )
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.value[0]?.payload).toEqual(breakStarted)
+  })
+
+  it('staff.break_ended — dakika ve source', () => {
+    const acik: StaffBreak = {
+      id: 'brk_1',
+      staffUserId: BEN,
+      shiftId: 'shf_1',
+      startedAt: instant(T0 + 3_600_000),
+      endedAt: null,
+      source: 'live',
+    }
+    const r = decideEndBreak(molaCtx(T0 + 3_600_000 + 30 * 60_000), acik)
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.value.events[0]?.payload).toEqual(breakEnded)
+  })
+
+  it('staff.break_corrected — öncesi, sonrası ve sebep', () => {
+    const kapali: StaffBreak = {
+      id: 'brk_1',
+      staffUserId: BEN,
+      shiftId: 'shf_1',
+      startedAt: instant(T0 + 3_600_000),
+      endedAt: instant(T0 + 5_400_000),
+      source: 'live',
+    }
+    const r = decideCorrectBreak(
+      molaCtx(T0 + 86_400_000),
+      kapali,
+      { endedAt: instant(T0 + 6_000_000) },
+      'Turnikeyi okutamadı, çıkış saati elle düzeltildi',
+    )
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.value.events[0]?.payload).toEqual(breakCorrected)
+  })
+
+  const gun: TimesheetDay = {
+    date: '2026-10-05',
+    planned: { start: '10:00', end: '21:00', breakMinutes: 180, netMinutes: 480 },
+    actualPresenceMinutes: 659,
+    actualBreakMinutes: 221,
+    actualNetMinutes: 438,
+    excessBreakMinutes: 41,
+    netDeficitMinutes: 42,
+    netSurplusMinutes: 0,
+    retroEntryCount: 2,
+    autoClosedCount: 0,
+  }
+  const snapshot = {
+    weekStart: '2026-10-05',
+    staffUserId: BEN,
+    days: [gun],
+    plannedNetMinutes: 480,
+    actualNetMinutes: 438,
+    actualBreakMinutes: 221,
+    excessBreakMinutes: 41,
+  }
+
+  it('staff.timesheet_generated — sonradan girilen mola sayısı dahil', () => {
+    const r = decideGenerateTimesheet(molaCtx(T0), snapshot, null)
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.value.events[0]?.payload).toEqual(timesheetGenerated)
+  })
+
+  it('staff.timesheet_signed — kâğıdın kendisi yok, alındığı var', () => {
+    const sheet: WeeklyTimesheet = {
+      ...snapshot,
+      version: 1,
+      generatedAt: instant(T0),
+      generatedBy: BEN,
+      signedAt: null,
+      signedBy: null,
+    }
+    const r = decideSignTimesheet(molaCtx(T0 + 86_400_000), sheet)
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.value.events[0]?.payload).toEqual(timesheetSigned)
   })
 })

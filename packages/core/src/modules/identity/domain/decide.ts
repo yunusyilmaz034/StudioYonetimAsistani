@@ -58,7 +58,14 @@ export interface DecideContext {
   readonly source: EventSource
 }
 
-const base = (ctx: DecideContext, staffUserId: StaffUserId) => ({
+/**
+ * Personel olaylarının zarfı.
+ *
+ * DIŞA VERİLDİ `envelope` adıyla (2026-10-07): mola ve çizelge kararları kardeş dosyalarda ve aynı
+ * zarfı kuruyorlar. İkinci bir kopya, `subject`/`policyRef` gibi alanların iki yerde ayrışması
+ * demek olurdu.
+ */
+export const envelope = (ctx: DecideContext, staffUserId: StaffUserId) => ({
   studioId: ctx.studioId,
   branchId: null,
   version: 1,
@@ -97,7 +104,7 @@ export function decideCreateStaff(
 
   return ok([
     {
-      ...base(ctx, staff.id),
+      ...envelope(ctx, staff.id),
       type: STAFF_CREATED,
       // The NAME is not here. It is PII, it lives on `/staff`, and the log keeps the opaque id and
       // the role — the part that is analysable and the part that must survive her leaving (#6).
@@ -139,7 +146,7 @@ export function decideChangeRole(
     next: { ...current, role: to },
     events: [
       {
-        ...base(ctx, current.id),
+        ...envelope(ctx, current.id),
         type: STAFF_ROLE_CHANGED,
         // BOTH directions. "Ayşe became a receptionist" does not tell you whether that widened her
         // access or narrowed it, and a year later that is the only thing you want to know.
@@ -173,7 +180,7 @@ export function decideDeactivateStaff(
     next: { ...current, active: false },
     events: [
       {
-        ...base(ctx, current.id),
+        ...envelope(ctx, current.id),
         type: STAFF_DEACTIVATED,
         payload: { staffUserId: current.id as string, reason },
       },
@@ -195,7 +202,7 @@ export function decideReactivateStaff(
     next: { ...current, active: true },
     events: [
       {
-        ...base(ctx, current.id),
+        ...envelope(ctx, current.id),
         type: STAFF_REACTIVATED,
         payload: { staffUserId: current.id as string },
       },
@@ -224,7 +231,7 @@ export function decideSetShiftPlanMembership(
     next: { ...current, inShiftPlan: included },
     events: [
       {
-        ...base(ctx, current.id),
+        ...envelope(ctx, current.id),
         type: STAFF_SHIFT_PLAN_MEMBERSHIP_SET,
         payload: { staffUserId: current.id as string, included },
       },
@@ -251,7 +258,7 @@ export function decideStartShift(
   if (acik) return err({ code: 'shift_already_open' })
   return ok([
     {
-      ...base(ctx, input.staffUserId),
+      ...envelope(ctx, input.staffUserId),
       branchId: input.branchId,
       type: STAFF_SHIFT_STARTED,
       payload: { staffUserId: input.staffUserId, shiftId: input.shiftId },
@@ -267,7 +274,7 @@ export function decideEndShift(
   if (!kendisi(ctx, acik.staffUserId)) return err({ code: 'own_shift_only' })
   return ok([
     {
-      ...base(ctx, acik.staffUserId),
+      ...envelope(ctx, acik.staffUserId),
       branchId: acik.branchId,
       type: STAFF_SHIFT_ENDED,
       payload: {
@@ -339,7 +346,7 @@ export function decideStaffCrossing(
   }
 
   const crossed: NewEvent<typeof STAFF_CROSSED, StaffCrossedPayload> = {
-    ...base(ctx, input.staffUserId),
+    ...envelope(ctx, input.staffUserId),
     branchId: input.branchId,
     type: STAFF_CROSSED,
     payload: { staffUserId: input.staffUserId, deviceId: input.deviceId, direction: input.direction },
@@ -361,7 +368,7 @@ export function decideStaffCrossing(
   })
   // Önce geçiş, sonra vardiya: vardiya geçişin SONUCU, ve log bu sırayla okunmalı.
   events.push(crossed, {
-    ...base(ctx, input.staffUserId),
+    ...envelope(ctx, input.staffUserId),
     branchId: input.branchId,
     type: STAFF_SHIFT_STARTED,
     payload: { staffUserId: input.staffUserId, shiftId: input.newShiftId },
@@ -393,7 +400,7 @@ function kapat(ctx: DecideContext, shift: StaffShift): { shift: StaffShift; even
   return {
     shift: { ...shift, endedAt: end },
     event: {
-      ...base(ctx, shift.staffUserId),
+      ...envelope(ctx, shift.staffUserId),
       occurredAt: end,
       branchId: shift.branchId,
       type: STAFF_SHIFT_ENDED,
@@ -406,8 +413,13 @@ function kapat(ctx: DecideContext, shift: StaffShift): { shift: StaffShift; even
   }
 }
 
-/** Kendi vardiyası mı? Platform yöneticisi hariç kimse bir başkasının saatini yazamaz. */
-function kendisi(ctx: DecideContext, staffUserId: StaffUserId): boolean {
+/**
+ * Kendi vardiyası mı? Platform yöneticisi hariç kimse bir başkasının saatini yazamaz.
+ *
+ * DIŞA VERİLDİ (2026-10-07): mola kararları da aynı kuralı soruyor, ve ikinci bir kopya yetki
+ * kuralının iki yerde ayrışması demek olurdu.
+ */
+export function kendisi(ctx: DecideContext, staffUserId: StaffUserId): boolean {
   return ctx.actor.type === 'platform_admin' || String(ctx.actor.id) === String(staffUserId)
 }
 
@@ -466,7 +478,7 @@ export function decideRequestLeave(
     next,
     events: [
       {
-        ...base(ctx, input.staffUserId),
+        ...envelope(ctx, input.staffUserId),
         type: STAFF_LEAVE_REQUESTED,
         payload: {
           leaveId: input.leaveId,
@@ -507,7 +519,7 @@ export function decideDecideLeave(
       next: { ...leave, status: 'rejected', decidedBy: ctx.actor.id as StaffUserId, decidedAt: ctx.now, decisionReason: karar.reason.trim() },
       events: [
         {
-          ...base(ctx, leave.staffUserId),
+          ...envelope(ctx, leave.staffUserId),
           type: STAFF_LEAVE_REJECTED,
           payload: { leaveId: leave.id, staffUserId: String(leave.staffUserId), reason: karar.reason.trim() },
         },
@@ -519,7 +531,7 @@ export function decideDecideLeave(
     next: { ...leave, status: 'approved', decidedBy: ctx.actor.id as StaffUserId, decidedAt: ctx.now, decisionReason: '' },
     events: [
       {
-        ...base(ctx, leave.staffUserId),
+        ...envelope(ctx, leave.staffUserId),
         type: STAFF_LEAVE_APPROVED,
         payload: { leaveId: leave.id, staffUserId: String(leave.staffUserId), affectedSessions: karar.affectedSessions },
       },
@@ -541,7 +553,7 @@ export function decideCancelLeave(
     next: { ...leave, status: 'cancelled', decidedBy: ctx.actor.id as StaffUserId, decidedAt: ctx.now },
     events: [
       {
-        ...base(ctx, leave.staffUserId),
+        ...envelope(ctx, leave.staffUserId),
         type: STAFF_LEAVE_CANCELLED,
         payload: { leaveId: leave.id, staffUserId: String(leave.staffUserId), wasApproved: leave.status === 'approved' },
       },

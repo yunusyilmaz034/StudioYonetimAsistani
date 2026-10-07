@@ -1,5 +1,5 @@
 import type { BranchId, Instant, StaffRole, StaffUserId } from '../../../shared'
-import type { LeaveKind } from '../events'
+import type { BreakSource, LeaveKind } from '../events'
 
 // A staff principal, as the scheduling pickers need to name one (assign/change a
 // session's trainer). Phase 1 is read-only: staff exist as auth principals with
@@ -15,7 +15,23 @@ export interface StaffMember {
    * kendiliğinden görünür. `false` — ortak resepsiyon hesabı, owner'ın eğitmen hesabı gibi planlanmayan biri.
    */
   readonly inShiftPlan?: boolean
+  /**
+   * Tam mı yarı zamanlı (owner, 2026-10-06). Haftalık YASAL tavan herkese uygulanır; bu alan
+   * sözleşmenin kendisini söyler. Alan YOKSA belirtilmemiştir — varsayılan uydurulmaz.
+   */
+  readonly employmentType?: EmploymentType
+  /**
+   * Sözleşmedeki haftalık net çalışma (dakika). YASAL TAVANLA AYNI ŞEY DEĞİL (owner, 2026-10-06:
+   * *"45 saat bir zorunluluk değil… MAXIMUM NORMAL WEEKLY WORK"*). Sözleşmesi 40:00 olan birinin
+   * tavanı yine 45:00'tır, hedefi 2400 dakikadır.
+   *
+   * Planı REDDETMEZ (owner onayı, 2026-10-07): sözleşmenin altında ya da üstünde kalmak raporda bir
+   * satırdır. Ret sebebi yapmak, 45 saati yeniden bir zorunluluğa çevirirdi.
+   */
+  readonly contractWeeklyMinutes?: number
 }
+
+export type EmploymentType = 'full_time' | 'part_time'
 
 /**
  * Bir vardiya: başladı, belki bitti.
@@ -67,6 +83,14 @@ export interface StaffLeave {
 export interface ShiftBlock {
   readonly start: string
   readonly end: string
+  /**
+   * PLANLANAN toplam ara dinlenmesi (dakika). Owner, 2026-10-06.
+   *
+   * Günde tek blok kuralı (OR-77 karar 1) BOZULMUYOR: mola bloğu ikiye ayırmıyor, bloğun içinden
+   * düşülüyor. Alan YOKSA plan bu alandan önce onaylanmıştır — "0 mola" demek DEĞİLDİR, ve geçmiş
+   * planlar bu yüzden yeniden doğrulanmaz.
+   */
+  readonly breakMinutes?: number
 }
 
 /** personel kimliği → 'YYYY-MM-DD' → blok. Yazılmamış gün = çalışmıyor. */
@@ -115,4 +139,69 @@ export interface StaffLeaveDocument {
   readonly pages: readonly string[]
   readonly uploadedAt: Instant
   readonly uploadedBy: StaffUserId
+}
+
+// ── ARA DİNLENMESİ (owner, 2026-10-06/07) ───────────────────────────────────────────────────
+
+/**
+ * Bir ara dinlenmesi: başladı, belki bitti.
+ *
+ * `endedAt === null` AÇIK mola demek — ve bir kişinin aynı anda yalnızca bir açık molası olabilir.
+ * DURUM ALANI YOK, bilerek: `StaffShift`te olduğu gibi durum türetilir. Saklanan bir durum,
+ * gerçekle ayrışabilen ikinci bir doğru kaynağıdır.
+ *
+ * `shiftId` ZORUNLU: mola bir vardiyanın İÇİNDEN düşülür. Vardiyası olmayan bir mola, neyden
+ * düşüleceği bilinmeyen bir süredir — bu yüzden vardiyasız mola reddedilir (owner, 2026-10-07).
+ */
+export interface StaffBreak {
+  readonly id: string
+  readonly staffUserId: StaffUserId
+  readonly shiftId: string
+  readonly startedAt: Instant
+  readonly endedAt: Instant | null
+  readonly source: BreakSource
+}
+
+// ── HAFTALIK ÇİZELGE (owner, 2026-10-07) ────────────────────────────────────────────────────
+
+/** Çizelgedeki bir gün. Plan yoksa `planned` null — "plan yok" ile "0 saat plan" aynı şey değildir. */
+export interface TimesheetDay {
+  readonly date: string
+  readonly planned:
+    | { readonly start: string; readonly end: string; readonly breakMinutes: number; readonly netMinutes: number }
+    | null
+  readonly actualPresenceMinutes: number
+  readonly actualBreakMinutes: number
+  readonly actualNetMinutes: number
+  readonly excessBreakMinutes: number
+  readonly netDeficitMinutes: number
+  readonly netSurplusMinutes: number
+  /** Kaç molası sonradan girildi / otomatik kapatıldı. Kâğıtta ayrı görünür (#11). */
+  readonly retroEntryCount: number
+  readonly autoClosedCount: number
+}
+
+/**
+ * Bir haftanın DONMUŞ çizelgesi — ıslak imzayla imzalanan şey (owner, 2026-10-07).
+ *
+ * SNAPSHOT, hesap değil: üretildiği anda saklanır, her görüntülemede yeniden hesaplanmaz. Yeniden
+ * hesaplanan bir çizelge, bir hafta sonra yapılan bir düzeltmeyle imzalanmış kâğıdın söylediğini
+ * sessizce değiştirirdi.
+ *
+ * Düzeltme `version`'ı artırır ve YENİ bir kâğıt üretir; eski sürüm silinmez (#9).
+ */
+export interface WeeklyTimesheet {
+  readonly weekStart: string
+  readonly staffUserId: StaffUserId
+  readonly version: number
+  readonly generatedAt: Instant
+  readonly generatedBy: StaffUserId | null
+  readonly days: readonly TimesheetDay[]
+  readonly plannedNetMinutes: number
+  readonly actualNetMinutes: number
+  readonly actualBreakMinutes: number
+  readonly excessBreakMinutes: number
+  /** `null` ⇒ henüz imzalanmadı. Panel "imzasız hafta" diye uyarabilir. */
+  readonly signedAt: Instant | null
+  readonly signedBy: StaffUserId | null
 }

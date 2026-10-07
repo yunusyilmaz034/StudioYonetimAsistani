@@ -255,3 +255,87 @@ export type StaffLeaveDocumentRemovedPayload = {
   readonly documentId: string
   readonly reason: string
 }
+
+// ── ARA DİNLENMESİ (owner, 2026-10-06/07) ───────────────────────────────────────────────────
+//
+// Mola, vardiyanın İÇİNDEN düşülen süredir: aynı kişi aynı anda hem çalışıyor hem molada olamaz.
+// `PRESENT + WORKING` ile `PRESENT + ON_BREAK` iki ayrı durumdur (owner, 2026-10-06).
+//
+// NEDEN HER MOLA AYRI OLAY: owner planlı molanın parçalı kullanılmasını istedi (15 + 30 + 45 + 30).
+// Günlük bir toplam saklamak "hangi molayı ne zaman kullandı" sorusunu sonsuza kadar cevapsız
+// bırakırdı — ve plan dışı mola tartışması tam olarak o soruyla çözülür.
+//
+// PII yok (#6): opak kimlikler ve dakika.
+export const STAFF_BREAK_STARTED = 'staff.break_started'
+export const STAFF_BREAK_ENDED = 'staff.break_ended'
+// Düzeltme SESSİZ DEĞİL (#9): öncesi, sonrası, kim, neden. Personel kendi geçmiş molasını
+// değiştiremez; bu olayı yalnızca masa yazar.
+export const STAFF_BREAK_CORRECTED = 'staff.break_corrected'
+
+/**
+ * Molanın nasıl kaydedildiği. #11'İN GEREĞİ ve pazarlık konusu değil: sonradan girilen bir mola,
+ * o an düğmeye basılmış bir mola DEĞİLDİR, ve ikisi sonsuza kadar ayırt edilebilir kalmalı.
+ *
+ *   `live`        — personel o anda "molaya başla"ya bastı. GÖZLEM.
+ *   `retro_entry` — eksik kalan molayı sonradan kendisi beyan etti (cumartesi 23:59'a kadar,
+ *                   yalnızca o hafta, yalnızca kendisi). BEYAN — gözlem değil.
+ *   `auto_closed` — 23:00'te vardiya kapanırken açık kalan mola kapatıldı. Gözlenmiş bir bitiş yok;
+ *                   `system` gözlemediğini gözlemiş gibi yazamaz.
+ *
+ * Bir kez karıştıktan sonra "bu mola gerçekten o saatte mi tutuldu" sorusu hiç cevaplanamaz.
+ */
+export type BreakSource = 'live' | 'retro_entry' | 'auto_closed'
+
+export type StaffBreakStartedPayload = {
+  readonly staffUserId: string
+  readonly shiftId: string
+  readonly breakId: string
+}
+
+export type StaffBreakEndedPayload = {
+  readonly staffUserId: string
+  readonly shiftId: string
+  readonly breakId: string
+  /** Dakika, aşağı yuvarlanmış — 59 saniye bir mola değildir. */
+  readonly minutes: number
+  readonly source: BreakSource
+}
+
+export type StaffBreakCorrectedPayload = {
+  readonly breakId: string
+  readonly staffUserId: string
+  readonly changedFields: readonly string[]
+  readonly changes: Readonly<Record<string, { readonly from: unknown; readonly to: unknown }>>
+  readonly reason: string
+}
+
+// ── HAFTALIK ÇİZELGE VE ISLAK İMZA (owner, 2026-10-07) ──────────────────────────────────────
+//
+// Owner: *"pazar günü raporunu oluşturuyor çizelgeyi oluşturuyor pazartesi yeni haftaya bunu
+// imzalaması bekleniyor yazılı olarak kağıt basılıp ıslak imzalatılacak."*
+//
+// Çizelge DONMUŞ bir snapshot taşır, çünkü imzalanan şey kâğıttır: yeniden hesaplanan bir çizelge,
+// sonradan yapılan bir düzeltmeyle imzalanmış kâğıdın söylediğini sessizce değiştirirdi. Düzeltme
+// `version`'ı artırır ve yeni bir kâğıt üretir; eskisi durur.
+//
+// İmza olayı kâğıdın KENDİSİNİ taşımaz — yalnızca alındığını. Kâğıt sistemin dışındadır.
+export const STAFF_TIMESHEET_GENERATED = 'staff.timesheet_generated'
+export const STAFF_TIMESHEET_SIGNED = 'staff.timesheet_signed'
+
+export type StaffTimesheetGeneratedPayload = {
+  readonly weekStart: string
+  readonly staffUserId: string
+  readonly version: number
+  readonly plannedNetMinutes: number
+  readonly actualNetMinutes: number
+  readonly actualBreakMinutes: number
+  readonly excessBreakMinutes: number
+  /** Kaç mola sonradan girildi — kâğıdın güvenilirliği hakkında bir bilgi (#11). */
+  readonly retroEntryCount: number
+}
+
+export type StaffTimesheetSignedPayload = {
+  readonly weekStart: string
+  readonly staffUserId: string
+  readonly version: number
+}

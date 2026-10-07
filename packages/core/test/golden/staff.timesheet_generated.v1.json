@@ -1,0 +1,10 @@
+{
+  "weekStart": "2026-10-05",
+  "staffUserId": "usr_1",
+  "version": 1,
+  "plannedNetMinutes": 480,
+  "actualNetMinutes": 438,
+  "actualBreakMinutes": 221,
+  "excessBreakMinutes": 41,
+  "retroEntryCount": 2
+}

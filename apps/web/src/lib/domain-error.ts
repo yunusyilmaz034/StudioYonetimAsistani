@@ -352,6 +352,20 @@ export function domainErrorMessage(error: DomainError): string {
     case 'no_open_shift':
       return 'Açık bir mesain yok. Önce mesaiyi başlat.'
     // ── Çalışma süresi (owner, 2026-10-06/07) ──
+    case 'break_already_open':
+      return 'Zaten açık bir molan var. Önce onu bitir.'
+    case 'no_open_break':
+      return 'Açık bir molan yok.'
+    case 'break_overlaps':
+      return 'Bu saatlerde zaten bir mola kaydın var.'
+    case 'retro_entry_window_closed':
+      return 'Geçmişe dönük mola girişi cumartesi gecesi kapanır ve yalnızca o hafta için yapılabilir. Daha eskisi için yöneticine başvur.'
+    case 'break_correction_forbidden':
+      return 'Mola kaydını yalnızca stüdyo sahibi ve resepsiyon düzeltebilir.'
+    case 'timesheet_already_signed':
+      return 'Bu çizelge imzalanmış. Düzeltme yeni bir çizelge sürümü üretir.'
+    case 'timesheet_unchanged':
+      return 'Çizelgede değişen bir şey yok; yeni sürüm üretilmedi.'
     case 'working_time_limits_missing':
       return 'Çalışma süresi sınırları tanımlı değil. Ayarlar → Genel bölümünden girilmesi gerekiyor.'
     case 'weekly_normal_work_exceeded':
