@@ -416,10 +416,25 @@ sorusuna ikinci bir cevap olurdu). Koruma olarak `pnpm lint`e `tools/lint/client
 `'use client'` dosyalarında barrel DEĞER import'u arar. **Kasten bozularak denendi** — yakalıyor. `next build`
 kapıya konmadı: Doc 10 *"iki dakika süren bir kapı atlanan kapıdır"* diyor.
 
+**Faz 5 — yönetici canlı durumu (7 Ekim akşamı, commit edildi, DEPLOY EDİLMEDİ, tarayıcıda HİÇ AÇILMADI).**
+Owner'ın `/mesai` gün listesinde her satırda artık durum rozeti (Çalışıyor · Molada + canlı sayaç · Dışarıda ·
+Çıktı — yalnızca bugün) ve `Net 5:12 / 8:00 · Mola 0:45 / 1:00 · plan dışı +0:15` satırı var. Sunucu yalnızca
+başlangıç zamanlarını veriyor (`bulunmaKapaliDk` + `bulunmaAcikBaslangic`), dakikayı tarayıcı sayıyor; net/mola
+hesabı eğitmenin kendi kartıyla **aynı fonksiyondan** (`molaHesabi`) geçiyor ki iki ekran iki cevap vermesin.
+İki bilinçli karar: **(1) "Dışarıda"** — vardiya açık ama son geçiş çıkış yönündeyse net o geçişte durur (gece
+süpürgesi zaten oraya kapatacak). Eğitmenin kendi kartı ise hâlâ şimdiye kadar sayıyor; çıkmış biri için iki
+ekran farklı net gösterebilir — owner'a söylendi, karar bekliyor. **(2)** Geçmiş bir günde açık kalmış mola
+SAYILMIYOR, "kapanmamış, sayılmadı" diye yazılıyor (#11).
+
 **Kalanlar (yarım iş).** Gece kapanış fonksiyonu (`closeOpenBreakWithShift`) henüz zamanlanmış işe bağlanmadı —
-23:00'da açık kalan mola şimdilik açık kalır. `/mesai` mola bölümüne ve plan hücresinin yeni mola alanına
-**375 px'te hiç bakılmadı**. Şablon kalıcılığı ("şablondan doldur") ayrı adım. Yönetici canlı durumu, günlük/haftalık
-rapor + basılacak çizelge, ve düzeltme/imza ekranları yazılmadı (Faz 5–7).
+23:00'da açık kalan mola şimdilik açık kalır. `/mesai` mola bölümüne, plan hücresinin yeni mola alanına ve Faz 5
+satırlarına **375 px'te hiç bakılmadı**. Şablon kalıcılığı ("şablondan doldur") ayrı adım. Günlük/haftalık
+rapor + basılacak çizelge (Faz 6) ve düzeltme/imza ekranları (Faz 7) yazılmadı.
+
+**Pınar Aslan (7 Ekim, yalnızca tanı — veri yazılmadı).** Işıl "2 kredi görünüyor, 1 olmalı" dedi. Defter tutarlı:
+16 − 2 (iptal edilen 8'likte yapılan 10.08 ve 13.08 dersleri) − 14 harcanan + **2 (23.09 19:02, Işıl'ın kendi
+"Düzeltme"si)** = 2. +2'nin neyin karşılığı olduğu notta yazmıyor; 1 mi 2 mi doğru, Işıl'dan cevap bekleniyor.
+Paket 9 Ekim'de bitiyor. `tools/migration/tani-pinar-aslan-2026-10-07.ts`.
 
 ## 🔓 6 Ekim gecesi — izin listesi tamamlandı, ve `soldAt` borcu ÖDENDİ
 

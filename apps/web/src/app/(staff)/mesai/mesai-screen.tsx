@@ -13,7 +13,7 @@ import { Card } from '@/components/ui/card'
 import { domainErrorMessage } from '@/lib/domain-error'
 import { endBreakAction, endShiftAction, staffCrossTurnstileAction, startBreakAction, startShiftAction } from '@/server/actions/shift'
 import { IzinPanel } from './izin-panel'
-import type { ShiftView } from '@/server/shift-query'
+import type { ShiftView, StaffDayRow } from '@/server/shift-query'
 
 // Tek ekran. Turnikesi olan stüdyoda tek bir eylem var — kapıdaki kodu okut — ve mesai ondan
 // türetiliyor (OR-74). Turnikesi olmayan stüdyoda eski iki düğme duruyor: başlat / bitir.
@@ -36,6 +36,23 @@ const sayac = (ms: number) => {
   const t = Math.max(0, Math.floor(ms / 1000))
   const s2 = (n: number) => String(n).padStart(2, '0')
   return `${s2(Math.floor(t / 3600))}:${s2(Math.floor((t % 3600) / 60))}:${s2(t % 60)}`
+}
+
+/**
+ * MOLA VE NET HESABI — tek yerde, çünkü iki ekran aynı soruyu soruyor: eğitmenin kendi kartı ve
+ * yöneticinin canlı listesi. İkisi ayrı ayrı hesaplasaydı aynı kişi için iki farklı net görünürdü.
+ *
+ * Mola çalışma süresine EKLENMEZ (OR-119): net = bulunma − mola, ve eksiye düşmez. Planlı süre
+ * aşılırsa fark gizlenmez, "plan dışı" olarak ayrı yazılır.
+ */
+const molaHesabi = (bulunmaDk: number, kapanmisMolaDk: number, acikMolaMs: number, planliMolaDk: number | null) => {
+  const kullanilanDk = kapanmisMolaDk + Math.floor(Math.max(0, acikMolaMs) / 60_000)
+  return {
+    kullanilanDk,
+    netDk: Math.max(0, bulunmaDk - kullanilanDk),
+    kalanPlanliDk: planliMolaDk === null ? null : Math.max(0, planliMolaDk - kullanilanDk),
+    planDisiDk: planliMolaDk === null ? 0 : Math.max(0, kullanilanDk - planliMolaDk),
+  }
 }
 
 /** Kod hataları üye ekranı için yazılmış ("üyeden kodu yenilemesini isteyin"); burada okutan kişi kendisi. */
@@ -73,20 +90,49 @@ export function MesaiScreen({ view, ownerMu, bugun }: { view: ShiftView; ownerMu
   // şey başlangıç zamanları — geri kalanı buradan hesaplanıyor. Açık mesai yoksa sayaç hiç dönmüyor:
   // sayacak bir şey olmadığında her saniye yeniden render etmek bedava değil.
   const [simdi, setSimdi] = useState<number>(() => Date.now())
+  //
+  // Yöneticinin listesi de aynı saati kullanıyor (OR-119): owner'ın kendi mesaisi olmasa da, bugün
+  // sayan bir vardiya ya da açık bir mola varsa saat dönmeli. Geçmiş bir gün hiç saymıyor.
+  const canliListe =
+    ownerMu && view.tarih === bugun && view.gunluk.some((p) => p.bulunmaAcikBaslangic !== null || p.molaAcikBaslangic !== null)
+  const saatDonsun = acik !== null || canliListe
   useEffect(() => {
-    if (!acik) return
+    if (!saatDonsun) return
+    setSimdi(Date.now())
     const iv = window.setInterval(() => setSimdi(Date.now()), 1000)
     return () => window.clearInterval(iv)
-  }, [acik])
+  }, [saatDonsun])
 
   const molada = molam.acikBaslangic !== null
   const acikMolaMs = molada ? Math.max(0, simdi - molam.acikBaslangic!) : 0
-  const kullanilanDk = molam.kapanmisDk + Math.floor(acikMolaMs / 60_000)
   const bulunmaDk = acik ? Math.max(0, Math.floor((simdi - acik.startedAt) / 60_000)) : 0
-  // Mola çalışma süresine EKLENMEZ (owner §4): net = bulunma − mola, ve eksiye düşmez.
-  const netDk = Math.max(0, bulunmaDk - kullanilanDk)
-  const kalanPlanliDk = molam.planliDk === null ? null : Math.max(0, molam.planliDk - kullanilanDk)
-  const planDisiDk = molam.planliDk === null ? 0 : Math.max(0, kullanilanDk - molam.planliDk)
+  const { kullanilanDk, netDk, kalanPlanliDk, planDisiDk } = molaHesabi(bulunmaDk, molam.kapanmisDk, acikMolaMs, molam.planliDk)
+
+  /**
+   * YÖNETİCİ CANLI DURUMU (OR-119) — bir satırın o anki hâli. Yalnızca görünürlük: buradaki hiçbir
+   * sayı bir kesintiye, bir cezaya ya da bordroya gitmiyor.
+   *
+   * Geçmiş bir günde açık kalmış mola SAYILMIYOR: bitişi gözlenmemiş bir molanın uzunluğu
+   * bilinmiyor, ve bilinmeyen bir süreyi kullanılmış gibi yazmak #11'in yasakladığı şey. Bugün
+   * ise geçen süre gözlemin kendisi — eğitmenin kendi kartı da aynısını sayıyor.
+   */
+  const canli = (p: StaffDayRow) => {
+    const bugunMu = view.tarih === bugun
+    const molaMs = bugunMu && p.molaAcikBaslangic !== null ? Math.max(0, simdi - p.molaAcikBaslangic) : 0
+    const akanDk = p.bulunmaAcikBaslangic === null ? 0 : Math.max(0, Math.floor((simdi - p.bulunmaAcikBaslangic) / 60_000))
+    const durum: 'molada' | 'disarida' | 'calisiyor' | 'cikti' | null = !bugunMu
+      ? null
+      : p.molaAcikBaslangic !== null
+        ? 'molada'
+        : p.disarida
+          ? 'disarida'
+          : p.bulunmaAcikBaslangic !== null
+            ? 'calisiyor'
+            : p.shifts.length > 0
+              ? 'cikti'
+              : null
+    return { durum, molaMs, ...molaHesabi(p.bulunmaKapaliDk + akanDk, p.molaKapanmisDk, molaMs, p.planliMolaDk) }
+  }
 
   /** Molanın kendi çalıştırıcısı: vardiyanın toast metinleri ("Mesai başladı") moladakiyle aynı değil. */
   async function molaCalistir(f: () => Promise<{ ok: boolean; error?: unknown }>, basarili: string) {
@@ -409,10 +455,28 @@ export function MesaiScreen({ view, ownerMu, bugun }: { view: ShiftView; ownerMu
             </p>
           ) : (
             <ul className="divide-y divide-border">
-              {view.gunluk.map((p) => (
+              {view.gunluk.map((p) => {
+                const c = canli(p)
+                return (
                 <li key={p.staffUserId} className="space-y-1.5 py-3">
                   <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-0.5">
-                    <span className="truncate font-medium">{p.displayName}</span>
+                    <span className="flex min-w-0 items-center gap-2">
+                      <span className="truncate font-medium">{p.displayName}</span>
+                      {/* ŞU AN NE YAPIYOR (OR-119). `PRESENT + WORKING` ile `PRESENT + ON_BREAK` iki ayrı
+                          durum; "dışarıda" ise yalnızca cihaz yönü bildirdiyse söyleniyor. */}
+                      {c.durum === 'molada' ? (
+                        <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-warning/10 px-2 py-0.5 text-xs font-medium tabular-nums text-warning">
+                          <CoffeeIcon className="size-3" />
+                          Molada {sayac(c.molaMs)}
+                        </span>
+                      ) : c.durum === 'disarida' ? (
+                        <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">Dışarıda</span>
+                      ) : c.durum === 'calisiyor' ? (
+                        <span className="shrink-0 rounded-full bg-success/10 px-2 py-0.5 text-xs font-medium text-success">Çalışıyor</span>
+                      ) : c.durum === 'cikti' ? (
+                        <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">Çıktı</span>
+                      ) : null}
+                    </span>
                     {p.shifts.map((s) => (
                       <span key={s.id} className="shrink-0 text-sm tabular-nums text-muted-foreground">
                         {saat(s.startedAt)} → {s.endedAt === null ? 'sürüyor' : saat(s.endedAt)}
@@ -432,6 +496,24 @@ export function MesaiScreen({ view, ownerMu, bugun }: { view: ShiftView; ownerMu
                       {p.absent ? <span className="ml-1 font-medium text-danger">· gelmedi</span> : null}
                       {p.lateMinutes ? <span className="ml-1 font-medium text-warning">· {p.lateMinutes} dk geç</span> : null}
                       {p.earlyMinutes ? <span className="ml-1 font-medium text-warning">· {p.earlyMinutes} dk erken çıktı</span> : null}
+                    </p>
+                  ) : null}
+                  {/* NET VE MOLA (OR-119): plan varsa yanında, yoksa yalnızca gerçekleşen. Plan aşılırsa
+                      sistem engellemez, farkı yazar. Hiç vardiyası olmayanın sayacak bir şeyi yok. */}
+                  {p.shifts.length > 0 ? (
+                    <p className="text-xs tabular-nums text-muted-foreground">
+                      Net {ssdd(c.netDk)}
+                      {p.planNetDk !== null ? ` / ${ssdd(p.planNetDk)}` : ''}
+                      <span className="ml-1">
+                        · Mola {ssdd(c.kullanilanDk)}
+                        {p.planliMolaDk !== null ? ` / ${ssdd(p.planliMolaDk)}` : ''}
+                      </span>
+                      {c.planDisiDk > 0 ? <span className="ml-1 font-medium text-warning">· plan dışı +{ssdd(c.planDisiDk)}</span> : null}
+                      {view.tarih !== bugun && p.molaAcikBaslangic !== null ? (
+                        <span className="ml-1 font-medium text-warning">
+                          · {saat(p.molaAcikBaslangic)}&apos;de başlayan mola kapanmamış, sayılmadı
+                        </span>
+                      ) : null}
                     </p>
                   ) : null}
                   {p.crossings.length > 0 ? (
@@ -461,7 +543,8 @@ export function MesaiScreen({ view, ownerMu, bugun }: { view: ShiftView; ownerMu
                     <p className="text-xs text-muted-foreground">Turnike geçişi yok — mesai elle açılmış.</p>
                   ) : null}
                 </li>
-              ))}
+                )
+              })}
             </ul>
           )}
         </Card>

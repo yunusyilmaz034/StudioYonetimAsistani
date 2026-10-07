@@ -65,6 +65,30 @@ export interface StaffDayRow {
   readonly earlyMinutes: number | null
   /** Planı vardı, planlı giriş saati geçti, hiç geçişi ya da vardiyası yok. */
   readonly absent: boolean
+  /**
+   * O GÜNÜN MOLALARI (owner, 2026-10-06/07 · OR-119). Mola, işyerinde BULUNMAK değildir: bulunma
+   * süresinden düşülür, çalışmaya eklenmez.
+   */
+  readonly molaKapanmisDk: number
+  /** Açık mola varsa başlangıcı — sayacı tarayıcı hesaplar, sunucu saniye yazmaz. `null` ⇒ molada değil. */
+  readonly molaAcikBaslangic: number | null
+  /** Planlanan mola (dk). `null` ⇒ plan yok ya da plan bu alandan önce onaylandı. */
+  readonly planliMolaDk: number | null
+  /** Planlanan net çalışma (dk). `null` ⇒ o gün için yayındaki plan yok. */
+  readonly planNetDk: number | null
+  /**
+   * İŞYERİNDE BULUNMA, iki parça — çünkü biri bitmiş, öbürü hâlâ akıyor. `bulunmaKapaliDk` artık
+   * değişmeyecek olan kısım; `bulunmaAcikBaslangic` hâlâ sayan vardiyanın başlangıcı ve aradaki
+   * dakikayı tarayıcı hesaplıyor (sunucu "şu an"ı yazsaydı sayı sayfa yüklendiği anda donardı).
+   * Yalnızca görünürlük ve kayıt — hiçbir ücret kesintisi üretmez (OR-119).
+   */
+  readonly bulunmaKapaliDk: number
+  readonly bulunmaAcikBaslangic: number | null
+  /**
+   * Vardiya açık ama son geçiş ÇIKIŞ yönünde: içeride değil. Yön yalnızca cihaz bildirdiyse
+   * bilinir (#11) — bilinmiyorsa `false`, "içeride" varsayılmış olmaz, yalnızca iddia edilmez.
+   */
+  readonly disarida: boolean
 }
 
 /** Personelin kendi haftası: yalnızca YAYINDAKİ plan (OR-77). Taslak personele gösterilmez. */
@@ -130,7 +154,8 @@ export async function loadShiftView(ctx: TenantContext, dateStr: string): Promis
   const planDeps = { repo: new FirestoreStaffWeekPlanRepository(db), clock: systemClock, utcOffsetMinutes: OFF }
   const molalar = new FirestoreStaffBreakRepository(db)
   const [bugunBas, bugunBit] = studioDayRange(bugun)
-  const [acik, gunlukler, gecisler, personel, cihazlar, planlar, izinlerim, acikMola, bugunMolalar] = await Promise.all([
+  const [acik, gunlukler, gecisler, personel, cihazlar, planlar, izinlerim, acikMola, bugunMolalar, gecmisGunMolalar] =
+    await Promise.all([
     shifts.getOpenShift(ctx, ben),
     // Gün listesi yalnızca owner için okunuyor: göstermeyeceğimiz bir şeyi okumak, sızıntının
     // en ucuz hâlidir.
@@ -161,7 +186,69 @@ export async function loadShiftView(ctx: TenantContext, dateStr: string): Promis
     // BUGÜNÜN molaları — kartın "kullanılan" sayısı. Aralık sorgusu tek alan üzerinde, bileşik
     // index istemiyor.
     molalar.listBreaksBetween(ctx, bugunBas, bugunBit),
+    // YÖNETİCİ CANLI DURUMU (OR-119) seçilen GÜNÜN molalarını istiyor; owner `?gun=` ile geçmişi
+    // gezebiliyor. Bugün geziliyorsa yukarıdaki okuma yeniden kullanılıyor — aynı aralığı iki kez
+    // okumak bütçeyi sebepsiz ikiye katlardı.
+    ownerMu && dateStr !== bugun ? molalar.listBreaksBetween(ctx, fromMs, toMs) : Promise.resolve([]),
   ])
+  const gunMolalar = dateStr === bugun ? bugunMolalar : gecmisGunMolalar
+
+  // ── MOLA ALANLARI (OR-119) ─────────────────────────────────────────────────────────────────
+  //
+  // Bulunma süresi vardiyalardan geliyor, geçişlerden değil: geçiş sürtünmesiz ve gün içinde
+  // defalarca oluyor (OR-74), vardiya ise bilinçli olarak açılıp kapanıyor.
+  //
+  // AÇIK VARDİYA ÜÇ AYRI ŞEY OLABİLİR, ve üçü aynı sayılmıyor:
+  //   · bugün, son geçiş çıkış DEĞİL → hâlâ sayıyor; başlangıcı gidiyor, dakikayı tarayıcı sayıyor.
+  //   · bugün, son geçiş ÇIKIŞ      → son geçişte duruyor. Gece süpürgesi vardiyayı zaten tam o
+  //     saate kapatacak (OR-74); 17:02'de çıkmış birinin neti 23:00'a kadar büyüseydi ekran, yarın
+  //     sabah kaydın söyleyeceği şeyle çelişirdi.
+  //   · geçmiş gün                   → son geçişte duruyor. Şimdiye kadar saymak, kapanmamış bir
+  //     vardiyayı her gün biraz daha uzatırdı.
+  const dk = (bas: number, bit: number) => Math.max(0, Math.floor((bit - bas) / 60_000))
+  const molaAlanlari = (
+    staffUserId: string,
+    planned: ShiftBlock | null,
+    shifts: readonly ShiftRow[],
+    crossings: readonly CrossingRow[],
+  ): Pick<
+    StaffDayRow,
+    | 'molaKapanmisDk'
+    | 'molaAcikBaslangic'
+    | 'planliMolaDk'
+    | 'planNetDk'
+    | 'bulunmaKapaliDk'
+    | 'bulunmaAcikBaslangic'
+    | 'disarida'
+  > => {
+    const benimkiler = gunMolalar.filter((m) => String(m.staffUserId) === staffUserId)
+    const kapanmisDk = benimkiler
+      .filter((m) => m.endedAt !== null)
+      .reduce((a, m) => a + dk(m.startedAt as number, m.endedAt as number), 0)
+    const acikOlan = benimkiler.find((m) => m.endedAt === null) ?? null
+    const planliMolaDk = planned?.breakMinutes ?? null
+    const planToplam = planned
+      ? dayTotals({ start: planned.start, end: planned.end, breakMinutes: planliMolaDk ?? 0 })
+      : null
+    const sonGecis = crossings.at(-1) ?? null
+    const acikVardiya = shifts.find((s) => s.endedAt === null) ?? null
+    const disarida = dateStr === bugun && acikVardiya !== null && sonGecis?.direction === 'out'
+    const sayiyor = dateStr === bugun && acikVardiya !== null && !disarida
+    const bulunmaKapaliDk = shifts.reduce((a, s) => {
+      if (s.endedAt !== null) return a + dk(s.startedAt, s.endedAt)
+      if (sayiyor && s === acikVardiya) return a
+      return a + dk(s.startedAt, s.lastCrossingAt ?? s.startedAt)
+    }, 0)
+    return {
+      molaKapanmisDk: kapanmisDk,
+      molaAcikBaslangic: acikOlan ? (acikOlan.startedAt as number) : null,
+      planliMolaDk,
+      planNetDk: planToplam?.netMinutes ?? null,
+      bulunmaKapaliDk,
+      bulunmaAcikBaslangic: sayiyor ? acikVardiya.startedAt : null,
+      disarida,
+    }
+  }
 
   const ad = new Map(personel.map((s) => [String(s.id), s.displayName]))
   const cihazAdi = new Map(cihazlar.map((d) => [String(d.id), d.name]))
@@ -225,6 +312,7 @@ export async function loadShiftView(ctx: TenantContext, dateStr: string): Promis
         lateMinutes: fark?.lateMinutes ?? null,
         earlyMinutes: gunBitti ? (fark?.earlyMinutes ?? null) : null,
         absent: fark !== null && ilk === null && (dateStr < bugun || Date.now() > (fark.plannedStart as number)),
+        ...molaAlanlari(staffUserId, planned, shifts, crossings),
       }
     })
     .sort((a, b) => ilkHareket(a) - ilkHareket(b) || a.displayName.localeCompare(b.displayName, 'tr'))
