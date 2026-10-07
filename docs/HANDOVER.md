@@ -7,14 +7,15 @@ explains the moment.
 Keep it current the way the code is kept current: when the state changes, this changes in the same
 commit. A handover document that lags is worse than none, because it is believed.
 
-_Last true as of: **2026-10-06, gece**._
+_Last true as of: **2026-10-07, öğleden sonra**._
 
 ## ⏭️ Sıradaki oturum — BURADAN BAŞLA
 
-**Kod tarafında yarım iş YOK.** Canlı (ÖLÇÜLDÜ): panel **`build-2026-10-05-001`** · %100 trafik · 5 Ekim 12:33;
-servis katı **1**. Cloud Function **`paytrcallback-00036-kup`** (5 Ekim, PAYTR emniyeti burada). Canlı numarayı bu
+**Kod tarafında YARIM İŞ VAR** (7 Ekim, çalışma süresi/mola — aşağıdaki 7 Ekim bölümü): gece kapanış fonksiyonu
+bağlanmadı, mola ekranına 375 px'te hiç bakılmadı, yönetici canlı durum/rapor/imza ekranları yok. Canlı (ÖLÇÜLDÜ):
+panel **`build-2026-10-07-001`** · %100 trafik · 7 Ekim 13:52; servis katı **1**. Cloud Function **`paytrcallback-00036-kup`** (5 Ekim, PAYTR emniyeti burada). Canlı numarayı bu
 belgeden değil **Cloud Run'dan** oku — her push onu ilerletiyor; komutlar aşağıdaki kat bölümünde.
-`pnpm check` yeşil, **1482 birim test**; entegrasyon takımı **8 dosya / 48 test**.
+`pnpm check` yeşil, **1560 birim test**; entegrasyon takımı **8 dosya / 48 test**.
 
 **Son üç günde çıkanlar (hepsi canlıda):**
 - **Engele rağmen rezervasyon** ([[OR-118]]) — uyarı çıkar, sebep zorunlu, karar masada. 4 Ekim'de owner'ın
@@ -49,7 +50,10 @@ belgeden değil **Cloud Run'dan** oku — her push onu ilerletiyor; komutlar aş
 8. **Bug report taslağı** — bir tane kuyrukta (kat ölçümünde yanlış alete bakıp emin bir yanlış sonucu dokümana
    yazmam). Gönderilmedi; owner `/feedback` ile görür/siler. Rahatsız ediyorsa bir daha taslak oluşturulmayacak.
 
-**Yerelde bekleyen push YOK.** 6 Ekim gecesi owner'ın onayıyla ("push ve deploy et") dört commit birlikte
+**7 Ekim'de iki push yapıldı** (owner'ın *"push ve dpoly"* onayıyla): mola/çizelge domain+kalıcılık+ekran dörtlüsü,
+ardından plan doğrulaması. Rollout'lar Cloud Run trafik dağılımından doğrulanıyor; ikincisi bu yazılırken yolda.
+
+**Yerelde bekleyen push YOK (6 Ekim durumu).** 6 Ekim gecesi owner'ın onayıyla ("push ve deploy et") dört commit birlikte
 gönderildi: 5 Ekim durum bloğu, Esra'nın para/kredi düzeltmesi, Esra'nın etiket düzeltmesi ve bu girdi.
 **Deploy:** `main`'e push App Hosting rollout'unu kendiliğinden başlatıyor; doğrulaması Cloud Run trafik
 dağılımından yapıldı (OR-17). Bu commit'lerin hiçbiri web/functions kodu değiştirmiyor — doküman ve düzeltme
@@ -367,6 +371,41 @@ aktif `Fitness - 6 Aylık` paketi var (06.10.2026 → 04.04.2027). Sonuç: satı
 düşmez, log bile tutulmaz. Teklif: doğrulanmış bir ödeme terminal bir intent'e düştüğünde sessizce
 dönmek yerine **bağırmak** (`logger.error`) ve `manual_review`a düşürmek. Sessizliğin kendisi bu
 vakanın bulunmasını tesadüfe bıraktı.
+
+## ⏱️ 7 Ekim — personel çalışma süresi ve mola: KAYIT var, kesinti YOK ([[OR-119]])
+
+Owner'ın sipariş ettiği iş: tam zamanlı eğitmenlerin çalışma ve ara dinlenme süreleri denetlenebilir olsun,
+**ama bu bir bordro ya da otomatik ücret kesme sistemi olmasın**. Dört faz çıktı, üçü canlıda.
+
+**Çıkanlar.** Saf hesap (`working-time.ts`) ve A/B hafta döngüsü (`shift-template.ts`); mola kararları
+(`break.ts`: başlat/bitir, geriye dönük ekleme, gece kapanışı, masadan düzeltme) ve haftalık çizelge
+(`timesheet.ts`); kalıcılık (`staffBreaks`, `staffTimesheets` — ikisi de `serverOnly`, iki yeni index canlıda
+**READY**); eğitmenin kendi `/mesai` ekranında mola düğmesi ve canlı sayaç; ve plan doğrulaması
+(45:00 net tavan · 11:00 günlük net · kademeli minimum mola) — ret **`decideSaveWeekPlanDraft`'ta**, ekranda değil.
+
+**Hiçbir sayı kodda değil.** 45, 11, 15/30/60 `settings.workingTime`'da duruyor. Gerekçe OR-72'nin kendi
+cümlesiydi: *"İş Kanunu'nu koda gömer ve her yıl çürür."* Yapılandırılmamış stüdyoda (`null`) hiç sınanmıyor —
+olmayan bir kuralı uydurmak, yanlış bir kuralı uygulamaktan kötüdür. Yeni stüdyo yasal varsayılanlarla açılıyor.
+
+**Testleri yazmak canlıda duran ÜÇ hata çıkardı**, üçü de aynı aileden — mola alanı taşınmıyordu. `normalize`
+her bloğu `{start, end}` olarak yeniden kurup `breakMinutes`'ı **düşürüyordu**: plan kaydedilse molalar hiç
+saklanmaz, doğrulama brütü net sanırdı. Hücre imzası `start-end` olduğu için **yalnızca molayı değiştirmek
+"0 gün değişti"** sayılıyordu. Molanın kendisi hiç denetlenmiyordu (ondalık, negatif, ya da mesaiden uzun mola
+kabul ediliyordu). Üçü de dört kırmızı testle ortaya çıktı, tek kök neden.
+
+**Ölçüm aletim yine yanlıştı, yine ölçüm düzeltti.** Rollout'u izleyen gözcüyü **yanlış proje ve yanlış bölge**
+ile kurmuşum (`eburs-83397` / `europe-west1`); her sorgu hata veriyor, hata boş dizge dönüyor, boş dizge
+"değişiklik yok" sayılıyordu — 15 dakika **sessizce** boşa aktı. Doğrusu `studio-yonetim-prod` / `europe-west4`.
+Yeni gözcü sorgu başarısız olursa **satır basıyor**; susan bir ölçüm aleti, yanlış ölçümden kötüdür ([[OR-108]]).
+
+**Bilerek yapılmayanlar.** Mola için QR mekanizması yok (owner açıkça yasakladı; mevcut QR/personel giriş sistemine
+dokunulmadı). Otomatik ücret kesintisi yok ve yapısal olarak da yok: bordro DERS ve SATIŞtan hesaplanıyor, bu
+özellik bordronun tükettiği hiçbir girdiyi üretmiyor.
+
+**Kalanlar (yarım iş).** Gece kapanış fonksiyonu (`closeOpenBreakWithShift`) henüz zamanlanmış işe bağlanmadı —
+23:00'da açık kalan mola şimdilik açık kalır. `/mesai` mola bölümüne ve plan hücresinin yeni mola alanına
+**375 px'te hiç bakılmadı**. Şablon kalıcılığı ("şablondan doldur") ayrı adım. Yönetici canlı durumu, günlük/haftalık
+rapor + basılacak çizelge, ve düzeltme/imza ekranları yazılmadı (Faz 5–7).
 
 ## 🔓 6 Ekim gecesi — izin listesi tamamlandı, ve `soldAt` borcu ÖDENDİ
 

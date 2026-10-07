@@ -21,6 +21,7 @@ import {
   weekDates,
   type LeaveKind,
   type StaffUserId,
+  type StudioSettings,
   type WeekPlanEntries,
   type WeekPlanStatus,
 } from '@studio/core'
@@ -84,6 +85,11 @@ export interface WeekPlanEditorView {
   /** Onaylı izinli günler: personel → gün → tür. Hücrede uyarı olarak görünür, reddetmez. */
   readonly leaveDays: Readonly<Record<string, Readonly<Record<string, LeaveKind>>>>
   readonly canApprove: boolean
+  /**
+   * ÇALIŞMA SÜRESİ SINIRLARI (OR-119) — editör bunları yazarken gösterir. `null` ⇔ yapılandırılmamış;
+   * o zaman hiçbir sınır gösterilmez, çünkü olmayan bir kuralı ekrana yazmak uydurmak olurdu.
+   */
+  readonly limits: StudioSettings['workingTime']
 }
 
 /** Plan tablosunun okuması: plan belgesi, planlanacak personel ve o haftanın onaylı izinleri. */
@@ -93,10 +99,11 @@ export async function loadWeekPlanEditorAction(input: unknown): Promise<WeekPlan
   const weekStart = mondayOf(p.weekStart)
   const db = adminDb()
   const bas = instantFromLocalDate(weekStart, OFF) as number
-  const [planlar, personel, izinler] = await Promise.all([
+  const [planlar, personel, izinler, ayarlar] = await Promise.all([
     loadWeekPlans(deps(), ctx, [weekStart]),
     new FirestoreIdentityRepository(db).listStaff(ctx),
     new FirestoreStaffLeaveRepository(db).listLeavesOverlapping(ctx, bas, bas + 7 * GUN - 1),
+    new FirestoreSchedulingRepository(db).getStudioSettings(ctx),
   ])
   const plan = planlar[0] ?? null
 
@@ -138,6 +145,7 @@ export async function loadWeekPlanEditorAction(input: unknown): Promise<WeekPlan
     hidden,
     leaveDays: leaveDaysInWeek(weekStart, izinler, OFF),
     canApprove: ctx.actor.type === 'owner' || ctx.actor.type === 'platform_admin',
+    limits: ayarlar?.workingTime ?? null,
   }
 }
 

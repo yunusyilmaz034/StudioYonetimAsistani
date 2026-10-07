@@ -2285,3 +2285,25 @@ geçmiş molasına dokunamaz. Değişen bir şey yoksa olay yazılmaz — aynı 
 **Bu bir bordro DEĞİL ve yapısal olarak da değil:** bordro gerçekleşen DERS ve atfedilmiş SATIŞtan hesaplanıyor,
 çalışma saatinden değil. Yeni özellik bordronun tükettiği hiçbir girdiyi üretmiyor. **Büyümeye en yatkın yer:**
 saat bazlı bir kazanç satırı ya da fazla molanın bordro düzeltmesine bağlanması. Orada durulacak.
+
+**Plan doğrulaması (2026-10-07, Faz 4 — uygulandı).** Üç kural artık `decideSaveWeekPlanDraft`'ta REDDEDİYOR,
+ekranda değil: haftalık net > 45:00, günlük net > 11:00, ya da mola kademenin altında. Sayılar
+`settings.workingTime`'dan geliyor; **yapılandırılmamışsa (`null`) hiç sınanmıyor** — olmayan bir kuralı uydurmak,
+yanlış bir kuralı uygulamaktan kötüdür. Editör sınırı **yazarken** gösteriyor (net süre, o süre için gereken en az
+mola, haftanın yürüyen toplamı): ret, kaydetmeye basınca gelen bir sürpriz olmamalı.
+
+**"Mola yazılmamış", "0 mola" DEĞİLDİR.** Alanı olmayan bir gün mola-minimumu denetiminden muaf ama haftalık
+toplama `net = brüt` olarak giriyor. Sonuç bilinçli: molası yazılmamış eski bir 5×11:00 planı **reddedilir** —
+doğru cevap bu, ve resepsiyonun molaları doldurması gerektiği anlamına geliyor. Sayım bu yüzden bloke etme
+yönünde hata yapıyor, serbest bırakma yönünde değil.
+
+**Ayarları kaydetmek limitleri SİLMEZ:** form onları henüz taşımıyor, kaydetme mevcut değeri koruyor. **Yeni
+stüdyo yasal varsayılanlarla açılıyor** (`null` "doğrulama kapalı" demek olurdu). Ayarlar olayı bu alanın
+**değerlerini de** loglar — `company`/`qr` PII olduğu için loglanmıyordu, bunlar sayı ve bir KURAL: ayar belgesi
+yalnızca bugünkü değeri tutuyor, değerler loglanmazsa geçmiş bir ret hiç yeniden kurulamaz.
+
+**Testleri yazmak, canlıda duran üç hata ortaya çıkardı** ve üçü de aynı aileden — mola alanı taşınmıyordu:
+`normalize` her bloğu `{start, end}` olarak yeniden kurup `breakMinutes`'ı **düşürüyordu** (kaydedilen plan molayı
+hiç taşımazdı, doğrulama brütü net sanırdı); hücre imzası `start-end` olduğu için **yalnızca molayı değiştirmek
+"0 gün değişti"** sayılıyor ve olay yanlış sayı taşıyordu; molanın kendisi hiç denetlenmiyordu (ondalık, negatif,
+ya da mesainin kendisinden uzun mola kabul ediliyordu).

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { AlertTriangleIcon, ChevronLeftIcon, ChevronRightIcon, CopyIcon, Loader2Icon, PlusIcon, XIcon } from 'lucide-react'
 import { toast } from 'sonner'
 
+import { minimumBreakMinutes } from '@studio/core'
 import type { DomainError, ShiftBlock, WeekPlanEntries } from '@studio/core'
 
 import { shiftDate } from '@/components/calendar/date-utils'
@@ -365,6 +366,8 @@ export function WeekPlanPanel({ initialWeek }: { initialWeek: string }) {
         blok={duzenlenen ? entries[duzenlenen.staffId]?.[duzenlenen.date] : undefined}
         izin={duzenlenen && view ? view.leaveDays[duzenlenen.staffId]?.[duzenlenen.date] : undefined}
         hafta={view?.dates ?? []}
+        limits={view?.limits ?? null}
+        digerNet={digerGunlerNet(entries, duzenlenen)}
         onKapat={() => setDuzenlenen(null)}
         onKaydet={(b, haftaIci) => {
           if (!duzenlenen || !view) return
@@ -388,12 +391,28 @@ export function WeekPlanPanel({ initialWeek }: { initialWeek: string }) {
   )
 }
 
+// Canlı İPUCU hesabı (OR-119). Yetki çekirdekte: kaydetme yine `decideSaveWeekPlanDraft`'tan geçiyor
+// ve reddi o veriyor. Buradaki tek iş, resepsiyonun sınırı KAYDETMEYE BASMADAN görmesi.
+const dkSaat = (hhmm: string) => Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3, 5))
+const blokNet = (b: ShiftBlock) => Math.max(0, dkSaat(b.end) - dkSaat(b.start) - (b.breakMinutes ?? 0))
+const sureMetni = (dk: number) => `${String(Math.floor(dk / 60)).padStart(2, '0')}:${String(dk % 60).padStart(2, '0')}`
+
+/** Düzenlenen gün HARİÇ, o personelin o haftaki net toplamı. */
+function digerGunlerNet(entries: Readonly<Record<string, Readonly<Record<string, ShiftBlock>>>>, h: Hucre | null): number {
+  if (!h) return 0
+  let n = 0
+  for (const [d, b] of Object.entries(entries[h.staffId] ?? {})) if (d !== h.date) n += blokNet(b)
+  return n
+}
+
 function HucreDuzenle({
   acik,
   adi,
   blok,
   izin,
   hafta,
+  limits,
+  digerNet,
   onKapat,
   onKaydet,
 }: {
@@ -402,20 +421,38 @@ function HucreDuzenle({
   blok: ShiftBlock | undefined
   izin: string | undefined
   hafta: readonly string[]
+  limits: WeekPlanEditorView['limits']
+  digerNet: number
   onKapat: () => void
   onKaydet: (b: ShiftBlock | null, haftaIci: boolean) => void
 }) {
   const [start, setStart] = useState('09:00')
   const [end, setEnd] = useState('17:00')
+  // BOŞ dizge = "mola yazılmamış", '0' = "sıfır mola planlandı". İkisi aynı şey değil ve bu ayrım
+  // domain'e kadar korunuyor; boşsa alan hiç gönderilmiyor.
+  const [mola, setMola] = useState('')
 
   useEffect(() => {
     if (acik) {
       setStart(blok?.start ?? '09:00')
       setEnd(blok?.end ?? '17:00')
+      setMola(blok?.breakMinutes === undefined ? '' : String(blok.breakMinutes))
     }
   }, [acik, blok])
 
-  const hatali = useMemo(() => !/^\d{2}:\d{2}$/.test(start) || !/^\d{2}:\d{2}$/.test(end) || end <= start, [start, end])
+  const saatHatali = useMemo(() => !/^\d{2}:\d{2}$/.test(start) || !/^\d{2}:\d{2}$/.test(end) || end <= start, [start, end])
+  const brut = saatHatali ? 0 : dkSaat(end) - dkSaat(start)
+  const molaDk = mola.trim() === '' ? 0 : Number(mola)
+  const molaHatali = mola.trim() !== '' && (!Number.isInteger(molaDk) || molaDk < 0 || molaDk >= brut)
+  const hatali = saatHatali || molaHatali
+  const net = Math.max(0, brut - molaDk)
+  // Kademe sorgusu AYARDAN gelen veriyle yapılıyor; kademeler burada yazılı değil (#4).
+  const gerekli = limits ? minimumBreakMinutes(net, limits.breakTiers) : null
+  const molaAz = gerekli !== null && mola.trim() !== '' && molaDk < gerekli
+  const haftaNet = digerNet + net
+  const haftaAsim = limits !== null && haftaNet > limits.legalNormalWeeklyMaxMinutes
+  const gunAsim = limits !== null && net > limits.dailyNetMaxMinutes
+  const blokKur = (): ShiftBlock => (mola.trim() === '' ? { start, end } : { start, end, breakMinutes: molaDk })
   const haftaIciMi = acik !== null && hafta.slice(0, 5).includes(acik.date)
 
   return (
@@ -441,18 +478,45 @@ function HucreDuzenle({
             <Input type="time" value={end} step={300} onChange={(e) => setEnd(e.target.value)} />
           </label>
         </div>
-        {hatali ? <p className="text-xs text-danger">Çıkış saati girişten sonra olmalı.</p> : null}
+        <label className="flex flex-col gap-1 text-sm">
+          Mola (dakika)
+          <Input
+            type="number"
+            inputMode="numeric"
+            min={0}
+            step={5}
+            value={mola}
+            placeholder={gerekli === null ? 'Örn. 60' : `En az ${gerekli}`}
+            onChange={(e) => setMola(e.target.value)}
+          />
+        </label>
+        {saatHatali ? <p className="text-xs text-danger">Çıkış saati girişten sonra olmalı.</p> : null}
+        {molaHatali ? <p className="text-xs text-danger">Mola tam dakika olmalı ve mesainin kendisinden kısa olmalı.</p> : null}
+        {limits && !saatHatali ? (
+          <div className="rounded-lg bg-muted/50 p-3 text-xs leading-relaxed">
+            <p>
+              Net çalışma <strong>{sureMetni(net)}</strong>
+              {gerekli !== null ? <> · bu süre için en az <strong>{gerekli} dk</strong> mola</> : null}
+            </p>
+            <p className={haftaAsim ? 'text-danger' : 'text-muted-foreground'}>
+              Bu haftanın net toplamı <strong>{sureMetni(haftaNet)}</strong> / {sureMetni(limits.legalNormalWeeklyMaxMinutes)}
+            </p>
+            {mola.trim() === '' ? <p className="text-muted-foreground">Mola yazılmadı — plan kaydedilirken reddedilir.</p> : null}
+            {molaAz ? <p className="text-danger">Mola kademenin altında; plan kaydedilemez.</p> : null}
+            {gunAsim ? <p className="text-danger">Günlük net sınır {sureMetni(limits.dailyNetMaxMinutes)} — aşıldı.</p> : null}
+          </div>
+        ) : null}
         <DialogFooter className="flex-wrap gap-2 sm:justify-between">
           <Button variant="ghost" onClick={() => onKaydet(null, false)}>
             Çalışmıyor
           </Button>
           <div className="flex flex-wrap gap-2">
             {haftaIciMi ? (
-              <Button variant="outline" disabled={hatali} onClick={() => onKaydet({ start, end }, true)}>
+              <Button variant="outline" disabled={hatali} onClick={() => onKaydet(blokKur(), true)}>
                 Hafta içi her güne
               </Button>
             ) : null}
-            <Button disabled={hatali} onClick={() => onKaydet({ start, end }, false)}>
+            <Button disabled={hatali} onClick={() => onKaydet(blokKur(), false)}>
               Tamam
             </Button>
           </div>
