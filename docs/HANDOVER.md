@@ -469,6 +469,16 @@ kullanım Işıl'ın masasında olacak. Şablon kalıcılığı ("şablondan dol
 - **İş mantığı ekranda/eylemde, testsiz:** saat→an çevirisi (`yerelAn`, gece yarısı kaydırması) `actions/shift.ts`te
   ve birim testi yok. İlk hata oradan çıkarsa çekirdeğe taşınıp testlenmeli.
 
+**Ders paketi turnikeyi tek başına açmaz + kapıda kalan üye için anlık uyarı (8 Ekim, OR-121 — DEPLOY EDİLMEDİ).**
+`entryRefusalReason` artık fitness hakkını (duran) ders hakkından (yalnızca dersin saatinde: ≤1 saat kala → bitene
+kadar) ayırıyor; yeni ret sebebi `no_class_now`. `DoorRefusalToaster` + `recentDoorRefusalsAction`: her turnike reddi
+masanın ekranında kırmızı, kapanmayan kart (6 sn'de bir sorar; olay günlüğü tarayıcıya açılmadı).
+- **Ölçüm:** 14 günde 585 girişin 6'sı (5 üye) kapıda kalırdı; 5'i sonradan masa tarafından derse yazılmış
+  rezervasyonsuz gelişler. Canlıya çıkınca **masa bunu bilmeli**: rezervasyonsuz gelen pilates üyesi artık kapıda
+  durur, kart çıkar, rezervasyon yazılınca tekrar okutur.
+- **Tarayıcıda denenmedi** (kart görünümü, 375 px). Üyenin telefonundaki cümle bu durum için yanıltıcı (OR-121 sonu).
+- Web + functions birlikte çıkmalı değil — bu yalnızca web (turnike ucu ve panel).
+
 **İptal edilen ödeme alındığı günden düşer (8 Ekim, OR-120 — KOD DEPLOY EDİLMEDİ, veri düzeltildi).** 7 Ekim'in iki
 ödemesi 8'inde iptal edilince pano "bugün −21.500 ₺", Merkez Kasa "beklenen −12.000 ₺" gösterdi.
 - **CANLI VERİ YAZILDI (owner onayı, 12:41):** Merkez Kasa'nın bugünkü oturumu −12.000 ₺ → **0 ₺**

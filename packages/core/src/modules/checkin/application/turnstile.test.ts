@@ -52,7 +52,7 @@ const code: TurnstileCode = {
 /** Only what `crossTurnstile` touches. A fuller fake would hide which parts decide anything. */
 /** Bugün geçerli bir paket. Kapı 2026-08-31'den beri buna bakıyor, o yüzden varsayılan bu. */
 const CANLI_PAKET = [
-  { validFrom: instant(NOW - 30 * 86_400_000), validUntil: instant(NOW + 30 * 86_400_000), productSnapshot: {} },
+  { validFrom: instant(NOW - 30 * 86_400_000), validUntil: instant(NOW + 30 * 86_400_000), productSnapshot: { category: 'fitness' } },
 ] as never
 
 function fakeDeps(opts: {
@@ -388,12 +388,28 @@ describe('crossTurnstile — hak bittiyse kol dönmez (OR-78)', () => {
     expect(tuketilenler).toEqual([])
   })
 
-  it('sınır: bir dersi kalan girer', async () => {
-    expect((await gir(fakeDeps({ presence: null, paketler: [kredili(1)] as never }))).ok).toBe(true)
+  // ── DERS PAKETİ KAPIYI TEK BAŞINA AÇMAZ (owner, 2026-10-08 · OR-121) ──────────────────────
+  //
+  // *"Pilatesi var ama bugüne rezervasyonu yok, içeri girmiş."* Dersi kalan pilates üyesi eskiden her
+  // saatte giriyordu; artık kapıyı dersinin saati açar.
+  it('dersi kalan ama bu saate dersi OLMAYAN pilates üyesi: kol dönmez, kod harcanmaz, sebep "bu saatte dersi yok"', async () => {
+    const yazilanlar: { type: string; payload?: { reason?: string } }[] = []
+    const tuketilenler: string[] = []
+    const r = await gir(fakeDeps({ presence: null, paketler: [kredili(3)] as never, yazilanlar, tuketilenler }))
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.error.code).toBe('no_active_membership')
+    expect(sebebi(yazilanlar)).toEqual(['no_class_now'])
+    expect(tuketilenler).toEqual([])
   })
 
-  it('kalan dersi sıfır ama bugüne rezervasyonu (tutulan dersi) olan girer', async () => {
-    expect((await gir(fakeDeps({ presence: null, paketler: [kredili(0, 1)] as never }))).ok).toBe(true)
+  it('aynı üye, bu saate dersi VARSA girer — son dersi kalan da, dersi rezervasyonda tutulan da', async () => {
+    expect((await gir(fakeDeps({ presence: null, paketler: [kredili(3)] as never, dersVar: true }))).ok).toBe(true)
+    expect((await gir(fakeDeps({ presence: null, paketler: [kredili(1)] as never, dersVar: true }))).ok).toBe(true)
+    expect((await gir(fakeDeps({ presence: null, paketler: [kredili(0, 1)] as never, dersVar: true }))).ok).toBe(true)
+  })
+
+  it('tutulan ders başka bir günün rezervasyonuysa bugünün kapısını açmaz', async () => {
+    expect((await gir(fakeDeps({ presence: null, paketler: [kredili(0, 1)] as never }))).ok).toBe(false)
   })
 
   it('fitness giriş hakkı bitmiş: kol dönmez, sebep "giriş hakkı bitti"', async () => {
@@ -412,8 +428,10 @@ describe('crossTurnstile — hak bittiyse kol dönmez (OR-78)', () => {
     expect((await gir(fakeDeps({ presence: null, paketler: [kredili(0)] as never, dersVar: true }))).ok).toBe(true)
   })
 
-  it('hibrit: fitness hakkı bitmiş ama pilates dersi kalan girer', async () => {
-    expect((await gir(fakeDeps({ presence: null, paketler: [fitness(8), kredili(2)] as never }))).ok).toBe(true)
+  it('hibrit: fitness hakkı DURUYORSA her saatte girer; bitmişse yalnızca dersinin saatinde', async () => {
+    expect((await gir(fakeDeps({ presence: null, paketler: [fitness(7), kredili(2)] as never }))).ok).toBe(true)
+    expect((await gir(fakeDeps({ presence: null, paketler: [fitness(8), kredili(2)] as never }))).ok).toBe(false)
+    expect((await gir(fakeDeps({ presence: null, paketler: [fitness(8), kredili(2)] as never, dersVar: true }))).ok).toBe(true)
   })
 
   it('hakkı bitmiş olsa da ÇIKIŞ her zaman açılır', async () => {

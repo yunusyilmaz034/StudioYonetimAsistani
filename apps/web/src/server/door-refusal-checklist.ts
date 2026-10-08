@@ -45,6 +45,9 @@ export async function doorRefusalAdvisorItems(ctx: TenantContext): Promise<reado
   for (const d of snap.docs) {
     const memberId = String(d.get('subject.id') ?? '')
     if (!memberId) continue
+    // OR-121: "bu saatte dersi yok" bir YENİLEME işi değil — paketi sağlam, yalnızca saati yanlış. Masa onu
+    // o an ekranın üstünde görüyor (`DoorRefusalToaster`); ertesi günün "arayın" listesine girmez.
+    if (d.get('payload.reason') === 'no_class_now') continue
     const at = (d.get('recordedAt') as Timestamp | null)?.toMillis() ?? now
     const v = enSon.get(memberId)
     if (v) v.kez += 1

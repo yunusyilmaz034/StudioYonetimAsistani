@@ -91,7 +91,9 @@ export type TurnstileOpenedManuallyPayload = {
 /** `reason` kapalı enum: kapının hayır deme sebepleri sayılabilir olmalı, serbest metin değil. */
 // OR-78 (2026-09-14): paketi olsa bile HAK kalmamışsa kapı hayır der — dersler bitti ya da fitness giriş hakkı bitti.
 // Genişletme ek bir değer: eski olayların hepsi 'no_active_membership' ve anlamları değişmiyor.
-export type EntryRefusalReason = 'no_active_membership' | 'no_credits_left' | 'no_entries_left'
+// OR-121 (2026-10-08): `no_class_now` — ders paketi sağlam ama bu saate rezervasyonlu dersi yok. Yine ek bir
+// değer; öncekilerin anlamı değişmiyor. Bir YENİLEME konusu değil, o yüzden panoda "arayın" işi açmaz.
+export type EntryRefusalReason = 'no_active_membership' | 'no_credits_left' | 'no_entries_left' | 'no_class_now'
 export type MemberEntryRefusedPayload = {
   readonly branchId: BranchId
   readonly deviceId: string

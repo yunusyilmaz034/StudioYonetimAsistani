@@ -10,6 +10,7 @@ import { ThemeStyle } from '@/components/theme-style'
 import { Toaster } from '@/components/ui/sonner'
 import { UndoProvider } from '@/lib/undo'
 import { CheckInToaster } from './checkin-toaster'
+import { DoorRefusalToaster } from './door-refusal-toaster'
 import { PaymentToaster } from './payment-toaster'
 import { WhatsAppDock } from './whatsapp-dock'
 import { getTenantContext } from '@/server/auth'
@@ -72,6 +73,8 @@ export default async function StaffLayout({ children }: { children: ReactNode })
       {/* PF-36 — desk-only: a green/red toast when a member checks in (from the kiosk or the desk).
           Owner + reception; NOT trainer (she never sees the members list), NOT kiosk (its own overlay). */}
       {ctx.role === 'owner' || ctx.role === 'receptionist' ? <CheckInToaster studioId={ctx.studioId} /> : null}
+      {/* Giremeyen üye — kırmızı, kendiliğinden kapanmayan uyarı (owner, 2026-10-08). */}
+      {ctx.role === 'owner' || ctx.role === 'receptionist' ? <DoorRefusalToaster /> : null}
       {/* A green toast when a PAYTR payment lands — the Sanal POS charge, or a shared link paid later
           (borç kapandı / cüzdana yüklendi). Owner + reception only. */}
       {ctx.role === 'owner' || ctx.role === 'receptionist' ? <PaymentToaster studioId={ctx.studioId} /> : null}

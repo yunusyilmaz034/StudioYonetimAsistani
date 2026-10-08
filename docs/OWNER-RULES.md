@@ -2361,3 +2361,41 @@ sonradan düzeltmek, sayımı anlamsız kılar.
 **Eksi kasa neden yalnızca çirkin değil, tehlikeliydi:** kasa eksiyken kapatılamaz (`counted` sıfırın altına inemez),
 yani 23:00 otomatik gün sonu reddedilir ve eksi ertesi güne taşınırdı.
 
+---
+
+**OR-121 · Ders paketi turnikeyi TEK BAŞINA açmaz — kapıyı dersin saati açar.** (2026-10-08)
+
+Owner: *"Pilatesi var ama bugüne rezervasyonu yok, içeri girmiş. Pilates paketi alır, rezervasyon yapmaz, fitness'ı
+kullanabilir şu anda."* — **[[OR-78]]'i daraltır.** OR-78 "kalan dersi olan girer" diyordu; yani bir ders paketi,
+salonun süresiz anahtarıydı.
+
+**Kural (yalnızca TURNİKEDE, yalnızca GİRİŞTE):**
+- **Fitness hakkı** (fitness kategorisinde sınırsız paket, kalan giriş, kalan ders) **duran haktır**: üye istediği
+  saatte girer. Değişmedi.
+- **Ders paketi** (fitness dışındaki her kategori: pilates, PT) yalnızca **rezervasyonlu dersinin saatinde** açar:
+  başlamasına **en fazla 1 saat** kala, ders bitene kadar (owner seçti; eşik `EARLY_ARRIVAL_MS`, zaten "derse
+  gelmiş sayılır" eşiği). Kalan ders de, başka güne tutulan ders de tek başına yetmez.
+- **Hibrit:** fitness hakkı duruyorsa her saatte girer; fitness hakkı bitmişse yalnızca dersinin saatinde. (OR-78'de
+  "kapı neden geldiğini bilemez, girer" idi — artık bilmesine gerek yok, fitness hakkı yoksa salon da yok.)
+- Ret sebebi yeni bir değer: `member.entry_refused { reason: 'no_class_now' }`. Paketi sağlam, saati değil — bir
+  **yenileme işi değildir** ve panodaki "kapıda kaldı, arayın" listesine girmez.
+
+**Değişmeyenler:** çıkış hiç sormaz; resepsiyonun "Turnike Giriş"i ve elle açma paket de ders de sormaz (insan karar
+verir); üyeye ve kapı ekranına giden cümle tek ve aynı ("resepsiyona uğrayın").
+
+**ÖLÇÜLDÜ, ve varsayım yanlış çıktı.** Son 14 günde 585 turnike girişinin **6'sı** (5 üye) yeni kuralda kapıda
+kalırdı. Bunların **5'i fitness'ı kullanmıyordu**: rezervasyonsuz gelmiş, kapıdan geçmiş ve masa onları **sonradan**
+derse yazmıştı (Behice 11:45'te girdi, 12:50'de 12:00 dersine yazılıp "katıldı" işaretlendi). Yalnızca bir giriş
+hiçbir derse bağlanmadı. Yani kapatılan asıl açık "pilatesçi fitness yapıyor" değil, **"rezervasyon yapmadan
+gelinebiliyor"** — ve geriye dönük kayıt bunu görünmez kılıyordu (ilk ölçüm bu yüzden 1 buldu). Betik:
+`tools/migration/tani-ders-paketiyle-serbest-giris-2026-10-08.ts`.
+
+**Kapıda kalan üye masaya O AN söylenir** (owner, aynı gün: *"panelde hemen en üstten toast gibi popup çıkıp söylesin,
+dikkat çeksin"*). Her turnike reddi owner ve resepsiyonun ekranında kırmızı, **kendiliğinden kapanmayan** bir kart
+açar: kim, neden, "Üyeyi aç". Bu ikisi birlikte çalışır: kapı durdurur, masa görür, rezervasyonu yazar, üye tekrar
+okutur. Olay günlüğü tarayıcıya açılmadı — panel altı saniyede bir sunucuya sorar, sekme görünmezken sormaz.
+
+**Bilinen kusur:** üyenin telefonunda görünen cümle hâlâ *"Kullanılabilir paket hakkınız görünmüyor"* — dersi olmayan
+ama paketi sağlam üye için yanıltıcı. Düzeltmek yeni bir hata kodu, yani mobil uygulama sürümü ve kapı ekranı
+firmware'i demek; bilerek bu işe katılmadı.
+

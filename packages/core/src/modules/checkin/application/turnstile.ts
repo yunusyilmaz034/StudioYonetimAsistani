@@ -162,6 +162,10 @@ export async function crossTurnstile(
     let sebep = entryRefusalReason(haklar)
     // HAK BİTTİ AMA BUGÜN DERSİ VAR (owner, 2026-09-14 · OR-78): derse gelen üye kapıda kalmaz. Soru
     // YALNIZCA ret yolunda soruluyor — normal bir girişte fazladan okuma yapılmıyor ki kapı hızlı kalsın.
+    //
+    // OR-121 (2026-10-08): ders paketi olan üye için bu artık ret yolu değil, GİRİŞİN KENDİSİ — kapıyı
+    // paketi değil dersinin saati açar (başlamasına en fazla `EARLY_ARRIVAL_MS` kala, bitene kadar).
+    // Fitness üyesi hâlâ bu okumayı yapmıyor.
     if (
       sebep !== null &&
       sebep !== 'no_active_membership' &&
@@ -343,6 +347,7 @@ export async function openTurnstileManually(
 function girisHakki(e: Entitlement): EntryRight {
   const izin = e.productSnapshot.entryAllowance ?? null
   return {
+    classOnly: e.productSnapshot.category !== 'fitness',
     credits: e.credits ? { remaining: available(e.credits), held: e.credits.held } : null,
     entries: izin === null ? null : { remaining: izin - (e.entryLedger ? entriesUsed(e.entryLedger) : 0) },
   }
