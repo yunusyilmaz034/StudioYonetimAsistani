@@ -15,7 +15,18 @@ import { unlockReportsAction } from '@/server/actions/report-pin'
 //
 // PIN ekranda hiçbir zaman gösterilmiyor; yanlış PIN'de de neyin yanlış olduğu söylenmiyor —
 // "yok mu, yanlış mı" ayrımı denemeyi kolaylaştırır.
-export function ReportPinGate({ varsayilan }: { varsayilan: boolean }) {
+//
+// `onUnlocked` verilirse sayfa yenilenmez (Kasa ekranı bunu bir diyaloğun içinde kullanıyor ve
+// yalnızca kendi listesini yeniden yüklüyor); verilmezse eski davranış: sayfa baştan çizilir.
+export function ReportPinGate({
+  varsayilan,
+  title = 'Raporlar kilitli',
+  onUnlocked,
+}: {
+  varsayilan: boolean
+  title?: string
+  onUnlocked?: () => void
+}) {
   const [pin, setPin] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -27,6 +38,10 @@ export function ReportPinGate({ varsayilan }: { varsayilan: boolean }) {
     try {
       const res = await unlockReportsAction(pin.trim())
       if (res.ok) {
+        if (onUnlocked) {
+          onUnlocked()
+          return
+        }
         // Sunucu bileşenini yeniden çalıştır: kilit çerezi artık var, sayfa raporu döndürecek.
         window.location.reload()
         return
@@ -39,13 +54,13 @@ export function ReportPinGate({ varsayilan }: { varsayilan: boolean }) {
   }
 
   return (
-    <main className="mx-auto flex max-w-md flex-col gap-4 p-6 sm:p-10">
+    <div className={onUnlocked ? 'flex flex-col gap-4' : 'mx-auto flex max-w-md flex-col gap-4 p-6 sm:p-10'}>
       <div className="flex items-center gap-3">
         <span className="flex size-10 items-center justify-center rounded-xl bg-primary-soft text-primary">
           <LockIcon className="size-5" />
         </span>
         <div>
-          <h1 className="text-lg font-medium">Raporlar kilitli</h1>
+          <h1 className="text-lg font-medium">{title}</h1>
           <p className="text-sm text-muted-foreground">Devam etmek için PIN girin.</p>
         </div>
       </div>
@@ -81,6 +96,6 @@ export function ReportPinGate({ varsayilan }: { varsayilan: boolean }) {
           Bu PIN hiç değiştirilmedi. Ayarlar → Genel bölümünden kendi PIN&apos;ini belirle.
         </p>
       ) : null}
-    </main>
+    </div>
   )
 }

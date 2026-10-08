@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { ChevronDownIcon, Loader2Icon } from 'lucide-react'
+import { ChevronDownIcon, Loader2Icon, LockIcon } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
@@ -15,6 +15,8 @@ import { Section } from '@/components/ui/section'
 import { loadCashMovementsAction } from '@/server/actions/cash-movements'
 import type { CashMovement } from '@/server/cash-movements'
 
+import { ReportPinGate } from '../reports/pin-gate'
+
 // ── KASA HAREKETLERİ (owner, 2026-09-04) ────────────────────────────────────────────────────
 //
 // *"Nakit ne kadar, KK ne kadar diye ödeme tiplerine göre filtrelesin; günlük/haftalık/aylık/yıllık
@@ -26,6 +28,10 @@ const TZ = 'Europe/Istanbul'
 const tl = (k: number) => `${(k / 100).toLocaleString('tr-TR')} ₺`
 type Period = 'day' | 'week' | 'month' | 'year'
 const PERIOD_LABEL: Record<Period, string> = { day: 'Günlük', week: 'Haftalık', month: 'Aylık', year: 'Yıllık' }
+// Özet satırı İÇİNDE BULUNULAN dönemi söyler ve adını da söyler (owner, 2026-10-08: *"giren diye
+// bir rakam var, bir anlamı yok — filtreye göre giren olmalı"*). Eskiden pencerenin tamamını, yani
+// son 12 ayı topluyordu; hangi düğme seçili olursa olsun aynı sayı, ve hiçbir dönemin sayısı değil.
+const SIMDI_LABEL: Record<Period, string> = { day: 'Bugün', week: 'Bu hafta', month: 'Bu ay', year: 'Bu yıl' }
 
 /** Bir anın hangi gruba düştüğü — anahtar SIRALANABİLİR olmalı, çünkü liste ona göre diziliyor. */
 function bucketKey(at: number, p: Period): string {
@@ -61,20 +67,35 @@ export function MovementsPanel({ isOwner, onChanged }: { isOwner: boolean; onCha
   const [kind, setKind] = useState<string>('all')
   const [open, setOpen] = useState<string | null>(null)
   const [cikis, setCikis] = useState(false)
+  // ── BUGÜN AÇIK, GERİSİ PIN'Lİ (owner, 2026-10-08 · [[OR-117]]) ─────────────────────────────
+  //
+  // Kilit sunucuda: kapalıyken eylem ne istenirse istensin yalnızca bugünü döndürür. Buradaki
+  // `locked` o cevabın yansıması — ekranın kendi kararı değil. `pinFor`, PIN girilince geçilecek
+  // dönem: kullanıcı "Aylık"a bastıysa kilit açılınca aylığa düşmeli, yeniden basmak zorunda kalmamalı.
+  const [locked, setLocked] = useState(true)
+  const [varsayilanPin, setVarsayilanPin] = useState(false)
+  const [pinFor, setPinFor] = useState<Period | null>(null)
 
-  const yenile = () => {
+  // Varsayılan pencere: son 12 ay. Yıllık gruplama bunu iki takvim yılına bölebilir ve bu doğrudur —
+  // "son 12 ay" bir takvim yılı değildir, ve ekran hangisini gösterdiğini başlıkta söylüyor.
+  const yukle = (hata: () => void, hedef?: Period) => {
     const toMs = Date.now()
-    void loadCashMovementsAction({ fromMs: toMs - 365 * 86_400_000, toMs }).then(setRows).catch(() => {})
+    void loadCashMovementsAction({ fromMs: toMs - 365 * 86_400_000, toMs })
+      .then((r) => {
+        setRows(r.rows)
+        setLocked(r.locked)
+        setVarsayilanPin(r.varsayilanPin)
+        // Kilit on beş dakikada kendiliğinden kapanır; o sırada haftalıkta duran ekran, elinde
+        // yalnızca bugün varken "bu hafta" diye bir toplam göstermemeli.
+        if (r.locked) setPeriod('day')
+        else if (hedef) setPeriod(hedef)
+      })
+      .catch(hata)
   }
+  const yenile = () => yukle(() => {})
 
   useEffect(() => {
-    // Varsayılan pencere: son 12 ay. Yıllık gruplama bunu iki takvim yılına bölebilir ve bu doğrudur —
-    // "son 12 ay" bir takvim yılı değildir, ve ekran hangisini gösterdiğini başlıkta söylüyor.
-    const toMs = Date.now()
-    const fromMs = toMs - 365 * 86_400_000
-    void loadCashMovementsAction({ fromMs, toMs })
-      .then(setRows)
-      .catch(() => setRows([]))
+    yukle(() => setRows([]))
   }, [])
 
   const kinds = useMemo(() => {
@@ -101,15 +122,38 @@ export function MovementsPanel({ isOwner, onChanged }: { isOwner: boolean; onCha
     return [...map.entries()].sort((a, b) => b[0].localeCompare(a[0]))
   }, [rows, period, kind])
 
-  const toplamGirdi = gruplar.reduce((n, [, g]) => n + g.girdi, 0)
-  const toplamCikti = gruplar.reduce((n, [, g]) => n + g.cikti, 0)
+  // İçinde bulunulan dönemin kovası. Bugün hiç hareket yoksa kova da yoktur ve doğru sayı sıfırdır
+  // — en üstteki (dünkü) kovayı göstermek, dünün parasını "bugün" diye okutmak olurdu.
+  const simdi = gruplar.find(([k]) => k === bucketKey(Date.now(), period))?.[1]
+  const toplamGirdi = simdi?.girdi ?? 0
+  const toplamCikti = simdi?.cikti ?? 0
 
   return (
-    <Section title="Kasa Hareketleri" hint="Son 12 ay. Bir satıra dokun, o dönemde kimden ne geldi ve nereye ne gittiği açılır.">
+    <Section
+      title="Kasa Hareketleri"
+      hint={
+        locked
+          ? 'Bugün. Bir satıra dokun, kimden ne geldi ve nereye ne gittiği açılır. Önceki günler ve dönem toplamları PIN ile açılır.'
+          : 'Son 12 ay. Bir satıra dokun, o dönemde kimden ne geldi ve nereye ne gittiği açılır.'
+      }
+    >
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <div className="flex gap-1">
           {(['day', 'week', 'month', 'year'] as const).map((p) => (
-            <Button key={p} size="sm" variant={period === p ? 'default' : 'outline'} onClick={() => { setPeriod(p); setOpen(null) }}>
+            <Button
+              key={p}
+              size="sm"
+              variant={period === p ? 'default' : 'outline'}
+              onClick={() => {
+                if (locked && p !== 'day') {
+                  setPinFor(p)
+                  return
+                }
+                setPeriod(p)
+                setOpen(null)
+              }}
+            >
+              {locked && p !== 'day' ? <LockIcon /> : null}
               {PERIOD_LABEL[p]}
             </Button>
           ))}
@@ -139,11 +183,12 @@ export function MovementsPanel({ isOwner, onChanged }: { isOwner: boolean; onCha
         <p className="py-6 text-center text-sm text-muted-foreground">Yükleniyor…</p>
       ) : gruplar.length === 0 ? (
         <p className="rounded-xl border border-dashed border-border py-8 text-center text-sm text-muted-foreground">
-          Bu filtrede hareket yok.
+          {locked ? 'Bugün henüz hareket yok.' : 'Bu filtrede hareket yok.'}
         </p>
       ) : (
         <>
           <div className="mb-2 flex flex-wrap gap-x-6 gap-y-1 rounded-xl border border-border bg-card px-3 py-2 text-sm">
+            <span className="font-medium text-foreground">{SIMDI_LABEL[period]}</span>
             <span className="text-muted-foreground">Giren <strong className="tabular-nums text-success">{tl(toplamGirdi)}</strong></span>
             {/* ÇIKIŞ SATIRI YALNIZCA VARSA. Sıfır bir çıkış toplamı, "hiç para çıkmıyor" diye okunur —
                 oysa doğrusu "henüz kimse girmedi"dir, ve ikisi aynı şey değildir. */}
@@ -189,6 +234,35 @@ export function MovementsPanel({ isOwner, onChanged }: { isOwner: boolean; onCha
           </ul>
         </>
       )}
+      {/* ÖNCEKİ GÜNLER de kilidin arkasında — "Günlük" açık diye dün açık değil. Düğme, kilitli
+          olan şeyin VAR olduğunu söylüyor; sessizce tek satır göstermek "başka gün yok" diye okunurdu. */}
+      {rows !== null && locked ? (
+        <Button size="sm" variant="outline" className="mt-2" onClick={() => setPinFor('day')}>
+          <LockIcon /> Önceki günleri göster
+        </Button>
+      ) : null}
+      {pinFor ? (
+        <Dialog open onOpenChange={(o) => !o && setPinFor(null)}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader className="sr-only">
+              <DialogTitle>Kasa geçmişi kilitli</DialogTitle>
+              <DialogDescription>Devam etmek için PIN girin.</DialogDescription>
+            </DialogHeader>
+            <ReportPinGate
+              varsayilan={varsayilanPin}
+              title="Kasa geçmişi kilitli"
+              onUnlocked={() => {
+                const hedef = pinFor
+                setPinFor(null)
+                setOpen(null)
+                // Dönem, veri GELDİKTEN sonra değişir: önce değişseydi ekran bir an için elindeki
+                // tek günü "bu ay" diye toplardı.
+                yukle(() => {}, hedef)
+              }}
+            />
+          </DialogContent>
+        </Dialog>
+      ) : null}
       {cikis ? (
         <WithdrawDialog
           onClose={() => setCikis(false)}

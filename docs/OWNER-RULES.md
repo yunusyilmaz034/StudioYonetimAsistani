@@ -2196,6 +2196,16 @@ kaydı tutulur (ne zaman, kim — **PIN'in kendisi ne loga ne e-postaya yazılı
 oturumu PIN özetini veritabanından okuyabilirdi ve altı hane saniyeler içinde denenirdi. Sır artık `secrets`
 koleksiyonunda ve o koleksiyon listeye eklendi. Özet HMAC ile alınıyor (alan ayrımlı), düz sha256 ile değil.
 
+**GENİŞLETİLDİ (owner, 2026-10-08) — Kasa ekranında BUGÜN açık, gerisi aynı PIN'in arkasında.** *"Bu ekranda
+sadece bugün açık olsun, diğer her filtre PIN kodu ile sorulsun — raporlara eklediğimiz PIN'in aynısı."* Bugün
+masanın işi (kasayı sayan kişi o gün gireni görmek zorunda); önceki günler ve hafta/ay/yıl toplamları stüdyonun
+cirosu, ve rapor ekranında kilitlenen şey bu ekrandan PIN'siz okunabiliyordu. **Kilit sunucuda**
+(`loadCashMovementsAction`): kapalıyken istenen pencere ne olursa olsun dönen şey bugündür — düğmeyi gizlemek
+yetmezdi. Aynı çerez, aynı on beş dakika, aynı deneme sınırı. **Kilidi açmak artık masaya da açık**
+(`unlockReportsAction` resepsiyonu kabul ediyor): Kasa onun da ekranı ve kanıt rol değil PIN'in kendisi.
+Raporlar yine role bağlı — bu genişleme resepsiyona rapor açmaz. **Özet satırı içinde bulunulan dönemi
+söyler** ("Bugün / Bu hafta / Bu ay / Bu yıl · Giren"); eskiden hangi düğme seçili olursa olsun son 12 ayın
+toplamını gösteriyordu, yani hiçbir dönemin sayısını.
 
 **OR-118 · Engel bir uyarıdır, duvar değil — ama her istisna sebebiyle birlikte yazılır.** (2026-10-02)
 Owner: *"Üyenin paketinin tarihi bitiyor, biz bitse de inisiyatif kullanıp süre dışındaki bir yere rezervasyon

@@ -469,6 +469,12 @@ kullanım Işıl'ın masasında olacak. Şablon kalıcılığı ("şablondan dol
 - **İş mantığı ekranda/eylemde, testsiz:** saat→an çevirisi (`yerelAn`, gece yarısı kaydırması) `actions/shift.ts`te
   ve birim testi yok. İlk hata oradan çıkarsa çekirdeğe taşınıp testlenmeli.
 
+**Kasa ekranı: bugün açık, gerisi PIN'li (8 Ekim — DEPLOY EDİLMEDİ).** OR-117 genişledi. `loadCashMovementsAction`
+kilit kapalıyken yalnızca bugünü döndürür ve `{ rows, locked, varsayilanPin }` şekline geçti; Haftalık/Aylık/Yıllık
+ve "Önceki günleri göster" PIN diyaloğunu açar (`ReportPinGate` artık `onUnlocked` ile gömülebiliyor). Özet satırı
+içinde bulunulan dönemin girenini gösteriyor. `unlockReportsAction` resepsiyonu da kabul ediyor. **Tarayıcıda
+denenmedi** — yalnızca typecheck/lint/test; 375·430·768·1280 doğrulaması deploy öncesi yapılmalı.
+
 **Burçin Göknil Kaya (8 Ekim 12:25 — CANLI VERİ YAZILDI, owner talimatı).** Reformer 8 Ders, 08.09 → 08.10
 yazılmıştı; owner: *"15'ten başlat, bitişi diğer ayın 15'i."* Önceki paketi 13.09'a kadar sürmüş, bu paketle ilk
 dersi 15.09 — başlangıç bir hafta erken girilmiş. Bedeli o sabah ödenmişti: 03:00 taraması paketi kapatıp **3 dersi
