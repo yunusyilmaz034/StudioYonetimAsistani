@@ -635,8 +635,19 @@ export function decideAmend(
   // way, and any deliberate, reasoned edit is the right moment to heal it. Requiring `validUntil` to
   // be the field that changed also broke the obvious repair — re-saving the date it already has is
   // a no-op patch, so nothing would have fired.
+  //
+  // ── NARROWED (owner, 2026-10-08): the refusal is about an EMPTY package, not a credit one ──
+  //
+  // A member's 8-class package was entered a week early; by the time the owner corrected the dates
+  // the sweep had already burned her three unused classes. The rule above refused the repair
+  // outright, and the screen's own advice ("set the remaining classes with Kredi düzenle") led
+  // nowhere — the credits came back and the package still could not.
+  //
+  // What the refusal protects against is an active package with nothing in it. Once a human has
+  // given the classes back — a recorded `entitlement.adjusted`, never a rewrite of `expired` — that
+  // danger is gone, and the row is a period package's twin: time in the future, something to spend.
   if (ent.status === 'expired' && next.validUntil > ctx.now) {
-    if (next.credits) return err({ code: 'expired_credits_cannot_revive' })
+    if (next.credits && available(next.credits) < 1) return err({ code: 'expired_credits_cannot_revive' })
     changes.status = { from: 'expired', to: 'active' }
     next = { ...next, status: 'active' }
   }

@@ -131,6 +131,31 @@ describe('a CREDIT package is refused, because its credits were burned', () => {
     expect(r.error.code).toBe('expired_credits_cannot_revive')
   })
 
+  it('revives once a human has given the classes back — it is no longer an empty package', () => {
+    // The burned three stay in `expired`; the correction lands in `restored`. Available is 3.
+    const geriVerilmis = {
+      ...krediliBiten,
+      credits: { granted: 8, held: 0, consumed: 5, restored: 3, revoked: 0, expired: 3 },
+    } as Entitlement
+    const r = decideAmend(ctx, geriVerilmis, { validUntil: YARIN }, 'tarih yanlis girilmisti')
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.value.next.status).toBe('active')
+    expect(r.value.next.credits).toEqual(geriVerilmis.credits)
+    expect(r.value.events.map((e) => e.type)).toEqual(['entitlement.amended', 'entitlement.reactivated'])
+  })
+
+  it('still refuses when what was given back is already spent or held — zero is zero', () => {
+    const yineBos = {
+      ...krediliBiten,
+      credits: { granted: 8, held: 1, consumed: 5, restored: 1, revoked: 0, expired: 3 },
+    } as Entitlement
+    const r = decideAmend(ctx, yineBos, { validUntil: YARIN }, 'uzatalim')
+    expect(r.ok).toBe(false)
+    if (r.ok) return
+    expect(r.error.code).toBe('expired_credits_cannot_revive')
+  })
+
   it('still allows editing OTHER fields on it — the refusal is about reviving, not about editing', () => {
     const r = decideAmend(ctx, krediliBiten, { priceAgreed: money(400_000) }, 'fiyat duzeltmesi')
     expect(r.ok).toBe(true)

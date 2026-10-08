@@ -918,6 +918,15 @@ değişiklik değildir.)
 almak, **dersi olmayan "aktif" bir paket** bırakır — reddetmekten kötüdür, çünkü düzelmiş görünür ve
 kimse bir daha bakmaz. Ekran ne olduğunu söyler ve ne yapılacağını önerir.
 
+**DARALTILDI (owner, 2026-10-08) — reddedilen "kredili paket" değil, İÇİ BOŞ pakettir.** Burçin Göknil
+Kaya'nın 8'liği bir hafta erken başlatılmıştı; owner tarihi düzeltmek istediğinde tarama 3 dersini
+çoktan yakmıştı ve kural onarımı toptan reddediyordu. Ekranın kendi önerisi ("Kredi düzenle ile kalan
+dersi belirleyin") de çıkmaz sokaktı: dersler geri geliyor, paket yine canlanamıyordu. Owner'ın kararı:
+*3 dersi geri ver, paketi canlandır.* Kural artık `available < 1` iken reddeder. Dersler önce **kayıtlı
+bir düzeltmeyle** geri verilir (`entitlement.adjusted`, `restored` +n — `expired` sayacı SİLİNMEZ), sonra
+tarih ileri alınır ve paket süreli paketin yolundan canlanır. Sıra önemli ve masada da aynı: önce Kredi
+düzenle, sonra tarih.
+
 **Canlanma AYRI bir olaydır** (`entitlement.reactivated`), `amended` içinde bir alan değil. "Sönmüş
 bir üyeliği ne sıklıkla geri getiriyoruz?" birinin soracağı sorudur; fiyat düzeltmeleri ve yazım
 hatalarının arasına gömülürse bir daha ayrıştırılamaz.

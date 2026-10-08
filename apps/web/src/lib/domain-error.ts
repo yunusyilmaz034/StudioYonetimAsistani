@@ -68,7 +68,7 @@ export function domainErrorMessage(error: DomainError): string {
     case 'expired_credits_cannot_revive':
       // The sentence has to say what the system DID, not only that it refused — otherwise the owner
       // reads it as a bug and tries again. The credits are gone; giving them back is a separate act.
-      return 'Bu paketin süresi dolduğunda kalan dersleri yanmıştı. Sadece tarihi ileri almak, dersi olmayan bir paket bırakır. Üyeye yeni paket satın ya da Kredi düzenle ile kalan ders sayısını belirleyin.'
+      return 'Bu paketin süresi dolduğunda kalan dersleri yanmıştı. Sadece tarihi ileri almak, dersi olmayan bir paket bırakır. Üyeye yeni paket satın ya da önce Kredi düzenle ile kalan ders sayısını verin, sonra tarihi ileri alın.'
     case 'entitlement_not_cancelled':
       return 'Yalnızca iptal edilmiş bir abonelik yeniden aktifleştirilebilir.'
     case 'branch_not_open':

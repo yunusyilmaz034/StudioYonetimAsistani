@@ -469,6 +469,19 @@ kullanım Işıl'ın masasında olacak. Şablon kalıcılığı ("şablondan dol
 - **İş mantığı ekranda/eylemde, testsiz:** saat→an çevirisi (`yerelAn`, gece yarısı kaydırması) `actions/shift.ts`te
   ve birim testi yok. İlk hata oradan çıkarsa çekirdeğe taşınıp testlenmeli.
 
+**Burçin Göknil Kaya (8 Ekim 12:25 — CANLI VERİ YAZILDI, owner talimatı).** Reformer 8 Ders, 08.09 → 08.10
+yazılmıştı; owner: *"15'ten başlat, bitişi diğer ayın 15'i."* Önceki paketi 13.09'a kadar sürmüş, bu paketle ilk
+dersi 15.09 — başlangıç bir hafta erken girilmiş. Bedeli o sabah ödenmişti: 03:00 taraması paketi kapatıp **3 dersi
+yakmıştı**. Şimdi **15.09 → 15.10, aktif, 3 ders**: `adjustCredits` +3 (`correction`; `expired: 3` yerinde duruyor,
+`restored: 3` eklendi) → `amendEntitlement` (amended + reactivated). `tools/migration/fix-burcin-goknil-kaya-tarih-2026-10-08.ts`
+(+ `tani-…`).
+- **Bunun için OR-52 daraltıldı (owner onayı):** süresi dolmuş kredili paket artık yalnızca **içi boşken**
+  (`available < 1`) canlanmayı reddediyor. Önce Kredi düzenle, sonra tarihi ileri al.
+- **⚠ PANELDE HENÜZ YOK — deploy edilmedi.** Betik çekirdeği yerelden çalıştırdı, veri doğru. Ama Işıl aynı şeyi
+  panelden denerse eski kuralla reddedilir ve eski cümleyi görür. Gece deploy'una girecek.
+- Üyeye 08.10 sabahı "paketiniz sona erdi" bildirimi GİTMEDİ (olay günlüğünde o güne ait bildirim yok) —
+  düzeltilecek bir mesaj yok.
+
 **Nihal Pestil (7 Ekim 21:24 — CANLI VERİ YAZILDI, owner talimatı).** Fitness 3 Aylık (8.500 ₺, hiç ödenmemiş,
 16.09'da başlamış) iptal edildi; yerine **Fitness 6 Aylık, 16.09.2026 → 15.03.2027**, anlaşılan 12.750 ₺ (liste
 14.000), **12.500 ₺ nakit bugünün kasasına**, 250 ₺ borç açık. Masanın kendi use-case'leriyle, sırayla:
