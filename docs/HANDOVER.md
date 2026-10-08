@@ -7,9 +7,39 @@ explains the moment.
 Keep it current the way the code is kept current: when the state changes, this changes in the same
 commit. A handover document that lags is worse than none, because it is believed.
 
-_Last true as of: **2026-10-07, öğleden sonra**._
+_Last true as of: **2026-10-08, 14:00**._
 
 ## ⏭️ Sıradaki oturum — BURADAN BAŞLA
+
+### 8 Ekim günlüğü (owner: "günlüğe yaz")
+
+Canlı (ÖLÇÜLDÜ, 13:30): panel **`build-2026-10-08-001`** · %100 trafik · servis katı **1** (rollout 0'a çekmişti, elle
+düzeltildi — her deploy'dan sonra bak). Functions aynı saatte deploy edildi. `pnpm check` yeşil, **1599 birim test**.
+Stüdyo AÇIKKEN deploy edildi; owner "şimdi" dedi.
+
+**Bugün çıkan beş iş** (ayrıntıları aşağıda, 8 Ekim başlıklarında):
+1. **Burçin Göknil Kaya** — paket 15.09 → 15.10, aktif, yanan 3 ders geri verildi. [[OR-52]] daraltıldı: süresi dolmuş
+   kredili paket yalnızca içi boşken canlanmayı reddeder.
+2. **Kasa ekranı** — bugün açık, önceki günler ve hafta/ay/yıl rapor PIN'iyle ([[OR-117]] genişledi). "Giren" artık
+   içinde bulunulan dönemin toplamı.
+3. **İptal edilen ödeme alındığı günden düşer** ([[OR-120]]) — panoda ve kasada. Merkez Kasa −12.000 → 0 düzeltildi.
+   Eski 49 iptalin günü `settings/projection.voidReceivedAt` tablosundan okunuyor; pano bugün +12.000 ₺.
+4. **Ders paketi turnikeyi tek başına açmaz** ([[OR-121]]) — pilates/PT üyesi yalnızca dersine ≤1 saat kala girer.
+5. **Kapıda kalan üye için anlık kırmızı kart** — owner ve resepsiyon ekranında, kendiliğinden kapanmaz.
+
+**Yarım / bekleyen:**
+- **İki commit PUSH EDİLMEDİ** (`18886c5` doküman, `9acb17f` projektörün tablo parametresi + araçlar). Canlıyı
+  etkilemiyorlar; tek başına push yeni rollout tetikler — bir sonraki kod değişikliğiyle birlikte gönder.
+- **Bugünkü hiçbir ekran tarayıcıda denenmedi** (PIN diyaloğu, kırmızı kart, 375 px). İlk kullanım Işıl'ın masasında.
+- **Işıl'a söylendi mi, bilinmiyor:** paneli yenilemesi; rezervasyonsuz gelen pilates üyesinin artık kapıda duracağı;
+  Kasa'da geçmişin PIN istediği. Owner'a söylendi, masaya iletildiği teyit edilmedi.
+- **Okuma modeli rebuild istiyor (gece):** `GCLOUD_PROJECT=studio-yonetim-prod pnpm projections:verify retro` iki ESKİ
+  fark gösteriyor — 16 Eylül ve 18 Eylül `salesKurus` 4.000 ₺ ve 1.200 ₺ fazla. Owner'a soruldu, cevap gelmedi.
+- **Üyenin telefonundaki ret cümlesi** dersi olmayan ama paketi sağlam üye için yanıltıcı ("paket hakkınız
+  görünmüyor"). Yeni hata kodu = mobil sürüm + kapı ekranı firmware'i; bilerek yapılmadı.
+- **İade (`refund`)** hâlâ ödemenin kasasına yazıyor, oturum kapalı olsa da. Dokunulmadı.
+
+### 7 Ekim ve öncesi
 
 **Kod tarafında YARIM İŞ VAR** (7 Ekim, çalışma süresi/mola — aşağıdaki 7 Ekim bölümü): gece kapanış fonksiyonu
 bağlanmadı, mola ekranına 375 px'te hiç bakılmadı, yönetici canlı durum/rapor/imza ekranları yok. Canlı (ÖLÇÜLDÜ):
