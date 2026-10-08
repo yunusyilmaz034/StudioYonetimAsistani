@@ -49,6 +49,7 @@ export {
   decideReceivePayment,
   decideRefund,
   decideVoidPayment,
+  voidReachesDrawer,
   decideWalletAdjustment,
   decideWalletPurchase,
   decideWalletRefund,

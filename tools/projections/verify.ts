@@ -14,6 +14,7 @@ import {
   FirestoreProjectionRepository,
   instant,
   loadExcludedMemberIds,
+  incrementTargets,
   projectDaily,
   type DailyReadModel,
   type StudioId,
@@ -70,8 +71,10 @@ async function main(): Promise<void> {
       excluded,
     )
     if (!inc) continue
-    const current = expected.get(inc.date) ?? emptyDaily(inc.date)
-    expected.set(inc.date, applyIncrement(current, inc, occurredAt))
+    for (const t of incrementTargets(inc, occurredAt)) {
+      const current = expected.get(t.inc.date) ?? emptyDaily(t.inc.date)
+      expected.set(t.inc.date, applyIncrement(current, t.inc, t.eventAt))
+    }
   }
 
   // 2. Compare with what is stored.

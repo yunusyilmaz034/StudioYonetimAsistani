@@ -1,6 +1,7 @@
 import {
   addMoney,
   err,
+  mintedAt,
   money,
   ok,
   subtractMoney,
@@ -475,10 +476,32 @@ export function decideVoidPayment(
       {
         ...base(ctx, 'payment', payment.id, payment.branchId, { memberId: payment.memberId, paymentId: payment.id }),
         type: PAYMENT_VOIDED,
-        payload: { amount: payment.amount, reason, method: payment.method },
+        payload: { amount: payment.amount, reason, method: payment.method, receivedAt: payment.receivedAt },
       },
     ],
   })
+}
+
+/**
+ * DOES A VOID REACH INTO THE TILL? Only when the payment was put into the session that is open NOW.
+ *
+ * (owner, 2026-10-08) A 12.000 ₺ cash payment was entered on the 7th and voided on the 8th. The till
+ * is one document reopened every morning at zero, so the void subtracted from a session that had
+ * never held that money: "beklenen −12.000 ₺". A negative till cannot be closed (`counted` may not be
+ * below zero), so the nightly day-end would have refused it and carried the minus forward for ever.
+ *
+ * The same rule `decideWithdrawCash` states from the other side: a closed till has been sealed, and
+ * nothing reaches back into it. Yesterday's close stands as it was recorded; that it was 12.000 ₺
+ * too high is read from the void, which names the payment and the reason.
+ *
+ * "This session" is judged by when the payment was ENTERED, not by `receivedAt` — a backdated cash
+ * payment typed in today did go into today's till, and voiding it must take it back out.
+ */
+export function voidReachesDrawer(payment: Payment, drawer: CashDrawer | null): boolean {
+  if (!drawer || drawer.id !== payment.drawerId) return false
+  if (payment.method !== 'cash' && payment.method !== 'pos') return false
+  if (drawer.status !== 'open' || drawer.openedAt === null) return false
+  return (mintedAt(payment.id) ?? payment.receivedAt) >= drawer.openedAt
 }
 
 export function decideRefund(

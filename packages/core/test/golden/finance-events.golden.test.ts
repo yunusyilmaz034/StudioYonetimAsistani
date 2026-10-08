@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { decideCorrectDiscount, decideCreateDrawer, decideWithdrawCash } from '../../src/modules/finance/domain/decide'
+import { decideCorrectDiscount, decideCreateDrawer, decideVoidPayment, decideWithdrawCash } from '../../src/modules/finance/domain/decide'
 import {
   instant,
   type BranchId,
@@ -8,10 +8,11 @@ import {
   type StaffUserId,
   type StudioId,
 } from '../../src/shared'
-import type { Sale } from '../../src/modules/finance/domain/types'
+import type { Payment, Sale } from '../../src/modules/finance/domain/types'
 import { money } from '../../src/shared'
 import drawerCreated from './drawer.created.v1.json'
 import withdrawn from './cash.withdrawn.v1.json'
+import paymentVoided from './payment.voided.v1.json'
 import discountCorrected from './sale.discount_corrected.v1.json'
 
 // `drawer.created` — the till (hotfix B-2, 2026-07-13).
@@ -166,5 +167,36 @@ describe('cash.withdrawn v1', () => {
     expect(Object.keys(r.value.events[0]!.payload as object).sort()).toEqual(
       ['amount', 'category', 'drawerId', 'outflowId', 'reason'].sort(),
     )
+  })
+})
+
+// `payment.voided` — STILL v1 (owner, 2026-10-08). `receivedAt` joined the payload as an OPTIONAL,
+// ADDITIVE field: no version bump, no upcaster. It is the day the voided payment had been received
+// on, and it is what lets the daily read model take a void off THAT day rather than the day somebody
+// pressed the button. Voids written before it carry no such field and are never backfilled.
+//
+// No PII: an amount, a method, an instant, and the reason a human typed for the void.
+describe('payment.voided', () => {
+  const payment = {
+    id: 'pay_1',
+    studioId: 'std_1',
+    branchId: 'brn_1',
+    memberId: 'mem_1',
+    amount: money(1_200_000),
+    method: 'cash',
+    receivedAt: instant(1_699_990_000_000),
+    drawerId: 'drw_1',
+    allocated: money(1_200_000),
+    voided: false,
+    voidReason: null,
+  } as unknown as Payment
+
+  it('matches the golden payload, and says which day the payment was received on', () => {
+    const r = decideVoidPayment(ctx, payment, 'henüz getirmedi')
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.value.events[0]?.type).toBe('payment.voided')
+    expect(r.value.events[0]?.version).toBe(1)
+    expect(r.value.events[0]?.payload).toEqual(paymentVoided)
   })
 })

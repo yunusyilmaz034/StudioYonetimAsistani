@@ -126,6 +126,19 @@ export type PaymentVoidedPayload = {
   readonly amount: Money
   readonly reason: string // mandatory (I-36)
   readonly method: PaymentMethod
+  // ── The day the payment was RECEIVED (owner, 2026-10-08). OPTIONAL and ADDITIVE — no version
+  // bump, no upcaster (the same rule `changes` follows, see shared/event.ts).
+  //
+  // A void says "this payment never happened", so the day that has to feel it is the day the money
+  // was recorded on, not the day somebody noticed. Without this field a reader of the log cannot
+  // know that day: the event's own `occurredAt` is when the void was made. Two payments of the 7th
+  // voided on the 8th showed as −21.500 ₺ "collected today" on the dashboard, while the till list
+  // and every report — which read the payment documents — had already taken them off the 7th.
+  //
+  // ABSENT on every void written before this date, and it is never backfilled: those keep reading
+  // as they always did, on the day of the void. A refund does NOT carry it — a refund is money that
+  // really left, on the day it left.
+  readonly receivedAt?: Instant
 }
 
 export type PaymentRefundedPayload = {

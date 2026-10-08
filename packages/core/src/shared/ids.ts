@@ -1,4 +1,4 @@
-import { ulid } from 'ulid'
+import { decodeTime, ulid } from 'ulid'
 
 import type { Brand } from './brand'
 
@@ -117,3 +117,20 @@ export const newProgramTemplateId = (): string => mint(PREFIX.programTemplate)
 export const newPayrollAdjustmentId = (): string => mint(PREFIX.payrollAdjustment)
 export const newPaymentLinkId = (): string => mint(PREFIX.paymentLink)
 export const newPaytrCollectionId = (): string => mint(PREFIX.paytrCollection)
+
+/**
+ * WHEN an id was minted, read back out of the ULID it carries — or `null` when the id is not one
+ * (a migrated record, a hand-built key).
+ *
+ * This is the only honest answer to "when was this record ENTERED?" for a document that stores only
+ * its domain time. A payment's `receivedAt` may be backdated; the moment somebody typed it in is not
+ * a field, but it has been in the id all along.
+ */
+export function mintedAt(id: string): number | null {
+  const tail = id.slice(id.indexOf('_') + 1)
+  try {
+    return decodeTime(tail)
+  } catch {
+    return null
+  }
+}

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { applyIncrement, emptyDaily, projectDaily, type ProjectableEvent } from './daily'
+import { applyIncrement, emptyDaily, incrementTargets, projectDaily, type ProjectableEvent } from './daily'
 import { instant } from '../../../shared'
 
 // The day boundary is where a dashboard quietly lies, so it is the first thing tested.
@@ -212,5 +212,54 @@ describe('excluded members', () => {
   it('ignores an event with no member at all', () => {
     const settings = { type: 'studio.settings_changed', occurredAt: at(108), payload: {} }
     expect(projectDaily(settings, OFFSET, excluded).counters).toEqual({})
+  })
+})
+
+// (owner, 2026-10-08) Two payments of the 7th were voided on the 8th and the dashboard read
+// "−21.500 ₺ collected today", while the till list had already taken them off the 7th.
+describe('a void comes off the day the payment was RECEIVED', () => {
+  const amount = { amount: 1_200_000, currency: 'TRY' }
+  // Received 20:33 local on the 13th (17.55 UTC); voided 12:27 local on the 14th (33.45 UTC).
+  const RECEIVED = at(17.55)
+  const voided = (payload: Record<string, unknown>) => projectDaily(ev('payment.voided', 33.45, payload), OFFSET)
+
+  it('charges the earlier day and leaves the day of the void untouched — but still SEEN', () => {
+    const inc = voided({ amount, reason: 'x', method: 'cash', receivedAt: RECEIVED })
+    // The event's own day carries no counter: the watermark moves there, the money does not.
+    expect(inc.date).toBe('2026-07-14')
+    expect(inc.counters).toEqual({})
+    expect(inc.backdated).toEqual({ date: '2026-07-13', counters: { collectedKurus: -1_200_000 } })
+  })
+
+  it('a same-day void is one ordinary increment', () => {
+    const inc = projectDaily(ev('payment.voided', 18.5, { amount, reason: 'x', method: 'cash', receivedAt: RECEIVED }), OFFSET)
+    expect(inc).toEqual({ date: '2026-07-13', counters: { collectedKurus: -1_200_000 } })
+  })
+
+  it('the boundary is the STUDIO day: received 23:59 local, voided 00:01 local, are two days', () => {
+    // 20:59 UTC on the 13th is 23:59 local; 21:01 UTC is 00:01 on the 14th.
+    const inc = projectDaily(ev('payment.voided', 21 + 1 / 60, { amount, reason: 'x', method: 'cash', receivedAt: at(21 - 1 / 60) }), OFFSET)
+    expect(inc.backdated?.date).toBe('2026-07-13')
+    expect(inc.date).toBe('2026-07-14')
+  })
+
+  it('a void written BEFORE the field existed stays on the day of the void — nothing is invented', () => {
+    expect(voided({ amount, reason: 'x', method: 'cash' })).toEqual({ date: '2026-07-14', counters: { collectedKurus: -1_200_000 } })
+  })
+
+  it('a REFUND is money that really left, and stays on the day it left', () => {
+    const inc = projectDaily(ev('payment.refunded', 33.45, { amount, reason: 'x', receivedAt: RECEIVED }), OFFSET)
+    expect(inc).toEqual({ date: '2026-07-14', counters: { collectedKurus: -1_200_000 } })
+  })
+
+  it('folds into both days, and only the day that SAW the event moves its watermark', () => {
+    const inc = voided({ amount, reason: 'x', method: 'cash', receivedAt: RECEIVED })
+    const days = new Map([
+      ['2026-07-13', { ...emptyDaily('2026-07-13'), collectedKurus: 4_400_000, lastEventAt: 500 }],
+      ['2026-07-14', { ...emptyDaily('2026-07-14'), collectedKurus: 0, lastEventAt: 900 }],
+    ])
+    for (const t of incrementTargets(inc, 1_000)) days.set(t.inc.date, applyIncrement(days.get(t.inc.date)!, t.inc, t.eventAt))
+    expect(days.get('2026-07-13')).toMatchObject({ collectedKurus: 3_200_000, lastEventAt: 500 })
+    expect(days.get('2026-07-14')).toMatchObject({ collectedKurus: 0, lastEventAt: 1_000 })
   })
 })

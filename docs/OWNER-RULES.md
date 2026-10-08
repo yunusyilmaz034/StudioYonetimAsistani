@@ -2330,3 +2330,34 @@ düşüyor; `pnpm check` bunu göremez. Kapı `@studio/core/client` (AD-71). `pn
 hiç taşımazdı, doğrulama brütü net sanırdı); hücre imzası `start-end` olduğu için **yalnızca molayı değiştirmek
 "0 gün değişti"** sayılıyor ve olay yanlış sayı taşıyordu; molanın kendisi hiç denetlenmiyordu (ondalık, negatif,
 ya da mesainin kendisinden uzun mola kabul ediliyordu).
+
+---
+
+**OR-120 · İptal edilen ödeme, ALINDIĞI günden düşer — iptal edildiği günden ve o günün kasasından değil.** (2026-10-08)
+
+Owner: *"Dün iki ödeme yanlış kaydedilmişti, sildim. Dünden düşmüş, tamam — bugünden de düşmüş, yanlış."*
+
+Ölçülen: 7 Ekim'in iki ödemesi (9.500 ₺ kredi kartı, 12.000 ₺ nakit) 8 Ekim'de iptal edildi. Kasa Hareketleri ve
+raporlar ödeme belgelerini okuduğu için ikisini de 7'sinden düşmüştü (41.500 ₺). Pano ise iptali **iptal gününe**
+yazıyordu ("bugün −21.500 ₺"), ve nakit olanı **bugünün kasasından** düşmüştü ("beklenen −12.000 ₺"). Aynı para iki
+ekranda iki ayrı günden eksilmiş görünüyordu.
+
+**İptal ile iade aynı şey değildir.** İptal "bu ödeme hiç olmadı" der — düzelttiği gün, kaydın yazıldığı gündür.
+İade, gerçekten geri verilen paradır — verildiği günde kalır. Bu ayrım iki yerde uygulanır:
+
+- **Pano (günlük okuma modeli).** `payment.voided` olayı artık `receivedAt` taşıyor (eklemeli, isteğe bağlı alan —
+  sürüm artışı yok). Projektör eksiyi o güne yazar; olayın kendi günü yalnızca "görüldü" olarak işaretlenir, yani
+  `projection_lag` yalan söylemez. **Bu tarihten önceki iptaller alanı taşımaz ve taşımayacak**: iptal gününde
+  kalırlar, uydurma bir tarih yazılmaz.
+- **Kasa.** İptal yalnızca paranın **konduğu oturuma** dokunur (`voidReachesDrawer`). Kapanmış bir günün ödemesi
+  bugünün kasasını oynatmaz — "kapalı kasadan para çıkmaz" kuralının öbür yüzü. "Bu oturum", `receivedAt` ile değil
+  ödemenin **girildiği an** ile ölçülür (kimliğindeki ULID'den okunur): geçmiş tarihli girilen bir nakit bugünün
+  kasasına girmiştir ve iptali oradan çıkmalıdır.
+
+**Dünün kapanışı DEĞİŞMEZ.** 7 Ekim 44.000 ₺ beklenen/sayılan olarak (otomatik, "sayım yapılmadı" notuyla) kapandı
+ve öyle duruyor; gerçekte 32.000 ₺ olduğu, tutarı ve sebebiyle duran iptal kaydından okunur. Mühürlenmiş bir sayımı
+sonradan düzeltmek, sayımı anlamsız kılar.
+
+**Eksi kasa neden yalnızca çirkin değil, tehlikeliydi:** kasa eksiyken kapatılamaz (`counted` sıfırın altına inemez),
+yani 23:00 otomatik gün sonu reddedilir ve eksi ertesi güne taşınırdı.
+

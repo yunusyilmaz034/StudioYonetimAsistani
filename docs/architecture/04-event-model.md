@@ -313,7 +313,7 @@ When `policy.attendance.defaultOutcome` is `no_show` — as it will be for a stu
 | `payment.recorded` | `{ amount, method, installments, allocations: [{entitlementId, amount}] }` |
 | `payment.allocated` | `{ entitlementId, amount, balanceDueAfter }` |
 | `payment.refunded` | `{ amount, reason, originalPaymentId }` |
-| `payment.voided` | `{ reason }` |
+| `payment.voided` | `{ amount, reason, method, receivedAt? }` — `receivedAt` is additive (2026-10-08): the day the voided payment had been received on, so the daily read model takes the void off THAT day. Absent on earlier voids; never backfilled. |
 
 Money is revenue on `payment.recorded.occurredAt` (cash basis, Doc 2 §6). A refund is a **new event**, never a mutation. The sum of `recorded − refunded − voided` over a window *is* the revenue figure, and it can be recomputed from the log at any time.
 

@@ -469,6 +469,21 @@ kullanım Işıl'ın masasında olacak. Şablon kalıcılığı ("şablondan dol
 - **İş mantığı ekranda/eylemde, testsiz:** saat→an çevirisi (`yerelAn`, gece yarısı kaydırması) `actions/shift.ts`te
   ve birim testi yok. İlk hata oradan çıkarsa çekirdeğe taşınıp testlenmeli.
 
+**İptal edilen ödeme alındığı günden düşer (8 Ekim, OR-120 — KOD DEPLOY EDİLMEDİ, veri düzeltildi).** 7 Ekim'in iki
+ödemesi 8'inde iptal edilince pano "bugün −21.500 ₺", Merkez Kasa "beklenen −12.000 ₺" gösterdi.
+- **CANLI VERİ YAZILDI (owner onayı, 12:41):** Merkez Kasa'nın bugünkü oturumu −12.000 ₺ → **0 ₺**
+  (`tools/migration/fix-kasa-eksi-2026-10-08.ts`; toplamı tanımından hesaplar, farkı yalnızca tam bu iptale eşitse
+  yazar, ikinci çalıştırma no-op). Olay YAZMAZ — `expected` türev bir toplam, olanın kaydı `payment.voided`.
+- **Kural:** `voidReachesDrawer` (iptal yalnızca paranın girildiği açık oturuma dokunur) + `payment.voided.receivedAt`
+  (eklemeli alan) + projektörde `backdated` hedefi (`incrementTargets`; repo, rebuild ve verify aynı fonksiyondan geçer).
+- **⚠ DEPLOY EDİLENE KADAR ESKİ KURAL CANLI.** Web (iptal eylemi) ve functions (projektör) birlikte çıkmalı. O zamana
+  kadar eski bir günün NAKİT ödemesi iptal edilirse kasa yine eksiye düşer ve gece kapanmaz.
+- **Bugünkü iki iptal eski şemayla yazıldı:** pano "Bugün tahsilat" kutusu gece yarısına kadar −21.500 ₺ gösterir
+  (bugün tahsilat girdikçe yukarı çıkar). Trend raporunda 7 Ekim 21.500 ₺ fazla, 8 Ekim 21.500 ₺ eksik kalır; ay
+  toplamı doğru. Düzeltilmez — olaya sonradan tarih yazılmaz.
+- **Açık soru:** iade (`refund`) hâlâ ödemenin kasasından düşüyor, o kasa hangi oturumda olursa olsun. İade gerçek
+  para çıkışı olduğu için bugünün oturumundan düşmesi doğru, ama kapalı kasaya da yazıyor. Dokunulmadı.
+
 **Kasa ekranı: bugün açık, gerisi PIN'li (8 Ekim — DEPLOY EDİLMEDİ).** OR-117 genişledi. `loadCashMovementsAction`
 kilit kapalıyken yalnızca bugünü döndürür ve `{ rows, locked, varsayilanPin }` şekline geçti; Haftalık/Aylık/Yıllık
 ve "Önceki günleri göster" PIN diyaloğunu açar (`ReportPinGate` artık `onUnlocked` ile gömülebiliyor). Özet satırı

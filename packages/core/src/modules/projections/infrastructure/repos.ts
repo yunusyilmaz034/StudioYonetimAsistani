@@ -7,7 +7,7 @@ import {
 
 import type { StudioId, TenantContext } from '../../../shared'
 import type { ProjectionRepository } from '../application/ports'
-import { applyIncrement, emptyDaily, type DailyIncrement, type DailyReadModel } from '../domain/daily'
+import { applyIncrement, emptyDaily, incrementTargets, type DailyIncrement, type DailyReadModel } from '../domain/daily'
 
 const fromDoc = (date: string, d: DocumentData): DailyReadModel => ({
   ...emptyDaily(date),
@@ -51,12 +51,17 @@ export class FirestoreProjectionRepository implements ProjectionRepository {
 
     return this.db.runTransaction(
       async (tx) => {
-        const [daySnap, markerSnap] = await Promise.all([tx.get(dayRef), tx.get(markerRef)])
+        // One marker, on the event's OWN day, guards every day the increment touches: they are
+        // written in this one transaction, so either all of them moved or none did.
+        const targets = incrementTargets(inc, recordedAt).map((t) => ({ ...t, ref: this.col(ctx.studioId).doc(t.inc.date) }))
+        const [markerSnap, ...daySnaps] = await Promise.all([tx.get(markerRef), ...targets.map((t) => tx.get(t.ref))])
         if (markerSnap.exists) return false // a redelivery — the counter has already moved
 
-        const current = daySnap.exists ? fromDoc(inc.date, daySnap.data() ?? {}) : emptyDaily(inc.date)
-        const next = applyIncrement(current, inc, recordedAt)
-        tx.set(dayRef, next)
+        targets.forEach((t, i) => {
+          const snap = daySnaps[i]!
+          const current = snap.exists ? fromDoc(t.inc.date, snap.data() ?? {}) : emptyDaily(t.inc.date)
+          tx.set(t.ref, applyIncrement(current, t.inc, t.eventAt))
+        })
         tx.set(markerRef, { at: recordedAt })
         return true
       },

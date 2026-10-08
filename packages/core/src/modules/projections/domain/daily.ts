@@ -83,6 +83,31 @@ export interface DailyIncrement {
   readonly date: string
   readonly counters: Partial<Record<keyof Omit<DailyCounters, 'salesByProduct'>, number>>
   readonly productSales?: { readonly productId: string; readonly amountKurus: number }
+  /**
+   * Counters that belong to an EARLIER day than the event's own (a void, see `payment.voided`).
+   *
+   * A second target rather than simply changing `date`, because `date` is also where the WATERMARK
+   * is stamped: the event was seen today, and both `projection_lag` and the dashboard read today's
+   * watermark to decide whether the projector is alive. Moving the whole increment to the 7th would
+   * leave the 8th looking one event behind — a false alarm, on the one signal that has to be believed.
+   */
+  readonly backdated?: { readonly date: string; readonly counters: DailyIncrement['counters'] }
+}
+
+/**
+ * Every day an increment touches, with the watermark each one is stamped with. Pure, and the ONLY
+ * place the two-day case is spelled out — the trigger's repository, the rebuild and the verifier all
+ * fold through it, so they cannot disagree about where a void lands.
+ *
+ * The earlier day is stamped with `0`: its numbers move, its watermark does not. That day did not
+ * see a new event; it had an old one taken back.
+ */
+export function incrementTargets(
+  inc: DailyIncrement,
+  eventAt: number,
+): readonly { readonly inc: DailyIncrement; readonly eventAt: number }[] {
+  const { backdated, ...own } = inc
+  return backdated ? [{ inc: own, eventAt }, { inc: backdated, eventAt: 0 }] : [{ inc: own, eventAt }]
 }
 
 // Money is `{ amount, currency }` (#10 — an integer in kuruş, never a float, and never a bare
@@ -202,10 +227,30 @@ export function projectDaily(
     case 'payment.received':
       // TAHSİLAT = what actually arrived (cash basis, owner OQ-2).
       return one({ collectedKurus: kurus(event.payload.amount) })
-    case 'payment.voided':
+    case 'payment.voided': {
+      // ── A VOID COMES OFF THE DAY THE PAYMENT WAS RECEIVED (owner, 2026-10-08) ──────────────
+      //
+      // *"Dün iki ödeme yanlış kaydedilmişti, sildim. Dünden düşmüş, tamam — bugünden de düşmüş,
+      // yanlış."* A void says the payment never happened; it is not money leaving today. The till
+      // list and every report read the payment documents and had always taken it off the day it was
+      // received — this projector alone charged it to the day of the void, so the same 21.500 ₺
+      // looked subtracted twice, once from each day, on two screens.
+      //
+      // The earlier comment here argued the opposite ("never rewrite a past day — it would disagree
+      // with a report someone already printed"). The reports were already rewriting it; the only
+      // thing that argument protected was the disagreement.
+      //
+      // A void written before the payload carried `receivedAt` cannot say which day it means, and
+      // nothing here invents one: it stays where it has always been, on the day of the void.
+      const back = kurus(event.payload.amount)
+      const counters = { collectedKurus: back === 0 ? 0 : -back }
+      const receivedAt = event.payload.receivedAt
+      if (typeof receivedAt !== 'number') return one(counters)
+      const receivedOn = localDateAt(receivedAt as Instant, utcOffsetMinutes) as string
+      return receivedOn < date ? { date, counters: {}, backdated: { date: receivedOn, counters } } : one(counters)
+    }
     case 'payment.refunded': {
-      // Money that came back out. A void is not an edit (I-31) — it is a movement, and the day's
-      // collected figure must feel it.
+      // Money that came back OUT — really, and today. It stays on the day it left.
       const back = kurus(event.payload.amount)
       return one({ collectedKurus: back === 0 ? 0 : -back })
     }

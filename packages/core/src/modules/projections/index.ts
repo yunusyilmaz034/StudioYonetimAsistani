@@ -7,6 +7,7 @@
 //     disposable: if this is ever wrong, delete it and replay the log.
 export {
   applyIncrement,
+  incrementTargets,
   emptyDaily,
   projectDaily,
   EMPTY_COUNTERS,

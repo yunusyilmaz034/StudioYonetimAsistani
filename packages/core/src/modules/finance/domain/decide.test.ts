@@ -1,3 +1,4 @@
+import { encodeTime } from 'ulid'
 import { describe, expect, it } from 'vitest'
 
 import {
@@ -13,6 +14,7 @@ import {
   decideRefund,
   decideRenameDrawer,
   decideVoidPayment,
+  voidReachesDrawer,
   couponDiscount,
   type DecideContext,
   decideDiscountSale,
@@ -784,5 +786,57 @@ describe('decideCreateSale — satış anı', () => {
     const r = decideCreateSale(ctx(), saleInput({ soldAt: gercekAn }))
     expect(r.ok).toBe(true)
     if (r.ok) expect(r.value.next.soldAt).toBe(gercekAn)
+  })
+})
+
+// (owner, 2026-10-08) A 12.000 ₺ cash payment entered on the 7th was voided on the 8th, and the
+// till — one document, reopened at zero each morning — read "beklenen −12.000 ₺".
+describe('a void reaches into the till only for the session the money was put into', () => {
+  const HOUR = 3_600_000
+  const OPENED = instant(NOW - 3 * HOUR)
+  // A payment id carries the moment it was ENTERED; that, not `receivedAt`, decides the session.
+  const enteredAt = (ms: number) => `pay_${encodeTime(ms, 10)}0000000000000000`
+  const open = drawer({ status: 'open', openedAt: OPENED, expected: money(0) })
+  const cash = (over: Partial<Payment> = {}) => payment({ method: 'cash', drawerId: 'drw_1', ...over })
+
+  it('a payment entered in THIS session gives its money back', () => {
+    expect(voidReachesDrawer(cash({ id: enteredAt(NOW - HOUR), receivedAt: instant(NOW - HOUR) }), open)).toBe(true)
+  })
+
+  it('a payment from a session already closed leaves today’s till alone', () => {
+    const yesterday = NOW - 16 * HOUR
+    expect(voidReachesDrawer(cash({ id: enteredAt(yesterday), receivedAt: instant(yesterday) }), open)).toBe(false)
+  })
+
+  it('the boundary: entered at the very instant the till opened belongs to it; one ms earlier does not', () => {
+    expect(voidReachesDrawer(cash({ id: enteredAt(OPENED) }), open)).toBe(true)
+    expect(voidReachesDrawer(cash({ id: enteredAt(OPENED - 1) }), open)).toBe(false)
+  })
+
+  it('a BACKDATED payment typed in today did go into today’s till — and comes back out of it', () => {
+    const p = cash({ id: enteredAt(NOW - HOUR), receivedAt: instant(NOW - 16 * HOUR) })
+    expect(voidReachesDrawer(p, open)).toBe(true)
+  })
+
+  it('an id that carries no time falls back to receivedAt', () => {
+    expect(voidReachesDrawer(cash({ id: 'pay_1', receivedAt: instant(NOW - HOUR) }), open)).toBe(true)
+    expect(voidReachesDrawer(cash({ id: 'pay_1', receivedAt: instant(NOW - 16 * HOUR) }), open)).toBe(false)
+  })
+
+  it('a closed till is sealed — nothing reaches back into it', () => {
+    const closed = drawer({ status: 'closed', openedAt: OPENED })
+    expect(voidReachesDrawer(cash({ id: enteredAt(NOW - HOUR) }), closed)).toBe(false)
+  })
+
+  it('a transfer never touched a till, and another till is not this one', () => {
+    expect(voidReachesDrawer(payment({ id: enteredAt(NOW - HOUR) }), open)).toBe(false)
+    expect(voidReachesDrawer(cash({ id: enteredAt(NOW - HOUR), drawerId: 'drw_2' }), open)).toBe(false)
+    expect(voidReachesDrawer(cash({ id: enteredAt(NOW - HOUR) }), null)).toBe(false)
+  })
+
+  it('the void event says which day the payment was received on', () => {
+    const r = decideVoidPayment(ctx(), cash({ receivedAt: instant(NOW - 16 * HOUR) }), 'henüz getirmedi')
+    if (!r.ok) throw new Error('fixture')
+    expect(r.value.events[0]?.payload).toMatchObject({ receivedAt: NOW - 16 * HOUR })
   })
 })

@@ -30,6 +30,7 @@ import {
   decideReceivePayment,
   decideRefund,
   decideVoidPayment,
+  voidReachesDrawer,
   decideWalletPurchase,
   type DecideContext,
   decideDiscountSale,
@@ -430,7 +431,9 @@ export async function voidPayment(
     payments: [voided.value.next],
     sales,
     allocations: allocations.map((a) => ({ ...a, reversed: true })),
-    ...(drawer && (payment.method === 'cash' || payment.method === 'pos')
+    // Only the session the money was put INTO gives it back (`voidReachesDrawer`). A payment from a
+    // day that has already been closed leaves today's till alone.
+    ...(drawer && voidReachesDrawer(payment, drawer)
       ? { drawerDeltas: [{ drawerId: drawer.id, deltaKurus: -payment.amount.amount }] }
       : {}),
     events: voided.value.events,
