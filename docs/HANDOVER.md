@@ -469,6 +469,10 @@ kullanım Işıl'ın masasında olacak. Şablon kalıcılığı ("şablondan dol
 - **İş mantığı ekranda/eylemde, testsiz:** saat→an çevirisi (`yerelAn`, gece yarısı kaydırması) `actions/shift.ts`te
   ve birim testi yok. İlk hata oradan çıkarsa çekirdeğe taşınıp testlenmeli.
 
+**8 Ekim 13:30 — bugünün dört işi CANLIDA (owner "şimdi" dedi, stüdyo açıkken).** Web `studio-yonetim-build-2026-10-08-001`
+%100 trafik; functions deploy tamam; `minScale` rollout sonrası 0'a dönmüştü, elle 1 yapıldı. Aşağıdaki dört başlıktaki
+"DEPLOY EDİLMEDİ" notları artık geçmiş. **Hiçbiri tarayıcıda denenmedi** — ilk gerçek kullanım Işıl'ın masasında.
+
 **Ders paketi turnikeyi tek başına açmaz + kapıda kalan üye için anlık uyarı (8 Ekim, OR-121 — DEPLOY EDİLMEDİ).**
 `entryRefusalReason` artık fitness hakkını (duran) ders hakkından (yalnızca dersin saatinde: ≤1 saat kala → bitene
 kadar) ayırıyor; yeni ret sebebi `no_class_now`. `DoorRefusalToaster` + `recentDoorRefusalsAction`: her turnike reddi
