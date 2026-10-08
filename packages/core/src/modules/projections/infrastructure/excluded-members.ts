@@ -20,3 +20,17 @@ export async function loadExcludedMemberIds(db: Firestore, studioId: StudioId): 
   const raw = snap.exists ? (snap.data()?.excludedMemberIds as unknown) : null
   return new Set(Array.isArray(raw) ? raw.filter((v): v is string => typeof v === 'string' && v.length > 0) : [])
 }
+
+// WHEN AN OLD VOID'S PAYMENT HAD BEEN RECEIVED (owner, 2026-10-08 · OR-120).
+//
+// `payment.voided` carries `receivedAt` from that date on. Voids written earlier do not, and an event
+// is never rewritten — so their day is kept here, in the same document and for the same two reasons
+// as the list above: it is one tenant's data, and the rebuild and the verifier must read one answer.
+//
+// The live trigger does NOT read this: every void it will ever see carries the field itself.
+export async function loadVoidReceivedAt(db: Firestore, studioId: StudioId): Promise<ReadonlyMap<string, number>> {
+  const snap = await db.doc(`studios/${studioId}/settings/projection`).get()
+  const raw = snap.exists ? (snap.data()?.voidReceivedAt as unknown) : null
+  if (!raw || typeof raw !== 'object') return new Map()
+  return new Map(Object.entries(raw as Record<string, unknown>).filter((e): e is [string, number] => typeof e[1] === 'number'))
+}

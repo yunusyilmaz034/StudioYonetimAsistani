@@ -77,6 +77,8 @@ export interface ProjectableEvent {
   readonly payload: Record<string, unknown>
   /** `related.memberId`, when the event has one. Used only to exclude test accounts — see below. */
   readonly memberId?: string | null
+  /** `related.paymentId`, when the event has one. Used only to date an OLD void — see `payment.voided`. */
+  readonly paymentId?: string | null
 }
 
 export interface DailyIncrement {
@@ -166,6 +168,7 @@ export function projectDaily(
   event: ProjectableEvent,
   utcOffsetMinutes: number,
   excludedMemberIds: ReadonlySet<string> = new Set(),
+  voidReceivedAt: ReadonlyMap<string, number> = new Map(),
 ): DailyIncrement {
   const date = localDateAt(event.occurredAt, utcOffsetMinutes) as string
   const one = (counters: DailyIncrement['counters']): DailyIncrement => ({ date, counters })
@@ -241,10 +244,28 @@ export function projectDaily(
       // thing that argument protected was the disagreement.
       //
       // A void written before the payload carried `receivedAt` cannot say which day it means, and
-      // nothing here invents one: it stays where it has always been, on the day of the void.
+      // nothing here invents one: left alone, it stays on the day of the void.
+      //
+      // ── …BUT THE DAY IS KNOWN, JUST NOT TO THE EVENT (same day, an hour later) ───────────────
+      //
+      // The two voids that started this were written minutes before the field existed, and the
+      // dashboard kept saying "−9.500 ₺ today" on a day that had taken 12.000 ₺. The owner's
+      // reaction — *"yine eksi diyor, hani düzeltmiştin"* — was right: a rule that fixes every void
+      // except the two she was looking at has fixed nothing she can see.
+      //
+      // An event is never rewritten, so the missing day is supplied the way the test-account list
+      // is: as CONFIGURATION (`settings/projection.voidReceivedAt`, payment id → received instant),
+      // copied once from the payment documents, read by the rebuild and the verifier alike. It is
+      // not invented — it is the payment's own `receivedAt`, written down where a pure fold can
+      // reach it. The event's own field wins whenever it is present.
       const back = kurus(event.payload.amount)
       const counters = { collectedKurus: back === 0 ? 0 : -back }
-      const receivedAt = event.payload.receivedAt
+      const receivedAt =
+        typeof event.payload.receivedAt === 'number'
+          ? event.payload.receivedAt
+          : event.paymentId
+            ? voidReceivedAt.get(event.paymentId)
+            : undefined
       if (typeof receivedAt !== 'number') return one(counters)
       const receivedOn = localDateAt(receivedAt as Instant, utcOffsetMinutes) as string
       return receivedOn < date ? { date, counters: {}, backdated: { date: receivedOn, counters } } : one(counters)

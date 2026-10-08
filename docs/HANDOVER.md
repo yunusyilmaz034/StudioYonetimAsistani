@@ -483,6 +483,18 @@ masanın ekranında kırmızı, kapanmayan kart (6 sn'de bir sorar; olay günlü
 - **Tarayıcıda denenmedi** (kart görünümü, 375 px). Üyenin telefonundaki cümle bu durum için yanıltıcı (OR-121 sonu).
 - Web + functions birlikte çıkmalı değil — bu yalnızca web (turnike ucu ve panel).
 
+**Pano: ESKİ iptaller de alındıkları güne taşındı (8 Ekim 13:55 — OKUMA MODELİ + AYAR YAZILDI).** Deploy'dan sonra pano
+hâlâ "bugün −9.500 ₺" dedi (bugünün 12.000 ₺'si eksi dünün iki iptali): o iki iptal alan eklenmeden önce yazılmıştı.
+Olay değiştirilmedi; `settings/projection.voidReceivedAt` (ödeme → alındığı an, 49 kayıt) eklendi ve projektör alanı
+olmayan iptalin gününü oradan okuyor (`loadVoidReceivedAt`; rebuild + verify okur, canlı tetikleyici OKUMAZ — yeni
+iptaller alanı kendi taşıyor). 20 iptal gün değiştirdi, 23 günün tahsilatı kaydı (toplam sıfır); bugün **+12.000 ₺**,
+7 Ekim **41.500 ₺**. Ay sınırını geçenler var: Ağustos −56.700 ₺, Eylül +34.700 ₺, Ekim +22.000 ₺ — artık Kasa
+Hareketleri ve raporlarla aynı. `tools/migration/fix-pano-eski-iptaller-2026-10-08.ts` (ikinci çalıştırma no-op).
+- **`pnpm projections:verify retro` tahsilatta temiz.** Kalan iki fark ESKİ ve bu işle ilgisiz: 16 Eylül ve 18 Eylül
+  `salesKurus` kayıtlı değer 4.000 ₺ ve 1.200 ₺ fazla (indirim düzeltmesi rebuild edilmemiş). Gece bir rebuild ister.
+- Verify `GCLOUD_PROJECT=studio-yonetim-prod` ister; yoksa `demo-sos`a gider ve yetki hatası verir.
+- **Bu değişiklik PUSH EDİLMEDİ** (yalnızca araçlar ve projektörün tablo parametresi; canlı tetikleyiciyi etkilemez).
+
 **İptal edilen ödeme alındığı günden düşer (8 Ekim, OR-120 — KOD DEPLOY EDİLMEDİ, veri düzeltildi).** 7 Ekim'in iki
 ödemesi 8'inde iptal edilince pano "bugün −21.500 ₺", Merkez Kasa "beklenen −12.000 ₺" gösterdi.
 - **CANLI VERİ YAZILDI (owner onayı, 12:41):** Merkez Kasa'nın bugünkü oturumu −12.000 ₺ → **0 ₺**

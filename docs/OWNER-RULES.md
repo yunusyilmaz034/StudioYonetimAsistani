@@ -2347,8 +2347,10 @@ ekranda iki ayrı günden eksilmiş görünüyordu.
 
 - **Pano (günlük okuma modeli).** `payment.voided` olayı artık `receivedAt` taşıyor (eklemeli, isteğe bağlı alan —
   sürüm artışı yok). Projektör eksiyi o güne yazar; olayın kendi günü yalnızca "görüldü" olarak işaretlenir, yani
-  `projection_lag` yalan söylemez. **Bu tarihten önceki iptaller alanı taşımaz ve taşımayacak**: iptal gününde
-  kalırlar, uydurma bir tarih yazılmaz.
+  `projection_lag` yalan söylemez. **Bu tarihten önceki iptaller alanı taşımaz ve taşımayacak** — olay
+  değiştirilmez. Günleri, ödemenin kendi `receivedAt`inden bir kez kopyalanan `settings/projection.voidReceivedAt`
+  tablosundan okunur (aynı gün içinde eklendi: kuralın owner'ın baktığı iki iptali düzeltmemesi, hiçbir şeyi
+  düzeltmemesiydi). Tablo uydurma değil, kayıtlı bir tarihin projektörün ulaşabileceği yere yazılması.
 - **Kasa.** İptal yalnızca paranın **konduğu oturuma** dokunur (`voidReachesDrawer`). Kapanmış bir günün ödemesi
   bugünün kasasını oynatmaz — "kapalı kasadan para çıkmaz" kuralının öbür yüzü. "Bu oturum", `receivedAt` ile değil
   ödemenin **girildiği an** ile ölçülür (kimliğindeki ULID'den okunur): geçmiş tarihli girilen bir nakit bugünün

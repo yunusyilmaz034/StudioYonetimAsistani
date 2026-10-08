@@ -14,6 +14,7 @@ import {
   FirestoreProjectionRepository,
   instant,
   loadExcludedMemberIds,
+  loadVoidReceivedAt,
   incrementTargets,
   projectDaily,
   type DailyReadModel,
@@ -52,6 +53,8 @@ async function main(): Promise<void> {
   // The same list the live projector uses. Recomputing WITHOUT it would report a diff on every day
   // the test accounts touched — the audit would fail on the exclusion rather than on a real drift.
   const excluded = await loadExcludedMemberIds(db, studioId as StudioId)
+  // Old voids' received days — the same table for the rebuild and the verifier, or they disagree.
+  const voidDays = await loadVoidReceivedAt(db, studioId as StudioId)
 
   // 1. Fold the log, independently of whatever the trigger wrote.
   const snap = await db.collection(`studios/${studioId}/events`).orderBy('occurredAt', 'asc').get()
@@ -66,9 +69,11 @@ async function main(): Promise<void> {
         occurredAt: instant(occurredAt),
         payload: (d.payload ?? {}) as Record<string, unknown>,
         memberId: (d.related as { memberId?: string } | undefined)?.memberId ?? null,
+        paymentId: (d.related as { paymentId?: string } | undefined)?.paymentId ?? null,
       },
       DEFAULT_STUDIO_CONFIG.utcOffsetMinutes,
       excluded,
+      voidDays,
     )
     if (!inc) continue
     for (const t of incrementTargets(inc, occurredAt)) {

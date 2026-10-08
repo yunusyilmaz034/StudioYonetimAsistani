@@ -247,6 +247,20 @@ describe('a void comes off the day the payment was RECEIVED', () => {
     expect(voided({ amount, reason: 'x', method: 'cash' })).toEqual({ date: '2026-07-14', counters: { collectedKurus: -1_200_000 } })
   })
 
+  it('an OLD void whose day is on record (config) is charged to that day — the event is not rewritten', () => {
+    const old = { ...ev('payment.voided', 33.45, { amount, reason: 'x', method: 'cash' }), paymentId: 'pay_1' }
+    const table = new Map([['pay_1', RECEIVED as number]])
+    expect(projectDaily(old, OFFSET, new Set(), table)).toEqual({
+      date: '2026-07-14',
+      counters: {},
+      backdated: { date: '2026-07-13', counters: { collectedKurus: -1_200_000 } },
+    })
+    // Another payment's entry does nothing for this one, and the event's own field always wins.
+    expect(projectDaily({ ...old, paymentId: 'pay_2' }, OFFSET, new Set(), table).backdated).toBeUndefined()
+    const own = { ...old, payload: { ...old.payload, receivedAt: at(33) } }
+    expect(projectDaily(own, OFFSET, new Set(), table).backdated).toBeUndefined()
+  })
+
   it('a REFUND is money that really left, and stays on the day it left', () => {
     const inc = projectDaily(ev('payment.refunded', 33.45, { amount, reason: 'x', receivedAt: RECEIVED }), OFFSET)
     expect(inc).toEqual({ date: '2026-07-14', counters: { collectedKurus: -1_200_000 } })
