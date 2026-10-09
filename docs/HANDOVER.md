@@ -11,6 +11,23 @@ _Last true as of: **2026-10-08, 14:00**._
 
 ## ⏭️ Sıradaki oturum — BURADAN BAŞLA
 
+### 9 Ekim akşamı — ÇIKIŞ kolu dönmüyor: yazılım DEĞİL, çıkış rölesinin ötesi (AÇIK, sahada bakılacak)
+
+**Owner:** *"turnike güle güle yapıyor, kol dönmüyor… giriş yapılabiliyor, çıkış yapılamıyor."*
+ÖLÇÜLDÜ (`tools/migration/tani-turnike-cikis-2026-10-09.ts`, salt okunur, 19:25):
+
+- Kart 18:57'de elektrikten yeniden başlamış (`POWERON`, 28 dk). O andan beri **13 darbe** — sunucunun aynı aralıkta
+  kabul ettiği geçiş + yeniden açma sayısı da **tam 13** (7'si çıkış yönü). Yani firmware her çıkışta pin 4'ü tetikliyor.
+- Çıkışta "kol dönmedi, tekrar okuttu" (`turnstile.reopened`, `direction: out`): 30 Eyl–1 Eki **0** → 2 Eki 3 → 5 Eki 4 →
+  6 Eki 5 → **9 Eki 8** (46 çıkışta; ilki 15:37, 18:55'ten sonra neredeyse her çıkışta). Aynı on günde girişte toplam 2.
+- Giriş bugün 58 geçiş, 0 tekrar → ESP, besleme, turnike kartı ve bobin en az bir yönde sağlam. Yeniden başlatma düzeltmedi.
+- 8 Ekim deploy'u çıkış yolunu değiştirmedi; çıkışlar yazılıyor, ret yok.
+
+**Sonuç:** arıza GPIO 4'ün ötesinde ve yalnızca çıkış kanalında — K2 rölesi, K2 → turnike kartı çıkış girişi kablosu
+(22 Eylül'de sabitlenen büyük ihtimalle giriş tarafıydı) ya da kartın o girişi. **Ayırma denemesi:** panelden Çıkış'ı aç →
+K2'de ışık + klik var mı? Yoksa röle kanalı; varsa kablo/klemens. Kesin ayrım: iki rölenin turnike tarafındaki kablolarını
+yer değiştir — arıza girişe geçerse röle/kablo, çıkışta kalırsa turnike kartı.
+
 ### 8 Ekim günlüğü (owner: "günlüğe yaz")
 
 Canlı (ÖLÇÜLDÜ, 13:30): panel **`build-2026-10-08-001`** · %100 trafik · servis katı **1** (rollout 0'a çekmişti, elle
