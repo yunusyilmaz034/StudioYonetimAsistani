@@ -24,7 +24,7 @@ _Last true as of: **2026-10-08, 14:00**._
 - 8 Ekim deploy'u çıkış yolunu değiştirmedi; çıkışlar yazılıyor, ret yok.
 
 **Sonuç:** arıza GPIO 4'ün ötesinde ve yalnızca çıkış kanalında — K2 rölesi, K2 → turnike kartı çıkış girişi kablosu
-(22 Eylül'de sabitlenen büyük ihtimalle giriş tarafıydı) ya da kartın o girişi. **Ayırma denemesi:** panelden Çıkış'ı aç →
+(owner, 9 Ekim: 22 Eylül'de sıcak silikonla sabitlenen kablo BUYDU — aynı temas ikinci kez gevşiyor; silikon yetmedi, uç yeniden soyulup klemense sıkılmalı ya da kablo değişmeli) ya da kartın o girişi. **Ayırma denemesi:** panelden Çıkış'ı aç →
 K2'de ışık + klik var mı? Yoksa röle kanalı; varsa kablo/klemens. Kesin ayrım: iki rölenin turnike tarafındaki kablolarını
 yer değiştir — arıza girişe geçerse röle/kablo, çıkışta kalırsa turnike kartı.
 
