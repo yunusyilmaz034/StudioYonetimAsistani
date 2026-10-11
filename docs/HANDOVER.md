@@ -11,7 +11,20 @@ _Last true as of: **2026-10-08, 14:00**._
 
 ## ⏭️ Sıradaki oturum — BURADAN BAŞLA
 
-### 11 Ekim — İlkim İrem Genç: Hibrit 2 Aylık 30 gün kesilmişti (DÜZELTİLDİ, canlı veri) + "Aktif" rozeti (YEREL, deploy bekliyor)
+### 11 Ekim günlüğü (owner: "günlüğe yaz")
+
+Canlı (ÖLÇÜLDÜ, 14:40): panel **`build-2026-10-11-001`** · %100 trafik · servis katı **1** (rollout YİNE 0'a çekmişti, elle
+düzeltildi — her deploy'dan sonra bak). Owner "şimdi yap" dedi; stüdyo açıkken çıktı. Functions deploy EDİLMEDİ — bekleyen
+commit'lerde çalışan functions kodunu değiştiren bir şey yoktu (`voidReceivedAt` tablosunu yalnızca rebuild/verify araçları okur).
+8 Ekim'den bekleyen üç commit de bu push'la gitti; **yerelde bekleyen yalnızca bu günlük commit'i.**
+
+- İlkim İrem Genç düzeltmesi uygulandı ve üye aynı gün 14:31'de rezervasyon yaptı (pilates: 1 tutulan, 3 serbest).
+- "Aktif" rozeti düzeltmesi canlıda; **tarayıcıda denenmedi.**
+- **Açık:** çıkış turnikesi kablosu (aşağıda, 9 Ekim) — owner sıkacak; sonra `turnstile.reopened` `direction: out` sayısına bak,
+  sıfıra indiyse sebep buydu. 8 Ekim'in açıkları (ekranların tarayıcı denemesi, 16/18 Eylül `salesKurus` farkı) aynen duruyor.
+- Bilinen ama dokunulmayan: `member.stats.activeEntitlementCount` hiçbir yerde güncellenmiyor (kalıcı 0); ekranlar canlı sayıyor.
+
+### 11 Ekim — İlkim İrem Genç: Hibrit 2 Aylık 30 gün kesilmişti (DÜZELTİLDİ, canlı veri) + "Aktif" rozeti (CANLIDA)
 
 **Owner:** *"hibrit 2 aylık verilmiş ama 1 ay süre eklenmiş."* Demet 31.08'de satılırken iki bileşen de 30 günlük
 kesilmiş (ürün o gün 30 gün veriyordu; 17 Eylül'den beri 60, başka alan yok). 08.10 taraması kapatmış, 4 pilates dersi yanmış.
@@ -21,8 +34,7 @@ bugün 14 — owner kararı). Para dokunulmadı (10.000 ₺ nakit, bakiye 0). A�
 
 **Rozet hatası (`members/subscriptions.tsx`):** kart durumu "iptal değilse aktif" diye hesaplanıyordu → süresi dolmuş HER
 paket (tek ya da demet) "Pasif paketler" altında **Aktif** rozetiyle görünüyordu. Artık: dondurulmuş → bir parçası aktifse
-aktif → hepsi iptalse iptal → değilse **Süresi doldu**. Yalnızca gösterim; veri ve kurallar hep doğruydu. **Canlıda DEĞİL** —
-bir sonraki deploy'la gider. Aynı commit'te 9 Ekim tanı betiklerinin typecheck/lint hataları düzeltildi (`539cefb`
+aktif → hepsi iptalse iptal → değilse **Süresi doldu**. Yalnızca gösterim; veri ve kurallar hep doğruydu. Aynı commit'te 9 Ekim tanı betiklerinin typecheck/lint hataları düzeltildi (`539cefb`
 `pnpm check` çalıştırılmadan girmişti — kapı kırmızıydı, fark edilmedi).
 
 **Deneme (deploy sonrası):** süresi dolmuş paketi olan bir üyede "Pasif paketleri göster" → rozet "Süresi doldu", "gün" yazısı yok.
