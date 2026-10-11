@@ -1,7 +1,6 @@
 
 import { requirePageAccess } from '@/server/auth'
-import { getStudioSettingsAction } from '@/server/actions/settings'
-import { loadReservationCalendar } from '@/server/reservation-calendar-query'
+import { loadReservationCalendar, loadShowCancelledDefault } from '@/server/reservation-calendar-query'
 import { studioToday } from '@/components/calendar'
 
 import { ReservationsScreen } from './reservations-screen'
@@ -19,7 +18,7 @@ export default async function ReservationsPage({
   const today = studioToday()
   const dateStr = date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : today
 
-  const [data, settings] = await Promise.all([loadReservationCalendar(ctx, dateStr), getStudioSettingsAction()])
+  const [data, showCancelledDefault] = await Promise.all([loadReservationCalendar(ctx, dateStr), loadShowCancelledDefault(ctx)])
 
   return (
     <ReservationsScreen
@@ -31,7 +30,7 @@ export default async function ReservationsPage({
       // OR-24 keeps backdating at the desk; trainers hold the rest of this screen (2026-08-03). Drawing
       // a button that the server will refuse is the fault we spent today removing, so it is not drawn.
       canBackdate={ctx.role !== 'trainer'}
-      showCancelledDefault={Boolean(settings?.showCancelledSessions)}
+      showCancelledDefault={showCancelledDefault}
     />
   )
 }

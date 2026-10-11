@@ -1,6 +1,6 @@
 import { isDemoMode } from './demo-mode'
 import { maskName } from '@/lib/demo-mask'
-import { FirestoreMemberRepository, FirestoreReservationRepository, instant, type TenantContext } from '@studio/core'
+import { FirestoreMemberRepository, FirestoreReservationRepository, FirestoreSchedulingRepository, instant, type TenantContext } from '@studio/core'
 
 import { adminDb } from './firebase-admin'
 import { loadSchedule, scheduleWindow, type ScheduleData } from './schedule-query'
@@ -65,4 +65,18 @@ export async function loadReservationCalendar(
   for (const list of Object.values(rosters)) list.sort((a, b) => a.memberName.localeCompare(b.memberName, 'tr'))
 
   return { ...schedule, rosters }
+}
+
+/**
+ * Whether this studio shows cancelled sessions by default — the ONE thing the calendar takes from the
+ * studio settings.
+ *
+ * NOT `getStudioSettingsAction()`: that read is the desk's (it carries the discount ceiling and the
+ * company record) and it refuses a trainer — so the trainer's Rezervasyon tab, hers since 2026-08-03,
+ * answered "Bir şeyler ters gitti" every time she opened it (owner, 2026-10-11). The page has already
+ * authorised `ctx`; this returns one display flag and nothing else.
+ */
+export async function loadShowCancelledDefault(ctx: TenantContext): Promise<boolean> {
+  const settings = await new FirestoreSchedulingRepository(adminDb()).getStudioSettings(ctx)
+  return Boolean(settings?.showCancelledSessions)
 }

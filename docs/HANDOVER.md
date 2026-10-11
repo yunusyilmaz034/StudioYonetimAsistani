@@ -11,6 +11,18 @@ _Last true as of: **2026-10-08, 14:00**._
 
 ## ⏭️ Sıradaki oturum — BURADAN BAŞLA
 
+### 11 Ekim akşamı — eğitmenin Rezervasyon sekmesi 3 Ağustos'tan beri AÇILMIYORDU (YEREL, deploy bekliyor)
+
+**Owner:** Reyhan Hoca'nın telefonu, 19:36, Rezervasyon sekmesi: "Bir şeyler ters gitti · Hata kodu 286324162".
+Log: `ForbiddenError: Insufficient role` — `/reservations` sayfası `getStudioSettingsAction()` çağırıyordu ve o okuma
+yalnızca owner/resepsiyon/platform_admin'e açık. Sayfa eğitmene 3 Ağustos'ta (`d65270d`) verildi; ayar okuması 23 Temmuz'dan
+beri oradaydı → **eğitmen için o sekme hiç açılmadı.** Fark edilmedi çünkü hocalar nadiren basıyor (30 günde 4 günde 500).
+Düzeltme: sayfa artık yalnızca ihtiyacı olan tek bayrağı okuyor (`loadShowCancelledDefault(ctx)`,
+`reservation-calendar-query.ts`); ayar aksiyonunun rolü GENİŞLETİLMEDİ (indirim tavanı ve şirket kaydı taşıyor).
+`pnpm check` yeşil. **Eğitmen hesabıyla tarayıcıda denenmedi** — sayfa açıldıktan sonra içindeki bir düğmenin eğitmene kapalı
+başka bir aksiyona basıp basmadığı bilinmiyor.
+**Deneme (deploy sonrası):** eğitmen hesabıyla telefonda Rezervasyon sekmesi → takvim açılır; bir derse dokun → katılımcılar görünür.
+
 ### 11 Ekim günlüğü (owner: "günlüğe yaz")
 
 Canlı (ÖLÇÜLDÜ, 14:40): panel **`build-2026-10-11-001`** · %100 trafik · servis katı **1** (rollout YİNE 0'a çekmişti, elle
