@@ -16,8 +16,8 @@ async function main(): Promise<void> {
   const db = getFirestore()
   const s = db.collection('studios').doc(STUDIO)
 
-  const cihazlar = async () => (await s.collection('devices').get()).docs.map((d) => ({ id: d.id, ...(d.data() as Record<string, any>) }))
-  const yaz = (c: Record<string, any>) =>
+  const cihazlar = async () => (await s.collection('devices').get()).docs.map((d) => ({ id: d.id, ...(d.data() as Record<string, FirebaseFirestore.DocumentData[string]>) }))
+  const yaz = (c: Record<string, FirebaseFirestore.DocumentData[string]>) =>
     console.log(`   ${c.name} [${c.id.slice(0, 12)}] yön=${c.direction ?? '-'} aktif=${c.active} son=${c.lastSeenAt ? saat(c.lastSeenAt.toMillis()) : '-'} · ${JSON.stringify(c.telemetry ?? null)}`)
 
   console.log('━━ CİHAZLAR (şimdi)')

@@ -43,7 +43,7 @@ async function main(): Promise<void> {
 
   console.log(`\n━━ PAKETLER (${paketler.size})`)
   for (const e of paketler.docs.sort((a, b) => ms(a.get('validFrom')) - ms(b.get('validFrom')))) {
-    const c = e.get('credits') as Record<string, number> | null
+    const c = e.get('credits') as { granted: number; restored: number; consumed: number; held: number; revoked: number; expired: number } | null
     const kalan = c ? c.granted + c.restored - c.consumed - c.held - c.revoked - c.expired : null
     console.log(
       `   ${e.get('productSnapshot.name')} · ${e.get('status')} · kategori=${e.get('productSnapshot.category')}\n` +

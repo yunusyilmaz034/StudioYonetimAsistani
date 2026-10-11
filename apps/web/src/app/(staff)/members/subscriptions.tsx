@@ -343,7 +343,15 @@ function SubscriptionRow({ sub, siblings, products, onChanged, isOwner = false, 
   // week and cannot be told why the studio stopped her.
   const scheduled = siblings.find((x) => x.freezeScheduledFrom)
   const groupFrozen = siblings.some((s) => s.status === 'frozen')
-  const cardStatus = groupFrozen ? 'frozen' : siblings.every((s) => s.status === 'cancelled') ? 'cancelled' : 'active'
+  // "Not cancelled" used to mean "active", so a package whose time had run out wore an Aktif badge
+  // (owner, 2026-10-11). Active is something a part IS, not what is left over.
+  const cardStatus = groupFrozen
+    ? 'frozen'
+    : siblings.some((s) => s.status === 'active')
+      ? 'active'
+      : siblings.every((s) => s.status === 'cancelled')
+        ? 'cancelled'
+        : 'expired'
   const contentSummary = bundle
     ? siblings.map((s) => `${BUNDLE_CAT[s.category] ?? s.category} ${componentLine(s, products)}`).join(' · ')
     : componentLine(sub, products)

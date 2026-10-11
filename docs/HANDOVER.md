@@ -11,6 +11,23 @@ _Last true as of: **2026-10-08, 14:00**._
 
 ## ⏭️ Sıradaki oturum — BURADAN BAŞLA
 
+### 11 Ekim — İlkim İrem Genç: Hibrit 2 Aylık 30 gün kesilmişti (DÜZELTİLDİ, canlı veri) + "Aktif" rozeti (YEREL, deploy bekliyor)
+
+**Owner:** *"hibrit 2 aylık verilmiş ama 1 ay süre eklenmiş."* Demet 31.08'de satılırken iki bileşen de 30 günlük
+kesilmiş (ürün o gün 30 gün veriyordu; 17 Eylül'den beri 60, başka alan yok). 08.10 taraması kapatmış, 4 pilates dersi yanmış.
+`fix-ilkim-irem-genc-hibrit-sure-2026-10-11.ts --apply` (owner onayı): pilates +4 ders (correction) → iki bileşenin bitişi
+**07.11.2026** → ikisi de aktif. Şimdi: **pilates 4 ders, fitness 8/16 giriş.** Fitness 16 satıldığı gibi bırakıldı (katalog
+bugün 14 — owner kararı). Para dokunulmadı (10.000 ₺ nakit, bakiye 0). Açık/ileri rezervasyon yoktu.
+
+**Rozet hatası (`members/subscriptions.tsx`):** kart durumu "iptal değilse aktif" diye hesaplanıyordu → süresi dolmuş HER
+paket (tek ya da demet) "Pasif paketler" altında **Aktif** rozetiyle görünüyordu. Artık: dondurulmuş → bir parçası aktifse
+aktif → hepsi iptalse iptal → değilse **Süresi doldu**. Yalnızca gösterim; veri ve kurallar hep doğruydu. **Canlıda DEĞİL** —
+bir sonraki deploy'la gider. Aynı commit'te 9 Ekim tanı betiklerinin typecheck/lint hataları düzeltildi (`539cefb`
+`pnpm check` çalıştırılmadan girmişti — kapı kırmızıydı, fark edilmedi).
+
+**Deneme (deploy sonrası):** süresi dolmuş paketi olan bir üyede "Pasif paketleri göster" → rozet "Süresi doldu", "gün" yazısı yok.
+İlkim İrem Genç'te kart "Aktif", 08.09 – 07.11, Pilates 4/8, Fitness 8/16.
+
 ### 9 Ekim akşamı — ÇIKIŞ kolu dönmüyor: yazılım DEĞİL, çıkış rölesinin ötesi (AÇIK, sahada bakılacak)
 
 **Owner:** *"turnike güle güle yapıyor, kol dönmüyor… giriş yapılabiliyor, çıkış yapılamıyor."*
