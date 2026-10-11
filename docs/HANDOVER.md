@@ -11,7 +11,7 @@ _Last true as of: **2026-10-08, 14:00**._
 
 ## ⏭️ Sıradaki oturum — BURADAN BAŞLA
 
-### 11 Ekim akşamı — eğitmenin Rezervasyon sekmesi 3 Ağustos'tan beri AÇILMIYORDU (YEREL, deploy bekliyor)
+### 11 Ekim akşamı — eğitmenin Rezervasyon sekmesi 3 Ağustos'tan beri AÇILMIYORDU (CANLIDA 20:25, `build-2026-10-11-002`, servis katı elle 1)
 
 **Owner:** Reyhan Hoca'nın telefonu, 19:36, Rezervasyon sekmesi: "Bir şeyler ters gitti · Hata kodu 286324162".
 Log: `ForbiddenError: Insufficient role` — `/reservations` sayfası `getStudioSettingsAction()` çağırıyordu ve o okuma
