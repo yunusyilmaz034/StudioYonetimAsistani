@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { instant, type StudioId } from '../../../shared'
-import { ageOn, basalKcal, cardioKcal, dayView, estimateWorkoutMinutes, minutesFromDisplayedKcal, roundForDisplay, stepsKcal, workoutKcal } from './calc'
+import { ageOn, basalKcal, cardioKcal, dayView, estimateWorkoutMinutes, minutesFromDisplayedKcal, roundForDisplay, summaryIsDue, stepsKcal, workoutKcal } from './calc'
 import type { EnergyDay } from './types'
 
 // The worked example on the owner's approved screens (2026-10-13): 64 kg, 165 cm, born 1992.
@@ -126,5 +126,12 @@ describe('a screen that showed calories but no time', () => {
 
   it('is never zero — a session happened', () => {
     expect(minutesFromDisplayedKcal({ machine: 'stairs', weightKg: 120, displayedKcal: 1 })).toBe(1)
+  })
+})
+
+describe('the evening summary', () => {
+  it('goes out only when she entered something — a rest day is not news', () => {
+    expect(summaryIsDue({ activeKcal: 0 })).toBe(false)
+    expect(summaryIsDue({ activeKcal: 1 })).toBe(true)
   })
 })

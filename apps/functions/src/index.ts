@@ -15,6 +15,7 @@ import { runAutoCheckOutSweep } from './scheduled/auto-check-out'
 import { runStaffShiftClose } from './scheduled/close-staff-shifts'
 import { runDrawerAutoClose, runDrawerAutoOpen } from './scheduled/drawer-cycle'
 import { runAutoResolveSweep } from './scheduled/auto-resolve-attendance'
+import { runEnergySummarySweep } from './scheduled/energy-summary'
 import { runClassReminderSweep } from './scheduled/class-reminders'
 import { runExpirySweep } from './scheduled/expire-credits'
 import { runInfrastructureWatch } from './scheduled/infrastructure-alarm'
@@ -191,6 +192,12 @@ export const minInstancesGuard = onSchedule({ schedule: 'every 10 minutes' }, as
 // onEventCreated. OFF until the owner enables it per studio (settings.classReminder.enabled).
 export const classReminders = onSchedule({ schedule: 'every 15 minutes' }, async () => {
   await runClassReminderSweep(Date.now())
+})
+
+// Kalori takibi — the evening summary (owner, 2026-10-13: 21:30). It only WRITES events, for members
+// who entered something today; the send lives downstream in onEventCreated, like every other reminder.
+export const energyDailySummary = onSchedule({ schedule: '30 21 * * *', timeZone: 'Europe/Istanbul' }, async () => {
+  await runEnergySummarySweep()
 })
 
 // v1.25 — the retry sweep, and the quiet-hour queue (the same mechanism from another angle). Every

@@ -18,6 +18,11 @@ export const ENERGY_STEPS_LOGGED = 'energy_day.steps_logged'
 export const ENERGY_CARDIO_LOGGED = 'energy_day.cardio_logged'
 export const ENERGY_CARDIO_REMOVED = 'energy_day.cardio_removed'
 export const ENERGY_WORKOUT_MINUTES_SET = 'energy_day.workout_minutes_set'
+// The evening summary is DUE for a member who entered something today (owner, 2026-10-13). Emitted by
+// the `system` sweep, once per member per day; the ONE downstream notifier turns it into a push and an
+// inbox entry. It carries the date and nothing else — the figure in the message is read from her
+// documents at send time and lives in the notification, which is hers, never in the log.
+export const ENERGY_DAY_SUMMARY_DUE = 'energy_day.summary_due'
 
 /** `hasBodyFat`: whether the tighter (lean-mass) formula is in use — a fact about precision, not a value. */
 export type EnergyTrackingStartedPayload = { readonly hasBodyFat: boolean }
@@ -37,3 +42,4 @@ export type EnergyCardioLoggedPayload = {
 }
 export type EnergyCardioRemovedPayload = { readonly date: string; readonly entryId: string }
 export type EnergyWorkoutMinutesSetPayload = { readonly date: string; readonly workoutLogId: string }
+export type EnergyDaySummaryDuePayload = { readonly date: string }

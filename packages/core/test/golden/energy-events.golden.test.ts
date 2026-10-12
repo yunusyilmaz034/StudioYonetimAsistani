@@ -11,6 +11,8 @@ import {
   type DecideContext,
 } from '../../src/modules/energy/domain/decide'
 import { instant, type ActorRef, type CorrelationId, type StudioId } from '../../src/shared'
+import type { EnergyDaySummaryDuePayload } from '../../src/modules/energy/events'
+import summaryDue from './energy_day.summary_due.v1.json'
 import cardioLogged from './energy_day.cardio_logged.v1.json'
 import cardioRemoved from './energy_day.cardio_removed.v1.json'
 import stepsLogged from './energy_day.steps_logged.v1.json'
@@ -80,5 +82,15 @@ describe('energy events', () => {
     const r = decideSetWorkoutMinutes(ctx, profile, null, { date: '2026-10-13', workoutLogId: 'wkl_1', minutes: 70 })
     expect(r.ok && r.value.events[0]?.type).toBe('energy_day.workout_minutes_set')
     expect(r.ok && r.value.events[0]?.payload).toEqual(minutesSet)
+  })
+})
+
+// Emitted by the `system` sweep rather than by a decision function, so there is no decider to run:
+// the fixture is checked against the payload TYPE, and the exact key set is asserted by hand. The day
+// this event grows a calorie figure, both lines fail.
+describe('energy_day.summary_due', () => {
+  it('carries the date and nothing else', () => {
+    const payload: EnergyDaySummaryDuePayload = summaryDue
+    expect(Object.keys(payload)).toEqual(['date'])
   })
 })

@@ -158,5 +158,12 @@ export function dayView(p: {
   }
 }
 
+/**
+ * Whether the evening summary goes out for this day (owner, 2026-10-13: *"aynen, gitmesin"*).
+ * Only when she entered something: a notification that says "you rested today" is noise, and noise
+ * is how a member learns to swipe the next one away unread.
+ */
+export const summaryIsDue = (view: Pick<EnergyDayView, 'activeKcal'>): boolean => view.activeKcal > 0
+
 /** For display only: an estimate is shown to the nearest ten. */
 export const roundForDisplay = (kcal: number): number => Math.round(kcal / 10) * 10

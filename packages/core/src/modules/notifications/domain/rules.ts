@@ -41,6 +41,11 @@ export const RULES: Readonly<Record<string, readonly IntentRule[]>> = {
     { template: 'pilates_hatirlatma', to: 'member', category: 'operational', priority: 'high' },
   ],
 
+  // Kalori takibi: her evening summary (a 21:30 sweep emits this, once, only if she entered something).
+  'energy_day.summary_due': [
+    { template: 'kalori_gun_ozeti', to: 'member', category: 'operational', priority: 'normal' },
+  ],
+
   // The studio cancelled a class: everyone on the roster is told, and it does not wait for 08:00.
   'class_session.cancelled': [
     { template: 'session_cancelled', to: 'roster', category: 'operational', priority: 'urgent' },

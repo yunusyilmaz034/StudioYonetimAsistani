@@ -101,6 +101,19 @@ export const TEMPLATES: Readonly<Record<string, NotificationTemplate>> = {
     subject: 'Ders hatırlatması',
     body: 'Merhaba {{memberName}} 🌸 Bugün saat {{sessionTime}} {{sessionName}} dersini hatırlatırız. Tam boy havlunu ve kaymaz çorabını yanına almayı unutma. Görüşmek üzere!',
   },
+  // ── KALORİ TAKİBİ (owner, 2026-10-13): the evening summary, 21:30, only on a day she entered
+  //    something. The figures are ESTIMATES and the sentence says so. `normal`: it is sent before the
+  //    quiet hours begin, and if it ever is not, it can wait for morning — nobody needs it at night.
+  kalori_gun_ozeti: {
+    id: 'kalori_gun_ozeti',
+    version: 1,
+    name: 'Kalori takibi — günün özeti',
+    category: 'operational',
+    priority: 'normal',
+    requiredParams: ['memberName', 'totalKcal', 'activeKcal'],
+    subject: 'Günün özeti',
+    body: '{{memberName}}, bugün yaklaşık {{totalKcal}} kcal yaktın; bunun {{activeKcal}} kadarı hareketten. Eline sağlık 👏',
+  },
   fitness_hatirlatma: {
     id: 'fitness_hatirlatma',
     version: 1,

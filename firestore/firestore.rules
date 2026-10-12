@@ -68,6 +68,11 @@ service cloud.firestore {
           // through a Server Action; the client SDK never touches it. Same posture as measurements,
           // and for the same reason — it is her body, described.
           'workoutLogs',
+          // 2026-10-13 — kalori takibi: the member's weight, height, body fat and the daily figures
+          // computed from them. HEALTH data she gave under explicit consent, for her own screen.
+          // Nobody at the desk has a reason to read it and no screen of theirs does; the member app
+          // reaches it through the Bearer member-api alone.
+          'energyProfiles', 'energyDays',
           'paymentIntents',
           // 2026-09-01 — personel davet jetonlarının ÖZETLERİ. Ham jeton hiçbir yerde saklanmıyor,
           // yani buradan bir link üretilemez; yine de kimin daveti beklediği personelin bilmesi

@@ -13,6 +13,12 @@ import {
   FirestoreReservationRepository,
   FirestoreSchedulingRepository,
   FirestoreTrainingRepository,
+  DEFAULT_STUDIO_CONFIG,
+  FirestoreEnergyRepository,
+  TrainingWorkoutSource,
+  energyDays,
+  roundForDisplay,
+  summaryIsDue,
   intentIdFor,
   notify,
   rulesFor,
@@ -188,7 +194,10 @@ interface EventLike {
 // gitmesin."* Şablon zaten tutar taşımıyor — yalnızca üyenin adı ve paketin adı ("Fitness - 2 Aylık
 // üyeliğiniz tanımlandı"). Parayı söyleyen bildirim `payment_received`'dı ve o kapalı kalıyor:
 // üyenin bilmek istediği şey hakkının başladığıdır, ne ödediği değil — onu zaten biliyor.
-const UYEYE_IZINLI = new Set(['booking_cancelled', 'session_cancelled', 'package_created'])
+// `kalori_gun_ozeti` de izinli (owner, 2026-10-13): *"hem ekranda hem bildirim olarak gelsin gün
+// sonunda."* Üyenin KENDİ açtığı bir takibin özeti — stüdyonun ona yolladığı bir şey değil — ve yalnızca
+// o gün bir şey girdiyse çıkar. Yine yalnızca uygulamadan: WhatsApp'a ve maile gitmez.
+const UYEYE_IZINLI = new Set(['booking_cancelled', 'session_cancelled', 'package_created', 'kalori_gun_ozeti'])
 const uyeyeGider = (to: string): boolean => to === 'member' || to === 'roster'
 
 // İPTAL BİLDİRİMİ WHATSAPP'A VE MAİLE GİTMEZ (owner, 2026-09-18): *"sadece iptal ederse bildirim
@@ -368,6 +377,31 @@ async function resolveParams(
         minute: '2-digit',
       })
       return { ...base, sessionName: session.serviceName, sessionTime: timeOnly }
+    }
+    // Kalori takibi — the figures are read HERE, from her documents, at the moment of sending. The
+    // event carried only the date. If she stopped tracking between the sweep and now, there is
+    // nothing to read and nothing is sent.
+    case 'energy_day.summary_due': {
+      const date = String(p.date ?? '')
+      const memberId = event.related.memberId
+      if (!memberId || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return null
+      const r = await energyDays(
+        {
+          repo: new FirestoreEnergyRepository(database),
+          workouts: new TrainingWorkoutSource(new FirestoreTrainingRepository(database)),
+          clock: systemClock,
+          utcOffsetMinutes: DEFAULT_STUDIO_CONFIG.utcOffsetMinutes,
+        },
+        ctx,
+        memberId,
+        date,
+        date,
+      )
+      const view = r.ok ? r.value.days[0] : undefined
+      if (!view || !summaryIsDue(view)) return null
+      const kcal = (n: number): string => roundForDisplay(n).toLocaleString('tr-TR')
+      // First name only: this is her own summary on her own phone, not a letter.
+      return { memberName: recipient.displayName.split(' ')[0] ?? recipient.displayName, totalKcal: kcal(view.totalKcal), activeKcal: kcal(view.activeKcal) }
     }
     case 'reservation.moved':
       return {

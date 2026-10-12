@@ -14,7 +14,7 @@ export type {
 } from './domain/types'
 export { CARDIO_MACHINES, ENERGY_GOALS } from './domain/types'
 export * from './events'
-export { ageOn, basalKcal, cardioKcal, dayView, estimateWorkoutMinutes, minutesFromDisplayedKcal, roundForDisplay, stepsKcal, workoutKcal } from './domain/calc'
+export { ageOn, basalKcal, cardioKcal, dayView, estimateWorkoutMinutes, minutesFromDisplayedKcal, roundForDisplay, stepsKcal, summaryIsDue, workoutKcal } from './domain/calc'
 export {
   ENERGY_LIMITS,
   decideLogCardio,
