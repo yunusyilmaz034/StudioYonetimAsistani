@@ -52,26 +52,31 @@ export function CountUp({ value, style, duration = 800 }: { value: number; style
   return <Text style={style}>{trNum(kcal10(shown))}</Text>
 }
 
-function Arc({ r, c, start, len, color, width, progress }: { r: number; c: number; start: number; len: number; color: string; width: number; progress: { value: number } }) {
-  const props = useAnimatedProps(() => ({
-    strokeDasharray: [Math.max(0.001, len * progress.value), c] as unknown as string,
-    strokeDashoffset: -start * progress.value,
-  }))
-  return <AnimatedCircle cx={r + width} cy={r + width} r={r} stroke={color} strokeWidth={width} fill="none" strokeLinecap="butt" animatedProps={props} />
-}
-
-/** Her day as a ring: four arcs that sweep out together to the share each part has of the total. */
+/**
+ * Her day as a ring: four arcs in the share each part has of the total, revealed by one sweep.
+ *
+ * The arcs themselves are STATIC. What moves is a cover in the track's colour, drawn over them and
+ * wound back by animating a single number — `strokeDashoffset`, the one stroke property that is a
+ * plain number on both platforms. Animating each arc's dash ARRAY would have been the obvious way and
+ * is the one that breaks: the array is converted by the SVG library's JavaScript, which an animated
+ * prop bypasses. Offsets are kept POSITIVE throughout, because a negative dash phase is not honoured
+ * everywhere.
+ */
 export function EnergyRing({ day, size = 168 }: { day: EnergyDayWire; size?: number }) {
   const p = usePalette()
   const width = 14
   const r = (size - width * 2) / 2
   const c = 2 * Math.PI * r
+  const centre = r + width
   const progress = useSharedValue(0)
   const total = Math.max(1, day.totalKcal)
   useEffect(() => {
     progress.value = 0
     progress.value = withDelay(120, withTiming(1, { duration: 900, easing: EASE }))
   }, [progress, day.totalKcal, day.date])
+  // The cover is one dash of the full circumference followed by a gap of the same. Shifting the
+  // pattern by (2c − swept) leaves exactly the swept part of the ring in the gap, i.e. uncovered.
+  const cover = useAnimatedProps(() => ({ strokeDashoffset: 2 * c - c * progress.value }))
   // A hair of gap between arcs so four colours read as four parts, not a gradient.
   const GAP = 3
   let at = 0
@@ -79,17 +84,19 @@ export function EnergyRing({ day, size = 168 }: { day: EnergyDayWire; size?: num
     .filter((x) => x.kcal > 0)
     .map((x) => {
       const span = (x.kcal / total) * c
-      const arc = { key: x.key, color: x.color, start: at, len: Math.max(0, span - GAP) }
+      const arc = { key: x.key, color: x.color, start: at, len: Math.max(0.5, span - GAP) }
       at += span
       return arc
     })
   return (
-    <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }} accessible accessibilityLabel={`Bugün yaklaşık ${kcalText(day.totalKcal)} kalori`}>
+    <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }} accessible accessibilityLabel={`Yaklaşık ${kcalText(day.totalKcal)} kalori`}>
       <Svg width={size} height={size} style={{ position: 'absolute', transform: [{ rotate: '-90deg' }] }}>
-        <Circle cx={r + width} cy={r + width} r={r} stroke={p.surfaceMuted} strokeWidth={width} fill="none" />
+        <Circle cx={centre} cy={centre} r={r} stroke={p.surfaceMuted} strokeWidth={width} fill="none" />
         {arcs.map((a) => (
-          <Arc key={a.key} r={r} c={c} start={a.start} len={a.len} color={a.color} width={width} progress={progress} />
+          // `c − start` ≡ `−start` (the pattern's period is c): the dash begins `start` along the ring.
+          <Circle key={a.key} cx={centre} cy={centre} r={r} stroke={a.color} strokeWidth={width} fill="none" strokeDasharray={[a.len, c - a.len]} strokeDashoffset={c - a.start} />
         ))}
+        <AnimatedCircle cx={centre} cy={centre} r={r} stroke={p.surfaceMuted} strokeWidth={width + 1} fill="none" strokeDasharray={[c, c]} animatedProps={cover} />
       </Svg>
       <CountUp value={day.totalKcal} style={[t.num, { color: p.textPrimary }]} />
       <Txt role="caption" tone="muted">kcal · yaklaşık</Txt>

@@ -2419,3 +2419,25 @@ pano "bugün −2.500 ₺" dedi. Kasa ve tahsilat zaten etkilenmemişti; borç l
 
 **Bilinen sınır:** geriye dönük kurulmuş bir satışta (`soldAt` ≠ kaydın yazıldığı an) pano satışı YAZILDIĞI güne sayar;
 böyle bir satış iptal edilirse eksi `soldAt` gününe gider. Bugüne kadar iptal edilen 60 satışın hiçbirinde bu fark yoktu.
+
+**OR-123 · Kalori takibi: kapsam ve sınırlar.** (2026-10-13)
+
+Owner'ın bu ekran için verdiği kararlar; her biri sorulup alındı:
+
+- **Kimlere:** tüm üyelere açık (pilates-only dahil). Davet Antrenman/Ölçümlerim sekmesinde; başlatmayan üyenin ana sayfasında HİÇBİR ŞEY çıkmaz.
+- **Cinsiyet sorulmaz** — *"kadınlara özel olacak."* Formül cinsiyete göre değişir; değer koda gömülmedi, profile yazılıyor
+  ve tek yerden veriliyor (`apps/web/src/server/energy.ts` → `STUDIO_MEMBER_SEX`). İkinci stüdyo sihirbaza bir adım ekler.
+- **Adım şimdilik elle.** Günün TOPLAMI girilir; ikinci giriş öncekinin yerine geçer.
+- **Antrenman süresi** programdan tahmin edilir, üye değiştirebilir; değiştirdiği kalır.
+- **Kardiyo fotoğrafı SORMADAN eklenir** — *"kullanıcıya sorma bir daha."* Okunan değer satırda görünür, üye silebilir.
+  Okunamazsa elle giriş açılır. Fotoğraf saklanmaz.
+- **Gün sonu özeti** hem ekranda hem bildirim (21:30, yalnızca uygulama içi + telefon bildirimi). O gün hiçbir şey
+  girmeyen üyeye GİTMEZ.
+- **"Diyet" denmez.** İkinci adımda: admin üyeye beslenme planı atar — genel (öğün sayısı, öğün başına protein/karbonhidrat/yağ, su)
+  ve isteğe bağlı detaylı liste. Altındaki notun metni HENÜZ KARARLAŞTIRILMADI: owner "diyet önerisidir" dedi, ben
+  "beslenme önerisidir, kişiye özel tıbbi diyet değildir" önerdim (diyet yazmak diyetisyenin yetkisinde). Yazmadan önce SOR.
+- **Arayüzde hareketli grafik istendi** (dolan halka, sayan rakam, yükselen çubuklar).
+
+Benim koyduğum ve owner'a söylediğim sınırlar (itiraz gelmedi): rakamlar "yaklaşık" ve 10'a yuvarlı gösterilir · kilo/boy/yağ
+ve onlardan hesaplanan hiçbir sayı olay günlüğüne girmez · açık rıza olmadan başlamaz · takibi kapatmak profili ve tüm
+günleri siler · aralık dışı değer reddedilir, kırpılmaz · yalnızca bugün ve son 7 gün düzenlenir.

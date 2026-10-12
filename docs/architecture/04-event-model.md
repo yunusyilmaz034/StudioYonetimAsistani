@@ -315,6 +315,14 @@ When `policy.attendance.defaultOutcome` is `no_show` — as it will be for a stu
 | `payment.refunded` | `{ amount, reason, originalPaymentId }` |
 | `payment.voided` | `{ amount, reason, method, receivedAt? }` — `receivedAt` is additive (2026-10-08): the day the voided payment had been received on, so the daily read model takes the void off THAT day. Absent on earlier voids; never backfilled. |
 | `sale.cancelled` | `{ reason, total, paidBack, soldAt? }` — `soldAt` is additive (2026-10-12): the day the cancelled sale had been made on, so the daily read model takes it off THAT day's `salesKurus`. Absent on earlier cancellations; never backfilled (their day is configuration, `settings/projection.saleSoldAt`). |
+| `energy_tracking.started` | `{ hasBodyFat }` — kalori takibi (2026-10-13). NO health data in any `energy_*` payload: not weight/height/fat, and not steps/minutes/kcal either (kcal is computed from the weight). |
+| `energy_tracking.profile_updated` | `{ fields }` — which fields changed, never the values. |
+| `energy_tracking.stopped` | `{ daysErased }` — her profile and every day were deleted. |
+| `energy_day.steps_logged` | `{ date, replaced }` |
+| `energy_day.cardio_logged` | `{ date, entryId, machine, source: photo\|manual, hadDisplayedKcal }` |
+| `energy_day.cardio_removed` | `{ date, entryId }` |
+| `energy_day.workout_minutes_set` | `{ date, workoutLogId }` |
+| `energy_day.summary_due` | `{ date }` — `system` sweep, 21:30, once per member per day, only if she entered something. |
 
 Money is revenue on `payment.recorded.occurredAt` (cash basis, Doc 2 §6). A refund is a **new event**, never a mutation. The sum of `recorded − refunded − voided` over a window *is* the revenue figure, and it can be recomputed from the log at any time.
 

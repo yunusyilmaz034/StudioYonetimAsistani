@@ -11,6 +11,39 @@ _Last true as of: **2026-10-08, 14:00**._
 
 ## ⏭️ Sıradaki oturum — BURADAN BAŞLA
 
+### 13 Ekim gecesi — KALORİ TAKİBİ (yeni milestone, owner onaylı · [[OR-123]]) — durum aşağıda, HİÇBİR CİHAZDA ÇALIŞTIRILMADI
+
+**Ne:** üye uygulamasında "bugün kaç kalori yaktın". Sihirbaz → Bugün'de halka kartı → gün detayı → geçmiş. Dört kalem:
+dinlenme (bazal) + adım (elle) + işaretlenen program günü + kardiyo (alet ekranı fotoğrafı ya da elle).
+Taslak ekranlar: https://claude.ai/artifact/KEbb4HFiu2yVurk9u9nk55 (owner'a özel; owner onayladı).
+
+**Nerede:**
+- `packages/core/src/modules/energy/` — YENİ modül. README'yi oku: dokuz değişmez. Olaylar `energy_tracking.*` / `energy_day.*`.
+- `apps/web/src/server/energy.ts` + `/api/member/energy` — tek GET (durum), tek POST (eylem; her eylem taze durumu döner).
+- `apps/web/src/server/ai/cardio-photo.ts` — alet ekranını okuyan model çağrısı (`claude-sonnet-5-5`).
+- `apps/mobile/app/energy/{start,index,history}.tsx`, `src/components/energy.tsx` (halka, sayaç, çubuklar).
+- `apps/functions/src/scheduled/energy-summary.ts` — 21:30 taraması → `energy_day.summary_due` → mevcut bildirim hattı
+  (`kalori_gun_ozeti`, `UYEYE_IZINLI`'ye eklendi; yalnızca in_app + push).
+- `firestore.rules` — `energyProfiles`, `energyDays` serverOnly (resepsiyon dahil hiçbir istemci okuyamaz).
+
+**Doğrulanan:** `pnpm check` yeşil (1676 test) · emülatöre karşı 4 senaryo (`apps/functions/test/integration/energy.test.ts`:
+gün kurma, üyeler arası sızıntı yok, olaylarda sayı yok, kapatınca silme) · mobil `tsc` temiz · Metro paketi derleniyor.
+
+**DOĞRULANMAYAN — bunları ilk iş dene:**
+1. **Uygulama hiçbir telefonda/simülatörde ÇALIŞTIRILMADI** (bu makinede Xcode yok). Halka animasyonu, sayaç, klavye
+   davranışı, kamera akışı yalnızca derlendi. 1.7.2'nin açılış çökmesi tam böyle çıkmıştı. Hasar sınırı: yeni bileşenler
+   yalnızca takibi BAŞLATAN üyede çiziliyor; başlatmayan üyede ana sayfaya eklenen tek şey bir `useFetch` ve boş dönen kart.
+2. **Fotoğraf okuma canlıda hiç çağrılmadı.** Model kimliği ve `output_config` biçimi `measurement-pdf.ts`'ten uyarlandı;
+   ilk gerçek fotoğrafta `[cardio-photo] model call failed <status>` logu çıkarsa sebep büyük ihtimalle model kimliği.
+   Başarısızlıkta üye "okuyamadık, elle gir" görür — veri bozulmaz.
+3. **21:30 bildirimi hiç ateşlenmedi.** İlk akşam: functions logunda `energy summaries emitted`, üyenin kutusunda "Günün özeti".
+4. Boy alanı için ölçümden ön-doldurma tahmini anahtarlara bakıyor (`circumferences.heightCm|boy`); büyük ihtimalle hep boş gelir.
+
+**Bilinen eksik:** mobilde `expo lint` çalışmıyor (yapılandırma `src/` ve `app/`i yok sayıyor — bu işten önce de böyleydi) ·
+`.expo/types/router.d.ts` elle yamalandı (üretilen dosya, git'te değil; `expo start` yeniden üretir).
+
+**Sıradaki (2. adım, BAŞLANMADI):** hedef kalori/protein + admin'in üyeye atadığı beslenme planı. Not metni owner'a sorulacak ([[OR-123]]).
+
 ### 12 Ekim günlüğü (owner: "günlüğe yaz")
 
 Canlı (ÖLÇÜLDÜ, 13:20): panel **`build-2026-10-12-001`** · %100 trafik · servis katı **1** (rollout üçüncü kez 0'a çekti, elle

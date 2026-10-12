@@ -78,7 +78,11 @@ module.exports = () => ({
     // ana sayfa yüklenirken çöküyordu — owner'ın tarifi birebir buydu.
     //
     // Bu sürümün tek işi o satırı erken çıkışın ÜSTÜNE almak. Başka hiçbir şey değişmedi.
-    version: '1.7.4',
+    //
+    // 1.8.0 (owner, 2026-10-13) — KALORİ TAKİBİ. Markette 1.7.4 vardı (`pnpm android:tracks`, ölçüldü).
+    // Küçük sürüm, çünkü yeni ekranlar geliyor: sihirbaz, günlük halka, gün detayı, geçmiş, kardiyo
+    // aleti fotoğrafı. Mağaza turu ŞART — kamera izin cümlesi değişti (native), OTA taşıyamaz.
+    version: '1.8.0',
     // ── OTA GÜNCELLEME (owner onayı, 2026-09-11) ──────────────────────────────────────────────
     //
     // Bugüne kadar bir KELİME düzeltmesi bile mağaza turu istiyordu: build, inceleme, yayılma, ve
@@ -134,12 +138,15 @@ module.exports = () => ({
         'expo-camera',
         {
           cameraPermission:
-            'Kiosk ekranındaki QR kodunu okutup giriş yapabilmen için kamera erişimi gerekir.',
+            'Girişte QR kodunu okutabilmen ve kardiyo aletinin ekranını fotoğraflayıp kalorini kaydedebilmen için kamera erişimi gerekir.',
         },
       ],
       [
         'expo-image-picker',
-        { photosPermission: 'Profil fotoğrafını seçebilmen için galerine erişim gerekir.' },
+        {
+          photosPermission: 'Profil fotoğrafını ya da kardiyo aleti ekranının fotoğrafını seçebilmen için galerine erişim gerekir.',
+          cameraPermission: 'Kardiyo aletinin ekranını fotoğraflayıp kalorini kaydedebilmen için kamera erişimi gerekir.',
+        },
       ],
     ],
     experiments: { typedRoutes: true },
