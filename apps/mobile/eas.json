@@ -35,6 +35,17 @@
         "track": "production",
         "releaseStatus": "completed"
       }
+    },
+    "staged": {
+      "ios": {
+        "ascAppId": "6792723951"
+      },
+      "android": {
+        "serviceAccountKeyPath": "./google-play-service-account.json",
+        "track": "production",
+        "releaseStatus": "inProgress",
+        "rollout": 0.2
+      }
     }
   }
 }

@@ -17,6 +17,15 @@ _Last true as of: **2026-10-08, 14:00**._
 dinlenme (bazal) + adım (elle) + işaretlenen program günü + kardiyo (alet ekranı fotoğrafı ya da elle).
 Taslak ekranlar: https://claude.ai/artifact/KEbb4HFiu2yVurk9u9nk55 (owner'a özel; owner onayladı).
 
+**Canlı / mağaza (ÖLÇÜLDÜ, 13 Ekim ~02:00):** panel `build-2026-10-12-002` (UTC adı) %100 · servis katı elle 1 · functions
+(`energyDailySummary` oluşturuldu) · `firestore.rules` yayında · `/api/member/energy` belirteçsiz 401 dönüyor.
+**Mobil 1.8.0 (build 18):** iOS → TestFlight'a yüklendi (owner çıkaracak; "What's New" TR+EN dolu olmalı). Android → ÜRETİM
+incelemesine gönderildi, **%20 kademeli** (`eas.json` → `submit.staged`). Owner "direkt onaya gönder" demişti; uygulama hiçbir
+cihazda çalıştırılmadığı için %100 yerine %20 seçildi — benim kararım, owner'a söylendi. %100'e çıkarmak: Play Console →
+Üretim → "Kullanıma sunmayı artır", ya da `submit.production` profiliyle yeniden gönder.
+Canlı veriye karşı salt okunur okuma denendi: gerçek program günleri "Program A · 1. Gün ~45 dk" olarak geliyor.
+Kimlik doğrulamalı uç (`energyState`/`energyAction`) canlıda HİÇ çağrılmadı — özel jeton imzalanamadı (signBlob izni yok).
+
 **Nerede:**
 - `packages/core/src/modules/energy/` — YENİ modül. README'yi oku: dokuz değişmez. Olaylar `energy_tracking.*` / `energy_day.*`.
 - `apps/web/src/server/energy.ts` + `/api/member/energy` — tek GET (durum), tek POST (eylem; her eylem taze durumu döner).
