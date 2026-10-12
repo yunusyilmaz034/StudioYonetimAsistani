@@ -11,6 +11,16 @@ _Last true as of: **2026-10-08, 14:00**._
 
 ## ⏭️ Sıradaki oturum — BURADAN BAŞLA
 
+### 13 Ekim günlüğü (owner: "günlüğe yaz")
+
+- **Kalori takibi 1. adım yazıldı ve gönderildi** — ayrıntı hemen aşağıda. Sunucu canlıda; mobil 1.8.0 (build 18):
+  iOS TestFlight'ta (owner çıkaracak, "What's New" metni owner'a verildi), Android üretim incelemesinde %20 kademeli.
+- **Owner'dan beklenen:** TestFlight'ta beş adımlık deneme (sihirbaz → adım → kardiyo fotoğrafı → 640 kg reddi → 21:30 bildirimi);
+  sorun yoksa Android'i %100'e çıkarmak. Çıkış turnikesi kablosu hâlâ onda (9 ve 12 Ekim notları).
+- **Bekleyen kararlar:** beslenme planı notunun metni ([[OR-123]]) · antrenman videoları (kırp+sustur mu, stüdyoda çekim mi —
+  owner'a iki seçenek sunuldu, Işıl'dan beğenilmeyen hareketlerin listesi istendi, cevap gelmedi).
+- **Yerelde bekleyen:** yalnızca bu günlük commit'i (kod değil).
+
 ### 13 Ekim gecesi — KALORİ TAKİBİ (yeni milestone, owner onaylı · [[OR-123]]) — durum aşağıda, HİÇBİR CİHAZDA ÇALIŞTIRILMADI
 
 **Ne:** üye uygulamasında "bugün kaç kalori yaktın". Sihirbaz → Bugün'de halka kartı → gün detayı → geçmiş. Dört kalem:
