@@ -86,6 +86,14 @@ aktif → hepsi iptalse iptal → değilse **Süresi doldu**. Yalnızca gösteri
 **Deneme (deploy sonrası):** süresi dolmuş paketi olan bir üyede "Pasif paketleri göster" → rozet "Süresi doldu", "gün" yazısı yok.
 İlkim İrem Genç'te kart "Aktif", 08.09 – 07.11, Pilates 4/8, Fitness 8/16.
 
+### 12 Ekim akşamı — çıkış kolu: Işıl "yine çalışmıyor" (ÖLÇÜLDÜ 20:13, hâlâ donanım, hâlâ AÇIK)
+
+Kart 09:49'dan beri açık (`POWERON`), darbe sayacı **135**, sunucunun aynı aralıkta saydığı kol açma **136** → firmware her
+geçişte darbeyi veriyor. Bugün çıkış: 52 turnike çıkışı · **4 tekrar okutma** (11:19, 14:11, 14:27, 19:34) · resepsiyon çıkış
+kapısını 3 kez elle açtı → kabaca 7/55 (9 Ekim'de 9/61, 10 Ekim'de 1/13). Girişte 69 geçiş, 2 tekrar (ikisi de 3 sn — çift okutma
+olabilir). **Kesik değil, ARALIKLI ve yalnızca çıkış kanalında.** Owner'ın kabloyu sıkıp sıkmadığı bu oturumda doğrulanmadı.
+Sıradaki ayırıcı deneme değişmedi: iki rölenin turnike tarafındaki kablolarını yer değiştir.
+
 ### 9 Ekim akşamı — ÇIKIŞ kolu dönmüyor: yazılım DEĞİL, çıkış rölesinin ötesi (AÇIK, sahada bakılacak)
 
 **Owner:** *"turnike güle güle yapıyor, kol dönmüyor… giriş yapılabiliyor, çıkış yapılamıyor."*
