@@ -585,3 +585,77 @@ export function minimumBreakMinutes(netMinutes: number, tiers: readonly BreakTie
   // bir kuralı uydurmaktan iyidir. Doğrulama yine de kademelerin eksikliğini reddeder.
   return 0
 }
+
+// ── Energy (kalori takibi, 2026-10-13) ──────────────────────────────────────────────────────
+//
+// The member's own daily account of what she burned. Wire form of the `energy` module: every kcal is
+// a whole number and an ESTIMATE — the app shows it to the nearest ten, with "yaklaşık".
+export type EnergyGoal = 'lose' | 'maintain' | 'gain'
+export type CardioMachine = 'treadmill' | 'elliptical' | 'bike' | 'stairs' | 'rower' | 'other'
+
+export interface EnergyProfileWire {
+  readonly weightKg: number
+  readonly heightCm: number
+  readonly birthYear: number
+  readonly bodyFatPercent: number | null
+  readonly goal: EnergyGoal
+}
+
+export interface EnergyCardioWire {
+  readonly id: string
+  readonly machine: CardioMachine
+  readonly minutes: number
+  readonly distanceKm: number | null
+  readonly displayedKcal: number | null
+  readonly source: 'photo' | 'manual'
+  readonly kcal: number
+}
+
+export interface EnergyWorkoutWire {
+  readonly workoutLogId: string
+  readonly label: string
+  readonly minutes: number
+  /** `true` ⇒ our estimate from the programme; `false` ⇒ she corrected it. */
+  readonly estimated: boolean
+  readonly kcal: number
+}
+
+export interface EnergyDayWire {
+  readonly date: string
+  readonly basalKcal: number
+  readonly steps: { readonly count: number; readonly kcal: number } | null
+  readonly workouts: readonly EnergyWorkoutWire[]
+  readonly cardio: readonly EnergyCardioWire[]
+  readonly stepsKcal: number
+  readonly workoutKcal: number
+  readonly cardioKcal: number
+  readonly activeKcal: number
+  readonly totalKcal: number
+  /** Today and the last seven days can still be written; older days are read-only. */
+  readonly editable: boolean
+}
+
+/** What the wizard can fill in for her before she types anything. Every field may be absent. */
+export interface EnergyPrefill {
+  readonly weightKg: number | null
+  readonly heightCm: number | null
+  readonly birthYear: number | null
+  readonly bodyFatPercent: number | null
+  /** The studio measurement the weight and fat came from, `YYYY-MM-DD`. `null` ⇒ nothing to say. */
+  readonly measuredOn: string | null
+}
+
+export type EnergyState =
+  | { readonly started: false; readonly prefill: EnergyPrefill }
+  | {
+      readonly started: true
+      readonly today: string
+      readonly profile: EnergyProfileWire
+      /** Newest first. Starts at today; never earlier than the day she began. */
+      readonly days: readonly EnergyDayWire[]
+    }
+
+/** A photo of a machine's screen: read and ADDED in one step — she is not asked to confirm. */
+export type EnergyPhotoResult =
+  | { readonly ok: true; readonly value: { readonly added: EnergyCardioWire; readonly state: EnergyState } }
+  | { readonly ok: false; readonly error: ApiError }

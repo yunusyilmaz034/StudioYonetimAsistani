@@ -82,6 +82,16 @@ export function cardioKcal(p: {
 }
 
 /**
+ * A session's length when the machine's screen showed calories but no time: the minutes at which
+ * that machine, at her weight, would have shown that figure. Used ONLY to fill a missing duration
+ * (which the net-of-rest subtraction needs) — never to second-guess a duration that was read.
+ */
+export function minutesFromDisplayedKcal(p: { readonly machine: CardioMachine; readonly weightKg: number; readonly displayedKcal: number }): number {
+  const perMinute = (CARDIO_MET[p.machine] * p.weightKg) / 60
+  return Math.max(1, Math.round(p.displayedKcal / perMinute))
+}
+
+/**
  * How long a programme day takes, from what the programme itself says: the work of each set, the
  * rest it prescribes, and a minute per exercise to walk over and set up. A DEFAULT — she can correct
  * it, and her correction wins (owner, 2026-10-13).
