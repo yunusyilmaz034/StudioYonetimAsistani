@@ -287,6 +287,14 @@ export type DomainError =
   | { readonly code: 'program_version_not_retracted' }
   | { readonly code: 'program_last_version' }
   | { readonly code: 'program_empty' }
+  // ── Energy (kalori takibi, 2026-10-13) ──
+  | { readonly code: 'energy_consent_required' }
+  | { readonly code: 'energy_profile_invalid'; readonly field: 'weightKg' | 'heightCm' | 'birthYear' | 'bodyFatPercent' }
+  | { readonly code: 'energy_already_started' }
+  | { readonly code: 'energy_not_started' }
+  | { readonly code: 'energy_entry_invalid'; readonly field: 'steps' | 'minutes' | 'kcal' | 'distanceKm' }
+  | { readonly code: 'energy_date_out_of_range' }
+  | { readonly code: 'energy_entry_not_found' }
   | { readonly code: 'program_version_conflict' }
   // v1.31 — the workout cycle is walked in order, 1 → 2 → 3 → 1 (owner: "sıralama atlamaya izin
   // yok"). `expected` is the day she may do, so the screen can say which one rather than just "no".

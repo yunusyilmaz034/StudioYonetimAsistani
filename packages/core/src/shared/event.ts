@@ -51,6 +51,9 @@ export type AggregateKind =
   | 'program'
   | 'measurement'
   | 'training_feedback'
+  // 2026-10-13 — the member's own daily energy account. Additive: no existing `subject.kind` changes.
+  | 'energy_profile'
+  | 'energy_day'
   // Plus Phase 8 (Fitness Attendance) is a pure READ layer over `member.checked_in` — it defines no
   // aggregate of its own (see modules/fitness/README).
   // Plus Phase 9 (Trainer Payroll & Commission) — additive. Earnings are DERIVED from existing facts;

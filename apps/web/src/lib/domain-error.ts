@@ -389,6 +389,31 @@ export function domainErrorMessage(error: DomainError): string {
       return 'Kasada bu kadar para görünmüyor. Önce eksik tahsilatları girin ya da gün sonu yapıp farkı kaydedin.'
     case 'program_last_version':
       return 'Son kalan sürüm geri çekilemez — üyenin görebileceği bir program kalmazdı. Programın tamamını kaldırmak için durumunu "Arşiv" yapın.'
+    // ── Kalori takibi (2026-10-13). Üyeye söyleniyor: hangi alanın düzeltileceğini adıyla söyle. ──
+    case 'energy_consent_required':
+      return 'Devam etmek için bilgilerinin işlenmesine izin vermen gerekiyor.'
+    case 'energy_profile_invalid':
+      return {
+        weightKg: 'Kilo 30 ile 250 kg arasında olmalı. Yazdığını kontrol eder misin?',
+        heightCm: 'Boy 120 ile 220 cm arasında olmalı. Yazdığını kontrol eder misin?',
+        birthYear: 'Doğum yılını dört haneli yaz (örn. 1992).',
+        bodyFatPercent: 'Yağ oranı %5 ile %60 arasında olmalı. Bilmiyorsan boş bırak.',
+      }[error.field]
+    case 'energy_already_started':
+      return 'Kalori takibin zaten açık.'
+    case 'energy_not_started':
+      return 'Önce kalori takibini başlatman gerekiyor.'
+    case 'energy_entry_invalid':
+      return {
+        steps: 'Adım sayısı 0 ile 100.000 arasında olmalı.',
+        minutes: 'Süre 1 ile 300 dakika arasında olmalı.',
+        kcal: 'Kalori 1 ile 3.000 arasında olmalı. Ekranda yoksa boş bırak, biz hesaplarız.',
+        distanceKm: 'Mesafe 0 ile 100 km arasında olmalı.',
+      }[error.field]
+    case 'energy_date_out_of_range':
+      return 'Yalnızca bugün ve son 7 gün için giriş yapabilirsin.'
+    case 'energy_entry_not_found':
+      return 'Bu kayıt bulunamadı; silinmiş olabilir.'
     default: {
       const exhaustive: never = error
       void exhaustive
