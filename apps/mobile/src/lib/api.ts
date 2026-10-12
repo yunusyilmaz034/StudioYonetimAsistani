@@ -3,6 +3,10 @@
 // return types come from `@studio/core/client` — the ONE wire contract shared with the backend.
 import type {
   ApiResult,
+  CardioMachine,
+  EnergyGoal,
+  EnergyPhotoResult,
+  EnergyState,
   InboxItem,
   LeaveFeedbackInput,
   MemberAgenda,
@@ -84,6 +88,12 @@ export const api = {
   leaveFeedback: (body: LeaveFeedbackInput) => post<ApiResult<unknown>>('/feedback', body),
   fitness: () => get<MemberFitnessView>('/fitness'),
   home: () => get<HomeExtras>('/home'),
+  // Energy (kalori takibi, 2026-10-13). GET is her state; every action answers with the fresh one.
+  // A photo of a machine's screen is read and ADDED in one call — she is not asked to confirm.
+  energy: (days = 30) => get<EnergyState>(`/energy?days=${days}`),
+  energyAct: (body: EnergyActionBody) => post<ApiResult<EnergyState>>('/energy', body),
+  energyPhoto: (date: string, image: string) =>
+    post<EnergyPhotoResult>('/energy', { action: 'cardio_photo', date, image, mediaType: 'image/jpeg' }),
   // Workout log (v1.31). Her position in the programme cycle, and marking a day done. NOT a
   // check-in — nothing here counts towards attendance.
   workout: (programId: string) => get<WorkoutProgress>(`/workout?programId=${encodeURIComponent(programId)}`),
@@ -259,3 +269,20 @@ export interface TurnstileCross {
   readonly deviceId: string
   readonly branchId: string
 }
+
+// ── Energy actions (mirrors the server's discriminated union in `apps/web/src/server/energy.ts`) ──
+interface EnergyProfileBody {
+  readonly weightKg: number
+  readonly heightCm: number
+  readonly birthYear: number
+  readonly bodyFatPercent: number | null
+  readonly goal: EnergyGoal
+}
+export type EnergyActionBody =
+  | ({ readonly action: 'start'; readonly consent: boolean } & EnergyProfileBody)
+  | ({ readonly action: 'update' } & EnergyProfileBody)
+  | { readonly action: 'stop' }
+  | { readonly action: 'steps'; readonly date: string; readonly steps: number }
+  | { readonly action: 'cardio'; readonly date: string; readonly machine: CardioMachine; readonly minutes: number; readonly distanceKm: number | null; readonly displayedKcal: number | null }
+  | { readonly action: 'remove_cardio'; readonly date: string; readonly entryId: string }
+  | { readonly action: 'workout_minutes'; readonly date: string; readonly workoutLogId: string; readonly minutes: number }

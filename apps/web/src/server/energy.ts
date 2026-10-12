@@ -19,6 +19,7 @@ import {
   systemClock,
   updateEnergyProfile,
   type CardioEntry,
+  type DomainError,
   type EnergyDayView,
   type EnergyDeps,
   type EnergySex,
@@ -27,6 +28,8 @@ import {
 } from '@studio/core'
 import type { ApiResult, EnergyCardioWire, EnergyDayWire, EnergyPhotoResult, EnergyPrefill, EnergyState } from '@studio/core/client'
 import { z } from 'zod'
+
+import { domainErrorMessage } from '@/lib/domain-error'
 
 import { isCardioPhotoMedia, readCardioPhoto } from './ai/cardio-photo'
 import { adminDb } from './firebase-admin'
@@ -153,10 +156,19 @@ const Action = z.discriminatedUnion('action', [
 
 type Out = ApiResult<EnergyState> | EnergyPhotoResult
 
+// The app shows `message` as it stands: the sentence is written once, here on the server, beside the
+// rule it explains — so a new refusal never needs an app release to be said properly.
+const refuse = (error: DomainError) => ({ ok: false as const, error: { code: error.code, message: domainErrorMessage(error) } })
+const PHOTO_MESSAGE = {
+  energy_photo_unreadable: 'Fotoğraftan süreyi ya da kaloriyi okuyamadık. Ekranın tamamı görünecek şekilde yeniden çek ya da elle gir.',
+  energy_photo_failed: 'Fotoğraf şu an okunamadı. Biraz sonra yeniden dene ya da elle gir.',
+} as const
+const photoFail = (code: keyof typeof PHOTO_MESSAGE) => ({ ok: false as const, error: { code, message: PHOTO_MESSAGE[code] } })
+
 /** Every write answers with the fresh state, so the app never has to guess what the day now says. */
 export async function energyAction(ctx: TenantContext, memberId: MemberId, input: unknown): Promise<Out> {
   const parsed = Action.safeParse(input)
-  if (!parsed.success) return { ok: false, error: { code: 'invalid_request' } }
+  if (!parsed.success) return { ok: false, error: { code: 'invalid_request', message: 'Girdiğin bilgilerde bir sorun var. Kontrol edip yeniden dene.' } }
   const p = parsed.data
   const d = deps()
   const mid = memberId as string
@@ -165,40 +177,40 @@ export async function energyAction(ctx: TenantContext, memberId: MemberId, input
   switch (p.action) {
     case 'start': {
       const r = await startEnergyTracking(d, ctx, { ...p, memberId: mid, sex: STUDIO_MEMBER_SEX }, SOURCE)
-      return r.ok ? fresh() : r
+      return r.ok ? fresh() : refuse(r.error)
     }
     case 'update': {
       const r = await updateEnergyProfile(d, ctx, mid, p, SOURCE)
-      return r.ok ? fresh() : r
+      return r.ok ? fresh() : refuse(r.error)
     }
     case 'stop': {
       const r = await stopEnergyTracking(d, ctx, mid, SOURCE)
-      return r.ok ? fresh() : r
+      return r.ok ? fresh() : refuse(r.error)
     }
     case 'steps': {
       const r = await logEnergySteps(d, ctx, { memberId: mid, date: p.date, steps: p.steps }, SOURCE)
-      return r.ok ? fresh() : r
+      return r.ok ? fresh() : refuse(r.error)
     }
     case 'cardio': {
       const r = await logEnergyCardio(d, ctx, { ...p, memberId: mid, source: 'manual' }, SOURCE)
-      return r.ok ? fresh() : r
+      return r.ok ? fresh() : refuse(r.error)
     }
     case 'remove_cardio': {
       const r = await removeEnergyCardio(d, ctx, { memberId: mid, date: p.date, entryId: p.entryId }, SOURCE)
-      return r.ok ? fresh() : r
+      return r.ok ? fresh() : refuse(r.error)
     }
     case 'workout_minutes': {
       const r = await setEnergyWorkoutMinutes(d, ctx, { memberId: mid, date: p.date, workoutLogId: p.workoutLogId, minutes: p.minutes }, SOURCE)
-      return r.ok ? fresh() : r
+      return r.ok ? fresh() : refuse(r.error)
     }
     case 'cardio_photo': {
-      if (!isCardioPhotoMedia(p.mediaType)) return { ok: false, error: { code: 'energy_photo_unreadable' } }
+      if (!isCardioPhotoMedia(p.mediaType)) return photoFail('energy_photo_unreadable')
       // Checked BEFORE the model is called: a photo from someone who has not started would be read,
       // paid for, and then refused by the domain.
       const profile = await d.repo.getProfile(ctx, mid)
-      if (!profile) return { ok: false, error: { code: 'energy_not_started' } }
+      if (!profile) return refuse({ code: 'energy_not_started' })
       const read = await readCardioPhoto(p.image, p.mediaType)
-      if (!read.ok) return { ok: false, error: { code: read.reason === 'unreadable' ? 'energy_photo_unreadable' : 'energy_photo_failed' } }
+      if (!read.ok) return photoFail(read.reason === 'unreadable' ? 'energy_photo_unreadable' : 'energy_photo_failed')
       const v = read.value
       // The screen gave calories but no time: the duration is derived, because the net-of-rest
       // subtraction needs one. The other way round — time but no calories — is the domain's own
@@ -220,9 +232,9 @@ export async function energyAction(ctx: TenantContext, memberId: MemberId, input
       )
       // A figure outside the domain's ranges is far likelier a misread than a real session; she is
       // told the photo could not be read, and types it herself.
-      if (!r.ok) return { ok: false, error: { code: r.error.code === 'energy_entry_invalid' ? 'energy_photo_unreadable' : r.error.code } }
+      if (!r.ok) return r.error.code === 'energy_entry_invalid' ? photoFail('energy_photo_unreadable') : refuse(r.error)
       const added = r.value.cardio.at(-1)
-      if (!added) return { ok: false, error: { code: 'energy_photo_failed' } }
+      if (!added) return photoFail('energy_photo_failed')
       return { ok: true, value: { added: cardioWire(added), state: await energyState(ctx, memberId) } }
     }
   }

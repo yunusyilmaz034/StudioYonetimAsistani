@@ -6,6 +6,7 @@ import { compareMeasurements, type MemberMeasurement, type MemberProgram } from 
 import { api, type TrainingBundle } from '@/lib/api'
 import { shortDate } from '@/lib/format'
 import { useFetch } from '@/lib/useFetch'
+import { EnergyTrainingCard } from '@/components/energy'
 import { FadeInUp } from '@/components/motion'
 import { Body, Screen, ScreenSkeleton, TopStrip } from '@/components/ui'
 import { EmptyState, PremiumCard, SectionHeader, StatusChip, Txt } from '@/components/kit'
@@ -40,6 +41,10 @@ const tr = (n: number) => String(n).replace('.', ',')
 export default function Training() {
   const p = usePalette()
   const { data, loading, reload } = useFetch(api.training)
+  // Kalori takibi (2026-10-13) — for EVERY member, pilates-only included: steps and a cardio session
+  // are hers to log whatever she bought. A failed load shows nothing rather than an error on a tab
+  // that is about something else.
+  const energy = useFetch(() => api.energy(1))
   if (loading && !data) return <ScreenSkeleton />
   const t2 = data as TrainingBundle | null
   const showPrograms = t2?.showPrograms ?? true
@@ -49,7 +54,7 @@ export default function Training() {
   const change = compareMeasurements(measurements)
 
   return (
-    <Screen refreshControl={<RefreshControl refreshing={loading} onRefresh={reload} tintColor={p.accent} />}>
+    <Screen refreshControl={<RefreshControl refreshing={loading} onRefresh={() => { reload(); energy.reload() }} tintColor={p.accent} />}>
       <FadeInUp index={0}>
         <View style={{ gap: space(4) }}>
           <TopStrip label="Gelişimin" onQr={() => router.push('/qr')} />
@@ -65,6 +70,12 @@ export default function Training() {
           </View>
         </View>
       </FadeInUp>
+
+      {energy.data ? (
+        <FadeInUp index={1}>
+          <EnergyTrainingCard state={energy.data} />
+        </FadeInUp>
+      ) : null}
 
       {showPrograms ? (
         <FadeInUp index={1}>

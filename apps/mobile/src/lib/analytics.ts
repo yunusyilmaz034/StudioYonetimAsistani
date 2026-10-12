@@ -28,6 +28,10 @@ export type AnalyticsEvent =
   | 'wallet_topup'
   | 'wallet_purchase'
   | 'location_captured'
+  | 'energy_started'
+  | 'energy_profile_updated'
+  | 'energy_stopped'
+  | 'energy_cardio_photo'
   | 'exception'
 
 type Params = Record<string, string | number | boolean>

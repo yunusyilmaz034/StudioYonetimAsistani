@@ -10,6 +10,7 @@ import { api } from '@/lib/api'
 import { dateTime, formatKurus, shortDate } from '@/lib/format'
 import { motivationLine } from '@/lib/motivation'
 import { useFetch } from '@/lib/useFetch'
+import { EnergyHomeCard } from '@/components/energy'
 import { FadeInUp, PressableScale, ProgressBar } from '@/components/motion'
 import { Body, Card, Empty, Eyebrow, Figure, GradientFill, Pill, Screen, ScreenSkeleton, TopStrip } from '@/components/ui'
 import { DynamicBanner, EmptyState, MetricCard, PremiumCard, SectionHeader, StatusChip, StudioMessageCard, Txt } from '@/components/kit'
@@ -58,6 +59,9 @@ export default function Home() {
   // Her body, and what she is working on. Both live on other tabs in full; Bugün shows one line of
   // each, because a member who never opens a tab never learns the tab exists.
   const training = useFetch(api.training)
+  // Kalori takibi (2026-10-13). One day is all this screen shows; a member who has not started gets
+  // NOTHING here — the invitation lives on the Antrenman tab, not on the page she opens every morning.
+  const energy = useFetch(() => api.energy(1))
   // WHICH programme this line speaks for. A member can hold more than one active programme — the
   // test account has two — and "the first active one" silently picked the wrong one, which would
   // have told a member who trains three times a week that she has never trained at all.
@@ -158,7 +162,7 @@ export default function Home() {
       : null
 
   return (
-    <Screen refreshControl={<RefreshControl refreshing={dash.loading} onRefresh={() => { void dash.reload(); void inbox.reload(); void home.reload(); void fitness.reload(); void agenda.reload(); void training.reload(); void workout.reload() }} tintColor={p.accent} />}>
+    <Screen refreshControl={<RefreshControl refreshing={dash.loading} onRefresh={() => { void dash.reload(); void inbox.reload(); void home.reload(); void fitness.reload(); void agenda.reload(); void training.reload(); void workout.reload(); void energy.reload() }} tintColor={p.accent} />}>
       <CampaignPopup campaign={home.data?.campaign ?? null} />
       {/* The opening. A gradient band with her name in it became bone paper with her name ON it —
           and one true sentence underneath, which is the whole point of this screen (owner: "üyeye
@@ -306,6 +310,12 @@ export default function Home() {
               </View>
             </PremiumCard>
           </View>
+        </FadeInUp>
+      ) : null}
+
+      {energy.data?.started ? (
+        <FadeInUp index={3}>
+          <EnergyHomeCard state={energy.data} />
         </FadeInUp>
       ) : null}
 
