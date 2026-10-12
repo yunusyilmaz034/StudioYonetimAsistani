@@ -11,12 +11,12 @@ _Last true as of: **2026-10-08, 14:00**._
 
 ## ⏭️ Sıradaki oturum — BURADAN BAŞLA
 
-### 12 Ekim — pano "bugün −2.500 ₺": iptal edilen satış artık SATILDIĞI günden düşüyor ([[OR-122]]) — KOD YEREL, deploy bekliyor
+### 12 Ekim — pano "bugün −2.500 ₺": iptal edilen satış artık SATILDIĞI günden düşüyor ([[OR-122]]) — CANLIDA 13:20 (panel `build-2026-10-12-001` %100, functions deploy edildi, servis katı elle 1)
 
 **Owner:** *"neden −2500 diyor"* → Hava Kolu'nun 16 Eylül'de satılıp hiç ödenmemiş paketi bu sabah iptal edilmiş; pano
 iptali iptal gününe yazıyordu. Karar soruldu: **satıldığı günden düşsün.** Kasa/tahsilat zaten etkilenmemişti.
 
-- **Kod (yerel, deploy edilmedi):** `sale.cancelled.soldAt` (eklemeli alan, golden fixture, Doc 04) · projektörde `backdated`
+- **Kod:** `sale.cancelled.soldAt` (eklemeli alan, golden fixture, Doc 04) · projektörde `backdated`
   (OR-120 ile aynı yol) · `loadSaleSoldAt` + rebuild/verify. `pnpm check` yeşil, **1608 test**.
   **İKİ deploy gerekir:** web (iptal aksiyonu alanı yazar) VE functions (canlı projektör alanı okur). Yalnızca biri çıkarsa
   yeni iptaller eski davranışla iptal gününe yazılır — veri bozulmaz, betik yeniden çalıştırılınca düzelir.
