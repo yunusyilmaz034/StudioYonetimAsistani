@@ -14,6 +14,7 @@ import {
   FirestoreProjectionRepository,
   instant,
   loadExcludedMemberIds,
+  loadSaleSoldAt,
   loadVoidReceivedAt,
   incrementTargets,
   projectDaily,
@@ -55,6 +56,8 @@ async function main(): Promise<void> {
   const excluded = await loadExcludedMemberIds(db, studioId as StudioId)
   // Old voids' received days — the same table for the rebuild and the verifier, or they disagree.
   const voidDays = await loadVoidReceivedAt(db, studioId as StudioId)
+  // …and old cancelled sales' sold days (OR-122), for the same reason.
+  const saleDays = await loadSaleSoldAt(db, studioId as StudioId)
 
   // 1. Fold the log, independently of whatever the trigger wrote.
   const snap = await db.collection(`studios/${studioId}/events`).orderBy('occurredAt', 'asc').get()
@@ -70,10 +73,12 @@ async function main(): Promise<void> {
         payload: (d.payload ?? {}) as Record<string, unknown>,
         memberId: (d.related as { memberId?: string } | undefined)?.memberId ?? null,
         paymentId: (d.related as { paymentId?: string } | undefined)?.paymentId ?? null,
+        subjectId: (d.subject as { id?: string } | undefined)?.id ?? null,
       },
       DEFAULT_STUDIO_CONFIG.utcOffsetMinutes,
       excluded,
       voidDays,
+      saleDays,
     )
     if (!inc) continue
     for (const t of incrementTargets(inc, occurredAt)) {

@@ -11,6 +11,22 @@ _Last true as of: **2026-10-08, 14:00**._
 
 ## ⏭️ Sıradaki oturum — BURADAN BAŞLA
 
+### 12 Ekim — pano "bugün −2.500 ₺": iptal edilen satış artık SATILDIĞI günden düşüyor ([[OR-122]]) — KOD YEREL, deploy bekliyor
+
+**Owner:** *"neden −2500 diyor"* → Hava Kolu'nun 16 Eylül'de satılıp hiç ödenmemiş paketi bu sabah iptal edilmiş; pano
+iptali iptal gününe yazıyordu. Karar soruldu: **satıldığı günden düşsün.** Kasa/tahsilat zaten etkilenmemişti.
+
+- **Kod (yerel, deploy edilmedi):** `sale.cancelled.soldAt` (eklemeli alan, golden fixture, Doc 04) · projektörde `backdated`
+  (OR-120 ile aynı yol) · `loadSaleSoldAt` + rebuild/verify. `pnpm check` yeşil, **1608 test**.
+  **İKİ deploy gerekir:** web (iptal aksiyonu alanı yazar) VE functions (canlı projektör alanı okur). Yalnızca biri çıkarsa
+  yeni iptaller eski davranışla iptal gününe yazılır — veri bozulmaz, betik yeniden çalıştırılınca düzelir.
+- **Canlı veri (UYGULANDI):** `fix-pano-eski-satis-iptalleri-2026-10-12.ts --apply` — 60 eski iptal tabloya girdi, 21 günün
+  satış rakamı taşındı (toplam sıfır; hiçbir gün eksiye düşmedi). Bugün 0 ₺, 16 Eylül 135.350 ₺.
+  `projections:verify`: yalnızca bilinen iki eski fark (16 ve 18 Eylül) kaldı — yeni fark yok.
+- **Deploy'dan ÖNCE bir satış iptal edilirse** pano yine eksi gösterir: betiği tekrar çalıştır (idempotent, alanı olmayanları alır).
+- **Deneme (deploy sonrası):** dün ya da daha önce satılmış ödenmemiş bir test satışını iptal et → panoda "bugün satış" değişmez,
+  satışın yapıldığı günün rakamı o kadar azalır. Aynı gün satılıp iptal edilen satış: o günün rakamı satış öncesine döner.
+
 ### 11 Ekim akşamı — eğitmenin Rezervasyon sekmesi 3 Ağustos'tan beri AÇILMIYORDU (CANLIDA 20:25, `build-2026-10-11-002`, servis katı elle 1)
 
 **Owner:** Reyhan Hoca'nın telefonu, 19:36, Rezervasyon sekmesi: "Bir şeyler ters gitti · Hata kodu 286324162".

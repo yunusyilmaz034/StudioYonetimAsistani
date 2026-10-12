@@ -218,7 +218,7 @@ export function decideCancelSale(
         type: SALE_CANCELLED,
         // The amount travels in the event so revenue can go NET without a projector ever reading a
         // state document (the lesson of v1.23).
-        payload: { reason, total: sale.total, paidBack: sale.paid },
+        payload: { reason, total: sale.total, paidBack: sale.paid, soldAt: sale.soldAt },
       },
     ],
   })

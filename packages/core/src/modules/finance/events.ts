@@ -94,6 +94,16 @@ export type SaleCancelledPayload = {
   readonly reason: string
   readonly total: Money // so revenue can go NET without a projector ever reading state
   readonly paidBack: Money
+  // ── The day the sale was MADE (owner, 2026-10-12). OPTIONAL and ADDITIVE — no version bump, no
+  // upcaster; the same shape and the same reason as `payment.voided.receivedAt`.
+  //
+  // A package sold on 16 September and never paid for was cancelled on 12 October, a day with no
+  // sales, and the dashboard said "bugün −2.500 ₺". A cancelled sale is a sale that did not happen:
+  // the day that has to feel it is the day that counted it. The event's own `occurredAt` is when
+  // somebody pressed the button, so without this field a reader of the log cannot know that day.
+  //
+  // ABSENT on every cancellation written before this date, and the events are never backfilled.
+  readonly soldAt?: Instant
 }
 
 // v1.32 — the studio came down on a price AFTER the sale was recorded. The commonest case at the

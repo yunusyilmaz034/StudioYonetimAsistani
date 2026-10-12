@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { decideCorrectDiscount, decideCreateDrawer, decideVoidPayment, decideWithdrawCash } from '../../src/modules/finance/domain/decide'
+import { decideCancelSale, decideCorrectDiscount, decideCreateDrawer, decideVoidPayment, decideWithdrawCash } from '../../src/modules/finance/domain/decide'
 import {
   instant,
   type BranchId,
@@ -13,6 +13,7 @@ import { money } from '../../src/shared'
 import drawerCreated from './drawer.created.v1.json'
 import withdrawn from './cash.withdrawn.v1.json'
 import paymentVoided from './payment.voided.v1.json'
+import saleCancelled from './sale.cancelled.v1.json'
 import discountCorrected from './sale.discount_corrected.v1.json'
 
 // `drawer.created` — the till (hotfix B-2, 2026-07-13).
@@ -198,5 +199,39 @@ describe('payment.voided', () => {
     expect(r.value.events[0]?.type).toBe('payment.voided')
     expect(r.value.events[0]?.version).toBe(1)
     expect(r.value.events[0]?.payload).toEqual(paymentVoided)
+  })
+})
+
+// `sale.cancelled` — STILL v1 (owner, 2026-10-12). `soldAt` joined the payload as an OPTIONAL,
+// ADDITIVE field, for the reason `receivedAt` joined `payment.voided`: it is the day the cancelled
+// sale had been made on, and it is what lets the daily read model take the sale off THAT day rather
+// than the day somebody pressed the button. Earlier cancellations carry no such field.
+//
+// No PII: two amounts, an instant, and the reason a human typed.
+describe('sale.cancelled', () => {
+  const sale = {
+    id: 'sal_1',
+    studioId: 'std_1',
+    branchId: 'brn_1',
+    memberId: 'mem_1',
+    lines: [],
+    discounts: [],
+    gross: money(250_000),
+    total: money(250_000),
+    paid: money(0),
+    status: 'open',
+    soldBy: ctx.actor,
+    soldAt: instant(1_699_990_000_000),
+    cancelledAt: null,
+    cancelReason: null,
+  } as unknown as Sale
+
+  it('matches the golden payload, and says which day the sale was made on', () => {
+    const r = decideCancelSale(ctx, sale, 'iptal edildi')
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.value.events[0]?.type).toBe('sale.cancelled')
+    expect(r.value.events[0]?.version).toBe(1)
+    expect(r.value.events[0]?.payload).toEqual(saleCancelled)
   })
 })

@@ -271,6 +271,15 @@ describe('sale (v1.24)', () => {
     expect(r.value.next.status).toBe('cancelled')
     expect(r.value.events[0]?.payload).toMatchObject({ total: { amount: 500_000 } })
   })
+
+  it('a cancellation says which day the sale was MADE — the day that has to un-count it', () => {
+    // (owner, 2026-10-12) Sold on 16 September, cancelled on 12 October: the event's own time is the
+    // cancellation's, so the sale's has to travel with it or no reader of the log can find the day.
+    const sold = sale()
+    const r = decideCancelSale(ctx(), sold, 'iptal edildi')
+    if (!r.ok) return
+    expect(r.value.events[0]?.payload).toMatchObject({ soldAt: sold.soldAt })
+  })
 })
 
 // AD-66 — the migration exemption (owner, 2026-07-13).

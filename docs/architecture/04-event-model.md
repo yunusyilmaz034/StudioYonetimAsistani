@@ -314,6 +314,7 @@ When `policy.attendance.defaultOutcome` is `no_show` — as it will be for a stu
 | `payment.allocated` | `{ entitlementId, amount, balanceDueAfter }` |
 | `payment.refunded` | `{ amount, reason, originalPaymentId }` |
 | `payment.voided` | `{ amount, reason, method, receivedAt? }` — `receivedAt` is additive (2026-10-08): the day the voided payment had been received on, so the daily read model takes the void off THAT day. Absent on earlier voids; never backfilled. |
+| `sale.cancelled` | `{ reason, total, paidBack, soldAt? }` — `soldAt` is additive (2026-10-12): the day the cancelled sale had been made on, so the daily read model takes it off THAT day's `salesKurus`. Absent on earlier cancellations; never backfilled (their day is configuration, `settings/projection.saleSoldAt`). |
 
 Money is revenue on `payment.recorded.occurredAt` (cash basis, Doc 2 §6). A refund is a **new event**, never a mutation. The sum of `recorded − refunded − voided` over a window *is* the revenue figure, and it can be recomputed from the log at any time.
 

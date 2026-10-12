@@ -277,3 +277,64 @@ describe('a void comes off the day the payment was RECEIVED', () => {
     expect(days.get('2026-07-14')).toMatchObject({ collectedKurus: 0, lastEventAt: 1_000 })
   })
 })
+
+// OR-122 (owner, 2026-10-12): *"ücret alınmadıysa neden bugün eksiye düşüyor?"*
+describe('a cancelled sale comes off the day it was SOLD', () => {
+  const total = { amount: 250_000, currency: 'TRY' }
+  const paidBack = { amount: 0, currency: 'TRY' }
+  // Sold 20:33 local on the 13th (17.55 UTC); cancelled 12:27 local on the 14th (33.45 UTC).
+  const SOLD = at(17.55)
+  const cancelled = (payload: Record<string, unknown>) => projectDaily(ev('sale.cancelled', 33.45, payload), OFFSET)
+
+  it('charges the day of the sale and leaves the day of the cancellation at zero — but still SEEN', () => {
+    const inc = cancelled({ reason: 'x', total, paidBack, soldAt: SOLD })
+    expect(inc.date).toBe('2026-07-14')
+    expect(inc.counters).toEqual({})
+    expect(inc.backdated).toEqual({ date: '2026-07-13', counters: { salesKurus: -250_000 } })
+  })
+
+  it('never touches what was COLLECTED — paid or unpaid, a cancellation is not money moving', () => {
+    const inc = cancelled({ reason: 'x', total, paidBack: total, soldAt: SOLD })
+    expect(inc.backdated?.counters).toEqual({ salesKurus: -250_000 })
+    expect(inc.counters.collectedKurus).toBeUndefined()
+  })
+
+  it('a same-day cancellation is one ordinary increment', () => {
+    const inc = projectDaily(ev('sale.cancelled', 18.5, { reason: 'x', total, paidBack, soldAt: SOLD }), OFFSET)
+    expect(inc).toEqual({ date: '2026-07-13', counters: { salesKurus: -250_000 } })
+  })
+
+  it('the boundary is the STUDIO day: sold 23:59 local, cancelled 00:01 local, are two days', () => {
+    const inc = projectDaily(ev('sale.cancelled', 21 + 1 / 60, { reason: 'x', total, paidBack, soldAt: at(21 - 1 / 60) }), OFFSET)
+    expect(inc.backdated?.date).toBe('2026-07-13')
+    expect(inc.date).toBe('2026-07-14')
+  })
+
+  it('a cancellation written BEFORE the field existed stays where it was — nothing is invented', () => {
+    expect(cancelled({ reason: 'x', total, paidBack })).toEqual({ date: '2026-07-14', counters: { salesKurus: -250_000 } })
+  })
+
+  it('an OLD cancellation whose sale day is on record (config) is charged to that day', () => {
+    const old = { ...ev('sale.cancelled', 33.45, { reason: 'x', total, paidBack }), subjectId: 'sal_1' }
+    const table = new Map([['sal_1', SOLD as number]])
+    expect(projectDaily(old, OFFSET, new Set(), new Map(), table)).toEqual({
+      date: '2026-07-14',
+      counters: {},
+      backdated: { date: '2026-07-13', counters: { salesKurus: -250_000 } },
+    })
+    // Another sale's entry does nothing for this one, and the VOID table is not consulted for a sale.
+    expect(projectDaily({ ...old, subjectId: 'sal_2' }, OFFSET, new Set(), new Map(), table).backdated).toBeUndefined()
+    expect(projectDaily(old, OFFSET, new Set(), table).backdated).toBeUndefined()
+  })
+
+  it('folds into both days: the sale day loses the sale, the cancellation day stays at zero', () => {
+    const inc = cancelled({ reason: 'x', total, paidBack, soldAt: SOLD })
+    const days = new Map([
+      ['2026-07-13', { ...emptyDaily('2026-07-13'), salesKurus: 1_000_000, lastEventAt: 500 }],
+      ['2026-07-14', { ...emptyDaily('2026-07-14'), salesKurus: 0, lastEventAt: 900 }],
+    ])
+    for (const t of incrementTargets(inc, 1_000)) days.set(t.inc.date, applyIncrement(days.get(t.inc.date)!, t.inc, t.eventAt))
+    expect(days.get('2026-07-13')).toMatchObject({ salesKurus: 750_000, lastEventAt: 500 })
+    expect(days.get('2026-07-14')).toMatchObject({ salesKurus: 0, lastEventAt: 1_000 })
+  })
+})

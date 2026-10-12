@@ -1,0 +1,6 @@
+{
+  "reason": "iptal edildi",
+  "total": { "amount": 250000, "currency": "TRY" },
+  "paidBack": { "amount": 0, "currency": "TRY" },
+  "soldAt": 1699990000000
+}

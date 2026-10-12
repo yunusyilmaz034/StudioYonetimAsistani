@@ -79,6 +79,8 @@ export interface ProjectableEvent {
   readonly memberId?: string | null
   /** `related.paymentId`, when the event has one. Used only to date an OLD void — see `payment.voided`. */
   readonly paymentId?: string | null
+  /** `subject.id`, when the event has one. Used only to date an OLD sale cancellation — see `sale.cancelled`. */
+  readonly subjectId?: string | null
 }
 
 export interface DailyIncrement {
@@ -86,7 +88,8 @@ export interface DailyIncrement {
   readonly counters: Partial<Record<keyof Omit<DailyCounters, 'salesByProduct'>, number>>
   readonly productSales?: { readonly productId: string; readonly amountKurus: number }
   /**
-   * Counters that belong to an EARLIER day than the event's own (a void, see `payment.voided`).
+   * Counters that belong to an EARLIER day than the event's own (a void, a cancelled sale — see
+   * `payment.voided` and `sale.cancelled`).
    *
    * A second target rather than simply changing `date`, because `date` is also where the WATERMARK
    * is stamped: the event was seen today, and both `projection_lag` and the dashboard read today's
@@ -169,6 +172,7 @@ export function projectDaily(
   utcOffsetMinutes: number,
   excludedMemberIds: ReadonlySet<string> = new Set(),
   voidReceivedAt: ReadonlyMap<string, number> = new Map(),
+  saleSoldAt: ReadonlyMap<string, number> = new Map(),
 ): DailyIncrement {
   const date = localDateAt(event.occurredAt, utcOffsetMinutes) as string
   const one = (counters: DailyIncrement['counters']): DailyIncrement => ({ date, counters })
@@ -222,10 +226,34 @@ export function projectDaily(
       // iki indirimin toplamıydı: projeksiyon bu olayı hiç işlemiyordu. `totalAfter - totalBefore` negatiftir.
       return one({ salesKurus: kurus(event.payload.totalAfter) - kurus(event.payload.totalBefore) })
     case 'sale.cancelled': {
-      // NET revenue: subtracted on the day it is cancelled, never rewriting a past day's total —
-      // a dashboard that edits history disagrees with a report someone already printed.
+      // ── A CANCELLED SALE COMES OFF THE DAY IT WAS SOLD (owner, 2026-10-12) ─────────────────
+      //
+      // *"Ücret alınmadıysa neden bugün eksiye düşüyor?"* A 2.500 ₺ package sold on 16 September,
+      // never paid for, was cancelled on 12 October — a day with no sales — and the dashboard read
+      // "bugün −2.500 ₺". Nothing left the till and nothing was sold or un-sold TODAY; a sale that
+      // was counted on the 16th stopped existing, and the 16th is the day that has to say so.
+      //
+      // This is `payment.voided` again (OR-120), for the other counter, and it retires the same
+      // argument: the comment that stood here said a past day's total is never rewritten. The debt
+      // list and every sales report read the sale documents and had already dropped it.
+      //
+      // Only `salesKurus` moves. Money that was actually collected and given back is a refund or a
+      // void, with its own event and its own day — a cancellation never touches `collectedKurus`.
+      //
+      // An old cancellation carries no `soldAt`; its day comes from configuration
+      // (`settings/projection.saleSoldAt`, sale id → sold instant), exactly as an old void's does.
+      // Neither on record ⇒ it stays on the day of the cancellation. Nothing is invented.
       const reversed = kurus(event.payload.total)
-      return one({ salesKurus: reversed === 0 ? 0 : -reversed })
+      const counters = { salesKurus: reversed === 0 ? 0 : -reversed }
+      const soldAt =
+        typeof event.payload.soldAt === 'number'
+          ? event.payload.soldAt
+          : event.subjectId
+            ? saleSoldAt.get(event.subjectId)
+            : undefined
+      if (typeof soldAt !== 'number') return one(counters)
+      const soldOn = localDateAt(soldAt as Instant, utcOffsetMinutes) as string
+      return soldOn < date ? { date, counters: {}, backdated: { date: soldOn, counters } } : one(counters)
     }
     case 'payment.received':
       // TAHSİLAT = what actually arrived (cash basis, owner OQ-2).

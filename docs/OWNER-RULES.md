@@ -2401,3 +2401,21 @@ okutur. Olay günlüğü tarayıcıya açılmadı — panel altı saniyede bir s
 ama paketi sağlam üye için yanıltıcı. Düzeltmek yeni bir hata kodu, yani mobil uygulama sürümü ve kapı ekranı
 firmware'i demek; bilerek bu işe katılmadı.
 
+**OR-122 · İptal edilen satış, SATILDIĞI günün satışından düşer — iptal edildiği günden değil; kasaya ve tahsilata hiç dokunmaz.** (2026-10-12)
+
+Owner: *"Ücret alınmadıysa neden bugün eksiye düşüyor? … ödeme alınmadıysa hiç düşme olmamalı, borç listesinden
+düşebilirsin en fazla."* → sorulan tek karar: *"Satıldığı günden düşsün."*
+
+Ölçülen: 16 Eylül'de 2.500 ₺'ye satılıp hiç ödenmemiş bir paket 12 Ekim'de iptal edildi. O gün başka satış yoktu ve
+pano "bugün −2.500 ₺" dedi. Kasa ve tahsilat zaten etkilenmemişti; borç listesinden de düşmüştü. Eksi görünen, panonun
+"satış" (anlaşılan tutar) sayacıydı: iptali iptal gününe yazıyordu.
+
+- **Satış sayacı (`salesKurus`).** `sale.cancelled` artık `soldAt` taşıyor (eklemeli, isteğe bağlı alan; sürüm artmadı).
+  Projektör eksiyi o güne yazar; iptal günü yalnızca olayı "görmüş" olur. [[OR-120]]'nin satış karşılığı, aynı mekanizma.
+- **Para.** İptal hiçbir zaman `collectedKurus`a ya da kasaya yazmaz. Alınmış para geri verildiyse o iade/ödeme iptalidir,
+  kendi olayı ve kendi günü vardır ([[OR-120]]).
+- **Eski iptaller.** Alan eklenmeden önce yazılmış 60 iptalin günü `settings/projection.saleSoldAt` tablosunda (satış →
+  panonun o satışı saydığı an). Rebuild ve verify aynı tabloyu okur. Olaylar değiştirilmedi.
+
+**Bilinen sınır:** geriye dönük kurulmuş bir satışta (`soldAt` ≠ kaydın yazıldığı an) pano satışı YAZILDIĞI güne sayar;
+böyle bir satış iptal edilirse eksi `soldAt` gününe gider. Bugüne kadar iptal edilen 60 satışın hiçbirinde bu fark yoktu.

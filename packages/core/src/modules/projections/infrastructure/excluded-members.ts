@@ -34,3 +34,15 @@ export async function loadVoidReceivedAt(db: Firestore, studioId: StudioId): Pro
   if (!raw || typeof raw !== 'object') return new Map()
   return new Map(Object.entries(raw as Record<string, unknown>).filter((e): e is [string, number] => typeof e[1] === 'number'))
 }
+
+// WHEN AN OLD CANCELLED SALE HAD BEEN SOLD (owner, 2026-10-12 · OR-122). The same table, for the same
+// reasons, as the one above: `sale.cancelled` carries `soldAt` from that date on, earlier ones do not,
+// and an event is never rewritten. Sale id → the sale's own `soldAt`.
+//
+// The live trigger does NOT read this: every cancellation it will ever see carries the field itself.
+export async function loadSaleSoldAt(db: Firestore, studioId: StudioId): Promise<ReadonlyMap<string, number>> {
+  const snap = await db.doc(`studios/${studioId}/settings/projection`).get()
+  const raw = snap.exists ? (snap.data()?.saleSoldAt as unknown) : null
+  if (!raw || typeof raw !== 'object') return new Map()
+  return new Map(Object.entries(raw as Record<string, unknown>).filter((e): e is [string, number] => typeof e[1] === 'number'))
+}
