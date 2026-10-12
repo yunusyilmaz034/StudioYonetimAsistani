@@ -11,6 +11,24 @@ _Last true as of: **2026-10-08, 14:00**._
 
 ## ⏭️ Sıradaki oturum — BURADAN BAŞLA
 
+### 12 Ekim günlüğü (owner: "günlüğe yaz")
+
+Canlı (ÖLÇÜLDÜ, 13:20): panel **`build-2026-10-12-001`** · %100 trafik · servis katı **1** (rollout üçüncü kez 0'a çekti, elle
+düzeltildi — **her deploy'dan sonra bak**; kalıcı çözüm aranmadı). Functions aynı saatte deploy edildi. `pnpm check` yeşil,
+**1608 birim test**. Stüdyo açıkken çıktı; owner "şimdi yap" dedi. **Yerelde bekleyen yalnızca günlük commit'leri** (kod değil).
+
+Son üç günde canlıya çıkanlar, hepsi aşağıda ayrıntılı:
+- 11 Eki — süresi dolmuş paket "Aktif" rozeti giymiyor · İlkim İrem Genç hibrit süresi (canlı veri).
+- 11 Eki akşam — eğitmenin Rezervasyon sekmesi açılıyor (3 Ağustos'tan beri açılmıyordu).
+- 12 Eki — [[OR-122]]: iptal edilen satış satıldığı günden düşer; 60 eski iptal taşındı (canlı veri).
+
+**Kimsenin denemediği (tarayıcı/telefon):** "Süresi doldu" rozeti · eğitmen hesabıyla Rezervasyon sekmesi ve içindeki düğmeler ·
+OR-122'nin canlıda ilk gerçek satış iptali · 8 Ekim'in ekranları (PIN diyaloğu, kırmızı ret kartı, 375 px).
+
+**Açık:** çıkış turnikesi kablosu (9 Ekim, owner sıkacak → sonra `turnstile.reopened` `direction: out` sayısına bak) ·
+`projections:verify` iki eski fark (16 Eylül 4.000 ₺, 18 Eylül 1.200 ₺ `salesKurus` fazla — sebebi araştırılmadı) ·
+geriye dönük kurulmuş satışta pano satışı yazıldığı güne sayıyor (OR-122 "bilinen sınır").
+
 ### 12 Ekim — pano "bugün −2.500 ₺": iptal edilen satış artık SATILDIĞI günden düşüyor ([[OR-122]]) — CANLIDA 13:20 (panel `build-2026-10-12-001` %100, functions deploy edildi, servis katı elle 1)
 
 **Owner:** *"neden −2500 diyor"* → Hava Kolu'nun 16 Eylül'de satılıp hiç ödenmemiş paketi bu sabah iptal edilmiş; pano
