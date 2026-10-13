@@ -11,6 +11,19 @@ _Last true as of: **2026-10-08, 14:00**._
 
 ## ⏭️ Sıradaki oturum — BURADAN BAŞLA
 
+### 13 Ekim akşam günlüğü (owner: "günlüğe yaz") — DEPLOY BEKLİYOR, owner "gece yap" dedi
+
+- **Kardiyo fotoğrafı düzeltmesi (`242a180`) hâlâ YEREL.** Owner 18:5x'te "gece yap" dedi → push + rollout doğrulama +
+  `minScale=1` bu oturumda 23:47'ye zamanlandı (oturum-içi zamanlayıcı; terminal kapanırsa ÇALIŞMAZ). Bu satırın altında
+  "deploy edildi" notu yoksa deploy YAPILMAMIŞTIR: `git log origin/main..main` boş değilse owner'a sor, push et, Cloud Run
+  trafiğini doğrula, servis katını elle 1 yap. Bekleyen yerel commit'ler: `add4f99`, `4adb448`, `cac8d67`, `242a180`,
+  `4729719` ve bu günlük.
+- **Android 1.8.0:** üretimde %20 (1.7.4 %100). İnceleme bitti mi — Play Console'dan owner bakacak; %100 onun kararı.
+- **Burçin Göknil Kaya "kapıda kaldı" (18:46):** paket DEĞİL — aktif paketi var (2 hak, bitiş 15.10). Ret sebebi
+  `no_class_now`: bugüne rezervasyonu yoktu. Owner'a söylendi (rezervasyon yap ya da "Turnike Giriş"). Veri değişmedi
+  (`tani-burcin-goknil-kaya-kapi-2026-10-13.ts`).
+- **"Yeni sürüm çıktı" bildirimi:** gönderilmedi; iki mağazada da herkese açılınca ve owner "gönder" deyince.
+
 ### 13 Ekim öğleden sonra — 1.8.0'ın ilk günü: ilk kardiyo fotoğrafı OKUNAMADI (düzeltme YEREL, deploy bekliyor)
 
 iOS 1.8.0 App Store'da (owner çıkardı). Android: `android:tracks` üretimde 1.8.0'ı %20'de gösteriyor — bu API Google
