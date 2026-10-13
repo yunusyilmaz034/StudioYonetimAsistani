@@ -25,6 +25,18 @@ _Last true as of: **2026-10-08, 14:00**._
 - **"Bu haftayı tekrarla → Oluştur'a basamıyoruz" (19:06):** arıza değil — Oluştur, Önizle'den SONRA açılıyor ve ekranda bunu
   söyleyen bir şey yoktu. Ölçüldü: kaynak hafta 12–18 Ekim'de 32 seans, hedef iki hafta boş. Diyaloğa tek satır ipucu eklendi,
   plan yokken Önizle birincil düğme (YEREL, gece deploy'uyla gider; tarayıcıda bakılmadı).
+- **Burçin Göknil Kaya, yanlış derse eklenmişti (CANLI VERİ, 19:41–19:50, owner talimatı):** owner bugünkü 19:00 yerine
+  6 Ekim 19:00'a "geçmiş derse ekle" ile yazmış (üye o derse zaten katılmıştı → aynı seansta İKİ satır, 1 hak düştü, o seansın
+  kapasitesi 8→9). Sonuçlanmış rezervasyonu "hiç olmadı" sayan işlem alanda YOK; owner'a soruldu, **mevcut aracı seçti**
+  (yeni olay türü değil). `fix-burcin-goknil-kaya-yanlis-ders-2026-10-13.ts`: yanlış satır → `no_show` (düzeltme, sebepli),
+  +1 hak, 13 Ekim 19:00'a Katıldı (seans 7 dolu + 1 tutulan = doluydu → kapasite 8→9, owner'ın niyet ettiği artış),
+  6 Ekim kapasitesi 9→8. **Son durum: kalan 1 hak, paket 15.10'da bitiyor.**
+  - **Bilinen bedel:** 6 Ekim'de açıklamalı bir "Gelmedi" satırı kalıyor ve üyenin gelmedi sayısına 1 yazıyor (owner kabul etti).
+  - **BENİM HATAM:** betiğin "iade verildi mi" kontrolü `correlationId`'ye bakıyordu (her işlemde yeniden üretilir, hiç
+    eşleşmez) → ikinci çalıştırmada +1 TEKRAR yazıldı. Fark edildi, fazla 1 hak `revoked` ile geri alındı; defterde iki
+    +1 ve bir −1 duruyor (`restored` 5, `revoked` 1). **Ders: betikte "zaten yapıldı" izi `actor.id`'dir, correlationId değil.**
+  - **AÇIK (kod, owner kararı bekliyor):** `bookPastAttended` aynı üyeyi aynı seansa ikinci kez yazabiliyor — çift kayıt
+    koruması yalnızca `booked` durumundaki satıra bakıyor, sonuçlanmış olana değil. Bu olay tam olarak oradan geçti.
 - **"Yeni sürüm çıktı" bildirimi:** gönderilmedi; iki mağazada da herkese açılınca ve owner "gönder" deyince.
 
 ### 13 Ekim öğleden sonra — 1.8.0'ın ilk günü: ilk kardiyo fotoğrafı OKUNAMADI (düzeltme YEREL, deploy bekliyor)
