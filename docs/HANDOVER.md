@@ -19,6 +19,8 @@ _Last true as of: **2026-10-08, 14:00**._
   sorun yoksa Android'i %100'e çıkarmak. Çıkış turnikesi kablosu hâlâ onda (9 ve 12 Ekim notları).
 - **Bekleyen kararlar:** beslenme planı notunun metni ([[OR-123]]) · antrenman videoları (kırp+sustur mu, stüdyoda çekim mi —
   owner'a iki seçenek sunuldu, Işıl'dan beğenilmeyen hareketlerin listesi istendi, cevap gelmedi).
+- **Gamze Pilatin Kozluk (canlı veri, owner talimatı):** Fitness 3 Aylık, 06.10'da dolmuştu → bitiş **27.10.2026**, aktif
+  (`fix-gamze-pilatin-uzatma-2026-10-13.ts`, `amendEntitlement`). Süreli paket, kredi yok; para ve başlangıç değişmedi.
 - **Yerelde bekleyen:** yalnızca bu günlük commit'i (kod değil).
 
 ### 13 Ekim gecesi — KALORİ TAKİBİ (yeni milestone, owner onaylı · [[OR-123]]) — durum aşağıda, HİÇBİR CİHAZDA ÇALIŞTIRILMADI
