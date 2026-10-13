@@ -57,10 +57,13 @@ export class FirestoreReservationRepository implements ReservationRepository {
     const sid = ctx.studioId
     const sessionRef = this.col(sid, 'classSessions').doc(input.sessionId)
     const entRef = this.col(sid, 'entitlements').doc(input.entitlementId)
+    // A seat she already holds OR already used in this class (owner, 2026-10-13). Looking only at
+    // `booked` let "geçmiş derse ekle" write a member into a class she had already attended: a second
+    // row, a second credit. Cancelled rows are not here — she may come back to a class she left.
     const dupQuery = this.col(sid, 'reservations')
       .where('memberId', '==', input.memberId)
       .where('classSessionId', '==', input.sessionId)
-      .where('status', '==', 'booked')
+      .where('status', 'in', ['booked', 'attended', 'no_show'])
 
     try {
       const reservationId = await this.db.runTransaction(async (tx) => {

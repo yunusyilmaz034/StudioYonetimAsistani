@@ -1,5 +1,6 @@
 import {
   available,
+  bookPastAttended,
   bookReservation,
   createService,
   DEFAULT_STUDIO_CONFIG,
@@ -9,6 +10,7 @@ import {
   FirestoreReservationRepository,
   FirestoreSchedulingRepository,
   FirestoreStudioHours,
+  instant,
   money,
   purchaseEntitlement,
   registerMember,
@@ -292,5 +294,49 @@ describe('engele rağmen rezervasyon — gerçek veritabanı', () => {
       entitlementStatus: 'expired',
       reason: SEBEP,
     })
+  })
+
+  // GEÇMİŞ DERSE İKİNCİ KEZ EKLEME (owner, 2026-10-13): canlıda bir üye, zaten katıldığı derse bir kez
+  // daha yazıldı ve ikinci bir hak düştü. Çift kayıt koruması yalnızca AÇIK satıra bakıyordu.
+  it('katıldığı derse ikinci kez eklenemez; defter ikinci kez oynamaz', async () => {
+    const k = await kurulum('D')
+    const purchase = await purchaseEntitlement(k.entDeps, staffCtx, {
+      memberId: k.memberId,
+      productId: 'prd_exm' as never,
+      productSnapshot: {
+        productId: 'prd_exm' as never,
+        name: 'Reformer 8',
+        category: 'pilates_group',
+        grant: { kind: 'credits', credits: 8, validForDays: 90 },
+        listPrice: money(100_000),
+        serviceIds: [k.serviceId],
+      },
+      policyRef: { policyId: 'prd_exm', version: 1 },
+      priceAgreed: money(100_000),
+      validFrom: Date.now() - 10 * 24 * 3600_000,
+      freezeDays: null,
+    })
+    if (!purchase.ok) throw new Error(`purchaseEntitlement failed: ${JSON.stringify(purchase.error)}`)
+    const entitlementId = purchase.value.entitlementId
+    const gecmisDers = await k.ders('09:00', -2)
+    const input = {
+      sessionId: gecmisDers,
+      entitlementId,
+      memberId: k.memberId,
+      memberSnapshot: k.snapshot,
+      earliest: instant(Date.now() - 30 * 24 * 3600_000),
+    }
+    const deps = { ...k.resDeps, policy: { getMemberOverride: async () => null } }
+
+    const ilk = await bookPastAttended(deps, staffCtx, input)
+    expect(ilk.ok, `ilk ekleme reddedildi: ${JSON.stringify(ilk.ok ? '' : ilk.error)}`).toBe(true)
+
+    const ikinci = await bookPastAttended(deps, staffCtx, input)
+    expect(ikinci.ok, 'aynı derse ikinci kez yazıldı').toBe(false)
+    if (!ikinci.ok) expect(ikinci.error.code).toBe('already_booked')
+
+    const sonra = await k.entRepo.getEntitlement(staffCtx, entitlementId)
+    expect(sonra!.credits!.consumed, 'tek ders, tek hak').toBe(1)
+    expect(available(sonra!.credits!)).toBe(7)
   })
 })
