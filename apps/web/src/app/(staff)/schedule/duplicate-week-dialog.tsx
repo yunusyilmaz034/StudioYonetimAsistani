@@ -243,10 +243,14 @@ export function DuplicateWeekDialog({
               📅 Özel gün nedeniyle atlanacak: <span className="font-semibold">{plan.skippedCalendar.length}</span> seans
             </p>
           </div>
-        ) : null}
+        ) : (
+          // Without this line the disabled button reads as a broken one (owner, 2026-10-13): nothing
+          // on the screen said that the preview is what unlocks it.
+          <p className="text-sm text-muted-foreground">Önce Önizle'ye bas; ne oluşacağını gördükten sonra Oluştur açılır.</p>
+        )}
 
         <DialogFooter className="gap-2">
-          <Button variant="outline" onClick={() => run(false)} disabled={busy}>
+          <Button variant={plan ? 'outline' : 'default'} onClick={() => run(false)} disabled={busy}>
             {busy && !plan ? <Loader2Icon className="animate-spin" /> : null} Önizle
           </Button>
           <Button onClick={() => run(true)} disabled={busy || !plan || plan.toCreate.length === 0}>

@@ -22,6 +22,9 @@ _Last true as of: **2026-10-08, 14:00**._
 - **Burçin Göknil Kaya "kapıda kaldı" (18:46):** paket DEĞİL — aktif paketi var (2 hak, bitiş 15.10). Ret sebebi
   `no_class_now`: bugüne rezervasyonu yoktu. Owner'a söylendi (rezervasyon yap ya da "Turnike Giriş"). Veri değişmedi
   (`tani-burcin-goknil-kaya-kapi-2026-10-13.ts`).
+- **"Bu haftayı tekrarla → Oluştur'a basamıyoruz" (19:06):** arıza değil — Oluştur, Önizle'den SONRA açılıyor ve ekranda bunu
+  söyleyen bir şey yoktu. Ölçüldü: kaynak hafta 12–18 Ekim'de 32 seans, hedef iki hafta boş. Diyaloğa tek satır ipucu eklendi,
+  plan yokken Önizle birincil düğme (YEREL, gece deploy'uyla gider; tarayıcıda bakılmadı).
 - **"Yeni sürüm çıktı" bildirimi:** gönderilmedi; iki mağazada da herkese açılınca ve owner "gönder" deyince.
 
 ### 13 Ekim öğleden sonra — 1.8.0'ın ilk günü: ilk kardiyo fotoğrafı OKUNAMADI (düzeltme YEREL, deploy bekliyor)
