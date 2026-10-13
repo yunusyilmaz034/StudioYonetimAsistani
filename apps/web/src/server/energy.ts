@@ -31,7 +31,7 @@ import { z } from 'zod'
 
 import { domainErrorMessage } from '@/lib/domain-error'
 
-import { isCardioPhotoMedia, readCardioPhoto } from './ai/cardio-photo'
+import { readCardioPhoto, sniffCardioPhotoMedia } from './ai/cardio-photo'
 import { adminDb } from './firebase-admin'
 
 // The member's daily energy account, as the member API serves it (owner, 2026-10-13). Every function
@@ -162,6 +162,7 @@ const refuse = (error: DomainError) => ({ ok: false as const, error: { code: err
 const PHOTO_MESSAGE = {
   energy_photo_unreadable: 'Fotoğraftan süreyi ya da kaloriyi okuyamadık. Ekranın tamamı görünecek şekilde yeniden çek ya da elle gir.',
   energy_photo_failed: 'Fotoğraf şu an okunamadı. Biraz sonra yeniden dene ya da elle gir.',
+  energy_photo_format: 'Bu dosya biçimini okuyamıyoruz. Galeriden seçmek yerine ekranı doğrudan fotoğrafla ya da değerleri elle gir.',
 } as const
 const photoFail = (code: keyof typeof PHOTO_MESSAGE) => ({ ok: false as const, error: { code, message: PHOTO_MESSAGE[code] } })
 
@@ -204,12 +205,14 @@ export async function energyAction(ctx: TenantContext, memberId: MemberId, input
       return r.ok ? fresh() : refuse(r.error)
     }
     case 'cardio_photo': {
-      if (!isCardioPhotoMedia(p.mediaType)) return photoFail('energy_photo_unreadable')
+      // The label the app sent is ignored; the bytes say what they are (see `sniffCardioPhotoMedia`).
+      const media = sniffCardioPhotoMedia(p.image)
+      if (!media) return photoFail('energy_photo_format')
       // Checked BEFORE the model is called: a photo from someone who has not started would be read,
       // paid for, and then refused by the domain.
       const profile = await d.repo.getProfile(ctx, mid)
       if (!profile) return refuse({ code: 'energy_not_started' })
-      const read = await readCardioPhoto(p.image, p.mediaType)
+      const read = await readCardioPhoto(p.image, media)
       if (!read.ok) return photoFail(read.reason === 'unreadable' ? 'energy_photo_unreadable' : 'energy_photo_failed')
       const v = read.value
       // The screen gave calories but no time: the duration is derived, because the net-of-rest

@@ -11,6 +11,20 @@ _Last true as of: **2026-10-08, 14:00**._
 
 ## ⏭️ Sıradaki oturum — BURADAN BAŞLA
 
+### 13 Ekim öğleden sonra — 1.8.0'ın ilk günü: ilk kardiyo fotoğrafı OKUNAMADI (düzeltme YEREL, deploy bekliyor)
+
+iOS 1.8.0 App Store'da (owner çıkardı). Android: `android:tracks` üretimde 1.8.0'ı %20'de gösteriyor — bu API Google
+incelemesinin bitip bitmediğini SÖYLEMEZ; Play Console'dan bakılır. Canlı kullanım (ölçüldü, 15:45): `/api/member/energy`
+27 GET + 4 POST, hepsi 200 → kimlik doğrulamalı uç çalışıyor.
+
+**Arıza:** 14:42'de tek fotoğraf denemesi `[cardio-photo] model call failed 400`. İstek biçimi ve model kimliği aynı anahtarla
+yerelde denendi — ikisi de sağlam (200). Kalan en olası sebep: uygulama her yüklemeyi `image/jpeg` diye etiketliyor, galeriden
+seçilen resim kendi biçimini koruyor (ekran görüntüsü = PNG) ve model etiket/bayt uyuşmazlığını 400 ile reddediyor.
+**BU BİR ÇIKARIM — o fotoğrafın biçimi kayıtta yok.** Düzeltme: sunucu biçimi baytlardan okuyor (`sniffCardioPhotoMedia`),
+etikete bakmıyor; HEIC gibi desteklenmeyen biçimde üyeye "galeriden seçme, doğrudan çek" diyor. Hata logu artık sağlayıcının
+cümlesini de yazıyor — bir sonraki 400'de sebep tahmin edilmeyecek. Uygulama sürümü GEREKMEZ.
+**Deneme (deploy sonrası):** galeriden bir ekran görüntüsü (PNG) seç → okunmalı ya da "okuyamadık" demeli, "şu an okunamadı" DEĞİL.
+
 ### 13 Ekim günlüğü (owner: "günlüğe yaz")
 
 - **Kalori takibi 1. adım yazıldı ve gönderildi** — ayrıntı hemen aşağıda. Sunucu canlıda; mobil 1.8.0 (build 18):

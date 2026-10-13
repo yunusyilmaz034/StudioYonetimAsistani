@@ -58,9 +58,27 @@ export function cardioPhotoConfigured(): boolean {
   return Boolean(process.env.ANTHROPIC_API_KEY)
 }
 
-const MEDIA = ['image/jpeg', 'image/png', 'image/webp'] as const
-export type CardioPhotoMedia = (typeof MEDIA)[number]
-export const isCardioPhotoMedia = (v: string): v is CardioPhotoMedia => (MEDIA as readonly string[]).includes(v)
+export type CardioPhotoMedia = 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif'
+
+/**
+ * What the bytes ARE, read from their first few — never what the client says they are.
+ *
+ * (2026-10-13, the first real photo) The app labels every upload `image/jpeg`. A picture PICKED from
+ * the library keeps its own format — a screenshot is a PNG — and the model refuses an image whose
+ * label and bytes disagree with a bare 400. She saw "fotoğraf şu an okunamadı" for a perfectly good
+ * picture. Sniffing here fixes it for the build already in members' hands, with no app release.
+ *
+ * `null` ⇒ a format the model does not take (HEIC, anything else): she is told to photograph the
+ * screen rather than pick the file.
+ */
+export function sniffCardioPhotoMedia(base64: string): CardioPhotoMedia | null {
+  if (base64.startsWith('/9j/')) return 'image/jpeg'
+  if (base64.startsWith('iVBORw0KGgo')) return 'image/png'
+  if (base64.startsWith('R0lGOD')) return 'image/gif'
+  // RIFF....WEBP — the first twelve bytes are sixteen base64 characters.
+  if (base64.startsWith('UklGR') && Buffer.from(base64.slice(0, 16), 'base64').subarray(8, 12).toString('latin1') === 'WEBP') return 'image/webp'
+  return null
+}
 
 export async function readCardioPhoto(base64: string, mediaType: CardioPhotoMedia): Promise<CardioReadResult> {
   const key = process.env.ANTHROPIC_API_KEY
@@ -88,7 +106,9 @@ export async function readCardioPhoto(base64: string, mediaType: CardioPhotoMedi
       signal: AbortSignal.timeout(30_000),
     })
     if (!res.ok) {
-      console.error('[cardio-photo] model call failed', res.status)
+      // The provider's own sentence, not just the status: a bare "400" cost a diagnosis once. The body
+      // is an error description — it never echoes the image.
+      console.error('[cardio-photo] model call failed', res.status, mediaType, (await res.text().catch(() => '')).slice(0, 300))
       return { ok: false, reason: 'failed' }
     }
     const data = (await res.json()) as { content?: { type?: string; text?: string }[] }
