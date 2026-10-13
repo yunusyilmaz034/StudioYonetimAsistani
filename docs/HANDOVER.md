@@ -11,7 +11,17 @@ _Last true as of: **2026-10-08, 14:00**._
 
 ## ⏭️ Sıradaki oturum — BURADAN BAŞLA
 
-### 13 Ekim akşam günlüğü (owner: "günlüğe yaz") — DEPLOY BEKLİYOR, owner "gece yap" dedi
+### 13 Ekim akşam günlüğü — DEPLOY EDİLDİ 19:5x (owner "şimdi yap" dedi; panel `build-2026-10-13-001` %100, servis katı elle 1)
+
+- **Canlıya çıkanlar (functions deploy EDİLMEDİ, gerekmiyordu):** kardiyo fotoğrafı biçim düzeltmesi (`242a180`) · "Bu haftayı
+  tekrarla" ipucu · **çift kayıt koruması** (owner onayı): `book()` artık `attended` ve `no_show` satırını da görüyor →
+  "geçmiş derse ekle" aynı üyeyi aynı derse ikinci kez yazamaz (`already_booked`); iptal edilmiş satır geri dönüşe engel değil.
+  Emülatör testi var. **Hiçbiri tarayıcıda/cihazda denenmedi.** Gece zamanlayıcısı iptal edildi; aşağıdaki "zamanlandı" satırı ESKİ.
+- **"Gelmedi satırını üye görür" (owner, 19:45):** GÖRMEZ — üye uygulaması geçmiş listesini hiç göstermiyor (owner kuralı
+  2026-09-15, `loadPortalReservations` `past: []`); `reservation.corrected` için bildirim de yok. Satır yalnızca panelde.
+  Panelden de kalkması isteniyorsa yeni olay türü gerekir (`reservation.voided`) — owner'a soruldu, cevap bekleniyor.
+- **Yerelde, push EDİLMEDİ:** yalnızca bu günlük commit'i (docs push'u yeni rollout başlatır ve servis katını sıfırlar).
+
 
 - **Kardiyo fotoğrafı düzeltmesi (`242a180`) hâlâ YEREL.** Owner 18:5x'te "gece yap" dedi → push + rollout doğrulama +
   `minScale=1` bu oturumda 23:47'ye zamanlandı (oturum-içi zamanlayıcı; terminal kapanırsa ÇALIŞMAZ). Bu satırın altında
