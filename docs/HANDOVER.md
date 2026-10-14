@@ -11,6 +11,19 @@ _Last true as of: **2026-10-08, 14:00**._
 
 ## ⏭️ Sıradaki oturum — BURADAN BAŞLA
 
+### 14 Ekim günlüğü (owner: "günlüğe yaz")
+
+- **Canlıda (hepsi deploy edildi):** otomatik çıkış ders bitişine bağlı ([[OR-124]]) · geriye tarihli ödeme panoda kendi gününde ·
+  çift kayıt koruması · kardiyo fotoğrafı biçim düzeltmesi. Panel `build-2026-10-14-002`, servis katı 1.
+- **Canlı veri:** Seher Yıldız (20.000 nakit, üç ödeme) · 17 eski geriye tarihli ödeme panoda doğru güne taşındı.
+- **Owner'da bekleyen:** turnike `F02=2` (çıkış serbest) + fişi çekip takma denemesi; çıkış rölesi tıklamıyor (LED/tel testi verildi) ·
+  Android 1.8.0 %20 → %100 kararı (Play Console) · "yeni sürüm" bildirimi (iki mağaza herkese açılınca, "gönder" denince).
+- **Bekleyen kararlar:** Burçin'in 6 Ekim "Gelmedi" satırı panelden de kalksın mı (`reservation.voided` = yeni olay türü) ·
+  beslenme planı not metni ([[OR-123]]) · antrenman videoları.
+- **Gözlenmedi:** F02 sonrası okutmadan çıkan sayısı (birkaç gün sonra ölç) · ilk yeni geriye tarihli ödeme · kardiyo fotoğrafının
+  gerçek okunması · `projections:verify` bugün (14.10) rezervasyon farkı gece kalıyor mu.
+- **Yerelde, push edilmedi:** yalnızca günlük commit'leri (kod değil).
+
 ### 14 Ekim 17:00 — pano "kasaya giren" geriye tarihli ödemeyi BUGÜNE sayıyordu (DÜZELTİLDİ ve CANLIDA 17:2x: panel `build-2026-10-14-002` %100, tüm functions, servis katı elle 1)
 
 Owner: *"burada kasaya giren hesaplaması yanlış oldu."* Seher'in 22.09/08.10/13.10 nakit ödemeleri (20.000 ₺) bugüne yazılmıştı →
