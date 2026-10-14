@@ -42,6 +42,15 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
   beslenme planı not metni ([[OR-123]]) · antrenman videoları.
 - **Gözlenmedi:** F02 sonrası okutmadan çıkan sayısı (birkaç gün sonra ölç) · ilk yeni geriye tarihli ödeme · kardiyo fotoğrafının
   gerçek okunması · `projections:verify` bugün (14.10) rezervasyon farkı gece kalıyor mu.
+- **Akşam (1.9.0, [[OR-125]]):** öğün fotoğrafı yazıldı ve yayınlandı — sunucu canlıda, iOS App Store Connect'te (owner
+  TestFlight'tan deneyecek), Android üretim %20 incelemede. Ayrıntı yukarıdaki "ÖĞÜN FOTOĞRAFI" girdisinde.
+- **Owner'ın TestFlight denemesi bekleniyor:** fotoğraf yolu hiç gerçek tabakla denenmedi — ilk hata gelirse loglarda
+  `[meal-photo]` satırına bak (sağlayıcının cümlesi yazılıyor).
+- **Kadın sağlığı (döngü) takibi:** owner sordu; önerim "şimdi değil" (KVKK özel nitelikli veri, stüdyo kararını
+  değiştirmiyor), kalori takibi kullanılırsa sonra konuşulacak. Owner öğün fotoğrafıyla devam etti.
+- **Turnike:** owner'ın kartında menü YOK (yalnızca test tuşları) → `F02` yapılamaz. Verilen deneme: `COM`–`OP-L` arasına
+  sürekli tel. Çıkış arızası bugün kötüleşti (44 çıkışta 20 tekrar açma); Wi‑Fi değil — darbe sayacı kabul edilen geçişle
+  birebir (101 = 79 + 20 + 2). Owner deneyip yazacak.
 - **Yerelde, push edilmedi:** yalnızca günlük commit'leri (kod değil).
 
 ### 14 Ekim 17:00 — pano "kasaya giren" geriye tarihli ödemeyi BUGÜNE sayıyordu (DÜZELTİLDİ ve CANLIDA 17:2x: panel `build-2026-10-14-002` %100, tüm functions, servis katı elle 1)
