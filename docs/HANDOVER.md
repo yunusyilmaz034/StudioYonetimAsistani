@@ -11,7 +11,7 @@ _Last true as of: **2026-10-08, 14:00**._
 
 ## ⏭️ Sıradaki oturum — BURADAN BAŞLA
 
-### 14 Ekim 17:00 — pano "kasaya giren" geriye tarihli ödemeyi BUGÜNE sayıyordu (okuma modeli DÜZELTİLDİ; KOD YEREL, deploy bekliyor)
+### 14 Ekim 17:00 — pano "kasaya giren" geriye tarihli ödemeyi BUGÜNE sayıyordu (DÜZELTİLDİ ve CANLIDA 17:2x: panel `build-2026-10-14-002` %100, tüm functions, servis katı elle 1)
 
 Owner: *"burada kasaya giren hesaplaması yanlış oldu."* Seher'in 22.09/08.10/13.10 nakit ödemeleri (20.000 ₺) bugüne yazılmıştı →
 pano 48.550, gerçek 28.550. Sebep: projektör `payment.received`i olayın gününe sayıyordu; olayda `receivedAt` yoktu (ödeme belgesinde
@@ -20,7 +20,7 @@ o güne yazıyor (yoksa `settings/projection.paymentReceivedAt` tablosu, yoksa o
 **Veri:** `fix-pano-geriye-tarihli-odemeler-2026-10-14.ts` UYGULANDI — 17 eski geriye tarihli ödeme (Ağustos–Ekim, çoğu önceki
 düzeltme betikleri) tabloya, 18 gün okuma modelinde taşındı, toplam sıfır. Bugün 28.550 ✅; verify'da yalnızca bilinen 16/18 Eylül.
 Geçmiş günlerin pano rakamları değişti (ör. 30.08 −46.000, 04.09 −40.700, 21.08 +19.000) — artık kasa listesi/raporlarla aynı.
-**DEPLOY BEKLİYOR (web + functions):** deploy'a kadar masada geriye tarihli girilen YENİ bir ödeme yine girildiği güne sayılır.
+**Denenmedi:** masada geriye tarihli girilen ilk YENİ ödemenin panoda kendi gününe düştüğü henüz gözlenmedi.
 
 ### 14 Ekim öğleden sonra — Seher Yıldız: PT 16 Ders nakit, üç ödeme (CANLI VERİ, owner + Işıl)
 
