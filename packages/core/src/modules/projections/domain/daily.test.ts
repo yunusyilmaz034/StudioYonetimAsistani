@@ -338,3 +338,40 @@ describe('a cancelled sale comes off the day it was SOLD', () => {
     expect(days.get('2026-07-14')).toMatchObject({ salesKurus: 0, lastEventAt: 1_000 })
   })
 })
+
+// (owner, 2026-10-14) Three cash payments for 22 Sep, 8 and 13 Oct were entered on the 14th and the
+// dashboard read "kasaya giren 48.550 ₺" on a day that had taken 28.550 ₺.
+describe('a payment counts on the day the money ARRIVED, not the day it was entered', () => {
+  const amount = { amount: 750_000, currency: 'TRY' }
+  const ARRIVED = at(9) // 12:00 local on the 13th
+  const paid = (payload: Record<string, unknown>, enteredHoursUtc = 33.45) => projectDaily(ev('payment.received', enteredHoursUtc, payload), OFFSET)
+
+  it('backdated: the earlier day gets the money, the day of entry is only SEEN', () => {
+    expect(paid({ amount, method: 'cash', receivedAt: ARRIVED })).toEqual({
+      date: '2026-07-14',
+      counters: {},
+      backdated: { date: '2026-07-13', counters: { collectedKurus: 750_000 } },
+    })
+  })
+
+  it('same day: one ordinary increment', () => {
+    expect(paid({ amount, method: 'cash', receivedAt: ARRIVED }, 12)).toEqual({ date: '2026-07-13', counters: { collectedKurus: 750_000 } })
+  })
+
+  it('a payment written before the field existed stays on its own day — nothing is invented', () => {
+    expect(paid({ amount, method: 'cash' })).toEqual({ date: '2026-07-14', counters: { collectedKurus: 750_000 } })
+  })
+
+  it('an old payment whose day is on record (config) goes to that day; the event field wins', () => {
+    const old = { ...ev('payment.received', 33.45, { amount, method: 'cash' }), paymentId: 'pay_1' }
+    const table = new Map([['pay_1', ARRIVED as number]])
+    expect(projectDaily(old, OFFSET, new Set(), new Map(), new Map(), table).backdated).toEqual({
+      date: '2026-07-13',
+      counters: { collectedKurus: 750_000 },
+    })
+    // The VOID table is a different table: a payment id there does not move the payment itself.
+    expect(projectDaily(old, OFFSET, new Set(), table).backdated).toBeUndefined()
+    const own = { ...old, payload: { ...old.payload, receivedAt: at(33) } }
+    expect(projectDaily(own, OFFSET, new Set(), new Map(), new Map(), table).backdated).toBeUndefined()
+  })
+})

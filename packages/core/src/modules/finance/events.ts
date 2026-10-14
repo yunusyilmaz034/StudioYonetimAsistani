@@ -130,6 +130,17 @@ export type PaymentReceivedPayload = {
   readonly drawerId: string | null
   readonly giftCardId: string | null
   readonly providerRef: string | null
+  // ── The day the money ARRIVED (owner, 2026-10-14). OPTIONAL and ADDITIVE — no version bump, no
+  // upcaster; the same rule as `PaymentVoidedPayload.receivedAt`.
+  //
+  // Cash basis (OQ-2) books revenue on `receivedAt`, and the payment document always had it. The event
+  // did not, so the dashboard — which folds events, not documents — booked every payment on the day it
+  // was ENTERED. A payment written today for 8 October showed as today's till: three backdated cash
+  // payments (20.000 ₺) put "kasaya giren" at 48.550 ₺ on a day that had taken 28.550 ₺.
+  //
+  // ABSENT on every payment written before this date and never backfilled; for those the day is
+  // kept as configuration (`settings/projection.paymentReceivedAt`), like the void table.
+  readonly receivedAt?: Instant
 }
 
 export type PaymentVoidedPayload = {

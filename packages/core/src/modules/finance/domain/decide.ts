@@ -442,6 +442,7 @@ export function decideReceivePayment(
         drawerId: input.drawerId,
         giftCardId: input.giftCardId,
         providerRef: input.providerRef,
+        receivedAt: input.receivedAt,
       },
     },
   ]

@@ -173,6 +173,7 @@ export function projectDaily(
   excludedMemberIds: ReadonlySet<string> = new Set(),
   voidReceivedAt: ReadonlyMap<string, number> = new Map(),
   saleSoldAt: ReadonlyMap<string, number> = new Map(),
+  paymentReceivedAt: ReadonlyMap<string, number> = new Map(),
 ): DailyIncrement {
   const date = localDateAt(event.occurredAt, utcOffsetMinutes) as string
   const one = (counters: DailyIncrement['counters']): DailyIncrement => ({ date, counters })
@@ -255,9 +256,22 @@ export function projectDaily(
       const soldOn = localDateAt(soldAt as Instant, utcOffsetMinutes) as string
       return soldOn < date ? { date, counters: {}, backdated: { date: soldOn, counters } } : one(counters)
     }
-    case 'payment.received':
-      // TAHSİLAT = what actually arrived (cash basis, owner OQ-2).
-      return one({ collectedKurus: kurus(event.payload.amount) })
+    case 'payment.received': {
+      // TAHSİLAT = what actually arrived (cash basis, owner OQ-2) — ON THE DAY IT ARRIVED (owner,
+      // 2026-10-14). A payment entered today for 8 October is 8 October's money; counted on the day of
+      // entry it inflated today's till by exactly what the past day was missing. Same shape as the void
+      // below: the event's own field, else the configuration table, else the day of the event.
+      const counters = { collectedKurus: kurus(event.payload.amount) }
+      const receivedAt =
+        typeof event.payload.receivedAt === 'number'
+          ? event.payload.receivedAt
+          : event.paymentId
+            ? paymentReceivedAt.get(event.paymentId)
+            : undefined
+      if (typeof receivedAt !== 'number') return one(counters)
+      const receivedOn = localDateAt(receivedAt as Instant, utcOffsetMinutes) as string
+      return receivedOn < date ? { date, counters: {}, backdated: { date: receivedOn, counters } } : one(counters)
+    }
     case 'payment.voided': {
       // ── A VOID COMES OFF THE DAY THE PAYMENT WAS RECEIVED (owner, 2026-10-08) ──────────────
       //

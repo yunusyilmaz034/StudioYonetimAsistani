@@ -20,4 +20,4 @@ export type { ProjectionRepository } from './application/ports'
 export { FirestoreProjectionRepository } from './infrastructure/repos'
 
 // Accounts the read model ignores (owner, 2026-07-29) — configuration, never a constant.
-export { loadExcludedMemberIds, loadSaleSoldAt, loadVoidReceivedAt } from './infrastructure/excluded-members'
+export { loadExcludedMemberIds, loadPaymentReceivedAt, loadSaleSoldAt, loadVoidReceivedAt } from './infrastructure/excluded-members'

@@ -46,3 +46,15 @@ export async function loadSaleSoldAt(db: Firestore, studioId: StudioId): Promise
   if (!raw || typeof raw !== 'object') return new Map()
   return new Map(Object.entries(raw as Record<string, unknown>).filter((e): e is [string, number] => typeof e[1] === 'number'))
 }
+
+// WHEN AN OLD PAYMENT'S MONEY ARRIVED (owner, 2026-10-14). The same table again: `payment.received`
+// carries `receivedAt` from that date on, earlier ones do not. Payment id → the payment's `receivedAt`.
+// Only payments ENTERED on a later day than they arrived need a row; a same-day one reads the same.
+//
+// The live trigger does NOT read this: every payment it will ever see carries the field itself.
+export async function loadPaymentReceivedAt(db: Firestore, studioId: StudioId): Promise<ReadonlyMap<string, number>> {
+  const snap = await db.doc(`studios/${studioId}/settings/projection`).get()
+  const raw = snap.exists ? (snap.data()?.paymentReceivedAt as unknown) : null
+  if (!raw || typeof raw !== 'object') return new Map()
+  return new Map(Object.entries(raw as Record<string, unknown>).filter((e): e is [string, number] => typeof e[1] === 'number'))
+}

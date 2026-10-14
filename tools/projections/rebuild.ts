@@ -14,6 +14,7 @@ import {
   FirestoreProjectionRepository,
   instant,
   loadExcludedMemberIds,
+  loadPaymentReceivedAt,
   loadSaleSoldAt,
   loadVoidReceivedAt,
   projectDaily,
@@ -47,6 +48,7 @@ async function main(): Promise<void> {
   const voidDays = await loadVoidReceivedAt(db, studioId as StudioId)
   // …and old cancelled sales' sold days (OR-122), for the same reason.
   const saleDays = await loadSaleSoldAt(db, studioId as StudioId)
+  const paymentDays = await loadPaymentReceivedAt(db, studioId as StudioId)
   console.log(`Rebuilding the daily read model for ${studioId}…`)
   await repo.clearAll(ctx)
 
@@ -77,6 +79,7 @@ async function main(): Promise<void> {
       excluded,
       voidDays,
       saleDays,
+      paymentDays,
     )
     await repo.applyOnce(ctx, doc.id, recordedAt, inc)
     folded++

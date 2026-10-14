@@ -313,6 +313,7 @@ When `policy.attendance.defaultOutcome` is `no_show` — as it will be for a stu
 | `payment.recorded` | `{ amount, method, installments, allocations: [{entitlementId, amount}] }` |
 | `payment.allocated` | `{ entitlementId, amount, balanceDueAfter }` |
 | `payment.refunded` | `{ amount, reason, originalPaymentId }` |
+| `payment.received` | `{ amount, method, drawerId, giftCardId, providerRef, receivedAt? }` — `receivedAt` is additive (2026-10-14): the day the money arrived (cash basis, OQ-2), so a payment entered later counts on THAT day in the daily read model. Absent on earlier payments; their day is configuration (`settings/projection.paymentReceivedAt`). |
 | `payment.voided` | `{ amount, reason, method, receivedAt? }` — `receivedAt` is additive (2026-10-08): the day the voided payment had been received on, so the daily read model takes the void off THAT day. Absent on earlier voids; never backfilled. |
 | `sale.cancelled` | `{ reason, total, paidBack, soldAt? }` — `soldAt` is additive (2026-10-12): the day the cancelled sale had been made on, so the daily read model takes it off THAT day's `salesKurus`. Absent on earlier cancellations; never backfilled (their day is configuration, `settings/projection.saleSoldAt`). |
 | `energy_tracking.started` | `{ hasBodyFat }` — kalori takibi (2026-10-13). NO health data in any `energy_*` payload: not weight/height/fat, and not steps/minutes/kcal either (kcal is computed from the weight). |
