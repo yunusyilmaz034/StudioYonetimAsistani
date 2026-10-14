@@ -11,6 +11,17 @@ _Last true as of: **2026-10-08, 14:00**._
 
 ## ⏭️ Sıradaki oturum — BURADAN BAŞLA
 
+### 14 Ekim öğleden sonra — Seher Yıldız: PT 16 Ders nakit, üç ödeme (CANLI VERİ, owner + Işıl)
+
+Kayıtta 22.000 ₺ (kart fiyatı) satış + 22.09 11.000 kart + **bugün 15:06 11.000 nakit** vardı. Doğrusu (owner: *"toplam 20, hepsi
+nakit"*; Işıl: *"10 bin borç, 7.500 8 Ekim, 2.500 13 Ekim"*): ürünün nakit fiyatı 20.000 → 22.09 10.000 · 08.10 7.500 · 13.10 2.500,
+hepsi nakit. `fix-seher-yildiz-nakit-odemeler-2026-10-14.ts`: iki ödeme `voidPayment`, 2.000 ₺ kart/nakit farkı `discountSale`
+(manual, sebepli — satış 22.09'da kalsın diye yeniden kurulmadı), üç `collect` satışa açıkça. **Son: toplam 20.000, ödenen 20.000.**
+- **Kasa:** bugün −11.000; 22.09 +10.000, 08.10 +7.500, 13.10 +2.500 (owner nakit dedi). O günlerin nakit toplamları değişti.
+- **Varsayım (owner'a söylendi):** ilk ödemenin günü 22.09 kaldı; 8 ve 13 Ekim ödemelerine saat bilinmediği için 12:00 yazıldı.
+- `projections:verify`: 22.09, 08.10, 13.10 ✅. Bugün (14.10) rezervasyon/check-in sayısında fark var ve iki koşu arasında değişiyor
+  (20/21 → 21/25) — gün içi canlı yazım; para değil. Gece tekrar bakılmalı; kalırsa `projections:rebuild`.
+
 ### 14 Ekim — çıkış kolu: röle TIKLAMIYOR; çıkış serbest olacak ([[OR-124]]); otomatik çıkış ders bitişine bağlandı
 
 - **Ölçüm (13:27):** cihaz 11:34'te yeniden açılmış (owner kabloyla uğraşırken). Darbe sayacı 24 = 16 kabul edilen geçiş + 8
