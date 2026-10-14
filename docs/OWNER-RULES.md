@@ -2450,3 +2450,15 @@ Otomatik çıkış: sabit 1 saat ölçüye uymadı (son 30 gün, ders günü ziy
 ve onaylanan biçim: **ders günü gelen dersin bitişi + 30 dk, dersi olmayan girişten 2 saat sonra** (eskiden herkes 2,5 s).
 Olay aynı: `member.auto_checked_out` (bir varsayım, gözlem değil — [[AD-38]] ruhu); `thresholdHours` o ziyaretin girişten
 kaç saat sonra kapandığını yazar. Sayılar `apps/functions/src/scheduled/auto-check-out.ts`'te, karar `autoCheckOutDeadline`'da.
+
+**OR-125 · Öğün fotoğrafı (kalori takibi 1.9.0): aldığını da kaydet.** (2026-10-14)
+Owner: *"öğün fotoğrafını çek, kalorisini hesaplayalım, kaç kalori aldığını da günlük kaydedelim"*; ekranlar onaylandı
+(https://claude.ai/artifact/ErQjHP7Jb7AcSQoK36axMd), *"bildirime de eklensin"*. Kararlar:
+- **Öğün SORMADAN kaydedilmez** (kardiyonun tersi, [[OR-123]]): tabaktan okuma bir öneridir; üye satırları görür, porsiyonu
+  Az/Normal/Çok yapar, siler, gözden kaçanı yazarak ekler, öğünü (kahvaltı/öğle/akşam/ara) seçer, sonra kaydeder.
+- Üç yol: fotoğraf çek · galeriden seç · yazarak ekle ("1 kase mercimek çorbası, 2 dilim ekmek").
+- **"Rakamları gizle"** ayarı: öğünler kaydolur ama alınan kalori ne ekranda ne bildirimde görünür — sunucu hiç göndermez.
+  **"Öğün takibi"** kapatılabilir. Yargı yok: "fazla yedin", kırmızı uyarı, hedef aşımı yok; yalnızca iki rakam yan yana.
+- 21:30 özeti: aldığı da eklenir (gizli değilse); yalnızca öğün girilen gün de özet gider.
+- Fotoğraf ve yazdığı metin saklanmaz; yemek adları ve kaloriler yalnızca üyenin gün belgesinde, olaylarda yok (#6).
+- Hedef kalori/makrolar ve Işıl'ın beslenme planı BU SÜRÜMDE YOK — 2. adımda (not metni hâlâ sorulacak).

@@ -599,6 +599,9 @@ export interface EnergyProfileWire {
   readonly birthYear: number
   readonly bodyFatPercent: number | null
   readonly goal: EnergyGoal
+  /** 1.9.0 — absent from an older server ⇒ treat as on / shown. */
+  readonly mealsEnabled?: boolean
+  readonly hideIntake?: boolean
 }
 
 export interface EnergyCardioWire {
@@ -633,7 +636,43 @@ export interface EnergyDayWire {
   readonly totalKcal: number
   /** Today and the last seven days can still be written; older days are read-only. */
   readonly editable: boolean
+  /** 1.9.0. ABSENT from a server older than 1.9.0 — read with `?? []` / `?? 0`. */
+  readonly meals?: readonly EnergyMealWire[]
+  /** What she ate. `null` when she chose "Rakamları gizle": the server never sends the figure. */
+  readonly intakeKcal?: number | null
 }
+
+// ── Meals (1.9.0, owner 2026-10-14) ─────────────────────────────────────────────────────────
+export type MealSlot = 'breakfast' | 'lunch' | 'dinner' | 'snack'
+export type MealPortion = 'small' | 'normal' | 'large'
+export interface EnergyMealItemWire {
+  readonly name: string
+  readonly portion: MealPortion
+  /**
+   * Estimate for a normal portion; the app re-prices locally when she changes the portion. `null`
+   * under "Rakamları gizle" — and an edit sends `null` back for a line it did not re-read, which the
+   * server fills from the stored line.
+   */
+  readonly kcalNormal: number | null
+  /** `null` under "Rakamları gizle". */
+  readonly kcal: number | null
+}
+export interface EnergyMealWire {
+  readonly id: string
+  readonly slot: MealSlot
+  readonly source: 'photo' | 'text'
+  readonly items: readonly EnergyMealItemWire[]
+  /** `null` under "Rakamları gizle". */
+  readonly kcal: number | null
+  /** Instant, ms — the time she recorded it. */
+  readonly loggedAt: number
+}
+/** A plate read (or a sentence understood) — a PROPOSAL; nothing is saved until she confirms. */
+export type EnergyMealReadResult =
+  | { readonly ok: true; readonly value: { readonly items: readonly { readonly name: string; readonly kcalNormal: number }[] } }
+  | { readonly ok: false; readonly error: ApiError }
+/** Portion factors — the server prices with the same ones; the app uses them only to preview. */
+export const MEAL_PORTION_FACTOR: Readonly<Record<MealPortion, number>> = { small: 0.6, normal: 1, large: 1.5 }
 
 /** What the wizard can fill in for her before she types anything. Every field may be absent. */
 export interface EnergyPrefill {

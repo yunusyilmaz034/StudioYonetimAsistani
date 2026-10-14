@@ -28,6 +28,17 @@ export interface EnergyProfile {
   /** Optional. Present ⇒ the resting figure uses lean mass (Katch-McArdle), which is tighter. */
   readonly bodyFatPercent: number | null
   readonly goal: EnergyGoal
+  /**
+   * Meal logging on/off (owner, 2026-10-14 · 1.9.0). Off ⇒ nothing is added and "aldığın" is not
+   * shown. Absent on profiles written before 1.9.0 ⇒ on.
+   */
+  readonly mealsEnabled: boolean
+  /**
+   * "Rakamları gizle": meals are still recorded, but no intake figure is shown to her — on screen or
+   * in the evening notification. Counting calories unsettles some people; this lets her keep the
+   * habit without the number. Absent ⇒ shown.
+   */
+  readonly hideIntake: boolean
   /** Explicit consent to process health data (KVKK). Without it nothing is stored. */
   readonly consentedAt: Instant
   readonly startedAt: Instant
@@ -51,6 +62,37 @@ export interface CardioEntry {
    */
   readonly source: 'photo' | 'manual'
   /** What this session ADDS to the day, already net of the resting burn the day counts anyway. */
+  readonly kcal: number
+  readonly loggedAt: Instant
+}
+
+// ── MEALS (owner, 2026-10-14 · 1.9.0) ─────────────────────────────────────────────────────────
+//
+// *"Öğün fotoğrafı çek, kalorisini hesaplayalım; kaç kalori aldığını da günlük kaydedelim."* What she
+// ATE, as she confirmed it — unlike cardio, a meal is never saved unasked: reading a plate is far less
+// reliable than reading a machine's screen, so the reading is a proposal and her tap is the record.
+
+export type MealSlot = 'breakfast' | 'lunch' | 'dinner' | 'snack'
+export const MEAL_SLOTS: readonly MealSlot[] = ['breakfast', 'lunch', 'dinner', 'snack']
+export type MealPortion = 'small' | 'normal' | 'large'
+export const MEAL_PORTIONS: readonly MealPortion[] = ['small', 'normal', 'large']
+
+export interface MealItem {
+  /** As she sees it ("Izgara tavuk göğsü"). Hers, on her document — never in an event. */
+  readonly name: string
+  readonly portion: MealPortion
+  /** The estimate for a NORMAL portion — kept so a later change of portion re-prices from the source. */
+  readonly kcalNormal: number
+  /** What this line adds, after the portion. */
+  readonly kcal: number
+}
+
+export interface MealEntry {
+  readonly id: string
+  readonly slot: MealSlot
+  readonly items: readonly MealItem[]
+  /** `photo` ⇒ read from her plate and confirmed; `text` ⇒ estimated from what she wrote. */
+  readonly source: 'photo' | 'text'
   readonly kcal: number
   readonly loggedAt: Instant
 }
@@ -83,6 +125,8 @@ export interface EnergyDay {
    * from the day with nothing to keep in step.
    */
   readonly workoutMinutes: Readonly<Record<string, number>>
+  /** What she ate (1.9.0). Absent on days written earlier ⇒ none. */
+  readonly meals: readonly MealEntry[]
   readonly updatedAt: Instant
 }
 
@@ -109,4 +153,7 @@ export interface EnergyDayView {
   /** Everything that is not the resting figure. `0` ⇒ she entered nothing — no evening summary. */
   readonly activeKcal: number
   readonly totalKcal: number
+  readonly meals: readonly MealEntry[]
+  /** What she ate, in kcal. `0` with no meals ⇒ she logged nothing — not "she ate nothing". */
+  readonly intakeKcal: number
 }

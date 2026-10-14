@@ -104,15 +104,20 @@ export const TEMPLATES: Readonly<Record<string, NotificationTemplate>> = {
   // ── KALORİ TAKİBİ (owner, 2026-10-13): the evening summary, 21:30, only on a day she entered
   //    something. The figures are ESTIMATES and the sentence says so. `normal`: it is sent before the
   //    quiet hours begin, and if it ever is not, it can wait for morning — nobody needs it at night.
+  //
+  //    v2 (1.9.0, owner 2026-10-14: *"bildirime de eklensin"*): what she ATE joins what she burned —
+  //    unless she chose "Rakamları gizle", and then the intake is left out of the sentence entirely.
+  //    The sentence varies (activity or not, meals or not), so it is built by the notifier as
+  //    `{{summary}}`; `totalKcal` / `activeKcal` / `intakeKcal` stay available for a studio's own wording.
   kalori_gun_ozeti: {
     id: 'kalori_gun_ozeti',
-    version: 1,
+    version: 2,
     name: 'Kalori takibi — günün özeti',
     category: 'operational',
     priority: 'normal',
-    requiredParams: ['memberName', 'totalKcal', 'activeKcal'],
+    requiredParams: ['memberName', 'summary'],
     subject: 'Günün özeti',
-    body: '{{memberName}}, bugün yaklaşık {{totalKcal}} kcal yaktın; bunun {{activeKcal}} kadarı hareketten. Eline sağlık 👏',
+    body: '{{memberName}}, {{summary}} Eline sağlık 👏',
   },
   fitness_hatirlatma: {
     id: 'fitness_hatirlatma',

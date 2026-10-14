@@ -3,8 +3,12 @@ import { describe, expect, it } from 'vitest'
 import { instant, type ActorRef, type CorrelationId, type StudioId } from '../../../shared'
 import {
   decideLogCardio,
+  decideLogMeal,
   decideLogSteps,
   decideRemoveCardio,
+  decideRemoveMeal,
+  decideSetMealPrefs,
+  decideUpdateMeal,
   decideSetWorkoutMinutes,
   decideStartTracking,
   decideStopTracking,
@@ -187,7 +191,7 @@ describe('cardio', () => {
   })
 
   it('a session on a day now too old to write cannot be removed either', () => {
-    const old: EnergyDay = { id: 'mem_1_2026-10-01', studioId: ctx.studioId, memberId: 'mem_1', date: '2026-10-01', weightKg: 64, basalKcal: 1340, steps: null, cardio: [{ id: 'crd_1', machine: 'bike', minutes: 10, distanceKm: null, displayedKcal: null, source: 'manual', kcal: 62, loggedAt: ctx.now }], workoutMinutes: {}, updatedAt: ctx.now }
+    const old: EnergyDay = { id: 'mem_1_2026-10-01', studioId: ctx.studioId, memberId: 'mem_1', date: '2026-10-01', weightKg: 64, basalKcal: 1340, steps: null, cardio: [{ id: 'crd_1', machine: 'bike', minutes: 10, distanceKm: null, displayedKcal: null, source: 'manual', kcal: 62, loggedAt: ctx.now }], workoutMinutes: {}, meals: [], updatedAt: ctx.now }
     expect(code(decideRemoveCardio(ctx, old, 'crd_1'))).toEqual({ code: 'energy_date_out_of_range' })
   })
 })
@@ -212,5 +216,87 @@ describe('stopping', () => {
 
   it('is refused when there is nothing to stop', () => {
     expect(code(decideStopTracking(ctx, null, 0))).toEqual({ code: 'energy_not_started' })
+  })
+})
+
+// ── MEALS (owner, 2026-10-14 · 1.9.0) ─────────────────────────────────────────────────────────
+describe('meals', () => {
+  const plate = (over: Record<string, unknown> = {}) => ({
+    date: '2026-10-13',
+    entryId: 'mel_1',
+    slot: 'lunch' as const,
+    source: 'photo' as const,
+    items: [
+      { name: 'Izgara tavuk', portion: 'normal' as const, kcalNormal: 280 },
+      { name: 'Bulgur pilavı', portion: 'large' as const, kcalNormal: 230 },
+      { name: 'Salata', portion: 'small' as const, kcalNormal: 100 },
+    ],
+    ...over,
+  })
+
+  it('prices each line by its portion and the meal as their sum', () => {
+    const r = decideLogMeal(ctx, started(), null, plate())
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    const meal = r.value.next.meals[0]!
+    expect(meal.items.map((i) => i.kcal)).toEqual([280, 345, 60])
+    expect(meal.kcal).toBe(685)
+    expect(types(r)).toEqual(['energy_day.meal_logged'])
+  })
+
+  it('the same id twice is one meal — a retried tap does not eat twice', () => {
+    const a = decideLogMeal(ctx, started(), null, plate())
+    if (!a.ok) throw new Error('fixture')
+    const b = decideLogMeal(ctx, started(), a.value.next, plate())
+    expect(b.ok && b.value.next.meals).toHaveLength(1)
+    expect(types(b)).toEqual([])
+  })
+
+  it('refuses, never clamps — and says which field', () => {
+    const p = started()
+    expect(code(decideLogMeal(ctx, p, null, plate({ items: [] })))).toEqual({ code: 'energy_entry_invalid', field: 'items' })
+    expect(code(decideLogMeal(ctx, p, null, plate({ items: Array.from({ length: 21 }, () => ({ name: 'x', portion: 'normal', kcalNormal: 10 })) })))).toEqual({ code: 'energy_entry_invalid', field: 'items' })
+    expect(code(decideLogMeal(ctx, p, null, plate({ items: [{ name: '  ', portion: 'normal', kcalNormal: 10 }] })))).toEqual({ code: 'energy_entry_invalid', field: 'name' })
+    expect(code(decideLogMeal(ctx, p, null, plate({ items: [{ name: 'x', portion: 'huge', kcalNormal: 10 }] })))).toEqual({ code: 'energy_entry_invalid', field: 'portion' })
+    expect(code(decideLogMeal(ctx, p, null, plate({ items: [{ name: 'x', portion: 'normal', kcalNormal: 3001 }] })))).toEqual({ code: 'energy_entry_invalid', field: 'mealKcal' })
+    expect(code(decideLogMeal(ctx, p, null, plate({ items: [{ name: 'x', portion: 'normal', kcalNormal: 12.5 }] })))).toEqual({ code: 'energy_entry_invalid', field: 'mealKcal' })
+    expect(code(decideLogMeal(ctx, p, null, plate({ slot: 'brunch' })))).toEqual({ code: 'energy_entry_invalid', field: 'slot' })
+    // Boundaries: 3.000 and 0 are allowed (water is 0), 20 lines are allowed.
+    expect(decideLogMeal(ctx, p, null, plate({ items: [{ name: 'Su', portion: 'normal', kcalNormal: 0 }, { name: 'Pizza', portion: 'normal', kcalNormal: 3000 }] })).ok).toBe(true)
+    expect(decideLogMeal(ctx, p, null, plate({ items: Array.from({ length: 20 }, () => ({ name: 'x', portion: 'normal', kcalNormal: 10 })) })).ok).toBe(true)
+  })
+
+  it('not tomorrow, not older than a week', () => {
+    expect(code(decideLogMeal(ctx, started(), null, plate({ date: '2026-10-14' })))).toEqual({ code: 'energy_date_out_of_range' })
+    expect(code(decideLogMeal(ctx, started(), null, plate({ date: '2026-10-05' })))).toEqual({ code: 'energy_date_out_of_range' })
+    expect(decideLogMeal(ctx, started(), null, plate({ date: '2026-10-06' })).ok).toBe(true)
+  })
+
+  it('switched off: nothing is added', () => {
+    const p = decideSetMealPrefs(ctx, started(), { mealsEnabled: false, hideIntake: false })
+    if (!p.ok) throw new Error('fixture')
+    expect(code(decideLogMeal(ctx, p.value.next, null, plate()))).toEqual({ code: 'energy_meals_off' })
+  })
+
+  it('a correction re-prices from the normal estimate and keeps the id; unchanged is no event', () => {
+    const a = decideLogMeal(ctx, started(), null, plate())
+    if (!a.ok) throw new Error('fixture')
+    const r = decideUpdateMeal(ctx, a.value.next, { entryId: 'mel_1', slot: 'dinner', items: [{ name: 'Izgara tavuk', portion: 'large', kcalNormal: 280 }] })
+    expect(r.ok && r.value.next.meals[0]).toMatchObject({ id: 'mel_1', slot: 'dinner', kcal: 420 })
+    const same = decideUpdateMeal(ctx, a.value.next, { entryId: 'mel_1', slot: 'lunch', items: plate().items })
+    expect(types(same)).toEqual([])
+    expect(code(decideUpdateMeal(ctx, a.value.next, { entryId: 'mel_9', slot: 'lunch', items: plate().items }))).toEqual({ code: 'energy_entry_not_found' })
+  })
+
+  it('removing takes it off the day and the intake', () => {
+    const a = decideLogMeal(ctx, started(), null, plate())
+    if (!a.ok) throw new Error('fixture')
+    const r = decideRemoveMeal(ctx, a.value.next, 'mel_1')
+    expect(r.ok && r.value.next.meals).toEqual([])
+    expect(code(decideRemoveMeal(ctx, a.value.next, 'mel_9'))).toEqual({ code: 'energy_entry_not_found' })
+  })
+
+  it('a new profile starts with meals on and figures shown', () => {
+    expect(started()).toMatchObject({ mealsEnabled: true, hideIntake: false })
   })
 })

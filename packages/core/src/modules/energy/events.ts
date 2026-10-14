@@ -1,4 +1,4 @@
-import type { CardioMachine } from './domain/types'
+import type { CardioMachine, MealSlot } from './domain/types'
 
 // Energy events. NO HEALTH DATA IN A PAYLOAD (#6) — and that is stricter here than it first looks.
 //
@@ -18,6 +18,11 @@ export const ENERGY_STEPS_LOGGED = 'energy_day.steps_logged'
 export const ENERGY_CARDIO_LOGGED = 'energy_day.cardio_logged'
 export const ENERGY_CARDIO_REMOVED = 'energy_day.cardio_removed'
 export const ENERGY_WORKOUT_MINUTES_SET = 'energy_day.workout_minutes_set'
+// Meals (owner, 2026-10-14 · 1.9.0). WHAT she ate and how much are hers and stay on her day document;
+// the event says a meal was recorded, for which day and slot, how it arrived and how many lines it had.
+export const ENERGY_MEAL_LOGGED = 'energy_day.meal_logged'
+export const ENERGY_MEAL_UPDATED = 'energy_day.meal_updated'
+export const ENERGY_MEAL_REMOVED = 'energy_day.meal_removed'
 // The evening summary is DUE for a member who entered something today (owner, 2026-10-13). Emitted by
 // the `system` sweep, once per member per day; the ONE downstream notifier turns it into a push and an
 // inbox entry. It carries the date and nothing else — the figure in the message is read from her
@@ -43,3 +48,13 @@ export type EnergyCardioLoggedPayload = {
 export type EnergyCardioRemovedPayload = { readonly date: string; readonly entryId: string }
 export type EnergyWorkoutMinutesSetPayload = { readonly date: string; readonly workoutLogId: string }
 export type EnergyDaySummaryDuePayload = { readonly date: string }
+export type EnergyMealLoggedPayload = {
+  readonly date: string
+  readonly entryId: string
+  readonly slot: MealSlot
+  readonly source: 'photo' | 'text'
+  readonly itemCount: number
+}
+/** `fields`: what she changed — `slot`, `items` — never to what. */
+export type EnergyMealUpdatedPayload = { readonly date: string; readonly entryId: string; readonly fields: readonly string[] }
+export type EnergyMealRemovedPayload = { readonly date: string; readonly entryId: string }

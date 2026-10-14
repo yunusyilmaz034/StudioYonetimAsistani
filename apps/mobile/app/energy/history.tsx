@@ -31,7 +31,11 @@ export default function EnergyHistory() {
   const week = days.slice(0, 7)
   const avg = week.length > 0 ? week.reduce((n, d) => n + d.totalKcal, 0) / week.length : 0
   const moved = week.filter((d) => d.activeKcal > 0).length
-  const best = Math.max(1, ...days.map((d) => d.totalKcal))
+  const best = Math.max(1, ...days.map((d) => Math.max(d.totalKcal, d.intakeKcal ?? 0)))
+  // What she ate, averaged over the days she LOGGED a meal — a day without one is "not logged", not
+  // "ate nothing", and counting it as zero would make the average a lie. `null` under hidden figures.
+  const logged = week.filter((d) => (d.meals?.length ?? 0) > 0 && typeof d.intakeKcal === 'number')
+  const avgIn = logged.length > 0 ? logged.reduce((n, d) => n + (d.intakeKcal ?? 0), 0) / logged.length : null
 
   return (
     <Screen header refreshControl={<RefreshControl refreshing={loading} onRefresh={reload} tintColor={p.accent} />}>
@@ -42,10 +46,17 @@ export default function EnergyHistory() {
               <Txt role="caption" tone="muted">Günlük ortalama</Txt>
               <Text style={[t.numSm, { color: p.textPrimary }]}>{kcalText(avg)} kcal</Text>
             </View>
-            <View style={{ flex: 1, gap: 2, borderLeftWidth: StyleSheet.hairlineWidth * 2, borderColor: p.border, paddingLeft: space(4) }}>
-              <Txt role="caption" tone="muted">Hareketli gün</Txt>
-              <Text style={[t.numSm, { color: p.textPrimary }]}>{moved} / {week.length}</Text>
-            </View>
+            {avgIn !== null ? (
+              <View style={{ flex: 1, gap: 2, borderLeftWidth: StyleSheet.hairlineWidth * 2, borderColor: p.border, paddingLeft: space(4) }}>
+                <Txt role="caption" tone="muted">Ortalama aldığın</Txt>
+                <Text style={[t.numSm, { color: p.success }]}>{kcalText(avgIn)} kcal</Text>
+              </View>
+            ) : (
+              <View style={{ flex: 1, gap: 2, borderLeftWidth: StyleSheet.hairlineWidth * 2, borderColor: p.border, paddingLeft: space(4) }}>
+                <Txt role="caption" tone="muted">Hareketli gün</Txt>
+                <Text style={[t.numSm, { color: p.textPrimary }]}>{moved} / {week.length}</Text>
+              </View>
+            )}
           </View>
           <View style={{ marginTop: space(5) }}>
             <WeekBars days={days} onSelect={(date) => router.push(`/energy?date=${date}`)} />
@@ -69,6 +80,12 @@ export default function EnergyHistory() {
                     <Ionicons name="chevron-forward" size={14} color={p.textMuted} />
                   </View>
                   <ProgressBar value={d.totalKcal / best} color={d.activeKcal > 0 ? p.primary : p.textMuted} track={p.surfaceMuted} height={6} />
+                  {(d.meals?.length ?? 0) > 0 && typeof d.intakeKcal === 'number' ? (
+                    <View style={{ gap: 2 }}>
+                      <ProgressBar value={d.intakeKcal / best} color={p.success} track={p.surfaceMuted} height={6} />
+                      <Txt role="caption" tone="muted">Aldığın · yaklaşık {kcalText(d.intakeKcal)} kcal</Txt>
+                    </View>
+                  ) : null}
                 </View>
               </PressableScale>
             ))}
@@ -76,7 +93,7 @@ export default function EnergyHistory() {
         </View>
       </FadeInUp>
 
-      <Txt role="caption" tone="muted" align="center">Son 30 gün gösteriliyor. Rakamlar tahmindir.</Txt>
+      <Txt role="caption" tone="muted" align="center">Son 30 gün gösteriliyor. Rakamlar tahmindir; öğün girmediğin günler ortalamaya katılmaz.</Txt>
     </Screen>
   )
 }

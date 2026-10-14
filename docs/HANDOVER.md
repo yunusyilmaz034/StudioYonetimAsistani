@@ -11,6 +11,23 @@ _Last true as of: **2026-10-08, 14:00**._
 
 ## ⏭️ Sıradaki oturum — BURADAN BAŞLA
 
+### 14 Ekim akşamı — ÖĞÜN FOTOĞRAFI, mobil 1.9.0 ([[OR-125]]) — KOD BİTTİ, sunucu deploy + mağaza gönderimi aşağıda
+
+Ekranlar owner onaylı (https://claude.ai/artifact/ErQjHP7Jb7AcSQoK36axMd). **Çekirdek:** `MealEntry` (satırlar, porsiyon
+0,6/1/1,5, `kcalNormal` saklanır), `EnergyProfile.mealsEnabled/hideIntake` (eski profillerde yok ⇒ açık/gösterilir),
+`decideLogMeal/UpdateMeal/RemoveMeal/SetMealPrefs`, olaylar `energy_day.meal_logged|meal_updated|meal_removed` (golden;
+yemek adı/kalori YOK), `dayView.intakeKcal`, `summaryIsDue` öğünü de sayar. **Sunucu:** `server/ai/meal-reader.ts`
+(foto + metin, aynı model, json_schema; gerçek anahtarla metin isteği denendi: 200, 2,8 sn) · `/api/member/energy`
+`meal_photo|meal_text` (öneri, yazmaz) · `meal_add` (istemci id'si ⇒ çift dokunuş tek öğün) · `meal_update` (gizli rakamda
+`kcalNormal:null` saklıyı korur) · `meal_remove` · `meal_prefs`; **"Rakamları gizle" sunucuda uygulanır** (rakam gönderilmez).
+21:30 şablonu `kalori_gun_ozeti` v2 (`{{summary}}`; cümle `energySummarySentence`, testli). **Mobil:** `app/energy/meal.tsx`
+(okunuyor → gözden geçir → kaydet; okunamadı → yaz), `app/energy/settings.tsx`, gün detayında "Aldığın" bölümü + odakta
+tazeleme, ana sayfa kartında "Aldığın" satırı + "Öğün fotoğrafı" düğmesi, geçmişte ikinci çubuk. `app.config.js` 1.9.0.
+`.expo/types/router.d.ts` yine elle yamalandı (gitignored). Testler: 1.705 birim + 54 emülatör yeşil, mobil `tsc` temiz.
+**Hiçbir cihazda/simülatörde çalıştırılmadı; fotoğraf yolu canlı modelle denenmedi (metin yolu denendi).**
+**Sıra:** sunucu (web + functions) deploy → 1.9.0 build → iOS TestFlight, Android üretim incelemesi. Sunucu ÖNCE: eski
+sunucu `meal_*` eylemlerini "invalid_request" ile reddeder. 1.8.0 kullanıcıları etkilenmez (alanlar isteğe bağlı).
+
 ### 14 Ekim günlüğü (owner: "günlüğe yaz")
 
 - **Canlıda (hepsi deploy edildi):** otomatik çıkış ders bitişine bağlı ([[OR-124]]) · geriye tarihli ödeme panoda kendi gününde ·

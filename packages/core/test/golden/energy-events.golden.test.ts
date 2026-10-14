@@ -2,8 +2,12 @@ import { describe, expect, it } from 'vitest'
 
 import {
   decideLogCardio,
+  decideLogMeal,
   decideLogSteps,
   decideRemoveCardio,
+  decideRemoveMeal,
+  decideSetMealPrefs,
+  decideUpdateMeal,
   decideSetWorkoutMinutes,
   decideStartTracking,
   decideStopTracking,
@@ -16,6 +20,9 @@ import summaryDue from './energy_day.summary_due.v1.json'
 import cardioLogged from './energy_day.cardio_logged.v1.json'
 import cardioRemoved from './energy_day.cardio_removed.v1.json'
 import stepsLogged from './energy_day.steps_logged.v1.json'
+import mealLogged from './energy_day.meal_logged.v1.json'
+import mealUpdated from './energy_day.meal_updated.v1.json'
+import mealRemoved from './energy_day.meal_removed.v1.json'
 import minutesSet from './energy_day.workout_minutes_set.v1.json'
 import profileUpdated from './energy_tracking.profile_updated.v1.json'
 import started from './energy_tracking.started.v1.json'
@@ -92,5 +99,44 @@ describe('energy_day.summary_due', () => {
   it('carries the date and nothing else', () => {
     const payload: EnergyDaySummaryDuePayload = summaryDue
     expect(Object.keys(payload)).toEqual(['date'])
+  })
+
+  // Meals (1.9.0): the payload says a meal was recorded — never what was on the plate or its calories.
+  const mealStart = decideStartTracking(ctx, null, wizard)
+  if (!mealStart.ok) throw new Error('fixture')
+  const profile = mealStart.value.next
+  const meal = decideLogMeal(ctx, profile, null, {
+    date: '2026-10-13',
+    entryId: 'mel_1',
+    slot: 'lunch',
+    source: 'photo',
+    items: [
+      { name: 'Izgara tavuk', portion: 'normal', kcalNormal: 280 },
+      { name: 'Bulgur pilavı', portion: 'large', kcalNormal: 230 },
+    ],
+  })
+
+  it('energy_day.meal_logged', () => {
+    expect(meal.ok && meal.value.events[0]?.type).toBe('energy_day.meal_logged')
+    expect(meal.ok && meal.value.events[0]?.payload).toEqual(mealLogged)
+  })
+
+  it('energy_day.meal_updated', () => {
+    if (!meal.ok) return
+    const r = decideUpdateMeal(ctx, meal.value.next, { entryId: 'mel_1', slot: 'dinner', items: [{ name: 'Izgara tavuk', portion: 'small', kcalNormal: 280 }] })
+    expect(r.ok && r.value.events[0]?.type).toBe('energy_day.meal_updated')
+    expect(r.ok && r.value.events[0]?.payload).toEqual(mealUpdated)
+  })
+
+  it('energy_day.meal_removed', () => {
+    if (!meal.ok) return
+    const r = decideRemoveMeal(ctx, meal.value.next, 'mel_1')
+    expect(r.ok && r.value.events[0]?.type).toBe('energy_day.meal_removed')
+    expect(r.ok && r.value.events[0]?.payload).toEqual(mealRemoved)
+  })
+
+  it('the meal switches are a profile_updated naming the fields only', () => {
+    const r = decideSetMealPrefs(ctx, profile, { mealsEnabled: true, hideIntake: true })
+    expect(r.ok && r.value.events[0]?.payload).toEqual({ fields: ['hideIntake'] })
   })
 })

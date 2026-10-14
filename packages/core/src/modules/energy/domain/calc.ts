@@ -1,4 +1,4 @@
-import type { CardioMachine, EnergyDay, EnergyDayView, EnergySex, WorkoutLine } from './types'
+import type { CardioMachine, EnergyDay, EnergyDayView, EnergySex, MealPortion, WorkoutLine } from './types'
 
 // PURE arithmetic. No clock, no I/O. Every figure these produce is an ESTIMATE and the screens say
 // so ("yaklaşık") — which is why the functions round to whole kilocalories and the display rounds
@@ -122,6 +122,16 @@ export function workoutLine(p: {
   }
 }
 
+// ── MEALS ────────────────────────────────────────────────────────────────────────────────────
+//
+// A portion is a coarse lever on purpose: "az / normal / çok" is a judgement she can make about her
+// own plate; grams are not. The factors keep the normal estimate as the anchor.
+const PORTION_FACTOR: Readonly<Record<MealPortion, number>> = { small: 0.6, normal: 1, large: 1.5 }
+
+export function mealItemKcal(kcalNormal: number, portion: MealPortion): number {
+  return Math.round(kcalNormal * PORTION_FACTOR[portion])
+}
+
 /**
  * The day as a screen shows it. `day` is `null` when she entered nothing — then the resting figure
  * comes from her profile as it stands, and any programme day she ticked is still counted, because
@@ -144,6 +154,7 @@ export function dayView(p: {
   const wKcal = workouts.reduce((n, w) => n + w.kcal, 0)
   const cKcal = cardio.reduce((n, c) => n + c.kcal, 0)
   const active = sKcal + wKcal + cKcal
+  const meals = p.day?.meals ?? []
   return {
     date: p.date,
     basalKcal: basal,
@@ -155,6 +166,8 @@ export function dayView(p: {
     cardioKcal: cKcal,
     activeKcal: active,
     totalKcal: basal + active,
+    meals,
+    intakeKcal: meals.reduce((n, m) => n + m.kcal, 0),
   }
 }
 
@@ -163,7 +176,8 @@ export function dayView(p: {
  * Only when she entered something: a notification that says "you rested today" is noise, and noise
  * is how a member learns to swipe the next one away unread.
  */
-export const summaryIsDue = (view: Pick<EnergyDayView, 'activeKcal'>): boolean => view.activeKcal > 0
+export const summaryIsDue = (view: Pick<EnergyDayView, 'activeKcal' | 'meals'>): boolean =>
+  view.activeKcal > 0 || view.meals.length > 0
 
 /** For display only: an estimate is shown to the nearest ten. */
 export const roundForDisplay = (kcal: number): number => Math.round(kcal / 10) * 10

@@ -86,6 +86,8 @@ export default function RootLayout() {
             <Stack.Screen name="energy/index" options={{ headerShown: true, title: 'Kalori Takibi' }} />
             <Stack.Screen name="energy/start" options={{ headerShown: true, title: 'Kalori Takibi', presentation: 'modal' }} />
             <Stack.Screen name="energy/history" options={{ headerShown: true, title: 'Geçmiş' }} />
+            <Stack.Screen name="energy/meal" options={{ headerShown: true, title: 'Öğün' }} />
+            <Stack.Screen name="energy/settings" options={{ headerShown: true, title: 'Kalori Ayarları' }} />
             <Stack.Screen name="profile-edit" options={{ headerShown: true, title: 'Bilgilerimi Düzenle', presentation: 'modal' }} />
             <Stack.Screen name="contact" options={{ headerShown: true, title: 'İletişim' }} />
             <Stack.Screen name="banner" options={{ headerShown: true, title: '' }} />

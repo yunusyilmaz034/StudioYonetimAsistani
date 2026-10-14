@@ -79,6 +79,7 @@ describe('the day as a screen shows it', () => {
     steps: { count: 6200, kcal: 198, loggedAt: instant(1) },
     cardio: [{ id: 'crd_1', machine: 'treadmill', minutes: 22, distanceKm: 2.4, displayedKcal: 180, source: 'photo', kcal: 157, loggedAt: instant(2) }],
     workoutMinutes: {},
+    meals: [],
     updatedAt: instant(2),
   }
   const ticked = [{ workoutLogId: 'wkl_1', label: 'Alt Vücut · Gün 2', estimatedMinutes: 50 }]
@@ -131,7 +132,11 @@ describe('a screen that showed calories but no time', () => {
 
 describe('the evening summary', () => {
   it('goes out only when she entered something — a rest day is not news', () => {
-    expect(summaryIsDue({ activeKcal: 0 })).toBe(false)
-    expect(summaryIsDue({ activeKcal: 1 })).toBe(true)
+    expect(summaryIsDue({ activeKcal: 0, meals: [] })).toBe(false)
+    expect(summaryIsDue({ activeKcal: 1, meals: [] })).toBe(true)
+  })
+  it('a day with only a meal is news too (1.9.0)', () => {
+    const meal = { id: 'mel_1', slot: 'lunch' as const, items: [], source: 'photo' as const, kcal: 610, loggedAt: instant(0) }
+    expect(summaryIsDue({ activeKcal: 0, meals: [meal] })).toBe(true)
   })
 })

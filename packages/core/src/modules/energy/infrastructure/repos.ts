@@ -3,7 +3,7 @@ import { getFirestore, Timestamp, type CollectionReference, type DocumentData, t
 import { instant, newEventId, type NewEvent, type StudioId, type TenantContext } from '../../../shared'
 import type { EnergyRepository } from '../application/ports'
 import { energyDayId } from '../domain/decide'
-import type { CardioEntry, EnergyDay, EnergyProfile } from '../domain/types'
+import type { CardioEntry, EnergyDay, EnergyProfile, MealEntry } from '../domain/types'
 
 // The energy module's ONLY firebase-admin importer. A day's document and its event commit together
 // (#1). Weight, height, body fat and every figure derived from them live HERE, on member-scoped
@@ -19,6 +19,9 @@ const profileTo = (p: EnergyProfile): DocumentData => ({ ...p, consentedAt: ts(p
 const profileFrom = (d: DocumentData): EnergyProfile => ({
   ...(d as EnergyProfile),
   bodyFatPercent: typeof d.bodyFatPercent === 'number' ? d.bodyFatPercent : null,
+  // Profiles written before 1.9.0 carry neither switch: meals on, figures shown.
+  mealsEnabled: d.mealsEnabled !== false,
+  hideIntake: d.hideIntake === true,
   consentedAt: instant(ms(d.consentedAt)),
   startedAt: instant(ms(d.startedAt)),
   updatedAt: instant(ms(d.updatedAt)),
@@ -28,6 +31,7 @@ const dayTo = (d: EnergyDay): DocumentData => ({
   ...d,
   steps: d.steps ? { ...d.steps, loggedAt: ts(d.steps.loggedAt) } : null,
   cardio: d.cardio.map((c) => ({ ...c, loggedAt: ts(c.loggedAt) })),
+  meals: d.meals.map((m) => ({ ...m, loggedAt: ts(m.loggedAt) })),
   updatedAt: ts(d.updatedAt),
 })
 const dayFrom = (id: string, d: DocumentData): EnergyDay => ({
@@ -36,6 +40,7 @@ const dayFrom = (id: string, d: DocumentData): EnergyDay => ({
   steps: d.steps ? { count: Number(d.steps.count), kcal: Number(d.steps.kcal), loggedAt: instant(ms(d.steps.loggedAt)) } : null,
   cardio: Array.isArray(d.cardio) ? d.cardio.map((c: DocumentData) => ({ ...(c as CardioEntry), loggedAt: instant(ms(c.loggedAt)) })) : [],
   workoutMinutes: (d.workoutMinutes ?? {}) as Record<string, number>,
+  meals: Array.isArray(d.meals) ? d.meals.map((m: DocumentData) => ({ ...(m as MealEntry), loggedAt: instant(ms(m.loggedAt)) })) : [],
   updatedAt: instant(ms(d.updatedAt)),
 })
 

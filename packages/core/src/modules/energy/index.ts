@@ -9,30 +9,42 @@ export type {
   EnergyGoal,
   EnergyProfile,
   EnergySex,
+  MealEntry,
+  MealItem,
+  MealPortion,
+  MealSlot,
   StepsEntry,
   WorkoutLine,
 } from './domain/types'
-export { CARDIO_MACHINES, ENERGY_GOALS } from './domain/types'
+export { CARDIO_MACHINES, ENERGY_GOALS, MEAL_PORTIONS, MEAL_SLOTS } from './domain/types'
 export * from './events'
-export { ageOn, basalKcal, cardioKcal, dayView, estimateWorkoutMinutes, minutesFromDisplayedKcal, roundForDisplay, stepsKcal, summaryIsDue, workoutKcal } from './domain/calc'
+export { ageOn, basalKcal, cardioKcal, dayView, estimateWorkoutMinutes, mealItemKcal, minutesFromDisplayedKcal, roundForDisplay, stepsKcal, summaryIsDue, workoutKcal } from './domain/calc'
 export {
   ENERGY_LIMITS,
   decideLogCardio,
+  decideLogMeal,
   decideLogSteps,
   decideRemoveCardio,
+  decideRemoveMeal,
+  decideSetMealPrefs,
   decideSetWorkoutMinutes,
+  decideUpdateMeal,
   decideStartTracking,
   decideStopTracking,
   decideUpdateProfile,
   energyDayId,
 } from './domain/decide'
-export type { CardioInput, ProfileInput } from './domain/decide'
+export type { CardioInput, MealInput, MealItemInput, ProfileInput } from './domain/decide'
 export {
   energyDays,
   energyToday,
   logEnergyCardio,
+  logEnergyMeal,
   logEnergySteps,
   removeEnergyCardio,
+  removeEnergyMeal,
+  setEnergyMealPrefs,
+  updateEnergyMeal,
   setEnergyWorkoutMinutes,
   startEnergyTracking,
   stopEnergyTracking,

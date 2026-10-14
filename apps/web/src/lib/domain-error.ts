@@ -409,11 +409,18 @@ export function domainErrorMessage(error: DomainError): string {
         minutes: 'Süre 1 ile 300 dakika arasında olmalı.',
         kcal: 'Kalori 1 ile 3.000 arasında olmalı. Ekranda yoksa boş bırak, biz hesaplarız.',
         distanceKm: 'Mesafe 0 ile 100 km arasında olmalı.',
+        slot: 'Öğünü seç: kahvaltı, öğle, akşam ya da ara.',
+        items: 'Bir öğünde 1 ile 20 arasında yiyecek olabilir.',
+        name: 'Yiyeceğin adını yaz (en fazla 80 harf).',
+        portion: 'Porsiyonu seç: az, normal ya da çok.',
+        mealKcal: 'Bir yiyeceğin kalorisi 0 ile 3.000 arasında olmalı.',
       }[error.field]
     case 'energy_date_out_of_range':
       return 'Yalnızca bugün ve son 7 gün için giriş yapabilirsin.'
     case 'energy_entry_not_found':
       return 'Bu kayıt bulunamadı; silinmiş olabilir.'
+    case 'energy_meals_off':
+      return 'Öğün takibi kapalı. Ayarlardan açabilirsin.'
     default: {
       const exhaustive: never = error
       void exhaustive

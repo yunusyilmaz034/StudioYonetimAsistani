@@ -323,7 +323,10 @@ When `policy.attendance.defaultOutcome` is `no_show` — as it will be for a stu
 | `energy_day.cardio_logged` | `{ date, entryId, machine, source: photo\|manual, hadDisplayedKcal }` |
 | `energy_day.cardio_removed` | `{ date, entryId }` |
 | `energy_day.workout_minutes_set` | `{ date, workoutLogId }` |
-| `energy_day.summary_due` | `{ date }` — `system` sweep, 21:30, once per member per day, only if she entered something. |
+| `energy_day.meal_logged` | `{ date, entryId, slot: breakfast\|lunch\|dinner\|snack, source: photo\|text, itemCount }` — 1.9.0. What was eaten and its kcal stay on her day document. |
+| `energy_day.meal_updated` | `{ date, entryId, fields }` — which of `slot`/`items` she changed, never to what. |
+| `energy_day.meal_removed` | `{ date, entryId }` |
+| `energy_day.summary_due` | `{ date }` — `system` sweep, 21:30, once per member per day, only if she entered something (activity or a meal). |
 
 Money is revenue on `payment.recorded.occurredAt` (cash basis, Doc 2 §6). A refund is a **new event**, never a mutation. The sum of `recorded − refunded − voided` over a window *is* the revenue figure, and it can be recomputed from the log at any time.
 

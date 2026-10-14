@@ -4,6 +4,10 @@ import {
   energyDays,
   energyToday,
   logEnergyCardio,
+  logEnergyMeal,
+  removeEnergyMeal,
+  setEnergyMealPrefs,
+  updateEnergyMeal,
   logEnergySteps,
   removeEnergyCardio,
   setEnergyWorkoutMinutes,
@@ -97,5 +101,42 @@ describe('kalori takibi — veritabanına karşı', () => {
     expect(await deps.repo.getProfile(ctx('mem_b'), 'mem_b')).not.toBeNull()
     const stopped = await db().collection(`studios/${SID}/events`).where('type', '==', 'energy_tracking.stopped').get()
     expect(stopped.size).toBe(1)
+  })
+
+  // 1.9.0 — meals. What she ate lives on HER day document: read back, corrected, erased with her —
+  // and no event carries a food name or a calorie.
+  it('a meal is recorded once, corrected, removed — and no event says what was eaten', async () => {
+    const M = 'mem_meal'
+    await startEnergyTracking(deps, ctx(M), { ...wizard, memberId: M }, 'test')
+    const items = [
+      { name: 'Izgara tavuk', portion: 'normal' as const, kcalNormal: 280 },
+      { name: 'Bulgur pilavı', portion: 'large' as const, kcalNormal: 230 },
+    ]
+    const add = () => logEnergyMeal(deps, ctx(M), { memberId: M, date: today, entryId: 'mel_test0001', slot: 'lunch', source: 'photo', items }, 'test')
+    expect((await add()).ok).toBe(true)
+    expect((await add()).ok).toBe(true) // the same tap again
+    let r = await energyDays(deps, ctx(M), M, today, today)
+    expect(r.ok && r.value.days[0]?.meals).toHaveLength(1)
+    expect(r.ok && r.value.days[0]?.intakeKcal).toBe(625)
+    expect(r.ok && summaryIsDue(r.value.days[0]!)).toBe(true)
+
+    expect((await updateEnergyMeal(deps, ctx(M), { memberId: M, date: today, entryId: 'mel_test0001', slot: 'dinner', items: [items[0]!] }, 'test')).ok).toBe(true)
+    r = await energyDays(deps, ctx(M), M, today, today)
+    expect(r.ok && r.value.days[0]?.meals[0]).toMatchObject({ slot: 'dinner', kcal: 280 })
+
+    // Switched off: nothing more is added; switched on with hidden figures: the profile says so.
+    await setEnergyMealPrefs(deps, ctx(M), M, { mealsEnabled: false, hideIntake: false }, 'test')
+    expect((await logEnergyMeal(deps, ctx(M), { memberId: M, date: today, entryId: 'mel_test0002', slot: 'snack', source: 'text', items }, 'test')).ok).toBe(false)
+    await setEnergyMealPrefs(deps, ctx(M), M, { mealsEnabled: true, hideIntake: true }, 'test')
+    expect(await deps.repo.getProfile(ctx(M), M)).toMatchObject({ mealsEnabled: true, hideIntake: true })
+
+    expect((await removeEnergyMeal(deps, ctx(M), { memberId: M, date: today, entryId: 'mel_test0001' }, 'test')).ok).toBe(true)
+    r = await energyDays(deps, ctx(M), M, today, today)
+    expect(r.ok && r.value.days[0]?.intakeKcal).toBe(0)
+
+    const events = await db().collection(`studios/${SID}/events`).where('related.memberId', '==', M).get()
+    const text = JSON.stringify(events.docs.map((e) => e.get('payload')))
+    expect(events.docs.map((e) => e.get('type'))).toEqual(expect.arrayContaining(['energy_day.meal_logged', 'energy_day.meal_updated', 'energy_day.meal_removed']))
+    expect(text).not.toMatch(/tavuk|bulgur|280|230|625/i)
   })
 })

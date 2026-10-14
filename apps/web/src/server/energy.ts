@@ -10,9 +10,13 @@ import {
   energyDays,
   energyToday,
   logEnergyCardio,
+  logEnergyMeal,
   logEnergySteps,
   minutesFromDisplayedKcal,
   removeEnergyCardio,
+  removeEnergyMeal,
+  setEnergyMealPrefs,
+  updateEnergyMeal,
   setEnergyWorkoutMinutes,
   startEnergyTracking,
   stopEnergyTracking,
@@ -23,15 +27,26 @@ import {
   type EnergyDayView,
   type EnergyDeps,
   type EnergySex,
+  type MealEntry,
   type MemberId,
   type TenantContext,
 } from '@studio/core'
-import type { ApiResult, EnergyCardioWire, EnergyDayWire, EnergyPhotoResult, EnergyPrefill, EnergyState } from '@studio/core/client'
+import type {
+  ApiResult,
+  EnergyCardioWire,
+  EnergyDayWire,
+  EnergyMealReadResult,
+  EnergyMealWire,
+  EnergyPhotoResult,
+  EnergyPrefill,
+  EnergyState,
+} from '@studio/core/client'
 import { z } from 'zod'
 
 import { domainErrorMessage } from '@/lib/domain-error'
 
 import { readCardioPhoto, sniffCardioPhotoMedia } from './ai/cardio-photo'
+import { readMealPhoto, readMealText } from './ai/meal-reader'
 import { adminDb } from './firebase-admin'
 
 // The member's daily energy account, as the member API serves it (owner, 2026-10-13). Every function
@@ -71,7 +86,18 @@ const cardioWire = (c: CardioEntry): EnergyCardioWire => ({
   kcal: c.kcal,
 })
 
-const dayWire = (v: EnergyDayView, today: string): EnergyDayWire => ({
+// "Rakamları gizle" is enforced HERE, not in the app: a hidden figure is never sent, so no screen —
+// this release's or a careless later one — can show it by accident.
+const mealWire = (m: MealEntry, hide: boolean): EnergyMealWire => ({
+  id: m.id,
+  slot: m.slot,
+  source: m.source,
+  items: m.items.map((i) => ({ name: i.name, portion: i.portion, kcalNormal: hide ? null : i.kcalNormal, kcal: hide ? null : i.kcal })),
+  kcal: hide ? null : m.kcal,
+  loggedAt: m.loggedAt as number,
+})
+
+const dayWire = (v: EnergyDayView, today: string, hideIntake: boolean): EnergyDayWire => ({
   date: v.date,
   basalKcal: v.basalKcal,
   steps: v.steps ? { count: v.steps.count, kcal: v.steps.kcal } : null,
@@ -83,6 +109,8 @@ const dayWire = (v: EnergyDayView, today: string): EnergyDayWire => ({
   activeKcal: v.activeKcal,
   totalKcal: v.totalKcal,
   editable: v.date >= addLocalDays(today, -ENERGY_LIMITS.backfillDays),
+  meals: v.meals.map((m) => mealWire(m, hideIntake)),
+  intakeKcal: hideIntake ? null : v.intakeKcal,
 })
 
 /**
@@ -119,8 +147,16 @@ export async function energyState(ctx: TenantContext, memberId: MemberId, days: 
   return {
     started: true,
     today,
-    profile: { weightKg: p.weightKg, heightCm: p.heightCm, birthYear: p.birthYear, bodyFatPercent: p.bodyFatPercent, goal: p.goal },
-    days: r.value.days.map((v) => dayWire(v, today)),
+    profile: {
+      weightKg: p.weightKg,
+      heightCm: p.heightCm,
+      birthYear: p.birthYear,
+      bodyFatPercent: p.bodyFatPercent,
+      goal: p.goal,
+      mealsEnabled: p.mealsEnabled,
+      hideIntake: p.hideIntake,
+    },
+    days: r.value.days.map((v) => dayWire(v, today, p.hideIntake)),
   }
 }
 
@@ -135,6 +171,10 @@ const profileShape = z.object({
   goal: z.enum(['lose', 'maintain', 'gain']),
 })
 const machine = z.enum(['treadmill', 'elliptical', 'bike', 'stairs', 'rower', 'other'])
+const slot = z.enum(['breakfast', 'lunch', 'dinner', 'snack'])
+const mealItems = z.array(z.object({ name: z.string(), portion: z.enum(['small', 'normal', 'large']), kcalNormal: num })).max(20)
+// An edit may send `null` for a line's estimate: under "Rakamları gizle" the app never had it.
+const mealEditItems = z.array(z.object({ name: z.string(), portion: z.enum(['small', 'normal', 'large']), kcalNormal: num.nullable() })).max(20)
 
 const Action = z.discriminatedUnion('action', [
   profileShape.extend({ action: z.literal('start'), consent: z.boolean() }),
@@ -152,9 +192,16 @@ const Action = z.discriminatedUnion('action', [
   z.object({ action: z.literal('cardio_photo'), date, image: z.string().min(100).max(8_000_000), mediaType: z.string() }),
   z.object({ action: z.literal('remove_cardio'), date, entryId: z.string().min(1) }),
   z.object({ action: z.literal('workout_minutes'), date, workoutLogId: z.string().min(1), minutes: num }),
+  // ── Meals (1.9.0). The two reads return a PROPOSAL and write nothing; `meal_add` is her tap. ──
+  z.object({ action: z.literal('meal_photo'), image: z.string().min(100).max(8_000_000) }),
+  z.object({ action: z.literal('meal_text'), text: z.string().trim().min(2).max(500) }),
+  z.object({ action: z.literal('meal_add'), date, entryId: z.string().regex(/^mel_[A-Za-z0-9]{8,40}$/), slot, source: z.enum(['photo', 'text']), items: mealItems }),
+  z.object({ action: z.literal('meal_update'), date, entryId: z.string().min(1), slot, items: mealEditItems }),
+  z.object({ action: z.literal('meal_remove'), date, entryId: z.string().min(1) }),
+  z.object({ action: z.literal('meal_prefs'), mealsEnabled: z.boolean(), hideIntake: z.boolean() }),
 ])
 
-type Out = ApiResult<EnergyState> | EnergyPhotoResult
+type Out = ApiResult<EnergyState> | EnergyPhotoResult | EnergyMealReadResult
 
 // The app shows `message` as it stands: the sentence is written once, here on the server, beside the
 // rule it explains — so a new refusal never needs an app release to be said properly.
@@ -163,6 +210,10 @@ const PHOTO_MESSAGE = {
   energy_photo_unreadable: 'Fotoğraftan süreyi ya da kaloriyi okuyamadık. Ekranın tamamı görünecek şekilde yeniden çek ya da elle gir.',
   energy_photo_failed: 'Fotoğraf şu an okunamadı. Biraz sonra yeniden dene ya da elle gir.',
   energy_photo_format: 'Bu dosya biçimini okuyamıyoruz. Galeriden seçmek yerine ekranı doğrudan fotoğrafla ya da değerleri elle gir.',
+  energy_meal_unreadable: 'Fotoğraftan yemeği seçemedik. Tabağın tamamı görünecek şekilde yeniden çek ya da ne yediğini yaz.',
+  energy_meal_text_unreadable: 'Yazdığından bir yiyecek çıkaramadık. "1 kase mercimek çorbası, 2 dilim ekmek" gibi yazmayı dene.',
+  energy_meal_failed: 'Şu an hesaplayamadık. Biraz sonra yeniden dene.',
+  energy_meal_format: 'Bu dosya biçimini okuyamıyoruz. Tabağı doğrudan fotoğrafla ya da ne yediğini yaz.',
 } as const
 const photoFail = (code: keyof typeof PHOTO_MESSAGE) => ({ ok: false as const, error: { code, message: PHOTO_MESSAGE[code] } })
 
@@ -202,6 +253,51 @@ export async function energyAction(ctx: TenantContext, memberId: MemberId, input
     }
     case 'workout_minutes': {
       const r = await setEnergyWorkoutMinutes(d, ctx, { memberId: mid, date: p.date, workoutLogId: p.workoutLogId, minutes: p.minutes }, SOURCE)
+      return r.ok ? fresh() : refuse(r.error)
+    }
+    case 'meal_photo':
+    case 'meal_text': {
+      // Checked BEFORE the model is called: a reading for someone who cannot record it is paid for
+      // and thrown away.
+      const profile = await d.repo.getProfile(ctx, mid)
+      if (!profile) return refuse({ code: 'energy_not_started' })
+      if (!profile.mealsEnabled) return refuse({ code: 'energy_meals_off' })
+      let read
+      if (p.action === 'meal_photo') {
+        const media = sniffCardioPhotoMedia(p.image)
+        if (!media) return photoFail('energy_meal_format')
+        read = await readMealPhoto(p.image, media)
+      } else {
+        read = await readMealText(p.text)
+      }
+      if (!read.ok)
+        return photoFail(read.reason === 'unreadable' ? (p.action === 'meal_photo' ? 'energy_meal_unreadable' : 'energy_meal_text_unreadable') : 'energy_meal_failed')
+      return { ok: true, value: { items: read.items.map((i) => ({ name: i.name, kcalNormal: i.kcal })) } }
+    }
+    case 'meal_add': {
+      const r = await logEnergyMeal(d, ctx, { memberId: mid, date: p.date, entryId: p.entryId, slot: p.slot, source: p.source, items: p.items }, SOURCE)
+      return r.ok ? fresh() : refuse(r.error)
+    }
+    case 'meal_update': {
+      // A line sent without its estimate keeps the stored one (matched by position, then by name). A
+      // NEW line must bring its own: there is nothing to keep, and nothing is invented.
+      const stored = (await d.repo.getDay(ctx, mid, p.date))?.meals.find((m) => m.id === p.entryId)?.items ?? []
+      const items = []
+      for (const [i, it] of p.items.entries()) {
+        const kept = stored[i]?.name === it.name.trim() ? stored[i] : stored.find((s) => s.name === it.name.trim())
+        const kcalNormal = it.kcalNormal ?? kept?.kcalNormal
+        if (kcalNormal === undefined) return refuse({ code: 'energy_entry_invalid', field: 'mealKcal' })
+        items.push({ name: it.name, portion: it.portion, kcalNormal })
+      }
+      const r = await updateEnergyMeal(d, ctx, { memberId: mid, date: p.date, entryId: p.entryId, slot: p.slot, items }, SOURCE)
+      return r.ok ? fresh() : refuse(r.error)
+    }
+    case 'meal_remove': {
+      const r = await removeEnergyMeal(d, ctx, { memberId: mid, date: p.date, entryId: p.entryId }, SOURCE)
+      return r.ok ? fresh() : refuse(r.error)
+    }
+    case 'meal_prefs': {
+      const r = await setEnergyMealPrefs(d, ctx, mid, { mealsEnabled: p.mealsEnabled, hideIntake: p.hideIntake }, SOURCE)
       return r.ok ? fresh() : refuse(r.error)
     }
     case 'cardio_photo': {

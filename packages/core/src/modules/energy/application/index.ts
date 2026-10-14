@@ -13,14 +13,20 @@ import {
 import { ageOn, basalKcal, dayView } from '../domain/calc'
 import {
   decideLogCardio,
+  decideLogMeal,
   decideLogSteps,
   decideRemoveCardio,
+  decideRemoveMeal,
+  decideSetMealPrefs,
+  decideUpdateMeal,
   decideSetWorkoutMinutes,
   decideStartTracking,
   decideStopTracking,
   decideUpdateProfile,
   type CardioInput,
   type DecideContext,
+  type MealInput,
+  type MealItemInput,
   type ProfileInput,
 } from '../domain/decide'
 import type { EnergyDay, EnergyDayView, EnergyProfile } from '../domain/types'
@@ -141,6 +147,62 @@ export async function setEnergyWorkoutMinutes(
   // A duration for a workout she did not tick that day would be a number attached to nothing.
   if (!ticked.some((t) => t.workoutLogId === input.workoutLogId)) return err({ code: 'energy_entry_not_found' })
   const r = decideSetWorkoutMinutes(dctx(deps, ctx, source), profile, day, input)
+  if (!r.ok) return r
+  await deps.repo.saveDay(ctx, r.value.next, r.value.events)
+  return ok(r.value.next)
+}
+
+// ── MEALS (1.9.0) ──────────────────────────────────────────────────────────────────────────
+
+export async function setEnergyMealPrefs(
+  deps: EnergyDeps,
+  ctx: TenantContext,
+  memberId: string,
+  input: { readonly mealsEnabled: boolean; readonly hideIntake: boolean },
+  source: EventSource,
+): Promise<Result<EnergyProfile, DomainError>> {
+  const profile = await deps.repo.getProfile(ctx, memberId)
+  const r = decideSetMealPrefs(dctx(deps, ctx, source), profile, input)
+  if (!r.ok) return r
+  if (r.value.events.length > 0) await deps.repo.saveProfile(ctx, r.value.next, r.value.events)
+  return ok(r.value.next)
+}
+
+/** `entryId` comes from the client so a retried tap cannot log the same plate twice. */
+export async function logEnergyMeal(
+  deps: EnergyDeps,
+  ctx: TenantContext,
+  input: MealInput & { readonly memberId: string },
+  source: EventSource,
+): Promise<Result<EnergyDay, DomainError>> {
+  const [profile, day] = await Promise.all([deps.repo.getProfile(ctx, input.memberId), deps.repo.getDay(ctx, input.memberId, input.date)])
+  const r = decideLogMeal(dctx(deps, ctx, source), profile, day, input)
+  if (!r.ok) return r
+  if (r.value.events.length > 0) await deps.repo.saveDay(ctx, r.value.next, r.value.events)
+  return ok(r.value.next)
+}
+
+export async function updateEnergyMeal(
+  deps: EnergyDeps,
+  ctx: TenantContext,
+  input: { readonly memberId: string; readonly date: string; readonly entryId: string; readonly slot: MealInput['slot']; readonly items: readonly MealItemInput[] },
+  source: EventSource,
+): Promise<Result<EnergyDay, DomainError>> {
+  const day = await deps.repo.getDay(ctx, input.memberId, input.date)
+  const r = decideUpdateMeal(dctx(deps, ctx, source), day, input)
+  if (!r.ok) return r
+  if (r.value.events.length > 0) await deps.repo.saveDay(ctx, r.value.next, r.value.events)
+  return ok(r.value.next)
+}
+
+export async function removeEnergyMeal(
+  deps: EnergyDeps,
+  ctx: TenantContext,
+  input: { readonly memberId: string; readonly date: string; readonly entryId: string },
+  source: EventSource,
+): Promise<Result<EnergyDay, DomainError>> {
+  const day = await deps.repo.getDay(ctx, input.memberId, input.date)
+  const r = decideRemoveMeal(dctx(deps, ctx, source), day, input.entryId)
   if (!r.ok) return r
   await deps.repo.saveDay(ctx, r.value.next, r.value.events)
   return ok(r.value.next)

@@ -400,8 +400,22 @@ async function resolveParams(
       const view = r.ok ? r.value.days[0] : undefined
       if (!view || !summaryIsDue(view)) return null
       const kcal = (n: number): string => roundForDisplay(n).toLocaleString('tr-TR')
+      // "Rakamları gizle" (1.9.0): the intake never reaches a notification — not as a number, not as
+      // a hint. Only that she logged, which is hers to be told.
+      const showIntake = r.ok && !r.value.profile.hideIntake && view.meals.length > 0
+      const summary = energySummarySentence({
+        totalKcal: kcal(view.totalKcal),
+        activeKcal: view.activeKcal > 0 ? kcal(view.activeKcal) : null,
+        intakeKcal: showIntake ? kcal(view.intakeKcal) : null,
+      })
       // First name only: this is her own summary on her own phone, not a letter.
-      return { memberName: recipient.displayName.split(' ')[0] ?? recipient.displayName, totalKcal: kcal(view.totalKcal), activeKcal: kcal(view.activeKcal) }
+      return {
+        memberName: recipient.displayName.split(' ')[0] ?? recipient.displayName,
+        summary,
+        totalKcal: kcal(view.totalKcal),
+        activeKcal: kcal(view.activeKcal),
+        intakeKcal: showIntake ? kcal(view.intakeKcal) : '',
+      }
     }
     case 'reservation.moved':
       return {
@@ -508,3 +522,9 @@ export const toEventLike = (id: string, data: Record<string, unknown>): EventLik
   correlationId: (data.correlationId as string) ?? '',
   occurredAt: data.occurredAt instanceof Timestamp ? data.occurredAt.toMillis() : 0,
 })
+
+/** The evening sentence (1.9.0). Exported for its test: four shapes, each one a sentence a person would say. */
+export function energySummarySentence(p: { totalKcal: string; activeKcal: string | null; intakeKcal: string | null }): string {
+  const burned = p.activeKcal ? `bugün yaklaşık ${p.totalKcal} kcal yaktın (${p.activeKcal} kadarı hareketten)` : `bugün yaklaşık ${p.totalKcal} kcal yaktın`
+  return p.intakeKcal ? `${burned}, ${p.intakeKcal} kcal aldın.` : `${burned}.`
+}

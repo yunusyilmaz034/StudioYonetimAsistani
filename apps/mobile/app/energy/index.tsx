@@ -1,12 +1,12 @@
-import { useState, type ReactNode } from 'react'
+import { useCallback, useState, type ReactNode } from 'react'
 import { ActivityIndicator, Alert, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
-import { Redirect, router, useLocalSearchParams } from 'expo-router'
+import { Redirect, router, useFocusEffect, useLocalSearchParams } from 'expo-router'
 
 import type { CardioMachine, EnergyDayWire, EnergyState } from '@studio/core/client'
 import { api, type EnergyActionBody } from '@/lib/api'
 import { track } from '@/lib/analytics'
-import { MACHINES, MACHINE_LABEL, dayLabel, kcalText, parseNum, trNum } from '@/lib/energy'
+import { MACHINES, MACHINE_LABEL, SLOT_LABEL, clockTime, dayLabel, kcalText, parseNum, trNum } from '@/lib/energy'
 import { screenPhotoBase64 } from '@/lib/photo'
 import { useFetch } from '@/lib/useFetch'
 import { EnergyLegend, EnergyRing, WeekBars } from '@/components/energy'
@@ -37,6 +37,13 @@ export default function EnergyDay() {
   const [picked, setPicked] = useState<string | null>(null)
   const [editing, setEditing] = useState<Editing>(null)
   const [busy, setBusy] = useState<string | null>(null)
+  // Back from the meal screen (or any other) the day may have changed: read it again, quietly.
+  useFocusEffect(
+    useCallback(() => {
+      setFresh(null)
+      void reload()
+    }, [reload]),
+  )
 
   const state = fresh ?? data
   if (loading && !state) return <Loading />
@@ -101,6 +108,20 @@ export default function EnergyDay() {
       { text: 'Fotoğraf çek', onPress: () => void photo('camera') },
       { text: 'Galeriden seç', onPress: () => void photo('library') },
       { text: 'Elle gir', onPress: () => setEditing({ kind: 'cardio' }) },
+      { text: 'Vazgeç', style: 'cancel' },
+    ])
+  }
+
+  const mealsOn = state.profile.mealsEnabled !== false
+  const hide = state.profile.hideIntake === true
+  const meals = day.meals ?? []
+
+  function addMeal() {
+    const go = (mode: 'camera' | 'library' | 'text') => router.push(`/energy/meal?mode=${mode}&date=${day!.date}`)
+    Alert.alert('Öğün ekle', 'Tabağın üstten, tamamı görünecek şekilde çek. Fotoğrafın saklanmaz.', [
+      { text: 'Fotoğraf çek', onPress: () => go('camera') },
+      { text: 'Galeriden seç', onPress: () => go('library') },
+      { text: 'Yazarak ekle', onPress: () => go('text') },
       { text: 'Vazgeç', style: 'cancel' },
     ])
   }
@@ -219,6 +240,40 @@ export default function EnergyDay() {
         </View>
       </FadeInUp>
 
+      {mealsOn ? (
+        <FadeInUp index={3}>
+          <View>
+            <SectionHeader>{hide || day.intakeKcal == null ? 'Aldığın' : `Aldığın · yaklaşık ${kcalText(day.intakeKcal)} kcal`}</SectionHeader>
+            <PremiumCard padded={false}>
+              {meals.length === 0 ? (
+                <View style={{ paddingHorizontal: space(4), paddingVertical: space(4) }}>
+                  <Txt role="body" tone="secondary">{day.editable ? 'Henüz öğün eklemedin.' : 'Bu gün için öğün yok.'}</Txt>
+                </View>
+              ) : (
+                meals.map((m) => (
+                  <Pressable key={m.id} disabled={!day.editable} onPress={() => router.push(`/energy/meal?mode=edit&date=${day.date}&id=${m.id}`)}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: space(3), paddingHorizontal: space(4), paddingVertical: space(3.5), borderBottomWidth: StyleSheet.hairlineWidth * 2, borderColor: p.border, minHeight: 60 }}>
+                      <View style={{ flex: 1, gap: 2 }}>
+                        <Txt role="caption" tone="muted">{`${SLOT_LABEL[m.slot]} · ${clockTime(m.loggedAt)}`}</Txt>
+                        <Txt role="h3" numberOfLines={2}>{m.items.map((i) => i.name).join(', ')}</Txt>
+                        <Txt role="caption" tone="secondary">{m.source === 'photo' ? 'fotoğraftan' : 'yazarak'}</Txt>
+                      </View>
+                      {m.kcal !== null ? <Text style={[t.numSm, { color: p.textPrimary, fontSize: 17 }]}>{kcalText(m.kcal)}</Text> : null}
+                      {day.editable ? <Ionicons name="create-outline" size={16} color={p.textMuted} /> : null}
+                    </View>
+                  </Pressable>
+                ))
+              )}
+              {day.editable ? (
+                <Pressable onPress={addMeal} style={{ minHeight: 52, justifyContent: 'center', paddingHorizontal: space(4) }}>
+                  <Text style={[t.button, { color: p.primary }]}>+ Öğün ekle</Text>
+                </Pressable>
+              ) : null}
+            </PremiumCard>
+          </View>
+        </FadeInUp>
+      ) : null}
+
       {day.editable ? (
         <FadeInUp index={3}>
           {busy === 'photo' ? (
@@ -227,12 +282,15 @@ export default function EnergyDay() {
               <Txt role="body" tone="secondary">Ekran okunuyor…</Txt>
             </View>
           ) : (
-            <View style={{ flexDirection: 'row', gap: space(3) }}>
-              <View style={{ flex: 1 }}>
-                <SecondaryButton label={day.steps ? 'Adımı düzelt' : 'Adım gir'} icon="walk-outline" onPress={() => setEditing({ kind: 'steps' })} full />
-              </View>
-              <View style={{ flex: 1 }}>
-                <PrimaryButton label="Kardiyo ekle" icon="camera-outline" onPress={addCardio} full />
+            <View style={{ gap: space(3) }}>
+              {mealsOn ? <PrimaryButton label="Öğün fotoğrafı" icon="restaurant-outline" onPress={() => router.push(`/energy/meal?mode=camera&date=${day.date}`)} full /> : null}
+              <View style={{ flexDirection: 'row', gap: space(3) }}>
+                <View style={{ flex: 1 }}>
+                  <SecondaryButton label={day.steps ? 'Adımı düzelt' : 'Adım gir'} icon="walk-outline" onPress={() => setEditing({ kind: 'steps' })} full />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <SecondaryButton label="Kardiyo ekle" icon="camera-outline" onPress={addCardio} full />
+                </View>
               </View>
             </View>
           )}
@@ -245,17 +303,21 @@ export default function EnergyDay() {
         <View style={{ backgroundColor: p.primarySoft, borderRadius: radius.md, padding: space(4), gap: space(1) }}>
           <Txt role="h3" tone="brand">Günün özeti</Txt>
           <Txt role="body">
-            {day.activeKcal > 0
+            {(day.activeKcal > 0
               ? `${isToday ? 'Bugün' : 'Bu gün'} yaklaşık ${kcalText(day.totalKcal)} kcal yaktın; bunun ${kcalText(day.activeKcal)} kadarı hareketten.`
-              : `${isToday ? 'Bugün' : 'Bu gün'} için giriş yok. Dinlenirken yaklaşık ${kcalText(day.basalKcal)} kcal harcarsın.`}
+              : meals.length > 0
+                ? `${isToday ? 'Bugün' : 'Bu gün'} yaklaşık ${kcalText(day.totalKcal)} kcal yaktın.`
+                : `${isToday ? 'Bugün' : 'Bu gün'} için giriş yok. Dinlenirken yaklaşık ${kcalText(day.basalKcal)} kcal harcarsın.`) +
+              // No verdict — only the two figures side by side, when she chose to see them.
+              (!hide && meals.length > 0 && day.intakeKcal != null ? ` Öğünlerinden yaklaşık ${kcalText(day.intakeKcal)} kcal aldın.` : '')}
           </Txt>
         </View>
       </FadeInUp>
 
       <View style={{ gap: space(3) }}>
-        <Txt role="caption" tone="muted">Antrenman ve adım değerleri tahmindir; saat ya da aletle birebir tutmayabilir.</Txt>
-        <Pressable onPress={() => router.push('/energy/start?edit=1')} hitSlop={8} style={{ minHeight: 44, justifyContent: 'center' }}>
-          <Text style={[t.button, { color: p.primary }]}>Bilgilerimi güncelle</Text>
+        <Txt role="caption" tone="muted">Antrenman, adım ve öğün değerleri tahmindir; saat, alet ya da etiketle birebir tutmayabilir.</Txt>
+        <Pressable onPress={() => router.push('/energy/settings')} hitSlop={8} style={{ minHeight: 44, justifyContent: 'center' }}>
+          <Text style={[t.button, { color: p.primary }]}>Kalori ayarları</Text>
         </Pressable>
         <Pressable onPress={stop} hitSlop={8} disabled={busy === 'stop'} style={{ minHeight: 44, justifyContent: 'center' }}>
           <Text style={[t.button, { color: p.error }]}>Takibi kapat ve verilerimi sil</Text>

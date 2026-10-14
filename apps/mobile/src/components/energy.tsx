@@ -13,7 +13,7 @@ import { router } from 'expo-router'
 import type { EnergyDayWire, EnergyState } from '@studio/core/client'
 import { dayNote, kcal10, kcalText, trNum, weekdayShort } from '@/lib/energy'
 import { PressableScale } from './motion'
-import { PremiumCard, SectionHeader, Txt } from './kit'
+import { PremiumCard, PrimaryButton, SectionHeader, Txt } from './kit'
 import { space, typo as t, usePalette, type Palette } from '@/theme'
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle)
@@ -190,6 +190,15 @@ export function EnergyHomeCard({ state }: { state: EnergyState | null }) {
             ))}
           </View>
         </View>
+        {/* What she ate (1.9.0) — beside what she burned, never against it: no verdict, no colour of
+            "too much". Absent when she hid the figures (the server sends none) or logged no meal. */}
+        {(today.meals?.length ?? 0) > 0 && typeof today.intakeKcal === 'number' ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space(2), marginTop: space(3) }}>
+            <Ionicons name="restaurant-outline" size={14} color={p.success} />
+            <Txt role="caption" tone="secondary" style={{ flex: 1 }}>Aldığın · {today.meals?.length} öğün</Txt>
+            <Text style={[t.caption, { color: p.textPrimary, fontFamily: t.h3.fontFamily }]}>{kcalText(today.intakeKcal)}</Text>
+          </View>
+        ) : null}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space(1.5), marginTop: space(3), paddingTop: space(3), borderTopWidth: StyleSheet.hairlineWidth * 2, borderColor: p.border }}>
           <Ionicons name="add-circle-outline" size={16} color={p.primary} />
           <Txt role="caption" tone="brand" style={{ flex: 1 }}>
@@ -198,6 +207,11 @@ export function EnergyHomeCard({ state }: { state: EnergyState | null }) {
           <Ionicons name="chevron-forward" size={14} color={p.textMuted} />
         </View>
       </PremiumCard>
+      {state.profile.mealsEnabled !== false ? (
+        <View style={{ marginTop: space(3) }}>
+          <PrimaryButton label="Öğün fotoğrafı" icon="restaurant-outline" onPress={() => router.push(`/energy/meal?mode=camera&date=${today.date}`)} full />
+        </View>
+      ) : null}
     </View>
   )
 }

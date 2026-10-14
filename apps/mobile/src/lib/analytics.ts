@@ -32,6 +32,9 @@ export type AnalyticsEvent =
   | 'energy_profile_updated'
   | 'energy_stopped'
   | 'energy_cardio_photo'
+  | 'energy_meal_read'
+  | 'energy_meal_added'
+  | 'energy_meal_prefs'
   | 'exception'
 
 type Params = Record<string, string | number | boolean>

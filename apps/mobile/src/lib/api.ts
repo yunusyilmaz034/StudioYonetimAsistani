@@ -5,9 +5,12 @@ import type {
   ApiResult,
   CardioMachine,
   EnergyGoal,
+  EnergyMealReadResult,
   EnergyPhotoResult,
   EnergyState,
   InboxItem,
+  MealPortion,
+  MealSlot,
   LeaveFeedbackInput,
   MemberAgenda,
   MemberDashboard,
@@ -94,6 +97,9 @@ export const api = {
   energyAct: (body: EnergyActionBody) => post<ApiResult<EnergyState>>('/energy', body),
   energyPhoto: (date: string, image: string) =>
     post<EnergyPhotoResult>('/energy', { action: 'cardio_photo', date, image, mediaType: 'image/jpeg' }),
+  // Meals (1.9.0). A READ returns a proposal and saves nothing; `meal_add` (via energyAct) is her tap.
+  energyMealRead: (body: { readonly action: 'meal_photo'; readonly image: string } | { readonly action: 'meal_text'; readonly text: string }) =>
+    post<EnergyMealReadResult>('/energy', body),
   // Workout log (v1.31). Her position in the programme cycle, and marking a day done. NOT a
   // check-in — nothing here counts towards attendance.
   workout: (programId: string) => get<WorkoutProgress>(`/workout?programId=${encodeURIComponent(programId)}`),
@@ -286,3 +292,18 @@ export type EnergyActionBody =
   | { readonly action: 'cardio'; readonly date: string; readonly machine: CardioMachine; readonly minutes: number; readonly distanceKm: number | null; readonly displayedKcal: number | null }
   | { readonly action: 'remove_cardio'; readonly date: string; readonly entryId: string }
   | { readonly action: 'workout_minutes'; readonly date: string; readonly workoutLogId: string; readonly minutes: number }
+  | { readonly action: 'meal_add'; readonly date: string; readonly entryId: string; readonly slot: MealSlot; readonly source: 'photo' | 'text'; readonly items: readonly MealItemBody[] }
+  | { readonly action: 'meal_update'; readonly date: string; readonly entryId: string; readonly slot: MealSlot; readonly items: readonly MealEditItemBody[] }
+  | { readonly action: 'meal_remove'; readonly date: string; readonly entryId: string }
+  | { readonly action: 'meal_prefs'; readonly mealsEnabled: boolean; readonly hideIntake: boolean }
+export interface MealItemBody {
+  readonly name: string
+  readonly portion: MealPortion
+  readonly kcalNormal: number
+}
+/** In an edit a line may come back without its estimate (hidden figures): the server keeps the stored one. */
+export interface MealEditItemBody {
+  readonly name: string
+  readonly portion: MealPortion
+  readonly kcalNormal: number | null
+}

@@ -82,7 +82,7 @@ module.exports = () => ({
     // 1.8.0 (owner, 2026-10-13) — KALORİ TAKİBİ. Markette 1.7.4 vardı (`pnpm android:tracks`, ölçüldü).
     // Küçük sürüm, çünkü yeni ekranlar geliyor: sihirbaz, günlük halka, gün detayı, geçmiş, kardiyo
     // aleti fotoğrafı. Mağaza turu ŞART — kamera izin cümlesi değişti (native), OTA taşıyamaz.
-    version: '1.8.0',
+    version: '1.9.0',
     // ── OTA GÜNCELLEME (owner onayı, 2026-09-11) ──────────────────────────────────────────────
     //
     // Bugüne kadar bir KELİME düzeltmesi bile mağaza turu istiyordu: build, inceleme, yayılma, ve
