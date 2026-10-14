@@ -105,6 +105,16 @@ export interface ClassVisitLookup {
     at: Instant,
     earlyArrivalMs: number,
   ): Promise<boolean>
+  /**
+   * Aynı pencere, ama cevap "evet/hayır" değil: denk gelen dersin BİTİŞ anı (birden fazlaysa en geç
+   * biteni), yoksa `null`. Otomatik çıkış bunu soruyor — ders günü gelenin ziyareti dersiyle biter.
+   */
+  classEndAround(
+    ctx: TenantContext,
+    memberId: MemberId,
+    at: Instant,
+    earlyArrivalMs: number,
+  ): Promise<Instant | null>
 }
 
 export interface CheckinDeps {

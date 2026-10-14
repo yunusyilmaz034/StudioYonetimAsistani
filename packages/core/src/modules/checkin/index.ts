@@ -17,6 +17,7 @@ export {
 export { recordCheckIn, type RecordCheckInInput } from './application/checkin'
 export { openBranch, closeBranch } from './application/branch'
 export { sweepAutoCheckOut, type AutoCheckOutSummary } from './application/sweep'
+export { autoCheckOutDeadline, type AutoCheckOutPolicy } from './domain/decide'
 // Kapı cihazlarının yaşam döngüsü — kayıt, sır döndürme, devre dışı bırakma.
 export { registerDevice, requestDeviceRestart, rotateDeviceSecret, setDeviceActive } from './application/devices'
 export type { DeviceTelemetry } from './domain/types'

@@ -303,6 +303,30 @@ export function decideCheckIn(
   })
 }
 
+// ── Ne zaman "çıktı" sayılır (owner, 2026-10-14) ──────────────────────────────────────────────
+//
+// *"Pilatese gelenler 1 saat sonra, fitness'a gelenler 2 saat sonra otomatik çıktı sayılsın."* Çıkış
+// kolu serbest bırakılınca okutmadan çıkan çoğalacak ve ziyareti bitiren tek şey bu süpürge olacak.
+// Sabit 1 saat ölçüye uymadı (son 30 gün: ders günü ziyaretlerin %43'ü 60 dk'yı aşıyor — 18:40'ta
+// gelen 19:00 dersinin öğrencisi 19:40'ta "çıkmış" olurdu). Owner'a sunulan ve onaylanan biçim:
+// ders günü gelenin ziyareti DERSİN BİTİŞİ + pay ile biter; dersi olmayanınki girişten N saat sonra.
+// Sayılar politika: çağıran verir, burada sayı yok.
+export interface AutoCheckOutPolicy {
+  /** Dersin bitişinden sonra tanınan süre (soyunma, sohbet). */
+  readonly afterClassMs: number
+  /** Dersi olmayan ziyaretin girişten sonraki süresi. */
+  readonly withoutClassMs: number
+}
+
+/** Bu ziyaret en geç ne zaman biter? Ders bitişi yoksa girişten itibaren sayılır. */
+export function autoCheckOutDeadline(
+  checkedInAt: Instant,
+  classEndsAt: Instant | null,
+  policy: AutoCheckOutPolicy,
+): Instant {
+  return (classEndsAt === null ? checkedInAt + policy.withoutClassMs : classEndsAt + policy.afterClassMs) as Instant
+}
+
 // ── Auto-check-out (D4, actor: system). A member inside past the threshold is checked
 //    out by the sweep; the presence is deleted by the caller. ──
 export function decideAutoCheckOut(

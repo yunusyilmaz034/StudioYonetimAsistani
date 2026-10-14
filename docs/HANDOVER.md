@@ -11,6 +11,20 @@ _Last true as of: **2026-10-08, 14:00**._
 
 ## ⏭️ Sıradaki oturum — BURADAN BAŞLA
 
+### 14 Ekim — çıkış kolu: röle TIKLAMIYOR; çıkış serbest olacak ([[OR-124]]); otomatik çıkış ders bitişine bağlandı
+
+- **Ölçüm (13:27):** cihaz 11:34'te yeniden açılmış (owner kabloyla uğraşırken). Darbe sayacı 24 = 16 kabul edilen geçiş + 8
+  tekrar açma — yazılım her kabulde röleye sinyal veriyor. Açılıştan beri 7 çıkışın 6'sı tekrar açma istedi (12 Ekim'de 55'te 7).
+  Owner kendi QR'ıyla (YUNUS TEST) üç kez denedi, **röle sesi yok** → arıza kart↔röle arasında (IN2 teli / 4'lü sıranın
+  VCC-GND'si / röle kanalı). Owner'a verilen test: panelden "Turnike Çıkış" + röle LED'i; tık yoksa IN1/IN2 tellerini takas.
+- **Owner kararı:** çıkış yönü turnikenin menüsünden SERBEST, çıkışta QR isteğe bağlı kalır. `F02`'nin hangi değeri "yalnız çıkış
+  serbest" bilinmiyor: kılavuz PDF'i (`~/Downloads/perkotekTurnike.pdf`) artık diskte YOK. Tahmin edilmedi; owner'dan PDF ya da
+  menüden deneme (kol dışarı serbest, içeri kilitli mi) istendi.
+- **Otomatik çıkış (KOD, functions `occupancySweep` deploy edildi; main'e PUSH EDİLMEDİ — web rollout'u açık sekmeleri kırar):**
+  ders günü gelen dersin bitişi + 30 dk, dersi olmayan girişten 2 saat ([[OR-124]]). `ClassVisitLookup.classEndAround` eklendi,
+  `hasClassAround` onun üstüne kuruldu (web'de davranış aynı). Testler: domain + süpürge + emülatör paketi yeşil.
+  **Push gece yapılmalı**; o zamana kadar canlıdaki functions main'in önünde değil, yerel commit'ten.
+
 ### 13 Ekim akşam günlüğü — DEPLOY EDİLDİ 19:5x (owner "şimdi yap" dedi; panel `build-2026-10-13-001` %100, servis katı elle 1)
 
 - **Canlıya çıkanlar (functions deploy EDİLMEDİ, gerekmiyordu):** kardiyo fotoğrafı biçim düzeltmesi (`242a180`) · "Bu haftayı

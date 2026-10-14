@@ -10,6 +10,7 @@ import {
   type StudioId,
 } from '../../../shared'
 import {
+  autoCheckOutDeadline,
   decideAutoCheckOut,
   decideCheckIn,
   decideCloseBranch,
@@ -218,6 +219,23 @@ describe('decideCheckIn — turnikede kayıt uyuşmazlığı (OR-75)', () => {
       ok: false,
       error: { code: 'already_inside' },
     })
+  })
+})
+
+describe('autoCheckOutDeadline (owner, 2026-10-14)', () => {
+  const M = 60_000
+  const policy = { afterClassMs: 30 * M, withoutClassMs: 120 * M }
+  it('ders günü: dersin bitişi + pay — girişten değil', () => {
+    // 18:40 giriş, 19:00–19:45 ders → 20:15. Sabit 1 saat 19:40'ta kapatırdı, ders sürerken.
+    const giris = instant(NOW)
+    const dersBiter = instant(NOW + 65 * M)
+    expect(autoCheckOutDeadline(giris, dersBiter, policy)).toBe(NOW + 95 * M)
+  })
+  it('dersi yok: girişten 2 saat sonra', () => {
+    expect(autoCheckOutDeadline(instant(NOW), null, policy)).toBe(NOW + 120 * M)
+  })
+  it('sınır: ders erken biterse ziyaret de erken biter (2 saatten kısa olabilir)', () => {
+    expect(autoCheckOutDeadline(instant(NOW), instant(NOW + 20 * M), policy)).toBe(NOW + 50 * M)
   })
 })
 

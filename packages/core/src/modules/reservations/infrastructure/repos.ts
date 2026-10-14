@@ -306,6 +306,16 @@ export class FirestoreReservationRepository implements ReservationRepository {
     at: Instant,
     earlyArrivalMs: number,
   ): Promise<boolean> {
+    return (await this.classEndAround(ctx, memberId, at, earlyArrivalMs)) !== null
+  }
+
+  /** `hasClassAround` ile aynı sorgu ve aynı eleme; denk gelen derslerin en geç bitişini döner. */
+  async classEndAround(
+    ctx: TenantContext,
+    memberId: MemberId,
+    at: Instant,
+    earlyArrivalMs: number,
+  ): Promise<Instant | null> {
     // Hiçbir ders üç saatten uzun değil; aralığın alt ucu bu yüzden sabit ve cömert.
     const MAX_CLASS_MS = 3 * 3_600_000
     const snap = await this.col(ctx.studioId, 'reservations')
@@ -314,12 +324,14 @@ export class FirestoreReservationRepository implements ReservationRepository {
       .where('sessionStartsAt', '<=', Timestamp.fromMillis(at + earlyArrivalMs))
       .orderBy('sessionStartsAt', 'desc')
       .get()
-    return snap.docs.some((doc) => {
+    let end: Instant | null = null
+    for (const doc of snap.docs) {
       const r = reservationFromFirestore(doc.id as ReservationId, doc.data())
       // İptal edilmiş rezervasyon bir ziyareti açıklamaz — o gün gelmediği ders, geldiği ziyareti
       // bedava yapmamalı.
-      return r.status !== 'cancelled' && r.sessionEndsAt >= at
-    })
+      if (r.status !== 'cancelled' && r.sessionEndsAt >= at && (end === null || r.sessionEndsAt > end)) end = r.sessionEndsAt
+    }
+    return end
   }
 
   // Hızlı Not (v1.19): write the reservation state (with its note) + the note_set event

@@ -29,8 +29,15 @@ import { db } from '../shared/firebase'
 // tight: sweeping too early ends a visit that was still running (occupancy reads one low for a
 // while, and the check-OUT consumes nothing — credit lives on the reservation, not the door);
 // sweeping too late leaves a phantom in the room for hours. The second is the one reception sees.
+//
+// ── Ders bitişine bağlı (owner, 2026-10-14) ─────────────────────────────────────────────────
+//
+// Çıkış kolu serbest bırakılacak; okutmadan çıkan çoğalınca 2.5 saat fazla geniş kaldı. Owner 1 saat
+// (pilates) / 2 saat (fitness) önerdi; son 30 günün ölçüsü 1 saatin ders günü ziyaretlerinin %43'ünü
+// içerideyken kapatacağını gösterdi. Onaylanan: ders günü gelen dersin bitişi + 30 dk, dersi olmayan
+// girişten 2 saat sonra. Ölçü (30 gün): ders günü p95 84 dk · dersi olmayan p90 120 dk.
 const JOB_ID = 'occupancy_auto_checkout' as SystemJobId
-const THRESHOLD_HOURS = 2.5
+const POLICY = { afterClassMs: 30 * 60_000, withoutClassMs: 2 * 3_600_000 } as const
 
 export async function runAutoCheckOutSweep(): Promise<void> {
   const database = db()
@@ -44,7 +51,7 @@ export async function runAutoCheckOutSweep(): Promise<void> {
   }
 
   for (const sid of await listStudioIds(database)) {
-    const res = await sweepAutoCheckOut(deps, systemTenantContext(sid, JOB_ID), THRESHOLD_HOURS)
+    const res = await sweepAutoCheckOut(deps, systemTenantContext(sid, JOB_ID), POLICY)
     if (res.ok) logger.info('auto-check-out sweep', { studioId: sid, checkedOut: res.value.checkedOut })
   }
 }

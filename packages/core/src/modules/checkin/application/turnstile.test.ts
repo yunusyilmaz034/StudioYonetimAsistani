@@ -101,7 +101,7 @@ function fakeDeps(opts: {
     },
     // Sayaç bu testlerin konusu değil, ama kapı hem sayaçtan hem paket kontrolünden geçiyor.
     entries: { listActiveByMember: async () => opts.paketler ?? CANLI_PAKET, saveEntitlement: async () => undefined },
-    classes: { hasClassAround: async () => opts.dersVar ?? false },
+    classes: { hasClassAround: async () => opts.dersVar ?? false, classEndAround: async () => null },
   } as unknown as CheckinDeps
 }
 

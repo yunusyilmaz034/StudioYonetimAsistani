@@ -70,7 +70,7 @@ function fakeDeps(opts: { inside: boolean; ents: readonly Entitlement[]; dersiVa
       },
     },
     // Derse mi geldi, spora mı? (owner, 2026-08-26)
-    classes: { hasClassAround: async () => opts.dersiVar === true },
+    classes: { hasClassAround: async () => opts.dersiVar === true, classEndAround: async () => null },
   } as unknown as CheckinDeps
   return { deps, saved }
 }

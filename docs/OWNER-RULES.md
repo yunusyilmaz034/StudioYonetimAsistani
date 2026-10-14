@@ -2441,3 +2441,12 @@ Owner'ın bu ekran için verdiği kararlar; her biri sorulup alındı:
 Benim koyduğum ve owner'a söylediğim sınırlar (itiraz gelmedi): rakamlar "yaklaşık" ve 10'a yuvarlı gösterilir · kilo/boy/yağ
 ve onlardan hesaplanan hiçbir sayı olay günlüğüne girmez · açık rıza olmadan başlamaz · takibi kapatmak profili ve tüm
 günleri siler · aralık dışı değer reddedilir, kırpılmaz · yalnızca bugün ve son 7 gün düzenlenir.
+
+**OR-124 · Çıkış kolu serbest; çıkışta QR isteğe bağlı; ziyareti otomatik çıkış bitirir.** (2026-10-14)
+Owner: *"çıkışta QR da okutulabilsin, güle güle desin, ama çıkış yönünde kol serbest olsun"* ve *"pilatese gelenler
+1 saat, fitness'a gelenler 2 saat sonra otomatik çıktı sayılsın"*. Kolun serbestliği turnikenin kendi menüsünde
+(Perkotek S310 `F02`, bugün `0` = iki yön kilitli); yazılımda değişen bir şey yok — çıkış ekranı aynen çalışır.
+Otomatik çıkış: sabit 1 saat ölçüye uymadı (son 30 gün, ders günü ziyaretlerin %43'ü 60 dk'yı aşıyor), owner'a sunulan
+ve onaylanan biçim: **ders günü gelen dersin bitişi + 30 dk, dersi olmayan girişten 2 saat sonra** (eskiden herkes 2,5 s).
+Olay aynı: `member.auto_checked_out` (bir varsayım, gözlem değil — [[AD-38]] ruhu); `thresholdHours` o ziyaretin girişten
+kaç saat sonra kapandığını yazar. Sayılar `apps/functions/src/scheduled/auto-check-out.ts`'te, karar `autoCheckOutDeadline`'da.
