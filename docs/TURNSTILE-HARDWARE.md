@@ -42,7 +42,11 @@ F03  cihaz modu:     0 = bel turnikesi · 1 = boy turnikesi
 F04  hafıza modu:    1 = butona kaç kez basılırsa o kadar geçiş · 0 = normal   ← 0 KALMALI
 F05  test modu · F06 sensör testi
 ```
-Tuşlar turnike anakartında, 3 haneli ekranın üstünde; ama kartta **`DEC (−)` · `INC (+)` · `MENU`** yazıyor, kılavuzun
+⚠️ **BİZİM KARTTA MENÜ YOK (owner, 14 Ekim):** kılavuz şemasındaki ekran ve `DEC/INC/MENU` tuşları bizim anakartta yok — yalnızca
+`OP-L/OP-R test key` var (1 Eylül'de okunan etiketlerle aynı). Yani `F01–F04` hiç ayarlanmadı, `F02` ile çıkış serbest yapılamaz.
+Çıkışı serbest bırakmanın denenecek yolu: `Access Control Input`'ta `COM`–`OP-L` kontağını SÜREKLİ kapalı tutmak (önce elle bir
+telle denenir: tel takılıyken kol dışarı art arda dönüyor mu, içeri kilitli mi). Olmazsa Perkotek'e sorulacak.
+Kılavuz şemasına göre (bizim kartta yok): tuşlar 3 haneli ekranın üstünde; ama kartta **`DEC (−)` · `INC (+)` · `MENU`** yazıyor, kılavuzun
 metni Set/Menü/Value diyor — hangi tuşun "Set" olduğu kılavuzda eşlenmemiş. 5 sn basılı tutmadan hiçbir şey kaydedilmez,
 yani denemek zararsız; kaydetmeden çıkmak için elektriği kesip vermek yeter. Aynı şemada `OP-R = GİRİŞ`, `OP-L = ÇIKIŞ`
 yazıyor — 1 Eylül'de ölçtüğümüzle aynı. **[[OR-124]] (14 Ekim): çıkış serbest → `F02=2`** — ama
