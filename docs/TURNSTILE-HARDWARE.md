@@ -31,6 +31,21 @@ başka hatta gider. Salonda müzik açıkken ölçülmeden hangisinin gerektiği
 
 **Turnike:** Perkotek S310. Menü: `F01=5` · `F02=0` · `F03=0` · **`F04=0`**.
 
+**Kılavuz:** https://www.perkotek.com/download/12670_1004_S%20310.pdf (üreticinin sitesi, `perkotek.com/kullanim-kilavuzlari`).
+Yerel kopya bir kez kayboldu — menü bölümü bu yüzden buraya yazıldı (kılavuzdan, 14 Ekim 2026):
+
+```
+Menüye gir:   SET 3 sn basılı      Seçenek değiştir: MENÜ      Değer değiştir: VALUE      Kaydet: SET 5 sn basılı
+F01  açık kalma süresi (geçince kendini kilitler)
+F02  serbest geçiş:  0 = iki yön kilitli · 1 = giriş yönü boşa döner · 2 = çıkış yönü boşa döner
+F03  cihaz modu:     0 = bel turnikesi · 1 = boy turnikesi
+F04  hafıza modu:    1 = butona kaç kez basılırsa o kadar geçiş · 0 = normal   ← 0 KALMALI
+F05  test modu · F06 sensör testi
+```
+Tuşlar turnike anakartında (kılavuzdaki "Anakart Bağlantı Şeması"). **[[OR-124]] (14 Ekim): çıkış serbest → `F02=2`** — ama
+kılavuzun "giriş/çıkış"ı üreticinin yönü; bizde ölçülen yön §3'te (OP-R = giriş). Ayardan sonra elle doğrulanır: dışarı
+serbest, içeri kilitli. Tersi çıkarsa `F02=1`.
+
 ---
 
 ## 2 · Pin haritası (değiştirilmez)

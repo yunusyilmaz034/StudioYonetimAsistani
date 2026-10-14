@@ -17,9 +17,9 @@ _Last true as of: **2026-10-08, 14:00**._
   tekrar açma — yazılım her kabulde röleye sinyal veriyor. Açılıştan beri 7 çıkışın 6'sı tekrar açma istedi (12 Ekim'de 55'te 7).
   Owner kendi QR'ıyla (YUNUS TEST) üç kez denedi, **röle sesi yok** → arıza kart↔röle arasında (IN2 teli / 4'lü sıranın
   VCC-GND'si / röle kanalı). Owner'a verilen test: panelden "Turnike Çıkış" + röle LED'i; tık yoksa IN1/IN2 tellerini takas.
-- **Owner kararı:** çıkış yönü turnikenin menüsünden SERBEST, çıkışta QR isteğe bağlı kalır. `F02`'nin hangi değeri "yalnız çıkış
-  serbest" bilinmiyor: kılavuz PDF'i (`~/Downloads/perkotekTurnike.pdf`) artık diskte YOK. Tahmin edilmedi; owner'dan PDF ya da
-  menüden deneme (kol dışarı serbest, içeri kilitli mi) istendi.
+- **Owner kararı:** çıkış yönü turnikenin menüsünden SERBEST, çıkışta QR isteğe bağlı kalır. Kılavuz üreticinin sitesinden bulundu,
+  menü bölümü `TURNSTILE-HARDWARE.md`'ye yazıldı: **`F02=2` = çıkış yönü boşa döner** (1 = giriş). Owner'a verildi; ayardan sonra
+  elle doğrulanacak (dışarı serbest, içeri kilitli) — üreticinin "çıkış"ı bizim ölçtüğümüz yönle aynı olmayabilir.
 - **Otomatik çıkış (KOD, functions `occupancySweep` deploy edildi; main'e PUSH EDİLMEDİ — web rollout'u açık sekmeleri kırar):**
   ders günü gelen dersin bitişi + 30 dk, dersi olmayan girişten 2 saat ([[OR-124]]). `ClassVisitLookup.classEndAround` eklendi,
   `hasClassAround` onun üstüne kuruldu (web'de davranış aynı). Testler: domain + süpürge + emülatör paketi yeşil.
