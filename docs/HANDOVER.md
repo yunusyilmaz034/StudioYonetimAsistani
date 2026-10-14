@@ -29,7 +29,8 @@ tazeleme, ana sayfa kartında "Aldığın" satırı + "Öğün fotoğrafı" dü�
 1.9.0 build 19: **iOS App Store Connect'e yüklendi** (TestFlight işleniyor; owner "What's New"i elle yapıştıracak, metin
 verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:notes --write` ile yazıldı. ⚠️ Play'de 1.8.0'ın
 %20'si 1.9.0 ile DEĞİŞTİ: üretimde artık 1.9.0 %20 + 1.7.4 %100 — Android'in %80'i kalori takibini görmüyor; %100 owner kararı.
-"Yeni sürüm" bildirimi hâlâ gönderilmedi (iki mağazada herkese açılınca, owner "gönder" deyince).
+"Yeni sürüm" bildirimi: owner kararı (14 Ekim) — **1.9.0 iki mağazada herkese açılınca TEK bildirim** (kalori takibi +
+  öğün fotoğrafı birlikte), şimdi değil. Metin taslağı verildi; göndermeden önce owner "gönder" diyecek. Yalnızca in_app + push.
 
 ### 14 Ekim günlüğü (owner: "günlüğe yaz")
 
