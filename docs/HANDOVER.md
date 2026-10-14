@@ -20,10 +20,9 @@ _Last true as of: **2026-10-08, 14:00**._
 - **Owner kararı:** çıkış yönü turnikenin menüsünden SERBEST, çıkışta QR isteğe bağlı kalır. Kılavuz üreticinin sitesinden bulundu,
   menü bölümü `TURNSTILE-HARDWARE.md`'ye yazıldı: **`F02=2` = çıkış yönü boşa döner** (1 = giriş). Owner'a verildi; ayardan sonra
   elle doğrulanacak (dışarı serbest, içeri kilitli) — üreticinin "çıkış"ı bizim ölçtüğümüz yönle aynı olmayabilir.
-- **Otomatik çıkış (KOD, functions `occupancySweep` deploy edildi; main'e PUSH EDİLMEDİ — web rollout'u açık sekmeleri kırar):**
+- **Otomatik çıkış (CANLIDA: functions `occupancySweep` 13:47; main push 14:0x, panel `build-2026-10-14-001` %100, servis katı elle 1):**
   ders günü gelen dersin bitişi + 30 dk, dersi olmayan girişten 2 saat ([[OR-124]]). `ClassVisitLookup.classEndAround` eklendi,
   `hasClassAround` onun üstüne kuruldu (web'de davranış aynı). Testler: domain + süpürge + emülatör paketi yeşil.
-  **Push gece yapılmalı**; o zamana kadar canlıdaki functions main'in önünde değil, yerel commit'ten.
 
 ### 13 Ekim akşam günlüğü — DEPLOY EDİLDİ 19:5x (owner "şimdi yap" dedi; panel `build-2026-10-13-001` %100, servis katı elle 1)
 
