@@ -35,6 +35,7 @@
     "deploy": "pnpm check && firebase deploy",
     "android:tracks": "tsx tools/mobile/play-tracks.ts",
     "android:notes": "tsx tools/mobile/play-notes.ts",
+    "android:rollout": "tsx tools/mobile/play-rollout.ts",
     "member-stats:rebuild": "tsx tools/member-stats/rebuild.ts",
     "projections:rebuild": "tsx tools/projections/rebuild.ts",
     "projections:verify": "tsx tools/projections/verify.ts",
