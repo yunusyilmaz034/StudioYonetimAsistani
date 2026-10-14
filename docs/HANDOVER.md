@@ -25,8 +25,11 @@ yemek adı/kalori YOK), `dayView.intakeKcal`, `summaryIsDue` öğünü de sayar.
 tazeleme, ana sayfa kartında "Aldığın" satırı + "Öğün fotoğrafı" düğmesi, geçmişte ikinci çubuk. `app.config.js` 1.9.0.
 `.expo/types/router.d.ts` yine elle yamalandı (gitignored). Testler: 1.705 birim + 54 emülatör yeşil, mobil `tsc` temiz.
 **Hiçbir cihazda/simülatörde çalıştırılmadı; fotoğraf yolu canlı modelle denenmedi (metin yolu denendi).**
-**Sıra:** sunucu (web + functions) deploy → 1.9.0 build → iOS TestFlight, Android üretim incelemesi. Sunucu ÖNCE: eski
-sunucu `meal_*` eylemlerini "invalid_request" ile reddeder. 1.8.0 kullanıcıları etkilenmez (alanlar isteğe bağlı).
+**YAYINDA (owner "yap", 14 Ekim ~20:45):** panel `build-2026-10-14-003` %100 + servis katı 1, tüm functions (şablon v2).
+1.9.0 build 19: **iOS App Store Connect'e yüklendi** (TestFlight işleniyor; owner "What's New"i elle yapıştıracak, metin
+verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:notes --write` ile yazıldı. ⚠️ Play'de 1.8.0'ın
+%20'si 1.9.0 ile DEĞİŞTİ: üretimde artık 1.9.0 %20 + 1.7.4 %100 — Android'in %80'i kalori takibini görmüyor; %100 owner kararı.
+"Yeni sürüm" bildirimi hâlâ gönderilmedi (iki mağazada herkese açılınca, owner "gönder" deyince).
 
 ### 14 Ekim günlüğü (owner: "günlüğe yaz")
 
