@@ -55,6 +55,18 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
   birebir (101 = 79 + 20 + 2). Owner deneyip yazacak.
 - **Yerelde, push edilmedi:** yalnızca günlük commit'leri (kod değil).
 
+### 15 Ekim akşamı — Sevim Aygün: 12 aylık 19.500, iki nakit ödeme (CANLI VERİ, Işıl → owner)
+
+Işıl 3 aylığı (06.10, 8.500 nakit ödendi) "1 yıllığa çevrildi" diye iptal edip 12 Aylık 19.500 sattı ve bugün **tek parça
+19.500 nakit** aldı. 17:16'da 06.10'daki 8.500 ödemeyi de iptal etti. Kasa defteri böylece 06.10'da −8.500, bugün +19.500 gösteriyordu. Doğrusu
+(Işıl: *"bugün 11 bin verdi, 6 Ekim'de 8.500 vermişti"*): 06.10 8.500 + 15.10 11.000, ikisi nakit.
+`fix-sevim-aygun-odemeler-2026-10-15.ts` UYGULANDI: 19.500 `voidPayment`, iki `collect` 12 aylık satışa açıkça; saatler eski
+ödemelerinkiyle aynı. Satış/paket/geçerlilik (06.10.2026 → 06.10.2027) aynı. **Son: toplam 19.500, ödenen 19.500.** Kasa: 06.10
++8.500, bugün −8.500. `projections:verify`: yalnızca bilinen 16/18 Eylül; 14.10'daki gün içi fark da kapanmış.
+- **Örüntü (Seher'de de geçmiş para bugüne yazılmıştı):** paket yükseltmede eski ödemeyi iptal edip yeni satışa tek parça yazmak, eski günün kasasını bozuyor.
+  Doğrusu eski ödemeyi iptal etmemek; satış iptalinde serbest kalan ödeme yeni satışa tahsis edilir. Masada bunu kolaylaştıran bir
+  akış yok. Tekrar ederse "paketi yükselt" akışı önerilecek (owner kararı).
+
 ### 14 Ekim 17:00 — pano "kasaya giren" geriye tarihli ödemeyi BUGÜNE sayıyordu (DÜZELTİLDİ ve CANLIDA 17:2x: panel `build-2026-10-14-002` %100, tüm functions, servis katı elle 1)
 
 Owner: *"burada kasaya giren hesaplaması yanlış oldu."* Seher'in 22.09/08.10/13.10 nakit ödemeleri (20.000 ₺) bugüne yazılmıştı →
