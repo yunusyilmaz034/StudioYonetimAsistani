@@ -55,6 +55,15 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
   birebir (101 = 79 + 20 + 2). Owner deneyip yazacak.
 - **Yerelde, push edilmedi:** yalnızca günlük commit'leri (kod değil).
 
+### 16 Ekim ~16:40 — çıkış EKRANI boş (owner: "çıkışta QR yokmuş · ekranda yok") — DONANIM, yazılım değişmedi
+
+Son çıkış okutması 13:36; sonra 3 saat sıfır çıkış, girişler sürüyor. Sunucu çıkış cihazına kesintisiz kod üretiyor (5 saatte
+685 · giriş 687, boşluk yok), kart çevrimiçi (16:39, sabahtan beri yeniden başlamadı) → kod karta gidiyor, ekran göstermiyor.
+Firmware (`turnike-v1.5`) kendi ekranının durumunu raporlamıyor — buradan görülemez. Owner'a verilen sıra: fişi çek-tak →
+çıkış ekranının 8 telini yeniden oturt → ESP32'de iki `CS` telini (10↔9) takas: çıkış ekranı QR gösterirse arıza GPIO 9/tel,
+yine boşsa ekran/kablosu (yedek ILI9341 3.3 V). **Takas sonrası geri takılmalı** (yoksa giriş↔çıkış yer değiştirir). Owner
+deneyip yazacak. Bu arada çıkışı olmayan ziyaretleri otomatik çıkış kapatıyor ([[OR-124]]).
+
 ### 15 Ekim akşamı — Sevim Aygün: 12 aylık 19.500, iki nakit ödeme (CANLI VERİ, Işıl → owner)
 
 Işıl 3 aylığı (06.10, 8.500 nakit ödendi) "1 yıllığa çevrildi" diye iptal edip 12 Aylık 19.500 sattı ve bugün **tek parça
