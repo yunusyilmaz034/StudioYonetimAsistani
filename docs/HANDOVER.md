@@ -55,7 +55,7 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
   birebir (101 = 79 + 20 + 2). Owner deneyip yazacak.
 - **Yerelde, push edilmedi:** yalnızca günlük commit'leri (kod değil).
 
-### 16 Ekim 17:00 — GÜNLÜK BİLDİRİM SINIRI ~28 EYLÜL'DEN BERİ HER GÜN DOLUYORDU (yeniden deneme döngüsü) — KOD DÜZELTİLDİ, DEPLOY BEKLİYOR
+### 16 Ekim 17:00 — GÜNLÜK BİLDİRİM SINIRI ~28 EYLÜL'DEN BERİ HER GÜN DOLUYORDU (yeniden deneme döngüsü) — DÜZELTİLDİ, CANLIDA 16:5x (owner "şimdi": yalnızca `functions:notificationRetry`; main PUSH EDİLMEDİ — gece, panel sekmeleri kırılmasın)
 
 Owner'ın 16:10 "Yeni: Kalori takibi ve öğün fotoğrafı 🔥" gönderimi: 305/305 `failed`, hiç intent yok → `daily_limit_reached`.
 Bugün 1.000 intent'in 996'sı resepsiyona `alert_delivery_failed` (07:00'den itibaren saatte 192). **Sebep:** `sweepRetries`
@@ -69,7 +69,8 @@ Yani ~19 gündür her gün öğleden sonra (bugün ~12:00) **üyelere hiçbir bi
 tekrarlanmaz) · mesajdan 24 saat sonra hâlâ bekleyen yeniden deneme gönderilmeden kapanıyor. Test `sweep-retries.test.ts`
 (eski kodda 3/4 kırmızı). Deploy sonrası ilk tarama 48 eski `queued` denemeyi gönderimsiz kapatır; veri betiği gerekmez.
 **Bugünün kotası dolu** (UTC gün → 03:00'te sıfırlanır). **Owner'ın duyurusu yeniden gönderilecek** — deploy'dan sonra, yarın.
-**Deploy edilmezse yarın 07:00'de döngü yeniden başlar.**
+**Doğrulama:** deploy + görev elle tetiklendi → `queued` deneme 48 → **0**. Owner kararı: duyuruyu **yarın 10:00 kendisi** panelden yeniden basacak.
+**Yarın bakılacak:** gün içi intent sayısı 1.000'e yaklaşmamalı; `alert_delivery_failed` saatte 192 değil, gerçek arıza sayısı kadar.
 
 ### 16 Ekim ~16:40 — çıkış EKRANI boş (owner: "çıkışta QR yokmuş · ekranda yok") — DONANIM, yazılım değişmedi
 
