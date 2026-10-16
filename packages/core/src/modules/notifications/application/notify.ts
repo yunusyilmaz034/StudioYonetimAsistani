@@ -49,6 +49,8 @@ async function resolveTemplate(
 // retrying, and that is the correct answer, not a compromise.
 
 const SOURCE: EventSource = 'system_notify'
+// See `sweepRetries`: past this, a due retry is a leftover, not a retry.
+const RETRY_STALE_MS = 24 * 3_600_000
 
 const dctx = (
   deps: NotificationDeps,
@@ -249,10 +251,30 @@ export async function sweepRetries(
       continue
     }
 
+    if (!attempt.error) {
+      await deliver(deps, ctx, intent, { ...attempt, status: 'pending' as const })
+      retried++
+      continue
+    }
+
+    // ── THE LOOP THIS CLOSES (owner, 2026-10-16) ─────────────────────────────────────────────
+    //
+    // The failed attempt used to stay `queued` after its retry was made, so EVERY sweep picked it up
+    // again, rebuilt the same retry, failed it, and appended another `notification.failed` — and every
+    // one of those became an "iletilemedi" alert to reception. 24 September pushes with dead tokens
+    // turned into ~1,000 alerts a day, which ate the studio's whole daily ceiling: for at least a week,
+    // members' booking and cancellation messages stopped going out every afternoon. The attempt is now
+    // CLOSED before its retry runs — written first, so a crash in between loses one retry, never
+    // repeats one.
+    await deps.repo.saveAttempt(ctx, { ...attempt, status: 'failed', nextRetryAt: null }, [])
+
+    // A retry chain is minutes long (backoff ≤ 4 h); one still due a day after the message was created
+    // is a leftover, and sending it now would deliver yesterday's news. Closed, not retried.
+    if (now - intent.createdAt > RETRY_STALE_MS) continue
+
     // A retry is a NEW attempt, never a mutation of the old one — the same discipline as a payment
     // void: history is appended to, never edited.
-    const next = attempt.error ? retryOf(attempt) : { ...attempt, status: 'pending' as const }
-    await deliver(deps, ctx, intent, next)
+    await deliver(deps, ctx, intent, retryOf(attempt))
     retried++
   }
   return { retried }

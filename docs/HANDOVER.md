@@ -55,6 +55,22 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
   birebir (101 = 79 + 20 + 2). Owner deneyip yazacak.
 - **Yerelde, push edilmedi:** yalnızca günlük commit'leri (kod değil).
 
+### 16 Ekim 17:00 — GÜNLÜK BİLDİRİM SINIRI ~28 EYLÜL'DEN BERİ HER GÜN DOLUYORDU (yeniden deneme döngüsü) — KOD DÜZELTİLDİ, DEPLOY BEKLİYOR
+
+Owner'ın 16:10 "Yeni: Kalori takibi ve öğün fotoğrafı 🔥" gönderimi: 305/305 `failed`, hiç intent yok → `daily_limit_reached`.
+Bugün 1.000 intent'in 996'sı resepsiyona `alert_delivery_failed` (07:00'den itibaren saatte 192). **Sebep:** `sweepRetries`
+başarısız denemenin yeniden denemesini yapıyor ama ESKİ denemeyi `queued` bırakıyordu → her tarama aynı denemeyi tekrar
+seçiyor, tekrar başarısız (`push_rejected`, Eylül'deki 2 toplu gönderimden ölü token'lı 24 push), her başarısızlık
+`notification.failed` → resepsiyona yeni uyarı. Günlük intent: 21.09 674 · 25.09 780 · **28.09'dan beri her gün 1.000** (tavan).
+Yani ~19 gündür her gün öğleden sonra (bugün ~12:00) **üyelere hiçbir bildirim gitmiyordu**: rezervasyon/iptal/hatırlatma/
+21:30 kalori özeti (bkz. "21:30 bildirimi hiç ateşlenmedi"). Üyeye mükerrer gönderim YOK (hiçbir yeniden deneme başarılı olmamış;
+29.378 sent/delivered olayında attemptNo≥2 sıfır). Resepsiyonun gelen kutusu günde ~1.000 uyarıyla dolmuş olmalı.
+**Düzeltme (`notify.ts`):** yeniden denemeden ÖNCE eski deneme `failed` yazılıyor (çökme olursa bir deneme kaybolur, asla
+tekrarlanmaz) · mesajdan 24 saat sonra hâlâ bekleyen yeniden deneme gönderilmeden kapanıyor. Test `sweep-retries.test.ts`
+(eski kodda 3/4 kırmızı). Deploy sonrası ilk tarama 48 eski `queued` denemeyi gönderimsiz kapatır; veri betiği gerekmez.
+**Bugünün kotası dolu** (UTC gün → 03:00'te sıfırlanır). **Owner'ın duyurusu yeniden gönderilecek** — deploy'dan sonra, yarın.
+**Deploy edilmezse yarın 07:00'de döngü yeniden başlar.**
+
 ### 16 Ekim ~16:40 — çıkış EKRANI boş (owner: "çıkışta QR yokmuş · ekranda yok") — DONANIM, yazılım değişmedi
 
 Son çıkış okutması 13:36; sonra 3 saat sıfır çıkış, girişler sürüyor. Sunucu çıkış cihazına kesintisiz kod üretiyor (5 saatte
