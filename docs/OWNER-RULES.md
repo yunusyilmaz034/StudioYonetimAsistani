@@ -2462,3 +2462,9 @@ Owner: *"öğün fotoğrafını çek, kalorisini hesaplayalım, kaç kalori ald�
 - 21:30 özeti: aldığı da eklenir (gizli değilse); yalnızca öğün girilen gün de özet gider.
 - Fotoğraf ve yazdığı metin saklanmaz; yemek adları ve kaloriler yalnızca üyenin gün belgesinde, olaylarda yok (#6).
 - Hedef kalori/makrolar ve Işıl'ın beslenme planı BU SÜRÜMDE YOK — 2. adımda (not metni hâlâ sorulacak).
+
+**OR-126 · Reklamın ilk 3 günü WhatsApp lead'leri tiklense de panoda kalır.** (2026-10-17)
+Owner: *"13 kişi yazmış, onlar niye yok · hepsi not bırakılmış o zaman anladım ama ilk 3 gün hepsi gelsin"* — seçenekten
+"reklamın ilk 3 günü". Reklam dönemi başladıktan sonraki 3 gün (`startedAt` + 72 saat) tiklenen lead ertesi gün notuyla
+geri gelir; sonra 28 Eylül kuralı (tiklenen lead 3 gün gizli) aynen. Yalnızca `hot_lead`; diğer işlerin soğuması değişmedi.
+Kod: `checklist-snooze.ts` `LEAD_GRACE_DAYS`, `leadGraceUntil`.

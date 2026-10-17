@@ -87,11 +87,25 @@ export function kindOfItemId(itemId: string): string | null {
   return i > 0 ? itemId.slice(0, i) : null
 }
 
+/**
+ * REKLAMIN İLK ÜÇ GÜNÜ, LEAD SUSMAZ (owner, 2026-10-17).
+ *
+ * *"İlk 3 gün hepsi gelsin."* 15 Ekim reklamının 13 lead'inden 12'si üç gün içinde notlanıp tiklendi
+ * ve panodaki "N WhatsApp lead'i" başlığı tek satıra indi. Owner kampanya sıcakken bütününü görmek
+ * istiyor: dönemin ilk üç günü tiklenen lead ertesi gün NOTUYLA geri gelir; sonra üç günlük soğuma.
+ */
+export const LEAD_GRACE_DAYS = 3
+
+/** Reklam döneminin başlangıcından lead soğumasının yeniden başladığı ana. Dönem yoksa 0 (yok). */
+export const leadGraceUntil = (adPeriodStartedAt: number | null): number =>
+  adPeriodStartedAt ? adPeriodStartedAt + LEAD_GRACE_DAYS * GUN_MS : 0
+
 /** SAF: bu tik, şu an listeyi susturuyor mu? Sınır burada, testi de burada. */
-export function isSnoozedNow(itemId: string, tickedAt: number, now: number): boolean {
+export function isSnoozedNow(itemId: string, tickedAt: number, now: number, graceUntil = 0): boolean {
   const kind = kindOfItemId(itemId)
   const gun = kind ? CHECKLIST_COOLDOWN_DAYS[kind] : undefined
   if (gun === undefined) return false
+  if (kind === 'hot_lead' && now < graceUntil) return false
   // TİKLENDİĞİ GÜN SATIR YERİNDE KALIR — üstü çizili. 5 Ağustos'ta konmuş kuralın aynısı
   // (*"gün sonunda görsün ne kadar iş kapatmış"*), ve tek geri dönüş yolu bu: satır aynı gün gözden
   // kaybolsaydı, yanlışlıkla atılan bir tik işi bir haftalığına kimsenin göremediği bir yere koyardı.
@@ -106,6 +120,10 @@ export function isSnoozedNow(itemId: string, tickedAt: number, now: number): boo
 export async function loadSnoozedItemIds(studioId: string, now: number): Promise<ReadonlySet<string>> {
   try {
     const db = adminDb()
+    // Lead listesinin baktığı AYNI dönem (`getCurrentAdPeriod`: en son başlayan). Bir belge okuması.
+    const donem = await db.collection('studios').doc(studioId).collection('adPeriods').orderBy('startedAt', 'desc').limit(1).get()
+    const basladi = donem.docs[0]?.get('startedAt') as { toMillis?: () => number } | number | undefined
+    const grace = leadGraceUntil(basladi == null ? null : typeof basladi === 'number' ? basladi : (basladi.toMillis?.() ?? null))
     const gunler: string[] = []
     for (let i = 1; i <= MAX_GUN; i++) gunler.push(studioDay(now - i * GUN_MS))
     const refs = gunler.map((g) => db.collection('studios').doc(studioId).collection('checklistDone').doc(g))
@@ -116,7 +134,7 @@ export async function loadSnoozedItemIds(studioId: string, now: number): Promise
       const items = (snap.data()?.items ?? {}) as Record<string, { at?: number } | undefined>
       for (const [itemId, v] of Object.entries(items)) {
         const at = Number(v?.at ?? 0)
-        if (at > 0 && isSnoozedNow(itemId, at, now)) out.add(itemId)
+        if (at > 0 && isSnoozedNow(itemId, at, now, grace)) out.add(itemId)
       }
     }
     return out

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { CHECKLIST_COOLDOWN_DAYS, isSnoozedNow, kindOfItemId } from './checklist-snooze'
+import { CHECKLIST_COOLDOWN_DAYS, isSnoozedNow, kindOfItemId, leadGraceUntil } from './checklist-snooze'
 
 // Tiklenmiş bir "bir arayın" satırı, tiklendiği gün YERİNDE kalmalı (resepsiyon ne kapattığını
 // görsün, ve yanlış tik geri alınabilsin) ve ertesi sabah GİTMELİ. Bu çift, kuralın kendisidir.
@@ -69,5 +69,31 @@ describe('checklist soğuması', () => {
   it('son tarihi olan işler daha kısa soğur — yanan hak geri gelmiyor', () => {
     expect(CHECKLIST_COOLDOWN_DAYS.expiring_with_credits).toBe(3)
     expect(CHECKLIST_COOLDOWN_DAYS.expiring_soon).toBe(3)
+  })
+})
+
+// owner, 2026-10-17: *"reklamın ilk 3 günü hepsi gelsin."* Dönem 15.10 00:00'da başladıysa 15-16-17
+// Ekim boyunca tiklenen lead ertesi gün geri gelir; 18 Ekim 00:00'dan sonra eski üç günlük soğuma.
+describe('reklamın ilk üç günü lead susmaz', () => {
+  const donem = T('2026-10-15T00:00:00+03:00')
+  const grace = leadGraceUntil(donem)
+  const tik = T('2026-10-16T14:00:00+03:00')
+
+  it('ilk üç gün içinde, dünkü tikli lead listede', () => {
+    expect(isSnoozedNow(LEAD, tik, T('2026-10-17T09:00:00+03:00'), grace)).toBe(false)
+    expect(isSnoozedNow(LEAD, tik, T('2026-10-17T23:59:59+03:00'), grace)).toBe(false)
+  })
+
+  it('dördüncü gün başlayınca eski soğuma geri döner', () => {
+    expect(isSnoozedNow(LEAD, tik, T('2026-10-18T00:00:00+03:00'), grace)).toBe(true)
+  })
+
+  it('yalnızca lead: aynı günlerde tiklenen başka iş yine susar', () => {
+    expect(isSnoozedNow(UZAK, tik, T('2026-10-17T09:00:00+03:00'), grace)).toBe(true)
+  })
+
+  it('dönem yoksa pencere yok', () => {
+    expect(leadGraceUntil(null)).toBe(0)
+    expect(isSnoozedNow(LEAD, tik, T('2026-10-17T09:00:00+03:00'), leadGraceUntil(null))).toBe(true)
   })
 })
