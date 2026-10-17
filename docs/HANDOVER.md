@@ -60,7 +60,7 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
 Owner: *"en üstte WP lead geliyordu şimdi yok · 13 kişi yazmış onlar niye yok"*. Ölçüm: 15 Ekim reklamının 13 sohbetinin 12'si
 15–17 Ekim'de Işıl tarafından notlanıp tiklenmiş → 3 günlük soğuma; liste ≥2 aynı tür olunca grupladığı için tek lead (Ayten,
 bugün tikli) düz satıra indi. 13.'sü Handan Polat: yalnızca "hangi ildesiniz", AI aşama atamadı → aşamasız sohbet listeye
-girmiyor (tasarım; owner'a "yeni yazan da gelsin" önerildi, cevap bekliyor). **Kod (YEREL, deploy gece):** dönemin ilk 3 günü
+girmiyor (tasarım; owner'a "yeni yazan da gelsin" önerildi, cevap bekliyor). **Kod (CANLIDA ~16:1x, owner "şimdi yap"; panel `build-2026-10-17-001` %100, servis katı 1; main push edildi — 16 Ekim bildirim düzeltmesi de main'de):** dönemin ilk 3 günü
 `hot_lead` soğuması yok. 15 Ekim dönemi için pencere 18.10 00:00'da kapanıyor — yani bu kampanyada etkisi yalnızca bu akşama;
 asıl etkisi bir sonraki reklamda. Owner'a söylendi.
 
