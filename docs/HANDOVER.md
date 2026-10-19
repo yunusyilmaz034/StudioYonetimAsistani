@@ -55,6 +55,19 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
   birebir (101 = 79 + 20 + 2). Owner deneyip yazacak.
 - **Yerelde, push edilmedi:** yalnızca günlük commit'leri (kod değil).
 
+### 19 Ekim akşamı — Merve Firdevs Uslu: 3 aylık → 12 aylık + programı (CANLI VERİ, owner)
+
+- **Paket:** owner *"8.500 ödemişti, 11.000 daha ödedi; başlangıç aynı, 1 yıllık yap"*. `fix-merve-uslu-yillik-2026-10-19.ts`
+  UYGULANDI (Sevim yolunun aynısı): Eylül iki ödemesi (500 + 8.000) iptal → 3 aylık satış ve paket iptal → **Fitness 12 Aylık
+  19.500** (`ent_01M5ACDHS5EEWY7Q6MW9HCX064`, 21.09.2026 → 21.09.2027) → 500/8.000 eski saatleriyle **kasasız**, 11.000 bugün
+  Merkez Kasa nakit. Satış settled, 19.500/19.500. Eylül tahsilatları kasasız çünkü bugünün kasa oturumu bugün açıldı: Eylül
+  iptalleri oturuma dokunmuyor, kasaya bağlı yeniden yazım beklenen nakdi 8.500 şişirirdi; Kasa Hareketleri `receivedAt` okur.
+  **11.000'in nakit olduğu VARSAYIM** (önceki ikisi nakit) — kart çıkarsa `voidPayment` + yeniden tahsil.
+- **Program:** owner üyede sağlık kısıtı bildirdi, havuzdan uygun program istedi ("eksik gedik düzeltmeyi biz yaparız").
+  `program-merve-uslu-2026-10-19.ts` UYGULANDI: elindeki "Program A"ya **v2** (3 gün × 7 hareket; makine/destekli, hafif–orta,
+  ağır bileşik/kasık geren/karın basıncı artıran hareketler yok). v1 geçmişte. Durum adı hiçbir yere yazılmadı (olay yükü sayı).
+  Eğitmen gözden geçirecek.
+
 ### 17 Ekim 15:30 — panoda "WhatsApp lead'i" başlığı kayboldu → bozuk değil; reklamın ilk 3 günü lead'ler kalsın ([[OR-126]])
 
 Owner: *"en üstte WP lead geliyordu şimdi yok · 13 kişi yazmış onlar niye yok"*. Ölçüm: 15 Ekim reklamının 13 sohbetinin 12'si
