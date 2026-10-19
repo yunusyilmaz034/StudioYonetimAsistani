@@ -49,7 +49,6 @@ const DAYS: readonly DraftProgramDay[] = [
     ['exr_01KXN5JAB46TG8N2HFF1AN6K2F', 3, '12', 60], // Leg Extension
     ['exr_01KXN5JBRYTRDN1W4KFEG0XXAX', 3, '12', 60], // Seated Leg Curl
     ['exr_01KXN5J9PHW2YBQ2H78VX1CVGK', 3, '12', 60, 'Önce ağırlıksız. Kalçayı sık, beli zorlama; nefesini tutma.'], // Glute Bridge
-    ['exr_01KXN5JCC9Q47HG1XZ79MAP3PX', 2, '15', 45], // Abductor (Dış Kalça)
     ['exr_01KXN5J9DRHSSF1PBK726GY8WN', 2, '12 (her taraf)', 45], // Cable Glute Kickback
     ['exr_01KXN5JCFQR0SQBSMD5P2P89X0', 3, '15', 45], // Calf Raise
     ['r0xBXEpn8vgXiCTWEXC5', 2, '8 (her taraf)', 45, 'Yavaş, gövde sabit. Nefes ritmik.'], // Bird Dog
@@ -65,7 +64,8 @@ const DAYS: readonly DraftProgramDay[] = [
   ]),
 ]
 
-const NOTE = 'Owner talebiyle düzenlendi: makine ağırlıklı, hafif–orta yük, nefes tutmadan. Eğitmen gözden geçirecek.'
+// v3 (owner, aynı akşam: "kasık yırtığı"): Abductor çıkarıldı — bacak açılırken kasığı uç noktada gerer.
+const NOTE = 'Owner talebiyle düzenlendi: makine ağırlıklı, hafif–orta yük, nefes tutmadan; kasığı geren hareket yok. Eğitmen gözden geçirecek.'
 
 async function main(): Promise<void> {
   initializeApp({ projectId: process.env.FIREBASE_PROJECT_ID ?? 'studio-yonetim-prod' })

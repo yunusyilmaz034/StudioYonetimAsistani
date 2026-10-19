@@ -66,7 +66,8 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
 - **Program:** owner üyede sağlık kısıtı bildirdi, havuzdan uygun program istedi ("eksik gedik düzeltmeyi biz yaparız").
   `program-merve-uslu-2026-10-19.ts` UYGULANDI: elindeki "Program A"ya **v2** (3 gün × 7 hareket; makine/destekli, hafif–orta,
   ağır bileşik/kasık geren/karın basıncı artıran hareketler yok). v1 geçmişte. Durum adı hiçbir yere yazılmadı (olay yükü sayı).
-  Eğitmen gözden geçirecek.
+  Eğitmen gözden geçirecek. Aynı akşam owner *"kasık yırtığı"* dedi (fıtık mı kas yırtığı mı belirsiz) → **v3**: Abductor
+  çıkarıldı (kasığı uç noktada gerer); geri kalanı iki duruma da uygun. Üyeye iki "program güncellendi" bildirimi gitti.
 
 ### 17 Ekim 15:30 — panoda "WhatsApp lead'i" başlığı kayboldu → bozuk değil; reklamın ilk 3 günü lead'ler kalsın ([[OR-126]])
 
