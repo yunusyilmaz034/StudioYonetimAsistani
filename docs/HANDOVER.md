@@ -55,6 +55,15 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
   birebir (101 = 79 + 20 + 2). Owner deneyip yazacak.
 - **Yerelde, push edilmedi:** yalnızca günlük commit'leri (kod değil).
 
+### 19 Ekim akşamı — Arzu Doğan 12 aylık → Arzu 6 aylık + kızı Beyza Doğan 6 aylık (CANLI VERİ, Işıl → owner)
+
+- `fix-arzu-beyza-dogan-6-aylik-2026-10-19.ts` UYGULANDI. 12 Aylık 22.000 (15.09 PAYTR linki, tek `online` ödeme) iptal →
+  **Arzu 6 Aylık 14.000** (14.10.2026 → 12.04.2027, owner: düz 6 ay, 12 aylıktaki fazladan ay taşınmadı) + **Beyza 6 Aylık
+  14.000** (19.10.2026 → 17.04.2027). Fiyat kart fiyatı (14.000; 12 aylık da kart fiyatından alınmıştı; Işıl'ın hesabı 28−22=6).
+- Ödeme başka üyenin satışına bağlanamadığı için (`decideAllocate`) tek PAYTR ödemesi aynı an + aynı `providerRef` ile
+  **Arzu 14.000 + Beyza 8.000** olarak yeniden yazıldı. **Beyza'nın 6.000 borcu açık** — ödeyince masa tahsil eder.
+  PAYTR ekstresinde tek 22.000 işlem var, defterde iki satır: toplamı aynı.
+
 ### 19 Ekim akşamı — Merve Firdevs Uslu: 3 aylık → 12 aylık + programı (CANLI VERİ, owner)
 
 - **Paket:** owner *"8.500 ödemişti, 11.000 daha ödedi; başlangıç aynı, 1 yıllık yap"*. `fix-merve-uslu-yillik-2026-10-19.ts`
