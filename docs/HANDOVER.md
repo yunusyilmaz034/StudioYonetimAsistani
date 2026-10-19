@@ -72,6 +72,10 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
 - Ödeme başka üyenin satışına bağlanamadığı için (`decideAllocate`) tek PAYTR ödemesi aynı an + aynı `providerRef` ile
   **Arzu 14.000 + Beyza 8.000** olarak yeniden yazıldı. **Beyza'nın 6.000 borcu açık** — ödeyince masa tahsil eder.
   PAYTR ekstresinde tek 22.000 işlem var, defterde iki satır: toplamı aynı.
+- **DÜZELTME (aynı akşam):** kızı Beyza Doğan DEĞİL, **Azra İrem Yıldız** (owner). Işıl Azra'yı açıp masadan 6 Aylık
+  14.000 satmış (20.10 → 18.04.2027), 6.000 tahsil etmiş. `fix-beyza-yerine-azra-2026-10-19.ts` UYGULANDI: Beyza'daki
+  8.000 pay + yanlış 6 aylık satış/paket iptal (Reformer paketi dokunulmadı); 8.000 aynı PAYTR ödemesi olarak Azra'nın
+  satışına → settled 14.000/14.000. Ders: kişiyi soyadından TAHMİN ETME — Beyza "aynı soyad" diye önerilmişti.
 
 ### 19 Ekim akşamı — Merve Firdevs Uslu: 3 aylık → 12 aylık + programı (CANLI VERİ, owner)
 
