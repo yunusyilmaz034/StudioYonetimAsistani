@@ -244,6 +244,11 @@ export type DomainError =
   | { readonly code: 'freeze_already_scheduled' }
   // Today is not a plan, it is a freeze — and it has its own function and its own event.
   | { readonly code: 'freeze_start_not_future' }
+  // Backdated freeze (owner, 2026-10-19): it must start BEFORE today, not before the package, and not
+  // over days she was seen in.
+  | { readonly code: 'freeze_start_not_past' }
+  | { readonly code: 'freeze_before_package_start' }
+  | { readonly code: 'freeze_window_has_activity' }
   | { readonly code: 'freeze_not_scheduled' }
   | { readonly code: 'freeze_not_due' }
   // Süresi dolmuş KREDİLİ paketin tarihini ileri almak (2026-08-31). Süre dolarken kalan krediler

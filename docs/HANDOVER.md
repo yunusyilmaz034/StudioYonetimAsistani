@@ -55,6 +55,15 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
   birebir (101 = 79 + 20 + 2). Owner deneyip yazacak.
 - **Yerelde, push edilmedi:** yalnızca günlük commit'leri (kod değil).
 
+### 19 Ekim akşamı — GEÇMİŞ TARİHLİ DONDURMA ([[OR-127]]) — owner "deploy etmek istersen et"
+
+- Sude Yavuz için istendi (Fitness 3 Aylık 10.10 → 08.01, 7 gün hak; yalnızca 10.10'da gelmiş). Veriye dokunulmadı —
+  dondurmayı masa yeni seçenekle yapacak.
+- Core: `decideBackdatedFreeze` (= `decideFreeze` geçmiş `from` + bitiş geçmişse `decideUnfreeze`, tek yazım) +
+  `backdateFreeze`; 3 yeni DomainError (`freeze_start_not_past`, `freeze_before_package_start`, `freeze_window_has_activity`)
+  Türkçe metinleriyle; `backdated-freeze.test.ts` 14 test. Web: `backdateFreezeAction` (giriş/katılım ve rezervasyon üye
+  bazlı tek alan sorgusuyla, bellekte süzülür — bileşik index yok) + Dondur penceresinde "Geçmiş tarihli" sekmesi.
+
 ### 19 Ekim akşamı — Arzu Doğan 12 aylık → Arzu 6 aylık + kızı Beyza Doğan 6 aylık (CANLI VERİ, Işıl → owner)
 
 - `fix-arzu-beyza-dogan-6-aylik-2026-10-19.ts` UYGULANDI. 12 Aylık 22.000 (15.09 PAYTR linki, tek `online` ödeme) iptal →

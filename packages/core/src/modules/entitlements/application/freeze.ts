@@ -8,12 +8,14 @@ import {
   type TenantContext,
 } from '../../../shared'
 import {
+  decideBackdatedFreeze,
   decideCancelFreezeSchedule,
   decideFreeze,
   decideScheduleFreeze,
   decideStartScheduledFreeze,
   decideUnfreeze,
   freezeDaysRemaining,
+  type BackdatedFreeze,
   type FreezePlan,
   type FreezeSchedule,
 } from '../domain/decide'
@@ -74,6 +76,39 @@ export async function unfreezeEntitlement(
   return { ok: true, value: undefined }
 }
 
+
+/**
+ * A freeze that STARTED IN THE PAST (owner, 2026-10-19) — see `decideBackdatedFreeze`.
+ *
+ * One write: when the window has already ended, the freeze and its end land together, so no sweep
+ * and no second click is needed for her date to move.
+ */
+export async function backdateFreeze(
+  deps: EntitlementsDeps,
+  ctx: TenantContext,
+  input: {
+    readonly entitlementId: EntitlementId
+    /** Today, in the studio's timezone — resolved by the caller, never by the domain. */
+    readonly today: string
+    /** Was she seen inside the window (door entry, attended class)? The caller answers it. */
+    readonly activityInWindow: boolean
+    readonly hasReservationInWindow: boolean
+    readonly plan: BackdatedFreeze
+  },
+): Promise<Result<void, DomainError>> {
+  const ent = await loadEntitlement(deps, ctx, input.entitlementId)
+  const outcome = decideBackdatedFreeze(
+    decideContext(deps, ctx),
+    ent,
+    input.today,
+    input.activityInWindow,
+    input.hasReservationInWindow,
+    input.plan,
+  )
+  if (!outcome.ok) return outcome
+  await deps.repo.saveEntitlement(ctx, outcome.value.next, outcome.value.events)
+  return { ok: true, value: undefined }
+}
 
 /**
  * Book a freeze for LATER (owner, 2026-08-31).

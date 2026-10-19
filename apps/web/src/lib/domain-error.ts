@@ -229,6 +229,13 @@ export function domainErrorMessage(error: DomainError): string {
       return 'Bu pakette planlanmış bir dondurma zaten var. Önce onu iptal edin.'
     case 'freeze_start_not_future':
       return 'Planlanan dondurma ileri bir tarihte başlamalı. Bugünden başlatmak için "Şimdi dondur" kullanın.'
+    // ── Geçmiş tarihli dondurma (owner, 2026-10-19) ──
+    case 'freeze_start_not_past':
+      return 'Geçmiş tarihli dondurmanın başlangıcı bugünden önce olmalı. Bugünden başlatmak için "Şimdi dondur" kullanın.'
+    case 'freeze_before_package_start':
+      return 'Dondurma, paketin başlangıç tarihinden önce başlayamaz.'
+    case 'freeze_window_has_activity':
+      return 'Üye bu tarihler arasında stüdyoya gelmiş (giriş ya da katıldığı ders var). Kullandığı günler dondurulamaz; başlangıcı son gelişinden sonraya alın.'
     case 'freeze_not_scheduled':
       return 'Bu pakette planlanmış bir dondurma yok.'
     case 'freeze_not_due':

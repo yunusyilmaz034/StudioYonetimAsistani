@@ -1100,6 +1100,52 @@ export function decideUnfreeze(
   })
 }
 
+// ── A FREEZE THAT STARTED IN THE PAST (owner, 2026-10-19) ───────────────────────────────────────
+//
+// *"Geçmiş tarihli dondurma yapmak istiyoruz."* The member told the studio she was away; nobody froze
+// her on the day. The desk could only stop her from TODAY, so the days she was already gone were lost
+// to her membership.
+//
+// No new event, and no new arithmetic: it is `decideFreeze` with an earlier `from`, and — when the
+// window has already ended — `decideUnfreeze` on the same day, in the same write. The extension is
+// paid exactly as any freeze pays it, for the days it stood still, capped at what was approved.
+//
+// Refused rather than bent:
+//   · a start of today or later — that is an ordinary or a planned freeze, with their own doors;
+//   · a start before the package began — there was no membership to stop;
+//   · a window she was SEEN in (a door entry or an attended class) — a freeze over days she used is
+//     not a correction, it is free time. The caller answers it; the records live elsewhere.
+export interface BackdatedFreeze extends FreezePlan {
+  readonly from: string // LocalDate, before today
+  readonly to: string // LocalDate, after `from`; may be today or later (she is still away)
+  /** `from` as an instant, resolved by the caller that knows the studio's offset. */
+  readonly fromAt: number
+}
+
+export function decideBackdatedFreeze(
+  ctx: DecideContext,
+  ent: Entitlement,
+  today: string, // LocalDate in the studio's timezone — resolved by the caller, never here
+  activityInWindow: boolean,
+  hasReservationInWindow: boolean,
+  plan: BackdatedFreeze,
+): Result<LedgerOutcome, DomainError> {
+  if (plan.from >= today) return err({ code: 'freeze_start_not_past' })
+  if (plan.fromAt < (ent.validFrom as number)) return err({ code: 'freeze_before_package_start' })
+  if (ent.freeze?.scheduledFrom) return err({ code: 'freeze_already_scheduled' })
+  const days = daysBetween(plan.from, plan.to)
+  if (!Number.isInteger(days) || days < 1) return err({ code: 'invalid_freeze_days' })
+  if (activityInWindow) return err({ code: 'freeze_window_has_activity' })
+
+  const frozen = decideFreeze(ctx, ent, plan.from, hasReservationInWindow, { ...plan, plannedDays: days })
+  if (!frozen.ok) return frozen
+  if (plan.to > today) return frozen
+
+  const thawed = decideUnfreeze(ctx, frozen.value.next, plan.to, false)
+  if (!thawed.ok) return thawed
+  return ok({ next: thawed.value.next, events: [...frozen.value.events, ...thawed.value.events] })
+}
+
 // ── PAKETİ ÜRÜNLE EŞİTLE (owner, 2026-09-15) ────────────────────────────────────────────────
 //
 // "PT PİLATES 6 AY" 17:54'te pilates grup kategorisiyle oluşturuldu, 18:03'te iki üyeye satıldı, 18:21'de

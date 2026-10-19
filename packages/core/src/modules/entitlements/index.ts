@@ -85,6 +85,8 @@ export {
   // Owner, 2026-08-31 — a freeze booked for a future window; the sweep carries it out.
   scheduleFreeze,
   cancelFreezeSchedule,
+  // Owner, 2026-10-19 — a freeze that started in the past.
+  backdateFreeze,
 } from './application/freeze'
 export {
   decideFreeze,
@@ -92,6 +94,8 @@ export {
   decideScheduleFreeze,
   decideStartScheduledFreeze,
   decideCancelFreezeSchedule,
+  decideBackdatedFreeze,
+  type BackdatedFreeze,
   freezeDaysRemaining,
   type FreezeSchedule,
 } from './domain/decide'

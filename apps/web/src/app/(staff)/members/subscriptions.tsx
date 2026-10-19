@@ -10,6 +10,7 @@ import { packageTimelineAction } from '@/server/actions/activity'
 import {
   freezeSubscriptionAction,
   scheduleFreezeAction,
+  backdateFreezeAction,
   cancelFreezeScheduleAction,
   unfreezeSubscriptionAction,
 } from '@/server/actions/subscription'
@@ -267,7 +268,7 @@ function SubscriptionRow({ sub, siblings, products, onChanged, isOwner = false, 
   // "Şimdi" or a window booked for later. Two dates instead of a day count, because that is how the
   // member says it — *"5'inden 15'ine kadar yokum"* — and reception should not have to do the
   // subtraction, nor come back on the 5th to press a button.
-  const [freezeMode, setFreezeMode] = useState<'now' | 'later'>('now')
+  const [freezeMode, setFreezeMode] = useState<'now' | 'later' | 'past'>('now')
   const [freezeFrom, setFreezeFrom] = useState('')
   const [freezeTo, setFreezeTo] = useState('')
   const [busy, setBusy] = useState(false)
@@ -305,7 +306,9 @@ function SubscriptionRow({ sub, siblings, products, onChanged, isOwner = false, 
   // about it — the whole failure was a control that knew the answer and did not share it.
   // ONE number, whichever way it was entered. Everything below — the warning, the summary, the
   // button — reads this, so the two modes can never disagree about how long she is stopping.
-  const later = freezeMode === 'later'
+  // `later` = the form asks for a DATE RANGE (planned or backdated); `past` = the range began before today.
+  const later = freezeMode !== 'now'
+  const past = freezeMode === 'past'
   const rangeDays = later && freezeFrom && freezeTo ? Math.round((Date.parse(`${freezeTo}T00:00:00Z`) - Date.parse(`${freezeFrom}T00:00:00Z`)) / 86_400_000) : 0
   const freezeNum = later ? rangeDays : Number(freezeDays)
   const freezeMax = freezeSub.freezeDaysRemaining ?? 0
@@ -324,7 +327,9 @@ function SubscriptionRow({ sub, siblings, products, onChanged, isOwner = false, 
   const freezeCeiling = overrideOn ? 365 : freezeMax
   // A booked window must START in the future — today is a freeze, and it has its own event. The
   // domain refuses it either way (`freeze_start_not_future`); the screen says so first.
-  const startsLater = !later || (freezeFrom > studioToday())
+  // Geçmiş tarihli (owner, 2026-10-19): the start is BEFORE today and not before the package began.
+  const packageStart = toDateInput(freezeSub.validFrom)
+  const startsLater = !later || (past ? freezeFrom < studioToday() && freezeFrom >= packageStart : freezeFrom > studioToday())
   // The reason is part of "may this be submitted", so the button and the explanation cannot
   // disagree — the same rule the day count already follows here.
   const overrideReasonOk = !overrideOn || freezeOverrideReason.trim().length > 0
@@ -520,6 +525,7 @@ function SubscriptionRow({ sub, siblings, products, onChanged, isOwner = false, 
               {([
                 ['now', 'Şimdi dondur'],
                 ['later', 'İleri tarihe planla'],
+                ['past', 'Geçmiş tarihli'],
               ] as const).map(([key, label]) => (
                 <button
                   key={key}
@@ -543,7 +549,8 @@ function SubscriptionRow({ sub, siblings, products, onChanged, isOwner = false, 
                   <Input
                     id="fz-from"
                     type="date"
-                    min={addDays(studioToday(), 1)}
+                    min={past ? packageStart : addDays(studioToday(), 1)}
+                    max={past ? addDays(studioToday(), -1) : undefined}
                     value={freezeFrom}
                     onChange={(e) => {
                       setFreezeFrom(e.target.value)
@@ -590,7 +597,19 @@ function SubscriptionRow({ sub, siblings, products, onChanged, isOwner = false, 
               ) : null}
               {later && freezeFrom && !startsLater ? (
                 <p className="text-sm text-danger">
-                  Planlanan dondurma yarından itibaren başlamalı. Bugün durdurmak için “Şimdi dondur”u seçin.
+                  {past
+                    ? freezeFrom < packageStart
+                      ? `Dondurma paketin başlangıcından (${packageStart}) önce başlayamaz.`
+                      : 'Geçmiş tarihli dondurma bugünden önce başlamalı. Bugün durdurmak için “Şimdi dondur”u seçin.'
+                    : 'Planlanan dondurma yarından itibaren başlamalı. Bugün durdurmak için “Şimdi dondur”u seçin.'}
+                </p>
+              ) : null}
+              {past && entered && startsLater ? (
+                <p className="text-sm text-muted-foreground">
+                  {freezeTo <= studioToday()
+                    ? 'Bitiş bugün ya da geçmişte: dondurma hemen kapanır ve süre şimdi uzar.'
+                    : `Bitiş ileride: üyelik ${freezeTo} gününe kadar donuk kalır, o gün sistem açar.`}{' '}
+                  Bu aralıkta girişi ya da katıldığı dersi olan üye dondurulamaz.
                 </p>
               ) : null}
               {/* A DISABLED button that will not say why is indistinguishable from a broken one.
@@ -715,7 +734,7 @@ function SubscriptionRow({ sub, siblings, products, onChanged, isOwner = false, 
           {freezeValid ? (
             <div className="space-y-1 rounded-xl border border-border bg-muted/30 p-3 text-sm">
               <Row
-                label={later ? 'Planlanan aralık' : 'Durma aralığı'}
+                label={later && !past ? 'Planlanan aralık' : 'Durma aralığı'}
                 value={later ? `${freezeFrom} → ${freezeTo}` : `${studioToday()} → ${addDays(studioToday(), freezeNum)}`}
               />
               <Row
@@ -753,13 +772,24 @@ function SubscriptionRow({ sub, siblings, products, onChanged, isOwner = false, 
                 const days = freezeNum
                 const override = overrideOn
                 const ovrReason = freezeOverrideReason.trim() || null
-                const plan = freezeMode === 'later'
+                const mode = freezeMode
+                const plan = mode !== 'now'
                 const from = freezeFrom
                 const to = freezeTo
                 setFreezeOpen(false)
                 await runAll(
                   freezeTargets.map((x) => () =>
-                    plan
+                    mode === 'past'
+                      ? backdateFreezeAction({
+                          entitlementId: x.id,
+                          from,
+                          to,
+                          reason: freezeReason,
+                          note: freezeNote.trim() || null,
+                          override,
+                          overrideReason: ovrReason,
+                        })
+                      : plan
                       ? scheduleFreezeAction({
                           entitlementId: x.id,
                           from,
@@ -778,7 +808,9 @@ function SubscriptionRow({ sub, siblings, products, onChanged, isOwner = false, 
                           overrideReason: ovrReason,
                         }),
                   ),
-                  plan
+                  mode === 'past'
+                    ? `Geçmiş tarihli dondurma kaydedildi: ${from} → ${to}.`
+                    : plan
                     ? `Dondurma planlandı: ${from} → ${to}. O gün sistem kendisi durduracak.`
                     : override
                       ? 'Üyelik hak aşılarak donduruldu.'
@@ -786,7 +818,7 @@ function SubscriptionRow({ sub, siblings, products, onChanged, isOwner = false, 
                 )
               }}
             >
-              {later ? (overrideOn ? 'Hakkı aşarak planla' : 'Dondurmayı planla') : overrideOn ? 'Hakkı aşarak dondur' : 'Dondur'}
+              {past ? (overrideOn ? 'Hakkı aşarak geçmişe dondur' : 'Geçmiş tarihle dondur') : later ? (overrideOn ? 'Hakkı aşarak planla' : 'Dondurmayı planla') : overrideOn ? 'Hakkı aşarak dondur' : 'Dondur'}
             </Button>
           </DialogFooter>
         </DialogContent>

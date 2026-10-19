@@ -10,6 +10,7 @@ import {
   cancelFreezeSchedule,
   freezeEntitlement,
   scheduleFreeze,
+  backdateFreeze,
   localDateAt,
   unfreezeEntitlement,
   adjustCredits,
@@ -894,6 +895,78 @@ export async function scheduleFreezeAction(input: unknown) {
           // The domain recomputes the days from the dates; this satisfies the shared plan shape and
           // is never the number it trusts.
           plannedDays: 0,
+          reason: p.reason,
+          note: p.note ?? null,
+          override: p.override === true,
+          overrideReason: p.overrideReason ?? null,
+        },
+      }),
+  )
+}
+
+/**
+ * A freeze that STARTED IN THE PAST (owner, 2026-10-19): *"geçmiş tarihli dondurma yapmak istiyoruz."*
+ *
+ * Same door as the other two: reception within the studio's terms, the owner past them. The two
+ * questions the domain cannot answer for itself — was she SEEN inside the window, and is a class
+ * still booked inside it — are answered here, because the check-ins and reservations are other
+ * aggregates. Both are read by member only (a single-field query) and filtered in memory: a member has
+ * tens of rows, and a composite index is a production-only trap here (OR-14).
+ */
+export async function backdateFreezeAction(input: unknown) {
+  const p = z
+    .object({
+      entitlementId: nonEmpty,
+      from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      reason: z.enum(['tatil', 'saglik', 'is', 'diger']),
+      note: z.string().trim().max(300).nullable().optional(),
+      override: z.boolean().optional(),
+      overrideReason: z.string().trim().max(300).nullable().optional(),
+    })
+    .parse(input)
+  const ctx = await requireTenantContext(p.override ? INITIATIVE : OPS)
+
+  const ent = await new FirestoreEntitlementRepository(adminDb()).getEntitlement(ctx, p.entitlementId as EntitlementId)
+  if (!ent) throw new Error(`Entitlement not found: ${p.entitlementId}`)
+
+  const offset = DEFAULT_STUDIO_CONFIG.utcOffsetMinutes
+  const now = Date.now()
+  const today = localDateAt(instant(now), offset) as string
+  const fromAt = instantFromLocalDate(p.from, offset) ?? 0
+  const untilAt = instantFromLocalDate(p.to, offset) ?? 0
+
+  const [entries, reservations] = await Promise.all([
+    adminDb().collection(`studios/${ctx.studioId}/checkIns`).where('memberId', '==', ent.memberId).get(),
+    new FirestoreReservationRepository(adminDb()).listByMember(ctx, ent.memberId),
+  ])
+  const inWindow = (t: number) => t >= fromAt && t < untilAt
+  const atMs = (v: unknown) => (typeof (v as { toMillis?: () => number })?.toMillis === 'function' ? (v as { toMillis: () => number }).toMillis() : Number(v ?? 0))
+  // SEEN = a door entry, or a class she attended. A no-show is not presence; a cancelled class is
+  // nothing at all.
+  const activityInWindow =
+    entries.docs.some((d) => d.get('direction') !== 'out' && inWindow(atMs(d.get('occurredAt')))) ||
+    reservations.some((r) => r.status === 'attended' && inWindow(r.sessionStartsAt as number))
+  const hasReservationInWindow = reservations.some(
+    (r) => r.status === 'booked' && (r.sessionStartsAt as number) > now && inWindow(r.sessionStartsAt as number),
+  )
+
+  return observed(
+    'entitlement.freeze_backdate',
+    ctx,
+    undefined,
+    { entitlementId: p.entitlementId, from: p.from, to: p.to, override: p.override === true },
+    () =>
+      backdateFreeze(entDeps(), ctx, {
+        entitlementId: p.entitlementId as EntitlementId,
+        today,
+        activityInWindow,
+        hasReservationInWindow,
+        plan: {
+          from: p.from,
+          to: p.to,
+          fromAt,
+          plannedDays: 0, // the domain derives the days from the dates
           reason: p.reason,
           note: p.note ?? null,
           override: p.override === true,

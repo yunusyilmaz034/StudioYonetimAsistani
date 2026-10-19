@@ -2468,3 +2468,14 @@ Owner: *"13 kişi yazmış, onlar niye yok · hepsi not bırakılmış o zaman a
 "reklamın ilk 3 günü". Reklam dönemi başladıktan sonraki 3 gün (`startedAt` + 72 saat) tiklenen lead ertesi gün notuyla
 geri gelir; sonra 28 Eylül kuralı (tiklenen lead 3 gün gizli) aynen. Yalnızca `hot_lead`; diğer işlerin soğuması değişmedi.
 Kod: `checklist-snooze.ts` `LEAD_GRACE_DAYS`, `leadGraceUntil`.
+
+**OR-127 · Geçmiş tarihli dondurma var; üyenin GELDİĞİ günler dondurulamaz.** (2026-10-19)
+
+Owner: *"Sude Yavuz geçmiş tarihli dondurma yapmak istiyoruz, bize bunu yapmamıza imkan vermen lazım."* Dondur
+penceresinde üçüncü seçenek **"Geçmiş tarihli"**: başlangıç bugünden önce, bitiş istenen gün (geçmiş, bugün ya da ileri).
+
+- Yeni olay yok: aynı `entitlement.frozen` geçmiş `from` ile; bitiş bugün/geçmişse `entitlement.unfrozen` AYNI yazımda,
+  süre hemen uzar. Bitiş ileride ise o güne kadar donuk kalır, sweep açar.
+- Hak/inisiyatif kuralları aynı: reception hak içinde, owner hakkı aşarak (sebep zorunlu).
+- **Reddedilir:** paketin başlangıcından önce başlayan; aralıkta turnike GİRİŞİ ya da KATILDIĞI dersi olan (kullanılmış gün
+  dondurulmaz — başlangıcı son gelişinden sonraya alın); aralıkta hâlâ rezervasyonu olan; planlı dondurması olan.
