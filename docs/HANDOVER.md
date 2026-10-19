@@ -90,6 +90,10 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
   ağır bileşik/kasık geren/karın basıncı artıran hareketler yok). v1 geçmişte. Durum adı hiçbir yere yazılmadı (olay yükü sayı).
   Eğitmen gözden geçirecek. Aynı akşam owner *"kasık yırtığı"* dedi (fıtık mı kas yırtığı mı belirsiz) → **v3**: Abductor
   çıkarıldı (kasığı uç noktada gerer); geri kalanı iki duruma da uygun. Üyeye iki "program güncellendi" bildirimi gitti.
+  Owner yine *"kasık yırtığı için ona göre yaz"* → **v4** (`program-merve-uslu-v4-2026-10-19.ts`): 3 gün, ilk iki hafta 2 set ×
+  zorluk 5–6/10, ağrısızsa 3. haftadan 3 set; bacaklar hep kalça genişliğinde/paralel; kasığı yükleyen/geren ve karın
+  basıncı artıran tümü dışarıda; her harekette tempo, not, uygun yerde alternatif; sürüm notunda ağrı kuralı. Teşhisin
+  evresi/ameliyat bilinmiyor — eğitmen görsün; ağrısız 3–4 hafta sonra hafif adductor/leg press eğitmen kararı.
 
 ### 17 Ekim 15:30 — panoda "WhatsApp lead'i" başlığı kayboldu → bozuk değil; reklamın ilk 3 günü lead'ler kalsın ([[OR-126]])
 
