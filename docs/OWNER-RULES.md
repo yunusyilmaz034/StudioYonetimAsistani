@@ -2479,3 +2479,11 @@ penceresinde üçüncü seçenek **"Geçmiş tarihli"**: başlangıç bugünden 
 - Hak/inisiyatif kuralları aynı: reception hak içinde, owner hakkı aşarak (sebep zorunlu).
 - **Reddedilir:** paketin başlangıcından önce başlayan; aralıkta turnike GİRİŞİ ya da KATILDIĞI dersi olan (kullanılmış gün
   dondurulmaz — başlangıcı son gelişinden sonraya alın); aralıkta hâlâ rezervasyonu olan; planlı dondurması olan.
+
+**OR-128 · Yanlış girilen ölçüm SİLİNİR; olay kalır, değer kalmaz.** (2026-10-21)
+
+Owner: *"Nur Bahar Yılmaz ölçümleri yanlış olmuş, silmek istedik ama silme yoktu, silme özelliği yap."* Üye → Antrenman →
+Ölçümler'de her satırda çöp kutusu; sebep kapalı listeden: Yanlış girildi · Başka üyenin ölçümü · Aynı ölçüm iki kez.
+Ölçüm kaydı silinir (vücut değerleri üyenin verisidir — fotoğraf kaldırmayla aynı), `measurement.removed` olayı kalır ve
+yalnızca ölçüm kimliği + tarihi + sebebi taşır; değer ya da serbest metin YOK. Yetki: ölçüm girebilen (owner, eğitmen).
+Yeni olay tipi — owner'ın açık talebiyle eklendi, golden fixture `measurement.removed.v1.json`.

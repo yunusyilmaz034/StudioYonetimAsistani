@@ -16,6 +16,9 @@ import {
   EXERCISE_UPSERTED,
   MEASUREMENT_CORRECTED,
   MEASUREMENT_RECORDED,
+  MEASUREMENT_REMOVED,
+  MeasurementRemovalReasons,
+  type MeasurementRemovalReason,
   PROGRAM_CREATED,
   PROGRAM_STATUS_CHANGED,
   PROGRAM_VERSION_PUBLISHED,
@@ -209,6 +212,13 @@ export function decideRecordMeasurement(ctx: DecideContext, m: Measurement): { n
     ? { measurementId: m.id, correctedFrom: m.correctedFrom, reason: m.note }
     : { measurementId: m.id, takenOn: m.takenOn, metrics: [...metrics, ...Object.keys(m.circumferences)] }
   return { next: m, events: [{ ...base(ctx, 'measurement', m.id, m.memberId), type, payload }] }
+}
+
+// A measurement REMOVED (owner, 2026-10-21). The record goes — its numbers are hers — and the event
+// says which one, which day, and why, from a closed list. Refused without a known reason (#9).
+export function decideRemoveMeasurement(ctx: DecideContext, m: Measurement, reason: string): Result<NewEvent[], DomainError> {
+  if (!(MeasurementRemovalReasons as readonly string[]).includes(reason)) return err({ code: 'reason_required' })
+  return ok([{ ...base(ctx, 'measurement', m.id, m.memberId), type: MEASUREMENT_REMOVED, payload: { measurementId: m.id, takenOn: m.takenOn, reason: reason as MeasurementRemovalReason } }])
 }
 
 // ── Feedback (bound to a version + exercise) ──

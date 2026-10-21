@@ -55,6 +55,7 @@ import {
   createProgramAction,
   listExercisesAction,
   listMemberMeasurementsAction,
+  removeMeasurementAction,
   listMemberPhotosAction,
   listMemberProgramsAction,
   listProgramTemplatesAction,
@@ -1164,6 +1165,10 @@ function MeasurementsSection({ memberId }: { memberId: string }) {
   const [rows, setRows] = useState<readonly Measurement[] | null>(null)
   const [recording, setRecording] = useState(false)
   const [correcting, setCorrecting] = useState<Measurement | null>(null)
+  // SİLME (owner, 2026-10-21): *"ölçümleri yanlış olmuş, silmek istedik ama silme yoktu."*
+  const [removing, setRemoving] = useState<Measurement | null>(null)
+  const [removeReason, setRemoveReason] = useState<'wrong_entry' | 'wrong_member' | 'duplicate'>('wrong_entry')
+  const [removeBusy, setRemoveBusy] = useState(false)
 
   const reload = useCallback(async () => {
     setRows(await listMemberMeasurementsAction({ memberId }))
@@ -1216,14 +1221,81 @@ function MeasurementsSection({ memberId }: { memberId: string }) {
                       .join(' · ') || 'Detay yok'}
                   </p>
                 </div>
-                <Button variant="ghost" size="sm" onClick={() => setCorrecting(m)}>
-                  Düzelt
-                </Button>
+                <div className="flex shrink-0 items-center">
+                  <Button variant="ghost" size="sm" onClick={() => setCorrecting(m)}>
+                    Düzelt
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    aria-label={`${m.takenOn} ölçümünü sil`}
+                    onClick={() => {
+                      setRemoveReason('wrong_entry')
+                      setRemoving(m)
+                    }}
+                  >
+                    <Trash2Icon />
+                  </Button>
+                </div>
               </li>
             ))}
           </ul>
         </div>
       )}
+
+      <Dialog open={removing !== null} onOpenChange={(o) => (!o && !removeBusy ? setRemoving(null) : undefined)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Ölçümü sil</DialogTitle>
+            <DialogDescription>
+              {removing?.takenOn} tarihli ölçüm kalıcı olarak silinir; grafikten ve üyenin uygulamasından kalkar. Silindiği
+              kayıt altına alınır.
+            </DialogDescription>
+          </DialogHeader>
+          <div>
+            <label className="mb-1 block text-sm font-medium">Neden?</label>
+            <Select value={removeReason} onValueChange={(v) => setRemoveReason(v as typeof removeReason)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="wrong_entry">Yanlış girildi</SelectItem>
+                <SelectItem value="wrong_member">Başka üyenin ölçümü</SelectItem>
+                <SelectItem value="duplicate">Aynı ölçüm iki kez girildi</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRemoving(null)} disabled={removeBusy}>
+              Vazgeç
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={removeBusy}
+              onClick={async () => {
+                if (!removing) return
+                setRemoveBusy(true)
+                try {
+                  const r = await removeMeasurementAction({ memberId, measurementId: removing.id, reason: removeReason })
+                  if (!r.ok) {
+                    toast.error(domainErrorMessage(r.error))
+                    return
+                  }
+                  toast.success('Ölçüm silindi.')
+                  setRemoving(null)
+                  await reload()
+                } catch (e) {
+                  toast.error(saveErrorMessage(e))
+                } finally {
+                  setRemoveBusy(false)
+                }
+              }}
+            >
+              {removeBusy ? <Loader2Icon className="animate-spin" /> : <Trash2Icon />} Sil
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {recording ? (
         <MeasurementDialog

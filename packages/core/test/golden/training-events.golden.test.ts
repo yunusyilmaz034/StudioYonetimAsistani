@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
-import { decideCompleteWorkoutDay, decideRetractProgramVersion, decideUndoWorkoutDay, type DecideContext } from '../../src/modules/training/domain/decide'
+import { decideCompleteWorkoutDay, decideRemoveMeasurement, decideRetractProgramVersion, decideUndoWorkoutDay, type DecideContext } from '../../src/modules/training/domain/decide'
 import type { WorkoutLog } from '../../src/modules/training/domain/types'
 import { instant, type ActorRef, type CorrelationId, type StudioId } from '../../src/shared'
 import completed from './workout.day_completed.v1.json'
 import retracted from './program.version_retracted.v1.json'
+import removed from './measurement.removed.v1.json'
 
 // The payload SHAPE is a contract: once written, an event is never edited and never deleted, so a
 // field added or renamed here is a permanent fork in the log. The fixture is the agreed shape; this
@@ -113,5 +114,36 @@ describe('program.version_retracted v1', () => {
     expect(Object.keys(r.value.events[0]!.payload as object).sort()).toEqual(
       ['becameCurrent', 'programId', 'reason', 'version'].sort(),
     )
+  })
+})
+
+describe('golden · measurement.removed v1 (owner, 2026-10-21)', () => {
+  const m = {
+    id: 'msr_01K000000000000000000000',
+    studioId: 'std_1',
+    memberId: 'mem_1',
+    takenOn: '2026-10-20',
+    weightKg: 68.4,
+    fatPercent: 31.2,
+    circumferences: { bel: 82 },
+    note: 'yanlış girildi, başka üyenin tartısı',
+  } as never
+
+  it('matches the agreed payload shape', () => {
+    const r = decideRemoveMeasurement(ctx, m, 'wrong_entry')
+    if (!r.ok) throw new Error(r.error.code)
+    expect(r.value[0]?.type).toBe('measurement.removed')
+    expect(r.value[0]?.payload).toEqual(removed)
+  })
+
+  it('carries no body value and no free text — the numbers leave with the record', () => {
+    const r = decideRemoveMeasurement(ctx, m, 'wrong_member')
+    if (!r.ok) throw new Error(r.error.code)
+    expect(Object.keys(r.value[0]!.payload as object).sort()).toEqual(['measurementId', 'reason', 'takenOn'])
+  })
+
+  it.each(['', 'yanlış', 'other'])('refuses a reason outside the closed list: %j', (reason) => {
+    const r = decideRemoveMeasurement(ctx, m, reason)
+    expect(r.ok ? 'ok' : r.error.code).toBe('reason_required')
   })
 })

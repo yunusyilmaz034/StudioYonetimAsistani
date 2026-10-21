@@ -16,6 +16,8 @@ import {
   publishProgramVersion,
   recordMeasurement,
   removePhoto,
+  removeMeasurement,
+  MeasurementRemovalReasons,
   resolveFeedback,
   systemClock,
   upsertExercise,
@@ -418,6 +420,15 @@ export async function correctMeasurementAction(input: unknown) {
   const ctx = await requireTenantContext(TRAINER)
   await assertMayReadMemberContent(ctx, p.memberId)
   return correctMeasurement(trainingDeps(), ctx, p, STAFF_SOURCE)
+}
+
+// Remove a measurement entered wrongly (owner, 2026-10-21). Same door as recording one; the reason is a
+// closed list because it goes into the event (#6) — a free-text note would be where PII hides.
+export async function removeMeasurementAction(input: unknown) {
+  const p = z.object({ memberId: z.string().min(1), measurementId: z.string().min(1), reason: z.enum(MeasurementRemovalReasons) }).parse(input)
+  const ctx = await requireTenantContext(TRAINER)
+  await assertMayReadMemberContent(ctx, p.memberId)
+  return removeMeasurement(trainingDeps(), ctx, p, STAFF_SOURCE)
 }
 
 // Read the scale's printout and hand the numbers BACK TO THE FORM — this writes nothing. No

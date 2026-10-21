@@ -17,6 +17,17 @@ export const PROGRAM_VERSION_RETRACTED = 'program.version_retracted'
 export const PROGRAM_VERSION_RESTORED = 'program.version_restored'
 export const MEASUREMENT_RECORDED = 'measurement.recorded'
 export const MEASUREMENT_CORRECTED = 'measurement.corrected'
+// A measurement REMOVED (owner, 2026-10-21): *"ölçümleri yanlış olmuş, silmek istedik ama silme yoktu."*
+// The body numbers are member data and leave with the record — exactly as a removed photo does. The
+// event stays, carrying which record, which day, and a CLOSED reason; never a value, never free text.
+export const MEASUREMENT_REMOVED = 'measurement.removed'
+export const MeasurementRemovalReasons = ['wrong_entry', 'wrong_member', 'duplicate'] as const
+export type MeasurementRemovalReason = (typeof MeasurementRemovalReasons)[number]
+export type MeasurementRemovedPayload = {
+  readonly measurementId: string
+  readonly takenOn: string
+  readonly reason: MeasurementRemovalReason
+}
 export const TRAINING_FEEDBACK_LEFT = 'training_feedback.left'
 export const TRAINING_FEEDBACK_ANSWERED = 'training_feedback.answered'
 export const TRAINING_FEEDBACK_RESOLVED = 'training_feedback.resolved'

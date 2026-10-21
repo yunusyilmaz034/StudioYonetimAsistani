@@ -24,6 +24,8 @@ export interface TrainingRepository {
 
   listMeasurementsByMember(ctx: TenantContext, memberId: string): Promise<readonly Measurement[]>
   saveMeasurement(ctx: TenantContext, measurement: Measurement, events: readonly NewEvent[]): Promise<void>
+  getMeasurement(ctx: TenantContext, id: string): Promise<Measurement | null>
+  deleteMeasurement(ctx: TenantContext, id: string, events: readonly NewEvent[]): Promise<void>
 
   getFeedback(ctx: TenantContext, id: string): Promise<TrainingFeedback | null>
   listFeedbackByMember(ctx: TenantContext, memberId: string): Promise<readonly TrainingFeedback[]>

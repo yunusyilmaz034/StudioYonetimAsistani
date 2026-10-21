@@ -137,6 +137,19 @@ export class FirestoreTrainingRepository {
     })
   }
 
+  async getMeasurement(ctx: TenantContext, id: string): Promise<Measurement | null> {
+    const s = await this.col(ctx.studioId, 'measurements').doc(id).get()
+    return s.exists ? measurementFrom(s.id, s.data()!) : null
+  }
+  // The record and its removal event commit together (#1) — same shape as `deletePhoto`.
+  async deleteMeasurement(ctx: TenantContext, id: string, events: readonly NewEvent[]): Promise<void> {
+    const sid = ctx.studioId
+    await this.db.runTransaction(async (tx) => {
+      tx.delete(this.col(sid, 'measurements').doc(id))
+      this.writeEvents(sid, tx, events)
+    })
+  }
+
   // ── Workout logs (v1.31) ──
   //
   // Two equality filters and no ordering, so no composite index is needed and nothing here can pass

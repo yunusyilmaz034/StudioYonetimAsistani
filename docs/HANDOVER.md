@@ -55,6 +55,14 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
   birebir (101 = 79 + 20 + 2). Owner deneyip yazacak.
 - **Yerelde, push edilmedi:** yalnızca günlük commit'leri (kod değil).
 
+### 21 Ekim — ölçüm SİLME + Nur Bahar Yılmaz'ın 4 ölçümü silindi ([[OR-128]]) — owner "şimdi" yayın
+
+- Core: `measurement.removed` (YENİ olay; payload `measurementId`, `takenOn`, kapalı `reason`), `decideRemoveMeasurement`,
+  `removeMeasurement`, repo `getMeasurement`/`deleteMeasurement` (kayıt + olay tek işlem). Web: `removeMeasurementAction`
+  (TRAINER) + Ölçümler listesinde çöp kutusu ve sebep diyaloğu. Okuyucu yok (projection/rapor ölçüm olayı okumuyor).
+- Veri: `fix-nur-bahar-yilmaz-olcumler-2026-10-21.ts` UYGULANDI — 4 ölçüm (17.09 asıl + 22.09 kopyası + bugün girilen 19.10
+  ve "ı" notlu düzeltme) owner kararıyla HEPSİ silindi (`wrong_entry`). Doğrusu baştan girilecek.
+
 ### 19 Ekim akşamı — GEÇMİŞ TARİHLİ DONDURMA ([[OR-127]]) — owner "deploy etmek istersen et"
 
 - Sude Yavuz için istendi (Fitness 3 Aylık 10.10 → 08.01, 7 gün hak; yalnızca 10.10'da gelmiş). Veriye dokunulmadı —

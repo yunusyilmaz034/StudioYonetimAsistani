@@ -24,6 +24,7 @@ import {
   decideLeaveFeedback,
   decidePublishVersion,
   decideRecordMeasurement,
+  decideRemoveMeasurement,
   decideRemovePhoto,
   decideResolveFeedback,
   decideUndoWorkoutDay,
@@ -302,6 +303,17 @@ export async function correctMeasurement(deps: TrainingDeps, ctx: TenantContext,
   const { next, events } = decideRecordMeasurement(dc, buildMeasurement(ctx, dc, input))
   await deps.repo.saveMeasurement(ctx, next, events)
   return ok(next)
+}
+
+/** Remove a measurement entered wrongly (owner, 2026-10-21) — see `decideRemoveMeasurement`. */
+export async function removeMeasurement(deps: TrainingDeps, ctx: TenantContext, input: { readonly measurementId: string; readonly memberId: string; readonly reason: string }, source: EventSource): Promise<Result<void, DomainError>> {
+  const m = await deps.repo.getMeasurement(ctx, input.measurementId)
+  // The member is part of the address: a removal aimed at the wrong member's record finds nothing.
+  if (!m || m.memberId !== input.memberId) return { ok: false, error: { code: 'operation_not_applicable' } }
+  const r = decideRemoveMeasurement(dctx(deps, ctx, source), m, input.reason)
+  if (!r.ok) return r
+  await deps.repo.deleteMeasurement(ctx, m.id, r.value)
+  return ok(undefined)
 }
 
 // ── Feedback ──
