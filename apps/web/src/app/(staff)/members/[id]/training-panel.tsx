@@ -74,6 +74,8 @@ const LEVEL_LABEL: Record<string, string> = { beginner: 'Başlangıç', intermed
 const TZ = 'Europe/Istanbul'
 const dtime = (ms: number) => new Date(ms).toLocaleString('tr-TR', { timeZone: TZ, dateStyle: 'medium', timeStyle: 'short' })
 const today = () => new Date().toLocaleDateString('en-CA', { timeZone: TZ })
+// A LocalDate ('2026-10-19') as the studio reads it: 19.10.2026 (owner, 2026-10-21).
+const gun = (d: string) => d.split('-').reverse().join('.')
 
 export function TrainingPanel({
   memberId,
@@ -1204,7 +1206,7 @@ function MeasurementsSection({ memberId }: { memberId: string }) {
               <li key={m.id} className="flex items-center justify-between gap-3 px-3 py-2.5">
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-foreground">
-                    {m.takenOn}
+                    {gun(m.takenOn)}
                     {m.correctedFrom ? <Badge className="ml-2 bg-warning/10 text-warning">Düzeltme</Badge> : null}
                   </p>
                   <p className="truncate text-xs text-muted-foreground">
@@ -1228,7 +1230,7 @@ function MeasurementsSection({ memberId }: { memberId: string }) {
                   <Button
                     variant="ghost"
                     size="sm"
-                    aria-label={`${m.takenOn} ölçümünü sil`}
+                    aria-label={`${gun(m.takenOn)} ölçümünü sil`}
                     onClick={() => {
                       setRemoveReason('wrong_entry')
                       setRemoving(m)
@@ -1248,7 +1250,7 @@ function MeasurementsSection({ memberId }: { memberId: string }) {
           <DialogHeader>
             <DialogTitle>Ölçümü sil</DialogTitle>
             <DialogDescription>
-              {removing?.takenOn} tarihli ölçüm kalıcı olarak silinir; grafikten ve üyenin uygulamasından kalkar. Silindiği
+              {removing ? gun(removing.takenOn) : ''} tarihli ölçüm kalıcı olarak silinir; grafikten ve üyenin uygulamasından kalkar. Silindiği
               kayıt altına alınır.
             </DialogDescription>
           </DialogHeader>
@@ -1762,7 +1764,7 @@ function PhotoCard({ p, onChanged }: { p: PhotoRow; onChanged: () => Promise<voi
     <li className="overflow-hidden rounded-xl border border-border bg-card shadow-xs">
       <div className="relative aspect-square bg-muted">
         {p.url ? (
-          <img src={p.url} alt={`${PHOTO_ANGLE_LABEL[p.angle]} — ${p.takenOn}`} className="size-full object-cover" />
+          <img src={p.url} alt={`${PHOTO_ANGLE_LABEL[p.angle]} — ${gun(p.takenOn)}`} className="size-full object-cover" />
         ) : (
           <div className="grid size-full place-items-center text-xs text-muted-foreground">önizleme yok</div>
         )}
@@ -1782,7 +1784,7 @@ function PhotoCard({ p, onChanged }: { p: PhotoRow; onChanged: () => Promise<voi
         </span>
       </div>
       <div className="flex items-center justify-between gap-2 p-2">
-        <span className="truncate text-xs text-muted-foreground">{p.takenOn}</span>
+        <span className="truncate text-xs text-muted-foreground">{gun(p.takenOn)}</span>
         <Button variant="ghost" size="sm" className="text-danger" onClick={() => setRemoving(true)}>
           <Trash2Icon className="size-3.5" />
         </Button>

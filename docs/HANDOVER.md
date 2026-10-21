@@ -62,6 +62,8 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
   (TRAINER) + Ölçümler listesinde çöp kutusu ve sebep diyaloğu. Okuyucu yok (projection/rapor ölçüm olayı okumuyor).
 - Veri: `fix-nur-bahar-yilmaz-olcumler-2026-10-21.ts` UYGULANDI — 4 ölçüm (17.09 asıl + 22.09 kopyası + bugün girilen 19.10
   ve "ı" notlu düzeltme) owner kararıyla HEPSİ silindi (`wrong_entry`). Doğrusu baştan girilecek.
+- Owner: *"tarihler gg.aa.yyyy olsun"* → Antrenman (ölçüm/fotoğraf) ve Dondurma (pencere, kart, planlı/donuk satırları) ham
+  `2026-10-19` yerine `19.10.2026` gösteriyor (yalnız görüntü; `type=date` girişleri tarayıcının kendi biçimi).
 
 ### 19 Ekim akşamı — GEÇMİŞ TARİHLİ DONDURMA ([[OR-127]]) — owner "deploy etmek istersen et"
 

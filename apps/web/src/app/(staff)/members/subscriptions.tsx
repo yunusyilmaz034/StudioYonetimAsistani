@@ -73,6 +73,8 @@ const toDateInput = (ms: number | null | undefined): string => {
   const t = new Date(ms + STUDIO_UTC_OFFSET_MIN * 60_000)
   return Number.isNaN(t.getTime()) ? '' : t.toISOString().slice(0, 10)
 }
+// A LocalDate ('2026-10-19') as the studio reads it: 19.10.2026 (owner, 2026-10-21).
+const gun = (d: string) => (d ? d.split('-').reverse().join('.') : '')
 const studioToday = () => new Date(Date.now() + STUDIO_UTC_OFFSET_MIN * 60_000).toISOString().slice(0, 10)
 const addDays = (d: string, days: number) => {
   // A `type="date"` input reports an EMPTY value for every intermediate keystroke until the whole
@@ -398,7 +400,7 @@ function SubscriptionRow({ sub, siblings, products, onChanged, isOwner = false, 
           {scheduled ? (
             <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-warning/40 bg-warning/5 p-2.5 text-sm">
               <span className="text-foreground">
-                🗓️ <strong>Dondurma planlandı:</strong> {scheduled.freezeScheduledFrom} → {scheduled.freezeScheduledTo}. O gün
+                🗓️ <strong>Dondurma planlandı:</strong> {gun(scheduled.freezeScheduledFrom ?? '')} → {gun(scheduled.freezeScheduledTo ?? '')}. O gün
                 sistem kendisi durduracak — üye o güne kadar derse gelebilir.
               </span>
               <Button
@@ -450,7 +452,7 @@ function SubscriptionRow({ sub, siblings, products, onChanged, isOwner = false, 
               />
             ) : null}
             {freezeSub.frozenSince ? (
-              <Row label="Donduruldu" value={`${freezeSub.frozenSince} tarihinden beri`} />
+              <Row label="Donduruldu" value={`${gun(freezeSub.frozenSince ?? '')} tarihinden beri`} />
             ) : null}
           </dl>
 
@@ -599,7 +601,7 @@ function SubscriptionRow({ sub, siblings, products, onChanged, isOwner = false, 
                 <p className="text-sm text-danger">
                   {past
                     ? freezeFrom < packageStart
-                      ? `Dondurma paketin başlangıcından (${packageStart}) önce başlayamaz.`
+                      ? `Dondurma paketin başlangıcından (${gun(packageStart)}) önce başlayamaz.`
                       : 'Geçmiş tarihli dondurma bugünden önce başlamalı. Bugün durdurmak için “Şimdi dondur”u seçin.'
                     : 'Planlanan dondurma yarından itibaren başlamalı. Bugün durdurmak için “Şimdi dondur”u seçin.'}
                 </p>
@@ -608,7 +610,7 @@ function SubscriptionRow({ sub, siblings, products, onChanged, isOwner = false, 
                 <p className="text-sm text-muted-foreground">
                   {freezeTo <= studioToday()
                     ? 'Bitiş bugün ya da geçmişte: dondurma hemen kapanır ve süre şimdi uzar.'
-                    : `Bitiş ileride: üyelik ${freezeTo} gününe kadar donuk kalır, o gün sistem açar.`}{' '}
+                    : `Bitiş ileride: üyelik ${gun(freezeTo)} gününe kadar donuk kalır, o gün sistem açar.`}{' '}
                   Bu aralıkta girişi ya da katıldığı dersi olan üye dondurulamaz.
                 </p>
               ) : null}
@@ -735,11 +737,11 @@ function SubscriptionRow({ sub, siblings, products, onChanged, isOwner = false, 
             <div className="space-y-1 rounded-xl border border-border bg-muted/30 p-3 text-sm">
               <Row
                 label={later && !past ? 'Planlanan aralık' : 'Durma aralığı'}
-                value={later ? `${freezeFrom} → ${freezeTo}` : `${studioToday()} → ${addDays(studioToday(), freezeNum)}`}
+                value={later ? `${gun(freezeFrom)} → ${gun(freezeTo)}` : `${gun(studioToday())} → ${gun(addDays(studioToday(), freezeNum))}`}
               />
               <Row
                 label="Bitiş tarihi"
-                value={`${dateLabel(freezeSub.validUntil)} → ${addDays(toDateInput(freezeSub.validUntil), freezeNum)}`}
+                value={`${dateLabel(freezeSub.validUntil)} → ${gun(addDays(toDateInput(freezeSub.validUntil), freezeNum))}`}
               />
               {/* Never a negative number: under the initiative the allowance goes to zero and stops
                   there, which is exactly what her card will read afterwards. */}
@@ -809,9 +811,9 @@ function SubscriptionRow({ sub, siblings, products, onChanged, isOwner = false, 
                         }),
                   ),
                   mode === 'past'
-                    ? `Geçmiş tarihli dondurma kaydedildi: ${from} → ${to}.`
+                    ? `Geçmiş tarihli dondurma kaydedildi: ${gun(from)} → ${gun(to)}.`
                     : plan
-                    ? `Dondurma planlandı: ${from} → ${to}. O gün sistem kendisi durduracak.`
+                    ? `Dondurma planlandı: ${gun(from)} → ${gun(to)}. O gün sistem kendisi durduracak.`
                     : override
                       ? 'Üyelik hak aşılarak donduruldu.'
                       : 'Üyelik donduruldu.',
@@ -859,7 +861,7 @@ function SubscriptionRow({ sub, siblings, products, onChanged, isOwner = false, 
               Üyelik durdu. Kaldırdığında, durduğu gün sayısı kadar süresi uzayacak.{' '}
               {freezeSub.freezeEndsOn ? (
                 <>
-                  Sistem <strong>{freezeSub.freezeEndsOn}</strong> tarihinde otomatik devam ettirir.
+                  Sistem <strong>{gun(freezeSub.freezeEndsOn ?? '')}</strong> tarihinde otomatik devam ettirir.
                 </>
               ) : (
                 <>
