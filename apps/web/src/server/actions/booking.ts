@@ -17,6 +17,25 @@ import { z } from 'zod'
 
 import { requireTenantContext } from '../auth'
 import { adminDb } from '../firebase-admin'
+import { isDemoMode } from '../demo-mode'
+import { maskName } from '@/lib/demo-mask'
+
+// FULL NAME on the desk's roster (owner, 2026-10-21: *"isim soyisim beraber tam gözüksün"*). The reservation's
+// snapshot carries the short form ("GÖZDE D.") — fine for the member app, wrong for reception, who must
+// tell two Gözdes apart. Read the members on this roster by id (one batched read), keep the snapshot as the
+// fallback for a member since erased, and mask in the demo studio exactly as the calendar does.
+async function fullNames(studioId: string, memberIds: readonly string[]): Promise<Map<string, string>> {
+  const ids = [...new Set(memberIds)]
+  if (ids.length === 0) return new Map()
+  const db = adminDb()
+  const [docs, demo] = await Promise.all([db.getAll(...ids.map((id) => db.doc(`studios/${studioId}/members/${id}`))), isDemoMode()])
+  const out = new Map<string, string>()
+  for (const d of docs) {
+    const name = d.exists ? String(d.get('fullName') ?? '').trim() : ''
+    if (name) out.set(d.id, demo ? maskName(name, d.id) : name)
+  }
+  return out
+}
 
 // Booking is owner + reception (member self-service is a later phase). These reads
 // power the booking panel inside the session workspace; the write actions
@@ -56,12 +75,13 @@ export async function getSessionRosterAction(input: unknown): Promise<readonly R
   // `attended` and `no_show` stay: after the class has run this is the record of who was expected,
   // and "came" and "did not come" are both answers to that. "Cancelled" is not — she withdrew.
   const OCCUPIES = new Set(['booked', 'attended', 'no_show'])
-  return rows
-    .filter((r) => OCCUPIES.has(r.status))
+  const kept = rows.filter((r) => OCCUPIES.has(r.status))
+  const names = await fullNames(ctx.studioId as string, kept.map((r) => r.memberId as string))
+  return kept
     .map((r) => ({
       reservationId: r.id,
       memberId: r.memberId,
-      memberName: r.memberSnapshot.displayName,
+      memberName: names.get(r.memberId as string) ?? r.memberSnapshot.displayName,
       phoneLast4: r.memberSnapshot.phoneLast4,
       note: r.note?.text ?? null,
       status: r.status as RosterMember['status'],
@@ -84,12 +104,13 @@ export async function getSessionAttendanceAction(input: unknown): Promise<readon
   const p = z.object({ sessionId: nonEmpty }).parse(input)
   const ctx = await requireTenantContext(OPS)
   const rows = await new FirestoreReservationRepository(adminDb()).listBySession(ctx, p.sessionId as ClassSessionId)
-  return rows
-    .filter((r) => r.status !== 'cancelled' && r.status !== 'late_cancelled')
+  const kept = rows.filter((r) => r.status !== 'cancelled' && r.status !== 'late_cancelled')
+  const names = await fullNames(ctx.studioId as string, kept.map((r) => r.memberId as string))
+  return kept
     .map((r) => ({
       reservationId: r.id,
       memberId: r.memberId,
-      memberName: r.memberSnapshot.displayName,
+      memberName: names.get(r.memberId as string) ?? r.memberSnapshot.displayName,
       status: r.status,
       attendanceSource: r.attendanceSource,
     }))

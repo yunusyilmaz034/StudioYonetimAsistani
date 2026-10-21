@@ -64,6 +64,9 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
   ve "ı" notlu düzeltme) owner kararıyla HEPSİ silindi (`wrong_entry`). Doğrusu baştan girilecek.
 - Owner: *"tarihler gg.aa.yyyy olsun"* → Antrenman (ölçüm/fotoğraf) ve Dondurma (pencere, kart, planlı/donuk satırları) ham
   `2026-10-19` yerine `19.10.2026` gösteriyor (yalnız görüntü; `type=date` girişleri tarayıcının kendi biçimi).
+- Owner: *"isim soyisim beraber tam gözüksün"* → seans penceresinin Rezervasyon ve Yoklama listeleri artık üyenin TAM adını
+  okuyor (`getSessionRosterAction`/`getSessionAttendanceAction`, üye belgeleri tek `getAll`; rezervasyon kopyasındaki kısa ad
+  "GÖZDE D." yalnız yedek; demo stüdyoda maskeli). Üye uygulaması ve eğitmen görünümü değişmedi.
 
 ### 19 Ekim akşamı — GEÇMİŞ TARİHLİ DONDURMA ([[OR-127]]) — owner "deploy etmek istersen et"
 
