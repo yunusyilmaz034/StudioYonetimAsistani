@@ -55,6 +55,22 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
   birebir (101 = 79 + 20 + 2). Owner deneyip yazacak.
 - **Yerelde, push edilmedi:** yalnızca günlük commit'leri (kod değil).
 
+### 23 Ekim 00:20–01:3x — KESİNTİ: panel + tüm Cloud Functions 500 (Google tarafı) · BEKÇİ kuruldu
+
+- **Belirti:** Işıl panelde "Error: Server Error" gördü (owner 01:23). Panel (europe-west4) ve TÜM functions (europe-west1:
+  webhook, healthCheck, classReminders, occupancySweep…) Google Frontend'den içeriği boş 500. İstekler konteynere HİÇ
+  ulaşmıyor (request log yok). 18:00–22:20Z arası projede tek yönetim işlemi YOK — bizim değişikliğimiz değil.
+  Panelde 21:55Z sunucu SIGTERM aldı, "no available instance"; revizyon "Ready/MinInstancesProvisioned" demeye devam etti.
+- **Panel düzeldi (01:26):** (1) `--no-invoker-iam-check` (servis IAM'i boştu, direkt URL 403); (2) trafik açıkça
+  `build-2026-10-21-003=100` atandı → 200. Hangisinin düzelttiği kesin değil; ikisi de App Hosting varsayılanıyla uyumlu.
+  Ayrıca bir no-op label güncellemesi yapıldı (yeni revizyon `00758`, trafik almıyor).
+- **Functions:** `whatsappWebhook` yeniden deploy + trafik sabitleme işe YARAMADI; europe-west1 yönetim işlemleri de çok
+  yavaş (tag ekleme dakikalarca "Adding") → bölgesel sorun. Durum aşağıda güncellenecek.
+- **BEKÇİ (owner: "bunu bizim yakalamamız lazım"):** Cloud Monitoring uptime — bizim altyapımızın DIŞINDAN, 3 bölgeden:
+  `Bekci - Panel` (/login 2xx, 1 dk), `Bekci - Uye API` (/api/member/prefs 401, 1 dk), `Bekci - WhatsApp webhook` (yanlış
+  token → 403, 5 dk). Alarm `BEKÇİ — sistem erişilemiyor` (policy 8804544700119984977): 2 dk boyunca >1 bölgeden hata →
+  e-posta yunusyilmaz034@gmail.com. İçerideki `healthCheck` aynı altyapıda olduğu için bu kesintide kendisi de düştü.
+
 ### 21 Ekim — ölçüm SİLME + Nur Bahar Yılmaz'ın 4 ölçümü silindi ([[OR-128]]) — owner "şimdi" yayın
 
 - Core: `measurement.removed` (YENİ olay; payload `measurementId`, `takenOn`, kapalı `reason`), `decideRemoveMeasurement`,
