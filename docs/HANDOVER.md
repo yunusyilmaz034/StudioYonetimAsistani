@@ -55,7 +55,7 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
   birebir (101 = 79 + 20 + 2). Owner deneyip yazacak.
 - **Yerelde, push edilmedi:** yalnızca günlük commit'leri (kod değil).
 
-### 23 Ekim 00:20–01:3x — KESİNTİ: panel + tüm Cloud Functions 500 (Google tarafı) · BEKÇİ kuruldu
+### 23 Ekim 00:20–01:34 — KESİNTİ: panel + tüm Cloud Functions 500 (Google tarafı) · BEKÇİ kuruldu
 
 - **Belirti:** Işıl panelde "Error: Server Error" gördü (owner 01:23). Panel (europe-west4) ve TÜM functions (europe-west1:
   webhook, healthCheck, classReminders, occupancySweep…) Google Frontend'den içeriği boş 500. İstekler konteynere HİÇ
@@ -64,8 +64,15 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
 - **Panel düzeldi (01:26):** (1) `--no-invoker-iam-check` (servis IAM'i boştu, direkt URL 403); (2) trafik açıkça
   `build-2026-10-21-003=100` atandı → 200. Hangisinin düzelttiği kesin değil; ikisi de App Hosting varsayılanıyla uyumlu.
   Ayrıca bir no-op label güncellemesi yapıldı (yeni revizyon `00758`, trafik almıyor).
-- **Functions:** `whatsappWebhook` yeniden deploy + trafik sabitleme işe YARAMADI; europe-west1 yönetim işlemleri de çok
-  yavaş (tag ekleme dakikalarca "Adding") → bölgesel sorun. Durum aşağıda güncellenecek.
+- **Functions KENDİLİĞİNDEN döndü 22:34Z (01:34):** `healthCheck` 22:35Z 200, webhook 403 (beklenen). Kesintide denenen
+  webhook deploy'u (`00066`) bölge çökükken başlayamamıştı → trafik `--to-latest`, tag kaldırıldı, webhook TEMİZ yeniden
+  deploy (`00069`, Ready). 17 servisin 17'si Ready. Kaçan zamanlanmış işler kendini toparlar: `classReminders` tek-seferlik
+  işaret + geniş pencere, retry/reconcile/occupancy saatlik. Meta, ulaşamadığı WhatsApp mesajlarını günlerce yeniden dener.
+- **Neden Işıl gördü, biz değil:** içerideki `healthCheck`/`infrastructure-alarm` AYNI altyapıda (europe-west1 functions) —
+  altyapı düşünce alarm da düştü. Dışarıdaki bekçi bu boşluğu kapatıyor.
+- **Bir dahaki sefere (runbook):** panel 500 + Cloud Run'da istek logu yok → (1) etiketli revizyon URL'si 200 mü (uygulama
+  sağlam mı)? (2) `gcloud run services update-traffic studio-yonetim --to-revisions=<build>=100`; (3) gerekirse
+  `--no-invoker-iam-check`. Functions'ta trafiği SABİTLEME — `--to-latest` bırak, yoksa sonraki deploy trafik almaz.
 - **BEKÇİ (owner: "bunu bizim yakalamamız lazım"):** Cloud Monitoring uptime — bizim altyapımızın DIŞINDAN, 3 bölgeden:
   `Bekci - Panel` (/login 2xx, 1 dk), `Bekci - Uye API` (/api/member/prefs 401, 1 dk), `Bekci - WhatsApp webhook` (yanlış
   token → 403, 5 dk). Alarm `BEKÇİ — sistem erişilemiyor` (policy 8804544700119984977): 2 dk boyunca >1 bölgeden hata →
