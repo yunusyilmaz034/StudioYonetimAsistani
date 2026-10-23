@@ -142,7 +142,7 @@ export function PortalDashboardScreen({ data }: { data: PortalDashboard }) {
                   </Button>
                 ) : null}
                 <p className="text-xs text-muted-foreground">
-                  Dilersen resepsiyona uğrayıp nakit veya kartla da ödeyebilirsin.
+                  Dilersen resepsiyona uğrayıp da ödeyebilirsin.
                 </p>
               </div>
             </CardContent>

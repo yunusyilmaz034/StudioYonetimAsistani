@@ -649,7 +649,11 @@ export async function getPublicProductsAction(input: unknown) {
       // one, the category surcharge derives it as before. `cashKurus` equals it when there is one
       // price — the page compares the two and says nothing when they match.
       totalKurus: productPrices(pr, settings?.paymentSurcharge).cardKurus,
-      cashKurus: productPrices(pr, settings?.paymentSurcharge).cashKurus,
+      // TEK FİYAT DIŞARIDA (owner, 2026-10-23): *"panel haricinde hiçbir yerde nakit/kk diye bir ayrım olmayacak"* —
+      // kartla farklı fiyat suç. Müşteriye giden her yüzey (site, sözleşme sayfaları, üye uygulaması) yalnız KART
+      // fiyatını görür; nakit fiyat panelin işi. Alan, sahadaki eski uygulama sürümleri için duruyor ve kart fiyatına
+      // EŞİT — onların "stüdyoda nakit …" satırı eşitlikte hiç çizilmez.
+      cashKurus: productPrices(pr, settings?.paymentSurcharge).cardKurus,
     }))
     .sort((a, b) => a.totalKurus - b.totalKurus)
   // The number the buyer is told to call when she has a question. From settings, never a literal:

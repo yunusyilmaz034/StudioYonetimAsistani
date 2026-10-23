@@ -2487,3 +2487,19 @@ Owner: *"Nur Bahar Yılmaz ölçümleri yanlış olmuş, silmek istedik ama silm
 Ölçüm kaydı silinir (vücut değerleri üyenin verisidir — fotoğraf kaldırmayla aynı), `measurement.removed` olayı kalır ve
 yalnızca ölçüm kimliği + tarihi + sebebi taşır; değer ya da serbest metin YOK. Yetki: ölçüm girebilen (owner, eğitmen).
 Yeni olay tipi — owner'ın açık talebiyle eklendi, golden fixture `measurement.removed.v1.json`.
+
+**OR-129 · Müşteriye nakit/kart ayrımı YOK — panel hariç her yerde tek fiyat.** (2026-10-23)
+
+Owner: *"kk farkı veya kk ile farklı fiyat olması suç teşkil ediyor, tek fiyata gitmek istiyoruz … panel haricinde hiçbir
+yerde nakit/kk diye bir ayrım olmayacak."*
+
+- **AI resepsiyonist:** fiyatı `settings/ai.priceList`'ten verir (panel → AI ayarları → "Fiyat listesi"; Işıl'ın metinleri:
+  Fitness 3/6/12 Aylık 8.500/13.000/19.500 · Reformer 8 Ders 4.200 · Özel Ders ve Hamile Pilatesi 8/16 Ders 12.000/20.000).
+  Liste doluyken katalogdaki nakit/kart çifti modele HİÇ gösterilmez. Kart/nakit/taksit sorulursa tek cümle: *"Kredi kartı
+  geçerlidir … 0533 199 41 23 … dilerseniz biz de sizi arayalım."* "Fark var" da "fark yok/tek fiyat" da DEMEZ. Listede
+  olmayan paketin (hibrit, 16 ders…) fiyatını vermez, telefona yönlendirir.
+- **Site, sözleşme sayfaları, üye uygulaması/portalı:** yalnız KART fiyatı (`priceInKurus`). Müşteriye giden API'ler nakit
+  alanını kart fiyatına EŞİT gönderir (eski uygulama sürümleri de "stüdyoda nakit" satırı çizmez). "Fiyatlar nakit, havale
+  ve kartta aynıdır" cümlesi kaldırıldı (masada nakit fiyat durduğu için artık doğru değil).
+- **Panel:** nakit/kart ayrımı KALIR (owner).
+- Owner bilerek seçti: AI Işıl'ın fiyatını (ör. 3 Aylık 8.500), uygulama kart fiyatını (9.500) söyler.

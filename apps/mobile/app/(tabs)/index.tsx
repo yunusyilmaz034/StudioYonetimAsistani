@@ -306,7 +306,7 @@ export default function Home() {
                     </View>
                   </PressableScale>
                 )}
-                <Txt role="caption" tone="muted">Dilersen resepsiyona uğrayıp nakit veya kartla da ödeyebilirsin.</Txt>
+                <Txt role="caption" tone="muted">Dilersen resepsiyona uğrayıp da ödeyebilirsin.</Txt>
               </View>
             </PremiumCard>
           </View>

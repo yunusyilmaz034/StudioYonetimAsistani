@@ -117,10 +117,10 @@ export default function Buy() {
         ))
       )}
 
-      {/* Tek fiyat (owner, 2026-08-06): nakit, havale ve kart aynı tutar. Taksitin vade farkını
-          banka/ödeme altyapısı belirler — stüdyo bir oran söylemez, çünkü bir oran koymuyor. */}
+      {/* Tek fiyat dışarıda (owner, 2026-10-23): müşteriye nakit/kart diye hiçbir ayrım söylenmez — kartla farklı fiyat suç.
+          Taksitin vade farkını banka/ödeme altyapısı belirler — stüdyo bir oran söylemez. */}
       <Txt role="caption" tone="muted" align="center" style={{ paddingHorizontal: space(4) }}>
-        Fiyatlar nakit, havale ve kredi kartında aynıdır. Kredi kartına taksit yapabilirsin; taksit
+        Kredi kartına taksit yapabilirsin; taksit
         seçeneğine göre vade farkı oluşabilir, net tutarı ödeme ekranında görürsün. Ödeme, lisanslı
         ödeme kuruluşu üzerinden alınır; paketin ödeme onaylanır onaylanmaz tanımlanır.
       </Txt>

@@ -55,6 +55,17 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
   birebir (101 = 79 + 20 + 2). Owner deneyip yazacak.
 - **Yerelde, push edilmedi:** yalnızca günlük commit'leri (kod değil).
 
+### 23 Ekim gece — TEK FİYAT dışarıda ([[OR-129]]) — AI canlı, site/panel push, uygulama OTA
+
+- **AI (canlı 02:0x):** `whatsappWebhook` → `liveFacts(priceList)`; `fix-ai-tek-fiyat-2026-10-23.ts` UYGULANDI (priceList +
+  kampanya yenilendi + örnek/SSS/politika/temel bilgilerdeki tüm nakit/kart/peşin-taksit talimatları; eski metinler birebir
+  aranır). Prova: `ai-prova-tek-fiyat-2026-10-23.ts` (salt okunur, WhatsApp'a gitmez) — 5 soru, fiyatlar listeden, kart
+  sorusuna yalnız owner cümlesi, hibrit → telefon. İlk provada AI "tek fiyat, ayrım yok" demişti (kodumdaki "YOKTUR"
+  cümlesinden) → nötr kurala çevrildi. `__rehearsal` export'u yalnız prova için; index'ten çıkmaz, deploy edilmez.
+- **Web:** `getPublicProductsAction` + `memberBuyableProducts` → `cashKurus = kart`; portal/uygulama metinleri; panel AI
+  ayarlarına "Fiyat listesi" alanı. **Mobil:** aynı metin değişikliği `eas update --branch production` (1.9.0).
+- **Açık:** uzaktan kayıt linki kart fiyatından keser (AI 8.500 dedi, link 9.500) — masa linki keserken bilsin.
+
 ### 23 Ekim 00:20–01:34 — KESİNTİ: panel + tüm Cloud Functions 500 (Google tarafı) · BEKÇİ kuruldu
 
 - **Belirti:** Işıl panelde "Error: Server Error" gördü (owner 01:23). Panel (europe-west4) ve TÜM functions (europe-west1:

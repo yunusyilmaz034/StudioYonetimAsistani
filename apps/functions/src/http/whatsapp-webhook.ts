@@ -96,6 +96,7 @@ interface AiSettingsDoc {
   basics?: string
   policies?: string
   campaign?: string
+  priceList?: string
   faq?: { q: string; a: string }[]
   escalation?: string
   neverDo?: string
@@ -111,8 +112,18 @@ function ctxOf(sid: string): TenantContext {
 
 // Compact LIVE facts the reply must be grounded in: active packages with prices, and NOTHING about
 // the schedule (see below). Read straight from Firestore (same repos paytr-callback uses).
-async function liveFacts(database: Firestore, ctx: TenantContext): Promise<string> {
+async function liveFacts(database: Firestore, ctx: TenantContext, priceList?: string): Promise<string> {
   const parts: string[] = []
+  const ownList = Boolean(priceList && priceList.trim())
+  // TEK FİYAT (owner, 2026-10-23): *"kk farkı ya da kk ile farklı fiyat olması suç teşkil ediyor … ai'a fiyat
+  // sorulduğunda bu fiyatlar verilsin, kk/nakit ayrımından bahsetmesin."* When the studio wrote its own price
+  // list, it IS the price source and the catalogue's cash/card pair is never shown to the model: it cannot
+  // repeat a split it never saw. The rule about cards lives in the list itself — the studio's words, not ours.
+  if (ownList) {
+    parts.push('GÜNCEL PAKETLER VE FİYATLAR — TEK FİYAT (fiyatlar YALNIZCA buradan; ASLA uydurma, hesaplama):')
+    parts.push(priceList!.trim())
+    parts.push('ÖDEME: Her pakette yukarıdaki TEK rakamı söyle. Nakit, havale, kredi kartı, taksit ya da fiyat farkı konusunu SEN AÇMA ve hiçbir yorum yapma — "fark var" da deme, "fark yok / tek fiyat" da deme. Müşteri sorarsa listedeki kredi kartı cevabını AYNEN ver, fazlasını ekleme. Listede olmayan bir paketin fiyatını verme.')
+  }
   try {
     // AI FİYAT VEREMEYEN PAKET (owner, 2026-09-16): owner bir paketi "resepsiyona özgü" işaretlerse o paket buraya
     // HİÇ girmez. Modelin görmediği bir fiyatı söyleyemez — "bahsetme" talimatı unutulabilir, olmayan veri unutulmaz.
@@ -122,7 +133,7 @@ async function liveFacts(database: Firestore, ctx: TenantContext): Promise<strin
     const surchargeCfg = (await database.doc(`studios/${ctx.studioId}/settings/studio`).get()).get('paymentSurcharge') as
       | CardSurchargeConfig
       | undefined
-    if (products.length) {
+    if (!ownList && products.length) {
       parts.push('GÜNCEL PAKETLER (fiyatlar buradan, ASLA uydurma):')
       let twoPrices = false
       for (const p of products) {
@@ -172,7 +183,7 @@ async function liveFacts(database: Firestore, ctx: TenantContext): Promise<strin
       | undefined
     if (pp?.active === true && pp.linkEnabled !== false) {
       parts.push(
-        'UZAKTAN KAYIT: Stüdyoya gelmeden de kayıt yapılabilir — yetkilimiz WhatsApp üzerinden güvenli bir ödeme linki gönderir, müşteri kartıyla öder ve üyeliği başlar. Müşteri "linki gönderir misiniz / uzaktan olur mu / kartla ödeyebilir miyim" derse bunu SÖYLE ve hemen [[DEVRET:SATIS]] ile yetkiliye devret; linki SEN oluşturamazsın, söz verip bekletme.',
+        'UZAKTAN KAYIT: Stüdyoya gelmeden de kayıt yapılabilir — yetkilimiz WhatsApp üzerinden güvenli bir ödeme linki gönderir, müşteri linkten öder ve üyeliği başlar. Müşteri "linki gönderir misiniz / uzaktan olur mu" derse bunu SÖYLE ve hemen [[DEVRET:SATIS]] ile yetkiliye devret; linki SEN oluşturamazsın, söz verip bekletme.',
       )
     }
   } catch (e) {
@@ -540,7 +551,7 @@ async function processMessage(sid: string, from: string, name: string, text: str
     return
   }
 
-  const facts = await liveFacts(database, ctx)
+  const facts = await liveFacts(database, ctx, aiDoc?.priceList)
   const system = buildSystem(aiDoc)
   const result = await aiReply(apiKey, system, facts, whoBlock(memberFirstName), conv.messages)
   if (!result) {
@@ -639,7 +650,7 @@ async function resumeAll(sid: string): Promise<{ resumed: number; replied: numbe
   const phoneId = process.env.WHATSAPP_PHONE_NUMBER_ID
   if (!aiDoc?.whatsappActive || !apiKey || !token || !phoneId) return { resumed: 0, replied: 0, total: 0 }
 
-  const facts = await liveFacts(database, ctx)
+  const facts = await liveFacts(database, ctx, aiDoc?.priceList)
   const system = buildSystem(aiDoc)
   const config: MetaWhatsAppConfig = { phoneNumberId: phoneId, accessToken: token, ...(process.env.WHATSAPP_API_VERSION ? { apiVersion: process.env.WHATSAPP_API_VERSION } : {}) }
 
@@ -722,3 +733,7 @@ export const whatsappWebhook = onRequest({ region: REGION, secrets: [...AI_RECEP
   // Always 200 so Meta doesn't storm retries; failures are logged + surfaced to the desk.
   res.status(200).send('OK')
 })
+
+// For `tools/migration/ai-prova-*.ts` only — rehearse the assistant against live settings without sending a
+// WhatsApp message. Not re-exported from `index.ts`, so it is never deployed as a function.
+export const __rehearsal = { buildSystem, liveFacts, aiReply }

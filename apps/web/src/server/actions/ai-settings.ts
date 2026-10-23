@@ -28,6 +28,10 @@ export interface AiSettings {
   // a campaign ends, and the owner must be able to empty one field without re-reading the rest. Prices
   // themselves still come from the live catalogue; this says what to DO with them.
   readonly campaign: string
+  // FİYAT LİSTESİ (owner, 2026-10-23): the ONE price the assistant quotes, in the studio's own words.
+  // When filled, it REPLACES the catalogue as the assistant's price source — a customer is never told a
+  // cash/card split (*"kk farkı suç"*). Empty ⇒ the catalogue, as before. Data, never a literal (AD-41).
+  readonly priceList: string
   readonly faq: readonly AiFaq[]
   readonly escalation: string // when to hand to a human (Işıl)
   readonly neverDo: string // hard "never" rules (no price haggling, no medical advice, no promises)
@@ -37,7 +41,7 @@ export interface AiSettings {
   readonly whatsappActive: boolean
 }
 
-const DEFAULT: AiSettings = { tone: '', identity: '', basics: '', policies: '', campaign: '', faq: [], escalation: '', neverDo: '', examples: '', whatsappActive: false }
+const DEFAULT: AiSettings = { tone: '', identity: '', basics: '', policies: '', campaign: '', priceList: '', faq: [], escalation: '', neverDo: '', examples: '', whatsappActive: false }
 
 export async function getAiSettingsAction(): Promise<AiSettings> {
   const ctx = await requireTenantContext(OPS)
@@ -51,6 +55,7 @@ const schema = z.object({
   basics: z.string().trim().max(4000),
   policies: z.string().trim().max(4000),
   campaign: z.string().trim().max(4000).default(''),
+  priceList: z.string().trim().max(6000).default(''),
   faq: z.array(z.object({ q: z.string().trim().max(300), a: z.string().trim().max(1500) })).max(60),
   escalation: z.string().trim().max(2000),
   neverDo: z.string().trim().max(2000),

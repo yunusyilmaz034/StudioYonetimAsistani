@@ -556,8 +556,11 @@ export async function memberBuyableProducts(ctx: TenantContext): Promise<readonl
       // own cash price, because then the two numbers are set independently and adding a rule on top
       // would invent a third.
       totalKurus: productPrices(p, settings?.paymentSurcharge).cardKurus,
-      // Equal ⇒ one price, and the screen shows a single number as it always has.
-      cashKurus: productPrices(p, settings?.paymentSurcharge).cashKurus,
+      // TEK FİYAT DIŞARIDA (owner, 2026-10-23): *"panel haricinde hiçbir yerde nakit/kk diye bir ayrım olmayacak"* —
+      // kartla farklı fiyat suç. Müşteriye giden her yüzey (site, sözleşme sayfaları, üye uygulaması) yalnız KART
+      // fiyatını görür; nakit fiyat panelin işi. Alan, sahadaki eski uygulama sürümleri için duruyor ve kart fiyatına
+      // EŞİT — onların "stüdyoda nakit …" satırı eşitlikte hiç çizilmez.
+      cashKurus: productPrices(p, settings?.paymentSurcharge).cardKurus,
     }))
     .sort((a, b) => a.totalKurus - b.totalKurus)
 }

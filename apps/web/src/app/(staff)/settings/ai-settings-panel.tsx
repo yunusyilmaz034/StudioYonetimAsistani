@@ -23,6 +23,7 @@ export function AiSettingsPanel({ canEdit }: { canEdit: boolean }) {
   const [faq, setFaq] = useState<AiFaq[]>([])
   const [escalation, setEscalation] = useState('')
   const [campaign, setCampaign] = useState('')
+  const [priceList, setPriceList] = useState('')
   const [neverDo, setNeverDo] = useState('')
   const [examples, setExamples] = useState('')
   const [whatsappActive, setWhatsappActive] = useState(false)
@@ -39,6 +40,7 @@ export function AiSettingsPanel({ canEdit }: { canEdit: boolean }) {
         setFaq(s.faq.length > 0 ? [...s.faq] : [])
         setEscalation(s.escalation)
         setCampaign(s.campaign)
+        setPriceList(s.priceList)
         setNeverDo(s.neverDo)
         setExamples(s.examples)
         setWhatsappActive(s.whatsappActive)
@@ -62,6 +64,7 @@ export function AiSettingsPanel({ canEdit }: { canEdit: boolean }) {
         faq: faq.map((f) => ({ q: f.q.trim(), a: f.a.trim() })).filter((f) => f.q || f.a),
         escalation: escalation.trim(),
         campaign: campaign.trim(),
+        priceList: priceList.trim(),
         neverDo: neverDo.trim(),
         examples: examples.trim(),
         whatsappActive,
@@ -120,6 +123,17 @@ export function AiSettingsPanel({ canEdit }: { canEdit: boolean }) {
 
       <Section title="Politikalar" hint="Deneme dersi, iptal, dondurma, ilk gelişte ne getirmeli — katalogda olmayan kurallar.">
         {field('Politikalar', 'Serbestçe yaz.', policies, setPolicies, 5, 'Örn.\nDeneme dersi: İlk ders ücretsiz, randevuyla.\nİlk gelişte: Rahat kıyafet + çorap yeterli.\nDondurma: Aylık paketlerde 1 hafta hakkı.')}
+      </Section>
+
+      <Section title="Fiyat listesi" hint="AI'nın müşteriye söyleyeceği TEK fiyatlar. Doluysa AI fiyatı katalogdan değil buradan verir ve nakit/kart ayrımından hiç bahsetmez.">
+        {field(
+          'Fiyatlar ve paket içerikleri',
+          'Her paketi tek fiyatıyla yaz. Burada olmayan paketin fiyatını AI vermez, telefona yönlendirir.',
+          priceList,
+          setPriceList,
+          10,
+          'Örn.\nFITNESS: 3 Aylık 8.500 TL · 6 Aylık 13.000 TL\nREFORMER PİLATES: 8 Ders / 30 Gün 4.200 TL',
+        )}
       </Section>
 
       <Section title="Güncel kampanya" hint="Şu an yürüyen kampanya, taksit imkânı, öne çıkarılacak paket. Kampanya bitince burayı BOŞALT.">
