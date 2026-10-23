@@ -68,6 +68,8 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
   Tek fiyat değişikliği (OR-129) sitede/sözleşmelerde/portalda bu yüzden YAYINA ÇIKMADI (AI ve mobil OTA ayrı yoldan, canlı).
   `--invoker-iam-check` geri açıldı (panel 200 — doğrudan run.app 403 NORMALDİR, App Hosting kendi yoluyla çağırır).
   **Runbook düzeltmesi:** kesintide IAM'e DOKUNMA; 23 Ekim kesinti notundaki (3) adımı geçersiz.
+- **ÇÖZÜLDÜ 16:4x:** `build-2026-10-23-003` (c469037) %100. DOĞRULANDI: `/api/public/products?s=retro` 9 ürün, hepsinde
+  `cashKurus === totalKurus` (kart fiyatı); Mesafeli Satış ve Ön Bilgilendirme'de "Stüdyoda nakit" satırı YOK (3 Aylık 9.500).
 
 ### 23 Ekim — Hanzade Boran 6 Ekim 20:00 Reformer'a eklendi (CANLI VERİ, owner)
 
