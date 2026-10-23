@@ -101,7 +101,13 @@ export async function bookPastAttended(
 
       // ── …and resolve it in the same breath. `decideAttendance` reads the reservation's own
       //    `creditEffect`, so an unlimited membership resolves with 'none' and moves no counter. ──
-      const attended = decideAttendance(dctx, booked.value.reservation, session, 'attended')
+      //
+      //    Decided AS OF THE CLASS (owner, 2026-10-23). `occurredAt` is domain time (#3): she attended on
+      //    6 October, not on the day reception wrote it down. Decided "now", the event moved her "son
+      //    katılım" to today — Hanzade Boran read 23.10 with her last real class on 15.10, and the
+      //    dormancy signal would have trusted it — and `minutesAfterStart` came out in the tens of
+      //    thousands. When it was RECORDED stays where it belongs: `recordedAt`.
+      const attended = decideAttendance({ ...dctx, now: session.startsAt }, booked.value.reservation, session, 'attended')
       if (!attended.ok) return attended
       events = [...events, ...attended.value.events]
 

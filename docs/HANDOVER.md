@@ -55,6 +55,20 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
   birebir (101 = 79 + 20 + 2). Owner deneyip yazacak.
 - **Yerelde, push edilmedi:** yalnızca günlük commit'leri (kod değil).
 
+### 23 Ekim öğleden sonra — Sevde Arslan 13 Ekim 19:00 + "son katılım" düzeltmesi + YAYIN TIKANIKLIĞI (benim hatam)
+
+- **Sevde Arslan** (`fix-sevde-arslan-13-ekim-2026-10-23.ts`): 13.10 19:00 zaten 9 kişilikti (Burçin) ve doluydu (8 + 1 misafir) →
+  owner "10 yap" → kapasite 9→10 + `bookPastAttended`, Reformer 8 Ders kalan 5 → **4**.
+- **Hata (kod, düzeltildi):** `bookPastAttended` `reservation.attended`'ı İŞLEM anıyla yazıyordu → "Son katılım" bugüne
+  atlıyordu (Hanzade 23.10 gösterdi, gerçek son ders 15.10) ve `minutesAfterStart` on binlerce dk. Artık katılım
+  DERSİN anıyla karar veriliyor (`book-past.ts`). Hanzade'nin olayı değişmez (olay silinmez/düzenlenmez); bugün 16:30
+  dersine katılınca değer zaten doğru olur.
+- **YAYIN TIKANIKLIĞI:** kesinti gecesi panel servisine `--no-invoker-iam-check` uygulamıştım. App Hosting her rollout'ta
+  bunu geri almaya çalışıyor, yetkisi yok → `build-2026-10-23-001/002` FAILED ("invoker_iam_disabled … setIamPolicy").
+  Tek fiyat değişikliği (OR-129) sitede/sözleşmelerde/portalda bu yüzden YAYINA ÇIKMADI (AI ve mobil OTA ayrı yoldan, canlı).
+  `--invoker-iam-check` geri açıldı (panel 200 — doğrudan run.app 403 NORMALDİR, App Hosting kendi yoluyla çağırır).
+  **Runbook düzeltmesi:** kesintide IAM'e DOKUNMA; 23 Ekim kesinti notundaki (3) adımı geçersiz.
+
 ### 23 Ekim — Hanzade Boran 6 Ekim 20:00 Reformer'a eklendi (CANLI VERİ, owner)
 
 - `fix-hanzade-boran-6-ekim-2026-10-23.ts` UYGULANDI: seans DOLUYDU (2 rezervasyon + 6 misafire ayrılan yer = 8/8, ilk deneme
@@ -97,8 +111,7 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
 - **Neden Işıl gördü, biz değil:** içerideki `healthCheck`/`infrastructure-alarm` AYNI altyapıda (europe-west1 functions) —
   altyapı düşünce alarm da düştü. Dışarıdaki bekçi bu boşluğu kapatıyor.
 - **Bir dahaki sefere (runbook):** panel 500 + Cloud Run'da istek logu yok → (1) etiketli revizyon URL'si 200 mü (uygulama
-  sağlam mı)? (2) `gcloud run services update-traffic studio-yonetim --to-revisions=<build>=100`; (3) gerekirse
-  `--no-invoker-iam-check`. Functions'ta trafiği SABİTLEME — `--to-latest` bırak, yoksa sonraki deploy trafik almaz.
+  sağlam mı)? (2) `gcloud run services update-traffic studio-yonetim --to-revisions=<build>=100`; (3) ~~`--no-invoker-iam-check`~~ YAPMA — App Hosting rollout'larını kilitler (bkz. 23 Ekim öğleden sonra). Functions'ta trafiği SABİTLEME — `--to-latest` bırak, yoksa sonraki deploy trafik almaz.
 - **BEKÇİ (owner: "bunu bizim yakalamamız lazım"):** Cloud Monitoring uptime — bizim altyapımızın DIŞINDAN, 3 bölgeden:
   `Bekci - Panel` (/login 2xx, 1 dk), `Bekci - Uye API` (/api/member/prefs 401, 1 dk), `Bekci - WhatsApp webhook` (yanlış
   token → 403, 5 dk). Alarm `BEKÇİ — sistem erişilemiyor` (policy 8804544700119984977): 2 dk boyunca >1 bölgeden hata →
