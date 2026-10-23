@@ -55,6 +55,13 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
   birebir (101 = 79 + 20 + 2). Owner deneyip yazacak.
 - **Yerelde, push edilmedi:** yalnızca günlük commit'leri (kod değil).
 
+### 23 Ekim — Hanzade Boran 6 Ekim 20:00 Reformer'a eklendi (CANLI VERİ, owner)
+
+- `fix-hanzade-boran-6-ekim-2026-10-23.ts` UYGULANDI: seans DOLUYDU (2 rezervasyon + 6 misafire ayrılan yer = 8/8, ilk deneme
+  `class_full`, yazmadı). Owner: "kapasiteyi 9 yap" → `changeCapacity` 8→9 (sebepli) + `bookPastAttended` (katıldı, aynı
+  işlemde 1 hak tüketildi). Reformer 8 Ders (06.10→05.11) kalan hak 3 → **2**.
+- Masa bunu kendisi de yapabilir: seans → "Sonradan üye ekle" (30 gün). Dolu seansta önce kapasite ya da misafir yeri.
+
 ### 23 Ekim gece — TEK FİYAT dışarıda ([[OR-129]]) — AI canlı, site/panel push, uygulama OTA
 
 - **AI (canlı 02:0x):** `whatsappWebhook` → `liveFacts(priceList)`; `fix-ai-tek-fiyat-2026-10-23.ts` UYGULANDI (priceList +
