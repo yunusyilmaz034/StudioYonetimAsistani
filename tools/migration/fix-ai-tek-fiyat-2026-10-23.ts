@@ -46,6 +46,11 @@ Gebelik haftasına, doktor onayına ve ihtiyaca göre uzman eğitmen eşliğinde
 KREDİ KARTI / NAKİT / TAKSİT SORULURSA — tek cevap: ${KART_CEVABI}
 Nakit fiyat, kart farkı, nakit indirimi, taksitli tutar ya da vade farkı hakkında HİÇBİR rakam ya da karşılaştırma verme.
 
+"UYGULAMADA / LİNKTE / ÖDEME EKRANINDA FARKLI TUTAR YAZIYOR, NEDEN FARKLI?" DENİRSE (owner, 23.10.2026):
+Sebep AÇIKLAMA (komisyon, banka, kart farkı, nakit indirimi vb. DEME), farkı ne kabul et ne inkâr et, tutarları karşılaştırma,
+"hata olmuş / yanlış yazmışım" da DEME. Tek cevap: "Bu konuda size en doğru bilgiyi yetkilimiz versin hanımefendi 🌸 ${TEL} numaralı telefonumuzu arayabilirsiniz ya da dilerseniz notunuzu alalım, biz sizi arayalım." Müşteri "arayın" derse "Not aldım, en kısa sürede sizi arayacağız 🌸" de ve ayrı satıra [[DEVRET:SATIS]] yaz.
+Hukuki ya da tüketici hakkı gibi bir konu açılırsa ("şikâyet ederim", "yasal mı", "tüketici hakem heyeti") TARTIŞMA, savunma yapma, yorum yapma — aynı cevabı ver ve [[DEVRET:SATIS]] yaz.
+
 BU LİSTEDE OLMAYAN PAKETLER (Hibrit paketler, 16 derslik pilates, 1–2 aylık fitness vb.): var olduğunu söyleyebilirsin ama FİYAT VERME — "Detaylı bilgi için ${TEL} numaralı telefonumuzu arayabilirsiniz, dilerseniz biz de sizi arayalım 🌸" de.`
 
 const CAMPAIGN = `GÜNCEL KAMPANYA (owner, 23.10.2026):
@@ -76,7 +81,7 @@ const FAQ_ANSWER: Record<number, string> = {
   11: `${KART_CEVABI.slice(1, -1)} (Bu cümleyi AYNEN ver; fiyat farkı var/yok, tek fiyat gibi hiçbir yorum ekleme.)`,
   12: `${KART_CEVABI.slice(1, -1)} (Taksit sayısı, taksitli tutar ya da vade farkı hakkında rakam verme.)`,
 }
-const NEVER_DO = `Nakit / havale / kredi kartı FİYAT FARKINDAN, nakit indiriminden ya da kart farkından ASLA bahsetme — yasal zorunluluk (owner, 23.10.2026). Sorulursa: ${KART_CEVABI}`
+const NEVER_DO = `Nakit / havale / kredi kartı FİYAT FARKINDAN, nakit indiriminden ya da kart farkından ASLA bahsetme; farkın sebebini açıklama, farkı kabul ya da inkâr etme — yasal zorunluluk (owner, 23.10.2026). Sorulursa: ${KART_CEVABI}`
 
 type Faq = { q: string; a: string }
 
@@ -109,7 +114,8 @@ async function main(): Promise<void> {
   }
   next.faq = faq
   const never = String(ai.neverDo ?? '')
-  if (!never.includes('FİYAT FARKINDAN')) { next.neverDo = `${NEVER_DO}\n${never}`; console.log('✎ neverDo: tek fiyat yasağı en üste') }
+  const neverRest = never.startsWith('Nakit / havale / kredi kartı FİYAT FARKINDAN') ? never.split('\n').slice(1).join('\n') : never
+  if (!never.startsWith(NEVER_DO)) { next.neverDo = `${NEVER_DO}\n${neverRest}`; console.log('✎ neverDo: tek fiyat yasağı en üste') }
   if (ai.campaign !== CAMPAIGN) { next.campaign = CAMPAIGN; console.log('✎ campaign: 15 Eylül reklam/nakit-kart metni → güncel kampanya') }
   if (ai.priceList !== PRICE_LIST) { next.priceList = PRICE_LIST; console.log('✎ priceList: Işıl\'ın tek fiyat listesi') }
 

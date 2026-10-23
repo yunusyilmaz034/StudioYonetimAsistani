@@ -14,6 +14,9 @@ const SORULAR = [
   'Reformer pilates ne kadar? Taksit var mı?',
   'Hamile pilatesi var mı, ücreti nedir?',
   'Hibrit paket fiyatı ne?',
+  'Siz bana 3 aylık 8.500 dediniz ama uygulamada 9.500 yazıyor, neden farklı?',
+  'Kartla ödeyince neden daha pahalı oluyor? Bu yasal mı, şikayet edeceğim',
+  'Tamam beni arayın o zaman',
 ]
 
 async function main(): Promise<void> {

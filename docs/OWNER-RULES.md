@@ -2503,3 +2503,7 @@ yerde nakit/kk diye bir ayrım olmayacak."*
   ve kartta aynıdır" cümlesi kaldırıldı (masada nakit fiyat durduğu için artık doğru değil).
 - **Panel:** nakit/kart ayrımı KALIR (owner).
 - Owner bilerek seçti: AI Işıl'ın fiyatını (ör. 3 Aylık 8.500), uygulama kart fiyatını (9.500) söyler.
+- **Kartla alan KART fiyatını öder — buna karışılmaz** (owner, aynı gece). "Uygulamada/linkte farklı yazıyor, neden?" ya da
+  "yasal mı, şikâyet ederim" denirse AI sebep AÇIKLAMAZ (komisyon/banka/fark/indirim demez), farkı kabul ya da inkâr etmez,
+  tartışmaz: *"Bu konuda size en doğru bilgiyi yetkilimiz versin … 0533 199 41 23 … ya da notunuzu alalım, biz sizi
+  arayalım"* + masaya devir (`[[DEVRET:SATIS]]`). "Arayın" diyene "Not aldım, en kısa sürede sizi arayacağız".
