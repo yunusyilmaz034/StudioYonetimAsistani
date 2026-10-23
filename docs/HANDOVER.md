@@ -64,7 +64,15 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
   cümlesinden) → nötr kurala çevrildi. `__rehearsal` export'u yalnız prova için; index'ten çıkmaz, deploy edilmez.
 - **Web:** `getPublicProductsAction` + `memberBuyableProducts` → `cashKurus = kart`; portal/uygulama metinleri; panel AI
   ayarlarına "Fiyat listesi" alanı. **Mobil:** aynı metin değişikliği `eas update --branch production` (1.9.0).
+- **Aynı gece, owner:** *"kk ile alan kk fiyatını ödesin, karışmayalım; neden farklı diye sorarsa telefona yönlendir ya da
+  sizi arayalım not alalım desin; hukuken suç olacak söylemden kaçınalım."* → priceList'e "neden farklı / yasal mı / şikâyet"
+  kuralı + neverDo güncellendi + koddaki "iki fiyat varsa nakit ve kart birlikte" talimatı silindi. Webhook deploy edildi.
+  Prova 8 soru: "8.500 dediniz uygulamada 9.500" ve "yasal mı, şikâyet edeceğim" → yalnız yönlendirme cümlesi + DEVRET;
+  "arayın" → "Not aldım" + DEVRET. **Masa bu devirlerde müşteriyi GERİ ARAMALI.**
 - **Açık:** uzaktan kayıt linki kart fiyatından keser (AI 8.500 dedi, link 9.500) — masa linki keserken bilsin.
+- **Doğrulanacak:** web build'i (`db462e6` + `7c28b2d`) yayına çıkınca `/api/public/products` ve `/api/member/products`
+  yanıtında `cashKurus === totalKurus`; Ön Bilgilendirme/Mesafeli Satış'ta "stüdyoda nakit" satırı yok. Mobil OTA
+  `49c6805e…` (1.9.0, production) yayında.
 
 ### 23 Ekim 00:20–01:34 — KESİNTİ: panel + tüm Cloud Functions 500 (Google tarafı) · BEKÇİ kuruldu
 
