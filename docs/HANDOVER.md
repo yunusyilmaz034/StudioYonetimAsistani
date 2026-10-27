@@ -68,6 +68,13 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
 - **Pano:** `invite-checklist.ts` — son 30 günde WhatsApp daveti düşmüş ve hesabı açılmamış her üye "… — uygulama daveti
   WhatsApp'tan gitmedi" (attention); üye şifresini belirleyince kendiliğinden kalkar. Testli (6).
 - **Ders:** bir Meta şablon adını eşlemeden ÖNCE Graph API'den `message_templates` listesinde gör.
+- **Giriş adresli davet şablonu DENENDİ, OLMADI (owner "sen oluştur"):** Graph API ile 3 ad × 2 kategori gönderildi —
+  `uyelik_daveti_v2` (UTILITY, iki metin), `uyelik_daveti_giris` (MARKETING), `uyelik_hosgeldin` (MARKETING, "şifre"siz). Hepsi
+  ANINDA `INCORRECT_CATEGORY` (Meta'nın otomatik sınıflandırıcısı; işletme doğrulanmamış). Reddedilenin kategorisi
+  değiştirilemiyor. Durduruldu: onaylı `uyelik_daveti` ({{1}} ad {{2}} link) çalışıyor, üye uygulamadan telefon+şifreyle
+  giriyor — giriş adresi şart değil. Tekrar denenecekse önce işletme doğrulaması (Meta Business → Güvenlik Merkezi).
+- **Ülkü Hançer:** masa 12:14'te panelden yeni davet bağlantısı üretti (05:50'deki "superseded"); 27.10 itibarıyla davet
+  KULLANILMADI, uygulama cihazı 0 → henüz giriş yapmadı. Panodaki "gitmeyen davet" satırı giriş yapana kadar durur.
 - **KESİNTİ 11:07–11:2x (benim hatam):** ilk sürüm panoda HER açılışta tüm `notification.failed` olaylarını okuyordu —
   **46.810** belge (Eylül retry döngüsünün bıraktığı) → 512 MiB aşıldı, sunucu tekrar tekrar OOM ile yeniden başladı, panel
   500/503. Trafik hemen `build-2026-10-23-003`'e geri alındı (panel döndü), loader düzeltildi: yalnız `portal_invite`
