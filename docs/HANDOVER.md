@@ -73,6 +73,11 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
   500/503. Trafik hemen `build-2026-10-23-003`'e geri alındı (panel döndü), loader düzeltildi: yalnız `portal_invite`
   niyetleri (85) + son 30 günün denemeleri (2) — canlı veriyle ölçüldü, ~1 sn, Ülkü bulundu.
   **Ders:** pano okuması eklerken koleksiyonun GERÇEK boyutunu `count()` ile ölç; "küçüktür" varsayma.
+- **İKİNCİ BEKÇİ:** uptime bekçisi yalnız `/login`'i yokluyor; bu sabah çöken ağır pano sayfasıydı, bekçi yalnız 2 dk gördü.
+  Log metriği `panel_sunucu_hatasi` (OOM / "no available instance" / 5xx) + alarm "BEKÇİ — panel sunucu hatası (5 dk'da 5+)"
+  → e-posta. Normal gün 1–3 tekil hata (eşiğin altında), bu sabah 5 dk'da 15+.
+- **KESİNTİ RUNBOOK (güncel):** (1) önce trafiği SON SAĞLAM `build-*` revizyonuna al (`update-traffic --to-revisions`) —
+  saniyeler; (2) sonra logdan sebep; (3) IAM/servis ayarlarına DOKUNMA (23 Ekim dersi).
 
 ### 23 Ekim öğleden sonra — Sevde Arslan 13 Ekim 19:00 + "son katılım" düzeltmesi + YAYIN TIKANIKLIĞI (benim hatam)
 
