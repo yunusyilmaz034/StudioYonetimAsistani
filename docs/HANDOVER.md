@@ -55,6 +55,20 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
   birebir (101 = 79 + 20 + 2). Owner deneyip yazacak.
 - **Yerelde, push edilmedi:** yalnızca günlük commit'leri (kod değil).
 
+### 27 Ekim — online gelen üyeye DAVET GİTMİYORDU (Ülkü Hançer) — şablon adı düzeltildi + panoda "gitmeyen davet"
+
+- **Ülkü Hançer** (web sitesinden online üye, 27.10 05:50): üye + paket + ödeme doğru; davet üretildi, WhatsApp `meta_404`
+  ile düştü, yalnız uygulama-içi kutuya gitti (hesabı yok, göremez). Masa linki panelden elle gönderebilir (Genel → Davet).
+- **Kök neden:** `META_TEMPLATE.portal_invite` = `uyelik_daveti_v2` — Meta'da HİÇ yok (8c611be onay beklerken eşledi). Meta'nın
+  şablon listesi okundu: `uyelik_daveti` APPROVED, tr, {{1}} ad {{2}} link → geri eşlendi. Diğer eksikler (kodda var, Meta'da
+  yok): `package_expired_tr` (72 düşüş, son 18.09), `wallet_topup_tr`; `program_published`/`payment_failed` hiç eşli değil.
+  18.09'dan beri üye bildirimleri in_app+push olduğundan bunlar şu an tetiklenmiyor. **Not:** WhatsApp şablonları 18.09'a
+  kadar 916 kez BAŞARIYLA gitti (`notification.sent`; sağlayıcı `delivered` yazmaz) — owner'a ilk söylediğim "hiç gitmemiş"
+  YANLIŞTI, düzeltildi.
+- **Pano:** `invite-checklist.ts` — son 30 günde WhatsApp daveti düşmüş ve hesabı açılmamış her üye "… — uygulama daveti
+  WhatsApp'tan gitmedi" (attention); üye şifresini belirleyince kendiliğinden kalkar. Testli (6).
+- **Ders:** bir Meta şablon adını eşlemeden ÖNCE Graph API'den `message_templates` listesinde gör.
+
 ### 23 Ekim öğleden sonra — Sevde Arslan 13 Ekim 19:00 + "son katılım" düzeltmesi + YAYIN TIKANIKLIĞI (benim hatam)
 
 - **Sevde Arslan** (`fix-sevde-arslan-13-ekim-2026-10-23.ts`): 13.10 19:00 zaten 9 kişilikti (Burçin) ve doluydu (8 + 1 misafir) →

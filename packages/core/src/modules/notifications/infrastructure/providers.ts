@@ -316,7 +316,15 @@ export const META_TEMPLATE: Readonly<Record<string, MetaTemplateRef>> = {
   // builds `inviteLink` and `loginLink` and never built the combined value, so its WhatsApp
   // invitation went to Meta with an empty parameter and was refused. It now sends what it always
   // had.
-  portal_invite: { name: 'uyelik_daveti_v2', params: ['memberName', 'inviteLink'] },
+  //
+  // ── 2026-10-27: BACK TO `uyelik_daveti` ──────────────────────────────────────────────────
+  // `uyelik_daveti_v2` was never created on Meta's side — the commit that "switched to" it (8c611be) wrote the
+  // name while it was still awaiting approval, and it never appeared. Every invite since went to Meta as a
+  // template that does not exist and came back `meta_404`; online buyers (Ülkü Hançer, 27.10) got no invite and
+  // nobody saw it. Read from Meta's own list the same day: `uyelik_daveti` is APPROVED, tr, with exactly two
+  // body params — {{1}} name, {{2}} link. The login address is not in it (the reason v2 was wanted); she signs
+  // in from the app after setting her password. Verify a name against Meta's template list BEFORE mapping it.
+  portal_invite: { name: 'uyelik_daveti', params: ['memberName', 'inviteLink'] },
   wallet_topup: { name: 'wallet_topup_tr', params: ['memberName', 'amount', 'balance'] },
   // Ders hatırlatmaları (Utility). The owner registered these Meta templates under these EXACT names
   // (no `_tr` suffix). Pilates carries name + time only ("Reformer Pilates" is fixed copy in the Meta

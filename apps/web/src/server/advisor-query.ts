@@ -36,7 +36,7 @@ export interface AdvisorItem {
   // 'staff_plan' — haftalık vardiya planının EKSİĞİ (OR-77): onaylanmamış hafta, gönderilmemiş plan.
   // 'awaiting_us' — stüdyonun WhatsApp'ta verdiği ve henüz tutulmamış dönüş sözü (owner,
   // 2026-09-29). Sohbet belgesinden okunuyor, pano verisinden değil.
-  readonly kind: InsightKind | 'hot_lead' | 'online_payment' | 'door_refused' | 'staff_leave' | 'staff_plan' | 'awaiting_us'
+  readonly kind: InsightKind | 'hot_lead' | 'online_payment' | 'door_refused' | 'staff_leave' | 'staff_plan' | 'awaiting_us' | 'invite_undelivered'
   readonly severity: InsightSeverity
   readonly title: string
   readonly detail: string

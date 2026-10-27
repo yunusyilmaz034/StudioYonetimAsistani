@@ -11,6 +11,7 @@ import { leaveAdvisorItems } from '@/server/leave-checklist'
 import { weekPlanAdvisorItems } from '@/server/week-plan-checklist'
 import { loadOwnerDashboard } from '@/server/owner-dashboard'
 import { onlinePaymentAdvisorItems } from '@/server/online-payment-checklist'
+import { inviteAdvisorItems } from '@/server/invite-checklist'
 import { loadRecentNotes, loadSnoozedItemIds } from '@/server/checklist-snooze'
 import { loadTodayOps } from '@/server/today-ops'
 
@@ -47,7 +48,7 @@ async function ekListe(
 export default async function HomePage() {
   const ctx = await requirePageAccess('/')
   const now = Date.now()
-  const [data, todayOps, hotLeads, doorRefusals, leaves, onlinePayments, weekPlans, snoozed, sonNotlar, bekleyenler] = await Promise.all([
+  const [data, todayOps, hotLeads, doorRefusals, leaves, onlinePayments, weekPlans, snoozed, sonNotlar, bekleyenler, davetler] = await Promise.all([
     loadOwnerDashboard(ctx, now),
     loadTodayOps(ctx, now),
     ekListe('WhatsApp lead’leri', () => hotLeadAdvisorItems(ctx)),
@@ -59,8 +60,9 @@ export default async function HomePage() {
     // Aynı pencereden okunan ikinci şey: geri dönen satırın son kapanış notu (owner, 2026-09-28).
     loadRecentNotes(ctx.studioId as string, now),
     ekListe('Bizden bekleyenler', () => awaitingUsAdvisorItems(ctx)),
+    ekListe('Gitmeyen davetler', () => inviteAdvisorItems(ctx)),
   ])
-  const eksik = [hotLeads, doorRefusals, leaves, onlinePayments, weekPlans, bekleyenler].map((x) => x.hata).filter((x): x is string => x !== null)
+  const eksik = [hotLeads, doorRefusals, leaves, onlinePayments, weekPlans, bekleyenler, davetler].map((x) => x.hata).filter((x): x is string => x !== null)
   // Card money FIRST — it is the one thing on this list that has already happened, and until it is
   // somewhere he looks, "did that payment arrive?" is a question only the provider's panel answers.
   // Then hot WhatsApp leads (act now), then the dashboard-derived advisor items.
@@ -70,7 +72,9 @@ export default async function HomePage() {
   // bu haftanın — ama ikisi de kaçırılırsa telefonla öğrenilir.
   // Bizden dönüş bekleyen, lead'in de ÖNÜNDE (owner, 2026-09-29): lead'e dönmek bir fırsat,
   // verilmiş bir sözü tutmak ise borç. Kapıda kalan üyeden sonra gelir — o bugün gelip gitti.
-  const allItems = [...doorRefusals.items, ...bekleyenler.items, ...leaves.items, ...weekPlans.items, ...onlinePayments.items, ...hotLeads.items, ...deriveAdvisorItems(data)]
+  // Gitmeyen davet (owner, 2026-10-27): parasını ödemiş yeni üye uygulamaya giremiyor — online ödemenin hemen
+  // ardında, çünkü çoğu zaman AYNI üyedir ve aynı gün halledilir.
+  const allItems = [...doorRefusals.items, ...bekleyenler.items, ...leaves.items, ...weekPlans.items, ...onlinePayments.items, ...davetler.items, ...hotLeads.items, ...deriveAdvisorItems(data)]
   // A line already ticked off stays off for its cooldown — reception called that member, and a call is
   // not work again tomorrow (owner, 2026-09-03). Filtered HERE, before the AI narrator sees the list,
   // so the briefing at the top counts the same work the rows below show.

@@ -205,13 +205,13 @@ describe('standardNotificationProviders — one registry for functions and web',
   })
 })
 
-// ── The invite must carry BOTH addresses (owner, 2026-07-31; v2 approved 2026-08-09) ────────
-describe('portal_invite → uyelik_daveti_v2', () => {
-  it('sends the bare invite link, because v2 carries the login address as static text', () => {
-    // v1 had ONE placeholder and no room for a second line, so both addresses had to travel inside
-    // it — seventy-six members had no way back once the message scrolled away. v2 prints the login
-    // address itself, so the parameter is the invite link again.
-    expect(META_TEMPLATE.portal_invite?.params).toEqual(['memberName', 'inviteLink'])
+// ── The invite goes out under a name Meta actually HAS (owner, 2026-10-27) ──────────────────
+describe('portal_invite → uyelik_daveti', () => {
+  it('maps to the approved template, name + invite link', () => {
+    // `uyelik_daveti_v2` was mapped while still awaiting approval and never existed on Meta's side:
+    // every invite since came back `meta_404` (Ülkü Hançer, 27.10). `uyelik_daveti` is approved with
+    // exactly {{1}} name and {{2}} link — read from Meta's template list the same day.
+    expect(META_TEMPLATE.portal_invite).toEqual({ name: 'uyelik_daveti', params: ['memberName', 'inviteLink'] })
   })
 
   it('asks only for parameters every sender actually builds', () => {
