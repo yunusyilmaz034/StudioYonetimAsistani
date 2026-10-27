@@ -50,16 +50,28 @@ export function undeliveredInvites(
 
 export async function inviteAdvisorItems(ctx: TenantContext): Promise<readonly AdvisorItem[]> {
   const db = adminDb()
-  // One equality filter, no ordering — no composite index (a production-only trap here, OR-14). The set
-  // is every failed notification ever, which is small (dozens) and grows only when something breaks.
-  const [failedSnap, invites, excluded] = await Promise.all([
-    db.collection(`studios/${ctx.studioId}/events`).where('type', '==', 'notification.failed').get(),
+  // READ BOUNDED (2026-10-27): the first version read every `notification.failed` EVENT — tens of thousands
+  // of them, left by September's retry loop — on every dashboard render, and took the panel down with
+  // out-of-memory restarts the morning it shipped. Now: only the INVITE intents (one equality filter, a few
+  // hundred documents), only the last 30 days of them, and only those few intents' own delivery attempts.
+  const since = Date.now() - INVITE_LOOKBACK_DAYS * 86_400_000
+  const [intentSnap, invites, excluded] = await Promise.all([
+    db.collection(`studios/${ctx.studioId}/notificationIntents`).where('templateId', '==', 'portal_invite').get(),
     new FirestoreMemberRepository(db).listInvites(ctx),
     loadExcludedMemberIds(db, ctx.studioId),
   ])
-  const failures: FailedInvite[] = failedSnap.docs
-    .filter((d) => d.get('payload.templateId') === 'portal_invite' && d.get('payload.channel') === 'whatsapp')
-    .map((d) => ({ memberId: String(d.get('related.memberId') ?? ''), failedAt: msOf(d.get('occurredAt')) }))
+  const recent = intentSnap.docs
+    .map((d) => ({ id: d.id, memberId: String(d.get('recipient.id') ?? ''), at: msOf(d.get('createdAt')) }))
+    .filter((i) => i.at >= since && i.memberId)
+  const attempts = await Promise.all(
+    recent.map((i) => db.collection(`studios/${ctx.studioId}/deliveryAttempts`).where('intentId', '==', i.id).get()),
+  )
+  const failures: FailedInvite[] = recent
+    .filter((_, k) =>
+      attempts[k]!.docs.some((a) => a.get('channel') === 'whatsapp' && a.get('status') === 'failed') &&
+      !attempts[k]!.docs.some((a) => a.get('channel') === 'whatsapp' && (a.get('status') === 'sent' || a.get('status') === 'delivered')),
+    )
+    .map((i) => ({ memberId: i.memberId, failedAt: i.at }))
 
   const rows = undeliveredInvites(
     failures,

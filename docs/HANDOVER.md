@@ -68,6 +68,11 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
 - **Pano:** `invite-checklist.ts` — son 30 günde WhatsApp daveti düşmüş ve hesabı açılmamış her üye "… — uygulama daveti
   WhatsApp'tan gitmedi" (attention); üye şifresini belirleyince kendiliğinden kalkar. Testli (6).
 - **Ders:** bir Meta şablon adını eşlemeden ÖNCE Graph API'den `message_templates` listesinde gör.
+- **KESİNTİ 11:07–11:2x (benim hatam):** ilk sürüm panoda HER açılışta tüm `notification.failed` olaylarını okuyordu —
+  **46.810** belge (Eylül retry döngüsünün bıraktığı) → 512 MiB aşıldı, sunucu tekrar tekrar OOM ile yeniden başladı, panel
+  500/503. Trafik hemen `build-2026-10-23-003`'e geri alındı (panel döndü), loader düzeltildi: yalnız `portal_invite`
+  niyetleri (85) + son 30 günün denemeleri (2) — canlı veriyle ölçüldü, ~1 sn, Ülkü bulundu.
+  **Ders:** pano okuması eklerken koleksiyonun GERÇEK boyutunu `count()` ile ölç; "küçüktür" varsayma.
 
 ### 23 Ekim öğleden sonra — Sevde Arslan 13 Ekim 19:00 + "son katılım" düzeltmesi + YAYIN TIKANIKLIĞI (benim hatam)
 
