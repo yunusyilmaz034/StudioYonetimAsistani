@@ -55,6 +55,19 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
   birebir (101 = 79 + 20 + 2). Owner deneyip yazacak.
 - **Yerelde, push edilmedi:** yalnızca günlük commit'leri (kod değil).
 
+### 2 Kasım — Sevim Yerkan fitness → Reformer 8 Ders (CANLI VERİ, owner) · "uygulama yavaş" bakıldı
+
+- **Sevim Yerkan:** Fitness 6 Aylık (12.750, 19.10 1.000 havale) iptal → Reformer Pilates 8 Ders 4.200 (nakit
+  fiyatı), başlangıç 26.10 → 25.11. 19.10 havale eski saatiyle kasasız yeniden yazıldı; bugünkü 3.200 nakit
+  Merkez Kasa'ya girdi — **masa tekrar girmesin.** Satış settled 4.200/4.200. Masa sabah 4 derslik paketi
+  iptal etmişti; 26.10 13:30 dersi o paketten düşmüştü → yeni pakete `adjustCredits −1 correction` (7 hak
+  kaldı, rezervasyona dokunulmadı). `tani-sevim-yerkan-2026-11-02.ts`, `fix-sevim-yerkan-pilates-8-2026-11-02.ts`.
+- **"Uygulama yavaş, sabah maliyet için GCP'de bir şeyler yaptık":** `studio-yonetim-prod` admin-audit
+  kaydında 27.10'dan beri HİÇ değişiklik yok; panel ayarları aynı (minScale 1, 1 CPU, 512 MiB, trafik
+  `build-2026-10-27-002`). Panel/üye API gecikmesi 28–31.10 ile aynı (p50 ~0,07 s, üye API p50 ~0,25 s).
+  Maliyet değişikliği başka projede (`pilatesbyisil-a37fa`, `uzmanpts`, `eburs-83397`…) ya da faturalama
+  hesabında yapılmış olmalı — owner'a soruldu.
+
 ### 27 Ekim — online gelen üyeye DAVET GİTMİYORDU (Ülkü Hançer) — şablon adı düzeltildi + panoda "gitmeyen davet"
 
 - **Ülkü Hançer** (web sitesinden online üye, 27.10 05:50): üye + paket + ödeme doğru; davet üretildi, WhatsApp `meta_404`
