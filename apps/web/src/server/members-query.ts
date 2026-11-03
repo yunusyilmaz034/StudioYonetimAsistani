@@ -55,6 +55,8 @@ export interface MemberRow {
     readonly category: string | null
     readonly active: boolean
     readonly remainingDays: number | null
+    /** A component of a HYBRID (bundle) — the Bitecek / Kredisi azalan type split reads it (owner, 2026-11-03). */
+    readonly isBundle: boolean
   }[]
 }
 
@@ -118,6 +120,7 @@ export async function listMemberRows(ctx: TenantContext, nowMs: number): Promise
         category: e.productSnapshot.category ?? null,
         active: e.status === 'active',
         remainingDays: e.status === 'active' ? Math.max(0, Math.ceil((bitis - nowMs) / 86_400_000)) : null,
+        isBundle: bundleProductIds.has(e.productSnapshot.productId as string),
       })
       detay.set(e.memberId as string, d)
     }

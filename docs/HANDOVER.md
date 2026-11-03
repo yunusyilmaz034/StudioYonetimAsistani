@@ -61,6 +61,10 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
   `fitness_expiring`, soğuma 3 gün); 11–14 gün kalan fitness listelenmez. Öteki paketler eskisi gibi `expiring_soon`.
 - **Esra Tepe:** 8 Ders bitişi 29.11 → 30.09 (owner tersine karar verdi; 6 Ekim'de kalan 5 ders yanmasın diye 90 gün
   bırakılmıştı). `amendEntitlement`, `fix-esra-tepe-sure-30-gun-2026-11-03.ts`. Gece süpürmesi bitirir, 5 hak `expired`.
+- **Üyeler → Bitecek / Kredisi azalan:** altında paket TÜRÜNE göre alt çipler (Hepsi · Pilates · Fitness · Hibrit · PT;
+  sayısı 0 olan gizli). Tür, üyenin değil BİTEN/AZALAN paketin türü (`expiringKinds`, `lowCreditKinds`); hibrit bileşeni hep
+  hibrit. Tür seçiliyken satır o paketi gösterir.
+- **Fatura Takibi PIN kutusu** kenara yapışıktı → sayfa boşluğu verildi.
 - **"Rakamlar tutarsız" (owner):** değildi — satış raporu o gün SATILANI, kasa o gün GİRENİ sayar (2 Kasım: 14.700 dünkü
   satışlara + 17.550 eski borç ödemeleri = 31.250). Satış raporu özetine (kategori seçili değilken) "Bu tarihlerde kasaya
   giren toplam" eklendi.

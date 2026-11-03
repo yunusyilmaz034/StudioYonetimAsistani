@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { badgesFor, matches, type MemberBadges, type MemberFacts } from './filters'
+import { badgesFor, matches, packageKindOf, type MemberBadges, type MemberFacts } from './filters'
 
 const NOW = 1_700_000_000_000
 const DAY = 86_400_000
@@ -147,7 +147,7 @@ describe('üye listesi filtreleri', () => {
 describe('the three states', () => {
   const badges = (over: Partial<MemberBadges> = {}): MemberBadges => ({
     state: 'active', expiring: false, lowCredits: false, frozen: false,
-    inDebt: false, hybrid: false, categories: [],
+    inDebt: false, hybrid: false, categories: [], expiringKinds: [], lowCreditKinds: [],
     ...over,
   })
 
@@ -185,5 +185,31 @@ describe('the three states', () => {
       const hits = (['active', 'paused', 'passive'] as const).filter((f) => matches(f, badges({ state })))
       expect(hits).toEqual([state])
     }
+  })
+})
+
+describe('Bitecek / Kredisi azalan by package kind (owner, 2026-11-03)', () => {
+  const NOW = 1_700_000_000_000
+  const DAY = 86_400_000
+  const pkg = (over: Partial<MemberFacts['packages'][number]>) => ({ status: 'active', validUntil: NOW + 30 * DAY, creditsAvailable: null, ...over })
+  it('names only the kinds of the packages that are actually ending or running low', () => {
+    const b = badgesFor(
+      {
+        status: 'active',
+        balanceDueKurus: 0,
+        packages: [
+          pkg({ category: 'fitness', validUntil: NOW + 5 * DAY }),
+          pkg({ category: 'pilates_group', creditsAvailable: 6 }),
+          pkg({ category: 'pilates_group', isBundle: true, creditsAvailable: 1, validUntil: NOW + 40 * DAY }),
+        ],
+      },
+      NOW,
+    )
+    expect(b.expiringKinds).toEqual(['fitness'])
+    expect(b.lowCreditKinds).toEqual(['hybrid'])
+  })
+  it('a hybrid component is hybrid, never pilates or fitness', () => {
+    expect(packageKindOf({ category: 'fitness', isBundle: true })).toBe('hybrid')
+    expect(packageKindOf({ category: 'pilates_group' })).toBe('pilates')
   })
 })

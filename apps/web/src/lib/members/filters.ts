@@ -76,11 +76,28 @@ export interface MemberFacts {
 export const EXPIRING_WINDOW_MS = 14 * 86_400_000
 export const LOW_CREDIT_THRESHOLD = 2
 
+// ── BİTECEK / KREDİSİ AZALAN, TÜRE GÖRE (owner, 2026-11-03) ────────────────────────────────────
+//
+// *"Bitecek'te fitness, hibrit ve pilates ayrı gelmeli; kredisi azalanda da hibrit ve pilates ayrı."*
+// The type of a PACKAGE, not of a member: a member with an expiring fitness and a healthy pilates package
+// is "fitness bitecek", and nothing else. A hybrid's components are the hybrid, never pilates or fitness
+// (the same wall as the type chips above).
+export type PackageKind = 'pilates' | 'fitness' | 'pt' | 'hybrid'
+export function packageKindOf(p: { readonly category?: string | null; readonly isBundle?: boolean }): PackageKind | null {
+  if (p.isBundle === true) return 'hybrid'
+  return p.category === 'pilates_group' ? 'pilates' : p.category === 'fitness' ? 'fitness' : p.category === 'private' ? 'pt' : null
+}
+export const KIND_LABEL: Record<PackageKind, string> = { pilates: 'Pilates', fitness: 'Fitness', pt: 'PT', hybrid: 'Hibrit' }
+
 export interface MemberBadges {
   /** Aktif · Duraklatılmış · Pasif — exhaustive, mutually exclusive, derived (see MemberState). */
   readonly state: MemberState
   readonly expiring: boolean
+  /** The kinds of the packages that make her `expiring` — the sub-chips under "Bitecek". */
+  readonly expiringKinds: readonly PackageKind[]
   readonly lowCredits: boolean
+  /** The kinds of the packages that make her `lowCredits` — the sub-chips under "Kredisi azalan". */
+  readonly lowCreditKinds: readonly PackageKind[]
   readonly frozen: boolean
   readonly inDebt: boolean
   /** Holds a live HYBRID (bundle) package — powers the "Hibrit" filter. */
@@ -117,6 +134,10 @@ export function badgesFor(m: MemberFacts, nowMs: number): MemberBadges {
   const live = m.packages.filter((p) => isLive(p, nowMs))
   const active = live.filter((p) => p.status === 'active')
   const frozen = live.some((p) => p.status === 'frozen')
+  const isExpiring = (p: MemberFacts['packages'][number]) => p.validUntil > nowMs && p.validUntil - nowMs <= EXPIRING_WINDOW_MS
+  const isLow = (p: MemberFacts['packages'][number]) => p.creditsAvailable !== null && p.creditsAvailable <= LOW_CREDIT_THRESHOLD
+  const kinds = (ps: readonly MemberFacts['packages'][number][]) =>
+    [...new Set(ps.map(packageKindOf).filter((k): k is PackageKind => k !== null))]
 
   return {
     // The declaration wins: a member the studio has marked for removal is PASIF whatever her packages
@@ -149,12 +170,12 @@ export function badgesFor(m: MemberFacts, nowMs: number): MemberBadges {
     ],
     // A package still inside its window, ending soon. A frozen one is NOT expiring — that is the
     // whole point of freezing it, and telling reception to chase a frozen member would undo it.
-    expiring: active.some((p) => p.validUntil > nowMs && p.validUntil - nowMs <= EXPIRING_WINDOW_MS),
+    expiring: active.some(isExpiring),
+    expiringKinds: kinds(active.filter(isExpiring)),
     // Only a credit package can run low. A period membership has no number to run out of, and
     // counting it as "0 credits left" would put every unlimited member on the call list.
-    lowCredits: active.some(
-      (p) => p.creditsAvailable !== null && p.creditsAvailable <= LOW_CREDIT_THRESHOLD,
-    ),
+    lowCredits: active.some(isLow),
+    lowCreditKinds: kinds(active.filter(isLow)),
     frozen,
     inDebt: m.balanceDueKurus > 0,
     // A hybrid (demet) is any live package flagged as a bundle component — its content varies (pilates +
