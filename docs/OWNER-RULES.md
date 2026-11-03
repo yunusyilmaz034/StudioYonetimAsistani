@@ -2542,5 +2542,6 @@ Owner: *"telefonu alınca girsin"* · *"sosyal medya çekimlerini tabi ki biz ya
   Otomatik. Taslak modunda kod hiçbir yoldan gönderemez (`instagramAction`, testli).
 - **Onaysız hiçbir şey yayınlanmaz** (IG-2): paylaşım ancak owner onay olayından sonra çıkar.
 - **Onaysız tek kuruş harcanmaz** (IG-5): her yeni kampanya ve her bütçe değişikliği owner onayıyla.
+- **Reklamda HER değişiklik onaylı** (owner, 2026-11-03: *"herşeyi yapsın sadece onay verince yayınlasın vs reklam düzenleme kapama vs onayla yapsın"*): AI analiz eder, önerir, kampanyayı/reklamı HAZIRLAR; yayınlama, düzenleme, bütçe değişikliği, DURDURMA ve kapatma — hepsi owner onayından sonra. İstisna yok (durdurma dahil). Ödeme yöntemi reklam hesabında kayıtlı (owner); panel ödeme bilgisine dokunmaz.
 - **Çekim stüdyoda** — panel çekim kartı verir (ne, nasıl, kaç saniye), kurgular, onaya sunar.
 - Sahte takipçi/beğeni/otomatik takip-bırak YOK (Instagram kuralı; hesap kapanma riski — geçim bu hesaptan).
