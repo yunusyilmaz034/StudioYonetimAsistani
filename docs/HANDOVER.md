@@ -55,7 +55,21 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
   birebir (101 = 79 + 20 + 2). Owner deneyip yazacak.
 - **Yerelde, push edilmedi:** yalnızca günlük commit'leri (kod değil).
 
-### ⏭️ 3 Kasım gece — IG-1 CANLIDA ama DM HENÜZ GELMİYOR (iki Meta engeli) — BURADAN DEVAM
+### ⏭️ 3 Kasım gece (geç) — IG-1 ENGELLER KALKTI — owner'ın ilk deneme DM'i bekleniyor — BURADAN DEVAM
+
+- **Uygulama YAYINDA** (owner "yayınla", ~22:05). Ayarlar: gizlilik `…/gizlilik`, veri silme `…/gizlilik#basvuru`, kategori
+  İşletme ve Sayfalar. Yayından sonra WhatsApp aboneliği aktif + trafik var.
+- **Messenger kullanım alanı eklendi** → `pages_manage_metadata` + `pages_messaging`. Mevcut `INSTAGRAM_ACCESS_TOKEN` v1 bu
+  izinleri KENDİLİĞİNDEN kazandı (debug_token) — yeni jeton gerekmedi. `POST /105975022531045/subscribed_apps` → **success**,
+  sayfa `messages` ile abone.
+- ⚠️ **`META_APP_SECRET` v2 = yanlışlıkla eklenen JETON** (owner yeni jetonu bu sıra koydu). Owner v2'yi DISABLED yaptı. Canlı
+  `instagramWebhook` v1'e sabit (Cloud Run env: META_APP_SECRET → 1) — bugün sorun yok. AMA `latest` artık devre dışı v2'yi
+  gösteriyor: **bir sonraki `firebase deploy --only functions` öncesi** owner App secret'ı `META_APP_SECRET`'a YENİ SÜRÜM (v3)
+  olarak tekrar eklesin (ya da deploy'un hangi sürümü seçtiğini kontrol et). Yoksa deploy düşebilir / webhook her POST'u reddeder.
+- Sıradaki: owner AI Ayarları → Instagram → Taslak; Işıl'ın kişisel IG'sinden deneme DM. Düşmezse: o hesap uygulamada rol sahibi
+  değil (standart erişim) → App roles → Instagram Tester ekle, ya da `[ig-webhook]` loglarına bak.
+
+### 3 Kasım gece — IG-1 CANLIDA, iki Meta engeli vardı (aşağıda; ikisi de kalktı)
 
 **Yapıldı (owner "hepsi şimdi", ~21:30–21:55):** `META_APP_SECRET` (owner girdi; `appsecret_proof` ile Meta geçerli saydı) ·
 App Hosting'e `INSTAGRAM_ACCESS_TOKEN` erişimi · `firebase deploy --only functions` (tümü; `instagramWebhook` YENİ:
