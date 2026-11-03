@@ -41,6 +41,17 @@ const DURUM = [
 ] as const
 type DurumId = (typeof DURUM)[number]['id']
 
+const DAY = 86_400_000
+/** Havale/EFT: the invoice is due within 7 days of the money arriving (owner, 2026-11-03). */
+function sonGun(r: InvoiceRow, now: number): { text: string; urgent: boolean } | null {
+  if (r.method !== 'bank_transfer' || r.issued) return null
+  const due = r.receivedAt + 7 * DAY
+  const left = Math.floor((due - now) / DAY)
+  if (left < 0) return { text: `Süre ${-left} gün geçti`, urgent: true }
+  if (left === 0) return { text: 'Bugün son gün', urgent: true }
+  return { text: `${left} gün kaldı`, urgent: left <= 3 }
+}
+
 const tl = (k: number) => `${(k / 100).toLocaleString('tr-TR', { maximumFractionDigits: 2 })} ₺`
 const gun = (ms: number) =>
   new Date(ms).toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
@@ -98,7 +109,7 @@ export function InvoicesScreen() {
             onClick={() =>
               downloadCsv({
                 name: 'fatura-takibi',
-                columns: ['Tarih', 'Ad Soyad', 'TC', 'Yöntem', 'Tutar (₺)', 'Fatura', 'Not'],
+                columns: ['Tarih', 'Ad Soyad', 'TC', 'Yöntem', 'Tutar (₺)', 'Fatura', 'Kesilen tutar (₺)', 'Not'],
                 rows: rows.map((r) => [
                   gun(r.receivedAt),
                   r.fullName,
@@ -106,6 +117,7 @@ export function InvoicesScreen() {
                   METHOD[r.method] ?? r.method,
                   r.amountKurus / 100,
                   r.issued ? 'Kesildi' : 'Kesilmedi',
+                  r.invoicedKurus === null ? '' : r.invoicedKurus / 100,
                   r.note ?? '',
                 ]),
               })
@@ -148,7 +160,8 @@ export function InvoicesScreen() {
             {tl(bekleyen.reduce((n, r) => n + r.amountKurus, 0))})
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
-            Tarih, paranın alındığı gündür. İptal edilen tahsilatlar ve test hesapları listede yok. TC'si girilmemiş
+            Havale/EFT'lerde fatura 7 gün içinde kesilmeli: son 3 gününe girenler ve süresi geçenler her sabah 09:00'da
+            e-postayla bildirilir. Tarih, paranın alındığı gündür. İptal edilen tahsilatlar ve test hesapları listede yok. TC'si girilmemiş
             üyede {placeholder} yazar; kalem simgesiyle üyenin TC'sini girebilirsiniz.
           </p>
         </div>
@@ -167,7 +180,7 @@ export function InvoicesScreen() {
           <table className="w-full text-sm">
             <thead className="border-b border-border bg-muted/40">
               <tr>
-                {['Fatura', 'Tarih', 'Ad Soyad', 'TC', 'Yöntem', 'Tutar', 'Not'].map((c) => (
+                {['Fatura', 'Tarih', 'Ad Soyad', 'TC', 'Yöntem', 'Tutar', 'Kesilen tutar', 'Not'].map((c) => (
                   <th key={c} className="px-3 py-2 text-left text-xs font-medium whitespace-nowrap text-muted-foreground">
                     {c}
                   </th>
@@ -188,13 +201,21 @@ export function InvoicesScreen() {
 
 function Row({ row, placeholder, onChanged }: { row: InvoiceRow; placeholder: string; onChanged: () => void }) {
   const [note, setNote] = useState(row.note ?? '')
+  // Kesilen tutar — the payment's amount unless the desk types another (owner, 2026-11-03).
+  const [kesilen, setKesilen] = useState(String(row.amountKurus / 100).replace('.', ','))
+  const due = sonGun(row, Date.now())
   const [saving, setSaving] = useState(false)
 
   async function toggle() {
     setSaving(true)
     try {
       if (!row.issued) {
-        const r = await markInvoiceIssuedAction({ paymentId: row.paymentId, note: note.trim() || null })
+        const lira = Number(kesilen.replace(/\./g, '').replace(',', '.'))
+        if (!Number.isFinite(lira) || lira <= 0) {
+          toast.error('Kesilen tutarı girin.')
+          return
+        }
+        const r = await markInvoiceIssuedAction({ paymentId: row.paymentId, note: note.trim() || null, invoicedKurus: Math.round(lira * 100) })
         if (!r.ok) toast.error(domainErrorMessage(r.error))
         else toast.success(`${row.fullName} — fatura kesildi olarak işaretlendi.`)
       } else {
@@ -239,8 +260,22 @@ function Row({ row, placeholder, onChanged }: { row: InvoiceRow; placeholder: st
           <PencilIcon className="size-3.5 opacity-60" />
         </button>
       </td>
-      <td className="px-3 py-2 whitespace-nowrap">{METHOD[row.method] ?? row.method}</td>
+      <td className="px-3 py-2 whitespace-nowrap">
+        {METHOD[row.method] ?? row.method}
+        {due ? (
+          <span className={`ml-2 rounded-md px-1.5 py-0.5 text-xs ${due.urgent ? 'bg-danger/10 text-danger' : 'bg-muted text-muted-foreground'}`}>
+            {due.text}
+          </span>
+        ) : null}
+      </td>
       <td className="px-3 py-2 text-right whitespace-nowrap tabular-nums">{tl(row.amountKurus)}</td>
+      <td className="px-3 py-2 text-right whitespace-nowrap tabular-nums">
+        {row.issued ? (
+          row.invoicedKurus === null ? '—' : tl(row.invoicedKurus)
+        ) : (
+          <Input value={kesilen} inputMode="decimal" onChange={(e) => setKesilen(e.target.value)} className="h-9 w-28 text-right" aria-label="Kesilen tutar" />
+        )}
+      </td>
       <td className="min-w-48 px-3 py-2">
         {row.issued ? (
           <span className="text-muted-foreground">{row.note ?? '—'}</span>

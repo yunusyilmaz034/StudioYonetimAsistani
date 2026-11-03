@@ -38,7 +38,7 @@ const payment = {
 
 describe('invoice events', () => {
   it('invoice.issued matches the golden payload, and the note never reaches it', () => {
-    const r = decideIssueInvoice(ctx, payment, null, 'e-arşiv GIB2026000000118')
+    const r = decideIssueInvoice(ctx, payment, null, 'e-arşiv GIB2026000000118', 200_000)
     expect(r.ok).toBe(true)
     if (!r.ok) return
     expect(r.value.events[0]?.type).toBe('invoice.issued')
@@ -47,7 +47,7 @@ describe('invoice events', () => {
   })
 
   it('invoice.reverted matches the golden payload', () => {
-    const on = decideIssueInvoice(ctx, payment, null, null)
+    const on = decideIssueInvoice(ctx, payment, null, null, 420_000)
     if (!on.ok) throw new Error('setup')
     const r = decideRevertInvoice(ctx, payment, on.value.next, 'yanlış satıra tiklendi')
     expect(r.ok).toBe(true)

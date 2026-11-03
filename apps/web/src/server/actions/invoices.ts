@@ -47,6 +47,8 @@ export interface InvoiceRow {
   readonly issued: boolean
   readonly issuedAt: number | null
   readonly note: string | null
+  /** What the invoice was cut for, as typed at the tick — may differ from the payment (owner). */
+  readonly invoicedKurus: number | null
 }
 
 export type InvoiceList =
@@ -107,6 +109,7 @@ export async function loadInvoicesAction(input: unknown): Promise<InvoiceList> {
         issued: m?.issued === true,
         issuedAt: m?.issuedAt ?? null,
         note: m?.note ?? null,
+        invoicedKurus: m?.issued && m.invoicedAmount ? m.invoicedAmount.amount : null,
       }
     })
   return { locked: false, rows, placeholder: PLACEHOLDER_TC }
@@ -118,10 +121,12 @@ function deps() {
 }
 
 export async function markInvoiceIssuedAction(input: unknown): Promise<Result<void, DomainError>> {
-  const p = z.object({ paymentId: z.string().min(1), note: z.string().max(300).nullable() }).parse(input)
+  const p = z
+    .object({ paymentId: z.string().min(1), note: z.string().max(300).nullable(), invoicedKurus: z.number().int() })
+    .parse(input)
   const u = await unlocked()
   if (!u.ok) return LOCKED
-  return markInvoiceIssued(deps(), u.ctx, { paymentId: p.paymentId, note: p.note })
+  return markInvoiceIssued(deps(), u.ctx, { paymentId: p.paymentId, note: p.note, invoicedKurus: p.invoicedKurus })
 }
 
 export async function revertInvoiceAction(input: unknown): Promise<Result<void, DomainError>> {

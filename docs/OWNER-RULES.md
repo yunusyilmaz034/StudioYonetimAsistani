@@ -2521,3 +2521,10 @@ soyad, TC varsa yoksa 11 tane 1, ödeme yöntemi, tarih; fatura kestiysek tikley
 - Sistem faturayı KESMEZ (e-arşiv entegrasyonu yok); yalnız kesildiğini kaydeder: `invoice.issued`. Tiki kaldırmak bir düzeltme,
   sebep ister: `invoice.reverted`. Not serbest metin, yalnız durum belgesinde (`invoiceMarks/{paymentId}`), olayda değil.
 - Tahsilat raporunda ayrıca ödeme yöntemine göre süzgeç: Tümü · Nakit · Kredi kartı · POS · Online · Havale/EFT · Diğer.
+- **Kesilen tutar** (aynı gün): tiklerken girilir, varsayılan tahsilat tutarı. Sistem kaydeder, yargılamaz — tahsilattan farklı
+  olabilir. `invoice.issued` olayında `invoicedAmount` olarak da durur.
+- **Havale/EFT 7 gün** (aynı gün): havale/EFT'de fatura 7 gün içinde kesilmeli. Ekranda "N gün kaldı / Bugün son gün / Süre geçti"
+  rozeti; her sabah 09:00 (`invoiceDeadline` fonksiyonu) son 3 gününe giren ya da süresi geçen (30 güne kadar) tiksiz havaleler
+  TEK e-postayla bütün aktif owner'lara gider. Tiklenen satır ertesi sabahki mailden düşer.
+- Owner nakitte fatura kesmeme / tutarın altında kesme ve "maliye fark etmesin diye yavaş yavaş geçiş" planı istedi; bu konuda
+  plan yapılmadı, mali müşavire yönlendirildi. Sistem tutarı yalnızca kayıt eder.

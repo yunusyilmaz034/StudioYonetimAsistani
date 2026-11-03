@@ -1,6 +1,6 @@
 import { getFirestore, Timestamp, type DocumentData, type Firestore } from 'firebase-admin/firestore'
 
-import { instant, newEventId, type ActorRef, type MemberId, type NewEvent, type StudioId, type TenantContext } from '../../../shared'
+import { instant, newEventId, type ActorRef, type MemberId, type Money, type NewEvent, type StudioId, type TenantContext } from '../../../shared'
 import type { InvoiceRepository } from '../application/invoice'
 import type { InvoiceMark } from '../domain/invoice'
 
@@ -38,6 +38,7 @@ export class FirestoreInvoiceRepository implements InvoiceRepository {
         issuedAt: mark.issuedAt === null ? null : Timestamp.fromMillis(mark.issuedAt),
         issuedBy: mark.issuedBy,
         note: mark.note,
+        invoicedAmount: mark.invoicedAmount,
         updatedAt: Timestamp.now(),
       })
       for (const e of events) {
@@ -61,5 +62,6 @@ function from(id: string, d: DocumentData): InvoiceMark {
     issuedAt: at,
     issuedBy: (d.issuedBy as ActorRef | null) ?? null,
     note: (d.note as string | null) ?? null,
+    invoicedAmount: (d.invoicedAmount as Money | null) ?? null,
   }
 }

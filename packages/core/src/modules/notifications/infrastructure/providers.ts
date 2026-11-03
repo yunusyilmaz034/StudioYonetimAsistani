@@ -127,7 +127,7 @@ ${footer}
 }
 
 /** Sahibe/personele giden işletme uyarıları. Üyeye giden hiçbir şey bu listede olamaz. */
-const OPS_SABLONLARI: ReadonlySet<string> = new Set(['system_alert', 'system_heartbeat'])
+const OPS_SABLONLARI: ReadonlySet<string> = new Set(['system_alert', 'system_heartbeat', 'invoice_due'])
 
 export class ResendEmailProvider implements NotificationProvider {
   readonly channel = 'email' as const

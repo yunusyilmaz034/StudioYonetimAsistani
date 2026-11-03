@@ -318,6 +318,18 @@ export const TEMPLATES: Readonly<Record<string, NotificationTemplate>> = {
   // The weekly "still here" message. Its whole value is in ARRIVING: the owner is told, in the text
   // itself, that a missing heartbeat means something is wrong — which is the only way to notice the
   // one failure a self-hosted watchdog cannot report, its own suspension.
+  // FATURA — HAVALE/EFT 7 GÜN (owner, 2026-11-03). Every morning, while any transfer is inside its last
+  // three days (or past them) without a "fatura kesildi" tick. Staff only — never a member.
+  invoice_due: {
+    id: 'invoice_due',
+    version: 1,
+    name: 'Fatura kesilmeli — havale/EFT 7 gün (sahip)',
+    category: 'operational',
+    priority: 'urgent',
+    requiredParams: ['count', 'lines'],
+    subject: 'Acil: {{count}} havale/EFT için fatura kesilmeli',
+    body: '🧾 7 GÜN DOLMADAN FATURA KESİLMELİ\n{{lines}}\n\nFaturayı kestikten sonra panelde Para → Fatura Takibi ekranında tikleyin; tiklenen satır bu mailden düşer.',
+  },
   system_heartbeat: {
     id: 'system_heartbeat',
     version: 1,

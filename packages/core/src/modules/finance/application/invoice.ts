@@ -17,12 +17,12 @@ export interface InvoiceDeps extends FinanceDeps {
 export async function markInvoiceIssued(
   deps: InvoiceDeps,
   ctx: TenantContext,
-  input: { paymentId: string; note: string | null },
+  input: { paymentId: string; note: string | null; invoicedKurus: number },
 ): Promise<Result<void, DomainError>> {
   const payment = await deps.repo.getPayment(ctx, input.paymentId)
   if (!payment) return { ok: false, error: { code: 'operation_not_applicable' } }
   const current = await deps.invoices.getInvoiceMark(ctx, input.paymentId)
-  const r = decideIssueInvoice(dctx(deps, ctx, newOperationId()), payment, current, input.note)
+  const r = decideIssueInvoice(dctx(deps, ctx, newOperationId()), payment, current, input.note, input.invoicedKurus)
   if (!r.ok) return r
   await deps.invoices.saveInvoiceMark(ctx, r.value.next, r.value.events)
   return { ok: true, value: undefined }

@@ -19,6 +19,7 @@ import { runEnergySummarySweep } from './scheduled/energy-summary'
 import { runClassReminderSweep } from './scheduled/class-reminders'
 import { runExpirySweep } from './scheduled/expire-credits'
 import { runInfrastructureWatch } from './scheduled/infrastructure-alarm'
+import { runInvoiceDeadlineSweep } from './scheduled/invoice-deadline'
 import { runFastHealthChecks, runNightlyHealthChecks } from './scheduled/health'
 import { runMinInstancesGuard } from './scheduled/min-instances-guard'
 import { runNotificationRetrySweep } from './scheduled/notification-retry'
@@ -182,6 +183,15 @@ export const infrastructureWatch = onSchedule(
 // comes back, not one that never leaves — and the window between a deploy and the next run is the
 // only time the panel can still fall asleep. Ten minutes keeps that window short enough that a
 // single person might wait once; thirty was long enough to cover a whole quiet evening.
+// Fatura — havale/EFT 7 gün (owner, 2026-11-03). Every morning at 09:00: the transfers with three days
+// or fewer left (or past) and no "fatura kesildi" tick, in one e-mail to the owners.
+export const invoiceDeadline = onSchedule(
+  { schedule: '0 9 * * *', timeZone: 'Europe/Istanbul', secrets: [...NOTIFICATION_SECRETS] },
+  async () => {
+    await runInvoiceDeadlineSweep(Date.now())
+  },
+)
+
 export const minInstancesGuard = onSchedule({ schedule: 'every 10 minutes' }, async () => {
   await runMinInstancesGuard()
 })

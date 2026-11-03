@@ -332,6 +332,7 @@ export const INVOICE_REVERTED = 'invoice.reverted'
 
 export type InvoiceIssuedPayload = {
   readonly amount: Money
+  readonly invoicedAmount: Money // what the invoice was cut for — recorded as typed, not judged
   readonly method: PaymentMethod
   readonly receivedAt: Instant
 }

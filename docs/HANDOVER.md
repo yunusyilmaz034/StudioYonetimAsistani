@@ -63,6 +63,9 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
 - **Tahsilat raporu:** yöntem düğmeleri; süzme sunucuda, özet cümlesi de seçilen yönteme ait.
 - **Bilinen risk:** `members` resepsiyona Firestore kuralıyla okunur durumda, yani TC de istemci SDK'sıyla teorik olarak okunabilir
   (telefon gibi). Ekran PIN'li ama veri katmanı değil. Gerekirse TC ayrı, sunucuya-özel bir koleksiyona taşınır (`secrets` gibi).
+- **Ek (aynı gün):** kesilen tutar alanı + havale/EFT 7 gün rozeti + her sabah 09:00 `invoiceDeadline` e-postası (şablon
+  `invoice_due`). **Fonksiyon deploy'u ayrı:** `pnpm deploy:functions` (push yalnız paneli taşır). İlk mail, daha önce kesilmiş
+  ama tiklenmemiş 12–19 Ekim havalelerini de "süre geçti" diye sayacak (3 Kasım ölçümü: 7 satır) — Işıl onları bir kez tiklemeli.
 - **Deneme:** Fatura Takibi → PIN → "Son 30 gün" → Sevim Yerkan'ın 02.11 3.200 nakit satırı "Kesilmedi"de; tikle → "Kesildi"ye
   geçer. Tiki kaldır → sebep sorar, boş sebep reddedilir. TC kalemi → `12345678901` → "TC kimlik numarası geçerli değil".
 

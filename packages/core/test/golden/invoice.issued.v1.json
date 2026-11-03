@@ -1,5 +1,6 @@
 {
   "amount": { "amount": 420000, "currency": "TRY" },
+  "invoicedAmount": { "amount": 200000, "currency": "TRY" },
   "method": "cash",
   "receivedAt": 1699990000000
 }
