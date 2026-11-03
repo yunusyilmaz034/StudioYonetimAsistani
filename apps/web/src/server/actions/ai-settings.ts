@@ -39,9 +39,14 @@ export interface AiSettings {
   // The MASTER switch for the WhatsApp AI receptionist. Default OFF: the webhook still captures the
   // conversation, but the AI only auto-replies once the owner deliberately turns it on.
   readonly whatsappActive: boolean
+  // IG-1 (2026-11-03): Instagram DM. 'off' = stored + desk flagged · 'draft' = the AI prepares, a human
+  // sends · 'auto' = the AI sends. Default OFF, like WhatsApp: turning a customer channel on is a
+  // decision, never a default.
+  readonly instagramMode: InstagramMode
 }
+export type InstagramMode = 'off' | 'draft' | 'auto'
 
-const DEFAULT: AiSettings = { tone: '', identity: '', basics: '', policies: '', campaign: '', priceList: '', faq: [], escalation: '', neverDo: '', examples: '', whatsappActive: false }
+const DEFAULT: AiSettings = { tone: '', identity: '', basics: '', policies: '', campaign: '', priceList: '', faq: [], escalation: '', neverDo: '', examples: '', whatsappActive: false, instagramMode: 'off' }
 
 export async function getAiSettingsAction(): Promise<AiSettings> {
   const ctx = await requireTenantContext(OPS)
@@ -61,6 +66,7 @@ const schema = z.object({
   neverDo: z.string().trim().max(2000),
   examples: z.string().trim().max(6000),
   whatsappActive: z.boolean().default(false),
+  instagramMode: z.enum(['off', 'draft', 'auto']).default('off'),
 })
 
 export async function setAiSettingsAction(input: unknown) {

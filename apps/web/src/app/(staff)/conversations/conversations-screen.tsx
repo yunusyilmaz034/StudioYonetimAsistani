@@ -20,7 +20,9 @@ import {
   type Temp,
 } from '@/server/actions/conversations'
 
+import { CHANNEL_LABEL, convLabel } from '@/lib/conv-label'
 import { mesajZamani } from '@/lib/mesaj-zamani'
+import { replyErrorText } from '@/lib/reply-error'
 import { isStaleDeployment, STALE_DEPLOYMENT_MESSAGE } from '@/lib/stale-deployment'
 import { InboxSectionList, OlderConversationsButton, inboxSections, useOlderConversations } from '@/components/inbox-sections'
 const POLL_MS = 5000
@@ -28,13 +30,28 @@ const POLL_MS = 5000
 const TEMP_DOT: Record<Temp, string> = { sıcak: 'bg-rose-500', ılık: 'bg-amber-500', soğuk: 'bg-slate-400' }
 const TEMP_LABEL: Record<Temp, string> = { sıcak: '🔴 Sıcak', ılık: '🟡 Ilık', soğuk: '⚪ Soğuk' }
 
-type Filter = 'all' | 'hot' | 'waiting' | 'human'
+type Filter = 'all' | 'hot' | 'waiting' | 'human' | 'draft'
+type ChannelFilter = 'all' | 'whatsapp' | 'instagram'
+
+// Kanal rozeti: WhatsApp yeşil (`success`), Instagram mor (`info`) — renk tek başına ayırt etmesin diye
+// yanında her zaman adı yazar.
+function ChannelBadge({ channel }: { channel: 'whatsapp' | 'instagram' }) {
+  return channel === 'instagram' ? (
+    <span className="inline-block rounded bg-info/15 px-1.5 text-[10px] font-semibold text-info">{CHANNEL_LABEL.instagram}</span>
+  ) : (
+    <span className="inline-block rounded bg-success/15 px-1.5 text-[10px] font-semibold text-success">{CHANNEL_LABEL.whatsapp}</span>
+  )
+}
 
 export function ConversationsScreen() {
   const [convs, setConvs] = useState<readonly InboxItem[]>([])
   const [period, setPeriod] = useState<Inbox['period']>(null)
   const eski = useOlderConversations(period)
   const [filter, setFilter] = useState<Filter>('all')
+  const [channel, setChannel] = useState<ChannelFilter>('all')
+  // Taslağı düzenleme: açıkken metin buradadır, gönderilen de budur. Yoklama taslağı tazelese bile
+  // kullanıcının yazdığı üstüne yazılmaz (aşağıdaki etki yalnızca sohbet değişince sıfırlar).
+  const [draftEdit, setDraftEdit] = useState<string | null>(null)
   const [selected, setSelected] = useState<string | null>(null)
   const [detail, setDetail] = useState<ConvDetail | null>(null)
   const [text, setText] = useState('')
@@ -81,7 +98,7 @@ export function ConversationsScreen() {
     let alive = true
     const load = async () => {
       try {
-        const d = await getConversationAction({ phone: selected })
+        const d = await getConversationAction({ key: selected })
         if (alive) setDetail(d)
       } catch (e) {
         if (isStaleDeployment(e)) {
@@ -111,7 +128,8 @@ export function ConversationsScreen() {
       return
     }
     let alive = true
-    void conversationNoteAction({ phone: selected })
+    setDraftEdit(null)
+    void conversationNoteAction({ key: selected })
       .then((n) => {
         if (!alive) return
         setNote(n)
@@ -131,7 +149,17 @@ export function ConversationsScreen() {
   }, [detail?.messages.length])
 
   const filtre = (c: InboxItem) =>
-    filter === 'hot' ? c.temp === 'sıcak' : filter === 'waiting' ? c.needsAttention : filter === 'human' ? c.status === 'human' : true
+    (channel === 'all' || c.channel === channel) &&
+    (filter === 'hot'
+      ? c.temp === 'sıcak'
+      : filter === 'waiting'
+        ? c.needsAttention
+        : filter === 'human'
+          ? c.status === 'human'
+          : filter === 'draft'
+            ? c.draft !== null
+            : true)
+  const draftCount = convs.filter((c) => c.draft !== null).length
   const sections = inboxSections(convs, eski.older, period)
   const shown = sections.flatMap((x) => x.rows).filter(filtre)
 
@@ -139,21 +167,42 @@ export function ConversationsScreen() {
     if (!selected || !text.trim()) return
     setBusy(true)
     try {
-      const res = await replyConversationAction({ phone: selected, text: text.trim() })
+      const res = await replyConversationAction({ key: selected, text: text.trim() })
       if (res.ok) {
         setText('')
-        setDetail(await getConversationAction({ phone: selected }))
-      } else toast.error('Gönderilemedi (24 saat penceresi dışı olabilir).')
+        setDetail(await getConversationAction({ key: selected }))
+      } else toast.error(replyErrorText(res.error.code))
     } catch {
       toast.error('Gönderilemedi.')
     }
     setBusy(false)
   }
 
+  // AI TASLAĞINI GÖNDER (IG-1). Düzenlendiyse düzenlenmiş hali gider. Bu, AI'ın sırasını bir
+  // insanın onaylamasıdır — devralma değil: sohbet AI'da kalır ve bir sonraki mesaja yine taslak gelir.
+  async function sendDraft() {
+    if (!selected || !detail?.draft) return
+    const body = (draftEdit ?? detail.draft.text).trim()
+    if (!body) return
+    setBusy(true)
+    try {
+      const res = await replyConversationAction({ key: selected, text: body, fromDraft: true })
+      if (res.ok) {
+        setDraftEdit(null)
+        setDetail(await getConversationAction({ key: selected }))
+        toast.success('Gönderildi.')
+      } else toast.error(replyErrorText(res.error.code))
+    } catch (e) {
+      toast.error(isStaleDeployment(e) ? STALE_DEPLOYMENT_MESSAGE : 'Gönderilemedi.')
+    }
+    setBusy(false)
+  }
+
   async function handOff(status: 'ai' | 'human') {
     if (!selected) return
-    const res = await setConversationStatusAction({ phone: selected, status }).catch(() => null)
-    setDetail((d) => (d ? { ...d, status } : d))
+    const res = await setConversationStatusAction({ key: selected, status }).catch(() => null)
+    setDraftEdit(null)
+    setDetail((d) => (d ? { ...d, status, draft: status === 'human' ? null : d.draft } : d))
     // Cevapsız bir soru varken işaret kapanmıyor. Sessizce kapanmamasından daha kötü tek şey var:
     // sessizce kapanmaması ve kimsenin sebebini bilmemesi.
     if (res?.stillWaiting) toast.warning('Müşterinin son sorusu hâlâ cevapsız — işaret açık kalıyor. Cevap yazınca kapanır.')
@@ -161,10 +210,24 @@ export function ConversationsScreen() {
 
   return (
     <main className="mx-auto max-w-6xl space-y-4 p-4 sm:p-6 lg:p-8">
-      <PageHeader title="Sohbetler" description="WhatsApp AI resepsiyonistinin tüm konuşmaları — canlı ve geçmiş." />
+      <PageHeader title="Sohbetler" description="WhatsApp ve Instagram — AI resepsiyonistin tüm konuşmaları, canlı ve geçmiş." />
 
       <div className="flex flex-wrap gap-1.5">
-        {([['all', 'Tümü'], ['waiting', 'Bekleyen'], ['hot', 'Sıcak'], ['human', 'İnsan yönetiyor']] as const).map(([k, label]) => (
+        {([['all', 'Hepsi'], ['whatsapp', 'WhatsApp'], ['instagram', 'Instagram']] as const).map(([k, label]) => (
+          <button
+            key={k}
+            type="button"
+            onClick={() => setChannel(k)}
+            aria-pressed={channel === k}
+            className={`min-h-9 rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${channel === k ? 'bg-foreground text-background' : 'border border-border bg-card text-foreground'}`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      <div className="flex flex-wrap gap-1.5">
+        {([['all', 'Tümü'], ['draft', draftCount > 0 ? `Taslak bekleyen · ${draftCount}` : 'Taslak bekleyen'], ['waiting', 'Bekleyen'], ['hot', 'Sıcak'], ['human', 'İnsan yönetiyor']] as const).map(([k, label]) => (
           <button
             key={k}
             type="button"
@@ -186,16 +249,20 @@ export function ConversationsScreen() {
               sections={sections}
               filter={filtre}
               renderRow={(c) => (
-              <li key={c.phone}>
-                <button type="button" onClick={() => setSelected(c.phone)} className={`flex w-full items-start gap-2 px-3 py-2.5 text-left hover:bg-muted/40 ${selected === c.phone ? 'bg-muted/50' : ''}`}>
+              <li key={c.key}>
+                <button type="button" onClick={() => setSelected(c.key)} className={`flex w-full items-start gap-2 px-3 py-2.5 text-left hover:bg-muted/40 ${selected === c.key ? 'bg-muted/50' : ''}`}>
                   <span className={`mt-1 size-2 shrink-0 rounded-full ${c.temp ? TEMP_DOT[c.temp] : 'bg-muted-foreground/30'}`} />
                   <span className="min-w-0 flex-1">
                     <span className="flex items-center justify-between gap-2">
-                      <span className="truncate text-sm font-medium text-foreground">{c.name || c.phone.slice(-6)}</span>
+                      <span className="truncate text-sm font-medium text-foreground">{convLabel(c)}</span>
                       <span className="shrink-0 text-[11px] text-muted-foreground">{mesajZamani(c.lastAt).slice(0, 5)}</span>
                     </span>
                     <span className="line-clamp-1 text-xs text-muted-foreground">{c.lastText || '—'}</span>
-                    {c.needsAttention ? <span className="mt-0.5 inline-block rounded bg-emerald-500/15 px-1.5 text-[10px] font-medium text-emerald-700">operatör bekliyor</span> : null}
+                    <span className="mt-0.5 flex flex-wrap gap-1">
+                      <ChannelBadge channel={c.channel} />
+                      {c.draft ? <span className="inline-block rounded bg-primary/15 px-1.5 text-[10px] font-semibold text-primary">Taslak hazır</span> : null}
+                      {c.needsAttention ? <span className="inline-block rounded bg-emerald-500/15 px-1.5 text-[10px] font-medium text-emerald-700">operatör bekliyor</span> : null}
+                    </span>
                   </span>
                   {c.status === 'human' ? <UserRoundIcon className="mt-0.5 size-3.5 shrink-0 text-amber-500" /> : <BotIcon className="mt-0.5 size-3.5 shrink-0 text-muted-foreground/40" />}
                 </button>
@@ -218,7 +285,11 @@ export function ConversationsScreen() {
             <>
               <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-2">
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold text-foreground">{detail.name || detail.phone}</p>
+                  <p className="flex min-w-0 items-center gap-2">
+                    <span className="truncate text-sm font-semibold text-foreground">{convLabel(detail)}</span>
+                    {detail.handle && detail.name ? <span className="truncate text-xs text-muted-foreground">@{detail.handle}</span> : null}
+                    <ChannelBadge channel={detail.channel} />
+                  </p>
                   {/* TELEFON, HER ZAMAN GÖRÜNÜR (owner, 2026-10-02: *"sohbetleri gördüm ama telefon
                       numarasını göremedim, ekle lütfen"*).
                       Numara buraya kadar hep geliyordu ama yalnızca AD BOŞSA yazılıyordu — yani adı
@@ -229,6 +300,9 @@ export function ConversationsScreen() {
                     <a href={`tel:${detail.phone}`} className="text-xs font-medium text-primary hover:underline">
                       {detail.phone}
                     </a>
+                  ) : null}
+                  {detail.channel === 'instagram' && !detail.phone ? (
+                    <p className="text-xs text-muted-foreground">Telefon henüz yok — yazınca Satış Hunisi&apos;ne eklenir.</p>
                   ) : null}
                   <p className="text-xs text-muted-foreground">
                     {detail.temp ? `${TEMP_LABEL[detail.temp]} · ` : ''}
@@ -267,8 +341,8 @@ export function ConversationsScreen() {
                           try {
                             // Boş metin SİLER — ayrı bir "sil" düğmesi yok: kullanıcının yaptığı şey
                             // zaten tek, kutuyu boşaltıp kaydetmek.
-                            await setConversationNoteAction({ phone: selected, text: noteDraft.trim() })
-                            setNote(await conversationNoteAction({ phone: selected }))
+                            await setConversationNoteAction({ key: selected, text: noteDraft.trim() })
+                            setNote(await conversationNoteAction({ key: selected }))
                             setNoteOpen(false)
                             toast.success(noteDraft.trim() === '' ? 'Not silindi.' : 'Not kaydedildi.')
                           } catch (e) {
@@ -320,6 +394,67 @@ export function ConversationsScreen() {
                     </div>
                   </div>
                 ))}
+                {detail.draft ? (
+                  // ── AI TASLAĞI (IG-1, onaylı tasarım) ─────────────────────────────────────
+                  // Kesik çizgili balon: henüz kimseye gitmedi. Gönder en büyük düğme ve başparmak
+                  // hizasında; pencere dolduysa pasif ve yerine "Ara" (telefon biliniyorsa).
+                  <div className="ml-auto flex w-full max-w-[88%] flex-col gap-2 sm:max-w-[62%]">
+                    <div className="rounded-2xl rounded-br-sm border-[1.5px] border-dashed border-primary bg-card px-3 py-2.5">
+                      <p className="text-[11px] font-semibold tracking-wide text-primary uppercase">
+                        {detail.replyWindowOpen ? 'AI taslağı · henüz gönderilmedi' : 'AI taslağı · gönderilemez'}
+                      </p>
+                      {draftEdit !== null ? (
+                        <textarea
+                          value={draftEdit}
+                          onChange={(e) => setDraftEdit(e.target.value)}
+                          rows={4}
+                          maxLength={4000}
+                          autoFocus
+                          aria-label="Taslağı düzenle"
+                          className="mt-1 w-full resize-y rounded-lg border border-border bg-background px-2.5 py-1.5 text-sm outline-none focus:border-primary"
+                        />
+                      ) : (
+                        <p className={`mt-1 text-sm whitespace-pre-wrap ${detail.replyWindowOpen ? 'text-foreground' : 'text-muted-foreground'}`}>{detail.draft.text}</p>
+                      )}
+                    </div>
+                    {detail.replyWindowOpen ? (
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => void sendDraft()}
+                          disabled={busy || (draftEdit !== null && draftEdit.trim() === '')}
+                          className="col-span-2 min-h-12 rounded-xl bg-primary text-[15px] font-semibold text-primary-foreground disabled:opacity-50"
+                        >
+                          {draftEdit !== null ? 'Düzenlenmiş hali gönder' : 'Gönder'}
+                        </button>
+                        {draftEdit !== null ? (
+                          <button type="button" onClick={() => setDraftEdit(null)} className="col-span-2 min-h-11 rounded-xl border border-border bg-card text-sm font-medium text-foreground">
+                            Düzenlemeyi bırak
+                          </button>
+                        ) : (
+                          <button type="button" onClick={() => setDraftEdit(detail.draft?.text ?? '')} className="col-span-2 min-h-11 rounded-xl border border-border bg-card text-sm font-medium text-foreground">
+                            Düzenle
+                          </button>
+                        )}
+                        <button type="button" onClick={() => void handOff('human')} className="col-span-2 min-h-10 text-sm font-medium text-muted-foreground underline">
+                          Ben cevaplayacağım
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <p className="rounded-lg bg-warning/15 px-3 py-2 text-xs text-foreground">
+                          Instagram 24 saatlik cevap penceresi doldu.{' '}
+                          {detail.phone ? 'Telefonu biliniyor: arayın ya da WhatsApp’tan yazın.' : 'Müşteri tekrar yazınca cevap verilebilir.'}
+                        </p>
+                        {detail.phone ? (
+                          <a href={`tel:+${detail.phone.replace(/\D/g, '')}`} className="ml-auto flex min-h-11 w-fit items-center rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground">
+                            Ara
+                          </a>
+                        ) : null}
+                      </div>
+                    )}
+                  </div>
+                ) : null}
               </div>
               <div className="flex items-end gap-2 border-t border-border p-2">
                 <textarea

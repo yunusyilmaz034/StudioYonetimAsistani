@@ -1298,3 +1298,18 @@ sonra YALNIZCA ESP/röle kutusu kesilerek hangisinin takıldığı ayrılır.
 - TLS sertifikası v1.3'te de doğrulanmıyordu (CA'sız `HTTPClient` içeride `setInsecure()` çağırıyor); v1.4 bunu
   açık yazdı, davranışı değiştirmedi. Kutunun yetkisi kod istemek ve sormak; açma kararı sunucuda.
 - Açık kalan: (a) kod yenileme 25 sn / sunucu ömrü 45 sn — sunucu yamasıyla kapalı; (c) ölçüm.
+
+## DEBT-047 · IG-1: Instagram sohbetleri raporlara girmiyor; "Yeniden yaz" ertelendi (2026-11-03)
+
+**Ne:** IG-1 Instagram DM'lerini Sohbetler'e, panodaki lead/bekleyen listelerine ve AI ayarlarına getirdi. Üç şey bilerek dışarıda:
+1. **AI Rapor** ve **Patron Asistanı'nın lead sinyali** Instagram sohbetlerini ATLIYOR (`channel === 'instagram'`). İkisi de
+   "WhatsApp hunisi" diye okunuyor; satırları wa.me'ye bağlanıyor ve üyeyi sohbetin telefonuyla eşliyor — Instagram sohbetinin
+   telefonu çoğu zaman yok. Karıştırmak sayıları sessizce bozardı.
+2. **"Yeniden yaz"** (onaylı tasarımda vardı) yapılmadı. Taslağı webhook (functions) üretiyor; panelden yeniden ürettirmek ya
+   resepsiyonistin istemini web katmanına kopyalamak (iki istem = iki fiyat riski) ya da yeni bir korumalı uç demekti.
+   "Düzenle" aynı ihtiyacı karşılıyor.
+3. Instagram kullanıcı adı Meta "Business Asset User Profile Access" vermeden gelmeyebilir; o zaman sohbet "Instagram kişisi"
+   olarak görünür (ad ya da telefon yazınca düzelir).
+
+**Geri ödeme tetikleyicisi:** (1) IG-4 başladığında — Instagram hunisi kendi kanal etiketiyle raporlara girer. (2) masa ayda
+birden fazla "taslağı baştan yazdırmak istedim" derse. (3) App Review başvurusunda profil erişimi de istenir.

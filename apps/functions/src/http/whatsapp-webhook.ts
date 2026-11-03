@@ -38,7 +38,7 @@ import { db } from '../shared/firebase'
 import { notificationDeps, studioNotificationSettings } from '../triggers/on-event-notify'
 import { AI_RECEPTIONIST_SECRETS, REGION } from '../shared/region'
 
-const MAX_HISTORY = 24 // messages kept per conversation for context + storage
+export const MAX_HISTORY = 24 // messages kept per conversation for context + storage
 const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages'
 // The WhatsApp receptionist is the ONE surface a prospective member actually talks to, so it runs a
 // stronger model than the internal AI features (the checklist and the owner assistant stay on Haiku —
@@ -47,13 +47,13 @@ const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages'
 // which is nonsense. Roughly 2-3× the cost per conversation, on the order of tens of TL a month.
 const MODEL = 'claude-sonnet-5'
 
-type Role = 'user' | 'assistant'
-interface Msg {
+export type Role = 'user' | 'assistant'
+export interface Msg {
   role: Role
   text: string
   at: number
 }
-interface Conversation {
+export interface Conversation {
   phone: string
   name: string
   // İLK TEMAS (2026-09-15) — reklam dönemi ayracı bununla ayırıyor. Mesaj geçmişi 24 ile sınırlı olduğu için
@@ -90,7 +90,7 @@ interface Conversation {
   reason?: string
 }
 
-interface AiSettingsDoc {
+export interface AiSettingsDoc {
   tone?: string
   identity?: string
   basics?: string
@@ -102,17 +102,19 @@ interface AiSettingsDoc {
   neverDo?: string
   examples?: string
   whatsappActive?: boolean
+  // IG-1 (2026-11-03): the Instagram DM switch — off | draft (AI prepares, a human sends) | auto. Absent = off.
+  instagramMode?: 'off' | 'draft' | 'auto'
 }
 
 const tl = (kurus: number) => `${(kurus / 100).toLocaleString('tr-TR')} TL`
 
-function ctxOf(sid: string): TenantContext {
+export function ctxOf(sid: string): TenantContext {
   return { studioId: sid as never, branchIds: [], role: 'owner', actor: { type: 'system', id: 'whatsapp_webhook' } as TenantContext['actor'] }
 }
 
 // Compact LIVE facts the reply must be grounded in: active packages with prices, and NOTHING about
 // the schedule (see below). Read straight from Firestore (same repos paytr-callback uses).
-async function liveFacts(database: Firestore, ctx: TenantContext, priceList?: string): Promise<string> {
+export async function liveFacts(database: Firestore, ctx: TenantContext, priceList?: string): Promise<string> {
   const parts: string[] = []
   const ownList = Boolean(priceList && priceList.trim())
   // TEK FİYAT (owner, 2026-10-23): *"kk farkı ya da kk ile farklı fiyat olması suç teşkil ediyor … ai'a fiyat
@@ -222,7 +224,7 @@ async function liveFacts(database: Firestore, ctx: TenantContext, priceList?: st
 // One document read, straight off the phone uniqueness key. Only two things are sent: that she is a
 // member, and her first name. NOT her package, her credits or her attendance — the assistant does not
 // need them to be polite, and the schedule is deliberately withheld from it anyway (see liveFacts).
-async function whoIsWriting(database: Firestore, ctx: TenantContext, phone: string): Promise<string | null> {
+export async function whoIsWriting(database: Firestore, ctx: TenantContext, phone: string): Promise<string | null> {
   try {
     const norm = normalizePhone(phone)
     if (!norm.ok) return null
@@ -241,7 +243,7 @@ async function whoIsWriting(database: Firestore, ctx: TenantContext, phone: stri
 }
 
 /** Bu sohbete özel, ÖNBELLEĞE GİRMEYEN blok: kim yazıyor. Kişiden kişiye değişir. */
-function whoBlock(memberFirstName: string | null): string | null {
+export function whoBlock(memberFirstName: string | null): string | null {
   if (!memberFirstName) return null
   return `— KİM YAZIYOR —
 Bu numara STÜDYONUN KAYITLI ÜYESİNE ait: ${memberFirstName}.
@@ -255,7 +257,7 @@ Bu numara STÜDYONUN KAYITLI ÜYESİNE ait: ${memberFirstName}.
 // and a cache only pays off if the bytes are identical from one call to the next. The live facts —
 // which class has a free spot, right now — change between messages and are sent as a separate block
 // after it, so they can never invalidate the cached prefix.
-function buildSystem(ai: AiSettingsDoc): string {
+export function buildSystem(ai: AiSettingsDoc): string {
   const kb: string[] = []
   if (ai.identity) kb.push(`KİMLİK: ${ai.identity}`)
   if (ai.basics) kb.push(`TEMEL BİLGİLER:\n${ai.basics}`)
@@ -349,7 +351,7 @@ KURALLAR:
 // Plain-text reply (robust — Haiku often ignores a JSON instruction and answers naturally). Escalation
 // rides as a trailing [[DEVRET]] marker we strip before sending; the customer never sees it.
 /** AI'ın gördüğü aşama. Kapanış (kazanıldı/kaybedildi) BİLEREK yok: onu insan söyler. */
-type ConvStage = 'randevu' | 'fiyat' | 'bilgi'
+export type ConvStage = 'randevu' | 'fiyat' | 'bilgi'
 
 /** Sohbet aşaması → huni aşaması. Tek yön: AI gözlemler, insan kapatır. */
 const HUNI: Record<ConvStage, 'contacted' | 'offer' | 'visit_booked'> = {
@@ -359,7 +361,7 @@ const HUNI: Record<ConvStage, 'contacted' | 'offer' | 'visit_booked'> = {
 }
 /** Huninin ileri sırası. Geriye alma YOK: kişi nereye kadar geldiyse orada kalır. */
 const HUNI_SIRA: readonly string[] = ['new', 'contacted', 'offer', 'visit_booked']
-async function aiReply(
+export async function aiReply(
   apiKey: string,
   system: string,
   facts: string,
@@ -455,7 +457,7 @@ async function aiReply(
  *  · SESSİZ BAŞARISIZLIK YOK — ama sohbeti de düşürmez. Huni yazılamazsa loglanır; müşteriye
  *    verilen cevabın bir CRM yazmasına takılmasının hiçbir gerekçesi olamaz.
  */
-async function huniyiIlerlet(database: Firestore, ctx: TenantContext, phone: string, stage: ConvStage): Promise<void> {
+export async function huniyiIlerlet(database: Firestore, ctx: TenantContext, phone: string, stage: ConvStage, source = 'whatsapp_ai'): Promise<void> {
   try {
     const repo = new FirestoreCrmRepository(database)
     const lead = (await repo.listLeads(ctx)).find((l) => l.phone === phone)
@@ -466,7 +468,7 @@ async function huniyiIlerlet(database: Firestore, ctx: TenantContext, phone: str
     // Kapanmış lead'e (won/lost) hiç dokunma: `su` -1 çıkar ve buradan geçemez.
     if (su < 0 || yeni <= su) return
     const decided = decideMoveStage(
-      { studioId: ctx.studioId, actor: ctx.actor, now: instant(Date.now()), correlationId: newCorrelationId(), source: 'whatsapp_ai' },
+      { studioId: ctx.studioId, actor: ctx.actor, now: instant(Date.now()), correlationId: newCorrelationId(), source },
       lead,
       hedef,
     )
@@ -598,7 +600,7 @@ async function processMessage(sid: string, from: string, name: string, text: str
 //
 // Best-effort, always: failing to notify must never cost the customer her reply. The AI has already
 // answered her by this point.
-async function tellTheDesk(sid: string, conv: Conversation, phone: string): Promise<void> {
+export async function tellTheDesk(sid: string, conv: Conversation, phone: string): Promise<void> {
   try {
     const ctx = ctxOf(sid)
     const staff = await new FirestoreIdentityRepository(db()).listStaff(ctx)

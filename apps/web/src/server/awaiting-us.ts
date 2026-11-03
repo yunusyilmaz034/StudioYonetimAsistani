@@ -112,22 +112,25 @@ export async function awaitingUsAdvisorItems(ctx: TenantContext): Promise<readon
     const dakika = (now - soz.at) / 60_000
     if (dakika < BEKLEME_DK) continue
 
-    const phone = String(c.phone ?? d.id)
-    const name = String(c.name || phone.slice(-6))
+    // The conversation KEY (document id) is what the panel opens; on Instagram it is `ig_<igsid>` and
+    // is never shown to a person (IG-1) — the label falls back to the @username.
+    const key = d.id
+    const phone = String(c.phone || (c.channel === 'instagram' ? '' : d.id))
+    const name = String(c.name || (c.handle ? `@${String(c.handle)}` : phone ? phone.slice(-6) : 'Instagram kişisi'))
     const saat = Math.floor((now - soz.at) / SAAT_MS)
     const sure = saat < 1 ? `${Math.floor(dakika)} dakikadır` : saat < 24 ? `${saat} saattir` : `${Math.floor(saat / 24)} gündür`
 
     rows.push({
       item: {
-        id: `awaiting_us__${phone}`,
+        id: `awaiting_us__${key}`,
         kind: 'awaiting_us',
         severity: saat >= ACIL_SAAT ? 'urgent' : 'attention',
-        subject: { id: phone, name },
+        subject: { id: key, name },
         title: `${name} — bizden dönüş bekliyor · ${sure}`,
         // Verilen sözün KENDİSİ gösteriliyor, özeti değil: masanın ne sözü tutacağını bilmesi
         // gerekiyor, "bir şey söz verilmiş" bilgisi iş görmez.
         detail: `Yazdığımız: “${soz.text.slice(0, 160)}”`,
-        href: `/conversations?phone=${encodeURIComponent(phone)}`,
+        href: `/conversations?phone=${encodeURIComponent(key)}`,
         actionLabel: 'Sohbeti aç',
       },
       bekleyen: now - soz.at,

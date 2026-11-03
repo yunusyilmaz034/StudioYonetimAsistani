@@ -121,7 +121,23 @@ env:
     availability:
       - RUNTIME
 
+  # Instagram DM (IG-1, 2026-11-03). The Facebook PAGE the Instagram account is linked to
+  # ("Pilates By Işıl"); DMs are sent through it. An identifier, not a credential — the token is the
+  # secret below. The functions keep their own copy (`apps/functions/.env.studio-yonetim-prod`).
+  - variable: INSTAGRAM_PAGE_ID
+    value: "105975022531045"
+    availability:
+      - RUNTIME
+
   # ── Secrets: Secret Manager, runtime only, never in this file ─────────────────────────────
+  # IG-1: the never-expiring system-user token that sends the desk's Instagram replies. The App Hosting
+  # backend must be GRANTED access before the first rollout that carries this line, or the rollout fails:
+  #   firebase apphosting:secrets:grantaccess INSTAGRAM_ACCESS_TOKEN --backend <backend>
+  - variable: INSTAGRAM_ACCESS_TOKEN
+    secret: INSTAGRAM_ACCESS_TOKEN
+    availability:
+      - RUNTIME
+
   - variable: WHATSAPP_ACCESS_TOKEN
     secret: WHATSAPP_ACCESS_TOKEN
     availability:

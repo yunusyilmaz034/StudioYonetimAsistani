@@ -1,6 +1,13 @@
 'use server'
 
-import { FirestoreCrmRepository, sendWhatsAppText, type MetaWhatsAppConfig } from '@studio/core'
+import {
+  FirestoreCrmRepository,
+  instagramWindowOpen,
+  sendInstagramText,
+  sendWhatsAppText,
+  type MetaInstagramConfig,
+  type MetaWhatsAppConfig,
+} from '@studio/core'
 import { z } from 'zod'
 
 import { requireTenantContext } from '../auth'
@@ -11,7 +18,10 @@ import { adminDb } from '../firebase-admin'
 // can watch what the AI is saying, take a conversation over from the AI, reply, and hand it back.
 const OPS = ['owner', 'receptionist', 'platform_admin'] as const
 const MAX_HISTORY = 40
-const nonEmpty = z.string().trim().min(1)
+// A conversation KEY is its document id: the phone for WhatsApp, `ig_<igsid>` for Instagram (IG-1).
+// It becomes a Firestore path segment, so it is held to the characters those ids actually use — a
+// `/` here would address a different document.
+const convKey = z.string().trim().regex(/^[A-Za-z0-9_+]{3,80}$/)
 
 export interface ConvMsg {
   readonly role: 'user' | 'assistant'
@@ -19,8 +29,15 @@ export interface ConvMsg {
   readonly at: number
 }
 export type Temp = 'sıcak' | 'ılık' | 'soğuk'
+export type Channel = 'whatsapp' | 'instagram'
 export interface ConvSummary {
+  // The conversation's identity (document id). WhatsApp: the phone. Instagram: `ig_<igsid>` (IG-1).
+  // Everything the panel selects, links to or acts on goes by THIS, never by `phone`.
+  readonly key: string
+  readonly channel: Channel
+  // A REAL phone or ''. On Instagram it is '' until she writes one (owner: the lead waits for it).
   readonly phone: string
+  readonly handle: string // Instagram username, '' when unknown / on WhatsApp
   readonly name: string
   readonly status: 'ai' | 'human'
   readonly needsAttention: boolean
@@ -36,17 +53,30 @@ export interface ConvSummary {
   readonly lastText: string
   readonly temp: Temp | null // AI's read of conversion likelihood
   readonly reason: string // one-line why (AI estimate — an aid, not truth)
+  // Instagram draft mode: the AI's prepared reply, sent only when a human presses Gönder.
+  readonly draft: { readonly text: string; readonly at: number } | null
+  // Can a free-form reply still reach her? Instagram: 24 h after her last message. WhatsApp: the
+  // panel never measured it and Meta refuses outside it — reported as a send failure, as before.
+  readonly replyWindowOpen: boolean
 }
 export interface ConvDetail extends ConvSummary {
   readonly messages: readonly ConvMsg[]
 }
 
-function summarize(c: Record<string, unknown>): ConvSummary {
+function summarize(id: string, c: Record<string, unknown>, now = Date.now()): ConvSummary {
   const msgs = (c.messages as ConvMsg[] | undefined) ?? []
   const last = msgs[msgs.length - 1]
   const temp = c.temp === 'sıcak' || c.temp === 'ılık' || c.temp === 'soğuk' ? (c.temp as Temp) : null
+  // No `channel` field = WhatsApp: every document written before IG-1.
+  const channel: Channel = c.channel === 'instagram' ? 'instagram' : 'whatsapp'
+  const d = c.draft as { text?: unknown; at?: unknown } | null | undefined
   return {
-    phone: String(c.phone ?? ''),
+    key: id,
+    channel,
+    phone: channel === 'instagram' ? String(c.phone ?? '') : String(c.phone ?? id),
+    handle: String(c.handle ?? ''),
+    draft: d && typeof d.text === 'string' && d.text.trim() !== '' ? { text: d.text, at: Number(d.at ?? 0) } : null,
+    replyWindowOpen: channel === 'instagram' ? instagramWindowOpen(c.lastUserAt as number | undefined, now) : true,
     name: String(c.name ?? ''),
     status: (c.status as 'ai' | 'human') ?? 'ai',
     needsAttention: Boolean(c.needsAttention),
@@ -62,7 +92,7 @@ function summarize(c: Record<string, unknown>): ConvSummary {
 export async function listConversationsAction(): Promise<readonly ConvSummary[]> {
   const ctx = await requireTenantContext(OPS)
   const snap = await adminDb().collection(`studios/${ctx.studioId}/conversations`).orderBy('lastAt', 'desc').limit(100).get()
-  return snap.docs.map((d) => summarize(d.data()))
+  return snap.docs.map((d) => summarize(d.id, d.data()))
 }
 
 // ── REKLAM DÖNEMİ AYRACI (owner, 2026-09-15) ──────────────────────────────────────────────────
@@ -103,7 +133,7 @@ export async function listInboxAction(): Promise<Inbox> {
   const period = await crm.getCurrentAdPeriod(ctx)
   if (!period) {
     const snap = await col.orderBy('lastAt', 'desc').limit(100).get()
-    return { period: null, items: snap.docs.map((d) => ({ ...summarize(d.data()), group: 'known' as const })) }
+    return { period: null, items: snap.docs.map((d) => ({ ...summarize(d.id, d.data()), group: 'known' as const })) }
   }
   const start = period.startedAt as number
   // Tek alanlı aralık + aynı alanda sıralama: otomatik indeks yeter.
@@ -115,8 +145,8 @@ export async function listInboxAction(): Promise<Inbox> {
   const items = snap.docs.map((d) => {
     const c = d.data()
     const ilk = firstContact(c)
-    const yeni = yeniTelefon.has(String(c.phone ?? d.id)) || (ilk !== null && ilk >= start)
-    return { ...summarize(c), group: yeni ? ('new' as const) : ('known' as const) }
+    const yeni = yeniTelefon.has(String(c.phone || d.id)) || (ilk !== null && ilk >= start)
+    return { ...summarize(d.id, c), group: yeni ? ('new' as const) : ('known' as const) }
   })
   return { period: { label: period.label, startedAt: start }, items }
 }
@@ -131,38 +161,71 @@ export async function listOlderConversationsAction(input: unknown): Promise<read
     .orderBy('lastAt', 'desc')
     .limit(OLDER_PAGE)
     .get()
-  return snap.docs.map((d) => ({ ...summarize(d.data()), group: 'older' as const }))
+  return snap.docs.map((d) => ({ ...summarize(d.id, d.data()), group: 'older' as const }))
 }
 
 export async function getConversationAction(input: unknown): Promise<ConvDetail | null> {
-  const p = z.object({ phone: nonEmpty }).parse(input)
+  const p = z.object({ key: convKey }).parse(input)
   const ctx = await requireTenantContext(OPS)
-  const snap = await adminDb().doc(`studios/${ctx.studioId}/conversations/${p.phone}`).get()
+  const snap = await adminDb().doc(`studios/${ctx.studioId}/conversations/${p.key}`).get()
   if (!snap.exists) return null
   const c = snap.data() as Record<string, unknown>
-  return { ...summarize(c), messages: (c.messages as ConvMsg[] | undefined) ?? [] }
+  return { ...summarize(snap.id, c), messages: (c.messages as ConvMsg[] | undefined) ?? [] }
 }
 
-// Reception sends a reply (free-form, valid inside WhatsApp's 24h window). This also TAKES OVER the
-// conversation: status → 'human', so the AI stops auto-replying until it is handed back.
+// Reception sends a reply (free-form, valid inside the 24h window). A TYPED reply also TAKES OVER the
+// conversation: status → 'human', so the AI stops until it is handed back.
+//
+// INSTAGRAM DRAFT (IG-1): `fromDraft: true` is the desk pressing Gönder under the AI's prepared reply
+// (edited or not). That is the AI's turn approved by a human, not a takeover — the status stays, so the
+// next message gets a draft again. Either way the draft is cleared: it has been answered.
+export type ReplyError = 'whatsapp_not_configured' | 'instagram_not_configured' | 'window_closed' | 'not_found' | 'send_failed'
+
 export async function replyConversationAction(input: unknown) {
-  const p = z.object({ phone: nonEmpty, text: z.string().trim().min(1).max(4000) }).parse(input)
+  const p = z
+    .object({ key: convKey, text: z.string().trim().min(1).max(4000), fromDraft: z.boolean().default(false) })
+    .parse(input)
   const ctx = await requireTenantContext(OPS)
-  const token = process.env.WHATSAPP_ACCESS_TOKEN
-  const phoneId = process.env.WHATSAPP_PHONE_NUMBER_ID
-  if (!token || !phoneId) return { ok: false as const, error: { code: 'whatsapp_not_configured' as const } }
+  const ref = adminDb().doc(`studios/${ctx.studioId}/conversations/${p.key}`)
+  const current = (await ref.get()).data() as Record<string, unknown> | undefined
+  if (!current) return { ok: false as const, error: { code: 'not_found' as ReplyError } }
+  const channel: Channel = current.channel === 'instagram' ? 'instagram' : 'whatsapp'
 
-  const config: MetaWhatsAppConfig = { phoneNumberId: phoneId, accessToken: token }
-  const sent = await sendWhatsAppText(config, p.phone, p.text)
-  if (!sent.ok) return { ok: false as const, error: { code: 'send_failed' as const }, detail: sent.code }
+  let sentRef: string | undefined
+  if (channel === 'instagram') {
+    const accessToken = process.env.INSTAGRAM_ACCESS_TOKEN
+    const pageId = process.env.INSTAGRAM_PAGE_ID
+    if (!accessToken || !pageId) return { ok: false as const, error: { code: 'instagram_not_configured' as ReplyError } }
+    if (!instagramWindowOpen(current.lastUserAt as number | undefined, Date.now())) {
+      return { ok: false as const, error: { code: 'window_closed' as ReplyError } }
+    }
+    const config: MetaInstagramConfig = { accessToken, pageId }
+    const sent = await sendInstagramText(config, String(current.igsid ?? p.key.replace(/^ig_/, '')), p.text)
+    if (!sent.ok) return { ok: false as const, error: { code: 'send_failed' as ReplyError }, detail: sent.code }
+    sentRef = sent.ref
+  } else {
+    const token = process.env.WHATSAPP_ACCESS_TOKEN
+    const phoneId = process.env.WHATSAPP_PHONE_NUMBER_ID
+    if (!token || !phoneId) return { ok: false as const, error: { code: 'whatsapp_not_configured' as ReplyError } }
+    const config: MetaWhatsAppConfig = { phoneNumberId: phoneId, accessToken: token }
+    const sent = await sendWhatsAppText(config, p.key, p.text)
+    if (!sent.ok) return { ok: false as const, error: { code: 'send_failed' as ReplyError }, detail: sent.code }
+  }
 
-  const ref = adminDb().doc(`studios/${ctx.studioId}/conversations/${p.phone}`)
   const now = Date.now()
   await adminDb().runTransaction(async (tx) => {
     const snap = await tx.get(ref)
     const c = (snap.data() as Record<string, unknown> | undefined) ?? {}
     const msgs = ((c.messages as ConvMsg[] | undefined) ?? []).concat({ role: 'assistant', text: p.text, at: now }).slice(-MAX_HISTORY)
-    tx.set(ref, { status: 'human', needsAttention: false, lastAt: now, messages: msgs }, { merge: true })
+    const update: Record<string, unknown> = { needsAttention: false, lastAt: now, messages: msgs }
+    if (!(channel === 'instagram' && p.fromDraft)) update.status = 'human'
+    if (channel === 'instagram') {
+      update.draft = null
+      // Its echo comes back through the webhook; a recorded mid is how the webhook knows it is ours
+      // and not Işıl answering from the Instagram app.
+      if (sentRef) update.seenIds = ((c.seenIds as string[] | undefined) ?? []).concat(sentRef).slice(-30)
+    }
+    tx.set(ref, update, { merge: true })
   })
   return { ok: true as const }
 }
@@ -191,14 +254,18 @@ const cevapBekliyor = (c: Record<string, unknown>): boolean => {
 
 /** Devral ('human') ya da AI'ya geri ver ('ai'). Cevapsız soru varsa işaret KAPANMAZ. */
 export async function setConversationStatusAction(input: unknown) {
-  const p = z.object({ phone: nonEmpty, status: z.enum(['ai', 'human']) }).parse(input)
+  const p = z.object({ key: convKey, status: z.enum(['ai', 'human']) }).parse(input)
   const ctx = await requireTenantContext(OPS)
-  const ref = adminDb().doc(`studios/${ctx.studioId}/conversations/${p.phone}`)
-  const bekliyor = cevapBekliyor(((await ref.get()).data() as Record<string, unknown>) ?? {})
+  const ref = adminDb().doc(`studios/${ctx.studioId}/conversations/${p.key}`)
+  const c = ((await ref.get()).data() as Record<string, unknown>) ?? {}
+  const bekliyor = cevapBekliyor(c)
+  // "Ben cevaplayacağım" (IG-1) = Devral: the human takes it, so the AI's draft is withdrawn — a
+  // draft nobody will send is a reply that looks pending forever.
+  const withdraw = p.status === 'human' && c.channel === 'instagram' ? { draft: null } : {}
   await ref.set(
     bekliyor
-      ? { status: p.status, needsAttention: true, attentionReason: 'unanswered' }
-      : { status: p.status, needsAttention: false },
+      ? { status: p.status, needsAttention: true, attentionReason: 'unanswered', ...withdraw }
+      : { status: p.status, needsAttention: false, ...withdraw },
     { merge: true },
   )
   return { ok: true as const, stillWaiting: bekliyor }
@@ -206,9 +273,9 @@ export async function setConversationStatusAction(input: unknown) {
 
 /** Resepsiyon gördü. Cevapsız soru varsa işaret yine KAPANMAZ — görmek cevap değildir. */
 export async function markConversationSeenAction(input: unknown) {
-  const p = z.object({ phone: nonEmpty }).parse(input)
+  const p = z.object({ key: convKey }).parse(input)
   const ctx = await requireTenantContext(OPS)
-  const ref = adminDb().doc(`studios/${ctx.studioId}/conversations/${p.phone}`)
+  const ref = adminDb().doc(`studios/${ctx.studioId}/conversations/${p.key}`)
   const bekliyor = cevapBekliyor(((await ref.get()).data() as Record<string, unknown>) ?? {})
   if (bekliyor) return { ok: true as const, stillWaiting: true }
   await ref.set({ needsAttention: false }, { merge: true })
@@ -227,10 +294,10 @@ export async function markConversationSeenAction(input: unknown) {
 // hayatta kalır ama bir sonraki düzenlemede sessizce düşebilir. Notun kaderi, onu hiç tanımayan bir
 // fonksiyonun dikkatine bağlı olmamalı.
 //
-// Telefona göre anahtarlanıyor: sohbetin kimliği de o. Üye kaydı olsun olmasın çalışır — ki
+// Sohbetin anahtarına göre (WhatsApp'ta telefon, Instagram'da `ig_<igsid>`): sohbetin kimliği de o. Üye kaydı olsun olmasın çalışır — ki
 // lead'lerin çoğunun üye kaydı yok.
-const noteRef = (studioId: string, phone: string) =>
-  adminDb().doc(`studios/${studioId}/conversationNotes/${phone}`)
+const noteRef = (studioId: string, key: string) =>
+  adminDb().doc(`studios/${studioId}/conversationNotes/${key}`)
 
 export interface ConversationNote {
   readonly text: string
@@ -239,9 +306,9 @@ export interface ConversationNote {
 }
 
 export async function conversationNoteAction(input: unknown): Promise<ConversationNote | null> {
-  const p = z.object({ phone: nonEmpty }).parse(input)
+  const p = z.object({ key: convKey }).parse(input)
   const ctx = await requireTenantContext(OPS)
-  const snap = await noteRef(String(ctx.studioId), p.phone).get()
+  const snap = await noteRef(String(ctx.studioId), p.key).get()
   const d = snap.data()
   if (!d || typeof d.text !== 'string' || d.text.trim() === '') return null
   return { text: String(d.text), byName: String(d.byName ?? ''), at: Number(d.at ?? 0) }
@@ -254,9 +321,9 @@ export async function conversationNoteAction(input: unknown): Promise<Conversati
  * unutulabilecek bir kural demek. Kullanıcının yaptığı şey zaten tek: kutuyu boşaltıp kaydetmek.
  */
 export async function setConversationNoteAction(input: unknown): Promise<{ ok: true }> {
-  const p = z.object({ phone: nonEmpty, text: z.string().trim().max(1000) }).parse(input)
+  const p = z.object({ key: convKey, text: z.string().trim().max(1000) }).parse(input)
   const ctx = await requireTenantContext(OPS)
-  const ref = noteRef(String(ctx.studioId), p.phone)
+  const ref = noteRef(String(ctx.studioId), p.key)
   if (p.text === '') {
     await ref.delete()
     return { ok: true as const }

@@ -503,6 +503,97 @@ export async function sendWhatsAppText(
   }
 }
 
+// ── INSTAGRAM DM (IG-1, 2026-11-03) ──────────────────────────────────────────────────────────
+//
+// Instagram Direct is reached through the studio's FACEBOOK PAGE (Messenger Platform for Instagram):
+// POST /{page-id}/messages with a PAGE access token and the customer's Instagram-scoped id (IGSID).
+// We hold a never-expiring SYSTEM-USER token (`INSTAGRAM_ACCESS_TOKEN`); the page token is derived
+// from it on demand and cached per process — a page token minted from a system-user token does not
+// expire either, but a revoked one must not be cached forever, so a 190 (invalid token) drops it.
+//
+// Like WhatsApp, a free-form reply is allowed only inside the 24-hour window after the customer's last
+// message. The window is checked by the CALLER (see `instagramWindowOpen`); Meta's own refusal is
+// reported as `meta_<status>` and never retried here.
+export interface MetaInstagramConfig {
+  readonly pageId: string
+  readonly accessToken: string // the system-user token, NOT a page token
+  readonly apiVersion?: string
+}
+
+export const INSTAGRAM_REPLY_WINDOW_MS = 24 * 60 * 60 * 1000
+
+/** Can a free-form reply still reach her? `lastUserAt` = her last message (ms). */
+export function instagramWindowOpen(lastUserAt: number | null | undefined, now: number): boolean {
+  return typeof lastUserAt === 'number' && lastUserAt > 0 && now - lastUserAt < INSTAGRAM_REPLY_WINDOW_MS
+}
+
+const pageTokenCache = new Map<string, string>()
+
+async function instagramPageToken(config: MetaInstagramConfig, fetchImpl: typeof fetch): Promise<string | null> {
+  const cacheKey = `${config.pageId}:${config.accessToken.slice(-12)}`
+  const hit = pageTokenCache.get(cacheKey)
+  if (hit) return hit
+  const version = config.apiVersion ?? 'v21.0'
+  const res = await fetchImpl(
+    `https://graph.facebook.com/${version}/${encodeURIComponent(config.pageId)}?fields=access_token`,
+    { headers: { Authorization: `Bearer ${config.accessToken}` } },
+  )
+  if (!res.ok) return null
+  const data = (await res.json().catch(() => ({}))) as { access_token?: string }
+  if (!data.access_token) return null
+  pageTokenCache.set(cacheKey, data.access_token)
+  return data.access_token
+}
+
+export async function sendInstagramText(
+  config: MetaInstagramConfig,
+  igsid: string,
+  body: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<{ ok: boolean; ref?: string; code?: string }> {
+  const version = config.apiVersion ?? 'v21.0'
+  try {
+    const pageToken = await instagramPageToken(config, fetchImpl)
+    if (!pageToken) return { ok: false, code: 'page_token_unavailable' }
+    const res = await fetchImpl(`https://graph.facebook.com/${version}/${encodeURIComponent(config.pageId)}/messages`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${pageToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ recipient: { id: igsid }, messaging_type: 'RESPONSE', message: { text: body } }),
+    })
+    if (!res.ok) {
+      // Graph reports an expired/revoked token as HTTP 400/401 with error.code 190.
+      const err = (await res.json().catch(() => ({}))) as { error?: { code?: number } }
+      if (res.status === 401 || err.error?.code === 190) pageTokenCache.clear()
+      return { ok: false, code: err.error?.code ? `meta_${res.status}_${err.error.code}` : `meta_${res.status}` }
+    }
+    const data = (await res.json().catch(() => ({}))) as { message_id?: string }
+    return data.message_id ? { ok: true, ref: data.message_id } : { ok: true }
+  } catch {
+    return { ok: false, code: 'network_error' }
+  }
+}
+
+/** Her Instagram username, best-effort. Needs profile access Meta may not grant yet — null is normal. */
+export async function instagramUsername(
+  config: MetaInstagramConfig,
+  igsid: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<{ username: string; name: string } | null> {
+  const version = config.apiVersion ?? 'v21.0'
+  try {
+    const pageToken = await instagramPageToken(config, fetchImpl)
+    if (!pageToken) return null
+    const res = await fetchImpl(`https://graph.facebook.com/${version}/${encodeURIComponent(igsid)}?fields=username,name`, {
+      headers: { Authorization: `Bearer ${pageToken}` },
+    })
+    if (!res.ok) return null
+    const d = (await res.json().catch(() => ({}))) as { username?: string; name?: string }
+    return d.username ? { username: d.username, name: d.name ?? '' } : null
+  } catch {
+    return null
+  }
+}
+
 // ── One provider registry, built from config — used by BOTH the functions trigger and the web
 //    resend action, so a channel that is real in production is real when reception resends. A channel
 //    with credentials becomes real; without them it falls back to its honest stub/mock. ──

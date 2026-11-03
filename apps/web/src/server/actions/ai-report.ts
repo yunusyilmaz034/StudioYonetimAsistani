@@ -55,6 +55,10 @@ export async function aiReportAction(input: unknown): Promise<AiReport> {
   const dailyMap = new Map<string, number>()
   for (const doc of convSnap.docs) {
     const c = doc.data() as Record<string, unknown>
+    // WHATSAPP ONLY (IG-1). This report is the WhatsApp funnel: its rows link to wa.me and match
+    // members by the conversation's phone. An Instagram conversation has neither until she writes a
+    // number. Its funnel is IG-4 (docs/DEBT.md) — until then it is left out, not mixed in.
+    if (c.channel === 'instagram') continue
     const msgs = (c.messages as { role: string; text: string; at: number }[] | undefined) ?? []
     const userMsgs = msgs.filter((m) => m.role === 'user')
     if (userMsgs.length === 0) continue

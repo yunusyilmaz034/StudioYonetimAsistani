@@ -75,8 +75,12 @@ export async function hotLeadAdvisorItems(ctx: TenantContext): Promise<readonly 
     const waiting = Boolean(c.needsAttention)
     if (!asama && !waiting) continue
 
-    const phone = String(c.phone ?? d.id)
-    const name = String(c.name || phone.slice(-6))
+    // IG-1: open by the conversation KEY; name an Instagram lead by her @username, never by the raw id.
+    const key = d.id
+    const instagram = c.channel === 'instagram'
+    const phone = String(c.phone || (instagram ? '' : d.id))
+    const name = String(c.name || (c.handle ? `@${String(c.handle)}` : phone ? phone.slice(-6) : 'Instagram kişisi'))
+    const kanal = instagram ? 'Instagram' : 'WhatsApp'
     const gun = Math.floor((now - Number(c.lastAt ?? now)) / GUN_MS)
     const sessiz = gun >= SESSIZ_GUN
 
@@ -90,7 +94,7 @@ export async function hotLeadAdvisorItems(ctx: TenantContext): Promise<readonly 
     // listeden düşürmüyor. Kaç gündür sessiz olduğu hâlâ sıralamanın anahtarı.
 
     const baslik = waiting
-      ? `${name} — operatör bekliyor (WhatsApp)`
+      ? `${name} — operatör bekliyor (${kanal})`
       : `${BASLIK[asama!]}: ${name}${sessiz ? ` · ${gun} gündür sessiz` : ''}`
 
     // Sessizlik, aşamanın YERİNE değil YANINA yazılır: fiyat alıp susan biriyle hiç konuşmadan susan
@@ -103,15 +107,15 @@ export async function hotLeadAdvisorItems(ctx: TenantContext): Promise<readonly 
 
     rows.push({
       item: {
-        id: `wa:${phone}`,
+        id: instagram ? `ig:${key}` : `wa:${phone}`,
         kind: 'hot_lead',
         // Kapıya gelecek olan ve operatör bekleyen ACİL. Gerisi normal — her şeyi acil yapan liste,
         // hiçbir şeyi acil yapmaz.
         severity: waiting || asama === 'randevu' ? 'urgent' : 'attention',
-        subject: { id: phone, name },
+        subject: { id: key, name },
         title: baslik,
         detail: detay,
-        href: `/conversations?phone=${encodeURIComponent(phone)}`,
+        href: `/conversations?phone=${encodeURIComponent(key)}`,
         actionLabel: 'Sohbeti aç',
       },
       // ÖNCE EN GÜNCEL (owner, 2026-09-28): *"en güncel wp lead'ler gelsin, eskiler öne geçmiş."*

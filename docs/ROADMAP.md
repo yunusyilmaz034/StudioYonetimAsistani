@@ -180,6 +180,37 @@ kitlesinde yeme bozukluğu riski taşır).
 
 ---
 
+## FAZ IG — 📸 Instagram: müşterinin geldiği kanal (owner onaylı 2026-11-03, sıra owner'ın)
+
+Owner: *"geçim kaynağımız instagramdan gelen müşteriler … sosyal medya yöneticisi, editçi, kurgucu vs şeklinde
+çalışman lazım, bölgemizde ön plana çıkmamızı sağla."* Sınırlar (owner'a söylendi, kabul edildi): **çekimi stüdyo
+yapar**, panel ne çekileceğini söyler, kurgular ve **onaydan sonra** yayınlar; sahte takipçi/beğeni/otomatik takip
+YOK; "her zaman popüler" garanti edilmez, ölçülür. Meta tarafı: işletme doğrulaması + App Review gerçek müşteri
+DM'leri ve reklam API'si için şart (HANDOVER).
+
+### IG-1 · Instagram DM → AI resepsiyonist (taslak mod) · 🟡 KOD BİTTİ, deploy bekliyor
+Sohbetler'de WhatsApp + Instagram tek kutu; AI taslak hazırlar, insan "Gönder"; telefon yazılınca lead (OR-131).
+
+### IG-2 · İçerik stüdyosu — çekim kartı → yükleme → kurgu → onay → yayın
+Haftalık plan, çekim kartı (ne/nasıl/kaç sn, 9:16), telefondan yükleme, sunucuda kurgu (kesme, yazı, kapak),
+onaylı zamanlanmış paylaşım. Instagram müzik kütüphanesi API'den eklenemez (telifsiz / orijinal ses / son adım elle).
+Yüzü görünen üye yalnızca izinliyse (KVKK izin kaydı).
+
+### IG-3 · Yorum takibi + topluluk
+Yorum cevap taslağı, olumsuz yorumda masaya uyarı (AI tek başına cevaplamaz), bölgesel iş birliği önerileri.
+
+### IG-4 · "Ne işe yaradı" raporu (+ reklam OKUMA)
+Gönderi → profil → DM → deneme → üyelik; reklam harcaması → üye başı maliyet (`ads_read`). Patron Asistanı'na bağlanır.
+Instagram sohbetlerini AI Rapor'a ve Patron özetine katmak da burada (DEBT-047).
+
+### IG-5 · Reklam yönetimi (onaylı harcama)
+Kampanya/metin/hedefleme/bütçe ÖNERİSİ panelde; **her bütçe değişikliği ve yeni kampanya owner onayıyla** (OR-131).
+Önkoşul: işletme doğrulaması + `ads_management` App Review.
+
+Yan madde (owner'a önerildi): Google İşletme Profili — "yakınımdaki pilates" aramaları.
+
+---
+
 ## Sıra (owner, güncel 2026-07-22)
 1. **Faz 1b (üye mobil)** — ✅ BİTTİ, push + iOS build TestFlight'ta.
 2. **Faz 1a (Sanal POS)** — ✅ BİTTİ, push edildi. Kalan: owner canlı test.

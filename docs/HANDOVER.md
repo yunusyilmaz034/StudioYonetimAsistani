@@ -55,7 +55,34 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
   birebir (101 = 79 + 20 + 2). Owner deneyip yazacak.
 - **Yerelde, push edilmedi:** yalnızca günlük commit'leri (kod değil).
 
-### ⏭️ 3 Kasım akşam — INSTAGRAM PANELE BAĞLANDI (Meta tarafı bitti, kod başlamadı) — BURADAN DEVAM
+### ⏭️ 3 Kasım gece — IG-1 KOD BİTTİ (Instagram DM → AI resepsiyonist, taslak mod) — DEPLOY EDİLMEDİ, PUSH EDİLMEDİ
+
+Owner onayladı: sıra IG-1→IG-5 ([ROADMAP](ROADMAP.md) "FAZ IG"), [[OR-131]] (lead telefonla; onaysız paylaşım/harcama yok;
+çekim stüdyoda), UX taslağı (https://claude.ai/artifact/TZGZoz3prkbyYbkdnMJgjT).
+- **Functions:** yeni `instagramWebhook` (ayrı fonksiyon), `http/instagram-parse.ts` (saf: ayrıştırma, imza, telefon, mod kararı —
+  testli). Resepsiyonistin istemi/fiyatları `whatsapp-webhook.ts`'ten İTHAL (yalnız `export` eklendi + `huniyiIlerlet`'e
+  varsayılanlı `source`; WhatsApp davranışı aynı). Sohbet aynı koleksiyonda `ig_<igsid>`, `channel: 'instagram'`; `channel`'sız
+  belge = WhatsApp (eski veri değişmez). Echo: kendi `mid`'imiz → yok say; değilse Işıl uygulamadan cevapladı → `human`.
+- **Panel:** sohbet kimliği artık `key` (WhatsApp'ta telefon, değişmedi); kanal çipleri, "Taslak bekleyen", kesik çizgili taslak
+  balonu (Gönder / Düzenle / Ben cevaplayacağım), 24 saat dolunca "Ara". Kutu (dock) Instagram etiketi + taslak bildirimi.
+  AI Ayarları'nda Instagram modu (varsayılan Kapalı). AI Rapor + Patron sinyali Instagram'ı ATLIYOR ([[DEBT-047]]).
+- `pnpm check` yeşil (1.802 birim). **Tarayıcıda/emülatörde çalıştırılmadı; gerçek Meta yüküyle denenmedi.**
+
+**DEPLOY ÖNCESİ (sırayla, owner onayıyla — atlanırsa panel/functions deploy'u KIRILIR):**
+1. **`META_APP_SECRET`** Secret Manager'a (owner: developers.facebook.com → uygulama → Temel → App secret "Show" → kopyala →
+   Secret Manager; sohbete yazılmaz). Yoksa functions deploy'u düşer ve webhook her POST'u reddeder.
+2. App Hosting'e sır erişimi: `firebase apphosting:secrets:grantaccess INSTAGRAM_ACCESS_TOKEN --backend <backend>` —
+   yapılmadan push edilirse panel rollout'u düşer (`apphosting.yaml` artık bu sırrı istiyor).
+3. `pnpm deploy:functions` → `instagramWebhook` URL'i.
+4. Meta → uygulama → Instagram → Webhooks: callback = o URL + `/retro`, verify token = `.env.studio-yonetim-prod`'daki
+   `INSTAGRAM_VERIFY_TOKEN`; `messages` alanına abone ol. Sayfayı uygulamaya bağla (`POST /{page}/subscribed_apps`) —
+   `pages_manage_metadata` isteyebilir; isterse izni ekleyip jetonu yenile.
+5. Uptime bekçisine yeni yüzey ([[external-uptime-watchdog]]).
+6. AI Ayarları → Instagram → **Taslak**. Deneme: Işıl'ın kişisel IG'sinden "Reformer fiyatı ne kadar?" → 1–3 sn'de Sohbetler'de
+   Instagram etiketli satır + tek fiyatlı taslak; Gönder → Instagram'a düşer. Sınır: "0532 xxx xx xx" yaz → üyeyse lead YOK,
+   değilse Huni'de TEK Instagram lead'i. Işıl IG uygulamasından cevaplarsa sohbet "İnsan yönetiyor"a geçmeli.
+
+### 3 Kasım akşam — INSTAGRAM PANELE BAĞLANDI (Meta tarafı bitti)
 
 Owner: *"stüdyonun Instagram'ını da yöneten bir AI panele eklenemez mi"* → önerilen ve kabul edilen sıra:
 1. **Instagram DM → AI resepsiyonist** (WhatsApp'la aynı kurallar: [[OR-129]] tek fiyat, devir; lead'ler Satış Hunisi'ne;

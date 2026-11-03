@@ -173,6 +173,9 @@ async function loadLeadSignal(studioId: string, now: number): Promise<{ wrote: n
     let hot = 0
     for (const doc of snap.docs) {
       const c = doc.data() as Record<string, unknown>
+      // WhatsApp signal only (IG-1): the owner assistant states this as "WhatsApp'tan yazanlar". The
+      // Instagram funnel arrives with IG-4 (docs/DEBT.md).
+      if (c.channel === 'instagram') continue
       const msgs = (c.messages as { role?: string; at?: number }[] | undefined) ?? []
       const userMsgs = msgs.filter((m) => m.role === 'user')
       const firstAt = userMsgs[0]?.at ?? Number(c.lastAt ?? 0)

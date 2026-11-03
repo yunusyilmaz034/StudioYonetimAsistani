@@ -15,7 +15,11 @@ import {
   type InboxItem,
 } from '@/server/actions/conversations'
 
+import Link from 'next/link'
+
+import { CHANNEL_LABEL, convLabel } from '@/lib/conv-label'
 import { mesajZamani } from '@/lib/mesaj-zamani'
+import { replyErrorText } from '@/lib/reply-error'
 import { isStaleDeployment, STALE_DEPLOYMENT_MESSAGE } from '@/lib/stale-deployment'
 import { InboxSectionList, OlderConversationsButton, inboxSections, useOlderConversations } from '@/components/inbox-sections'
 const POLL_MS = 4000
@@ -51,6 +55,7 @@ export function WhatsAppDock() {
   const [busy, setBusy] = useState(false)
   const seen = useRef<Set<string>>(new Set())
   const baselined = useRef(false)
+  const drafted = useRef<Set<string>>(new Set()) // Instagram conversations whose draft we already announced
   const scrollRef = useRef<HTMLDivElement>(null)
 
   const attention = convs.filter((c) => c.needsAttention)
@@ -64,22 +69,34 @@ export function WhatsAppDock() {
       // First load baselines what's already waiting (no toast storm for history); after that, a NEW
       // needsAttention conversation triggers the green handoff alert + auto-opens the dock.
       if (!baselined.current) {
-        for (const c of list) if (c.needsAttention) seen.current.add(c.phone)
+        for (const c of list) if (c.needsAttention) seen.current.add(c.key)
+        for (const c of list) if (c.draft) drafted.current.add(c.key)
         baselined.current = true
       } else {
         for (const c of list) {
-          if (c.needsAttention && !seen.current.has(c.phone)) {
-            seen.current.add(c.phone)
+          // INSTAGRAM TASLAĞI (IG-1). Taslak bir uyarı değil, bir iş: AI cevabı hazırladı, bir insanın
+          // "Gönder" demesi gerekiyor. Sessizce listede durursa kimse görmez; alarm gibi kalırsa her
+          // mesajda masa kilitlenir. Ortası: bir kez, kısa süreli, nereye gideceğini söyleyen bir not.
+          if (c.draft && !drafted.current.has(c.key)) {
+            drafted.current.add(c.key)
+            toast.message(`📝 Instagram taslağı hazır · ${convLabel(c, 4)}`, {
+              description: 'Sohbetler ekranında gözden geçirip gönderin.',
+              duration: 10000,
+            })
+          }
+          if (!c.draft) drafted.current.delete(c.key)
+          if (c.needsAttention && !seen.current.has(c.key)) {
+            seen.current.add(c.key)
             // Two reasons, two sentences. A handoff is the assistant working as designed; a failure
             // means a customer is sitting unanswered and nobody would know — the second is an alarm,
             // not a notification, so it does not auto-dismiss.
             if (c.attentionReason === 'ai_failed') {
-              toast.error(`⚠️ Asistan cevap veremedi · ${c.name || c.phone.slice(-4)} bekliyor`, { duration: Infinity })
+              toast.error(`⚠️ Asistan cevap veremedi · ${convLabel(c, 4)} bekliyor`, { duration: Infinity })
             } else if (c.attentionReason === 'hot_lead') {
               // Someone who has just said she is ready to buy. It does NOT auto-dismiss: a sale that
               // waits until tomorrow is the cold call the studio was already complaining about, and a
               // toast that disappears after five seconds is a toast nobody saw.
-              toast(`🔥 SATIŞA HAZIR · ${c.name || c.phone.slice(-4)} · hemen yazın`, {
+              toast(`🔥 SATIŞA HAZIR · ${convLabel(c, 4)} · hemen yazın`, {
                 duration: Infinity,
                 className: 'border-2 border-warning bg-warning/10 font-semibold',
               })
@@ -88,11 +105,11 @@ export function WhatsAppDock() {
               // aşağıdaki yeşil "devir geliyor" dalına düşüyordu, çünkü `unanswered` sebebi hiçbir
               // tip tanımında yoktu. Bekleyen bir müşteriye başarı bildirimi göstermek, masaya
               // yapacak bir şey olmadığını söylemektir — üstelik beş saniyede kayboluyordu.
-              toast.error(`⏳ Cevap bekliyor · ${c.name || c.phone.slice(-4)} · asistan yanıtlamadı`, {
+              toast.error(`⏳ Cevap bekliyor · ${convLabel(c, 4)} · asistan yanıtlamadı`, {
                 duration: Infinity,
               })
             } else {
-              toast.success(`🟢 Operatör devri geliyor · ${c.name || c.phone.slice(-4)}`, { duration: 5000 })
+              toast.success(`🟢 Operatör devri geliyor · ${convLabel(c, 4)}`, { duration: 5000 })
             }
             setOpen(true)
             // AÇIK SOHBETİ ÇALMA (2026-08-30). Burası eskiden doğrudan `setSelected(c.phone)`
@@ -100,12 +117,12 @@ export function WhatsAppDock() {
             // Kullanıcı geri dönüp tekrar tıklıyor, yoklama tekrar çalıyor — "konuşmalar gelmiyor"
             // diye görünen şey buydu. Uyarı yine çıkıyor ve dock yine açılıyor; sadece elindeki
             // konuşma elinden alınmıyor.
-            setSelected((cur) => cur ?? c.phone)
+            setSelected((cur) => cur ?? c.key)
           }
           // Cleared (a human took it, or the AI answered after all) → forget it, so the NEXT time
           // this same person needs the desk the alert fires again. Without this, every conversation
           // could raise exactly one alert for the lifetime of the tab.
-          if (!c.needsAttention) seen.current.delete(c.phone)
+          if (!c.needsAttention) seen.current.delete(c.key)
         }
       }
     } catch (e) {
@@ -135,7 +152,7 @@ export function WhatsAppDock() {
     let alive = true
     const load = async () => {
       try {
-        const d = await getConversationAction({ phone: selected })
+        const d = await getConversationAction({ key: selected })
         if (!alive) return
         setDetail(d)
         setYukleniyor(false)
@@ -164,7 +181,7 @@ export function WhatsAppDock() {
     setYuklemeHatasi(false)
     setYukleniyor(true)
     void load()
-    void markConversationSeenAction({ phone: selected }).catch(() => {})
+    void markConversationSeenAction({ key: selected }).catch(() => {})
     seen.current.add(selected)
     const iv = setInterval(() => void load(), POLL_MS)
     return () => {
@@ -181,13 +198,13 @@ export function WhatsAppDock() {
     if (!selected || !text.trim()) return
     setBusy(true)
     try {
-      const res = await replyConversationAction({ phone: selected, text: text.trim() })
+      const res = await replyConversationAction({ key: selected, text: text.trim() })
       if (res.ok) {
         setText('')
-        const d = await getConversationAction({ phone: selected })
+        const d = await getConversationAction({ key: selected })
         setDetail(d)
       } else {
-        toast.error('Gönderilemedi (24 saat penceresi dışı olabilir).')
+        toast.error(replyErrorText(res.error.code))
       }
     } catch {
       toast.error('Gönderilemedi.')
@@ -197,7 +214,7 @@ export function WhatsAppDock() {
 
   async function handOff(status: 'ai' | 'human') {
     if (!selected) return
-    const res = await setConversationStatusAction({ phone: selected, status }).catch(() => null)
+    const res = await setConversationStatusAction({ key: selected, status }).catch(() => null)
     setDetail((d) => (d ? { ...d, status } : d))
     // Cevapsız bir soru varken işaret kapanmıyor. Sessizce kapanmamasından daha kötü tek şey var:
     // sessizce kapanmaması ve kimsenin sebebini bilmemesi.
@@ -248,12 +265,17 @@ export function WhatsAppDock() {
               <InboxSectionList
                 sections={inboxSections(convs, eski.older, period)}
                 renderRow={(c) => (
-                <li key={c.phone}>
-                  <button type="button" onClick={() => setSelected(c.phone)} className="flex w-full items-start gap-2 px-3 py-2 text-left hover:bg-muted/40">
+                <li key={c.key}>
+                  <button type="button" onClick={() => setSelected(c.key)} className="flex w-full items-start gap-2 px-3 py-2 text-left hover:bg-muted/40">
                     <span className={`mt-1 size-2 shrink-0 rounded-full ${c.needsAttention ? 'bg-emerald-500' : c.status === 'human' ? 'bg-amber-500' : 'bg-muted-foreground/40'}`} />
                     <span className="min-w-0 flex-1">
                       <span className="flex items-center justify-between gap-2">
-                        <span className="truncate text-sm font-medium text-foreground">{c.name || c.phone.slice(-6)}</span>
+                        <span className="flex min-w-0 items-center gap-1.5">
+                          <span className="truncate text-sm font-medium text-foreground">{convLabel(c)}</span>
+                          {c.channel === 'instagram' ? (
+                            <span className="shrink-0 rounded bg-info/15 px-1 text-[10px] font-semibold text-info">{CHANNEL_LABEL.instagram}</span>
+                          ) : null}
+                        </span>
                         <span className="shrink-0 text-[11px] text-muted-foreground">{mesajZamani(c.lastAt)}</span>
                       </span>
                       <span className="line-clamp-1 text-xs text-muted-foreground">{c.lastText || '—'}</span>
@@ -320,6 +342,16 @@ export function WhatsAppDock() {
               </div>
             ))}
           </div>
+          {detail?.draft ? (
+            // Taslağı gönderme işi Sohbetler ekranında — orada metni görüp düzenleyebiliyorsunuz.
+            // Kutudan körlemesine "gönder" yaptırmak, taslak modunun bütün amacını boşa çıkarırdı.
+            <Link
+              href={`/conversations?phone=${encodeURIComponent(detail.key)}`}
+              className="border-t border-border bg-primary/10 px-3 py-2 text-xs font-medium text-primary hover:underline"
+            >
+              📝 AI taslağı hazır — Sohbetler ekranında gözden geçirip gönderin
+            </Link>
+          ) : null}
           <div className="flex items-end gap-2 border-t border-border p-2">
             <textarea
               value={text}

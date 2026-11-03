@@ -39,11 +39,11 @@ type Section = { key: string; title: string | null; rows: readonly InboxItem[] }
 
 export function inboxSections(items: readonly InboxItem[], older: readonly InboxItem[] | null, period: Inbox['period']): Section[] {
   if (!period) return [{ key: 'all', title: null, rows: items }]
-  const mevcut = new Set(items.map((c) => c.phone))
+  const mevcut = new Set(items.map((c) => c.key))
   return [
     { key: 'new', title: periodTitle(period.label), rows: items.filter((c) => c.group === 'new') },
     { key: 'known', title: 'Önceden tanıdıklarımız — bu dönemde yazanlar', rows: items.filter((c) => c.group === 'known') },
-    { key: 'older', title: 'Önceki konuşmalar', rows: (older ?? []).filter((c) => !mevcut.has(c.phone)) },
+    { key: 'older', title: 'Önceki konuşmalar', rows: (older ?? []).filter((c) => !mevcut.has(c.key)) },
   ]
 }
 

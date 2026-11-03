@@ -27,6 +27,7 @@ import { runPaymentReconcileSweep } from './scheduled/reconcile-payments'
 import { runReminderSweep } from './scheduled/reminders'
 import { runUnfreezeSweep } from './scheduled/unfreeze-expired'
 import { paytrCallback } from './http/paytr-callback'
+import { instagramWebhook } from './http/instagram-webhook'
 import { whatsappWebhook } from './http/whatsapp-webhook'
 import { NOTIFICATION_SECRETS, REGION } from './shared/region'
 import { onCommandCreated } from './triggers/on-command-created'
@@ -45,6 +46,9 @@ export { onCommandCreated }
 // verified downstream.
 export { paytrCallback }
 export { whatsappWebhook }
+// IG-1 (2026-11-03) — Instagram DM → AI receptionist. A SEPARATE function from WhatsApp so one
+// channel's failure cannot take the other down. Public; Meta's signature is the auth.
+export { instagramWebhook }
 // v1.23 — the daily read model behind the owner dashboard. Disposable: if it is ever wrong, it is
 // deleted and replayed from the log (`pnpm projections:rebuild`).
 export { onEventCreated }

@@ -64,3 +64,14 @@ export const PAYTR_SECRETS = ['PAYTR_MERCHANT_KEY', 'PAYTR_MERCHANT_SALT'] as co
 // file. Same line, same lesson as `healthCheck` on 1 Eylül: a function that notifies binds
 // NOTIFICATION_SECRETS, or it only thinks it notified.
 export const AI_RECEPTIONIST_SECRETS = [...NOTIFICATION_SECRETS, 'ANTHROPIC_API_KEY'] as const
+
+// ── INSTAGRAM DM (IG-1, 2026-11-03) ─────────────────────────────────────────────────────────────
+// `INSTAGRAM_ACCESS_TOKEN` — a never-expiring SYSTEM-USER token (app "Pilates Fitness By Işıl",
+// system user 61592275194768) holding instagram_manage_messages & co. It reads and sends DMs.
+// `META_APP_SECRET` — verifies Meta's `X-Hub-Signature-256` on every webhook POST. Without it the
+// webhook REFUSES every POST (see instagram-webhook.ts): an unsigned DM endpoint lets anyone invent
+// customers, open leads and spend AI money.
+// BOTH must exist in Secret Manager before a functions deploy — a v2 function bound to a missing
+// secret fails the whole deploy (the WhatsApp lesson above).
+export const INSTAGRAM_SECRETS = ['INSTAGRAM_ACCESS_TOKEN', 'META_APP_SECRET'] as const
+export const INSTAGRAM_RECEPTIONIST_SECRETS = [...AI_RECEPTIONIST_SECRETS, ...INSTAGRAM_SECRETS] as const

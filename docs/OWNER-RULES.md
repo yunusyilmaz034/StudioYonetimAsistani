@@ -2528,3 +2528,19 @@ soyad, TC varsa yoksa 11 tane 1, ödeme yöntemi, tarih; fatura kestiysek tikley
   TEK e-postayla bütün aktif owner'lara gider. Tiklenen satır ertesi sabahki mailden düşer.
 - Owner nakitte fatura kesmeme / tutarın altında kesme ve "maliye fark etmesin diye yavaş yavaş geçiş" planı istedi; bu konuda
   plan yapılmadı, mali müşavire yönlendirildi. Sistem tutarı yalnızca kayıt eder.
+
+**OR-131 · Instagram: onaysız paylaşım ve harcama YOK; Instagram lead'i telefonla açılır; çekim stüdyoda.** (2026-11-03)
+
+Owner: *"telefonu alınca girsin"* · *"sosyal medya çekimlerini tabi ki biz yapalım, sen bize ne olması gerektiğini nasıl
+çekilmesini gerektiğini söyle biz çekelim, sen editle ve onaydan sonra yayınla"* · reklam yönetimi soruldu, onaylı harcama
+şartıyla kabul edildi.
+
+- **Lead telefonla açılır.** Instagram'dan yazan biri Satış Hunisi'ne ancak sohbette telefon numarası yazınca girer
+  (`source: instagram`, `sourceDetail: 'Instagram DM'`). Numara üyeninse lead açılmaz; aynı numarayla lead varsa (ör. WhatsApp'tan)
+  ikincisi açılmaz — bir kişi, bir lead, bir sayım.
+- **DM modu** `settings/ai.instagramMode`: Kapalı (varsayılan) · Taslak (AI hazırlar, insan gönderir — önerilen, ilk iki hafta) ·
+  Otomatik. Taslak modunda kod hiçbir yoldan gönderemez (`instagramAction`, testli).
+- **Onaysız hiçbir şey yayınlanmaz** (IG-2): paylaşım ancak owner onay olayından sonra çıkar.
+- **Onaysız tek kuruş harcanmaz** (IG-5): her yeni kampanya ve her bütçe değişikliği owner onayıyla.
+- **Çekim stüdyoda** — panel çekim kartı verir (ne, nasıl, kaç saniye), kurgular, onaya sunar.
+- Sahte takipçi/beğeni/otomatik takip-bırak YOK (Instagram kuralı; hesap kapanma riski — geçim bu hesaptan).

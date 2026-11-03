@@ -9,7 +9,14 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Section } from '@/components/ui/section'
 import { Textarea } from '@/components/ui/textarea'
-import { getAiSettingsAction, setAiSettingsAction, type AiFaq } from '@/server/actions/ai-settings'
+import { getAiSettingsAction, setAiSettingsAction, type AiFaq, type InstagramMode } from '@/server/actions/ai-settings'
+
+// IG-1, onaylı tasarım: üç seçenek, Taslak "önerilen". Metinler sahibin göreceği haliyle.
+const IG_MODES: readonly { value: InstagramMode; title: string; hint: string }[] = [
+  { value: 'off', title: 'Kapalı', hint: 'Mesajlar Sohbetler’e düşer, AI hiçbir şey hazırlamaz.' },
+  { value: 'draft', title: 'Taslak', hint: 'AI cevabı hazırlar, siz “Gönder” demeden gitmez. İlk iki hafta bu modda kalın.' },
+  { value: 'auto', title: 'Otomatik', hint: 'AI WhatsApp’taki gibi kendisi cevaplar; devretmesi gereken sohbeti masaya bırakır.' },
+]
 
 // Ayarlar → AI Ayarları — the studio's "knowledge card". What the owner writes here is what the AI knows:
 // its tone, the studio's basics, policies, FAQ, and the rules for when to hand off / what never to do.
@@ -27,6 +34,7 @@ export function AiSettingsPanel({ canEdit }: { canEdit: boolean }) {
   const [neverDo, setNeverDo] = useState('')
   const [examples, setExamples] = useState('')
   const [whatsappActive, setWhatsappActive] = useState(false)
+  const [instagramMode, setInstagramMode] = useState<InstagramMode>('off')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
@@ -44,6 +52,7 @@ export function AiSettingsPanel({ canEdit }: { canEdit: boolean }) {
         setNeverDo(s.neverDo)
         setExamples(s.examples)
         setWhatsappActive(s.whatsappActive)
+        setInstagramMode(s.instagramMode)
       })
       .catch(() => {})
       .finally(() => setLoading(false))
@@ -68,6 +77,7 @@ export function AiSettingsPanel({ canEdit }: { canEdit: boolean }) {
         neverDo: neverDo.trim(),
         examples: examples.trim(),
         whatsappActive,
+        instagramMode,
       })
       if (r.ok) toast.success('AI ayarları kaydedildi.')
     } catch {
@@ -104,6 +114,40 @@ export function AiSettingsPanel({ canEdit }: { canEdit: boolean }) {
         </label>
         {whatsappActive ? (
           <p className="mt-2 text-xs text-warning">⚠️ AI şu an gerçek müşterilere cevap verecek. Bilgi kartını doldurduğundan emin ol.</p>
+        ) : null}
+      </Section>
+
+      <Section title="Instagram DM" hint="Instagram'a gelen direkt mesajlar. Aynı bilgi kartı ve aynı fiyat listesi kullanılır.">
+        <fieldset className="space-y-2" disabled={!canEdit}>
+          <legend className="sr-only">Instagram modu</legend>
+          {IG_MODES.map((m) => (
+            <label
+              key={m.value}
+              className={`flex min-h-11 cursor-pointer items-start gap-3 rounded-xl border p-3 ${instagramMode === m.value ? 'border-2 border-primary bg-primary/10' : 'border-border'}`}
+            >
+              <input
+                type="radio"
+                name="instagramMode"
+                value={m.value}
+                checked={instagramMode === m.value}
+                onChange={() => setInstagramMode(m.value)}
+                className="mt-0.5 size-5 accent-primary"
+              />
+              <span className="space-y-0.5">
+                <span className="block text-sm font-semibold">
+                  {m.title}
+                  {m.value === 'draft' ? <span className="ml-1.5 rounded bg-card px-1.5 py-0.5 text-[11px] font-semibold text-primary">önerilen</span> : null}
+                </span>
+                <span className="block text-xs text-muted-foreground">{m.hint}</span>
+              </span>
+            </label>
+          ))}
+        </fieldset>
+        <p className="mt-2 rounded-lg bg-warning/15 px-3 py-2 text-xs text-foreground">
+          Meta incelemesi bitene kadar yalnızca stüdyo hesaplarından gelen DM’ler görünür.
+        </p>
+        {instagramMode === 'auto' ? (
+          <p className="mt-2 text-xs text-warning">⚠️ AI Instagram’da gerçek müşterilere kendisi cevap verecek.</p>
         ) : null}
       </Section>
 
