@@ -140,7 +140,10 @@ service cloud.firestore {
           'feedback',
           // Faz 2 — WhatsApp AI receptionist conversations (buyer phone/name + message text = PII).
           // Written by the inbound webhook, read by reception through a Server Action; never client-side.
-          'conversations'
+          'conversations',
+          // IG-4a (2026-11-03) — ad spend and the revenue it brought: owner-confidential business data.
+          // Written by the nightly sync, read by the owner's screen through a Server Action.
+          'adsInsights'
         ];
       }
 

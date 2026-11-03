@@ -12,7 +12,7 @@ describe('parseInstagramWebhook', () => {
     const out = parseInstagramWebhook(
       body([{ sender: { id: 'C1' }, recipient: { id: OUR_IG }, timestamp: 1000, message: { mid: 'm1', text: 'Reformer fiyatı?' } }]),
     )
-    expect(out).toEqual([{ kind: 'message', igsid: 'C1', mid: 'm1', text: 'Reformer fiyatı?', hasAttachment: false, at: 1000 }])
+    expect(out).toEqual([{ kind: 'message', igsid: 'C1', mid: 'm1', text: 'Reformer fiyatı?', hasAttachment: false, at: 1000, adId: null }])
   })
 
   it('marks a photo as an attachment with no text', () => {
@@ -35,6 +35,15 @@ describe('parseInstagramWebhook', () => {
     expect(parseInstagramWebhook(body([{ sender: { id: 'C1' }, message: { mid: 'm5', text: '   ' } }]))).toEqual([])
     expect(parseInstagramWebhook({ object: 'whatsapp_business_account', entry: [] })).toEqual([])
     expect(parseInstagramWebhook(null)).toEqual([])
+  })
+})
+
+describe('parseInstagramWebhook — ad referral (IG-4a)', () => {
+  it('carries the ad id of a click-to-Instagram-DM ad', () => {
+    const [m] = parseInstagramWebhook(
+      body([{ sender: { id: 'C1' }, timestamp: 9, referral: { source: 'ADS', ad_id: '120250000000000001' }, message: { mid: 'm9', text: 'Bilgi alabilir miyim' } }]),
+    )
+    expect(m).toMatchObject({ kind: 'message', adId: '120250000000000001' })
   })
 })
 

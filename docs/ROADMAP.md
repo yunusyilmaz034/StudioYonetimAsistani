@@ -206,6 +206,7 @@ Yüzü görünen üye yalnızca izinliyse (KVKK izin kaydı).
 Yorum cevap taslağı, olumsuz yorumda masaya uyarı (AI tek başına cevaplamaz), bölgesel iş birliği önerileri.
 
 ### IG-4 · "Ne işe yaradı" raporu (+ reklam OKUMA)
+**IG-4a · 🟡 KOD BİTTİ (2026-11-04)** — reklam ölçümü: webhook referral → gece insights → Para → Reklamlar (owner, salt okuma). 90 gün atıf penceresi (owner).
 Gönderi → profil → DM → deneme → üyelik; reklam harcaması → üye başı maliyet (`ads_read`). Patron Asistanı'na bağlanır.
 Instagram sohbetlerini AI Rapor'a ve Patron özetine katmak da burada (DEBT-047).
 

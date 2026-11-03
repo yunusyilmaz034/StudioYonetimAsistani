@@ -28,6 +28,7 @@ import {
   WalletIcon,
   CalendarIcon,
   CameraIcon,
+  CircleDollarSignIcon,
   ClipboardCheckIcon,
   DumbbellIcon,
   DoorOpenIcon,
@@ -131,6 +132,8 @@ export const GROUPS: readonly NavGroup[] = [
       { href: '/payroll', label: 'Bordro', icon: ReceiptIcon },
       // Fatura Takibi (owner, 2026-11-03) — PIN'li, owner'a özel.
       { href: '/invoices', label: 'Fatura Takibi', icon: FileCheckIcon },
+      // IG-4a — what the ad money brought. Owner-only.
+      { href: '/ads', label: 'Reklamlar', icon: CircleDollarSignIcon },
     ],
   },
   {

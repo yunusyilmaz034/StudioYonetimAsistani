@@ -152,7 +152,7 @@ async function processEcho(sid: string, igsid: string, mid: string, text: string
   await ref.set(conv, { merge: true })
 }
 
-async function processMessage(sid: string, igsid: string, mid: string, text: string | null, hasAttachment: boolean, at: number): Promise<void> {
+async function processMessage(sid: string, igsid: string, mid: string, text: string | null, hasAttachment: boolean, at: number, adId: string | null = null): Promise<void> {
   const database = db()
   const ctx = ctxOf(sid)
   const ref = database.doc(`studios/${sid}/conversations/${keyOf(igsid)}`)
@@ -171,6 +171,8 @@ async function processMessage(sid: string, igsid: string, mid: string, text: str
     messages: [],
   }
   if (conv.seenIds.includes(mid)) return // Meta retries the same mid
+  // IG-4a: the first ad referral is kept; a later one never re-attributes her.
+  if (adId && !conv.adRef) conv.adRef = { adId, at: at || Date.now(), channel: 'instagram' }
 
   const config = igConfig()
   // Who she is, once. Meta may not grant profile access yet — then she stays "Instagram ·…1234".
@@ -294,7 +296,7 @@ export const instagramWebhook = onRequest({ region: REGION, secrets: [...INSTAGR
     const body = JSON.parse(raw.toString('utf8') || '{}') as unknown
     for (const m of parseInstagramWebhook(body)) {
       if (m.kind === 'echo') await processEcho(sid, m.igsid, m.mid, m.text, m.at)
-      else await processMessage(sid, m.igsid, m.mid, m.text, m.hasAttachment, m.at)
+      else await processMessage(sid, m.igsid, m.mid, m.text, m.hasAttachment, m.at, m.adId)
     }
   } catch (e) {
     logger.error('[ig-webhook] POST failed', (e as Error)?.message ?? e)

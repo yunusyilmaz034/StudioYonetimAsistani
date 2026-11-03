@@ -35,6 +35,7 @@ import * as logger from 'firebase-functions/logger'
 import { onRequest } from 'firebase-functions/v2/https'
 
 import { db } from '../shared/firebase'
+import { whatsappAdId, type AdRef } from './ad-referral'
 import { notificationDeps, studioNotificationSettings } from '../triggers/on-event-notify'
 import { AI_RECEPTIONIST_SECRETS, REGION } from '../shared/region'
 
@@ -86,6 +87,9 @@ export interface Conversation {
    * Eski değerler okunmaya devam ediyor (aşağıdaki `legacy` eşlemesi), ama yenisi yazılıyor.
    */
   stage?: ConvStage
+  // IG-4a (2026-11-03): the ad that opened this conversation, set ONCE from Meta's referral. Attribution
+  // (ad → phone → member → payments) reads it; nothing else does.
+  adRef?: AdRef
   temp?: 'sıcak' | 'ılık' | 'soğuk' // eski alan — yalnızca geçmiş kayıtlarda
   reason?: string
 }
@@ -478,7 +482,7 @@ export async function huniyiIlerlet(database: Firestore, ctx: TenantContext, pho
   }
 }
 
-async function processMessage(sid: string, from: string, name: string, text: string, msgId: string): Promise<void> {
+async function processMessage(sid: string, from: string, name: string, text: string, msgId: string, adId: string | null = null): Promise<void> {
   const database = db()
   const ctx = ctxOf(sid)
   const ref = database.doc(`studios/${sid}/conversations/${from}`)
@@ -486,6 +490,8 @@ async function processMessage(sid: string, from: string, name: string, text: str
   const isNew = !snap.exists
   const conv = (snap.data() as Conversation | undefined) ?? { phone: from, name, status: 'ai', needsAttention: false, lastAt: 0, firstAt: Date.now(), seenIds: [], messages: [] }
   if (conv.seenIds.includes(msgId)) return // idempotent: Meta retries the same message id
+  // IG-4a: the first ad referral is kept; a later one never re-attributes her.
+  if (adId && !conv.adRef) conv.adRef = { adId, at: Date.now(), channel: 'whatsapp' }
 
   // WHO is writing, before anything else is decided — it changes both what the assistant says and
   // whether this is a lead at all.
@@ -716,7 +722,7 @@ export const whatsappWebhook = onRequest({ region: REGION, secrets: [...AI_RECEP
   // ── POST: inbound messages ──
   try {
     const body = (typeof req.body === 'object' ? req.body : JSON.parse(req.rawBody?.toString('utf8') || '{}')) as {
-      entry?: { changes?: { value?: { contacts?: { profile?: { name?: string }; wa_id?: string }[]; messages?: { from?: string; id?: string; type?: string; text?: { body?: string } }[] } }[] }[]
+      entry?: { changes?: { value?: { contacts?: { profile?: { name?: string }; wa_id?: string }[]; messages?: { from?: string; id?: string; type?: string; text?: { body?: string }; referral?: unknown }[] } }[] }[]
     }
     for (const entry of body.entry ?? []) {
       for (const change of entry.changes ?? []) {
@@ -725,7 +731,7 @@ export const whatsappWebhook = onRequest({ region: REGION, secrets: [...AI_RECEP
         for (const c of value.contacts ?? []) if (c.wa_id) nameByWa.set(c.wa_id, c.profile?.name ?? '')
         for (const m of value.messages ?? []) {
           if (m.type !== 'text' || !m.from || !m.id || !m.text?.body) continue
-          await processMessage(sid, m.from, nameByWa.get(m.from) ?? '', m.text.body, m.id)
+          await processMessage(sid, m.from, nameByWa.get(m.from) ?? '', m.text.body, m.id, whatsappAdId(m))
         }
       }
     }

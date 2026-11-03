@@ -16,6 +16,8 @@ import { createHmac, timingSafeEqual } from 'node:crypto'
 
 import { normalizePhone } from '@studio/core'
 
+import { instagramAdId } from './ad-referral'
+
 export type InstagramInbound =
   | {
       readonly kind: 'message'
@@ -24,6 +26,7 @@ export type InstagramInbound =
       readonly text: string | null
       readonly hasAttachment: boolean
       readonly at: number // ms, Meta's timestamp
+      readonly adId: string | null // IG-4a — the click-to-message ad that opened it, if any
     }
   | {
       readonly kind: 'echo'
@@ -34,6 +37,7 @@ export type InstagramInbound =
     }
 
 interface RawMessaging {
+  referral?: unknown
   sender?: { id?: string }
   recipient?: { id?: string }
   timestamp?: number
@@ -66,7 +70,7 @@ export function parseInstagramWebhook(body: unknown): InstagramInbound[] {
       if (!igsid) continue
       const hasAttachment = (Array.isArray(msg.attachments) && msg.attachments.length > 0) || Boolean(msg.is_unsupported)
       if (!text && !hasAttachment) continue
-      out.push({ kind: 'message', igsid, mid: msg.mid, text, hasAttachment, at })
+      out.push({ kind: 'message', igsid, mid: msg.mid, text, hasAttachment, at, adId: instagramAdId(m) })
     }
   }
   return out

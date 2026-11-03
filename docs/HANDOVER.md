@@ -55,7 +55,20 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
   birebir (101 = 79 + 20 + 2). Owner deneyip yazacak.
 - **Yerelde, push edilmedi:** yalnızca günlük commit'leri (kod değil).
 
-### ⏭️ 4 Kasım gece — REKLAM (IG-4a ölçüm) Meta tarafı HAZIR, plan onaylı, UX sırada — BURADAN DEVAM
+### ⏭️ 4 Kasım gece — IG-4a KOD BİTTİ (reklam ölçümü) — DEPLOY owner adımı bekliyor — BURADAN DEVAM
+
+- **Webhook'lar:** WhatsApp + Instagram ilk mesajdaki reklam `referral`ından YALNIZ reklam kimliğini `conversation.adRef`e yazar
+  (bir kez; ilk reklam kazanır). WhatsApp'a tek satırlık ek + saf `ad-referral.ts` (testli). Yeni olay yok, lead şeması aynı.
+- **Gece 03:30 `adsInsightsSync`** (YENİ fonksiyon, `META_ADS_ACCESS_TOKEN`): Meta'dan SALT OKUMA, son 90 gün reklam×gün →
+  `studios/{sid}/adsInsights/summary` (tek belge; kural: serverOnly). Para kuruş, string aritmetiğiyle (`decimalToKurus`, testli).
+  Hesap verisi `settings/ads.adAccountId = act_964285176326500` (script). Prova: insights uç noktası 0 satır (henüz kampanya yok).
+- **Panel:** Para → **Reklamlar** (`/ads`, owner). Atıf `lib/ads-attribution.ts` (7 test): reklam → sohbet → telefon → yazdıktan
+  sonra (aynı gün toleransı) 90 gün içinde kayıt olan üye → o üyenin aynı 90 gündeki ödemeleri. Zaten üye olan sayılmaz; iki
+  kanaldan yazan tek üye.
+- **DEPLOY ÖNCESİ (owner):** `META_APP_SECRET`'a App secret'ı **yeni sürüm (v3)** olarak ekle — `latest` şu an DEVRE DIŞI v2'yi
+  gösteriyor, functions deploy'u düşer. Sonra: `pnpm deploy:rules` (adsInsights serverOnly) → `pnpm deploy:functions` → push.
+
+### 4 Kasım gece — REKLAM Meta tarafı hazırlandı
 
 - IG-2a CANLI (`build-2026-11-03-007`). 
 - Meta uygulamasına "Create & manage ads" + "Measure ad performance" eklendi (ads_read/ads_management hazır).

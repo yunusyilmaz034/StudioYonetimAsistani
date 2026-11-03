@@ -19,6 +19,7 @@ import { runEnergySummarySweep } from './scheduled/energy-summary'
 import { runClassReminderSweep } from './scheduled/class-reminders'
 import { runExpirySweep } from './scheduled/expire-credits'
 import { runInfrastructureWatch } from './scheduled/infrastructure-alarm'
+import { runAdsSync } from './scheduled/ads-sync'
 import { runInvoiceDeadlineSweep } from './scheduled/invoice-deadline'
 import { runFastHealthChecks, runNightlyHealthChecks } from './scheduled/health'
 import { runMinInstancesGuard } from './scheduled/min-instances-guard'
@@ -29,7 +30,7 @@ import { runUnfreezeSweep } from './scheduled/unfreeze-expired'
 import { paytrCallback } from './http/paytr-callback'
 import { instagramWebhook } from './http/instagram-webhook'
 import { whatsappWebhook } from './http/whatsapp-webhook'
-import { NOTIFICATION_SECRETS, REGION } from './shared/region'
+import { ADS_SECRETS, NOTIFICATION_SECRETS, REGION } from './shared/region'
 import { onCommandCreated } from './triggers/on-command-created'
 import { onEventCreated } from './triggers/on-event-created'
 
@@ -193,6 +194,15 @@ export const invoiceDeadline = onSchedule(
   { schedule: '0 9 * * *', timeZone: 'Europe/Istanbul', secrets: [...NOTIFICATION_SECRETS] },
   async () => {
     await runInvoiceDeadlineSweep(Date.now())
+  },
+)
+
+// IG-4a (2026-11-03) — the ad account's last 90 days, read-only, into one summary document the owner's
+// Reklamlar screen reads. 03:30: after the 03:00 sweep, and Meta's own day has closed (Istanbul time).
+export const adsInsightsSync = onSchedule(
+  { schedule: '30 3 * * *', timeZone: 'Europe/Istanbul', secrets: [...ADS_SECRETS] },
+  async () => {
+    await runAdsSync(Date.now())
   },
 )
 

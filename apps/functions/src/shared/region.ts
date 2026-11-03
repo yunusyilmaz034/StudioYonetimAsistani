@@ -75,3 +75,9 @@ export const AI_RECEPTIONIST_SECRETS = [...NOTIFICATION_SECRETS, 'ANTHROPIC_API_
 // secret fails the whole deploy (the WhatsApp lesson above).
 export const INSTAGRAM_SECRETS = ['INSTAGRAM_ACCESS_TOKEN', 'META_APP_SECRET'] as const
 export const INSTAGRAM_RECEPTIONIST_SECRETS = [...AI_RECEPTIONIST_SECRETS, ...INSTAGRAM_SECRETS] as const
+
+// ── REKLAM ÖLÇÜMÜ (IG-4a, 2026-11-03) ──────────────────────────────────────────────────────────
+// `META_ADS_ACCESS_TOKEN` — a separate never-expiring system-user token with ads_read/ads_management,
+// used ONLY by the nightly read-only insights pull. Kept apart from INSTAGRAM_ACCESS_TOKEN so the DM
+// pipeline never depends on ad permissions, and vice versa.
+export const ADS_SECRETS = ['META_ADS_ACCESS_TOKEN'] as const

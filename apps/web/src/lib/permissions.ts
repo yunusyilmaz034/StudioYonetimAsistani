@@ -53,6 +53,7 @@ export type Area =
   | '/import' // imports: the wizard, the batch history, and the frozen BulutGym screen
   | '/reports' // S6 — the seven reports
   | '/invoices' // Fatura Takibi — which payments have had their invoice cut (owner, PIN'li)
+  | '/ads' // IG-4a — Reklamlar: spend → members → revenue (owner-only, read-only)
   | '/feedback' // Geri Bildirim — in-app bug reports from staff (owner reviews)
   | '/conversations' // Faz 2 — WhatsApp AI receptionist conversations (owner + reception)
   | '/content' // IG-2a — the week's Instagram plan: shot cards + captions (team plans, owner approves)
@@ -132,6 +133,8 @@ export const PERMISSIONS: Readonly<Record<Area, readonly PrincipalRole[]>> = {
   // Fatura Takibi (owner, 2026-11-03): money + TC kimlik in one list. Owner's, and PIN-gated like the
   // money reports — the same unlock opens both.
   '/invoices': OWNER_ONLY,
+  // IG-4a (owner, 2026-11-03): ad spend and the revenue it brought — the business itself. Owner's alone.
+  '/ads': OWNER_ONLY,
 
   // The trainer's OWN daily classes — her week, her registers, the names of the women in front of
   // her. It is a PERSONAL screen ("Derslerim"), not a management one, so the admin panel does not
