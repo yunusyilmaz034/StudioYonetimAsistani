@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { decimalToKurus, summarizeInsights } from './ads-insights'
+import { decimalToKurus, overspent, summarizeInsights } from './ads-insights'
 
 describe('decimalToKurus — money never passes through a float', () => {
   it.each([
@@ -53,4 +53,17 @@ describe('summarizeInsights', () => {
     const s = summarizeInsights({ ...base, campaigns: [], rows: [{ campaign_id: 'c3', campaign_name: 'Eski', date_start: '2026-10-01', spend: '1' }] })
     expect(s.campaigns[0]).toMatchObject({ id: 'c3', name: 'Eski', status: 'UNKNOWN' })
   })
+})
+
+describe('overspent — the nightly cap check (IG-5a)', () => {
+  const summary = {
+    campaigns: [
+      { id: 'm1', name: 'A', status: 'ACTIVE', adIds: [], days: { '2026-11-05': { spendKurus: 300_000, impressions: 0, clicks: 0, messages: 0 }, '2026-11-06': { spendKurus: 130_000, impressions: 0, clicks: 0, messages: 0 } } },
+      { id: 'm2', name: 'B', status: 'ACTIVE', adIds: [], days: { '2026-11-05': { spendKurus: 420_000, impressions: 0, clicks: 0, messages: 0 } } },
+    ],
+  }
+  it('flags a campaign that spent more than approved', () =>
+    expect(overspent(summary, [{ name: 'A', metaCampaignId: 'm1', maxSpendKurus: 420_000 }])).toEqual([{ name: 'A', spentKurus: 430_000, maxSpendKurus: 420_000 }]))
+  it('EXACTLY the approved amount is not an overspend', () => expect(overspent(summary, [{ name: 'B', metaCampaignId: 'm2', maxSpendKurus: 420_000 }])).toEqual([]))
+  it('a campaign Meta has no spend for yet is fine', () => expect(overspent(summary, [{ name: 'C', metaCampaignId: 'm9', maxSpendKurus: 1 }])).toEqual([]))
 })

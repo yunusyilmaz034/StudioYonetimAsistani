@@ -200,7 +200,7 @@ export const invoiceDeadline = onSchedule(
 // IG-4a (2026-11-03) — the ad account's last 90 days, read-only, into one summary document the owner's
 // Reklamlar screen reads. 03:30: after the 03:00 sweep, and Meta's own day has closed (Istanbul time).
 export const adsInsightsSync = onSchedule(
-  { schedule: '30 3 * * *', timeZone: 'Europe/Istanbul', secrets: [...ADS_SECRETS] },
+  { schedule: '30 3 * * *', timeZone: 'Europe/Istanbul', secrets: [...ADS_SECRETS, ...NOTIFICATION_SECRETS] },
   async () => {
     await runAdsSync(Date.now())
   },

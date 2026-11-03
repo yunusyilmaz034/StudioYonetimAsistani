@@ -1,0 +1,8 @@
+{
+  "origin": "ai",
+  "dailyBudget": { "amount": 30000, "currency": "TRY" },
+  "startDate": "2026-11-05",
+  "endDate": "2026-11-18",
+  "days": 14,
+  "maxSpend": { "amount": 420000, "currency": "TRY" }
+}

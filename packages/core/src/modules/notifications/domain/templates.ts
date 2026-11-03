@@ -330,6 +330,18 @@ export const TEMPLATES: Readonly<Record<string, NotificationTemplate>> = {
     subject: 'Acil: {{count}} havale/EFT için fatura kesilmeli',
     body: '🧾 7 GÜN DOLMADAN FATURA KESİLMELİ\n{{lines}}\n\nFaturayı kestikten sonra panelde Para → Fatura Takibi ekranında tikleyin; tiklenen satır bu mailden düşer.',
   },
+  // REKLAM TAVANI (IG-5a, owner, 2026-11-04). The nightly sync found a live campaign whose real spend on
+  // Meta is above what the owner approved. Staff only — never a member.
+  ads_overspend: {
+    id: 'ads_overspend',
+    version: 1,
+    name: 'Reklam onaylanan tutarı aştı (sahip)',
+    category: 'operational',
+    priority: 'urgent',
+    requiredParams: ['lines'],
+    subject: 'Acil: reklam harcaması onaylanan tutarı aştı',
+    body: '⚠️ ONAYLANAN TUTAR AŞILDI\n{{lines}}\n\nReklam Yöneticisi\'nden kampanyayı durdurabilir ya da panelde Para → Reklamlar ekranından bakabilirsiniz.',
+  },
   system_heartbeat: {
     id: 'system_heartbeat',
     version: 1,

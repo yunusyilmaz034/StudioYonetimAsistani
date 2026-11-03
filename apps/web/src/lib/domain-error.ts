@@ -444,6 +444,25 @@ export function domainErrorMessage(error: DomainError): string {
       return 'Gönderiyi yalnızca stüdyo sahibi onaylayabilir.'
     case 'content_not_editable':
       return 'Bu gönderi plandan çıkarılmış; düzenlenemez.'
+    case 'ad_invalid':
+      return {
+        name: 'Kampanya adı boş olamaz ve en fazla 80 karakter olabilir.',
+        dailyBudget: 'Günlük bütçe en az 1 TL olmalı.',
+        dates: 'Başlangıç bugün ya da sonrası olmalı; bitiş başlangıçtan önce olamaz.',
+        duration: 'Bir kampanya en fazla 90 gün sürebilir.',
+        targeting: 'Hedefleme geçersiz: yarıçap 1–80 km, yaş 18–65 arası olmalı.',
+        creative: 'Bir Instagram gönderisi seçin ve reklam metni yazın (en fazla 2.200 karakter).',
+      }[error.field]
+    case 'ad_over_cap':
+      return error.which === 'daily'
+        ? `Günlük bütçe tavanı aşıyor (en fazla ${(error.cap / 100).toLocaleString('tr-TR')} TL).`
+        : `Bu kampanyanın toplam harcaması tavanı aşıyor (kampanya başına en fazla ${(error.cap / 100).toLocaleString('tr-TR')} TL). Bütçeyi ya da süreyi azaltın.`
+    case 'ad_approve_forbidden':
+      return 'Reklam harcamasını yalnızca stüdyo sahibi onaylayabilir.'
+    case 'ad_not_editable':
+      return 'Bu kampanya artık taslak değil; değişiklik ancak onaylı talep olarak yapılabilir.'
+    case 'ad_not_approved':
+      return 'Kampanya onaylanmadan yayınlanamaz.'
     default: {
       const exhaustive: never = error
       void exhaustive

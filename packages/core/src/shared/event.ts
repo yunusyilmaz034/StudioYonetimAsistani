@@ -69,6 +69,8 @@ export type AggregateKind =
   | 'adPeriod'
   // IG-2a (2026-11-03) — one planned Instagram post. Additive: no existing event's `subject.kind` changes.
   | 'contentPost'
+  // IG-5a (2026-11-04) — one paid ad campaign (draft → approved → live). Additive.
+  | 'adCampaign'
 
 export interface PolicyRef {
   readonly policyId: PolicyId

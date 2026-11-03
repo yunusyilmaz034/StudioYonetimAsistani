@@ -10,6 +10,8 @@ import { formatKurus } from '@/lib/payroll-labels'
 import { isStaleDeployment, STALE_DEPLOYMENT_MESSAGE } from '@/lib/stale-deployment'
 import { adsReportAction, type AdsScreen as Data } from '@/server/actions/ads'
 
+import { AdCampaignsPanel } from './ad-campaigns-panel'
+
 // IG-4a — onaylı tasarım: https://claude.ai/artifact/Wmkm8GjLKoyhqV5LGX6Fmr
 // Mobile: campaign cards. From md up: one table that scrolls inside its own box if it must.
 
@@ -48,7 +50,11 @@ export function AdsScreen() {
   const t = data?.report.totals
   return (
     <main className="mx-auto max-w-6xl space-y-4 p-4 sm:p-6 lg:p-8">
-      <PageHeader title="Reklamlar" description="Harcanan para kaç üye getirdi? Yalnızca okuma — reklamdaki her değişiklik sahibin onayıyla yapılır." />
+      <PageHeader title="Reklamlar" description="AI kampanyayı hazırlar, sen onaylarsın; aşağıda harcanan paranın kaç üye getirdiği." />
+
+      <AdCampaignsPanel />
+
+      <h2 className="pt-2 text-lg font-bold">Ölçüm</h2>
 
       <div className="flex flex-wrap items-center gap-2">
         {DAYS.map((d) => (

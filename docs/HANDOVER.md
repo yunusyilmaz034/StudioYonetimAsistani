@@ -55,7 +55,24 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
   birebir (101 = 79 + 20 + 2). Owner deneyip yazacak.
 - **Yerelde, push edilmedi:** yalnızca günlük commit'leri (kod değil).
 
-### ⏭️ 4 Kasım gece — IG-4a CANLI (reklam ölçümü) — BURADAN DEVAM
+### ⏭️ 4 Kasım gece — IG-5a KOD BİTTİ (AI kampanya + onaylı yayın) — DEPLOY onayı bekliyor — BURADAN DEVAM
+
+- **Çekirdek `ads`** (README'de 7 değişmez; 37 kural testi, 7 golden): taslak yalnız panelde; tavan (settings/ads
+  `dailyCapKurus=30000`, `campaignCapKurus=600000`) aşılırsa REDDEDİLİR (AI dahil, tam tavan geçer); bitiş zorunlu ≤90 gün;
+  onay yalnız owner, BUGÜNÜN tarihi ve GÜNCEL tavanla yeniden yargılanır, tavanlar olaya damgalanır; onay + `publishing` kilidi
+  TEK transaction (çift basış = tek kampanya); yayın hatası onayı harcar.
+- **Meta yazımı** yalnız `server/meta-ads.ts` + `approveAndPublishAdCampaignAction`: kampanya→reklam seti→kreatif (mevcut IG
+  gönderisi, açıklaması reklam metni)→reklam, hepsi PAUSED; en sonda ACTIVE. Hata → oluşanlar tekrar PAUSED, kart "Yayınlanamadı"
+  + Meta'nın cümlesi. Hedef WhatsApp mesajı, kadın, sayfa konumu (Meta'daki) + yarıçap.
+- **AI** `server/ai/ad-planner.ts` — prova (kaydetmeden): "12 Aylık Fitness · Kadınlara Özel", 250 TL × 10 gün = 2.500 TL, 25–50,
+  8 km, 18 Eylül fitness videosu; domain GEÇERLİ.
+- **Gece kontrolü:** `adsInsightsSync` canlı kampanyanın Meta harcaması onaylanan tutarı aşarsa owner'a `ads_overspend` e-postası.
+- ⚠️ **ENGEL — sayfaya WhatsApp numarası bağlı DEĞİL** (`whatsapp_number` boş). WhatsApp'a yönlendiren reklam için Sayfa →
+  Ayarlar → Bağlı hesaplar → WhatsApp'tan stüdyo numarası bağlanmalı (doğrulama kodu ister). Bağlanmadan yayın, reklam seti
+  adımında Meta hatasıyla düşer (güvenli: hiçbir şey açılmaz).
+- **Deploy sırası:** `apphosting:secrets:grantaccess META_ADS_ACCESS_TOKEN` → rules (adCampaigns serverOnly) → functions → push.
+
+### 4 Kasım gece — IG-4a CANLI (reklam ölçümü)
 
 **Deploy (owner onaylı, ~00:15–00:30):** `META_APP_SECRET` v3 (owner ekledi; appsecret_proof GEÇERLİ; `instagramWebhook` artık v3'e
 sabit — v2 devre dışı kalabilir) · rules (adsInsights serverOnly) · tüm functions (`adsInsightsSync` YENİ) · elle bir çekim:

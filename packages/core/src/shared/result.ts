@@ -341,6 +341,19 @@ export type DomainError =
   | { readonly code: 'content_approve_forbidden' }
   // A removed post is history; it is not edited or approved back to life.
   | { readonly code: 'content_not_editable' }
+  // IG-5a (2026-11-04) — paid ad campaigns. Which field broke which rule, so the screen can say what to fix.
+  | {
+      readonly code: 'ad_invalid'
+      readonly field: 'name' | 'dailyBudget' | 'dates' | 'duration' | 'targeting' | 'creative'
+    }
+  // Over the studio's spending cap (settings/ads). `cap` is in kuruş — the screen shows it in TL.
+  | { readonly code: 'ad_over_cap'; readonly which: 'daily' | 'campaign'; readonly cap: number }
+  // Only the owner approves spending (OR-131).
+  | { readonly code: 'ad_approve_forbidden' }
+  // Live, publishing, approved or removed campaigns are not edited here (changes are IG-5b requests).
+  | { readonly code: 'ad_not_editable' }
+  // Nothing reaches Meta without an approval.
+  | { readonly code: 'ad_not_approved' }
 
 export type DomainErrorCode = DomainError['code']
 

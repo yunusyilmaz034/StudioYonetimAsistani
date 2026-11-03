@@ -143,7 +143,9 @@ service cloud.firestore {
           'conversations',
           // IG-4a (2026-11-03) — ad spend and the revenue it brought: owner-confidential business data.
           // Written by the nightly sync, read by the owner's screen through a Server Action.
-          'adsInsights'
+          'adsInsights',
+          // IG-5a (2026-11-04) — paid campaigns: budgets, approvals, Meta ids. Owner-only, through Server Actions.
+          'adCampaigns'
         ];
       }
 

@@ -33,6 +33,7 @@ export type MigrationRunId = Brand<string, 'MigrationRunId'>
 const PREFIX = {
   studio: 'std',
   contentPost: 'cnt', // IG-2a — one planned Instagram post
+  adCampaign: 'adc', // IG-5a — one paid ad campaign
   branch: 'brn',
   member: 'mem',
   memberDocument: 'mdoc', // signed membership contract / KVKK / consent scans (v1.28)
@@ -110,6 +111,7 @@ export const newStaffLeaveDocumentId = (): string => mint(PREFIX.staffLeaveDocum
 export const newSeatHoldId = (): string => mint(PREFIX.seatHold)
 export const newImportBatchId = (): string => mint(PREFIX.importBatch)
 export const newContentPostId = (): string => mint(PREFIX.contentPost)
+export const newAdCampaignId = (): string => mint(PREFIX.adCampaign)
 export const newExerciseId = (): string => mint(PREFIX.exercise)
 export const newProgramId = (): string => mint(PREFIX.program)
 export const newMeasurementId = (): string => mint(PREFIX.measurement)

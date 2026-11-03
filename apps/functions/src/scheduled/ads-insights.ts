@@ -109,3 +109,19 @@ export function summarizeInsights(input: {
       .sort((a, b) => a.name.localeCompare(b.name, 'tr')),
   }
 }
+
+/**
+ * IG-5a — which LIVE campaigns have spent more on Meta than the owner approved? Pure.
+ * `approved` = our campaigns with their Meta campaign id and the max spend the owner approved (kuruş).
+ * Spend is everything the summary holds for that Meta campaign (the sync covers the last 90 days, and a
+ * campaign lasts at most 90).
+ */
+export function overspent(
+  summary: Pick<AdsSummary, 'campaigns'>,
+  approved: readonly { name: string; metaCampaignId: string; maxSpendKurus: number }[],
+): { name: string; spentKurus: number; maxSpendKurus: number }[] {
+  const spentBy = new Map(summary.campaigns.map((c) => [c.id, Object.values(c.days).reduce((n, d) => n + d.spendKurus, 0)]))
+  return approved
+    .map((a) => ({ name: a.name, spentKurus: spentBy.get(a.metaCampaignId) ?? 0, maxSpendKurus: a.maxSpendKurus }))
+    .filter((x) => x.spentKurus > x.maxSpendKurus)
+}

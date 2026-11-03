@@ -1,0 +1,4 @@
+{
+  "changedFields": ["dailyBudget"],
+  "maxSpend": { "amount": 280000, "currency": "TRY" }
+}
