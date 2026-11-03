@@ -2543,5 +2543,10 @@ Owner: *"telefonu alınca girsin"* · *"sosyal medya çekimlerini tabi ki biz ya
 - **Onaysız hiçbir şey yayınlanmaz** (IG-2): paylaşım ancak owner onay olayından sonra çıkar.
 - **Onaysız tek kuruş harcanmaz** (IG-5): her yeni kampanya ve her bütçe değişikliği owner onayıyla.
 - **Reklamda HER değişiklik onaylı** (owner, 2026-11-03: *"herşeyi yapsın sadece onay verince yayınlasın vs reklam düzenleme kapama vs onayla yapsın"*): AI analiz eder, önerir, kampanyayı/reklamı HAZIRLAR; yayınlama, düzenleme, bütçe değişikliği, DURDURMA ve kapatma — hepsi owner onayından sonra. İstisna yok (durdurma dahil). Ödeme yöntemi reklam hesabında kayıtlı (owner); panel ödeme bilgisine dokunmaz.
+- **Reklam tavanı (owner, 2026-11-04):** günlük bütçe en fazla **300 TL**, kampanya başına toplam en fazla **6.000 TL**. Tavanı
+  aşan taslak KAYDEDİLMEZ (AI dahil). Bitiş tarihi zorunlu — süresiz kampanya yok. Taslak YALNIZ panelde bekler; Meta'ya ilk yazma
+  onaydan sonra. Hedef: WhatsApp mesajı (AI orada otomatik). Görsel: mevcut bir Instagram gönderisi. Konum: stüdyo adresi
+  (Akse Mah. Karasu Cad. No: 28/T, Çayırova) + 7 km. Gece senkronu gerçek harcama tavanı aşarsa owner'a e-posta. Tavanlar veri:
+  `settings/ads` (kod sabiti değil).
 - **Çekim stüdyoda** — panel çekim kartı verir (ne, nasıl, kaç saniye), kurgular, onaya sunar.
 - Sahte takipçi/beğeni/otomatik takip-bırak YOK (Instagram kuralı; hesap kapanma riski — geçim bu hesaptan).
