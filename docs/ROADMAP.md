@@ -192,7 +192,7 @@ DM'leri ve reklam API'si için şart (HANDOVER).
 Sohbetler'de WhatsApp + Instagram tek kutu; AI taslak hazırlar, insan "Gönder"; telefon yazılınca lead (OR-131).
 
 ### IG-2 · İçerik stüdyosu — çekim kartı → yükleme → kurgu → onay → yayın
-**IG-2a · 🟡 KOD BİTTİ (2026-11-03), deploy bekliyor** — İçerik ekranı (`/content`), AI haftalık plan, çekim kartı, metin, owner onayı.
+**IG-2a · ✅ CANLI (2026-11-03)** — İçerik ekranı (`/content`), AI haftalık plan, çekim kartı, metin, owner onayı.
 **Kararlar (owner, 2026-11-03):** parçalar 2a plan+çekim kartı+metin (paylaşım yok) → 2b yükleme+onay+planlı paylaşım → 2c otomatik
 kurgu. Yükleme: owner+resepsiyon+eğitmen; ONAY yalnız owner. Üye yüzü: her onayda "görünen herkes izin verdi" kutucuğu.
 Müzik: telifsiz — Meta Sound Collection (ana), gerekirse Epidemic Sound; parça başına lisans kaynağı kayıtlı. Gönderi yaşam döngüsü
@@ -206,7 +206,7 @@ Yüzü görünen üye yalnızca izinliyse (KVKK izin kaydı).
 Yorum cevap taslağı, olumsuz yorumda masaya uyarı (AI tek başına cevaplamaz), bölgesel iş birliği önerileri.
 
 ### IG-4 · "Ne işe yaradı" raporu (+ reklam OKUMA)
-**IG-4a · 🟡 KOD BİTTİ (2026-11-04)** — reklam ölçümü: webhook referral → gece insights → Para → Reklamlar (owner, salt okuma). 90 gün atıf penceresi (owner).
+**IG-4a · ✅ CANLI (2026-11-04)** — reklam ölçümü: webhook referral → gece insights → Para → Reklamlar (owner, salt okuma). 90 gün atıf penceresi (owner).
 Gönderi → profil → DM → deneme → üyelik; reklam harcaması → üye başı maliyet (`ads_read`). Patron Asistanı'na bağlanır.
 Instagram sohbetlerini AI Rapor'a ve Patron özetine katmak da burada (DEBT-047).
 

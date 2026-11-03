@@ -55,7 +55,14 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
   birebir (101 = 79 + 20 + 2). Owner deneyip yazacak.
 - **Yerelde, push edilmedi:** yalnızca günlük commit'leri (kod değil).
 
-### ⏭️ 4 Kasım gece — IG-4a KOD BİTTİ (reklam ölçümü) — DEPLOY owner adımı bekliyor — BURADAN DEVAM
+### ⏭️ 4 Kasım gece — IG-4a CANLI (reklam ölçümü) — BURADAN DEVAM
+
+**Deploy (owner onaylı, ~00:15–00:30):** `META_APP_SECRET` v3 (owner ekledi; appsecret_proof GEÇERLİ; `instagramWebhook` artık v3'e
+sabit — v2 devre dışı kalabilir) · rules (adsInsights serverOnly) · tüm functions (`adsInsightsSync` YENİ) · elle bir çekim:
+`retro` özet var (act_964285176326500, 0 kampanya, TRY), `demo` hesap yok → atlandı · panel `build-2026-11-03-008` %100, hata yok.
+Instagram webhook duman testi (GET/401/200) geçti. Sıradaki önerilen: AI kampanya önerisi + onaylı ilk kampanya (IG-5).
+
+### 4 Kasım gece — IG-4a kod
 
 - **Webhook'lar:** WhatsApp + Instagram ilk mesajdaki reklam `referral`ından YALNIZ reklam kimliğini `conversation.adRef`e yazar
   (bir kez; ilk reklam kazanır). WhatsApp'a tek satırlık ek + saf `ad-referral.ts` (testli). Yeni olay yok, lead şeması aynı.
