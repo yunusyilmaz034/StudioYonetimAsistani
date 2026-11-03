@@ -780,6 +780,7 @@ const NOT_TURU: Record<string, string> = {
   dormant_member: 'Uzaklaşan üye',
   expiring_with_credits: 'Hakkı yanmak üzere',
   expiring_soon: 'Paketi doluyor',
+  fitness_expiring: 'Fitness bitiyor',
   door_refused: 'Kapıda kalan',
   leave_pending: 'İzin kararı',
   leave_uncovered: 'Eğitmensiz ders',

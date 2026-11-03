@@ -25,6 +25,9 @@ import { loadOwnerDashboard, type OwnerDashboard } from './owner-dashboard'
 // each ranked insight back into a display item with a name and a deep link to an EXISTING tool. The
 // advisor suggests; it never acts.
 
+/** Fitness üyeliği bitişe bu kadar gün kala kendi grubunda görünür (owner, 2026-11-03). */
+export const FITNESS_EXPIRY_DAYS = 10
+
 export interface AdvisorItem {
   readonly id: string
   // Two kinds live outside the insight engine on purpose: neither is derived from the dashboard's
@@ -36,7 +39,7 @@ export interface AdvisorItem {
   // 'staff_plan' — haftalık vardiya planının EKSİĞİ (OR-77): onaylanmamış hafta, gönderilmemiş plan.
   // 'awaiting_us' — stüdyonun WhatsApp'ta verdiği ve henüz tutulmamış dönüş sözü (owner,
   // 2026-09-29). Sohbet belgesinden okunuyor, pano verisinden değil.
-  readonly kind: InsightKind | 'hot_lead' | 'online_payment' | 'door_refused' | 'staff_leave' | 'staff_plan' | 'awaiting_us' | 'invite_undelivered'
+  readonly kind: InsightKind | 'hot_lead' | 'online_payment' | 'door_refused' | 'staff_leave' | 'staff_plan' | 'awaiting_us' | 'invite_undelivered' | 'fitness_expiring'
   readonly severity: InsightSeverity
   readonly title: string
   readonly detail: string
@@ -249,8 +252,28 @@ export function deriveAdvisorItems(
     })),
   }
 
+  // FITNESS BİTİYOR — AYRI SATIR (owner, 2026-11-03): *"fitness 10 gün kalanlara ayrı, fitness bitecek
+  // diye ayrı göstersin."* Süreli bir fitness üyeliği yenileme konuşmasıdır ama pilates paketinden farklı
+  // bir konuşma; aynı "paket doluyor" grubunda kayboluyordu. Son 10 günde kendi grubunda görünür; 11–14
+  // gün kalan fitness hiç listelenmez (o eşik owner'ın). Pilates ve öteki paketler eskisi gibi.
+  const fitness = new Map(dash.expiringSoon.filter((r) => r.category === 'fitness').map((r) => [r.entitlementId, r]))
+
   // deriveInsights returns the ranked order (urgent → attention → info); preserve it.
-  return deriveInsights(facts, DEFAULT_INSIGHT_CONFIG).map((i) => present(i, memberName, sessionName, upcoming, inside, followUps))
+  return deriveInsights(facts, DEFAULT_INSIGHT_CONFIG).flatMap((i): AdvisorItem[] => {
+    const f = i.kind === 'expiring_soon' ? fitness.get(i.refs.entitlementId ?? '') : undefined
+    const item = present(i, memberName, sessionName, upcoming, inside, followUps)
+    if (!f) return [item]
+    if (f.daysLeft > FITNESS_EXPIRY_DAYS) return []
+    return [
+      {
+        ...item,
+        id: `fitness_expiring__${f.id}__${f.entitlementId}`,
+        kind: 'fitness_expiring',
+        title: `${f.name} — fitness üyeliği ${f.daysLeft <= 0 ? 'bugün bitiyor' : `${f.daysLeft} gün sonra bitiyor`}`,
+        detail: `${f.productName} · bitiş ${new Date(f.validUntil).toLocaleDateString('tr-TR', { timeZone: 'Europe/Istanbul' })}. Yenileme için üyeyi arayın.`,
+      },
+    ]
+  })
 }
 
 export async function loadAdvisor(ctx: TenantContext): Promise<readonly AdvisorItem[]> {

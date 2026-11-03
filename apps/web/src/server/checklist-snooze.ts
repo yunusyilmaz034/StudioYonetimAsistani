@@ -70,6 +70,7 @@ export const CHECKLIST_COOLDOWN_DAYS: Readonly<Record<string, number>> = {
   // bir haftalık soğuma onu yutardı, ve yanan hak geri gelmiyor.
   expiring_with_credits: 3,
   expiring_soon: 3,
+  fitness_expiring: 3,
 }
 
 const MAX_GUN = Math.max(...Object.values(CHECKLIST_COOLDOWN_DAYS))

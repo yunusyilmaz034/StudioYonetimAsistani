@@ -50,6 +50,7 @@ const GROUP_TITLE: Record<string, (n: number) => string> = {
   empty_session: (n) => `${n} boş seans · doldur & pazarlama`,
   outstanding_balance: (n) => `${n} açık bakiye · tahsilat`,
   expiring_soon: (n) => `${n} paket doluyor · yenileme`,
+  fitness_expiring: (n) => `${n} fitness üyeliği bitiyor · yenileme`,
   expiring_with_credits: (n) => `${n} üyenin hakkı yanmak üzere · derse çağırın`,
   low_credit: (n) => `${n} üyenin ders hakkı azaldı`,
   dormant_member: (n) => `${n} üye uzaklaşıyor · bir arayın`,

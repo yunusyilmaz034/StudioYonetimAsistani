@@ -71,6 +71,8 @@ export interface ExpiringRow extends MemberRef {
   // 2026-08-20: six packages in the studio's whole history expired with credits left, and half the
   // credits in them were lost. The money was already collected — what is lost is the member.
   readonly remainingCredits: number | null
+  // Fitness'ın ayrı satırı için (owner, 2026-11-03): "fitness bitecek" listesi kategoriden ayrılıyor.
+  readonly category: string
 }
 
 export interface LowCreditRow extends MemberRef {
@@ -371,6 +373,7 @@ export async function loadOwnerDashboard(
       validUntil: e.validUntil as number,
       daysLeft: Math.max(0, Math.ceil((e.validUntil - nowMs) / DAY_MS)),
       remainingCredits: e.credits ? available(e.credits) : null,
+      category: e.productSnapshot.category,
     }))
     .sort((a, b) => a.validUntil - b.validUntil)
 
