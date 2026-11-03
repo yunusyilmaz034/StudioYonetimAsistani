@@ -81,7 +81,8 @@ export function AiSettingsPanel({ canEdit }: { canEdit: boolean }) {
       })
       if (r.ok) toast.success('AI ayarları kaydedildi.')
     } catch {
-      toast.error('Kaydedilemedi.')
+      // Çoğunlukla bir alanın sınırı aşması (bkz. ai-settings.ts) ya da eski sekme. Kullanıcıya ne yapacağını söyle.
+      toast.error('Kaydedilemedi. Sayfayı yenileyip tekrar deneyin; sürerse bir metin çok uzun olabilir.')
     }
     setSaving(false)
   }

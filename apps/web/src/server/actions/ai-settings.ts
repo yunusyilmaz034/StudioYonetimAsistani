@@ -54,17 +54,24 @@ export async function getAiSettingsAction(): Promise<AiSettings> {
   return { ...DEFAULT, ...((snap.data() as Partial<AiSettings> | undefined) ?? {}) }
 }
 
+// LIMITS (2026-11-03). The knowledge card the studio actually runs on is far longer than the first
+// limits assumed (measured: tone 2.660, basics 7.813, policies 8.012 characters) — it was grown by
+// scripts and by hand, and the form then refused EVERY save with a bare "Kaydedilemedi", for every
+// field, because three were over. A limit here guards against a runaway paste, not against a real
+// card: they sit well above today's card, and the receptionist's prompt is cached, so length is not a
+// cost problem at this size.
+const TEXT = (max: number) => z.string().trim().max(max)
 const schema = z.object({
-  tone: z.string().trim().max(500),
-  identity: z.string().trim().max(2000),
-  basics: z.string().trim().max(4000),
-  policies: z.string().trim().max(4000),
-  campaign: z.string().trim().max(4000).default(''),
-  priceList: z.string().trim().max(6000).default(''),
-  faq: z.array(z.object({ q: z.string().trim().max(300), a: z.string().trim().max(1500) })).max(60),
-  escalation: z.string().trim().max(2000),
-  neverDo: z.string().trim().max(2000),
-  examples: z.string().trim().max(6000),
+  tone: TEXT(6000),
+  identity: TEXT(6000),
+  basics: TEXT(30000),
+  policies: TEXT(30000),
+  campaign: TEXT(20000).default(''),
+  priceList: TEXT(20000).default(''),
+  faq: z.array(z.object({ q: TEXT(1000), a: TEXT(6000) })).max(120),
+  escalation: TEXT(10000),
+  neverDo: TEXT(10000),
+  examples: TEXT(20000),
   whatsappActive: z.boolean().default(false),
   instagramMode: z.enum(['off', 'draft', 'auto']).default('off'),
 })
