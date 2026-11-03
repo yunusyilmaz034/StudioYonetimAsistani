@@ -27,6 +27,7 @@ import {
   ShoppingCartIcon,
   WalletIcon,
   CalendarIcon,
+  CameraIcon,
   ClipboardCheckIcon,
   DumbbellIcon,
   DoorOpenIcon,
@@ -117,6 +118,8 @@ export const GROUPS: readonly NavGroup[] = [
       { href: '/crm', label: 'Satış Hunisi', icon: TargetIcon },
       { href: '/conversations', label: 'Sohbetler', icon: MessageCircleIcon },
       { href: '/engagement', label: 'Stüdyodan', icon: MegaphoneIcon },
+      // IG-2a — the week's Instagram plan (shot cards, captions). Team plans, owner approves.
+      { href: '/content', label: 'İçerik', icon: CameraIcon },
     ],
   },
   {

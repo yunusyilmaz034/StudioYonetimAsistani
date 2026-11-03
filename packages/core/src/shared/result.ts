@@ -331,6 +331,16 @@ export type DomainError =
   // week it may be used. Distinct from the two above on purpose: those are limits the PACKAGE carries
   // with it everywhere, this one belongs to the CLASS and applies only there.
   | { readonly code: 'weekly_quota_reached'; readonly limit: number }
+  // IG-2a (2026-11-03) — the Instagram content plan. Which field broke which Instagram limit, so the
+  // screen can say exactly what to shorten.
+  | {
+      readonly code: 'content_invalid'
+      readonly field: 'title' | 'format' | 'clips' | 'caption' | 'hashtags' | 'scheduledFor' | 'hook'
+    }
+  // Only the owner approves what goes out under the studio's name (OR-131).
+  | { readonly code: 'content_approve_forbidden' }
+  // A removed post is history; it is not edited or approved back to life.
+  | { readonly code: 'content_not_editable' }
 
 export type DomainErrorCode = DomainError['code']
 

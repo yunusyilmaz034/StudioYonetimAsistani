@@ -1313,3 +1313,11 @@ sonra YALNIZCA ESP/röle kutusu kesilerek hangisinin takıldığı ayrılır.
 
 **Geri ödeme tetikleyicisi:** (1) IG-4 başladığında — Instagram hunisi kendi kanal etiketiyle raporlara girer. (2) masa ayda
 birden fazla "taslağı baştan yazdırmak istedim" derse. (3) App Review başvurusunda profil erişimi de istenir.
+
+## DEBT-048 · IG-2a: haftalık plan pazartesi kendiliğinden gelmiyor (2026-11-03)
+
+**Ne:** Plan önerisi "Bu haftanın planını öner" düğmesiyle, isteğe bağlı üretiliyor; planda konuşulan "pazartesi sabahı hazır"
+zamanlanmış bir iş olarak yapılmadı. Sebep: her öneri bir model çağrısı (≈20 sn, ücretli) ve stüdyonun her hafta isteyip
+istemediği henüz ölçülmedi; kimsenin bakmadığı bir haftaya üretim yapmak boşa maliyet.
+`contentPosts` istemci SDK'sıyla masaya OKUNABİLİR (kuralların genel "masa okur" satırı) — gönderi metni PII değil, yazma kapalı.
+**Geri ödeme tetikleyicisi:** owner iki hafta üst üste pazartesi düğmeye basarsa → pazartesi 08:00 zamanlanmış öneri (functions).

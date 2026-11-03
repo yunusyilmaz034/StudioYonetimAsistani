@@ -55,6 +55,20 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
   birebir (101 = 79 + 20 + 2). Owner deneyip yazacak.
 - **Yerelde, push edilmedi:** yalnızca günlük commit'leri (kod değil).
 
+### ⏭️ 3 Kasım gece — IG-2a KOD BİTTİ (İçerik planı) — DEPLOY/PUSH owner onayı bekliyor — BURADAN DEVAM
+
+- **Çekirdek:** yeni modül `content` (README'de 6 değişmez). Olaylar `content_post.planned|edited|approved|removed` v1
+  (golden; METİN YOK — başlık/açıklama/çekim kartı yalnız state'te). Onay YALNIZ owner/platform_admin (domain'de). Onaydan sonra
+  düzenleme onayı kaldırır. Instagram sınırları yazarken: açıklama 2.200, hashtag 30 (tekilleştirilmiş), klip 1–8 × 1–60 sn.
+- **Panel:** Üyeler → **İçerik** (`/content`, owner+resepsiyon+eğitmen). AI öneri (`server/ai/content-planner.ts`, sonnet-5-5,
+  ≈22 sn) — prova: gerçek kartla 4 öneri, hepsi domain'den geçti, fiyat yok, semtler var. Kendi fikrim, düzenle, onay (izin
+  kutucuğu zorunlu), plandan çıkar, bölge düzenle (owner).
+- **Veri:** `settings/content.areas` = Çayırova, Gebze, Mutlukent, Kirazpınar, Şekerpınar, Güzeltepe (owner listesi, script).
+- **Yapılmadı:** pazartesi kendiliğinden plan ([[DEBT-048]]); paylaşım (IG-2b). Tarayıcıda çalıştırılmadı.
+- Deneme (deploy sonrası): İçerik → "Bu haftanın planını öner" → ~20 sn → 3–4 kart. Bir karta gir → izin kutucuğu boşken
+  Onayla pasif; işaretle → Onayla → "Onaylandı". Düzenle → açıklamayı değiştir → Kaydet → onay KALKAR ("Öneri"). Sınır: 31
+  hashtag yaz → "En fazla 30 hashtag". Resepsiyon hesabıyla: Onayla yerine "Onayı stüdyo sahibi verir."
+
 ### 3 Kasım gece — Meta destek: işletme doğrulaması (owner "sen sor")
 
 Meta İşletme Destek → Meta AI asistanı (insan temsilci seçeneği YOK). İki mesaj (owner onaylı metin): durum + temsilci/talep.

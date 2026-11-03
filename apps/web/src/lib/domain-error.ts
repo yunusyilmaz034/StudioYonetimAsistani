@@ -430,6 +430,20 @@ export function domainErrorMessage(error: DomainError): string {
       return 'Bu kayıt bulunamadı; silinmiş olabilir.'
     case 'energy_meals_off':
       return 'Öğün takibi kapalı. Ayarlardan açabilirsin.'
+    case 'content_invalid':
+      return {
+        title: 'Başlık boş olamaz ve en fazla 120 karakter olabilir.',
+        format: 'Gönderi türü Reels, fotoğraf ya da hikâye olmalı.',
+        clips: 'Çekim kartında 1 ile 8 arasında klip olmalı; her klip 1–60 saniye.',
+        caption: 'Açıklama en fazla 2.200 karakter olabilir (Instagram sınırı).',
+        hashtags: 'En fazla 30 hashtag kullanılabilir (Instagram sınırı).',
+        scheduledFor: 'Paylaşım zamanı geçmişte olamaz.',
+        hook: 'İlk 3 saniye yazısı en fazla 120 karakter olabilir.',
+      }[error.field]
+    case 'content_approve_forbidden':
+      return 'Gönderiyi yalnızca stüdyo sahibi onaylayabilir.'
+    case 'content_not_editable':
+      return 'Bu gönderi plandan çıkarılmış; düzenlenemez.'
     default: {
       const exhaustive: never = error
       void exhaustive

@@ -55,6 +55,7 @@ export type Area =
   | '/invoices' // Fatura Takibi — which payments have had their invoice cut (owner, PIN'li)
   | '/feedback' // Geri Bildirim — in-app bug reports from staff (owner reviews)
   | '/conversations' // Faz 2 — WhatsApp AI receptionist conversations (owner + reception)
+  | '/content' // IG-2a — the week's Instagram plan: shot cards + captions (team plans, owner approves)
   | '/ai-report' // Faz 2 — WhatsApp AI receptionist analytics (owner-only)
   | '/patron' // Faz 2 — AI Patron Asistanı: conversational business assistant (owner-only)
   | '/mesai' // her personelin kendi vardiyası: başla / bitir, ve owner için günün listesi
@@ -112,6 +113,9 @@ export const PERMISSIONS: Readonly<Record<Area, readonly PrincipalRole[]>> = {
   // Geri Bildirim — staff file in-app bug reports (the "Bildir" button); the owner reviews them here.
   '/feedback': OWNER_ONLY,
   '/conversations': DESK, // reception operates the AI hand-offs; owner monitors all conversations
+  // IG-2a (owner, 2026-11-03): the team films, so the team sees and edits the plan; APPROVAL is the owner's,
+  // enforced in the domain (`decideApprovePost`), not by this gate.
+  '/content': DESK_PLUS_TRAINER,
   '/ai-report': OWNER_ONLY, // the lead funnel + efficiency — owner-confidential business intelligence
   '/patron': OWNER_ONLY, // AI Patron Asistanı — the whole business, conversational; owner's alone
   '/settings': OWNER_ONLY,

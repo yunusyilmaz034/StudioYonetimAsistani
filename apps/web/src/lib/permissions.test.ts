@@ -23,11 +23,15 @@ describe('the trainer — staff, and the person least entitled to the studio’s
     // not the members list with rows hidden: the case below holds that distinction in place.
     // Since 2026-09-01 also `/mesai` — her OWN shift. She writes her own hours; the day's list on
     // that page is owner-only and gated inside the page, not by this matrix.
+    // Since 2026-11-03 also `/content` (IG-2a) — the trainers FILM the studio's Instagram posts, so
+    // they see the shot cards (owner: yükleme owner + resepsiyon + eğitmen). Approval stays the owner's,
+    // in the domain.
     const visible = AREAS.filter((a) => canSee('trainer', a))
     expect(visible).toEqual([
       '/reservations',
       '/checkin',
       '/knowledge',
+      '/content',
       '/my-classes',
       '/trainees',
       '/training',

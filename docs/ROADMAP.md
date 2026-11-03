@@ -192,6 +192,7 @@ DM'leri ve reklam API'si için şart (HANDOVER).
 Sohbetler'de WhatsApp + Instagram tek kutu; AI taslak hazırlar, insan "Gönder"; telefon yazılınca lead (OR-131).
 
 ### IG-2 · İçerik stüdyosu — çekim kartı → yükleme → kurgu → onay → yayın
+**IG-2a · 🟡 KOD BİTTİ (2026-11-03), deploy bekliyor** — İçerik ekranı (`/content`), AI haftalık plan, çekim kartı, metin, owner onayı.
 **Kararlar (owner, 2026-11-03):** parçalar 2a plan+çekim kartı+metin (paylaşım yok) → 2b yükleme+onay+planlı paylaşım → 2c otomatik
 kurgu. Yükleme: owner+resepsiyon+eğitmen; ONAY yalnız owner. Üye yüzü: her onayda "görünen herkes izin verdi" kutucuğu.
 Müzik: telifsiz — Meta Sound Collection (ana), gerekirse Epidemic Sound; parça başına lisans kaynağı kayıtlı. Gönderi yaşam döngüsü

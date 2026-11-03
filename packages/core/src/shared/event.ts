@@ -67,6 +67,8 @@ export type AggregateKind =
   | 'wallet'
   // 2026-09-15 — a sales ad period (reklam dönemi). Additive: no existing event's `subject.kind` changes.
   | 'adPeriod'
+  // IG-2a (2026-11-03) — one planned Instagram post. Additive: no existing event's `subject.kind` changes.
+  | 'contentPost'
 
 export interface PolicyRef {
   readonly policyId: PolicyId
