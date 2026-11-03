@@ -192,6 +192,11 @@ DM'leri ve reklam API'si için şart (HANDOVER).
 Sohbetler'de WhatsApp + Instagram tek kutu; AI taslak hazırlar, insan "Gönder"; telefon yazılınca lead (OR-131).
 
 ### IG-2 · İçerik stüdyosu — çekim kartı → yükleme → kurgu → onay → yayın
+**Kararlar (owner, 2026-11-03):** parçalar 2a plan+çekim kartı+metin (paylaşım yok) → 2b yükleme+onay+planlı paylaşım → 2c otomatik
+kurgu. Yükleme: owner+resepsiyon+eğitmen; ONAY yalnız owner. Üye yüzü: her onayda "görünen herkes izin verdi" kutucuğu.
+Müzik: telifsiz — Meta Sound Collection (ana), gerekirse Epidemic Sound; parça başına lisans kaynağı kayıtlı. Gönderi yaşam döngüsü
+olayları onaylı (planlandı/onaylandı/paylaşıldı/başarısız; PII yok). UX taslağı: https://claude.ai/artifact/Lu36nxmwhCoUogRoAnojeU
+Sıra (önerildi): 2a → reklam OKUMA (IG-4'ten öne) → 2b/2c → reklam yönetimi (IG-5). Meta Verified: owner "salla, bekleyelim".
 Haftalık plan, çekim kartı (ne/nasıl/kaç sn, 9:16), telefondan yükleme, sunucuda kurgu (kesme, yazı, kapak),
 onaylı zamanlanmış paylaşım. Instagram müzik kütüphanesi API'den eklenemez (telifsiz / orijinal ses / son adım elle).
 Yüzü görünen üye yalnızca izinliyse (KVKK izin kaydı).
