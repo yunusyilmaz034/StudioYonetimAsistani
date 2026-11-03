@@ -55,6 +55,13 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
   birebir (101 = 79 + 20 + 2). Owner deneyip yazacak.
 - **Yerelde, push edilmedi:** yalnızca günlük commit'leri (kod değil).
 
+### 3 Kasım gece — Meta destek: işletme doğrulaması (owner "sen sor")
+
+Meta İşletme Destek → Meta AI asistanı (insan temsilci seçeneği YOK). İki mesaj (owner onaylı metin): durum + temsilci/talep.
+Cevap: başvuru **14 iş gününü aşmış**, hâlâ "Değerlendirmede", eksik belge/hata YOK; manuel hızlandırma yapılamıyor, sonuç
+işletme e-postasına gelecek. **Uyarı: yeniden başvuru YAPMA / bilgileri DEĞİŞTİRME — süreç başa döner.** Destek talebi AÇILMADI
+(asistan açmadı; "Destek başvurularınız" boş). Sıradaki seçenek: Meta Verified (ücretli, canlı destek) — owner kararı.
+
 ### 3 Kasım gece — FİYAT EŞİTLEME (owner) — katalog · AI · site tek fiyat
 
 - Katalog (`updateProduct`, `product.updated`): Fitness 6 Aylık nakit 12.750→13.000; Reformer 8 Ders nakit 4.200 KALDIRILDI (5.000).
