@@ -55,7 +55,19 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
   birebir (101 = 79 + 20 + 2). Owner deneyip yazacak.
 - **Yerelde, push edilmedi:** yalnızca günlük commit'leri (kod değil).
 
-### ⏭️ 3 Kasım gece — IG-2a KOD BİTTİ (İçerik planı) — DEPLOY/PUSH owner onayı bekliyor — BURADAN DEVAM
+### ⏭️ 4 Kasım gece — REKLAM (IG-4a ölçüm) Meta tarafı HAZIR, plan onaylı, UX sırada — BURADAN DEVAM
+
+- IG-2a CANLI (`build-2026-11-03-007`). 
+- Meta uygulamasına "Create & manage ads" + "Measure ad performance" eklendi (ads_read/ads_management hazır).
+- Reklam hesabı: Işıl'ın KİŞİSEL hesabı (1465806690624217) işletmeye taşınamadı/paylaşılamadı (taşıma geri alınamaz → owner
+  istemedi). **YENİ işletme reklam hesabı açıldı** (owner koşulları kabul etti): `act_964285176326500` "Pilates Fitness By Işıl",
+  TRY, Europe/Istanbul, ödeme yöntemi owner ekledi (kart). Sistem kullanıcısına "kampanyaları yönet" (ayar/para YOK).
+- Ayrı sır **`META_ADS_ACCESS_TOKEN`** v1 (SYSTEM_USER, süresiz, ads_read+ads_management) — Instagram jetonundan AYRI, bilerek.
+- OR-131: reklamda HER değişiklik (yayın, düzenleme, bütçe, DURDURMA, kapatma) owner onayıyla — istisna yok.
+- IG-4a planı onaylı: webhook'larda reklam referral'ı yakala (WhatsApp'a küçük ek — owner onayı), gece insights çekimi → tek özet
+  belge, Para → Reklamlar (owner-only). Meta'ya YAZMA YOK. Hesapta henüz kampanya yok.
+
+### 3 Kasım gece — IG-2a (İçerik planı) — CANLI
 
 - **Çekirdek:** yeni modül `content` (README'de 6 değişmez). Olaylar `content_post.planned|edited|approved|removed` v1
   (golden; METİN YOK — başlık/açıklama/çekim kartı yalnız state'te). Onay YALNIZ owner/platform_admin (domain'de). Onaydan sonra
