@@ -90,7 +90,13 @@ export function InvoicesScreen() {
   }, [data, durum])
 
   if (data?.locked) {
-    return <ReportPinGate varsayilan={data.varsayilanPin} title="Fatura Takibi kilitli" onUnlocked={() => void load()} />
+    // `onUnlocked` verilince kapı kendi sayfa boşluğunu koymuyor (Kasa onu bir diyaloğun içinde kullanıyor);
+    // burada tam sayfa, o yüzden boşluk dışarıdan.
+    return (
+      <main className="mx-auto max-w-md p-6 sm:p-10">
+        <ReportPinGate varsayilan={data.varsayilanPin} title="Fatura Takibi kilitli" onUnlocked={() => void load()} />
+      </main>
+    )
   }
 
   const all = data && !data.locked ? data.rows : []
