@@ -55,7 +55,7 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
   birebir (101 = 79 + 20 + 2). Owner deneyip yazacak.
 - **Yerelde, push edilmedi:** yalnızca günlük commit'leri (kod değil).
 
-### ⏭️ 3 Kasım akşam — INSTAGRAM'I PANELE BAĞLAMA (owner onayladı, Chrome ile yapılacak) — BURADAN DEVAM
+### ⏭️ 3 Kasım akşam — INSTAGRAM PANELE BAĞLANDI (Meta tarafı bitti, kod başlamadı) — BURADAN DEVAM
 
 Owner: *"stüdyonun Instagram'ını da yöneten bir AI panele eklenemez mi"* → önerilen ve kabul edilen sıra:
 1. **Instagram DM → AI resepsiyonist** (WhatsApp'la aynı kurallar: [[OR-129]] tek fiyat, devir; lead'ler Satış Hunisi'ne;
@@ -64,22 +64,30 @@ Owner: *"stüdyonun Instagram'ını da yöneten bir AI panele eklenemez mi"* →
 3. Yorum takibi (cevap taslağı, kötü yoruma masa uyarısı).
 Yeni milestone — ROADMAP'e "önerildi" olarak eklenecek.
 
-**Durum (ölçüldü):** IG işletme hesabı + FB sayfasına bağlı (owner). Panelin Meta belirteci (`WHATSAPP_ACCESS_TOKEN`) bir SYSTEM_USER,
-uygulama **"Panel Wp"**, süresiz, izinleri YALNIZ `whatsapp_business_management`, `whatsapp_business_messaging`, `public_profile`
-→ `/{business 273133891881759}/instagram_accounts` = `(#200) Requires business_management`. Instagram'ı GÖRMÜYOR.
+**Meta tarafı YAPILDI (3 Kasım akşam, Chrome, owner onayıyla):**
+- Uygulama `2092200488387942` adı **"Panel Wp" → "Pilates Fitness By Işıl"**. Uygulamanın yöneticisi Işıl'ın **Facebook**
+  hesabı; Instagram hesabıyla girilen oturum developers.facebook.com'u açamıyor ("not an admin") — Meta işleri o FB hesabıyla.
+- Kullanım alanı **"Manage messaging & content on Instagram"** eklendi; izinler (standard access, "Ready for testing"):
+  `instagram_basic`, `instagram_manage_messages`, `instagram_manage_comments`, `instagram_content_publish`, `pages_show_list`,
+  `pages_read_engagement`, `business_management` (sonuncusu WhatsApp kullanım alanına da eklendi; WA etkilenmedi).
+- Sistem kullanıcısı **"WhatsApp API,"** (`61592275194768`) → varlık atandı: IG **@pilatesbyisil** (`17841458516080649`; içerik,
+  mesaj, topluluk, istatistik — reklam/tam erişim YOK) + FB sayfası **Pilates By Işıl** (`105975022531045`; kısmi erişim
+  "işletme araçları ve Facebook", Meta paketinde reklam da var; sayfa silme/tam erişim YOK).
+- Yeni belirteç → Secret Manager **`INSTAGRAM_ACCESS_TOKEN`** (v1, owner girdi, değer sohbette yok). `debug_token`: geçerli,
+  SYSTEM_USER, **süresiz**. Owner fazladan birkaç izin de işaretledi (catalog_management, branded_content…, zararsız).
+  Ölçüldü: `/me/accounts` → sayfa + `instagram_business_account` görünüyor; sayfa belirteciyle
+  `/{page}/conversations?platform=instagram` → 25+ sohbet okunuyor (son 03.11 16:44 UTC). `WHATSAPP_ACCESS_TOKEN` değişmedi.
 
-**Sıradaki adım — owner `claude --chrome` ile açacak, Meta'ya KENDİSİ girer (2FA), gerisini Claude tarayıcıda yapar:**
-1. business.facebook.com → Ayarlar → Hesaplar → Instagram hesapları: hesap listede mi.
-2. Kullanıcılar → Sistem kullanıcıları → paneli çalıştıran sistem kullanıcısı → Varlık ata: IG hesabı (mesajlar dahil tam
-   kontrol) + FB sayfası (tam kontrol).
-3. developers.facebook.com → "Panel Wp" → Ürün ekle → Instagram (mesajlaşma) + webhook (`messages`).
-4. Sistem kullanıcısı → Belirteç oluştur ("Panel Wp"): `instagram_basic`, `instagram_manage_messages`, `pages_show_list`,
-   `pages_manage_metadata`, `business_management`.
-5. Belirteç SOHBETE YAZILMAZ → doğrudan Secret Manager'a yeni sır (ör. `INSTAGRAM_ACCESS_TOKEN`).
-- "İzin ver/onayla" ekranlarında DUR, owner'a sor (işletme hesabında kalıcı yetki).
-- Gri/kilitli izin çıkarsa (uygulama incelemesi / işletme doğrulaması) ekran görüntüsü al, owner'la karar ver.
-Sonra kod: webhook (functions, mevcut `whatsappWebhook` deseni), AI resepsiyonist kanal soyutlaması, uptime bekçisi (yeni yüzey →
-yeni uptime check, [[external-uptime-watchdog]]).
+**Engel — canlı müşteri DM'leri:** uygulama **Unpublished**, izinler standard access. Gerçek müşteri DM'leri webhook'a ancak
+App Review (advanced access `instagram_manage_messages`…) + uygulama yayını sonrası gelir; inceleme işletme doğrulaması
+ister. **İşletme doğrulaması "Değerlendirmede"** (Güvenlik Merkezi; owner: "bayadır öyle"); sayfada ek belge isteği
+görünmüyor → owner Meta destek sohbetinden sormalı. Yayın için ayrıca gizlilik politikası URL'i + veri silme URL'i gerekecek
+(Temel ayarlarda boş).
+
+**Sıradaki — kod (inceleme beklemeden, rolü olan hesaplarla denenir):** webhook (functions, `whatsappWebhook` deseni;
+Meta tarafında callback + verify token + `messages`/`comments` aboneliği, sayfaya `subscribed_apps` — bunun için
+`pages_manage_metadata` gerekebilir, kontrol et), AI resepsiyonist kanal soyutlaması (taslak mod), uptime bekçisi (yeni
+yüzey → yeni uptime check, [[external-uptime-watchdog]]). Sonra App Review başvurusu (ekran kaydı ister).
 
 ### 3 Kasım öğleden sonra — fitness bitiyor grubu · Esra Tepe 30 gün · satış raporunda "kasaya giren" (CANLI, owner: "deploy et")
 
