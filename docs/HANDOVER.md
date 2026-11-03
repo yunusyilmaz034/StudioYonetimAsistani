@@ -55,6 +55,14 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
   birebir (101 = 79 + 20 + 2). Owner deneyip yazacak.
 - **Yerelde, push edilmedi:** yalnızca günlük commit'leri (kod değil).
 
+### 🚚 GECE DEPLOY KUYRUĞU (owner: "kuyruğa ekle, gün içinde başka şey çıkabilir")
+
+Gece, tek seferde: `git push` (panel rollout'u) **+** `pnpm deploy:functions` (`invoiceDeadline` yeni fonksiyon). Sonra Cloud Run
+trafiğini doğrula ([[deploy-verification]]), `/invoices` PIN ile açılıyor mu bak, owner'a "yenile" de. Kuyrukta:
+- Fatura Takibi + kesilen tutar + havale/EFT 7 gün maili ([[OR-130]]) — `6558189`, `44b6925`
+- Tahsilat raporunda yöntem süzgeci — `6558189`
+- Gün içinde eklenen her şey buraya yazılır; listesi bitince bu başlık silinir.
+
 ### 3 Kasım — FATURA TAKİBİ ekranı + tahsilat raporunda yöntem süzgeci ([[OR-130]]) — kod bitti, deploy GECE
 
 - **Yeni:** Para → Fatura Takibi (`/invoices`), rapor PIN'iyle. Tahsilat başına tik + not; TC üyede (`nationalId`, sağlamalı),
