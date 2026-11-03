@@ -55,6 +55,32 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
   birebir (101 = 79 + 20 + 2). Owner deneyip yazacak.
 - **Yerelde, push edilmedi:** yalnızca günlük commit'leri (kod değil).
 
+### ⏭️ 3 Kasım akşam — INSTAGRAM'I PANELE BAĞLAMA (owner onayladı, Chrome ile yapılacak) — BURADAN DEVAM
+
+Owner: *"stüdyonun Instagram'ını da yöneten bir AI panele eklenemez mi"* → önerilen ve kabul edilen sıra:
+1. **Instagram DM → AI resepsiyonist** (WhatsApp'la aynı kurallar: [[OR-129]] tek fiyat, devir; lead'ler Satış Hunisi'ne;
+   Sohbetler ekranında kanal etiketi; ilk günler "taslak mod" — AI cevabı göndermeden owner görür).
+2. Haftalık paylaşım önerisi + **owner onayıyla** paylaşım ("Stüdyodan" ekranı üstüne; onaysız hiçbir şey çıkmaz).
+3. Yorum takibi (cevap taslağı, kötü yoruma masa uyarısı).
+Yeni milestone — ROADMAP'e "önerildi" olarak eklenecek.
+
+**Durum (ölçüldü):** IG işletme hesabı + FB sayfasına bağlı (owner). Panelin Meta belirteci (`WHATSAPP_ACCESS_TOKEN`) bir SYSTEM_USER,
+uygulama **"Panel Wp"**, süresiz, izinleri YALNIZ `whatsapp_business_management`, `whatsapp_business_messaging`, `public_profile`
+→ `/{business 273133891881759}/instagram_accounts` = `(#200) Requires business_management`. Instagram'ı GÖRMÜYOR.
+
+**Sıradaki adım — owner `claude --chrome` ile açacak, Meta'ya KENDİSİ girer (2FA), gerisini Claude tarayıcıda yapar:**
+1. business.facebook.com → Ayarlar → Hesaplar → Instagram hesapları: hesap listede mi.
+2. Kullanıcılar → Sistem kullanıcıları → paneli çalıştıran sistem kullanıcısı → Varlık ata: IG hesabı (mesajlar dahil tam
+   kontrol) + FB sayfası (tam kontrol).
+3. developers.facebook.com → "Panel Wp" → Ürün ekle → Instagram (mesajlaşma) + webhook (`messages`).
+4. Sistem kullanıcısı → Belirteç oluştur ("Panel Wp"): `instagram_basic`, `instagram_manage_messages`, `pages_show_list`,
+   `pages_manage_metadata`, `business_management`.
+5. Belirteç SOHBETE YAZILMAZ → doğrudan Secret Manager'a yeni sır (ör. `INSTAGRAM_ACCESS_TOKEN`).
+- "İzin ver/onayla" ekranlarında DUR, owner'a sor (işletme hesabında kalıcı yetki).
+- Gri/kilitli izin çıkarsa (uygulama incelemesi / işletme doğrulaması) ekran görüntüsü al, owner'la karar ver.
+Sonra kod: webhook (functions, mevcut `whatsappWebhook` deseni), AI resepsiyonist kanal soyutlaması, uptime bekçisi (yeni yüzey →
+yeni uptime check, [[external-uptime-watchdog]]).
+
 ### 3 Kasım öğleden sonra — fitness bitiyor grubu · Esra Tepe 30 gün · satış raporunda "kasaya giren" (CANLI, owner: "deploy et")
 
 - **Pano:** süreli FITNESS üyelikleri son 10 günde kendi grubunda ("N fitness üyeliği bitiyor · yenileme", kind
