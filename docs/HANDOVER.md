@@ -55,6 +55,16 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
   birebir (101 = 79 + 20 + 2). Owner deneyip yazacak.
 - **Yerelde, push edilmedi:** yalnızca günlük commit'leri (kod değil).
 
+### 3 Kasım gece — FİYAT EŞİTLEME (owner) — katalog · AI · site tek fiyat
+
+- Katalog (`updateProduct`, `product.updated`): Fitness 6 Aylık nakit 12.750→13.000; Reformer 8 Ders nakit 4.200 KALDIRILDI (5.000).
+  Script `fix-fiyat-fitness6-pilates8-2026-11-03.ts`.
+- AI fiyat listesi = KART fiyatları (owner, OR-129 güncellendi): 3/6/12 Aylık 9.500/14.000/22.000, Reformer 8 5.000,
+  PT ve Hamile 8/16 13.200/22.000. Script `fix-ai-kart-fiyatlari-2026-11-03.ts`.
+- Site (`pilatesfitnessbyisil-web`, studio-yonetim-prod): Hibrit 3 Aylık kartındaki "aynı içerik tek tek alındığında ₺21.500"
+  cümlesi kaldırıldı — Hosting REST ile yalnız `index.html` değişti, öteki 18 dosya canlı sürümden aynen (sürüm 83cf67da01077549).
+  ⚠️ `~/pilates-site` yerel kopyası CANLIDAN ESKİ (nakit fiyatlı); oradan `firebase deploy` YAPMA — önce canlıdan indir.
+
 ### ⏭️ 3 Kasım gece — IG-1 CANLIDA VE DOĞRULANDI (owner) — BURADAN DEVAM
 
 **Uçtan uca denendi (owner, ~22:52):** kişisel IG → DM → `instagramWebhook` → taslak (mod `draft`) → panelde Gönder → cevap

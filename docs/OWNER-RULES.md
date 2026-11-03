@@ -2502,7 +2502,7 @@ yerde nakit/kk diye bir ayrım olmayacak."*
   alanını kart fiyatına EŞİT gönderir (eski uygulama sürümleri de "stüdyoda nakit" satırı çizmez). "Fiyatlar nakit, havale
   ve kartta aynıdır" cümlesi kaldırıldı (masada nakit fiyat durduğu için artık doğru değil).
 - **Panel:** nakit/kart ayrımı KALIR (owner).
-- Owner bilerek seçti: AI Işıl'ın fiyatını (ör. 3 Aylık 8.500), uygulama kart fiyatını (9.500) söyler.
+- ~~Owner bilerek seçti: AI Işıl'ın fiyatını (ör. 3 Aylık 8.500), uygulama kart fiyatını (9.500) söyler.~~ **KALDIRILDI 2026-11-03** (owner: *"ai da web sitesi ve üye uygulaması ile aynı fiyatları söylesin ayrım olmasın"*): AI'ın fiyat listesi = kataloğun KART fiyatı = site = uygulama. Liste elle tutuluyor (`settings/ai.priceList`) — katalogda fiyat değişince AI listesi de aynı gün eşitlenmeli.
 - **Kartla alan KART fiyatını öder — buna karışılmaz** (owner, aynı gece). "Uygulamada/linkte farklı yazıyor, neden?" ya da
   "yasal mı, şikâyet ederim" denirse AI sebep AÇIKLAMAZ (komisyon/banka/fark/indirim demez), farkı kabul ya da inkâr etmez,
   tartışmaz: *"Bu konuda size en doğru bilgiyi yetkilimiz versin … 0533 199 41 23 … ya da notunuzu alalım, biz sizi
