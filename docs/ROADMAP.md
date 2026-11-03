@@ -188,7 +188,7 @@ yapar**, panel ne çekileceğini söyler, kurgular ve **onaydan sonra** yayınla
 YOK; "her zaman popüler" garanti edilmez, ölçülür. Meta tarafı: işletme doğrulaması + App Review gerçek müşteri
 DM'leri ve reklam API'si için şart (HANDOVER).
 
-### IG-1 · Instagram DM → AI resepsiyonist (taslak mod) · 🟡 KOD BİTTİ, deploy bekliyor
+### IG-1 · Instagram DM → AI resepsiyonist (taslak mod) · ✅ CANLI (2026-11-03, owner denedi) — müşteri DM'leri App Review bekliyor
 Sohbetler'de WhatsApp + Instagram tek kutu; AI taslak hazırlar, insan "Gönder"; telefon yazılınca lead (OR-131).
 
 ### IG-2 · İçerik stüdyosu — çekim kartı → yükleme → kurgu → onay → yayın

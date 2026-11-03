@@ -55,7 +55,14 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
   birebir (101 = 79 + 20 + 2). Owner deneyip yazacak.
 - **Yerelde, push edilmedi:** yalnızca günlük commit'leri (kod değil).
 
-### ⏭️ 3 Kasım gece (geç) — IG-1 ENGELLER KALKTI — owner'ın ilk deneme DM'i bekleniyor — BURADAN DEVAM
+### ⏭️ 3 Kasım gece — IG-1 CANLIDA VE DOĞRULANDI (owner) — BURADAN DEVAM
+
+**Uçtan uca denendi (owner, ~22:52):** kişisel IG → DM → `instagramWebhook` → taslak (mod `draft`) → panelde Gönder → cevap
+Instagram'a ULAŞTI (owner: "evet cevap geldi"). Mod şu an **Taslak**. Gerçek müşteri DM'leri için kalan: işletme doğrulaması
+(takılı, owner Meta destekten soracak) + App Review (`instagram_manage_messages` advanced). Telefon → lead sınır durumu henüz
+denenmedi. Sıradaki milestone önerisi: birkaç gün taslakla izle, sonra IG-2.
+
+### 3 Kasım gece (geç) — IG-1 engeller kalktı
 
 - **Uygulama YAYINDA** (owner "yayınla", ~22:05). Ayarlar: gizlilik `…/gizlilik`, veri silme `…/gizlilik#basvuru`, kategori
   İşletme ve Sayfalar. Yayından sonra WhatsApp aboneliği aktif + trafik var.
