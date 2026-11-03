@@ -55,7 +55,23 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
   birebir (101 = 79 + 20 + 2). Owner deneyip yazacak.
 - **Yerelde, push edilmedi:** yalnızca günlük commit'leri (kod değil).
 
-### ⏭️ 3 Kasım gece — IG-1 KOD BİTTİ (Instagram DM → AI resepsiyonist, taslak mod) — DEPLOY EDİLMEDİ, PUSH EDİLMEDİ
+### ⏭️ 3 Kasım gece — IG-1 CANLIDA ama DM HENÜZ GELMİYOR (iki Meta engeli) — BURADAN DEVAM
+
+**Yapıldı (owner "hepsi şimdi", ~21:30–21:55):** `META_APP_SECRET` (owner girdi; `appsecret_proof` ile Meta geçerli saydı) ·
+App Hosting'e `INSTAGRAM_ACCESS_TOKEN` erişimi · `firebase deploy --only functions` (tümü; `instagramWebhook` YENİ:
+`https://europe-west1-studio-yonetim-prod.cloudfunctions.net/instagramWebhook/retro`) — duman testi: doğru verify 200, yanlış 403,
+imzasız POST 401, imzalı boş POST 200 · Meta uygulama aboneliği `instagram` → `messages` (WhatsApp aboneliği aynen duruyor) ·
+uptime `Bekci - Instagram webhook` (403 bekler) + "BEKÇİ — sistem erişilemiyor" alarmına 4. koşul · push → panel
+`build-2026-11-03-005` %100, `/login` 200, hata logu yok. `instagramMode` YAZILMADI (varsayılan Kapalı) — owner panelden açacak.
+⚠️ `git push --follow-tags` eski yerel `turnike-v1.4`/`turnike-v1.5` etiketlerini de GitHub'a gönderdi (zararsız, bilgi).
+
+**ENGEL 1 — uygulama yayında değil:** Meta webhook ekranı: *uygulama yayınlanmadan admin/test hesapları dahil hiçbir gerçek DM
+teslim edilmez.* Yayın için Temel ayarlar: gizlilik URL'i (`https://panel.pilatesfitnessbyisil.com/gizlilik` var), veri silme
+URL'i, kategori, simge. Owner kararı (Meta'da dışa dönük değişiklik).
+**ENGEL 2 — sayfa aboneliği:** `POST /105975022531045/subscribed_apps` → `pages_manage_metadata` + `pages_messaging` istiyor.
+İkisi uygulamaya eklenecek (gerekirse Messenger kullanım alanıyla), jeton yeniden üretilip `INSTAGRAM_ACCESS_TOKEN` v2.
+
+### 3 Kasım gece — IG-1 KOD BİTTİ (Instagram DM → AI resepsiyonist, taslak mod)
 
 Owner onayladı: sıra IG-1→IG-5 ([ROADMAP](ROADMAP.md) "FAZ IG"), [[OR-131]] (lead telefonla; onaysız paylaşım/harcama yok;
 çekim stüdyoda), UX taslağı (https://claude.ai/artifact/TZGZoz3prkbyYbkdnMJgjT).
@@ -68,7 +84,7 @@ Owner onayladı: sıra IG-1→IG-5 ([ROADMAP](ROADMAP.md) "FAZ IG"), [[OR-131]] 
   AI Ayarları'nda Instagram modu (varsayılan Kapalı). AI Rapor + Patron sinyali Instagram'ı ATLIYOR ([[DEBT-047]]).
 - `pnpm check` yeşil (1.802 birim). **Tarayıcıda/emülatörde çalıştırılmadı; gerçek Meta yüküyle denenmedi.**
 
-**DEPLOY ÖNCESİ (sırayla, owner onayıyla — atlanırsa panel/functions deploy'u KIRILIR):**
+**DEPLOY ADIMLARI (1–5 YAPILDI 3 Kasım gece, 4'ün sayfa aboneliği hariç — yukarıdaki ENGEL 2):**
 1. **`META_APP_SECRET`** Secret Manager'a (owner: developers.facebook.com → uygulama → Temel → App secret "Show" → kopyala →
    Secret Manager; sohbete yazılmaz). Yoksa functions deploy'u düşer ve webhook her POST'u reddeder.
 2. App Hosting'e sır erişimi: `firebase apphosting:secrets:grantaccess INSTAGRAM_ACCESS_TOKEN --backend <backend>` —
