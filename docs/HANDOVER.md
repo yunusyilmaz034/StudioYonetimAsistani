@@ -55,15 +55,7 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
   birebir (101 = 79 + 20 + 2). Owner deneyip yazacak.
 - **Yerelde, push edilmedi:** yalnızca günlük commit'leri (kod değil).
 
-### 🚚 GECE DEPLOY KUYRUĞU (owner: "kuyruğa ekle, gün içinde başka şey çıkabilir")
-
-Gece, tek seferde: `git push` (panel rollout'u) **+** `pnpm deploy:functions` (`invoiceDeadline` yeni fonksiyon). Sonra Cloud Run
-trafiğini doğrula ([[deploy-verification]]), `/invoices` PIN ile açılıyor mu bak, owner'a "yenile" de. Kuyrukta:
-- Fatura Takibi + kesilen tutar + havale/EFT 7 gün maili ([[OR-130]]) — `6558189`, `44b6925`
-- Tahsilat raporunda yöntem süzgeci — `6558189`
-- Gün içinde eklenen her şey buraya yazılır; listesi bitince bu başlık silinir.
-
-### 3 Kasım — FATURA TAKİBİ ekranı + tahsilat raporunda yöntem süzgeci ([[OR-130]]) — kod bitti, deploy GECE
+### 3 Kasım — FATURA TAKİBİ ekranı + tahsilat raporunda yöntem süzgeci ([[OR-130]]) — CANLI (owner: "bekleme"; `build-2026-11-03-001` %100 + `invoiceDeadline` 09:00 aktif)
 
 - **Yeni:** Para → Fatura Takibi (`/invoices`), rapor PIN'iyle. Tahsilat başına tik + not; TC üyede (`nationalId`, sağlamalı),
   yoksa 11111111111. Olaylar `invoice.issued` / `invoice.reverted` (YENİ tipler, golden fixture'lı). Durum:
@@ -74,6 +66,9 @@ trafiğini doğrula ([[deploy-verification]]), `/invoices` PIN ile açılıyor m
 - **Ek (aynı gün):** kesilen tutar alanı + havale/EFT 7 gün rozeti + her sabah 09:00 `invoiceDeadline` e-postası (şablon
   `invoice_due`). **Fonksiyon deploy'u ayrı:** `pnpm deploy:functions` (push yalnız paneli taşır). İlk mail, daha önce kesilmiş
   ama tiklenmemiş 12–19 Ekim havalelerini de "süre geçti" diye sayacak (3 Kasım ölçümü: 7 satır) — Işıl onları bir kez tiklemeli.
+- **Owner'a söylendi:** 7 günü geçen havaleler yine de hemen kesilsin (geç kesmek kesmemekten iyi); Ekim KDV beyanı Kasım sonu,
+  hangi tarih/dönem — mali müşavir. Nakit/düşük kesme ve "yavaş geçiş" için plan YAPILMADI, müşavire yönlendirildi.
+- **Yerelde, push EDİLMEDİ:** yalnız bu günlük commit'i.
 - **Deneme:** Fatura Takibi → PIN → "Son 30 gün" → Sevim Yerkan'ın 02.11 3.200 nakit satırı "Kesilmedi"de; tikle → "Kesildi"ye
   geçer. Tiki kaldır → sebep sorar, boş sebep reddedilir. TC kalemi → `12345678901` → "TC kimlik numarası geçerli değil".
 
