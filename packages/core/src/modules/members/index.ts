@@ -12,7 +12,8 @@ export type {
 } from './domain/member'
 export { toMemberSnapshot } from './domain/member'
 export { decideSetRestriction, decideClearRestriction } from './domain/decide'
-export { setMemberRestriction, clearMemberRestriction } from './application/restriction'
+export { setMemberRestriction, clearMemberRestriction, setMemberNationalId } from './application/restriction'
+export { decideSetNationalId, isValidNationalId } from './domain/decide'
 export {
   MEMBER_RESTRICTION_CLEARED,
   MEMBER_RESTRICTION_SET,

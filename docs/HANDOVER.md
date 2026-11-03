@@ -55,6 +55,17 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
   birebir (101 = 79 + 20 + 2). Owner deneyip yazacak.
 - **Yerelde, push edilmedi:** yalnızca günlük commit'leri (kod değil).
 
+### 3 Kasım — FATURA TAKİBİ ekranı + tahsilat raporunda yöntem süzgeci ([[OR-130]]) — kod bitti, deploy GECE
+
+- **Yeni:** Para → Fatura Takibi (`/invoices`), rapor PIN'iyle. Tahsilat başına tik + not; TC üyede (`nationalId`, sağlamalı),
+  yoksa 11111111111. Olaylar `invoice.issued` / `invoice.reverted` (YENİ tipler, golden fixture'lı). Durum:
+  `studios/{sid}/invoiceMarks/{paymentId}`. KVKK metni TC'yi sayıyor (2026-11-03.1).
+- **Tahsilat raporu:** yöntem düğmeleri; süzme sunucuda, özet cümlesi de seçilen yönteme ait.
+- **Bilinen risk:** `members` resepsiyona Firestore kuralıyla okunur durumda, yani TC de istemci SDK'sıyla teorik olarak okunabilir
+  (telefon gibi). Ekran PIN'li ama veri katmanı değil. Gerekirse TC ayrı, sunucuya-özel bir koleksiyona taşınır (`secrets` gibi).
+- **Deneme:** Fatura Takibi → PIN → "Son 30 gün" → Sevim Yerkan'ın 02.11 3.200 nakit satırı "Kesilmedi"de; tikle → "Kesildi"ye
+  geçer. Tiki kaldır → sebep sorar, boş sebep reddedilir. TC kalemi → `12345678901` → "TC kimlik numarası geçerli değil".
+
 ### 2 Kasım — Sevim Yerkan fitness → Reformer 8 Ders (CANLI VERİ, owner) · "uygulama yavaş" bakıldı
 
 - **Sevim Yerkan:** Fitness 6 Aylık (12.750, 19.10 1.000 havale) iptal → Reformer Pilates 8 Ders 4.200 (nakit

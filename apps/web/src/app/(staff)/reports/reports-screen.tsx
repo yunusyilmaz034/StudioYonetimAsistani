@@ -41,6 +41,19 @@ const KATEGORILER = [
 ] as const
 type KategoriId = (typeof KATEGORILER)[number]['id']
 
+// ÖDEME YÖNTEMİNE GÖRE TAHSİLAT (owner, 2026-11-03). "Diğer": hediye kartı ve cüzdan — ayrı düğme
+// istemeyecek kadar seyrek, ama hiçbir seçimin dışında kalmamalı.
+const YONTEMLER = [
+  { id: 'hepsi', label: 'Tümü' },
+  { id: 'cash', label: 'Nakit' },
+  { id: 'credit_card', label: 'Kredi kartı' },
+  { id: 'pos', label: 'POS' },
+  { id: 'online', label: 'Online' },
+  { id: 'bank_transfer', label: 'Havale / EFT' },
+  { id: 'other', label: 'Diğer' },
+] as const
+type YontemId = (typeof YONTEMLER)[number]['id']
+
 export function ReportsScreen() {
   // `?r=` picks the report on arrival — how `/analytics` sends its old visitors to the trend. An
   // unknown value falls back to the day-end rather than rendering nothing.
@@ -64,6 +77,7 @@ export function ReportsScreen() {
   // özet cümlesindeki toplamlar da seçilen kategoriye ait olmalı; süzülen tabloyla toplanmayan bir
   // başlık, okuyana yanlış rakam söyler.
   const [kategori, setKategori] = useState<KategoriId>('hepsi')
+  const [yontem, setYontem] = useState<YontemId>('hepsi')
 
   const spec = REPORTS.find((r) => r.id === id)!
 
@@ -90,6 +104,7 @@ export function ReportsScreen() {
           // Yalnızca satış raporunda anlamlı; ötekiler için gönderilmiyor ki sunucu tarafında
           // "neden burada kategori var" diye bir soru hiç doğmasın.
           ...(id === 'sales' && kategori !== 'hepsi' ? { kategori } : {}),
+          ...(id === 'collections' && yontem !== 'hepsi' ? { yontem } : {}),
         })
         if (!cancelled) setResult(res)
       } catch (e) {
@@ -102,7 +117,7 @@ export function ReportsScreen() {
     return () => {
       cancelled = true
     }
-  }, [id, rangeId, custom, charts, kategori])
+  }, [id, rangeId, custom, charts, kategori, yontem])
 
   // Kilitli raporun tablosu YOK: boş tablo "bu aralıkta kayıt yok" diye okunurdu, oysa kayıt
   // olabilir — sadece gösterilmiyor. Yanlış cümle, eksik cümleden kötüdür ([[OR-117]]).
@@ -225,6 +240,25 @@ export function ReportsScreen() {
             Hibrit kendi başına bir kategoridir; içindeki pilates ve fitness bileşenleri o
             kategorilere eklenmez.
           </p>
+        </div>
+      ) : null}
+
+      {id === 'collections' ? (
+        <div className="flex flex-wrap gap-2 print:hidden">
+          {YONTEMLER.map((y) => (
+            <button
+              key={y.id}
+              type="button"
+              onClick={() => setYontem(y.id)}
+              className={`min-h-10 rounded-lg border px-3 text-sm transition-colors ${
+                y.id === yontem
+                  ? 'border-primary bg-primary-soft font-medium text-primary'
+                  : 'border-border text-muted-foreground hover:bg-muted hover:text-foreground'
+              }`}
+            >
+              {y.label}
+            </button>
+          ))}
         </div>
       ) : null}
 

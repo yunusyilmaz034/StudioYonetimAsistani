@@ -41,6 +41,7 @@ export function memberToFirestore(m: Member): DocumentData {
     birthDate: m.birthDate,
     notes: m.notes,
     emergencyContact: m.emergencyContact,
+    nationalId: m.nationalId ?? null,
     status: m.status,
     joinedAt: toTs(m.joinedAt),
     stats: {
@@ -90,6 +91,7 @@ export function memberFromFirestore(id: MemberId, data: DocumentData): Member {
     birthDate: (data.birthDate as Member['birthDate']) ?? null,
     notes: (data.notes as string | null) ?? null,
     emergencyContact: (data.emergencyContact as EmergencyContact | null) ?? null,
+    ...(typeof data.nationalId === 'string' && data.nationalId ? { nationalId: data.nationalId } : {}),
     status: data.status as MemberStatus,
     joinedAt: fromTs(data.joinedAt as Timestamp),
     stats: memberStats,

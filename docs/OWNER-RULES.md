@@ -2507,3 +2507,17 @@ yerde nakit/kk diye bir ayrım olmayacak."*
   "yasal mı, şikâyet ederim" denirse AI sebep AÇIKLAMAZ (komisyon/banka/fark/indirim demez), farkı kabul ya da inkâr etmez,
   tartışmaz: *"Bu konuda size en doğru bilgiyi yetkilimiz versin … 0533 199 41 23 … ya da notunuzu alalım, biz sizi
   arayalım"* + masaya devir (`[[DEVRET:SATIS]]`). "Arayın" diyene "Not aldım, en kısa sürede sizi arayacağız".
+
+**OR-130 · Fatura Takibi — tahsilat başına "fatura kesildi" tiki, PIN'li ayrı ekran.** (2026-11-03)
+
+Owner: *"Fatura kesmemiz gerekiyor, sistemde en azından takibi olsun, ayrı bir ekran olsun, PIN ile koruma olsun. Kişi ad
+soyad, TC varsa yoksa 11 tane 1, ödeme yöntemi, tarih; fatura kestiysek tikleyelim, fatura kesildi notu olsun."*
+
+- Ekran: Para → **Fatura Takibi** (`/invoices`), owner'a özel, rapor PIN'iyle kilitli (aynı kilit — biri açılınca öteki de açık).
+- Satır = iptal edilmemiş her tahsilat (test hesapları hariç), tarih = paranın alındığı gün. Sütunlar: tik · tarih · ad soyad ·
+  TC · yöntem · tutar · not. Varsayılan süzgeç "Kesilmedi".
+- TC üyenin kaydında (`members.nationalId`), resmî sağlama algoritmasıyla doğrulanır; yoksa ekranda ve CSV'de `11111111111`.
+  TC olay kaydına girmez; üye silinince (KVKK) TC de silinir. KVKK aydınlatma metnine eklendi (sürüm 2026-11-03.1).
+- Sistem faturayı KESMEZ (e-arşiv entegrasyonu yok); yalnız kesildiğini kaydeder: `invoice.issued`. Tiki kaldırmak bir düzeltme,
+  sebep ister: `invoice.reverted`. Not serbest metin, yalnız durum belgesinde (`invoiceMarks/{paymentId}`), olayda değil.
+- Tahsilat raporunda ayrıca ödeme yöntemine göre süzgeç: Tümü · Nakit · Kredi kartı · POS · Online · Havale/EFT · Diğer.

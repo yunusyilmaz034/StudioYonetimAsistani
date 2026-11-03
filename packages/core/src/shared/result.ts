@@ -249,6 +249,8 @@ export type DomainError =
   | { readonly code: 'freeze_start_not_past' }
   | { readonly code: 'freeze_before_package_start' }
   | { readonly code: 'freeze_window_has_activity' }
+  // Fatura takibi (owner, 2026-11-03): a TC kimlik number that fails the official checksum.
+  | { readonly code: 'national_id_invalid' }
   | { readonly code: 'freeze_not_scheduled' }
   | { readonly code: 'freeze_not_due' }
   // Süresi dolmuş KREDİLİ paketin tarihini ileri almak (2026-08-31). Süre dolarken kalan krediler

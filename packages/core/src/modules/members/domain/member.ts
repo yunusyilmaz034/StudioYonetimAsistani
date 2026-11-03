@@ -50,6 +50,9 @@ export interface Member {
   readonly birthDate: LocalDate | null
   readonly notes: string | null
   readonly emergencyContact: EmergencyContact | null
+  // TC kimlik — for the invoice only (owner, 2026-11-03). ABSENT on every member who never gave it;
+  // the invoice screen prints the 11111111111 placeholder for those. Never in an event (#6).
+  readonly nationalId?: string
 
   readonly status: MemberStatus
   readonly joinedAt: Instant

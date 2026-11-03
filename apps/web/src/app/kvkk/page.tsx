@@ -9,8 +9,9 @@ import { LEGAL_DOCS, RULES, SELLER } from '@/lib/legal'
 // be invalid, so /gizlilik links here and this page never asks for anything.
 //
 // EVERY category listed below is one the system actually stores. The audit that preceded this page
-// established what those are: there is no TC kimlik field, no address field, and no accounting or
-// e-fatura integration — so none of them are claimed here. Where identity documents are photographed
+// established what those are: no address field and no accounting or e-fatura integration — so neither
+// is claimed here. A TC kimlik field arrived on 2026-11-03 (Fatura Takibi, for the invoice only) and is
+// named under "Kimlik". Where identity documents are photographed
 // and filed, the photograph is named as what it is.
 
 export const metadata: Metadata = {
@@ -33,7 +34,8 @@ export default function KvkkPage() {
         <p>Hizmetin gerektirdiği ölçüde aşağıdaki verileriniz işlenir:</p>
         <ul className="list-disc space-y-1 pl-5">
           <li>
-            <strong>Kimlik:</strong> ad-soyad, doğum tarihi
+            <strong>Kimlik:</strong> ad-soyad, doğum tarihi; fatura düzenlenebilmesi için verdiyseniz T.C.
+            kimlik numarası
           </li>
           <li>
             <strong>İletişim:</strong> cep telefonu numarası, e-posta adresi, acil durumda aranacak

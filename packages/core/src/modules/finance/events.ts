@@ -321,3 +321,20 @@ export type PaytrCollectionCancelledPayload = {
   readonly collectionId: string
   readonly reason: string
 }
+
+// ── FATURA TAKİBİ (owner, 2026-11-03) ──────────────────────────────────────────────────────────
+// *"Fatura kesmemiz gerekiyor, sistemde en azından takibi olsun… fatura kestiysek tikleyelim."*
+// The system does not issue the invoice (no e-arşiv integration); it records that a human did. The
+// subject is the PAYMENT — an invoice is cut for money received. NO PII (#6): the member's TC kimlik
+// and the free-text note live on the `invoiceMarks` state document, never here.
+export const INVOICE_ISSUED = 'invoice.issued'
+export const INVOICE_REVERTED = 'invoice.reverted'
+
+export type InvoiceIssuedPayload = {
+  readonly amount: Money
+  readonly method: PaymentMethod
+  readonly receivedAt: Instant
+}
+export type InvoiceRevertedPayload = {
+  readonly reason: string // mandatory (#9): an un-tick is a correction
+}

@@ -35,6 +35,7 @@ import {
   LogOutIcon,
   PackageIcon,
   FileTextIcon,
+  FileCheckIcon,
   SearchIcon,
   SettingsIcon,
   UploadIcon,
@@ -125,6 +126,8 @@ export const GROUPS: readonly NavGroup[] = [
       { href: '/retail', label: 'Ürün Sat', icon: ShoppingCartIcon },
       // Plus Phase 9 — trainer payroll & commission. Owner-confidential.
       { href: '/payroll', label: 'Bordro', icon: ReceiptIcon },
+      // Fatura Takibi (owner, 2026-11-03) — PIN'li, owner'a özel.
+      { href: '/invoices', label: 'Fatura Takibi', icon: FileCheckIcon },
     ],
   },
   {

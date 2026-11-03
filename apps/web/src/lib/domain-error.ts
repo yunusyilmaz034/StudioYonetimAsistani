@@ -236,6 +236,8 @@ export function domainErrorMessage(error: DomainError): string {
       return 'Dondurma, paketin başlangıç tarihinden önce başlayamaz.'
     case 'freeze_window_has_activity':
       return 'Üye bu tarihler arasında stüdyoya gelmiş (giriş ya da katıldığı ders var). Kullandığı günler dondurulamaz; başlangıcı son gelişinden sonraya alın.'
+    case 'national_id_invalid':
+      return 'TC kimlik numarası geçerli değil. 11 haneyi kontrol edin.'
     case 'freeze_not_scheduled':
       return 'Bu pakette planlanmış bir dondurma yok.'
     case 'freeze_not_due':

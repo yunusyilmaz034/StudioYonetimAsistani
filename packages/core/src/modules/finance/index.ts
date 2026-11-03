@@ -36,6 +36,10 @@ export {
   walletIdFor,
 } from './domain/types'
 export * from './events'
+// Fatura takibi (owner, 2026-11-03) — a tick per payment, kept beside the ledger, never in it.
+export { decideIssueInvoice, decideRevertInvoice, type InvoiceMark } from './domain/invoice'
+export { markInvoiceIssued, revertInvoice, type InvoiceDeps, type InvoiceRepository } from './application/invoice'
+export { FirestoreInvoiceRepository } from './infrastructure/invoice-repo'
 export {
   couponDiscount,
   decideAllocate,

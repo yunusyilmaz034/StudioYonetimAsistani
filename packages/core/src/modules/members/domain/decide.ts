@@ -87,6 +87,7 @@ const TRACKED_FIELDS = [
   'notes',
   'emergencyContact',
   'homeBranchId',
+  'nationalId',
 ] as const
 
 // ⚠ OQ-2 DOES NOT APPLY HERE. A member's profile fields ARE the PII — name, phone, birth date.
@@ -316,8 +317,8 @@ export function decideErase(
   }
 
   const next: Member = {
-    ...current,
-    // Every string that could identify her. The phone's uniqueness key goes too — leaving it would
+    ...withoutNationalId(current),
+    // Every string that could identify her — the TC kimlik is dropped above. The phone's uniqueness key goes too — leaving it would
     // keep her number in the index, which is precisely the thing she asked us to forget.
     fullName: '[silindi]',
     phone: '' as Member['phone'],
@@ -379,4 +380,40 @@ export function decideRequestDeletion(
     next,
     events: [{ ...base(ctx, current), type: MEMBER_DELETION_REQUESTED, payload: { source } }],
   })
+}
+
+
+// ── TC KİMLİK (owner, 2026-11-03) ─────────────────────────────────────────────────────────────
+//
+// For the invoice. The official checksum is checked so a mistyped digit is caught at the desk rather
+// than by the tax office. `null` clears it (the screen then shows the 11111111111 placeholder).
+
+/** The member without the key — absent, not `undefined` (exactOptionalPropertyTypes). */
+function withoutNationalId(m: Member): Member {
+  const copy: { -readonly [K in keyof Member]: Member[K] } = { ...m }
+  delete copy.nationalId
+  return copy
+}
+
+/** The official T.C. kimlik checksum: 11 digits, no leading zero, d10 and d11 derived from the rest. */
+export function isValidNationalId(raw: string): boolean {
+  if (!/^[1-9]\d{10}$/.test(raw)) return false
+  const d = [...raw].map(Number)
+  const odd = d[0]! + d[2]! + d[4]! + d[6]! + d[8]!
+  const even = d[1]! + d[3]! + d[5]! + d[7]!
+  const d10 = (((odd * 7 - even) % 10) + 10) % 10
+  if (d10 !== d[9]) return false
+  return d.slice(0, 10).reduce((a, b) => a + b, 0) % 10 === d[10]
+}
+
+export function decideSetNationalId(
+  ctx: DecideContext,
+  current: Member,
+  value: string | null,
+): Result<{ next: Member; events: NewEvent<typeof MEMBER_PROFILE_UPDATED, MemberProfileUpdatedPayload>[] }, DomainError> {
+  const clean = value === null ? '' : value.replace(/\s+/g, '')
+  if (clean !== '' && !isValidNationalId(clean)) return err({ code: 'national_id_invalid' })
+  const rest = withoutNationalId(current)
+  const next: Member = clean === '' ? rest : { ...rest, nationalId: clean }
+  return ok({ next, events: decideUpdateProfile(ctx, current, next) })
 }

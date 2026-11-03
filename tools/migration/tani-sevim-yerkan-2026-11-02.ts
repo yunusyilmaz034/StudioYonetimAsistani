@@ -1,18 +1,18 @@
 // SEVİM YERKAN — TANI (salt okuma, owner 2026-11-02). Paketler, satışlar, ödemeler, rezervasyonlar.
 //   pnpm tsx tools/migration/tani-sevim-yerkan-2026-11-02.ts
 import { initializeApp } from 'firebase-admin/app'
-import { getFirestore } from 'firebase-admin/firestore'
+import { getFirestore, Timestamp } from 'firebase-admin/firestore'
 initializeApp({ projectId: 'studio-yonetim-prod' })
 const db = getFirestore()
 const s = 'studios/retro', M = 'mem_01M59PS977PWRA3A15D4T4BX7P'
-const t = (v: any) => (v?.toDate ? v.toDate().toISOString() : v)
+const t = (v: unknown): unknown => (v instanceof Timestamp ? v.toDate().toISOString() : v)
 async function main() {
   for (const c of ['entitlements', 'sales', 'payments', 'reservations']) {
     const q = await db.collection(`${s}/${c}`).where('memberId', '==', M).get()
     console.log(`── ${c} ${q.size}`)
     for (const d of q.docs) {
       const x = d.data()
-      const o: any = {}
+      const o: Record<string, unknown> = {}
       for (const [k, v] of Object.entries(x)) o[k] = t(v)
       if (c === 'reservations') {
         const ss = await db.doc(`${s}/classSessions/${x.sessionId}`).get()

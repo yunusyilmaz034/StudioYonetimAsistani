@@ -110,6 +110,9 @@ export async function loadReportAction(input: unknown): Promise<ReportResult> {
       // cümlesindeki toplamlar da seçilen kategoriye ait olmalı. İstemcide süzülseydi tablo
       // daralır, başlıktaki "ne kadar satış" rakamı olduğu gibi kalırdı — okuyana yanlış söyler.
       kategori: z.enum(['pilates', 'fitness', 'hibrit', 'pt']).optional(),
+      // Tahsilat raporunun ödeme yöntemine göre ayrımı (owner, 2026-11-03). Kategoriyle aynı sebeple
+      // sunucuda: özet cümlesinin toplamı da seçilen yönteme ait olmalı.
+      yontem: z.enum(['cash', 'credit_card', 'pos', 'online', 'bank_transfer', 'other']).optional(),
     })
     .parse(input)
   const ctx = await requireTenantContext(OWNER)
@@ -202,7 +205,14 @@ export async function loadReportAction(input: unknown): Promise<ReportResult> {
         finance.listDrawers(ctx),
         new FirestoreIdentityRepository(db).listStaff(ctx),
       ])
-      return { id: p.id, ...buildCollections(await haricTut(ctx, payments, 'memberId'), members, drawers, staff) }
+      const hepsi = await haricTut(ctx, payments, 'memberId')
+      // "Diğer" = listede ayrı düğmesi olmayan her yöntem (hediye kartı, cüzdan) — hiçbir tahsilat
+      // seçimlerin arasından düşüp kaybolmasın.
+      const ANA = new Set(['cash', 'credit_card', 'pos', 'online', 'bank_transfer'])
+      const secilen = !p.yontem
+        ? hepsi
+        : hepsi.filter((x) => (p.yontem === 'other' ? !ANA.has(x.method) : x.method === p.yontem))
+      return { id: p.id, ...buildCollections(secilen, members, drawers, staff) }
     }
 
     case 'notes': {

@@ -52,6 +52,7 @@ export type Area =
   | '/receipt' // the printable slip reception hands a member
   | '/import' // imports: the wizard, the batch history, and the frozen BulutGym screen
   | '/reports' // S6 — the seven reports
+  | '/invoices' // Fatura Takibi — which payments have had their invoice cut (owner, PIN'li)
   | '/feedback' // Geri Bildirim — in-app bug reports from staff (owner reviews)
   | '/conversations' // Faz 2 — WhatsApp AI receptionist conversations (owner + reception)
   | '/ai-report' // Faz 2 — WhatsApp AI receptionist analytics (owner-only)
@@ -124,6 +125,9 @@ export const PERMISSIONS: Readonly<Record<Area, readonly PrincipalRole[]>> = {
   // finance reports, and bulk export is the owner's alone). The structural export test already
   // enforces the second half of that sentence.
   '/reports': OWNER_ONLY,
+  // Fatura Takibi (owner, 2026-11-03): money + TC kimlik in one list. Owner's, and PIN-gated like the
+  // money reports — the same unlock opens both.
+  '/invoices': OWNER_ONLY,
 
   // The trainer's OWN daily classes — her week, her registers, the names of the women in front of
   // her. It is a PERSONAL screen ("Derslerim"), not a management one, so the admin panel does not
