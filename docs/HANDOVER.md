@@ -66,7 +66,11 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
   `instagramWebhook` v1'e sabit (Cloud Run env: META_APP_SECRET → 1) — bugün sorun yok. AMA `latest` artık devre dışı v2'yi
   gösteriyor: **bir sonraki `firebase deploy --only functions` öncesi** owner App secret'ı `META_APP_SECRET`'a YENİ SÜRÜM (v3)
   olarak tekrar eklesin (ya da deploy'un hangi sürümü seçtiğini kontrol et). Yoksa deploy düşebilir / webhook her POST'u reddeder.
-- Sıradaki: owner AI Ayarları → Instagram → Taslak; Işıl'ın kişisel IG'sinden deneme DM. Düşmezse: o hesap uygulamada rol sahibi
+- **Uçtan uca ÇALIŞIYOR (ölçüldü):** owner kişisel hesabından 2 DM attı (22:14, 22:27) → imzalı POST 200 → sohbet kaydedildi;
+  mod `off` olduğu için taslak yok ("stored, no AI"). Tester eklemeye GEREK YOK.
+- **AI Ayarları kaydedilemiyordu (eski hata, IG'den bağımsız):** kart sınırı aşmıştı (ton 2.660 > 500, temel 7.813 / politika
+  8.012 > 4.000) → her kayıt ZodError. Sınırlar yükseltildi (`ddad742`, panel `build-2026-11-03-006` CANLI).
+- Sıradaki: owner AI Ayarları → Instagram → Taslak → Kaydet (sayfayı yenileyerek); Işıl'ın kişisel IG'sinden deneme DM. Düşmezse: o hesap uygulamada rol sahibi
   değil (standart erişim) → App roles → Instagram Tester ekle, ya da `[ig-webhook]` loglarına bak.
 
 ### 3 Kasım gece — IG-1 CANLIDA, iki Meta engeli vardı (aşağıda; ikisi de kalktı)
