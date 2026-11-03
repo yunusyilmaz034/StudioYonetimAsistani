@@ -164,11 +164,14 @@ export async function loadReportAction(input: unknown): Promise<ReportResult> {
       // Katalog da okunuyor: kategori satışın üstünde YAZMIYOR, satır yalnızca `productId` taşıyor.
       // Katalog stüdyo başına birkaç düzine belge — sınırlı ve tek seferlik bir okuma. Abonelikler
       // üzerinden gitmek aralıksız bir okuma olurdu; satır sayısı dönemle büyürdü.
-      const [sales, members, staff, products] = await Promise.all([
+      const [sales, members, staff, products, payments] = await Promise.all([
         finance.listSalesBetween(ctx, p.fromMs, p.toMs),
         new FirestoreMemberRepository(db).list(ctx),
         new FirestoreIdentityRepository(db).listStaff(ctx),
         new FirestoreCatalogRepository(db).listProducts(ctx),
+        // KASAYA GİREN, YAN YANA (owner, 2026-11-03): "tahsil edildi" bu satışlara ödenen paradır; o günlerde
+        // kasaya giren para eski satışların borç ödemelerini de içerir. İkisi ayrı yazılmazsa tutarsız sanılıyor.
+        finance.listPaymentsBetween(ctx, p.fromMs, p.toMs),
       ])
 
       // HİBRİT, PİLATES DE FİTNESS DE DEĞİLDİR (owner, 2026-09-30 · aynı kural [[OR-105]]).
@@ -194,7 +197,12 @@ export async function loadReportAction(input: unknown): Promise<ReportResult> {
       const kategori = new Map(hepsi.map((s) => [s.id as string, etiketle(s.lines)]))
       const SECIM: Record<string, string> = { pilates: 'Pilates', fitness: 'Fitness', hibrit: 'Hibrit', pt: 'PT' }
       const secilen = p.kategori ? hepsi.filter((s) => kategori.get(s.id as string) === SECIM[p.kategori!]) : hepsi
-      return { id: p.id, ...buildSales(secilen, members, staff, kategori) }
+      const rapor = buildSales(secilen, members, staff, kategori)
+      // Kategori seçiliyken eklenmez: kasaya giren para kategoriye bölünmüyor, yanında yanlış bir karşılaştırma olurdu.
+      if (p.kategori) return { id: p.id, ...rapor }
+      const giren = (await haricTut(ctx, payments, 'memberId')).filter((x) => !x.voided).reduce((n, x) => n + x.amount.amount, 0)
+      const tl = (k: number) => `${(k / 100).toLocaleString('tr-TR', { maximumFractionDigits: 2 })} ₺`
+      return { id: p.id, ...rapor, summary: `${rapor.summary} · Bu tarihlerde kasaya giren toplam: ${tl(giren)} (eski satışların ödemeleri dahil)` }
     }
 
     case 'collections': {

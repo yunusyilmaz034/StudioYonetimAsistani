@@ -55,6 +55,16 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
   birebir (101 = 79 + 20 + 2). Owner deneyip yazacak.
 - **Yerelde, push edilmedi:** yalnızca günlük commit'leri (kod değil).
 
+### 3 Kasım öğleden sonra — fitness bitiyor grubu · Esra Tepe 30 gün · satış raporunda "kasaya giren" (CANLI, owner: "deploy et")
+
+- **Pano:** süreli FITNESS üyelikleri son 10 günde kendi grubunda ("N fitness üyeliği bitiyor · yenileme", kind
+  `fitness_expiring`, soğuma 3 gün); 11–14 gün kalan fitness listelenmez. Öteki paketler eskisi gibi `expiring_soon`.
+- **Esra Tepe:** 8 Ders bitişi 29.11 → 30.09 (owner tersine karar verdi; 6 Ekim'de kalan 5 ders yanmasın diye 90 gün
+  bırakılmıştı). `amendEntitlement`, `fix-esra-tepe-sure-30-gun-2026-11-03.ts`. Gece süpürmesi bitirir, 5 hak `expired`.
+- **"Rakamlar tutarsız" (owner):** değildi — satış raporu o gün SATILANI, kasa o gün GİRENİ sayar (2 Kasım: 14.700 dünkü
+  satışlara + 17.550 eski borç ödemeleri = 31.250). Satış raporu özetine (kategori seçili değilken) "Bu tarihlerde kasaya
+  giren toplam" eklendi.
+
 ### 3 Kasım — FATURA TAKİBİ ekranı + tahsilat raporunda yöntem süzgeci ([[OR-130]]) — CANLI (owner: "bekleme"; `build-2026-11-03-001` %100 + `invoiceDeadline` 09:00 aktif)
 
 - **Yeni:** Para → Fatura Takibi (`/invoices`), rapor PIN'iyle. Tahsilat başına tik + not; TC üyede (`nationalId`, sağlamalı),
