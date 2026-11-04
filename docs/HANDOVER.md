@@ -55,7 +55,7 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
   birebir (101 = 79 + 20 + 2). Owner deneyip yazacak.
 - **Yerelde, push edilmedi:** yalnızca günlük commit'leri (kod değil).
 
-### ⏭️ 4 Kasım — IG-2c KOD BİTTİ (AI kurgu + altyazı) — DEPLOY onayı bekliyor — BURADAN DEVAM
+### ⏭️ 4 Kasım — IG-2c CANLI (AI kurgu + altyazı) — ilk gerçek kurgu bekleniyor — BURADAN DEVAM
 
 - **Çekirdek** `content/domain/edit.ts` (README IG-2c; 27 kural testi + 3 golden): ham klip (slot; 8 klip, ≤500 MB/klip,
   toplam 1 GB), kurgu isteği (yayın onayını hemen düşürür), sonuç YALNIZ kendi isteğine (`requestId`) kabul edilir,
@@ -73,7 +73,10 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
   gönderinin tüm klasörü (ham klipler dahil) silinir.
 - **Deploy:** storage rules → functions `onEventCreated,contentPublisher,contentMediaRetention` → `content-render` job
   (RUNBOOK "content-render") → push.
-- **Müzik:** kütüphane boş başlar (kurgu müziksiz çıkar). İlk 10 Pixabay parçası listesi owner onayından sonra indirilecek.
+- **Deploy (yapıldı):** storage, 3 fonksiyon, `content-render` job (8 CPU / 16 GiB; canlı öz-test geçti), push.
+- **Müzik:** owner onayıyla 10 Pixabay parçası (5 sakin, 5 hareketli) `studios/retro/music/pixabay-1…10.mp3` +
+  `settings/content.music` (script `tools/migration/ig2c-muzik-kutuphanesi-2026-11-04.ts`, uygulandı). Instagram bir
+  parçanın sesini kısarsa o parça kütüphanede kapatılır.
 
 ### 4 Kasım — IG-2b CANLI (yükle → AI kontrol → onay → Instagram'da yayın; panel build-2026-11-04-003)
 
