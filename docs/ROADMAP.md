@@ -203,7 +203,7 @@ onaylı zamanlanmış paylaşım. Instagram müzik kütüphanesi API'den eklenem
 Yüzü görünen üye yalnızca izinliyse (KVKK izin kaydı).
 
 ### IG-3 · Yorum takibi + topluluk
-**IG-3 · KOD BİTTİ (2026-11-04)** — 10 dk'da bir son 25 gönderinin yorumları (webhook değil: uygulama yayında değil) →
+**IG-3 · ✅ CANLI (2026-11-04; cevap/gizle ilk gerçek kullanımda denenecek)** — 10 dk'da bir son 25 gönderinin yorumları (webhook değil: uygulama yayında değil) →
 AI ayırır (soru/övgü/şikâyet/spam) + taslak → **insan gönderir** (soru/övgü: sahip+resepsiyon; şikâyet ve gizleme: sahip).
 Açık yorumda fiyat reddedilir. Şikâyet panoya kırmızı + sahibe e-posta (metinsiz). İlk açılışta 7 günden eski yorumlar
 kapalı gelir. Olaylar owner onaylı: ig_comment.received · replied · hidden · dismissed.
@@ -214,8 +214,8 @@ kapalı gelir. Olaylar owner onaylı: ig_comment.received · replied · hidden �
 Gönderi → profil → DM → deneme → üyelik; reklam harcaması → üye başı maliyet (`ads_read`). Patron Asistanı'na bağlanır.
 Instagram sohbetlerini AI Rapor'a ve Patron özetine katmak da burada (DEBT-047).
 
-**IG-2b · 🟡 KOD BİTTİ (2026-11-04), deploy bekliyor** — çekilen dosyayı yükle → AI son kontrol (kareler) + son açıklama → sahibin onayı (KVKK kutusu) → planlanan saatte Instagram'a (functions `contentPublisher`, 5 dk). 90 gün sonra dosya silinir.
-**IG-2c · KOD BİTTİ (2026-11-04)** — AI kurgu: ham klipler (8 / 1 GB) → kendi sunucumuzda (Cloud Run job `content-render`) whisper.cpp konuşmayı yazar, Claude karelere + yazıya bakıp kesimi, kancayı, kapağı, müziği seçer, ffmpeg 1080×1920 keser, altyazı + kanca + müzik (konuşmada kısılır) basar → IG-2b onayına düşer. Yeniden kurgu: kesim kalır, kanca/altyazı/müzik düzeltilir. Sahibin telifsiz müzik kütüphanesi (`settings/content.music`). Yalnız Reels. Görüntü ve ses dışarı çıkmaz (KVKK). Yeni olaylar: raw_clip_added · edit_requested · edit_failed (owner onaylı).
+**IG-2b · ✅ CANLI (2026-11-04)** — çekilen dosyayı yükle → AI son kontrol (kareler) + son açıklama → sahibin onayı (KVKK kutusu) → planlanan saatte Instagram'a (functions `contentPublisher`, 5 dk). 90 gün sonra dosya silinir.
+**IG-2c · ✅ CANLI (2026-11-04; ilk gerçek kurgu bekleniyor)** — AI kurgu: ham klipler (8 / 1 GB) → kendi sunucumuzda (Cloud Run job `content-render`) whisper.cpp konuşmayı yazar, Claude karelere + yazıya bakıp kesimi, kancayı, kapağı, müziği seçer, ffmpeg 1080×1920 keser, altyazı + kanca + müzik (konuşmada kısılır) basar → IG-2b onayına düşer. Yeniden kurgu: kesim kalır, kanca/altyazı/müzik düzeltilir. Sahibin telifsiz müzik kütüphanesi (`settings/content.music`). Yalnız Reels. Görüntü ve ses dışarı çıkmaz (KVKK). Yeni olaylar: raw_clip_added · edit_requested · edit_failed (owner onaylı).
 
 ### IG-5 · Reklam yönetimi (onaylı harcama)
 **IG-5a · ✅ CANLI (2026-11-04)** — AI kampanya taslağı → owner onayı → Meta'da yayın (duraklatılmış kur, sonda aç).
