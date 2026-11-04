@@ -55,7 +55,20 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
   birebir (101 = 79 + 20 + 2). Owner deneyip yazacak.
 - **Yerelde, push edilmedi:** yalnızca günlük commit'leri (kod değil).
 
-### ⏭️ 4 Kasım gece — IG-5a KOD BİTTİ (AI kampanya + onaylı yayın) — DEPLOY onayı bekliyor — BURADAN DEVAM
+### ⏭️ 4 Kasım sabah — IG-5b KOD BİTTİ (yayındaki kampanyayı değiştirme) — DEPLOY onayı bekliyor — BURADAN DEVAM
+
+- **Çekirdek** `ads/domain/changes.ts` (README 8–11; 28 kural testi, 4 golden): durdur / devam ettir / bütçe / bitiş.
+  Sahibin basması = onay; AI yalnız `pendingChange` açar (kampanya başına bir). Tavan sıkı: yeni günlük × TOPLAM gün ≤ 6.000.
+  `change_applied` yalnız Meta kabul ettikten sonra; Meta reddi → `change_failed`, eski hâl korunur. Kilit yok: Meta'ya hep mutlak değer.
+- **Web:** `changeAdCampaignAction` (karar → `applyCampaignChange` → kayıt), `dismissAdChangeAction`; kartta harcanan/en fazla
+  çubuğu, AI talebi, durdur/bütçe/bitiş sayfaları (`live-campaign-controls.tsx`).
+- **Gece (`adsInsightsSync`):** tavan aşımı → e-posta + AI "durdur" talebi; `checkDrift` → `adsInsights/drift` (Reklam
+  Yöneticisi'nde elle değişiklik kartta uyarı); salı 03:30 (pazartesi gecesi) `weeklyAdvice` (Claude, ≥3 gün, talep yoksa).
+  Fonksiyona `ANTHROPIC_API_KEY` eklendi.
+- **Mesaj Hattı:** yüzen dock'un adı "WP Hattı" → "Mesaj Hattı" (owner: Instagram da geliyor).
+- **Deploy:** functions `adsInsightsSync` + push (panel). Kural/secret değişikliği yok.
+
+### 4 Kasım gece — IG-5a CANLI (AI kampanya + onaylı yayın; panel build-2026-11-04-001)
 
 - **Çekirdek `ads`** (README'de 7 değişmez; 37 kural testi, 7 golden): taslak yalnız panelde; tavan (settings/ads
   `dailyCapKurus=30000`, `campaignCapKurus=600000`) aşılırsa REDDEDİLİR (AI dahil, tam tavan geçer); bitiş zorunlu ≤90 gün;

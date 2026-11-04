@@ -167,3 +167,26 @@ export async function pageLocation(token: string, pageId: string): Promise<{ lat
   if (typeof d.location?.latitude !== 'number' || typeof d.location?.longitude !== 'number') return null
   return { latitude: d.location.latitude, longitude: d.location.longitude, label: d.single_line_address || [d.location.street, d.location.city].filter(Boolean).join(', ') }
 }
+
+// ── IG-5b: changes to a campaign that is on Meta ────────────────────────────────────────────────────
+// Every write sets an ABSOLUTE value (status / daily_budget / end_time), so doing it twice is harmless.
+// Pause and resume act on the CAMPAIGN (everything under it stops/starts); budget and end on the AD SET.
+
+export async function applyCampaignChange(
+  ctx: Pick<PublishContext, 'token'>,
+  meta: { campaignId: string; adSetId: string },
+  kind: 'pause' | 'resume' | 'budget' | 'end_date',
+  after: Pick<AdCampaign, 'dailyBudget' | 'endDate'>,
+): Promise<{ ok: true } | { ok: false; metaCode: string | null; message: string }> {
+  const full = { ...ctx, accountId: '', pageId: '', igUserId: '' }
+  try {
+    if (kind === 'pause') await post(full, meta.campaignId, { status: 'PAUSED' }, 'activate')
+    else if (kind === 'resume') await post(full, meta.campaignId, { status: 'ACTIVE' }, 'activate')
+    else if (kind === 'budget') await post(full, meta.adSetId, { daily_budget: String(after.dailyBudget.amount) }, 'adset')
+    else await post(full, meta.adSetId, { end_time: endTime(after.endDate) }, 'adset')
+    return { ok: true }
+  } catch (e) {
+    if (e instanceof MetaError) return { ok: false, metaCode: e.metaCode, message: e.message }
+    return { ok: false, metaCode: null, message: (e as Error)?.message ?? 'bilinmeyen hata' }
+  }
+}

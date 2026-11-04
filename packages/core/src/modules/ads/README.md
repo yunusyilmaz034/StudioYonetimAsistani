@@ -21,3 +21,16 @@ publish_failed | removed`. Money facts and Meta ids only — no ad copy, no rati
    CURRENT caps, and stamps those caps on the event (#4).
 6. **A failed publish spends the approval** — it is fixed and approved again, never retried silently.
 7. **Money is integer kuruş** (#10) — Meta receives the same integer (TRY's minor unit).
+
+## IG-5b — changes to a campaign on Meta (`domain/changes.ts`)
+
+Events (v1, golden): `ad_campaign.change_requested | change_applied | change_failed | change_dismissed`.
+
+8. **The owner's press is the approval** (one confirm); the AI only **asks** — one pending request per
+   campaign, stored as `pendingChange`, never applied by itself.
+9. **Same caps, strict rule:** new daily ≤ daily cap; new daily × ALL the campaign's days ≤ campaign cap;
+   ≤ 90 days. A request over the cap never exists. Pause needs no cap — it only stops spending.
+10. **`change_applied` only after Meta accepted**, re-decided at commit, stamping origin and caps. Meta
+    refused → `change_failed`, previous state kept, a pending request is spent.
+11. **No persisted lock:** every Meta write is an absolute value (status / daily_budget / end_time), so a
+    repeat is harmless. If Meta accepted but the commit is refused, the nightly drift check shows it.

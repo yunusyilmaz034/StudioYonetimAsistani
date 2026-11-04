@@ -18,6 +18,8 @@ import {
   type CampaignsScreen,
 } from '@/server/actions/ad-campaigns'
 
+import { LiveCampaignControls } from './live-campaign-controls'
+
 // IG-5a — onaylı tasarım: https://claude.ai/artifact/TVanv618TgE9PvF6NsE8xY
 // The total a campaign may spend is the first thing on every card and on the approve button itself:
 // the owner approves an amount, not a form.
@@ -40,6 +42,7 @@ const STATUS: Record<string, { label: string; cls: string }> = {
   approved: { label: 'Onaylandı', cls: 'bg-info/15 text-info' },
   publishing: { label: 'Yayınlanıyor…', cls: 'bg-info/15 text-info' },
   live: { label: 'Yayında', cls: 'bg-success/15 text-success' },
+  paused: { label: 'Durduruldu', cls: 'bg-warning/15 text-warning' },
   failed: { label: 'Yayınlanamadı', cls: 'bg-destructive/15 text-destructive' },
 }
 
@@ -118,7 +121,7 @@ export function AdCampaignsPanel() {
             const p = post(c.creative.igMediaId)
             const editing = draft?.id === c.id
             return (
-              <article key={c.id} className={`flex flex-col gap-2.5 rounded-xl bg-card p-4 ${c.status === 'draft' ? 'border-[1.5px] border-primary' : 'border border-border'}`}>
+              <article key={c.id} className={`flex flex-col gap-2.5 rounded-xl bg-card p-4 ${c.status === 'draft' || c.pendingChange ? 'border-[1.5px] border-primary' : 'border border-border'}`}>
                 <span className={`self-start rounded px-1.5 py-0.5 text-[11px] font-semibold ${st.cls}`}>{st.label}</span>
                 <h3 className="text-[17px] font-bold">{c.name}</h3>
                 <p className="text-sm">
@@ -271,7 +274,9 @@ export function AdCampaignsPanel() {
                     </div>
                   </div>
                 ) : null}
-                {c.status === 'live' ? <p className="mt-auto text-xs text-muted-foreground">Durdurma ve bütçe değişikliği onaylı talep olarak gelecek (IG-5b).</p> : null}
+                {c.status === 'live' || c.status === 'paused' ? (
+                  <LiveCampaignControls c={c} caps={{ daily: data.dailyCapKurus, campaign: data.campaignCapKurus }} busy={busy} run={run} />
+                ) : null}
               </article>
             )
           })}

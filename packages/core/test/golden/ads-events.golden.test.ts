@@ -11,7 +11,12 @@ import {
 } from '../../src/modules/ads/domain/decide'
 import type { AdCampaignFields } from '../../src/modules/ads/domain/types'
 import { instant, money, type StudioId } from '../../src/shared'
+import { decideChangeApplied, decideChangeFailed, decideDismissChange, decideRequestChange, pendingAsChange } from '../../src/modules/ads/domain/changes'
 import approved from './ad_campaign.approved.v1.json'
+import changeApplied from './ad_campaign.change_applied.v1.json'
+import changeDismissed from './ad_campaign.change_dismissed.v1.json'
+import changeFailed from './ad_campaign.change_failed.v1.json'
+import changeRequested from './ad_campaign.change_requested.v1.json'
 import edited from './ad_campaign.edited.v1.json'
 import failed from './ad_campaign.publish_failed.v1.json'
 import started from './ad_campaign.publish_started.v1.json'
@@ -65,5 +70,38 @@ describe('ad campaign events', () => {
   it('ad_campaign.removed', () => {
     const r = decideRemoveCampaign(ctx, p.value.next)
     expect(r.ok && r.value.events[0]?.payload).toEqual(removed)
+  })
+})
+
+describe('ad campaign change events (IG-5b)', () => {
+  const live = {
+    id: 'adc_1', studioId: 'std_1' as StudioId, name: 'GİZLİ-AD', status: 'live' as const, origin: 'ai' as const,
+    dailyBudget: money(25_000), startDate: '2026-11-05', endDate: '2026-11-14', targeting: fields.targeting, creative: fields.creative,
+    rationale: '', createdAt: instant(1), createdBy: ctx.actor, approvedAt: instant(2), approvedBy: ctx.actor, approvedCaps: CAPS,
+    meta: { campaignId: '1', adSetId: '2', adId: '3' }, failure: null,
+  }
+  const sys = { ...ctx, role: 'system', today: '2026-11-10' }
+  const own = { ...ctx, today: '2026-11-10' }
+  const r = decideRequestChange(sys, live, { id: 'chg_1', kind: 'budget', dailyBudget: money(30_000) }, 'GİZLİ-GEREKÇE', CAPS)
+  if (!r.ok) throw new Error('setup')
+  const ch = pendingAsChange(r.value.next)!
+
+  it('ad_campaign.change_requested', () => {
+    expect(r.value.events[0]?.payload).toEqual(changeRequested)
+    clean(r.value.events)
+  })
+  it('ad_campaign.change_applied', () => {
+    const a = decideChangeApplied(own, r.value.next, ch, 'ai', CAPS)
+    expect(a.ok && a.value.events[0]?.payload).toEqual(changeApplied)
+    clean(a.ok && a.value.events)
+  })
+  it('ad_campaign.change_failed', () => {
+    const f = decideChangeFailed(own, r.value.next, ch, 'ai', { metaCode: '100', message: 'GİZLİ-META' })
+    expect(f.ok && f.value.events[0]?.payload).toEqual(changeFailed)
+    clean(f.ok && f.value.events)
+  })
+  it('ad_campaign.change_dismissed', () => {
+    const d = decideDismissChange(own, r.value.next)
+    expect(d.ok && d.value.events[0]?.payload).toEqual(changeDismissed)
   })
 })

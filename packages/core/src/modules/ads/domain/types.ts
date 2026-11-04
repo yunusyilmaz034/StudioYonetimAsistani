@@ -1,7 +1,21 @@
 import type { ActorRef, Instant, Money, StudioId } from '../../../shared'
 import type { AdCaps, AdOrigin } from '../events'
 
-export type AdCampaignStatus = 'draft' | 'approved' | 'publishing' | 'live' | 'failed' | 'removed'
+export type AdCampaignStatus = 'draft' | 'approved' | 'publishing' | 'live' | 'paused' | 'failed' | 'removed'
+
+/** IG-5b — a change to a campaign that is on Meta. */
+export type AdChangeKind = 'pause' | 'resume' | 'budget' | 'end_date'
+
+/** A change the AI asked for, waiting for the owner. At most one per campaign. */
+export interface AdChangeRequest {
+  readonly id: string
+  readonly kind: AdChangeKind
+  readonly dailyBudget: Money | null // budget only
+  readonly endDate: string | null // end_date only
+  readonly rationale: string
+  readonly requestedAt: Instant
+  readonly requestedBy: ActorRef
+}
 
 export interface AdTargeting {
   readonly latitude: number
@@ -36,6 +50,13 @@ export interface AdCampaign {
   readonly approvedCaps: AdCaps | null
   readonly meta: { readonly campaignId: string; readonly adSetId: string; readonly adId: string } | null
   readonly failure: { readonly stage: string; readonly metaCode: string | null; readonly message: string } | null
+  /** IG-5b: the AI's pending request (owner approves or dismisses). Absent on IG-5a documents. */
+  readonly pendingChange?: AdChangeRequest | null
+  /** IG-5b: the last change Meta refused — shown on the card; the campaign kept its previous state. */
+  readonly lastChangeFailure?: { readonly kind: AdChangeKind; readonly metaCode: string | null; readonly message: string; readonly at: Instant } | null
+  /** IG-5b: who paused it and when (for "Sahibi durdurdu · 11 Kasım 09:14"). */
+  readonly pausedAt?: Instant | null
+  readonly pausedBy?: ActorRef | null
 }
 
 /** What a human may change while the campaign is still a draft (or failed). */

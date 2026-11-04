@@ -3,6 +3,10 @@
 import {
   addLocalDays,
   approveAndLockAdCampaign,
+  commitAdChangeApplied,
+  commitAdChangeFailed,
+  dismissAdChange,
+  prepareAdChange,
   editAdCampaign,
   FirestoreAdsRepository,
   localDateAt,
@@ -22,7 +26,7 @@ import { z } from 'zod'
 import { requireTenantContext } from '../auth'
 import { proposeAdIdea } from '../ai/ad-planner'
 import { adminDb } from '../firebase-admin'
-import { pageLocation, publishCampaign, recentInstagramPosts, type IgPost } from '../meta-ads'
+import { applyCampaignChange, pageLocation, publishCampaign, recentInstagramPosts, type IgPost } from '../meta-ads'
 
 // IG-5a — paid campaigns (owner, 2026-11-04). Draft / edit / remove: the owner (the money is hers to
 // plan). APPROVE + PUBLISH: the owner, enforced in the domain as well. Nothing here writes to Meta
@@ -57,22 +61,41 @@ export interface CampaignsScreen {
   readonly configured: boolean
   readonly dailyCapKurus: number
   readonly campaignCapKurus: number
-  readonly campaigns: readonly (AdCampaign & { maxSpendKurus: number })[]
+  readonly campaigns: readonly (AdCampaign & {
+    maxSpendKurus: number
+    spentKurus: number // Meta, as of the last nightly sync
+    messages: number
+    /** IG-5b: Meta differs from what was approved (someone changed it in Ads Manager). */
+    drift: { dailyBudgetKurus: number | null; endDate: string | null; status: string | null } | null
+  })[]
   readonly posts: readonly IgPost[]
 }
 
 export async function adCampaignsAction(): Promise<CampaignsScreen> {
   const ctx = await requireTenantContext(OWNER)
   const s = await settings(String(ctx.studioId))
-  const [campaigns, posts] = await Promise.all([
+  const sid = String(ctx.studioId)
+  const [campaigns, posts, summary, drift] = await Promise.all([
     deps().repo.list(ctx),
     s && process.env.INSTAGRAM_ACCESS_TOKEN ? recentInstagramPosts(process.env.INSTAGRAM_ACCESS_TOKEN, s.igUserId) : Promise.resolve([]),
+    adminDb().doc(`studios/${sid}/adsInsights/summary`).get(),
+    adminDb().doc(`studios/${sid}/adsInsights/drift`).get(),
   ])
+  const byMeta = new Map(
+    ((summary.get('campaigns') as { id: string; days?: Record<string, { spendKurus: number; messages: number }> }[] | undefined) ?? []).map((c) => {
+      const days = Object.values(c.days ?? {})
+      return [c.id, { spent: days.reduce((n, d) => n + d.spendKurus, 0), messages: days.reduce((n, d) => n + d.messages, 0) }] as const
+    }),
+  )
+  const drifts = (drift.get('byCampaign') as Record<string, CampaignsScreen['campaigns'][number]['drift']> | undefined) ?? {}
   return {
     configured: Boolean(s),
     dailyCapKurus: s?.dailyCapKurus ?? 0,
     campaignCapKurus: s?.campaignCapKurus ?? 0,
-    campaigns: campaigns.map((c) => ({ ...c, maxSpendKurus: maxSpend(c).amount })),
+    campaigns: campaigns.map((c) => {
+      const m = c.meta ? byMeta.get(c.meta.campaignId) : undefined
+      return { ...c, maxSpendKurus: maxSpend(c).amount, spentKurus: m?.spent ?? 0, messages: m?.messages ?? 0, drift: drifts[c.id] ?? null }
+    }),
     posts,
   }
 }
@@ -181,5 +204,54 @@ export async function removeAdCampaignAction(input: unknown): Promise<AdResult> 
   const p = z.object({ id: z.string().regex(/^adc_[0-9A-Z]{26}$/) }).parse(input)
   const ctx = await requireTenantContext(OWNER)
   const r = await removeAdCampaign(deps(), ctx, p.id)
+  return r.ok ? { ok: true, value: undefined } : { ok: false, error: r.error }
+}
+
+// ── IG-5b ──────────────────────────────────────────────────────────────────────────────────────────
+const changeSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('pause') }),
+  z.object({ kind: z.literal('resume') }),
+  z.object({ kind: z.literal('budget'), dailyBudgetKurus: z.number().int() }),
+  z.object({ kind: z.literal('end_date'), endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/) }),
+])
+
+/**
+ * The owner changes a campaign that is on Meta — her press is the approval (`change` given), or she
+ * approves the AI's pending request (`change: 'pending'`). 1) the domain decides; 2) Meta gets the
+ * absolute value; 3) the outcome is recorded (`change_applied` only after Meta accepted).
+ */
+export async function changeAdCampaignAction(input: unknown): Promise<AdResult<{ status: 'applied' | 'failed'; message?: string }>> {
+  const p = z.object({ id: z.string().regex(/^adc_[0-9A-Z]{26}$/), change: z.union([z.literal('pending'), changeSchema]) }).parse(input)
+  const ctx = await requireTenantContext(OWNER)
+  const token = process.env.META_ADS_ACCESS_TOKEN
+  if (!token) return { ok: false, error: { code: 'ads_not_configured' } }
+  const d = deps()
+  const change =
+    p.change === 'pending'
+      ? 'pending'
+      : p.change.kind === 'budget'
+        ? { kind: 'budget' as const, dailyBudget: money(p.change.dailyBudgetKurus) }
+        : p.change.kind === 'end_date'
+          ? { kind: 'end_date' as const, endDate: p.change.endDate }
+          : { kind: p.change.kind }
+  const prepared = await prepareAdChange(d, ctx, p.id, change)
+  if (!prepared.ok) return { ok: false, error: prepared.error }
+  const meta = prepared.value.campaign.meta!
+  const r = await applyCampaignChange({ token }, meta, prepared.value.change.kind, prepared.value.after)
+  if (r.ok) {
+    const c = await commitAdChangeApplied(d, ctx, prepared.value)
+    // Meta already has the new value; if the commit is refused (a race), the nightly check shows the drift.
+    if (!c.ok) console.error('[ads-change] applied on Meta but not recorded', { id: p.id, kind: prepared.value.change.kind, error: c.error })
+    return { ok: true, value: { status: 'applied' } }
+  }
+  console.error('[ads-change] Meta refused', { id: p.id, kind: prepared.value.change.kind, metaCode: r.metaCode })
+  await commitAdChangeFailed(d, ctx, prepared.value, { metaCode: r.metaCode, message: r.message })
+  return { ok: true, value: { status: 'failed', message: r.message } }
+}
+
+export async function dismissAdChangeAction(input: unknown): Promise<AdResult> {
+  const p = z.object({ id: z.string().regex(/^adc_[0-9A-Z]{26}$/) }).parse(input)
+  const ctx = await requireTenantContext(OWNER)
+  const r = await dismissAdChange(deps(), ctx, p.id)
   return r.ok ? { ok: true, value: undefined } : { ok: false, error: r.error }
 }

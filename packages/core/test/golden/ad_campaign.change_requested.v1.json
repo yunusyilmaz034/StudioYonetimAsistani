@@ -1,0 +1,8 @@
+{
+  "changeId": "chg_1",
+  "kind": "budget",
+  "origin": "ai",
+  "dailyBudget": { "amount": 30000, "currency": "TRY" },
+  "endDate": null,
+  "maxSpend": { "amount": 300000, "currency": "TRY" }
+}

@@ -1,0 +1,9 @@
+{
+  "changeId": "chg_1",
+  "kind": "budget",
+  "origin": "ai",
+  "from": { "status": "live", "dailyBudget": { "amount": 25000, "currency": "TRY" }, "endDate": "2026-11-14" },
+  "to": { "status": "live", "dailyBudget": { "amount": 30000, "currency": "TRY" }, "endDate": "2026-11-14" },
+  "maxSpend": { "amount": 300000, "currency": "TRY" },
+  "caps": { "dailyCap": { "amount": 30000, "currency": "TRY" }, "campaignCap": { "amount": 600000, "currency": "TRY" } }
+}

@@ -125,3 +125,31 @@ export function overspent(
     .map((a) => ({ name: a.name, spentKurus: spentBy.get(a.metaCampaignId) ?? 0, maxSpendKurus: a.maxSpendKurus }))
     .filter((x) => x.spentKurus > x.maxSpendKurus)
 }
+
+/**
+ * IG-5b — does Meta still hold what the owner approved? Pure. `ours` = the campaign document;
+ * `theirs` = Meta's campaign status, ad-set daily budget (minor unit, as a string) and end time.
+ * Only the differences are returned; null = all as approved.
+ */
+export function driftOf(
+  ours: { status: 'live' | 'paused'; dailyBudgetKurus: number; endDate: string },
+  theirs: { campaignStatus?: string | undefined; dailyBudget?: string | undefined; endTime?: string | undefined },
+): { dailyBudgetKurus: number | null; endDate: string | null; status: string | null } | null {
+  const budget = theirs.dailyBudget != null && /^\d+$/.test(theirs.dailyBudget) ? Number(theirs.dailyBudget) : null
+  // Meta's end_time is exclusive at 00:00 Istanbul of the day AFTER our last day (what we send).
+  const lastDay = theirs.endTime ? metaEndToLastDay(theirs.endTime) : null
+  const status = theirs.campaignStatus ?? null
+  const d = {
+    dailyBudgetKurus: budget != null && budget !== ours.dailyBudgetKurus ? budget : null,
+    endDate: lastDay && lastDay !== ours.endDate ? lastDay : null,
+    status: status && (status === 'PAUSED') !== (ours.status === 'paused') ? status : null,
+  }
+  return d.dailyBudgetKurus == null && d.endDate == null && d.status == null ? null : d
+}
+
+/** '2026-11-15T00:00:00+0300' → '2026-11-14' (the last day that spends). */
+export function metaEndToLastDay(endTime: string): string | null {
+  const ms = Date.parse(endTime.replace(/([+-]\d{2})(\d{2})$/, '$1:$2'))
+  if (!Number.isFinite(ms)) return null
+  return new Date(ms + 3 * 3_600_000 - 1).toISOString().slice(0, 10)
+}

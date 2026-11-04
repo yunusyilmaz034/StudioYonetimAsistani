@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { decimalToKurus, overspent, summarizeInsights } from './ads-insights'
+import { decimalToKurus, driftOf, metaEndToLastDay, overspent, summarizeInsights } from './ads-insights'
 
 describe('decimalToKurus — money never passes through a float', () => {
   it.each([
@@ -66,4 +66,15 @@ describe('overspent — the nightly cap check (IG-5a)', () => {
     expect(overspent(summary, [{ name: 'A', metaCampaignId: 'm1', maxSpendKurus: 420_000 }])).toEqual([{ name: 'A', spentKurus: 430_000, maxSpendKurus: 420_000 }]))
   it('EXACTLY the approved amount is not an overspend', () => expect(overspent(summary, [{ name: 'B', metaCampaignId: 'm2', maxSpendKurus: 420_000 }])).toEqual([]))
   it('a campaign Meta has no spend for yet is fine', () => expect(overspent(summary, [{ name: 'C', metaCampaignId: 'm9', maxSpendKurus: 1 }])).toEqual([]))
+})
+
+describe('driftOf — Meta changed by hand (IG-5b)', () => {
+  const ours = { status: 'live' as const, dailyBudgetKurus: 25_000, endDate: '2026-11-14' }
+  it('all as approved → null', () => expect(driftOf(ours, { campaignStatus: 'ACTIVE', dailyBudget: '25000', endTime: '2026-11-15T00:00:00+0300' })).toBeNull())
+  it('budget raised in Ads Manager', () =>
+    expect(driftOf(ours, { campaignStatus: 'ACTIVE', dailyBudget: '35000', endTime: '2026-11-15T00:00:00+0300' })).toEqual({ dailyBudgetKurus: 35_000, endDate: null, status: null }))
+  it('end moved', () => expect(driftOf(ours, { campaignStatus: 'ACTIVE', dailyBudget: '25000', endTime: '2026-11-21T00:00:00+0300' })?.endDate).toBe('2026-11-20'))
+  it('paused on Meta while we think it is live', () => expect(driftOf(ours, { campaignStatus: 'PAUSED', dailyBudget: '25000' })?.status).toBe('PAUSED'))
+  it('paused on both sides is fine', () => expect(driftOf({ ...ours, status: 'paused' }, { campaignStatus: 'PAUSED', dailyBudget: '25000' })).toBeNull())
+  it('Meta end time in UTC form reads the same day', () => expect(metaEndToLastDay('2026-11-14T21:00:00+0000')).toBe('2026-11-14'))
 })

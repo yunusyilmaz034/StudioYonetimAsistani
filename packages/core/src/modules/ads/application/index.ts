@@ -13,6 +13,15 @@ import {
 import type { AdCampaign, AdCampaignFields } from '../domain/types'
 import type { AdCampaignPublishFailedPayload, AdOrigin } from '../events'
 import type { FirestoreAdsRepository } from '../infrastructure/repos'
+import {
+  decideChange,
+  decideChangeApplied,
+  decideChangeFailed,
+  decideDismissChange,
+  decideRequestChange,
+  pendingAsChange,
+  type AdChange,
+} from '../domain/changes'
 
 export interface AdsDeps {
   readonly repo: FirestoreAdsRepository
@@ -80,3 +89,53 @@ export const markAdCampaignFailed = (
 ) => deps.repo.mutate(ctx, id, (c) => decidePublishFailed(ctxFor(deps, ctx), c, failure))
 
 export const removeAdCampaign = (deps: AdsDeps, ctx: TenantContext, id: string) => deps.repo.mutate(ctx, id, (c) => decideRemoveCampaign(ctxFor(deps, ctx), c))
+
+// ── IG-5b: changes to a campaign that is on Meta ────────────────────────────────────────────────────
+
+/** The AI (actor: system) asks for a change. Stored as pending; Meta untouched. */
+export async function requestAdChange(deps: AdsDeps, ctx: TenantContext, id: string, change: Omit<AdChange, 'id'>, rationale: string) {
+  const caps = await deps.repo.caps(ctx)
+  if (!caps) return noCaps
+  return deps.repo.mutate(ctx, id, (c) => decideRequestChange(ctxFor(deps, ctx), c, { ...change, id: newCorrelationId() }, rationale, caps))
+}
+
+export interface PreparedAdChange {
+  readonly campaign: AdCampaign // as it is now
+  readonly after: AdCampaign // as it will be
+  readonly change: AdChange
+  readonly origin: AdOrigin
+}
+
+/**
+ * Step 1 of 3 — may this person make this change now? `'pending'` = approve the AI's request.
+ * Nothing is written. The caller then sets the absolute value on Meta, then calls step 3.
+ */
+export async function prepareAdChange(
+  deps: AdsDeps,
+  ctx: TenantContext,
+  id: string,
+  change: Omit<AdChange, 'id'> | 'pending',
+): Promise<Result<PreparedAdChange, DomainError>> {
+  const caps = await deps.repo.caps(ctx)
+  if (!caps) return noCaps
+  const campaign = await deps.repo.get(ctx, id)
+  if (!campaign) return { ok: false, error: { code: 'operation_not_applicable' } }
+  const ch = change === 'pending' ? pendingAsChange(campaign) : { ...change, id: newCorrelationId() }
+  if (!ch) return { ok: false, error: { code: 'operation_not_applicable' } }
+  const d = decideChange(ctxFor(deps, ctx), campaign, ch, caps)
+  if (!d.ok) return d
+  return { ok: true, value: { campaign, after: d.value, change: ch, origin: change === 'pending' ? 'ai' : 'staff' } }
+}
+
+/** Step 3 — Meta accepted: record it, re-decided against the campaign as it is at commit time. */
+export async function commitAdChangeApplied(deps: AdsDeps, ctx: TenantContext, p: PreparedAdChange) {
+  const caps = await deps.repo.caps(ctx)
+  if (!caps) return noCaps
+  return deps.repo.mutate(ctx, p.campaign.id, (c) => decideChangeApplied(ctxFor(deps, ctx), c, p.change, p.origin, caps))
+}
+
+/** Step 3 — Meta refused: the campaign keeps its state, the reason is shown on the card. */
+export const commitAdChangeFailed = (deps: AdsDeps, ctx: TenantContext, p: PreparedAdChange, failure: { metaCode: string | null; message: string }) =>
+  deps.repo.mutate(ctx, p.campaign.id, (c) => decideChangeFailed(ctxFor(deps, ctx), c, p.change, p.origin, failure))
+
+export const dismissAdChange = (deps: AdsDeps, ctx: TenantContext, id: string) => deps.repo.mutate(ctx, id, (c) => decideDismissChange(ctxFor(deps, ctx), c))

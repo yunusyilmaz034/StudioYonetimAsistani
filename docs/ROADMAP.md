@@ -211,7 +211,8 @@ Gönderi → profil → DM → deneme → üyelik; reklam harcaması → üye ba
 Instagram sohbetlerini AI Rapor'a ve Patron özetine katmak da burada (DEBT-047).
 
 ### IG-5 · Reklam yönetimi (onaylı harcama)
-**IG-5a · 🟡 KOD BİTTİ (2026-11-04), deploy bekliyor** — AI kampanya taslağı → owner onayı → Meta'da yayın (duraklatılmış kur, sonda aç). 5b (durdurma/bütçe talepleri) sırada.
+**IG-5a · ✅ CANLI (2026-11-04)** — AI kampanya taslağı → owner onayı → Meta'da yayın (duraklatılmış kur, sonda aç).
+**IG-5b · 🟡 KOD BİTTİ (2026-11-04), deploy bekliyor** — yayındaki kampanya: durdur/devam/bütçe/bitiş (sahibin basması = onay), AI haftalık öneri (yalnız talep), Meta'da elle değişiklik uyarısı.
 **Kararlar (owner, 2026-11-04):** 5a öneri+onay+yayın, 5b değişiklik talepleri. Tavan 300 TL/gün · 6.000 TL/kampanya; bitiş zorunlu; taslak yalnız panelde; WhatsApp hedef; mevcut IG gönderisi; stüdyo + 7 km; yeni olay türleri onaylı (OR-131).
 Kampanya/metin/hedefleme/bütçe ÖNERİSİ panelde; **her bütçe değişikliği ve yeni kampanya owner onayıyla** (OR-131).
 Önkoşul: işletme doğrulaması + `ads_management` App Review.
