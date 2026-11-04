@@ -2550,3 +2550,21 @@ Owner: *"telefonu alınca girsin"* · *"sosyal medya çekimlerini tabi ki biz ya
   `settings/ads` (kod sabiti değil).
 - **Çekim stüdyoda** — panel çekim kartı verir (ne, nasıl, kaç saniye), kurgular, onaya sunar.
 - Sahte takipçi/beğeni/otomatik takip-bırak YOK (Instagram kuralı; hesap kapanma riski — geçim bu hesaptan).
+
+**OR-132 · Fatura belgesi: kart/POS ÖKC otomatik, nakit fiş ya da e-Arşiv, havale/online e-Arşiv — HER ZAMAN elle.** (2026-11-04)
+
+Owner: *"her nakit üyeye e arşiv kesilmeyecek çoğu zaman ökç den kesebiliriz hem bu kontörü düzgün kullanmayı sağlar, ama paytr
+ve havale de e-arşiv kesmeliyiz"* · *"kk … fiziksel pos ökç den oluyor anında fiş kesiliyor"* · *"nakit bazen e arşiv de olabilir"*
+· *"her zaman manuel tetikleme olsun havale ve online da da"*.
+
+- Ödeme yöntemi → varsayılan belge **ayardır** (kod sabiti değil): kredi kartı/POS → ÖKC fişi · nakit → ÖKC fişi ·
+  havale/EFT → e-Arşiv · online (PayTR) → e-Arşiv.
+- **Kart/POS**: fişi cihaz basıyor; satır "ÖKC · otomatik" görünür, "Kesilmedi" listesine girmez. Sistem bunun için
+  "kesildi" olayı YAZMAZ — kimse görmedi; bu bir varsayım, gözlem değil (AD-38 ilkesi).
+- **Nakit**: elle "Fiş kesildi" tiki (kontör harcamaz) ya da elle "e-Arşiv kes". Biri yapılınca öteki kapanır — bir tahsilat,
+  bir belge.
+- **e-Arşiv hiçbir yöntemde kendiliğinden kesilmez.** Havale ve online dahil: insan basar, onay penceresinde kişi/TC/tutar/
+  hizmet/KDV'yi görür, onaylar. Sistem yalnız hatırlatır (havale 7 gün rozeti + 09:00 maili, OR-130).
+- Tutarı yine insan girer (OR-130); sistem tutar önermez.
+- `invoice.issued` v2 belge türünü taşır; v1 kayıtlar "elle işaretlendi" okunur (şema değişikliği owner onaylı, 2026-11-04).
+- Fiş sınırı (bu tutarın üstünde fatura zorunlu) ve KDV oranı mali müşavirden teyit edilecek; ikisi de ayar.

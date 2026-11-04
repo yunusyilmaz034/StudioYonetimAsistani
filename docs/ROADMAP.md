@@ -226,6 +226,19 @@ Kampanya/metin/hedefleme/bütçe ÖNERİSİ panelde; **her bütçe değişikliğ
 
 Yan madde (owner'a önerildi): Google İşletme Profili — "yakınımdaki pilates" aramaları.
 
+## FAZ FT — 🧾 Fatura (owner onaylı 2026-11-04)
+
+### FT-1 · Fatura Takibi · ✅ CANLI (2026-11-03, OR-130) — tahsilat başına "kesildi" tiki, PIN'li ekran, havale 7 gün maili.
+
+### FT-2 · Paraşüt e-Arşiv · 🟡 PLAN ONAYLI — UX taslağı: https://claude.ai/artifact/Tn3aF1gE7CwvbBRZstJUEw; kod Paraşüt aboneliği + mükellefiyet geçişi + API erişimi gelince
+Owner: *"her zaman manuel tetikleme olsun"* (OR-132). Belge türü ödeme yönteminden gelir (ayar, kod değil):
+kart/POS → ÖKC fişi (cihaz basar, "otomatik", listeye girmez) · nakit → elle "Fiş kesildi" ya da "e-Arşiv kes" ·
+havale/EFT + online (PayTR) → "e-Arşiv kes". e-Arşiv yalnız insan basınca, onay penceresinden sonra; aynı tahsilat iki kez
+belgelenmez (tekrar denemeden önce Paraşüt'te mutabakat). `invoice.issued` v2: belge türü (okc_receipt | e_archive | e_invoice),
+v1 → "elle işaretlendi" upcaster (owner onaylı). Yeni olaylar: e-Arşiv istendi / başarısız. KDV oranı + hizmet satırı ayar
+(mali müşavir söyler). Önce Paraşüt test hesabı. Kapsam DIŞI: e-Fatura (nadir, Paraşüt panelinden), iptal/iade (panelden),
+otomatik kesim, PDF'in üyeye gitmesi.
+
 ---
 
 ## Sıra (owner, güncel 2026-07-22)
