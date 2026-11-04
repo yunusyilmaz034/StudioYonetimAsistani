@@ -67,9 +67,9 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
 - **AI** `server/ai/ad-planner.ts` — prova (kaydetmeden): "12 Aylık Fitness · Kadınlara Özel", 250 TL × 10 gün = 2.500 TL, 25–50,
   8 km, 18 Eylül fitness videosu; domain GEÇERLİ.
 - **Gece kontrolü:** `adsInsightsSync` canlı kampanyanın Meta harcaması onaylanan tutarı aşarsa owner'a `ads_overspend` e-postası.
-- ⚠️ **ENGEL — sayfaya WhatsApp numarası bağlı DEĞİL** (`whatsapp_number` boş). WhatsApp'a yönlendiren reklam için Sayfa →
-  Ayarlar → Bağlı hesaplar → WhatsApp'tan stüdyo numarası bağlanmalı (doğrulama kodu ister). Bağlanmadan yayın, reklam seti
-  adımında Meta hatasıyla düşer (güvenli: hiçbir şey açılmaz).
+- ✅ **Sayfa ↔ WhatsApp bağlı** (kontrol 4 Kasım, Facebook → sayfa profili → Ayarlar → Bağlı WhatsApp): birincil
+  **+90 501 936 61 41** (AI'ın API numarası), ikinci **+90 533 199 41 23**. Reklam birincile düşer. Tuzak: Graph API'de sayfanın
+  `whatsapp_number` alanı BOŞ döner — bu "bağlı değil" demek DEĞİL; doğru cevap o ayar ekranı.
 - **Deploy sırası:** `apphosting:secrets:grantaccess META_ADS_ACCESS_TOKEN` → rules (adCampaigns serverOnly) → functions → push.
 
 ### 4 Kasım gece — IG-4a CANLI (reklam ölçümü)
