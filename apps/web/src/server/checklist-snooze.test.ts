@@ -38,6 +38,7 @@ describe('checklist soğuması', () => {
 
   it('WhatsApp lead satırı da soğur — kimlik `wa:` ile başlar', () => {
     expect(kindOfItemId(LEAD)).toBe('hot_lead')
+    expect(kindOfItemId('ig:ig_1234567890')).toBe('hot_lead') // Instagram lead (IG-1)
     expect(isSnoozedNow(LEAD, at, T('2026-09-04T09:00:00+03:00'))).toBe(true)
   })
 

@@ -82,11 +82,11 @@ const studioDay = (ms: number) => new Date(ms).toLocaleDateString('en-CA', { tim
 
 /**
  * Tik kimliğinden türü oku. Kimlikler iki biçimde kuruluyor ve ikisi de kararlı:
- * `wa:{telefon}` (lead) · `{kind}__{...}` (içgörüler). Tanınmayan bir biçim soğumaz — bilinmeyen bir
+ * `wa:{telefon}` / `ig:{sohbet}` (lead) · `{kind}__{...}` (içgörüler). Tanınmayan bir biçim soğumaz — bilinmeyen bir
  * türe soğuma uydurmak, listeden bir işi sebepsiz silmek olurdu.
  */
 export function kindOfItemId(itemId: string): string | null {
-  if (itemId.startsWith('wa:')) return 'hot_lead'
+  if (itemId.startsWith('wa:') || itemId.startsWith('ig:')) return 'hot_lead' // ig: = Instagram lead (IG-1)
   const i = itemId.indexOf('__')
   return i > 0 ? itemId.slice(0, i) : null
 }

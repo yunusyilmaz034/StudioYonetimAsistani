@@ -170,7 +170,9 @@ export async function recordLeadCallAction(input: unknown) {
     .object({
       dayKey: z.string().min(1),
       itemId: z.string().min(1),
-      phone: z.string().min(1),
+      // Boş olabilir: Instagram lead'inin (`ig:` satırı) telefonu yok (IG-1). 2026-11-04'e kadar `min(1)`ydi ve
+      // Instagram satırında "Arama sonucu" kaydı 500 veriyordu — resepsiyon: "notlarım çalışmıyor".
+      phone: z.string().default(''),
       outcome: z.enum(['reached', 'no_answer', 'callback']),
       note: z.string().trim().max(200).default(''),
     })
@@ -190,8 +192,7 @@ export async function recordLeadCallAction(input: unknown) {
   // değil. Lead yoksa (sohbet var, huniye hiç düşmemiş) arama kaydı yazılmaz ama TİK YİNE ATILIR —
   // resepsiyonun işini, bizim veri modelimizin eksiği yüzünden geri çevirmeyiz.
   try {
-    const leads = await new FirestoreCrmRepository(adminDb()).listLeads(ctx)
-    const lead = leads.find((l) => l.phone === p.phone)
+    const lead = p.phone ? (await new FirestoreCrmRepository(adminDb()).listLeads(ctx)).find((l) => l.phone === p.phone) : undefined
     if (lead) {
       await logInteractionAction({ kind: 'call', leadId: lead.id, memberId: null, text, outcome: p.outcome })
     }
