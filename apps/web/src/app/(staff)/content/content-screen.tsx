@@ -19,6 +19,8 @@ import {
   type ContentWeek,
 } from '@/server/actions/content'
 
+import { EditPanel } from './edit-panel'
+import { MusicLibraryPanel } from './music-library'
 import { PublishPanel } from './publish-panel'
 
 // IG-2a — the week's Instagram plan (onaylı tasarım: https://claude.ai/artifact/Lu36nxmwhCoUogRoAnojeU).
@@ -108,6 +110,7 @@ export function ContentScreen() {
   const [busy, setBusy] = useState<string | null>(null)
   const [consent, setConsent] = useState(false)
   const [areasOpen, setAreasOpen] = useState(false)
+  const [musicOpen, setMusicOpen] = useState(false)
   const [areasText, setAreasText] = useState('')
 
   const load = useCallback(async (w?: string) => {
@@ -244,11 +247,17 @@ export function ContentScreen() {
         <div className="text-xs text-muted-foreground">
           Bölge: {week.areas.length ? week.areas.join(', ') : 'tanımlı değil'}
           {week.canApprove ? (
-            <button type="button" onClick={() => setAreasOpen((v) => !v)} className="ml-2 font-medium text-primary hover:underline">
-              Düzenle
-            </button>
+            <>
+              <button type="button" onClick={() => setAreasOpen((v) => !v)} className="ml-2 font-medium text-primary hover:underline">
+                Düzenle
+              </button>
+              <button type="button" onClick={() => setMusicOpen((v) => !v)} className="ml-3 font-medium text-primary hover:underline">
+                Müzik
+              </button>
+            </>
           ) : null}
         </div>
+        {musicOpen && week.canApprove ? <MusicLibraryPanel studioId={week.studioId} /> : null}
         {areasOpen ? (
           <div className="flex w-full flex-wrap gap-2">
             <label className="sr-only" htmlFor="areas">Bölge semtleri</label>
@@ -354,6 +363,8 @@ export function ContentScreen() {
                   <p className="whitespace-pre-wrap text-sm">{current.caption || '—'}</p>
                   <p className="text-xs text-muted-foreground">{current.hashtags.map((h) => `#${h}`).join(' ')}</p>
                 </div>
+
+                <EditPanel post={current} studioId={week.studioId} reload={() => load(weekStart)} />
 
                 <PublishPanel post={current} studioId={week.studioId} canApprove={week.canApprove} reload={() => load(weekStart)} />
 

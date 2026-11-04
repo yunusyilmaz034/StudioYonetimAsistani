@@ -1,0 +1,9 @@
+# IG-2c — build the render image and run its self-test. Pushes nothing.
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args: ['build', '-t', 'content-render:selftest', '.']
+  - name: gcr.io/cloud-builders/docker
+    args: ['run', '--rm', 'content-render:selftest', 'node', 'selftest.cjs']
+options:
+  machineType: E2_HIGHCPU_8
+timeout: 3600s

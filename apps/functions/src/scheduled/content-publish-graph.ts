@@ -4,10 +4,15 @@ export interface ContainerInput {
   readonly kind: 'video' | 'image'
   readonly url: string // a short signed URL Meta fetches the file from
   readonly caption: string
+  readonly coverAtMs?: number | null // IG-2c: the Reels cover frame
 }
 
 export function containerParams(i: ContainerInput): Record<string, string> {
-  if (i.format === 'reels') return { media_type: 'REELS', video_url: i.url, caption: i.caption, share_to_feed: 'true' }
+  if (i.format === 'reels') {
+    const p: Record<string, string> = { media_type: 'REELS', video_url: i.url, caption: i.caption, share_to_feed: 'true' }
+    if (i.coverAtMs != null && i.coverAtMs > 0) p.thumb_offset = String(Math.round(i.coverAtMs))
+    return p
+  }
   if (i.format === 'photo') return { image_url: i.url, caption: i.caption }
   // Stories carry no caption on Instagram.
   return i.kind === 'video' ? { media_type: 'STORIES', video_url: i.url } : { media_type: 'STORIES', image_url: i.url }

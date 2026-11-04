@@ -1,7 +1,38 @@
 // The content module's public door (IG-2a, 2026-11-03) — the studio's Instagram plan: what to post,
 // how to film it, what to write under it. Nothing here publishes (that is IG-2b, behind an approval
 // event). Read README.md first.
-export type { ContentAiCheck, ContentMedia, ContentPost, ContentPostFields, ContentPublishState, ContentStatus, ShotCard, ShotClip } from './domain/types'
+export type {
+  ContentAiCheck,
+  ContentEditOverrides,
+  ContentEditPlan,
+  ContentEditState,
+  ContentMedia,
+  ContentPost,
+  ContentPostFields,
+  ContentPublishState,
+  ContentRawClip,
+  ContentStatus,
+  EditSegment,
+  MusicTrack,
+  ShotCard,
+  ShotClip,
+  SubtitleLine,
+} from './domain/types'
+export {
+  applyEditOverrides,
+  decideAddRawClip,
+  decideEditFailed,
+  decideEditRendered,
+  decideRequestEdit,
+  EDIT_LIMITS,
+  EDIT_STALE_MS,
+  isEditRendering,
+  isEditStale,
+  lineId,
+  normalizeEditPlan,
+  type AiEditProposal,
+  type TranscriptLine,
+} from './domain/edit'
 export {
   decideApprovePublish,
   decideAttachMedia,
@@ -28,8 +59,12 @@ export {
 } from './domain/decide'
 export type { ContentDeps, ContentRepository } from './application/ports'
 export {
+  addContentRawClip,
   approveContentPost,
   approveContentPublish,
+  completeContentEdit,
+  failContentEdit,
+  requestContentEdit,
   attachContentMedia,
   editContentPost,
   markContentPublished,

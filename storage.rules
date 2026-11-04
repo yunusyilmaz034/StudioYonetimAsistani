@@ -51,6 +51,26 @@ service firebase.storage {
           || (request.resource.contentType == 'image/jpeg' && request.resource.size < 8 * 1024 * 1024)
         );
     }
+    // 2026-11-04 (IG-2c) — RAW clips for the AI edit (cut on our own server, never sent out). Same posture
+    // as above; a clip may be up to 500 MB (the 8-clip / 1 GB total is enforced in the domain).
+    match /studios/{sid}/content/{postId}/raw/{file} {
+      allow read: if false;
+      allow write: if request.auth != null
+        && request.auth.token.studioId == sid
+        && request.auth.token.role in ['owner', 'receptionist', 'trainer']
+        && (request.resource.contentType == 'video/mp4' || request.resource.contentType == 'video/quicktime')
+        && request.resource.size < 500 * 1024 * 1024;
+    }
+    // 2026-11-04 (IG-2c) — the owner's royalty-free music library. The OWNER uploads; the server lists it
+    // (settings/content.music) and plays it through a short signed URL. MP3, at most 20 MB.
+    match /studios/{sid}/music/{file} {
+      allow read: if false;
+      allow write: if request.auth != null
+        && request.auth.token.studioId == sid
+        && request.auth.token.role == 'owner'
+        && request.resource.contentType == 'audio/mpeg'
+        && request.resource.size < 20 * 1024 * 1024;
+    }
     // Anything outside these private prefixes is denied by the absence of a rule.
   }
 }

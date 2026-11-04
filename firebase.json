@@ -20,7 +20,8 @@
         "dist",
         "tsconfig.json",
         "build.mjs",
-        "*.tsbuildinfo"
+        "*.tsbuildinfo",
+        "render-image"
       ]
     }
   ],

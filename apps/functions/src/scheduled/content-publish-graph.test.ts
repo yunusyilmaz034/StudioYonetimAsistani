@@ -4,6 +4,7 @@ import { containerParams, containerState } from './content-publish-graph'
 
 describe('containerParams', () => {
   it('reels', () => expect(containerParams({ format: 'reels', kind: 'video', url: 'U', caption: 'C' })).toEqual({ media_type: 'REELS', video_url: 'U', caption: 'C', share_to_feed: 'true' }))
+  it('reels with an AI-chosen cover frame (IG-2c)', () => expect(containerParams({ format: 'reels', kind: 'video', url: 'U', caption: 'C', coverAtMs: 6200 })).toMatchObject({ thumb_offset: '6200' }))
   it('photo', () => expect(containerParams({ format: 'photo', kind: 'image', url: 'U', caption: 'C' })).toEqual({ image_url: 'U', caption: 'C' }))
   it('story video carries no caption', () => expect(containerParams({ format: 'story', kind: 'video', url: 'U', caption: 'C' })).toEqual({ media_type: 'STORIES', video_url: 'U' }))
   it('story photo', () => expect(containerParams({ format: 'story', kind: 'image', url: 'U', caption: 'C' })).toEqual({ media_type: 'STORIES', image_url: 'U' }))

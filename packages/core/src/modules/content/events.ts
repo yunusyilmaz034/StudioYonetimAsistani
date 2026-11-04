@@ -79,3 +79,32 @@ export interface ContentPostPublishFailedPayload {
   readonly stage: 'media_url' | 'container' | 'processing' | 'publish' | 'unknown'
   readonly metaCode: string | null
 }
+
+// IG-2c (2026-11-04, owner approved) — the AI edit. Raw clips are uploaded, an edit is requested, the
+// server renders it. A finished render is an ordinary `media_attached` (the file is what it is).
+// Again no text: no transcript, no hook, no file name — counts, sizes and stages only.
+export const CONTENT_POST_RAW_CLIP_ADDED = 'content_post.raw_clip_added'
+export const CONTENT_POST_EDIT_REQUESTED = 'content_post.edit_requested'
+export const CONTENT_POST_EDIT_FAILED = 'content_post.edit_failed'
+
+export interface ContentPostRawClipAddedPayload {
+  readonly slot: number
+  readonly contentType: string
+  readonly bytes: number
+  readonly seconds: number
+  readonly width: number
+  readonly height: number
+  readonly replaced: boolean // a clip was already in this slot
+  readonly clipCount: number
+}
+
+export interface ContentPostEditRequestedPayload {
+  readonly clipCount: number
+  readonly redo: boolean // a re-render with a person's changes (cuts kept)
+  readonly subtitles: boolean | null // null = the AI decides (first edit)
+  readonly approvalWithdrawn: boolean
+}
+
+export interface ContentPostEditFailedPayload {
+  readonly stage: 'download' | 'transcribe' | 'plan' | 'render' | 'upload' | 'unknown'
+}

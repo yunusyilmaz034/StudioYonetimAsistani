@@ -211,7 +211,7 @@ Gönderi → profil → DM → deneme → üyelik; reklam harcaması → üye ba
 Instagram sohbetlerini AI Rapor'a ve Patron özetine katmak da burada (DEBT-047).
 
 **IG-2b · 🟡 KOD BİTTİ (2026-11-04), deploy bekliyor** — çekilen dosyayı yükle → AI son kontrol (kareler) + son açıklama → sahibin onayı (KVKK kutusu) → planlanan saatte Instagram'a (functions `contentPublisher`, 5 dk). 90 gün sonra dosya silinir.
-**IG-2c · sırada** — AI kurgu: Claude karar verir (kesim, kanca yazısı, kapak, sıra), ffmpeg kendi sunucumuzda keser; telifsiz müzik kütüphanesi; **konuşmaya altyazı (owner, 2026-11-04: kapsamda)** — açık kaynak Whisper, kendi sunucumuzda. Ücretsiz dış AI araçları KVKK yüzünden yok (üye yüzleri dışarı çıkmaz).
+**IG-2c · KOD BİTTİ (2026-11-04)** — AI kurgu: ham klipler (8 / 1 GB) → kendi sunucumuzda (Cloud Run job `content-render`) whisper.cpp konuşmayı yazar, Claude karelere + yazıya bakıp kesimi, kancayı, kapağı, müziği seçer, ffmpeg 1080×1920 keser, altyazı + kanca + müzik (konuşmada kısılır) basar → IG-2b onayına düşer. Yeniden kurgu: kesim kalır, kanca/altyazı/müzik düzeltilir. Sahibin telifsiz müzik kütüphanesi (`settings/content.music`). Yalnız Reels. Görüntü ve ses dışarı çıkmaz (KVKK). Yeni olaylar: raw_clip_added · edit_requested · edit_failed (owner onaylı).
 
 ### IG-5 · Reklam yönetimi (onaylı harcama)
 **IG-5a · ✅ CANLI (2026-11-04)** — AI kampanya taslağı → owner onayı → Meta'da yayın (duraklatılmış kur, sonda aç).

@@ -84,3 +84,65 @@ export async function uploadContentFile(input: { studioId: string; postId: strin
   })
   return path
 }
+
+// ── IG-2c: raw clips and music ───────────────────────────────────────────────────────────────────
+export interface RawClipFile {
+  readonly blob: Blob
+  readonly contentType: string
+  readonly seconds: number
+  readonly width: number
+  readonly height: number
+}
+
+/** A raw clip: only its duration and size are read here; frames are taken on the server. */
+export async function prepareRawClip(file: File): Promise<RawClipFile> {
+  if (!VIDEO.includes(file.type)) throw new Error('Desteklenmeyen dosya. Video (MP4/MOV) seçin.')
+  const url = URL.createObjectURL(file)
+  try {
+    const v = document.createElement('video')
+    v.muted = true
+    v.preload = 'metadata'
+    v.src = url
+    await new Promise<void>((res, rej) => {
+      v.onloadedmetadata = () => res()
+      v.onerror = () => rej(new Error('Video okunamadı'))
+    })
+    return { blob: file, contentType: file.type, seconds: v.duration, width: v.videoWidth, height: v.videoHeight }
+  } finally {
+    URL.revokeObjectURL(url)
+  }
+}
+
+async function put(path: string, blob: Blob, contentType: string, onProgress: (pct: number) => void): Promise<string> {
+  if (!storageConfigured()) throw new Error('Dosya yükleme yapılandırılmamış.')
+  const task = uploadBytesResumable(ref(clientStorage(), path), blob, { contentType })
+  await new Promise<void>((res, rej) => {
+    task.on('state_changed', (s) => onProgress(Math.round((s.bytesTransferred / Math.max(1, s.totalBytes)) * 100)), rej, () => res())
+  })
+  return path
+}
+
+export function uploadRawClip(input: { studioId: string; postId: string; file: RawClipFile; onProgress: (pct: number) => void }): Promise<string> {
+  const ext = input.file.contentType === 'video/quicktime' ? 'mov' : 'mp4'
+  return put(`studios/${input.studioId}/content/${input.postId}/raw/${crypto.randomUUID()}.${ext}`, input.file.blob, input.file.contentType, input.onProgress)
+}
+
+/** Owner: an MP3 for the music library. Returns the path and the track's length in seconds. */
+export async function uploadMusicTrack(input: { studioId: string; file: File; onProgress: (pct: number) => void }): Promise<{ storagePath: string; seconds: number }> {
+  if (input.file.type !== 'audio/mpeg') throw new Error('Yalnız MP3 yüklenebilir.')
+  const url = URL.createObjectURL(input.file)
+  let seconds = 0
+  try {
+    const a = document.createElement('audio')
+    a.preload = 'metadata'
+    a.src = url
+    seconds = await new Promise<number>((res, rej) => {
+      a.onloadedmetadata = () => res(a.duration)
+      a.onerror = () => rej(new Error('Ses dosyası okunamadı'))
+    })
+  } finally {
+    URL.revokeObjectURL(url)
+  }
+  const storagePath = await put(`studios/${input.studioId}/music/${crypto.randomUUID()}.mp3`, input.file, 'audio/mpeg', input.onProgress)
+  return { storagePath, seconds: Math.round(seconds) }
+}

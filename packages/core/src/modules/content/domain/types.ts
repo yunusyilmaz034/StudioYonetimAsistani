@@ -29,6 +29,7 @@ export interface ContentMedia {
   readonly height: number
   readonly uploadedAt: Instant
   readonly uploadedBy: ActorRef
+  readonly coverAtMs?: number | null // IG-2c: the frame Instagram shows as the Reels cover
 }
 
 /** The AI's last look at the file — shown on the card, never in an event. */
@@ -69,6 +70,81 @@ export interface ContentPost {
   readonly media?: ContentMedia | null
   readonly aiCheck?: ContentAiCheck | null
   readonly publish?: ContentPublishState | null
+  // IG-2c — absent on older documents.
+  readonly rawClips?: readonly ContentRawClip[]
+  readonly edit?: ContentEditState | null
+}
+
+// ── IG-2c: the AI edit ─────────────────────────────────────────────────────────────────────────────
+
+/** One unedited clip the team filmed. `slot` = the shot card's clip index; extras take the next free one. */
+export interface ContentRawClip {
+  readonly slot: number
+  readonly storagePath: string
+  readonly contentType: string
+  readonly bytes: number
+  readonly seconds: number
+  readonly width: number
+  readonly height: number
+  readonly uploadedAt: Instant
+  readonly uploadedBy: ActorRef
+}
+
+/** A piece of one raw clip, in source seconds. */
+export interface EditSegment {
+  readonly slot: number
+  readonly from: number
+  readonly to: number
+}
+
+/** One subtitle line on the OUTPUT timeline. `unsure` = the AI could not hear it clearly. */
+export interface SubtitleLine {
+  readonly id: string
+  readonly start: number
+  readonly end: number
+  readonly text: string
+  readonly unsure: boolean
+}
+
+export interface ContentEditPlan {
+  readonly segments: readonly EditSegment[]
+  readonly seconds: number // output length
+  readonly hook: string // on screen for the first 3 seconds ('' = none)
+  readonly coverAt: number // output second shown as the cover
+  readonly musicTrackId: string | null
+  readonly subtitles: boolean
+  readonly lines: readonly SubtitleLine[]
+  readonly notes: readonly { readonly level: 'ok' | 'warn'; readonly text: string }[]
+}
+
+/** What a person changed before "Yeniden kurgula" — the cuts stay, these are re-rendered. */
+export interface ContentEditOverrides {
+  readonly hook: string
+  readonly lines: readonly { readonly id: string; readonly text: string }[]
+  readonly musicTrackId: string | null
+  readonly subtitles: boolean
+}
+
+export interface ContentEditState {
+  readonly status: 'rendering' | 'ready' | 'failed'
+  readonly requestId: string // a render's result is accepted only for the request it answers
+  readonly requestedAt: Instant
+  readonly requestedBy: ActorRef
+  readonly plan: ContentEditPlan | null // the last good plan (kept across a re-edit)
+  readonly overrides: ContentEditOverrides | null // present while a re-edit renders
+  readonly failure: { readonly stage: string; readonly message: string } | null
+  readonly renderedAt: Instant | null
+}
+
+/** A music track the owner made available (settings/content.music). Royalty-free, commercial use allowed. */
+export interface MusicTrack {
+  readonly id: string
+  readonly name: string
+  readonly mood: string
+  readonly seconds: number
+  readonly storagePath: string
+  readonly source: string
+  readonly active: boolean
 }
 
 /** The editable part — what a human may change on a post. */

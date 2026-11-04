@@ -2,7 +2,7 @@ import { FieldValue, getFirestore, Timestamp, type DocumentData, type Firestore 
 
 import { newEventId, type ActorRef, type DomainError, type Instant, type NewEvent, type Result, type StudioId, type TenantContext } from '../../../shared'
 import type { ContentRepository } from '../application/ports'
-import type { ContentAiCheck, ContentMedia, ContentPost, ContentPublishState } from '../domain/types'
+import type { ContentAiCheck, ContentEditState, ContentMedia, ContentPost, ContentPublishState, ContentRawClip } from '../domain/types'
 
 // `studios/{sid}/contentPosts/{id}` — server-only (Admin SDK); the panel reaches it through Server Actions.
 // State and its events commit in ONE batch (#1).
@@ -45,6 +45,9 @@ function fromDoc(id: string, d: DocumentData): ContentPost {
     media: (d.media ?? null) as ContentMedia | null,
     aiCheck: (d.aiCheck ?? null) as ContentAiCheck | null,
     publish: (d.publish ?? null) as ContentPublishState | null,
+    // IG-2c
+    rawClips: (Array.isArray(d.rawClips) ? d.rawClips : []) as ContentRawClip[],
+    edit: (d.edit ?? null) as ContentEditState | null,
   }
 }
 

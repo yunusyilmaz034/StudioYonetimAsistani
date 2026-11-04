@@ -36,3 +36,24 @@ Events (v1, golden): `content_post.media_attached | publish_approved | publish_s
 - A run that died after the lock is marked failed after 20 min ("durum belirsiz — Instagram'da kontrol et").
 - Files: private Storage `studios/{sid}/content/{postId}/…`; Meta reads them through a download token
   that exists only while publishing; deleted 90 days after publishing.
+
+## IG-2c — the AI edit (`domain/edit.ts`, 2026-11-04)
+
+Events (v1, golden): `content_post.raw_clip_added | edit_requested | edit_failed`. A finished render is an
+ordinary `content_post.media_attached` — the file is what it is, wherever it came from.
+
+- **Reels only.** Anyone on the content screen uploads raw clips (slot = the shot card's clip; extras take
+  the next free slot) and asks for an edit. At most 8 clips, ≤ 500 MB each, **1 GB in all** (exactly 1 GB
+  passes). Publishing approval is unchanged (owner, IG-2b).
+- **The cut runs on our server** (Cloud Run job `content-render`, europe-west1): whisper.cpp transcribes,
+  ffmpeg cuts. The AI receives small frames and the transcript only — never the video or the audio.
+- `normalizeEditPlan` makes the AI's proposal safe: segments outside their clip are clipped or dropped,
+  the length is cut at **90 s**, under **3 s** is refused, a music track that is not ON is dropped, speech
+  is mapped onto the output timeline. No speech → no subtitles.
+- **A re-edit keeps the cuts** (`applyEditOverrides`): hook, subtitle lines, music, subtitles on/off.
+- **A render answers ONE request** (`requestId` = the request's correlation id). A late or duplicate result
+  is refused, so it can never overwrite a newer edit. A render silent for 30 min may be asked again.
+- Asking for an edit **withdraws a publish approval at once** — the old file cannot go out meanwhile.
+- No transcript, hook or path in any event. Subtitles live on the post (state) only.
+- Music library: `settings/content.music` (data, like `areas`); the owner adds MP3s and switches them
+  on/off. Raw clips are deleted with the post's folder 90 days after publishing.

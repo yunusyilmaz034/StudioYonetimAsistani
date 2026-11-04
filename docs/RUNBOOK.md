@@ -249,6 +249,28 @@ disaster-recovery tool, not an undo button. **Undo is a compensating event** (#9
 
 ---
 
+### content-render — the AI edit job (IG-2c, 2026-11-04)
+
+A Cloud Run **job** (not a Function): Node 22 + ffmpeg + whisper.cpp (`medium`, 5-bit) in one image.
+`onEventCreated` starts one execution per `content_post.edit_requested` (env `STUDIO_ID`, `POST_ID`).
+Runs as the default compute service account (already Editor + ANTHROPIC_API_KEY accessor — no IAM change).
+
+```bash
+node apps/functions/render-image/build.mjs                       # bundle main.cjs + selftest.cjs
+gcloud builds submit apps/functions/render-image --region europe-west1 --project studio-yonetim-prod \
+  --config apps/functions/render-image/cloudbuild.selftest.yaml  # image builds AND self-test passes; pushes nothing
+gcloud run jobs deploy content-render --source apps/functions/render-image \
+  --region europe-west1 --project studio-yonetim-prod \
+  --cpu 8 --memory 16Gi --task-timeout 30m --max-retries 0 --tasks 1 \
+  --set-secrets ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest \
+  --set-env-vars '^##^FIREBASE_CONFIG={"projectId":"studio-yonetim-prod","storageBucket":"studio-yonetim-prod.firebasestorage.app"}'
+```
+
+`--max-retries 0` on purpose: a failed render is recorded on the post ("Kurgu olmadı · Tekrar dene"); a
+silent automatic retry would only spend money on the same broken clip. Logs: Cloud Run → Jobs →
+content-render → Executions (lines start with `content-render:`). A card stuck on "Kurgulanıyor" for 30 min
+becomes "Kurgu yarıda kaldı · Tekrar dene" by itself.
+
 ## Incident response
 
 1. **Say what is broken, in one sentence, to the owner.** Before diagnosing. She is running a

@@ -3,7 +3,12 @@ import { onDocumentCreated } from 'firebase-functions/v2/firestore'
 import * as logger from 'firebase-functions/logger'
 
 import {
+  CONTENT_POST_EDIT_REQUESTED,
   DEFAULT_STUDIO_CONFIG,
+  failContentEdit,
+  FirestoreContentRepository,
+  systemClock,
+  type TenantContext,
   FirestoreMemberRepository,
   FirestoreProjectionRepository,
   instant,
@@ -18,6 +23,7 @@ import { systemTenantContext } from '../shared/context'
 import { db } from '../shared/firebase'
 import { NOTIFICATION_SECRETS, REGION } from '../shared/region'
 import { notifyForEvent, toEventLike } from './on-event-notify'
+import { startContentRender } from './start-content-render'
 
 // ── onEventCreated → the daily read model (v1.23, D29). ─────────────────────────────────────
 //
@@ -58,6 +64,23 @@ export const onEventCreated = onDocumentCreated(
     //   occurredAt  — domain time. WHICH DAY the event belongs to. May be client-supplied.
     //   recordedAt  — log time, `serverTimestamp()`. WHEN THE LOG ACCEPTED IT.
     const recordedAt = data.recordedAt instanceof Timestamp ? data.recordedAt.toMillis() : occurredAt
+
+    // ── IG-2c — an edit was asked for: start the render job. Never fails the event; if the job cannot
+    // even start, the request is marked failed so the card says "Tekrar dene" instead of spinning.
+    if (data.type === CONTENT_POST_EDIT_REQUESTED) {
+      const postId = String((data.subject as { id?: string } | undefined)?.id ?? '')
+      try {
+        await startContentRender(studioId, postId)
+      } catch (err) {
+        logger.error('content-render could not start', { eventId, postId, err })
+        const ctx = { studioId, branchIds: [], role: 'system', actor: { type: 'system', id: 'content_editor' } } as unknown as TenantContext
+        await failContentEdit({ repo: new FirestoreContentRepository(db()), clock: systemClock }, ctx, postId, {
+          requestId: String(data.correlationId ?? ''),
+          stage: 'unknown',
+          message: 'Kurgu başlatılamadı. Biraz sonra tekrar deneyin.',
+        }).catch((e: unknown) => logger.error('content-render failure not recorded', { postId, e }))
+      }
+    }
 
     // ── v1.25 — the SECOND consumer: notifications. It runs downstream of the event and can never
     // fail it: a booking that fails because an e-mail bounced is an outage nobody signed up for.

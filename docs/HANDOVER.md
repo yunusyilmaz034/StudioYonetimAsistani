@@ -55,7 +55,27 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
   birebir (101 = 79 + 20 + 2). Owner deneyip yazacak.
 - **Yerelde, push edilmedi:** yalnızca günlük commit'leri (kod değil).
 
-### ⏭️ 4 Kasım — IG-2b KOD BİTTİ (yükle → AI kontrol → onay → Instagram'da yayın) — DEPLOY onayı bekliyor — BURADAN DEVAM
+### ⏭️ 4 Kasım — IG-2c KOD BİTTİ (AI kurgu + altyazı) — DEPLOY onayı bekliyor — BURADAN DEVAM
+
+- **Çekirdek** `content/domain/edit.ts` (README IG-2c; 27 kural testi + 3 golden): ham klip (slot; 8 klip, ≤500 MB/klip,
+  toplam 1 GB), kurgu isteği (yayın onayını hemen düşürür), sonuç YALNIZ kendi isteğine (`requestId`) kabul edilir,
+  30 dk sessiz kurgu yeniden istenebilir. `normalizeEditPlan` AI önerisini güvenli hâle getirir (3–90 sn, kütüphanede
+  açık olmayan müzik düşer, konuşma çıkış zaman çizgisine taşınır). Yeni olaylar owner onaylı: raw_clip_added ·
+  edit_requested · edit_failed; başarı = mevcut media_attached.
+- **Sunucu:** Cloud Run job `content-render` (`apps/functions/src/render/*`, imaj `apps/functions/render-image/`):
+  whisper.cpp medium-q5 (Türkçe) + ffmpeg + Claude (yalnız küçük kareler + yazı). `onEventCreated` edit_requested'da
+  işi başlatır (başlatamazsa kartı "Kurgu başlatılamadı" ile düşürür). Fonksiyon SA zaten Editor → IAM değişikliği yok.
+  **Öz-test Cloud Build'de geçti:** 1080×1920 kesim + altyazı + müzik kısma 1,9 sn; Whisper 11 sn konuşmayı 8 CPU'da 14 sn'de
+  yazdı. Altyazının görsel görünümü gözle henüz bakılmadı — ilk gerçek kurguda bakılacak.
+- **Web:** `actions/content-edit.ts`, `content/edit-panel.tsx` (klipler, kurgulanıyor [15 sn'de bir yeniler], özet,
+  düzenle), `content/music-library.tsx` (sahip; `settings/content.music`, MP3 yükle, aç/kapa). Kapak → Reels `thumb_offset`.
+- **Storage:** `content/{postId}/raw/` (video ≤500 MB) ve `music/` (sahip, MP3 ≤20 MB). Saklama: yayından 90 gün sonra
+  gönderinin tüm klasörü (ham klipler dahil) silinir.
+- **Deploy:** storage rules → functions `onEventCreated,contentPublisher,contentMediaRetention` → `content-render` job
+  (RUNBOOK "content-render") → push.
+- **Müzik:** kütüphane boş başlar (kurgu müziksiz çıkar). İlk 10 Pixabay parçası listesi owner onayından sonra indirilecek.
+
+### 4 Kasım — IG-2b CANLI (yükle → AI kontrol → onay → Instagram'da yayın; panel build-2026-11-04-003)
 
 - **Çekirdek** `content/domain/publish.ts` (README IG-2b; 40+ kural testi, 5 golden). Yeni durumlar scheduled/publishing/
   published/failed. Yükleyen herkes, onaylayan sahip; KVKK kutusu şart; Instagram dosya sınırları yüklemede reddedilir.

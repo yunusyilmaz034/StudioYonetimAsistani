@@ -81,7 +81,7 @@ async function publishOne(studioId: string, igUserId: string, token: string, pos
     const [exists] = await file.exists()
     if (!exists) throw new Stage('media_url', null, 'Dosya bulunamadı; yeniden yükleyin.')
     const url = await openForMeta(file)
-    const container = await graph(`${igUserId}/media`, token, { method: 'POST', params: containerParams({ format: p.format, kind: p.media.kind, url, caption: publishCaption(p) }) }, 'container')
+    const container = await graph(`${igUserId}/media`, token, { method: 'POST', params: containerParams({ format: p.format, kind: p.media.kind, url, caption: publishCaption(p), coverAtMs: p.media.coverAtMs ?? null }) }, 'container')
     const creationId = String(container.id ?? '')
     for (;;) {
       const st = await graph(`${creationId}?fields=status_code,status`, token, undefined, 'processing')
@@ -143,15 +143,17 @@ export async function runContentPublisher(now: number): Promise<void> {
   }
 }
 
-/** Daily: files of posts published more than 90 days ago are deleted (owner). Instagram keeps the post. */
+/** Daily: files (and raw clips) of posts published more than 90 days ago are deleted (owner). Instagram keeps the post. */
 export async function runContentRetention(now: number): Promise<void> {
   for (const studioId of await allStudioIds(db())) {
     const sid = String(studioId)
     const posts = await deps().repo.listByStatus(systemCtx(sid), 'published')
     for (const p of posts) {
       const at = p.publish?.publishedAt as number | undefined
-      if (!p.media || at == null || now - at < MEDIA_RETENTION_DAYS * 86_400_000) continue
-      await getStorage().bucket().file(p.media.storagePath).delete({ ignoreNotFound: true })
+      if (at == null || now - at < MEDIA_RETENTION_DAYS * 86_400_000) continue
+      // IG-2c: the post's whole folder — the published file AND the raw clips it was cut from.
+      const [files] = await getStorage().bucket().getFiles({ prefix: `studios/${sid}/content/${p.id}/` })
+      for (const f of files) await f.delete({ ignoreNotFound: true })
     }
   }
 }

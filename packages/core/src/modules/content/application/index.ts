@@ -18,7 +18,9 @@ import {
   decideStartPublishing,
   decideWithdrawPublish,
 } from '../domain/publish'
-import type { ContentPostPublishFailedPayload } from '../events'
+import type { ContentPostEditFailedPayload, ContentPostPublishFailedPayload } from '../events'
+import { decideAddRawClip, decideEditFailed, decideEditRendered, decideRequestEdit } from '../domain/edit'
+import type { ContentEditOverrides } from '../domain/types'
 import type { ContentDeps } from './ports'
 
 function decideCtx(deps: ContentDeps, ctx: TenantContext): ContentDecideContext {
@@ -106,3 +108,20 @@ export const markContentPublishFailed = (
   id: string,
   failure: { stage: ContentPostPublishFailedPayload['stage']; metaCode: string | null; message: string },
 ) => tx(deps, ctx, id, (d, p) => decidePublishFailed(d, p, failure))
+
+// ── IG-2c: the AI edit ────────────────────────────────────────────────────────────────────────────
+export const addContentRawClip = (deps: ContentDeps, ctx: TenantContext, id: string, clip: Parameters<typeof decideAddRawClip>[2]) =>
+  tx(deps, ctx, id, (d, p) => decideAddRawClip(d, p, clip))
+
+export const requestContentEdit = (deps: ContentDeps, ctx: TenantContext, id: string, overrides: ContentEditOverrides | null) =>
+  tx(deps, ctx, id, (d, p) => decideRequestEdit(d, p, overrides))
+
+export const completeContentEdit = (deps: ContentDeps, ctx: TenantContext, id: string, input: Parameters<typeof decideEditRendered>[2]) =>
+  tx(deps, ctx, id, (d, p) => decideEditRendered(d, p, input))
+
+export const failContentEdit = (
+  deps: ContentDeps,
+  ctx: TenantContext,
+  id: string,
+  input: { requestId: string; stage: ContentPostEditFailedPayload['stage']; message: string },
+) => tx(deps, ctx, id, (d, p) => decideEditFailed(d, p, input))
