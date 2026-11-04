@@ -300,8 +300,12 @@ async function aiNotReplying(db: Firestore, studioId: StudioId, now: number): Pr
 
   const convs = await col(db, studioId, 'conversations').limit(500).get()
   const waiting = convs.docs.filter((d) => {
-    const data = d.data() as { status?: string; messages?: { role?: string; at?: number }[] }
+    const data = d.data() as { status?: string; messages?: { role?: string; at?: number }[]; draft?: { text?: string } | null }
     if (data.status !== 'ai') return false
+    // IG-1 taslak modu (2026-11-04, yanlış alarm): AI cevabı HAZIRLADI, bir insanın "Gönder"ine bekliyor.
+    // Bu asistanın arızası değil, masanın işi — ve o iş Sohbetler'de "taslak hazır" diye zaten duruyor.
+    // Bu yüzden 3 Kasım akşamından beri her 15 dakikada bir "WhatsApp asistanı cevap vermiyor" çalıyordu.
+    if (data.draft?.text) return false
     const last = data.messages?.[data.messages.length - 1]
     // Her message, unanswered, and old enough that a working assistant would have replied. The
     // webhook answers within seconds; ten minutes is not slowness, it is failure.
