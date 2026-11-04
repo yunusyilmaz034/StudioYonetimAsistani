@@ -5,7 +5,7 @@ import { HistoryIcon, Loader2Icon } from 'lucide-react'
 
 import { listOlderConversationsAction, type Inbox, type InboxItem } from '@/server/actions/conversations'
 
-// REKLAM DÖNEMİ AYRAÇLARI (owner, 2026-09-15) — Sohbetler ekranı ve WP Hattı aynı bölümleri çizer.
+// REKLAM DÖNEMİ AYRAÇLARI (owner, 2026-09-15) — Sohbetler ekranı ve Mesaj Hattı aynı bölümleri çizer.
 // Bkz. `listInboxAction`.
 
 /** "15 Eylül reklamı" → "15 Eylül reklamından gelenler". Başka bir adda sade bir kalıp. */

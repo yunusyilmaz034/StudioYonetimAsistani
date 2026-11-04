@@ -1789,7 +1789,7 @@ olsun, eski konuşmaları getirmesine gerek yok, en altta eski konuşmaları get
 - The **owner** starts a period from Satış Hunisi (label + start day). Reception does not see the button.
 - The funnel shows only the current period's leads. Older leads are **not touched and not marked lost**; they
   load on demand ("Eski adayları getir") and can still be advanced from there.
-- The WhatsApp list (Sohbetler and WP Hattı) has three groups: first contact in this period ("… reklamından
+- The WhatsApp list (Sohbetler and Mesaj Hattı, formerly "WP Hattı") has three groups: first contact in this period ("… reklamından
   gelenler"), **known contacts who wrote in this period** (never hidden — the line is also the members' line),
   and older conversations on demand.
 - First period: "15 Eylül reklamı", from 2026-09-15 00:00 TRT.

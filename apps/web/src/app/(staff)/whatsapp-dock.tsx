@@ -24,7 +24,7 @@ import { isStaleDeployment, STALE_DEPLOYMENT_MESSAGE } from '@/lib/stale-deploym
 import { InboxSectionList, OlderConversationsButton, inboxSections, useOlderConversations } from '@/components/inbox-sections'
 const POLL_MS = 4000
 
-// "WP Hattı" — the floating operator dock. It lives in the staff layout, so it SURVIVES page navigation
+// "Mesaj Hattı" (was "WP Hattı"; renamed 2026-11-04, owner — it carries Instagram too) — the floating operator dock. It lives in the staff layout, so it SURVIVES page navigation
 // (never closes/freezes) and stays a small panel in the bottom-right: reception keeps working on the
 // left while chatting on the right. It polls the conversations every few seconds; when the AI hands one
 // off (needsAttention), a toast fires on whatever screen is open and the dock pops to that
@@ -227,10 +227,10 @@ export function WhatsAppDock() {
         type="button"
         onClick={() => setOpen(true)}
         className="fixed right-4 bottom-[136px] z-50 flex h-12 items-center gap-2 rounded-full border border-border bg-emerald-600 px-4 text-sm font-semibold text-white shadow-lg transition-transform hover:scale-105 md:bottom-[72px]"
-        title="WhatsApp hattı"
+        title="Mesaj hattı — WhatsApp ve Instagram"
       >
         <MessageCircleIcon className="size-5" />
-        WP Hattı
+        Mesaj Hattı
         {attention.length > 0 ? (
           <span className="grid size-5 place-items-center rounded-full bg-white text-xs font-bold text-emerald-700">{attention.length}</span>
         ) : null}
@@ -249,7 +249,7 @@ export function WhatsAppDock() {
           ) : (
             <MessageCircleIcon className="size-4" />
           )}
-          <span className="text-sm font-semibold">{selected ? detail?.name || 'Sohbet' : 'WP Hattı'}</span>
+          <span className="text-sm font-semibold">{selected ? detail?.name || 'Sohbet' : 'Mesaj Hattı'}</span>
         </div>
         <button type="button" onClick={() => setOpen(false)} className="rounded p-0.5 hover:bg-white/20" title="Kapat">
           <XIcon className="size-4" />

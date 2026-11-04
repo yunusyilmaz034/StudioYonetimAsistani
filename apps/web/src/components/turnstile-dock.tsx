@@ -23,7 +23,7 @@ import { listTurnstilesAction, openTurnstileAction } from '@/server/actions/turn
 // tahmin "açılmadı" demektir.
 //
 // SABİT KONUM, akış içinde değil: sayfalar kendi başlığını çiziyor, ortak bir üst bar yok. Ekrana
-// sabitlenmiş bir kontrol, "Bildir" ve "WP Hattı" ile aynı desen.
+// sabitlenmiş bir kontrol, "Bildir" ve "Mesaj Hattı" ile aynı desen.
 
 type Cihaz = Awaited<ReturnType<typeof listTurnstilesAction>>[number]
 
