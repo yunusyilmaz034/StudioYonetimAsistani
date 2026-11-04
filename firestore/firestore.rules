@@ -145,7 +145,10 @@ service cloud.firestore {
           // Written by the nightly sync, read by the owner's screen through a Server Action.
           'adsInsights',
           // IG-5a (2026-11-04) — paid campaigns: budgets, approvals, Meta ids. Owner-only, through Server Actions.
-          'adCampaigns'
+          'adCampaigns',
+          // IG-3 (2026-11-04) — Instagram comments: a third party's words and username + our drafts.
+          // Written by the poll, read and answered through Server Actions only.
+          'igComments'
         ];
       }
 

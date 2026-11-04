@@ -55,6 +55,21 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
   birebir (101 = 79 + 20 + 2). Owner deneyip yazacak.
 - **Yerelde, push edilmedi:** yalnızca günlük commit'leri (kod değil).
 
+### ⏭️ 4 Kasım — IG-3 KOD BİTTİ (Instagram yorum takibi) — DEPLOY onayı bekliyor — BURADAN DEVAM
+
+- **Çekirdek** yeni modül `modules/comments` (README; 21 kural testi + 4 golden). `igComments/{IG yorum id}` sunucu-only
+  (firestore.rules listesine eklendi). AI asla göndermez; şikâyet + gizleme yalnız sahip; resepsiyon soru/övgü; eğitmen
+  cevap yazamaz. `containsPrice` açık yorumda fiyatı reddeder (Meta'ya gitmeden). Çift basışa kilit yok (onaylı olay setinde
+  yok) — UI düğmeyi kilitler; README'de kabul edilen risk olarak yazılı.
+- **Functions** `igCommentsSync` (*/10): kendi kullanıcı adı atlanır, yeni yorumlar AI'a (yalnız metin + gönderi açıklaması,
+  kullanıcı adı GİTMEZ) → `createIfAbsent`. Şikâyet → `ig_comment_complaint` e-postası (metinsiz). Yeni şablon.
+- **Web** İçerik → "Plan | Yorumlar" sekmesi (`content-tabs.tsx`, `comments-panel.tsx`, `actions/ig-comments.ts`; cevap
+  `POST /{id}/replies`, gizle `POST /{id}?hide=true`). Pano: `ig-comment-advisor.ts` (şikâyet acil, bizden bekleyenlerin
+  ardında; diğerleri lead'lerin ardında, grup satırı).
+- **Prova (salt okuma):** 45 yorum; 1'i bizim; ilk çalıştırmada **2'si açık iş**, 42'si kapalı gelir. Cevap/gizle API'si
+  ilk gerçek cevapta denenecek (owner'ın kendi yorumuna cevapla).
+- **Deploy:** firestore rules → functions `igCommentsSync` → push (panel).
+
 ### ⏭️ 4 Kasım — IG-2c CANLI (AI kurgu + altyazı) — ilk gerçek kurgu bekleniyor — BURADAN DEVAM
 
 - **Çekirdek** `content/domain/edit.ts` (README IG-2c; 27 kural testi + 3 golden): ham klip (slot; 8 klip, ≤500 MB/klip,

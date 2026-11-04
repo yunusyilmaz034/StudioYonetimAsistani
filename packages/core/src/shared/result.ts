@@ -341,6 +341,13 @@ export type DomainError =
   | { readonly code: 'content_approve_forbidden' }
   // A removed post is history; it is not edited or approved back to life.
   | { readonly code: 'content_not_editable' }
+  // IG-3 (2026-11-04) — Instagram comment replies. Which rule broke: empty/too long, or a PRICE in a public
+  // reply (prices go to DM — OR-129, one price, said privately).
+  | { readonly code: 'comment_invalid'; readonly field: 'text' | 'price' }
+  // Complaints and hiding are the owner's; a trainer does not answer in the studio's name.
+  | { readonly code: 'comment_forbidden' }
+  // Already replied, hidden, dismissed or closed.
+  | { readonly code: 'comment_not_open' }
   // IG-5a (2026-11-04) — paid ad campaigns. Which field broke which rule, so the screen can say what to fix.
   | {
       readonly code: 'ad_invalid'

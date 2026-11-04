@@ -342,6 +342,18 @@ export const TEMPLATES: Readonly<Record<string, NotificationTemplate>> = {
     subject: 'Acil: reklam harcaması onaylanan tutarı aştı',
     body: '⚠️ ONAYLANAN TUTAR AŞILDI\n{{lines}}\n\nReklam Yöneticisi\'nden kampanyayı durdurabilir ya da panelde Para → Reklamlar ekranından bakabilirsiniz.',
   },
+  // IG-3 (owner, 2026-11-04) — a complaint arrived under one of the studio's Instagram posts. The e-mail
+  // carries NO comment text and NO username: it only sends her to the panel.
+  ig_comment_complaint: {
+    id: 'ig_comment_complaint',
+    version: 1,
+    name: 'Instagram\'da olumsuz yorum (sahip)',
+    category: 'operational',
+    priority: 'urgent',
+    requiredParams: ['summary'],
+    subject: 'Instagram\'da olumsuz yorum',
+    body: '{{summary}}\n\nAI cevap taslağı hazır; panelden bakıp gönderebilirsin.\nPanel → İçerik → Yorumlar',
+  },
   system_heartbeat: {
     id: 'system_heartbeat',
     version: 1,

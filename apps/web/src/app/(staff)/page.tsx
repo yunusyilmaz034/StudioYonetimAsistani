@@ -7,6 +7,7 @@ import { deriveAdvisorItems } from '@/server/advisor-query'
 import { doorRefusalAdvisorItems } from '@/server/door-refusal-checklist'
 import { hotLeadAdvisorItems } from '@/server/lead-checklist'
 import { awaitingUsAdvisorItems } from '@/server/awaiting-us'
+import { igCommentAdvisorItems } from '@/server/ig-comment-advisor'
 import { leaveAdvisorItems } from '@/server/leave-checklist'
 import { weekPlanAdvisorItems } from '@/server/week-plan-checklist'
 import { loadOwnerDashboard } from '@/server/owner-dashboard'
@@ -48,7 +49,7 @@ async function ekListe(
 export default async function HomePage() {
   const ctx = await requirePageAccess('/')
   const now = Date.now()
-  const [data, todayOps, hotLeads, doorRefusals, leaves, onlinePayments, weekPlans, snoozed, sonNotlar, bekleyenler, davetler] = await Promise.all([
+  const [data, todayOps, hotLeads, doorRefusals, leaves, onlinePayments, weekPlans, snoozed, sonNotlar, bekleyenler, davetler, yorumlar] = await Promise.all([
     loadOwnerDashboard(ctx, now),
     loadTodayOps(ctx, now),
     ekListe('WhatsApp lead’leri', () => hotLeadAdvisorItems(ctx)),
@@ -61,8 +62,9 @@ export default async function HomePage() {
     loadRecentNotes(ctx.studioId as string, now),
     ekListe('Bizden bekleyenler', () => awaitingUsAdvisorItems(ctx)),
     ekListe('Gitmeyen davetler', () => inviteAdvisorItems(ctx)),
+    ekListe('Instagram yorumları', () => igCommentAdvisorItems(ctx)),
   ])
-  const eksik = [hotLeads, doorRefusals, leaves, onlinePayments, weekPlans, bekleyenler, davetler].map((x) => x.hata).filter((x): x is string => x !== null)
+  const eksik = [hotLeads, doorRefusals, leaves, onlinePayments, weekPlans, bekleyenler, davetler, yorumlar].map((x) => x.hata).filter((x): x is string => x !== null)
   // Card money FIRST — it is the one thing on this list that has already happened, and until it is
   // somewhere he looks, "did that payment arrive?" is a question only the provider's panel answers.
   // Then hot WhatsApp leads (act now), then the dashboard-derived advisor items.
@@ -74,7 +76,8 @@ export default async function HomePage() {
   // verilmiş bir sözü tutmak ise borç. Kapıda kalan üyeden sonra gelir — o bugün gelip gitti.
   // Gitmeyen davet (owner, 2026-10-27): parasını ödemiş yeni üye uygulamaya giremiyor — online ödemenin hemen
   // ardında, çünkü çoğu zaman AYNI üyedir ve aynı gün halledilir.
-  const allItems = [...doorRefusals.items, ...bekleyenler.items, ...leaves.items, ...weekPlans.items, ...onlinePayments.items, ...davetler.items, ...hotLeads.items, ...deriveAdvisorItems(data)]
+  // IG-3: olumsuz Instagram yorumu herkesin gördüğü bir yerde duruyor — bizden bekleyenlerin hemen ardında.
+  const allItems = [...doorRefusals.items, ...bekleyenler.items, ...yorumlar.items.filter((i) => i.kind === 'ig_complaint'), ...leaves.items, ...weekPlans.items, ...onlinePayments.items, ...davetler.items, ...hotLeads.items, ...yorumlar.items.filter((i) => i.kind === 'ig_comment'), ...deriveAdvisorItems(data)]
   // A line already ticked off stays off for its cooldown — reception called that member, and a call is
   // not work again tomorrow (owner, 2026-09-03). Filtered HERE, before the AI narrator sees the list,
   // so the briefing at the top counts the same work the rows below show.

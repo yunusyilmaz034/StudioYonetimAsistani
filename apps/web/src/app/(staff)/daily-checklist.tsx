@@ -56,6 +56,8 @@ const GROUP_TITLE: Record<string, (n: number) => string> = {
   dormant_member: (n) => `${n} üye uzaklaşıyor · bir arayın`,
   hot_lead: (n) => `${n} WhatsApp lead'i · dönüş yapın`,
   awaiting_us: (n) => `${n} kişi bizden dönüş bekliyor · söz verildi`,
+  ig_complaint: (n) => `${n} olumsuz Instagram yorumu · cevap bekliyor`,
+  ig_comment: (n) => `${n} Instagram yorumu cevap bekliyor`,
   online_payment: (n) => `${n} sanal POS tahsilatı · bugün karttan geldi`,
 }
 const groupTitle = (kind: string, n: number) => (GROUP_TITLE[kind] ?? ((x: number) => `${x} iş`))(n)

@@ -66,6 +66,9 @@ export const CHECKLIST_COOLDOWN_DAYS: Readonly<Record<string, number>> = {
   // sözü hâlâ bizde kalır ve satır kendiliğinden kapanmaz. Bir gün susar, ertesi gün hâlâ
   // duruyorsa yeniden sorar — verilmiş bir söz bir haftalık sessizliği kaldırmaz.
   awaiting_us: 1,
+  // IG-3: a comment line goes away by itself once answered; a tick only quiets it for the day.
+  ig_complaint: 1,
+  ig_comment: 1,
   // ÜÇ gün, yedi değil — arkada bir SON TARİH var. Paket dolmadan önceki son hatırlatma meşrudur;
   // bir haftalık soğuma onu yutardı, ve yanan hak geri gelmiyor.
   expiring_with_credits: 3,

@@ -71,6 +71,8 @@ export type AggregateKind =
   | 'contentPost'
   // IG-5a (2026-11-04) — one paid ad campaign (draft → approved → live). Additive.
   | 'adCampaign'
+  // IG-3 (2026-11-04) — one Instagram comment on the studio's post. Additive.
+  | 'igComment'
 
 export interface PolicyRef {
   readonly policyId: PolicyId

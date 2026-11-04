@@ -443,6 +443,14 @@ export function domainErrorMessage(error: DomainError): string {
           'Dosya bu gönderi türüne uymuyor. Reels: dikey video, 3 sn–15 dk, en fazla 300 MB. Hikâye: video en fazla 60 sn / 100 MB ya da fotoğraf. Fotoğraf: JPG, en-boy 4:5 ile 1.91:1 arası.',
         consent: 'Görüntüdeki üyelerin izni alındı kutusu işaretlenmeden yayın onaylanamaz.',
       }[error.field]
+    case 'comment_invalid':
+      return error.field === 'price'
+        ? 'Açık yorumda fiyat yazılmaz. Fiyatı DM ya da WhatsApp’tan iletin.'
+        : 'Cevap boş olamaz ve en fazla 2.200 karakter olabilir.'
+    case 'comment_forbidden':
+      return 'Şikâyet cevabını ve yorum gizlemeyi yalnızca stüdyo sahibi yapabilir; eğitmenler stüdyo adına cevap yazmaz.'
+    case 'comment_not_open':
+      return 'Bu yorum zaten cevaplanmış, geçilmiş ya da gizlenmiş.'
     case 'content_approve_forbidden':
       return 'Gönderiyi yalnızca stüdyo sahibi onaylayabilir.'
     case 'content_not_editable':

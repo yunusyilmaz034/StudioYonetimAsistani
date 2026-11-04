@@ -203,7 +203,11 @@ onaylı zamanlanmış paylaşım. Instagram müzik kütüphanesi API'den eklenem
 Yüzü görünen üye yalnızca izinliyse (KVKK izin kaydı).
 
 ### IG-3 · Yorum takibi + topluluk
-Yorum cevap taslağı, olumsuz yorumda masaya uyarı (AI tek başına cevaplamaz), bölgesel iş birliği önerileri.
+**IG-3 · KOD BİTTİ (2026-11-04)** — 10 dk'da bir son 25 gönderinin yorumları (webhook değil: uygulama yayında değil) →
+AI ayırır (soru/övgü/şikâyet/spam) + taslak → **insan gönderir** (soru/övgü: sahip+resepsiyon; şikâyet ve gizleme: sahip).
+Açık yorumda fiyat reddedilir. Şikâyet panoya kırmızı + sahibe e-posta (metinsiz). İlk açılışta 7 günden eski yorumlar
+kapalı gelir. Olaylar owner onaylı: ig_comment.received · replied · hidden · dismissed.
+**IG-3b (sonra)** — bölgesel iş birliği önerileri.
 
 ### IG-4 · "Ne işe yaradı" raporu (+ reklam OKUMA)
 **IG-4a · ✅ CANLI (2026-11-04)** — reklam ölçümü: webhook referral → gece insights → Para → Reklamlar (owner, salt okuma). 90 gün atıf penceresi (owner).

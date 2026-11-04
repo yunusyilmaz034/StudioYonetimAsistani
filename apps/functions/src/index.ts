@@ -21,6 +21,7 @@ import { runExpirySweep } from './scheduled/expire-credits'
 import { runInfrastructureWatch } from './scheduled/infrastructure-alarm'
 import { runAdsSync } from './scheduled/ads-sync'
 import { runContentPublisher, runContentRetention } from './scheduled/content-publisher'
+import { runIgComments } from './scheduled/ig-comments'
 import { runInvoiceDeadlineSweep } from './scheduled/invoice-deadline'
 import { runFastHealthChecks, runNightlyHealthChecks } from './scheduled/health'
 import { runMinInstancesGuard } from './scheduled/min-instances-guard'
@@ -213,6 +214,14 @@ export const contentPublisher = onSchedule(
 export const contentMediaRetention = onSchedule({ schedule: '15 4 * * *', timeZone: 'Europe/Istanbul' }, async () => {
   await runContentRetention(Date.now())
 })
+
+// IG-3 — new Instagram comments → AI sorts and drafts → the panel (a person replies). Complaint → owner e-mail.
+export const igCommentsSync = onSchedule(
+  { schedule: '*/10 * * * *', timeZone: 'Europe/Istanbul', secrets: ['INSTAGRAM_ACCESS_TOKEN', 'ANTHROPIC_API_KEY', ...NOTIFICATION_SECRETS], timeoutSeconds: 300 },
+  async () => {
+    await runIgComments(Date.now())
+  },
+)
 
 export const adsInsightsSync = onSchedule(
   { schedule: '30 3 * * *', timeZone: 'Europe/Istanbul', secrets: [...ADS_SECRETS, ...NOTIFICATION_SECRETS, 'ANTHROPIC_API_KEY'] },
