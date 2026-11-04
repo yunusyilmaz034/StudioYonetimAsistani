@@ -38,14 +38,38 @@ export {
 export * from './events'
 // Fatura takibi (owner, 2026-11-03) — a tick per payment, kept beside the ledger, never in it.
 export {
+  decideEArchiveFailed,
+  decideEArchiveIssued,
   decideIssueInvoice,
+  decideRequestEArchive,
   decideRevertInvoice,
+  E_ARCHIVE_STALE_MS,
   invoicesDue,
   INVOICE_WINDOW_DAYS,
+  type EArchiveRequest,
   type InvoiceDue,
   type InvoiceMark,
 } from './domain/invoice'
-export { markInvoiceIssued, revertInvoice, type InvoiceDeps, type InvoiceRepository } from './application/invoice'
+// FT-2 (OR-132) — which document a payment gets is data.
+export {
+  DEFAULT_INVOICE_POLICY,
+  documentRuleFor,
+  DocumentRules,
+  netUnitPrice,
+  parseInvoicePolicy,
+  serviceLineFor,
+  type DocumentRule,
+  type InvoicePolicy,
+} from './domain/invoice-policy'
+export {
+  completeEArchive,
+  failEArchive,
+  markInvoiceIssued,
+  requestEArchive,
+  revertInvoice,
+  type InvoiceDeps,
+  type InvoiceRepository,
+} from './application/invoice'
 export { FirestoreInvoiceRepository } from './infrastructure/invoice-repo'
 export {
   couponDiscount,

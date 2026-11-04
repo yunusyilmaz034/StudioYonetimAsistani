@@ -4,6 +4,7 @@ import * as logger from 'firebase-functions/logger'
 
 import {
   CONTENT_POST_EDIT_REQUESTED,
+  INVOICE_E_ARCHIVE_REQUESTED,
   DEFAULT_STUDIO_CONFIG,
   failContentEdit,
   FirestoreContentRepository,
@@ -21,7 +22,8 @@ import {
 
 import { systemTenantContext } from '../shared/context'
 import { db } from '../shared/firebase'
-import { NOTIFICATION_SECRETS, REGION } from '../shared/region'
+import { NOTIFICATION_SECRETS, PARASUT_SECRETS, REGION } from '../shared/region'
+import { processEArchive } from '../parasut/issue'
 import { notifyForEvent, toEventLike } from './on-event-notify'
 import { startContentRender } from './start-content-render'
 
@@ -49,7 +51,7 @@ export const onEventCreated = onDocumentCreated(
     region: REGION,
     document: 'studios/{studioId}/events/{eventId}',
     // Without this the e-mail provider silently degrades to the console (see `region.ts`).
-    secrets: [...NOTIFICATION_SECRETS],
+    secrets: [...NOTIFICATION_SECRETS, ...PARASUT_SECRETS],
   },
   async (event) => {
     const data = event.data?.data()
@@ -80,6 +82,13 @@ export const onEventCreated = onDocumentCreated(
           message: 'Kurgu başlatılamadı. Biraz sonra tekrar deneyin.',
         }).catch((e: unknown) => logger.error('content-render failure not recorded', { postId, e }))
       }
+    }
+
+    // ── FT-2 — a human pressed "e-Arşiv kes": try at once. Whatever is left (a running GİB job, a
+    // network blip) the 5-minute `eArchiveSync` finishes. Never fails the event.
+    if (data.type === INVOICE_E_ARCHIVE_REQUESTED) {
+      const paymentId = String((data.subject as { id?: string } | undefined)?.id ?? '')
+      await processEArchive(db(), studioId, paymentId, Date.now()).catch((err: unknown) => logger.error('e-archive: first attempt failed', { eventId, paymentId, err }))
     }
 
     // ── v1.25 — the SECOND consumer: notifications. It runs downstream of the event and can never

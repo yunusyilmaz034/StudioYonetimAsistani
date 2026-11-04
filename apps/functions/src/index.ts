@@ -23,6 +23,8 @@ import { runAdsSync } from './scheduled/ads-sync'
 import { runContentPublisher, runContentRetention } from './scheduled/content-publisher'
 import { runIgComments } from './scheduled/ig-comments'
 import { runInvoiceDeadlineSweep } from './scheduled/invoice-deadline'
+import { runEArchiveSync } from './scheduled/e-archive-sync'
+import { PARASUT_SECRETS } from './shared/region'
 import { runFastHealthChecks, runNightlyHealthChecks } from './scheduled/health'
 import { runMinInstancesGuard } from './scheduled/min-instances-guard'
 import { runNotificationRetrySweep } from './scheduled/notification-retry'
@@ -198,6 +200,16 @@ export const invoiceDeadline = onSchedule(
     await runInvoiceDeadlineSweep(Date.now())
   },
 )
+
+// FT-2 (owner, 2026-11-04 · OR-132) — e-Arşiv requests a human made that are still in flight, finished
+// against Paraşüt; plus the daily token refresh. Never starts a request.
+export const eArchiveSync = onSchedule(
+  { schedule: '*/5 * * * *', timeZone: 'Europe/Istanbul', secrets: [...PARASUT_SECRETS], timeoutSeconds: 300 },
+  async () => {
+    await runEArchiveSync(Date.now())
+  },
+)
+export { parasutOAuth } from './http/parasut-oauth'
 
 // IG-4a (2026-11-03) — the ad account's last 90 days, read-only, into one summary document the owner's
 // Reklamlar screen reads. 03:30: after the 03:00 sweep, and Meta's own day has closed (Istanbul time).

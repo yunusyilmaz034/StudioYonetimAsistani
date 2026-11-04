@@ -81,3 +81,11 @@ export const INSTAGRAM_RECEPTIONIST_SECRETS = [...AI_RECEPTIONIST_SECRETS, ...IN
 // used ONLY by the nightly read-only insights pull. Kept apart from INSTAGRAM_ACCESS_TOKEN so the DM
 // pipeline never depends on ad permissions, and vice versa.
 export const ADS_SECRETS = ['META_ADS_ACCESS_TOKEN'] as const
+
+// ── PARAŞÜT (FT-2, 2026-11-04) ──────────────────────────────────────────────────────────────────
+//
+// PARASUT_CLIENT_ID / PARASUT_CLIENT_SECRET come with Paraşüt's API approval and the OWNER puts them
+// in Secret Manager. Binding a secret that does not exist fails every functions deploy (the WhatsApp
+// lesson above), so this list stays EMPTY until both exist; the code reads `process.env` and reports
+// `not_connected` without them. The day they are provisioned: put both names here and deploy.
+export const PARASUT_SECRETS = [] as const

@@ -126,6 +126,11 @@ service cloud.firestore {
           'staffBreaks', 'staffTimesheets',
           // v1.27 — internal counters (public-form rate limits, hashed IPs). Server-only; no client read.
           'rateLimits',
+          // 2026-11-05 — FT-2 (OR-132). The invoice marks now hold the e-Arşiv number and Paraşüt's own
+          // refusal sentence (which can quote the buyer's name back); the screen has always read them
+          // through a Server Action behind the owner's PIN, so closing the client path costs nothing.
+          // `eArchiveJobs` is the integration's bookkeeping (Paraşüt ids, the worker's lease).
+          'invoiceMarks', 'eArchiveJobs',
           // 2026-07-30 — import batches. Each one lists the members and packages one file created,
           // which is both an operational record and the map a reversal follows. Owner-only through a
           // Server Action; a client that could read it could enumerate the roster by id, and a client

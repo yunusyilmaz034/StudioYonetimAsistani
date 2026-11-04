@@ -1,0 +1,8 @@
+{
+  "requestId": "0b8f4a1e-3c55-4c1e-9a62-2f8d7c9e5a10",
+  "amount": { "amount": 420000, "currency": "TRY" },
+  "invoicedAmount": { "amount": 420000, "currency": "TRY" },
+  "method": "cash",
+  "receivedAt": 1699990000000,
+  "attempt": 1
+}

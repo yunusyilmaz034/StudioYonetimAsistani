@@ -346,6 +346,11 @@ export type DomainError =
   | { readonly code: 'comment_invalid'; readonly field: 'text' | 'price' }
   // Complaints and hiding are the owner's; a trainer does not answer in the studio's name.
   | { readonly code: 'comment_forbidden' }
+  // ── FT-2 · e-Arşiv (OR-132) ──
+  // A request is already with Paraşüt: neither a second press nor a hand tick until it settles.
+  | { readonly code: 'invoice_in_progress' }
+  // The accountant's VAT rate or the Paraşüt connection is missing — the system never guesses a tax.
+  | { readonly code: 'invoice_not_configured' }
   // Already replied, hidden, dismissed or closed.
   | { readonly code: 'comment_not_open' }
   // IG-5a (2026-11-04) — paid ad campaigns. Which field broke which rule, so the screen can say what to fix.

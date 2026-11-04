@@ -1,6 +1,16 @@
 import { err, money, ok, type ActorRef, type DomainError, type Instant, type MemberId, type Money, type NewEvent, type PaymentId, type Result, type StudioId } from '../../../shared'
-import { INVOICE_ISSUED, INVOICE_REVERTED } from '../events'
+import {
+  INVOICE_E_ARCHIVE_FAILED,
+  INVOICE_E_ARCHIVE_REQUESTED,
+  INVOICE_ISSUED,
+  INVOICE_ISSUED_VERSION,
+  INVOICE_REVERTED,
+  type EArchiveFailureCode,
+  type InvoiceDocument,
+  type InvoiceProvider,
+} from '../events'
 import type { DecideContext, Outcome } from './decide'
+import type { InvoicePolicy } from './invoice-policy'
 import type { Payment } from './types'
 
 /**
@@ -24,12 +34,37 @@ export interface InvoiceMark {
    * it may differ from the payment. null on a reverted mark.
    */
   readonly invoicedAmount: Money | null
+  /** FT-2. Which document. `null` on a mark ticked before FT-2 ("elle işaretli") or reverted. */
+  readonly document: InvoiceDocument | null
+  /** FT-2. `parasut` when the integration cut it; `null` when a human ticked it. */
+  readonly provider: InvoiceProvider | null
+  /** FT-2. The e-Arşiv number GİB gave it, e.g. "RTA2026000000118". */
+  readonly documentNo: string | null
+  /** FT-2. The in-flight e-Arşiv request. `null` when none is in flight or after it settled. */
+  readonly eArchive: EArchiveRequest | null
 }
 
-const base = (ctx: DecideContext, payment: Payment): Omit<NewEvent, 'type' | 'payload'> => ({
+export interface EArchiveRequest {
+  readonly requestId: string
+  readonly status: 'pending' | 'failed'
+  readonly requestedAt: Instant
+  readonly requestedBy: ActorRef
+  readonly invoicedAmount: Money
+  readonly attempt: number
+  /** The provider's sentence, for the row. State only. */
+  readonly error: string | null
+}
+
+/**
+ * A request nobody has heard back from in this long may be pressed again. Safe because the retry
+ * carries the SAME `requestId`, and Paraşüt refuses a second invoice for one key.
+ */
+export const E_ARCHIVE_STALE_MS = 15 * 60_000
+
+const base = (ctx: DecideContext, payment: Payment, version = 1): Omit<NewEvent, 'type' | 'payload'> => ({
   studioId: ctx.studioId,
   branchId: payment.branchId,
-  version: 1,
+  version,
   occurredAt: ctx.now,
   actor: ctx.actor,
   source: ctx.source,
@@ -41,36 +76,64 @@ const base = (ctx: DecideContext, payment: Payment): Omit<NewEvent, 'type' | 'pa
   correlationId: ctx.correlationId,
 })
 
-/** Tick: the invoice for this payment has been cut. A voided payment has nothing to invoice. */
+const empty = (payment: Payment): InvoiceMark => ({
+  paymentId: payment.id,
+  studioId: payment.studioId,
+  memberId: payment.memberId,
+  issued: false,
+  issuedAt: null,
+  issuedBy: null,
+  note: null,
+  invoicedAmount: null,
+  document: null,
+  provider: null,
+  documentNo: null,
+  eArchive: null,
+})
+
+const inFlight = (m: InvoiceMark | null, now: number) =>
+  m?.eArchive?.status === 'pending' && now - m.eArchive.requestedAt < E_ARCHIVE_STALE_MS
+
+const validKurus = (k: number) => Number.isInteger(k) && k > 0
+
+/**
+ * Tick by hand: the desk cut the document somewhere else (an ÖKC receipt, or an e-Arşiv in the portal).
+ * A voided payment has nothing to invoice; a request in flight must settle first, or the integration
+ * and the hand would both cut one.
+ */
 export function decideIssueInvoice(
   ctx: DecideContext,
   payment: Payment,
   current: InvoiceMark | null,
   note: string | null,
   invoicedKurus: number,
+  document: InvoiceDocument,
 ): Result<Outcome<InvoiceMark>, DomainError> {
   if (payment.voided) return err({ code: 'operation_not_applicable' })
   if (current?.issued) return err({ code: 'operation_not_applicable' })
+  if (current?.eArchive?.status === 'pending') return err({ code: 'invoice_in_progress' })
   // Money is an integer of kuruş (#10); an invoice of nothing is not an invoice.
-  if (!Number.isInteger(invoicedKurus) || invoicedKurus <= 0) return err({ code: 'invalid_amount' })
+  if (!validKurus(invoicedKurus)) return err({ code: 'invalid_amount' })
   const invoicedAmount = money(invoicedKurus)
   const trimmed = note?.trim() ? note.trim() : null
   return ok({
     next: {
-      paymentId: payment.id,
-      studioId: payment.studioId,
-      memberId: payment.memberId,
+      ...(current ?? empty(payment)),
       issued: true,
       issuedAt: ctx.now,
       issuedBy: ctx.actor,
       note: trimmed,
       invoicedAmount,
+      document,
+      provider: null,
+      documentNo: null,
+      eArchive: null,
     },
     events: [
       {
-        ...base(ctx, payment),
+        ...base(ctx, payment, INVOICE_ISSUED_VERSION),
         type: INVOICE_ISSUED,
-        payload: { amount: payment.amount, invoicedAmount, method: payment.method, receivedAt: payment.receivedAt },
+        payload: { amount: payment.amount, invoicedAmount, method: payment.method, receivedAt: payment.receivedAt, document, provider: null },
       },
     ],
   })
@@ -86,8 +149,117 @@ export function decideRevertInvoice(
   if (!current?.issued) return err({ code: 'operation_not_applicable' })
   if (reason.trim() === '') return err({ code: 'reason_required' })
   return ok({
-    next: { ...current, issued: false, issuedAt: null, issuedBy: null, invoicedAmount: null },
+    next: { ...current, issued: false, issuedAt: null, issuedBy: null, invoicedAmount: null, document: null, provider: null, documentNo: null, eArchive: null },
     events: [{ ...base(ctx, payment), type: INVOICE_REVERTED, payload: { reason: reason.trim() } }],
+  })
+}
+
+// ── FT-2 · e-ARŞİV (OR-132) ─────────────────────────────────────────────────────────────────────
+//
+//   (none | failed | stale pending) ──request──▶ pending ──issued──▶ issued (e_archive, parasut)
+//                                                   └────failed──▶ failed ──request (same id)──▶ …
+//
+// Always a human's press. The worker never requests; it only reports back on a request it was given.
+
+/**
+ * A human asks for an e-Arşiv. `requestId` is generated by the caller (a UUID — the decision stays
+ * pure) and is used ONLY on the first request: every retry reuses the stored one, so whatever the
+ * first attempt got as far as creating at Paraşüt is found again instead of created twice. For the
+ * same reason the amount of a retry is the amount of the first request.
+ */
+export function decideRequestEArchive(
+  ctx: DecideContext,
+  payment: Payment,
+  current: InvoiceMark | null,
+  policy: InvoicePolicy,
+  invoicedKurus: number,
+  newRequestId: string,
+): Result<Outcome<InvoiceMark>, DomainError> {
+  if (payment.voided) return err({ code: 'operation_not_applicable' })
+  if (current?.issued) return err({ code: 'operation_not_applicable' })
+  if (inFlight(current, ctx.now)) return err({ code: 'invoice_in_progress' })
+  // Any method may get one: a card or cash customer who asks for an e-Arşiv gets it (OR-132).
+  if (policy.vatRatePercent === null || policy.parasut.companyId === null) return err({ code: 'invoice_not_configured' })
+
+  const previous = current?.eArchive ?? null
+  const kurus = previous ? previous.invoicedAmount.amount : invoicedKurus
+  if (!validKurus(kurus)) return err({ code: 'invalid_amount' })
+  const invoicedAmount = money(kurus)
+  const requestId = previous?.requestId ?? newRequestId
+  const attempt = (previous?.attempt ?? 0) + 1
+  return ok({
+    next: {
+      ...(current ?? empty(payment)),
+      eArchive: { requestId, status: 'pending', requestedAt: ctx.now, requestedBy: ctx.actor, invoicedAmount, attempt, error: null },
+    },
+    events: [
+      {
+        ...base(ctx, payment),
+        type: INVOICE_E_ARCHIVE_REQUESTED,
+        payload: { requestId, amount: payment.amount, invoicedAmount, method: payment.method, receivedAt: payment.receivedAt, attempt },
+      },
+    ],
+  })
+}
+
+/**
+ * The worker reports: Paraşüt cut it. Accepted only for the request in flight — a late answer for a
+ * request that has since been settled changes nothing. Stale pending is still accepted: being slow is
+ * not being wrong, and the invoice exists either way.
+ */
+export function decideEArchiveIssued(
+  ctx: DecideContext,
+  payment: Payment,
+  current: InvoiceMark | null,
+  requestId: string,
+  documentNo: string,
+): Result<Outcome<InvoiceMark>, DomainError> {
+  const req = current?.eArchive
+  if (!current || current.issued || !req || req.requestId !== requestId) return err({ code: 'operation_not_applicable' })
+  return ok({
+    next: {
+      ...current,
+      issued: true,
+      issuedAt: ctx.now,
+      issuedBy: req.requestedBy,
+      invoicedAmount: req.invoicedAmount,
+      document: 'e_archive',
+      provider: 'parasut',
+      documentNo: documentNo.trim() || null,
+      note: current.note,
+      eArchive: null,
+    },
+    events: [
+      {
+        ...base(ctx, payment, INVOICE_ISSUED_VERSION),
+        type: INVOICE_ISSUED,
+        payload: {
+          amount: payment.amount,
+          invoicedAmount: req.invoicedAmount,
+          method: payment.method,
+          receivedAt: payment.receivedAt,
+          document: 'e_archive',
+          provider: 'parasut',
+        },
+      },
+    ],
+  })
+}
+
+/** The worker reports: it did not go through. The row says why and offers "Tekrar dene". */
+export function decideEArchiveFailed(
+  ctx: DecideContext,
+  payment: Payment,
+  current: InvoiceMark | null,
+  requestId: string,
+  code: EArchiveFailureCode,
+  message: string,
+): Result<Outcome<InvoiceMark>, DomainError> {
+  const req = current?.eArchive
+  if (!current || current.issued || !req || req.requestId !== requestId || req.status !== 'pending') return err({ code: 'operation_not_applicable' })
+  return ok({
+    next: { ...current, eArchive: { ...req, status: 'failed', error: message.trim().slice(0, 300) || null } },
+    events: [{ ...base(ctx, payment), type: INVOICE_E_ARCHIVE_FAILED, payload: { requestId, code } }],
   })
 }
 

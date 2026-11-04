@@ -1321,3 +1321,13 @@ zamanlanmış bir iş olarak yapılmadı. Sebep: her öneri bir model çağrıs�
 istemediği henüz ölçülmedi; kimsenin bakmadığı bir haftaya üretim yapmak boşa maliyet.
 `contentPosts` istemci SDK'sıyla masaya OKUNABİLİR (kuralların genel "masa okur" satırı) — gönderi metni PII değil, yazma kapalı.
 **Geri ödeme tetikleyicisi:** owner iki hafta üst üste pazartesi düğmeye basarsa → pazartesi 08:00 zamanlanmış öneri (functions).
+
+## DEBT-049 · FT-2: Paraşüt'ün yuvarlaması ve e-Arşiv iptali (2026-11-05)
+
+**Ne:** (1) Paraşüt net fiyat + KDV oranı alıyor; masa KDV dahil tutar giriyor. `netUnitPrice` 6 haneli net fiyat gönderir — bizim
+aritmetiğimizde 0–20.000 ₺ arası her lirada kuruşu kuruşuna tutuyor (testli), ama Paraşüt'ün kendi yuvarlaması staging hesabı
+gelmeden doğrulanamadı. (2) e-Arşiv iptali/iadesi panelden değil Paraşüt panelinden; panelde "Tiki kaldır" yalnız kaydı düzeltir.
+(3) Alıcı adresi gönderilmiyor (üyede adres alanı yok); GİB/Paraşüt isterse ilk deneme "Kesilemedi: …adres…" der.
+**Geri ödeme tetikleyicisi:** (1) staging'de bir tutar 1 kuruş bile farklı çıkarsa → Paraşüt'ün "KDV dahil" desteğini ya da
+satır toplamı düzeltmesini ekle, gerçek ortama geçmeden. (2) ayda birden fazla iptal olursa → panelden iptal. (3) ilk "adres"
+reddinde → müşavirle adres kuralı (stüdyo adresi mi, üyeden mi) ve Belge ayarlarına il/ilçe.

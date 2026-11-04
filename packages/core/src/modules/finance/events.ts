@@ -330,11 +330,58 @@ export type PaytrCollectionCancelledPayload = {
 export const INVOICE_ISSUED = 'invoice.issued'
 export const INVOICE_REVERTED = 'invoice.reverted'
 
+// ── FT-2 (owner, 2026-11-04) — WHICH document, and who cut it. ─────────────────────────────────
+// *"her nakit üyeye e arşiv kesilmeyecek çoğu zaman ökç den kesebiliriz … ama paytr ve havale de
+// e-arşiv kesmeliyiz"* (OR-132). v2 of `invoice.issued` says what was issued: an ÖKC receipt the desk
+// ticked, an e-Arşiv invoice (by hand elsewhere, or by the Paraşüt integration), or an e-Fatura.
+// v1 did not record it, and the upcaster says so with `null` — it never guesses (see upcasters).
+export const INVOICE_ISSUED_VERSION = 2
+export type InvoiceDocument = 'okc_receipt' | 'e_archive' | 'e_invoice'
+export const InvoiceDocuments: readonly InvoiceDocument[] = ['okc_receipt', 'e_archive', 'e_invoice']
+/** Who cut it. `null`: a human did it outside this system and ticked it here. */
+export type InvoiceProvider = 'parasut'
+
 export type InvoiceIssuedPayload = {
   readonly amount: Money
   readonly invoicedAmount: Money // what the invoice was cut for — recorded as typed, not judged
   readonly method: PaymentMethod
   readonly receivedAt: Instant
+  /** v2. `null` only on an upcast v1 event: "not recorded", never "none". */
+  readonly document: InvoiceDocument | null
+  /** v2. `null`: ticked by hand. */
+  readonly provider: InvoiceProvider | null
+}
+
+/** v1 → v2: v1 never said which document was cut. That is not recoverable — `null` states it. */
+export function upcastInvoiceIssued(payload: Record<string, unknown>, version: number): InvoiceIssuedPayload {
+  if (version >= 2) return payload as unknown as InvoiceIssuedPayload
+  return { ...(payload as unknown as Omit<InvoiceIssuedPayload, 'document' | 'provider'>), document: null, provider: null }
+}
+
+// FT-2 — the e-Arşiv request, a human's act (OR-132: never automatic). `requestId` is the idempotency
+// key sent to Paraşüt, so a retry with the same id can never cut a second invoice. A retry after a
+// failure re-emits this event with the SAME `requestId`. No PII: the buyer's name and TC stay on
+// /members; the service line on the invoice is never copied here.
+export const INVOICE_E_ARCHIVE_REQUESTED = 'invoice.e_archive_requested'
+export const INVOICE_E_ARCHIVE_FAILED = 'invoice.e_archive_failed'
+
+export type InvoiceEArchiveRequestedPayload = {
+  readonly requestId: string
+  readonly amount: Money
+  readonly invoicedAmount: Money
+  readonly method: PaymentMethod
+  readonly receivedAt: Instant
+  /** 1 on the first request, +1 on every retry. */
+  readonly attempt: number
+}
+/**
+ * `code` is ours, closed; the provider's own sentence (which can quote the buyer's name back) stays on
+ * the state document, never in the log.
+ */
+export type EArchiveFailureCode = 'not_connected' | 'rejected' | 'buyer_is_e_invoice_user' | 'provider_error'
+export type InvoiceEArchiveFailedPayload = {
+  readonly requestId: string
+  readonly code: EArchiveFailureCode
 }
 export type InvoiceRevertedPayload = {
   readonly reason: string // mandatory (#9): an un-tick is a correction

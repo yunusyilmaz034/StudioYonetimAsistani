@@ -230,7 +230,7 @@ Yan madde (owner'a önerildi): Google İşletme Profili — "yakınımdaki pilat
 
 ### FT-1 · Fatura Takibi · ✅ CANLI (2026-11-03, OR-130) — tahsilat başına "kesildi" tiki, PIN'li ekran, havale 7 gün maili.
 
-### FT-2 · Paraşüt e-Arşiv · 🟡 PLAN ONAYLI — UX taslağı: https://claude.ai/artifact/Tn3aF1gE7CwvbBRZstJUEw; kod Paraşüt aboneliği + mükellefiyet geçişi + API erişimi gelince
+### FT-2 · Paraşüt e-Arşiv · 🟢 KOD BİTTİ (2026-11-05), kapalı bekliyor — UX: https://claude.ai/artifact/Tn3aF1gE7CwvbBRZstJUEw; açılış adımları HANDOVER 5 Kasım
 Owner: *"her zaman manuel tetikleme olsun"* (OR-132). Belge türü ödeme yönteminden gelir (ayar, kod değil):
 kart/POS → ÖKC fişi (cihaz basar, "otomatik", listeye girmez) · nakit → elle "Fiş kesildi" ya da "e-Arşiv kes" ·
 havale/EFT + online (PayTR) → "e-Arşiv kes". e-Arşiv yalnız insan basınca, onay penceresinden sonra; aynı tahsilat iki kez

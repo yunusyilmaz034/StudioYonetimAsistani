@@ -447,6 +447,10 @@ export function domainErrorMessage(error: DomainError): string {
       return error.field === 'price'
         ? 'Açık yorumda fiyat yazılmaz. Fiyatı DM ya da WhatsApp’tan iletin.'
         : 'Cevap boş olamaz ve en fazla 2.200 karakter olabilir.'
+    case 'invoice_in_progress':
+      return 'Bu tahsilatın e-Arşiv faturası şu an Paraşüt’te kesiliyor. Birkaç dakika bekleyin.'
+    case 'invoice_not_configured':
+      return 'e-Arşiv için önce Belge ayarlarında KDV oranı girilmeli ve Paraşüt bağlanmalı.'
     case 'comment_forbidden':
       return 'Şikâyet cevabını ve yorum gizlemeyi yalnızca stüdyo sahibi yapabilir; eğitmenler stüdyo adına cevap yazmaz.'
     case 'comment_not_open':

@@ -55,6 +55,33 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
   birebir (101 = 79 + 20 + 2). Owner deneyip yazacak.
 - **Yerelde, push edilmedi:** yalnızca günlük commit'leri (kod değil).
 
+### ⏭️ 5 Kasım — FT-2 · Paraşüt e-Arşiv KOD BİTTİ ([[OR-132]]) — DEPLOY EDİLMEDİ, Paraşüt API onayı bekliyor
+
+Owner: plan + UX onaylı (UX: https://claude.ai/artifact/Tn3aF1gE7CwvbBRZstJUEw), `invoice.issued` v2 şema değişikliği onaylı.
+- **Ne yapar:** Fatura Takibi'nde belge türü ödeme yönteminden gelir (`settings/invoicing`, veri): kart/POS "ÖKC · otomatik"
+  (listede beklemez), nakit "Fiş kesildi" ya da "e-Arşiv kes", havale/online "e-Arşiv kes". e-Arşiv HER ZAMAN elle, onay
+  penceresinden (kişi · TC · tutar · kontör). Toplu seçim var. Kesilince tik + e-Arşiv no + PDF (bizim kopyamız, Storage
+  `studios/{sid}/invoices/{paymentId}.pdf`) kendiliğinden gelir. Bugünkü elle tik akışı duruyor ("Elle işaretle").
+- **Mükerrer koruması:** `requestId` (UUID) Paraşüt'ün `external_reference_key`'i — aynı anahtarla ikinci fatura açılamaz;
+  tekrar deneme aynı anahtarı kullanır. İşçi `eArchiveJobs/{paymentId}` kiralamasıyla tek kişi çalışır. Testli
+  (`apps/functions/src/parasut/issue.test.ts`: çökme sonrası, kayıp defter, eşzamanlı işçi).
+- **Olaylar:** `invoice.issued` v2 (`document`, `provider`; v1 → null upcaster) · `invoice.e_archive_requested` ·
+  `invoice.e_archive_failed` (kapalı kod; Paraşüt cümlesi yalnız durum belgesinde).
+- **Kapalı kalır** (KDV oranı boş + Paraşüt bağlı değil → düğme yok). Yani deploy zararsız.
+- **Kurallar:** `invoiceMarks` + `eArchiveJobs` artık serverOnly (ekran zaten Server Action'la okuyordu).
+
+**Açmak için sırayla:**
+1. Owner: Paraşüt aboneliği + mükellefiyet geçişi + devhub.parasut.com API başvurusu. Başvuruda **geri dönüş adresi**
+   (sonradan değişmez!): `https://europe-west1-studio-yonetim-prod.cloudfunctions.net/parasutOAuth`
+2. Owner Secret Manager'a: `PARASUT_CLIENT_ID`, `PARASUT_CLIENT_SECRET`. Sonra `apps/functions/src/shared/region.ts`
+   `PARASUT_SECRETS`'e iki adı yaz → functions deploy (secret yokken bağlamak deploy'u kırar).
+3. Test (staging) hesabının id/api adresleri gelince `settings/invoicing.parasut.{apiBase,idBase}` (break-glass script).
+4. Mali müşavir: KDV oranı, hizmet satırı, fiş sınırı, e-Arşiv'de alıcı adresi gerekiyor mu → Belge ayarları.
+5. Belge ayarları → firma no → "Paraşüt'e bağlan" (owner şifreyi Paraşüt'ün sayfasında girer).
+6. Test hesabında bir havaleye e-Arşiv kes: **toplamın kuruşu kuruşuna tuttuğunu kontrol et** (`netUnitPrice` 6 hane net
+   fiyat gönderir; Paraşüt'ün yuvarlaması staging'de doğrulanmadı) + PDF + no.
+7. Gerçek ortama geçiş: `parasut.environment: production`, apiBase/idBase boş, yeniden bağlan. İlk gün faturalar birlikte kontrol.
+
 ### 4 Kasım akşamı — Emine Kahveci: 03.11 akşamı 3.500 ₺ havale (CANLI VERİ, owner)
 
 Owner: *"dün akşam Emine Kahveci 3500 TL havale yapmış dünün kasasına ekleyebilir miyiz"*. Fitness 3 Aylık satışı 8.500
