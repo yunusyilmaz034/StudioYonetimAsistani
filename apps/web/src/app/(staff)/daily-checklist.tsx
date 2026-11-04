@@ -9,9 +9,9 @@ import { CheckIcon, ChevronDownIcon, ChevronRightIcon, SparklesIcon } from 'luci
 import { Section } from '@/components/ui/section'
 import type { InsightSeverity } from '@studio/core'
 import type { AdvisorItem } from '@/server/advisor-query'
+import type { DailyChecklist as AiBriefing } from '@/server/ai/anthropic'
 import {
   getChecklistDoneAction,
-  narrateChecklistAction,
   recordLeadCallAction,
   setChecklistDoneAction,
   setFollowUpAction,
@@ -116,7 +116,10 @@ export function DailyChecklist({ items, snoozedCount = 0 }: { items: readonly Ad
   useEffect(() => {
     if (items.length === 0) return
     let alive = true
-    void narrateChecklistAction(items)
+    // A plain fetch, not a Server Action: Server Actions run one at a time, and the AI must never make a
+    // check-in or a saved note wait behind it (owner, 2026-11-04 — "sistem yavaş").
+    void fetch('/api/checklist/narrate', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ items }) })
+      .then((r) => (r.ok ? (r.json() as Promise<AiBriefing | null>) : null))
       .then((res) => {
         if (!alive || !res) return
         setIntro(res.intro)

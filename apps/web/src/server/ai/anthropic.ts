@@ -84,7 +84,9 @@ export async function narrateChecklist(items: readonly AdvisorItem[], studioName
     return out
   }
 
-  const aiItems = items.map((it) => ({ id: it.id, kind: it.kind, severity: it.severity, text: tokenize(`${it.title} — ${it.detail}`) }))
+  // The list can be long (lead + comment + payment rows); the briefing is about the top of it. Fewer rows →
+  // a shorter answer → inside the time limit (it was timing out at 12 s, 4 Nov).
+  const aiItems = items.slice(0, 30).map((it) => ({ id: it.id, kind: it.kind, severity: it.severity, text: tokenize(`${it.title} — ${it.detail}`) }))
 
   try {
     const res = await fetch(ANTHROPIC_URL, {
@@ -97,7 +99,7 @@ export async function narrateChecklist(items: readonly AdvisorItem[], studioName
         messages: [{ role: 'user', content: JSON.stringify({ studio: studioName, items: aiItems }) }],
       }),
       // A daily briefing must never hang the dashboard — cap the wait, fall back to deterministic.
-      signal: AbortSignal.timeout(12_000),
+      signal: AbortSignal.timeout(8_000),
     })
     if (!res.ok) return null
     const data = (await res.json()) as { content?: { text?: string }[] }

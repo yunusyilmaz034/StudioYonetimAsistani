@@ -46,17 +46,19 @@ export async function narrateChecklistAction(items: readonly AdvisorItem[]): Pro
   const slot = currentSlotKey(Date.now())
   const ref = adminDb().doc(`studios/${ctx.studioId}/settings/aiChecklist`)
   const snap = await ref.get()
-  const cached = snap.data() as { slot?: string; checklist?: DailyChecklist } | undefined
+  const cached = snap.data() as { slot?: string; checklist?: DailyChecklist | null; failedAt?: number } | undefined
   if (cached?.slot === slot && cached.checklist) return cached.checklist // same slot → no new AI call
+  // A FAILURE is remembered too (2026-11-04). Only successes were cached, so when the model kept timing
+  // out every single home-screen load asked it again — 60 timeouts in a day, each one a 12 s wait.
+  // After a failure the deterministic list stands for 20 minutes before the AI is asked again.
+  if (cached?.slot === slot && cached.failedAt && Date.now() - cached.failedAt < 20 * 60_000) return null
 
   const ai = await loadAiSettings(ctx.studioId) // the studio's tone, set in Ayarlar → AI
   const result = await narrateChecklist(items, 'stüdyonuz', ai?.tone)
-  if (result) {
-    try {
-      await ref.set({ slot, checklist: result, at: Date.now() }, { merge: true })
-    } catch {
-      /* cache write is best-effort — a failure just means we regenerate next load */
-    }
+  try {
+    await ref.set(result ? { slot, checklist: result, at: Date.now(), failedAt: null } : { slot, checklist: null, failedAt: Date.now() }, { merge: true })
+  } catch {
+    /* cache write is best-effort — a failure just means we regenerate next load */
   }
   return result
 }
