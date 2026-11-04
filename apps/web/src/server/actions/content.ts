@@ -47,6 +47,7 @@ export interface ContentWeek {
   readonly posts: readonly ContentPost[]
   readonly areas: readonly string[]
   readonly canApprove: boolean
+  readonly studioId: string // IG-2b: the Storage prefix the browser uploads into
 }
 
 const settingsRef = (sid: string) => adminDb().doc(`studios/${sid}/settings/content`)
@@ -67,6 +68,7 @@ export async function contentWeekAction(input: unknown): Promise<ContentWeek> {
     posts: posts.filter((x) => x.status !== 'removed'),
     areas: ((settings.get('areas') as string[] | undefined) ?? []).map(String),
     canApprove: (OWNER as readonly string[]).includes(String(ctx.role)),
+    studioId: String(ctx.studioId),
   }
 }
 

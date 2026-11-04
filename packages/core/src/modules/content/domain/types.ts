@@ -15,7 +15,38 @@ export interface ShotCard {
   readonly music: string // mood + source, e.g. "sakin · Meta Sound Collection" ('' = none)
 }
 
-export type ContentStatus = 'suggested' | 'approved' | 'removed'
+// IG-2b: scheduled (publish approved, waiting for its time) → publishing (the lock) → published | failed.
+export type ContentStatus = 'suggested' | 'approved' | 'scheduled' | 'publishing' | 'published' | 'failed' | 'removed'
+
+/** The file the studio filmed (IG-2b). Lives in private Storage; served to Meta by a short signed URL. */
+export interface ContentMedia {
+  readonly storagePath: string
+  readonly kind: 'video' | 'image'
+  readonly contentType: string
+  readonly bytes: number
+  readonly seconds: number | null // video only
+  readonly width: number
+  readonly height: number
+  readonly uploadedAt: Instant
+  readonly uploadedBy: ActorRef
+}
+
+/** The AI's last look at the file — shown on the card, never in an event. */
+export interface ContentAiCheck {
+  readonly notes: readonly { readonly level: 'ok' | 'warn'; readonly text: string }[]
+  readonly at: Instant
+}
+
+export interface ContentPublishState {
+  readonly approvedAt: Instant
+  readonly approvedBy: ActorRef
+  readonly publishAt: Instant // max(scheduledFor, the moment of approval)
+  readonly startedAt?: Instant | null // when a run took the lock — to spot a run that died mid-way
+  readonly igMediaId: string | null
+  readonly permalink: string | null
+  readonly publishedAt: Instant | null
+  readonly failure: { readonly stage: string; readonly metaCode: string | null; readonly message: string } | null
+}
 
 export interface ContentPost {
   readonly id: string
@@ -34,6 +65,10 @@ export interface ContentPost {
   readonly approvedAt: Instant | null
   readonly approvedBy: ActorRef | null
   readonly consentConfirmed: boolean
+  // IG-2b — absent on IG-2a documents.
+  readonly media?: ContentMedia | null
+  readonly aiCheck?: ContentAiCheck | null
+  readonly publish?: ContentPublishState | null
 }
 
 /** The editable part — what a human may change on a post. */

@@ -210,9 +210,12 @@ Yorum cevap taslağı, olumsuz yorumda masaya uyarı (AI tek başına cevaplamaz
 Gönderi → profil → DM → deneme → üyelik; reklam harcaması → üye başı maliyet (`ads_read`). Patron Asistanı'na bağlanır.
 Instagram sohbetlerini AI Rapor'a ve Patron özetine katmak da burada (DEBT-047).
 
+**IG-2b · 🟡 KOD BİTTİ (2026-11-04), deploy bekliyor** — çekilen dosyayı yükle → AI son kontrol (kareler) + son açıklama → sahibin onayı (KVKK kutusu) → planlanan saatte Instagram'a (functions `contentPublisher`, 5 dk). 90 gün sonra dosya silinir.
+**IG-2c · sırada** — AI kurgu: Claude karar verir (kesim, kanca yazısı, kapak, sıra), ffmpeg kendi sunucumuzda keser; telifsiz müzik kütüphanesi; **konuşmaya altyazı (owner, 2026-11-04: kapsamda)** — açık kaynak Whisper, kendi sunucumuzda. Ücretsiz dış AI araçları KVKK yüzünden yok (üye yüzleri dışarı çıkmaz).
+
 ### IG-5 · Reklam yönetimi (onaylı harcama)
 **IG-5a · ✅ CANLI (2026-11-04)** — AI kampanya taslağı → owner onayı → Meta'da yayın (duraklatılmış kur, sonda aç).
-**IG-5b · 🟡 KOD BİTTİ (2026-11-04), deploy bekliyor** — yayındaki kampanya: durdur/devam/bütçe/bitiş (sahibin basması = onay), AI haftalık öneri (yalnız talep), Meta'da elle değişiklik uyarısı.
+**IG-5b · ✅ CANLI (2026-11-04)** — yayındaki kampanya: durdur/devam/bütçe/bitiş (sahibin basması = onay), AI haftalık öneri (yalnız talep), Meta'da elle değişiklik uyarısı.
 **Kararlar (owner, 2026-11-04):** 5a öneri+onay+yayın, 5b değişiklik talepleri. Tavan 300 TL/gün · 6.000 TL/kampanya; bitiş zorunlu; taslak yalnız panelde; WhatsApp hedef; mevcut IG gönderisi; stüdyo + 7 km; yeni olay türleri onaylı (OR-131).
 Kampanya/metin/hedefleme/bütçe ÖNERİSİ panelde; **her bütçe değişikliği ve yeni kampanya owner onayıyla** (OR-131).
 Önkoşul: işletme doğrulaması + `ads_management` App Review.

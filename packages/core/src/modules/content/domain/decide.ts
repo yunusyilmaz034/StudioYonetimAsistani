@@ -41,6 +41,8 @@ export const CONTENT_LIMITS = {
 
 const FORMATS: readonly ContentFormat[] = ['reels', 'photo', 'story']
 const APPROVERS: readonly string[] = ['owner', 'platform_admin']
+/** IG-2b: what is being (or has been) published is history — not edited, not moved. */
+const LOCKED = new Set(['removed', 'publishing', 'published'])
 
 /** Normalise and check the editable fields. Returns the cleaned fields or the first broken rule. */
 export function validateContentFields(f: ContentPostFields, now: Instant): Result<ContentPostFields, DomainError> {
@@ -134,13 +136,15 @@ export function decidePlanPost(
 
 const FIELD_NAMES = ['scheduledFor', 'format', 'title', 'shotCard', 'caption', 'hashtags'] as const
 
+export { LOCKED as CONTENT_LOCKED_STATUSES }
+
 export function decideEditPost(ctx: ContentDecideContext, current: ContentPost, fields: ContentPostFields): Result<Outcome, DomainError> {
-  if (current.status === 'removed') return err({ code: 'content_not_editable' })
+  if (LOCKED.has(current.status)) return err({ code: 'content_not_editable' })
   const v = validateContentFields(fields, ctx.now)
   if (!v.ok) return v
   const changed = FIELD_NAMES.filter((k) => JSON.stringify(current[k]) !== JSON.stringify(v.value[k]))
   if (changed.length === 0) return ok({ next: current, events: [] })
-  const approvalWithdrawn = current.status === 'approved'
+  const approvalWithdrawn = current.status === 'approved' || current.status === 'scheduled'
   const next: ContentPost = {
     ...current,
     ...v.value,
@@ -148,6 +152,7 @@ export function decideEditPost(ctx: ContentDecideContext, current: ContentPost, 
     approvedAt: null,
     approvedBy: null,
     consentConfirmed: false,
+    publish: null, // IG-2b: the owner approved THAT text for publishing, not this one
   }
   return ok({
     next,
@@ -157,8 +162,8 @@ export function decideEditPost(ctx: ContentDecideContext, current: ContentPost, 
 
 export function decideApprovePost(ctx: ContentDecideContext, current: ContentPost, consentConfirmed: boolean): Result<Outcome, DomainError> {
   if (!APPROVERS.includes(ctx.role)) return err({ code: 'content_approve_forbidden' })
-  if (current.status === 'removed') return err({ code: 'content_not_editable' })
   if (current.status === 'approved') return err({ code: 'operation_already_applied' })
+  if (current.status !== 'suggested') return err({ code: 'content_not_editable' })
   // A post whose time has already passed cannot be approved for that time — move it first.
   if ((current.scheduledFor as number) < (ctx.now as number)) return err({ code: 'content_invalid', field: 'scheduledFor' })
   const next: ContentPost = { ...current, status: 'approved', approvedAt: ctx.now, approvedBy: ctx.actor, consentConfirmed }
@@ -176,10 +181,11 @@ export function decideApprovePost(ctx: ContentDecideContext, current: ContentPos
 
 export function decideRemovePost(ctx: ContentDecideContext, current: ContentPost): Result<Outcome, DomainError> {
   if (current.status === 'removed') return err({ code: 'operation_already_applied' })
+  if (current.status === 'publishing' || current.status === 'published') return err({ code: 'content_not_editable' })
   const next: ContentPost = { ...current, status: 'removed' }
   return ok({
     next,
-    events: [{ ...base(ctx, current.id), type: CONTENT_POST_REMOVED, payload: { wasApproved: current.status === 'approved' } }],
+    events: [{ ...base(ctx, current.id), type: CONTENT_POST_REMOVED, payload: { wasApproved: current.status === 'approved' || current.status === 'scheduled' } }],
   })
 }
 

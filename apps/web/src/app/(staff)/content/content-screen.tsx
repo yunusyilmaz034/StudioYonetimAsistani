@@ -19,6 +19,8 @@ import {
   type ContentWeek,
 } from '@/server/actions/content'
 
+import { PublishPanel } from './publish-panel'
+
 // IG-2a — the week's Instagram plan (onaylı tasarım: https://claude.ai/artifact/Lu36nxmwhCoUogRoAnojeU).
 // Mobile first: on a phone the list and the card are two screens; from md up, side by side.
 
@@ -64,7 +66,12 @@ const weekLabel = (w: string) => {
 }
 
 function statusLine(p: Post): { text: string; cls: string } {
-  if (p.status === 'approved') return { text: 'Onaylandı · paylaşım IG-2b ile', cls: 'text-success' }
+  if (p.status === 'published') return { text: 'Yayında', cls: 'text-success' }
+  if (p.status === 'publishing') return { text: 'Instagram’a gönderiliyor…', cls: 'text-info' }
+  if (p.status === 'scheduled') return { text: 'Yayına hazır · saatinde çıkar', cls: 'text-info' }
+  if (p.status === 'failed') return { text: 'Yayınlanamadı · bakın', cls: 'text-destructive' }
+  if (p.media) return { text: 'Dosya yüklendi · sahibin onayını bekliyor', cls: 'text-warning' }
+  if (p.status === 'approved') return { text: 'Plan onaylı · çekim bekliyor', cls: 'text-success' }
   return p.origin === 'ai' ? { text: 'Öneri · gözden geçirilmedi', cls: 'text-muted-foreground' } : { text: 'Ekibin fikri · onay bekliyor', cls: 'text-warning' }
 }
 
@@ -117,7 +124,7 @@ export function ContentScreen() {
 
   const posts = useMemo(() => week?.posts ?? [], [week])
   const current = posts.find((p) => p.id === selected) ?? null
-  const approved = posts.filter((p) => p.status === 'approved').length
+  const approved = posts.filter((p) => p.status !== 'suggested').length
 
   async function run<T>(key: string, f: () => Promise<ContentResult<T>>, okMsg: string): Promise<boolean> {
     setBusy(key)
@@ -348,7 +355,9 @@ export function ContentScreen() {
                   <p className="text-xs text-muted-foreground">{current.hashtags.map((h) => `#${h}`).join(' ')}</p>
                 </div>
 
-                {current.status !== 'approved' && week.canApprove ? (
+                <PublishPanel post={current} studioId={week.studioId} canApprove={week.canApprove} reload={() => load(weekStart)} />
+
+                {current.status === 'suggested' && !current.media && week.canApprove ? (
                   <label className="flex min-h-11 items-start gap-2.5 rounded-lg border border-border p-3 text-sm">
                     <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} className="mt-0.5 size-5 accent-primary" />
                     <span>Videoda/fotoğrafta görünen herkes paylaşıma izin verdi (yüz görünmüyorsa da işaretleyin).</span>
@@ -356,7 +365,7 @@ export function ContentScreen() {
                 ) : null}
 
                 <div className="grid grid-cols-2 gap-2">
-                  {current.status !== 'approved' ? (
+                  {current.media || ['scheduled', 'publishing', 'published', 'failed'].includes(current.status) ? null : current.status !== 'approved' ? (
                     week.canApprove ? (
                       <button type="button" disabled={busy !== null || !consent} onClick={() => void approve()} className="col-span-2 min-h-12 rounded-xl bg-primary text-[15px] font-semibold text-primary-foreground disabled:opacity-50">
                         Onayla
@@ -365,14 +374,18 @@ export function ContentScreen() {
                       <p className="col-span-2 rounded-lg bg-muted px-3 py-2 text-xs text-muted-foreground">Onayı stüdyo sahibi verir.</p>
                     )
                   ) : (
-                    <p className="col-span-2 rounded-lg bg-success/15 px-3 py-2 text-sm text-foreground">Onaylandı. Paylaşım adımı IG-2b ile gelecek; düzenlerseniz onay kalkar.</p>
+                    <p className="col-span-2 rounded-lg bg-success/15 px-3 py-2 text-sm text-foreground">Plan onaylı. Çekip dosyayı yükleyin; yayına son onay ayrıca verilir.</p>
                   )}
-                  <button type="button" onClick={() => setDraft(toDraft(current, week.weekStart))} className="min-h-11 rounded-xl border border-border bg-card text-sm font-medium">
-                    Düzenle
-                  </button>
-                  <button type="button" disabled={busy !== null} onClick={() => void remove()} className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-border bg-card text-sm font-medium text-destructive disabled:opacity-50">
-                    <Trash2Icon className="size-4" /> Plandan çıkar
-                  </button>
+                  {current.status === 'publishing' || current.status === 'published' ? null : (
+                    <>
+                      <button type="button" onClick={() => setDraft(toDraft(current, week.weekStart))} className="min-h-11 rounded-xl border border-border bg-card text-sm font-medium">
+                        Düzenle
+                      </button>
+                      <button type="button" disabled={busy !== null} onClick={() => void remove()} className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-border bg-card text-sm font-medium text-destructive disabled:opacity-50">
+                        <Trash2Icon className="size-4" /> Plandan çıkar
+                      </button>
+                    </>
+                  )}
                 </div>
               </>
             ) : null}

@@ -10,6 +10,15 @@ import {
 } from '../domain/decide'
 import type { ContentPost, ContentPostFields } from '../domain/types'
 import type { ContentOrigin } from '../events'
+import {
+  decideApprovePublish,
+  decideAttachMedia,
+  decidePublished,
+  decidePublishFailed,
+  decideStartPublishing,
+  decideWithdrawPublish,
+} from '../domain/publish'
+import type { ContentPostPublishFailedPayload } from '../events'
 import type { ContentDeps } from './ports'
 
 function decideCtx(deps: ContentDeps, ctx: TenantContext): ContentDecideContext {
@@ -66,3 +75,34 @@ export const approveContentPost = (deps: ContentDeps, ctx: TenantContext, id: st
   withPost(deps, ctx, id, (d, p) => decideApprovePost(d, p, consentConfirmed))
 
 export const removeContentPost = (deps: ContentDeps, ctx: TenantContext, id: string) => withPost(deps, ctx, id, (d, p) => decideRemovePost(d, p))
+
+// ── IG-2b: publishing ─────────────────────────────────────────────────────────────────────────────
+// Every step is a transaction on the post, so the status the decision sees is the one it replaces.
+const tx = (deps: ContentDeps, ctx: TenantContext, id: string, f: (d: ContentDecideContext, p: ContentPost) => Result<{ next: ContentPost; events: readonly NewEvent[] }, DomainError>) =>
+  deps.repo.mutatePost(ctx, id, (p) => f(decideCtx(deps, ctx), p))
+
+export const attachContentMedia = (
+  deps: ContentDeps,
+  ctx: TenantContext,
+  id: string,
+  media: Parameters<typeof decideAttachMedia>[2],
+  aiCheck: Parameters<typeof decideAttachMedia>[3],
+) => tx(deps, ctx, id, (d, p) => decideAttachMedia(d, p, media, aiCheck))
+
+export const approveContentPublish = (deps: ContentDeps, ctx: TenantContext, id: string, consentConfirmed: boolean, opts: { now?: boolean } = {}) =>
+  tx(deps, ctx, id, (d, p) => decideApprovePublish(d, p, consentConfirmed, opts))
+
+export const withdrawContentPublish = (deps: ContentDeps, ctx: TenantContext, id: string) => tx(deps, ctx, id, (d, p) => decideWithdrawPublish(d, p))
+
+/** The lock — only one run gets it. */
+export const startContentPublishing = (deps: ContentDeps, ctx: TenantContext, id: string) => tx(deps, ctx, id, (d, p) => decideStartPublishing(d, p))
+
+export const markContentPublished = (deps: ContentDeps, ctx: TenantContext, id: string, ig: { igMediaId: string; permalink: string | null }) =>
+  tx(deps, ctx, id, (d, p) => decidePublished(d, p, ig))
+
+export const markContentPublishFailed = (
+  deps: ContentDeps,
+  ctx: TenantContext,
+  id: string,
+  failure: { stage: ContentPostPublishFailedPayload['stage']; metaCode: string | null; message: string },
+) => tx(deps, ctx, id, (d, p) => decidePublishFailed(d, p, failure))

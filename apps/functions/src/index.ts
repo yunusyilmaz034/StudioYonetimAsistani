@@ -20,6 +20,7 @@ import { runClassReminderSweep } from './scheduled/class-reminders'
 import { runExpirySweep } from './scheduled/expire-credits'
 import { runInfrastructureWatch } from './scheduled/infrastructure-alarm'
 import { runAdsSync } from './scheduled/ads-sync'
+import { runContentPublisher, runContentRetention } from './scheduled/content-publisher'
 import { runInvoiceDeadlineSweep } from './scheduled/invoice-deadline'
 import { runFastHealthChecks, runNightlyHealthChecks } from './scheduled/health'
 import { runMinInstancesGuard } from './scheduled/min-instances-guard'
@@ -199,6 +200,20 @@ export const invoiceDeadline = onSchedule(
 
 // IG-4a (2026-11-03) — the ad account's last 90 days, read-only, into one summary document the owner's
 // Reklamlar screen reads. 03:30: after the 03:00 sweep, and Meta's own day has closed (Istanbul time).
+// IG-2b (2026-11-04) — owner-approved Instagram posts go out at their time. Every 5 minutes; 9-minute
+// timeout because a Reels video is processed by Instagram before it can be published.
+export const contentPublisher = onSchedule(
+  { schedule: '*/5 * * * *', timeZone: 'Europe/Istanbul', secrets: ['INSTAGRAM_ACCESS_TOKEN'], timeoutSeconds: 540 },
+  async () => {
+    await runContentPublisher(Date.now())
+  },
+)
+
+// IG-2b — published files leave the panel after 90 days (owner). Instagram keeps the post.
+export const contentMediaRetention = onSchedule({ schedule: '15 4 * * *', timeZone: 'Europe/Istanbul' }, async () => {
+  await runContentRetention(Date.now())
+})
+
 export const adsInsightsSync = onSchedule(
   { schedule: '30 3 * * *', timeZone: 'Europe/Istanbul', secrets: [...ADS_SECRETS, ...NOTIFICATION_SECRETS, 'ANTHROPIC_API_KEY'] },
   async () => {

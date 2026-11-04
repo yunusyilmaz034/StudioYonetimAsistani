@@ -55,7 +55,25 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
   birebir (101 = 79 + 20 + 2). Owner deneyip yazacak.
 - **Yerelde, push edilmedi:** yalnızca günlük commit'leri (kod değil).
 
-### ⏭️ 4 Kasım sabah — IG-5b KOD BİTTİ (yayındaki kampanyayı değiştirme) — DEPLOY onayı bekliyor — BURADAN DEVAM
+### ⏭️ 4 Kasım — IG-2b KOD BİTTİ (yükle → AI kontrol → onay → Instagram'da yayın) — DEPLOY onayı bekliyor — BURADAN DEVAM
+
+- **Çekirdek** `content/domain/publish.ts` (README IG-2b; 40+ kural testi, 5 golden). Yeni durumlar scheduled/publishing/
+  published/failed. Yükleyen herkes, onaylayan sahip; KVKK kutusu şart; Instagram dosya sınırları yüklemede reddedilir.
+  Onaydan sonra yeni dosya / açıklama değişikliği onayı düşürür. `publish_started` = kilit (owner'ın onayladığı 4 olaya ek;
+  çift yayını önlemek için — owner'a bildirildi).
+- **Web:** `lib/content-upload.ts` (doğrudan Storage'a, ilerleme; foto → JPEG; AI için 4 küçük kare), `actions/content-publish.ts`
+  (boyut/tür Storage'dan okunur; `ai/content-checker.ts` Claude karelere bakar → notlar + son açıklama, ayrı edit olarak),
+  `content/publish-panel.tsx`.
+- **Functions:** `contentPublisher` (5 dk; kap → işlenmeyi bekle → yayınla; 20 dk asılı kalanı "durum belirsiz" ile düşür),
+  `contentMediaRetention` (04:15, 90 gün). Meta dosyayı **geçici Firebase indirme jetonu** ile okur (fonksiyon servis
+  hesabında URL imzalama/signBlob izni YOK — IAM değişikliği yapılmadı); jeton yayın biter bitmez silinir.
+- **Ayar:** `settings/content.igUserId=17841458516080649` (script, yazıldı).
+- **Prova:** Instagram kap oluşturma ✓ (FINISHED), `media_publish` çağrılmadı. Yerel hesabın Storage'da okuma/silme izni yok →
+  `studios/retro/content/_prova/rehearsal.jpg` (masaüstü resmi, PII değil) kaldı; deploy sonrası silinecek.
+- **Deploy:** storage rules → functions `contentPublisher,contentMediaRetention` → push.
+- **IG-2c kapsamına eklendi:** konuşmaya altyazı (owner).
+
+### 4 Kasım sabah — IG-5b CANLI (yayındaki kampanyayı değiştirme; panel build-2026-11-04-002)
 
 - **Çekirdek** `ads/domain/changes.ts` (README 8–11; 28 kural testi, 4 golden): durdur / devam ettir / bütçe / bitiş.
   Sahibin basması = onay; AI yalnız `pendingChange` açar (kampanya başına bir). Tavan sıkı: yeni günlük × TOPLAM gün ≤ 6.000.

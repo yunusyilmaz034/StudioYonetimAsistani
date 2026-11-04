@@ -335,7 +335,7 @@ export type DomainError =
   // screen can say exactly what to shorten.
   | {
       readonly code: 'content_invalid'
-      readonly field: 'title' | 'format' | 'clips' | 'caption' | 'hashtags' | 'scheduledFor' | 'hook'
+      readonly field: 'title' | 'format' | 'clips' | 'caption' | 'hashtags' | 'scheduledFor' | 'hook' | 'media' | 'consent'
     }
   // Only the owner approves what goes out under the studio's name (OR-131).
   | { readonly code: 'content_approve_forbidden' }

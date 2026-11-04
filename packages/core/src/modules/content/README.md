@@ -23,3 +23,16 @@ module publishes — publishing is IG-2b and will be gated on `content_post.appr
 4. **No post is planned or approved into the past.**
 5. **A removed post is history** — not edited, not approved back.
 6. **Consent is recorded with the approval** (`consentConfirmed`), never who was visible.
+
+## IG-2b — publishing (`domain/publish.ts`, 2026-11-04)
+
+Events (v1, golden): `content_post.media_attached | publish_approved | publish_started | published | publish_failed`.
+
+- Anyone on the content screen attaches the file; **only the owner approves publishing**, with the KVKK
+  consent ticked and a file that fits Instagram's limits (`mediaFits`, refused at upload).
+- `scheduled` → at `publishAt` (planned time, or now) the publisher (functions, every 5 min) takes the
+  **lock** (`publish_started`, a transaction — Instagram publishing is not idempotent) → published | failed.
+- A new file or an edited caption after approval **withdraws it**. A failure spends the approval.
+- A run that died after the lock is marked failed after 20 min ("durum belirsiz — Instagram'da kontrol et").
+- Files: private Storage `studios/{sid}/content/{postId}/…`; Meta reads them through a download token
+  that exists only while publishing; deleted 90 days after publishing.

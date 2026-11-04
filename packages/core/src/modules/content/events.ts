@@ -40,3 +40,42 @@ export interface ContentPostApprovedPayload {
 export interface ContentPostRemovedPayload {
   readonly wasApproved: boolean
 }
+
+// IG-2b (2026-11-04, owner approved) — the filmed file, the owner's publish approval, and the outcome.
+// Same rule as above: no caption, no file name, no Meta error text — sizes, times and ids only.
+// `publish_started` is the lock (as `ad_campaign.publish_started`): Instagram publishing is NOT
+// idempotent — two presses would be two posts — so taking the lock is a state change, logged.
+export const CONTENT_POST_MEDIA_ATTACHED = 'content_post.media_attached'
+export const CONTENT_POST_PUBLISH_APPROVED = 'content_post.publish_approved'
+export const CONTENT_POST_PUBLISH_STARTED = 'content_post.publish_started'
+export const CONTENT_POST_PUBLISHED = 'content_post.published'
+export const CONTENT_POST_PUBLISH_FAILED = 'content_post.publish_failed'
+
+export interface ContentPostMediaAttachedPayload {
+  readonly kind: 'video' | 'image'
+  readonly contentType: string
+  readonly bytes: number
+  readonly seconds: number | null
+  readonly width: number
+  readonly height: number
+  readonly replaced: boolean // a file was already there
+  readonly approvalWithdrawn: boolean // the owner approved THAT file, not this one
+}
+
+export interface ContentPostPublishApprovedPayload {
+  readonly format: ContentFormat
+  readonly scheduledFor: Instant
+  readonly publishAt: Instant
+  readonly consentConfirmed: true
+}
+
+export type ContentPostPublishStartedPayload = Record<string, never>
+
+export interface ContentPostPublishedPayload {
+  readonly igMediaId: string
+}
+
+export interface ContentPostPublishFailedPayload {
+  readonly stage: 'media_url' | 'container' | 'processing' | 'publish' | 'unknown'
+  readonly metaCode: string | null
+}

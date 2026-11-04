@@ -36,6 +36,21 @@ service firebase.storage {
         && request.resource.size < 10 * 1024 * 1024
         && (request.resource.contentType.matches('image/.*') || request.resource.contentType == 'application/pdf');
     }
+    // 2026-11-04 (IG-2b) — the studio's filmed Instagram content, before it is published. May show
+    // members' faces: never client-readable; the owner previews it through a 10-minute signed URL and
+    // Meta fetches it through a 1-hour one at publish time. Staff of THIS studio write into its prefix;
+    // the Server Action re-checks the post id and reads size/type from Storage. Instagram's own limits:
+    // video (mp4/mov) up to 300 MB, photo (JPEG) up to 8 MB. Deleted 90 days after publishing.
+    match /studios/{sid}/content/{postId}/{file} {
+      allow read: if false;
+      allow write: if request.auth != null
+        && request.auth.token.studioId == sid
+        && request.auth.token.role in ['owner', 'receptionist', 'trainer']
+        && (
+          ((request.resource.contentType == 'video/mp4' || request.resource.contentType == 'video/quicktime') && request.resource.size < 300 * 1024 * 1024)
+          || (request.resource.contentType == 'image/jpeg' && request.resource.size < 8 * 1024 * 1024)
+        );
+    }
     // Anything outside these private prefixes is denied by the absence of a rule.
   }
 }

@@ -439,11 +439,14 @@ export function domainErrorMessage(error: DomainError): string {
         hashtags: 'En fazla 30 hashtag kullanılabilir (Instagram sınırı).',
         scheduledFor: 'Paylaşım zamanı geçmişte olamaz.',
         hook: 'İlk 3 saniye yazısı en fazla 120 karakter olabilir.',
+        media:
+          'Dosya bu gönderi türüne uymuyor. Reels: dikey video, 3 sn–15 dk, en fazla 300 MB. Hikâye: video en fazla 60 sn / 100 MB ya da fotoğraf. Fotoğraf: JPG, en-boy 4:5 ile 1.91:1 arası.',
+        consent: 'Görüntüdeki üyelerin izni alındı kutusu işaretlenmeden yayın onaylanamaz.',
       }[error.field]
     case 'content_approve_forbidden':
       return 'Gönderiyi yalnızca stüdyo sahibi onaylayabilir.'
     case 'content_not_editable':
-      return 'Bu gönderi plandan çıkarılmış; düzenlenemez.'
+      return 'Bu gönderi şu an değiştirilemez (plandan çıkarılmış, yayınlanıyor ya da yayınlanmış).'
     case 'ad_invalid':
       return {
         name: 'Kampanya adı boş olamaz ve en fazla 80 karakter olabilir.',
