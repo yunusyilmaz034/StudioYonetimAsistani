@@ -132,8 +132,6 @@ export const GROUPS: readonly NavGroup[] = [
       { href: '/payroll', label: 'Bordro', icon: ReceiptIcon },
       // Fatura Takibi (owner, 2026-11-03) — PIN'li, owner'a özel.
       { href: '/invoices', label: 'Fatura Takibi', icon: FileCheckIcon },
-      // IG-4a — what the ad money brought. Owner-only.
-      { href: '/ads', label: 'Reklamlar', icon: CircleDollarSignIcon },
     ],
   },
   {
@@ -157,6 +155,9 @@ export const GROUPS: readonly NavGroup[] = [
       // "Analiz" used to be a separate screen. It is now the "Genel eğilim" report on this one —
       // same range, same events, drawn instead of listed.
       { href: '/reports', label: 'Raporlar', icon: FileTextIcon },
+      // IG-4a/5 — what the ad money brought, and the campaigns. Owner-only. Moved from "Para" (owner,
+      // 2026-11-04): it answers "is the ad working?", which is an analysis question, not a till one.
+      { href: '/ads', label: 'Reklamlar', icon: CircleDollarSignIcon },
     ],
   },
   {

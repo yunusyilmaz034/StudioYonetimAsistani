@@ -334,13 +334,13 @@ export const TEMPLATES: Readonly<Record<string, NotificationTemplate>> = {
   // Meta is above what the owner approved. Staff only — never a member.
   ads_overspend: {
     id: 'ads_overspend',
-    version: 1,
+    version: 2, // v2 (2026-11-04): the screen moved Para → Analiz
     name: 'Reklam onaylanan tutarı aştı (sahip)',
     category: 'operational',
     priority: 'urgent',
     requiredParams: ['lines'],
     subject: 'Acil: reklam harcaması onaylanan tutarı aştı',
-    body: '⚠️ ONAYLANAN TUTAR AŞILDI\n{{lines}}\n\nReklam Yöneticisi\'nden kampanyayı durdurabilir ya da panelde Para → Reklamlar ekranından bakabilirsiniz.',
+    body: '⚠️ ONAYLANAN TUTAR AŞILDI\n{{lines}}\n\nReklam Yöneticisi\'nden kampanyayı durdurabilir ya da panelde Analiz → Reklamlar ekranından bakabilirsiniz.',
   },
   // IG-3 (owner, 2026-11-04) — a complaint arrived under one of the studio's Instagram posts. The e-mail
   // carries NO comment text and NO username: it only sends her to the panel.

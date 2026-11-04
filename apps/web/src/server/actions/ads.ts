@@ -8,7 +8,7 @@ import { attribute, type AdsCampaign, type AdsReport, type AttributedConversatio
 import { requireTenantContext } from '../auth'
 import { adminDb } from '../firebase-admin'
 
-// IG-4a — Para → Reklamlar (owner-only). READ-ONLY: the summary the nightly job pulled from Meta, joined
+// IG-4a — Analiz → Reklamlar (owner-only; moved from Para, 2026-11-04). READ-ONLY: the summary the nightly job pulled from Meta, joined
 // with our own conversations (the ad that opened each), members and payments. Nothing here writes to
 // Meta or to the studio's data.
 const OWNER = ['owner', 'platform_admin'] as const

@@ -171,7 +171,7 @@ Instagram webhook duman testi (GET/401/200) geçti. Sıradaki önerilen: AI kamp
 - Ayrı sır **`META_ADS_ACCESS_TOKEN`** v1 (SYSTEM_USER, süresiz, ads_read+ads_management) — Instagram jetonundan AYRI, bilerek.
 - OR-131: reklamda HER değişiklik (yayın, düzenleme, bütçe, DURDURMA, kapatma) owner onayıyla — istisna yok.
 - IG-4a planı onaylı: webhook'larda reklam referral'ı yakala (WhatsApp'a küçük ek — owner onayı), gece insights çekimi → tek özet
-  belge, Para → Reklamlar (owner-only). Meta'ya YAZMA YOK. Hesapta henüz kampanya yok.
+  belge, Analiz → Reklamlar (owner-only). Meta'ya YAZMA YOK. Hesapta henüz kampanya yok.
 
 ### 3 Kasım gece — IG-2a (İçerik planı) — CANLI
 

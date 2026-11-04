@@ -210,7 +210,7 @@ kapalı gelir. Olaylar owner onaylı: ig_comment.received · replied · hidden �
 **IG-3b (sonra)** — bölgesel iş birliği önerileri.
 
 ### IG-4 · "Ne işe yaradı" raporu (+ reklam OKUMA)
-**IG-4a · ✅ CANLI (2026-11-04)** — reklam ölçümü: webhook referral → gece insights → Para → Reklamlar (owner, salt okuma). 90 gün atıf penceresi (owner).
+**IG-4a · ✅ CANLI (2026-11-04)** — reklam ölçümü: webhook referral → gece insights → Analiz → Reklamlar (owner, salt okuma). 90 gün atıf penceresi (owner).
 Gönderi → profil → DM → deneme → üyelik; reklam harcaması → üye başı maliyet (`ads_read`). Patron Asistanı'na bağlanır.
 Instagram sohbetlerini AI Rapor'a ve Patron özetine katmak da burada (DEBT-047).
 
