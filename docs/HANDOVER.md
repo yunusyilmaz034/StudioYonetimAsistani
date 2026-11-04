@@ -55,6 +55,13 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
   birebir (101 = 79 + 20 + 2). Owner deneyip yazacak.
 - **Yerelde, push edilmedi:** yalnızca günlük commit'leri (kod değil).
 
+### 4 Kasım akşamı — Emine Kahveci: 03.11 akşamı 3.500 ₺ havale (CANLI VERİ, owner)
+
+Owner: *"dün akşam Emine Kahveci 3500 TL havale yapmış dünün kasasına ekleyebilir miyiz"*. Fitness 3 Aylık satışı 8.500
+(9.500 − 1.000 indirim), 02.11 1.000 havale ödenmişti. `fix-emine-kahveci-havale-2026-11-03.ts` UYGULANDI: 3.500 havale
+satışa açıkça, `receivedAt` **03.11 20:00** (owner "akşam" dedi; gün doğru, saat tahmin — betikte yazılı). Olayda
+`receivedAt` var → pano 03.11'e sayar. **Son: ödenen 4.500, borç 4.000.** Çekmeceye girmez (havale).
+
 ### ⏭️ 4 Kasım — IG-3 CANLI (Instagram yorum takibi) — ilk gerçek cevap bekleniyor — BURADAN DEVAM
 
 - **Çekirdek** yeni modül `modules/comments` (README; 21 kural testi + 4 golden). `igComments/{IG yorum id}` sunucu-only
