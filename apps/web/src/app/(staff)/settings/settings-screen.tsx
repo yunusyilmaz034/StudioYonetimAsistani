@@ -3,7 +3,7 @@
 import type { DayHours, StudioSettings, WorkingHours } from '@studio/core'
 import { CalendarDaysIcon, CreditCardIcon, ShieldAlertIcon, Loader2Icon} from 'lucide-react'
 import Link from 'next/link'
-import { useState, useTransition, useEffect} from 'react'
+import { useState, useTransition, useEffect, useRef, useCallback } from 'react'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
@@ -201,6 +201,15 @@ export function SettingsScreen({
   })
   const [maxInstallments, setMaxInstallments] = useState((settings?.paymentSurcharge?.maxInstallments ?? 3).toString())
   const [tab, setTab] = useState('genel')
+  // Ayarlar → Fatura saves its own document, but through THIS header Kaydet (owner, 2026-11-05: "birleştir
+  // kaydet düğmelerini") — one button on the page, never two that save different things.
+  const invoiceSave = useRef<(() => Promise<void>) | null>(null)
+  const [invoiceBusy, setInvoiceBusy] = useState(false)
+  const [invoiceReady, setInvoiceReady] = useState(false)
+  const registerInvoiceSave = useCallback((fn: (() => Promise<void>) | null) => {
+    invoiceSave.current = fn
+    setInvoiceReady(fn !== null)
+  }, [])
   // `?tab=fatura` (Fatura Takibi links here) and `?parasut=bagli` (the Paraşüt sign-in comes back here).
   // After mount, so the server render and the first client render agree.
   useEffect(() => {
@@ -307,9 +316,25 @@ export function SettingsScreen({
         title="Stüdyo Ayarları"
         description="Stüdyonun tek doğruluk kaynağı. Makbuz, e-posta ve WhatsApp buradan okur."
         actions={
-          <Button onClick={save} disabled={pending}>
-            Kaydet
-          </Button>
+          tab === 'fatura' ? (
+            <Button
+              disabled={invoiceBusy || !invoiceReady}
+              onClick={async () => {
+                setInvoiceBusy(true)
+                try {
+                  await invoiceSave.current?.()
+                } finally {
+                  setInvoiceBusy(false)
+                }
+              }}
+            >
+              {invoiceBusy ? 'Kaydediliyor…' : 'Kaydet'}
+            </Button>
+          ) : (
+            <Button onClick={save} disabled={pending}>
+              Kaydet
+            </Button>
+          )
         }
       />
 
@@ -815,7 +840,7 @@ export function SettingsScreen({
 
         <TabsContent value="fatura" className="space-y-6">
           {/* FT-2 (OR-132) — document rule per payment method, VAT, Paraşüt connection. */}
-          <InvoiceSettingsPanel canEdit={canManage} />
+          <InvoiceSettingsPanel canEdit={canManage} registerSave={registerInvoiceSave} />
         </TabsContent>
       </Tabs>
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
@@ -27,7 +27,8 @@ const RULES = [
   { id: 'e_archive', label: 'e-Arşiv' },
 ] as const
 
-export function InvoiceSettingsPanel({ canEdit }: { canEdit: boolean }) {
+/** `registerSave` hands this panel's save to the page's single header Kaydet. */
+export function InvoiceSettingsPanel({ canEdit, registerSave }: { canEdit: boolean; registerSave: (fn: (() => Promise<void>) | null) => void }) {
   const [s, setS] = useState<InvoiceSettings | null>(null)
   const [by, setBy] = useState<Record<string, string>>({})
   const [line, setLine] = useState('')
@@ -38,7 +39,6 @@ export function InvoiceSettingsPanel({ canEdit }: { canEdit: boolean }) {
   const [limit, setLimit] = useState('')
   const [url, setUrl] = useState('')
   const [company, setCompany] = useState('')
-  const [busy, setBusy] = useState(false)
 
   useEffect(() => {
     void loadInvoiceSettingsAction().then((x) => {
@@ -61,7 +61,6 @@ export function InvoiceSettingsPanel({ canEdit }: { canEdit: boolean }) {
     const limitN = limit.trim() === '' ? null : Math.round(Number(limit.replace(/\./g, '').replace(',', '.')) * 100)
     if (vatN !== null && (!Number.isInteger(vatN) || vatN < 0 || vatN > 100)) return void toast.error('KDV oranı 0–100 arası tam sayı olmalı.')
     if (limitN !== null && (!Number.isFinite(limitN) || limitN <= 0)) return void toast.error('Fiş sınırını lira olarak girin.')
-    setBusy(true)
     try {
       const r = await saveInvoiceSettingsAction({
         documentByMethod: by,
@@ -78,10 +77,17 @@ export function InvoiceSettingsPanel({ canEdit }: { canEdit: boolean }) {
       else toast.success('Fatura ayarları kaydedildi.')
     } catch {
       toast.error('Kaydedilemedi. Değerleri kontrol edin.')
-    } finally {
-      setBusy(false)
     }
   }
+
+  // The header button calls the LATEST save (it closes over the current form values).
+  const saveRef = useRef(save)
+  saveRef.current = save
+  useEffect(() => {
+    if (!canEdit || s === null) return
+    registerSave(() => saveRef.current())
+    return () => registerSave(null)
+  }, [canEdit, s, registerSave])
 
   async function connect() {
     const link = await parasutConnectAction()
@@ -182,11 +188,7 @@ export function InvoiceSettingsPanel({ canEdit }: { canEdit: boolean }) {
         </Button>
       </div>
 
-      <div className="flex justify-end">
-        <Button disabled={busy} onClick={() => void save()}>
-          {busy ? 'Kaydediliyor…' : 'Kaydet'}
-        </Button>
-      </div>
+      <p className="text-xs text-muted-foreground">Değişiklikleri sayfanın üstündeki Kaydet ile kaydedin.</p>
     </section>
   )
 }
