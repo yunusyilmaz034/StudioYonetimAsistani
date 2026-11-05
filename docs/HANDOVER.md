@@ -61,7 +61,9 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
 + firestore rules deploy edildi (`parasutOAuth` şu an 503 "anahtarlar tanımlı değil" — beklenen). Ayarlar → **Fatura**
 sekmesi (yalnız sahip, PIN yok; sayfanın tek üst Kaydet'i bu sekmede fatura ayarlarını kaydeder). Yazılan değerler: KDV %20 ·
 hizmet satırı yalnız kategori · fiş sınırı 12.000 ₺ · alıcı Kocaeli/Çayırova. Fatura Takibi'ni (PIN'li) canlıda ben görmedim;
-telefon genişliği de gözle bakılmadı — owner'a bakmasını söyledim. Sıradaki adım: aşağıdaki 1–3, sonra staging denemesi (6).
+telefon genişliği de gözle bakılmadı — owner'a bakmasını söyledim.
+**GitHub CI KAPALI** (owner kendisi `gh workflow disable CI`, 5 Kasım): ödeme kilidi yüzünden her push'ta "CI failed" maili
+geliyordu. Kapı yerelde `pnpm check`. Ödeme düzelince `gh workflow enable CI`. Sıradaki adım: aşağıdaki 1–3, sonra staging denemesi (6).
 
 Owner: plan + UX onaylı (UX: https://claude.ai/artifact/Tn3aF1gE7CwvbBRZstJUEw), `invoice.issued` v2 şema değişikliği onaylı.
 - **Ne yapar:** Fatura Takibi'nde belge türü ödeme yönteminden gelir (`settings/invoicing`, veri): kart/POS "ÖKC · otomatik"
