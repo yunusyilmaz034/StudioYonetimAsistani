@@ -57,7 +57,9 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
 
 ### ⏭️ 5 Kasım — FT-2 · Paraşüt e-Arşiv CANLIDA ama KAPALI ([[OR-132]]) — owner Paraşüt API başvurusunu yapınca haber verecek — BURADAN DEVAM
 
-**Durum (5 Kasım akşamı):** panel `build-2026-11-05-004` %100; functions `onEventCreated`, `eArchiveSync`, `parasutOAuth`
+**Durum (5 Kasım sabahı):** panel `build-2026-11-05-006` %100 (yöntem süzgeci; online fatura varsayılanı = karttan çekilen
+komisyonlu tutar, `paymentIntents.paidAmount`, 29 eski ödeme olaydan dolduruldu, `paytrCallback` deploy; İçerik menüsü Analiz'de
+Reklamlar'ın üstünde); functions `onEventCreated`, `eArchiveSync`, `parasutOAuth`
 + firestore rules deploy edildi (`parasutOAuth` şu an 503 "anahtarlar tanımlı değil" — beklenen). Ayarlar → **Fatura**
 sekmesi (yalnız sahip, PIN yok; sayfanın tek üst Kaydet'i bu sekmede fatura ayarlarını kaydeder). Yazılan değerler: KDV %20 ·
 hizmet satırı yalnız kategori · fiş sınırı 12.000 ₺ · alıcı Kocaeli/Çayırova. Fatura Takibi'ni (PIN'li) canlıda ben görmedim;
