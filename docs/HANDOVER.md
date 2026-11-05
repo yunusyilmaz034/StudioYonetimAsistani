@@ -57,7 +57,7 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
 
 ### ⏭️ 5 Kasım — FT-2 · Paraşüt e-Arşiv CANLIDA ama KAPALI ([[OR-132]]) — owner Paraşüt API başvurusunu yapınca haber verecek — BURADAN DEVAM
 
-**Durum (5 Kasım sabahı):** panel `build-2026-11-05-006` %100 (yöntem süzgeci; online fatura varsayılanı = karttan çekilen
+**Durum (5 Kasım sabahı):** panel `build-2026-11-05-009` %100 (satıra tıkla → işlem penceresi; süzgeç toplamı; e-Arşiv PDF e-postası kutusu+adres; yöntem süzgeci; online fatura varsayılanı = karttan çekilen
 komisyonlu tutar, `paymentIntents.paidAmount`, 29 eski ödeme olaydan dolduruldu, `paytrCallback` deploy; İçerik menüsü Analiz'de
 Reklamlar'ın üstünde); functions `onEventCreated`, `eArchiveSync`, `parasutOAuth`
 + firestore rules deploy edildi (`parasutOAuth` şu an 503 "anahtarlar tanımlı değil" — beklenen). Ayarlar → **Fatura**
