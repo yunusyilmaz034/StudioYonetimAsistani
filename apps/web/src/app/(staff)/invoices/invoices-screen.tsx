@@ -588,6 +588,9 @@ function RowDialog({ row, a, onClose }: { row: InvoiceRow; a: RowActions; onClos
             Kesilen {row.invoicedKurus === null ? '—' : tl(row.invoicedKurus)}
             {row.documentNo ? ` · ${row.documentNo}` : ''}
             {row.note ? ` · ${row.note}` : ''}
+            {row.pdfMail
+              ? ` · PDF ${row.pdfMail.to} adresine ${row.pdfMail.status === 'sent' ? 'gönderildi' : row.pdfMail.status === 'pending' ? 'gönderiliyor' : 'gönderilemedi'}`
+              : ''}
           </p>
         ) : s === 'pending' ? (
           <p className="text-sm text-muted-foreground">Paraşüt bu faturayı kesiyor — liste kendiliğinden güncellenir.</p>
@@ -668,6 +671,12 @@ function ConfirmEArchive({
   onDone: () => void
 }) {
   const [busy, setBusy] = useState(false)
+  // PDF by e-mail (owner, 2026-11-05): a tick and an address per row; on by default when the member has one.
+  const [mail, setMail] = useState<Record<string, { on: boolean; to: string }>>(() =>
+    Object.fromEntries(rows.map((r) => [r.paymentId, { on: r.memberEmail !== null, to: r.memberEmail ?? '' }])),
+  )
+  const mailOf = (r: InvoiceRow) => mail[r.paymentId] ?? { on: false, to: '' }
+  const setMailOf = (r: InvoiceRow, v: Partial<{ on: boolean; to: string }>) => setMail((m) => ({ ...m, [r.paymentId]: { ...mailOf(r), ...v } }))
   // A retry keeps the first request's amount (the same invoice at Paraşüt): not editable.
   const retry = (r: InvoiceRow) => r.eArchive !== null
   const kurus = (r: InvoiceRow) => (r.eArchive ? r.eArchive.invoicedKurus : Math.round(lira(amountOf(r)) * 100))
@@ -675,9 +684,11 @@ function ConfirmEArchive({
 
   async function go() {
     if (rows.some((r) => !Number.isInteger(kurus(r)) || kurus(r) <= 0)) return void toast.error('Her satırın kesilen tutarını girin.')
+    if (rows.some((r) => mailOf(r).on && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(mailOf(r).to.trim())))
+      return void toast.error('PDF gönderilecek satırlarda geçerli bir e-posta adresi yazın.')
     setBusy(true)
     try {
-      const res = await requestEArchiveAction({ items: rows.map((r) => ({ paymentId: r.paymentId, invoicedKurus: kurus(r) })) })
+      const res = await requestEArchiveAction({ items: rows.map((r) => ({ paymentId: r.paymentId, invoicedKurus: kurus(r), emailTo: mailOf(r).on ? mailOf(r).to.trim() : null })) })
       const bad = res.filter((x) => !x.ok)
       if (bad.length === 0) toast.success(`${res.length} e-Arşiv Paraşüt’e gönderildi. Kesilince satırlar kendiliğinden tiklenecek.`)
       else toast.error(`${bad.length} satır gönderilemedi: ${bad[0]?.error ? domainErrorMessage(bad[0].error) : ''}`)
@@ -721,6 +732,23 @@ function ConfirmEArchive({
                   <Input value={amountOf(r)} inputMode="decimal" onChange={(e) => setAmount(r.paymentId, e.target.value)} className="h-10 text-right text-base" />
                 )}
               </label>
+              <div className="flex flex-col gap-1.5 sm:col-span-2">
+                <label className="inline-flex min-h-9 items-center gap-2 text-sm">
+                  <input type="checkbox" checked={mailOf(r).on} onChange={(e) => setMailOf(r, { on: e.target.checked })} className="size-5 accent-primary" />
+                  Fatura PDF’i e-postayla gönderilsin
+                </label>
+                {mailOf(r).on ? (
+                  <Input
+                    type="email"
+                    inputMode="email"
+                    value={mailOf(r).to}
+                    placeholder="ornek@eposta.com"
+                    onChange={(e) => setMailOf(r, { to: e.target.value })}
+                    className="h-10"
+                    aria-label={`${r.fullName} — PDF gönderilecek e-posta`}
+                  />
+                ) : null}
+              </div>
             </li>
           ))}
         </ul>

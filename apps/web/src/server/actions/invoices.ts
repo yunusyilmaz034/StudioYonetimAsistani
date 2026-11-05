@@ -68,6 +68,10 @@ export interface InvoiceRow {
    * null for other methods, or an old intent the backfill has not reached.
    */
   readonly chargedKurus: number | null
+  /** The member's e-mail on file — the default address for the e-Arşiv PDF (owner, 2026-11-05). */
+  readonly memberEmail: string | null
+  /** e-Arşiv cut by Paraşüt: where its PDF went, and whether it got there. */
+  readonly pdfMail: { readonly to: string; readonly status: 'sent' | 'pending' | 'failed' } | null
   /** FT-2 (OR-132) — which document this method gets by the studio's rule. */
   readonly rule: DocumentRule
   /** What was cut; null on a tick from before FT-2 ("Elle işaretli"). */
@@ -119,6 +123,11 @@ export async function loadInvoicesAction(input: unknown): Promise<InvoiceList> {
     invoiceRepo.getInvoicePolicy(ctx),
     parasutConnected(String(ctx.studioId)),
   ])
+  const parasutIds = marks.filter((m) => m.issued && m.provider === 'parasut' && m.emailTo).map((m) => m.paymentId)
+  const jobSnaps = parasutIds.length ? await db.getAll(...parasutIds.map((id) => db.doc(`studios/${ctx.studioId}/eArchiveJobs/${id}`))) : []
+  const mailState = new Map(
+    jobSnaps.map((j) => [j.id, j.get('emailedAt') ? 'sent' : j.get('emailPending') ? 'pending' : 'failed'] as const),
+  )
   const charged = await chargedByRef(db, String(ctx.studioId), live.filter((x) => x.method === 'online' && x.providerRef).map((x) => String(x.providerRef)))
   const now = systemClock.now()
   const mark = new Map(marks.map((m) => [m.paymentId, m]))
@@ -128,6 +137,7 @@ export async function loadInvoicesAction(input: unknown): Promise<InvoiceList> {
       {
         name: String(s.get('fullName') ?? '(silinmiş üye)'),
         tc: typeof s.get('nationalId') === 'string' && s.get('nationalId') ? String(s.get('nationalId')) : null,
+        email: typeof s.get('email') === 'string' && s.get('email') ? String(s.get('email')) : null,
       },
     ]),
   )
@@ -149,6 +159,8 @@ export async function loadInvoicesAction(input: unknown): Promise<InvoiceList> {
         issuedAt: m?.issuedAt ?? null,
         note: m?.note ?? null,
         invoicedKurus: m?.issued && m.invoicedAmount ? m.invoicedAmount.amount : null,
+        memberEmail: w?.email ?? null,
+        pdfMail: m?.issued && m.emailTo ? { to: m.emailTo, status: mailState.get(x.id) ?? 'pending' } : null,
         chargedKurus: x.method === 'online' && x.providerRef ? (charged.get(x.providerRef) ?? null) : null,
         rule: documentRuleFor(policy, x.method),
         document: m?.issued ? m.document : null,
@@ -220,7 +232,12 @@ export interface EArchiveRequestResult {
 
 export async function requestEArchiveAction(input: unknown): Promise<readonly EArchiveRequestResult[]> {
   const p = z
-    .object({ items: z.array(z.object({ paymentId: z.string().min(1), invoicedKurus: z.number().int() })).min(1).max(30) })
+    .object({
+      items: z
+        .array(z.object({ paymentId: z.string().min(1), invoicedKurus: z.number().int(), emailTo: z.string().trim().max(200).nullable().default(null) }))
+        .min(1)
+        .max(30),
+    })
     .parse(input)
   const u = await unlocked()
   if (!u.ok) return p.items.map((i) => ({ paymentId: i.paymentId, ok: false, error: { code: 'operation_not_applicable' } }))
@@ -228,7 +245,7 @@ export async function requestEArchiveAction(input: unknown): Promise<readonly EA
   const out: EArchiveRequestResult[] = []
   // One at a time: each is its own transaction, and a refusal on one never blocks the others.
   for (const i of p.items) {
-    const r = await requestEArchive(d, u.ctx, { paymentId: i.paymentId, invoicedKurus: i.invoicedKurus, newRequestId: randomUUID() })
+    const r = await requestEArchive(d, u.ctx, { paymentId: i.paymentId, invoicedKurus: i.invoicedKurus, newRequestId: randomUUID(), emailTo: i.emailTo })
     out.push({ paymentId: i.paymentId, ok: r.ok, error: r.ok ? null : r.error })
   }
   return out

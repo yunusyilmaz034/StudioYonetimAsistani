@@ -2577,6 +2577,10 @@ ve havale de e-arşiv kesmeliyiz"* · *"kk … fiziksel pos ökç den oluyor an�
   oranıyla biz kesiyoruz mesela 14 bin olan şey aslında 15 bin küsür"*): taksit komisyonu dahil `paymentIntents.paidAmount`
   (PayTR `total_amount`). Gelir/kasa yine satış bedeli (`amount`) — değişmez. Fatura Takibi'nde "kartta X ₺ (komisyonlu)" ve
   kesilen tutar varsayılanı o. Eski ödemeler `ft2-paytr-odenen-tutar-2026-11-05.ts` ile olaydan kopyalanır.
+- **PDF e-postayla** (owner, 2026-11-05: *"fatura kesilince pdf gitsin mi gitmesin mi diye tik olsun ve hangi mail adresine
+  gideceğini yazabilelim"*): e-Arşiv onay penceresinde satır başına "Fatura PDF'i e-postayla gönderilsin" kutusu + adres (üyenin
+  kayıtlı e-postası varsa o, kutu işaretli gelir). Fatura kesilip PDF hazır olunca bizim Resend hesabımızdan, PDF ekli gider;
+  adres yalnız durum belgesinde (olayda değil). Satır penceresinde "PDF x adresine gönderildi/gönderilemedi" yazar.
 - **Yöntem süzgeci** (owner): Tüm yöntemler · Havale/EFT · Fiziksel KK (kredi kartı + POS) · Online (PayTR) · Nakit.
 - **Ayarların yeri:** Ayarlar → **Fatura** sekmesi (owner, 2026-11-05: *"paraşüt ayarları panelde ayarlar altında olsun"*). Yalnız
   sahip; rapor PIN'i istemez (orada müşteri/TC listesi yok). Fatura Takibi'ndeki "Fatura ayarları" düğmesi oraya götürür.

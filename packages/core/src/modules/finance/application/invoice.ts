@@ -74,12 +74,12 @@ export async function revertInvoice(
 export async function requestEArchive(
   deps: InvoiceDeps,
   ctx: TenantContext,
-  input: { paymentId: string; invoicedKurus: number; newRequestId: string },
+  input: { paymentId: string; invoicedKurus: number; newRequestId: string; emailTo?: string | null },
 ): Promise<Result<void, DomainError>> {
   const policy = await deps.invoices.getInvoicePolicy(ctx)
   const d = dctx(deps, ctx, newOperationId())
   return unit(
-    await withPayment(deps, ctx, input.paymentId, (p, cur) => decideRequestEArchive(d, p, cur, policy, input.invoicedKurus, input.newRequestId)),
+    await withPayment(deps, ctx, input.paymentId, (p, cur) => decideRequestEArchive(d, p, cur, policy, input.invoicedKurus, input.newRequestId, input.emailTo ?? null)),
   )
 }
 

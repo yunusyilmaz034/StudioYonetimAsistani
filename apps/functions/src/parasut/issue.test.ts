@@ -8,8 +8,11 @@ import { processEArchive } from './issue'
 
 const saved: string[] = []
 vi.mock('firebase-admin/storage', () => ({
-  getStorage: () => ({ bucket: () => ({ file: (p: string) => ({ save: async () => void saved.push(p) }) }) }),
+  getStorage: () => ({
+    bucket: () => ({ file: (p: string) => ({ save: async () => void saved.push(p), download: async () => [Buffer.from('%PDF')] }) }),
+  }),
 }))
+const mails: { to: string[]; attachments: { filename: string }[]; key: string }[] = []
 
 // ── a Firestore small enough to read: paths → plain objects ─────────────────────────────────────
 type Data = Record<string, unknown>
@@ -114,13 +117,13 @@ const KEY = '0b8f4a1e-3c55-4c1e-9a62-2f8d7c9e5a10'
 const policy = { ...DEFAULT_INVOICE_POLICY, vatRatePercent: 20, parasut: { ...DEFAULT_INVOICE_POLICY.parasut, companyId: '115', apiBase: 'https://api.parasut.test/v4', idBase: 'https://id.parasut.test/oidc' } }
 const creds = { clientId: 'cid', clientSecret: 'secret' }
 
-function seed() {
+function seed(emailTo: string | null = null) {
   const { database, store } = fakeDb()
   store.set(`studios/${SID}/payments/pay_1`, { ...payment, receivedAt: Timestamp.fromMillis(payment.receivedAt) })
   store.set(`studios/${SID}/members/mem_1`, { fullName: 'Ayşe Demir', nationalId: null })
   store.set(`studios/${SID}/settings/invoicing`, policy)
   store.set(`studios/${SID}/secrets/parasut`, { refreshToken: seal(creds, 'refresh-1') })
-  const r = decideRequestEArchive(ctx, payment, null, policy, 400_000, KEY)
+  const r = decideRequestEArchive(ctx, payment, null, policy, 400_000, KEY, emailTo)
   if (!r.ok) throw new Error('setup')
   const e = r.value.next.eArchive!
   store.set(`studios/${SID}/invoiceMarks/pay_1`, { ...r.value.next, issuedAt: null, eArchive: { ...e, requestedAt: Timestamp.fromMillis(e.requestedAt) } })
@@ -133,7 +136,17 @@ beforeEach(() => {
   saved.length = 0
   process.env.PARASUT_CLIENT_ID = creds.clientId
   process.env.PARASUT_CLIENT_SECRET = creds.clientSecret
-  vi.stubGlobal('fetch', async () => new Response(new Uint8Array([37, 80, 68, 70]), { status: 200 }))
+  mails.length = 0
+  process.env.RESEND_API_KEY = 're_test'
+  process.env.EMAIL_FROM = 'Stüdyo <bildirim@ornek.com>'
+  vi.stubGlobal('fetch', async (url: string, init?: RequestInit) => {
+    if (String(url).includes('resend.com')) {
+      const b = JSON.parse(String(init!.body)) as { to: string[]; attachments: { filename: string }[] }
+      mails.push({ ...b, key: String((init!.headers as Record<string, string>)['Idempotency-Key']) })
+      return new Response('{"id":"m1"}', { status: 200 })
+    }
+    return new Response(new Uint8Array([37, 80, 68, 70]), { status: 200 })
+  })
   vi.useFakeTimers({ toFake: ['setTimeout'] })
 })
 
@@ -156,6 +169,22 @@ describe('processEArchive — one payment, one e-Arşiv', () => {
     const sealed = String(store.get(`studios/${SID}/secrets/parasut`)!.refreshToken)
     expect(sealed).not.toContain('rot')
     expect(unseal(creds, sealed)).toBe('rot')
+  })
+
+  it('asked for it → the PDF goes to that address, once, with the e-Arşiv number', async () => {
+    const { database, store } = seed('uye@ornek.com')
+    expect(await run(database, fakeParasut().f, ctx.now + 1000)).toBe('issued')
+    expect(mails).toHaveLength(1)
+    expect(mails[0]).toMatchObject({ to: ['uye@ornek.com'], key: `e-archive-pdf-${KEY}`, attachments: [{ filename: 'RTA2026000000118.pdf' }] })
+    expect(store.get(`studios/${SID}/eArchiveJobs/pay_1`)).toMatchObject({ emailPending: false, pdfSaved: true })
+    expect(mark(store).emailTo).toBe('uye@ornek.com')
+    expect(JSON.stringify(events(store))).not.toContain('ornek.com')
+  })
+
+  it('not asked → no e-mail', async () => {
+    const { database } = seed()
+    await run(database, fakeParasut().f, ctx.now + 1000)
+    expect(mails).toHaveLength(0)
   })
 
   it('a crash after the invoice was made never makes a second one', async () => {

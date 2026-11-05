@@ -449,6 +449,8 @@ export function domainErrorMessage(error: DomainError): string {
         : 'Cevap boş olamaz ve en fazla 2.200 karakter olabilir.'
     case 'invoice_in_progress':
       return 'Bu tahsilatın e-Arşiv faturası şu an Paraşüt’te kesiliyor. Birkaç dakika bekleyin.'
+    case 'invalid_email':
+      return 'E-posta adresi geçerli görünmüyor. Kontrol edin ya da gönderme kutusunu kaldırın.'
     case 'invoice_not_configured':
       return 'e-Arşiv için önce Belge ayarlarında KDV oranı girilmeli ve Paraşüt bağlanmalı.'
     case 'comment_forbidden':

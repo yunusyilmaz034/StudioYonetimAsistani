@@ -100,6 +100,7 @@ function toDoc(mark: InvoiceMark): DocumentData {
     provider: mark.provider,
     documentNo: mark.documentNo,
     eArchive: mark.eArchive === null ? null : { ...mark.eArchive, requestedAt: Timestamp.fromMillis(mark.eArchive.requestedAt) },
+    emailTo: mark.emailTo,
     updatedAt: Timestamp.now(),
   }
 }
@@ -117,6 +118,7 @@ function from(id: string, d: DocumentData): InvoiceMark {
           invoicedAmount: e.invoicedAmount as Money,
           attempt: typeof e.attempt === 'number' ? e.attempt : 1,
           error: typeof e.error === 'string' ? e.error : null,
+          emailTo: typeof e.emailTo === 'string' ? e.emailTo : null,
         }
       : null
   return {
@@ -133,5 +135,6 @@ function from(id: string, d: DocumentData): InvoiceMark {
     provider: d.provider === 'parasut' ? 'parasut' : null,
     documentNo: typeof d.documentNo === 'string' ? d.documentNo : null,
     eArchive,
+    emailTo: typeof d.emailTo === 'string' ? d.emailTo : null,
   }
 }

@@ -278,3 +278,19 @@ describe('invoice policy (OR-132)', () => {
     }
   })
 })
+
+describe('the e-Arşiv PDF by e-mail (owner, 2026-11-05)', () => {
+  it('the address rides on the request and lands on the issued mark — never in an event', () => {
+    const r = decideRequestEArchive(ctx, pay(), null, policy, 320_000, KEY, ' uye@ornek.com ')
+    expect(r.ok && r.value.next.eArchive?.emailTo).toBe('uye@ornek.com')
+    if (!r.ok) return
+    expect(JSON.stringify(r.value.events)).not.toContain('ornek.com')
+    const i = decideEArchiveIssued(system, pay(), r.value.next, KEY, 'X')
+    expect(i.ok && i.value.next.emailTo).toBe('uye@ornek.com')
+    expect(i.ok && JSON.stringify(i.value.events)).not.toContain('ornek.com')
+  })
+  it('blank = do not send; junk is refused', () => {
+    expect(decideRequestEArchive(ctx, pay(), null, policy, 320_000, KEY, '  ').ok && true).toBe(true)
+    expect(decideRequestEArchive(ctx, pay(), null, policy, 320_000, KEY, 'ayse@')).toEqual({ ok: false, error: { code: 'invalid_email' } })
+  })
+})

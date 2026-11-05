@@ -351,6 +351,8 @@ export type DomainError =
   | { readonly code: 'invoice_in_progress' }
   // The accountant's VAT rate or the Paraşüt connection is missing — the system never guesses a tax.
   | { readonly code: 'invoice_not_configured' }
+  // The address the e-Arşiv PDF should go to cannot be an e-mail address.
+  | { readonly code: 'invalid_email' }
   // Already replied, hidden, dismissed or closed.
   | { readonly code: 'comment_not_open' }
   // IG-5a (2026-11-04) — paid ad campaigns. Which field broke which rule, so the screen can say what to fix.

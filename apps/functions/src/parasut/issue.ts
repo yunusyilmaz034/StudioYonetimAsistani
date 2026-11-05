@@ -34,6 +34,7 @@ import {
   type Buyer,
 } from './api'
 import { credentialsFromEnv, ParasutClient, ParasutHttpError, ParasutNotConnected } from './client'
+import { sendPdfMail } from './mail'
 
 // FT-2 · cut ONE e-Arşiv for ONE payment whose request is in flight (OR-132: a human pressed for it).
 //
@@ -60,6 +61,12 @@ interface JobDoc {
   transient?: number
   eArchiveId?: string | null
   pdfSaved?: boolean
+  /** The PDF is owed to this address (owner, 2026-11-05). PII — server-only collection. */
+  emailTo?: string | null
+  documentNo?: string
+  emailPending?: boolean
+  emailedAt?: Timestamp | null
+  emailError?: string | null
 }
 
 export const pdfPath = (studioId: string, paymentId: string) => `studios/${studioId}/invoices/${paymentId}.pdf`
@@ -121,7 +128,7 @@ export async function processEArchive(database: Firestore, studioId: StudioId, p
 
     // 3 first — the invoice itself says whether the e-Arşiv already exists.
     const done = await readEDocument(client, invoiceId)
-    if (done) return finish(deps, ctx, client, studioId, paymentId, req.requestId, done, save, release)
+    if (done) return finish(deps, ctx, database, client, paymentId, req.requestId, done, save, release, req.emailTo)
 
     // 2 · the e-Arşiv job.
     let jobId = job.jobId ?? null
@@ -134,7 +141,7 @@ export async function processEArchive(database: Firestore, studioId: StudioId, p
         // A post whose answer was lost on the way may have gone through: Paraşüt then refuses the
         // second one. The invoice is the truth — if it already carries the e-Arşiv, we are done.
         const already = await readEDocument(client, invoiceId)
-        if (already) return finish(deps, ctx, client, studioId, paymentId, req.requestId, already, save, release)
+        if (already) return finish(deps, ctx, database, client, paymentId, req.requestId, already, save, release, req.emailTo)
         throw new ParasutHttpError(r.status, r.body)
       }
       jobId = dataId(r.body)
@@ -145,7 +152,7 @@ export async function processEArchive(database: Firestore, studioId: StudioId, p
       if (st.status === 'error') return fail('rejected', st.errors.join(' · ') || 'Paraşüt e-Arşiv işini reddetti.')
       if (st.status === 'done') {
         const doc = await readEDocument(client, invoiceId)
-        if (doc) return finish(deps, ctx, client, studioId, paymentId, req.requestId, doc, save, release)
+        if (doc) return finish(deps, ctx, database, client, paymentId, req.requestId, doc, save, release, req.emailTo)
       }
       await new Promise((r) => setTimeout(r, 3_000))
     }
@@ -180,13 +187,14 @@ async function readEDocument(client: ParasutClient, invoiceId: string) {
 async function finish(
   deps: InvoiceDeps,
   ctx: TenantContext,
+  database: Firestore,
   client: ParasutClient,
-  studioId: string,
   paymentId: string,
   requestId: string,
   doc: { id: string; invoiceNumber: string | null; wrongType: boolean },
   save: (p: Partial<JobDoc>) => Promise<unknown>,
   release: () => Promise<unknown>,
+  emailTo: string | null,
 ): Promise<Outcome> {
   if (doc.wrongType) {
     // Someone formalised it as an e-Fatura in the Paraşüt panel. Real, but not what was asked: say so.
@@ -200,12 +208,46 @@ async function finish(
     number = a.data?.attributes?.invoice_number ?? ''
   }
   await completeEArchive(deps, ctx, { paymentId, requestId, documentNo: number })
-  await save({ eArchiveId: doc.id, jobId: null })
-  await savePdf(client, studioId, paymentId, doc.id, save).catch((e: unknown) =>
-    logger.warn('e-archive: pdf not saved yet', { studioId, paymentId, error: (e as Error)?.message }),
-  )
+  await save({ eArchiveId: doc.id, jobId: null, documentNo: number, pdfSaved: false, emailTo, emailPending: emailTo !== null, emailedAt: null, emailError: null })
+  await followUp(database, ctx.studioId, client, paymentId)
   await release()
   return 'issued'
+}
+
+/**
+ * After the invoice exists: keep our copy of the PDF, then e-mail it if asked. Both may lag (Paraşüt
+ * renders the PDF a little after GİB accepts), so the 5-minute sweep calls this again for any job that
+ * still owes either — the mark is already issued by then and would never be picked up as "pending".
+ */
+export async function followUp(database: Firestore, studioId: StudioId, client: ParasutClient, paymentId: string): Promise<void> {
+  const ref = database.doc(`studios/${studioId}/eArchiveJobs/${paymentId}`)
+  const job = ((await ref.get()).data() ?? {}) as JobDoc
+  const save = (patch: Partial<JobDoc>) => ref.set(patch, { merge: true })
+  if (!job.eArchiveId) return
+  if (!job.pdfSaved) {
+    try {
+      await savePdf(client, studioId, paymentId, job.eArchiveId, save)
+    } catch (e) {
+      logger.warn('e-archive: pdf not saved yet', { studioId, paymentId, error: (e as Error)?.message })
+      return
+    }
+  }
+  if (job.emailPending && job.emailTo) {
+    const [pdf] = await getStorage().bucket().file(pdfPath(studioId, paymentId)).download()
+    const studio = await database.doc(`studios/${studioId}/settings/studio`).get()
+    const r = await sendPdfMail({
+      to: job.emailTo,
+      requestId: job.requestId ?? paymentId,
+      documentNo: job.documentNo ?? '',
+      studioName: (studio.get('company.displayName') as string | undefined) ?? null,
+      pdf,
+    })
+    if (r.ok) await save({ emailPending: false, emailedAt: Timestamp.now(), emailError: null })
+    else {
+      logger.warn('e-archive: pdf e-mail failed', { studioId, paymentId, permanent: r.permanent, error: r.message })
+      await save(r.permanent ? { emailPending: false, emailError: r.message } : { emailError: r.message })
+    }
+  }
 }
 
 /** Paraşüt hands out a short-lived PDF link; we keep our own copy so the row's PDF never expires. */

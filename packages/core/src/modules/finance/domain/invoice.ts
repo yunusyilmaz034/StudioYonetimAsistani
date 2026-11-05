@@ -42,6 +42,8 @@ export interface InvoiceMark {
   readonly documentNo: string | null
   /** FT-2. The in-flight e-Arşiv request. `null` when none is in flight or after it settled. */
   readonly eArchive: EArchiveRequest | null
+  /** FT-2. Where the e-Arşiv PDF was asked to go (owner, 2026-11-05). PII — state only, never in an event. */
+  readonly emailTo: string | null
 }
 
 export interface EArchiveRequest {
@@ -53,7 +55,12 @@ export interface EArchiveRequest {
   readonly attempt: number
   /** The provider's sentence, for the row. State only. */
   readonly error: string | null
+  /** Send the PDF here once it is cut; null = do not send. PII — state only. */
+  readonly emailTo: string | null
 }
+
+/** Loose on purpose: the provider is the real judge; this only refuses what cannot be an address. */
+export const isEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v)
 
 /**
  * A request nobody has heard back from in this long may be pressed again. Safe because the retry
@@ -89,6 +96,7 @@ const empty = (payment: Payment): InvoiceMark => ({
   provider: null,
   documentNo: null,
   eArchive: null,
+  emailTo: null,
 })
 
 const inFlight = (m: InvoiceMark | null, now: number) =>
@@ -128,6 +136,7 @@ export function decideIssueInvoice(
       provider: null,
       documentNo: null,
       eArchive: null,
+      emailTo: null,
     },
     events: [
       {
@@ -149,7 +158,7 @@ export function decideRevertInvoice(
   if (!current?.issued) return err({ code: 'operation_not_applicable' })
   if (reason.trim() === '') return err({ code: 'reason_required' })
   return ok({
-    next: { ...current, issued: false, issuedAt: null, issuedBy: null, invoicedAmount: null, document: null, provider: null, documentNo: null, eArchive: null },
+    next: { ...current, issued: false, issuedAt: null, issuedBy: null, invoicedAmount: null, document: null, provider: null, documentNo: null, eArchive: null, emailTo: null },
     events: [{ ...base(ctx, payment), type: INVOICE_REVERTED, payload: { reason: reason.trim() } }],
   })
 }
@@ -174,6 +183,7 @@ export function decideRequestEArchive(
   policy: InvoicePolicy,
   invoicedKurus: number,
   newRequestId: string,
+  emailTo: string | null = null,
 ): Result<Outcome<InvoiceMark>, DomainError> {
   if (payment.voided) return err({ code: 'operation_not_applicable' })
   if (current?.issued) return err({ code: 'operation_not_applicable' })
@@ -181,6 +191,8 @@ export function decideRequestEArchive(
   // Any method may get one: a card or cash customer who asks for an e-Arşiv gets it (OR-132).
   if (policy.vatRatePercent === null || policy.parasut.companyId === null) return err({ code: 'invoice_not_configured' })
 
+  const to = emailTo?.trim() ? emailTo.trim() : null
+  if (to !== null && !isEmail(to)) return err({ code: 'invalid_email' })
   const previous = current?.eArchive ?? null
   const kurus = previous ? previous.invoicedAmount.amount : invoicedKurus
   if (!validKurus(kurus)) return err({ code: 'invalid_amount' })
@@ -190,7 +202,7 @@ export function decideRequestEArchive(
   return ok({
     next: {
       ...(current ?? empty(payment)),
-      eArchive: { requestId, status: 'pending', requestedAt: ctx.now, requestedBy: ctx.actor, invoicedAmount, attempt, error: null },
+      eArchive: { requestId, status: 'pending', requestedAt: ctx.now, requestedBy: ctx.actor, invoicedAmount, attempt, error: null, emailTo: to },
     },
     events: [
       {
@@ -228,6 +240,7 @@ export function decideEArchiveIssued(
       documentNo: documentNo.trim() || null,
       note: current.note,
       eArchive: null,
+      emailTo: req.emailTo,
     },
     events: [
       {
