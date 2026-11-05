@@ -55,7 +55,13 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
   birebir (101 = 79 + 20 + 2). Owner deneyip yazacak.
 - **Yerelde, push edilmedi:** yalnızca günlük commit'leri (kod değil).
 
-### ⏭️ 5 Kasım — FT-2 · Paraşüt e-Arşiv KOD BİTTİ ([[OR-132]]) — DEPLOY EDİLMEDİ, Paraşüt API onayı bekliyor
+### ⏭️ 5 Kasım — FT-2 · Paraşüt e-Arşiv CANLIDA ama KAPALI ([[OR-132]]) — owner Paraşüt API başvurusunu yapınca haber verecek — BURADAN DEVAM
+
+**Durum (5 Kasım akşamı):** panel `build-2026-11-05-004` %100; functions `onEventCreated`, `eArchiveSync`, `parasutOAuth`
++ firestore rules deploy edildi (`parasutOAuth` şu an 503 "anahtarlar tanımlı değil" — beklenen). Ayarlar → **Fatura**
+sekmesi (yalnız sahip, PIN yok; sayfanın tek üst Kaydet'i bu sekmede fatura ayarlarını kaydeder). Yazılan değerler: KDV %20 ·
+hizmet satırı yalnız kategori · fiş sınırı 12.000 ₺ · alıcı Kocaeli/Çayırova. Fatura Takibi'ni (PIN'li) canlıda ben görmedim;
+telefon genişliği de gözle bakılmadı — owner'a bakmasını söyledim. Sıradaki adım: aşağıdaki 1–3, sonra staging denemesi (6).
 
 Owner: plan + UX onaylı (UX: https://claude.ai/artifact/Tn3aF1gE7CwvbBRZstJUEw), `invoice.issued` v2 şema değişikliği onaylı.
 - **Ne yapar:** Fatura Takibi'nde belge türü ödeme yönteminden gelir (`settings/invoicing`, veri): kart/POS "ÖKC · otomatik"
