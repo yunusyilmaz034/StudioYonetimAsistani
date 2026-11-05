@@ -120,7 +120,6 @@ export const GROUPS: readonly NavGroup[] = [
       { href: '/conversations', label: 'Sohbetler', icon: MessageCircleIcon },
       { href: '/engagement', label: 'Stüdyodan', icon: MegaphoneIcon },
       // IG-2a — the week's Instagram plan (shot cards, captions). Team plans, owner approves.
-      { href: '/content', label: 'İçerik', icon: CameraIcon },
     ],
   },
   {
@@ -155,6 +154,8 @@ export const GROUPS: readonly NavGroup[] = [
       // "Analiz" used to be a separate screen. It is now the "Genel eğilim" report on this one —
       // same range, same events, drawn instead of listed.
       { href: '/reports', label: 'Raporlar', icon: FileTextIcon },
+      // İçerik (IG-2/3) sits beside Reklamlar: both are the Instagram work (owner, 2026-11-05).
+      { href: '/content', label: 'İçerik', icon: CameraIcon },
       // IG-4a/5 — what the ad money brought, and the campaigns. Owner-only. Moved from "Para" (owner,
       // 2026-11-04): it answers "is the ad working?", which is an analysis question, not a till one.
       { href: '/ads', label: 'Reklamlar', icon: CircleDollarSignIcon },
