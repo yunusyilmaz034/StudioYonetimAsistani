@@ -259,9 +259,14 @@ describe('invoice policy (OR-132)', () => {
     expect(p.parasut).toMatchObject({ environment: 'production', companyId: '115' })
     expect(parseInvoicePolicy(undefined)).toEqual(DEFAULT_INVOICE_POLICY)
   })
-  it('service line fills the package names, or drops the slot', () => {
-    expect(serviceLineFor(DEFAULT_INVOICE_POLICY, ['8 ders reformer', '8 ders reformer'])).toBe('Pilates hizmeti — 8 ders reformer')
-    expect(serviceLineFor(DEFAULT_INVOICE_POLICY, [])).toBe('Pilates hizmeti')
+  it('service line is the category only, never the package (owner, 2026-11-05)', () => {
+    expect(serviceLineFor(DEFAULT_INVOICE_POLICY, ['pilates_group', 'pilates_group'])).toBe('Pilates')
+    expect(serviceLineFor(DEFAULT_INVOICE_POLICY, ['fitness'])).toBe('Fitness')
+    expect(serviceLineFor(DEFAULT_INVOICE_POLICY, ['fitness', 'pilates_group'])).toBe('Pilates, Fitness')
+    expect(serviceLineFor(DEFAULT_INVOICE_POLICY, [])).toBe('Hizmet bedeli')
+  })
+  it('an old "{paket}" template is not kept as the fallback line', () => {
+    expect(parseInvoicePolicy({ serviceLine: 'Pilates hizmeti — {paket}' }).serviceLine).toBe('Hizmet bedeli')
   })
   it('net unit price round-trips to the gross for every lira amount to 20.000 TL at 10% and 20%', () => {
     for (const vat of [10, 20]) {

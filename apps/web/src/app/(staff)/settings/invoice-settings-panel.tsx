@@ -31,6 +31,9 @@ export function InvoiceSettingsPanel({ canEdit }: { canEdit: boolean }) {
   const [s, setS] = useState<InvoiceSettings | null>(null)
   const [by, setBy] = useState<Record<string, string>>({})
   const [line, setLine] = useState('')
+  const [cats, setCats] = useState({ pilates_group: '', fitness: '', private: '' })
+  const [city, setCity] = useState('')
+  const [district, setDistrict] = useState('')
   const [vat, setVat] = useState('')
   const [limit, setLimit] = useState('')
   const [url, setUrl] = useState('')
@@ -43,6 +46,9 @@ export function InvoiceSettingsPanel({ canEdit }: { canEdit: boolean }) {
       if (!x) return
       setBy({ ...x.policy.documentByMethod })
       setLine(x.policy.serviceLine)
+      setCats({ ...x.policy.serviceLineByCategory })
+      setCity(x.policy.buyerCity ?? '')
+      setDistrict(x.policy.buyerDistrict ?? '')
       setVat(x.policy.vatRatePercent === null ? '' : String(x.policy.vatRatePercent))
       setLimit(x.policy.receiptLimitKurus === null ? '' : String(x.policy.receiptLimitKurus / 100))
       setUrl(x.policy.internetSaleUrl ?? '')
@@ -59,7 +65,10 @@ export function InvoiceSettingsPanel({ canEdit }: { canEdit: boolean }) {
     try {
       const r = await saveInvoiceSettingsAction({
         documentByMethod: by,
+        serviceLineByCategory: cats,
         serviceLine: line,
+        buyerCity: city.trim() || null,
+        buyerDistrict: district.trim() || null,
         vatRatePercent: vatN,
         receiptLimitKurus: limitN,
         internetSaleUrl: url.trim() || null,
@@ -113,10 +122,30 @@ export function InvoiceSettingsPanel({ canEdit }: { canEdit: boolean }) {
       </div>
 
       <div className="grid gap-3 sm:grid-cols-3">
-        <h3 className="text-sm font-semibold sm:col-span-3">Fatura içeriği (mali müşavirin söylediği)</h3>
-        <label className="flex flex-col gap-1 text-xs text-muted-foreground">
-          Hizmet satırı ({'{paket}'} = paket adı)
+        <h3 className="text-sm font-semibold sm:col-span-3">Faturadaki hizmet satırı — yalnız kategori, paket detayı yazılmaz</h3>
+        {(
+          [
+            ['pilates_group', 'Pilates paketleri'],
+            ['fitness', 'Fitness paketleri'],
+            ['private', 'Özel ders (PT)'],
+          ] as const
+        ).map(([k, label]) => (
+          <label key={k} className="flex flex-col gap-1 text-xs text-muted-foreground">
+            {label}
+            <Input value={cats[k]} maxLength={60} onChange={(e) => setCats((c) => ({ ...c, [k]: e.target.value }))} />
+          </label>
+        ))}
+        <label className="flex flex-col gap-1 text-xs text-muted-foreground sm:col-span-3">
+          Paket dışı tahsilatta (cüzdan yükleme vb.)
           <Input value={line} onChange={(e) => setLine(e.target.value)} maxLength={160} />
+        </label>
+        <label className="flex flex-col gap-1 text-xs text-muted-foreground">
+          Alıcı il
+          <Input value={city} onChange={(e) => setCity(e.target.value)} maxLength={40} placeholder="Kocaeli" />
+        </label>
+        <label className="flex flex-col gap-1 text-xs text-muted-foreground">
+          Alıcı ilçe
+          <Input value={district} onChange={(e) => setDistrict(e.target.value)} maxLength={40} placeholder="Çayırova" />
         </label>
         <label className="flex flex-col gap-1 text-xs text-muted-foreground">
           KDV oranı (%) — boşken e-Arşiv kapalı

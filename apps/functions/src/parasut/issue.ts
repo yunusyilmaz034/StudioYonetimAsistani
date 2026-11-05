@@ -1,11 +1,13 @@
 import {
   completeEArchive,
+  FirestoreCatalogRepository,
   failEArchive,
   FirestoreFinanceRepository,
   FirestoreInvoiceRepository,
   netUnitPrice,
   serviceLineFor,
   systemClock,
+  type Category,
   type EArchiveFailureCode,
   type InvoiceDeps,
   type InvoiceMark,
@@ -238,8 +240,9 @@ async function createInvoice(
   const buyer: Buyer = {
     name: String(member.get('fullName') ?? 'Nihai Tüketici'),
     nationalId: typeof tc === 'string' && /^\d{11}$/.test(tc) && tc !== '11111111111' ? tc : null,
-    city: null,
-    district: null,
+    // The studio's il/ilçe for every buyer (owner, 2026-11-05: "sadece il ilçe … kocaeli çayırova").
+    city: policy.buyerCity,
+    district: policy.buyerDistrict,
   }
 
   // A buyer registered for e-Fatura must get an e-Fatura, not an e-Arşiv — out of scope (panel).
@@ -258,12 +261,14 @@ async function createInvoice(
   if (!contactId) contactId = dataId(await client.ok('POST', 'contacts', contactBody(buyer)))
   if (!contactId) throw new Error('contact id missing')
 
-  const packages = await packageNames(finance, ctx, mark)
+  const categories = await saleCategories(database, finance, ctx, mark)
   const body = salesInvoiceBody(
     {
       requestId: req.requestId,
       issueDate: istanbulDate(now),
-      serviceLine: serviceLineFor(policy, packages),
+      serviceLine: serviceLineFor(policy, categories),
+      city: policy.buyerCity,
+      district: policy.buyerDistrict,
       netUnitPrice: netUnitPrice(req.invoicedAmount.amount, policy.vatRatePercent!),
       vatRatePercent: policy.vatRatePercent!,
       description: `Tahsilat ${mark.paymentId}`,
@@ -282,12 +287,18 @@ async function createInvoice(
   throw new ParasutHttpError(r.status, r.body)
 }
 
-/** What the payment paid for, for the service line. Best effort: no package → the template alone. */
-async function packageNames(finance: FirestoreFinanceRepository, ctx: TenantContext, mark: InvoiceMark): Promise<string[]> {
+/**
+ * What the payment paid for — its CATEGORY, never the package (owner, 2026-11-05). Best effort: a
+ * payment that bought nothing from the catalogue gets the fallback line.
+ */
+async function saleCategories(database: Firestore, finance: FirestoreFinanceRepository, ctx: TenantContext, mark: InvoiceMark): Promise<Category[]> {
   try {
+    const catalog = new FirestoreCatalogRepository(database)
     const allocs = (await finance.listAllocationsByMember(ctx, mark.memberId)).filter((a) => a.paymentId === mark.paymentId)
     const sales = await Promise.all([...new Set(allocs.map((a) => a.saleId))].map((id) => finance.getSale(ctx, id)))
-    return sales.flatMap((s) => (s ? s.lines.map((l) => l.description) : []))
+    const productIds = [...new Set(sales.flatMap((s) => (s ? s.lines.map((l) => l.productId).filter((x) => x !== null) : [])))]
+    const products = await Promise.all(productIds.map((id) => catalog.getProduct(ctx, id)))
+    return products.flatMap((p) => (p ? [p.category] : []))
   } catch {
     return []
   }

@@ -32,6 +32,8 @@ export interface InvoiceInput {
   readonly vatRatePercent: number
   /** Our own reference on the invoice — the payment id. Not PII. */
   readonly description: string
+  readonly city: string | null
+  readonly district: string | null
 }
 
 export function contactBody(b: Buyer) {
@@ -63,6 +65,8 @@ export function salesInvoiceBody(i: InvoiceInput, contactId: string) {
         issue_date: i.issueDate,
         due_date: i.issueDate,
         currency: 'TRL',
+        ...(i.city ? { city: i.city } : {}),
+        ...(i.district ? { district: i.district } : {}),
       },
       relationships: {
         contact: { data: { id: contactId, type: 'contacts' } },

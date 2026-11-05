@@ -76,7 +76,7 @@ Owner: plan + UX onaylı (UX: https://claude.ai/artifact/Tn3aF1gE7CwvbBRZstJUEw)
 2. Owner Secret Manager'a: `PARASUT_CLIENT_ID`, `PARASUT_CLIENT_SECRET`. Sonra `apps/functions/src/shared/region.ts`
    `PARASUT_SECRETS`'e iki adı yaz → functions deploy (secret yokken bağlamak deploy'u kırar).
 3. Test (staging) hesabının id/api adresleri gelince `settings/invoicing.parasut.{apiBase,idBase}` (break-glass script).
-4. KDV %20 YAZILDI (owner, 5 Kasım). Mali müşavir: hizmet satırı, fiş sınırı, e-Arşiv'de alıcı adresi gerekiyor mu → Ayarlar → Fatura.
+4. YAZILDI (owner, 5 Kasım): KDV %20 · hizmet satırı yalnız kategori (Pilates/Fitness/Özel Ders) · fiş sınırı 12.000 ₺ · alıcı il/ilçe Kocaeli/Çayırova.
 5. Ayarlar → Fatura → firma no → "Paraşüt'e bağlan" (owner şifreyi Paraşüt'ün sayfasında girer).
 6. Test hesabında bir havaleye e-Arşiv kes: **toplamın kuruşu kuruşuna tuttuğunu kontrol et** (`netUnitPrice` 6 hane net
    fiyat gönderir; Paraşüt'ün yuvarlaması staging'de doğrulanmadı) + PDF + no.

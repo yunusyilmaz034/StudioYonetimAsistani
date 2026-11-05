@@ -255,7 +255,10 @@ export async function saveInvoiceSettingsAction(input: unknown): Promise<Result<
   const p = z
     .object({
       documentByMethod: z.record(z.string(), z.enum(DocumentRules as [DocumentRule, ...DocumentRule[]])),
+      serviceLineByCategory: z.object({ pilates_group: z.string().trim().min(1).max(60), fitness: z.string().trim().min(1).max(60), private: z.string().trim().min(1).max(60) }),
       serviceLine: z.string().trim().min(1).max(160),
+      buyerCity: z.string().trim().max(40).nullable(),
+      buyerDistrict: z.string().trim().max(40).nullable(),
       vatRatePercent: z.number().int().min(0).max(100).nullable(),
       receiptLimitKurus: z.number().int().positive().nullable(),
       internetSaleUrl: z.string().trim().url().max(200).nullable(),
@@ -269,7 +272,10 @@ export async function saveInvoiceSettingsAction(input: unknown): Promise<Result<
   const next = parseInvoicePolicy({
     ...current,
     documentByMethod: { ...current.documentByMethod, ...p.documentByMethod },
+    serviceLineByCategory: p.serviceLineByCategory,
     serviceLine: p.serviceLine,
+    buyerCity: p.buyerCity,
+    buyerDistrict: p.buyerDistrict,
     vatRatePercent: p.vatRatePercent,
     receiptLimitKurus: p.receiptLimitKurus,
     internetSaleUrl: p.internetSaleUrl,

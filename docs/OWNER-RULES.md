@@ -2567,6 +2567,11 @@ ve havale de e-arşiv kesmeliyiz"* · *"kk … fiziksel pos ökç den oluyor an�
   hizmet/KDV'yi görür, onaylar. Sistem yalnız hatırlatır (havale 7 gün rozeti + 09:00 maili, OR-130).
 - Tutarı yine insan girer (OR-130); sistem tutar önermez.
 - `invoice.issued` v2 belge türünü taşır; v1 kayıtlar "elle işaretlendi" okunur (şema değişikliği owner onaylı, 2026-11-04).
-- **KDV %20** (owner, 2026-11-05: *"bizim kdv oranımız bellidir … %20 ile çalışıyoruz"*) — yazıldı. Fiş sınırı mali müşavirden.
+- **KDV %20** (owner, 2026-11-05: *"bizim kdv oranımız bellidir … %20 ile çalışıyoruz"*) — yazıldı.
+- **Hizmet satırı yalnız KATEGORİ** (owner, 2026-11-05: *"pilates 8 ders almış ama sadece biz pilates yazacaz … fitnessta da
+  sadece fitness detay yok"*): Pilates · Fitness · Özel Ders; paket adı/ders sayısı faturaya yazılmaz. Paket dışı tahsilat:
+  "Hizmet bedeli". Hibrit paket iki kategoriyi "Pilates, Fitness" diye yazar.
+- **Fiş sınırı 12.000 ₺** (owner): üstündeki nakit/kart satırında "Fiş sınırı üstü" uyarısı.
+- **Alıcı adresi yalnız il/ilçe: Kocaeli / Çayırova** (owner) — her alıcı için stüdyonunki; üyeden adres istenmez.
 - **Ayarların yeri:** Ayarlar → **Fatura** sekmesi (owner, 2026-11-05: *"paraşüt ayarları panelde ayarlar altında olsun"*). Yalnız
   sahip; rapor PIN'i istemez (orada müşteri/TC listesi yok). Fatura Takibi'ndeki "Fatura ayarları" düğmesi oraya götürür.

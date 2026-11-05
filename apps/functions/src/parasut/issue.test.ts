@@ -217,9 +217,10 @@ describe('Paraşüt bodies and readers', () => {
     expect(contactBody({ name: 'Ayşe', nationalId: '10000000146', city: null, district: null }).data.attributes).toMatchObject({ tax_number: '10000000146', untrackable: false })
   })
   it('the sales invoice carries our key, one line, the net price', () => {
-    const b = salesInvoiceBody({ requestId: KEY, issueDate: '2026-11-05', serviceLine: 'Pilates hizmeti', netUnitPrice: 3333.333333, vatRatePercent: 20, description: 'Tahsilat pay_1' }, 'c1')
+    const b = salesInvoiceBody({ requestId: KEY, issueDate: '2026-11-05', serviceLine: 'Pilates hizmeti', netUnitPrice: 3333.333333, vatRatePercent: 20, description: 'Tahsilat pay_1', city: 'Kocaeli', district: 'Çayırova' }, 'c1')
     expect(b.data.relationships.external_reference_key.data.attributes.key).toBe(KEY)
     expect(b.data.relationships.details.data[0]!.attributes).toEqual({ quantity: 1, unit_price: 3333.333333, vat_rate: 20, description: 'Pilates hizmeti' })
+    expect(b.data.attributes).toMatchObject({ city: 'Kocaeli', district: 'Çayırova' })
   })
   it('an online sale names PayTR as the payment intermediary', () => {
     expect(eArchiveBody('si1', { url: 'https://x.com', paymentDate: '2026-11-05' }).data.attributes).toEqual({ internet_sale: { url: 'https://x.com', payment_type: 'ODEMEARACISI', payment_platform: 'PayTR', payment_date: '2026-11-05' } })

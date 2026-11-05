@@ -1,3 +1,4 @@
+import type { Category } from '../../../shared/category'
 import type { PaymentMethod } from './types'
 
 // ── FT-2 · BELGE KURALLARI (owner, 2026-11-04, OR-132) ───────────────────────────────────────────
@@ -15,8 +16,16 @@ export const DocumentRules: readonly DocumentRule[] = ['okc_auto', 'okc_manual',
 
 export interface InvoicePolicy {
   readonly documentByMethod: Readonly<Record<PaymentMethod, DocumentRule>>
-  /** "Pilates hizmeti — {paket}" — `{paket}` becomes the sale lines' description. */
+  /**
+   * The invoice line names the CATEGORY only — never the package (owner, 2026-11-05: *"pilates 8 ders
+   * almış ama sadece biz pilates yazacaz … fitnessta da sadece fitness, detay yok"*).
+   */
+  readonly serviceLineByCategory: Readonly<Record<Category, string>>
+  /** When the payment paid for nothing in the catalogue (a top-up, a fee). */
   readonly serviceLine: string
+  /** The buyer's il/ilçe on the e-Arşiv — the studio's, for every buyer (owner, 2026-11-05). */
+  readonly buyerCity: string | null
+  readonly buyerDistrict: string | null
   /** Whole percent (e.g. 20). `null` = not set by the accountant yet: e-Arşiv refused. */
   readonly vatRatePercent: number | null
   /** Above this a receipt is not enough (kuruş). `null` = not set; no warning. */
@@ -43,7 +52,10 @@ export const DEFAULT_INVOICE_POLICY: InvoicePolicy = {
     gift_card: 'okc_manual',
     wallet: 'okc_manual',
   },
-  serviceLine: 'Pilates hizmeti — {paket}',
+  serviceLineByCategory: { pilates_group: 'Pilates', fitness: 'Fitness', private: 'Özel Ders' },
+  serviceLine: 'Hizmet bedeli',
+  buyerCity: null,
+  buyerDistrict: null,
   vatRatePercent: null,
   receiptLimitKurus: null,
   internetSaleUrl: null,
@@ -62,11 +74,19 @@ export function parseInvoicePolicy(raw: unknown): InvoicePolicy {
   ) as Record<PaymentMethod, DocumentRule>
   const p = (d.parasut ?? {}) as Record<string, unknown>
   const str = (v: unknown) => (typeof v === 'string' && v.trim() !== '' ? v.trim() : null)
+  const byCat = (d.serviceLineByCategory ?? {}) as Record<string, unknown>
+  const serviceLineByCategory = Object.fromEntries(
+    Object.entries(DEFAULT_INVOICE_POLICY.serviceLineByCategory).map(([c, def]) => [c, str(byCat[c]) ?? def]),
+  ) as Record<Category, string>
   const vat = d.vatRatePercent
   const limit = d.receiptLimitKurus
   return {
     documentByMethod,
-    serviceLine: str(d.serviceLine) ?? DEFAULT_INVOICE_POLICY.serviceLine,
+    serviceLineByCategory,
+    // A template from before 2026-11-05 ("…{paket}") is not a fallback line: drop it.
+    serviceLine: str(d.serviceLine)?.includes('{paket}') ? DEFAULT_INVOICE_POLICY.serviceLine : (str(d.serviceLine) ?? DEFAULT_INVOICE_POLICY.serviceLine),
+    buyerCity: str(d.buyerCity),
+    buyerDistrict: str(d.buyerDistrict),
     vatRatePercent: typeof vat === 'number' && Number.isInteger(vat) && vat >= 0 && vat <= 100 ? vat : null,
     receiptLimitKurus: typeof limit === 'number' && Number.isInteger(limit) && limit > 0 ? limit : null,
     internetSaleUrl: str(d.internetSaleUrl),
@@ -83,11 +103,11 @@ export function documentRuleFor(policy: InvoicePolicy, method: PaymentMethod): D
   return policy.documentByMethod[method] ?? 'okc_manual'
 }
 
-/** The invoice line's text. Empty package names fall back to the template without the slot. */
-export function serviceLineFor(policy: InvoicePolicy, packageNames: readonly string[]): string {
-  const names = [...new Set(packageNames.map((n) => n.trim()).filter(Boolean))].join(', ')
-  const line = names ? policy.serviceLine.replace('{paket}', names) : policy.serviceLine.replace(/\s*[—-]?\s*\{paket\}/, '')
-  return line.trim().slice(0, 200) || 'Hizmet bedeli'
+/** The invoice line's text: the categories' names, once each, in catalogue order; else the fallback. */
+export function serviceLineFor(policy: InvoicePolicy, categories: readonly Category[]): string {
+  const order: readonly Category[] = ['pilates_group', 'fitness', 'private']
+  const names = [...new Set(order.filter((c) => categories.includes(c)).map((c) => policy.serviceLineByCategory[c]))]
+  return (names.join(', ') || policy.serviceLine).slice(0, 200)
 }
 
 /**

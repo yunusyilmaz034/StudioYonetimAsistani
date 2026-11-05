@@ -1327,7 +1327,7 @@ istemediği henüz ölçülmedi; kimsenin bakmadığı bir haftaya üretim yapma
 **Ne:** (1) Paraşüt net fiyat + KDV oranı alıyor; masa KDV dahil tutar giriyor. `netUnitPrice` 6 haneli net fiyat gönderir — bizim
 aritmetiğimizde 0–20.000 ₺ arası her lirada kuruşu kuruşuna tutuyor (testli), ama Paraşüt'ün kendi yuvarlaması staging hesabı
 gelmeden doğrulanamadı. (2) e-Arşiv iptali/iadesi panelden değil Paraşüt panelinden; panelde "Tiki kaldır" yalnız kaydı düzeltir.
-(3) Alıcı adresi gönderilmiyor (üyede adres alanı yok); GİB/Paraşüt isterse ilk deneme "Kesilemedi: …adres…" der.
+(3) Alıcı adresi yalnız il/ilçe (Kocaeli/Çayırova, owner); açık adres gönderilmiyor — Paraşüt isterse ilk deneme "Kesilemedi: …adres…" der.
 **Geri ödeme tetikleyicisi:** (1) staging'de bir tutar 1 kuruş bile farklı çıkarsa → Paraşüt'ün "KDV dahil" desteğini ya da
 satır toplamı düzeltmesini ekle, gerçek ortama geçmeden. (2) ayda birden fazla iptal olursa → panelden iptal. (3) ilk "adres"
-reddinde → müşavirle adres kuralı (stüdyo adresi mi, üyeden mi) ve Belge ayarlarına il/ilçe.
+reddinde → açık adres alanı (Ayarlar → Fatura).
