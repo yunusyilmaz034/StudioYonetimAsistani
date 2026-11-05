@@ -78,6 +78,23 @@ const paketeTureGore = (m: MemberRow, f: MemberFilter, tur: PackageKind | null):
     ? { ...m, activePackageName: sec.name, activeFrom: sec.from, activeUntil: sec.until, remainingDays: sec.remainingDays, creditsAvailable: sec.credits }
     : m
 }
+// ── TÜR SEÇİLİNCE PAKETE GÖRE (owner, 2026-11-05) ──────────────────────────────────────────────
+// *"fitness seçtim altında aylık 3 aylık 6 aylık 12 aylık şeklinde onları da görelim"* — a type chip
+// (Pilates / Fitness / PT / Hibrit) opens a row of its live packages by name. A member matches a name if
+// one of her LIVE packages of that type carries it; the row then shows that package.
+const TUR_FILTRESI: Partial<Record<MemberFilter, PackageKind>> = { pilates: 'pilates', fitness: 'fitness', pt: 'pt', hybrid: 'hybrid' }
+const turPaketleri = (m: MemberRow, f: MemberFilter) => {
+  const k = TUR_FILTRESI[f]
+  return k ? m.packages.filter((p) => p.active && packageKindOf(p) === k) : []
+}
+const pakettenGore = (m: MemberRow, f: MemberFilter, ad: string | null): MemberRow => {
+  if (!ad) return m
+  const sec = turPaketleri(m, f).find((p) => p.name === ad)
+  return sec
+    ? { ...m, activePackageName: sec.name, activeFrom: sec.from, activeUntil: sec.until, remainingDays: sec.remainingDays, creditsAvailable: sec.credits }
+    : m
+}
+
 const turleri = (f: MemberFilter, b: MemberBadges): readonly PackageKind[] =>
   f === 'expiring' ? b.expiringKinds : f === 'low_credits' ? b.lowCreditKinds : []
 
@@ -116,6 +133,8 @@ export function MembersScreen({
   const [filter, setFilter] = useState<MemberFilter>('all')
   // Bitecek / Kredisi azalan'ın alt ayrımı (owner, 2026-11-03). null = hepsi. Ana süzgeç değişince sıfırlanır.
   const [tur, setTur] = useState<PackageKind | null>(null)
+  // Tür çipinin altındaki paket adı (owner, 2026-11-05). null = hepsi. Ana süzgeç değişince sıfırlanır.
+  const [paket, setPaket] = useState<string | null>(null)
   // Default: newest first — the list you scan after adding someone is the one that ends with her
   // (owner, PF-33). A-Z stays one tap away.
   const [sort, setSort] = useState<'newest' | 'name'>('newest')
@@ -139,6 +158,7 @@ export function MembersScreen({
     const rows = members.filter((m) => {
       if (!matches(filter, m.badges)) return false
       if (tur && !turleri(filter, m.badges).includes(tur)) return false
+      if (paket && !turPaketleri(m, filter).some((p) => p.name === paket)) return false
       if (!q && !digits) return true
       return (
         foldTr(m.fullName).includes(q) ||
@@ -147,14 +167,14 @@ export function MembersScreen({
     })
     return [...rows]
       .sort((a, b) => (sort === 'newest' ? b.joinedAt - a.joinedAt : a.fullName.localeCompare(b.fullName, 'tr')))
-      .map((m) => paketeTureGore(paketeGore(m, filter), filter, tur))
-  }, [members, query, filter, sort, tur])
+      .map((m) => pakettenGore(paketeTureGore(paketeGore(m, filter), filter, tur), filter, paket))
+  }, [members, query, filter, sort, tur, paket])
 
   // Paginate the (already filtered) list to 10 a page. Reset to page 1 whenever the search or filter
   // changes so a narrowing search never strands you on an empty page 7; `currentPage` clamps to range.
   useEffect(() => {
     setPage(1)
-  }, [query, filter, sort, tur])
+  }, [query, filter, sort, tur, paket])
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const currentPage = Math.min(page, pageCount)
   const pageItems = showAll ? filtered : filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
@@ -176,6 +196,17 @@ export function MembersScreen({
     return (['pilates', 'fitness', 'hybrid', 'pt'] as const)
       .map((k) => ({ k, n: ana.filter((m) => turleri(filter, m.badges).includes(k)).length }))
       .filter((x) => x.n > 0)
+  }, [members, filter])
+
+  // Paket çipleri: seçili türün canlı paketleri, adıyla ve üye sayısıyla; "1 Aylık, 3 Aylık, 12 Aylık" sırası.
+  const paketler = useMemo(() => {
+    if (!TUR_FILTRESI[filter]) return []
+    const n = new Map<string, number>()
+    for (const m of members) {
+      if (!matches(filter, m.badges)) continue
+      for (const ad of new Set(turPaketleri(m, filter).map((p) => p.name))) n.set(ad, (n.get(ad) ?? 0) + 1)
+    }
+    return [...n.entries()].sort((a, b) => a[0].localeCompare(b[0], 'tr', { numeric: true }))
   }, [members, filter])
 
   function open(m: MemberRow) {
@@ -251,6 +282,7 @@ export function MembersScreen({
             onClick={() => {
               setFilter(f.id)
               setTur(null)
+              setPaket(null)
             }}
             className={`min-h-9 rounded-full border px-3 text-xs transition-colors ${
               f.id === filter
@@ -277,6 +309,25 @@ export function MembersScreen({
               }`}
             >
               {k ? KIND_LABEL[k] : 'Hepsi'}
+              <span className="ml-1.5 tabular-nums opacity-70">{n}</span>
+            </button>
+          ))}
+        </div>
+      ) : null}
+
+      {paketler.length > 1 ? (
+        <div className="-mt-1 flex flex-wrap items-center gap-2">
+          <span className="text-xs text-muted-foreground">Paket:</span>
+          {[[null, counts[filter]] as [string | null, number], ...paketler].map(([ad, n]) => (
+            <button
+              key={ad ?? 'hepsi'}
+              type="button"
+              onClick={() => setPaket(ad)}
+              className={`min-h-8 rounded-full border px-3 text-xs transition-colors ${
+                ad === paket ? 'border-primary bg-primary-soft font-medium text-primary' : 'border-border text-muted-foreground hover:bg-muted hover:text-foreground'
+              }`}
+            >
+              {ad ?? 'Hepsi'}
               <span className="ml-1.5 tabular-nums opacity-70">{n}</span>
             </button>
           ))}
