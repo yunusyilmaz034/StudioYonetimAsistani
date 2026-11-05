@@ -114,6 +114,7 @@ export function InvoicesScreen() {
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [amounts, setAmounts] = useState<Record<string, string>>({})
   const [confirm, setConfirm] = useState<InvoiceRow[] | null>(null)
+  const [opened, setOpened] = useState<string | null>(null)
 
   const load = useCallback(
     async (quiet = false) => {
@@ -194,6 +195,7 @@ export function InvoicesScreen() {
     selectable,
     toggle,
     eArchive: (r) => setConfirm([r]),
+    open: (r) => setOpened(r.paymentId),
     changed: () => void load(true),
   }
 
@@ -310,6 +312,16 @@ export function InvoicesScreen() {
 
       {rows.length > 0 ? (
         <>
+          {/* Süzülen satırların toplamı (owner, 2026-11-05). */}
+          <div className="flex flex-wrap items-baseline justify-between gap-2 rounded-xl border border-border bg-muted/30 px-4 py-2.5 text-sm">
+            <span>
+              Listede <strong>{rows.length}</strong> tahsilat · toplam <strong className="tabular-nums">{tl(rows.reduce((n, r) => n + r.amountKurus, 0))}</strong>
+              {rows.some((r) => r.chargedKurus !== null && r.chargedKurus !== r.amountKurus) ? (
+                <span className="text-muted-foreground"> · kartlardan çekilen {tl(rows.reduce((n, r) => n + (r.chargedKurus ?? r.amountKurus), 0))}</span>
+              ) : null}
+            </span>
+            <span className="text-xs text-muted-foreground">Bir satıra tıklayın: e-Arşiv kes, fiş kesildi, tutar, not.</span>
+          </div>
           {/* Telefon: kart listesi */}
           <ul className="space-y-3 md:hidden">
             {rows.map((r) => (
@@ -324,8 +336,8 @@ export function InvoicesScreen() {
                   <th className="px-3 py-2">
                     <span className="sr-only">Seç</span>
                   </th>
-                  {['Belge', 'Tarih', 'Ad Soyad', 'TC', 'Yöntem', 'Tutar', 'Kesilen tutar', 'Belge no / not', 'İşlem'].map((c) => (
-                    <th key={c} className="px-3 py-2 text-left text-xs font-medium whitespace-nowrap text-muted-foreground">
+                  {['Belge', 'Tarih', 'Ad Soyad', 'TC', 'Yöntem', 'Tutar', 'Belge no / not', ''].map((c) => (
+                    <th key={c || 'ac'} className="px-3 py-2 text-left text-xs font-medium whitespace-nowrap text-muted-foreground">
                       {c}
                     </th>
                   ))}
@@ -339,6 +351,10 @@ export function InvoicesScreen() {
             </table>
           </div>
         </>
+      ) : null}
+
+      {opened && all.find((r) => r.paymentId === opened) ? (
+        <RowDialog row={all.find((r) => r.paymentId === opened)!} a={actions} onClose={() => setOpened(null)} />
       ) : null}
 
       {confirm ? (
@@ -369,14 +385,125 @@ interface RowActions {
   readonly selectable: (r: InvoiceRow) => boolean
   readonly toggle: (id: string) => void
   readonly eArchive: (r: InvoiceRow) => void
+  readonly open: (r: InvoiceRow) => void
   readonly changed: () => void
 }
 
-/** The per-row controls — shared by the table row and the phone card. */
-function useRowControls(row: InvoiceRow, a: RowActions) {
+const overLimitOf = (r: InvoiceRow, a: RowActions) =>
+  a.setup.receiptLimitKurus !== null && r.rule !== 'e_archive' && !r.issued && r.amountKurus > a.setup.receiptLimitKurus
+
+function Check({ row, a }: { row: InvoiceRow; a: RowActions }) {
+  if (!a.selectable(row)) return null
+  return (
+    <label className="inline-flex min-h-10 items-center" onClick={(e) => e.stopPropagation()}>
+      <input type="checkbox" checked={a.selected.has(row.paymentId)} onChange={() => a.toggle(row.paymentId)} className="size-5 accent-primary" aria-label={`${row.fullName} seç`} />
+    </label>
+  )
+}
+
+function shortNote(row: InvoiceRow): { text: string; cls: string } {
+  switch (stateOf(row)) {
+    case 'issued':
+      return { text: [row.documentNo, row.note].filter(Boolean).join(' · ') || '—', cls: 'text-muted-foreground' }
+    case 'pending':
+      return { text: 'Paraşüt işliyor…', cls: 'text-muted-foreground' }
+    case 'failed':
+      return { text: row.eArchive?.error ?? 'Paraşüt yanıt vermedi.', cls: 'text-danger' }
+    case 'auto':
+      return { text: 'POS cihazı fişi basar.', cls: 'text-muted-foreground' }
+    default:
+      return { text: '—', cls: 'text-muted-foreground' }
+  }
+}
+
+/** Ödeme satırı (masaüstü). Satırın tamamı tıklanır → işlem penceresi (owner, 2026-11-05). */
+function Row({ row, a }: { row: InvoiceRow; a: RowActions }) {
+  const b = badge(row)
+  const due = sonGun(row, Date.now())
+  const n = shortNote(row)
+  const s = stateOf(row)
+  return (
+    <tr
+      className={`cursor-pointer ${s === 'issued' ? 'bg-success/5' : s === 'failed' ? 'bg-danger/5' : ''} hover:bg-muted/40`}
+      onClick={() => a.open(row)}
+    >
+      <td className="px-3 py-2">
+        <Check row={row} a={a} />
+      </td>
+      <td className="px-3 py-2 whitespace-nowrap">
+        <span className={`rounded-md px-2 py-0.5 text-xs font-semibold ${b.cls}`}>{b.text}</span>
+      </td>
+      <td className="px-3 py-2 whitespace-nowrap tabular-nums">{gun(row.receivedAt)}</td>
+      <td className="px-3 py-2 whitespace-nowrap">
+        <button type="button" className="text-left font-medium hover:text-primary hover:underline" onClick={(e) => (e.stopPropagation(), a.open(row))}>
+          {row.fullName}
+        </button>
+      </td>
+      <td className={`px-3 py-2 whitespace-nowrap tabular-nums ${row.nationalId ? '' : 'text-muted-foreground'}`}>{row.nationalId ?? a.placeholder}</td>
+      <td className="px-3 py-2 whitespace-nowrap">
+        {METHOD[row.method] ?? row.method}
+        {due ? <span className={`ml-2 rounded-md px-1.5 py-0.5 text-xs ${due.urgent ? 'bg-danger/10 text-danger' : 'bg-muted text-muted-foreground'}`}>{due.text}</span> : null}
+        {overLimitOf(row, a) ? <span className="ml-2 rounded-md bg-warning/10 px-1.5 py-0.5 text-xs text-warning">Fiş sınırı üstü</span> : null}
+      </td>
+      <td className="px-3 py-2 text-right whitespace-nowrap tabular-nums">
+        {tl(row.amountKurus)}
+        {row.chargedKurus !== null && row.chargedKurus !== row.amountKurus ? (
+          <span className="block text-xs text-muted-foreground">kartta {tl(row.chargedKurus)}</span>
+        ) : null}
+      </td>
+      <td className={`max-w-56 truncate px-3 py-2 ${n.cls}`} title={n.text}>
+        {n.text}
+      </td>
+      <td className="px-3 py-2 text-right whitespace-nowrap">
+        <span className="text-sm font-medium text-primary">Aç ›</span>
+      </td>
+    </tr>
+  )
+}
+
+function Card({ row, a }: { row: InvoiceRow; a: RowActions }) {
+  const b = badge(row)
+  const due = sonGun(row, Date.now())
+  const n = shortNote(row)
+  return (
+    <li className={`rounded-xl border bg-card ${stateOf(row) === 'failed' ? 'border-danger/40' : 'border-border'}`}>
+      <div className="flex items-start gap-2 p-3">
+        <Check row={row} a={a} />
+        <button type="button" className="min-w-0 flex-1 text-left" onClick={() => a.open(row)}>
+          <div className="flex items-baseline justify-between gap-2">
+            <span className="truncate font-semibold">{row.fullName}</span>
+            <span className="text-right font-semibold tabular-nums">
+              {tl(row.amountKurus)}
+              {row.chargedKurus !== null && row.chargedKurus !== row.amountKurus ? (
+                <span className="block text-xs font-normal text-muted-foreground">kartta {tl(row.chargedKurus)}</span>
+              ) : null}
+            </span>
+          </div>
+          <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+            <span>
+              {METHOD[row.method] ?? row.method} · {gun(row.receivedAt)}
+            </span>
+            <span className={`rounded-md px-1.5 py-0.5 font-semibold ${b.cls}`}>{b.text}</span>
+            {due ? <span className={due.urgent ? 'text-danger' : ''}>{due.text}</span> : null}
+            {overLimitOf(row, a) ? <span className="text-warning">Fiş sınırı üstü</span> : null}
+          </div>
+          {n.text !== '—' ? <p className={`mt-1 text-xs ${n.cls}`}>{n.text}</p> : null}
+          <span className="mt-2 inline-block text-sm font-medium text-primary">İşlem ›</span>
+        </button>
+      </div>
+    </li>
+  )
+}
+
+/**
+ * Bir tahsilatın işlem penceresi: e-Arşiv kes · Fiş kesildi · Elle işaretle · tutar · not · TC · PDF · tiki kaldır.
+ * Satıra tıklayınca açılır, çünkü tabloda bu kadar düğmeye yer yok (owner, 2026-11-05: "tıklayıp buna e-arşiv kes").
+ */
+function RowDialog({ row, a, onClose }: { row: InvoiceRow; a: RowActions; onClose: () => void }) {
   const [note, setNote] = useState(row.note ?? '')
   const [saving, setSaving] = useState(false)
   const s = stateOf(row)
+  const b = badge(row)
 
   async function tick() {
     const value = lira(a.amountOf(row))
@@ -387,7 +514,10 @@ function useRowControls(row: InvoiceRow, a: RowActions) {
       const document = row.rule === 'e_archive' ? 'e_archive' : 'okc_receipt'
       const r = await markInvoiceIssuedAction({ paymentId: row.paymentId, note: note.trim() || null, invoicedKurus: Math.round(value * 100), document })
       if (!r.ok) toast.error(domainErrorMessage(r.error))
-      else toast.success(`${row.fullName} — ${document === 'okc_receipt' ? 'fiş kesildi' : 'elle işaretlendi'}.`)
+      else {
+        toast.success(`${row.fullName} — ${document === 'okc_receipt' ? 'fiş kesildi' : 'elle işaretlendi'}.`)
+        onClose()
+      }
       a.changed()
     } catch {
       toast.error('Kaydedilemedi. Bağlantınızı kontrol edin.')
@@ -403,6 +533,7 @@ function useRowControls(row: InvoiceRow, a: RowActions) {
     try {
       const r = await revertInvoiceAction({ paymentId: row.paymentId, reason })
       if (!r.ok) toast.error(domainErrorMessage(r.error))
+      else onClose()
       a.changed()
     } catch {
       toast.error('Kaydedilemedi. Bağlantınızı kontrol edin.')
@@ -429,149 +560,92 @@ function useRowControls(row: InvoiceRow, a: RowActions) {
     }
   }
 
-  const overLimit = a.setup.receiptLimitKurus !== null && row.rule !== 'e_archive' && !row.issued && row.amountKurus > a.setup.receiptLimitKurus
   const canTick = s === 'open' || s === 'failed' || s === 'auto'
-  const buttons = (
-    <div className="flex flex-wrap justify-end gap-1.5">
-      {canTick && row.rule === 'okc_manual' ? (
-        <Button variant="outline" size="lg" className="min-h-10" disabled={saving} onClick={() => void tick()}>
-          Fiş kesildi
-        </Button>
-      ) : null}
-      {(s === 'open' || s === 'auto') && a.setup.eArchiveReady ? (
-        <Button size="lg" className="min-h-10" variant={s === 'auto' ? 'outline' : 'default'} disabled={saving} onClick={() => a.eArchive(row)}>
-          e-Arşiv kes
-        </Button>
-      ) : null}
-      {s === 'failed' && a.setup.eArchiveReady ? (
-        <Button size="lg" variant="outline" className="min-h-10 border-danger text-danger" disabled={saving} onClick={() => a.eArchive(row)}>
-          Tekrar dene
-        </Button>
-      ) : null}
-      {canTick && row.rule === 'e_archive' ? (
-        <Button variant="ghost" size="lg" className="min-h-10" disabled={saving} onClick={() => void tick()} title="Faturayı başka yerden kestiyseniz">
-          Elle işaretle
-        </Button>
-      ) : null}
-      {row.byParasut ? (
-        <Button variant="outline" size="lg" className="min-h-10" onClick={() => void pdf()}>
-          PDF
-        </Button>
-      ) : null}
-      {s === 'issued' ? (
-        <Button variant="ghost" size="lg" className="min-h-10" disabled={saving} onClick={() => void untick()}>
-          Tiki kaldır
-        </Button>
-      ) : null}
-    </div>
-  )
+  const canArchive = s === 'open' || s === 'auto' || s === 'failed'
+  const charged = row.chargedKurus !== null && row.chargedKurus !== row.amountKurus
 
-  const noteCell =
-    s === 'issued' ? (
-      <span className="text-muted-foreground">{[row.documentNo, row.note].filter(Boolean).join(' · ') || '—'}</span>
-    ) : s === 'pending' ? (
-      <span className="text-muted-foreground">Paraşüt işliyor — sayfa kendiliğinden güncellenir.</span>
-    ) : s === 'failed' ? (
-      <span className="text-danger">{row.eArchive?.error ?? 'Paraşüt yanıt vermedi.'}</span>
-    ) : s === 'auto' ? (
-      <span className="text-muted-foreground">POS cihazı fişi basar.</span>
-    ) : (
-      <Input value={note} maxLength={300} placeholder="Fiş no / not" onChange={(e) => setNote(e.target.value)} className="h-9" />
-    )
-
-  const amountCell =
-    s === 'issued' ? (
-      row.invoicedKurus === null ? '—' : tl(row.invoicedKurus)
-    ) : s === 'open' || s === 'auto' ? (
-      <Input value={a.amountOf(row)} inputMode="decimal" onChange={(e) => a.setAmount(row.paymentId, e.target.value)} className="h-9 w-28 text-right" aria-label="Kesilen tutar" />
-    ) : (
-      '—'
-    )
-
-  const tc = (
-    <button type="button" onClick={() => void editTc()} className="inline-flex min-h-9 items-center gap-1.5 hover:text-primary" title="TC düzenle">
-      <span className={row.nationalId ? '' : 'text-muted-foreground'}>{row.nationalId ?? a.placeholder}</span>
-      <PencilIcon className="size-3.5 opacity-60" />
-    </button>
-  )
-
-  const check = a.selectable(row) ? (
-    <label className="inline-flex min-h-10 items-center">
-      <input type="checkbox" checked={a.selected.has(row.paymentId)} onChange={() => a.toggle(row.paymentId)} className="size-5 accent-primary" aria-label={`${row.fullName} seç`} />
-    </label>
-  ) : null
-
-  return { s, buttons, noteCell, amountCell, tc, check, overLimit }
-}
-
-function Row({ row, a }: { row: InvoiceRow; a: RowActions }) {
-  const c = useRowControls(row, a)
-  const b = badge(row)
-  const due = sonGun(row, Date.now())
   return (
-    <tr className={c.s === 'issued' ? 'bg-success/5' : c.s === 'failed' ? 'bg-danger/5' : 'hover:bg-muted/30'}>
-      <td className="px-3 py-2">{c.check}</td>
-      <td className="px-3 py-2 whitespace-nowrap">
-        <span className={`rounded-md px-2 py-0.5 text-xs font-semibold ${b.cls}`}>{b.text}</span>
-      </td>
-      <td className="px-3 py-2 whitespace-nowrap tabular-nums">{gun(row.receivedAt)}</td>
-      <td className="px-3 py-2 whitespace-nowrap">{row.fullName}</td>
-      <td className="px-3 py-2 whitespace-nowrap tabular-nums">{c.tc}</td>
-      <td className="px-3 py-2 whitespace-nowrap">
-        {METHOD[row.method] ?? row.method}
-        {due ? <span className={`ml-2 rounded-md px-1.5 py-0.5 text-xs ${due.urgent ? 'bg-danger/10 text-danger' : 'bg-muted text-muted-foreground'}`}>{due.text}</span> : null}
-        {c.overLimit ? <span className="ml-2 rounded-md bg-warning/10 px-1.5 py-0.5 text-xs text-warning">Fiş sınırı üstü</span> : null}
-      </td>
-      <td className="px-3 py-2 text-right whitespace-nowrap tabular-nums">
-        {tl(row.amountKurus)}
-        {row.chargedKurus !== null && row.chargedKurus !== row.amountKurus ? (
-          <span className="block text-xs text-muted-foreground">kartta {tl(row.chargedKurus)} (komisyonlu)</span>
-        ) : null}
-      </td>
-      <td className="px-3 py-2 text-right whitespace-nowrap tabular-nums">{c.amountCell}</td>
-      <td className="min-w-48 px-3 py-2">{c.noteCell}</td>
-      <td className="px-3 py-2">{c.buttons}</td>
-    </tr>
-  )
-}
+    <Dialog open onOpenChange={(o) => !o && !saving && onClose()}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>{row.fullName}</DialogTitle>
+          <DialogDescription>
+            {METHOD[row.method] ?? row.method} · {gun(row.receivedAt)} · tahsilat {tl(row.amountKurus)}
+            {charged ? ` · kartta ${tl(row.chargedKurus!)} (komisyonlu)` : ''}
+          </DialogDescription>
+        </DialogHeader>
 
-function Card({ row, a }: { row: InvoiceRow; a: RowActions }) {
-  const c = useRowControls(row, a)
-  const b = badge(row)
-  const due = sonGun(row, Date.now())
-  return (
-    <li className={`space-y-2 rounded-xl border bg-card p-3 ${c.s === 'failed' ? 'border-danger/40' : 'border-border'}`}>
-      <div className="flex items-start gap-2">
-        {c.check}
-        <div className="min-w-0 flex-1">
-          <div className="flex items-baseline justify-between gap-2">
-            <span className="truncate font-semibold">{row.fullName}</span>
-            <span className="text-right font-semibold tabular-nums">
-              {tl(row.amountKurus)}
-              {row.chargedKurus !== null && row.chargedKurus !== row.amountKurus ? (
-                <span className="block text-xs font-normal text-muted-foreground">kartta {tl(row.chargedKurus)}</span>
-              ) : null}
-            </span>
-          </div>
-          <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-            <span>
-              {METHOD[row.method] ?? row.method} · {gun(row.receivedAt)}
-            </span>
-            <span className={`rounded-md px-1.5 py-0.5 font-semibold ${b.cls}`}>{b.text}</span>
-            {due ? <span className={due.urgent ? 'text-danger' : ''}>{due.text}</span> : null}
-            {c.overLimit ? <span className="text-warning">Fiş sınırı üstü</span> : null}
-          </div>
-          <div className="mt-1 text-xs">TC {c.tc}</div>
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <span className={`rounded-md px-2 py-0.5 text-xs font-semibold ${b.cls}`}>{b.text}</span>
+          <button type="button" onClick={() => void editTc()} className="inline-flex min-h-9 items-center gap-1.5 hover:text-primary" title="TC düzenle">
+            TC <span className={`tabular-nums ${row.nationalId ? '' : 'text-muted-foreground'}`}>{row.nationalId ?? a.placeholder}</span>
+            <PencilIcon className="size-3.5 opacity-60" />
+          </button>
         </div>
-      </div>
-      <div className="text-sm">{c.noteCell}</div>
-      {c.s === 'open' || c.s === 'auto' ? (
-        <label className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
-          Kesilen tutar {c.amountCell}
-        </label>
-      ) : null}
-      {c.buttons}
-    </li>
+
+        {s === 'issued' ? (
+          <p className="text-sm text-muted-foreground">
+            Kesilen {row.invoicedKurus === null ? '—' : tl(row.invoicedKurus)}
+            {row.documentNo ? ` · ${row.documentNo}` : ''}
+            {row.note ? ` · ${row.note}` : ''}
+          </p>
+        ) : s === 'pending' ? (
+          <p className="text-sm text-muted-foreground">Paraşüt bu faturayı kesiyor — liste kendiliğinden güncellenir.</p>
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-2">
+            {s === 'failed' ? <p className="text-sm text-danger sm:col-span-2">{row.eArchive?.error ?? 'Paraşüt yanıt vermedi.'}</p> : null}
+            <label className="flex flex-col gap-1 text-xs text-muted-foreground">
+              Kesilen tutar (KDV dahil)
+              <Input value={a.amountOf(row)} inputMode="decimal" onChange={(e) => a.setAmount(row.paymentId, e.target.value)} className="h-10 text-right text-base" />
+            </label>
+            <label className="flex flex-col gap-1 text-xs text-muted-foreground">
+              Fiş no / not
+              <Input value={note} maxLength={300} onChange={(e) => setNote(e.target.value)} className="h-10" />
+            </label>
+          </div>
+        )}
+
+        <div className="flex flex-col gap-2">
+          {canArchive ? (
+            <Button
+              size="lg"
+              className="min-h-11"
+              variant={row.rule === 'e_archive' || s === 'failed' ? 'default' : 'outline'}
+              disabled={saving || !a.setup.eArchiveReady}
+              onClick={() => {
+                onClose()
+                a.eArchive(row)
+              }}
+            >
+              {s === 'failed' ? 'e-Arşiv — tekrar dene' : 'e-Arşiv fatura kes…'}
+            </Button>
+          ) : null}
+          {canArchive && !a.setup.eArchiveReady ? (
+            <p className="text-xs text-muted-foreground">e-Arşiv, Ayarlar → Fatura’da Paraşüt bağlanınca açılır.</p>
+          ) : null}
+          {canTick && row.rule === 'okc_manual' ? (
+            <Button size="lg" className="min-h-11" variant="outline" disabled={saving} onClick={() => void tick()}>
+              Fiş kesildi (ÖKC)
+            </Button>
+          ) : null}
+          {canTick && row.rule === 'e_archive' ? (
+            <Button size="lg" className="min-h-11" variant="ghost" disabled={saving} onClick={() => void tick()}>
+              Elle işaretle — faturayı başka yerden kestim
+            </Button>
+          ) : null}
+          {row.byParasut ? (
+            <Button size="lg" className="min-h-11" variant="outline" onClick={() => void pdf()}>
+              PDF’i aç
+            </Button>
+          ) : null}
+          {s === 'issued' ? (
+            <Button size="lg" className="min-h-11" variant="ghost" disabled={saving} onClick={() => void untick()}>
+              Tiki kaldır
+            </Button>
+          ) : null}
+        </div>
+      </DialogContent>
+    </Dialog>
   )
 }
 
