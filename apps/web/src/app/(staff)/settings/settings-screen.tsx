@@ -18,6 +18,7 @@ import { cn } from '@/lib/utils'
 import { DefinitionsPanel } from './definitions-panel'
 import { MobilePanel } from './mobile-panel'
 import { AiSettingsPanel } from './ai-settings-panel'
+import { InvoiceSettingsPanel } from './invoice-settings-panel'
 import { ReportPinPanel } from './report-pin-panel'
 import { ThemeScreen } from './theme/theme-screen'
 import { domainErrorMessage } from '@/lib/domain-error'
@@ -200,6 +201,13 @@ export function SettingsScreen({
   })
   const [maxInstallments, setMaxInstallments] = useState((settings?.paymentSurcharge?.maxInstallments ?? 3).toString())
   const [tab, setTab] = useState('genel')
+  // `?tab=fatura` (Fatura Takibi links here) and `?parasut=bagli` (the Paraşüt sign-in comes back here).
+  // After mount, so the server render and the first client render agree.
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search)
+    const t = q.get('tab') ?? (q.get('parasut') ? 'fatura' : null)
+    if (t) setTab(t)
+  }, [])
 
   const setDay = (key: 0 | 1 | 2 | 3 | 4 | 5 | 6, value: DayHours | null) =>
     setHours((h) => ({ ...h, [key]: value }))
@@ -316,6 +324,7 @@ export function SettingsScreen({
           <TabsTrigger value="tanimlar" className="shrink-0">Tanımlar</TabsTrigger>
           <TabsTrigger value="mobil" className="shrink-0">Mobil</TabsTrigger>
           <TabsTrigger value="ai" className="shrink-0">AI</TabsTrigger>
+          <TabsTrigger value="fatura" className="shrink-0">Fatura</TabsTrigger>
         </TabsList>
 
         <TabsContent value="genel" className="space-y-6">
@@ -802,6 +811,11 @@ export function SettingsScreen({
         <TabsContent value="ai" className="space-y-6">
           {/* The studio's AI "knowledge card" — persona + basics + policies + FAQ the AI reads as context. */}
           <AiSettingsPanel canEdit={canManage} />
+        </TabsContent>
+
+        <TabsContent value="fatura" className="space-y-6">
+          {/* FT-2 (OR-132) — document rule per payment method, VAT, Paraşüt connection. */}
+          <InvoiceSettingsPanel canEdit={canManage} />
         </TabsContent>
       </Tabs>
 

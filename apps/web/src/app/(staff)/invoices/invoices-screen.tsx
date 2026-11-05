@@ -24,7 +24,6 @@ import {
 } from '@/server/actions/invoices'
 
 import { ReportPinGate } from '../reports/pin-gate'
-import { InvoiceSettingsPanel } from './invoice-settings'
 
 // FATURA TAKİBİ (owner, 2026-11-03) + FT-2 PARAŞÜT e-ARŞİV (owner, 2026-11-04 · OR-132).
 // One row per payment. Which buttons a row offers comes from the studio's document rule (data):
@@ -105,7 +104,6 @@ export function InvoicesScreen() {
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [amounts, setAmounts] = useState<Record<string, string>>({})
   const [confirm, setConfirm] = useState<InvoiceRow[] | null>(null)
-  const [settings, setSettings] = useState(false)
 
   const load = useCallback(
     async (quiet = false) => {
@@ -193,9 +191,9 @@ export function InvoicesScreen() {
         description="Hangi tahsilatın belgesi kesildi, hangisi bekliyor?"
         actions={
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" onClick={() => setSettings((v) => !v)}>
+            <Button variant="outline" render={<a href="/settings?tab=fatura" />}>
               <SettingsIcon />
-              Belge ayarları
+              Fatura ayarları
             </Button>
             <Button
               variant="outline"
@@ -224,8 +222,6 @@ export function InvoicesScreen() {
           </div>
         }
       />
-
-      {settings ? <InvoiceSettingsPanel onSaved={() => void load(true)} onClose={() => setSettings(false)} /> : null}
 
       <div className="space-y-2">
         <div className="flex flex-wrap gap-2">
@@ -265,7 +261,7 @@ export function InvoicesScreen() {
               ? setup.environment === 'staging'
                 ? ' Paraşüt TEST ortamına bağlı: kesilen faturalar gerçek değil.'
                 : ''
-              : ' e-Arşiv düğmesi, Belge ayarlarında KDV oranı girilip Paraşüt bağlanınca açılır.'}
+              : ' e-Arşiv düğmesi, Ayarlar → Fatura’da Paraşüt bağlanınca açılır.'}
           </p>
         </div>
       ) : null}

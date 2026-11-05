@@ -2567,4 +2567,6 @@ ve havale de e-arşiv kesmeliyiz"* · *"kk … fiziksel pos ökç den oluyor an�
   hizmet/KDV'yi görür, onaylar. Sistem yalnız hatırlatır (havale 7 gün rozeti + 09:00 maili, OR-130).
 - Tutarı yine insan girer (OR-130); sistem tutar önermez.
 - `invoice.issued` v2 belge türünü taşır; v1 kayıtlar "elle işaretlendi" okunur (şema değişikliği owner onaylı, 2026-11-04).
-- Fiş sınırı (bu tutarın üstünde fatura zorunlu) ve KDV oranı mali müşavirden teyit edilecek; ikisi de ayar.
+- **KDV %20** (owner, 2026-11-05: *"bizim kdv oranımız bellidir … %20 ile çalışıyoruz"*) — yazıldı. Fiş sınırı mali müşavirden.
+- **Ayarların yeri:** Ayarlar → **Fatura** sekmesi (owner, 2026-11-05: *"paraşüt ayarları panelde ayarlar altında olsun"*). Yalnız
+  sahip; rapor PIN'i istemez (orada müşteri/TC listesi yok). Fatura Takibi'ndeki "Fatura ayarları" düğmesi oraya götürür.

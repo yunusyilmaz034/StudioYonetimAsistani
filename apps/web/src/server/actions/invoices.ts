@@ -237,9 +237,14 @@ async function parasutConnected(studioId: string): Promise<boolean> {
   return typeof s.get('refreshToken') === 'string'
 }
 
+// Ayarlar → Fatura (owner, 2026-11-05). Owner-only, NOT behind the report PIN: nothing here lists a
+// customer or a TC kimlik — the PIN guards the list, not the configuration.
+async function owner() {
+  return { ok: true as const, ctx: await requireTenantContext(OWNER) }
+}
+
 export async function loadInvoiceSettingsAction(): Promise<InvoiceSettings | null> {
-  const u = await unlocked()
-  if (!u.ok) return null
+  const u = await owner()
   const db = adminDb()
   const [policy, secret] = await Promise.all([new FirestoreInvoiceRepository(db).getInvoicePolicy(u.ctx), db.doc(`studios/${u.ctx.studioId}/secrets/parasut`).get()])
   const at = secret.get('connectedAt')
@@ -257,8 +262,7 @@ export async function saveInvoiceSettingsAction(input: unknown): Promise<Result<
       companyId: z.string().trim().regex(/^\d{1,12}$/).nullable(),
     })
     .parse(input)
-  const u = await unlocked()
-  if (!u.ok) return LOCKED
+  const u = await owner()
   const repo = new FirestoreInvoiceRepository(adminDb())
   const current = await repo.getInvoicePolicy(u.ctx)
   // Parsed back through the same reader the worker uses: what is saved is exactly what will be read.
@@ -283,8 +287,7 @@ const PARASUT_OAUTH_URL = 'https://europe-west1-studio-yonetim-prod.cloudfunctio
  * page. The owner types his Paraşüt password THERE — it never passes through the panel.
  */
 export async function parasutConnectAction(): Promise<string | null> {
-  const u = await unlocked()
-  if (!u.ok) return null
+  const u = await owner()
   const policy = await new FirestoreInvoiceRepository(adminDb()).getInvoicePolicy(u.ctx)
   const ticket = randomBytes(24).toString('base64url')
   const origin = (await headers()).get('origin') ?? ''
@@ -293,7 +296,7 @@ export async function parasutConnectAction(): Promise<string | null> {
     .set({
       ticketHash: createHash('sha256').update(ticket).digest('hex'),
       expiresAt: Timestamp.fromMillis(systemClock.now() + 10 * 60_000),
-      returnTo: /^https:\/\//.test(origin) ? `${origin}/invoices` : null,
+      returnTo: /^https:\/\//.test(origin) ? `${origin}/settings` : null,
       idBase: policy.parasut.idBase,
       by: u.ctx.actor,
     })

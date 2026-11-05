@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input'
 import { domainErrorMessage } from '@/lib/domain-error'
 import { loadInvoiceSettingsAction, parasutConnectAction, saveInvoiceSettingsAction, type InvoiceSettings } from '@/server/actions/invoices'
 
-// FT-2 · Belge ayarları (owner, OR-132). Which document each payment method gets, and the three values
+// FT-2 · Ayarlar → Fatura (owner, OR-132; owner 2026-11-05: "paraşüt ayarları panelde ayarlar altında olsun"). Which document each payment method gets, and the three values
 // the accountant gives (service line, VAT rate, receipt limit). No setting here ever cuts an invoice
 // by itself — every e-Arşiv is still a person's press.
 
@@ -27,7 +27,7 @@ const RULES = [
   { id: 'e_archive', label: 'e-Arşiv' },
 ] as const
 
-export function InvoiceSettingsPanel({ onSaved, onClose }: { onSaved: () => void; onClose: () => void }) {
+export function InvoiceSettingsPanel({ canEdit }: { canEdit: boolean }) {
   const [s, setS] = useState<InvoiceSettings | null>(null)
   const [by, setBy] = useState<Record<string, string>>({})
   const [line, setLine] = useState('')
@@ -66,10 +66,7 @@ export function InvoiceSettingsPanel({ onSaved, onClose }: { onSaved: () => void
         companyId: company.trim() || null,
       })
       if (!r.ok) toast.error(domainErrorMessage(r.error))
-      else {
-        toast.success('Belge ayarları kaydedildi.')
-        onSaved()
-      }
+      else toast.success('Fatura ayarları kaydedildi.')
     } catch {
       toast.error('Kaydedilemedi. Değerleri kontrol edin.')
     } finally {
@@ -83,19 +80,17 @@ export function InvoiceSettingsPanel({ onSaved, onClose }: { onSaved: () => void
     window.location.href = link
   }
 
+  if (!canEdit) return <p className="text-sm text-muted-foreground">Fatura ayarlarını yalnız stüdyo sahibi değiştirir.</p>
   if (s === null) return <div className="rounded-xl border border-border bg-card p-4 text-sm text-muted-foreground">Yükleniyor…</div>
 
   const field = 'min-h-10 rounded-lg border border-border bg-background px-3 text-sm'
   return (
-    <section className="space-y-4 rounded-xl border border-border bg-card p-4 shadow-sm" aria-label="Belge ayarları">
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div>
-          <h2 className="text-lg font-bold">Belge ayarları</h2>
-          <p className="text-xs text-muted-foreground">Hiçbir ayar faturayı kendiliğinden kestirmez — her e-Arşiv bir kişinin onayıyla çıkar.</p>
-        </div>
-        <Button variant="ghost" onClick={onClose}>
-          Kapat
-        </Button>
+    <section className="space-y-4 rounded-xl border border-border bg-card p-4 shadow-sm" aria-label="Fatura ayarları">
+      <div>
+        <h2 className="text-lg font-bold">Fatura ve Paraşüt</h2>
+        <p className="text-xs text-muted-foreground">
+          Fatura Takibi ekranındaki düğmeler buradan gelir. Hiçbir ayar faturayı kendiliğinden kestirmez — her e-Arşiv bir kişinin onayıyla çıkar.
+        </p>
       </div>
 
       <div className="space-y-2">
