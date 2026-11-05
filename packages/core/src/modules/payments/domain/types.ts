@@ -114,6 +114,14 @@ export type PaymentIntent = {
   readonly expiresAt: Instant | null
   readonly failureReason: string | null
   readonly refundedAmount: Money // net refunded so far (ledger-derived companion on the intent)
+  /**
+   * What the card was ACTUALLY charged, from PAYTR's callback (`total_amount`) — more than `amount` when
+   * the customer chose instalments and carried the bank's commission. Not revenue (that stays `amount`);
+   * it is what the e-Arşiv is cut for (owner, 2026-11-05: "komisyon oranıyla biz kesiyoruz"). The same
+   * fact `payment_intent.succeeded.paidAmount` records; null until paid, and on intents paid before
+   * 2026-11-05 until the backfill script copies it from that event.
+   */
+  readonly paidAmount?: Money | null
   // ── ONLINE SATIŞ (owner, 2026-08-05) ──
   // A public purchase is money from someone the studio has not met, so the package is NOT granted by
   // the callback: reception decides who she is first. These two record that the decision was taken.

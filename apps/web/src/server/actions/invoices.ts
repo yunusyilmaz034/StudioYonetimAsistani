@@ -62,6 +62,12 @@ export interface InvoiceRow {
   readonly note: string | null
   /** What the invoice was cut for, as typed at the tick — may differ from the payment (owner). */
   readonly invoicedKurus: number | null
+  /**
+   * Online (PAYTR): what the card was actually charged, commission included — the amount the studio
+   * invoices (owner, 2026-11-05: "14 bin olan şey aslında 15 bin küsür biz buna fatura kesiyoruz").
+   * null for other methods, or an old intent the backfill has not reached.
+   */
+  readonly chargedKurus: number | null
   /** FT-2 (OR-132) — which document this method gets by the studio's rule. */
   readonly rule: DocumentRule
   /** What was cut; null on a tick from before FT-2 ("Elle işaretli"). */
@@ -113,6 +119,7 @@ export async function loadInvoicesAction(input: unknown): Promise<InvoiceList> {
     invoiceRepo.getInvoicePolicy(ctx),
     parasutConnected(String(ctx.studioId)),
   ])
+  const charged = await chargedByRef(db, String(ctx.studioId), live.filter((x) => x.method === 'online' && x.providerRef).map((x) => String(x.providerRef)))
   const now = systemClock.now()
   const mark = new Map(marks.map((m) => [m.paymentId, m]))
   const who = new Map(
@@ -142,6 +149,7 @@ export async function loadInvoicesAction(input: unknown): Promise<InvoiceList> {
         issuedAt: m?.issuedAt ?? null,
         note: m?.note ?? null,
         invoicedKurus: m?.issued && m.invoicedAmount ? m.invoicedAmount.amount : null,
+        chargedKurus: x.method === 'online' && x.providerRef ? (charged.get(x.providerRef) ?? null) : null,
         rule: documentRuleFor(policy, x.method),
         document: m?.issued ? m.document : null,
         byParasut: m?.issued === true && m.provider === 'parasut',
@@ -167,6 +175,20 @@ export async function loadInvoicesAction(input: unknown): Promise<InvoiceList> {
       environment: policy.parasut.environment,
     },
   }
+}
+
+/** PAYTR merchant_oid → the charged total on its payment intent. 30 refs per query (Firestore `in`). */
+async function chargedByRef(db: ReturnType<typeof adminDb>, studioId: string, refs: readonly string[]): Promise<Map<string, number>> {
+  const out = new Map<string, number>()
+  const unique = [...new Set(refs)]
+  for (let i = 0; i < unique.length; i += 30) {
+    const snap = await db.collection(`studios/${studioId}/paymentIntents`).where('providerRef', 'in', unique.slice(i, i + 30)).get()
+    for (const d of snap.docs) {
+      const paid = d.get('paidAmount') as { amount?: number } | null | undefined
+      if (typeof paid?.amount === 'number') out.set(String(d.get('providerRef')), paid.amount)
+    }
+  }
+  return out
 }
 
 function deps() {

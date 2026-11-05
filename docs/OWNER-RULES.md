@@ -2573,5 +2573,10 @@ ve havale de e-arşiv kesmeliyiz"* · *"kk … fiziksel pos ökç den oluyor an�
   "Hizmet bedeli". Hibrit paket iki kategoriyi "Pilates, Fitness" diye yazar.
 - **Fiş sınırı 12.000 ₺** (owner): üstündeki nakit/kart satırında "Fiş sınırı üstü" uyarısı.
 - **Alıcı adresi yalnız il/ilçe: Kocaeli / Çayırova** (owner) — her alıcı için stüdyonunki; üyeden adres istenmez.
+- **Online (PayTR) faturası KARTTAN ÇEKİLEN tutardan** (owner, 2026-11-05: *"satış bedeli üzerinden fatura kesilmiyor komisyon
+  oranıyla biz kesiyoruz mesela 14 bin olan şey aslında 15 bin küsür"*): taksit komisyonu dahil `paymentIntents.paidAmount`
+  (PayTR `total_amount`). Gelir/kasa yine satış bedeli (`amount`) — değişmez. Fatura Takibi'nde "kartta X ₺ (komisyonlu)" ve
+  kesilen tutar varsayılanı o. Eski ödemeler `ft2-paytr-odenen-tutar-2026-11-05.ts` ile olaydan kopyalanır.
+- **Yöntem süzgeci** (owner): Tüm yöntemler · Havale/EFT · Fiziksel KK (kredi kartı + POS) · Online (PayTR) · Nakit.
 - **Ayarların yeri:** Ayarlar → **Fatura** sekmesi (owner, 2026-11-05: *"paraşüt ayarları panelde ayarlar altında olsun"*). Yalnız
   sahip; rapor PIN'i istemez (orada müşteri/TC listesi yok). Fatura Takibi'ndeki "Fatura ayarları" düğmesi oraya götürür.

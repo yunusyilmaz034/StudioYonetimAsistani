@@ -64,6 +64,9 @@ describe('decideCallbackResult — the paid amount', () => {
     if (r.ok) {
       expect(r.value.next.status).toBe('paid')
       expect(r.value.completed).toBe(true)
+      // FT-2 (owner, 2026-11-05): the charged total is kept — the e-Arşiv is cut for it, revenue is not.
+      expect(r.value.next.paidAmount).toEqual(money(1210))
+      expect(r.value.next.amount).not.toEqual(money(1210))
     }
   })
 

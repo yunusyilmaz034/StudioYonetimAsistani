@@ -24,6 +24,7 @@ function toDoc(p: PaymentIntent): DocumentData {
     expiresAt: p.expiresAt === null ? null : toTs(p.expiresAt),
     failureReason: p.failureReason,
     refundedAmount: p.refundedAmount,
+    paidAmount: p.paidAmount ?? null,
     // ONLINE SATIŞ: null until reception turns a paid public purchase into a membership. Written
     // as an explicit null (not omitted) so the "paid but nobody acted" query can find it.
     fulfilledAt: p.fulfilledAt === null || p.fulfilledAt === undefined ? null : toTs(p.fulfilledAt),
@@ -60,6 +61,7 @@ function fromDoc(id: string, d: DocumentData): PaymentIntent {
     })(),
     fulfilledMemberId: (d.fulfilledMemberId as string | null) ?? null,
     refundedAmount: d.refundedAmount,
+    paidAmount: (d.paidAmount as PaymentIntent['paidAmount']) ?? null,
     createdBy: d.createdBy,
     createdAt: instant(fromTs(d.createdAt as Timestamp) ?? 0),
     updatedAt: instant(fromTs((d.updatedAt as Timestamp | null) ?? null) ?? 0),

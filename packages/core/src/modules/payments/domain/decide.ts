@@ -196,7 +196,7 @@ export function decideCallbackResult(
     })
   }
 
-  const next: PaymentIntent = { ...intent, status: 'paid', updatedAt: ctx.now }
+  const next: PaymentIntent = { ...intent, status: 'paid', paidAmount: verdict.paidAmount, updatedAt: ctx.now }
   return ok({
     next,
     events: [

@@ -49,6 +49,15 @@ const DURUM = [
   { id: 'hepsi', label: 'Tümü' },
 ] as const
 type DurumId = (typeof DURUM)[number]['id']
+// Ödeme yöntemi süzgeci (owner, 2026-11-05): fiziksel kart = kredi kartı + POS, ikisi de ÖKC'den.
+const YONTEM = [
+  { id: 'hepsi', label: 'Tüm yöntemler', methods: null },
+  { id: 'havale', label: 'Havale / EFT', methods: ['bank_transfer'] },
+  { id: 'kart', label: 'Fiziksel KK', methods: ['credit_card', 'pos'] },
+  { id: 'online', label: 'Online (PayTR)', methods: ['online'] },
+  { id: 'nakit', label: 'Nakit', methods: ['cash'] },
+] as const
+type YontemId = (typeof YONTEM)[number]['id']
 
 const DAY = 86_400_000
 /** Havale/EFT: the invoice is due within 7 days of the money arriving (owner, 2026-11-03). */
@@ -99,6 +108,7 @@ export function InvoicesScreen() {
   const [rangeId, setRangeId] = useState<RangeId>('last30')
   const [custom, setCustom] = useState<{ from?: string; to?: string }>({})
   const [durum, setDurum] = useState<DurumId>('bekleyen')
+  const [yontem, setYontem] = useState<YontemId>('hepsi')
   const [data, setData] = useState<InvoiceList | null>(null)
   const [busy, setBusy] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(new Set())
@@ -136,13 +146,15 @@ export function InvoicesScreen() {
   const rows = useMemo(
     () =>
       all.filter((r) => {
+        const methods = YONTEM.find((y) => y.id === yontem)?.methods
+        if (methods && !(methods as readonly string[]).includes(r.method)) return false
         const s = stateOf(r)
         if (durum === 'hepsi') return true
         if (durum === 'kesilen') return s === 'issued'
         if (durum === 'otomatik') return s === 'auto'
         return s === 'open' || s === 'pending' || s === 'failed'
       }),
-    [all, durum],
+    [all, durum, yontem],
   )
 
   if (data?.locked) {
@@ -161,7 +173,8 @@ export function InvoicesScreen() {
   const otomatik = all.filter((r) => stateOf(r) === 'auto').length
   const kesilen = all.filter((r) => r.issued).length
   const eArsiv = all.filter((r) => r.byParasut).length
-  const amountOf = (r: InvoiceRow) => amounts[r.paymentId] ?? String(r.amountKurus / 100).replace('.', ',')
+  // Online: the invoice is cut for what the card was charged, commission included (owner, 2026-11-05).
+  const amountOf = (r: InvoiceRow) => amounts[r.paymentId] ?? String((r.chargedKurus ?? r.amountKurus) / 100).replace('.', ',')
   const selectable = (r: InvoiceRow) => setup.eArchiveReady && (stateOf(r) === 'open' || stateOf(r) === 'failed')
   const chosen = all.filter((r) => selected.has(r.paymentId) && selectable(r))
   const toggle = (id: string) =>
@@ -242,6 +255,13 @@ export function InvoicesScreen() {
           {DURUM.map((d) => (
             <button key={d.id} type="button" onClick={() => setDurum(d.id)} className={chip(d.id === durum)}>
               {d.label}
+            </button>
+          ))}
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {YONTEM.map((y) => (
+            <button key={y.id} type="button" onClick={() => setYontem(y.id)} className={chip(y.id === yontem)}>
+              {y.label}
             </button>
           ))}
         </div>
@@ -502,7 +522,12 @@ function Row({ row, a }: { row: InvoiceRow; a: RowActions }) {
         {due ? <span className={`ml-2 rounded-md px-1.5 py-0.5 text-xs ${due.urgent ? 'bg-danger/10 text-danger' : 'bg-muted text-muted-foreground'}`}>{due.text}</span> : null}
         {c.overLimit ? <span className="ml-2 rounded-md bg-warning/10 px-1.5 py-0.5 text-xs text-warning">Fiş sınırı üstü</span> : null}
       </td>
-      <td className="px-3 py-2 text-right whitespace-nowrap tabular-nums">{tl(row.amountKurus)}</td>
+      <td className="px-3 py-2 text-right whitespace-nowrap tabular-nums">
+        {tl(row.amountKurus)}
+        {row.chargedKurus !== null && row.chargedKurus !== row.amountKurus ? (
+          <span className="block text-xs text-muted-foreground">kartta {tl(row.chargedKurus)} (komisyonlu)</span>
+        ) : null}
+      </td>
       <td className="px-3 py-2 text-right whitespace-nowrap tabular-nums">{c.amountCell}</td>
       <td className="min-w-48 px-3 py-2">{c.noteCell}</td>
       <td className="px-3 py-2">{c.buttons}</td>
@@ -521,7 +546,12 @@ function Card({ row, a }: { row: InvoiceRow; a: RowActions }) {
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline justify-between gap-2">
             <span className="truncate font-semibold">{row.fullName}</span>
-            <span className="font-semibold tabular-nums">{tl(row.amountKurus)}</span>
+            <span className="text-right font-semibold tabular-nums">
+              {tl(row.amountKurus)}
+              {row.chargedKurus !== null && row.chargedKurus !== row.amountKurus ? (
+                <span className="block text-xs font-normal text-muted-foreground">kartta {tl(row.chargedKurus)}</span>
+              ) : null}
+            </span>
           </div>
           <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
             <span>
@@ -607,6 +637,7 @@ function ConfirmEArchive({
               </div>
               <p className="text-xs text-muted-foreground">
                 {METHOD[r.method] ?? r.method} · {gun(r.receivedAt)} · tahsilat {tl(r.amountKurus)}
+                {r.chargedKurus !== null && r.chargedKurus !== r.amountKurus ? ` · kartta ${tl(r.chargedKurus)} (komisyonlu)` : ''}
               </p>
               <label className="flex flex-col gap-1 text-xs text-muted-foreground">
                 Kesilen tutar (KDV dahil)
