@@ -399,7 +399,7 @@ function SaleLinkDialog({
   onCreated: (checkout: PaytrCheckout, provider: string) => void
 }) {
   const [amount, setAmount] = useState(String(sale.due / 100))
-  const [provider, setProvider] = useState<'default' | 'paytr' | 'tami'>('tami')
+  const [provider, setProvider] = useState<'default' | 'paytr' | 'tami'>('default')
   const [busy, setBusy] = useState(false)
 
   async function submit() {
