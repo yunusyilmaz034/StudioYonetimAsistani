@@ -103,7 +103,7 @@ export function ReportsScreen() {
           toMs: range.toMs,
           // Yalnızca satış raporunda anlamlı; ötekiler için gönderilmiyor ki sunucu tarafında
           // "neden burada kategori var" diye bir soru hiç doğmasın.
-          ...(id === 'sales' && kategori !== 'hepsi' ? { kategori } : {}),
+          ...((id === 'sales' || id === 'collections') && kategori !== 'hepsi' ? { kategori } : {}),
           ...(id === 'collections' && yontem !== 'hepsi' ? { yontem } : {}),
         })
         if (!cancelled) setResult(res)
@@ -218,7 +218,7 @@ export function ReportsScreen() {
 
       {/* PAKET DAĞILIMI — yalnızca satış raporunda. Tarih aralığının hemen altında, çünkü owner'ın
           sorusu ikisi birlikte: "pilates, 1–30 Eylül arası ne kadar sattı?" */}
-      {id === 'sales' ? (
+      {id === 'sales' || id === 'collections' ? (
         <div className="space-y-2 print:hidden">
           <div className="flex flex-wrap gap-2">
             {KATEGORILER.map((k) => (
@@ -239,6 +239,7 @@ export function ReportsScreen() {
           <p className="text-xs text-muted-foreground">
             Hibrit kendi başına bir kategoridir; içindeki pilates ve fitness bileşenleri o
             kategorilere eklenmez.
+            {id === 'collections' ? ' Tahsilatın kategorisi ödediği satışınkidir; hiçbir satışa bağlanmamış tahsilat (cüzdan yükleme gibi) yalnız “Tümü”de görünür.' : ''}
           </p>
         </div>
       ) : null}

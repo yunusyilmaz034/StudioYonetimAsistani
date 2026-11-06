@@ -290,6 +290,8 @@ export function buildCollections(
   members: readonly Member[],
   drawers: readonly CashDrawer[],
   staff: readonly StaffMember[],
+  /** Payment id → the category of what it paid for (Pilates / Fitness / Hibrit / PT / Karışık / —). */
+  kategori?: ReadonlyMap<string, string>,
 ): Report {
   const names = nameOf(members)
   const who = actorName(staff)
@@ -303,6 +305,7 @@ export function buildCollections(
       names.get(p.memberId as string) ?? '(silinmiş üye)',
       lira(p.amount),
       METHOD[p.method] ?? p.method,
+      ...(kategori ? [kategori.get(p.id) ?? '—'] : []),
       who(p.takenBy),
       p.drawerId ? (drawerName.get(p.drawerId) ?? p.drawerId) : '—',
       p.voided ? `İPTAL — ${p.voidReason ?? ''}`.trim() : 'Geçerli',
@@ -320,7 +323,7 @@ export function buildCollections(
   return {
     table: {
       name: 'tahsilat-raporu',
-      columns: ['Tarih', 'Üye', 'Tutar (₺)', 'Yöntem', 'Alan', 'Kasa', 'Durum'],
+      columns: ['Tarih', 'Üye', 'Tutar (₺)', 'Yöntem', ...(kategori ? ['Kategori'] : []), 'Alan', 'Kasa', 'Durum'],
       rows,
     },
     summary:
