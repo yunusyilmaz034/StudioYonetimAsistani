@@ -109,6 +109,12 @@ export async function handleTamiReturn(sid: string, orderId: string): Promise<Ta
     })
   }
 
+  // "Not paid" is not "failed" (2026-11-06): asked before the member finished — or by anyone who opens
+  // the return address — TAMI answers 400 for an order it has not taken money for. Failing the intent
+  // there killed a live link three minutes after it was minted. The intent stays awaiting; the hourly
+  // reconcile expires it if nothing ever comes. Only an amount disagreement is recorded as a refusal.
+  if (!decided.ok && decided.reason !== 'tami_amount_mismatch') return { ok: false, reason: decided.reason, intent }
+
   await completePaidIntent(ctx, intent, verdict)
 
   if (!decided.ok) return { ok: false, reason: decided.reason, intent }

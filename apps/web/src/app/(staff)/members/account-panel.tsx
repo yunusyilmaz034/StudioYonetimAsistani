@@ -17,6 +17,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { NumericTextInput } from '@/components/ui/number-input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { PaytrCheckoutDialog, type PaytrCheckout } from '@/components/paytr-checkout'
 import { formatDateTime } from '@/lib/datetime'
 import { domainErrorMessage } from '@/lib/domain-error'
 import {
@@ -28,6 +29,7 @@ import {
   cancelSaleAction,
   voidPaymentAction,
 } from '@/server/actions/finance'
+import { createSaleLinkAction } from '@/server/actions/subscription'
 
 // ── CARİ HESAP (v1.24). ─────────────────────────────────────────────────────────────────────
 //
@@ -80,6 +82,9 @@ export function AccountPanel({
   const [cancelling, setCancelling] = useState<{ id: string; lines: readonly string[] } | null>(null)
   const [voiding, setVoiding] = useState<{ id: string; amount: number } | null>(null)
   const [refunding, setRefunding] = useState<{ id: string; amount: number } | null>(null)
+  // AÇIK SATIŞA LİNK (owner, 2026-11-06): süresi dolan ödeme linkinin yerine, aynı satışa yeni link.
+  const [linking, setLinking] = useState<{ id: string; due: number; name: string } | null>(null)
+  const [linkCheckout, setLinkCheckout] = useState<{ checkout: PaytrCheckout; provider: string } | null>(null)
 
   const load = useCallback(async () => {
     try {
@@ -164,6 +169,11 @@ export function AccountPanel({
                     {s.status !== 'cancelled' && s.total - s.paid > 0 ? (
                       <Button size="sm" onClick={() => setCollectingSale({ id: s.id, due: s.total - s.paid })}>
                         Tahsilat Al
+                      </Button>
+                    ) : null}
+                    {s.status !== 'cancelled' && s.total - s.paid > 0 ? (
+                      <Button size="sm" variant="outline" onClick={() => setLinking({ id: s.id, due: s.total - s.paid, name: s.lines.join(', ') })}>
+                        Linkle tahsil et
                       </Button>
                     ) : null}
                   </div>
@@ -348,7 +358,112 @@ export function AccountPanel({
           }
         }}
       />
+      {linking ? (
+        <SaleLinkDialog
+          memberId={memberId}
+          sale={linking}
+          onClose={() => setLinking(null)}
+          onCreated={(checkout, provider) => {
+            setLinking(null)
+            setLinkCheckout({ checkout, provider })
+          }}
+        />
+      ) : null}
+      <PaytrCheckoutDialog
+        checkout={linkCheckout?.checkout ?? null}
+        memberId={memberId}
+        memberPhone={null}
+        title={linkCheckout?.provider === 'tami' ? 'TAMI ödeme linki' : linkCheckout?.provider === 'paytr' ? 'PayTR ödeme linki' : 'Ödeme linki'}
+        onClose={() => {
+          setLinkCheckout(null)
+          void load()
+        }}
+      />
     </section>
+  )
+}
+
+/**
+ * Açık bir satışın kalan borcuna YENİ ödeme linki (owner, 2026-11-06). Paket yeniden satılmaz; link
+ * ödenince bu satış kapanır. TAMI linki 6 dakika geçerli: üye yanındayken oluşturun.
+ */
+function SaleLinkDialog({
+  memberId,
+  sale,
+  onClose,
+  onCreated,
+}: {
+  memberId: string
+  sale: { id: string; due: number; name: string }
+  onClose: () => void
+  onCreated: (checkout: PaytrCheckout, provider: string) => void
+}) {
+  const [amount, setAmount] = useState(String(sale.due / 100))
+  const [provider, setProvider] = useState<'default' | 'paytr' | 'tami'>('tami')
+  const [busy, setBusy] = useState(false)
+
+  async function submit() {
+    const kurus = Math.round(Number(amount.replace(/\./g, '').replace(',', '.')) * 100)
+    if (!Number.isInteger(kurus) || kurus <= 0 || kurus > sale.due) return void toast.error(`Tutar 0 ile ${tl(sale.due)} arasında olmalı.`)
+    setBusy(true)
+    try {
+      const res = await createSaleLinkAction({ memberId, saleId: sale.id, amountKurus: kurus, ...(provider === 'default' ? {} : { provider }) })
+      if (!res.ok) {
+        toast.error(domainErrorMessage(res.error))
+        setBusy(false)
+        return
+      }
+      onCreated({ flow: 'link', redirectUrl: res.value.redirectUrl, intentId: res.value.intentId }, provider)
+    } catch {
+      toast.error('Link oluşturulamadı. Bağlantınızı kontrol edin.')
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && !busy && onClose()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Linkle tahsil et</DialogTitle>
+          <DialogDescription>
+            {sale.name} · kalan {tl(sale.due)}. Paket yeniden satılmaz; link ödenince bu satışın borcu kapanır.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3">
+          <label className="flex flex-col gap-1 text-sm">
+            Tutar (TL)
+            <Input value={amount} inputMode="decimal" onChange={(e) => setAmount(e.target.value)} />
+          </label>
+          <label className="flex flex-col gap-1 text-sm">
+            Ödeme sağlayıcısı
+            <Select value={provider} onValueChange={(v) => setProvider(v as 'default' | 'paytr' | 'tami')}>
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="tami">TAMI</SelectItem>
+                <SelectItem value="paytr">PayTR</SelectItem>
+                <SelectItem value="default">Varsayılan (stüdyo ayarı)</SelectItem>
+              </SelectContent>
+            </Select>
+          </label>
+          {provider === 'tami' ? (
+            <p className="rounded-lg bg-warning/10 px-3 py-2 text-xs text-warning">
+              TAMI linki yalnız 6 dakika geçerli. Üye yanınızdayken oluşturun ve hemen ödesin.
+            </p>
+          ) : null}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" disabled={busy} onClick={onClose}>
+            Vazgeç
+          </Button>
+          <Button disabled={busy} onClick={() => void submit()}>
+            {busy ? <Loader2Icon className="animate-spin" /> : null}
+            Link oluştur
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }
 

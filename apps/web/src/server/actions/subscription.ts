@@ -1021,3 +1021,38 @@ export async function getSubscriptionTimelineAction(input: unknown): Promise<rea
   const rows = await new FirestoreEntitlementRepository(adminDb()).listEntitlementEvents(ctx, p.entitlementId as EntitlementId)
   return rows.map((r) => ({ type: r.type, occurredAt: r.occurredAt, actorType: r.actorType, payload: r.payload }))
 }
+
+
+// ── AÇIK SATIŞA LİNK (owner, 2026-11-06) ────────────────────────────────────────────────────────
+// A package sold "Linkle Ödeme" whose link died — TAMI's hosted token lives SIX minutes in production,
+// and a member who pays at 18:30 cannot use a link minted at 17:26. The sale and the package already
+// exist; selling again would double both. This mints a NEW link for the SAME sale's open balance.
+export async function createSaleLinkAction(input: unknown) {
+  const p = z
+    .object({
+      memberId: nonEmpty,
+      saleId: nonEmpty,
+      amountKurus: z.number().int().min(1),
+      provider: z.enum(['paytr', 'tami']).optional(),
+    })
+    .parse(input)
+  const ctx = await requireTenantContext(OPS)
+  const sale = await new FirestoreFinanceRepository(adminDb()).getSale(ctx, p.saleId)
+  // Only this member's own, live sale, and never more than it still owes.
+  if (!sale || String(sale.memberId) !== p.memberId || sale.status === 'cancelled') {
+    return { ok: false as const, error: { code: 'operation_not_applicable' as const } }
+  }
+  const due = sale.total.amount - sale.paid.amount
+  if (due <= 0 || p.amountKurus > due) return { ok: false as const, error: { code: 'invalid_amount' as const } }
+  const name = sale.lines.map((l) => l.description).join(', ') || 'Tahsilat'
+  return createMemberCollectionCheckout(ctx, {
+    memberId: p.memberId as MemberId,
+    amountKurus: p.amountKurus,
+    flow: 'link',
+    branchId: (ctx.branchIds[0] ?? sale.branchId ?? null) as string | null,
+    note: `Satış: ${name}`,
+    itemName: name,
+    saleId: sale.id,
+    ...(p.provider ? { provider: p.provider } : {}),
+  })
+}
