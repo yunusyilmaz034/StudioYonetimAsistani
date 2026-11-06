@@ -1328,7 +1328,7 @@ function AssignForm({
         checkout={checkout}
         memberId={memberId}
         memberPhone={memberPhone}
-        title="PAYTR ile Paket Sat"
+        title={linkProvider === 'tami' ? 'TAMI ile Paket Sat' : linkProvider === 'paytr' ? 'PayTR ile Paket Sat' : 'Kartla Paket Sat'}
         onPaid={() => {
           paidRef.current = true
         }}
