@@ -240,6 +240,9 @@ Instagram webhook duman testi (GET/401/200) geçti. Sıradaki önerilen: AI kamp
   jetonları Graph'ta denendi: üçü OK.
 - Durum: Meta Verified "Değerlendirmede". **Onay gelince (owner haber verecek)** temsilciye iki soru, metin önce owner'a:
   (1) işletme doğrulaması neden takılı, (2) @pilatesbyisil neden Meta Verified'a uygun değil. Tekrar "Abone ol"a BASMA.
+- **7 Kasım (sonra): işletme doğrulaması REDDEDİLDİ** ("Doğrulanamadı", mail owner'a gelmedi). Başvurudaki ad
+  "reteo spor hizm. tic. ltd. şti" — yazım hatası ("retro"), muhtemel sebep. Owner kararı: yeniden başvurma, önce Meta
+  Verified onayını bekle, temsilciye RED SEBEBİNİ sor; sonra ad vergi levhasıyla harfi harfine aynı yeni başvuru (owner yapar).
 
 ### 3 Kasım gece — Meta destek: işletme doğrulaması (owner "sen sor")
 
