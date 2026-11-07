@@ -231,6 +231,16 @@ Instagram webhook duman testi (GET/401/200) geçti. Sıradaki önerilen: AI kamp
   Onayla pasif; işaretle → Onayla → "Onaylandı". Düzenle → açıklamayı değiştir → Kaydet → onay KALKAR ("Öneri"). Sınır: 31
   hashtag yaz → "En fazla 30 hashtag". Resepsiyon hesabıyla: Onayla yerine "Onayı stüdyo sahibi verir."
 
+### 7 Kasım — Meta Verified Business Standard alındı (owner)
+
+- İşletme doğrulaması (pilatesbyisil, business_id 273133891881759) hâlâ "Değerlendirmede" (6 Kasım bakıldı).
+- Owner **Meta Verified Standard** aldı: ₺219,99/ay, profil = WhatsApp "Pilates By Işıl" (tek uygun profil). Instagram
+  "uygun değil" (profil tam olduğu halde, sebep yazmıyor); FB sayfası kapak fotoğrafı eksik diye uygun değil.
+- "Zorunlu güvenlik" owner onayladı → portfolyodaki herkes Gelişmiş Koruma + 2FA. Sonrasında WHATSAPP/INSTAGRAM/META_ADS
+  jetonları Graph'ta denendi: üçü OK.
+- Durum: Meta Verified "Değerlendirmede". **Onay gelince (owner haber verecek)** temsilciye iki soru, metin önce owner'a:
+  (1) işletme doğrulaması neden takılı, (2) @pilatesbyisil neden Meta Verified'a uygun değil. Tekrar "Abone ol"a BASMA.
+
 ### 3 Kasım gece — Meta destek: işletme doğrulaması (owner "sen sor")
 
 Meta İşletme Destek → Meta AI asistanı (insan temsilci seçeneği YOK). İki mesaj (owner onaylı metin): durum + temsilci/talep.
