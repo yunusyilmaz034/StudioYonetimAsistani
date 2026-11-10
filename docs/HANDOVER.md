@@ -55,6 +55,14 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
   birebir (101 = 79 + 20 + 2). Owner deneyip yazacak.
 - **Yerelde, push edilmedi:** yalnızca günlük commit'leri (kod değil).
 
+### 10 Kasım — Çağla Adıyaman (TAMI) — pazartesi ödeyecek
+
+- Satış `sal_01M6RM236E7T8K4XBBWG5SSG6A` 22.000 ₺ AÇIK. 10 Kasım TAMI linkleri: süre dolması + Masterpass "Ödeme gerçekleşirken
+  hata oluştu" (WhatsApp içi tarayıcı). Pazartesi: link Safari'de açılsın, Masterpass değil kart formu. PayTR alternatifinde taksit
+  farkı müşteriye yansıyabilir (owner komisyonu üstleniyordu) ve TAMI'nin "işlem yapın" isteğini karşılamaz.
+- ⚠️ 13:16'daki 22.000 ₺ NAKİT tahsilat YANLIŞLIKLA girildi (owner) — patron hesabından void edilmeli (Cari Hesap → ⊘). Yapıldı mı kontrol et.
+- Arka plan izleyici AÇMA; TAMI dönüş URL'ine istek ATMA (6 Kasım dersi).
+
 ### ⏭️ 10 Kasım — KVKK uyumu ([[OR-133]]) — kod commit'li, gece deploy; sağlayıcı yazışmaları sürüyor
 
 - Uyum dosyası (envanter, açıklar, sözleşme adımları, sağlayıcı mesajı): https://claude.ai/artifact/Uv4s6mHmavGrzVijagc9rx
