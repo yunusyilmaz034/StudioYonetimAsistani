@@ -88,4 +88,5 @@ export const ADS_SECRETS = ['META_ADS_ACCESS_TOKEN'] as const
 // in Secret Manager. Binding a secret that does not exist fails every functions deploy (the WhatsApp
 // lesson above), so this list stays EMPTY until both exist; the code reads `process.env` and reports
 // `not_connected` without them. The day they are provisioned: put both names here and deploy.
-export const PARASUT_SECRETS = [] as const
+// Provisioned 2026-11-10 (owner, after Paraşüt's API approval).
+export const PARASUT_SECRETS = ['PARASUT_CLIENT_ID', 'PARASUT_CLIENT_SECRET'] as const
