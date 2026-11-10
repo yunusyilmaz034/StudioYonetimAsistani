@@ -302,6 +302,8 @@ export async function saveInvoiceSettingsAction(input: unknown): Promise<Result<
       receiptLimitKurus: z.number().int().positive().nullable(),
       internetSaleUrl: z.string().trim().url().max(200).nullable(),
       companyId: z.string().trim().regex(/^\d{1,12}$/).nullable(),
+      // Paraşüt account per method (owner, 2026-11-10): every invoice is PEŞİN into one of these.
+      accountByMethod: z.record(z.string(), z.string().trim().regex(/^\d{1,12}$/).nullable()).optional(),
     })
     .parse(input)
   const u = await owner()
@@ -318,7 +320,13 @@ export async function saveInvoiceSettingsAction(input: unknown): Promise<Result<
     vatRatePercent: p.vatRatePercent,
     receiptLimitKurus: p.receiptLimitKurus,
     internetSaleUrl: p.internetSaleUrl,
-    parasut: { ...current.parasut, companyId: p.companyId },
+    parasut: {
+      ...current.parasut,
+      companyId: p.companyId,
+      accountByMethod: p.accountByMethod
+        ? Object.fromEntries(Object.entries(p.accountByMethod).filter((e): e is [string, string] => typeof e[1] === 'string'))
+        : current.parasut.accountByMethod,
+    },
   })
   await repo.saveInvoicePolicy(u.ctx, next)
   return { ok: true, value: undefined }

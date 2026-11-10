@@ -277,6 +277,13 @@ async function createInvoice(
   now: number,
 ): Promise<{ id: string } | { fail: EArchiveFailureCode; message: string }> {
   const req = mark.eArchive!
+  // A PEŞİN invoice needs the Paraşüt account the money went into — checked before anything is made
+  // on Paraşüt's side, so a missing setting leaves no orphan contact behind.
+  const payment = await finance.getPayment(ctx, mark.paymentId)
+  const accountId = payment ? policy.parasut.accountByMethod[payment.method] : undefined
+  if (!payment || !accountId) {
+    return { fail: 'not_connected', message: 'Bu ödeme yöntemi için Paraşüt hesabı seçilmemiş (Ayarlar → Fatura → Paraşüt hesapları).' }
+  }
   const member = await database.doc(`studios/${ctx.studioId}/members/${mark.memberId}`).get()
   const tc = member.get('nationalId')
   const buyer: Buyer = {
@@ -314,6 +321,7 @@ async function createInvoice(
       netUnitPrice: netUnitPrice(req.invoicedAmount.amount, policy.vatRatePercent!),
       vatRatePercent: policy.vatRatePercent!,
       description: `Tahsilat ${mark.paymentId}`,
+      cashSale: { accountId, paymentDate: istanbulDate(payment.receivedAt) },
     },
     contactId,
   )

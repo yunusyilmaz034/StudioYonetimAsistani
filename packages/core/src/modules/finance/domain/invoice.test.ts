@@ -258,6 +258,8 @@ describe('invoice policy (OR-132)', () => {
     expect(p.receiptLimitKurus).toBe(990_000)
     expect(p.parasut).toMatchObject({ environment: 'production', companyId: '115' })
     expect(parseInvoicePolicy(undefined)).toEqual(DEFAULT_INVOICE_POLICY)
+    // Paraşüt accounts: digits only, unknown methods and junk dropped (owner, 2026-11-10)
+    expect(parseInvoicePolicy({ parasut: { accountByMethod: { bank_transfer: ' 4242 ', online: 'abc', nope: '1', cash: '' } } }).parasut.accountByMethod).toEqual({ bank_transfer: '4242' })
   })
   it('service line is the category only, never the package (owner, 2026-11-05)', () => {
     expect(serviceLineFor(DEFAULT_INVOICE_POLICY, ['pilates_group', 'pilates_group'])).toBe('Pilates')

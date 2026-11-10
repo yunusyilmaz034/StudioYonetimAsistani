@@ -34,6 +34,12 @@ export interface InvoiceInput {
   readonly description: string
   readonly city: string | null
   readonly district: string | null
+  /**
+   * The money is already in: a PEŞİN invoice, paid into this Paraşüt account on this day. Paraşüt
+   * accepts nothing else for an unlisted buyer ("Cari takibi yapılmayan müşteriye sadece peşin
+   * fatura kesilebilir", first live attempt 2026-11-10).
+   */
+  readonly cashSale: { readonly accountId: string; readonly paymentDate: string }
 }
 
 export function contactBody(b: Buyer) {
@@ -65,6 +71,10 @@ export function salesInvoiceBody(i: InvoiceInput, contactId: string) {
         issue_date: i.issueDate,
         due_date: i.issueDate,
         currency: 'TRL',
+        cash_sale: true,
+        payment_account_id: Number(i.cashSale.accountId),
+        payment_date: i.cashSale.paymentDate,
+        payment_description: i.description,
         ...(i.city ? { city: i.city } : {}),
         ...(i.district ? { district: i.district } : {}),
       },

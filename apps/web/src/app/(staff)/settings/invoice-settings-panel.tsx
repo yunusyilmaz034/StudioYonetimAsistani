@@ -21,6 +21,14 @@ const METHODS = [
   { id: 'gift_card', label: 'Hediye kartı' },
   { id: 'wallet', label: 'Cüzdan' },
 ] as const
+// Methods an e-Arşiv can be cut for (OR-132: the button stands on every row, ÖKC ones included).
+const ACCOUNT_METHODS = [
+  { id: 'bank_transfer', label: 'Havale / EFT' },
+  { id: 'online', label: 'Online (PayTR)' },
+  { id: 'cash', label: 'Nakit' },
+  { id: 'credit_card', label: 'Kredi kartı' },
+  { id: 'pos', label: 'POS' },
+] as const
 const RULES = [
   { id: 'okc_auto', label: 'ÖKC — cihaz otomatik' },
   { id: 'okc_manual', label: 'ÖKC — elle tik' },
@@ -39,6 +47,7 @@ export function InvoiceSettingsPanel({ canEdit, registerSave }: { canEdit: boole
   const [limit, setLimit] = useState('')
   const [url, setUrl] = useState('')
   const [company, setCompany] = useState('')
+  const [accounts, setAccounts] = useState<Record<string, string>>({})
 
   useEffect(() => {
     void loadInvoiceSettingsAction().then((x) => {
@@ -53,6 +62,7 @@ export function InvoiceSettingsPanel({ canEdit, registerSave }: { canEdit: boole
       setLimit(x.policy.receiptLimitKurus === null ? '' : String(x.policy.receiptLimitKurus / 100))
       setUrl(x.policy.internetSaleUrl ?? '')
       setCompany(x.policy.parasut.companyId ?? '')
+      setAccounts({ ...x.policy.parasut.accountByMethod })
     })
   }, [])
 
@@ -72,6 +82,7 @@ export function InvoiceSettingsPanel({ canEdit, registerSave }: { canEdit: boole
         receiptLimitKurus: limitN,
         internetSaleUrl: url.trim() || null,
         companyId: company.trim() || null,
+        accountByMethod: Object.fromEntries(ACCOUNT_METHODS.map((m) => [m.id, accounts[m.id]?.trim() || null])),
       })
       if (!r.ok) toast.error(domainErrorMessage(r.error))
       else toast.success('Fatura ayarları kaydedildi.')
@@ -182,6 +193,25 @@ export function InvoiceSettingsPanel({ canEdit, registerSave }: { canEdit: boole
             Paraşüt firma no
             <Input value={company} inputMode="numeric" onChange={(e) => setCompany(e.target.value)} className="h-9 w-32" />
           </label>
+          {/* Every invoice is PEŞİN (the money is already in): Paraşüt needs the account it went into. */}
+          <div className="space-y-1 pt-1">
+            <p className="text-xs font-medium">Paraşüt hesapları — tahsilat hangi hesaba girdi</p>
+            <div className="grid gap-x-4 gap-y-1 sm:grid-cols-2">
+              {ACCOUNT_METHODS.map((m) => (
+                <label key={m.id} className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                  {m.label}
+                  <Input
+                    value={accounts[m.id] ?? ''}
+                    inputMode="numeric"
+                    placeholder="hesap no"
+                    onChange={(e) => setAccounts((a) => ({ ...a, [m.id]: e.target.value }))}
+                    className="h-9 w-32"
+                  />
+                </label>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground">Paraşüt → Nakit ve Bankalar → hesaba tıklayınca adresteki numara. Boş yöntemde e-Arşiv kesilmez.</p>
+          </div>
         </div>
         <Button variant="outline" onClick={() => void connect()}>
           {s.connected ? 'Yeniden bağlan' : 'Paraşüt’e bağlan'}

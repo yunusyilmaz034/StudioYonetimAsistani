@@ -39,6 +39,13 @@ export interface InvoicePolicy {
     /** Staging hosts arrive with the API approval; production uses the documented defaults. */
     readonly apiBase: string | null
     readonly idBase: string | null
+    /**
+     * Paraşüt's cash/bank account each method's money lands in (owner, 2026-11-10). Every invoice we
+     * cut is for money already received, so it goes as a PEŞİN invoice — and Paraşüt refuses a peşin
+     * invoice without the account (and refuses any other kind for an unlisted buyer). Data, not code:
+     * the account ids are the studio's own. A method with no account cannot be e-Arşiv'd.
+     */
+    readonly accountByMethod: Readonly<Partial<Record<PaymentMethod, string>>>
   }
 }
 
@@ -59,7 +66,7 @@ export const DEFAULT_INVOICE_POLICY: InvoicePolicy = {
   vatRatePercent: null,
   receiptLimitKurus: null,
   internetSaleUrl: null,
-  parasut: { environment: 'staging', companyId: null, apiBase: null, idBase: null },
+  parasut: { environment: 'staging', companyId: null, apiBase: null, idBase: null, accountByMethod: {} },
 }
 
 /** Read leniently: a missing or unknown value falls back to the default, never throws. */
@@ -95,6 +102,11 @@ export function parseInvoicePolicy(raw: unknown): InvoicePolicy {
       companyId: str(p.companyId),
       apiBase: str(p.apiBase),
       idBase: str(p.idBase),
+      accountByMethod: Object.fromEntries(
+        Object.keys(DEFAULT_INVOICE_POLICY.documentByMethod)
+          .map((m) => [m, str(((p.accountByMethod ?? {}) as Record<string, unknown>)[m])])
+          .filter((e): e is [string, string] => typeof e[1] === 'string' && /^\d{1,12}$/.test(e[1])),
+      ) as Partial<Record<PaymentMethod, string>>,
     },
   }
 }

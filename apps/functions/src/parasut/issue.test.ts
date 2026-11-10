@@ -114,7 +114,7 @@ const payment = {
   allocated: money(400_000), voided: false, voidReason: null, note: null,
 } as Payment
 const KEY = '0b8f4a1e-3c55-4c1e-9a62-2f8d7c9e5a10'
-const policy = { ...DEFAULT_INVOICE_POLICY, vatRatePercent: 20, parasut: { ...DEFAULT_INVOICE_POLICY.parasut, companyId: '115', apiBase: 'https://api.parasut.test/v4', idBase: 'https://id.parasut.test/oidc' } }
+const policy = { ...DEFAULT_INVOICE_POLICY, vatRatePercent: 20, parasut: { ...DEFAULT_INVOICE_POLICY.parasut, companyId: '115', apiBase: 'https://api.parasut.test/v4', idBase: 'https://id.parasut.test/oidc', accountByMethod: { bank_transfer: '4242', online: '4243', cash: '4244' } } }
 const creds = { clientId: 'cid', clientSecret: 'secret' }
 
 function seed(emailTo: string | null = null) {
@@ -232,6 +232,16 @@ describe('processEArchive — one payment, one e-Arşiv', () => {
     expect(events(store).map((e) => (e.payload as Data).code)).toEqual(['not_connected'])
   })
 
+  it('no Paraşüt account for the method → refused before anything is made on Paraşüt', async () => {
+    const { database, store } = seed()
+    store.set(`studios/${SID}/settings/invoicing`, { ...policy, parasut: { ...policy.parasut, accountByMethod: { cash: '4244' } } })
+    const p = fakeParasut()
+    expect(await run(database, p.f, ctx.now + 1000)).toBe('failed')
+    expect(p.calls.filter((c) => /POST (contacts|sales_invoices)/.test(c))).toEqual([])
+    expect(events(store).map((e) => (e.payload as Data).code)).toEqual(['not_connected'])
+    expect(String((mark(store).eArchive as Data).error)).toContain('Paraşüt hesabı seçilmemiş')
+  })
+
   it('an already settled mark is left alone', async () => {
     const { database, store } = seed()
     store.set(`studios/${SID}/invoiceMarks/pay_1`, { ...mark(store), eArchive: null })
@@ -246,10 +256,15 @@ describe('Paraşüt bodies and readers', () => {
     expect(contactBody({ name: 'Ayşe', nationalId: '10000000146', city: null, district: null }).data.attributes).toMatchObject({ tax_number: '10000000146', untrackable: false })
   })
   it('the sales invoice carries our key, one line, the net price', () => {
-    const b = salesInvoiceBody({ requestId: KEY, issueDate: '2026-11-05', serviceLine: 'Pilates hizmeti', netUnitPrice: 3333.333333, vatRatePercent: 20, description: 'Tahsilat pay_1', city: 'Kocaeli', district: 'Çayırova' }, 'c1')
+    const b = salesInvoiceBody({ requestId: KEY, issueDate: '2026-11-05', serviceLine: 'Pilates hizmeti', netUnitPrice: 3333.333333, vatRatePercent: 20, description: 'Tahsilat pay_1', city: 'Kocaeli', district: 'Çayırova', cashSale: { accountId: '4242', paymentDate: '2026-11-04' } }, 'c1')
     expect(b.data.relationships.external_reference_key.data.attributes.key).toBe(KEY)
     expect(b.data.relationships.details.data[0]!.attributes).toEqual({ quantity: 1, unit_price: 3333.333333, vat_rate: 20, description: 'Pilates hizmeti' })
     expect(b.data.attributes).toMatchObject({ city: 'Kocaeli', district: 'Çayırova' })
+  })
+  it('every invoice is PEŞİN: paid into the method\'s Paraşüt account on the day the money came', () => {
+    // Paraşüt, first live attempt (2026-11-10): "Cari takibi yapılmayan müşteriye sadece peşin fatura kesilebilir."
+    const b = salesInvoiceBody({ requestId: KEY, issueDate: '2026-11-10', serviceLine: 'Fitness', netUnitPrice: 1, vatRatePercent: 20, description: 'Tahsilat pay_1', city: null, district: null, cashSale: { accountId: '4242', paymentDate: '2026-11-09' } }, 'c1')
+    expect(b.data.attributes).toMatchObject({ cash_sale: true, payment_account_id: 4242, payment_date: '2026-11-09' })
   })
   it('an online sale names PayTR as the payment intermediary', () => {
     expect(eArchiveBody('si1', { url: 'https://x.com', paymentDate: '2026-11-05' }).data.attributes).toEqual({ internet_sale: { url: 'https://x.com', payment_type: 'ODEMEARACISI', payment_platform: 'PayTR', payment_date: '2026-11-05' } })
