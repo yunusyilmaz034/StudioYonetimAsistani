@@ -60,7 +60,7 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
 - Satış `sal_01M6RM236E7T8K4XBBWG5SSG6A` 22.000 ₺ AÇIK. 10 Kasım TAMI linkleri: süre dolması + Masterpass "Ödeme gerçekleşirken
   hata oluştu" (WhatsApp içi tarayıcı). Pazartesi: link Safari'de açılsın, Masterpass değil kart formu. PayTR alternatifinde taksit
   farkı müşteriye yansıyabilir (owner komisyonu üstleniyordu) ve TAMI'nin "işlem yapın" isteğini karşılamaz.
-- ⚠️ 13:16'daki 22.000 ₺ NAKİT tahsilat YANLIŞLIKLA girildi (owner) — patron hesabından void edilmeli (Cari Hesap → ⊘). Yapıldı mı kontrol et.
+- 13:16'daki yanlış 22.000 ₺ nakit tahsilat void edildi (owner, doğrulandı).
 - Arka plan izleyici AÇMA; TAMI dönüş URL'ine istek ATMA (6 Kasım dersi).
 
 ### ⏭️ 10 Kasım — KVKK uyumu ([[OR-133]]) — kod commit'li, gece deploy; sağlayıcı yazışmaları sürüyor
@@ -71,8 +71,10 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
   Expo, sağlayıcılar + ülkeleri; dayanak cümlesi YOK, imzadan sonra eklenecek); RUNBOOK veri ihlali prosedürü.
 - Deploy sonrası: `pnpm tsx tools/migration/kvkk-aydinlatma-linki-2026-11-10.ts --apply` (linki açar). Functions + panel deploy.
 - Sözleşme ekleri (Kurul SS-2, Ek I–III, 5 sağlayıcı dolu; sarı alanlar sağlayıcı cevabından): https://claude.ai/artifact/CPcqQeKAEp4CwNacoMRdKf
-- Yazışma (10 Kasım): Anthropic privacy@anthropic.com GÖNDERİLDİ (owner). Resend (support@resend.com) teyit bekliyor; Expo
-  (expo.dev/contact) ve Google (form) bekliyor — Chrome eklentisi Gmail/Expo'yu okuyamadı, Chrome yeniden başlatılınca dene.
+- Yazışma (10 Kasım): Anthropic (privacy@anthropic.com, owner) · Google Cloud DPO formu (asistan, proje 31996400558) ·
+  Expo (expo.dev/contact, owner) GÖNDERİLDİ. Resend (support@resend.com) teyit bekliyor. Meta → Meta Verified temsilcisi.
+  Cevaplar yunusyilmaz034@gmail.com'a gelir; Chrome eklentisi Gmail'i okuyamıyor → owner iletir.
+- 10 Kasım: 13:16 yanlış nakit tahsilat owner tarafından void edildi (doğrulandı). İmza yetkilisi: Işıl Yılmaz, Şirket Müdürü.
 - Sıradaki: sağlayıcılara "KVKK standart sözleşmesi imzalıyor musunuz" (Anthropic, Google, Resend, Expo — owner'ın
   yunusyilmaz034 Gmail'inden; Meta → Meta Verified temsilcisi). Evet diyenle imza → 5 iş günü içinde Kurul bildirimi
   (owner). VERBİS muafiyeti → mali müşavir teyidi.
