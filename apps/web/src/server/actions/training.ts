@@ -435,12 +435,18 @@ export async function removeMeasurementAction(input: unknown) {
 // measurement is recorded until a human presses Kaydet on values she can see, which is why an
 // unreadable sheet is a plain refusal here rather than a half-filled record.
 const MAX_PDF_BYTES = 6 * 1024 * 1024
+// OFF (owner, 2026-11-10, KVKK). The printout carries the member's name next to her body composition and
+// cannot be tokenised, so reading it sent health data with a name to a model abroad. Reception types
+// the figures instead. The reader stays in the tree; turning it back on needs a KVKK basis first
+// (standard contract + the health consent naming AI and the transfer).
+const MEASUREMENT_PDF_AI = false as boolean
 
 export async function parseMeasurementPdfAction(input: unknown) {
   const p = z.object({ memberId: z.string().min(1), base64: z.string().min(1) }).parse(input)
   const ctx = await requireTenantContext(TRAINER)
   await assertMayReadMemberContent(ctx, p.memberId)
   // base64 carries 3 bytes in every 4 characters.
+  if (!MEASUREMENT_PDF_AI) return { ok: false as const, reason: 'not_configured' as const }
   if ((p.base64.length * 3) / 4 > MAX_PDF_BYTES) return { ok: false as const, reason: 'too_large' as const }
   return parseMeasurementPdf(p.base64)
 }

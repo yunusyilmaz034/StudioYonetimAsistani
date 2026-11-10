@@ -40,8 +40,8 @@ export interface LegalDoc {
 }
 
 export const LEGAL_DOCS: Record<LegalDocKey, LegalDoc> = {
-  kvkk: { key: 'kvkk', title: 'KVKK Aydınlatma Metni', version: '2026-11-03.1', path: '/kvkk' },
-  privacy: { key: 'privacy', title: 'Gizlilik ve Güvenlik Politikası', version: '2026-08-18.1', path: '/gizlilik' },
+  kvkk: { key: 'kvkk', title: 'KVKK Aydınlatma Metni', version: '2026-11-10.1', path: '/kvkk' },
+  privacy: { key: 'privacy', title: 'Gizlilik ve Güvenlik Politikası', version: '2026-11-10.1', path: '/gizlilik' },
   refund: { key: 'refund', title: 'İptal ve İade Koşulları', version: '2026-08-18.1', path: '/iptal-iade' },
   distance_sales: { key: 'distance_sales', title: 'Mesafeli Satış Sözleşmesi', version: '2026-08-18.1', path: '/mesafeli-satis' },
   preinfo: { key: 'preinfo', title: 'Ön Bilgilendirme Formu', version: '2026-08-18.1', path: '/on-bilgilendirme' },

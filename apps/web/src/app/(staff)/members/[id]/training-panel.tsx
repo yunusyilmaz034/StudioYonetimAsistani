@@ -69,6 +69,9 @@ import {
   restoreProgramVersionAction,
 } from '@/server/actions/training'
 
+// Tartı çıktısını AI ile okuma — kapalı (KVKK, owner 2026-11-10). The server refuses it as well.
+const MEASUREMENT_PDF_READING = false as boolean
+
 const LEVEL_LABEL: Record<string, string> = { beginner: 'Başlangıç', intermediate: 'Orta', advanced: 'İleri' }
 
 const TZ = 'Europe/Istanbul'
@@ -1536,7 +1539,9 @@ function MeasurementDialog({
 
         <div className="space-y-3">
           {/* The printout is the data source: read it, then check what it filled in. Typing stays
-              available for the day the scale's printer is out of paper. */}
+              available for the day the scale's printer is out of paper. OFF since 2026-11-10 (KVKK —
+              see MEASUREMENT_PDF_AI in server/actions/training.ts); reception types the figures. */}
+          {MEASUREMENT_PDF_READING && (
           <div className="rounded-lg border border-dashed border-border bg-muted/30 p-3">
             <input
               ref={fileRef}
@@ -1573,6 +1578,7 @@ function MeasurementDialog({
               )}
             </div>
           </div>
+          )}
 
           <label className="flex flex-col gap-1 text-sm">
             <span className="text-xs uppercase tracking-wide text-muted-foreground">Tarih</span>

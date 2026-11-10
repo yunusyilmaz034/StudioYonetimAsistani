@@ -282,6 +282,28 @@ becomes "Kurgu yarıda kaldı · Tekrar dene" by itself.
 5. **Write the DEBT entry before you close the incident**, with a trigger to repay. The shortcut
    taken at 21:00 on a Tuesday is exactly the one that is never written down.
 
+### Personal data breach (KVKK m.12/5) — the 72-hour clock (owner, 2026-11-10)
+
+A breach is **any** case where personal data was reached, read, copied, changed or lost by someone who
+should not have: a leaked token, a security-rule mistake that let a member read another member's
+document, a lost staff phone with the panel open, a provider telling us *they* were breached, a list
+sent to the wrong WhatsApp group. Doubt counts — treat it as a breach until shown otherwise.
+
+The data controller is **Retro Spor Hizm. Tic. Ltd. Şti.** The Board must be told **within 72 hours
+of learning of it**, and the affected people **as soon as reasonably possible**.
+
+| When | Who | What |
+|---|---|---|
+| Minute 0 | whoever notices | Tell the owner in one sentence. Write down the time — the 72 hours start here. |
+| First hour | engineering | **Stop it:** revoke the token / disable the key in Secret Manager, fix the rule, sign the staff account out (Firebase Auth → disable user), pause the leaking function. Do not delete evidence: logs and documents stay. |
+| First day | engineering | **Measure it:** which collections, which fields, which people, which time window. Cloud Logging + Firestore audit logs; for a token, every call made with it. Write a list of affected member IDs (not names) in the incident note. |
+| Before hour 72 | owner (signs), engineering (drafts) | **Notify the Board** with the KVKK "Veri İhlali Bildirim Formu" (kvkk.gov.tr → Veri İhlali Bildirimi). If something is still unknown at hour 72, notify with what is known and complete later — late is worse than incomplete. |
+| As soon as possible | owner | **Tell the affected people** directly (WhatsApp/e-mail from the panel): what happened, which of their data, what we did, what they should do (e.g. "be careful of calls asking for a payment"), and whom to contact. |
+| Close | engineering | HANDOVER entry, DEBT entry if a shortcut was taken, and a line in this runbook if the cause was new. Keep the incident note (time line, scope, notifications) — the Board may ask for it later. |
+
+Not a breach: a provider outage where nobody saw the data; a member reading her own record; an AI call
+that sent what the aydınlatma says it sends.
+
 
 ---
 

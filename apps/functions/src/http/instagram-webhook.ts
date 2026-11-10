@@ -46,6 +46,7 @@ import { onRequest } from 'firebase-functions/v2/https'
 import { db } from '../shared/firebase'
 import { INSTAGRAM_RECEPTIONIST_SECRETS, REGION } from '../shared/region'
 import { ATTACHMENT_PLACEHOLDER, extractPhone, instagramAction, parseInstagramWebhook, verifyMetaSignature } from './instagram-parse'
+import { withPrivacyNotice } from './privacy-notice'
 import {
   aiReply,
   buildSystem,
@@ -240,22 +241,25 @@ async function processMessage(sid: string, igsid: string, mid: string, text: str
     if (conv.phone) await huniyiIlerlet(database, ctx, conv.phone, result.stage, SOURCE)
   }
 
+  // KVKK: the first reply carries the notice line — sent, or put into the draft the desk will send.
+  const outgoing = withPrivacyNotice(result.reply, conv, aiDoc.privacyNoticeUrl)
+  if (outgoing.noticed) conv.privacyNoticeAt = Date.now()
   if (action === 'send' && config) {
-    const sent = await sendInstagramText(config, igsid, result.reply)
+    const sent = await sendInstagramText(config, igsid, outgoing.text)
     if (sent.ok) {
-      conv.messages = [...conv.messages, { role: 'assistant' as Role, text: result.reply, at: Date.now() }].slice(-MAX_HISTORY)
+      conv.messages = [...conv.messages, { role: 'assistant' as Role, text: outgoing.text, at: Date.now() }].slice(-MAX_HISTORY)
       if (sent.ref) conv.seenIds = [...conv.seenIds, sent.ref].slice(-30) // so its echo is recognised as ours
       conv.needsAttention = false
     } else {
       // Could not send: keep it as a draft so the desk can send it by hand, and say why.
-      conv.draft = { text: result.reply, at: Date.now() }
+      conv.draft = { text: outgoing.text, at: Date.now() }
       conv.needsAttention = true
       conv.attentionReason = 'ai_failed'
       logger.warn('[ig-webhook] auto send failed', { sid, code: sent.code })
     }
   } else {
     // action === 'draft' (draft mode, or auto with no Meta config): prepare, never send.
-    conv.draft = { text: result.reply, at: Date.now() }
+    conv.draft = { text: outgoing.text, at: Date.now() }
     conv.needsAttention = false
   }
 

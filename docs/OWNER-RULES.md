@@ -2584,3 +2584,17 @@ ve havale de e-arşiv kesmeliyiz"* · *"kk … fiziksel pos ökç den oluyor an�
 - **Yöntem süzgeci** (owner): Tüm yöntemler · Havale/EFT · Fiziksel KK (kredi kartı + POS) · Online (PayTR) · Nakit.
 - **Ayarların yeri:** Ayarlar → **Fatura** sekmesi (owner, 2026-11-05: *"paraşüt ayarları panelde ayarlar altında olsun"*). Yalnız
   sahip; rapor PIN'i istemez (orada müşteri/TC listesi yok). Fatura Takibi'ndeki "Fatura ayarları" düğmesi oraya götürür.
+
+**OR-133 · KVKK: yurt dışı aktarım standart sözleşmeyle; Tanita AI okuma kapalı; ilk cevaba aydınlatma linki.** (2026-11-10)
+
+Owner, 2027 KVKK ceza tablosunu gösterip *"bizim sistemimiz bunlara uygun mu … bir açığımız varsa düzeltelim"*; önerilere
+*"katılıyorum"*, danışman yerine *"danışmanın yapacağı işi de biz yapalım"*. Uyum dosyası: https://claude.ai/artifact/Uv4s6mHmavGrzVijagc9rx
+
+- **Yurt dışı aktarımın dayanağı standart sözleşme** (KVKK m.9, 2024): Google, Anthropic, Meta, Resend, Expo. Açık rıza
+  düzenli aktarımda dayanak DEĞİL. Şirket imzalar, imzadan sonra 5 iş günü içinde Kurul'a bildirim (owner gönderir).
+- **Tartı (Tanita) çıktısını AI ile okuma KAPALI**: çıktıda ad + vücut ölçümü var, maskelenemiyor. Resepsiyon elle yazar.
+  Açmak için önce KVKK dayanağı (sözleşme + AI'yı ve yurt dışını anan sağlık rızası) gerekir.
+- **Üye olmayan yazışana aydınlatma**: WhatsApp/Instagram sohbetinin İLK cevabının altına bir kez link
+  (`settings/ai.privacyNoticeUrl`, veri; yoksa satır eklenmez).
+- Aydınlatma metni sistemin GERÇEKTE yaptığını söyler; aktarımın hukuki dayanağı yalnız sözleşmeler imzalanınca yazılır.
+- Veri ihlali: 72 saat kuralı, RUNBOOK "Personal data breach".

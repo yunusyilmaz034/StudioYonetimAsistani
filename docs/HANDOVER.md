@@ -55,6 +55,19 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
   birebir (101 = 79 + 20 + 2). Owner deneyip yazacak.
 - **Yerelde, push edilmedi:** yalnızca günlük commit'leri (kod değil).
 
+### ⏭️ 10 Kasım — KVKK uyumu ([[OR-133]]) — kod commit'li, gece deploy; sağlayıcı yazışmaları sürüyor
+
+- Uyum dosyası (envanter, açıklar, sözleşme adımları, sağlayıcı mesajı): https://claude.ai/artifact/Uv4s6mHmavGrzVijagc9rx
+- Kod: Tanita PDF AI okuma kapalı (sunucu `MEASUREMENT_PDF_AI` + panel); WhatsApp/IG ilk cevabına aydınlatma linki
+  (`apps/functions/src/http/privacy-notice.ts`); `/kvkk` 2026-11-10.1 ve `/gizlilik` 2026-11-10.1 (AI, Instagram, kalori,
+  Expo, sağlayıcılar + ülkeleri; dayanak cümlesi YOK, imzadan sonra eklenecek); RUNBOOK veri ihlali prosedürü.
+- Deploy sonrası: `pnpm tsx tools/migration/kvkk-aydinlatma-linki-2026-11-10.ts --apply` (linki açar). Functions + panel deploy.
+- Sıradaki: sağlayıcılara "KVKK standart sözleşmesi imzalıyor musunuz" (Anthropic, Google, Resend, Expo — owner'ın
+  yunusyilmaz034 Gmail'inden; Meta → Meta Verified temsilcisi). Evet diyenle imza → 5 iş günü içinde Kurul bildirimi
+  (owner). VERBİS muafiyeti → mali müşavir teyidi.
+- Deneme: yeni bir numaradan WhatsApp'a "merhaba" → AI cevabının altında "Kişisel verilerinizin işlenmesi hakkında bilgi:
+  …/kvkk"; ikinci mesajda satır YOK. Panel → üye → Antrenman → Ölçüm Ekle: "Tartı çıktısından oku" kutusu görünmez.
+
 ### ⏭️ 5 Kasım — FT-2 · Paraşüt e-Arşiv CANLIDA ama KAPALI ([[OR-132]]) — owner Paraşüt API başvurusunu yapınca haber verecek — BURADAN DEVAM
 
 **Durum (5 Kasım sabahı):** panel `build-2026-11-05-009` %100 (satıra tıkla → işlem penceresi; süzgeç toplamı; e-Arşiv PDF e-postası kutusu+adres; yöntem süzgeci; online fatura varsayılanı = karttan çekilen

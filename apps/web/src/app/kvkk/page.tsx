@@ -13,6 +13,11 @@ import { LEGAL_DOCS, RULES, SELLER } from '@/lib/legal'
 // is claimed here. A TC kimlik field arrived on 2026-11-03 (Fatura Takibi, for the invoice only) and is
 // named under "Kimlik". Where identity documents are photographed
 // and filed, the photograph is named as what it is.
+//
+// 2026-11-10 (KVKK review, owner): the AI, Instagram, calorie tracking, push and every provider abroad
+// are named, each one verified against the code. The legal basis of the transfer abroad (standard
+// contract, KVKK m.9) is added the day the contracts are signed; until then this page states the
+// transfer as a fact and claims no basis it does not have yet.
 
 export const metadata: Metadata = {
   title: `KVKK Aydınlatma Metni · ${SELLER.brand}`,
@@ -51,8 +56,9 @@ export default function KvkkPage() {
             kayıtları, borç-alacak durumu
           </li>
           <li>
-            <strong>Müşteri iletişimi:</strong> WhatsApp, telefon ve e-posta üzerinden tarafımıza
-            ilettiğiniz talep, soru ve şikâyetler ile bunlara verilen yanıtlar
+            <strong>Müşteri iletişimi:</strong> WhatsApp, Instagram (mesaj ve yorum), telefon ve
+            e-posta üzerinden tarafımıza ilettiğiniz talep, soru ve şikâyetler ile bunlara verilen
+            yanıtlar
           </li>
           <li>
             <strong>Görsel kayıt:</strong> tesis girişindeki güvenlik kamerası kayıtları
@@ -81,7 +87,12 @@ export default function KvkkPage() {
             indeksi ve benzeri),
           </li>
           <li>izin vermeniz hâlinde gelişim takibi amacıyla çekilen fotoğraflar,</li>
-          <li>egzersiz sırasında bildirdiğiniz ağrı/zorlanma geri bildirimleri.</li>
+          <li>egzersiz sırasında bildirdiğiniz ağrı/zorlanma geri bildirimleri,</li>
+          <li>
+            üye uygulamasında kalori takibini başlatmanız hâlinde kilo, boy, doğum yılı, adım sayısı,
+            kardiyo aleti ekranının ve öğün tabağınızın fotoğrafından okunan değerler (fotoğraflar
+            okunduktan sonra saklanmaz).
+          </li>
         </ul>
         <p>
           Sağlık verileriniz diğer kişisel verilerinizden ayrı olarak değerlendirilir, yalnızca bu
@@ -142,28 +153,51 @@ export default function KvkkPage() {
       <LegalSection title="6. Toplama yöntemleri">
         <p>
           Verileriniz; stüdyoda doldurduğunuz üyelik ve sağlık beyan formları, resepsiyonla yaptığınız
-          görüşmeler, üye mobil uygulaması ve internet sitemiz üzerinden yaptığınız işlemler, WhatsApp
-          ve telefon iletişimi, stüdyo girişindeki güvenlik kamerası ve ödeme adımında ödeme
+          görüşmeler, üye mobil uygulaması ve internet sitemiz üzerinden yaptığınız işlemler, WhatsApp,
+          Instagram ve telefon iletişimi, stüdyo girişindeki güvenlik kamerası ve ödeme adımında ödeme
           kuruluşundan tarafımıza dönen işlem sonucu bilgileri aracılığıyla, kısmen otomatik ve
           otomatik olmayan yollarla toplanır.
         </p>
       </LegalSection>
 
-      <LegalSection title="7. Verilerin aktarımı">
+      <LegalSection title="7. Yapay zekâ kullanımı">
+        <p>
+          WhatsApp ve Instagram&apos;dan gelen mesajlarınıza cevap hazırlamak, stüdyo içi raporları
+          özetlemek ve kalori takibinde fotoğraflardan değer okumak için bir yapay zekâ hizmetinden
+          yararlanılır. Bu hizmete adınız gönderilmez; raporlarda üye adları kodlanarak gönderilir.
+          Mesajlarda kendi yazdığınız bilgiler ise mesajın parçası olarak işlenir. Yapay zekâ sizin
+          hakkınızda tek başına bir karar vermez: üyelik, ödeme ve hak kullanımına ilişkin her işlem
+          stüdyo personeli tarafından yapılır.
+        </p>
+      </LegalSection>
+
+      <LegalSection title="8. Verilerin aktarımı">
         <p>Kişisel verileriniz, aşağıdaki hâllerde ve yalnızca gerekli olan ölçüde aktarılır:</p>
         <ul className="list-disc space-y-1 pl-5">
           <li>
-            <strong>Bulut altyapı sağlayıcısı:</strong> Üyelik, rezervasyon ve ödeme kayıtları,
-            Google Firebase altyapısında barındırılmaktadır.
+            <strong>Bulut altyapı — Google (Firebase / Google Cloud), sunucular Avrupa
+            Birliği&apos;nde:</strong> sistemdeki tüm kayıtlar burada barındırılır.
           </li>
           <li>
-            <strong>Ödeme kuruluşu:</strong> Online ödemelerde işlem bilgileriniz ödeme kuruluşuna
-            iletilir. <strong>Kart bilgileriniz tarafımızca görülmez ve saklanmaz</strong>; ödeme,
-            ödeme kuruluşunun kendi güvenli sayfası üzerinden gerçekleşir.
+            <strong>Yapay zekâ hizmeti — Anthropic, ABD:</strong> 7. maddede anlatılan mesaj ve
+            fotoğraflar.
           </li>
           <li>
-            <strong>İleti sağlayıcıları:</strong> Size gönderilen e-posta ve WhatsApp mesajlarının
-            iletilebilmesi için ad ve iletişim bilginiz ilgili servis sağlayıcıya aktarılır.
+            <strong>Mesajlaşma — Meta (WhatsApp, Instagram):</strong> telefon numaranız, adınız ve
+            mesajlarınız.
+          </li>
+          <li>
+            <strong>E-posta — Resend, ABD:</strong> adınız, e-posta adresiniz ve size gönderilen
+            e-postanın içeriği.
+          </li>
+          <li>
+            <strong>Anlık bildirim — Expo, ABD:</strong> üye uygulamasına gönderilen bildirimin metni
+            ve cihazınızın bildirim kimliği.
+          </li>
+          <li>
+            <strong>Ödeme kuruluşları — PayTR ve TAMI, Türkiye:</strong> online ödemelerde adınız,
+            iletişim bilginiz ve tutar. <strong>Kart bilgileriniz tarafımızca görülmez ve
+            saklanmaz</strong>; ödeme, ödeme kuruluşunun kendi güvenli sayfası üzerinden gerçekleşir.
           </li>
           <li>
             <strong>Yetkili kamu kurumları:</strong> Mevzuattan doğan bir yükümlülük veya usulüne
@@ -171,12 +205,13 @@ export default function KvkkPage() {
           </li>
         </ul>
         <p>
-          Verileriniz bunların dışında üçüncü kişilerle paylaşılmaz, satılmaz ve pazarlama amacıyla
-          devredilmez.
+          Google, Anthropic, Meta, Resend ve Expo&apos;ya yapılan aktarımlar yurt dışına aktarım
+          niteliğindedir. Verileriniz bunların dışında üçüncü kişilerle paylaşılmaz, satılmaz ve
+          pazarlama amacıyla devredilmez.
         </p>
       </LegalSection>
 
-      <LegalSection title="8. Saklama süreleri">
+      <LegalSection title="9. Saklama süreleri">
         <ul className="list-disc space-y-1 pl-5">
           <li>Üyelik, rezervasyon ve hizmet kullanım kayıtları: üyeliğinizin sona ermesinden itibaren 10 yıl,</li>
           <li>Ödeme, tahsilat ve muhasebe kayıtları: mali mevzuat uyarınca 10 yıl,</li>
@@ -188,7 +223,7 @@ export default function KvkkPage() {
         </ul>
       </LegalSection>
 
-      <LegalSection title="9. Haklarınız (KVKK m.11)">
+      <LegalSection title="10. Haklarınız (KVKK m.11)">
         <p>Veri sorumlusuna başvurarak;</p>
         <ul className="list-disc space-y-1 pl-5">
           <li>kişisel verinizin işlenip işlenmediğini öğrenme, işlenmişse buna ilişkin bilgi talep etme,</li>
@@ -211,7 +246,7 @@ export default function KvkkPage() {
         </p>
       </LegalSection>
 
-      <LegalSection title="10. Bu metin ile açık rıza arasındaki fark">
+      <LegalSection title="11. Bu metin ile açık rıza arasındaki fark">
         <p>
           Bu metin bir <strong>aydınlatma</strong> metnidir; verilerinizin nasıl işlendiğini
           açıklar ve tek başına bir onay anlamına gelmez. Sağlık verilerinin işlenmesi ve pazarlama

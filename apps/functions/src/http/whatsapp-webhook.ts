@@ -38,6 +38,7 @@ import { db } from '../shared/firebase'
 import { whatsappAdId, type AdRef } from './ad-referral'
 import { notificationDeps, studioNotificationSettings } from '../triggers/on-event-notify'
 import { AI_RECEPTIONIST_SECRETS, REGION } from '../shared/region'
+import { withPrivacyNotice } from './privacy-notice'
 
 export const MAX_HISTORY = 24 // messages kept per conversation for context + storage
 const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages'
@@ -92,6 +93,8 @@ export interface Conversation {
   adRef?: AdRef
   temp?: 'sıcak' | 'ılık' | 'soğuk' // eski alan — yalnızca geçmiş kayıtlarda
   reason?: string
+  // KVKK (2026-11-10): when this conversation's first reply carried the notice line. Set once.
+  privacyNoticeAt?: number
 }
 
 export interface AiSettingsDoc {
@@ -108,6 +111,8 @@ export interface AiSettingsDoc {
   whatsappActive?: boolean
   // IG-1 (2026-11-03): the Instagram DM switch — off | draft (AI prepares, a human sends) | auto. Absent = off.
   instagramMode?: 'off' | 'draft' | 'auto'
+  // KVKK (2026-11-10): the studio's aydınlatma page, linked once in a conversation's first reply. Absent = no line.
+  privacyNoticeUrl?: string
 }
 
 const tl = (kurus: number) => `${(kurus / 100).toLocaleString('tr-TR')} TL`
@@ -570,8 +575,10 @@ async function processMessage(sid: string, from: string, name: string, text: str
   }
 
   const config: MetaWhatsAppConfig = { phoneNumberId: phoneId, accessToken: token, ...(process.env.WHATSAPP_API_VERSION ? { apiVersion: process.env.WHATSAPP_API_VERSION } : {}) }
-  const sent = await sendWhatsAppText(config, from, result.reply)
-  conv.messages = [...conv.messages, { role: 'assistant' as Role, text: result.reply, at: Date.now() }].slice(-MAX_HISTORY)
+  const outgoing = withPrivacyNotice(result.reply, conv, aiDoc.privacyNoticeUrl)
+  const sent = await sendWhatsAppText(config, from, outgoing.text)
+  if (sent.ok && outgoing.noticed) conv.privacyNoticeAt = Date.now()
+  conv.messages = [...conv.messages, { role: 'assistant' as Role, text: outgoing.text, at: Date.now() }].slice(-MAX_HISTORY)
   if (result.stage) {
     conv.stage = result.stage
     conv.reason = result.reason
@@ -677,8 +684,10 @@ async function resumeAll(sid: string): Promise<{ resumed: number; replied: numbe
     if (last?.role === 'user') {
       const result = await aiReply(apiKey, system, facts, whoBlock(await whoIsWriting(database, ctx, conv.phone)), conv.messages)
       if (result) {
-        await sendWhatsAppText(config, conv.phone, result.reply)
-        conv.messages = [...conv.messages, { role: 'assistant' as Role, text: result.reply, at: Date.now() }].slice(-MAX_HISTORY)
+        const outgoing = withPrivacyNotice(result.reply, conv, aiDoc.privacyNoticeUrl)
+        const sent = await sendWhatsAppText(config, conv.phone, outgoing.text)
+        if (sent.ok && outgoing.noticed) conv.privacyNoticeAt = Date.now()
+        conv.messages = [...conv.messages, { role: 'assistant' as Role, text: outgoing.text, at: Date.now() }].slice(-MAX_HISTORY)
         if (result.stage) {
           conv.stage = result.stage
           conv.reason = result.reason

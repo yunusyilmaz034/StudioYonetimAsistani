@@ -147,8 +147,8 @@ export default function PrivacyPage() {
               <strong>Meşru menfaat:</strong> hizmet güvenliği ve iyileştirme.
             </li>
             <li>
-              <strong>Açık rıza:</strong> konum verisi, sağlık/ölçüm verileri, ticari bilgilendirme
-              (kampanya) mesajları ve yurt dışına aktarım. Açık rıza gerektiren işlemler, onay vermediğiniz
+              <strong>Açık rıza:</strong> konum verisi, sağlık/ölçüm verileri ve ticari bilgilendirme
+              (kampanya) mesajları. Açık rıza gerektiren işlemler, onay vermediğiniz
               sürece yapılmaz ve rızanızı dilediğiniz zaman geri alabilirsiniz.
             </li>
           </ul>
@@ -182,16 +182,26 @@ export default function PrivacyPage() {
               bölgesindedir.
             </li>
             <li>
-              <strong>PAYTR:</strong> ödeme işlemleri (kart verileri yalnızca PAYTR tarafında).
+              <strong>Anthropic (ABD):</strong> yapay zekâ hizmeti — WhatsApp ve Instagram mesajlarına
+              cevap hazırlama, rapor özetleme, kalori takibinde fotoğraftan değer okuma. Adınız gönderilmez.
             </li>
             <li>
-              <strong>Bildirim ve mesajlaşma sağlayıcıları:</strong> e-posta ve (etkinleştirildiğinde)
-              WhatsApp/anlık bildirim gönderimi.
+              <strong>Meta (WhatsApp, Instagram):</strong> mesajlaşma.
+            </li>
+            <li>
+              <strong>Resend (ABD):</strong> e-posta gönderimi.
+            </li>
+            <li>
+              <strong>Expo (ABD):</strong> üye uygulamasına anlık bildirim gönderimi.
+            </li>
+            <li>
+              <strong>PAYTR ve TAMI (Türkiye):</strong> ödeme işlemleri (kart verileri yalnızca ödeme
+              kuruluşu tarafında).
             </li>
           </ul>
           <p>
-            Bu sağlayıcıların bir kısmının sunucuları yurt dışında bulunabilir. Yurt dışına aktarım
-            gerektiren hâllerde, KVKK’nın öngördüğü koşullara ve açık rızanıza dayanılarak işlem yapılır.
+            Google, Anthropic, Meta, Resend ve Expo&apos;ya yapılan aktarımlar yurt dışına aktarım
+            niteliğindedir. Ayrıntı için <a className="underline" href="/kvkk">KVKK Aydınlatma Metni</a>.
           </p>
         </Section>
 
