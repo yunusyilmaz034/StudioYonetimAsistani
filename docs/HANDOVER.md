@@ -62,6 +62,9 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
   (`apps/functions/src/http/privacy-notice.ts`); `/kvkk` 2026-11-10.1 ve `/gizlilik` 2026-11-10.1 (AI, Instagram, kalori,
   Expo, sağlayıcılar + ülkeleri; dayanak cümlesi YOK, imzadan sonra eklenecek); RUNBOOK veri ihlali prosedürü.
 - Deploy sonrası: `pnpm tsx tools/migration/kvkk-aydinlatma-linki-2026-11-10.ts --apply` (linki açar). Functions + panel deploy.
+- Sözleşme ekleri (Kurul SS-2, Ek I–III, 5 sağlayıcı dolu; sarı alanlar sağlayıcı cevabından): https://claude.ai/artifact/CPcqQeKAEp4CwNacoMRdKf
+- Yazışma (10 Kasım): Anthropic privacy@anthropic.com GÖNDERİLDİ (owner). Resend (support@resend.com) teyit bekliyor; Expo
+  (expo.dev/contact) ve Google (form) bekliyor — Chrome eklentisi Gmail/Expo'yu okuyamadı, Chrome yeniden başlatılınca dene.
 - Sıradaki: sağlayıcılara "KVKK standart sözleşmesi imzalıyor musunuz" (Anthropic, Google, Resend, Expo — owner'ın
   yunusyilmaz034 Gmail'inden; Meta → Meta Verified temsilcisi). Evet diyenle imza → 5 iş günü içinde Kurul bildirimi
   (owner). VERBİS muafiyeti → mali müşavir teyidi.
