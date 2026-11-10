@@ -77,7 +77,7 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
 - 10 Kasım: 13:16 yanlış nakit tahsilat owner tarafından void edildi (doğrulandı). İmza yetkilisi: Işıl Yılmaz, Şirket Müdürü.
 - Sıradaki: sağlayıcılara "KVKK standart sözleşmesi imzalıyor musunuz" (Anthropic, Google, Resend, Expo — owner'ın
   yunusyilmaz034 Gmail'inden; Meta → Meta Verified temsilcisi). Evet diyenle imza → 5 iş günü içinde Kurul bildirimi
-  (owner). VERBİS muafiyeti → mali müşavir teyidi.
+  (owner). VERBİS: MUAF (mali müşavir teyit etti, 10 Kasım).
 - Deneme: yeni bir numaradan WhatsApp'a "merhaba" → AI cevabının altında "Kişisel verilerinizin işlenmesi hakkında bilgi:
   …/kvkk"; ikinci mesajda satır YOK. Panel → üye → Antrenman → Ölçüm Ekle: "Tartı çıktısından oku" kutusu görünmez.
 
