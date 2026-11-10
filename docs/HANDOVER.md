@@ -74,6 +74,15 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
 - Yazışma (10 Kasım): Anthropic (privacy@anthropic.com, owner) · Google Cloud DPO formu (asistan, proje 31996400558) ·
   Expo (expo.dev/contact, owner) GÖNDERİLDİ. Resend (support@resend.com) teyit bekliyor. Meta → Meta Verified temsilcisi.
   Cevaplar yunusyilmaz034@gmail.com'a gelir; Chrome eklentisi Gmail'i okuyamıyor → owner iletir.
+- CEVAPLAR (10 Kasım): **Google EVET** — Türkçe SCC'yi Google Cloud EMEA Limited ıslak imzayla imzalıyor; talep formu
+  (docs.google.com/forms/d/1WlZzJB4aV2wBc4puPV7f9ghyOoMMo7ETrMbl1JBJtm4); veri aktaran adı = Google Cloud sözleşmesindeki
+  tüzel kişi, fatura adresi TR; 3 nüsha karşı imza → 5 iş günü Kurul bildirimi → 1 nüsha + bildirim no ELIG Gürkaynak'a
+  (Av. Ceren Yıldız Özgökçen) 5 iş günü içinde. **Anthropic HAYIR** (KVKK eki yok) → owner kararı: Claude'u **Vertex AI
+  (AB)** üzerinden çalıştır (KVKK-2, plan onaylı ama önce Google cevabı). **Resend HAYIR** → owner kararı (seçenek 1):
+  üyeye giden e-posta kapanır (e-Arşiv PDF maili dahil), personel e-postası sonra yurt içi sağlayıcıya.
+- Google'a ek soru gönderildi (owner, aynı davaya yanıt): Claude-on-Vertex CDPA/TR SCC kapsamında mı, Anthropic alt işleyen
+  mi; Firebase hizmetleri (Auth, Firestore, Storage, Functions, FCM) CDPA kapsamında mı; ödeme profili bireysel ise ne
+  değişmeli. CEVAP GELMEDEN Vertex AI açılmaz. Ödeme profili (bireysel/şirket) owner kontrol edecek.
 - 10 Kasım: 13:16 yanlış nakit tahsilat owner tarafından void edildi (doğrulandı). İmza yetkilisi: Işıl Yılmaz, Şirket Müdürü.
 - Sıradaki: sağlayıcılara "KVKK standart sözleşmesi imzalıyor musunuz" (Anthropic, Google, Resend, Expo — owner'ın
   yunusyilmaz034 Gmail'inden; Meta → Meta Verified temsilcisi). Evet diyenle imza → 5 iş günü içinde Kurul bildirimi
