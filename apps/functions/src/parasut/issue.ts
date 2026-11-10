@@ -31,6 +31,8 @@ import {
   PARASUT_PROD,
   readError,
   salesInvoiceBody,
+  productBody,
+  exactProduct,
   type Buyer,
 } from './api'
 import { credentialsFromEnv, ParasutClient, ParasutHttpError, ParasutNotConnected } from './client'
@@ -311,17 +313,20 @@ async function createInvoice(
   if (!contactId) throw new Error('contact id missing')
 
   const categories = await saleCategories(database, finance, ctx, mark)
+  const serviceLine = serviceLineFor(policy, categories)
+  const productId = await productFor(client, serviceLine, policy.vatRatePercent!)
   const body = salesInvoiceBody(
     {
       requestId: req.requestId,
       issueDate: istanbulDate(now),
-      serviceLine: serviceLineFor(policy, categories),
+      serviceLine,
       city: policy.buyerCity,
       district: policy.buyerDistrict,
       netUnitPrice: netUnitPrice(req.invoicedAmount.amount, policy.vatRatePercent!),
       vatRatePercent: policy.vatRatePercent!,
       description: `Tahsilat ${mark.paymentId}`,
       cashSale: { accountId, paymentDate: istanbulDate(payment.receivedAt) },
+      productId,
     },
     contactId,
   )
@@ -335,6 +340,19 @@ async function createInvoice(
   const existing = readError(r.body).existingSalesInvoiceId
   if (r.status === 422 && existing) return { id: existing }
   throw new ParasutHttpError(r.status, r.body)
+}
+
+/**
+ * The Paraşüt product card for a service line: found by its exact name, made once if absent. A
+ * retry that finds the card made by the attempt before it uses that one — names are the key, so
+ * the studio's product list holds one "Pilates", not one per invoice.
+ */
+async function productFor(client: ParasutClient, name: string, vatRatePercent: number): Promise<string> {
+  const found = exactProduct(await client.ok('GET', `products?filter[name]=${encodeURIComponent(name)}&page[size]=25`), name)
+  if (found) return found
+  const id = dataId(await client.ok('POST', 'products', productBody(name, vatRatePercent)))
+  if (!id) throw new Error('product id missing')
+  return id
 }
 
 /**

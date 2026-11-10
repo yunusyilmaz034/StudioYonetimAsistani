@@ -2,7 +2,7 @@ import { decideRequestEArchive, DEFAULT_INVOICE_POLICY, instant, money, type Bra
 import { Timestamp, type Firestore } from 'firebase-admin/firestore'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { activeEDocument, contactBody, eArchiveBody, readError, salesInvoiceBody, UNKNOWN_TC } from './api'
+import { activeEDocument, contactBody, eArchiveBody, exactProduct, readError, salesInvoiceBody, UNKNOWN_TC } from './api'
 import { seal, unseal } from './client'
 import { processEArchive } from './issue'
 
@@ -55,9 +55,10 @@ function fakeDb() {
 }
 
 // ── a Paraşüt that remembers what it was asked ───────────────────────────────────────────────────
-function fakeParasut(opts: { failEArchivePostOnce?: boolean; rejectInvoice?: boolean } = {}) {
+function fakeParasut(opts: { failEArchivePostOnce?: boolean; rejectInvoice?: boolean; products?: { id: string; name: string }[] } = {}) {
   const calls: string[] = []
   const invoices = new Map<string, { id: string; eDoc: string | null }>()
+  const products: { id: string; name: string }[] = [...(opts.products ?? [])]
   let failNext = opts.failEArchivePostOnce ?? false
   let jobPolls = 0
   const json = (status: number, body: unknown) => new Response(body === null ? null : JSON.stringify(body), { status })
@@ -72,6 +73,12 @@ function fakeParasut(opts: { failEArchivePostOnce?: boolean; rejectInvoice?: boo
       return inv ? json(200, { data: { id: inv.id } }) : json(404, null)
     }
     if (m === 'POST' && p === 'contacts') return json(201, { data: { id: 'c1' } })
+    if (m === 'GET' && p === 'products') return json(200, { data: products.map((x) => ({ id: x.id, attributes: { name: x.name, archived: false } })) })
+    if (m === 'POST' && p === 'products') {
+      const name = (JSON.parse(String(init!.body)) as { data: { attributes: { name: string } } }).data.attributes.name
+      products.push({ id: `pr${products.length + 1}`, name })
+      return json(201, { data: { id: `pr${products.length}` } })
+    }
     if (m === 'POST' && p === 'sales_invoices') {
       if (opts.rejectInvoice) return json(422, { errors: [{ title: 'Geçersiz', detail: 'KDV oranı geçersiz' }] })
       const key = (JSON.parse(String(init!.body)) as { data: { relationships: { external_reference_key: { data: { attributes: { key: string } } } } } }).data.relationships.external_reference_key.data.attributes.key
@@ -103,7 +110,7 @@ function fakeParasut(opts: { failEArchivePostOnce?: boolean; rejectInvoice?: boo
     if (p.startsWith('contacts')) return json(200, { data: [] })
     return json(500, { errors: [{ detail: `unexpected ${m} ${p}` }] })
   }) as unknown as typeof fetch
-  return { f, calls, invoices }
+  return { f, calls, invoices, products }
 }
 
 const SID = 'retro' as StudioId
@@ -163,12 +170,28 @@ describe('processEArchive — one payment, one e-Arşiv', () => {
     expect(await run(database, p.f, ctx.now + 1000)).toBe('issued')
     expect(mark(store)).toMatchObject({ issued: true, document: 'e_archive', provider: 'parasut', documentNo: 'RTA2026000000118', eArchive: null })
     expect(p.invoices.has(KEY)).toBe(true)
+    // the line stands on a product card, made once for the service line
+    expect(p.products.map((x) => x.name)).toEqual(['Hizmet bedeli'])
     expect(events(store).map((e) => e.type)).toEqual(['invoice.issued'])
     expect(saved).toEqual([`studios/${SID}/invoices/pay_1.pdf`])
     // the refresh token rotated, and what is stored is ciphertext
     const sealed = String(store.get(`studios/${SID}/secrets/parasut`)!.refreshToken)
     expect(sealed).not.toContain('rot')
     expect(unseal(creds, sealed)).toBe('rot')
+  })
+
+  it('an existing product card with that name is used, not a second one', async () => {
+    const { database } = seed()
+    const p = fakeParasut({ products: [{ id: 'pr9', name: 'Hizmet bedeli' }] })
+    expect(await run(database, p.f, ctx.now + 1000)).toBe('issued')
+    expect(p.calls.filter((c) => c === 'POST products')).toEqual([])
+    expect(p.products).toHaveLength(1)
+  })
+  it('a line names its product card; a card is found by its exact name only', () => {
+    const b = salesInvoiceBody({ requestId: KEY, issueDate: '2026-11-10', serviceLine: 'Fitness', netUnitPrice: 1, vatRatePercent: 20, description: 'x', city: null, district: null, cashSale: { accountId: '1', paymentDate: '2026-11-10' }, productId: 'pr7' }, 'c1')
+    expect(b.data.relationships.details.data[0]!.relationships).toEqual({ product: { data: { id: 'pr7', type: 'products' } } })
+    expect(exactProduct({ data: [{ id: '1', attributes: { name: 'Pilates Reformer' } }, { id: '2', attributes: { name: 'pilates', archived: true } }, { id: '3', attributes: { name: 'Pilates ' } }] }, 'Pilates')).toBe('3')
+    expect(exactProduct({ data: [] }, 'Pilates')).toBe(null)
   })
 
   it('asked for it → the PDF goes to that address, once, with the e-Arşiv number', async () => {
@@ -256,14 +279,14 @@ describe('Paraşüt bodies and readers', () => {
     expect(contactBody({ name: 'Ayşe', nationalId: '10000000146', city: null, district: null }).data.attributes).toMatchObject({ tax_number: '10000000146', untrackable: false })
   })
   it('the sales invoice carries our key, one line, the net price', () => {
-    const b = salesInvoiceBody({ requestId: KEY, issueDate: '2026-11-05', serviceLine: 'Pilates hizmeti', netUnitPrice: 3333.333333, vatRatePercent: 20, description: 'Tahsilat pay_1', city: 'Kocaeli', district: 'Çayırova', cashSale: { accountId: '4242', paymentDate: '2026-11-04' } }, 'c1')
+    const b = salesInvoiceBody({ requestId: KEY, issueDate: '2026-11-05', serviceLine: 'Pilates hizmeti', netUnitPrice: 3333.333333, vatRatePercent: 20, description: 'Tahsilat pay_1', city: 'Kocaeli', district: 'Çayırova', cashSale: { accountId: '4242', paymentDate: '2026-11-04' }, productId: 'pr1' }, 'c1')
     expect(b.data.relationships.external_reference_key.data.attributes.key).toBe(KEY)
     expect(b.data.relationships.details.data[0]!.attributes).toEqual({ quantity: 1, unit_price: 3333.333333, vat_rate: 20, description: 'Pilates hizmeti' })
     expect(b.data.attributes).toMatchObject({ city: 'Kocaeli', district: 'Çayırova' })
   })
   it('every invoice is PEŞİN: paid into the method\'s Paraşüt account on the day the money came', () => {
     // Paraşüt, first live attempt (2026-11-10): "Cari takibi yapılmayan müşteriye sadece peşin fatura kesilebilir."
-    const b = salesInvoiceBody({ requestId: KEY, issueDate: '2026-11-10', serviceLine: 'Fitness', netUnitPrice: 1, vatRatePercent: 20, description: 'Tahsilat pay_1', city: null, district: null, cashSale: { accountId: '4242', paymentDate: '2026-11-09' } }, 'c1')
+    const b = salesInvoiceBody({ requestId: KEY, issueDate: '2026-11-10', serviceLine: 'Fitness', netUnitPrice: 1, vatRatePercent: 20, description: 'Tahsilat pay_1', city: null, district: null, cashSale: { accountId: '4242', paymentDate: '2026-11-09' }, productId: 'pr1' }, 'c1')
     expect(b.data.attributes).toMatchObject({ cash_sale: true, payment_account_id: 4242, payment_date: '2026-11-09' })
   })
   it('an online sale names PayTR as the payment intermediary', () => {

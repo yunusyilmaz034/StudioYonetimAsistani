@@ -40,6 +40,28 @@ export interface InvoiceInput {
    * fatura kesilebilir", first live attempt 2026-11-10).
    */
   readonly cashSale: { readonly accountId: string; readonly paymentDate: string }
+  /**
+   * The Paraşüt product card the line stands on. Paraşüt refuses a line without one ("Ürün/hizmet
+   * doldurulmalı", 2026-11-10). One card per service line (Pilates, Fitness, …), found by name.
+   */
+  readonly productId: string
+}
+
+/** A service card for one invoice line — made once, then found again by its name. */
+export function productBody(name: string, vatRatePercent: number) {
+  return { data: { type: 'products', attributes: { name: name.trim().slice(0, 120), vat_rate: vatRatePercent, unit: 'Adet' } } }
+}
+
+/** The id of the non-archived product whose name is exactly `name` (Paraşüt's filter is a contains-match). */
+export function exactProduct(body: unknown, name: string): string | null {
+  const rows = (obj(body).data as unknown[] | undefined) ?? []
+  const want = name.trim().toLocaleLowerCase('tr')
+  for (const r of rows) {
+    const a = obj(obj(r).attributes)
+    if (a.archived === true) continue
+    if (String(a.name ?? '').trim().toLocaleLowerCase('tr') === want) return String(obj(r).id)
+  }
+  return null
 }
 
 export function contactBody(b: Buyer) {
@@ -85,6 +107,7 @@ export function salesInvoiceBody(i: InvoiceInput, contactId: string) {
             {
               type: 'sales_invoice_details',
               attributes: { quantity: 1, unit_price: i.netUnitPrice, vat_rate: i.vatRatePercent, description: i.serviceLine },
+              relationships: { product: { data: { id: i.productId, type: 'products' } } },
             },
           ],
         },
