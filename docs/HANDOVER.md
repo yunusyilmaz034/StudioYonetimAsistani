@@ -90,6 +90,15 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
 - Deneme: yeni bir numaradan WhatsApp'a "merhaba" → AI cevabının altında "Kişisel verilerinizin işlenmesi hakkında bilgi:
   …/kvkk"; ikinci mesajda satır YOK. Panel → üye → Antrenman → Ölçüm Ekle: "Tartı çıktısından oku" kutusu görünmez.
 
+### 10 Kasım — Paraşüt SATIN ALINDI (owner) — taşıma gün içinde, sonra API başvurusu
+
+- Owner Paraşüt aboneliğini aldı; Paraşüt ekibi bugün taşıma yapacak. Sıradaki: owner API erişimi ister (redirect URI
+  `https://europe-west1-studio-yonetim-prod.cloudfunctions.net/parasutOAuth`, DEĞİŞTİRİLEMEZ) → `PARASUT_CLIENT_ID` /
+  `PARASUT_CLIENT_SECRET` Secret Manager'a (owner) → `PARASUT_SECRETS`'a ekle + functions deploy → Ayarlar → Fatura → bağlan →
+  tek küçük gerçek e-Arşiv ile doğrula (kuruş, alıcı, il/ilçe, hizmet satırı, KDV, no, PDF).
+- Açık konular: (1) üyeye e-posta kapanıyor (KVKK, Resend) → e-Arşiv'in alıcıya ulaşması için Paraşüt'ün KENDİ e-posta
+  gönderimini kullanmayı değerlendir; bizim PDF maili kalkar. (2) Paraşüt verileri Türkiye'de mi barındırıyor — owner soracak.
+
 ### ⏭️ 5 Kasım — FT-2 · Paraşüt e-Arşiv CANLIDA ama KAPALI ([[OR-132]]) — owner Paraşüt API başvurusunu yapınca haber verecek — BURADAN DEVAM
 
 **Durum (5 Kasım sabahı):** panel `build-2026-11-05-009` %100 (satıra tıkla → işlem penceresi; süzgeç toplamı; e-Arşiv PDF e-postası kutusu+adres; yöntem süzgeci; online fatura varsayılanı = karttan çekilen
