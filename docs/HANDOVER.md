@@ -96,6 +96,14 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
   `https://europe-west1-studio-yonetim-prod.cloudfunctions.net/parasutOAuth`, DEĞİŞTİRİLEMEZ) → `PARASUT_CLIENT_ID` /
   `PARASUT_CLIENT_SECRET` Secret Manager'a (owner) → `PARASUT_SECRETS`'a ekle + functions deploy → Ayarlar → Fatura → bağlan →
   tek küçük gerçek e-Arşiv ile doğrula (kuruş, alıcı, il/ilçe, hizmet satırı, KDV, no, PDF).
+- 10 Kasım akşamı CANLI DENEME (4.000 ₺ havale, `pay_01M700B2ZF2759PH64CMD8BPNR`): bağlantı kuruldu (firma 858102, canlı);
+  Paraşüt sırayla şunları istedi, hepsi düzeltildi ve deploy edildi: (a) kullanıcıya 3. parti entegrasyon yetkisi (owner açtı);
+  (b) kayıtsız alıcıya yalnız PEŞİN fatura → `cash_sale` + ödeme hesabı (`parasut.accountByMethod`, hepsi Kasa 1000700978,
+  owner onayı; tek hesap o); (c) her satır bir ürün kartına bağlı ("Ürün/hizmet doldurulmalı") → ad ile bul / bir kez oluştur.
+  Sonuç: Paraşüt satış faturası 1106608612 OLUŞTU ve doğru (Fitness, 3.333,33 + %20 = 4.000,00, peşin, Kocaeli/Çayırova, TC
+  1111…, listelenmemiş alıcı). e-Arşiv adımı: "Bu firmaya ait aktif bir e-Arşiv entegrasyonu bulunmamaktadır" — Mikro Grup →
+  Paraşüt e-Arşiv taşıması henüz aktif değil. Taşıma bitince aynı satırda "e-Arşiv kes" → mevcut faturayı kullanır (çift yok).
+  ⚠️ Taşıma bitince Mikro Grup'tan e-Arşiv KESMEYİN (iki entegratör).
 - Açık konular: (1) üyeye e-posta kapanıyor (KVKK, Resend) → e-Arşiv'in alıcıya ulaşması için Paraşüt'ün KENDİ e-posta
   gönderimini kullanmayı değerlendir; bizim PDF maili kalkar. (2) Paraşüt verileri Türkiye'de mi barındırıyor — owner soracak.
 
