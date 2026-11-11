@@ -189,10 +189,12 @@ export default function PrivacyPage() {
               <strong>Meta (WhatsApp, Instagram):</strong> mesajlaşma.
             </li>
             <li>
-              <strong>Resend (ABD):</strong> e-posta gönderimi.
+              <strong>Resend (ABD):</strong> yalnızca stüdyo personeline giden e-postalar (ör. şifre
+              sıfırlama). Üyelere e-posta gönderilmez.
             </li>
             <li>
-              <strong>Expo (ABD):</strong> üye uygulamasına anlık bildirim gönderimi.
+              <strong>Expo (ABD):</strong> üye uygulamasına anlık bildirim; yalnızca cihaz kimliği gider,
+              bildirim metni kişisel bilgi içermez.
             </li>
             <li>
               <strong>PAYTR ve TAMI (Türkiye):</strong> ödeme işlemleri (kart verileri yalnızca ödeme
@@ -200,7 +202,7 @@ export default function PrivacyPage() {
             </li>
           </ul>
           <p>
-            Google, Anthropic, Meta, Resend ve Expo&apos;ya yapılan aktarımlar yurt dışına aktarım
+            Google, Anthropic, Meta ve Expo&apos;ya yapılan aktarımlar yurt dışına aktarım
             niteliğindedir. Ayrıntı için <a className="underline" href="/kvkk">KVKK Aydınlatma Metni</a>.
           </p>
         </Section>

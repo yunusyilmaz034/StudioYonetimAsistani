@@ -169,7 +169,7 @@ export function InvoicesScreen() {
   }
 
   const placeholder = data && !data.locked ? data.placeholder : '11111111111'
-  const setup: InvoiceSetup = data && !data.locked ? data.setup : { eArchiveReady: false, receiptLimitKurus: null, environment: 'staging' }
+  const setup: InvoiceSetup = data && !data.locked ? data.setup : { eArchiveReady: false, receiptLimitKurus: null, environment: 'staging', memberEmail: false }
   const bekleyen = all.filter((r) => ['open', 'pending', 'failed'].includes(stateOf(r)))
   const otomatik = all.filter((r) => stateOf(r) === 'auto').length
   const kesilen = all.filter((r) => r.issued).length
@@ -364,6 +364,7 @@ export function InvoicesScreen() {
           amountOf={amountOf}
           setAmount={actions.setAmount}
           staging={setup.environment === 'staging'}
+          mailAllowed={setup.memberEmail}
           onClose={() => setConfirm(null)}
           onDone={() => {
             setConfirm(null)
@@ -659,6 +660,7 @@ function ConfirmEArchive({
   amountOf,
   setAmount,
   staging,
+  mailAllowed,
   onClose,
   onDone,
 }: {
@@ -667,13 +669,14 @@ function ConfirmEArchive({
   amountOf: (r: InvoiceRow) => string
   setAmount: (id: string, v: string) => void
   staging: boolean
+  mailAllowed: boolean
   onClose: () => void
   onDone: () => void
 }) {
   const [busy, setBusy] = useState(false)
   // PDF by e-mail (owner, 2026-11-05): a tick and an address per row; on by default when the member has one.
   const [mail, setMail] = useState<Record<string, { on: boolean; to: string }>>(() =>
-    Object.fromEntries(rows.map((r) => [r.paymentId, { on: r.memberEmail !== null, to: r.memberEmail ?? '' }])),
+    Object.fromEntries(rows.map((r) => [r.paymentId, { on: mailAllowed && r.memberEmail !== null, to: r.memberEmail ?? '' }])),
   )
   const mailOf = (r: InvoiceRow) => mail[r.paymentId] ?? { on: false, to: '' }
   const setMailOf = (r: InvoiceRow, v: Partial<{ on: boolean; to: string }>) => setMail((m) => ({ ...m, [r.paymentId]: { ...mailOf(r), ...v } }))
@@ -732,6 +735,7 @@ function ConfirmEArchive({
                   <Input value={amountOf(r)} inputMode="decimal" onChange={(e) => setAmount(r.paymentId, e.target.value)} className="h-10 text-right text-base" />
                 )}
               </label>
+              {mailAllowed ? (
               <div className="flex flex-col gap-1.5 sm:col-span-2">
                 <label className="inline-flex min-h-9 items-center gap-2 text-sm">
                   <input type="checkbox" checked={mailOf(r).on} onChange={(e) => setMailOf(r, { on: e.target.checked })} className="size-5 accent-primary" />
@@ -749,6 +753,7 @@ function ConfirmEArchive({
                   />
                 ) : null}
               </div>
+              ) : null}
             </li>
           ))}
         </ul>

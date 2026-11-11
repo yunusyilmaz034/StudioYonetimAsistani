@@ -2598,3 +2598,9 @@ Owner, 2027 KVKK ceza tablosunu gösterip *"bizim sistemimiz bunlara uygun mu �
   (`settings/ai.privacyNoticeUrl`, veri; yoksa satır eklenmez).
 - Aydınlatma metni sistemin GERÇEKTE yaptığını söyler; aktarımın hukuki dayanağı yalnız sözleşmeler imzalanınca yazılır.
 - Veri ihlali: 72 saat kuralı, RUNBOOK "Personal data breach".
+- **Pratik plan (owner, 2026-11-11: "mümkün olan en güzel yolu pratik bişey yapalım"):** (1) Google ile Türkçe SCC imzala
+  (Google evet dedi; form, ödeme profili kontrolü); (2) AI'ı Vertex AI (AB) üzerinden çalıştır (Anthropic KVKK eki yok);
+  (3) **üyeye e-posta YOK** (`settings/studio.notifications.memberEmail=false`; Resend imzalamadı) — personel e-postası kalır;
+  e-Arşiv "PDF e-postayla" kutusu da kalkar; **anlık bildirim kişisel veri taşımaz** (genel başlık/metin; Expo imzalamadı);
+  (4) Meta (WhatsApp/Instagram) **kabul edilmiş kalan risk** — yerine konacak sağlayıcı yok, aydınlatmada açıkça yazılı.
+  ELIG'e soru gönderilmez (owner).

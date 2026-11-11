@@ -609,6 +609,9 @@ export interface NotificationProvidersConfig {
 // resolved HERE, at delivery, from the member's `devices` subcollection — so the intent pipeline and
 // RecipientRef never change. No provider credentials are needed for a basic Expo push.
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send'
+// UI copy, deliberately generic (KVKK — see `send`). Turkish: it is what the member reads.
+export const PUSH_TITLE = 'Yeni bildiriminiz var'
+export const PUSH_BODY = 'Ayrıntıyı görmek için dokunun.'
 
 export class PushProvider implements NotificationProvider {
   readonly channel = 'push' as const
@@ -634,7 +637,10 @@ export class PushProvider implements NotificationProvider {
       const res = await this.fetchImpl(EXPO_PUSH_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify(tokens.map((to) => ({ to, title: message.subject, body: message.body, data: { intentId: message.intentId } }))),
+        // KVKK (owner, 2026-11-10): the push service is abroad and would not sign the KVKK standard
+        // contract, so it carries NO personal data — no name, no class, no calorie figure. The phone
+        // shows that something arrived; the message itself is in her in-app inbox (the same intent).
+        body: JSON.stringify(tokens.map((to) => ({ to, title: PUSH_TITLE, body: PUSH_BODY, data: { intentId: message.intentId } }))),
       })
       if (!res.ok) return { ok: false, providerRef: null, delivered: false, error: { code: 'push_http', message: `HTTP ${res.status}`, permanent: res.status >= 400 && res.status < 500 } }
       const json = (await res.json().catch(() => ({}))) as { data?: { status?: string }[] }

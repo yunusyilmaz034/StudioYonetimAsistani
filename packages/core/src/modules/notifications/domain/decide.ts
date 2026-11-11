@@ -104,6 +104,9 @@ export function selectChannels(
       channels.push(channel)
       continue
     }
+    // E-mail to a member is off when the studio says so — as if the channel were not enabled for her,
+    // so nothing is "suppressed": there was nothing to send. Staff still get theirs.
+    if (channel === 'email' && recipient.kind === 'member' && settings.memberEmail === false) continue
     // The KVKK line. A MARKETING message needs the member's explicit campaign consent; an OPERATIONAL
     // one (her class was cancelled) never does. Without consent the marketing send is suppressed
     // with `no_consent` — the reason is recorded, so a suppressed campaign is never a silent one.

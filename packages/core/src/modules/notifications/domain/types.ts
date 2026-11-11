@@ -146,6 +146,12 @@ export interface NotificationSettings {
   readonly quietFromHour: number // 22
   readonly quietToHour: number // 8
   readonly enabledChannels: readonly Channel[]
+  /**
+   * E-mail to MEMBERS (owner, 2026-11-10, KVKK). The e-mail provider abroad would not sign the KVKK
+   * standard contract, so the studio stopped mailing members; staff mail (password reset, the night
+   * alerts) is untouched. Absent = true — a studio that never set it keeps the old behaviour.
+   */
+  readonly memberEmail?: boolean
 }
 
 export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {

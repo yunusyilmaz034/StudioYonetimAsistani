@@ -187,12 +187,9 @@ export default function KvkkPage() {
             mesajlarınız.
           </li>
           <li>
-            <strong>E-posta — Resend, ABD:</strong> adınız, e-posta adresiniz ve size gönderilen
-            e-postanın içeriği.
-          </li>
-          <li>
-            <strong>Anlık bildirim — Expo, ABD:</strong> üye uygulamasına gönderilen bildirimin metni
-            ve cihazınızın bildirim kimliği.
+            <strong>Anlık bildirim — Expo, ABD:</strong> yalnızca cihazınızın bildirim kimliği.
+            Bildirimin metni kişisel bilgi içermez (“Yeni bildiriminiz var”); ayrıntısı yalnızca
+            uygulamanın içinde görünür.
           </li>
           <li>
             <strong>Ödeme kuruluşları — PayTR ve TAMI, Türkiye:</strong> online ödemelerde adınız,
@@ -205,8 +202,9 @@ export default function KvkkPage() {
           </li>
         </ul>
         <p>
-          Google, Anthropic, Meta, Resend ve Expo&apos;ya yapılan aktarımlar yurt dışına aktarım
-          niteliğindedir. Verileriniz bunların dışında üçüncü kişilerle paylaşılmaz, satılmaz ve
+          Google, Anthropic, Meta ve Expo&apos;ya yapılan aktarımlar yurt dışına aktarım
+          niteliğindedir. Üyelerimize e-posta gönderilmez; bilgilendirmeler uygulama içi bildirim
+          ve WhatsApp ile yapılır. Verileriniz bunların dışında üçüncü kişilerle paylaşılmaz, satılmaz ve
           pazarlama amacıyla devredilmez.
         </p>
       </LegalSection>

@@ -1,6 +1,7 @@
 'use server'
 
 import { createHash, randomBytes, randomUUID } from 'node:crypto'
+import { studioNotificationSettings } from '../notification-deps'
 
 import {
   documentRuleFor,
@@ -87,6 +88,8 @@ export interface InvoiceSetup {
   readonly eArchiveReady: boolean
   readonly receiptLimitKurus: number | null
   readonly environment: 'staging' | 'production'
+  /** KVKK: false → the PDF e-mail tick is not offered (no e-mail to members). */
+  readonly memberEmail: boolean
 }
 
 export type InvoiceList =
@@ -185,6 +188,8 @@ export async function loadInvoicesAction(input: unknown): Promise<InvoiceList> {
       eArchiveReady: policy.vatRatePercent !== null && policy.parasut.companyId !== null && connected,
       receiptLimitKurus: policy.receiptLimitKurus,
       environment: policy.parasut.environment,
+      // KVKK (owner, 2026-11-10): no e-mail to members → no "PDF e-postayla" tick either.
+      memberEmail: (await studioNotificationSettings(String(ctx.studioId))).memberEmail !== false,
     },
   }
 }
@@ -243,9 +248,11 @@ export async function requestEArchiveAction(input: unknown): Promise<readonly EA
   if (!u.ok) return p.items.map((i) => ({ paymentId: i.paymentId, ok: false, error: { code: 'operation_not_applicable' } }))
   const d = deps()
   const out: EArchiveRequestResult[] = []
+  // KVKK: when the studio does not e-mail members, no address goes with the request, whatever was sent.
+  const mailAllowed = (await studioNotificationSettings(String(u.ctx.studioId))).memberEmail !== false
   // One at a time: each is its own transaction, and a refusal on one never blocks the others.
   for (const i of p.items) {
-    const r = await requestEArchive(d, u.ctx, { paymentId: i.paymentId, invoicedKurus: i.invoicedKurus, newRequestId: randomUUID(), emailTo: i.emailTo })
+    const r = await requestEArchive(d, u.ctx, { paymentId: i.paymentId, invoicedKurus: i.invoicedKurus, newRequestId: randomUUID(), emailTo: mailAllowed ? i.emailTo : null })
     out.push({ paymentId: i.paymentId, ok: r.ok, error: r.ok ? null : r.error })
   }
   return out

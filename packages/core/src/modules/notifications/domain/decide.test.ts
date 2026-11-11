@@ -135,6 +135,16 @@ describe('channel selection — the KVKK line and the preference line (v1.25)', 
     expect(selectChannels(member, noCampaign, DEFAULT_NOTIFICATION_SETTINGS, 'operational').channels).toEqual(['in_app', 'email'])
   })
 
+  it('member e-mail switched OFF (KVKK, 2026-11-10): no e-mail to a member, staff still get theirs', () => {
+    const off = { ...DEFAULT_NOTIFICATION_SETTINGS, memberEmail: false }
+    const d = selectChannels(member, DEFAULT_PREFS, off, 'operational')
+    expect(d.channels).toEqual(['in_app'])
+    expect(d.suppressed).toEqual([{ channel: 'push', reason: 'member_preference' }]) // e-mail is not "suppressed" — it was never on
+    expect(selectChannels({ ...member, kind: 'staff' }, DEFAULT_PREFS, off, 'operational').channels).toEqual(['in_app', 'email'])
+    // absent = the old behaviour
+    expect(selectChannels(member, DEFAULT_PREFS, DEFAULT_NOTIFICATION_SETTINGS, 'operational').channels).toEqual(['in_app', 'email'])
+  })
+
   it('a member with no e-mail on file is suppressed BY NAME, not silently dropped', () => {
     const d = selectChannels({ ...member, email: null }, DEFAULT_PREFS, DEFAULT_NOTIFICATION_SETTINGS, 'operational')
     expect(d.channels).toEqual(['in_app'])
