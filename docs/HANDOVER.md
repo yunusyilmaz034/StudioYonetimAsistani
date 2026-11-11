@@ -55,6 +55,16 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
   birebir (101 = 79 + 20 + 2). Owner deneyip yazacak.
 - **Yerelde, push edilmedi:** yalnızca günlük commit'leri (kod değil).
 
+### 11 Kasım — HİBRİT FİYATLARI (owner) — katalog · AI · site tek fiyat
+
+- Tek fiyat (kart = nakit): Hibrit Aylık 2 Pilates + 1 Fitness **6.850**, 2 Fitness + 1 Pilates **5.850**, 1 + 1 **5.000**.
+  Scriptler `fix-hibrit-tek-fiyat-2026-11-11.ts`, `fix-hibrit-online-2026-11-11.ts` (`product.updated`).
+- Hibrit 3 Aylık ve Hibrit 2 Aylık: site ve üye uygulamasından KALKTI (aktif — panelde satılır). 1 + 1 uygulamada yok (owner: "böyle kalsın").
+- AI `settings/ai.priceList`: yeni "HİBRİT" bölümü (üç aylık paket); diğer hibritler hâlâ "fiyat verme, telefona yönlendir".
+- Site (`pilatesfitnessbyisil-web`): yalnız `index.html` değişti (basılı 5.850/6.850, 3 aylık kart silindi), öteki 20 dosya
+  canlıdan aynen — sürüm `505b46929779239b`. Satın Al düğmeleri zaten katalogdan canlı okuyor. ⚠️ `~/pilates-site` hâlâ ESKİ.
+  Sayfada "Fiyatlar Eylül ayına kadar geçerlidir" cümlesi duruyor (owner'a sorulacak).
+
 ### 10 Kasım — Çağla Adıyaman (TAMI) — pazartesi ödeyecek
 
 - Satış `sal_01M6RM236E7T8K4XBBWG5SSG6A` 22.000 ₺ AÇIK. 10 Kasım TAMI linkleri: süre dolması + Masterpass "Ödeme gerçekleşirken
