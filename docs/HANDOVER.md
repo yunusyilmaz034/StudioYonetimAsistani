@@ -63,7 +63,7 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
 - AI `settings/ai.priceList`: yeni "HİBRİT" bölümü (üç aylık paket); diğer hibritler hâlâ "fiyat verme, telefona yönlendir".
 - Site (`pilatesfitnessbyisil-web`): yalnız `index.html` değişti (basılı 5.850/6.850, 3 aylık kart silindi), öteki 20 dosya
   canlıdan aynen — sürüm `505b46929779239b`. Satın Al düğmeleri zaten katalogdan canlı okuyor. ⚠️ `~/pilates-site` hâlâ ESKİ.
-  Sayfada "Fiyatlar Eylül ayına kadar geçerlidir" cümlesi duruyor (owner'a sorulacak).
+  "Fiyatlar Eylül ayına kadar geçerlidir" cümlesi KALDIRILDI (owner) — güncel site sürümü `8594c48e83a75486`.
 
 ### 10 Kasım — Çağla Adıyaman (TAMI) — pazartesi ödeyecek
 
