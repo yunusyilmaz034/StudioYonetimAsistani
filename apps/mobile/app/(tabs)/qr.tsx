@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Alert, View } from 'react-native'
+import { Alert, AppState, View } from 'react-native'
+import { useFocusEffect } from 'expo-router'
 import QRCode from 'react-native-qrcode-svg'
 import { Ionicons } from '@expo/vector-icons'
 import { CameraView, useCameraPermissions } from 'expo-camera'
@@ -38,6 +39,20 @@ export default function Qr() {
     return () => { alive = false; if (timer.current) clearTimeout(timer.current) }
   }, [refresh])
 
+  // KAMERA YALNIZCA EKRANDAYKEN AÇIK (owner, 2026-11-12: "kamera açık ışığı açık gözüküyor … uygulama arka
+  // planda … tekrar kameradan okuyor"). Sekmeler ekranı bellekte tutar: "Tara"da bırakılan bir ekran başka
+  // sekmeye geçince ya da uygulama arka plana atılınca kamerayı açık bırakıyordu ve elindeki telefon çıkış
+  // ekranını sormadan okuyordu. Ekran odağı kaybettiğinde ya da uygulama ön planda değilken tarayıcı
+  // KAPANIR ("Kodum"a döner); tekrar okutmak "Tara"ya basmak, yani bir karardır.
+  const closeScanner = useCallback(() => setTab('show'), [])
+  useFocusEffect(useCallback(() => closeScanner, [closeScanner]))
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (st) => {
+      if (st !== 'active') setTab('show')
+    })
+    return () => sub.remove()
+  }, [])
+
   if (loading && !token) return <Loading />
 
   return (
@@ -60,7 +75,7 @@ export default function Qr() {
           </View>
         </FadeInUp>
       ) : (
-        <Scanner onDone={() => setTab('show')} />
+        <Scanner onDone={closeScanner} />
       )}
     </Screen>
   )
@@ -81,6 +96,8 @@ export default function Qr() {
 // Web portalı bu sorunu yaşamıyor çünkü başarılı bir okumada kamerayı kapatıyor. Mobil uygulama
 // kapatmıyordu; şimdi kapatıyor — okuma bitti, sekme "Kodum"a döner, kamera kapanır. Üye tekrar
 // okutmak isterse "Tara"ya basar, ki bu bir karardır.
+const SCAN_IDLE_MS = 60_000
+
 function Scanner({ onDone }: { onDone: () => void }) {
   const p = usePalette()
   const [perm, requestPerm] = useCameraPermissions()
@@ -119,8 +136,16 @@ function Scanner({ onDone }: { onDone: () => void }) {
               : 'Geçersiz kod. Sorun sürerse resepsiyona uğra.',
       )
     } catch { Alert.alert('Hata', 'Giriş yapılamadı, tekrar dene.') }
-    finally { setBusy(false); setTimeout(() => { handled.current = false }, 2500) }
+    // Okuma bitti — sonucu ne olursa olsun kamera kapanır (c97300a bunu amaçlıyordu ama `onDone`u hiç
+    // çağırmıyordu). Kilit açılmaz: bu tarayıcı bir daha okumaz, yenisi "Tara"yla açılır.
+    finally { setBusy(false); onDone() }
   }
+
+  // Kimse okutmadan açık bırakılan kamera da kapanır: cebe giren telefonda ışığı yanan bir kamera olmasın.
+  useEffect(() => {
+    const t = setTimeout(onDone, SCAN_IDLE_MS)
+    return () => clearTimeout(t)
+  }, [onDone])
 
   if (!perm) return <Loading />
   if (!perm.granted) {
