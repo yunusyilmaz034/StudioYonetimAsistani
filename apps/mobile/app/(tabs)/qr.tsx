@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Alert, AppState, View } from 'react-native'
 import { useFocusEffect } from 'expo-router'
+import { useIsFocused } from '@react-navigation/native'
 import QRCode from 'react-native-qrcode-svg'
 import { Ionicons } from '@expo/vector-icons'
 import { CameraView, useCameraPermissions } from 'expo-camera'
@@ -44,11 +45,24 @@ export default function Qr() {
   // sekmeye geçince ya da uygulama arka plana atılınca kamerayı açık bırakıyordu ve elindeki telefon çıkış
   // ekranını sormadan okuyordu. Ekran odağı kaybettiğinde ya da uygulama ön planda değilken tarayıcı
   // KAPANIR ("Kodum"a döner); tekrar okutmak "Tara"ya basmak, yani bir karardır.
-  const closeScanner = useCallback(() => setTab('show'), [])
+  //
+  // 12.11 akşam, owner: "uygulama içinde dolaşınca yine kamera hep açık … yeşil ışığından anlıyoruz". iOS'ta
+  // CameraView'i söküp atmak kamera oturumunu her zaman DURDURMUYOR. Önce `active={false}` (oturum durur,
+  // yeşil ışık söner), sonra söküm — `closeScanner` ikisini sırayla yapar. Odaktan çıkınca `Scanner`
+  // kendi `useIsFocused`ıyla ANINDA durur; söküm arkadan gelir.
+  const [camOn, setCamOn] = useState(false)
+  const camRef = useRef(false)
+  const openScanner = useCallback(() => { camRef.current = true; setCamOn(true); setTab('scan') }, [])
+  const closeScanner = useCallback(() => {
+    camRef.current = false
+    setCamOn(false)
+    // Arada "Tara"ya yeniden basıldıysa açık tarayıcıyı kapatma.
+    setTimeout(() => { if (!camRef.current) setTab('show') }, CAMERA_STOP_MS)
+  }, [])
   useFocusEffect(useCallback(() => closeScanner, [closeScanner]))
   useEffect(() => {
     const sub = AppState.addEventListener('change', (st) => {
-      if (st !== 'active') setTab('show')
+      if (st !== 'active') closeScanner()
     })
     return () => sub.remove()
   }, [])
@@ -60,8 +74,8 @@ export default function Qr() {
       <Title sub="Stüdyoya girişini doğrula">Giriş</Title>
 
       <View style={{ flexDirection: 'row', backgroundColor: p.surfaceMuted, borderRadius: radius.pill, padding: 4, gap: 4 }}>
-        <Segment label="Kodum" icon="qr-code" active={tab === 'show'} onPress={() => setTab('show')} />
-        <Segment label="Tara" icon="scan" active={tab === 'scan'} onPress={() => setTab('scan')} />
+        <Segment label="Kodum" icon="qr-code" active={tab === 'show'} onPress={closeScanner} />
+        <Segment label="Tara" icon="scan" active={tab === 'scan'} onPress={openScanner} />
       </View>
 
       {tab === 'show' ? (
@@ -75,7 +89,7 @@ export default function Qr() {
           </View>
         </FadeInUp>
       ) : (
-        <Scanner onDone={closeScanner} />
+        <Scanner live={camOn} onDone={closeScanner} />
       )}
     </Screen>
   )
@@ -97,12 +111,18 @@ export default function Qr() {
 // kapatmıyordu; şimdi kapatıyor — okuma bitti, sekme "Kodum"a döner, kamera kapanır. Üye tekrar
 // okutmak isterse "Tara"ya basar, ki bu bir karardır.
 const SCAN_IDLE_MS = 60_000
+// Kamera oturumunun durması için tanınan süre: önce `active={false}`, bu kadar sonra söküm.
+const CAMERA_STOP_MS = 300
 
-function Scanner({ onDone }: { onDone: () => void }) {
+function Scanner({ live, onDone }: { live: boolean; onDone: () => void }) {
   const p = usePalette()
   const [perm, requestPerm] = useCameraPermissions()
   const [busy, setBusy] = useState(false)
+  const focused = useIsFocused()
   const handled = useRef(false)
+  // Kapatan her yol (okuma, boşta kalma, sekme, arka plan, "Kodum") `onDone`dan geçer: önce `live=false`
+  // kamerayı durdurur, söküm arkadan gelir.
+  const close = onDone
 
   async function onScan(data: string) {
     if (handled.current || busy) return
@@ -138,14 +158,14 @@ function Scanner({ onDone }: { onDone: () => void }) {
     } catch { Alert.alert('Hata', 'Giriş yapılamadı, tekrar dene.') }
     // Okuma bitti — sonucu ne olursa olsun kamera kapanır (c97300a bunu amaçlıyordu ama `onDone`u hiç
     // çağırmıyordu). Kilit açılmaz: bu tarayıcı bir daha okumaz, yenisi "Tara"yla açılır.
-    finally { setBusy(false); onDone() }
+    finally { setBusy(false); close() }
   }
 
   // Kimse okutmadan açık bırakılan kamera da kapanır: cebe giren telefonda ışığı yanan bir kamera olmasın.
   useEffect(() => {
-    const t = setTimeout(onDone, SCAN_IDLE_MS)
+    const t = setTimeout(close, SCAN_IDLE_MS)
     return () => clearTimeout(t)
-  }, [onDone])
+  }, [close])
 
   if (!perm) return <Loading />
   if (!perm.granted) {
@@ -169,8 +189,9 @@ function Scanner({ onDone }: { onDone: () => void }) {
         <CameraView
           style={{ flex: 1 }}
           facing="back"
+          active={live && focused}
           barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
-          onBarcodeScanned={({ data }) => void onScan(data)}
+          onBarcodeScanned={live && focused ? ({ data }) => void onScan(data) : undefined}
         />
         {/* framing overlay */}
         <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>
