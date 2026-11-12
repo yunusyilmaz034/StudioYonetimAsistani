@@ -55,6 +55,18 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
   birebir (101 = 79 + 20 + 2). Owner deneyip yazacak.
 - **Yerelde, push edilmedi:** yalnızca günlük commit'leri (kod değil).
 
+### 12 Kasım akşam — Mobil tarayıcı kamerası kapanmıyordu → OTA yayında (1.9.0)
+
+- `c97300a` (22 Eylül) `onDone`u geçirmiş ama hiç çağırmamıştı; sekme/arka planda kamera canlı kalıyordu → üye fark etmeden
+  çıkış kodunu okuttu. `39ee597`: her okumadan sonra, sekmeden çıkınca, arka planda, 60 sn boşta kapanır.
+- `eas update --branch production` → grup `966d47a1-425c-4d80-aeae-67107b173ab3` (runtime 1.9.0; market 1.9.0 %100).
+  Üyede 2 aç-kapa sonra iner.
+
+### 12 Kasım — Fatura Takibi: toplu "fatura kesildi" + KDV özeti (owner) — CANLI build-2026-11-12-003
+
+- Seçim çubuğunda "N fatura kesildi" (havale → e-Arşiv, nakit → ÖKC, listedeki tutar). Özet: kesilen / kesilmeyen /
+  toplam brüt + içindeki KDV (oran Ayarlar → Fatura; `lib/invoice-vat.ts`, satır satır yuvarlanır).
+
 ### 12 Kasım — Işıl'ın ve Yunus'un yazışmaları Sohbetler'den çıktı ([[OR-135]])
 
 - `settings/ai.ignoredContacts` = Işıl WA + IG, Yunus WA + IG. 3 eski sohbet `conversationsPrivate/`'a taşındı.
