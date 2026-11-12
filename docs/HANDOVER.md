@@ -55,6 +55,14 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
   birebir (101 = 79 + 20 + 2). Owner deneyip yazacak.
 - **Yerelde, push edilmedi:** yalnızca günlük commit'leri (kod değil).
 
+### 12 Kasım — Tartı PDF'i yeniden okunuyor, AI'sız ([[OR-134]]) — commit'li, GECE deploy
+
+- Ölçüm Ekle → "Tartı çıktısından oku" geri açıldı. Okuma kendi sunucumuzda (`server/measurement-pdf.ts`, `unpdf`,
+  `serverExternalPackages`); Anthropic çağrısı ve `server/ai/measurement-pdf.ts` silindi.
+- Gerçek bir PERFECTO çıktısında 13 değer + bel + tarih doğru okundu (PDF repoya girmedi; testte uydurma adlı satırlar).
+- Deploy sonrası dene: üye → Antrenman → Ölçüm Ekle → PDF seç → alanlar dolar (kilo, yağ %, kas, sıvı, BMR, iç yağ,
+  bel 76 gibi) → Kaydet. Başka bir PDF (ör. fatura) → "PDF okunamadı (yalnız tartının PERFECTO çıktısı okunur)".
+
 ### 11 Kasım — HİBRİT FİYATLARI (owner) — katalog · AI · site tek fiyat
 
 - Tek fiyat (kart = nakit): Hibrit Aylık 2 Pilates + 1 Fitness **6.850**, 2 Fitness + 1 Pilates **5.850**, 1 + 1 **5.000**.

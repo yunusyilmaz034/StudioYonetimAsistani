@@ -43,7 +43,7 @@ import type { AiProgramDay, AiProgramResult } from '@/lib/training/ai-program'
 import { buildProgram, focusLabel, type ProgramFocus } from '@/lib/training/program-builder'
 import { ForbiddenError, requireMemberContext, requireTenantContext } from '../auth'
 import { aiBuildProgram } from '../ai/program-ai'
-import { parseMeasurementPdf } from '../ai/measurement-pdf'
+import { readMeasurementPdf } from '../measurement-pdf'
 import { adminDb, adminStorage, storageBucketName } from '../firebase-admin'
 
 // ── TRAINING & PROGRESS web actions (Plus Phase 7). Roles (§13): Owner all; Trainer her own members;
@@ -433,22 +433,17 @@ export async function removeMeasurementAction(input: unknown) {
 
 // Read the scale's printout and hand the numbers BACK TO THE FORM — this writes nothing. No
 // measurement is recorded until a human presses Kaydet on values she can see, which is why an
-// unreadable sheet is a plain refusal here rather than a half-filled record.
+// unreadable sheet is a plain refusal here rather than a half-filled record. Read on our own server,
+// without AI (OR-134): the PDF goes nowhere and is not stored.
 const MAX_PDF_BYTES = 6 * 1024 * 1024
-// OFF (owner, 2026-11-10, KVKK). The printout carries the member's name next to her body composition and
-// cannot be tokenised, so reading it sent health data with a name to a model abroad. Reception types
-// the figures instead. The reader stays in the tree; turning it back on needs a KVKK basis first
-// (standard contract + the health consent naming AI and the transfer).
-const MEASUREMENT_PDF_AI = false as boolean
 
 export async function parseMeasurementPdfAction(input: unknown) {
   const p = z.object({ memberId: z.string().min(1), base64: z.string().min(1) }).parse(input)
   const ctx = await requireTenantContext(TRAINER)
   await assertMayReadMemberContent(ctx, p.memberId)
   // base64 carries 3 bytes in every 4 characters.
-  if (!MEASUREMENT_PDF_AI) return { ok: false as const, reason: 'not_configured' as const }
   if ((p.base64.length * 3) / 4 > MAX_PDF_BYTES) return { ok: false as const, reason: 'too_large' as const }
-  return parseMeasurementPdf(p.base64)
+  return readMeasurementPdf(new Uint8Array(Buffer.from(p.base64, 'base64')))
 }
 
 export async function listMemberMeasurementsAction(input: unknown) {

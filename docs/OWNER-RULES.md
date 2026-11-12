@@ -2592,8 +2592,8 @@ Owner, 2027 KVKK ceza tablosunu gösterip *"bizim sistemimiz bunlara uygun mu �
 
 - **Yurt dışı aktarımın dayanağı standart sözleşme** (KVKK m.9, 2024): Google, Anthropic, Meta, Resend, Expo. Açık rıza
   düzenli aktarımda dayanak DEĞİL. Şirket imzalar, imzadan sonra 5 iş günü içinde Kurul'a bildirim (owner gönderir).
-- **Tartı (Tanita) çıktısını AI ile okuma KAPALI**: çıktıda ad + vücut ölçümü var, maskelenemiyor. Resepsiyon elle yazar.
-  Açmak için önce KVKK dayanağı (sözleşme + AI'yı ve yurt dışını anan sağlık rızası) gerekir.
+- **Tartı (Tanita) çıktısını AI ile okuma KAPALI**: çıktıda ad + vücut ölçümü var, maskelenemiyor. ~~Resepsiyon elle yazar.~~
+  → 2026-11-12'den beri çıktı **AI'sız, kendi sunucumuzda** okunuyor ([[OR-134]]); AI ile okuma kapalı kalır.
 - **Üye olmayan yazışana aydınlatma**: WhatsApp/Instagram sohbetinin İLK cevabının altına bir kez link
   (`settings/ai.privacyNoticeUrl`, veri; yoksa satır eklenmez).
 - Aydınlatma metni sistemin GERÇEKTE yaptığını söyler; aktarımın hukuki dayanağı yalnız sözleşmeler imzalanınca yazılır.
@@ -2604,3 +2604,14 @@ Owner, 2027 KVKK ceza tablosunu gösterip *"bizim sistemimiz bunlara uygun mu �
   e-Arşiv "PDF e-postayla" kutusu da kalkar; **anlık bildirim kişisel veri taşımaz** (genel başlık/metin; Expo imzalamadı);
   (4) Meta (WhatsApp/Instagram) **kabul edilmiş kalan risk** — yerine konacak sağlayıcı yok, aydınlatmada açıkça yazılı.
   ELIG'e soru gönderilmez (owner).
+
+**OR-134 · Tartı çıktısı AI'sız okunur — kendi sunucumuzda, hiçbir yere gönderilmeden.** (2026-11-12)
+
+Ekip *"üyelerin ölçümlerinin pdf'ini yükleyemiyoruz"* dedi (OR-133 ile kapatılmıştı). Owner: *"bunu ücretsiz yapan bir
+google ai bişey yok mu"* → ücretsiz Gemini veriyi eğitimde kullanır, reddedildi; owner *"direk tanita dan gelen pdf bu
+bence yapabilirsin"*. Stüdyonun tartısı PERFECTO yazılımıyla **metinli PDF** üretiyor; etiket + ilk sayı okunur
+(`apps/web/src/server/measurement-pdf.ts`, `unpdf`). Sonuç: ücretsiz, PDF dışarı çıkmaz ve saklanmaz, ad hiçbir alana
+okunmaz. Tanımadığı çıktı (başka cihaz, tarama, fotoğraf) **"okunamadı"** — tahmin etmez; resepsiyon elle yazar.
+Form yine doldurulur, **Kaydet'e insan basar** (OR-27'nin özü aynen). Başka bir tartı formatı gelirse örnek PDF'le
+okuyucuya eklenir; AI'ya geri dönülmez.
+

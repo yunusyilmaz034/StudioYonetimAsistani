@@ -69,8 +69,6 @@ import {
   restoreProgramVersionAction,
 } from '@/server/actions/training'
 
-// Tartı çıktısını AI ile okuma — kapalı (KVKK, owner 2026-11-10). The server refuses it as well.
-const MEASUREMENT_PDF_READING = false as boolean
 
 const LEVEL_LABEL: Record<string, string> = { beginner: 'Başlangıç', intermediate: 'Orta', advanced: 'İleri' }
 
@@ -1428,9 +1426,7 @@ function MeasurementDialog({
         toast.error(
           res.reason === 'too_large'
             ? 'PDF çok büyük (en fazla 6 MB).'
-            : res.reason === 'not_configured'
-              ? 'PDF okuma şu an kapalı; değerleri elle girebilirsiniz.'
-              : 'PDF okunamadı. Değerleri elle girebilirsiniz.',
+            : 'PDF okunamadı (yalnız tartının PERFECTO çıktısı okunur). Değerleri elle girebilirsiniz.',
         )
         return
       }
@@ -1539,9 +1535,7 @@ function MeasurementDialog({
 
         <div className="space-y-3">
           {/* The printout is the data source: read it, then check what it filled in. Typing stays
-              available for the day the scale's printer is out of paper. OFF since 2026-11-10 (KVKK —
-              see MEASUREMENT_PDF_AI in server/actions/training.ts); reception types the figures. */}
-          {MEASUREMENT_PDF_READING && (
+              available for the day the scale's printer is out of paper. Read on our server, no AI (OR-134). */}
           <div className="rounded-lg border border-dashed border-border bg-muted/30 p-3">
             <input
               ref={fileRef}
@@ -1561,8 +1555,7 @@ function MeasurementDialog({
                 </p>
               </div>
               {reading ? (
-                // Reading takes the better part of ten seconds and she may have picked the wrong
-                // file. İptal stops the wait immediately and touches nothing on the form.
+                // She may have picked the wrong file. İptal stops the wait immediately and touches nothing on the form.
                 <div className="flex shrink-0 items-center gap-2">
                   <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
                     <Loader2Icon className="size-3.5 animate-spin" /> Okunuyor…
@@ -1578,7 +1571,6 @@ function MeasurementDialog({
               )}
             </div>
           </div>
-          )}
 
           <label className="flex flex-col gap-1 text-sm">
             <span className="text-xs uppercase tracking-wide text-muted-foreground">Tarih</span>
