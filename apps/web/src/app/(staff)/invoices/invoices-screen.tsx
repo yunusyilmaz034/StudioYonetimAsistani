@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input'
 import { PageHeader } from '@/components/ui/page-header'
 import { domainErrorMessage } from '@/lib/domain-error'
 import { downloadCsv } from '@/lib/export/csv'
+import { vatSummary } from '@/lib/invoice-vat'
 import { RANGES, resolveRange, type RangeId } from '@/lib/ranges'
 import {
   invoicePdfUrlAction,
@@ -170,10 +171,12 @@ export function InvoicesScreen() {
   }
 
   const placeholder = data && !data.locked ? data.placeholder : '11111111111'
-  const setup: InvoiceSetup = data && !data.locked ? data.setup : { eArchiveReady: false, receiptLimitKurus: null, environment: 'staging', memberEmail: false }
+  const setup: InvoiceSetup = data && !data.locked ? data.setup : { eArchiveReady: false, receiptLimitKurus: null, environment: 'staging', memberEmail: false, vatRatePercent: null }
   const bekleyen = all.filter((r) => ['open', 'pending', 'failed'].includes(stateOf(r)))
   const otomatik = all.filter((r) => stateOf(r) === 'auto').length
   const kesilen = all.filter((r) => r.issued).length
+  // KDV özeti: belgesi olan (elle/Paraşüt/ÖKC otomatik) ve bekleyen, ayrı ayrı (owner, 2026-11-12).
+  const belgeli = all.filter((r) => r.issued || stateOf(r) === 'auto')
   const eArsiv = all.filter((r) => r.byParasut).length
   // Online: the invoice is cut for what the card was charged, commission included (owner, 2026-11-05).
   const amountOf = (r: InvoiceRow) => amounts[r.paymentId] ?? String((r.chargedKurus ?? r.amountKurus) / 100).replace('.', ',')
@@ -212,7 +215,7 @@ export function InvoicesScreen() {
     }
     setMarking(false)
     setSelected(new Set())
-    if (failed === 0) toast.success(`${rows.length} tahsilat elle kesildi olarak işaretlendi.`)
+    if (failed === 0) toast.success(`${rows.length} tahsilat “fatura kesildi” olarak işaretlendi.`)
     else toast.error(`${failed} satır işaretlenemedi; diğerleri işaretlendi.`)
     void load(true)
   }
@@ -306,6 +309,7 @@ export function InvoicesScreen() {
             {all.length} tahsilat · {kesilen} belgelendi · {otomatik} ÖKC otomatik (kart) · {bekleyen.length} bekliyor (
             {tl(bekleyen.reduce((n, r) => n + r.amountKurus, 0))})
           </p>
+          <VatLine kesilen={belgeli} kesilmeyen={bekleyen} rate={setup.vatRatePercent} />
           <p className="mt-1 text-xs text-muted-foreground">
             Bu aralıkta Paraşüt’ten kesilen e-Arşiv: {eArsiv} ({eArsiv} kontör). Kart/POS fişini cihaz basar, listede beklemez. Nakit: fiş
             kestiyseniz tikleyin; müşteri isterse e-Arşiv kesin. Havale/EFT’de fatura 7 gün içinde kesilmeli — son 3 gününe girenler her sabah
@@ -329,7 +333,7 @@ export function InvoicesScreen() {
               Seçimi kaldır
             </Button>
             <Button variant="ghost" className="text-primary-foreground hover:bg-white/10" disabled={marking} onClick={() => void markChosen()}>
-              {marking ? 'İşaretleniyor…' : `${chosen.length} elle kesildi`}
+              {marking ? 'İşaretleniyor…' : `${chosen.length} fatura kesildi`}
             </Button>
             <Button variant="secondary" onClick={() => setConfirm(chosen)}>
               {chosen.length} e-Arşiv kes…
@@ -527,6 +531,26 @@ function Card({ row, a }: { row: InvoiceRow; a: RowActions }) {
         </button>
       </div>
     </li>
+  )
+}
+
+/** The amount an invoice is (or will be) cut for: what was written, else the card charge, else the payment. */
+const grossOf = (r: InvoiceRow) => r.invoicedKurus ?? r.chargedKurus ?? r.amountKurus
+
+/** Kesilen · kesilmeyen · toplam — gross and the VAT inside it, at the studio's rate. */
+function VatLine({ kesilen, kesilmeyen, rate }: { kesilen: readonly InvoiceRow[]; kesilmeyen: readonly InvoiceRow[]; rate: number | null }) {
+  const k = vatSummary(kesilen.map(grossOf), rate)
+  const b = vatSummary(kesilmeyen.map(grossOf), rate)
+  const kdv = (v: number | null) => (v === null ? 'KDV oranı girilmedi' : `KDV ${tl(v)}`)
+  return (
+    <p className="mt-1 text-sm tabular-nums">
+      <span className="text-success">Kesilen {tl(k.gross)} · {kdv(k.vat)}</span>
+      <span className="text-muted-foreground"> — </span>
+      <span>Kesilmeyen {tl(b.gross)} · {kdv(b.vat)}</span>
+      <span className="text-muted-foreground"> — </span>
+      <span className="font-semibold">Toplam {tl(k.gross + b.gross)} · {k.vat === null || b.vat === null ? kdv(null) : `KDV ${tl(k.vat + b.vat)}`}</span>
+      {rate !== null ? <span className="text-muted-foreground"> (%{rate}, fiyatlar KDV dahil)</span> : null}
+    </p>
   )
 }
 

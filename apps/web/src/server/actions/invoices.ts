@@ -90,6 +90,8 @@ export interface InvoiceSetup {
   readonly environment: 'staging' | 'production'
   /** KVKK: false → the PDF e-mail tick is not offered (no e-mail to members). */
   readonly memberEmail: boolean
+  /** The accountant's VAT rate (Ayarlar → Fatura) — the summary's KDV figures. Null until set. */
+  readonly vatRatePercent: number | null
 }
 
 export type InvoiceList =
@@ -190,6 +192,7 @@ export async function loadInvoicesAction(input: unknown): Promise<InvoiceList> {
       environment: policy.parasut.environment,
       // KVKK (owner, 2026-11-10): no e-mail to members → no "PDF e-postayla" tick either.
       memberEmail: (await studioNotificationSettings(String(ctx.studioId))).memberEmail !== false,
+      vatRatePercent: policy.vatRatePercent,
     },
   }
 }
