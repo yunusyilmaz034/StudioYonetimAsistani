@@ -55,6 +55,17 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
   birebir (101 = 79 + 20 + 2). Owner deneyip yazacak.
 - **Yerelde, push edilmedi:** yalnızca günlük commit'leri (kod değil).
 
+### 12 Kasım — Işıl'ın ve Yunus'un yazışmaları Sohbetler'den çıktı ([[OR-135]])
+
+- `settings/ai.ignoredContacts` = Işıl WA + IG, Yunus WA + IG. 3 eski sohbet `conversationsPrivate/`'a taşındı.
+- Webhook kodu commit'li; whatsappWebhook + instagramWebhook deploy edilene kadar yeni mesaj yine sohbet açar.
+- Dene: Işıl kendi telefonundan stüdyoya WhatsApp/Instagram yazar → Sohbetler'de görünmez, AI cevap vermez.
+
+### 12 Kasım — Turnike "kodun süresi doldu" (16:40–18:18) — WiFi zayıf, kod gecikti
+
+- Kutu yeni kodu 2–8 dk geç aldı, ekranda eski kod kaldı; sinyal Giriş −85, Çıkış −78 dBm. Fiş/modem kapat-aç düzeltti.
+- Öneri owner'da: turnike yanına WiFi güçlendirici; firmware'de "süresi geçmiş kodu gösterme + kısa zaman aşımı" (onay bekliyor).
+
 ### 12 Kasım — Tartı PDF'i yeniden okunuyor, AI'sız ([[OR-134]]) — commit'li, GECE deploy
 
 - Ölçüm Ekle → "Tartı çıktısından oku" geri açıldı. Okuma kendi sunucumuzda (`server/measurement-pdf.ts`, `unpdf`,

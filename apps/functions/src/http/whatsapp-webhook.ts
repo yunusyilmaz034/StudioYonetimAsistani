@@ -36,6 +36,7 @@ import { onRequest } from 'firebase-functions/v2/https'
 
 import { db } from '../shared/firebase'
 import { whatsappAdId, type AdRef } from './ad-referral'
+import { ignoredContact } from './ignored-contacts'
 import { notificationDeps, studioNotificationSettings } from '../triggers/on-event-notify'
 import { AI_RECEPTIONIST_SECRETS, REGION } from '../shared/region'
 import { withPrivacyNotice } from './privacy-notice'
@@ -490,6 +491,8 @@ export async function huniyiIlerlet(database: Firestore, ctx: TenantContext, pho
 async function processMessage(sid: string, from: string, name: string, text: string, msgId: string, adId: string | null = null): Promise<void> {
   const database = db()
   const ctx = ctxOf(sid)
+  // The owners' own chats are not customers: dropped before anything is stored (OR-135).
+  if (await ignoredContact(database, sid, from)) return
   const ref = database.doc(`studios/${sid}/conversations/${from}`)
   const snap = await ref.get()
   const isNew = !snap.exists

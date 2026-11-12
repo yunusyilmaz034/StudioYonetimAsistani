@@ -2615,3 +2615,11 @@ okunmaz. Tanımadığı çıktı (başka cihaz, tarama, fotoğraf) **"okunamadı
 Form yine doldurulur, **Kaydet'e insan basar** (OR-27'nin özü aynen). Başka bir tartı formatı gelirse örnek PDF'le
 okuyucuya eklenir; AI'ya geri dönülmez.
 
+**OR-135 · Sahiplerin kendi yazışmaları Sohbetler'e gelmez.** (2026-11-12)
+
+Owner: *"ışıl ve benim yunus olan yazışmalar buraya gelmesin"*. Liste veri: `settings/ai.ignoredContacts` (WhatsApp
+numarası Meta'nın verdiği biçimde `905…`, Instagram `ig_<igsid>`). Listedeki kişiden gelen mesaj **hiç saklanmaz**,
+lead sayılmaz, AI cevap vermez (`apps/functions/src/http/ignored-contacts.ts`, iki webhook). Eski sohbetler silinmedi,
+`conversationsPrivate/` altına taşındı (`tools/migration/ozel-sohbetler-2026-11-12.ts`). Yeni bir kişi eklemek =
+listeye anahtarını eklemek; kod değişmez.
+

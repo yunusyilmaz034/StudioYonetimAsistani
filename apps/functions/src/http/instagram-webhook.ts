@@ -46,6 +46,7 @@ import { onRequest } from 'firebase-functions/v2/https'
 import { db } from '../shared/firebase'
 import { INSTAGRAM_RECEPTIONIST_SECRETS, REGION } from '../shared/region'
 import { ATTACHMENT_PLACEHOLDER, extractPhone, instagramAction, parseInstagramWebhook, verifyMetaSignature } from './instagram-parse'
+import { ignoredContact } from './ignored-contacts'
 import { withPrivacyNotice } from './privacy-notice'
 import {
   aiReply,
@@ -138,6 +139,7 @@ async function capturePhoneLead(sid: string, conv: InstagramConversation, phone:
 }
 
 async function processEcho(sid: string, igsid: string, mid: string, text: string | null, at: number): Promise<void> {
+  if (await ignoredContact(db(), sid, keyOf(igsid))) return // the owners' own chats (OR-135)
   const ref = db().doc(`studios/${sid}/conversations/${keyOf(igsid)}`)
   const snap = await ref.get()
   if (!snap.exists) return // an echo for a conversation we never saw: nothing to update
@@ -156,6 +158,8 @@ async function processEcho(sid: string, igsid: string, mid: string, text: string
 async function processMessage(sid: string, igsid: string, mid: string, text: string | null, hasAttachment: boolean, at: number, adId: string | null = null): Promise<void> {
   const database = db()
   const ctx = ctxOf(sid)
+  // The owners' own chats are not customers: dropped before anything is stored (OR-135).
+  if (await ignoredContact(database, sid, keyOf(igsid))) return
   const ref = database.doc(`studios/${sid}/conversations/${keyOf(igsid)}`)
   const snap = await ref.get()
   const now = Date.now()
