@@ -76,7 +76,11 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
 ### 12 Kasım — Turnike "kodun süresi doldu" (16:40–18:18) — WiFi zayıf, kod gecikti
 
 - Kutu yeni kodu 2–8 dk geç aldı, ekranda eski kod kaldı; sinyal Giriş −85, Çıkış −78 dBm. Fiş/modem kapat-aç düzeltti.
-- Öneri owner'da: turnike yanına WiFi güçlendirici; firmware'de "süresi geçmiş kodu gösterme + kısa zaman aşımı" (onay bekliyor).
+- Öneri owner'da: turnike yanına WiFi güçlendirici.
+- **Firmware `turnike-v1.6` YAZILDI, DERLENDİ, KARTA YÜKLENMEDİ** (owner onayı 12.11): TLS el sıkışması 120 sn → 4 sn
+  (asıl takılma buydu), HTTP 6+6 → 3+3 sn, yavaş düşen istekte ikinci deneme yok, kod alındıktan 30 sn sonra ekranda
+  durmaz ("Bağlanıyor"). Yükleme USB ile: kutu Mac'e bağlanır → `cd apps/turnstile && pio run -t upload`
+  (PlatformIO bu makinede kurulu değil; geçici venv ile derlendi). Yükleme sonrası panelde fw `turnike-v1.6` görünmeli.
 
 ### 12 Kasım — Tartı PDF'i yeniden okunuyor, AI'sız ([[OR-134]]) — commit'li, GECE deploy
 

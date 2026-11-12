@@ -116,7 +116,7 @@ static const int BUZZER_OT = BUZZER_NPN ? HIGH : LOW;
 //
 // Her kod isteğinde sunucuya gidiyor ve Ayarlar → Turnike cihazları'nda görünüyor. "Hangi firmware
 // yüklüydü?" sorusu bir daha tahminle cevaplanmasın diye. Yüklemeden sonra etiket: `turnike-v1.4`.
-static const char* FW_SURUM = "turnike-v1.5";
+static const char* FW_SURUM = "turnike-v1.6";
 
 // Turnike kendi süresini sayıyor (F01), bize sadece tetiklemek düşüyor.
 //
@@ -157,6 +157,9 @@ struct Kapi {
   String kod;
   uint32_t kodBitis;
   Yuz yuz;   // ekranın çizim durumu — UI katmanının tek hafızası
+  // v1.6: bu andan sonra kod sunucuda geçersiz sayılabilir → ekranda DURMAZ. Sonda, çünkü `kapilar[]`
+  // sırayla ilklendiriliyor; ortaya eklenen alan ilklendiricileri kaydırırdı.
+  uint32_t kodSon;
 };
 
 // İKİ KAPI AÇIK (`-D IKI_KAPI`, `platformio.ini`).
@@ -169,9 +172,9 @@ struct Kapi {
 // Bayrak yerinde duruyor: bir sorun çıkarsa `platformio.ini`den o satırı silmek, kurulumu tek
 // kapıyla ayakta tutar.
 static Kapi kapilar[] = {
-  { "giris", "GIRIS", DEVICE_AUTH_GIRIS, &tftGiris, PIN_ROLE_GIRIS, 0, "", 0, { &tftGiris, Mod::Giris, Ekran::Yok, "" } },
+  { "giris", "GIRIS", DEVICE_AUTH_GIRIS, &tftGiris, PIN_ROLE_GIRIS, 0, "", 0, { &tftGiris, Mod::Giris, Ekran::Yok, "" }, 0 },
 #ifdef IKI_KAPI
-  { "cikis", "CIKIS", DEVICE_AUTH_CIKIS, &tftCikis, PIN_ROLE_CIKIS, 2, "", 0, { &tftCikis, Mod::Cikis, Ekran::Yok, "" } },
+  { "cikis", "CIKIS", DEVICE_AUTH_CIKIS, &tftCikis, PIN_ROLE_CIKIS, 2, "", 0, { &tftCikis, Mod::Cikis, Ekran::Yok, "" }, 0 },
 #endif
 };
 static const size_t KAPI_SAYISI = sizeof(kapilar) / sizeof(kapilar[0]);
@@ -260,15 +263,21 @@ static const char* acilisSebebi() {
 static WiFiClientSecure tls;
 static HTTPClient http;
 
+static void eskiKodlariKaldir();
+
 static String istek(Kapi& k, const char* yol, const String& govde) {
+  // Ağa çıkmadan önce: süresi dolmak üzere olan bir QR ekranda kalmasın — istek uzarsa üye onu okutur.
+  eskiKodlariKaldir();
   if (WiFi.status() != WL_CONNECTED) return "";
   // İki deneme: açık tutulan bağlantıyı sunucu ya da modem sessizce kapatmış olabilir. O zaman ilk
-  // deneme negatif kodla döner (bağlantı hatası, HTTP cevabı değil); bağlantıyı atıp bir kez temiz kurarız.
+  // deneme HIZLA negatif kodla döner; bağlantıyı atıp bir kez temiz kurarız. v1.6: ilk deneme YAVAŞ
+  // düştüyse (ağ kötü) ikinciye girilmez — bekleme ikiye katlanmasın.
   for (int deneme = 0; deneme < 2; deneme++) {
+    const uint32_t bas = millis();
     http.begin(tls, String(API_BASE) + yol);
     http.setReuse(true);
-    http.setTimeout(6000);
-    http.setConnectTimeout(6000);
+    http.setTimeout(3000);
+    http.setConnectTimeout(3000);
     http.addHeader("Content-Type", "application/json");
     http.addHeader("x-studio-id", STUDIO_ID);
     http.addHeader("Authorization", String("Bearer ") + k.auth);
@@ -281,9 +290,10 @@ static String istek(Kapi& k, const char* yol, const String& govde) {
     http.addHeader("x-reset", acilisSebebi());
     const int kod = http.POST(govde);
     if (kod < 0) {
-      Serial.printf("[turnike:%s] baglanti hatasi %d (deneme %d)\n", k.ad, kod, deneme + 1);
+      Serial.printf("[turnike:%s] baglanti hatasi %d (deneme %d, %u ms)\n", k.ad, kod, deneme + 1, (unsigned)(millis() - bas));
       http.end();
       tls.stop();
+      if (millis() - bas > 1500) break;
       continue;
     }
     const String cevap = http.getString();
@@ -309,6 +319,9 @@ static void kodYenile(Kapi& k) {
   if (kod.length() == 6) {
     k.kod = kod;
     k.kodBitis = millis() + 25000;
+    // Sunucu kodu 45 sn geçerli sayıyor. Kod bize geç ulaşmış olabilir (−5 sn) ve en kötü istek ~10 sn sürer:
+    // 30. saniyeden sonra bu kod ekranda gösterilmez — yenisi gelemediyse "Bağlanıyor" yazar.
+    k.kodSon = millis() + 30000;
     Serial.printf("[turnike:%s] kod: %s\n", k.ad, kod.c_str());
 #ifdef TESHIS
     teshisCiz(k, kod.c_str());
@@ -323,6 +336,23 @@ static void kodYenile(Kapi& k) {
     uiBaglaniyor(k.yuz);
     bip(3);
     k.kodBitis = millis() + 5000;
+  }
+}
+
+/**
+ * v1.6 — SÜRESİ GEÇMİŞ KOD EKRANDA DURMAZ. Yeni kod alınamadıysa eski QR kaldırılır ve "Bağlanıyor"
+ * yazar: üye çalışmayan bir kodu okutup hatayı kendinde sanmaz, resepsiyon da sorunu ekrandan görür.
+ */
+static void eskiKodlariKaldir() {
+  const uint32_t simdi = millis();
+  for (size_t i = 0; i < KAPI_SAYISI; i++) {
+    Kapi& k = kapilar[i];
+    if (k.kod.length() == 6 && (int32_t)(simdi - k.kodSon) >= 0) {
+      Serial.printf("[turnike:%s] kod eskidi, ekrandan kaldirildi\n", k.ad);
+      k.kod = "";
+      k.kodBitis = simdi;  // bir sonraki turda hemen yeni kod istenir
+      uiBaglaniyor(k.yuz);
+    }
   }
 }
 
@@ -496,6 +526,10 @@ void setup() {
     kurulumModu(kurulumEkrani, bilinenAg ? 5UL * 60 * 1000 : 0);
   }
   tls.setInsecure();  // v1.3 ile aynı davranış; bkz. `istek()`
+  // v1.6 (2026-11-12): TLS el sıkışması varsayılanda 120 SANİYE bekliyor. Zayıf WiFi'de (−85 dBm) bir istek
+  // dakikalarca asılı kalıyor, döngü duruyor ve ekranda SÜRESİ GEÇMİŞ QR kalıyordu: 12 Kasım 16:40–18:18
+  // arasında üyeler "kodun süresi doldu" aldı, kodlar 2–8 dk gecikmeyle yenilendi. Şimdi 4 sn.
+  tls.setHandshakeTimeout(4);
   // Saat yalnızca gece yeniden başlatmasının "gece mi?" sorusu için. Alınamazsa o özellik susar; kapı etkilenmez.
   configTzTime("<+03>-3", "pool.ntp.org", "time.google.com");
   sonBasari = millis();
