@@ -58,7 +58,7 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
 ### 12 Kasım — Işıl'ın ve Yunus'un yazışmaları Sohbetler'den çıktı ([[OR-135]])
 
 - `settings/ai.ignoredContacts` = Işıl WA + IG, Yunus WA + IG. 3 eski sohbet `conversationsPrivate/`'a taşındı.
-- Webhook kodu commit'li; whatsappWebhook + instagramWebhook deploy edilene kadar yeni mesaj yine sohbet açar.
+- whatsappWebhook-00078 + instagramWebhook-00005 CANLI (12.11 akşam; META_APP_SECRET v3).
 - Dene: Işıl kendi telefonundan stüdyoya WhatsApp/Instagram yazar → Sohbetler'de görünmez, AI cevap vermez.
 
 ### 12 Kasım — Turnike "kodun süresi doldu" (16:40–18:18) — WiFi zayıf, kod gecikti
