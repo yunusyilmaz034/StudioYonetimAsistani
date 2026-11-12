@@ -112,6 +112,7 @@ export function InvoicesScreen() {
   const [data, setData] = useState<InvoiceList | null>(null)
   const [busy, setBusy] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [marking, setMarking] = useState(false)
   const [amounts, setAmounts] = useState<Record<string, string>>({})
   const [confirm, setConfirm] = useState<InvoiceRow[] | null>(null)
   const [opened, setOpened] = useState<string | null>(null)
@@ -185,6 +186,36 @@ export function InvoicesScreen() {
       else n.add(id)
       return n
     })
+
+  // ELLE KESİLDİ, TOPLU (owner, 2026-11-12: "manuelde kesildi olsun vardı"). Paraşüt'ün e-Arşiv'i açılana kadar
+  // faturalar Mikro Grup'tan kesiliyor; seçili satırlar tek tuşla işaretlenir — satır penceresindeki "Elle
+  // işaretle" / "Fiş kesildi" ile aynı kayıt, aynı kural (havale → e-Arşiv, nakit → ÖKC fişi), listedeki tutarla.
+  async function markChosen() {
+    const rows = chosen
+    const bad = rows.find((r) => !(lira(amountOf(r)) > 0))
+    if (bad) return void toast.error(`${bad.fullName}: kesilen tutarı girin.`)
+    if (!window.confirm(`${rows.length} tahsilat "başka yerden kesildi" olarak işaretlenecek. Paraşüt'ten fatura kesilmeyecek. Devam?`)) return
+    setMarking(true)
+    let failed = 0
+    for (const r of rows) {
+      try {
+        const res = await markInvoiceIssuedAction({
+          paymentId: r.paymentId,
+          note: null,
+          invoicedKurus: Math.round(lira(amountOf(r)) * 100),
+          document: r.rule === 'e_archive' ? 'e_archive' : 'okc_receipt',
+        })
+        if (!res.ok) failed++
+      } catch {
+        failed++
+      }
+    }
+    setMarking(false)
+    setSelected(new Set())
+    if (failed === 0) toast.success(`${rows.length} tahsilat elle kesildi olarak işaretlendi.`)
+    else toast.error(`${failed} satır işaretlenemedi; diğerleri işaretlendi.`)
+    void load(true)
+  }
 
   const actions: RowActions = {
     setup,
@@ -296,6 +327,9 @@ export function InvoicesScreen() {
           <div className="flex gap-2">
             <Button variant="ghost" className="text-primary-foreground hover:bg-white/10" onClick={() => setSelected(new Set())}>
               Seçimi kaldır
+            </Button>
+            <Button variant="ghost" className="text-primary-foreground hover:bg-white/10" disabled={marking} onClick={() => void markChosen()}>
+              {marking ? 'İşaretleniyor…' : `${chosen.length} elle kesildi`}
             </Button>
             <Button variant="secondary" onClick={() => setConfirm(chosen)}>
               {chosen.length} e-Arşiv kes…
