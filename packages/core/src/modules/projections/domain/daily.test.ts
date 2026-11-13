@@ -122,6 +122,17 @@ describe('projectDaily (v1.23)', () => {
     expect(inc.counters).toEqual({ salesKurus: -280_000 })
   })
 
+  it('sale.discount_corrected, geri alınan indirim kadar satışı geri yükseltir', () => {
+    const inc = projectDaily(
+      ev('sale.discount_corrected', 11.0, {
+        totalBefore: { amount: 450_000, currency: 'TRY' },
+        totalAfter: { amount: 500_000, currency: 'TRY' },
+      }),
+      OFFSET,
+    )
+    expect(inc.counters).toEqual({ salesKurus: 50_000 })
+  })
+
   it('most of the catalogue moves no counter — a dashboard is not an archive', () => {
     expect(projectDaily(ev('product.updated', 9.0), OFFSET).counters).toEqual({})
     expect(projectDaily(ev('studio_calendar.day_marked', 9.0), OFFSET).counters).toEqual({})

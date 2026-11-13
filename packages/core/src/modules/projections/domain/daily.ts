@@ -226,6 +226,12 @@ export function projectDaily(
       // panoda "anlaşılan tutar" 100.150 ₺ dedi, gün sonu raporu (satış belgelerinden okuyor) 94.550 ₺. Fark tam olarak
       // iki indirimin toplamıydı: projeksiyon bu olayı hiç işlemiyordu. `totalAfter - totalBefore` negatiftir.
       return one({ salesKurus: kurus(event.payload.totalAfter) - kurus(event.payload.totalBefore) })
+    case 'sale.discount_corrected':
+      // GERİ ALINAN İNDİRİM SATIŞI GERİ YÜKSELTİR (owner, 2026-11-13). A 500 ₺ tahsilat was entered
+      // together with a 500 ₺ discount by mistake; taking the discount back left the dashboard at
+      // −500 ₺, because this event was never folded. Same arithmetic as `sale.discounted`, opposite
+      // sign: `totalAfter - totalBefore` is positive here.
+      return one({ salesKurus: kurus(event.payload.totalAfter) - kurus(event.payload.totalBefore) })
     case 'sale.cancelled': {
       // ── A CANCELLED SALE COMES OFF THE DAY IT WAS SOLD (owner, 2026-10-12) ─────────────────
       //
