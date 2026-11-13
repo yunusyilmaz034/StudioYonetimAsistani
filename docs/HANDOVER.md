@@ -55,6 +55,15 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
   birebir (101 = 79 + 20 + 2). Owner deneyip yazacak.
 - **Yerelde, push edilmedi:** yalnızca günlük commit'leri (kod değil).
 
+### 13 Kasım — Pano "−500 ₺ net · iptaller düşülmüş": yanlış indirim geri alındı — CANLI
+- 17:33'te bir hibrit satışa (12.11, 5.000 ₺) 500 ₺ nakit tahsilatla birlikte 500 ₺ "hediye" indirimi girilmişti.
+  Owner: niyet yalnız tahsilattı. `tools/migration/hibrit-indirim-geri-al-2026-11-13.ts --apply` ile
+  `sale.discount_corrected` yazıldı → satış 5.000 ₺, ödenen 500, borç 4.500.
+- **Projeksiyon hatası da kapandı:** `sale.discount_corrected` günlük satışa hiç işlenmiyordu; artık `sale.discounted`ın
+  tersi (`onEventCreated` deploy edildi). Bugün `salesKurus` 0, `collectedKurus` 850.000 — doğrulandı.
+- **Açık soru (owner onayı bekliyor):** indirim, iptal gibi satış GÜNÜNDEN düşmüyor; düştüğü gün eksi görünebilir.
+  Düzeltme için `sale.discounted`/`discount_corrected` payload'una `soldAt` eklenmeli (şema değişikliği → owner).
+
 ### 12 Kasım akşam — Mobil tarayıcı kamerası kapanmıyordu → OTA yayında (1.9.0)
 
 - `c97300a` (22 Eylül) `onDone`u geçirmiş ama hiç çağırmamıştı; sekme/arka planda kamera canlı kalıyordu → üye fark etmeden
