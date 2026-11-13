@@ -62,7 +62,7 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
 - `eas update --branch production` → grup `966d47a1-425c-4d80-aeae-67107b173ab3` (runtime 1.9.0; market 1.9.0 %100).
   Üyede 2 aç-kapa sonra iner.
 - Owner: içeride dolaşınca yeşil ışık sönmüyordu (iOS: söküm oturumu durdurmuyor) → `72d8994` `active={false}` önce, söküm
-  300 ms sonra; tüm kapanış yolları tek kapıdan. OTA grup `256eb33c-d541-4cc1-a7f4-e717c183dfef`. Cihazda doğrulanmadı.
+  300 ms sonra; tüm kapanış yolları tek kapıdan. OTA grup `256eb33c-d541-4cc1-a7f4-e717c183dfef`. ✅ Owner doğruladı (13.11): ışık sönüyor.
 
 ### 12 Kasım — Fatura Takibi: toplu "fatura kesildi" + KDV özeti (owner) — CANLI build-2026-11-12-003
 
