@@ -136,6 +136,8 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
 ### 16 Kasım — Aylin Şanlı + Aynur Kaya: Fitness 1 aylık → 3 aylık (resepsiyon) — CANLI
 - Melike emsali: `tools/migration/aylin-aynur-tamamlama-2026-11-16.ts --apply`. Paket amend (başlangıç 11.11 aynı, bitiş
   09.02.2027, anlaşılan 8.500 ₺) + her birine "tamamlama farkı" 4.500 ₺ satış + nakit (Merkez Kasa, 16.11). 4.000 ₺ 11.11'de.
+- Sonra owner "düzelt": başlangıç satışta yanlış 11.11 seçilmişti, ikisi 09.11 19:27'de turnikeden geçmiş →
+  `aylin-aynur-baslangic-2026-11-16.ts --apply`: 09.11.2026 → 07.02.2027.
 
 ### 16 Kasım — Çağla Adıyaman PayTR linki (owner: "22 bin peşin 3 taksit") — ÖDENDİ 16:38, satış settled (otomatik)
 - Panel → Cari Hesap → "Linkle tahsil et", sağlayıcı PayTR, 22.000 ₺ → https://www.paytr.com/link/cwzlxBw
