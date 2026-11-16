@@ -55,6 +55,14 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
   birebir (101 = 79 + 20 + 2). Owner deneyip yazacak.
 - **Yerelde, push edilmedi:** yalnızca günlük commit'leri (kod değil).
 
+### 16 Kasım — Instagram 24 saat penceresi: resepsiyon cevap gönderemedi (owner) — SIRADA
+- Panel uyarısı doğru: Meta, API'den IG cevabını müşterinin son mesajından 24 saat sonra reddediyor (Buse, Cmt 11:49 →
+  Pzt 15:32). Hata değil. O an için çözüm: telefondaki Instagram uygulamasından cevap (uygulamada süre yok).
+- **Owner onaylı sıradaki iş:** Meta **Human Agent** izni (`human_agent` mesaj etiketi, insan cevabı için 7 gün).
+  Kodda yok. Sıra: (1) işletme doğrulaması düzelt (ad "reteo"→vergi levhasıyla birebir, owner başvurur),
+  (2) App Review'da Human Agent izni başvurusu, (3) onay gelince IG gönderiminde 24 saat geçmiş + insan gönderiyorsa
+  `messaging_type=MESSAGE_TAG, tag=HUMAN_AGENT`; AI ASLA bu etiketle göndermez (yalnız insan).
+
 ### 16 Kasım — Zuhal Kapıcı: 4.500 değil 1.000 ₺ alınmış (owner) — CANLI
 - 14.11 16:10 satış (Reformer 8 ders, 4.500 ₺) tam nakit yazılmıştı. `tools/migration/zuhal-kapici-tahsilat-2026-11-16.ts --apply`:
   4.500 ₺ tahsilat iptal (sebepli), aynı an + Merkez Kasa ile 1.000 ₺ nakit → satış açık, borç 3.500 ₺.
