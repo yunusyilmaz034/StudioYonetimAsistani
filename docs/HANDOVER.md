@@ -133,6 +133,10 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
   canlıdan aynen — sürüm `505b46929779239b`. Satın Al düğmeleri zaten katalogdan canlı okuyor. ⚠️ `~/pilates-site` hâlâ ESKİ.
   "Fiyatlar Eylül ayına kadar geçerlidir" cümlesi KALDIRILDI (owner) — güncel site sürümü `8594c48e83a75486`.
 
+### 16 Kasım — Aylin Şanlı + Aynur Kaya: Fitness 1 aylık → 3 aylık (resepsiyon) — CANLI
+- Melike emsali: `tools/migration/aylin-aynur-tamamlama-2026-11-16.ts --apply`. Paket amend (başlangıç 11.11 aynı, bitiş
+  09.02.2027, anlaşılan 8.500 ₺) + her birine "tamamlama farkı" 4.500 ₺ satış + nakit (Merkez Kasa, 16.11). 4.000 ₺ 11.11'de.
+
 ### 16 Kasım — Çağla Adıyaman PayTR linki (owner: "22 bin peşin 3 taksit") — ÖDENDİ 16:38, satış settled (otomatik)
 - Panel → Cari Hesap → "Linkle tahsil et", sağlayıcı PayTR, 22.000 ₺ → https://www.paytr.com/link/cwzlxBw
   (intent awaiting_payment). Taksit tavanı studio ayarı `maxInstallments: 3`, fark 0 → kart 22.000 ₺; vade farkı
