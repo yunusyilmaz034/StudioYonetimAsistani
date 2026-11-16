@@ -17,14 +17,37 @@ import {
 
 import Link from 'next/link'
 
-import { CHANNEL_LABEL, convLabel } from '@/lib/conv-label'
+import { convLabel } from '@/lib/conv-label'
 import { mesajZamani } from '@/lib/mesaj-zamani'
 import { replyErrorText } from '@/lib/reply-error'
 import { isStaleDeployment, STALE_DEPLOYMENT_MESSAGE } from '@/lib/stale-deployment'
 import { InboxSectionList, OlderConversationsButton, inboxSections, useOlderConversations } from '@/components/inbox-sections'
 const POLL_MS = 4000
 
-// "Mesaj Hattı" (was "WP Hattı"; renamed 2026-11-04, owner — it carries Instagram too) — the floating operator dock. It lives in the staff layout, so it SURVIVES page navigation
+// İKİ HAT, İKİ RENK (owner, 2026-11-16): *"wp ile instagram mesajları karışıyor … biri instagram hattı diğeri
+// wp hattı olsun, renklerini de ona göre ayarla."* One poll, one list; the dock opens on ONE channel and shows
+// only that channel's conversations. WhatsApp keeps its green, Instagram gets its pink — the colour tells the
+// desk which app the customer is in before a word is read (and which 24-hour rule applies, OR Instagram).
+type Line = 'whatsapp' | 'instagram'
+const LINE = {
+  whatsapp: {
+    label: 'WP Hattı',
+    title: 'WhatsApp mesajları',
+    bg: 'bg-emerald-600',
+    text: 'text-emerald-700',
+    badge: 'text-emerald-700',
+  },
+  instagram: {
+    label: 'Instagram Hattı',
+    title: 'Instagram mesajları',
+    bg: 'bg-gradient-to-r from-fuchsia-600 to-pink-500',
+    text: 'text-pink-600',
+    badge: 'text-pink-600',
+  },
+} as const satisfies Record<Line, unknown>
+const lineOf = (c: Pick<InboxItem, 'channel'>): Line => (c.channel === 'instagram' ? 'instagram' : 'whatsapp')
+
+// "WP Hattı" + "Instagram Hattı" (one "Mesaj Hattı" 2026-11-04 → split again 2026-11-16, owner: the two mixed up) — the floating operator dock. It lives in the staff layout, so it SURVIVES page navigation
 // (never closes/freezes) and stays a small panel in the bottom-right: reception keeps working on the
 // left while chatting on the right. It polls the conversations every few seconds; when the AI hands one
 // off (needsAttention), a toast fires on whatever screen is open and the dock pops to that
@@ -37,7 +60,10 @@ const POLL_MS = 4000
 //                    a desk (whatsapp-webhook.ts → tellTheDesk)
 //   ⚠️ hata      — a customer is sitting unanswered and nobody would know; an alarm, not a notice
 export function WhatsAppDock() {
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState<Line | null>(null)
+  // The poll is a stable callback; it reads the open line through a ref, never a stale closure.
+  const openRef = useRef<Line | null>(null)
+  openRef.current = open
   const [convs, setConvs] = useState<readonly InboxItem[]>([])
   // Reklam dönemi ayraçları (owner, 2026-09-15) — bkz. `listInboxAction`.
   const [period, setPeriod] = useState<Inbox['period']>(null)
@@ -58,7 +84,11 @@ export function WhatsAppDock() {
   const drafted = useRef<Set<string>>(new Set()) // Instagram conversations whose draft we already announced
   const scrollRef = useRef<HTMLDivElement>(null)
 
-  const attention = convs.filter((c) => c.needsAttention)
+  const attentionOn = (l: Line) => convs.filter((c) => c.needsAttention && lineOf(c) === l).length
+  const line: Line = open ?? 'whatsapp'
+  const theme = LINE[line]
+  const lineConvs = convs.filter((c) => lineOf(c) === line)
+  const lineOlder = eski.older ? eski.older.filter((c) => lineOf(c) === line) : null
 
   const poll = useCallback(async () => {
     try {
@@ -111,13 +141,15 @@ export function WhatsAppDock() {
             } else {
               toast.success(`🟢 Operatör devri geliyor · ${convLabel(c, 4)}`, { duration: 5000 })
             }
-            setOpen(true)
+            // Only switch lines when the dock is closed: a desk mid-chat on WhatsApp is not yanked to Instagram.
+            const wasOpen = openRef.current
+            setOpen((cur) => cur ?? lineOf(c))
             // AÇIK SOHBETİ ÇALMA (2026-08-30). Burası eskiden doğrudan `setSelected(c.phone)`
             // yapıyordu: resepsiyon bir sohbeti okurken gelen yoklama onu başka birine atıyordu.
             // Kullanıcı geri dönüp tekrar tıklıyor, yoklama tekrar çalıyor — "konuşmalar gelmiyor"
             // diye görünen şey buydu. Uyarı yine çıkıyor ve dock yine açılıyor; sadece elindeki
             // konuşma elinden alınmıyor.
-            setSelected((cur) => cur ?? c.key)
+            setSelected((cur) => cur ?? (wasOpen == null || wasOpen === lineOf(c) ? c.key : null))
           }
           // Cleared (a human took it, or the AI answered after all) → forget it, so the NEXT time
           // this same person needs the desk the alert fires again. Without this, every conversation
@@ -223,24 +255,32 @@ export function WhatsAppDock() {
 
   if (!open) {
     return (
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="fixed right-4 bottom-[136px] z-50 flex h-12 items-center gap-2 rounded-full border border-border bg-emerald-600 px-4 text-sm font-semibold text-white shadow-lg transition-transform hover:scale-105 md:bottom-[72px]"
-        title="Mesaj hattı — WhatsApp ve Instagram"
-      >
-        <MessageCircleIcon className="size-5" />
-        Mesaj Hattı
-        {attention.length > 0 ? (
-          <span className="grid size-5 place-items-center rounded-full bg-white text-xs font-bold text-emerald-700">{attention.length}</span>
-        ) : null}
-      </button>
+      <div className="fixed right-4 bottom-[136px] z-50 flex items-center gap-2 md:bottom-[72px]">
+        {(['instagram', 'whatsapp'] as const).map((l) => {
+          const n = attentionOn(l)
+          return (
+            <button
+              key={l}
+              type="button"
+              onClick={() => setOpen(l)}
+              className={`flex h-12 items-center gap-2 rounded-full border border-border px-4 text-sm font-semibold text-white shadow-lg transition-transform hover:scale-105 ${LINE[l].bg}`}
+              title={LINE[l].title}
+            >
+              <MessageCircleIcon className="size-5" />
+              {LINE[l].label}
+              {n > 0 ? (
+                <span className={`grid size-5 place-items-center rounded-full bg-white text-xs font-bold ${LINE[l].badge}`}>{n}</span>
+              ) : null}
+            </button>
+          )
+        })}
+      </div>
     )
   }
 
   return (
     <div className="fixed right-4 bottom-[136px] z-50 flex h-[min(64vh,560px)] w-[min(92vw,384px)] flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl md:bottom-[72px]">
-      <div className="flex items-center justify-between gap-2 border-b border-border bg-emerald-600 px-3 py-2 text-white">
+      <div className={`flex items-center justify-between gap-2 border-b border-border ${theme.bg} px-3 py-2 text-white`}>
         <div className="flex items-center gap-2">
           {selected ? (
             <button type="button" onClick={() => setSelected(null)} className="rounded p-0.5 hover:bg-white/20" title="Geri">
@@ -249,21 +289,29 @@ export function WhatsAppDock() {
           ) : (
             <MessageCircleIcon className="size-4" />
           )}
-          <span className="text-sm font-semibold">{selected ? detail?.name || 'Sohbet' : 'Mesaj Hattı'}</span>
+          <span className="text-sm font-semibold">{selected ? detail?.name || 'Sohbet' : theme.label}</span>
         </div>
-        <button type="button" onClick={() => setOpen(false)} className="rounded p-0.5 hover:bg-white/20" title="Kapat">
+        <button
+          type="button"
+          onClick={() => {
+            setOpen(null)
+            setSelected(null)
+          }}
+          className="rounded p-0.5 hover:bg-white/20"
+          title="Kapat"
+        >
           <XIcon className="size-4" />
         </button>
       </div>
 
       {!selected ? (
         <div className="min-h-0 flex-1 overflow-y-auto">
-          {convs.length === 0 && !eski.older?.length ? (
+          {lineConvs.length === 0 && !lineOlder?.length ? (
             <p className="p-4 text-sm text-muted-foreground">{period ? 'Bu dönemde henüz sohbet yok.' : 'Henüz sohbet yok.'}</p>
           ) : (
             <ul className="divide-y divide-border">
               <InboxSectionList
-                sections={inboxSections(convs, eski.older, period)}
+                sections={inboxSections(lineConvs, lineOlder, period)}
                 renderRow={(c) => (
                 <li key={c.key}>
                   <button type="button" onClick={() => setSelected(c.key)} className="flex w-full items-start gap-2 px-3 py-2 text-left hover:bg-muted/40">
@@ -272,9 +320,6 @@ export function WhatsAppDock() {
                       <span className="flex items-center justify-between gap-2">
                         <span className="flex min-w-0 items-center gap-1.5">
                           <span className="truncate text-sm font-medium text-foreground">{convLabel(c)}</span>
-                          {c.channel === 'instagram' ? (
-                            <span className="shrink-0 rounded bg-info/15 px-1 text-[10px] font-semibold text-info">{CHANNEL_LABEL.instagram}</span>
-                          ) : null}
                         </span>
                         <span className="shrink-0 text-[11px] text-muted-foreground">{mesajZamani(c.lastAt)}</span>
                       </span>
@@ -299,7 +344,7 @@ export function WhatsAppDock() {
               {!detail ? '…' : detail.status === 'human' ? '👤 Sen yönetiyorsun' : '🤖 AI yönetiyor'}
             </span>
             {!detail ? null : detail.status === 'human' ? (
-              <button type="button" onClick={() => void handOff('ai')} className="font-medium text-emerald-700 hover:underline">AI’ya geri ver</button>
+              <button type="button" onClick={() => void handOff('ai')} className={`font-medium ${theme.text} hover:underline`}>AI’ya geri ver</button>
             ) : (
               <button type="button" onClick={() => void handOff('human')} className="font-medium text-amber-600 hover:underline">Devral</button>
             )}
@@ -327,7 +372,7 @@ export function WhatsAppDock() {
                     setSelected(null)
                     setTimeout(() => setSelected(p), 0)
                   }}
-                  className="text-sm font-medium text-emerald-700 hover:underline"
+                  className={`text-sm font-medium ${theme.text} hover:underline`}
                 >
                   Tekrar dene
                 </button>
@@ -335,7 +380,7 @@ export function WhatsAppDock() {
             ) : null}
             {(detail?.messages ?? []).map((m, i) => (
               <div key={i} className={`flex ${m.role === 'user' ? 'justify-start' : 'justify-end'}`}>
-                <div className={`max-w-[80%] whitespace-pre-wrap rounded-2xl px-3 py-1.5 text-sm ${m.role === 'user' ? 'bg-card text-foreground' : 'bg-emerald-600 text-white'}`}>
+                <div className={`max-w-[80%] whitespace-pre-wrap rounded-2xl px-3 py-1.5 text-sm ${m.role === 'user' ? 'bg-card text-foreground' : `${theme.bg} text-white`}`}>
                   {m.text}
                   <div className={`mt-0.5 text-[10px] ${m.role === 'user' ? 'text-muted-foreground' : 'text-white/70'}`}>{mesajZamani(m.at)}</div>
                 </div>
@@ -366,7 +411,7 @@ export function WhatsAppDock() {
               placeholder="Yanıt yaz…"
               className="max-h-24 min-h-9 flex-1 resize-none rounded-lg border border-border bg-background px-3 py-1.5 text-sm outline-none focus:border-primary"
             />
-            <button type="button" onClick={() => void send()} disabled={busy || !text.trim()} className="grid size-9 shrink-0 place-items-center rounded-lg bg-emerald-600 text-white disabled:opacity-50">
+            <button type="button" onClick={() => void send()} disabled={busy || !text.trim()} className={`grid size-9 shrink-0 place-items-center rounded-lg ${theme.bg} text-white disabled:opacity-50`}>
               <SendIcon className="size-4" />
             </button>
           </div>

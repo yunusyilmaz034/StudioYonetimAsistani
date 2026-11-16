@@ -55,6 +55,11 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
   birebir (101 = 79 + 20 + 2). Owner deneyip yazacak.
 - **Yerelde, push edilmedi:** yalnızca günlük commit'leri (kod değil).
 
+### 16 Kasım — Mesaj Hattı ikiye ayrıldı: "WP Hattı" (yeşil) + "Instagram Hattı" (pembe) (owner) — commit'li, GECE deploy
+- `whatsapp-dock.tsx`: tek yoklama, iki düğme yan yana; açılan pencere yalnız o kanalın sohbetlerini gösterir, başlık/
+  balon/gönder rengi kanalın rengi. Devir uyarısı dock kapalıysa sohbetin kanalını açar; açıksa kanal değiştirmez.
+- Denenecek: IG'den mesaj → yalnız pembe hatta görünür, yeşilde görünmez; sayaç rozeti kendi hattında.
+
 ### 16 Kasım — Instagram 24 saat penceresi: resepsiyon cevap gönderemedi (owner) — SIRADA
 - Panel uyarısı doğru: Meta, API'den IG cevabını müşterinin son mesajından 24 saat sonra reddediyor (Buse, Cmt 11:49 →
   Pzt 15:32). Hata değil. O an için çözüm: telefondaki Instagram uygulamasından cevap (uygulamada süre yok).
