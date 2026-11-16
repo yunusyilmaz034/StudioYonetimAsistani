@@ -255,7 +255,9 @@ export function WhatsAppDock() {
 
   if (!open) {
     return (
-      <div className="fixed right-4 bottom-[136px] z-50 flex items-center gap-2 md:bottom-[72px]">
+      // Stacked, Instagram ABOVE WhatsApp (owner, 2026-11-16), same width so they read as one pair. Opening
+      // either one replaces BOTH buttons with its panel — nothing ever sits on top of an open conversation.
+      <div className="fixed right-4 bottom-[136px] z-50 flex w-44 flex-col items-stretch gap-2 md:bottom-[72px]">
         {(['instagram', 'whatsapp'] as const).map((l) => {
           const n = attentionOn(l)
           return (
@@ -263,7 +265,7 @@ export function WhatsAppDock() {
               key={l}
               type="button"
               onClick={() => setOpen(l)}
-              className={`flex h-12 items-center gap-2 rounded-full border border-border px-4 text-sm font-semibold text-white shadow-lg transition-transform hover:scale-105 ${LINE[l].bg}`}
+              className={`flex h-12 items-center justify-center gap-2 rounded-full border border-border px-4 text-sm font-semibold text-white shadow-lg transition-transform hover:scale-105 ${LINE[l].bg}`}
               title={LINE[l].title}
             >
               <MessageCircleIcon className="size-5" />

@@ -56,7 +56,7 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
 - **Yerelde, push edilmedi:** yalnızca günlük commit'leri (kod değil).
 
 ### 16 Kasım — Mesaj Hattı ikiye ayrıldı: "WP Hattı" (yeşil) + "Instagram Hattı" (pembe) (owner) — commit'li, GECE deploy
-- `whatsapp-dock.tsx`: tek yoklama, iki düğme yan yana; açılan pencere yalnız o kanalın sohbetlerini gösterir, başlık/
+- `whatsapp-dock.tsx`: tek yoklama, iki düğme (CANLI 16.11 build-001 yan yana; sonra owner: Instagram ÜSTTE, alt alta — commit'li, gece); açılan pencere yalnız o kanalın sohbetlerini gösterir, başlık/
   balon/gönder rengi kanalın rengi. Devir uyarısı dock kapalıysa sohbetin kanalını açar; açıksa kanal değiştirmez.
 - Denenecek: IG'den mesaj → yalnız pembe hatta görünür, yeşilde görünmez; sayaç rozeti kendi hattında.
 
