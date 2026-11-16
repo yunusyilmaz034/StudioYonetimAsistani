@@ -55,6 +55,15 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
   birebir (101 = 79 + 20 + 2). Owner deneyip yazacak.
 - **Yerelde, push edilmedi:** yalnızca günlük commit'leri (kod değil).
 
+### 16 Kasım — Zuhal Kapıcı: 4.500 değil 1.000 ₺ alınmış (owner) — CANLI
+- 14.11 16:10 satış (Reformer 8 ders, 4.500 ₺) tam nakit yazılmıştı. `tools/migration/zuhal-kapici-tahsilat-2026-11-16.ts --apply`:
+  4.500 ₺ tahsilat iptal (sebepli), aynı an + Merkez Kasa ile 1.000 ₺ nakit → satış açık, borç 3.500 ₺.
+- **Facebook'ta gelen ödeme:** reklam hesabı act_964285176326500'de harcama 0 ₺, kampanya yok (Graph, 16.11). En olası:
+  Meta Verified aylık ücreti (₺219,99, 7 Kasım). Owner'dan tutar/ekran bekleniyor. Billing hub Chrome'da açılmadı (sayfa donuyor).
+- **0533 WhatsApp Business** (14 Kasım) tüm cihazlardan çıkış yaptı, doğrulama "1 saat sonra" kilidinde. Bizim sistem 0533'e
+  bağlı DEĞİL (yalnız 0501). "Meta Business Agent" sohbeti görünüyor — gerçek mi sahte mi teyit edilmedi; owner'a kod
+  paylaşmama + 2FA söylendi.
+
 ### 13 Kasım — Pano "−500 ₺ net · iptaller düşülmüş": yanlış indirim geri alındı — CANLI
 - 17:33'te bir hibrit satışa (12.11, 5.000 ₺) 500 ₺ nakit tahsilatla birlikte 500 ₺ "hediye" indirimi girilmişti.
   Owner: niyet yalnız tahsilattı. `tools/migration/hibrit-indirim-geri-al-2026-11-13.ts --apply` ile
