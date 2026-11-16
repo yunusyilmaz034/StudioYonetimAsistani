@@ -133,6 +133,11 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
   canlıdan aynen — sürüm `505b46929779239b`. Satın Al düğmeleri zaten katalogdan canlı okuyor. ⚠️ `~/pilates-site` hâlâ ESKİ.
   "Fiyatlar Eylül ayına kadar geçerlidir" cümlesi KALDIRILDI (owner) — güncel site sürümü `8594c48e83a75486`.
 
+### 16 Kasım — Çağla Adıyaman PayTR linki (owner: "22 bin peşin 3 taksit")
+- Panel → Cari Hesap → "Linkle tahsil et", sağlayıcı PayTR, 22.000 ₺ → https://www.paytr.com/link/cwzlxBw
+  (intent awaiting_payment). Taksit tavanı studio ayarı `maxInstallments: 3`, fark 0 → kart 22.000 ₺; vade farkı
+  olmaması PayTR panelindeki "Peşin Fiyatına Taksit" ayarına bağlı. Ödenince callback satışı kapatır — kontrol et.
+
 ### 10 Kasım — Çağla Adıyaman (TAMI) — pazartesi ödeyecek
 
 - Satış `sal_01M6RM236E7T8K4XBBWG5SSG6A` 22.000 ₺ AÇIK. 10 Kasım TAMI linkleri: süre dolması + Masterpass "Ödeme gerçekleşirken
