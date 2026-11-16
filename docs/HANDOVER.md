@@ -137,6 +137,11 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
 - Panel → Cari Hesap → "Linkle tahsil et", sağlayıcı PayTR, 22.000 ₺ → https://www.paytr.com/link/cwzlxBw
   (intent awaiting_payment). Taksit tavanı studio ayarı `maxInstallments: 3`, fark 0 → kart 22.000 ₺; vade farkı
   olmaması PayTR panelindeki "Peşin Fiyatına Taksit" ayarına bağlı. Ödenince callback satışı kapatır — kontrol et.
+- **TUZAK (16:29):** checkout 3 taksitte 24.202,42 ₺ gösterdi. PFT mağaza geneli DEĞİL, **link başına**: PayTR → Linkle
+  Ödeme → linkin "Maks. Taksit" yanında **"PFT Düzenle »"**. Owner bu linkte 3 taksiti PFT kaydetti (16:3x). OR'daki
+  "18 Ağustos mağaza ayarı canlı" bilgisi API linklerini kapsamıyor. **Sırada:** Link API'nin PFT parametresi var mı bak;
+  yoksa 12 Aylık link oluşturan ekranda "PayTR'da PFT Düzenle'yi işaretleyin" uyarısı. Intent 1 saat sonra expired →
+  geç ödeme PAID_AFTER_TERMINAL alarmı → elle işle.
 
 ### 10 Kasım — Çağla Adıyaman (TAMI) — pazartesi ödeyecek
 
