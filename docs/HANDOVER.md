@@ -133,6 +133,13 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
   canlıdan aynen — sürüm `505b46929779239b`. Satın Al düğmeleri zaten katalogdan canlı okuyor. ⚠️ `~/pilates-site` hâlâ ESKİ.
   "Fiyatlar Eylül ayına kadar geçerlidir" cümlesi KALDIRILDI (owner) — güncel site sürümü `8594c48e83a75486`.
 
+### 17 Kasım — Ferda Yalçınkaya çift 12 Aylık (owner) — CANLI
+- 16.11 masada 12 Aylık satıldı (ödenmedi); 17.11 üye aynısını online alıp ödedi → ikinci paket birincinin arkasına
+  kuyruklandı (2027→2028). `ferda-yalcinkaya-cift-paket-2026-11-17.ts --apply`: ödenmemiş paket + satış iptal (borç 0,
+  16.11 satış rakamı −22.000 geriye yazılır), ödenen paket 16.11.2026→16.11.2027.
+- **Tuzak/öneri (karar owner):** açık bakiyeli aynı paketi olan üye online satın alınca sistem uyarmıyor; ileride
+  "üyenin ödenmemiş aynı paketi var — onu öde" yönlendirmesi düşünülebilir.
+
 ### 16 Kasım — Aylin Şanlı + Aynur Kaya: Fitness 1 aylık → 3 aylık (resepsiyon) — CANLI
 - Melike emsali: `tools/migration/aylin-aynur-tamamlama-2026-11-16.ts --apply`. Paket amend (başlangıç 11.11 aynı, bitiş
   09.02.2027, anlaşılan 8.500 ₺) + her birine "tamamlama farkı" 4.500 ₺ satış + nakit (Merkez Kasa, 16.11). 4.000 ₺ 11.11'de.
