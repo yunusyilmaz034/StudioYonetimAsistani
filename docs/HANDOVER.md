@@ -140,6 +140,8 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
 - Resepsiyon ekranı buldu (12:51); "Üyeye Bağla" ile kendileri bağlayacak.
 - Owner: "kasa olarak 17'sine eklenmeli" → `reconcileCollectionAction` artık satış (`soldAt`) ve tahsilatı (`receivedAt`)
   `collection.paidAt` ile yazar (önce `now`). `sellPackage`'a opsiyonel `soldAt`. İki kayıt deploy'dan ÖNCE eşleşmemişti.
+- "Üyeye Bağla" penceresine **"Yeni üye olarak ekle: ad · telefon"** (ödeme sayfasında yazılanla `createMember`; telefon
+  çakışırsa domain reddeder) + başlangıç varsayılanı ödeme günü (önce bugün).
 
 ### 17 Kasım — Ferda Yalçınkaya çift 12 Aylık (owner) — CANLI
 - 16.11 masada 12 Aylık satıldı (ödenmedi); 17.11 üye aynısını online alıp ödedi → ikinci paket birincinin arkasına

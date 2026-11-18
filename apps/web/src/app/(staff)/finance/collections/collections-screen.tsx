@@ -4,7 +4,7 @@ import { foldTr } from '@/lib/fold-tr'
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { ArrowLeftIcon, CreditCardIcon, Loader2Icon, SearchIcon, UserCheckIcon } from 'lucide-react'
+import { ArrowLeftIcon, CreditCardIcon, Loader2Icon, SearchIcon, UserCheckIcon, UserPlusIcon } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
@@ -21,6 +21,7 @@ import { Input } from '@/components/ui/input'
 import { PageHeader } from '@/components/ui/page-header'
 import { domainErrorMessage } from '@/lib/domain-error'
 import { cancelCollectionAction, reconcileCollectionAction, type UnreconciledCollectionRow } from '@/server/actions/collections'
+import { createMember } from '@/server/actions/members'
 import type { ProductView } from '@/server/catalog-query'
 
 const tl = (kurus: number) => `${(kurus / 100).toLocaleString('tr-TR')} ₺`
@@ -115,12 +116,46 @@ function ReconcileDialog({
   const [memberId, setMemberId] = useState(collection.suggestedMember?.id ?? '')
   const [memberQuery, setMemberQuery] = useState('')
   const [productId, setProductId] = useState('')
-  const [validFrom, setValidFrom] = useState(todayISO())
+  // The package starts the day she PAID, not the day reception got round to matching it (owner, 2026-11-18).
+  const [validFrom, setValidFrom] = useState(
+    new Date(collection.paidAt + 3 * 3_600_000).toISOString().slice(0, 10) || todayISO(),
+  )
   const [busy, setBusy] = useState(false)
+  // A member created from this dialog is not in the server-rendered list yet; keep her here so she shows as chosen.
+  const [created, setCreated] = useState<Member | null>(null)
 
   const product = products.find((p) => p.id === productId) ?? null
   const validUntil = product && product.durationDays > 0 ? addDays(validFrom, product.durationDays) : null
-  const selectedMember = members.find((m) => m.id === memberId) ?? null
+  const selectedMember = members.find((m) => m.id === memberId) ?? (created?.id === memberId ? created : null)
+
+  // YENİ ÜYE OLARAK EKLE (owner, 2026-11-18): *"üye sistemde yoksa ekleyecek mi?"* A shared-link buyer is very often
+  // someone who has never been to the studio — she typed her own name and phone on the payment page. Sending the
+  // desk to Üyeler and back lost the payment's context; this registers her with exactly what she typed.
+  async function addAsNewMember() {
+    setBusy(true)
+    try {
+      const res = await createMember({
+        fullName: collection.buyerName.trim(),
+        phone: collection.buyerPhone,
+        homeBranchId: null,
+        email: null,
+        birthDate: null,
+        notes: null,
+        emergencyContact: null,
+      })
+      if (res.ok) {
+        const id = String(res.value.memberId)
+        setCreated({ id, name: collection.buyerName.trim(), phone: collection.buyerPhone })
+        setMemberId(id)
+        toast.success('Yeni üye eklendi. Şimdi paketi seçin.')
+      } else {
+        toast.error(domainErrorMessage(res.error))
+      }
+    } catch {
+      toast.error('Üye eklenemedi.')
+    }
+    setBusy(false)
+  }
 
   const matches = useMemo(() => {
     const q = foldTr(memberQuery.trim())
@@ -223,7 +258,11 @@ function ReconcileDialog({
                     ))}
                   </ul>
                 ) : null}
-                <p className="text-xs text-muted-foreground">Üye sistemde yoksa önce Üyeler’den ekleyin, sonra buraya dönün.</p>
+                <Button type="button" variant="outline" className="w-full justify-start" disabled={busy} onClick={() => void addAsNewMember()}>
+                  <UserPlusIcon className="size-4" />
+                  Yeni üye olarak ekle: {collection.buyerName} · {collection.buyerPhone}
+                </Button>
+                <p className="text-xs text-muted-foreground">Önce arayın; sistemde zaten varsa aynı kişiyi ikinci kez eklemeyin.</p>
               </>
             )}
           </div>
