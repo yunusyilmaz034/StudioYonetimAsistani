@@ -90,6 +90,11 @@ export interface SellPackageInput {
    */
   readonly discounts?: readonly Discount[]
   readonly discountCeilingPercent: number | null
+  /**
+   * When the sale happened, if not now. A shared-link payment reconciled the next day is a sale OF the
+   * day it was paid (owner, 2026-11-18: "kasa olarak 17'sine eklenmeli"); omitted ⇒ now.
+   */
+  readonly soldAt?: Instant
 }
 
 export async function sellPackage(
@@ -176,6 +181,7 @@ export async function sellPackage(
     discounts: [],
     discountCeilingPercent: input.discountCeilingPercent,
     operationId,
+    ...(input.soldAt !== undefined ? { soldAt: input.soldAt } : {}),
     payment: input.payment
       ? {
           paymentId: `pay_${suffix}`,

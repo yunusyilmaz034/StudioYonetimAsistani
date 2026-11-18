@@ -138,6 +138,8 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
   ~21:27) üye değil → `paytrCollections` unreconciled. Bu beklenen akış; ama `/finance/collections`'a HİÇBİR menü
   gitmiyordu (owner "göremiyorum"). Kasa sayfasına sayı + tutar + "Eşleştir →" kutusu (`server/unmatched-collections.ts`).
 - Resepsiyon ekranı buldu (12:51); "Üyeye Bağla" ile kendileri bağlayacak.
+- Owner: "kasa olarak 17'sine eklenmeli" → `reconcileCollectionAction` artık satış (`soldAt`) ve tahsilatı (`receivedAt`)
+  `collection.paidAt` ile yazar (önce `now`). `sellPackage`'a opsiyonel `soldAt`. İki kayıt deploy'dan ÖNCE eşleşmemişti.
 
 ### 17 Kasım — Ferda Yalçınkaya çift 12 Aylık (owner) — CANLI
 - 16.11 masada 12 Aylık satıldı (ödenmedi); 17.11 üye aynısını online alıp ödedi → ikinci paket birincinin arkasına

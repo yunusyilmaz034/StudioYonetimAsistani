@@ -8,7 +8,6 @@ import {
   FirestoreMemberRepository,
   FirestorePaymentLinkRepository,
   FirestorePaytrCollectionRepository,
-  instant,
   money,
   normalizePhone,
   reconcileCollection,
@@ -141,11 +140,15 @@ export async function reconcileCollectionAction(input: unknown) {
       note: 'PAYTR link ödemesi',
     },
     discountCeilingPercent: null,
+    // ON THE DAY IT WAS PAID (owner, 2026-11-18: "kasa olarak 17'sine eklenmeli"). Reconciling is
+    // bookkeeping done later; the money arrived at `paidAt`, and so did the sale. Writing `now` moved
+    // last night's card takings into whatever day reception got round to matching them.
+    soldAt: collection.paidAt,
     // The collection's money, now attributed — recorded once, as a card payment with the PAYTR ref.
     payment: {
       amount: collection.amount,
       method: 'online',
-      receivedAt: instant(systemClock.now()),
+      receivedAt: collection.paidAt,
       drawerId: null,
       giftCardCode: null,
       note: 'PAYTR link ödemesi',
