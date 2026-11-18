@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { AlertTriangleIcon, LockIcon, LockOpenIcon, Loader2Icon } from 'lucide-react'
 import { toast } from 'sonner'
+import Link from 'next/link'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -31,7 +32,14 @@ import { closeDrawerAction, listDrawersAction, openDrawerAction } from '@/server
 type Drawer = Awaited<ReturnType<typeof listDrawersAction>>[number]
 const tl = (k: number) => `${(k / 100).toLocaleString('tr-TR', { maximumFractionDigits: 2 })} ₺`
 
-export function FinanceScreen({ isOwner }: { isOwner: boolean }) {
+export function FinanceScreen({
+  isOwner,
+  unmatched,
+}: {
+  isOwner: boolean
+  /** Link payments nobody has attributed yet; null = the count could not be read. */
+  unmatched: { count: number; totalKurus: number } | null
+}) {
   const [drawers, setDrawers] = useState<readonly Drawer[] | null>(null)
   const [opening, setOpening] = useState<Drawer | null>(null)
   const [closing, setClosing] = useState<Drawer | null>(null)
@@ -53,6 +61,20 @@ export function FinanceScreen({ isOwner }: { isOwner: boolean }) {
   return (
     <main className="mx-auto max-w-4xl space-y-6 p-4 sm:p-6 lg:p-8">
       <PageHeader title="Kasa" description="Kasa açılış / kapanış ve gün sonu sayımı" />
+
+      {unmatched && unmatched.count > 0 ? (
+        <Link
+          href="/finance/collections"
+          className="flex items-center justify-between gap-3 rounded-xl border-2 border-warning bg-warning/10 px-4 py-3 text-sm hover:bg-warning/15"
+        >
+          <span className="flex items-center gap-2 font-semibold text-foreground">
+            <AlertTriangleIcon className="size-4 shrink-0 text-warning" />
+            {unmatched.count} eşleşmeyen ödeme · {tl(unmatched.totalKurus)}
+            <span className="font-normal text-muted-foreground">— paylaşılan linkten geldi, üyeye bağlanmayı bekliyor</span>
+          </span>
+          <span className="shrink-0 font-medium text-primary">Eşleştir →</span>
+        </Link>
+      ) : null}
 
       <Section title="Kasalar">
         {drawers === null ? (

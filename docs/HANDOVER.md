@@ -133,6 +133,12 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
   canlıdan aynen — sürüm `505b46929779239b`. Satın Al düğmeleri zaten katalogdan canlı okuyor. ⚠️ `~/pilates-site` hâlâ ESKİ.
   "Fiyatlar Eylül ayına kadar geçerlidir" cümlesi KALDIRILDI (owner) — güncel site sürümü `8594c48e83a75486`.
 
+### 18 Kasım — Kasa'da "N eşleşmeyen ödeme" kutusu (owner) — commit'li, GECE deploy
+- Genel PayTR linkiyle (plink_01M7HRE55WV94RYCK969G2PASV, 9.500 ₺) ödeyen Hande Yıldız + Hanife Türkben Başıbüyük (17.11
+  ~21:27) üye değil → `paytrCollections` unreconciled. Bu beklenen akış; ama `/finance/collections`'a HİÇBİR menü
+  gitmiyordu (owner "göremiyorum"). Kasa sayfasına sayı + tutar + "Eşleştir →" kutusu (`server/unmatched-collections.ts`).
+- Resepsiyon ekranı buldu (12:51); "Üyeye Bağla" ile kendileri bağlayacak.
+
 ### 17 Kasım — Ferda Yalçınkaya çift 12 Aylık (owner) — CANLI
 - 16.11 masada 12 Aylık satıldı (ödenmedi); 17.11 üye aynısını online alıp ödedi → ikinci paket birincinin arkasına
   kuyruklandı (2027→2028). `ferda-yalcinkaya-cift-paket-2026-11-17.ts --apply`: ödenmemiş paket + satış iptal (borç 0,
