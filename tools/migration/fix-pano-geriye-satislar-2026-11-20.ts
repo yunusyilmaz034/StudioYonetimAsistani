@@ -19,7 +19,7 @@ const SATISLAR = [
   'sal_01M7QJZBTJ09K7RY6CP15PKGCW',
   'sal_01M7WNRZYN3SHAHP3C1C77MFWA',
 ]
-const ms = (x: any) => (x?.toMillis ? x.toMillis() : Number(x))
+const ms = (x: unknown): number => (typeof (x as { toMillis?: unknown })?.toMillis === "function" ? (x as { toMillis: () => number }).toMillis() : Number(x))
 const gun = (m: number) => new Date(m).toLocaleDateString('sv-SE', { timeZone: 'Europe/Istanbul' })
 
 async function main(): Promise<void> {

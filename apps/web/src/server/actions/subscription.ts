@@ -338,6 +338,11 @@ export async function assignSubscriptionAction(input: unknown) {
     return firstOk!
   }
 
+  // ÜYEDE ALACAK BIRAKILMAZ (owner, 2026-11-20). Züleyha Tanış: 6 Aylık 14.000 ₺ seçildi, kartla 15.500 alındı, 1.500 ₺
+  // sessizce alacağa düştü. Alınan, anlaşılandan (indirim düşülmüş) fazla olamaz — tutar düzeltilir.
+  const dueKurus = priceAgreedKurus - discounts.reduce((n, d) => n + d.amount.amount, 0)
+  if (p.collectedKurus > dueKurus) return { ok: false as const, error: { code: 'payment_exceeds_due' as const, dueKurus } }
+
   return observed(
     'finance.sell_package',
     ctx,

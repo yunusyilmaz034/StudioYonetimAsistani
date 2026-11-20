@@ -66,6 +66,9 @@ export type DomainError =
   // fallback is exactly how a link for one package paid off a different one (OR-37).
   | { readonly code: 'allocation_target_invalid' }
   | { readonly code: 'allocation_exceeds_sale' }
+  // ÜYEDE ALACAK BIRAKILMAZ (owner, 2026-11-20: "alacak olmayacak"). Money taken at the desk that is more than what is
+  // owed is refused at entry, so the agreed price is corrected instead of a silent member credit appearing.
+  | { readonly code: 'payment_exceeds_due'; readonly dueKurus: number }
   | { readonly code: 'plan_total_mismatch' }
   | { readonly code: 'coupon_invalid' }
   | { readonly code: 'lead_not_open' }

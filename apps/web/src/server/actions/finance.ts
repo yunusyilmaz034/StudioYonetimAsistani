@@ -160,6 +160,18 @@ export async function collectAction(input: unknown) {
   const ctx = await requireTenantContext(OPS)
   const opId = newOperationId()
 
+  // ÜYEDE ALACAK BIRAKILMAZ (owner, 2026-11-20: "alacak olmayacak"). A collection larger than what is owed — on the
+  // named sale, or on all her open sales for "bakiyesine yaz" — is refused instead of leaving a member credit.
+  // Gift cards and wallet top-ups are their own flows and are not this action.
+  const account = await loadMemberAccount(deps(), ctx, p.memberId as MemberId)
+  const dueKurus = p.saleId
+    ? (() => {
+        const s = account.openSales.find((x) => x.id === p.saleId)
+        return s ? s.total.amount - s.paid.amount : 0
+      })()
+    : account.openSales.reduce((n, s) => n + (s.total.amount - s.paid.amount), 0)
+  if (p.amountKurus > dueKurus) return { ok: false as const, error: { code: 'payment_exceeds_due' as const, dueKurus } }
+
   // The amount is logged. It is money, not PII — and an incident in which we can see THAT a
   // collection was refused but not FOR HOW MUCH is an incident we cannot reconstruct.
   return observed(
@@ -178,8 +190,7 @@ export async function collectAction(input: unknown) {
         drawerId: p.drawerId,
         giftCardCode: p.giftCardCode,
         note: p.note, // the note is NOT logged: free text is where PII hides
-        // The amount is the CAP, not the promise: if the sale owes less, the rest stays unallocated
-        // and shows as the member's credit — the truth, rather than a silent overpayment.
+        // The amount never exceeds what is owed (checked above), so nothing is left as member credit.
         ...(p.saleId
           ? { allocateTo: [{ saleId: p.saleId, amount: money(p.amountKurus), allocationId: `pay_${opId.slice(4)}_a0` }] }
           : {}),

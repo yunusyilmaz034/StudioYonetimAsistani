@@ -174,6 +174,8 @@ export function domainErrorMessage(error: DomainError): string {
       return 'Bu ödeme, bağlı olduğu satışa işlenemedi (satış bulunamadı ya da iptal edilmiş). Ödeme kaydedildi, tahsilatı elle eşleştirin.'
     case 'allocation_exceeds_sale':
       return 'Satışın kalan borcundan fazlası mahsup edilemez. Fazla tutar üyenin alacağı olarak kalır.'
+    case 'payment_exceeds_due':
+      return `Alınan tutar borçtan fazla (en fazla ${(error.dueKurus / 100).toLocaleString('tr-TR')} ₺). Üyede alacak bırakılmaz — fazla alındıysa paketin tutarını gerçekten alınan tutara göre düzeltin.`
     case 'plan_total_mismatch':
       return 'Taksitlerin toplamı satışın kalan borcuna eşit olmalı.'
     case 'coupon_invalid':
