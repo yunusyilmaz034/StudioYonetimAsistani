@@ -180,6 +180,13 @@ export function projectDaily(
   // Seen, not counted: the watermark moves, nothing else does.
   const seen = (): DailyIncrement => one({})
 
+  // The day a sale was MADE: the event's own `soldAt` (2026-11-20 on; 2026-10-12 on for cancellations), else the
+  // configured table for older events, else unknown (⇒ the event's own day — nothing is invented).
+  const soldDayOf = (e: ProjectableEvent): string | null => {
+    const v = typeof e.payload.soldAt === 'number' ? e.payload.soldAt : e.subjectId ? saleSoldAt.get(e.subjectId) : undefined
+    return typeof v === 'number' ? (localDateAt(v as Instant, utcOffsetMinutes) as string) : null
+  }
+
   // Before anything else: a test account's event is seen and never counted.
   if (event.memberId && excludedMemberIds.has(event.memberId)) return seen()
 
@@ -223,24 +230,31 @@ export function projectDaily(
       // 30th (it carries `receivedAt`) and the sale stayed on the 20th. Same for a shared-link payment matched
       // the next morning. The sold instant comes from configuration (`settings/projection.saleSoldAt`), exactly
       // as for an old cancellation — nothing on record ⇒ the day it was entered, as before. Never forward.
-      const soldAt = event.subjectId ? saleSoldAt.get(event.subjectId) : undefined
-      if (typeof soldAt === 'number') {
-        const soldOn = localDateAt(soldAt as Instant, utcOffsetMinutes) as string
-        if (soldOn < date) return { date, counters: {}, backdated: { date: soldOn, counters } }
-      }
+      const soldOn = soldDayOf(event)
+      if (soldOn && soldOn < date) return { date, counters: {}, backdated: { date: soldOn, counters } }
       return { date, counters, ...productSales }
     }
     case 'sale.discounted':
       // İNDİRİM SATIŞI DÜŞÜRÜR (owner, 2026-09-16). 16 Eylül'de iki satış 18.800 ₺ açılıp hemen 16.000 ₺'ye indirildi;
       // panoda "anlaşılan tutar" 100.150 ₺ dedi, gün sonu raporu (satış belgelerinden okuyor) 94.550 ₺. Fark tam olarak
       // iki indirimin toplamıydı: projeksiyon bu olayı hiç işlemiyordu. `totalAfter - totalBefore` negatiftir.
-      return one({ salesKurus: kurus(event.payload.totalAfter) - kurus(event.payload.totalBefore) })
+    // İNDİRİM DE SATIŞ GÜNÜNDEN DÜŞER (owner, 2026-11-20 — the 13 November "−500 ₺" and the 20th's 14.900): a discount
+    // on a past sale lowers THAT day's agreed total, not the day somebody typed it — same rule as a cancellation.
+    {
+      const counters = { salesKurus: kurus(event.payload.totalAfter) - kurus(event.payload.totalBefore) }
+      const soldOn = soldDayOf(event)
+      return soldOn && soldOn < date ? { date, counters: {}, backdated: { date: soldOn, counters } } : one(counters)
+    }
     case 'sale.discount_corrected':
       // GERİ ALINAN İNDİRİM SATIŞI GERİ YÜKSELTİR (owner, 2026-11-13). A 500 ₺ tahsilat was entered
       // together with a 500 ₺ discount by mistake; taking the discount back left the dashboard at
       // −500 ₺, because this event was never folded. Same arithmetic as `sale.discounted`, opposite
-      // sign: `totalAfter - totalBefore` is positive here.
-      return one({ salesKurus: kurus(event.payload.totalAfter) - kurus(event.payload.totalBefore) })
+      // sign: `totalAfter - totalBefore` is positive here. Lands on the sale's day, like the discount it takes back.
+    {
+      const counters = { salesKurus: kurus(event.payload.totalAfter) - kurus(event.payload.totalBefore) }
+      const soldOn = soldDayOf(event)
+      return soldOn && soldOn < date ? { date, counters: {}, backdated: { date: soldOn, counters } } : one(counters)
+    }
     case 'sale.cancelled': {
       // ── A CANCELLED SALE COMES OFF THE DAY IT WAS SOLD (owner, 2026-10-12) ─────────────────
       //

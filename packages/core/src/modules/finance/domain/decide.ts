@@ -186,6 +186,7 @@ export function decideCreateSale(
         lineCount: input.lines.length,
         discountReasons: input.discounts.map((d) => d.reason),
         soldByType: ctx.actor.type,
+        soldAt: sale.soldAt,
       },
     },
   ]
@@ -274,6 +275,7 @@ export function decideDiscountSale(
           totalBefore: sale.total,
           totalAfter: total,
           hasNote: discount.note.trim() !== '',
+          ...(sale.soldAt != null ? { soldAt: sale.soldAt } : {}),
         },
       },
     ],
@@ -344,6 +346,7 @@ export function decideCorrectDiscount(
           // The note itself never enters the event — it is free text a human typed about a member's
           // sale (#6). That it EXISTS is the auditable fact; what it says lives on the sale.
           hasNote: correction.note.trim() !== '',
+          ...(sale.soldAt != null ? { soldAt: sale.soldAt } : {}),
         },
       },
     ],

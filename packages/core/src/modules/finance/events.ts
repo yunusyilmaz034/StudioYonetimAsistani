@@ -88,6 +88,11 @@ export type SaleCreatedPayload = {
   readonly lineCount: number
   readonly discountReasons: readonly DiscountReason[]
   readonly soldByType: string // the actor KIND; the id is in the envelope's actor (no duplication)
+  // ── The day the sale was MADE (owner, 2026-11-20). OPTIONAL and ADDITIVE, as on `sale.cancelled` — no version bump,
+  // no upcaster. A sale entered late (paid 30 Oct, typed in 20 Nov) or a discount given on a past sale counts on the day
+  // the sale was made, and the envelope's `occurredAt` is only when the button was pressed. Absent on earlier events,
+  // never backfilled (their day is configuration, `settings/projection.saleSoldAt`).
+  readonly soldAt?: Instant
 }
 
 export type SaleCancelledPayload = {
@@ -118,6 +123,11 @@ export type SaleDiscountedPayload = {
   readonly totalBefore: Money
   readonly totalAfter: Money
   readonly hasNote: boolean
+  // ── The day the sale was MADE (owner, 2026-11-20). OPTIONAL and ADDITIVE, as on `sale.cancelled` — no version bump,
+  // no upcaster. A sale entered late (paid 30 Oct, typed in 20 Nov) or a discount given on a past sale counts on the day
+  // the sale was made, and the envelope's `occurredAt` is only when the button was pressed. Absent on earlier events,
+  // never backfilled (their day is configuration, `settings/projection.saleSoldAt`).
+  readonly soldAt?: Instant
 }
 
 export type SaleSettledPayload = {

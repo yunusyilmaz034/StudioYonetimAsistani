@@ -133,6 +133,26 @@ describe('projectDaily (v1.23)', () => {
     expect(projectDaily(e, OFFSET).counters).toEqual({ salesKurus: 850_000 })
   })
 
+  it('a discount on a past sale comes off the SOLD day (payload soldAt), not the day it was typed (owner, 2026-11-20)', () => {
+    const inc = projectDaily(
+      ev('sale.discounted', 11.0, {
+        totalBefore: { amount: 450_000, currency: 'TRY' },
+        totalAfter: { amount: 400_000, currency: 'TRY' },
+        soldAt: BASE - 8 * 24 * H + 10 * H,
+      }),
+      OFFSET,
+    )
+    expect(inc.counters).toEqual({})
+    expect(inc.backdated).toEqual({ date: '2026-07-05', counters: { salesKurus: -50_000 } })
+  })
+
+  it('a same-day discount and a sale.created carrying soldAt today stay on today', () => {
+    expect(
+      projectDaily(ev('sale.discounted', 11.0, { totalBefore: { amount: 450_000, currency: 'TRY' }, totalAfter: { amount: 400_000, currency: 'TRY' }, soldAt: BASE + 9 * H }), OFFSET).counters,
+    ).toEqual({ salesKurus: -50_000 })
+    expect(projectDaily(ev('sale.created', 11.0, { total: { amount: 100_000, currency: 'TRY' }, soldAt: BASE + 9 * H }), OFFSET).counters).toEqual({ salesKurus: 100_000 })
+  })
+
   it('sale.discount_corrected, geri alınan indirim kadar satışı geri yükseltir', () => {
     const inc = projectDaily(
       ev('sale.discount_corrected', 11.0, {
