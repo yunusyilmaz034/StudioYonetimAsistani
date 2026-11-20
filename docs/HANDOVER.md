@@ -143,7 +143,8 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
   `soldAt` eklemek (ek alan, şema değişikliği). Yoksa her seferinde tabloya satır gerekir.
 - verify'de ÖNCEDEN kalma 4 fark (17.08, 29.08, 16.09, 18.09 salesKurus) — bu işten değil; incelenmedi.
 - Bugün (20.11) pano: satış 13.400, kasa 24.500 — doğru: kasadaki 9.000 eski satışların tahsilatı + Züleyha Tanış 15.500 KK
-  ödemesi 14.000'lik satışa, 1.500 ₺ HİÇBİR satışa bağlı değil (owner'a soruldu).
+  ödemesi: owner "taksit farkı" → `zuleyha-tanis-taksit-farki-2026-11-20.ts --apply` (void + "Kart taksit farkı" 1.500 satış
+  + aynı 15.500 KK iki satışa). Pano 20.11: satış 14.900, kasa 24.500.
 
 ### 18 Kasım — Kasa'da "N eşleşmeyen ödeme" kutusu (owner) — commit'li, GECE deploy
 - Genel PayTR linkiyle (plink_01M7HRE55WV94RYCK969G2PASV, 9.500 ₺) ödeyen Hande Yıldız + Hanife Türkben Başıbüyük (17.11
