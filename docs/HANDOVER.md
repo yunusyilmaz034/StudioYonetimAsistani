@@ -139,8 +139,10 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
 - **Bulunan hata:** `sale.created` panoda GİRİLDİĞİ güne sayılıyordu (tahsilat `receivedAt` ile doğru güne). Projektör artık
   `settings/projection.saleSoldAt` tablosundaki anı kullanır (onEventCreated deploy). `fix-pano-geriye-satislar-2026-11-20.ts
   --apply` 4 satışı taşıdı: Melike 11→10.11 4.500, PayTR eşleştirme ×2 18→17.11 9.500, Naz 20.11→30.10 8.500. verify ✅.
-- **AÇIK (owner kararı):** bundan sonraki geriye tarihli satışlar (Eşleştir ekranı, betikler) için `sale.created` payload'una
-  `soldAt` eklemek (ek alan, şema değişikliği). Yoksa her seferinde tabloya satır gerekir.
+- **Owner ONAYLADI (20.11):** `sale.created` · `sale.discounted` · `sale.discount_corrected` payload'una ek `soldAt?` (sürüm
+  artmadı, sale.cancelled emsali; Doc 04 satırı). Projektör `payload.soldAt ?? saleSoldAt tablosu` → satış günü (indirim de).
+  onEventCreated deploy edildi; yeni olayları YAZAN web/functions deploy'u gerekiyor (web: owner'a soruldu).
+  `fix-pano-indirim-satis-gunu-2026-11-20.ts --apply`: bugünkü 2 indirim (100 → 06.11, 500 → 12.11) taşındı; 20.11 = 15.500.
 - verify'de ÖNCEDEN kalma 4 fark (17.08, 29.08, 16.09, 18.09 salesKurus) — bu işten değil; incelenmedi.
 - Bugün (20.11) pano: satış 13.400, kasa 24.500 — doğru: kasadaki 9.000 eski satışların tahsilatı + Züleyha Tanış 15.500 KK
   ödemesi: owner "taksit farkı" → `zuleyha-tanis-taksit-farki-2026-11-20.ts --apply` (void + "Kart taksit farkı" 1.500 satış
