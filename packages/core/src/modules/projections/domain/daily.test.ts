@@ -122,6 +122,17 @@ describe('projectDaily (v1.23)', () => {
     expect(inc.counters).toEqual({ salesKurus: -280_000 })
   })
 
+  it('sale.created written later lands on the sold day when the sold instant is on record (owner, 2026-11-20)', () => {
+    const e = { ...ev('sale.created', 14.0, { total: { amount: 850_000, currency: 'TRY' } }), subjectId: 'sal_x' }
+    const soldAt = new Map([['sal_x', BASE - 21 * 24 * H + 9 * H]]) // three weeks earlier
+    const inc = projectDaily(e, OFFSET, new Set(), new Map(), soldAt)
+    expect(inc.date).toBe('2026-07-13')
+    expect(inc.counters).toEqual({})
+    expect(inc.backdated).toEqual({ date: '2026-06-22', counters: { salesKurus: 850_000 } })
+    // Nothing on record ⇒ the day it was entered, as before.
+    expect(projectDaily(e, OFFSET).counters).toEqual({ salesKurus: 850_000 })
+  })
+
   it('sale.discount_corrected, geri alınan indirim kadar satışı geri yükseltir', () => {
     const inc = projectDaily(
       ev('sale.discount_corrected', 11.0, {

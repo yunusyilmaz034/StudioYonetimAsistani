@@ -212,15 +212,24 @@ export function projectDaily(
       return one({ waitlistPromoted: 1 })
 
     // ── v1.24: the finance ledger is now the money's authority. ────────────────────────────
-    case 'sale.created':
+    case 'sale.created': {
       // SATIŞ = the agreed total, paid or not (owner D-1).
-      return {
-        date,
-        counters: { salesKurus: kurus(event.payload.total) },
-        ...(id(event.payload.productId)
-          ? { productSales: { productId: id(event.payload.productId)!, amountKurus: kurus(event.payload.total) } }
-          : {}),
+      const counters = { salesKurus: kurus(event.payload.total) }
+      const productSales = id(event.payload.productId)
+        ? { productSales: { productId: id(event.payload.productId)!, amountKurus: kurus(event.payload.total) } }
+        : {}
+      // A SALE WRITTEN LATER BELONGS TO THE DAY IT WAS MADE (owner, 2026-11-20: "anlaşılan tutar ile kasa yine
+      // gitti"). Naz Aytekin paid cash on 30 October and was entered on 20 November; the payment went to the
+      // 30th (it carries `receivedAt`) and the sale stayed on the 20th. Same for a shared-link payment matched
+      // the next morning. The sold instant comes from configuration (`settings/projection.saleSoldAt`), exactly
+      // as for an old cancellation — nothing on record ⇒ the day it was entered, as before. Never forward.
+      const soldAt = event.subjectId ? saleSoldAt.get(event.subjectId) : undefined
+      if (typeof soldAt === 'number') {
+        const soldOn = localDateAt(soldAt as Instant, utcOffsetMinutes) as string
+        if (soldOn < date) return { date, counters: {}, backdated: { date: soldOn, counters } }
       }
+      return { date, counters, ...productSales }
+    }
     case 'sale.discounted':
       // İNDİRİM SATIŞI DÜŞÜRÜR (owner, 2026-09-16). 16 Eylül'de iki satış 18.800 ₺ açılıp hemen 16.000 ₺'ye indirildi;
       // panoda "anlaşılan tutar" 100.150 ₺ dedi, gün sonu raporu (satış belgelerinden okuyor) 94.550 ₺. Fark tam olarak
