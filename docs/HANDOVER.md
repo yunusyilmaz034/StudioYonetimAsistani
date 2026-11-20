@@ -133,6 +133,18 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
   canlıdan aynen — sürüm `505b46929779239b`. Satın Al düğmeleri zaten katalogdan canlı okuyor. ⚠️ `~/pilates-site` hâlâ ESKİ.
   "Fiyatlar Eylül ayına kadar geçerlidir" cümlesi KALDIRILDI (owner) — güncel site sürümü `8594c48e83a75486`.
 
+### 20 Kasım — Naz Aytekin 30.10 nakit + pano "geriye tarihli satış" düzeltmesi (owner) — CANLI
+- `naz-aytekin-30-ekim-2026-11-20.ts --apply`: paket 30.10.2026→28.01.2027 (amend), 20.11 ödemesiz satış iptal, aynı satış
+  30.10 + 8.500 ₺ nakit Merkez Kasa 30.10 (sal_01M7WNRZYN3SHAHP3C1C77MFWA).
+- **Bulunan hata:** `sale.created` panoda GİRİLDİĞİ güne sayılıyordu (tahsilat `receivedAt` ile doğru güne). Projektör artık
+  `settings/projection.saleSoldAt` tablosundaki anı kullanır (onEventCreated deploy). `fix-pano-geriye-satislar-2026-11-20.ts
+  --apply` 4 satışı taşıdı: Melike 11→10.11 4.500, PayTR eşleştirme ×2 18→17.11 9.500, Naz 20.11→30.10 8.500. verify ✅.
+- **AÇIK (owner kararı):** bundan sonraki geriye tarihli satışlar (Eşleştir ekranı, betikler) için `sale.created` payload'una
+  `soldAt` eklemek (ek alan, şema değişikliği). Yoksa her seferinde tabloya satır gerekir.
+- verify'de ÖNCEDEN kalma 4 fark (17.08, 29.08, 16.09, 18.09 salesKurus) — bu işten değil; incelenmedi.
+- Bugün (20.11) pano: satış 13.400, kasa 24.500 — doğru: kasadaki 9.000 eski satışların tahsilatı + Züleyha Tanış 15.500 KK
+  ödemesi 14.000'lik satışa, 1.500 ₺ HİÇBİR satışa bağlı değil (owner'a soruldu).
+
 ### 18 Kasım — Kasa'da "N eşleşmeyen ödeme" kutusu (owner) — commit'li, GECE deploy
 - Genel PayTR linkiyle (plink_01M7HRE55WV94RYCK969G2PASV, 9.500 ₺) ödeyen Hande Yıldız + Hanife Türkben Başıbüyük (17.11
   ~21:27) üye değil → `paytrCollections` unreconciled. Bu beklenen akış; ama `/finance/collections`'a HİÇBİR menü
