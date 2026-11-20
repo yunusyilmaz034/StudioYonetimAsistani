@@ -147,6 +147,11 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
   + aynı 15.500 KK iki satışa) — YANLIŞ YORUM; owner: "7 aylık istemiş, resepsiyon bitişi uzatmış, 1.500 fazla almış, öyle
   bir şey yazma" → `zuleyha-tanis-7-aylik-2026-11-20.ts --apply`: hepsi iptal, TEK satış "Fitness - 6 Aylık" 15.500 ₺ +
   15.500 KK, paket (24.11.2026→23.06.2027) anlaşılan 15.500. Pano 20.11: satış 14.900, kasa 24.500.
+- Sonra owner: "her yerde kapalı 7 aylık paket yap, 15.500, bu kadına ata" → `zuleyha-tanis-7-aylik-urun-2026-11-20.ts --apply`:
+  katalog `prd_01M7WQEP4PJFKS8JFSDD339ZEW` "Fitness - 7 Aylık" 210 gün 15.500 (online/üye/AI KAPALI, masada aktif); paket
+  ürünü 7 Aylık (amend); satış "Fitness - 7 Aylık" 15.500 + aynı KK (önceki satış + ödeme iptal).
+- **Kural (owner "alacak olmayacak"):** masada paket satışı ve "Tahsilat Al", borçtan fazla tutarı `payment_exceeds_due` ile
+  REDDEDER (subscription.ts + finance.ts collectAction). Commit'li; deploy owner'a soruldu.
 
 ### 18 Kasım — Kasa'da "N eşleşmeyen ödeme" kutusu (owner) — commit'li, GECE deploy
 - Genel PayTR linkiyle (plink_01M7HRE55WV94RYCK969G2PASV, 9.500 ₺) ödeyen Hande Yıldız + Hanife Türkben Başıbüyük (17.11
