@@ -225,3 +225,27 @@ export async function staffCrossTurnstileAction(input: unknown) {
   }
   return r
 }
+
+// ── KAMERA SORUNU SUNUCUYA (owner, 2026-11-23) ──────────────────────────────────────────────────
+// Buse Hoca'nın okutmaları 11 Kasım'dan beri sunucuya hiç ulaşmadı ve tek satır iz kalmadı: kamera telefonda
+// açılmıyorsa ya da kod okunmuyorsa hata yalnız o telefonda yaşıyordu. Artık ne olduğu ve hangi tarayıcı
+// olduğu loglanır. Kod/görüntü yok; personel kimliği oturumdan (istemciden alınmaz).
+export async function reportStaffScanProblemAction(input: unknown) {
+  const p = z
+    .object({
+      kind: z.enum(['camera_denied', 'no_camera', 'no_decode']),
+      userAgent: z.string().max(400).optional(),
+      standalone: z.boolean().optional(),
+    })
+    .safeParse(input)
+  if (!p.success) return { ok: false as const }
+  const ctx = await requireTenantContext(HERKES)
+  console.warn('[turnstile] staff scan problem on device', {
+    studioId: ctx.studioId,
+    staffUserId: String(ctx.actor.id),
+    kind: p.data.kind,
+    userAgent: p.data.userAgent ?? null,
+    standalone: p.data.standalone ?? null,
+  })
+  return { ok: true as const }
+}

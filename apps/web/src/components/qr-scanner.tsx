@@ -14,6 +14,8 @@ import { startQrScanner, type ScanError } from '@/lib/qr/scanner'
 // implementation. Until today there were effectively zero on Safari: the studio's tablet IS an iPad,
 // and this screen said "bu cihaz kamera taramayı desteklemiyor" to every member who held up her QR.
 
+const NO_DECODE_MS = 25_000
+
 const MESSAGE: Record<ScanError, string> = {
   camera_denied: 'Kamera izni verilmedi. Tarayıcı ayarlarından izin verin.',
   no_camera: 'Kamera bulunamadı.',
@@ -24,12 +26,19 @@ export function QrScanner({
   active,
   className,
   fallbackHint,
+  onProblem,
 }: {
   onScan: (value: string) => void
   active: boolean
   className?: string
   /** What to do when the camera will not open — different advice for reception and for a member. */
   fallbackHint?: string
+  /**
+   * A camera that fails on the person's phone never reaches the server, so nobody can see it (owner, 2026-11-23 —
+   * Buse Hoca's scans stopped for 12 days without a single log line). The caller reports it.
+   * `no_decode` = the camera is open but nothing has been read for {@link NO_DECODE_MS}.
+   */
+  onProblem?: (kind: ScanError | 'no_decode') => void
 }) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const [error, setError] = useState<ScanError | null>(null)
@@ -37,6 +46,8 @@ export function QrScanner({
   // The parent re-renders on every scan; the camera must not restart because its callback changed.
   const onScanRef = useRef(onScan)
   onScanRef.current = onScan
+  const onProblemRef = useRef(onProblem)
+  onProblemRef.current = onProblem
 
   useEffect(() => {
     if (!active) return
@@ -46,11 +57,19 @@ export function QrScanner({
     setError(null)
     let handle: { stop: () => void } | null = null
     let cancelled = false
+    const quiet = window.setTimeout(() => onProblemRef.current?.('no_decode'), NO_DECODE_MS)
 
     void startQrScanner({
       video,
-      onDecode: (value) => onScanRef.current(value),
-      onError: setError,
+      onDecode: (value) => {
+        window.clearTimeout(quiet)
+        onScanRef.current(value)
+      },
+      onError: (e) => {
+        window.clearTimeout(quiet)
+        setError(e)
+        onProblemRef.current?.(e)
+      },
     }).then((h) => {
       if (cancelled) h.stop() // unmounted while the camera was still opening
       else handle = h
@@ -58,6 +77,7 @@ export function QrScanner({
 
     return () => {
       cancelled = true
+      window.clearTimeout(quiet)
       handle?.stop()
     }
   }, [active])

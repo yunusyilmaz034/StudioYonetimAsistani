@@ -17,6 +17,7 @@ import {
   endBreakAction,
   endShiftAction,
   enterBreakRetroAction,
+  reportStaffScanProblemAction,
   staffCrossTurnstileAction,
   startBreakAction,
   startShiftAction,
@@ -87,6 +88,9 @@ export function MesaiScreen({ view, ownerMu, bugun }: { view: ShiftView; ownerMu
   const [pending, start] = useTransition()
   const [busy, setBusy] = useState(false)
   const [scanning, setScanning] = useState(false)
+  // Kamera açılmadı / okumadı: o zaman elle başlat-bitir görünür (owner, 2026-11-23). Varsayılan değil — turnike
+  // geçişi gözlemdir, elle kayıt bir beyan; liste ikisini ayırır (geçişsiz vardiya "elle").
+  const [kameraSorunu, setKameraSorunu] = useState(false)
   const [sonuc, setSonuc] = useState<{ ok: boolean; text: string } | null>(null)
   const [retroAcik, setRetroAcik] = useState(false)
   // jsQR aynı kareyi saniyede birkaç kez çözüyor; ilk istek dönmeden ikincisi gitmesin.
@@ -255,6 +259,14 @@ export function MesaiScreen({ view, ownerMu, bugun }: { view: ShiftView; ownerMu
                 <QrScanner
                   active
                   onScan={(v) => void okut(v)}
+                  onProblem={(kind) => {
+                    setKameraSorunu(true)
+                    void reportStaffScanProblemAction({
+                      kind,
+                      userAgent: navigator.userAgent,
+                      standalone: window.matchMedia?.('(display-mode: standalone)').matches ?? false,
+                    }).catch(() => undefined)
+                  }}
                   className="aspect-square w-full rounded-lg bg-black object-cover"
                   fallbackHint="Kamera açılmıyorsa resepsiyondan kapıyı açmasını isteyin."
                 />
@@ -283,6 +295,27 @@ export function MesaiScreen({ view, ownerMu, bugun }: { view: ShiftView; ownerMu
                 Turnike kodunu okut
               </Button>
             )}
+
+            {kameraSorunu ? (
+              <div className="space-y-2 rounded-lg border border-warning/40 bg-warning/5 p-3">
+                <p className="text-sm text-muted-foreground">
+                  Kamera kodu okuyamıyor mu? Mesaini elle {acik ? 'bitirebilirsin' : 'başlatabilirsin'}; listede “elle” olarak görünür.
+                  Kapıyı resepsiyon açar.
+                </p>
+                <Button
+                  variant="outline"
+                  className="min-h-11 w-full"
+                  disabled={busy || pending}
+                  onClick={() => {
+                    setScanning(false)
+                    void calistir(acik ? endShiftAction : () => startShiftAction({}))
+                  }}
+                >
+                  {acik ? <LogOutIcon className="size-4" /> : <LogInIcon className="size-4" />}
+                  {acik ? 'Mesaiyi elle bitir' : 'Mesaiye elle başla'}
+                </Button>
+              </div>
+            ) : null}
           </div>
         ) : (
           <Button

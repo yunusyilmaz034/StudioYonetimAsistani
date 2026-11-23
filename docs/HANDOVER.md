@@ -133,6 +133,15 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
   canlıdan aynen — sürüm `505b46929779239b`. Satın Al düğmeleri zaten katalogdan canlı okuyor. ⚠️ `~/pilates-site` hâlâ ESKİ.
   "Fiyatlar Eylül ayına kadar geçerlidir" cümlesi KALDIRILDI (owner) — güncel site sürümü `8594c48e83a75486`.
 
+### 23 Kasım — Hocaların QR okutması (owner: "özellikle Buse hoca") — CANLI
+- Kayıt: Buse Hoca'nın `staff.crossed`'ı 11.11 11:08'den beri YOK; sunucuda red/hata satırı da yok → telefonda takılıyor
+  (kamera/okuma/oturum). Reyhan Hoca sabah girişi geliyor, akşam çıkışı çoğu gün yok → mesai 0 dk.
+- Turnike ekranı yalnız QR çiziyor (rakam yok) → "kodu elle yaz" firmware'siz olmaz (v1.7'ye aday: QR altına 6 hane).
+- Yapılan: QrScanner `onProblem` (kamera reddi/yok/25 sn okumama) → `reportStaffScanProblemAction` loglar
+  (`[turnstile] staff scan problem on device`, staffUserId + userAgent + standalone). Sorun olunca Mesai ekranında
+  "Mesaiye elle başla / Mesaiyi elle bitir" (geçişsiz vardiya = elle). Owner'a: Buse'nin ekranı/telefonu soruldu.
+- **Logda bak:** `gcloud logging read '"staff scan problem"' --freshness=2d`.
+
 ### 20 Kasım — Naz Aytekin 30.10 nakit + pano "geriye tarihli satış" düzeltmesi (owner) — CANLI
 - `naz-aytekin-30-ekim-2026-11-20.ts --apply`: paket 30.10.2026→28.01.2027 (amend), 20.11 ödemesiz satış iptal, aynı satış
   30.10 + 8.500 ₺ nakit Merkez Kasa 30.10 (sal_01M7WNRZYN3SHAHP3C1C77MFWA).
