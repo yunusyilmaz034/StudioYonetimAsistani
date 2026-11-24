@@ -82,6 +82,10 @@ export function AccountPanel({
   const [cancelling, setCancelling] = useState<{ id: string; lines: readonly string[] } | null>(null)
   const [voiding, setVoiding] = useState<{ id: string; amount: number } | null>(null)
   const [refunding, setRefunding] = useState<{ id: string; amount: number } | null>(null)
+  // İPTAL EDİLENLER GİZLİ (owner, 2026-11-24: "iptal edilenleri gizle"). Bir düzeltme iptal + yeniden yazım
+  // olduğu için (#9) eski satır listede kalıyor ve cari hesabı karışık gösteriyordu. Kayıt silinmez —
+  // altta tek dokunuşla açılır; toplamlar zaten yalnızca geçerli kayıtları sayıyordu.
+  const [showCancelled, setShowCancelled] = useState(false)
   // AÇIK SATIŞA LİNK (owner, 2026-11-06): süresi dolan ödeme linkinin yerine, aynı satışa yeni link.
   const [linking, setLinking] = useState<{ id: string; due: number; name: string } | null>(null)
   const [linkCheckout, setLinkCheckout] = useState<{ checkout: PaytrCheckout; provider: string } | null>(null)
@@ -109,6 +113,10 @@ export function AccountPanel({
   }
 
   const owes = account.balanceKurus > 0
+  const visibleSales = showCancelled ? account.sales : account.sales.filter((s) => s.status !== 'cancelled')
+  const visiblePayments = showCancelled ? account.payments : account.payments.filter((p) => !p.voided)
+  const hiddenCount =
+    account.sales.filter((s) => s.status === 'cancelled').length + account.payments.filter((p) => p.voided).length
 
   return (
     <section className="space-y-5">
@@ -144,11 +152,11 @@ export function AccountPanel({
 
       <div className="space-y-2">
         <h3 className="text-sm font-semibold text-foreground">Satışlar</h3>
-        {account.sales.length === 0 ? (
+        {visibleSales.length === 0 ? (
           <p className="text-sm text-muted-foreground">Henüz satış yok.</p>
         ) : (
           <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
-            {account.sales.map((s) => (
+            {visibleSales.map((s) => (
               <li key={s.id} className="px-3 py-2.5">
                 <div className="flex items-center justify-between gap-2">
                   <p className="min-w-0 truncate text-sm font-medium text-foreground">
@@ -193,11 +201,11 @@ export function AccountPanel({
 
       <div className="space-y-2">
         <h3 className="text-sm font-semibold text-foreground">Tahsilatlar</h3>
-        {account.payments.length === 0 ? (
+        {visiblePayments.length === 0 ? (
           <p className="text-sm text-muted-foreground">Henüz tahsilat yok.</p>
         ) : (
           <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
-            {account.payments.map((p) => (
+            {visiblePayments.map((p) => (
               <li key={p.id} className="flex items-center justify-between gap-2 px-3 py-2.5">
                 <div className="min-w-0">
                   <p
@@ -237,6 +245,16 @@ export function AccountPanel({
           </ul>
         )}
       </div>
+
+      {hiddenCount > 0 ? (
+        <button
+          type="button"
+          onClick={() => setShowCancelled((v) => !v)}
+          className="text-xs font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+        >
+          {showCancelled ? 'İptal edilenleri gizle' : `İptal edilenleri göster (${hiddenCount})`}
+        </button>
+      ) : null}
 
       {account.plans.length > 0 ? (
         <div className="space-y-2">

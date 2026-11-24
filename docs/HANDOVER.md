@@ -133,6 +133,9 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
   canlıdan aynen — sürüm `505b46929779239b`. Satın Al düğmeleri zaten katalogdan canlı okuyor. ⚠️ `~/pilates-site` hâlâ ESKİ.
   "Fiyatlar Eylül ayına kadar geçerlidir" cümlesi KALDIRILDI (owner) — güncel site sürümü `8594c48e83a75486`.
 
+### 24 Kasım — Cari hesap: iptal edilen satış/ödeme varsayılan gizli (owner) — commit'li
+- `members/account-panel.tsx`: iptal satış + void ödeme listede gizli; altta "İptal edilenleri göster (N)". Toplamlar değişmedi (zaten yalnız geçerlileri sayıyordu).
+
 ### 24 Kasım — Neslihan Göl: Reformer 16 ders 8.000 değil 10.000 ₺ (owner) — CANLI
 - `tools/migration/neslihan-gol-10-bin-2026-11-24.ts`: 2.400 nakit + 8.000 satış (16.11) iptal → yeni satış sal_01M8793PY510ESZ1KM3TBKY4R7 10.000 ₺ (16.11) + 2.400 nakit (16.11, Merkez Kasa) + 7.600 KK (bugün); paket ent_01M7JP8FNQVE7SE72DY8Q4K2BK anlaşılan 8.000→10.000. Borç 0, satış `settled`.
 - Pano: satış 16.11'e düştü (+2.000 net), 24.11 kasasında 7.600 KK. verify: yeni fark yok (yalnız bilinen 4 eski gün).
