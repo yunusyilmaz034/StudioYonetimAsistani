@@ -294,14 +294,30 @@ function sure(ms: number): string {
  * Üst sınır o ayrımı çiziyor. Altı saatten eski bir sessizlik, asistanın çalışıp çalışmadığı
  * hakkında hiçbir şey söylemez.
  */
+// apps/functions/src/http/instagram-parse.ts → ATTACHMENT_PLACEHOLDER ile aynı metin.
+const UNREADABLE_ATTACHMENT = '[fotoğraf / ek — okunamadı]'
+
 async function aiNotReplying(db: Firestore, studioId: StudioId, now: number): Promise<HealthFinding | null> {
   const ai = await db.collection('studios').doc(studioId).collection('settings').doc('ai').get()
   if (ai.get('whatsappActive') !== true) return null // the owner switched it off; silence is correct
 
+  const ignored = ai.get('ignoredContacts') as unknown
+  const ignoredKeys = new Set(Array.isArray(ignored) ? ignored.filter((k): k is string => typeof k === 'string') : [])
   const convs = await col(db, studioId, 'conversations').limit(500).get()
   const waiting = convs.docs.filter((d) => {
-    const data = d.data() as { status?: string; messages?: { role?: string; at?: number }[]; draft?: { text?: string } | null }
+    const data = d.data() as {
+      status?: string
+      messages?: { role?: string; at?: number; text?: string }[]
+      draft?: { text?: string } | null
+    }
     if (data.status !== 'ai') return false
+    // "Müşteri değil" / özel (OR-135, OR-136): AI'ın bu kişiye cevap VERMEMESİ doğru davranış.
+    if (ignoredKeys.has(d.id)) return false
+    // Okunamayan ek (2026-11-24, yanlış alarm): son mesaj bir fotoğraf/ses ise webhook AI'ı bilerek
+    // çağırmaz ve sohbeti "cevapsız" işaretiyle masaya bırakır — asistanın arızası değil, hatta yeşil
+    // işaretle duran bir iş. Yalnızca BU durum ayıklanır: "cevapsız" işaretinin hepsini saymamak, eksik
+    // bir API anahtarını (gerçek arıza, o da aynı işareti koyar) da susturur.
+    if (data.messages?.[data.messages.length - 1]?.text?.endsWith(UNREADABLE_ATTACHMENT)) return false
     // IG-1 taslak modu (2026-11-04, yanlış alarm): AI cevabı HAZIRLADI, bir insanın "Gönder"ine bekliyor.
     // Bu asistanın arızası değil, masanın işi — ve o iş Sohbetler'de "taslak hazır" diye zaten duruyor.
     // Bu yüzden 3 Kasım akşamından beri her 15 dakikada bir "WhatsApp asistanı cevap vermiyor" çalıyordu.

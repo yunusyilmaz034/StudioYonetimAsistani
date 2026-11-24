@@ -133,6 +133,10 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
   canlıdan aynen — sürüm `505b46929779239b`. Satın Al düğmeleri zaten katalogdan canlı okuyor. ⚠️ `~/pilates-site` hâlâ ESKİ.
   "Fiyatlar Eylül ayına kadar geçerlidir" cümlesi KALDIRILDI (owner) — güncel site sürümü `8594c48e83a75486`.
 
+### 24 Kasım — Sağlık sinyali "ai_not_replying" yanlış alarmı (owner e-postası) — CANLI
+- Tetikleyen: ig_1140057942055592 (Meriç), son mesajı FOTOĞRAF → webhook bilerek AI çağırmadı, `unanswered` koydu; kontrol bunu arıza saydı (07:21 UTC'den beri 15 dk'da bir).
+- Düzeltme (`operations/infrastructure/health.ts`): `ignoredContacts` ve son mesajı okunamayan ek olan sohbetler sayılmaz. `unanswered`ın tamamı ayıklanMADI — eksik API anahtarı da o işareti koyar, o gerçek arızadır.
+
 ### 24 Kasım — "Müşteri değil": iş/işbirliği sohbetleri hattan çıkar ([[OR-136]]) — CANLI (owner: "yayın şimdi")
 - Düğme dock'ta ve Sohbetler'de; `settings/ai.ignoredContacts`a yazar (OR-135 listesi — webhooklar zaten okuyor, functions deploy GEREKMEZ).
 - Panel: `apps/web/src/server/conversation-exclusions.ts`; inbox/eski/detay `notCustomer` taşır; pano iki listesi atlar.
