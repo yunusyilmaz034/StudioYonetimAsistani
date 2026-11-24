@@ -9,6 +9,7 @@ import {
   listInboxAction,
   markConversationSeenAction,
   replyConversationAction,
+  setConversationNotCustomerAction,
   setConversationStatusAction,
   type ConvDetail,
   type Inbox,
@@ -68,6 +69,7 @@ export function WhatsAppDock() {
   // Reklam dönemi ayraçları (owner, 2026-09-15) — bkz. `listInboxAction`.
   const [period, setPeriod] = useState<Inbox['period']>(null)
   const eski = useOlderConversations(period)
+  const [gizlenen, setGizlenen] = useState<ReadonlySet<string>>(new Set())
   const [selected, setSelected] = useState<string | null>(null)
   const [detail, setDetail] = useState<ConvDetail | null>(null)
   const [text, setText] = useState('')
@@ -87,13 +89,15 @@ export function WhatsAppDock() {
   const attentionOn = (l: Line) => convs.filter((c) => c.needsAttention && lineOf(c) === l).length
   const line: Line = open ?? 'whatsapp'
   const theme = LINE[line]
-  const lineConvs = convs.filter((c) => lineOf(c) === line)
-  const lineOlder = eski.older ? eski.older.filter((c) => lineOf(c) === line) : null
+  const lineConvs = convs.filter((c) => lineOf(c) === line && !gizlenen.has(c.key))
+  const lineOlder = eski.older ? eski.older.filter((c) => lineOf(c) === line && !c.notCustomer && !gizlenen.has(c.key)) : null
 
   const poll = useCallback(async () => {
     try {
       const inbox = await listInboxAction()
-      const list = inbox.items
+      // "Müşteri değil" işaretliler (iş, işbirliği, reklam) hatta hiç yok — listede de, uyarıda da
+      // (owner, 2026-11-24). Sohbetler ekranındaki kendi filtresinden geri alınır.
+      const list = inbox.items.filter((c) => !c.notCustomer)
       setConvs(list)
       setPeriod(inbox.period)
       // First load baselines what's already waiting (no toast storm for history); after that, a NEW
@@ -244,6 +248,23 @@ export function WhatsAppDock() {
     setBusy(false)
   }
 
+  // Müşteri değil → hattan çek. Bir sonraki yoklamayı beklemeden listeden düşer.
+  async function notCustomer() {
+    if (!selected) return
+    const key = selected
+    const res = await setConversationNotCustomerAction({ key, notCustomer: true }).catch(() => null)
+    if (!res?.ok) {
+      toast.error('İşaretlenemedi, tekrar deneyin.')
+      return
+    }
+    setGizlenen((g) => new Set(g).add(key))
+    setConvs((cs) => cs.filter((c) => c.key !== key))
+    setSelected(null)
+    toast.success('Müşteri değil olarak işaretlendi — hatta artık görünmeyecek.', {
+      description: 'Geri almak için: Sohbetler → “Müşteri değil”.',
+    })
+  }
+
   async function handOff(status: 'ai' | 'human') {
     if (!selected) return
     const res = await setConversationStatusAction({ key: selected, status }).catch(() => null)
@@ -345,11 +366,18 @@ export function WhatsAppDock() {
             <span className="text-muted-foreground">
               {!detail ? '…' : detail.status === 'human' ? '👤 Sen yönetiyorsun' : '🤖 AI yönetiyor'}
             </span>
-            {!detail ? null : detail.status === 'human' ? (
-              <button type="button" onClick={() => void handOff('ai')} className={`font-medium ${theme.text} hover:underline`}>AI’ya geri ver</button>
-            ) : (
-              <button type="button" onClick={() => void handOff('human')} className="font-medium text-amber-600 hover:underline">Devral</button>
-            )}
+            <span className="flex items-center gap-3">
+              {detail ? (
+                <button type="button" onClick={() => void notCustomer()} className="text-muted-foreground hover:text-foreground hover:underline" title="İş, işbirliği, reklam/pazarlama — hattan kaldırır">
+                  Müşteri değil
+                </button>
+              ) : null}
+              {!detail ? null : detail.status === 'human' ? (
+                <button type="button" onClick={() => void handOff('ai')} className={`font-medium ${theme.text} hover:underline`}>AI’ya geri ver</button>
+              ) : (
+                <button type="button" onClick={() => void handOff('human')} className="font-medium text-amber-600 hover:underline">Devral</button>
+              )}
+            </span>
           </div>
           <div ref={scrollRef} className="min-h-0 flex-1 space-y-2 overflow-y-auto bg-muted/20 p-3">
             {yukleniyor && !detail ? (

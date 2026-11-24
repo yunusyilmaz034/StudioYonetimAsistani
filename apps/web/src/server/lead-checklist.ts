@@ -1,5 +1,6 @@
 import { FirestoreCrmRepository, type TenantContext } from '@studio/core'
 
+import { loadNotCustomerKeys } from './conversation-exclusions'
 import { adminDb } from './firebase-admin'
 import type { AdvisorItem } from './advisor-query'
 
@@ -66,10 +67,13 @@ export async function hotLeadAdvisorItems(ctx: TenantContext): Promise<readonly 
   const snap = period
     ? await col.where('lastAt', '>=', period.startedAt as number).orderBy('lastAt', 'desc').limit(300).get()
     : await col.orderBy('lastAt', 'desc').limit(50).get()
+  // "Müşteri değil" işaretli sohbetler (iş, işbirliği, reklam) panoya düşmez (owner, 2026-11-24).
+  const notCustomer = await loadNotCustomerKeys(String(ctx.studioId))
   const now = Date.now()
   const rows: { item: AdvisorItem; sira: number }[] = []
 
   for (const d of snap.docs) {
+    if (notCustomer.has(d.id)) continue
     const c = d.data() as Record<string, unknown>
     const asama = ((c.stage as Asama | undefined) ?? ESKI[String(c.temp ?? '')] ?? null) as Asama | null
     const waiting = Boolean(c.needsAttention)

@@ -1,5 +1,6 @@
 import type { TenantContext } from '@studio/core'
 
+import { loadNotCustomerKeys } from './conversation-exclusions'
 import { adminDb } from './firebase-admin'
 import type { AdvisorItem } from './advisor-query'
 
@@ -100,11 +101,15 @@ const SAAT_MS = 3_600_000
 const ACIL_SAAT = 24
 
 export async function awaitingUsAdvisorItems(ctx: TenantContext): Promise<readonly AdvisorItem[]> {
-  const snap = await adminDb().collection(`studios/${ctx.studioId}/conversations`).orderBy('lastAt', 'desc').limit(50).get()
+  const [snap, notCustomer] = await Promise.all([
+    adminDb().collection(`studios/${ctx.studioId}/conversations`).orderBy('lastAt', 'desc').limit(50).get(),
+    loadNotCustomerKeys(String(ctx.studioId)),
+  ])
   const now = Date.now()
   const rows: { item: AdvisorItem; bekleyen: number }[] = []
 
   for (const d of snap.docs) {
+    if (notCustomer.has(d.id)) continue // "Müşteri değil" (owner, 2026-11-24)
     const c = d.data() as Record<string, unknown>
     const soz = bekleyenSoz(c as BekleyenSohbet, now)
     if (!soz) continue

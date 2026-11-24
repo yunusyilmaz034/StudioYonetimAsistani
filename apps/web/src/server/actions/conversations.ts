@@ -11,6 +11,7 @@ import {
 import { z } from 'zod'
 
 import { requireTenantContext } from '../auth'
+import { loadNotCustomerKeys, setNotCustomer } from '../conversation-exclusions'
 import { adminDb } from '../firebase-admin'
 
 // The reception/operator side of the WhatsApp AI receptionist. The conversations collection is
@@ -58,12 +59,15 @@ export interface ConvSummary {
   // Can a free-form reply still reach her? Instagram: 24 h after her last message. WhatsApp: the
   // panel never measured it and Meta refuses outside it — reported as a send failure, as before.
   readonly replyWindowOpen: boolean
+  // "Müşteri değil" (owner, 2026-11-24) — iş, işbirliği, reklam/pazarlama için yazanlar. Hatta
+  // (dock) hiç görünmez, panoya düşmez; Sohbetler ekranında yalnızca kendi filtresinde durur.
+  readonly notCustomer: boolean
 }
 export interface ConvDetail extends ConvSummary {
   readonly messages: readonly ConvMsg[]
 }
 
-function summarize(id: string, c: Record<string, unknown>, now = Date.now()): ConvSummary {
+function summarize(id: string, c: Record<string, unknown>, hidden: ReadonlySet<string> = new Set(), now = Date.now()): ConvSummary {
   const msgs = (c.messages as ConvMsg[] | undefined) ?? []
   const last = msgs[msgs.length - 1]
   const temp = c.temp === 'sıcak' || c.temp === 'ılık' || c.temp === 'soğuk' ? (c.temp as Temp) : null
@@ -85,14 +89,19 @@ function summarize(id: string, c: Record<string, unknown>, now = Date.now()): Co
     lastText: (last?.text ?? '').slice(0, 140),
     temp,
     reason: String(c.reason ?? ''),
+    notCustomer: hidden.has(id),
   }
 }
+
 
 // The whole list (newest first) — feeds the "Tüm Sohbetler" screen AND the floating dock's poll.
 export async function listConversationsAction(): Promise<readonly ConvSummary[]> {
   const ctx = await requireTenantContext(OPS)
-  const snap = await adminDb().collection(`studios/${ctx.studioId}/conversations`).orderBy('lastAt', 'desc').limit(100).get()
-  return snap.docs.map((d) => summarize(d.id, d.data()))
+  const [snap, hidden] = await Promise.all([
+    adminDb().collection(`studios/${ctx.studioId}/conversations`).orderBy('lastAt', 'desc').limit(100).get(),
+    loadNotCustomerKeys(String(ctx.studioId)),
+  ])
+  return snap.docs.map((d) => summarize(d.id, d.data(), hidden))
 }
 
 // ── REKLAM DÖNEMİ AYRACI (owner, 2026-09-15) ──────────────────────────────────────────────────
@@ -130,10 +139,10 @@ export async function listInboxAction(): Promise<Inbox> {
   const ctx = await requireTenantContext(OPS)
   const col = adminDb().collection(`studios/${ctx.studioId}/conversations`)
   const crm = new FirestoreCrmRepository(adminDb())
-  const period = await crm.getCurrentAdPeriod(ctx)
+  const [period, hidden] = await Promise.all([crm.getCurrentAdPeriod(ctx), loadNotCustomerKeys(String(ctx.studioId))])
   if (!period) {
     const snap = await col.orderBy('lastAt', 'desc').limit(100).get()
-    return { period: null, items: snap.docs.map((d) => ({ ...summarize(d.id, d.data()), group: 'known' as const })) }
+    return { period: null, items: snap.docs.map((d) => ({ ...summarize(d.id, d.data(), hidden), group: 'known' as const })) }
   }
   const start = period.startedAt as number
   // Tek alanlı aralık + aynı alanda sıralama: otomatik indeks yeter.
@@ -146,7 +155,7 @@ export async function listInboxAction(): Promise<Inbox> {
     const c = d.data()
     const ilk = firstContact(c)
     const yeni = yeniTelefon.has(String(c.phone || d.id)) || (ilk !== null && ilk >= start)
-    return { ...summarize(d.id, c), group: yeni ? ('new' as const) : ('known' as const) }
+    return { ...summarize(d.id, c, hidden), group: yeni ? ('new' as const) : ('known' as const) }
   })
   return { period: { label: period.label, startedAt: start }, items }
 }
@@ -155,13 +164,16 @@ export async function listInboxAction(): Promise<Inbox> {
 export async function listOlderConversationsAction(input: unknown): Promise<readonly InboxItem[]> {
   const p = z.object({ before: z.number().int().positive() }).parse(input)
   const ctx = await requireTenantContext(OPS)
-  const snap = await adminDb()
-    .collection(`studios/${ctx.studioId}/conversations`)
-    .where('lastAt', '<', p.before)
-    .orderBy('lastAt', 'desc')
-    .limit(OLDER_PAGE)
-    .get()
-  return snap.docs.map((d) => ({ ...summarize(d.id, d.data()), group: 'older' as const }))
+  const [snap, hidden] = await Promise.all([
+    adminDb()
+      .collection(`studios/${ctx.studioId}/conversations`)
+      .where('lastAt', '<', p.before)
+      .orderBy('lastAt', 'desc')
+      .limit(OLDER_PAGE)
+      .get(),
+    loadNotCustomerKeys(String(ctx.studioId)),
+  ])
+  return snap.docs.map((d) => ({ ...summarize(d.id, d.data(), hidden), group: 'older' as const }))
 }
 
 export async function getConversationAction(input: unknown): Promise<ConvDetail | null> {
@@ -170,7 +182,8 @@ export async function getConversationAction(input: unknown): Promise<ConvDetail 
   const snap = await adminDb().doc(`studios/${ctx.studioId}/conversations/${p.key}`).get()
   if (!snap.exists) return null
   const c = snap.data() as Record<string, unknown>
-  return { ...summarize(snap.id, c), messages: (c.messages as ConvMsg[] | undefined) ?? [] }
+  const hidden = await loadNotCustomerKeys(String(ctx.studioId))
+  return { ...summarize(snap.id, c, hidden), messages: (c.messages as ConvMsg[] | undefined) ?? [] }
 }
 
 // Reception sends a reply (free-form, valid inside the 24h window). A TYPED reply also TAKES OVER the
@@ -338,5 +351,13 @@ export async function setConversationNoteAction(input: unknown): Promise<{ ok: t
     /* ad olmadan da yazılır */
   }
   await ref.set({ text: p.text, byName, at: Date.now(), by: String(ctx.actor.id) }, { merge: true })
+  return { ok: true as const }
+}
+
+/** "Müşteri değil" işaretle ya da geri al. Saklanmış mesajlara dokunmaz. */
+export async function setConversationNotCustomerAction(input: unknown): Promise<{ ok: true }> {
+  const p = z.object({ key: convKey, notCustomer: z.boolean() }).parse(input)
+  const ctx = await requireTenantContext(OPS)
+  await setNotCustomer(String(ctx.studioId), p.key, p.notCustomer, String(ctx.actor.id))
   return { ok: true as const }
 }

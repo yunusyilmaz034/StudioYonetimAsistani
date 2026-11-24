@@ -10,6 +10,7 @@ import {
   getConversationAction,
   listInboxAction,
   replyConversationAction,
+  setConversationNotCustomerAction,
   setConversationStatusAction,
   type ConvDetail,
   type Inbox,
@@ -30,7 +31,7 @@ const POLL_MS = 5000
 const TEMP_DOT: Record<Temp, string> = { sıcak: 'bg-rose-500', ılık: 'bg-amber-500', soğuk: 'bg-slate-400' }
 const TEMP_LABEL: Record<Temp, string> = { sıcak: '🔴 Sıcak', ılık: '🟡 Ilık', soğuk: '⚪ Soğuk' }
 
-type Filter = 'all' | 'hot' | 'waiting' | 'human' | 'draft'
+type Filter = 'all' | 'hot' | 'waiting' | 'human' | 'draft' | 'notCustomer'
 type ChannelFilter = 'all' | 'whatsapp' | 'instagram'
 
 // Kanal rozeti: WhatsApp yeşil (`success`), Instagram mor (`info`) — renk tek başına ayırt etmesin diye
@@ -148,8 +149,10 @@ export function ConversationsScreen() {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight })
   }, [detail?.messages.length])
 
+  // "Müşteri değil" (owner, 2026-11-24): iş/işbirliği/reklam sohbetleri yalnızca kendi filtresinde.
   const filtre = (c: InboxItem) =>
     (channel === 'all' || c.channel === channel) &&
+    (filter === 'notCustomer') === c.notCustomer &&
     (filter === 'hot'
       ? c.temp === 'sıcak'
       : filter === 'waiting'
@@ -159,7 +162,7 @@ export function ConversationsScreen() {
           : filter === 'draft'
             ? c.draft !== null
             : true)
-  const draftCount = convs.filter((c) => c.draft !== null).length
+  const draftCount = convs.filter((c) => c.draft !== null && !c.notCustomer).length
   const sections = inboxSections(convs, eski.older, period)
   const shown = sections.flatMap((x) => x.rows).filter(filtre)
 
@@ -198,6 +201,19 @@ export function ConversationsScreen() {
     setBusy(false)
   }
 
+  async function markNotCustomer(notCustomer: boolean) {
+    if (!selected) return
+    const key = selected
+    const res = await setConversationNotCustomerAction({ key, notCustomer }).catch(() => null)
+    if (!res?.ok) {
+      toast.error('İşaretlenemedi, tekrar deneyin.')
+      return
+    }
+    setConvs((cs) => cs.map((c) => (c.key === key ? { ...c, notCustomer } : c)))
+    setDetail((d) => (d ? { ...d, notCustomer } : d))
+    toast.success(notCustomer ? 'Müşteri değil — hatta ve panoda artık görünmeyecek.' : 'Müşterilere geri alındı.')
+  }
+
   async function handOff(status: 'ai' | 'human') {
     if (!selected) return
     const res = await setConversationStatusAction({ key: selected, status }).catch(() => null)
@@ -227,7 +243,7 @@ export function ConversationsScreen() {
       </div>
 
       <div className="flex flex-wrap gap-1.5">
-        {([['all', 'Tümü'], ['draft', draftCount > 0 ? `Taslak bekleyen · ${draftCount}` : 'Taslak bekleyen'], ['waiting', 'Bekleyen'], ['hot', 'Sıcak'], ['human', 'İnsan yönetiyor']] as const).map(([k, label]) => (
+        {([['all', 'Tümü'], ['draft', draftCount > 0 ? `Taslak bekleyen · ${draftCount}` : 'Taslak bekleyen'], ['waiting', 'Bekleyen'], ['hot', 'Sıcak'], ['human', 'İnsan yönetiyor'], ['notCustomer', 'Müşteri değil']] as const).map(([k, label]) => (
           <button
             key={k}
             type="button"
@@ -309,11 +325,21 @@ export function ConversationsScreen() {
                     {detail.reason || (detail.status === 'human' ? 'Sen yönetiyorsun' : 'AI yönetiyor')}
                   </p>
                 </div>
-                {detail.status === 'human' ? (
-                  <button type="button" onClick={() => void handOff('ai')} className="shrink-0 rounded-lg border border-border px-2.5 py-1 text-xs font-medium text-emerald-700 hover:bg-muted/40">AI’ya geri ver</button>
-                ) : (
-                  <button type="button" onClick={() => void handOff('human')} className="shrink-0 rounded-lg border border-border px-2.5 py-1 text-xs font-medium text-amber-600 hover:bg-muted/40">Devral</button>
-                )}
+                <div className="flex shrink-0 flex-col items-end gap-1.5">
+                  {detail.status === 'human' ? (
+                    <button type="button" onClick={() => void handOff('ai')} className="shrink-0 rounded-lg border border-border px-2.5 py-1 text-xs font-medium text-emerald-700 hover:bg-muted/40">AI’ya geri ver</button>
+                  ) : (
+                    <button type="button" onClick={() => void handOff('human')} className="shrink-0 rounded-lg border border-border px-2.5 py-1 text-xs font-medium text-amber-600 hover:bg-muted/40">Devral</button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => void markNotCustomer(!detail.notCustomer)}
+                    title="İş, işbirliği, reklam/pazarlama — hattan ve panodan kaldırır"
+                    className="text-xs text-muted-foreground hover:text-foreground hover:underline"
+                  >
+                    {detail.notCustomer ? 'Müşterilere geri al' : 'Müşteri değil'}
+                  </button>
+                </div>
               </div>
               {/* ── KALICI NOT (owner, 2026-10-02) ──────────────────────────────────────────
                   Sohbetin üstünde, mesajların dışında: bu, konuşmanın bir parçası değil, stüdyonun

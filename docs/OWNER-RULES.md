@@ -2623,3 +2623,11 @@ lead sayılmaz, AI cevap vermez (`apps/functions/src/http/ignored-contacts.ts`, 
 `conversationsPrivate/` altına taşındı (`tools/migration/ozel-sohbetler-2026-11-12.ts`). Yeni bir kişi eklemek =
 listeye anahtarını eklemek; kod değişmez.
 
+**OR-136 · Müşteri olmayan sohbetler hatta görünmez — kararı insan verir.** (2026-11-24)
+
+Owner: *"instagram hattında müşteri dışındaki konuşmalar varsa hiç gösterme … iş için yazanlar, reklam pazarlama vs
+müşteri dışındakileri getirme"*. Sohbetin üstünde **"Müşteri değil"** düğmesi (dock + Sohbetler) anahtarı OR-135'in
+listesine (`settings/ai.ignoredContacts`) ekler: yeni mesaj saklanmaz, AI cevap/taslak yazmaz, aday açılmaz; saklanmış
+sohbet silinmez, hattan ve panodan (sıcak adaylar, cevap bekleyenler) çekilir, Sohbetler → "Müşteri değil" filtresinden
+**geri alınır**. Otomatik (AI) sınıflandırma YOK: yanlış gizlenen bir müşteri sessizce kaybolur.
+

@@ -133,6 +133,13 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
   canlıdan aynen — sürüm `505b46929779239b`. Satın Al düğmeleri zaten katalogdan canlı okuyor. ⚠️ `~/pilates-site` hâlâ ESKİ.
   "Fiyatlar Eylül ayına kadar geçerlidir" cümlesi KALDIRILDI (owner) — güncel site sürümü `8594c48e83a75486`.
 
+### 24 Kasım — "Müşteri değil": iş/işbirliği sohbetleri hattan çıkar ([[OR-136]]) — commit'li, deploy bekliyor
+- Düğme dock'ta ve Sohbetler'de; `settings/ai.ignoredContacts`a yazar (OR-135 listesi — webhooklar zaten okuyor, functions deploy GEREKMEZ).
+- Panel: `apps/web/src/server/conversation-exclusions.ts`; inbox/eski/detay `notCustomer` taşır; pano iki listesi atlar.
+- Uygulandı (`tools/migration/musteri-degil-2026-11-24.ts`): @pt.meric, @sunaydrna. Liste 4 → 6.
+- ⚠️ İkisinin de satış hunisinde `new` adayı var (telefon yazmışlardı): led_01M8459RXH39EP5FKSPWAM4AKP, led_01M864QZEV8KEAP6QMKN8AZW1E — owner kararı bekliyor.
+- Aday: @karavandakievimiz (Karavan Time, Vitrin müşterisi) — owner'a soruldu.
+
 ### 23 Kasım — Hocaların QR okutması (owner: "özellikle Buse hoca") — CANLI
 - Kayıt: Buse Hoca'nın `staff.crossed`'ı 11.11 11:08'den beri YOK; sunucuda red/hata satırı da yok → telefonda takılıyor
   (kamera/okuma/oturum). Reyhan Hoca sabah girişi geliyor, akşam çıkışı çoğu gün yok → mesai 0 dk.
