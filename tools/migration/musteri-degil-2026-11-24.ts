@@ -1,3 +1,4 @@
+import { FirestoreCrmRepository, decideLoseLead, newOperationId, systemClock, type TenantContext } from '@studio/core'
 import { initializeApp } from 'firebase-admin/app'
 import { FieldValue, getFirestore, Timestamp } from 'firebase-admin/firestore'
 
@@ -11,7 +12,11 @@ const RUN = 'musteri-degil-2026-11-24'
 const KEYS = [
   'ig_1140057942055592', // @pt.meric — iş için yazdı
   'ig_1903572474415507', // @sunaydrna — işbirliği için yazdı
+  'ig_1486952046697455', // @karavandakievimiz — Karavan Time, iş (owner: "evet onu da çıkar")
 ]
+// İkisi telefon yazdığı için hunide `new` adayı açılmıştı; owner onayıyla kapanır (lost · other · not).
+const LEADS = ['led_01M8459RXH39EP5FKSPWAM4AKP', 'led_01M864QZEV8KEAP6QMKN8AZW1E']
+const NOTE = 'Müşteri değil — iş/işbirliği için yazdı (owner, 2026-11-24)'
 
 async function main(): Promise<void> {
   const apply = process.argv.includes('--apply')
@@ -25,13 +30,29 @@ async function main(): Promise<void> {
     if (!s.exists) throw new Error(`${id}: sohbet yok — durdum`)
     console.log(`  ${id}: @${String(s.get('handle'))} ${before.includes(id) ? '(zaten listede)' : '→ eklenecek'}`)
   }
+  const ctx = { studioId: STUDIO, actor: { type: 'platform_admin', id: `migration:${RUN}` }, branchIds: ['mutlukent'], correlationId: RUN, source: 'migration', role: 'platform_admin' } as unknown as TenantContext
+  const crm = new FirestoreCrmRepository(db)
+  const closes = []
+  for (const id of LEADS) {
+    const lead = await crm.getLead(ctx, id)
+    if (!lead) throw new Error(`${id}: aday yok — durdum`)
+    if (lead.stage === 'lost') {
+      console.log(`  ${id}: zaten kapalı`)
+      continue
+    }
+    const d = decideLoseLead({ studioId: ctx.studioId, actor: ctx.actor, now: systemClock.now(), correlationId: newOperationId(), source: 'migration' } as Parameters<typeof decideLoseLead>[0], lead, 'other', NOTE)
+    if (!d.ok) throw new Error(`${id}: ${JSON.stringify(d.error)}`)
+    console.log(`  ${id}: ${lead.stage} → lost (other)`)
+    closes.push(d.value)
+  }
   if (!apply) return void console.log('\nkuru çalışma — hiçbir şey yazılmadı')
+  for (const c of closes) await crm.saveLead(ctx, c.next, c.events)
   await ai.set(
     { ignoredContacts: FieldValue.arrayUnion(...KEYS), updatedAt: Timestamp.now(), updatedBy: { type: 'migration', id: RUN } },
     { merge: true },
   )
   const after = ((await ai.get()).get('ignoredContacts') as string[] | undefined) ?? []
-  console.log(`✅ ignoredContacts: ${before.length} → ${after.length}`)
+  console.log(`✅ ignoredContacts: ${before.length} → ${after.length}; ${closes.length} aday kapandı`)
   process.exit(0)
 }
 
