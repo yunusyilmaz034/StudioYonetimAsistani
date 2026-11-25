@@ -242,6 +242,10 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
 - Google'a ek soru gönderildi (owner, aynı davaya yanıt): Claude-on-Vertex CDPA/TR SCC kapsamında mı, Anthropic alt işleyen
   mi; Firebase hizmetleri (Auth, Firestore, Storage, Functions, FCM) CDPA kapsamında mı; ödeme profili bireysel ise ne
   değişmeli. CEVAP GELMEDEN Vertex AI açılmaz. Ödeme profili (bireysel/şirket) owner kontrol edecek.
+- **25 Kasım: Google TR SCC talep formu GÖNDERİLDİ (owner, 22:13).** Veri aktaran: Retro Spor Hizmetleri Tic. Ltd. Şti.,
+  Data Controller; teslim: stüdyo adresi, alıcı Işıl Yılmaz. Bekleyen: Google'ın imzalı 3 nüshası kargoyla → Işıl imzalar →
+  5 iş günü içinde Kurul bildirimi → 1 nüsha + bildirim no ELIG Gürkaynak'a 5 iş günü içinde. ⚠️ Ödeme profilinin şirket adına
+  olduğu henüz doğrulanmadı (owner bakacak). Vertex AI ek sorusunun cevabı hâlâ yok.
 - 10 Kasım: 13:16 yanlış nakit tahsilat owner tarafından void edildi (doğrulandı). İmza yetkilisi: Işıl Yılmaz, Şirket Müdürü.
 - Sıradaki: sağlayıcılara "KVKK standart sözleşmesi imzalıyor musunuz" (Anthropic, Google, Resend, Expo — owner'ın
   yunusyilmaz034 Gmail'inden; Meta → Meta Verified temsilcisi). Evet diyenle imza → 5 iş günü içinde Kurul bildirimi
