@@ -133,6 +133,16 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
   canlıdan aynen — sürüm `505b46929779239b`. Satın Al düğmeleri zaten katalogdan canlı okuyor. ⚠️ `~/pilates-site` hâlâ ESKİ.
   "Fiyatlar Eylül ayına kadar geçerlidir" cümlesi KALDIRILDI (owner) — güncel site sürümü `8594c48e83a75486`.
 
+### 26 Kasım — Paraşüt: bağlantı 12.11'den beri kopuktu; yeniden bağlandı, İLK e-Arşiv kesildi (owner)
+- 12.11 20:05 UTC refresh 400/401 → `not connected`, 14 gün sessiz (yalnız log). Owner 26.11 ~11:08 "Yeniden bağlan"; 11:10 keep-alive temiz.
+- İlk e-Arşiv: pay_01M88SW77MNMWPG011KCJ6Y77D (4.500 ₺ havale, 26.11) → **IS02026000000001**, PDF kaydedildi (ilk deneme `not_connected`, ikinci tuttu).
+- ⚠️ 10.11 test ödemesi pay_01M700B2ZF2759PH64CMD8BPNR: işaret `issued: true, document: e_archive` ama e-Arşiv YOK (documentNo null);
+  Paraşüt'te 1106608612 satış faturası duruyor. Owner kararı bekliyor: e-Arşiv'e gönder ya da Paraşüt'te sil.
+- Öneri bekliyor: bağlantı kopunca owner'a e-posta + panelde uyarı.
+
+### 26 Kasım — Raporlar: "Bu ay" / "Geçen ay" (owner: "aylık diyince niye bulunduğumuz ayı almıyor") — commit'li
+- `lib/ranges.ts` takvim ayı (İstanbul) — Raporlar, Fatura Takibi, Hareketler aynı kelime dağarcığı; testli.
+
 ### 24 Kasım — Cari hesap: iptal edilen satış/ödeme varsayılan gizli (owner) — commit'li
 - `members/account-panel.tsx`: iptal satış + void ödeme listede gizli; altta "İptal edilenleri göster (N)". Toplamlar değişmedi (zaten yalnız geçerlileri sayıyordu).
 
