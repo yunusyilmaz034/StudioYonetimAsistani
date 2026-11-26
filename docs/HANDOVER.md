@@ -133,6 +133,10 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
   canlıdan aynen — sürüm `505b46929779239b`. Satın Al düğmeleri zaten katalogdan canlı okuyor. ⚠️ `~/pilates-site` hâlâ ESKİ.
   "Fiyatlar Eylül ayına kadar geçerlidir" cümlesi KALDIRILDI (owner) — güncel site sürümü `8594c48e83a75486`.
 
+### 26 Kasım — Ayşenur Yılmaz: 9.11 4.500 ₺ deftere yazılmış, sisteme girilmemiş (owner) — CANLI
+- `tools/migration/aysenur-yilmaz-9-kasim-2026-11-26.ts`: nakit (önceki ödemeleri de nakit; owner'a söylendi), 9.11 18:54 (turnike girişi), Merkez Kasa, satış sal_01M6RQG50FME2C3T1YQTG34BFX'e → settled, borç 0.
+- ⚠️ Shell PATH: owner `.zshrc`'yi fnm'e (Node 24) çevirdi; pnpm artık `~/.local/share/fnm/node-versions/v24.22.0/installation/bin`'de. Arka plan komutlarında PATH'e ekle.
+
 ### 26 Kasım — Paraşüt: bağlantı 12.11'den beri kopuktu; yeniden bağlandı, İLK e-Arşiv kesildi (owner)
 - 12.11 20:05 UTC refresh 400/401 → `not connected`, 14 gün sessiz (yalnız log). Owner 26.11 ~11:08 "Yeniden bağlan"; 11:10 keep-alive temiz.
 - İlk e-Arşiv: pay_01M88SW77MNMWPG011KCJ6Y77D (4.500 ₺ havale, 26.11) → **IS02026000000001**, PDF kaydedildi (ilk deneme `not_connected`, ikinci tuttu).
