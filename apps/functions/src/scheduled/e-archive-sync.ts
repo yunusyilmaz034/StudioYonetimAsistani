@@ -2,10 +2,11 @@ import { FirestoreInvoiceRepository, type StudioId } from '@studio/core'
 import * as logger from 'firebase-functions/logger'
 
 import { PARASUT_PROD } from '../parasut/api'
-import { credentialsFromEnv, ParasutClient, tokenDoc } from '../parasut/client'
+import { credentialsFromEnv, ParasutClient, ParasutNotConnected, tokenDoc } from '../parasut/client'
 import { E_ARCHIVE_ACTOR, followUp, processEArchive } from '../parasut/issue'
 import { systemTenantContext, listStudioIds } from '../shared/context'
 import { db } from '../shared/firebase'
+import { alertOwners } from './health'
 
 // FT-2 · every 5 minutes: finish what the trigger started. A request whose trigger run was cut short,
 // whose e-Arşiv job was still running, or whose Paraşüt call failed on the network lands here.
@@ -51,7 +52,24 @@ async function keepAlive(studioId: string, now: number): Promise<void> {
     idBase: policy.parasut.idBase ?? PARASUT_PROD.idBase,
   })
     .refresh()
-    .catch((e: unknown) => logger.warn('parasut keep-alive refresh failed', { studioId, error: (e as Error)?.message }))
+    .catch(async (e: unknown) => {
+      logger.warn('parasut keep-alive refresh failed', { studioId, error: (e as Error)?.message })
+      // BAĞLANTI KOPTU (owner, 2026-11-26: "koparsa uyarı gelsin eposta"). 12–26 Kasım arası bağlantı 14 gün
+      // ölüydü ve bunu yalnız bu log satırı biliyordu. Paraşüt'ün "yetki geçersiz" cevabı geçici değil: sahibi
+      // yeniden bağlanana kadar e-Arşiv kesilemez. Günde bir e-posta; ağ hatası (geçici) uyarı üretmez.
+      if (e instanceof ParasutNotConnected) {
+        await alertOwners(
+          studioId as StudioId,
+          {
+            key: 'parasut_disconnected',
+            title: 'Paraşüt bağlantısı koptu — e-Arşiv kesilemiyor',
+            detail: 'Panel → Ayarlar → Fatura → "Yeniden bağlan" ile Paraşüt\'e tekrar giriş yapın.',
+          },
+          DAY,
+          now,
+        )
+      }
+    })
 }
 
 /** Issued invoices whose PDF copy or PDF e-mail is still owed (see `followUp`). */

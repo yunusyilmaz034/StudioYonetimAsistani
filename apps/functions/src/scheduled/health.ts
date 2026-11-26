@@ -89,8 +89,27 @@ const ALERT_TR: Record<string, string> = {
 
 async function tellOwner(studioId: StudioId, findings: readonly HealthFinding[], now: number): Promise<void> {
   const critical = findings.filter((f) => f.severity === 'critical')
-  if (critical.length === 0) return
+  for (const f of critical) {
+    await alertOwners(
+      studioId,
+      { key: f.alert, title: ALERT_TR[f.alert] ?? f.alert, detail: f.detail ?? `${f.count} kayıt etkilendi.` },
+      6 * 60 * 60 * 1000, // one message per alert per 6h
+      now,
+    )
+  }
+}
 
+/**
+ * Tell every active owner — e-mail + in-app — at most once per `windowMs` for the same `key`. Shared by
+ * the health check and by other watchers (Paraşüt bağlantısı, 2026-11-26) so an alarm never has a second,
+ * quieter way to reach the owner.
+ */
+export async function alertOwners(
+  studioId: StudioId,
+  alert: { readonly key: string; readonly title: string; readonly detail: string },
+  windowMs: number,
+  now: number,
+): Promise<void> {
   const ctx: TenantContext = {
     studioId,
     branchIds: [],
@@ -107,36 +126,31 @@ async function tellOwner(studioId: StudioId, findings: readonly HealthFinding[],
   // anlaşılmayan bir uyarı, spam'e en çok benzeyen uyarıdır.
   const [settings, brand] = await Promise.all([studioNotificationSettings(studioId), studioBrand(studioId)])
   const deps = notificationDeps(settings, brand)
-  const window = Math.floor(now / (6 * 60 * 60 * 1000)) // one message per alert per 6h
+  const window = Math.floor(now / windowMs)
 
-  for (const f of critical) {
-    for (const owner of owners) {
-      // The owner's e-mail lives in Firebase Auth, not on the staff document — and an alert that only
-      // lands in the panel is an alert nobody sees at 04:00.
-      let email: string | null = null
-      try {
-        email = (await getAuth().getUser(owner.id as string)).email ?? null
-      } catch {
-        // No auth account (a seeded row): in-app still reaches her.
-      }
+  for (const owner of owners) {
+    // The owner's e-mail lives in Firebase Auth, not on the staff document — and an alert that only
+    // lands in the panel is an alert nobody sees at 04:00.
+    let email: string | null = null
+    try {
+      email = (await getAuth().getUser(owner.id as string)).email ?? null
+    } catch {
+      // No auth account (a seeded row): in-app still reaches her.
+    }
 
-      try {
-        await notify(deps, ctx, {
-          intentId: `health-${f.alert}-${window}-${owner.id}`,
-          eventId: null,
-          eventType: 'system.health_alert',
-          operationId: newCorrelationId(),
-          templateId: 'system_alert',
-          recipient: { kind: 'staff', id: owner.id as string, email, phone: null, displayName: owner.displayName },
-          params: {
-            alertTitle: ALERT_TR[f.alert] ?? f.alert,
-            alertDetail: f.detail ?? `${f.count} kayıt etkilendi.`,
-          },
-        })
-      } catch (e) {
-        // Never let the alarm's own failure take down the check that raised it.
-        logger.warn('health: owner notification failed', { alert: f.alert, error: (e as Error)?.message })
-      }
+    try {
+      await notify(deps, ctx, {
+        intentId: `health-${alert.key}-${window}-${owner.id}`,
+        eventId: null,
+        eventType: 'system.health_alert',
+        operationId: newCorrelationId(),
+        templateId: 'system_alert',
+        recipient: { kind: 'staff', id: owner.id as string, email, phone: null, displayName: owner.displayName },
+        params: { alertTitle: alert.title, alertDetail: alert.detail },
+      })
+    } catch (e) {
+      // Never let the alarm's own failure take down the check that raised it.
+      logger.warn('health: owner notification failed', { alert: alert.key, error: (e as Error)?.message })
     }
   }
 }

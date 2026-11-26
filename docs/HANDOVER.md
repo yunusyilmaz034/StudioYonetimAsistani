@@ -136,9 +136,10 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
 ### 26 Kasım — Paraşüt: bağlantı 12.11'den beri kopuktu; yeniden bağlandı, İLK e-Arşiv kesildi (owner)
 - 12.11 20:05 UTC refresh 400/401 → `not connected`, 14 gün sessiz (yalnız log). Owner 26.11 ~11:08 "Yeniden bağlan"; 11:10 keep-alive temiz.
 - İlk e-Arşiv: pay_01M88SW77MNMWPG011KCJ6Y77D (4.500 ₺ havale, 26.11) → **IS02026000000001**, PDF kaydedildi (ilk deneme `not_connected`, ikinci tuttu).
-- ⚠️ 10.11 test ödemesi pay_01M700B2ZF2759PH64CMD8BPNR: işaret `issued: true, document: e_archive` ama e-Arşiv YOK (documentNo null);
-  Paraşüt'te 1106608612 satış faturası duruyor. Owner kararı bekliyor: e-Arşiv'e gönder ya da Paraşüt'te sil.
-- Öneri bekliyor: bağlantı kopunca owner'a e-posta + panelde uyarı.
+- 10.11 test ödemesi pay_01M700B2ZF2759PH64CMD8BPNR: owner faturayı daha önce MİKRO GRUP'tan kesmiş → panel işareti doğru
+  (kesildi). Paraşüt'teki 1106608612 satış faturası FAZLA — owner Paraşüt'te silecek (yoksa Paraşüt gelirde iki kez sayar).
+- Bağlantı koparsa sahiplere günde bir e-posta (`e-archive-sync.ts` keepAlive → `alertOwners`, health.ts'ten ortak). Commit'li;
+  functions deploy gerekiyor: `firebase deploy --only functions:eArchiveSync,functions:healthCheck`.
 
 ### 26 Kasım — Raporlar: "Bu ay" / "Geçen ay" (owner: "aylık diyince niye bulunduğumuz ayı almıyor") — commit'li
 - `lib/ranges.ts` takvim ayı (İstanbul) — Raporlar, Fatura Takibi, Hareketler aynı kelime dağarcığı; testli.
