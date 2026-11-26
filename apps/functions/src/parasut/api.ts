@@ -181,3 +181,13 @@ export function readError(body: unknown): { message: string; existingSalesInvoic
 export function istanbulDate(ms: number): string {
   return new Date(ms + 3 * 3_600_000).toISOString().slice(0, 10)
 }
+
+/**
+ * The invoice's NAME in Paraşüt's own list (and its payment note) — "Fitness tahsilatı · 26.11.2026"
+ * (owner, 2026-11-26: "okunaklı ad yaz"). It used to be "Tahsilat pay_01M8…", our internal id. It is
+ * not printed on the e-Arşiv PDF; the request key (`external_reference_key`) still ties it to the payment.
+ */
+export function invoiceTitle(serviceLine: string, receivedAtMs: number): string {
+  const [y, m, d] = istanbulDate(receivedAtMs).split('-')
+  return `${serviceLine} tahsilatı · ${d}.${m}.${y}`
+}

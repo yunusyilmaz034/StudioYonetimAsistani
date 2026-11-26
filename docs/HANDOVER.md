@@ -139,7 +139,11 @@ verildi) · **Android üretim %20** (inceleme bekliyor), Play notu `android:note
 - 10.11 test ödemesi pay_01M700B2ZF2759PH64CMD8BPNR: owner faturayı daha önce MİKRO GRUP'tan kesmiş → panel işareti doğru
   (kesildi). Paraşüt'teki 1106608612 satış faturası FAZLA — owner Paraşüt'te silecek (yoksa Paraşüt gelirde iki kez sayar).
 - Bağlantı koparsa sahiplere günde bir e-posta (`e-archive-sync.ts` keepAlive → `alertOwners`, health.ts'ten ortak). Commit'li;
-  functions deploy gerekiyor: `firebase deploy --only functions:eArchiveSync,functions:healthCheck`.
+  functions deploy EDİLDİ (26.11 11:25, temiz).
+- Paraşüt fatura adı "Tahsilat pay_…" → "Fitness tahsilatı · 26.11.2026" (`invoiceTitle`, testli). Commit'li, GECE deploy:
+  `firebase deploy --only functions:onEventCreated,functions:eArchiveSync`.
+- Paraşüt'ün Mikro Grup portal aktarımı 144 faturanın hepsini "Hanzade Boran"a bağlamış (Paraşüt hatası; GİB asılları doğru) —
+  owner Paraşüt desteğine yazacak.
 
 ### 26 Kasım — Raporlar: "Bu ay" / "Geçen ay" (owner: "aylık diyince niye bulunduğumuz ayı almıyor") — commit'li
 - `lib/ranges.ts` takvim ayı (İstanbul) — Raporlar, Fatura Takibi, Hareketler aynı kelime dağarcığı; testli.
